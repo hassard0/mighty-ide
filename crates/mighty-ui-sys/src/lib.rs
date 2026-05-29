@@ -14,7 +14,9 @@ mod abi;
 mod completion;
 mod diagnostics;
 mod ffi;
+mod format;
 mod gpu;
+mod history;
 mod layout;
 mod nav;
 mod prompt;
@@ -115,6 +117,16 @@ pub struct MuiContext {
     /// Editor buffer bytes streamed in from Mighty for a hover/def request
     /// (same shape as `complete_buf`; the live unsaved source is the doc text).
     nav_buf: Vec<u8>,
+
+    // ---- undo / redo history (shim-owned, L21) ----
+    /// Undo + redo stacks of full buffer snapshots for the active tab. Mighty
+    /// streams its post-edit buffer in (reusing the byte-streaming path) and the
+    /// shim coalesces typing runs / decides whether to push. Re-seeded on load /
+    /// tab switch so history is per-active-buffer.
+    history: history::HistoryStore,
+    /// Restored cursor from the most recent `mui_undo` / `mui_redo`, read back by
+    /// Mighty via `mui_undo_cursor_line` / `_col` after pulling the bytes.
+    restored_cursor: (i32, i32),
 }
 
 // ---------------------------------------------------------------------------
@@ -223,6 +235,8 @@ pub(crate) fn build_context(
         hover: nav::HoverState::new(),
         def: nav::DefState::new(),
         nav_buf: Vec::new(),
+        history: history::HistoryStore::new(),
+        restored_cursor: (0, 0),
     });
     Box::into_raw(ctx)
 }
@@ -524,6 +538,8 @@ impl MuiContext {
             hover: nav::HoverState::new(),
             def: nav::DefState::new(),
             nav_buf: Vec::new(),
+            history: history::HistoryStore::new(),
+            restored_cursor: (0, 0),
         })
     }
 

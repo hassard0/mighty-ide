@@ -109,6 +109,14 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         mui_nav_probe(handle);
     }
 
+    // Launch-test hook for undo/redo + format: with MUI_HISTORY_PROBE set, run a
+    // scripted edit -> undo -> redo and a format over the active buffer so a
+    // headless run proves the wiring (Ctrl+Z/Y and the format chord can't be
+    // delivered non-interactively). See `mui_history_probe`.
+    if std::env::var_os("MUI_HISTORY_PROBE").is_some() {
+        mui_history_probe(handle);
+    }
+
     handle
 }
 
@@ -2259,5 +2267,252 @@ pub extern "C" fn mui_nav_probe(handle: i64) {
             println!("nav-probe: def line={line} col={col} path=\"{resolved}\"");
         }
         None => println!("nav-probe: def=<none>"),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Feature A — undo / redo (shim-owned history; logic in history.rs)
+// ---------------------------------------------------------------------------
+//
+// The undo/redo history lives shim-side to avoid Mighty managing nested undo
+// Vecs (L21). Recording scheme (see history.rs): Mighty streams its FULL
+// post-edit buffer after each edit-group via `mui_undo_record_begin` +
+// `_byte` + `_commit(cur_line, cur_col)`; the shim diffs against the current top
+// and either coalesces a single-char typing run into it or pushes a fresh
+// snapshot. `mui_undo_break` marks a typing-run boundary (cursor move, newline,
+// delete, save, format, find-jump, tab switch) so one Ctrl+Z undoes a contiguous
+// typing run rather than the whole file or one char at a time.
+//
+// On load / tab switch Mighty calls `mui_undo_seed_*` to install the freshly
+// loaded buffer as the per-buffer baseline (history is per active buffer).
+
+/// Begin seeding the baseline buffer (clears history + staging). Mighty streams
+/// the freshly loaded buffer, then commits with `mui_undo_seed_commit`.
+#[no_mangle]
+pub extern "C" fn mui_undo_seed_begin(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.history.record_begin();
+    }
+}
+
+/// Append one byte to the baseline-seed staging buffer.
+#[no_mangle]
+pub extern "C" fn mui_undo_seed_byte(handle: i64, byte: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.history.record_byte((byte & 0xff) as u8);
+    }
+}
+
+/// Install the staged buffer as the history baseline at cursor `(line, col)`
+/// (0-based), clearing all prior undo/redo. Called on load / tab switch.
+#[no_mangle]
+pub extern "C" fn mui_undo_seed_commit(handle: i64, cur_line: i32, cur_col: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        // `record_begin/byte` staged into the same buffer `seed` consumes via
+        // `record_commit`; reuse it by taking the staged bytes through a record
+        // path. To keep `seed`'s clear-then-baseline semantics, drain staging here.
+        ctx.history.seed_from_staging(cur_line, cur_col);
+    }
+}
+
+/// Mark a typing-run boundary: the next record starts a fresh undo step rather
+/// than coalescing. Mighty calls this on any non-insert action.
+#[no_mangle]
+pub extern "C" fn mui_undo_break(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.history.break_run();
+    }
+}
+
+/// Begin streaming a post-edit buffer for a history record (clears staging).
+#[no_mangle]
+pub extern "C" fn mui_undo_record_begin(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.history.record_begin();
+    }
+}
+
+/// Append one byte to the record staging buffer.
+#[no_mangle]
+pub extern "C" fn mui_undo_record_byte(handle: i64, byte: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.history.record_byte((byte & 0xff) as u8);
+    }
+}
+
+/// Commit the staged post-edit buffer as a history record at cursor `(line,
+/// col)` (0-based). Coalesces a typing run into the current step or pushes a new
+/// one. Returns `1` if a snapshot was recorded/coalesced, `0` if it was a no-op
+/// (no byte change).
+#[no_mangle]
+pub extern "C" fn mui_undo_record_commit(handle: i64, cur_line: i32, cur_col: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    i32::from(ctx.history.record_commit(cur_line, cur_col))
+}
+
+/// Undo one step. On success the restored buffer becomes the shim's load buffer
+/// (so Mighty pulls it via `mui_load_byte`) and the restored cursor is readable
+/// via `mui_undo_cursor_line` / `_col`. Returns the restored buffer's byte count,
+/// or `-1` if there is nothing to undo.
+#[no_mangle]
+pub extern "C" fn mui_undo(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    match ctx.history.undo() {
+        Some(snap) => {
+            let n = snap.bytes.len() as i32;
+            ctx.load_buf = snap.bytes;
+            ctx.restored_cursor = (snap.cursor_line, snap.cursor_col);
+            println!("undo: restored {n} bytes, cursor=({},{})", snap.cursor_line, snap.cursor_col);
+            n
+        }
+        None => {
+            println!("undo: nothing to undo");
+            -1
+        }
+    }
+}
+
+/// Redo one step (mirror of [`mui_undo`]). Returns the restored buffer's byte
+/// count, or `-1` if there is nothing to redo.
+#[no_mangle]
+pub extern "C" fn mui_redo(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    match ctx.history.redo() {
+        Some(snap) => {
+            let n = snap.bytes.len() as i32;
+            ctx.load_buf = snap.bytes;
+            ctx.restored_cursor = (snap.cursor_line, snap.cursor_col);
+            println!("redo: restored {n} bytes, cursor=({},{})", snap.cursor_line, snap.cursor_col);
+            n
+        }
+        None => {
+            println!("redo: nothing to redo");
+            -1
+        }
+    }
+}
+
+/// 0-based cursor line restored by the last `mui_undo` / `mui_redo`.
+#[no_mangle]
+pub extern "C" fn mui_undo_cursor_line(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.restored_cursor.0)
+}
+
+/// 0-based cursor column restored by the last `mui_undo` / `mui_redo`.
+#[no_mangle]
+pub extern "C" fn mui_undo_cursor_col(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.restored_cursor.1)
+}
+
+/// Undo steps currently available (states behind the current one).
+#[no_mangle]
+pub extern "C" fn mui_undo_depth(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.history.undo_depth() as i32)
+}
+
+/// Redo steps currently available.
+#[no_mangle]
+pub extern "C" fn mui_redo_depth(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.history.redo_depth() as i32)
+}
+
+// ---------------------------------------------------------------------------
+// Feature B — format document (`mty fmt`; logic in format.rs)
+// ---------------------------------------------------------------------------
+
+/// Format the currently-configured file in place via `mty fmt <path>`. The
+/// Mighty side saves the live buffer to disk FIRST (so the formatter sees the
+/// current text), then calls this, then reloads the formatted file via the
+/// existing load path. Returns `1` on success, `0` on failure / no path.
+///
+/// `mty fmt` formats in place (confirmed via `mty fmt --help`), so no extra
+/// flags are needed.
+#[no_mangle]
+pub extern "C" fn mui_format_current(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let Some(path) = ctx.file_path.clone() else {
+        eprintln!("format: no file path configured");
+        return 0;
+    };
+    let ok = crate::format::run_fmt(&path);
+    println!("format: {} -> {}", path.display(), if ok { "ok" } else { "failed" });
+    i32::from(ok)
+}
+
+/// Launch-test hook: with `MUI_HISTORY_PROBE` set, run a scripted edit -> undo
+/// -> redo and a format over the active tab's buffer so a headless run proves
+/// the undo/redo + format wiring (Ctrl+Z / Ctrl+Y / the format chord can't be
+/// delivered non-interactively). Logs buffer lengths at each step. No effect
+/// unless the env var is set.
+#[no_mangle]
+pub extern "C" fn mui_history_probe(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if std::env::var_os("MUI_HISTORY_PROBE").is_none() {
+        return;
+    }
+    // Build the active buffer bytes from the tab store.
+    let active = ctx.tabs.active();
+    let mut buf: Vec<u8> = Vec::new();
+    let n = ctx.tabs.load_len(active);
+    if n > 0 {
+        for i in 0..(n as usize) {
+            let b = ctx.tabs.load_byte(active, i);
+            if (0..=255).contains(&b) {
+                buf.push(b as u8);
+            }
+        }
+    }
+    let base_len = buf.len();
+
+    // Seed the baseline (mirrors the Mighty load path).
+    ctx.history.record_begin();
+    for b in &buf {
+        ctx.history.record_byte(*b);
+    }
+    ctx.history.seed_from_staging(0, 0);
+    println!("history-probe: seed len={base_len} undo_depth={}", ctx.history.undo_depth());
+
+    // Simulate typing two chars (a coalescing run) at EOF, recording after each.
+    let mut edited = buf.clone();
+    edited.push(b'/');
+    ctx.history.break_run(); // first char after seed starts a fresh step
+    ctx.history.record(edited.clone(), 0, edited.len() as i32);
+    edited.push(b'/');
+    ctx.history.record(edited.clone(), 0, edited.len() as i32);
+    println!(
+        "history-probe: after typing len={} undo_depth={}",
+        edited.len(),
+        ctx.history.undo_depth()
+    );
+
+    // Undo -> should return to the baseline length in one step (typing coalesced).
+    match ctx.history.undo() {
+        Some(s) => println!("history-probe: undo -> len={} (expect {base_len})", s.bytes.len()),
+        None => println!("history-probe: undo -> nothing"),
+    }
+    // Redo -> back to the edited length.
+    match ctx.history.redo() {
+        Some(s) => println!("history-probe: redo -> len={} (expect {})", s.bytes.len(), edited.len()),
+        None => println!("history-probe: redo -> nothing"),
+    }
+
+    // Format the on-disk active file (if any), logging the before/after lengths.
+    if let Some(path) = ctx.file_path.clone() {
+        let before = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        let ok = crate::format::run_fmt(&path);
+        let after = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        println!("history-probe: format ok={ok} on-disk {before} -> {after} bytes");
+    } else {
+        println!("history-probe: format skipped (no file_path)");
     }
 }
