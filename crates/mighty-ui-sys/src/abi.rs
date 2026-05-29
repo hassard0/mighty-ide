@@ -2428,23 +2428,42 @@ pub extern "C" fn mui_redo_depth(handle: i64) -> i32 {
 
 /// Format the currently-configured file in place via `mty fmt <path>`. The
 /// Mighty side saves the live buffer to disk FIRST (so the formatter sees the
-/// current text), then calls this, then reloads the formatted file via the
-/// existing load path. Returns `1` on success, `0` on failure / no path.
+/// current text), then calls this, then reloads the formatted file (only when
+/// this returns `1`).
+///
+/// Return codes are DISTINCT so the editor can pick the right status message
+/// without corrupting data:
+///   * `1` — formatted (a `.mty` file, `mty fmt` succeeded) → reload.
+///   * `0` — not applicable (the active file is NOT `.mty`) → no-op; the editor
+///     shows "format: only .mty supported". This is the L26 guard: `mty fmt`
+///     truncates non-`.mty` input to 1 byte, so we never spawn it.
+///   * `-1` — failed (a `.mty` file but `mty fmt` errored / exited non-zero).
 ///
 /// `mty fmt` formats in place (confirmed via `mty fmt --help`), so no extra
 /// flags are needed.
 #[no_mangle]
 pub extern "C" fn mui_format_current(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
-        return 0;
+        return -1;
     };
     let Some(path) = ctx.file_path.clone() else {
         eprintln!("format: no file path configured");
-        return 0;
+        return -1;
     };
-    let ok = crate::format::run_fmt(&path);
-    println!("format: {} -> {}", path.display(), if ok { "ok" } else { "failed" });
-    i32::from(ok)
+    match crate::format::run_fmt(&path) {
+        crate::format::FmtOutcome::Formatted => {
+            println!("format: {} -> ok", path.display());
+            1
+        }
+        crate::format::FmtOutcome::NotApplicable => {
+            println!("format: {} -> skipped (only .mty supported)", path.display());
+            0
+        }
+        crate::format::FmtOutcome::Failed => {
+            println!("format: {} -> failed", path.display());
+            -1
+        }
+    }
 }
 
 /// Launch-test hook: with `MUI_HISTORY_PROBE` set, run a scripted edit -> undo
@@ -2509,9 +2528,9 @@ pub extern "C" fn mui_history_probe(handle: i64) {
     // Format the on-disk active file (if any), logging the before/after lengths.
     if let Some(path) = ctx.file_path.clone() {
         let before = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
-        let ok = crate::format::run_fmt(&path);
+        let outcome = crate::format::run_fmt(&path);
         let after = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
-        println!("history-probe: format ok={ok} on-disk {before} -> {after} bytes");
+        println!("history-probe: format outcome={outcome:?} on-disk {before} -> {after} bytes");
     } else {
         println!("history-probe: format skipped (no file_path)");
     }
