@@ -112,6 +112,37 @@ extern c {
   fn mui_tree_toggle(handle: I64, i: I32) -> I32
   fn mui_tree_row_at_click(handle: I64) -> I32
   fn mui_tree_open_row(handle: I64, i: I32) -> I32
+  // ---- activity-rail panels (Explorer / Search / Source Control) ----
+  fn mui_panel_active(handle: I64) -> I32
+  fn mui_panel_set(handle: I64, panel: I32) -> I32
+  fn mui_rail_panel_at_click(handle: I64) -> I32
+  // Source Control panel (git)
+  fn mui_scm_refresh(handle: I64) -> I32
+  fn mui_scm_count(handle: I64) -> I32
+  fn mui_scm_row_staged(handle: I64, i: I32) -> I32
+  fn mui_scm_row_status(handle: I64, i: I32) -> I32
+  fn mui_scm_open_row(handle: I64, i: I32) -> I32
+  fn mui_scm_toggle_stage(handle: I64, i: I32) -> I32
+  fn mui_scm_row_at_click(handle: I64) -> I32
+  fn mui_scm_click_is_stage(handle: I64) -> I32
+  fn mui_scm_msg_push(handle: I64, codepoint: I32)
+  fn mui_scm_msg_backspace(handle: I64)
+  fn mui_scm_msg_len(handle: I64) -> I32
+  fn mui_scm_commit(handle: I64) -> I32
+  fn mui_scm_draw(handle: I64)
+  // Search panel (project-wide find/replace)
+  fn mui_search_push_char(handle: I64, codepoint: I32)
+  fn mui_search_backspace(handle: I64)
+  fn mui_search_toggle_focus(handle: I64) -> I32
+  fn mui_search_replace_focus(handle: I64) -> I32
+  fn mui_search_query_len(handle: I64) -> I32
+  fn mui_search_run(handle: I64) -> I32
+  fn mui_search_replace_all(handle: I64) -> I32
+  fn mui_search_file_count(handle: I64) -> I32
+  fn mui_search_match_count(handle: I64) -> I32
+  fn mui_search_open(handle: I64, i: I32) -> I32
+  fn mui_search_row_at_click(handle: I64) -> I32
+  fn mui_search_draw(handle: I64)
   // stdout evidence (computed counts; Mighty `log` is literal-only, L23)
   fn mui_log_workspace(handle: I64)
   // ---- integrated terminal ----
@@ -198,12 +229,33 @@ fn prompt_goto() -> I32 { 1 }
 fn prompt_find() -> I32 { 2 }
 fn prompt_open() -> I32 { 3 }
 
+// activity-rail panel ids (mirror PANEL_* in lib.rs)
+fn panel_explorer() -> I32 { 0 }
+fn panel_search() -> I32 { 1 }
+fn panel_scm() -> I32 { 2 }
+
 // Chord predicates spelled as flat boolean expressions (no juxtaposed parens,
 // L20) so native codegen accepts them.
 fn is_z_key(cp: I32) -> Bool { cp == 122 || cp == 90 }      // 'z' / 'Z'
 fn is_y_key(cp: I32) -> Bool { cp == 121 || cp == 89 }      // 'y' / 'Y'
 fn is_i_key(cp: I32) -> Bool { cp == 105 || cp == 73 }      // 'i' / 'I'
 fn is_p_key(cp: I32) -> Bool { cp == 112 || cp == 80 }      // 'p' / 'P'
+fn is_f_key(cp: I32) -> Bool { cp == 102 || cp == 70 }      // 'f' / 'F'
+fn is_g_key(cp: I32) -> Bool { cp == 103 || cp == 71 }      // 'g' / 'G'
+
+fn is_search_panel_chord(cp: I32, mods: I32) -> Bool {      // Ctrl+Shift+F
+  let ctrl = ctrl_held(mods)
+  let shift = shift_held(mods)
+  let f = is_f_key(cp)
+  ctrl && shift && f
+}
+
+fn is_scm_panel_chord(cp: I32, mods: I32) -> Bool {         // Ctrl+Shift+G
+  let ctrl = ctrl_held(mods)
+  let shift = shift_held(mods)
+  let g = is_g_key(cp)
+  ctrl && shift && g
+}
 
 fn is_palette_chord(cp: I32, mods: I32) -> Bool {
   let ctrl = ctrl_held(mods)
@@ -636,6 +688,45 @@ fn main() {
             completing = false
           }
         }
+      } else if mui_panel_active(h) == panel_search() {
+        // -------- Search panel has focus: type into the query/replace field ---
+        if tag == ev_char() {
+          let cp = mui_event_codepoint(h)
+          if cp >= 32 && cp < 127 { mui_search_push_char(h, cp) }
+        } else if tag == ev_key() {
+          let k = mui_event_key(h)
+          if k == key_backspace() {
+            mui_search_backspace(h)
+          } else if k == key_tab() {
+            let _f = mui_search_toggle_focus(h)
+          } else if k == key_enter() {
+            // Enter runs the search; if the replace field has focus, replace all.
+            let rf = mui_search_replace_focus(h)
+            if rf == 1 {
+              let _r = mui_search_replace_all(h)
+            } else {
+              let _c = mui_search_run(h)
+            }
+          } else if k == key_escape() {
+            let _p = mui_panel_set(h, panel_explorer())
+          }
+        }
+      } else if mui_panel_active(h) == panel_scm() {
+        // -------- Source Control panel has focus: commit-message input --------
+        if tag == ev_char() {
+          let cp = mui_event_codepoint(h)
+          if cp >= 32 && cp < 127 { mui_scm_msg_push(h, cp) }
+        } else if tag == ev_key() {
+          let k = mui_event_key(h)
+          if k == key_backspace() {
+            mui_scm_msg_backspace(h)
+          } else if k == key_enter() {
+            let ok = mui_scm_commit(h)
+            if ok == 1 { log("mighty-ide: committed") }
+          } else if k == key_escape() {
+            let _p = mui_panel_set(h, panel_explorer())
+          }
+        }
       } else if tag == ev_char() {
         let cp = mui_event_codepoint(h)
         let mods = mui_event_mods(h)
@@ -643,6 +734,11 @@ fn main() {
           mui_palette_open(h)
           palette_open = true
           typing = false
+        } else if is_search_panel_chord(cp, mods) {         // Ctrl+Shift+F : search panel
+          let _p = mui_panel_set(h, panel_search())
+        } else if is_scm_panel_chord(cp, mods) {            // Ctrl+Shift+G : source control
+          let _p = mui_panel_set(h, panel_scm())
+          let _s = mui_scm_refresh(h)
         } else if ctrl_held(mods) && cp == 32 {             // Ctrl+Space : autocomplete
           let cnt = mui_ed_complete_request(h)
           if cnt > 0 { completing = true } else { mui_complete_cancel(h) }
@@ -669,6 +765,7 @@ fn main() {
           if rc == 0 {
             mui_tab_set_dirty(h, active0, 0)
             let _r = mui_diag_refresh(h)
+            let _g = mui_scm_refresh(h)
           }
           typing = false
         } else if is_undo_chord(cp, mods) {                  // Ctrl+Z : undo
@@ -794,10 +891,49 @@ fn main() {
           first = first + 3
         }
       } else if tag == ev_mouse_down() {
-        // Route the click: tab bar (top), sidebar (left), or the text area.
+        // Route the click: rail icon, tab bar (top), the active sidebar panel,
+        // or the text area.
+        let rail_hit = mui_rail_panel_at_click(h)
         let tab_hit = mui_tab_index_at_click(h)
-        let tree_hit = mui_tree_row_at_click(h)
-        if tab_hit >= 0 {
+        let cur_panel = mui_panel_active(h)
+        if rail_hit >= 0 {
+          let _p = mui_panel_set(h, rail_hit)
+          if rail_hit == panel_scm() {
+            let _s = mui_scm_refresh(h)
+          } else if rail_hit == panel_search() {
+            let _q = mui_search_query_len(h)
+          }
+        } else if cur_panel == panel_scm() {
+          // Source Control panel: open the file (row body) or stage/unstage
+          // (the right-edge action button).
+          let scm_hit = mui_scm_row_at_click(h)
+          if scm_hit >= 0 {
+            let is_stage = mui_scm_click_is_stage(h)
+            if is_stage == 1 {
+              let _t = mui_scm_toggle_stage(h, scm_hit)
+            } else {
+              let newidx = mui_scm_open_row(h, scm_hit)
+              if newidx >= 0 {
+                let _b = mui_ed_tab_switch(h, newidx)
+                mui_ed_undo_reset(h)
+                find_nav = false
+                let _r = mui_diag_refresh(h)
+              }
+            }
+          }
+        } else if cur_panel == panel_search() {
+          // Search panel: open the file at the clicked match.
+          let s_hit = mui_search_row_at_click(h)
+          if s_hit >= 0 {
+            let newidx = mui_search_open(h, s_hit)
+            if newidx >= 0 {
+              let _b = mui_ed_tab_switch(h, newidx)
+              mui_ed_undo_reset(h)
+              find_nav = false
+              let _r = mui_diag_refresh(h)
+            }
+          }
+        } else if tab_hit >= 0 {
           let cur_active = mui_tab_active(h)
           if tab_hit != cur_active {
             let _b = mui_ed_tab_switch(h, tab_hit)
@@ -805,7 +941,8 @@ fn main() {
             find_nav = false
             let _r = mui_diag_refresh(h)
           }
-        } else if tree_hit >= 0 {
+        } else if mui_tree_row_at_click(h) >= 0 {
+          let tree_hit = mui_tree_row_at_click(h)
           let isdir = mui_tree_is_dir(h, tree_hit)
           if isdir == 1 {
             let _c = mui_tree_toggle(h, tree_hit)
@@ -863,7 +1000,16 @@ fn main() {
     draw_diagnostics(h, total_now, first, rows_i)
     mui_breadcrumb_draw(h)
     draw_status_bar(h)
-    mui_sidebar_draw(h)
+    // The sidebar shows the active panel: Explorer (file tree), Search, or
+    // Source Control. Each draw is a no-op unless its panel is active.
+    let cur_panel_draw = mui_panel_active(h)
+    if cur_panel_draw == panel_search() {
+      mui_search_draw(h)
+    } else if cur_panel_draw == panel_scm() {
+      mui_scm_draw(h)
+    } else {
+      mui_sidebar_draw(h)
+    }
     mui_rail_draw(h)
     mui_tab_bar_draw(h)
     if term_on == 1 { mui_term_draw(h) }

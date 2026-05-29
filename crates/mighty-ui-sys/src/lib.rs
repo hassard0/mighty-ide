@@ -22,8 +22,11 @@ mod icons;
 mod layout;
 mod nav;
 mod palette;
+mod panels;
 mod prompt;
+mod scm;
 mod screenshot;
+mod search;
 mod syntax;
 mod tabs;
 mod terminal;
@@ -185,7 +188,21 @@ pub struct MuiContext {
     /// headless capture shows it (it otherwise only draws while `completing` in
     /// the Mighty loop, which a non-interactive run can't enter). `None` normally.
     complete_autoopen: Option<(i32, i32)>,
+
+    // ---- activity-rail panels (Explorer / Search / Source Control) ----
+    /// The sidebar's active panel: 0 = Explorer, 1 = Search, 2 = Source Control.
+    /// Switched by clicking a rail icon (`mui_panel_set`).
+    active_panel: i32,
+    /// Source-control (git) panel state: repo root + parsed status + commit msg.
+    scm: scm::ScmState,
+    /// Project-wide find/replace panel state: query/replace buffers + results.
+    search: search::SearchState,
 }
+
+/// Panel ids (mirror the Mighty side + rail icon order).
+pub const PANEL_EXPLORER: i32 = 0;
+pub const PANEL_SEARCH: i32 = 1;
+pub const PANEL_SCM: i32 = 2;
 
 // ---------------------------------------------------------------------------
 // Vello display-list helpers (used by the chrome/editor draw functions to emit
@@ -494,6 +511,9 @@ pub(crate) fn build_context(
         dl: vello_ui::DisplayList::default(),
         vello_ui: None,
         complete_autoopen: None,
+        active_panel: PANEL_EXPLORER,
+        scm: scm::ScmState::new(),
+        search: search::SearchState::new(),
     });
     Box::into_raw(ctx)
 }
@@ -1036,6 +1056,9 @@ impl MuiContext {
             dl: vello_ui::DisplayList::default(),
             vello_ui: None,
             complete_autoopen: None,
+            active_panel: PANEL_EXPLORER,
+            scm: scm::ScmState::new(),
+            search: search::SearchState::new(),
         })
     }
 

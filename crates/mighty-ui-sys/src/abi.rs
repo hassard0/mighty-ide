@@ -201,6 +201,34 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         }
     }
 
+    // Screenshot/render hook for the activity-rail panels: with
+    // MUI_PANEL_AUTOOPEN set to "scm" or "search", switch the sidebar to that
+    // panel and seed its data (run git status / a search) so a headless
+    // screenshot captures the populated panel. No effect on normal launches.
+    if let Some(which) = std::env::var_os("MUI_PANEL_AUTOOPEN") {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let which = which.to_string_lossy().to_lowercase();
+            let dir = ctx.tree.root().to_path_buf();
+            if which.contains("scm") || which.contains("git") || which.contains("source") {
+                ctx.active_panel = crate::PANEL_SCM;
+                ctx.sidebar_visible = true;
+                let n = ctx.scm.refresh(&dir);
+                println!("mui_init_s: MUI_PANEL_AUTOOPEN -> SCM, {n} changes, branch={}", ctx.scm.status.branch);
+            } else if which.contains("search") {
+                ctx.active_panel = crate::PANEL_SEARCH;
+                ctx.sidebar_visible = true;
+                // Seed a query so the results list renders. Default "fn"; override
+                // via the env value, e.g. MUI_PANEL_AUTOOPEN="search:mui".
+                let seed = which.split(':').nth(1).filter(|s| !s.is_empty()).unwrap_or("fn");
+                for ch in seed.chars() {
+                    ctx.search.push_char(ch as u32);
+                }
+                let n = ctx.search.run(&dir);
+                println!("mui_init_s: MUI_PANEL_AUTOOPEN -> SEARCH \"{seed}\", {n} matches");
+            }
+        }
+    }
+
     handle
 }
 
@@ -1219,7 +1247,7 @@ pub extern "C" fn mui_find_highlight_row(
 /// Point the shim's file I/O (load / save / diagnostics) at the active tab's
 /// path and update the status-bar basename. Called internally after any tab
 /// open/switch/close so Ctrl+S and `mty check` follow the active file.
-fn sync_active_path(ctx: &mut MuiContext) {
+pub(crate) fn sync_active_path(ctx: &mut MuiContext) {
     let active = ctx.tabs.active();
     let path = ctx.tabs.path(active);
     ctx.file_name = path
@@ -1511,9 +1539,12 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
     let icon_top = 52.0; // 12px pad + logo region
     let gap = 4.0;
     let cx = (rw - cell) * 0.5;
+    // The active rail icon reflects the live sidebar panel: 0 Explorer,
+    // 1 Search, 2 SourceControl (Run/Agents stay decorative).
+    let active_panel = ctx.active_panel;
     for (i, path) in rail_icons.iter().enumerate() {
         let cy = icon_top + i as f32 * (cell + gap);
-        let active = i == 0;
+        let active = i as i32 == active_panel;
         let ix = (rw - icon_sz) * 0.5;
         let iy = cy + (cell - icon_sz) * 0.5;
         if active {
@@ -1672,7 +1703,7 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
 
 /// Pick a vector file icon + color for a basename. Active tabs / `.mty` use the
 /// accent; `.toml` warns, `.md` info, else generic dim.
-fn file_icon_for(base: &str, active: bool) -> (&'static str, MuiColor) {
+pub(crate) fn file_icon_for(base: &str, active: bool) -> (&'static str, MuiColor) {
     use crate::icons;
     if base.ends_with(".mty") {
         (icons::FILE_MTY, if active { theme::ACCENT_BRIGHT } else { theme::SYN_TYPE })

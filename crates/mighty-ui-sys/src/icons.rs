@@ -80,6 +80,20 @@ pub const LANG_M: &str = "M4 18V8l5 4 5-4v10";
 /// Bell / notifications.
 pub const BELL: &str = "M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7z M10 20a2 2 0 0 0 4 0";
 
+// ---- Source control + search panels ----
+/// Refresh (circular arrow) — re-run status / search.
+pub const REFRESH: &str = "M20 11a8 8 0 1 0-1 5 M20 6v5h-5";
+/// Commit check (checkmark) — commit affordance.
+pub const CHECK: &str = "M5 12.5 10 17.5 19.5 7";
+/// Stage plus (small +) — stage a row.
+pub const STAGE_PLUS: &str = "M12 6v12M6 12h12";
+/// Unstage minus (small -) — unstage a row.
+pub const UNSTAGE_MINUS: &str = "M6 12h12";
+/// Chevron-down (expanded file group in search results).
+pub const CHEVRON_DOWN: &str = "M6 9l6 6 6-6";
+/// Replace (swap arrows) — the replace field marker.
+pub const REPLACE: &str = "M4 7h11l-3-3M20 17H9l3 3";
+
 // ---- Command palette icons ----
 /// Test workspace (terminal-ish box with a prompt).
 pub const TEST_BOX: &str = "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z M8 9.5 10.5 12 8 14.5M13 14.5h3";
