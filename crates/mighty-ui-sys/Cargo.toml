@@ -1,0 +1,15 @@
+[package]
+name = "mighty-ui-sys"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+winit = "0.30"
+wgpu = "22"
+glyphon = "0.6"
+pollster = "0.3"
+raw-window-handle = "0.6"
