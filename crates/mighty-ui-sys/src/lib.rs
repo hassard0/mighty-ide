@@ -15,6 +15,7 @@ mod diagnostics;
 mod ffi;
 mod gpu;
 mod layout;
+mod prompt;
 mod text;
 mod window;
 
@@ -68,6 +69,16 @@ pub struct MuiContext {
     save_buf: Vec<u8>,
     /// Latest parsed diagnostics from `mty check` (refreshed on demand).
     diags: Vec<diagnostics::Diag>,
+
+    // ---- editor-feature state (status bar, prompt, find) ----
+    /// Basename of the edited file, drawn in the status bar.
+    file_name: String,
+    /// 1-based cursor (line, col) fed each frame for the status bar.
+    status_cursor: (i32, i32),
+    /// Bottom one-line prompt buffer (goto / find), shim-owned (L17).
+    prompt: prompt::PromptState,
+    /// Find-search engine over the buffer streamed in from Mighty.
+    find: prompt::FindState,
 }
 
 // ---------------------------------------------------------------------------
@@ -121,6 +132,12 @@ pub(crate) fn build_context(
 
     let text = Text::new(&gpu.device, &gpu.queue, gpu.format);
 
+    let file_name = file_path
+        .as_ref()
+        .and_then(|p| p.file_name())
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+
     let ctx = Box::new(MuiContext {
         gpu,
         text,
@@ -139,6 +156,10 @@ pub(crate) fn build_context(
         load_buf: Vec::new(),
         save_buf: Vec::new(),
         diags: Vec::new(),
+        file_name,
+        status_cursor: (1, 1),
+        prompt: prompt::PromptState::new(),
+        find: prompt::FindState::new(),
     });
     Box::into_raw(ctx)
 }
@@ -426,6 +447,10 @@ impl MuiContext {
             load_buf: Vec::new(),
             save_buf: Vec::new(),
             diags: Vec::new(),
+            file_name: String::new(),
+            status_cursor: (1, 1),
+            prompt: prompt::PromptState::new(),
+            find: prompt::FindState::new(),
         })
     }
 

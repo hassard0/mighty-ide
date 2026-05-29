@@ -52,6 +52,30 @@ extern c {
   fn mui_diag_gutter_mark(handle: I64, row: I32, r: F32, g: F32, b: F32, a: F32)
   fn mui_status_bar(handle: I64, error_count: I32)
   fn mui_status_draw_text(handle: I64, r: F32, g: F32, b: F32, a: F32)
+  // feature 1: enriched status bar (filename + Ln/Col + error count, drawn shim-side)
+  fn mui_status_set_cursor(handle: I64, line1: I32, col1: I32)
+  fn mui_status_render(handle: I64, error_count: I32)
+  // feature 2: reusable bottom prompt (shim owns the query buffer)
+  fn mui_prompt_open(handle: I64, kind: I32)
+  fn mui_prompt_push(handle: I64, codepoint: I32)
+  fn mui_prompt_backspace(handle: I64)
+  fn mui_prompt_cancel(handle: I64)
+  fn mui_prompt_active(handle: I64) -> I32
+  fn mui_prompt_len(handle: I64) -> I32
+  fn mui_prompt_char(handle: I64, i: I32) -> I32
+  fn mui_prompt_draw(handle: I64)
+  // feature 3: go-to-line
+  fn mui_prompt_goto_target(handle: I64) -> I32
+  // feature 4: find (stream buffer in, search shim-side, read matches back)
+  fn mui_find_reset(handle: I64)
+  fn mui_find_push_byte(handle: I64, byte: I32)
+  fn mui_find_run(handle: I64) -> I32
+  fn mui_find_count(handle: I64) -> I32
+  fn mui_find_match_line(handle: I64, i: I32) -> I32
+  fn mui_find_match_col(handle: I64, i: I32) -> I32
+  fn mui_find_match_offset(handle: I64, i: I32) -> I32
+  fn mui_find_needle_len(handle: I64) -> I32
+  fn mui_find_highlight_row(handle: I64, row: I32, col_start: I32, len: I32, total_lines: I32)
 }
 
 // ---- event tags / keys / mods (mirror mighty_ui.h) ----
@@ -66,6 +90,11 @@ fn key_up() -> I32 { 3 }
 fn key_down() -> I32 { 4 }
 fn key_backspace() -> I32 { 5 }
 fn key_enter() -> I32 { 6 }
+fn key_escape() -> I32 { 8 }
+
+// prompt kinds (mirror PromptKind in prompt.rs)
+fn prompt_goto() -> I32 { 1 }
+fn prompt_find() -> I32 { 2 }
 
 // True if the ctrl bit (value 2) is set in `mods`. No `%` in v0.36, so test
 // the bit via integer division parity: (mods / 2) is odd  <=>  bit 1 set.
@@ -356,20 +385,49 @@ fn draw_diagnostics(h: I64, total_lines_i: I32, first: USize, rows: USize) {
   }
 }
 
-// Bottom status bar: green when 0 errors, red with the error count otherwise.
-// The bar itself is a shim-drawn rect; the count is staged as digit codepoints
-// (reusing push_line_number) and drawn over the bar via mui_status_draw_text.
-fn draw_status_bar(h: I64) {
+// Bottom status bar (feature 1): the shim composes + draws
+// "<basename>   Ln L, Col C   N errors" (green band when clean, red otherwise).
+// Mighty just feeds the 1-based cursor line/col + the error count as scalars;
+// all string building lives shim-side (L17: Mighty can't build strings).
+fn draw_status_bar(h: I64, buf: Vec[I32], cur: USize) {
   let errs = count_errors(h)
-  mui_status_bar(h, errs)
-  if errs == 0 {
-    // "0" — a single green-bar zero label.
-    mui_text_push(h, 48)                                  // '0'
-    mui_status_draw_text(h, 0.85_f32, 0.95_f32, 0.85_f32, 1.0_f32)
-  } else {
-    // Render the error count as digits over the red bar.
-    push_line_number(h, i32_to_usize(errs))
-    mui_status_draw_text(h, 1.0_f32, 0.9_f32, 0.9_f32, 1.0_f32)
+  // 1-based line/col for display (line_of/col_of are 0-based).
+  let line1 = usize_to_i32(line_of(buf, cur)) + 1
+  let col1 = usize_to_i32(col_of(buf, cur)) + 1
+  mui_status_set_cursor(h, line1, col1)
+  mui_status_render(h, errs)
+}
+
+// Feature 4: stream the whole editor buffer into the shim's find engine, then
+// run the search (needle = the active prompt query). Returns the match count.
+// FLAT scan over buf (L21-safe: the loop condition reads the Vec each step).
+fn run_find(h: I64, buf: Vec[I32]) -> I32 {
+  mui_find_reset(h)
+  let mut i: USize = 0
+  while i < buf.len() {
+    mui_find_push_byte(h, byte_at(buf, i))
+    i = i + 1
+  }
+  mui_find_run(h)
+}
+
+// Feature 4: highlight every match that falls on a visible row. Matches live
+// shim-side; this is a FLAT `while m < count` loop with no Mighty Vec read in
+// the body (L21 only bites on Mighty-owned Vec params), like draw_diagnostics.
+fn draw_find_highlights(h: I64, total_lines_i: I32, first: USize, rows: USize) {
+  let first_i = usize_to_i32(first)
+  let last_i = usize_to_i32(first + rows)
+  let needle_len = mui_find_needle_len(h)
+  let count = mui_find_count(h)
+  let mut m: I32 = 0
+  while m < count {
+    let mline = mui_find_match_line(h, m)
+    if mline >= first_i && mline < last_i {
+      let row = mline - first_i
+      let mcol = mui_find_match_col(h, m)
+      mui_find_highlight_row(h, row, mcol, needle_len, total_lines_i)
+    }
+    m = m + 1
   }
 }
 
@@ -382,6 +440,17 @@ fn save_buffer(h: I64, buf: Vec[I32]) -> I32 {
     i = i + 1
   }
   mui_save_commit(h)
+}
+
+// Jump the cursor to find match `idx` (0-based). Returns the new cursor offset,
+// or the unchanged `cur` if the index is out of range. Uses the match's
+// (line, col) and the buffer's own offset_of (clamped).
+fn cursor_for_match(h: I64, buf: Vec[I32], idx: I32, cur: USize) -> USize {
+  let count = mui_find_count(h)
+  if idx < 0 || idx >= count { return cur }
+  let mline = mui_find_match_line(h, idx)
+  let mcol = mui_find_match_col(h, idx)
+  offset_of(buf, i32_to_usize(mline), i32_to_usize(mcol))
 }
 
 fn main() {
@@ -413,6 +482,14 @@ fn main() {
   let mut frame: I32 = 0
   let headless_limit: I32 = 240   // self-terminate so non-interactive runs exit
 
+  // ---- prompt / find mode state ----
+  // prompt_kind: 0 = none, 1 = goto, 2 = find (mirrors the shim's active prompt).
+  let mut prompt_kind: I32 = 0
+  // After a successful Find, `find_nav` is true and `find_idx` is the current
+  // match; Enter / 'n' advance, Escape / any edit clears. Matches live shim-side.
+  let mut find_nav = false
+  let mut find_idx: I32 = 0
+
   while running {
     let rows_i = mui_visible_rows(h)
     let rows = i32_to_usize(rows_i)
@@ -421,6 +498,44 @@ fn main() {
     while tag != 0 {
       if tag == ev_close() {
         running = false
+      } else if prompt_kind != 0 {
+        // -------- a prompt is open: route keystrokes to the prompt buffer ----
+        if tag == ev_char() {
+          let cp = mui_event_codepoint(h)
+          if cp >= 32 && cp < 127 { mui_prompt_push(h, cp) }
+        } else if tag == ev_key() {
+          let k = mui_event_key(h)
+          if k == key_backspace() {
+            mui_prompt_backspace(h)
+          } else if k == key_escape() {
+            mui_prompt_cancel(h)
+            prompt_kind = 0
+          } else if k == key_enter() {
+            if prompt_kind == prompt_goto() {
+              // feature 3: parse + jump (clamped), recenter.
+              let target1 = mui_prompt_goto_target(h)
+              if target1 >= 1 {
+                let target0 = i32_to_usize(target1) - 1
+                cur = offset_of(buf, target0, 0)
+              }
+              mui_prompt_cancel(h)
+              prompt_kind = 0
+            } else {
+              // feature 4: run the find, jump to the first match if any.
+              let cnt = run_find(h, buf)
+              if cnt > 0 {
+                find_nav = true
+                find_idx = 0
+                cur = cursor_for_match(h, buf, find_idx, cur)
+              } else {
+                find_nav = false
+              }
+              // Close the prompt but KEEP matches (highlight + 'n'/Enter nav).
+              mui_prompt_cancel(h)
+              prompt_kind = 0
+            }
+          }
+        }
       } else if tag == ev_char() {
         let cp = mui_event_codepoint(h)
         let mods = mui_event_mods(h)
@@ -429,13 +544,30 @@ fn main() {
           if rc == 0 { log("mighty-ide: saved") } else { log("mighty-ide: save FAILED") }
           // The on-disk file is current after save; re-check it.
           if rc == 0 { let _r = mui_diag_refresh(h) }
+        } else if ctrl_held(mods) && (cp == 103 || cp == 71) {   // Ctrl+G / Ctrl+g
+          mui_prompt_open(h, prompt_goto())
+          prompt_kind = prompt_goto()
+          find_nav = false
+        } else if ctrl_held(mods) && (cp == 102 || cp == 70) {   // Ctrl+F / Ctrl+f
+          mui_prompt_open(h, prompt_find())
+          prompt_kind = prompt_find()
+        } else if find_nav && (cp == 110 || cp == 78) {     // 'n' / 'N': next match
+          let cnt = mui_find_count(h)
+          if cnt > 0 {
+            find_idx = find_idx + 1
+            if find_idx >= cnt { find_idx = 0 }
+            cur = cursor_for_match(h, buf, find_idx, cur)
+          }
         } else if cp >= 32 && cp < 127 {                    // printable ASCII
+          find_nav = false
           buf = insert_at(buf, cur, cp)
           cur = cur + 1
         }
       } else if tag == ev_key() {
         let k = mui_event_key(h)
-        if k == key_left() {
+        if k == key_escape() {
+          find_nav = false                                  // clear find highlights
+        } else if k == key_left() {
           if cur > 0 { cur = cur - 1 }
         } else if k == key_right() {
           if cur < buf.len() { cur = cur + 1 }
@@ -445,12 +577,22 @@ fn main() {
           cur = move_vertical(buf, cur, true)
         } else if k == key_backspace() {
           if cur > 0 {
+            find_nav = false
             cur = cur - 1
             buf = delete_at(buf, cur)
           }
         } else if k == key_enter() {
-          buf = insert_at(buf, cur, 10)
-          cur = cur + 1
+          if find_nav {
+            let cnt = mui_find_count(h)
+            if cnt > 0 {
+              find_idx = find_idx + 1
+              if find_idx >= cnt { find_idx = 0 }
+              cur = cursor_for_match(h, buf, find_idx, cur)
+            }
+          } else {
+            buf = insert_at(buf, cur, 10)
+            cur = cur + 1
+          }
         }
       } else if tag == ev_scroll() {
         // Wheel up (dir +1) scrolls toward the top; wheel down scrolls down.
@@ -483,8 +625,10 @@ fn main() {
     let total_now_i = usize_to_i32(total_now)
     mui_begin_frame_s(h)
     draw_buffer(h, buf, cur, first, rows)
+    if find_nav { draw_find_highlights(h, total_now_i, first, rows) }
     draw_diagnostics(h, total_now_i, first, rows)
-    draw_status_bar(h)
+    draw_status_bar(h, buf, cur)
+    if prompt_kind != 0 { mui_prompt_draw(h) }
     mui_end_frame_s(h)
 
     frame = frame + 1
