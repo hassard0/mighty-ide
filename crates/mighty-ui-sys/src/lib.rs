@@ -60,6 +60,12 @@ pub struct MuiContext {
 
     // ---- per-frame state ----
     rects: Vec<RectInstance>,
+    /// Overlay-layer rects (palette/autocomplete scrim + cards), drawn in a
+    /// second rect pass on top of base text so cards occlude editor glyphs.
+    rects_overlay: Vec<RectInstance>,
+    /// When `true`, [`mui_fill_rect`] routes into [`Self::rects_overlay`] and
+    /// text into the overlay layer (see `text::Text::set_overlay`).
+    overlay: bool,
     clip: Option<(u32, u32, u32, u32)>,
     /// Surface frame held between begin/end in windowed mode.
     frame: Option<wgpu::SurfaceTexture>,
@@ -268,6 +274,8 @@ pub(crate) fn build_context(
         host,
         window,
         rects: Vec::new(),
+        rects_overlay: Vec::new(),
+        overlay: false,
         clip: None,
         frame: None,
         frame_view: None,
@@ -333,11 +341,16 @@ pub unsafe extern "C" fn mui_fill_rect(
     color: MuiColor,
 ) {
     let Some(ctx) = ctx.as_mut() else { return };
-    ctx.rects.push(RectInstance {
+    let inst = RectInstance {
         pos: [x, y],
         size: [w, h],
         color: [color.r, color.g, color.b, color.a],
-    });
+    };
+    if ctx.overlay {
+        ctx.rects_overlay.push(inst);
+    } else {
+        ctx.rects.push(inst);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -404,6 +417,8 @@ pub unsafe extern "C" fn mui_text_measure(
 pub unsafe extern "C" fn mui_begin_frame(ctx: *mut MuiContext) {
     let Some(ctx) = ctx.as_mut() else { return };
     ctx.rects.clear();
+    ctx.rects_overlay.clear();
+    ctx.overlay = false;
     ctx.clip = None;
     ctx.text.begin();
     ctx.in_frame = true;
@@ -475,16 +490,32 @@ fn render_and_present(ctx: &mut MuiContext) {
             label: Some("mui frame encoder"),
         });
 
-    // Rect pass (clears the target).
-    ctx.gpu
-        .render_rects(&mut encoder, view, &ctx.rects, true, ctx.clip);
+    // Background pass: clears to BG, then paints the atmospheric glow quad.
+    ctx.gpu.render_background(&mut encoder, view);
 
-    // Text pass (loads, draws on top). Errors are logged, not fatal.
+    // Base rect pass (loads on top of the glow — does NOT clear).
+    ctx.gpu
+        .render_rects(&mut encoder, view, &ctx.rects, false, ctx.clip);
+
+    // Base text pass (loads, draws on top). Errors are logged, not fatal.
     if let Err(e) = ctx
         .text
-        .render(&ctx.gpu.device, &ctx.gpu.queue, &mut encoder, view, w, h)
+        .render(&ctx.gpu.device, &ctx.gpu.queue, &mut encoder, view, w, h, false)
     {
-        eprintln!("mui_end_frame: {e}");
+        eprintln!("mui_end_frame (base text): {e}");
+    }
+
+    // Overlay rect pass: opaque scrim + cards drawn over the base text so it is
+    // occluded, then overlay text on top. Only runs when overlays were queued.
+    if !ctx.rects_overlay.is_empty() {
+        ctx.gpu
+            .render_rects(&mut encoder, view, &ctx.rects_overlay, false, None);
+    }
+    if let Err(e) = ctx
+        .text
+        .render(&ctx.gpu.device, &ctx.gpu.queue, &mut encoder, view, w, h, true)
+    {
+        eprintln!("mui_end_frame (overlay text): {e}");
     }
 
     ctx.gpu.queue.submit([encoder.finish()]);
@@ -634,6 +665,8 @@ impl MuiContext {
             host: None,
             window: None,
             rects: Vec::new(),
+            rects_overlay: Vec::new(),
+            overlay: false,
             clip: None,
             frame: None,
             frame_view: None,

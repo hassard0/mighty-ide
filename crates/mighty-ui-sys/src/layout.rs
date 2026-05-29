@@ -17,13 +17,17 @@ pub const GUTTER_GAP: f32 = crate::theme::SPACE;
 /// Base 8px spacing unit (re-exported from the theme for layout sites).
 pub const SPACE: f32 = crate::theme::SPACE;
 
-/// Height (px) of the top tab bar.
-pub const TAB_BAR_H: f32 = 30.0;
+/// Height (px) of the top tab bar (matches the mockup's 38px tabs row).
+pub const TAB_BAR_H: f32 = 38.0;
+/// Height (px) of the breadcrumb bar at the top of the editor body.
+pub const BREADCRUMB_H: f32 = 30.0;
+/// Width (px) of the far-left activity rail (icons column).
+pub const RAIL_W: f32 = 52.0;
 /// Width (px) of one tab in the tab bar (fixed-width tabs keep click→index math
-/// trivial: `idx = floor(x / TAB_W)`).
-pub const TAB_W: f32 = 132.0;
-/// Default width (px) of the file-tree sidebar when shown.
-pub const SIDEBAR_W: f32 = 230.0;
+/// trivial: `idx = floor((x - RAIL_W) / TAB_W)`).
+pub const TAB_W: f32 = 150.0;
+/// Width (px) of the file-tree sidebar content (right of the rail) when shown.
+pub const SIDEBAR_W: f32 = 196.0;
 /// Pixels of indentation per tree depth level.
 pub const TREE_INDENT: f32 = 14.0;
 
@@ -45,11 +49,13 @@ pub struct Region {
     pub left: f32,
 }
 
-/// Compute the editor body region given whether the sidebar is visible.
+/// Compute the editor body region given whether the sidebar is visible. The
+/// body sits right of the activity rail (+ sidebar) and below the tab bar +
+/// breadcrumb.
 pub fn region(sidebar_visible: bool) -> Region {
     Region {
-        top: TAB_BAR_H,
-        left: if sidebar_visible { SIDEBAR_W } else { 0.0 },
+        top: TAB_BAR_H + BREADCRUMB_H,
+        left: RAIL_W + if sidebar_visible { SIDEBAR_W } else { 0.0 },
     }
 }
 
@@ -189,12 +195,12 @@ pub fn term_cell_y(height: u32, row: usize) -> f32 {
     term_panel_top(height) + PAD * 0.5 + (row as f32) * LINE_H
 }
 
-/// Map the tab-bar pixel x to a tab index (`floor(x / TAB_W)`).
+/// Map the tab-bar pixel x to a tab index (`floor((x - RAIL_W) / TAB_W)`).
 pub fn tab_index_at(x: f32) -> u32 {
-    if x <= 0.0 {
+    if x <= RAIL_W {
         0
     } else {
-        (x / TAB_W).floor() as u32
+        ((x - RAIL_W) / TAB_W).floor() as u32
     }
 }
 
@@ -333,19 +339,19 @@ mod tests {
     #[test]
     fn region_shifts_rows_and_columns() {
         let r = region(true); // sidebar visible
-        assert_eq!(r.top, TAB_BAR_H);
-        assert_eq!(r.left, SIDEBAR_W);
+        assert_eq!(r.top, TAB_BAR_H + BREADCRUMB_H);
+        assert_eq!(r.left, RAIL_W + SIDEBAR_W);
 
-        // row_y_in is shifted down by the tab bar; text_x_in shifted right.
-        assert_eq!(row_y_in(r, 0), TAB_BAR_H + PAD);
-        assert_eq!(row_y_in(r, 2), TAB_BAR_H + PAD + 2.0 * LINE_H);
+        // row_y_in is shifted down by the tab bar + breadcrumb; text_x_in right.
+        assert_eq!(row_y_in(r, 0), TAB_BAR_H + BREADCRUMB_H + PAD);
+        assert_eq!(row_y_in(r, 2), TAB_BAR_H + BREADCRUMB_H + PAD + 2.0 * LINE_H);
         assert!(text_x_in(r, 100, 0) > text_x(100, 0));
-        assert_eq!(text_x_in(r, 100, 0), SIDEBAR_W + text_left(100));
+        assert_eq!(text_x_in(r, 100, 0), RAIL_W + SIDEBAR_W + text_left(100));
 
-        // Sidebar hidden: left offset is 0, top still shifted.
+        // Sidebar hidden: left offset is just the rail, top still shifted.
         let r2 = region(false);
-        assert_eq!(r2.left, 0.0);
-        assert_eq!(text_left_in(r2, 100), text_left(100));
+        assert_eq!(r2.left, RAIL_W);
+        assert_eq!(text_left_in(r2, 100), RAIL_W + text_left(100));
     }
 
     #[test]
@@ -367,9 +373,9 @@ mod tests {
     #[test]
     fn tab_index_mapping() {
         assert_eq!(tab_index_at(0.0), 0);
-        assert_eq!(tab_index_at(TAB_W * 0.5), 0);
-        assert_eq!(tab_index_at(TAB_W + 1.0), 1);
-        assert_eq!(tab_index_at(TAB_W * 2.5), 2);
+        assert_eq!(tab_index_at(RAIL_W + TAB_W * 0.5), 0);
+        assert_eq!(tab_index_at(RAIL_W + TAB_W + 1.0), 1);
+        assert_eq!(tab_index_at(RAIL_W + TAB_W * 2.5), 2);
     }
 
     #[test]

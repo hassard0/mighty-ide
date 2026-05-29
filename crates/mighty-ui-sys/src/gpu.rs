@@ -54,14 +54,21 @@ pub struct Gpu {
     rect_pipeline: wgpu::RenderPipeline,
     screen_buf: wgpu::Buffer,
     screen_bind_group: wgpu::BindGroup,
+
+    /// Full-window atmospheric glow: a textured-quad pipeline sampling a once-
+    /// synthesized RGBA glow image (the layered aurora radial gradients from the
+    /// mockup). Drawn right after the clear, beneath everything else.
+    bg_pipeline: wgpu::RenderPipeline,
+    bg_bind_group: wgpu::BindGroup,
 }
 
-/// The clear color used at the start of every frame — the Ember Graphite editor
-/// background `#14161B`. Kept in sync with [`crate::theme::BG`].
+/// The clear color used at the start of every frame — the Aurora Noir window
+/// base `#0c0e13`. Kept in sync with [`crate::theme::BG`]. The atmospheric glow
+/// is then drawn on top as a full-window textured quad ([`Gpu::render_background`]).
 pub const CLEAR_COLOR: wgpu::Color = wgpu::Color {
-    r: 0x14 as f64 / 255.0,
-    g: 0x16 as f64 / 255.0,
-    b: 0x1B as f64 / 255.0,
+    r: 0x0c as f64 / 255.0,
+    g: 0x0e as f64 / 255.0,
+    b: 0x13 as f64 / 255.0,
     a: 1.0,
 };
 
@@ -129,6 +136,7 @@ impl Gpu {
 
         let (rect_pipeline, screen_buf, screen_bind_group) =
             build_rect_pipeline(&device, format, width, height);
+        let (bg_pipeline, bg_bind_group) = build_background_pipeline(&device, &queue, format);
 
         Ok(Self {
             device,
@@ -140,6 +148,8 @@ impl Gpu {
             rect_pipeline,
             screen_buf,
             screen_bind_group,
+            bg_pipeline,
+            bg_bind_group,
         })
     }
 
@@ -186,6 +196,7 @@ impl Gpu {
 
         let (rect_pipeline, screen_buf, screen_bind_group) =
             build_rect_pipeline(&device, format, width, height);
+        let (bg_pipeline, bg_bind_group) = build_background_pipeline(&device, &queue, format);
 
         Ok(Some(Self {
             device,
@@ -197,7 +208,32 @@ impl Gpu {
             rect_pipeline,
             screen_buf,
             screen_bind_group,
+            bg_pipeline,
+            bg_bind_group,
         }))
+    }
+
+    /// Draw the full-window atmospheric glow quad into `view` (after the clear,
+    /// before any rects). Loads (does not clear) so the `CLEAR_COLOR` base shows
+    /// through the texture's transparent regions.
+    pub fn render_background(&self, encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView) {
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("mui background pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(CLEAR_COLOR),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+        pass.set_pipeline(&self.bg_pipeline);
+        pass.set_bind_group(0, &self.bg_bind_group, &[]);
+        pass.draw(0..3, 0..1);
     }
 
     /// Reconfigure the surface / resize the offscreen target.
@@ -476,6 +512,235 @@ fn build_rect_pipeline(
 
     (pipeline, screen_buf, screen_bind_group)
 }
+
+// ---------------------------------------------------------------------------
+// Atmospheric background glow (textured full-window quad)
+// ---------------------------------------------------------------------------
+
+/// Resolution of the synthesized glow texture. It is stretched to the window by
+/// the fullscreen-triangle vertex shader, so a fixed mid resolution is plenty.
+const BG_W: u32 = 1280;
+const BG_H: u32 = 832;
+
+/// Synthesize the Aurora Noir atmosphere as an RGBA8 image: a near-black base
+/// with three layered radial glows (cool blue top-left, muted magenta top-right,
+/// teal bottom) plus a faint top sheen — the same composition as the mockup
+/// `body` background-image. Pure CPU math; generated once at startup.
+fn synthesize_glow(w: u32, h: u32) -> Vec<u8> {
+    /// One radial glow: center + radii (fractions of the window) + RGB + strength.
+    struct Glow {
+        cx: f32,
+        cy: f32,
+        rx: f32,
+        ry: f32,
+        r: f32,
+        g: f32,
+        b: f32,
+        strength: f32,
+    }
+    // Base near-black (#0c0e13).
+    let base = (0x0c as f32, 0x0e as f32, 0x13 as f32);
+    let glows = [
+        // cool blue, top-left  (brighter than the mockup hex so it reads through
+        // the semi-opaque editor field) — toward #243a63
+        Glow { cx: 0.10, cy: -0.06, rx: 0.78, ry: 0.70, r: 0x24 as f32, g: 0x3a as f32, b: 0x63 as f32, strength: 1.0 },
+        // muted magenta, top-right — toward #3a2742
+        Glow { cx: 1.02, cy: -0.02, rx: 0.66, ry: 0.60, r: 0x3a as f32, g: 0x27 as f32, b: 0x42 as f32, strength: 1.0 },
+        // teal, bottom-center — toward #163140
+        Glow { cx: 0.58, cy: 1.18, rx: 1.05, ry: 0.95, r: 0x16 as f32, g: 0x31 as f32, b: 0x40 as f32, strength: 1.0 },
+    ];
+    let wf = w as f32;
+    let hf = h as f32;
+    let mut out = vec![0u8; (w * h * 4) as usize];
+    for y in 0..h {
+        let fy = y as f32 / hf;
+        for x in 0..w {
+            let fx = x as f32 / wf;
+            let (mut r, mut g, mut b) = base;
+            for glow in glows.iter() {
+                let dx = (fx - glow.cx) / glow.rx;
+                let dy = (fy - glow.cy) / glow.ry;
+                let d2 = dx * dx + dy * dy;
+                // Smooth radial falloff: 1 at center -> 0 at the radius edge.
+                let t = (1.0 - d2).max(0.0);
+                let falloff = t * t * glow.strength;
+                r += (glow.r - base.0).max(0.0) * falloff;
+                g += (glow.g - base.1).max(0.0) * falloff;
+                b += (glow.b - base.2).max(0.0) * falloff;
+            }
+            // Faint top sheen (a thin lighter band near the very top).
+            let sheen = (1.0 - (fy * 9.0)).max(0.0) * 6.0;
+            r += sheen;
+            g += sheen;
+            b += sheen;
+            let i = ((y * w + x) * 4) as usize;
+            out[i] = r.clamp(0.0, 255.0) as u8;
+            out[i + 1] = g.clamp(0.0, 255.0) as u8;
+            out[i + 2] = b.clamp(0.0, 255.0) as u8;
+            out[i + 3] = 255;
+        }
+    }
+    out
+}
+
+/// Build the background pipeline: upload the synthesized glow as a sampled
+/// texture and a fullscreen-triangle pipeline that stretches it to the window.
+fn build_background_pipeline(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    format: wgpu::TextureFormat,
+) -> (wgpu::RenderPipeline, wgpu::BindGroup) {
+    let pixels = synthesize_glow(BG_W, BG_H);
+    let texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("mui bg glow"),
+        size: wgpu::Extent3d {
+            width: BG_W,
+            height: BG_H,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        // The glow is authored in linear-ish sRGB byte values; an sRGB view keeps
+        // it perceptually correct against the sRGB swapchain.
+        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+    queue.write_texture(
+        wgpu::ImageCopyTexture {
+            texture: &texture,
+            mip_level: 0,
+            origin: wgpu::Origin3d::ZERO,
+            aspect: wgpu::TextureAspect::All,
+        },
+        &pixels,
+        wgpu::ImageDataLayout {
+            offset: 0,
+            bytes_per_row: Some(BG_W * 4),
+            rows_per_image: Some(BG_H),
+        },
+        wgpu::Extent3d {
+            width: BG_W,
+            height: BG_H,
+            depth_or_array_layers: 1,
+        },
+    );
+    let view = texture.create_view(&Default::default());
+    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        label: Some("mui bg sampler"),
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        ..Default::default()
+    });
+
+    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("mui bg shader"),
+        source: wgpu::ShaderSource::Wgsl(BG_WGSL.into()),
+    });
+    let bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some("mui bg bgl"),
+        entries: &[
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            },
+        ],
+    });
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("mui bg bg"),
+        layout: &bgl,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(&sampler),
+            },
+        ],
+    });
+    let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("mui bg pl"),
+        bind_group_layouts: &[&bgl],
+        push_constant_ranges: &[],
+    });
+    let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("mui bg pipeline"),
+        layout: Some(&layout),
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: "vs_main",
+            buffers: &[],
+            compilation_options: Default::default(),
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: "fs_main",
+            targets: &[Some(wgpu::ColorTargetState {
+                format,
+                blend: Some(wgpu::BlendState::REPLACE),
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+            compilation_options: Default::default(),
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            ..Default::default()
+        },
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState::default(),
+        multiview: None,
+        cache: None,
+    });
+    (pipeline, bind_group)
+}
+
+const BG_WGSL: &str = r#"
+struct VsOut {
+    @builtin(position) clip: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+};
+
+@vertex
+fn vs_main(@builtin(vertex_index) vid: u32) -> VsOut {
+    // Fullscreen triangle covering the viewport.
+    var pos = array<vec2<f32>, 3>(
+        vec2<f32>(-1.0, -1.0),
+        vec2<f32>( 3.0, -1.0),
+        vec2<f32>(-1.0,  3.0),
+    );
+    let p = pos[vid];
+    var out: VsOut;
+    out.clip = vec4<f32>(p, 0.0, 1.0);
+    // Map clip-space to [0,1] UV with y flipped (top-left origin).
+    out.uv = vec2<f32>((p.x + 1.0) * 0.5, (1.0 - p.y) * 0.5);
+    return out;
+}
+
+@group(0) @binding(0) var glow_tex: texture_2d<f32>;
+@group(0) @binding(1) var glow_samp: sampler;
+
+@fragment
+fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
+    return textureSample(glow_tex, glow_samp, in.uv);
+}
+"#;
 
 const RECT_WGSL: &str = r#"
 struct Screen { size: vec2<f32>, _pad: vec2<f32> };

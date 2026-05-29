@@ -100,6 +100,8 @@ extern c {
   fn mui_tab_index_at_click(handle: I64) -> I32
   fn mui_tab_set_dirty(handle: I64, idx: I32, dirty: I32)
   fn mui_tab_bar_draw(handle: I64)
+  fn mui_rail_draw(handle: I64)
+  fn mui_breadcrumb_draw(handle: I64)
   // file-tree sidebar
   fn mui_sidebar_visible(handle: I64) -> I32
   fn mui_sidebar_toggle(handle: I64) -> I32
@@ -859,8 +861,10 @@ fn main() {
     mui_ed_draw(h, rows_i)
     if find_nav { draw_find_highlights(h, total_now, first, rows_i) }
     draw_diagnostics(h, total_now, first, rows_i)
+    mui_breadcrumb_draw(h)
     draw_status_bar(h)
     mui_sidebar_draw(h)
+    mui_rail_draw(h)
     mui_tab_bar_draw(h)
     if term_on == 1 { mui_term_draw(h) }
     if prompt_kind != 0 { mui_prompt_draw(h) }

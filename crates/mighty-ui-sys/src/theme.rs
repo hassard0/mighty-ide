@@ -1,17 +1,18 @@
-//! "Ember Graphite" — the centralized dark design system for the Mighty IDE.
+//! "Aurora Noir" — the centralized dark design system for the Mighty IDE.
 //!
 //! ALL colors and visual metrics live here so the restyle is shim-only: the
 //! Mighty side never names a color (it draws the editor body / chrome through
 //! shim entry points that read these constants), and every Rust draw site pulls
 //! its palette from this one module. To re-theme the IDE, edit this file.
 //!
-//! Palette — Ember Graphite (hex):
-//!   editor bg        #14161B   sidebar/panels   #0F1115
-//!   elevated         #1A1D24   current-line     #1C2029
-//!   border/divider   #262A33   text             #E6E1D6
-//!   dim text         #6B7280   gutter number    #4A5160
-//!   active gutter    #C9C4B8   accent (ember)   #F2A65A
-//!   accent-2 (teal)  #5BC8C0   selection        ember @ ~20% alpha
+//! Palette — Aurora Noir (hex), matching `design/mockup.html` `:root`:
+//!   bg            #0c0e13   bg-2 (rail/side)  #0a0c10
+//!   bg-edit       #0e1016   panel             #13161e   panel-2  #171b25
+//!   line          #1d222d   line-soft         #161a22   current-line #13161d
+//!   text          #ECE6DA   text-2 #9aa3b2    text-3 #5c6675   text-4 #3b424f
+//!   ember         #F4A259   aurora #56C7C0    violet #B99CF5
+//!   rose          #E5897B   sage  #A9C77E     sky    #7FB0E8
+//!   red           #F2545B   green #5BD6A0
 
 // The theme is a complete design palette: a few entries (e.g. diagnostic
 // colors passed to Mighty as float args, or BG mirrored by the GPU clear color)
@@ -32,65 +33,83 @@ pub const fn hex(rgb: u32, a: f32) -> MuiColor {
 // Surfaces
 // ---------------------------------------------------------------------------
 
-/// Editor body background (`#14161B`). Also the GPU clear color.
-pub const BG: MuiColor = hex(0x14161B, 1.0);
-/// Sidebar / panel background (`#0F1115`).
-pub const PANEL: MuiColor = hex(0x0F1115, 1.0);
-/// Elevated surfaces — tabs / status / overlays (`#1A1D24`).
-pub const ELEVATED: MuiColor = hex(0x1A1D24, 1.0);
-/// The current-line highlight band (`#1C2029`).
-pub const CURRENT_LINE: MuiColor = hex(0x1C2029, 1.0);
-/// Borders / dividers (`#262A33`).
-pub const BORDER: MuiColor = hex(0x262A33, 1.0);
+/// Window base background (`#0c0e13`). Also the GPU clear color.
+pub const BG: MuiColor = hex(0x0c0e13, 1.0);
+/// Deeper background — activity rail / sidebar (`#0a0c10`).
+pub const BG_2: MuiColor = hex(0x0a0c10, 1.0);
+/// Editor field background (`#0e1016`).
+pub const BG_EDIT: MuiColor = hex(0x0e1016, 1.0);
+/// Sidebar / panel background — kept as an alias for `BG_2` draw sites.
+pub const PANEL: MuiColor = hex(0x0a0c10, 1.0);
+/// Elevated surfaces — tabs / status / overlays (`#13161e`).
+pub const ELEVATED: MuiColor = hex(0x13161e, 1.0);
+/// Elevated-2 — top of overlay-card gradients (`#171b25`).
+pub const ELEVATED_2: MuiColor = hex(0x171b25, 1.0);
+/// The current-line highlight band (`#13161d`).
+pub const CURRENT_LINE: MuiColor = hex(0x13161d, 1.0);
+/// Borders / dividers — hairline (`#1d222d`).
+pub const BORDER: MuiColor = hex(0x1d222d, 1.0);
+/// Softer hairline divider (`#161a22`).
+pub const BORDER_SOFT: MuiColor = hex(0x161a22, 1.0);
 /// A faux drop-shadow color (darker than any surface), used behind overlays.
-pub const SHADOW: MuiColor = hex(0x05060A, 0.55);
+pub const SHADOW: MuiColor = hex(0x050608, 0.62);
+/// A 1px top-edge highlight on panels/cards (white at low alpha).
+pub const HIGHLIGHT: MuiColor = MuiColor::new(1.0, 1.0, 1.0, 0.055);
 
 // ---------------------------------------------------------------------------
 // Text
 // ---------------------------------------------------------------------------
 
-/// Default foreground text (`#E6E1D6`).
-pub const TEXT: MuiColor = hex(0xE6E1D6, 1.0);
-/// Dim / secondary text (`#6B7280`).
-pub const DIM: MuiColor = hex(0x6B7280, 1.0);
-/// Gutter line numbers (`#4A5160`).
-pub const GUTTER: MuiColor = hex(0x4A5160, 1.0);
-/// The active (cursor) line's gutter number (`#C9C4B8`).
-pub const GUTTER_ACTIVE: MuiColor = hex(0xC9C4B8, 1.0);
+/// Default foreground text — warm off-white (`#ECE6DA`).
+pub const TEXT: MuiColor = hex(0xECE6DA, 1.0);
+/// Secondary text (`#9aa3b2`).
+pub const DIM: MuiColor = hex(0x9aa3b2, 1.0);
+/// Tertiary text / gutter numbers (`#5c6675`).
+pub const TEXT_3: MuiColor = hex(0x5c6675, 1.0);
+/// Faint text — dividers / glyph spacers (`#3b424f`).
+pub const TEXT_4: MuiColor = hex(0x3b424f, 1.0);
+/// Gutter line numbers — tertiary (`#5c6675`), VISIBLE (was the broken void).
+pub const GUTTER: MuiColor = hex(0x5c6675, 1.0);
+/// The active (cursor) line's gutter number — ember.
+pub const GUTTER_ACTIVE: MuiColor = hex(0xF4A259, 1.0);
 
 // ---------------------------------------------------------------------------
 // Accents
 // ---------------------------------------------------------------------------
 
-/// Primary accent — ember (`#F2A65A`). Caret, active-tab underline, selection.
-pub const EMBER: MuiColor = hex(0xF2A65A, 1.0);
-/// Secondary accent — teal (`#5BC8C0`).
-pub const TEAL: MuiColor = hex(0x5BC8C0, 1.0);
-/// Selection fill — ember at ~20% alpha.
-pub const SELECTION: MuiColor = hex(0xF2A65A, 0.20);
+/// Primary accent — ember (`#F4A259`). Caret, active-tab underline, selection.
+pub const EMBER: MuiColor = hex(0xF4A259, 1.0);
+/// A soft ember wash used for selected-row tints / left glows (`#f4a259` @ ~13%).
+pub const EMBER_SOFT: MuiColor = hex(0xF4A259, 0.13);
+/// Secondary accent — aurora teal (`#56C7C0`).
+pub const TEAL: MuiColor = hex(0x56C7C0, 1.0);
+/// Selection fill — aurora teal at low alpha (matches the mockup `.sel`).
+pub const SELECTION: MuiColor = hex(0x56C7C0, 0.20);
 /// Palette selected-row tint — ember at low alpha.
-pub const EMBER_TINT: MuiColor = hex(0xF2A65A, 0.16);
+pub const EMBER_TINT: MuiColor = hex(0xF4A259, 0.13);
 /// Find-match highlight — ember at low alpha.
-pub const FIND_HIGHLIGHT: MuiColor = hex(0xF2A65A, 0.22);
+pub const FIND_HIGHLIGHT: MuiColor = hex(0xF4A259, 0.22);
 
 // ---------------------------------------------------------------------------
-// Syntax
+// Syntax — from the mockup `.k/.ty/.s/.n/.f/.c/.p` rules
 // ---------------------------------------------------------------------------
 
-/// `keyword` (`#C792EA`).
-pub const SYN_KEYWORD: MuiColor = hex(0xC792EA, 1.0);
-/// `type` (`#5BC8C0`).
-pub const SYN_TYPE: MuiColor = hex(0x5BC8C0, 1.0);
-/// `string` (`#B9D77E`).
-pub const SYN_STRING: MuiColor = hex(0xB9D77E, 1.0);
-/// `comment` (`#5A6172`).
-pub const SYN_COMMENT: MuiColor = hex(0x5A6172, 1.0);
-/// `number` (`#F2A65A`).
-pub const SYN_NUMBER: MuiColor = hex(0xF2A65A, 1.0);
-/// `function`/call (`#82AAFF`).
-pub const SYN_FUNCTION: MuiColor = hex(0x82AAFF, 1.0);
-/// `punctuation`/operator (`#9AA0AB`).
-pub const SYN_PUNCT: MuiColor = hex(0x9AA0AB, 1.0);
+/// `keyword` — violet (`#B99CF5`).
+pub const SYN_KEYWORD: MuiColor = hex(0xB99CF5, 1.0);
+/// `type` — aurora teal (`#56C7C0`).
+pub const SYN_TYPE: MuiColor = hex(0x56C7C0, 1.0);
+/// `string` — sage (`#A9C77E`).
+pub const SYN_STRING: MuiColor = hex(0xA9C77E, 1.0);
+/// `comment` — dim tertiary (`#5c6675`).
+pub const SYN_COMMENT: MuiColor = hex(0x5c6675, 1.0);
+/// `number` — ember (`#F4A259`).
+pub const SYN_NUMBER: MuiColor = hex(0xF4A259, 1.0);
+/// `function`/call — sky (`#7FB0E8`).
+pub const SYN_FUNCTION: MuiColor = hex(0x7FB0E8, 1.0);
+/// `punctuation`/operator — secondary (`#9aa3b2`).
+pub const SYN_PUNCT: MuiColor = hex(0x9aa3b2, 1.0);
+/// `attribute`/rose — used for decorators (`#E5897B`).
+pub const SYN_ATTR: MuiColor = hex(0xE5897B, 1.0);
 /// default identifier text.
 pub const SYN_DEFAULT: MuiColor = TEXT;
 
@@ -100,21 +119,23 @@ pub const SYN_DEFAULT: MuiColor = TEXT;
 
 /// Error (`#F2545B`).
 pub const ERROR: MuiColor = hex(0xF2545B, 1.0);
-/// Warning (`#E5B567`).
+/// Warning — sage/amber (`#E5B567`).
 pub const WARNING: MuiColor = hex(0xE5B567, 1.0);
+/// Diagnostics-OK green (`#5BD6A0`).
+pub const GREEN: MuiColor = hex(0x5BD6A0, 1.0);
 
 // ---------------------------------------------------------------------------
-// Metrics (px). The 8px spacing rhythm: PAD = 8, rows = 22 (≈1.5 line-height).
+// Metrics (px). Editor line-height 23 to match the mockup; chrome 12.5px.
 // ---------------------------------------------------------------------------
 
 /// Editor font size (px).
-pub const FONT_SIZE: f32 = 15.0;
-/// Editor line-height / row advance (px) ≈ 1.5 × font size.
-pub const LINE_HEIGHT: f32 = 22.0;
+pub const FONT_SIZE: f32 = 14.0;
+/// Editor line-height / row advance (px) — matches the mockup's 23px.
+pub const LINE_HEIGHT: f32 = 23.0;
 /// Chrome (tabs / sidebar / status) font size (px).
 pub const CHROME_FONT_SIZE: f32 = 12.5;
 /// Monospace cell advance for the editor font at [`FONT_SIZE`] (px).
-/// JetBrains Mono advance ≈ 0.6 em → 15 × 0.6 = 9.0.
-pub const CHAR_W: f32 = 9.0;
+/// JetBrains Mono advance ≈ 0.6 em → 14 × 0.6 = 8.4.
+pub const CHAR_W: f32 = 8.4;
 /// Base 8px spacing unit.
 pub const SPACE: f32 = 8.0;

@@ -19,11 +19,18 @@ use glyphon::{
 use crate::ffi::MuiColor;
 use crate::theme;
 
-/// The distinctive bundled monospace family (JetBrains Mono).
+/// The distinctive bundled monospace family (JetBrains Mono) — used for code.
 const FONT_FAMILY: &str = "JetBrains Mono";
 /// Regular + Bold faces, embedded so the binary is self-contained.
 const FONT_REGULAR: &[u8] = include_bytes!("../../../fonts/JetBrainsMono-Regular.ttf");
 const FONT_BOLD: &[u8] = include_bytes!("../../../fonts/JetBrainsMono-Bold.ttf");
+
+/// The bundled UI family (Bricolage Grotesque, SIL OFL) — used for chrome labels
+/// (sidebar header, status bar, tabs, breadcrumb) to match the mockup's UI font.
+const UI_FAMILY: &str = "Bricolage Grotesque";
+const UI_REGULAR: &[u8] = include_bytes!("../../../fonts/BricolageGrotesque-Regular.ttf");
+const UI_SEMIBOLD: &[u8] = include_bytes!("../../../fonts/BricolageGrotesque-SemiBold.ttf");
+const UI_BOLD: &[u8] = include_bytes!("../../../fonts/BricolageGrotesque-Bold.ttf");
 
 /// Default editor metrics (font size / line height in px), from the theme.
 const FONT_SIZE: f32 = theme::FONT_SIZE;
@@ -37,6 +44,13 @@ struct TextCmd {
     color: Color,
     size: f32,
     clip: Option<(i32, i32, i32, i32)>, // left, top, right, bottom
+    /// `true` for overlay-layer text (palette/autocomplete/hover) drawn in a
+    /// second pass on top of an opaque overlay rect, so base editor text can't
+    /// bleed through. `false` for base-layer text.
+    overlay: bool,
+    /// `true` to shape this command in the UI family (Bricolage Grotesque)
+    /// instead of the monospace code family.
+    ui: bool,
 }
 
 pub struct Text {
@@ -46,6 +60,10 @@ pub struct Text {
     atlas: TextAtlas,
     renderer: TextRenderer,
     cmds: Vec<TextCmd>,
+    /// When `true`, queued text is tagged as overlay-layer (see [`TextCmd`]).
+    overlay: bool,
+    /// When `true`, `queue_ui_sized` text shapes in the UI family.
+    has_ui_font: bool,
 }
 
 fn mui_to_color(c: MuiColor) -> Color {
@@ -65,9 +83,16 @@ impl Text {
         let mut db = glyphon::fontdb::Database::new();
         db.load_font_data(FONT_REGULAR.to_vec());
         db.load_font_data(FONT_BOLD.to_vec());
+        // UI family (Bricolage Grotesque) for chrome labels.
+        db.load_font_data(UI_REGULAR.to_vec());
+        db.load_font_data(UI_SEMIBOLD.to_vec());
+        db.load_font_data(UI_BOLD.to_vec());
         db.set_monospace_family(FONT_FAMILY);
-        db.set_sans_serif_family(FONT_FAMILY);
+        db.set_sans_serif_family(UI_FAMILY);
         db.set_serif_family(FONT_FAMILY);
+        let has_ui_font = db
+            .faces()
+            .any(|f| f.families.iter().any(|(name, _)| name == UI_FAMILY));
         let font_system = FontSystem::new_with_locale_and_db(locale, db);
         let swash_cache = SwashCache::new();
         let cache = Cache::new(device);
@@ -82,12 +107,20 @@ impl Text {
             atlas,
             renderer,
             cmds: Vec::new(),
+            overlay: false,
+            has_ui_font,
         }
     }
 
     /// Drop any queued text (call at the start of a frame).
     pub fn begin(&mut self) {
         self.cmds.clear();
+        self.overlay = false;
+    }
+
+    /// Tag subsequently-queued text as overlay-layer (or base when `false`).
+    pub fn set_overlay(&mut self, overlay: bool) {
+        self.overlay = overlay;
     }
 
     /// Queue a text string to be drawn at (`x`, `y`) (baseline-top, in pixels)
@@ -130,6 +163,35 @@ impl Text {
             color: mui_to_color(color),
             size,
             clip,
+            overlay: self.overlay,
+            ui: false,
+        });
+    }
+
+    /// Like [`Text::queue_sized`] but shaped in the UI family (Bricolage
+    /// Grotesque) for chrome labels. Falls back to the code family if the UI
+    /// font failed to load.
+    pub fn queue_ui_sized(
+        &mut self,
+        x: f32,
+        y: f32,
+        text: &str,
+        color: MuiColor,
+        size: f32,
+        clip: Option<(u32, u32, u32, u32)>,
+    ) {
+        let clip = clip.map(|(cx, cy, cw, ch)| {
+            (cx as i32, cy as i32, (cx + cw) as i32, (cy + ch) as i32)
+        });
+        self.cmds.push(TextCmd {
+            x,
+            y,
+            text: text.to_string(),
+            color: mui_to_color(color),
+            size,
+            clip,
+            overlay: self.overlay,
+            ui: self.has_ui_font,
         });
     }
 
@@ -158,7 +220,11 @@ impl Text {
         (width, height)
     }
 
-    /// Build per-command cosmic-text buffers, prepare, and render in one pass.
+    /// Build per-command cosmic-text buffers, prepare, and render the requested
+    /// layer (`overlay = false` for base text, `true` for overlay-layer text).
+    /// Called twice per frame so an opaque overlay rect can sit between the two
+    /// layers and occlude base text.
+    #[allow(clippy::too_many_arguments)]
     pub fn render(
         &mut self,
         device: &wgpu::Device,
@@ -167,8 +233,10 @@ impl Text {
         view: &wgpu::TextureView,
         screen_w: u32,
         screen_h: u32,
+        overlay: bool,
     ) -> Result<(), String> {
-        if self.cmds.is_empty() {
+        let layer: Vec<&TextCmd> = self.cmds.iter().filter(|c| c.overlay == overlay).collect();
+        if layer.is_empty() {
             return Ok(());
         }
 
@@ -180,27 +248,27 @@ impl Text {
             },
         );
 
-        // Build one shaped buffer per command.
-        let mut buffers: Vec<TextBuffer> = Vec::with_capacity(self.cmds.len());
-        for cmd in &self.cmds {
+        // Build one shaped buffer per command in this layer.
+        let mut buffers: Vec<TextBuffer> = Vec::with_capacity(layer.len());
+        for cmd in &layer {
             // Each command may have its own font size; line height tracks it at
             // the editor's ≈1.5 ratio so chrome text stays vertically centered.
             let line_h = (cmd.size * (LINE_HEIGHT / FONT_SIZE)).max(cmd.size + 1.0);
             let mut buffer =
                 TextBuffer::new(&mut self.font_system, Metrics::new(cmd.size, line_h));
             buffer.set_size(&mut self.font_system, Some(screen_w as f32), Some(screen_h as f32));
+            let family = if cmd.ui { UI_FAMILY } else { FONT_FAMILY };
             buffer.set_text(
                 &mut self.font_system,
                 &cmd.text,
-                Attrs::new().family(Family::Name(FONT_FAMILY)),
+                Attrs::new().family(Family::Name(family)),
                 Shaping::Advanced,
             );
             buffer.shape_until_scroll(&mut self.font_system, false);
             buffers.push(buffer);
         }
 
-        let areas: Vec<TextArea> = self
-            .cmds
+        let areas: Vec<TextArea> = layer
             .iter()
             .zip(buffers.iter())
             .map(|(cmd, buffer)| {

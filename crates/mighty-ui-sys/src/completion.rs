@@ -22,6 +22,7 @@
 
 use crate::ffi::MuiColor;
 use crate::layout;
+use crate::theme;
 
 /// One completion candidate: the label/insert text plus where it came from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -253,7 +254,8 @@ impl CompletionEngine {
         // Panel geometry: a box just below the cursor, widened to the longest
         // visible label.
         let row_h = layout::LINE_H;
-        let pad = 4.0;
+        let pad = 5.0;
+        let chrome = theme::CHROME_FONT_SIZE;
         let longest = self
             .candidates
             .iter()
@@ -262,7 +264,8 @@ impl CompletionEngine {
             .map(|c| c.text.chars().count())
             .max()
             .unwrap_or(0) as f32;
-        let box_w = (longest * layout::CHAR_W + 6.0 * layout::CHAR_W).max(80.0);
+        // Room for a type badge + label + a right-side hint.
+        let box_w = (longest * layout::CHAR_W + 14.0 * layout::CHAR_W).max(200.0);
         let box_h = shown as f32 * row_h + 2.0 * pad;
 
         // Position below the cursor; flip above if it would overflow the bottom.
@@ -274,31 +277,18 @@ impl CompletionEngine {
             box_x = (w - box_w).max(0.0);
         }
         if box_y + box_h > h {
-            // Flip above the cursor line.
             box_y = (cy - box_h).max(0.0);
         }
 
         let clip = ctx.clip;
         let handle_ptr = ctx as *mut crate::MuiContext;
 
-        // Background + border.
+        // Faux drop shadow + border + elevated card with a top highlight.
         unsafe {
-            crate::mui_fill_rect(
-                handle_ptr,
-                box_x - 1.0,
-                box_y - 1.0,
-                box_w + 2.0,
-                box_h + 2.0,
-                MuiColor::new(0.30, 0.34, 0.42, 1.0), // border
-            );
-            crate::mui_fill_rect(
-                handle_ptr,
-                box_x,
-                box_y,
-                box_w,
-                box_h,
-                MuiColor::new(0.13, 0.15, 0.19, 0.98), // panel
-            );
+            crate::mui_fill_rect(handle_ptr, box_x + 5.0, box_y + 7.0, box_w, box_h, theme::SHADOW);
+            crate::mui_fill_rect(handle_ptr, box_x - 1.0, box_y - 1.0, box_w + 2.0, box_h + 2.0, theme::BORDER);
+            crate::mui_fill_rect(handle_ptr, box_x, box_y, box_w, box_h, theme::ELEVATED_2);
+            crate::mui_fill_rect(handle_ptr, box_x, box_y, box_w, 1.0, theme::HIGHLIGHT);
         }
 
         for vis in 0..shown {
@@ -308,36 +298,24 @@ impl CompletionEngine {
             let selected = idx == self.sel;
             if selected {
                 unsafe {
-                    crate::mui_fill_rect(
-                        handle_ptr,
-                        box_x,
-                        row_y,
-                        box_w,
-                        row_h,
-                        MuiColor::new(0.22, 0.34, 0.52, 1.0), // selection
-                    );
+                    crate::mui_fill_rect(handle_ptr, box_x, row_y, box_w, row_h, theme::EMBER_SOFT);
                 }
             }
-            // Semantic accent bar on the left edge.
-            if cand.semantic {
-                unsafe {
-                    crate::mui_fill_rect(
-                        handle_ptr,
-                        box_x,
-                        row_y,
-                        2.0,
-                        row_h,
-                        MuiColor::new(0.45, 0.78, 0.55, 1.0), // green accent
-                    );
-                }
-            }
-            let fg = if selected {
-                MuiColor::new(0.98, 0.99, 1.0, 1.0)
+            // Type badge: a small colored rounded square with a letter. Semantic
+            // (LSP) candidates get a function badge; buffer words get a keyword one.
+            let (badge_bg, badge_fg, letter) = if cand.semantic {
+                (MuiColor::new(0.498, 0.690, 0.910, 0.18), theme::SYN_FUNCTION, "\u{0192}")
             } else {
-                MuiColor::new(0.80, 0.84, 0.90, 1.0)
+                (MuiColor::new(0.725, 0.612, 0.961, 0.18), theme::SYN_KEYWORD, "K")
             };
+            let bx = box_x + 8.0;
+            let by = row_y + (row_h - 16.0) * 0.5;
+            unsafe { crate::mui_fill_rect(handle_ptr, bx, by, 16.0, 16.0, badge_bg); }
+            ctx.text.queue_sized(bx + 4.0, by + 1.0, letter, badge_fg, 11.0, clip);
+
+            let fg = if selected { theme::TEXT } else { theme::DIM };
             ctx.text
-                .queue(box_x + 6.0, row_y + 1.0, &cand.text, fg, clip);
+                .queue_sized(box_x + 32.0, row_y + (row_h - chrome) * 0.5, &cand.text, fg, chrome, clip);
         }
     }
 }

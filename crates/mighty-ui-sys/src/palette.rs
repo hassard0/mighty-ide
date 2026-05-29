@@ -11,6 +11,7 @@
 //! each command's label, ranked so prefix matches sort ahead of looser fuzzy
 //! matches. An empty query lists every command in registry order.
 
+use crate::ffi::MuiColor;
 use crate::layout;
 use crate::theme;
 
@@ -264,57 +265,37 @@ impl PaletteEngine {
         let clip = ctx.clip;
         let handle_ptr = ctx as *mut crate::MuiContext;
 
+        let scale = chrome / theme::FONT_SIZE;
+        let advance = layout::CHAR_W * scale;
         unsafe {
-            // Faux drop shadow: a darker offset rect behind the card.
-            crate::mui_fill_rect(
-                handle_ptr,
-                box_x + 6.0,
-                box_y + 8.0,
-                box_w,
-                box_h,
-                theme::SHADOW,
-            );
-            // 1px border + elevated card background.
-            crate::mui_fill_rect(
-                handle_ptr,
-                box_x - 1.0,
-                box_y - 1.0,
-                box_w + 2.0,
-                box_h + 2.0,
-                theme::BORDER,
-            );
-            crate::mui_fill_rect(handle_ptr, box_x, box_y, box_w, box_h, theme::ELEVATED);
-            // Query row band + a divider beneath it.
-            crate::mui_fill_rect(handle_ptr, box_x, box_y + pad, box_w, row_h, theme::PANEL);
-            crate::mui_fill_rect(
-                handle_ptr,
-                box_x,
-                box_y + pad + row_h - 1.0,
-                box_w,
-                1.0,
-                theme::BORDER,
-            );
-            // An ember caret at the end of the query.
-            let q_len = self.query.chars().count() as f32;
-            let caret_x = box_x + 16.0 + q_len * layout::CHAR_W * (chrome / theme::FONT_SIZE);
-            crate::mui_fill_rect(
-                handle_ptr,
-                caret_x,
-                box_y + pad + 3.0,
-                2.0,
-                row_h - 6.0,
-                theme::EMBER,
-            );
+            // Full-window scrim: dim + recede the editor behind the overlay.
+            crate::mui_fill_rect(handle_ptr, 0.0, 0.0, w, h, MuiColor::new(0.02, 0.024, 0.031, 0.55));
+        }
+        unsafe {
+            // Faux drop shadow: a darker, larger offset rect behind the card.
+            crate::mui_fill_rect(handle_ptr, box_x + 8.0, box_y + 12.0, box_w, box_h, theme::SHADOW);
+            // 1px border + elevated card background + a top highlight.
+            crate::mui_fill_rect(handle_ptr, box_x - 1.0, box_y - 1.0, box_w + 2.0, box_h + 2.0, theme::BORDER);
+            crate::mui_fill_rect(handle_ptr, box_x, box_y, box_w, box_h, theme::ELEVATED_2);
+            crate::mui_fill_rect(handle_ptr, box_x, box_y, box_w, 1.0, theme::HIGHLIGHT);
+            // Query row + a divider beneath it.
+            crate::mui_fill_rect(handle_ptr, box_x, box_y + pad, box_w, row_h, theme::ELEVATED);
+            crate::mui_fill_rect(handle_ptr, box_x, box_y + pad + row_h - 1.0, box_w, 1.0, theme::BORDER);
         }
 
-        // Query line: the typed text (or a dim hint).
+        // Query row: a magnifier glyph + the typed text + an ember caret.
         let qy = box_y + pad + (row_h - chrome) * 0.5 - 1.0;
-        if self.query.is_empty() {
-            ctx.text
-                .queue_sized(box_x + 16.0, qy, "Type a command…", theme::DIM, chrome, clip);
+        ctx.text.queue_sized(box_x + 16.0, qy, "\u{2315}", theme::EMBER, chrome, clip);
+        let q_text_x = box_x + 16.0 + 2.0 * advance;
+        let (q_str, q_color): (&str, _) = if self.query.is_empty() {
+            ("Type a command\u{2026}", theme::TEXT_3)
         } else {
-            ctx.text
-                .queue_sized(box_x + 16.0, qy, &self.query, theme::TEXT, chrome, clip);
+            (self.query.as_str(), theme::TEXT)
+        };
+        ctx.text.queue_sized(q_text_x, qy, q_str, q_color, chrome, clip);
+        if !self.query.is_empty() {
+            let caret_x = q_text_x + self.query.chars().count() as f32 * advance + 1.0;
+            unsafe { crate::mui_fill_rect(handle_ptr, caret_x, box_y + pad + 4.0, 2.0, row_h - 8.0, theme::EMBER); }
         }
 
         // Command rows.
@@ -325,21 +306,36 @@ impl PaletteEngine {
             let selected = idx == self.sel;
             if selected {
                 unsafe {
-                    crate::mui_fill_rect(handle_ptr, box_x, row_y, box_w, row_h, theme::EMBER_TINT);
-                    // Ember left bar on the selected row.
-                    crate::mui_fill_rect(handle_ptr, box_x, row_y, 2.0, row_h, theme::EMBER);
+                    crate::mui_fill_rect(handle_ptr, box_x + 4.0, row_y, box_w - 8.0, row_h, theme::EMBER_TINT);
+                    crate::mui_fill_rect(handle_ptr, box_x, row_y, 3.0, row_h, theme::EMBER);
                 }
             }
             let fg = if selected { theme::TEXT } else { theme::DIM };
             let ry = row_y + (row_h - chrome) * 0.5 - 1.0;
-            // Label on the left.
-            ctx.text
-                .queue_sized(box_x + 16.0, ry, cmd.label, fg, chrome, clip);
-            // Keybinding right-aligned (dim).
-            let kb_w = cmd.keybinding.chars().count() as f32 * layout::CHAR_W * (chrome / theme::FONT_SIZE);
-            let kb_x = (box_x + box_w - kb_w - 16.0).max(box_x + 16.0);
-            ctx.text
-                .queue_sized(kb_x, ry, cmd.keybinding, theme::DIM, chrome, clip);
+            ctx.text.queue_sized(box_x + 18.0, ry, cmd.label, fg, chrome, clip);
+
+            // Keybinding rendered as small bordered "pills", right-aligned.
+            let parts: Vec<&str> = cmd.keybinding.split('+').collect();
+            // Measure total pill row width to right-align it.
+            let pill_pad = 6.0;
+            let gap = 4.0;
+            let widths: Vec<f32> = parts
+                .iter()
+                .map(|p| p.chars().count() as f32 * advance + 2.0 * pill_pad)
+                .collect();
+            let total_w: f32 = widths.iter().sum::<f32>() + gap * (parts.len().saturating_sub(1)) as f32;
+            let mut px = (box_x + box_w - 16.0 - total_w).max(box_x + 18.0);
+            let pill_h = chrome + 6.0;
+            let py = row_y + (row_h - pill_h) * 0.5;
+            for (k, part) in parts.iter().enumerate() {
+                let pw = widths[k];
+                unsafe {
+                    crate::mui_fill_rect(handle_ptr, px, py, pw, pill_h, theme::BORDER);
+                    crate::mui_fill_rect(handle_ptr, px + 1.0, py + 1.0, pw - 2.0, pill_h - 2.0, theme::ELEVATED);
+                }
+                ctx.text.queue_sized(px + pill_pad, py + 2.0, part, theme::TEXT_3, chrome - 1.5, clip);
+                px += pw + gap;
+            }
         }
     }
 }

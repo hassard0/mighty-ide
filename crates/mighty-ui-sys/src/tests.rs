@@ -344,24 +344,27 @@ fn click_routing_tab_bar_sidebar_and_text() {
 
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
-    // Click in the tab bar over tab 1.
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, layout::TAB_W + 5.0, 4.0, 0);
+    // Click in the tab bar over tab 1 (tabs start right of the activity rail).
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, layout::RAIL_W + layout::TAB_W + 5.0, 4.0, 0);
     assert_eq!(mui_tab_index_at_click(handle), 1);
     // Same x but below the tab bar -> not a tab click.
     ctx.last_event.y = layout::TAB_BAR_H + 50.0;
     assert_eq!(mui_tab_index_at_click(handle), -1);
 
-    // Click in the sidebar over row 0.
+    // Click in the sidebar over row 0 (sidebar content is right of the rail).
     ctx.last_event = MuiEvent::mouse(
         crate::ffi::MUI_EVENT_MOUSE_DOWN,
         0,
-        10.0,
+        layout::RAIL_W + 10.0,
         layout::TAB_BAR_H + 2.0,
         0,
     );
     assert_eq!(mui_tree_row_at_click(handle), 0);
     // Click right of the sidebar (in text area) -> not a tree click.
-    ctx.last_event.x = layout::SIDEBAR_W + 100.0;
+    ctx.last_event.x = layout::RAIL_W + layout::SIDEBAR_W + 100.0;
+    assert_eq!(mui_tree_row_at_click(handle), -1);
+    // Click in the activity rail (left of the sidebar) -> not a tree click.
+    ctx.last_event.x = 10.0;
     assert_eq!(mui_tree_row_at_click(handle), -1);
 
     let _ = std::fs::remove_dir_all(&root);

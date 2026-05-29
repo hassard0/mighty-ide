@@ -904,54 +904,97 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
         return;
     };
 
-    // Elevated full-width band (NOT a red bar) + a thin top divider.
+    // Full-width elevated band + a thin top divider.
     let w = ctx.gpu.width as f32;
     let h = ctx.gpu.height as f32;
-    let bar_h = layout::LINE_H;
+    let bar_h = 30.0_f32;
     let y = (h - bar_h).max(0.0);
-    let chrome = theme::CHROME_FONT_SIZE;
+    let chrome = theme::CHROME_FONT_SIZE - 1.0;
     let clip = ctx.clip;
     let handle_ptr = handle as usize as *mut MuiContext;
+    let scale = chrome / theme::FONT_SIZE;
+    let advance = layout::CHAR_W * scale;
+    let text_w = |s: &str| s.chars().count() as f32 * advance;
 
     unsafe {
         crate::mui_fill_rect(handle_ptr, 0.0, y, w, bar_h, theme::ELEVATED);
         crate::mui_fill_rect(handle_ptr, 0.0, y, w, 1.0, theme::BORDER);
     }
-
-    let (line1, col1) = ctx.status_cursor;
-    let name = if ctx.file_name.is_empty() {
-        "(scratch)".to_string()
-    } else {
-        ctx.file_name.clone()
-    };
     let ty = y + (bar_h - chrome) * 0.5 - 1.0;
 
-    // Left segment: filename (accent dot if dirty handled by tab bar).
-    let left_x = layout::PAD;
-    ctx.text.queue_sized(left_x, ty, &name, theme::TEXT, chrome, clip);
-
-    // Center segment: Ln L, Col C — with subtle dividers around it.
-    let center = format!("Ln {line1}, Col {col1}");
-    let center_w = center.chars().count() as f32 * layout::CHAR_W * (chrome / theme::FONT_SIZE);
-    let center_x = (w - center_w) * 0.5;
-    unsafe {
-        crate::mui_fill_rect(handle_ptr, center_x - 12.0, y + 5.0, 1.0, bar_h - 10.0, theme::BORDER);
-        crate::mui_fill_rect(handle_ptr, center_x + center_w + 12.0, y + 5.0, 1.0, bar_h - 10.0, theme::BORDER);
-    }
-    ctx.text.queue_sized(center_x, ty, &center, theme::DIM, chrome, clip);
-
-    // Right segment: a compact diagnostics chip (red `● N` only when errors).
-    if error_count > 0 {
-        let chip = format!("● {error_count}");
-        let chip_w = chip.chars().count() as f32 * layout::CHAR_W * (chrome / theme::FONT_SIZE);
-        let chip_x = (w - chip_w - layout::PAD).max(left_x);
-        ctx.text.queue_sized(chip_x, ty, &chip, theme::ERROR, chrome, clip);
+    let (line1, col1) = ctx.status_cursor;
+    let path = if ctx.file_name.is_empty() {
+        "scratch.mty".to_string()
     } else {
-        let ok = "✓ OK";
-        let ok_w = ok.chars().count() as f32 * layout::CHAR_W * (chrome / theme::FONT_SIZE);
-        let ok_x = (w - ok_w - layout::PAD).max(left_x);
-        ctx.text.queue_sized(ok_x, ty, ok, theme::TEAL, chrome, clip);
-    }
+        let parent = ctx
+            .tree
+            .root()
+            .file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if parent.is_empty() {
+            ctx.file_name.clone()
+        } else {
+            format!("{parent}/{}", ctx.file_name)
+        }
+    };
+
+    // ---- left cluster: branch glyph + "main"  |  file path ----
+    let mut x = 12.0;
+    // divider helper closure-free (borrow juggling): draw inline.
+    ctx.text.queue_sized(x, ty, "\u{2387}", theme::TEXT_4, chrome, clip);
+    x += advance + 4.0;
+    ctx.text.queue_sized(x, ty, "main", theme::DIM, chrome, clip);
+    x += text_w("main") + 12.0;
+    unsafe { crate::mui_fill_rect(handle_ptr, x, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT); }
+    x += 12.0;
+    ctx.text.queue_sized(x, ty, &path, theme::DIM, chrome, clip);
+
+    // ---- right cluster (laid out right-to-left) ----
+    // Segments: Ln/Col · Spaces:2 · UTF-8 · Mighty(ember dot) · diagnostics chip.
+    let mut rx = w - 12.0;
+
+    // Diagnostics chip: green ● N when clean, red when errors.
+    let chip_n = error_count.max(0);
+    let chip = format!("\u{25CF} {chip_n}");
+    let chip_w = text_w(&chip);
+    rx -= chip_w;
+    let chip_color = if error_count > 0 { theme::ERROR } else { theme::GREEN };
+    ctx.text.queue_sized(rx, ty, &chip, chip_color, chrome, clip);
+    rx -= 14.0;
+    unsafe { crate::mui_fill_rect(handle_ptr, rx, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT); }
+    rx -= 12.0;
+
+    // "Mighty" with an ember dot.
+    let mighty = "Mighty";
+    rx -= text_w(mighty);
+    ctx.text.queue_sized(rx, ty, mighty, theme::EMBER, chrome, clip);
+    rx -= 12.0;
+    unsafe { crate::mui_fill_rect(handle_ptr, rx + 2.0, y + bar_h * 0.5 - 3.0, 6.0, 6.0, theme::EMBER); }
+    rx -= 12.0;
+    unsafe { crate::mui_fill_rect(handle_ptr, rx, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT); }
+    rx -= 12.0;
+
+    // "UTF-8".
+    let enc = "UTF-8";
+    rx -= text_w(enc);
+    ctx.text.queue_sized(rx, ty, enc, theme::DIM, chrome, clip);
+    rx -= 12.0;
+    unsafe { crate::mui_fill_rect(handle_ptr, rx, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT); }
+    rx -= 12.0;
+
+    // "Spaces: 2".
+    let sp = "Spaces: 2";
+    rx -= text_w(sp);
+    ctx.text.queue_sized(rx, ty, sp, theme::DIM, chrome, clip);
+    rx -= 12.0;
+    unsafe { crate::mui_fill_rect(handle_ptr, rx, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT); }
+    rx -= 12.0;
+
+    // "Ln L, Col C".
+    let lc = format!("Ln {line1}, Col {col1}");
+    rx -= text_w(&lc);
+    ctx.text.queue_sized(rx, ty, &lc, theme::DIM, chrome, clip);
 }
 
 // ---------------------------------------------------------------------------
@@ -1407,9 +1450,118 @@ pub extern "C" fn mui_tab_scroll(handle: i64, idx: i32) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.tabs.get(idx as usize).map_or(0, |t| t.scroll_first))
 }
 
-/// Draw the tab bar across the top of the window: one fixed-width cell per tab
-/// with its basename (+ `*` if dirty), the active tab highlighted. Mighty calls
-/// this once per frame.
+/// Draw the far-left activity rail: the brand mark on top, a column of icon
+/// glyphs, and an ember selection bar + ember-tinted active icon for the
+/// Explorer (the only active view). Drawn first so the tab bar / sidebar sit to
+/// its right. Mighty calls this once per frame.
+#[no_mangle]
+pub extern "C" fn mui_rail_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let h = ctx.gpu.height as f32;
+    let handle_ptr = handle as usize as *mut MuiContext;
+    let clip = ctx.clip;
+    let rw = layout::RAIL_W;
+
+    unsafe {
+        // Rail panel (deepest bg) + a soft right divider.
+        crate::mui_fill_rect(handle_ptr, 0.0, 0.0, rw, h, theme::BG_2);
+        crate::mui_fill_rect(handle_ptr, rw - 1.0, 0.0, 1.0, h, theme::BORDER_SOFT);
+        // Brand mark: a small ember rounded square near the top.
+        let bx = (rw - 30.0) * 0.5;
+        crate::mui_fill_rect(handle_ptr, bx, 12.0, 30.0, 30.0, theme::EMBER);
+    }
+    // Brand "M" centered on the mark (dark on ember).
+    ctx.text.queue_sized(
+        (rw - 9.0) * 0.5,
+        18.0,
+        "M",
+        theme::hex(0x2a1a0c, 1.0),
+        16.0,
+        clip,
+    );
+
+    // Icon column. Explorer (index 0) is the active view.
+    let icons = ["\u{2630}", "\u{2315}", "\u{2387}", "\u{25B7}", "\u{2726}"];
+    let icon_top = 64.0;
+    let step = 38.0;
+    for (i, ic) in icons.iter().enumerate() {
+        let cy = icon_top + i as f32 * step;
+        let active = i == 0;
+        if active {
+            unsafe {
+                // Ember selection bar at the left edge of the rail.
+                crate::mui_fill_rect(handle_ptr, 0.0, cy + 6.0, 2.0, 20.0, theme::EMBER);
+            }
+        }
+        let color = if active { theme::EMBER } else { theme::TEXT_3 };
+        ctx.text
+            .queue_sized((rw - 12.0) * 0.5, cy + 4.0, ic, color, 15.0, clip);
+    }
+    // Settings gear pinned near the bottom.
+    ctx.text.queue_sized(
+        (rw - 12.0) * 0.5,
+        h - 34.0,
+        "\u{2699}",
+        theme::TEXT_3,
+        15.0,
+        clip,
+    );
+}
+
+/// Draw the breadcrumb bar at the top of the editor body (`path › file › symbol`,
+/// the file segment in ember). Sits between the tab bar and the editor field,
+/// spanning from the editor's left edge to the right of the window.
+#[no_mangle]
+pub extern "C" fn mui_breadcrumb_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let w = ctx.gpu.width as f32;
+    let handle_ptr = handle as usize as *mut MuiContext;
+    let clip = ctx.clip;
+    let chrome = theme::CHROME_FONT_SIZE;
+    let left = layout::RAIL_W + if ctx.sidebar_visible { layout::SIDEBAR_W } else { 0.0 };
+    let top = layout::TAB_BAR_H;
+    let bar_h = layout::BREADCRUMB_H;
+
+    // Editor field background under the breadcrumb + a soft bottom divider.
+    unsafe {
+        crate::mui_fill_rect(handle_ptr, left, top, w - left, bar_h, theme::BG_EDIT);
+        crate::mui_fill_rect(handle_ptr, left, top + bar_h - 1.0, w - left, 1.0, theme::BORDER_SOFT);
+    }
+
+    let parent = ctx
+        .tree
+        .root()
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "workspace".to_string());
+    let file = if ctx.file_name.is_empty() {
+        "(scratch)".to_string()
+    } else {
+        ctx.file_name.clone()
+    };
+
+    let ty = top + (bar_h - chrome) * 0.5 - 1.0;
+    let scale = chrome / theme::FONT_SIZE;
+    let advance = layout::CHAR_W * scale;
+    let mut x = left + 16.0;
+    let mut put = |ctx: &mut MuiContext, s: &str, color| {
+        ctx.text.queue_sized(x, ty, s, color, chrome, clip);
+        x += s.chars().count() as f32 * advance;
+    };
+    put(ctx, &parent, theme::TEXT_3);
+    put(ctx, "  \u{203A}  ", theme::TEXT_4);
+    put(ctx, &file, theme::EMBER);
+    put(ctx, "  \u{203A}  ", theme::TEXT_4);
+    put(ctx, "fn main", theme::TEXT_3);
+}
+
+/// Draw the tab bar across the top of the window (right of the activity rail):
+/// one fixed-width cell per tab with its basename, a file-type dot, an ember
+/// underline + dirty dot on the active tab. Mighty calls this once per frame.
 #[no_mangle]
 pub extern "C" fn mui_tab_bar_draw(handle: i64) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -1422,52 +1574,71 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
     let clip = ctx.clip;
     let bar_h = layout::TAB_BAR_H;
     let chrome = theme::CHROME_FONT_SIZE;
+    let rail = layout::RAIL_W;
 
-    // Elevated background band + a thin bottom divider.
+    // Elevated background band (right of the rail) + a thin bottom divider.
     unsafe {
-        crate::mui_fill_rect(handle_ptr, 0.0, 0.0, w, bar_h, theme::ELEVATED);
-        crate::mui_fill_rect(handle_ptr, 0.0, bar_h - 1.0, w, 1.0, theme::BORDER);
+        crate::mui_fill_rect(handle_ptr, rail, 0.0, w - rail, bar_h, theme::ELEVATED);
+        crate::mui_fill_rect(handle_ptr, rail, bar_h - 1.0, w - rail, 1.0, theme::BORDER);
     }
 
     for i in 0..count {
-        let x = i as f32 * layout::TAB_W;
+        let x = rail + i as f32 * layout::TAB_W;
         let is_active = i == active;
-        // Active tab: a slightly lifted bg + a 2px ember underline.
+        // Active tab: editor-field bg + a top highlight + an ember underline glow.
         if is_active {
             unsafe {
-                crate::mui_fill_rect(handle_ptr, x, 0.0, layout::TAB_W, bar_h, theme::CURRENT_LINE);
-                crate::mui_fill_rect(handle_ptr, x, bar_h - 2.0, layout::TAB_W, 2.0, theme::EMBER);
+                crate::mui_fill_rect(handle_ptr, x, 0.0, layout::TAB_W, bar_h, theme::BG_EDIT);
+                crate::mui_fill_rect(handle_ptr, x, 0.0, layout::TAB_W, 1.0, theme::HIGHLIGHT);
+                // Soft wide low-alpha glow + a crisp 2px ember underline.
+                crate::mui_fill_rect(handle_ptr, x, bar_h - 4.0, layout::TAB_W, 4.0, theme::EMBER_SOFT);
+                crate::mui_fill_rect(handle_ptr, x + 16.0, bar_h - 2.0, layout::TAB_W - 32.0, 2.0, theme::EMBER);
             }
         }
         // Right divider between tabs.
         unsafe {
-            crate::mui_fill_rect(handle_ptr, x + layout::TAB_W - 1.0, 4.0, 1.0, bar_h - 8.0, theme::BORDER);
+            crate::mui_fill_rect(handle_ptr, x + layout::TAB_W - 1.0, 8.0, 1.0, bar_h - 16.0, theme::BORDER_SOFT);
         }
         if let Some(tab) = ctx.tabs.get(i) {
-            let mut label = tab.basename();
-            // Truncate to fit, leaving room for a dirty dot.
-            let max_chars = ((layout::TAB_W - 28.0) / layout::CHAR_W).floor() as usize;
+            let base = tab.basename();
+            let is_mty = base.ends_with(".mty");
+            let dirty = tab.dirty;
+            // File-type dot: ember for .mty, aurora otherwise. A dirty tab shows a
+            // dim filled dot instead (matches the mockup's dirty indicator).
+            let dot_color = if dirty {
+                theme::DIM
+            } else if is_mty {
+                theme::EMBER
+            } else {
+                theme::TEAL
+            };
+            unsafe {
+                crate::mui_fill_rect(handle_ptr, x + 14.0, bar_h * 0.5 - 3.0, 6.0, 6.0, dot_color);
+            }
+            let mut label = base;
+            let max_chars = ((layout::TAB_W - 44.0) / layout::CHAR_W).floor() as usize;
             if label.chars().count() > max_chars && max_chars > 1 {
                 label = label.chars().take(max_chars - 1).collect::<String>() + "…";
             }
-            let fg = if is_active { theme::TEXT } else { theme::DIM };
+            let fg = if is_active { theme::TEXT } else { theme::TEXT_3 };
             let ty = (bar_h - chrome) * 0.5 - 1.0;
-            ctx.text.queue_sized(x + 14.0, ty, &label, fg, chrome, clip);
-            // Dirty indicator: a small ember dot near the right of the tab.
-            if tab.dirty {
-                unsafe {
-                    crate::mui_fill_rect(
-                        handle_ptr,
-                        x + layout::TAB_W - 16.0,
-                        bar_h * 0.5 - 3.0,
-                        6.0,
-                        6.0,
-                        theme::EMBER,
-                    );
-                }
-            }
+            ctx.text.queue_sized(x + 28.0, ty, &label, fg, chrome, clip);
         }
     }
+
+    // Right-aligned wordmark: "MIGHTY IDE" in the UI family. Approximate the
+    // proportional width as ~0.62em for right-alignment (decorative; no layout
+    // depends on it).
+    let wm = "MIGHTY IDE";
+    let wm_w = wm.chars().count() as f32 * chrome * 0.62;
+    ctx.text.queue_ui_sized(
+        (w - wm_w - 16.0).max(rail),
+        (bar_h - chrome) * 0.5 - 1.0,
+        wm,
+        theme::TEXT_4,
+        chrome,
+        clip,
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -1567,8 +1738,10 @@ pub extern "C" fn mui_tree_row_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    // Only count clicks within the sidebar's x band.
-    if !ctx.sidebar_visible || ctx.last_event.x > layout::SIDEBAR_W {
+    // Only count clicks within the sidebar's x band (right of the rail).
+    let sx0 = layout::RAIL_W;
+    let sx1 = layout::RAIL_W + layout::SIDEBAR_W;
+    if !ctx.sidebar_visible || ctx.last_event.x < sx0 || ctx.last_event.x > sx1 {
         return -1;
     }
     let i = layout::tree_row_at(ctx.last_event.y) as usize;
@@ -1616,15 +1789,16 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
     let handle_ptr = handle as usize as *mut MuiContext;
     let clip = ctx.clip;
     let chrome = theme::CHROME_FONT_SIZE;
+    let sx = layout::RAIL_W; // sidebar starts right of the rail
     let sw = layout::SIDEBAR_W;
 
     // Panel background + a right divider.
     unsafe {
-        crate::mui_fill_rect(handle_ptr, 0.0, 0.0, sw, h, theme::PANEL);
-        crate::mui_fill_rect(handle_ptr, sw - 1.0, layout::TAB_BAR_H, 1.0, h, theme::BORDER);
+        crate::mui_fill_rect(handle_ptr, sx, 0.0, sw, h, theme::PANEL);
+        crate::mui_fill_rect(handle_ptr, sx + sw - 1.0, layout::TAB_BAR_H, 1.0, h, theme::BORDER);
     }
 
-    // Dim uppercase section header (the workspace folder name).
+    // Uppercase tracked section header (a chevron + the workspace folder name).
     let header = ctx
         .tree
         .root()
@@ -1632,11 +1806,25 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
         .map(|s| s.to_string_lossy().to_uppercase())
         .unwrap_or_else(|| "EXPLORER".to_string());
     ctx.text.queue_sized(
-        layout::PAD + 2.0,
+        sx + layout::PAD + 2.0,
         layout::TAB_BAR_H + layout::SPACE,
-        &header,
-        theme::DIM,
+        "\u{25BE}",
+        theme::TEXT_4,
         chrome,
+        clip,
+    );
+    // Letter-spaced header (insert thin spaces for the "tracked" look),
+    // in the distinctive UI family (Bricolage Grotesque).
+    let tracked: String = header
+        .chars()
+        .flat_map(|c| [c, '\u{2009}'])
+        .collect();
+    ctx.text.queue_ui_sized(
+        sx + layout::PAD + 18.0,
+        layout::TAB_BAR_H + layout::SPACE,
+        &tracked,
+        theme::TEXT_3,
+        chrome - 1.0,
         clip,
     );
 
@@ -1651,41 +1839,46 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
             break;
         }
         let selected = !row.is_dir && active_path.is_some() && row.path == *active_path.as_ref().unwrap();
-        // Selected/hover background band + an ember left bar on the selected row.
+        // Selected row: an ember-soft tint band + an ember left bar.
         if selected {
             unsafe {
-                crate::mui_fill_rect(handle_ptr, 0.0, y - 1.0, sw, layout::LINE_H, theme::ELEVATED);
-                crate::mui_fill_rect(handle_ptr, 0.0, y - 1.0, 2.0, layout::LINE_H, theme::EMBER);
+                crate::mui_fill_rect(handle_ptr, sx, y - 1.0, sw, layout::LINE_H, theme::EMBER_SOFT);
+                crate::mui_fill_rect(handle_ptr, sx, y - 1.0, 2.0, layout::LINE_H, theme::EMBER);
             }
         }
-        let indent = layout::PAD + 6.0 + (row.depth as f32) * layout::TREE_INDENT;
+        let base_indent = sx + layout::PAD + 6.0;
+        let indent = base_indent + (row.depth as f32) * layout::TREE_INDENT;
         // Indent guides for depth.
         for d in 0..row.depth {
-            let gx = layout::PAD + 6.0 + (d as f32) * layout::TREE_INDENT;
+            let gx = base_indent + (d as f32) * layout::TREE_INDENT;
             unsafe {
                 crate::mui_fill_rect(handle_ptr, gx, y - 1.0, 1.0, layout::LINE_H, theme::BORDER);
             }
         }
-        // Directory chevron (▸/▾) or a file glyph spacer.
-        let mut name = String::new();
-        if row.is_dir {
-            name.push_str(if row.expanded { "▾ " } else { "▸ " });
+        let name = row.display_name();
+        let is_mty = name.ends_with(".mty");
+        // Icon: a chevron for dirs, a small glyph for files.
+        let (icon, icon_color): (&str, _) = if row.is_dir {
+            (if row.expanded { "\u{25BE}" } else { "\u{25B8}" }, theme::TEAL)
+        } else if is_mty {
+            ("\u{25CF}", theme::EMBER)
         } else {
-            name.push_str("  ");
-        }
-        name.push_str(&row.display_name());
-        let avail = ((sw - indent) / layout::CHAR_W).floor() as usize;
-        if name.chars().count() > avail && avail > 1 {
-            name = name.chars().take(avail - 1).collect::<String>() + "…";
-        }
-        let fg = if selected {
-            theme::TEXT
-        } else if row.is_dir {
-            theme::TEAL
-        } else {
-            theme::TEXT
+            ("\u{25E6}", theme::TEXT_3)
         };
-        ctx.text.queue_sized(indent, y + 3.0, &name, fg, chrome, clip);
+        ctx.text.queue_sized(indent, y + 3.0, icon, icon_color, chrome, clip);
+
+        let name_x = indent + 16.0;
+        let avail = (((sx + sw) - name_x) / layout::CHAR_W).floor() as usize;
+        let mut shown = name;
+        if shown.chars().count() > avail && avail > 1 {
+            shown = shown.chars().take(avail - 1).collect::<String>() + "…";
+        }
+        let fg = if selected || row.is_dir {
+            theme::TEXT
+        } else {
+            theme::DIM
+        };
+        ctx.text.queue_sized(name_x, y + 3.0, &shown, fg, chrome, clip);
     }
 }
 
@@ -2158,7 +2351,11 @@ pub extern "C" fn mui_complete_draw(handle: i64, cursor_px_x: f32, cursor_px_y: 
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     // Split the borrow: `draw` needs `&mut ctx` for both rects + text.
     let engine = std::mem::take(&mut ctx.complete);
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
     engine.draw(ctx, cursor_px_x, cursor_px_y, w, h);
+    ctx.overlay = false;
+    ctx.text.set_overlay(false);
     ctx.complete = engine;
 }
 
@@ -2183,7 +2380,11 @@ pub extern "C" fn mui_complete_draw_at(
     let y = layout::row_y_in(region, row);
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let engine = std::mem::take(&mut ctx.complete);
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
     engine.draw(ctx, x, y, w, h);
+    ctx.overlay = false;
+    ctx.text.set_overlay(false);
     ctx.complete = engine;
 }
 
@@ -2351,7 +2552,11 @@ pub extern "C" fn mui_palette_draw(handle: i64) {
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     // Split the borrow: `draw` needs `&mut ctx` for both rects + text.
     let engine = std::mem::take(&mut ctx.palette);
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
     engine.draw(ctx, w, h);
+    ctx.overlay = false;
+    ctx.text.set_overlay(false);
     ctx.palette = engine;
 }
 
@@ -2500,7 +2705,11 @@ pub extern "C" fn mui_hover_draw(handle: i64, row: i32, col: i32, total_lines: i
     let y = layout::row_y_in(region, row);
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let hover = std::mem::take(&mut ctx.hover);
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
     hover.draw(ctx, x, y, w, h);
+    ctx.overlay = false;
+    ctx.text.set_overlay(false);
     ctx.hover = hover;
 }
 
@@ -3239,20 +3448,50 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
     let text_x = layout::text_left_in(region, total_u64);
     let gutter_right = text_x - layout::GUTTER_GAP; // right edge for right-align
     let chrome = theme::CHROME_FONT_SIZE;
+    let win_w = ctx.gpu.width as f32;
+    let win_h = ctx.gpu.height as f32;
 
-    // 1) Current-line highlight band (only when the cursor row is visible).
-    if cur_line >= first && cur_line < first + rows {
-        let row = (cur_line - first) as i32;
-        let y = layout::row_y_in(region, row);
+    // 0) Editor field background (so the atmospheric glow doesn't wash the code).
+    //    Spans from the body's left edge to the right, below the breadcrumb and
+    //    above the status bar. Slightly translucent so a hint of glow remains.
+    {
+        let field_top = region.top;
+        let field_h = (win_h - 30.0 - field_top).max(0.0); // 30 = status bar
         unsafe {
             crate::mui_fill_rect(
                 handle_ptr,
                 region.left,
-                y - 2.0,
-                ctx.gpu.width as f32 - region.left,
-                layout::LINE_H,
-                theme::CURRENT_LINE,
+                field_top,
+                win_w - region.left,
+                field_h,
+                MuiColor::new(0.055, 0.063, 0.086, 0.84),
             );
+            // A soft left inner shadow against the sidebar edge for depth.
+            crate::mui_fill_rect(
+                handle_ptr,
+                region.left,
+                field_top,
+                10.0,
+                field_h,
+                MuiColor::new(0.0, 0.0, 0.0, 0.18),
+            );
+        }
+    }
+
+    // 1) Current-line highlight band (only when the cursor row is visible), with
+    //    a soft ember left-glow fading across the left third.
+    if cur_line >= first && cur_line < first + rows {
+        let row = (cur_line - first) as i32;
+        let y = layout::row_y_in(region, row);
+        let band_w = win_w - region.left;
+        unsafe {
+            // Faint full-row band.
+            crate::mui_fill_rect(handle_ptr, region.left, y - 2.0, band_w, layout::LINE_H, theme::CURRENT_LINE);
+            // Ember left-glow: a few stacked low-alpha rects fading rightward.
+            let third = band_w / 3.0;
+            crate::mui_fill_rect(handle_ptr, region.left, y - 2.0, third, layout::LINE_H, MuiColor::new(0.957, 0.635, 0.349, 0.06));
+            crate::mui_fill_rect(handle_ptr, region.left, y - 2.0, third * 0.55, layout::LINE_H, MuiColor::new(0.957, 0.635, 0.349, 0.05));
+            crate::mui_fill_rect(handle_ptr, region.left, y - 2.0, third * 0.25, layout::LINE_H, MuiColor::new(0.957, 0.635, 0.349, 0.05));
         }
     }
 
@@ -3318,12 +3557,15 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         }
     }
 
-    // 4) Caret — a 2px-wide ember vertical bar at the cursor cell.
+    // 4) Caret — a 2px-wide ember vertical bar with a faint glow behind it.
     if cur_line >= first && cur_line < first + rows {
         let row = (cur_line - first) as i32;
         let cx = layout::text_x_in(region, total_u64, cur_col as i32);
         let cy = layout::row_y_in(region, row);
         unsafe {
+            // Faint wider glow.
+            crate::mui_fill_rect(handle_ptr, cx - 2.0, cy - 1.0, 6.0, layout::LINE_H - 2.0, MuiColor::new(0.957, 0.635, 0.349, 0.22));
+            // Crisp 2px caret.
             crate::mui_fill_rect(handle_ptr, cx, cy - 1.0, 2.0, layout::LINE_H - 2.0, theme::EMBER);
         }
     }
