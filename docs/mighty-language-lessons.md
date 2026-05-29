@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-05-29 (hover + go-to-definition: shim-side LSP nav; L25). Prior: autocomplete dropdown + mty-lsp semantic provider; L24._
+_Last updated: 2026-05-29 (command palette: shim-side registry + fuzzy filter; L27. Format-guard safety fix logged at L26). Prior: hover + go-to-definition; L25._
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -294,6 +294,15 @@ string isn't wired to the workspace/release version. Trivial fix, but it undermi
 in `--version` for bug reports.
 
 ---
+
+### L27. Stateful editor actions can't be factored into a shared helper that BOTH a key handler and a dispatcher call — no `&mut` params, no multi-return, no struct-field reads (L15) ✅ **[P1]**
+Discovered building the command palette (Ctrl+Shift+P). The palette must, on Enter, "dispatch to the SAME code path the keybinding triggers." The clean factoring would be a single `fn do_save(...)`, `fn do_next_tab(...)`, etc., called from both the key handler and the palette dispatch. But most editor actions mutate the main-loop locals `buf: Vec[I32]`, `cur: USize`, `first: USize`, `active: I32` (and flags like `find_nav`, `completing`, `hovering`). In v0.36 a helper cannot:
+- take those by `&mut` and write them back (params are immutable in name only — L6), and
+- return more than one value (no tuple/struct return that the caller can destructure — `t.b` returns field 0, L15), so a helper can't return the new `(buf, cur, first, active)` set.
+
+So actions whose *whole* work is a single shim call or flag set DID factor cleanly and are shared verbatim (`save_buffer(h, buf)`, `request_completion(...)`, `request_def(...)`, `mui_sidebar_toggle`, `mui_term_open`, the `mui_prompt_open` opener) — both the keybinding and the palette call the identical helper / shim entry. But the buffer-replacing actions (tab next/prev/close, undo, redo, format-reload, go-to-def cross-file) have their flat 5–8-line local-state plumbing **duplicated** between the key handler and the palette dispatch arm, because there's no way to hand the four mutable locals to a helper and get them all back. The shared "code path" is real (the same shim entry + the same edit helpers run), but the local-state shuffle around it is copy-pasted.
+
+**Workaround (used):** keep the single-shim-call/flag actions in shared flat helpers; inline the buffer-replacing arms in the palette dispatch, mirroring the key handler's exact flat sequence (each still bottoms out in a shared helper like `store_tab`/`load_tab_buffer`/`restore_cursor`/`mui_undo`/`mui_format_current`). **Suggested fix:** add `&mut` params for user functions (L6) and/or real multi-value returns + struct-field reads (L15) so a stateful action can live in one helper. (No new shim-side limitation: per L21 the command registry + fuzzy filter + selection live entirely in `palette.rs`; Mighty only opens/types/moves/reads the selected id and draws — it never holds the command Vec. Ctrl+Shift+P is detected as a `Char` event with the Ctrl+Shift mods set, like the existing Ctrl+Shift+I format chord.)
 
 ## Open questions to resolve as the IDE progresses
 - Exact `extern c` signature support: pointers (`*U8`), out-params (`&out T`), passing a

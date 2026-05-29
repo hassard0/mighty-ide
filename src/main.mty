@@ -181,6 +181,48 @@ extern c {
   fn mui_redo_depth(handle: I64) -> I32
   // ---- format document (Feature B): runs `mty fmt <path>` in place ----
   fn mui_format_current(handle: I64) -> I32
+  // ---- command palette (Ctrl+Shift+P): shim-side registry + filtering ----
+  // Mighty opens the palette, routes Char/Backspace/Up/Down/Enter/Escape to it,
+  // and on Enter reads the selected command id back to dispatch to the SAME
+  // helper the keybinding triggers. The command Vec + filter + selection live
+  // shim-side (L21: Mighty never holds the command list).
+  fn mui_palette_open(handle: I64)
+  fn mui_palette_push_char(handle: I64, cp: I32)
+  fn mui_palette_backspace(handle: I64)
+  fn mui_palette_count(handle: I64) -> I32
+  fn mui_palette_move(handle: I64, delta: I32)
+  fn mui_palette_sel(handle: I64) -> I32
+  fn mui_palette_selected_id(handle: I64) -> I32
+  fn mui_palette_active(handle: I64) -> I32
+  fn mui_palette_cancel(handle: I64)
+  fn mui_palette_draw(handle: I64)
+}
+
+// ---- command palette ids (mirror palette.rs COMMANDS) ----
+fn cmd_open_file() -> I32 { 1 }
+fn cmd_save() -> I32 { 2 }
+fn cmd_find() -> I32 { 3 }
+fn cmd_goto_line() -> I32 { 4 }
+fn cmd_goto_definition() -> I32 { 5 }
+fn cmd_hover() -> I32 { 6 }
+fn cmd_toggle_terminal() -> I32 { 7 }
+fn cmd_toggle_sidebar() -> I32 { 8 }
+fn cmd_next_tab() -> I32 { 9 }
+fn cmd_prev_tab() -> I32 { 10 }
+fn cmd_close_tab() -> I32 { 11 }
+fn cmd_format_document() -> I32 { 12 }
+fn cmd_undo() -> I32 { 13 }
+fn cmd_redo() -> I32 { 14 }
+fn cmd_autocomplete() -> I32 { 15 }
+fn cmd_jump_back() -> I32 { 16 }
+fn cmd_quit() -> I32 { 17 }
+
+// Ctrl+Shift+P = open command palette. Flat predicate (L20-safe).
+fn is_palette_chord(cp: I32, mods: I32) -> Bool {
+  let ctrl = ctrl_held(mods)
+  let shift = shift_held(mods)
+  let p = cp == 112 || cp == 80      // 'p' / 'P'
+  ctrl && shift && p
 }
 
 // ---- event tags / keys / mods (mirror mighty_ui.h) ----
@@ -861,6 +903,13 @@ fn main() {
   let mut prev_line: USize = 0
   let mut prev_col: USize = 0
 
+  // ---- command palette (Ctrl+Shift+P) ----
+  // When `palette_open` is true the overlay is shown: typing filters, Up/Down
+  // move the selection, Enter dispatches the selected command (same code path as
+  // its keybinding), Escape closes. The registry + filter + selection live
+  // shim-side (L21: Mighty never holds the command Vec).
+  let mut palette_open = false
+
   while running {
     let rows_i = mui_visible_rows(h)
     let rows = i32_to_usize(rows_i)
@@ -869,6 +918,177 @@ fn main() {
     while tag != 0 {
       if tag == ev_close() {
         running = false
+      } else if palette_open {
+        // -------- command palette is open: route keystrokes to it -----------
+        // Typing filters; Up/Down move the selection; Enter dispatches the
+        // selected command id to the SAME helper its keybinding triggers;
+        // Escape closes. The list + filter + selection live shim-side.
+        if tag == ev_char() {
+          let cp = mui_event_codepoint(h)
+          if cp >= 32 && cp < 127 { mui_palette_push_char(h, cp) }
+        } else if tag == ev_key() {
+          let k = mui_event_key(h)
+          if k == key_backspace() {
+            mui_palette_backspace(h)
+          } else if k == key_up() {
+            mui_palette_move(h, -1)
+          } else if k == key_down() {
+            mui_palette_move(h, 1)
+          } else if k == key_escape() {
+            mui_palette_cancel(h)
+            palette_open = false
+          } else if k == key_enter() {
+            // Read the selected command id, close the palette, then dispatch.
+            let id = mui_palette_selected_id(h)
+            mui_palette_cancel(h)
+            palette_open = false
+            // ---- dispatch: each arm runs the SAME code path as the key
+            // handler. Self-contained shim calls / flag sets reuse the exact
+            // helpers (save_buffer, request_completion, mui_*); buffer-mutating
+            // arms mirror the key handler's flat sequence (L20/L21-safe).
+            if id == cmd_open_file() {
+              mui_prompt_open(h, prompt_open())
+              prompt_kind = prompt_open()
+              find_nav = false
+            } else if id == cmd_save() {
+              let rc = save_buffer(h, buf)
+              if rc == 0 {
+                mui_tab_set_dirty(h, active, 0)
+                let _r = mui_diag_refresh(h)
+              }
+            } else if id == cmd_find() {
+              mui_prompt_open(h, prompt_find())
+              prompt_kind = prompt_find()
+            } else if id == cmd_goto_line() {
+              mui_prompt_open(h, prompt_goto())
+              prompt_kind = prompt_goto()
+              find_nav = false
+            } else if id == cmd_goto_definition() {
+              let found = request_def(h, buf, cur)
+              if found == 1 {
+                prev_line = line_of(buf, cur)
+                prev_col = col_of(buf, cur)
+                have_prev = true
+                mui_hover_clear(h)
+                hovering = false
+                let same = mui_def_path_matches_current(h)
+                let tl = mui_def_target_line(h)
+                let tc = mui_def_target_col(h)
+                if same == 1 {
+                  if tl >= 0 { cur = offset_of(buf, i32_to_usize(tl), i32_to_usize(tc)) }
+                } else {
+                  store_tab(h, buf, active, cur, first)
+                  let newidx = mui_def_open_target(h)
+                  if newidx >= 0 {
+                    active = newidx
+                    buf = load_tab_buffer(h, active)
+                    if tl >= 0 {
+                      cur = offset_of(buf, i32_to_usize(tl), i32_to_usize(tc))
+                    } else {
+                      cur = restore_cursor(buf, h, active)
+                    }
+                    first = i32_to_usize(mui_tab_scroll(h, active))
+                    find_nav = false
+                    let _r = mui_diag_refresh(h)
+                  }
+                }
+              }
+            } else if id == cmd_hover() {
+              let ok = request_hover(h, buf, cur)
+              if ok == 1 { hovering = true; hover_at = cur } else { mui_hover_clear(h); hovering = false }
+            } else if id == cmd_toggle_terminal() {
+              if mui_term_is_open(h) == 1 {
+                term_focus = true
+              } else {
+                let ok = mui_term_open(h)
+                if ok == 1 { term_focus = true; mui_log_terminal(h) }
+              }
+            } else if id == cmd_toggle_sidebar() {
+              let _s = mui_sidebar_toggle(h)
+            } else if id == cmd_next_tab() {
+              store_tab(h, buf, active, cur, first)
+              active = mui_tab_next(h)
+              buf = load_tab_buffer(h, active)
+              cur = restore_cursor(buf, h, active)
+              first = i32_to_usize(mui_tab_scroll(h, active))
+              find_nav = false
+              let _r = mui_diag_refresh(h)
+            } else if id == cmd_prev_tab() {
+              store_tab(h, buf, active, cur, first)
+              active = mui_tab_prev(h)
+              buf = load_tab_buffer(h, active)
+              cur = restore_cursor(buf, h, active)
+              first = i32_to_usize(mui_tab_scroll(h, active))
+              find_nav = false
+              let _r = mui_diag_refresh(h)
+            } else if id == cmd_close_tab() {
+              store_tab(h, buf, active, cur, first)
+              active = mui_tab_close(h, active)
+              buf = load_tab_buffer(h, active)
+              cur = restore_cursor(buf, h, active)
+              first = i32_to_usize(mui_tab_scroll(h, active))
+              find_nav = false
+              let _r = mui_diag_refresh(h)
+              seed_history(h, buf, cur)
+              last_active = active
+            } else if id == cmd_format_document() {
+              let rc = save_buffer(h, buf)
+              if rc == 0 {
+                mui_tab_set_dirty(h, active, 0)
+                mui_undo_break(h)
+                record_history(h, buf, cur)
+                let ok = mui_format_current(h)
+                if ok == 1 {
+                  let keep_line = line_of(buf, cur)
+                  let n = mui_load(h)
+                  if n >= 0 {
+                    buf = pull_load_buffer_i64(h, n)
+                    cur = offset_of(buf, keep_line, 0)
+                    mui_undo_break(h)
+                    record_history(h, buf, cur)
+                    let _r = mui_diag_refresh(h)
+                  }
+                }
+              }
+            } else if id == cmd_undo() {
+              mui_complete_cancel(h)
+              completing = false
+              find_nav = false
+              let n = mui_undo(h)
+              if n >= 0 {
+                buf = pull_load_buffer(h, n)
+                let rl = i32_to_usize(mui_undo_cursor_line(h))
+                let rc2 = i32_to_usize(mui_undo_cursor_col(h))
+                cur = offset_of(buf, rl, rc2)
+                mui_tab_set_dirty(h, active, 1)
+              }
+            } else if id == cmd_redo() {
+              mui_complete_cancel(h)
+              completing = false
+              find_nav = false
+              let n = mui_redo(h)
+              if n >= 0 {
+                buf = pull_load_buffer(h, n)
+                let rl = i32_to_usize(mui_undo_cursor_line(h))
+                let rc2 = i32_to_usize(mui_undo_cursor_col(h))
+                cur = offset_of(buf, rl, rc2)
+                mui_tab_set_dirty(h, active, 1)
+              }
+            } else if id == cmd_autocomplete() {
+              let cnt = request_completion(h, buf, cur)
+              if cnt > 0 { completing = true } else { mui_complete_cancel(h) }
+            } else if id == cmd_jump_back() {
+              if have_prev {
+                cur = offset_of(buf, prev_line, prev_col)
+                have_prev = false
+                mui_hover_clear(h)
+                hovering = false
+              }
+            } else if id == cmd_quit() {
+              running = false
+            }
+          }
+        }
       } else if prompt_kind != 0 {
         // -------- a prompt is open: route keystrokes to the prompt buffer ----
         if tag == ev_char() {
@@ -1019,7 +1239,10 @@ fn main() {
       } else if tag == ev_char() {
         let cp = mui_event_codepoint(h)
         let mods = mui_event_mods(h)
-        if ctrl_held(mods) && cp == 32 {                    // Ctrl+Space : autocomplete
+        if is_palette_chord(cp, mods) {                     // Ctrl+Shift+P : command palette
+          mui_palette_open(h)
+          palette_open = true
+        } else if ctrl_held(mods) && cp == 32 {             // Ctrl+Space : autocomplete
           let cnt = request_completion(h, buf, cur)
           if cnt > 0 { completing = true } else { mui_complete_cancel(h) }
         } else if ctrl_held(mods) && (cp == 107 || cp == 75) {  // Ctrl+K / Ctrl+k : hover
@@ -1376,6 +1599,9 @@ fn main() {
         mui_hover_draw(h, hrow, hcol, total_now_i)
       }
     }
+    // command palette: a centered overlay box, drawn last so it sits over
+    // everything. The shim positions/clamps the box and highlights the selection.
+    if palette_open { mui_palette_draw(h) }
     mui_end_frame_s(h)
 
     frame = frame + 1

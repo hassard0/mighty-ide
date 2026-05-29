@@ -19,6 +19,7 @@ mod gpu;
 mod history;
 mod layout;
 mod nav;
+mod palette;
 mod prompt;
 mod tabs;
 mod terminal;
@@ -127,6 +128,12 @@ pub struct MuiContext {
     /// Restored cursor from the most recent `mui_undo` / `mui_redo`, read back by
     /// Mighty via `mui_undo_cursor_line` / `_col` after pulling the bytes.
     restored_cursor: (i32, i32),
+
+    // ---- command palette (Ctrl+Shift+P) ----
+    /// The command palette overlay (registry + query/filter + selection),
+    /// shim-owned. Mighty opens it, feeds chars, moves the selection, and reads
+    /// the selected command id back to dispatch.
+    palette: palette::PaletteEngine,
 }
 
 // ---------------------------------------------------------------------------
@@ -237,6 +244,7 @@ pub(crate) fn build_context(
         nav_buf: Vec::new(),
         history: history::HistoryStore::new(),
         restored_cursor: (0, 0),
+        palette: palette::PaletteEngine::new(),
     });
     Box::into_raw(ctx)
 }
@@ -540,6 +548,7 @@ impl MuiContext {
             nav_buf: Vec::new(),
             history: history::HistoryStore::new(),
             restored_cursor: (0, 0),
+            palette: palette::PaletteEngine::new(),
         })
     }
 

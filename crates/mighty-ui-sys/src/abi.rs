@@ -117,6 +117,13 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         mui_history_probe(handle);
     }
 
+    // Launch-test hook for the command palette: with MUI_PALETTE_PROBE set, open
+    // the palette, type a query, and log the filtered count + selected id
+    // (Ctrl+Shift+P can't be delivered non-interactively). See `mui_palette_probe`.
+    if std::env::var_os("MUI_PALETTE_PROBE").is_some() {
+        mui_palette_probe(handle);
+    }
+
     handle
 }
 
@@ -2040,6 +2047,150 @@ pub extern "C" fn mui_complete_probe(handle: i64) {
         lsp_labels.len(),
         ctx.complete.accepted_text()
     );
+}
+
+// ---------------------------------------------------------------------------
+// Command palette (Ctrl+Shift+P) — shim-side registry (logic in palette.rs)
+// ---------------------------------------------------------------------------
+//
+// Mirrors the completion dropdown. The command registry + query/filter +
+// selection live shim-side (L17/L21: Mighty never holds the command Vec). Mighty
+// opens the palette, routes Char/Backspace/Up/Down to it, and on Enter reads the
+// selected command id back (`mui_palette_selected_id`) to dispatch to the SAME
+// helper the keybinding triggers.
+
+/// Open the command palette: list all commands, select the first, clear the
+/// query. Mighty calls this on Ctrl+Shift+P.
+#[no_mangle]
+pub extern "C" fn mui_palette_open(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.palette.open();
+    }
+}
+
+/// Append a typed char (codepoint) to the palette query and refilter. Ignores
+/// non-printable / out-of-BMP-as-char values.
+#[no_mangle]
+pub extern "C" fn mui_palette_push_char(handle: i64, cp: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
+            ctx.palette.push_char(ch);
+        }
+    }
+}
+
+/// Delete the last char of the palette query and refilter.
+#[no_mangle]
+pub extern "C" fn mui_palette_backspace(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.palette.backspace();
+    }
+}
+
+/// Number of commands currently matching the query.
+#[no_mangle]
+pub extern "C" fn mui_palette_count(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.palette.count() as i32)
+}
+
+/// Move the palette selection by `delta` (positive = down), wrapping.
+#[no_mangle]
+pub extern "C" fn mui_palette_move(handle: i64, delta: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.palette.move_sel(delta);
+    }
+}
+
+/// Index (0-based) of the currently selected command in the filtered list.
+#[no_mangle]
+pub extern "C" fn mui_palette_sel(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.palette.selection() as i32)
+}
+
+/// The command id of the current selection, or `-1` when nothing matches. Mighty
+/// reads this on Enter and dispatches to the matching command helper.
+#[no_mangle]
+pub extern "C" fn mui_palette_selected_id(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(-1, |c| c.palette.selected_id())
+}
+
+/// `1` if the palette overlay is open, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_palette_active(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.palette.is_active()))
+}
+
+/// Close the palette and clear its state (Escape, or after Enter dispatch).
+#[no_mangle]
+pub extern "C" fn mui_palette_cancel(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.palette.cancel();
+    }
+}
+
+/// Draw the palette as a centered overlay box (query line + filtered commands
+/// with right-aligned keybindings, selection highlighted). No-op when closed.
+#[no_mangle]
+pub extern "C" fn mui_palette_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    // Split the borrow: `draw` needs `&mut ctx` for both rects + text.
+    let engine = std::mem::take(&mut ctx.palette);
+    engine.draw(ctx, w, h);
+    ctx.palette = engine;
+}
+
+/// Print the live palette state to stdout (count, selection, selected id,
+/// query). Launch-test evidence for headless runs (Mighty's `log` is
+/// literal-only, L23). No-op on a null handle.
+#[no_mangle]
+pub extern "C" fn mui_log_palette(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        println!(
+            "palette: active={} count={} sel={} selected_id={} query=\"{}\"",
+            ctx.palette.is_active(),
+            ctx.palette.count(),
+            ctx.palette.selection(),
+            ctx.palette.selected_id(),
+            ctx.palette.query()
+        );
+    }
+}
+
+/// Launch-test hook: with `MUI_PALETTE_PROBE` set, open the palette, type the env
+/// value as a query, log the filtered count + selected id, then close it — so a
+/// headless run proves the palette wiring (Ctrl+Shift+P can't be delivered
+/// non-interactively). The env value is the query to type (default `"sa"`). No
+/// effect unless the env var is set.
+#[no_mangle]
+pub extern "C" fn mui_palette_probe(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let Some(seed) = std::env::var_os("MUI_PALETTE_PROBE") else {
+        return;
+    };
+    let query = seed.to_string_lossy();
+    let query = if query.trim().is_empty() {
+        "sa".to_string()
+    } else {
+        query.into_owned()
+    };
+    ctx.palette.open();
+    println!("palette-probe: opened, all-commands count={}", ctx.palette.count());
+    for ch in query.chars() {
+        ctx.palette.push_char(ch);
+    }
+    println!(
+        "palette-probe: query=\"{}\" count={} sel={} selected_id={}",
+        query,
+        ctx.palette.count(),
+        ctx.palette.selection(),
+        ctx.palette.selected_id()
+    );
+    ctx.palette.cancel();
 }
 
 // ---------------------------------------------------------------------------
