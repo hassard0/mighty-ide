@@ -60,6 +60,42 @@ emitted `.o` yourself with clang — undocumented and fiddly.
 (Overlaps the v0.36 "static-lib linking + extern c matrix" item — this entry pins the
 concrete root cause and the arg-syntax bug.)
 
+### L10. `mty build` never links the Mighty runtime archive → native exes don't build ✅ **[P0]**
+A `mty build` object references `mty_runtime_log/_alloc/_panic/_extern_call/_arena_*/...`
+(defined `#[no_mangle] extern "C"` in `crates/mty-runtime/src/codegen_abi.rs`), but the link
+step links only `obj.o -o out.exe` (+`-lc` on unix) and **does not link any archive
+exporting those symbols**. Result: even `fn main(){ log("hi") }` fails to link
+(`lld-link: error: undefined symbol: mty_runtime_log`). Only an empty `fn main(){}` links.
+Worse, the failure is reported as the misleading `wrote object ... (no linker found; set
+$STARDUST_LINKER)` because `build_native` maps a *link error* to `NativeOkNoLinker`
+(`mty-driver/src/build.rs:166`).
+**Why it matters:** `mty build` → runnable native binary is effectively non-functional for
+real programs today; `mty run` (JIT, runtime in-process) is the only working native path.
+**Suggested work:** Ship `mty-runtime` as a static archive (or objects) and have
+`link_executable` link it; or have codegen emit a self-contained object. Fix the
+error-reporting so genuine link failures aren't disguised as "no linker." Document
+`STARDUST_LINKER` and make the linker honor MSVC arg syntax when given `link.exe`/`lld-link`.
+
+### L11. `extern c` is not real FFI — a name-only, arg-less, libc-only trampoline ✅ **[P0]**
+`extern c fn f(...)` lowers (native codegen) to a local stub that calls
+`mty_runtime_extern_call(name_ptr, name_len, args)` (`codegen_abi.rs:120`). That function:
+(a) **ignores `args`** (the param is `_args: i64`), (b) dispatches **by name** through a
+fixed `ExternRegistry::with_libc()` and returns `i64` via `call_i64(&name)`, and (c) has **no
+way to register or `dlopen` arbitrary external symbols**. So a Mighty program *cannot* call
+`mui_smoke_add(2, 40)` in our Rust shim — the args are dropped, the symbol isn't in the libc
+registry, and it returns 0. (`llvm-nm` confirms `t mui_smoke_add` + `U mty_runtime_extern_call`,
+no direct symbol reference.)
+**Why it matters:** This is the single blocker for "native app in Mighty that binds a C/Rust
+library." It blocked the entire Mighty-IDE native-GUI plan at the spike.
+**Suggested work (the big one):** Make `extern c` lower to a **direct call to the named
+symbol** (let the linker resolve it), with a real C ABI that passes typed args (i32/i64/f32/
+f64/pointers) and returns typed values — i.e. what `extern "C"` means everywhere else. Pair
+with L2/L10 so the symbol can actually be linked. (This is the substance behind the v0.36
+"extern c matrix" item.) NOTE: the **WASM target** appears to lower `extern`/`extern c` to
+real host-import functions (`examples/06` comment: "the slice-8 wasm backend lowers them as
+declared host functions"), so the web/WASM path may already support genuine FFI where native
+does not — worth confirming, as it changes which IDE substrate is viable today.
+
 ---
 
 ## P1 — Major ergonomic gaps for real programs

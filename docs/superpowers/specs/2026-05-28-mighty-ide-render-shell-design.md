@@ -174,3 +174,37 @@ sub-project with its own spec.
 - Rope vs. gap buffer for MVP-0 (gap buffer is simpler; rope scales — decide in plan).
 - Font selection / bundling (ship a default monospace font with the repo).
 - HiDPI / scale-factor handling (winit reports it; decide minimum viable handling).
+
+---
+
+## Spike results (2026-05-28) — GATE A & B: **NO-GO**
+
+The Day-1 spike ran and **killed the native-FFI architecture** before any wgpu/editor
+code was written. Findings (verified against `stardust` source + live `mty build`):
+
+- **Toolchain:** cargo/rustc 1.95 (msvc) present; `mty` built from source
+  (`stardust/target/debug/mty.exe`, reports `0.1.0`); LLVM/clang 22.1.6 installed via
+  winget to get a clang-style linker.
+- **`mighty-ui-sys` staticlib** built cleanly (winit 0.30.13 / wgpu 22.1.0 / glyphon 0.6.0,
+  no version conflicts) — the Rust side is fine.
+- **GATE A (link Mighty ↔ shim): NO-GO.** `mty build` lowers an `extern c` call to a *local
+  stub* that calls `mty_runtime_extern_call(name_ptr, name_len, args)` (confirmed:
+  `llvm-nm ffi.o` shows `t mui_smoke_add` + `U mty_runtime_extern_call`, no direct symbol).
+  That runtime trampoline (`crates/mty-runtime/src/codegen_abi.rs:120`) **ignores the args**
+  and dispatches by name through a fixed **libc-only** `ExternRegistry`, returning `i64`.
+  So Mighty cannot pass arguments to, or call into, an arbitrary external library. `extern c`
+  is a stub, not real FFI.
+- **GATE B (native codegen): NO-GO (independently).** `mty build` emits an object that
+  references `mty_runtime_*` symbols but the link step (`mty-driver/src/build.rs:152`,
+  `mty-codegen-cranelift/src/object.rs:174`) links only `obj.o -o out.exe` (+`-lc` on unix)
+  — it **never links the runtime archive or any user lib**, and uses clang `-o` syntax (MSVC
+  `link.exe` unusable). A trivial `log("hi")` program fails to link (`undefined symbol:
+  mty_runtime_log`). So native `mty build` produces runnable exes only for empty programs.
+
+**Conclusion:** Building the IDE as a native GPU app written in Mighty driving a Rust shim
+via `extern c` is **not possible on Mighty as it exists today**. The two required pillars —
+real `extern c` FFI (typed args, arbitrary linked symbols) and native executable linking
+(runtime archive + user libs) — are both absent. This spec's sub-project 0 is **paused
+pending a foundation decision** (mature Mighty's FFI+linking, pivot the UI substrate to the
+WASM/web target which uses real host-import FFI, or relax the all-Mighty constraint).
+See `docs/mighty-language-lessons.md` (L2, L10–L12) for the upstream language work.
