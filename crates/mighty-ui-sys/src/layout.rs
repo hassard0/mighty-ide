@@ -25,6 +25,12 @@ pub const SIDEBAR_W: f32 = 180.0;
 /// Pixels of indentation per tree depth level.
 pub const TREE_INDENT: f32 = 12.0;
 
+/// Fraction of the window height the integrated terminal panel occupies when
+/// open (a "lower third").
+pub const TERM_FRACTION: f32 = 0.33;
+/// Minimum terminal panel height (px) so it stays usable in small windows.
+pub const TERM_MIN_H: f32 = 4.0 * LINE_H;
+
 /// The pixel offsets of the editable text region: the top edge (below the tab
 /// bar) and the left edge (right of the sidebar, if shown). The gutter/text/
 /// cursor math is all relative to these so the editor body can be shifted by the
@@ -110,14 +116,75 @@ pub fn visible_rows(height: u32) -> u32 {
 }
 
 /// Region-aware visible-row count: the usable height is reduced by the tab bar
-/// at the top and two bands at the bottom (prompt + status).
-pub fn visible_rows_in(region: Region, height: u32) -> u32 {
+/// at the top and two bands at the bottom (prompt + status), plus the terminal
+/// panel when it is open.
+pub fn visible_rows_in(region: Region, height: u32, term_open: bool) -> u32 {
     let reserved_bottom = 2.0 * LINE_H; // prompt band + status band
-    let usable = height as f32 - region.top - PAD - reserved_bottom;
+    let term = if term_open {
+        term_panel_height(height)
+    } else {
+        0.0
+    };
+    let usable = height as f32 - region.top - PAD - reserved_bottom - term;
     if usable <= 0.0 {
         return 1;
     }
     ((usable / LINE_H).floor() as u32).max(1)
+}
+
+// ---------------------------------------------------------------------------
+// Integrated terminal panel
+// ---------------------------------------------------------------------------
+
+/// Height (px) of the terminal panel for a window `height` tall: a lower third,
+/// clamped to a usable minimum and to not exceed the window.
+pub fn term_panel_height(height: u32) -> f32 {
+    let h = height as f32;
+    let frac = (h * TERM_FRACTION).floor();
+    frac.max(TERM_MIN_H).min((h - 2.0 * LINE_H).max(0.0))
+}
+
+/// Top y (px) of the terminal panel: it sits directly above the prompt + status
+/// bands at the very bottom of the window.
+pub fn term_panel_top(height: u32) -> f32 {
+    let h = height as f32;
+    let reserved_bottom = 2.0 * LINE_H; // prompt + status bands
+    (h - reserved_bottom - term_panel_height(height)).max(0.0)
+}
+
+/// Left x (px) of the terminal panel: right of the sidebar (so it lines up with
+/// the editor body), or 0 when the sidebar is hidden.
+pub fn term_panel_left(region: Region) -> f32 {
+    region.left
+}
+
+/// Number of whole terminal rows that fit in the panel (`>= 1`).
+pub fn term_grid_rows(height: u32) -> usize {
+    let usable = term_panel_height(height) - PAD; // a little top padding
+    if usable <= 0.0 {
+        return 1;
+    }
+    ((usable / LINE_H).floor() as usize).max(1)
+}
+
+/// Number of whole terminal columns that fit in the panel for window width `w`
+/// and the given region left offset (`>= 1`).
+pub fn term_grid_cols(width: u32, region: Region) -> usize {
+    let usable = width as f32 - region.left - 2.0 * PAD;
+    if usable <= 0.0 {
+        return 1;
+    }
+    ((usable / CHAR_W).floor() as usize).max(1)
+}
+
+/// X pixel of terminal cell column `col` within the panel.
+pub fn term_cell_x(region: Region, col: usize) -> f32 {
+    region.left + PAD + (col as f32) * CHAR_W
+}
+
+/// Y pixel (top) of terminal cell row `row` within the panel for window `height`.
+pub fn term_cell_y(height: u32, row: usize) -> f32 {
+    term_panel_top(height) + PAD * 0.5 + (row as f32) * LINE_H
 }
 
 /// Map the tab-bar pixel x to a tab index (`floor(x / TAB_W)`).
@@ -311,8 +378,33 @@ mod tests {
         // Region-aware count is strictly less than the naive one (tab bar +
         // prompt + status reserved).
         let naive = visible_rows(600);
-        let shifted = visible_rows_in(r, 600);
+        let shifted = visible_rows_in(r, 600, false);
         assert!(shifted < naive, "shifted={shifted} naive={naive}");
         assert!(shifted >= 1);
+    }
+
+    #[test]
+    fn terminal_open_shrinks_editor_rows() {
+        let r = region(true);
+        let without = visible_rows_in(r, 600, false);
+        let with = visible_rows_in(r, 600, true);
+        assert!(with < without, "with={with} without={without}");
+        assert!(with >= 1);
+    }
+
+    #[test]
+    fn terminal_panel_geometry() {
+        // Lower third of a 600px window, clamped to >= TERM_MIN_H.
+        let h = term_panel_height(600);
+        assert!(h >= TERM_MIN_H);
+        // The panel top + its height + the two bottom bands stay within height.
+        let top = term_panel_top(600);
+        assert!(top + h + 2.0 * LINE_H <= 600.0 + 0.5);
+        // Grid dimensions are positive.
+        assert!(term_grid_rows(600) >= 1);
+        let r = region(true);
+        assert!(term_grid_cols(900, r) >= 1);
+        // Cols shrink when the sidebar pushes the panel right.
+        assert!(term_grid_cols(900, region(false)) > term_grid_cols(900, r));
     }
 }

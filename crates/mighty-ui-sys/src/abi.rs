@@ -233,7 +233,7 @@ pub extern "C" fn mui_text_draw_line(handle: i64, line: i32, r: f32, g: f32, b: 
 pub extern "C" fn mui_visible_rows(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(1, |c| {
         let region = layout::region(c.sidebar_visible);
-        layout::visible_rows_in(region, c.gpu.height) as i32
+        layout::visible_rows_in(region, c.gpu.height, c.term_open) as i32
     })
 }
 
@@ -1463,6 +1463,277 @@ pub extern "C" fn mui_log_workspace(handle: i64) {
             ctx.tabs.active(),
             ctx.tree.count(),
             if ctx.sidebar_visible { "on" } else { "off" }
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Integrated terminal — PTY-backed shell + VT grid (all logic in terminal.rs)
+// ---------------------------------------------------------------------------
+
+/// One queued terminal text run: position, string, and resolved RGBA color.
+type TermRun = (f32, f32, String, (f32, f32, f32, f32));
+
+/// Grid dimensions for the terminal panel given the current window + sidebar.
+fn term_dims(ctx: &MuiContext) -> (usize, usize) {
+    let region = layout::region(ctx.sidebar_visible);
+    let rows = layout::term_grid_rows(ctx.gpu.height);
+    let cols = layout::term_grid_cols(ctx.gpu.width, region);
+    (rows, cols)
+}
+
+/// Open (spawn if needed) the integrated terminal, sizing its grid/PTY to the
+/// current panel. Marks the panel open. Returns `1` if a terminal is running
+/// afterwards, `0` on spawn failure or null handle.
+#[no_mangle]
+pub extern "C" fn mui_term_open(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let (rows, cols) = term_dims(ctx);
+    if ctx.terminal.is_none() {
+        match crate::terminal::Terminal::spawn(rows, cols) {
+            Ok(t) => {
+                println!("mui_term_open: spawned shell, grid {rows}x{cols}");
+                ctx.terminal = Some(t);
+            }
+            Err(e) => {
+                eprintln!("mui_term_open: {e}");
+                return 0;
+            }
+        }
+    } else if let Some(t) = ctx.terminal.as_mut() {
+        // Re-size to the current panel in case the window changed while closed.
+        t.resize(rows, cols);
+    }
+    ctx.term_open = true;
+    1
+}
+
+/// Close the terminal panel and tear down the shell (frees the PTY + grid).
+/// Marks the panel closed.
+#[no_mangle]
+pub extern "C" fn mui_term_close(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.term_open = false;
+        // Dropping the Terminal kills the child + joins nothing (reader thread
+        // exits on EOF). Keep this explicit for clarity.
+        ctx.terminal = None;
+    }
+}
+
+/// `1` if the terminal panel is currently open AND a shell is running, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_term_running(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.term_open {
+        return 0;
+    }
+    match ctx.terminal.as_mut() {
+        Some(t) => i32::from(t.is_alive()),
+        None => 0,
+    }
+}
+
+/// `1` if the terminal panel is open (regardless of shell liveness), else `0`.
+/// The Mighty side uses this for focus routing.
+#[no_mangle]
+pub extern "C" fn mui_term_is_open(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| if c.term_open { 1 } else { 0 })
+}
+
+/// Map a named key (`MUI_KEY_*`) + mods to terminal stdin bytes and write them
+/// to the PTY. No-op if the terminal is not running. The key->byte mapping lives
+/// shim-side (see [`crate::terminal::key_to_bytes`]).
+#[no_mangle]
+pub extern "C" fn mui_term_key(handle: i64, keycode: i32, mods: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if let Some(t) = ctx.terminal.as_mut() {
+            if keycode >= 0 {
+                if let Some(bytes) =
+                    crate::terminal::key_to_bytes(keycode as u32, mods.max(0) as u32)
+                {
+                    t.send(&bytes);
+                }
+            }
+        }
+    }
+}
+
+/// Map a typed codepoint + mods to terminal stdin bytes (Ctrl+letter -> control
+/// code, else UTF-8) and write them to the PTY. No-op if not running.
+#[no_mangle]
+pub extern "C" fn mui_term_send_codepoint(handle: i64, codepoint: i32, mods: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if let Some(t) = ctx.terminal.as_mut() {
+            if codepoint >= 0 {
+                if let Some(bytes) =
+                    crate::terminal::codepoint_to_bytes(codepoint as u32, mods.max(0) as u32)
+                {
+                    t.send(&bytes);
+                }
+            }
+        }
+    }
+}
+
+/// Write a single raw byte to the PTY stdin. No-op if not running.
+#[no_mangle]
+pub extern "C" fn mui_term_send_byte(handle: i64, byte: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if let Some(t) = ctx.terminal.as_mut() {
+            if (0..=255).contains(&byte) {
+                t.send(&[byte as u8]);
+            }
+        }
+    }
+}
+
+/// Drain pending PTY output through the VT parser into the grid. Call once per
+/// frame while the panel is open. No-op if not running.
+#[no_mangle]
+pub extern "C" fn mui_term_pump(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if let Some(t) = ctx.terminal.as_mut() {
+            t.pump();
+        }
+    }
+}
+
+/// Number of rows in the terminal grid (0 if not running).
+#[no_mangle]
+pub extern "C" fn mui_term_rows(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.terminal.as_ref().map_or(0, |t| t.rows() as i32))
+}
+
+/// Number of columns in the terminal grid (0 if not running).
+#[no_mangle]
+pub extern "C" fn mui_term_cols(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.terminal.as_ref().map_or(0, |t| t.cols() as i32))
+}
+
+/// Draw the terminal panel: a background band, then the grid cells (each glyph
+/// in its palette color), then a block cursor. Resizes the grid/PTY to the
+/// current panel first so it tracks window resizes. No-op if the panel is closed
+/// or no shell is running. Mighty calls this once per frame after `mui_term_pump`.
+#[no_mangle]
+pub extern "C" fn mui_term_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if !ctx.term_open || ctx.terminal.is_none() {
+        return;
+    }
+    let region = layout::region(ctx.sidebar_visible);
+    let (panel_rows, panel_cols) = term_dims(ctx);
+    let width = ctx.gpu.width;
+    let height = ctx.gpu.height;
+    let handle_ptr = handle as usize as *mut MuiContext;
+    let clip = ctx.clip;
+
+    // Resize the grid + PTY to the current panel before drawing.
+    if let Some(t) = ctx.terminal.as_mut() {
+        t.resize(panel_rows, panel_cols);
+    }
+
+    // Panel geometry.
+    let panel_top = layout::term_panel_top(height);
+    let panel_h = layout::term_panel_height(height);
+    let panel_left = layout::term_panel_left(region);
+    let panel_w = (width as f32 - panel_left).max(0.0);
+
+    // Background band + a 1px top border so the panel reads as a distinct pane.
+    unsafe {
+        crate::mui_fill_rect(
+            handle_ptr,
+            panel_left,
+            panel_top,
+            panel_w,
+            panel_h,
+            MuiColor::new(0.06, 0.07, 0.09, 1.0),
+        );
+        crate::mui_fill_rect(
+            handle_ptr,
+            panel_left,
+            panel_top,
+            panel_w,
+            2.0,
+            MuiColor::new(0.20, 0.42, 0.55, 1.0),
+        );
+    }
+
+    // Snapshot the grid into owned data so the borrow on `ctx.terminal` ends
+    // before we borrow `ctx.text`.
+    let (rows, cols, cursor, glyphs) = {
+        let t = ctx.terminal.as_ref().expect("terminal present");
+        let g = t.grid();
+        let rows = g.rows();
+        let cols = g.cols();
+        // Build one (x, y, string, color) run per row, splitting on color change
+        // to keep the draw-call count modest while preserving per-cell color.
+        let mut runs: Vec<TermRun> = Vec::new();
+        for r in 0..rows {
+            let y = layout::term_cell_y(height, r);
+            let mut col = 0usize;
+            while col < cols {
+                let fg = g.cell(r, col).fg;
+                let start = col;
+                let mut s = String::new();
+                while col < cols && g.cell(r, col).fg == fg {
+                    s.push(g.cell(r, col).ch);
+                    col += 1;
+                }
+                // Trim a trailing run of spaces (don't draw blank tails).
+                if !s.trim_end().is_empty() {
+                    let x = layout::term_cell_x(region, start);
+                    runs.push((x, y, s, crate::terminal::palette_rgba(fg)));
+                }
+            }
+        }
+        (rows, cols, g.cursor(), runs)
+    };
+
+    for (x, y, s, (r, gc, b, a)) in &glyphs {
+        ctx.text
+            .queue(*x, *y, s, MuiColor::new(*r, *gc, *b, *a), clip);
+    }
+
+    // Block cursor at the grid cursor position (clamped into the panel).
+    let (cr, cc) = cursor;
+    if cr < rows && cc <= cols {
+        let cx = layout::term_cell_x(region, cc);
+        let cy = layout::term_cell_y(height, cr);
+        unsafe {
+            crate::mui_fill_rect(
+                handle_ptr,
+                cx,
+                cy,
+                layout::CHAR_W,
+                layout::LINE_H - 2.0,
+                MuiColor::new(0.85, 0.85, 0.50, 0.6),
+            );
+        }
+    }
+}
+
+/// Print the live terminal status to stdout (open?, running?, grid dims). Used
+/// as launch-test evidence since the Mighty side can't `log` computed ints (L1).
+#[no_mangle]
+pub extern "C" fn mui_log_terminal(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        let (rows, cols) = ctx
+            .terminal
+            .as_ref()
+            .map_or((0, 0), |t| (t.rows(), t.cols()));
+        let running = match ctx.terminal.as_mut() {
+            Some(t) => t.is_alive(),
+            None => false,
+        };
+        println!(
+            "terminal: open={} running={running} grid={rows}x{cols}",
+            ctx.term_open
         );
     }
 }

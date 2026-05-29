@@ -17,6 +17,7 @@ mod gpu;
 mod layout;
 mod prompt;
 mod tabs;
+mod terminal;
 mod text;
 mod tree;
 mod window;
@@ -89,6 +90,13 @@ pub struct MuiContext {
     tree: tree::FileTree,
     /// Whether the sidebar is currently shown (toggled by Ctrl+B).
     sidebar_visible: bool,
+
+    // ---- integrated terminal state ----
+    /// The PTY-backed terminal, lazily spawned on first open (`mui_term_open`).
+    /// `None` until opened or after the shell exits + the panel is closed.
+    terminal: Option<terminal::Terminal>,
+    /// Whether the terminal panel is currently shown (toggled by Ctrl+`).
+    term_open: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -190,6 +198,8 @@ pub(crate) fn build_context(
         tabs: tab_store,
         tree: file_tree,
         sidebar_visible: true,
+        terminal: None,
+        term_open: false,
     });
     Box::into_raw(ctx)
 }
@@ -484,6 +494,8 @@ impl MuiContext {
             tabs: tabs::TabStore::new(),
             tree: tree::FileTree::new(),
             sidebar_visible: true,
+            terminal: None,
+            term_open: false,
         })
     }
 
