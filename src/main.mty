@@ -146,6 +146,21 @@ extern c {
   fn mui_complete_accept_char(handle: I64, i: I32) -> I32
   fn mui_complete_cancel(handle: I64)
   fn mui_complete_draw_at(handle: I64, row: I32, col: I32, total_lines: I32)
+  // ---- hover + go-to-definition (sub-project 7): shim-side LSP nav ----
+  // Mighty streams the buffer in (like completion/find), requests hover/def at
+  // (line,col) 0-based, then reads scalars back. The hover popup + the resolved
+  // definition target live shim-side (L21: Mighty never holds the result Vec).
+  fn mui_nav_reset(handle: I64)
+  fn mui_nav_push_byte(handle: I64, byte: I32)
+  fn mui_hover_request(handle: I64, line: I32, col: I32) -> I32
+  fn mui_hover_active(handle: I64) -> I32
+  fn mui_hover_clear(handle: I64)
+  fn mui_hover_draw(handle: I64, row: I32, col: I32, total_lines: I32)
+  fn mui_def_request(handle: I64, line: I32, col: I32) -> I32
+  fn mui_def_path_matches_current(handle: I64) -> I32
+  fn mui_def_target_line(handle: I64) -> I32
+  fn mui_def_target_col(handle: I64) -> I32
+  fn mui_def_open_target(handle: I64) -> I32
 }
 
 // ---- event tags / keys / mods (mirror mighty_ui.h) ----
@@ -162,6 +177,7 @@ fn key_backspace() -> I32 { 5 }
 fn key_enter() -> I32 { 6 }
 fn key_tab() -> I32 { 7 }
 fn key_escape() -> I32 { 8 }
+fn key_f12() -> I32 { 14 }
 
 // prompt kinds (mirror PromptKind in prompt.rs)
 fn prompt_goto() -> I32 { 1 }
@@ -560,6 +576,40 @@ fn accept_completion(h: I64, buf: Vec[I32], cur: USize) -> Vec[I32] effect alloc
   out
 }
 
+// ---- hover + go-to-definition (sub-project 7) ----
+//
+// Mighty can't pass its buffer across FFI (L17), so we stream it into the shim's
+// nav buffer (mirroring request_completion), then ask for hover / definition at
+// the cursor (line, col) 0-based. The result (hover popup / def target) lives
+// shim-side; Mighty reads scalars back. FLAT scan over buf (L21-safe: the loop
+// condition reads the Vec each step).
+
+// Stream the live buffer into the shim's nav buffer. FLAT scan.
+fn stream_nav_buf(h: I64, buf: Vec[I32]) {
+  mui_nav_reset(h)
+  let mut i: USize = 0
+  while i < buf.len() {
+    mui_nav_push_byte(h, byte_at(buf, i))
+    i = i + 1
+  }
+}
+
+// Request hover at the cursor `cur`. Returns 1 if hover text is available.
+fn request_hover(h: I64, buf: Vec[I32], cur: USize) -> I32 {
+  stream_nav_buf(h, buf)
+  let line = usize_to_i32(line_of(buf, cur))
+  let col = usize_to_i32(col_of(buf, cur))
+  mui_hover_request(h, line, col)
+}
+
+// Request go-to-definition at the cursor `cur`. Returns 1 if a location found.
+fn request_def(h: I64, buf: Vec[I32], cur: USize) -> I32 {
+  stream_nav_buf(h, buf)
+  let line = usize_to_i32(line_of(buf, cur))
+  let col = usize_to_i32(col_of(buf, cur))
+  mui_def_request(h, line, col)
+}
+
 // Save the whole buffer to disk through the shim's staged save buffer.
 fn save_buffer(h: I64, buf: Vec[I32]) -> I32 {
   mui_save_clear(h)
@@ -676,6 +726,18 @@ fn main() {
   // Enter/Tab accept, Escape cancels, typing more letters refreshes the request,
   // any other key cancels. The candidate list + selection live shim-side.
   let mut completing = false
+
+  // ---- hover + go-to-definition (sub-project 7) ----
+  // `hovering` is true while a hover popup is shown (Ctrl+K opens it; it closes
+  // when the cursor moves or on Escape). The popup anchors to the cursor cell at
+  // request time. F12 jumps to a definition; `have_prev` + (prev_line, prev_col)
+  // store ONE previous location so Ctrl+Minus can jump back. The hover text +
+  // def target live shim-side (L21-safe: Mighty never holds the result Vec).
+  let mut hovering = false
+  let mut hover_at: USize = 0   // cursor offset the popup anchors to
+  let mut have_prev = false
+  let mut prev_line: USize = 0
+  let mut prev_col: USize = 0
 
   while running {
     let rows_i = mui_visible_rows(h)
@@ -831,6 +893,19 @@ fn main() {
         if ctrl_held(mods) && cp == 32 {                    // Ctrl+Space : autocomplete
           let cnt = request_completion(h, buf, cur)
           if cnt > 0 { completing = true } else { mui_complete_cancel(h) }
+        } else if ctrl_held(mods) && (cp == 107 || cp == 75) {  // Ctrl+K / Ctrl+k : hover
+          // Manual hover trigger: request hover at the cursor; show the popup
+          // until the cursor moves or Escape (sub-project 7). Simple + explicit,
+          // no idle-timer complexity.
+          let ok = request_hover(h, buf, cur)
+          if ok == 1 { hovering = true; hover_at = cur } else { mui_hover_clear(h); hovering = false }
+        } else if ctrl_held(mods) && cp == 45 {             // Ctrl+Minus : jump back
+          if have_prev {
+            cur = offset_of(buf, prev_line, prev_col)
+            have_prev = false
+            mui_hover_clear(h)
+            hovering = false
+          }
         } else if ctrl_held(mods) && cp == 96 {             // Ctrl+` : toggle terminal
           if mui_term_is_open(h) == 1 {
             // Panel already open but editor-focused -> give it focus.
@@ -886,8 +961,48 @@ fn main() {
         }
       } else if tag == ev_key() {
         let k = mui_event_key(h)
-        if k == key_escape() {
+        if k == key_f12() {
+          // sub-project 7: go-to-definition. Request at the cursor; if found,
+          // remember the current location (jump-back), then either move the
+          // cursor in the same file or open the target file as a tab (byte-swap
+          // the live buffer first so the current edit isn't lost) and move there.
+          let found = request_def(h, buf, cur)
+          if found == 1 {
+            prev_line = line_of(buf, cur)
+            prev_col = col_of(buf, cur)
+            have_prev = true
+            mui_hover_clear(h)
+            hovering = false
+            let same = mui_def_path_matches_current(h)
+            let tl = mui_def_target_line(h)
+            let tc = mui_def_target_col(h)
+            if same == 1 {
+              if tl >= 0 {
+                cur = offset_of(buf, i32_to_usize(tl), i32_to_usize(tc))
+              }
+            } else {
+              // Different file: save the live buffer, open the target tab, load
+              // it, then move the cursor to the target (reuse the tab-swap path).
+              store_tab(h, buf, active, cur, first)
+              let newidx = mui_def_open_target(h)
+              if newidx >= 0 {
+                active = newidx
+                buf = load_tab_buffer(h, active)
+                if tl >= 0 {
+                  cur = offset_of(buf, i32_to_usize(tl), i32_to_usize(tc))
+                } else {
+                  cur = restore_cursor(buf, h, active)
+                }
+                first = i32_to_usize(mui_tab_scroll(h, active))
+                find_nav = false
+                let _r = mui_diag_refresh(h)
+              }
+            }
+          }
+        } else if k == key_escape() {
           find_nav = false                                  // clear find highlights
+          mui_hover_clear(h)                                // dismiss hover popup
+          hovering = false
         } else if k == key_tab() {
           let kmods = mui_event_mods(h)
           if ctrl_held(kmods) {
@@ -992,6 +1107,13 @@ fn main() {
       tag = mui_poll_event_s(h)
     }
 
+    // sub-project 7: dismiss the hover popup once the cursor leaves the cell it
+    // anchored to (any move/edit/click changes `cur`). Escape also clears it.
+    if hovering && cur != hover_at {
+      mui_hover_clear(h)
+      hovering = false
+    }
+
     // Keep the cursor on-screen, then clamp `first` so we never scroll past EOF.
     let cur_line = line_of(buf, cur)
     first = scroll_to_cursor(first, cur_line, rows)
@@ -1031,6 +1153,18 @@ fn main() {
         let crow = usize_to_i32(c_line - first)
         let ccol = usize_to_i32(c_col)
         mui_complete_draw_at(h, crow, ccol, total_now_i)
+      }
+    }
+    // sub-project 7: the hover popup near the cursor (anchored to hover_at).
+    // Draw last (over everything). The shim positions/clamps the box from
+    // row/col and wraps the text to a few lines.
+    if hovering {
+      let h_line = line_of(buf, hover_at)
+      let h_col = col_of(buf, hover_at)
+      if h_line >= first && h_line < first + rows {
+        let hrow = usize_to_i32(h_line - first)
+        let hcol = usize_to_i32(h_col)
+        mui_hover_draw(h, hrow, hcol, total_now_i)
       }
     }
     mui_end_frame_s(h)
