@@ -208,3 +208,33 @@ real `extern c` FFI (typed args, arbitrary linked symbols) and native executable
 pending a foundation decision** (mature Mighty's FFI+linking, pivot the UI substrate to the
 WASM/web target which uses real host-import FFI, or relax the all-Mighty constraint).
 See `docs/mighty-language-lessons.md` (L2, L10–L12) for the upstream language work.
+
+## Spike results — UPDATE (2026-05-29): GATE A & B now **GO** (via a Mighty FFI fix)
+
+The NO-GO above was the *starting* state. Per the mandate to extend Mighty when it
+blocks the IDE, the language gaps were fixed and **real native `extern c` FFI was proven
+end-to-end**:
+
+- New lean `mty-rt-abi` static library defines the `mty_runtime_*` symbols, so
+  `mty build` links a runnable native binary (fixes L10).
+- `extern c` now lowers to a **direct typed C-ABI call** to the named symbol (cranelift
+  `Linkage::Import` + a real signature), instead of the arg-dropping
+  `mty_runtime_extern_call` trampoline (fixes L11). Required a typeck fix to record
+  signatures for body-less fns (they were lowering to `() -> Unit`).
+- `mty build` auto-links the runtime archive + platform libs + user libraries declared in
+  `mighty.toml` (`[build] native-libs` / `link-search`); `STARDUST_LINKER`→`MIGHTY_LINKER`.
+
+**Verified:** `mui_smoke_add(2,40)==42` and a dynamic FFI loop `mui_accumulate(0..9)==45`,
+linked against a C shim — both via plain `mty build` with the lib declared in `mighty.toml`.
+
+**Integration status (important):** the Mighty repo is advanced in parallel by an
+autonomous swarm (it moved v0.30→v0.35.1 mid-session, and the FFI work is on its own v0.36
+"extern c matrix + static-lib linking" backlog). To avoid clobbering swarm work, the
+verified fix is **not committed to Mighty `main`** — it lives in orphan commits
+`3bb70b5`/`b534a6b`, `git stash@{0}` (wip-native-ffi-linking), and is fully specified in the
+lessons doc. It needs a clean re-apply onto current Mighty HEAD (or the swarm lands its own).
+
+### Revised build order (this changes nothing structural)
+Native `mty build` linking (Phase 3 integration) depends on the FFI fix being merged into
+Mighty. **Phases 1 (editor model, `mty test`) and 2 (Rust wgpu shim, cargo) do NOT** — they
+are built now and are durable in this repo; Phase 3 wires them once Mighty ships the FFI fix.
