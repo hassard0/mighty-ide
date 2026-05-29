@@ -11,9 +11,18 @@ name = "mighty_ui_sys"
 kind = "dynamic"
 path = "vendor/mighty_ui_sys.dll.lib"
 
-# Runtime-symbol stub: satisfies the mty_runtime_* imports every Mighty object
-# references. Not the production runtime — see vendor/mty_runtime_stub.c.
+# Runtime-symbol archive: satisfies the mty_runtime_* imports every Mighty
+# object references. This is the REAL bumpalo-backed arena runtime built from
+# crates/mty-rt-abi (staticlib) — NOT the old no-op C stub. The no-op stub's
+# arena push/pop did nothing and alloc was a bare malloc, under which Mighty's
+# Vec.push grow path silently came back empty; the real arena fixes that.
+#
+# The crate is a Rust staticlib, so it needs the MSVC system libs reported by
+# `cargo rustc -p mty-rt-abi --crate-type staticlib -- --print native-static-libs`.
 [[extern_lib]]
 name = "mtyrt"
 kind = "static"
-path = "vendor/mtyrt.lib"
+path = "vendor/mty_rt_abi.lib"
+# The linker is clang (GNU-style driver), so system libs use `-l<name>` form;
+# bare `name.lib` would be treated as a missing positional file input.
+link_args_windows = ["-lkernel32", "-lntdll", "-luserenv", "-lws2_32", "-ldbghelp"]

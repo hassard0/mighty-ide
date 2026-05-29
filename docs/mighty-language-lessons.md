@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-05-29 (command palette: shim-side registry + fuzzy filter; L27. Format-guard safety fix logged at L26). Prior: hover + go-to-definition; L25._
+_Last updated: 2026-05-29 (L28: `v = v.push(x)` capture-rebind is a NO-OP under native `mty build` — confirmed codegen bug, NOT the runtime; minimal standalone repro in `repro/`). Prior: command palette shim-side registry + fuzzy filter; L27._
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -192,6 +192,42 @@ Discovered building the gutter+scroll render loop. A function `fn draw_buffer(h:
 **Workaround (verified ✅):** structure buffer rendering as ONE flat scan whose loop condition reads the Vec (`while i < buf.len()`), tracking line/col in scalars and emitting draws at line boundaries; do any per-row work that *doesn't* touch the Vec (e.g. gutter line numbers) in a separate flat loop afterward; compute cursor line/col with the flat helper fns after the scan (reuse of `buf` *after* a flat loop is fine). This is how `src/main.mty::draw_buffer` does visible-range rendering for scroll.
 
 **Why it matters:** any non-trivial Mighty program that walks a collection with nested loops + conditionals (i.e. most real code) can hit a silent memory-corruption crash with no diagnostic. **Suggested fix:** audit the Cranelift backend's liveness/spill handling for aggregate (`Vec`/`String`) locals & params that are live across loop back-edges and used only within nested branch arms; add a regression test (flat-top-read then nested-loop-body-read of the same Vec param).
+
+### L28. The `v = v.push(x)` capture-rebind grows NOTHING under native `mty build` — even a single flat loop leaves `v.len()==0` (confirmed codegen bug, NOT the runtime) ✅ **[P0]**
+The L12 workaround (`v = v.push(x)` to grow a `Vec`, since bare `v.push(x)` is a no-op) was verified **only under the interpreter** (`mty test` / `mty run`). Under **native `mty build`** it does not work at all: a flat `while` loop that does `v = v.push(byte)` iterates the correct number of times but the `Vec` stays empty (`v.len()==0`). This is exactly the bug that forced the IDE's editor body to render shim-side (`mui_draw_buffer_self` reads the shim's own byte copy) instead of from the live Mighty `buf`.
+
+**Ruled out the runtime first.** The hypothesis was that the IDE's no-op-arena C stub (`vendor/mty_runtime_stub.c`: `arena_push/pop` no-ops, `alloc` a bare `malloc`) broke the arena semantics Mighty's `Vec` grow path expects. So we vendored a **real bumpalo-backed arena runtime** (`crates/mty-rt-abi`, staticlib — thread-local `ArenaStack` of `bumpalo::Bump` frames; `arena_push` pushes/returns depth, `arena_pop` drops the frame, `alloc` allocates on the top frame with a leaked per-thread fallback `Bump` so allocs always succeed) and pointed the IDE at it (`mighty.toml` `[[extern_lib]] mtyrt → vendor/mty_rt_abi.lib`, `build-ide.sh`). **The buffer is STILL empty with the real arena** — so it is NOT a runtime/arena bug. It's in native codegen's `Vec.push` / capture-rebind lowering.
+
+**Minimal standalone repro** (in `repro/`, links the SAME real-arena runtime so the runtime is excluded as a cause):
+```mty
+// repro/repro.mty (FFI int printer repro_print_i32 supplied by repro/repro_print.c)
+fn main() {
+  let mut v: Vec[I32] = Vec.new()
+  let mut i: USize = 0
+  while i < 5 { v = v.push(65); i = i + 1 }
+  repro_print_i32(vec_len_i32(v))   // counts v via `while j < v.len()` in an I32 acc (L19)
+}
+```
+Build + run (Windows, clang linker):
+```
+cd repro
+"C:\Program Files\LLVM\bin\clang.exe" -c -O0 repro_print.c -o repro_print.o
+"C:\Program Files\LLVM\bin\llvm-ar.exe" rcs repro_print.lib repro_print.o
+cp ../target/debug/mty_rt_abi.lib mty_rt_abi.lib
+MTY_LINKER="C:\Program Files\LLVM\bin\clang.exe" STARDUST_LINKER="C:\Program Files\LLVM\bin\clang.exe" \
+  /c/Users/ihass/stardust/target/debug/mty.exe build repro.mty --out-dir .
+./repro.exe
+```
+**Observed:** `repro: v.len()=0` (expected `5`).
+
+**Confirmed it's the Vec, not the loop or the FFI.** A variant that prints a literal `99` inside the loop body AND counts `v.len()` after prints **five** `99`s then `0` — i.e. the loop runs all 5 iterations and FFI scalar calls inside the loop work fine, but `v` never grew:
+```
+repro: v.len()=99   (x5, one per iteration)
+repro: v.len()=0    (final count)
+```
+The IDE's own launch probe (`mui_probe_buf_len`, wired after the file-load loop in `src/main.mty::main`) prints the same verdict on a real file: `probe: mty_buf_len=0 shim_load_bytes=37 match=false` for a 37-byte file.
+
+**Consequence / current stance:** the editor body stays rendered shim-side (`mui_draw_buffer_self`) — true live-Mighty-buffer dogfooding is blocked until native codegen grows `Vec` correctly. **Suggested fix (stardust):** native codegen must lower `v.push(x)` (and the `let mut v = ...; v = v.push(x)` rebind) so the returned grown Array is actually written back to the binding's slot and survives the loop back-edge; today the grow is dropped. Add a `mty build` conformance test: build the repro above and assert `v.len()==5` (the interpreter already passes this; the native backend does not). Likely shares a root cause with L21 (aggregate-local liveness across loop back-edges in the Cranelift backend).
 
 ### L22. `mty check` diagnostics: coarse spans (type errors resolve to the enclosing `fn` start `1:1`), ANSI always on, `check` ≠ full typecheck ✅ **[P2]**
 Discovered building the live-diagnostics engine (shim runs `mty check <path>`, parses, exposes scalar getters). Findings for v0.36:

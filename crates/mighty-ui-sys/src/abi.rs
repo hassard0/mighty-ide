@@ -1659,6 +1659,27 @@ pub extern "C" fn mui_log_workspace(handle: i64) {
     }
 }
 
+/// Buffer-accumulation probe (L28 / arena-runtime verdict). The Mighty side
+/// passes the length of its live `buf: Vec[I32]` (`mty_buf_len`) after the
+/// load loop; the shim prints it next to its own byte count for the active tab
+/// so a launch test can confirm whether the Mighty Vec actually accumulated.
+/// Mighty native `log` can't print computed integers (L1/L23), so this FFI
+/// printer is the only way to surface `buf.len()`.
+#[no_mangle]
+pub extern "C" fn mui_probe_buf_len(handle: i64, mty_buf_len: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        let shim_bytes = ctx.load_buf.len();
+        println!(
+            "probe: mty_buf_len={} shim_load_bytes={} match={}",
+            mty_buf_len,
+            shim_bytes,
+            mty_buf_len as usize == shim_bytes
+        );
+    } else {
+        println!("probe: mty_buf_len={mty_buf_len} (no ctx)");
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Integrated terminal — PTY-backed shell + VT grid (all logic in terminal.rs)
 // ---------------------------------------------------------------------------

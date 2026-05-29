@@ -10,3 +10,8 @@ node_modules/
 vendor/*.lib
 vendor/*.o
 vendor/mighty_ui_sys.dll.lib
+
+# repro/ build artifacts (rebuilt from repro.mty + repro_print.c per L28 notes)
+repro/*.lib
+repro/*.o
+repro/*.exe

@@ -1,0 +1,12 @@
+[package]
+name = "mty-rt-abi"
+version = "0.1.0"
+edition = "2021"
+description = "Real bumpalo-backed runtime-ABI symbols (mty_runtime_*) for built Mighty binaries."
+
+[lib]
+name = "mty_rt_abi"
+crate-type = ["staticlib"]
+
+[dependencies]
+bumpalo = "3"

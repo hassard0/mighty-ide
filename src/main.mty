@@ -116,6 +116,9 @@ extern c {
   fn mui_tree_open_row(handle: I64, i: I32) -> I32
   // stdout evidence (computed counts; Mighty `log` is literal-only, L1)
   fn mui_log_workspace(handle: I64)
+  // buffer-accumulation probe: prints the live Mighty buf.len() next to the
+  // shim's own load byte count, to verify the real-arena runtime fix (L28).
+  fn mui_probe_buf_len(handle: I64, mty_buf_len: I32)
   // ---- integrated terminal (sub-project 5): all logic shim-side ----
   // Mighty only toggles the panel, routes focused keystrokes, and per frame
   // calls pump + draw. The PTY/VT grid live entirely in the shim (L21: Mighty
@@ -849,6 +852,9 @@ fn main() {
   let mut active: I32 = mui_tab_active(h)
   let mut buf: Vec[I32] = load_tab_buffer(h, active)
   log("mighty-ide: buffer ready")
+  // L28 probe: confirm the live Mighty buffer actually accumulated under the
+  // real-arena runtime (the old no-op-arena stub left buf.len()==0).
+  mui_probe_buf_len(h, usize_to_i32(buf.len()))
 
   // Feature A: seed the undo history baseline with the freshly loaded buffer.
   seed_history(h, buf, 0)
