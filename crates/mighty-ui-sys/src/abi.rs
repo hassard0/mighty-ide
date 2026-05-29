@@ -94,6 +94,14 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         mui_log_terminal(handle);
     }
 
+    // Launch-test hook for autocomplete: with MUI_COMPLETE_PROBE set, run a
+    // scripted completion request so a headless run proves the engine wiring
+    // (Ctrl+Space can't be delivered non-interactively). See `mui_complete_probe`.
+    if std::env::var_os("MUI_COMPLETE_PROBE").is_some() {
+        mui_complete_probe(handle);
+        mui_log_completion(handle);
+    }
+
     handle
 }
 
@@ -1753,4 +1761,268 @@ pub extern "C" fn mui_log_terminal(handle: i64) {
 #[no_mangle]
 pub extern "C" fn mui_smoke_add_s(a: i32, b: i32) -> i32 {
     a + b
+}
+
+// ---------------------------------------------------------------------------
+// Autocomplete dropdown — shim-side engine (logic in completion.rs)
+// ---------------------------------------------------------------------------
+//
+// Mighty can't pass its edit buffer across FFI (L17), so — like find — it
+// streams the buffer in byte-by-byte (`mui_complete_reset` + `_push_byte`),
+// then asks for completion at a cursor byte-offset (`mui_complete_request`).
+// The shim extracts buffer words, optionally merges mty-lsp semantic labels,
+// and owns the candidate list + selection. Mighty reads the accepted text back
+// and drives the dropdown via the scalar getters/movers below.
+
+/// Begin streaming the editor buffer for a completion request: clear the buffer.
+#[no_mangle]
+pub extern "C" fn mui_complete_reset(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.complete_buf.clear();
+    }
+}
+
+/// Append one editor-buffer byte to the completion buffer.
+#[no_mangle]
+pub extern "C" fn mui_complete_push_byte(handle: i64, byte: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.complete_buf.push((byte & 0xff) as u8);
+    }
+}
+
+/// Translate a 0-based `(line, col)` to a byte offset in `buf` (col is a byte
+/// count from the line start, clamped to the line length). Shim-side because
+/// Mighty already tracks the cursor as a byte offset, but the ABI is specified
+/// as `(line, col)`; this keeps the two in agreement.
+fn line_col_to_offset(buf: &[u8], line: i32, col: i32) -> usize {
+    if line < 0 {
+        return 0;
+    }
+    let target = line as usize;
+    let mut l = 0usize;
+    let mut i = 0usize;
+    // Advance to the start of `target`.
+    while i < buf.len() && l < target {
+        if buf[i] == b'\n' {
+            l += 1;
+        }
+        i += 1;
+    }
+    // Walk `col` bytes into the line, stopping at its newline / EOF.
+    let mut c = 0i32;
+    while i < buf.len() && buf[i] != b'\n' && c < col.max(0) {
+        i += 1;
+        c += 1;
+    }
+    i
+}
+
+/// Build the candidate list for the prefix at the cursor `(line, col)` (0-based)
+/// in the streamed buffer. Merges mty-lsp semantic labels (best-effort, with a
+/// short timeout; silently empty on any failure) ahead of the buffer words.
+/// Returns the candidate count (0 leaves the dropdown closed).
+///
+/// The LSP query uses the active file's path as the document id and the streamed
+/// buffer bytes as the document text, so it reflects the live (unsaved) edit.
+#[no_mangle]
+pub extern "C" fn mui_complete_request(handle: i64, line: i32, col: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let cursor = line_col_to_offset(&ctx.complete_buf, line, col);
+
+    // Best-effort semantic labels from mty-lsp. The buffer is the live source;
+    // the path is just the document id. Any failure -> empty -> buffer words.
+    let lsp_labels: Vec<String> = match ctx.file_path.clone() {
+        Some(path) => {
+            let source = String::from_utf8_lossy(&ctx.complete_buf).into_owned();
+            crate::completion::lsp::semantic_labels(&path, &source, line.max(0) as u32, col.max(0) as u32)
+        }
+        None => Vec::new(),
+    };
+
+    let n = ctx
+        .complete
+        .request(&ctx.complete_buf, cursor, &lsp_labels)
+        .min(i32::MAX as usize) as i32;
+    println!("complete: candidates={n} (lsp={})", lsp_labels.len());
+    n
+}
+
+/// Number of candidates currently in the dropdown.
+#[no_mangle]
+pub extern "C" fn mui_complete_count(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.complete.count() as i32)
+}
+
+/// `1` if the dropdown is open, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_complete_active(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.complete.is_active()))
+}
+
+/// Index (0-based) of the currently selected candidate.
+#[no_mangle]
+pub extern "C" fn mui_complete_sel(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.complete.selection() as i32)
+}
+
+/// Move the selection by `delta` (positive = down), wrapping.
+#[no_mangle]
+pub extern "C" fn mui_complete_move(handle: i64, delta: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.complete.move_sel(delta);
+    }
+}
+
+/// Number of chars before the cursor to delete when accepting (the prefix len).
+#[no_mangle]
+pub extern "C" fn mui_complete_prefix_len(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.complete.prefix_len() as i32)
+}
+
+/// Number of chars in the accepted (selected) candidate's text.
+#[no_mangle]
+pub extern "C" fn mui_complete_accept_len(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.complete.accepted_text().chars().count() as i32)
+}
+
+/// The `i`th char (codepoint) of the accepted candidate's text, or `-1` out of
+/// range. Mighty reads these to insert the accepted text after deleting the
+/// prefix.
+#[no_mangle]
+pub extern "C" fn mui_complete_accept_char(handle: i64, i: i32) -> i32 {
+    if i < 0 {
+        return -1;
+    }
+    unsafe { ctx(handle) }.map_or(-1, |c| {
+        c.complete
+            .accepted_text()
+            .chars()
+            .nth(i as usize)
+            .map_or(-1, |ch| ch as i32)
+    })
+}
+
+/// Close the dropdown and clear its state.
+#[no_mangle]
+pub extern "C" fn mui_complete_cancel(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.complete.cancel();
+    }
+}
+
+/// Draw the dropdown near the cursor pixel `(cursor_px_x, cursor_px_y)`. No-op
+/// when the dropdown is closed. Mighty passes the cursor's pixel position; the
+/// shim positions the box, clamps it on-screen, and highlights the selection.
+#[no_mangle]
+pub extern "C" fn mui_complete_draw(handle: i64, cursor_px_x: f32, cursor_px_y: f32) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    // Split the borrow: `draw` needs `&mut ctx` for both rects + text.
+    let engine = std::mem::take(&mut ctx.complete);
+    engine.draw(ctx, cursor_px_x, cursor_px_y, w, h);
+    ctx.complete = engine;
+}
+
+/// Compute the cursor's pixel `(x, y)` for the dropdown given the screen `row`
+/// and buffer `col`, offset past the gutter sized for `total_lines`. Mighty has
+/// no int->float cast (L19), so the pixel math lives here. The result is read
+/// back via [`mui_complete_cursor_px_x`] / [`mui_complete_cursor_px_y`] — but to
+/// keep the ABI scalar-simple, Mighty instead passes row/col straight to
+/// [`mui_complete_draw_at`].
+#[no_mangle]
+pub extern "C" fn mui_complete_draw_at(
+    handle: i64,
+    row: i32,
+    col: i32,
+    total_lines: i32,
+) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let region = layout::region(ctx.sidebar_visible);
+    let x = layout::text_x_in(region, total_lines.max(1) as u64, col);
+    let y = layout::row_y_in(region, row);
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let engine = std::mem::take(&mut ctx.complete);
+    engine.draw(ctx, x, y, w, h);
+    ctx.complete = engine;
+}
+
+/// Print the live completion state to stdout (candidate count, selection,
+/// accepted text). Launch-test evidence for headless runs, since Mighty's `log`
+/// is literal-only (L23). No-op on a null handle.
+#[no_mangle]
+pub extern "C" fn mui_log_completion(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        println!(
+            "completion: active={} count={} sel={} prefix_len={} accept=\"{}\"",
+            ctx.complete.is_active(),
+            ctx.complete.count(),
+            ctx.complete.selection(),
+            ctx.complete.prefix_len(),
+            ctx.complete.accepted_text()
+        );
+    }
+}
+
+/// Launch-test hook: with `MUI_COMPLETE_PROBE` set, run a scripted completion
+/// request against the active buffer so a headless run proves the engine wiring
+/// (which a non-interactive launch can't trigger via Ctrl+Space). The env value
+/// is the prefix to seed (default `"l"`); the probe streams the active tab's
+/// bytes, appends the prefix at EOF, requests completion there, and logs the
+/// result. No effect unless the env var is set.
+#[no_mangle]
+pub extern "C" fn mui_complete_probe(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let Some(seed) = std::env::var_os("MUI_COMPLETE_PROBE") else {
+        return;
+    };
+    let prefix = seed.to_string_lossy();
+    let prefix = if prefix.trim().is_empty() {
+        "l".to_string()
+    } else {
+        prefix.into_owned()
+    };
+    // Build a synthetic buffer = active tab bytes + a newline + the prefix.
+    let active = ctx.tabs.active();
+    let mut buf: Vec<u8> = Vec::new();
+    let n = ctx.tabs.load_len(active);
+    if n > 0 {
+        for i in 0..(n as usize) {
+            let b = ctx.tabs.load_byte(active, i);
+            if (0..=255).contains(&b) {
+                buf.push(b as u8);
+            }
+        }
+    }
+    buf.push(b'\n');
+    buf.extend_from_slice(prefix.as_bytes());
+    let cursor = buf.len();
+    ctx.complete_buf = buf;
+    let lsp_labels: Vec<String> = match ctx.file_path.clone() {
+        Some(path) => {
+            let source = String::from_utf8_lossy(&ctx.complete_buf).into_owned();
+            // Position at the synthetic prefix: last line, col = prefix len.
+            let last_line = source.bytes().filter(|&b| b == b'\n').count() as u32;
+            crate::completion::lsp::semantic_labels(
+                &path,
+                &source,
+                last_line,
+                prefix.chars().count() as u32,
+            )
+        }
+        None => Vec::new(),
+    };
+    let count = ctx.complete.request(&ctx.complete_buf, cursor, &lsp_labels);
+    println!(
+        "complete-probe: prefix=\"{prefix}\" candidates={count} lsp={} top=\"{}\"",
+        lsp_labels.len(),
+        ctx.complete.accepted_text()
+    );
 }

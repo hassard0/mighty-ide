@@ -11,6 +11,7 @@
 //! * [`window`] — winit window + `pump_events` + event-queue translation
 
 mod abi;
+mod completion;
 mod diagnostics;
 mod ffi;
 mod gpu;
@@ -97,6 +98,13 @@ pub struct MuiContext {
     terminal: Option<terminal::Terminal>,
     /// Whether the terminal panel is currently shown (toggled by Ctrl+`).
     term_open: bool,
+
+    // ---- autocomplete state ----
+    /// The completion dropdown engine (candidate list + selection), shim-owned.
+    complete: completion::CompletionEngine,
+    /// Editor buffer bytes streamed in from Mighty for a completion request
+    /// (mirrors the find streaming path — Mighty can't pass a buffer, L17).
+    complete_buf: Vec<u8>,
 }
 
 // ---------------------------------------------------------------------------
@@ -200,6 +208,8 @@ pub(crate) fn build_context(
         sidebar_visible: true,
         terminal: None,
         term_open: false,
+        complete: completion::CompletionEngine::new(),
+        complete_buf: Vec::new(),
     });
     Box::into_raw(ctx)
 }
@@ -496,6 +506,8 @@ impl MuiContext {
             sidebar_visible: true,
             terminal: None,
             term_open: false,
+            complete: completion::CompletionEngine::new(),
+            complete_buf: Vec::new(),
         })
     }
 
