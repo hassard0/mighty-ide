@@ -17,3 +17,5 @@ pollster = "0.3"
 raw-window-handle = "0.6"
 bytemuck = { version = "1", features = ["derive"] }
 portable-pty = "0.9"
+# PNG encoding for the offscreen screenshot mode (MUI_SCREENSHOT).
+png = "0.17"

@@ -124,6 +124,30 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         mui_palette_probe(handle);
     }
 
+    // Screenshot/render hook for the command palette: with MUI_PALETTE_AUTOOPEN
+    // set, open the palette and LEAVE it open so it renders into the frame
+    // (`mui_palette_draw` is a no-op unless the palette is active). Unlike
+    // `mui_palette_probe`, this does not cancel — used to capture the palette
+    // overlay in a headless screenshot run. No effect on normal launches.
+    if std::env::var_os("MUI_PALETTE_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            ctx.palette.open();
+            // Optionally seed a query so the filtered list is shown.
+            if let Some(seed) = std::env::var_os("MUI_PALETTE_AUTOOPEN") {
+                let q = seed.to_string_lossy();
+                if !q.trim().is_empty() && q != "1" {
+                    for ch in q.chars() {
+                        ctx.palette.push_char(ch);
+                    }
+                }
+            }
+            println!(
+                "mui_init_s: MUI_PALETTE_AUTOOPEN -> palette open, count={}",
+                ctx.palette.count()
+            );
+        }
+    }
+
     handle
 }
 
@@ -276,6 +300,106 @@ pub extern "C" fn mui_visible_rows(handle: i64) -> i32 {
         let region = layout::region(c.sidebar_visible);
         layout::visible_rows_in(region, c.gpu.height, c.term_open) as i32
     })
+}
+
+/// Number of lines in the shim's current `load_buf` (>= 1). Mighty uses this to
+/// size the gutter when it draws the buffer via [`mui_draw_buffer_self`].
+#[no_mangle]
+pub extern "C" fn mui_buf_line_count(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(1, |c| {
+        (c.load_buf.iter().filter(|&&b| b == b'\n').count() + 1) as i32
+    })
+}
+
+/// Draw the editor body — gutter line numbers, source text, and the cursor —
+/// directly from the shim's `load_buf` (populated by [`mui_tab_load_into`]).
+///
+/// This is the rendering counterpart used by the IDE loop. The Mighty side keeps
+/// the authoritative edit buffer for editing, but drawing the whole visible
+/// window shim-side (one `ctx.text.queue` per line, plus a cursor rect) is both
+/// faithful — it issues the SAME GPU rect/text calls — and robust against the
+/// v0.36 native-codegen `Vec.push` fragility on the buffer-pull path. `first`
+/// is the top visible buffer line; `rows` the visible row count; `cur_line` /
+/// `cur_col` the 0-based cursor cell. Colors are fixed to the editor theme.
+#[no_mangle]
+pub extern "C" fn mui_draw_buffer_self(
+    handle: i64,
+    first: i32,
+    rows: i32,
+    cur_line: i32,
+    cur_col: i32,
+) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let region = layout::region(ctx.sidebar_visible);
+    let clip = ctx.clip;
+    let first = first.max(0) as usize;
+    let rows = rows.max(0) as usize;
+
+    // Split the buffer into lines (lossy UTF-8 per line for rendering).
+    let src = String::from_utf8_lossy(&ctx.load_buf);
+    let lines: Vec<&str> = src.split('\n').collect();
+    let total = lines.len().max(1);
+    let total_u64 = total as u64;
+
+    let text_x = layout::text_left_in(region, total_u64);
+    let gutter_x = region.left + layout::PAD;
+
+    // Theme colors (match the Mighty-side draw_buffer choices).
+    let fg = MuiColor::new(0.85, 0.87, 0.9, 1.0);
+    let kw = MuiColor::new(0.55, 0.75, 1.0, 1.0); // keywords / leading token
+    let gut = MuiColor::new(0.45, 0.48, 0.55, 1.0);
+
+    let last_visible = first + rows;
+    for line_idx in first..last_visible {
+        if line_idx >= total {
+            break;
+        }
+        let row = (line_idx - first) as i32;
+        let y = layout::row_y_in(region, row);
+        // Gutter line number (1-based).
+        let num = (line_idx + 1).to_string();
+        ctx.text.queue(gutter_x, y, &num, gut, clip);
+        // Source text. A light syntax cue: color a leading keyword-ish token.
+        let text = lines.get(line_idx).copied().unwrap_or("");
+        let first_word_end = text
+            .char_indices()
+            .find(|&(_, ch)| !(ch.is_alphanumeric() || ch == '_'))
+            .map(|(i, _)| i)
+            .unwrap_or(text.len());
+        let head = &text[..first_word_end];
+        const KEYWORDS: &[&str] = &[
+            "fn", "let", "mut", "while", "if", "else", "return", "match", "struct", "enum",
+            "extern", "effect", "import", "pub", "for", "in", "type", "true", "false",
+        ];
+        if !head.is_empty() && KEYWORDS.contains(&head) {
+            ctx.text.queue(text_x, y, head, kw, clip);
+            let rest_x = text_x + (head.chars().count() as f32) * layout::CHAR_W;
+            ctx.text.queue(rest_x, y, &text[first_word_end..], fg, clip);
+        } else {
+            ctx.text.queue(text_x, y, text, fg, clip);
+        }
+    }
+
+    // Cursor caret, if on a visible row.
+    let cl = cur_line.max(0) as usize;
+    if cl >= first && cl < last_visible {
+        let row = (cl - first) as i32;
+        let cx = layout::text_x_in(region, total_u64, cur_col);
+        let cy = layout::row_y_in(region, row);
+        let handle_ptr = handle as usize as *mut MuiContext;
+        unsafe {
+            crate::mui_fill_rect(
+                handle_ptr,
+                cx,
+                cy,
+                2.0,
+                16.0,
+                MuiColor::new(0.9, 0.7, 0.2, 1.0),
+            );
+        }
+    }
 }
 
 /// Draw the staged text as a buffer line at screen row `row` (0-based from the
@@ -1202,6 +1326,33 @@ pub extern "C" fn mui_tab_load(handle: i64, idx: i32) -> i64 {
         return -1;
     }
     unsafe { ctx(handle) }.map_or(-1, |c| c.tabs.load_len(idx as usize))
+}
+
+/// Copy tab `idx`'s buffer into the shim's `load_buf` and return its byte
+/// length (or -1 on a null handle / bad index). The Mighty side then pulls the
+/// bytes back through the **two-argument** `mui_load_byte(h, i)` getter
+/// (proven-safe under v0.36 native codegen) rather than the three-argument
+/// `mui_tab_load_byte(h, idx, i)`, which corrupts a `Vec.push` accumulator when
+/// driven from a tight Mighty loop. Used for the initial load + every tab
+/// switch so the live editor buffer is always actually populated.
+#[no_mangle]
+pub extern "C" fn mui_tab_load_into(handle: i64, idx: i32) -> i64 {
+    if idx < 0 {
+        return -1;
+    }
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    match ctx.tabs.get(idx as usize) {
+        Some(t) => {
+            ctx.load_buf = t.bytes.clone();
+            ctx.load_buf.len() as i64
+        }
+        None => {
+            ctx.load_buf.clear();
+            -1
+        }
+    }
 }
 
 /// Byte at index `i` of tab `idx`'s buffer, or -1 out of range.

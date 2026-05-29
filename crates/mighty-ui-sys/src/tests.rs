@@ -367,6 +367,47 @@ fn click_routing_tab_bar_sidebar_and_text() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+// ---- offscreen screenshot mode (PNG written, non-empty, correct dims) ----
+
+#[test]
+fn screenshot_renders_a_frame_and_writes_a_nonempty_png() {
+    use crate::screenshot;
+
+    let mut ctx = ctx_or_skip!();
+    let p: *mut MuiContext = &mut ctx;
+
+    // Draw a representative frame: a clear background plus a colored rect and a
+    // glyph, mirroring what the live editor issues each frame.
+    unsafe {
+        mui_begin_frame(p);
+        mui_fill_rect(p, 4.0, 4.0, 20.0, 12.0, MuiColor::new(0.2, 0.5, 0.9, 1.0));
+        mui_draw_text(p, 6.0, 6.0, b"Mi".as_ptr(), 2, MuiColor::new(1.0, 1.0, 1.0, 1.0));
+        mui_end_frame(p);
+    }
+
+    let pixels = ctx.read_pixels();
+    assert_eq!(
+        pixels.len(),
+        (W * H * 4) as usize,
+        "expected tightly-packed RGBA8 of {W}x{H}"
+    );
+
+    let path = std::env::temp_dir().join("mui_screenshot_test.png");
+    let _ = std::fs::remove_file(&path);
+    let bytes = screenshot::write_png(&path, W, H, &pixels).expect("write_png");
+    assert!(bytes > 0, "PNG should be non-empty, got {bytes} bytes");
+
+    // It must be a real PNG (magic) and decode back to the requested dimensions.
+    let raw = std::fs::read(&path).unwrap();
+    assert_eq!(&raw[..8], b"\x89PNG\r\n\x1a\n", "PNG magic header");
+    let decoder = png::Decoder::new(std::io::Cursor::new(&raw));
+    let reader = decoder.read_info().expect("png decode");
+    let info = reader.info();
+    assert_eq!((info.width, info.height), (W, H), "decoded PNG dimensions");
+
+    let _ = std::fs::remove_file(&path);
+}
+
 #[test]
 fn translate_close_and_resize_events() {
     let mut q = EventQueue::default();

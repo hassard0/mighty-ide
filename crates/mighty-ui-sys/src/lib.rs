@@ -21,6 +21,7 @@ mod layout;
 mod nav;
 mod palette;
 mod prompt;
+mod screenshot;
 mod tabs;
 mod terminal;
 mod text;
@@ -134,6 +135,12 @@ pub struct MuiContext {
     /// shim-owned. Mighty opens it, feeds chars, moves the selection, and reads
     /// the selected command id back to dispatch.
     palette: palette::PaletteEngine,
+
+    // ---- offscreen screenshot mode (MUI_SCREENSHOT) ----
+    /// When `Some`, the context renders into an offscreen texture (no window)
+    /// and writes a PNG of the configured frame, then asks the loop to exit.
+    /// `None` for normal windowed runs (behavior unchanged).
+    screenshot: Option<screenshot::ScreenshotState>,
 }
 
 // ---------------------------------------------------------------------------
@@ -169,20 +176,49 @@ pub(crate) fn build_context(
     let mut queue = Box::new(EventQueue::default());
     let queue_ptr: *mut EventQueue = queue.as_mut();
 
-    let (host, window) = match WindowHost::create(width, height, title, queue_ptr) {
-        Ok((h, w)) => (h, w),
-        Err(e) => {
-            eprintln!("mui_init: {e}");
-            return std::ptr::null_mut();
-        }
-    };
+    // Screenshot mode: render headless into an offscreen texture (no window /
+    // surface) and capture a PNG. The window dimensions can be overridden via
+    // MUI_SCREENSHOT_W / MUI_SCREENSHOT_H so a faithful large frame is captured
+    // regardless of the dimensions the Mighty side passes to mui_init_s.
+    let screenshot = screenshot::ScreenshotState::from_env();
 
-    let gpu = match Gpu::new_windowed(window.clone()) {
-        Ok(g) => g,
-        Err(e) => {
-            eprintln!("mui_init: {e}");
-            return std::ptr::null_mut();
-        }
+    let (host, window, gpu) = if screenshot.is_some() {
+        let sw = std::env::var("MUI_SCREENSHOT_W")
+            .ok()
+            .and_then(|v| v.trim().parse::<u32>().ok())
+            .unwrap_or(width);
+        let sh = std::env::var("MUI_SCREENSHOT_H")
+            .ok()
+            .and_then(|v| v.trim().parse::<u32>().ok())
+            .unwrap_or(height);
+        let gpu = match Gpu::new_offscreen(sw, sh) {
+            Ok(Some(g)) => g,
+            Ok(None) => {
+                eprintln!("mui_init: MUI_SCREENSHOT set but no GPU adapter available");
+                return std::ptr::null_mut();
+            }
+            Err(e) => {
+                eprintln!("mui_init: offscreen init failed: {e}");
+                return std::ptr::null_mut();
+            }
+        };
+        (None, None, gpu)
+    } else {
+        let (host, window) = match WindowHost::create(width, height, title, queue_ptr) {
+            Ok((h, w)) => (h, w),
+            Err(e) => {
+                eprintln!("mui_init: {e}");
+                return std::ptr::null_mut();
+            }
+        };
+        let gpu = match Gpu::new_windowed(window.clone()) {
+            Ok(g) => g,
+            Err(e) => {
+                eprintln!("mui_init: {e}");
+                return std::ptr::null_mut();
+            }
+        };
+        (Some(host), Some(window), gpu)
     };
 
     let text = Text::new(&gpu.device, &gpu.queue, gpu.format);
@@ -214,8 +250,8 @@ pub(crate) fn build_context(
         gpu,
         text,
         queue,
-        host: Some(host),
-        window: Some(window),
+        host,
+        window,
         rects: Vec::new(),
         clip: None,
         frame: None,
@@ -245,6 +281,7 @@ pub(crate) fn build_context(
         history: history::HistoryStore::new(),
         restored_cursor: (0, 0),
         palette: palette::PaletteEngine::new(),
+        screenshot,
     });
     Box::into_raw(ctx)
 }
@@ -438,6 +475,47 @@ fn render_and_present(ctx: &mut MuiContext) {
         frame.present();
     }
     ctx.frame_view = None;
+
+    // Screenshot mode: on the configured frame, read the offscreen texture back
+    // and write a PNG. Done after every other draw call this frame, so the PNG
+    // is a faithful capture of the full UI. The next poll returns Close.
+    maybe_capture_screenshot(ctx);
+}
+
+/// In screenshot mode, count frames and capture the configured one to a PNG.
+/// No-op in windowed mode (`ctx.screenshot` is `None`).
+fn maybe_capture_screenshot(ctx: &mut MuiContext) {
+    let Some(shot) = ctx.screenshot.as_mut() else {
+        return;
+    };
+    if shot.captured {
+        return;
+    }
+    let this_frame = shot.frame;
+    shot.frame += 1;
+    if this_frame != shot.target_frame {
+        return;
+    }
+
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    match ctx.gpu.read_pixels() {
+        Some(pixels) => {
+            let shot = ctx.screenshot.as_mut().unwrap();
+            match screenshot::write_png(&shot.out_path, w, h, &pixels) {
+                Ok(bytes) => println!(
+                    "mui_screenshot: wrote {} ({w}x{h}, {bytes} bytes, frame {})",
+                    shot.out_path.display(),
+                    shot.target_frame
+                ),
+                Err(e) => eprintln!("mui_screenshot: {e}"),
+            }
+            shot.captured = true;
+        }
+        None => {
+            eprintln!("mui_screenshot: read_pixels returned None (not offscreen?)");
+            ctx.screenshot.as_mut().unwrap().captured = true;
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -452,6 +530,19 @@ fn render_and_present(ctx: &mut MuiContext) {
 #[no_mangle]
 pub unsafe extern "C" fn mui_poll_event(ctx: *mut MuiContext, out_ev: *mut MuiEvent) -> bool {
     let Some(ctx) = ctx.as_mut() else { return false };
+
+    // Screenshot mode: once the target frame has been captured, deliver a single
+    // Close event so the Mighty frame loop exits promptly. Until then, report
+    // "no event" so the loop keeps drawing full frames into the offscreen target.
+    if let Some(shot) = ctx.screenshot.as_ref() {
+        if shot.captured {
+            if !out_ev.is_null() {
+                *out_ev = MuiEvent::close();
+            }
+            return true;
+        }
+        return false;
+    }
 
     // Pump the OS event loop only when there is nothing buffered, so a backlog
     // is drained FIFO before new OS events are folded in.
@@ -549,6 +640,7 @@ impl MuiContext {
             history: history::HistoryStore::new(),
             restored_cursor: (0, 0),
             palette: palette::PaletteEngine::new(),
+            screenshot: None,
         })
     }
 

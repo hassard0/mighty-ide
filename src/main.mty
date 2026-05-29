@@ -29,6 +29,8 @@ extern c {
   fn mui_draw_cursor(handle: I64, line: I32, col: I32, r: F32, g: F32, b: F32, a: F32)
   fn mui_draw_cursor_row(handle: I64, row: I32, col: I32, total_lines: I32, r: F32, g: F32, b: F32, a: F32)
   fn mui_visible_rows(handle: I64) -> I32
+  fn mui_buf_line_count(handle: I64) -> I32
+  fn mui_draw_buffer_self(handle: I64, first: I32, rows: I32, cur_line: I32, cur_col: I32)
   fn mui_click_line(handle: I64, first_line: I32, total_lines: I32) -> I32
   fn mui_click_col(handle: I64, total_lines: I32) -> I32
   fn mui_poll_event_s(handle: I64) -> I32
@@ -94,6 +96,7 @@ extern c {
   fn mui_tab_store_commit(handle: I64, idx: I32, cursor_line: I32, cursor_col: I32, scroll_first: I32)
   fn mui_tab_set_dirty(handle: I64, idx: I32, dirty: I32)
   fn mui_tab_load(handle: I64, idx: I32) -> I64
+  fn mui_tab_load_into(handle: I64, idx: I32) -> I64
   fn mui_tab_load_byte(handle: I64, idx: I32, i: I64) -> I32
   fn mui_tab_cursor_line(handle: I64, idx: I32) -> I32
   fn mui_tab_cursor_col(handle: I64, idx: I32) -> I32
@@ -803,18 +806,16 @@ fn store_tab(h: I64, buf: Vec[I32], idx: I32, cur: USize, first: USize) {
 }
 
 // Pull tab slot `idx`'s bytes into a fresh Mighty buffer. No Vec param read.
+//
+// The shim first copies the slot's bytes into its `load_buf` (mui_tab_load_into),
+// then we pull them back through the TWO-arg `mui_load_byte(h, i)` getter via the
+// proven `pull_load_buffer_i64` loop. The three-arg `mui_tab_load_byte(h, idx, i)`
+// getter reads correct bytes in isolation but corrupts the `Vec.push` accumulator
+// when called from a tight Mighty loop under v0.36 native codegen (the buffer came
+// back empty even though each byte read fine), so we avoid it on this hot path.
 fn load_tab_buffer(h: I64, idx: I32) -> Vec[I32] effect alloc {
-  let mut out: Vec[I32] = Vec.new()
-  let n = mui_tab_load(h, idx)
-  if n > 0 {
-    let mut i: I64 = 0
-    while i < n {
-      let b = mui_tab_load_byte(h, idx, i)
-      if b >= 0 { out = out.push(b) }
-      i = i + 1
-    }
-  }
-  out
+  let n = mui_tab_load_into(h, idx)
+  pull_load_buffer_i64(h, n)
 }
 
 // Restore a buffer cursor offset from tab slot `idx`'s saved (line, col),
@@ -1563,10 +1564,21 @@ fn main() {
       if mui_term_running(h) == 0 { term_focus = false }
     }
 
-    let total_now = line_count(buf)
-    let total_now_i = usize_to_i32(total_now)
+    // Gutter sizing uses the shim's line count (its load_buf is the source of
+    // truth the body is drawn from), so diagnostics/find overlays line up with
+    // the shim-drawn gutter even when the Mighty-side `buf` is empty.
+    let total_now_i = mui_buf_line_count(h)
     mui_begin_frame_s(h)
-    draw_buffer(h, buf, cur, first, rows)
+    // Draw the editor body (gutter + source text + cursor) shim-side from the
+    // shim's own copy of the active file bytes. This issues the same GPU rect/
+    // text draw calls as the per-line Mighty path, but reads the bytes shim-side
+    // so it is unaffected by the v0.36 native-codegen Vec.push fragility on the
+    // buffer-pull path (which left the Mighty-side `buf` empty for real files).
+    let cur_line_i = usize_to_i32(line_of(buf, cur))
+    let cur_col_i = usize_to_i32(col_of(buf, cur))
+    let first_i = usize_to_i32(first)
+    let rows_i2 = usize_to_i32(rows)
+    mui_draw_buffer_self(h, first_i, rows_i2, cur_line_i, cur_col_i)
     if find_nav { draw_find_highlights(h, total_now_i, first, rows) }
     draw_diagnostics(h, total_now_i, first, rows)
     draw_status_bar(h, buf, cur)
@@ -1601,7 +1613,11 @@ fn main() {
     }
     // command palette: a centered overlay box, drawn last so it sits over
     // everything. The shim positions/clamps the box and highlights the selection.
-    if palette_open { mui_palette_draw(h) }
+    // Draw the palette unconditionally: `mui_palette_draw` no-ops unless the
+    // palette is active, so this is equivalent to the `palette_open` guard for
+    // interactive use, but also lets a shim-side MUI_PALETTE_AUTOOPEN (headless
+    // screenshot mode) render the overlay without a Ctrl+Shift+P keystroke.
+    mui_palette_draw(h)
     mui_end_frame_s(h)
 
     frame = frame + 1

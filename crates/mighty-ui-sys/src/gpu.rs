@@ -33,7 +33,6 @@ struct ScreenUniform {
 }
 
 /// Where the frame is being drawn.
-#[allow(dead_code)] // `Offscreen` is only constructed under `#[cfg(test)]`.
 pub enum RenderTarget {
     /// A real swapchain surface (windowed mode).
     Surface(wgpu::Surface<'static>),
@@ -146,8 +145,7 @@ impl Gpu {
     /// Construct GPU state that renders into an owned offscreen texture.
     ///
     /// Returns `Ok(None)` when no GPU adapter is available at all, so callers
-    /// (tests) can skip gracefully rather than fail.
-    #[allow(dead_code)] // headless test entry point only
+    /// (tests, screenshot mode) can skip gracefully rather than fail.
     pub fn new_offscreen(width: u32, height: u32) -> Result<Option<Self>, String> {
         let width = width.max(1);
         let height = height.max(1);
@@ -311,7 +309,6 @@ impl Gpu {
 
     /// Read back the offscreen texture as tightly-packed RGBA8 rows.
     /// Returns `None` in windowed mode.
-    #[allow(dead_code)] // headless test entry point only
     pub fn read_pixels(&self) -> Option<Vec<u8>> {
         let texture = match &self.target {
             RenderTarget::Offscreen { texture, .. } => texture,
