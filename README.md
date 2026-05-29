@@ -2,16 +2,23 @@
 
 A native, GPU-rendered IDE **written in [Mighty](https://github.com/hassard0/Mighty)** — dogfooding the language by building its own development environment in it. First-class Mighty support, extensible to other languages.
 
-> **Status:** pre-alpha but functional. The editor builds, launches, and edits real files. It is the forcing function for maturing Mighty — every place the language fights us is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md). Visual/interactive polish is ongoing.
+> **Status:** pre-alpha but functional. The editor builds, launches, and **edits real files live**. It is the forcing function for maturing Mighty — every place the language fights us is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md).
+
+![Editor](screenshots/01-editor.png)
 
 ## Features (working today)
 
-- **Editing** — open any file, edit, save (Ctrl+S), line-number gutter, cursor-following scroll, click-to-place-cursor, mouse-wheel scroll
+- **Live editing** — open any file, type/insert/delete/newline, save (Ctrl+S), syntax-colored body, current-line band, line-number gutter, cursor-following scroll, click-to-place-cursor, mouse-wheel scroll, undo/redo (Ctrl+Z / Ctrl+Y)
 - **Navigation** — go-to-line (Ctrl+G), find with match highlighting (Ctrl+F), go-to-definition (F12, cross-file), jump-back (Ctrl+−), hover info (Ctrl+K)
 - **Workspace** — tabs (Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W, click), file-tree sidebar (Ctrl+B), open-by-path (Ctrl+O)
-- **Language intelligence (via Mighty's own `mty-lsp`)** — live `mty check` diagnostics (gutter marks + underlines), autocomplete (Ctrl+Space: semantic LSP completions + buffer words)
+- **Language intelligence (via Mighty's own `mty-lsp`)** — live `mty check` diagnostics (gutter dots + squiggle underlines), autocomplete (Ctrl+Space: semantic LSP completions + buffer words)
 - **Integrated terminal** — real ConPTY shell with a VT parser (Ctrl+\`)
-- **Status bar** — filename · `Ln/Col` · error count
+- **Command palette** — Ctrl+Shift+P, fuzzy-filtered
+- **Theme** — the **"Ember Graphite"** dark design system with the bundled **JetBrains Mono** font (`fonts/`, SIL OFL)
+
+## Live editing: the buffer lives shim-side (L28 workaround)
+
+Under v0.36 native `mty build`, a Mighty `Vec` grown in a loop comes back empty (a confirmed codegen bug, [L28](docs/mighty-language-lessons.md)). So the **authoritative text model** (lines + cursor + selection + scroll + dirty, per tab) lives in the shim (`crates/mighty-ui-sys/src/editor.rs`), and Mighty drives every edit through scalar `mui_ed_*` ops. The model mutates in place and renders straight from itself each frame, so editing is genuinely live. It moves back to Mighty once the codegen bug is fixed.
 
 ## Architecture
 
