@@ -161,6 +161,20 @@ v0.36's real `extern c` (the post-L11 direct-call ABI) works, but the *Mighty si
 ### L18. `std.fs` is a Rust capability API, not a Mighty-callable surface in built binaries 🔎 **[P1]**
 `crates/mty-stdlib/src/fs.rs` exposes `read/read_file/write/write_file/stat/open/...` but they take a `&FsCap` and `&Path`/`&[u8]` — Rust-internal types. There is no Mighty-source path that constructs those, and (per L17) Mighty can't pass a path string across FFI anyway. So **Ctrl+S "save the buffer to disk" cannot be done from Mighty `std.fs` in a `mty build` binary.** The IDE delegates file I/O to the shim instead (the shim's Rust side calls `std::fs`). Needs confirming whether `mty run` (interpreter) exposes a higher-level `fs` to Mighty source.
 
+### L19. `expr as T` numeric casts DON'T convert — the value keeps its original type ✅ **[P0]**
+`expr as T` parses as a `HirExpr::Cast` and typeck's Cast arm returns the target type `T` — but the conversion does not actually take effect for numeric types: downstream the expression is still treated as the operand's type. Probed under `mty check`:
+```mty
+let u: USize = 5
+let f: F32 = (u as F32) * 2.0_f32   // MT2017: operator Mul not defined for USize and F32
+let b: U8 = (65_i32) as U8          // MT2001: expected U8, found I32
+```
+i.e. `(u as F32)` is still `USize`, `(i as U8)` is still `I32`. There is also **no implicit numeric promotion** (`I32 + U8` → `MT2017 Add not defined for I32 and U8`) and **no `to_f32`/`to_i32`/… conversion methods** in the stdlib (a `.to_f32()` call type-checks only because method-call typeck is permissive; it has no body). So there is **no working way to convert between integer widths or int↔float** in v0.36.
+**Consequence:** keep every value in one type end-to-end. The IDE's edit buffer is `Vec[I32]` (never `U8`) so byte values never need a U8↔I32 cast; and all int→pixel layout is pushed to the shim (`mui_text_draw_line`/`mui_draw_cursor` take integer line/col and compute floats in Rust). A manual `usize_to_i32` that counts up in an `I32` accumulator is the only int-width "conversion" available.
+**Suggested fix:** make `HirExpr::Cast` actually emit a numeric conversion in lowering/codegen (sitofp/fptosi/zext/trunc), and/or add `to_f32`/`as_i64`/… stdlib methods. Until then, reject `as` between numeric types at check time so it fails loudly instead of silently keeping the old type.
+
+### L20. Juxtaposed parens `(a)(b)` / `(x - (y))` can mis-parse as a CALL → `MT2008 {integer} is not callable` ✅ **[P1]**
+A parenthesised expression immediately followed by another parenthesised group is parsed as a **call** of the first by the second. This bit the bit-test `(half - ((half / 2) * 2)) == 1` — the `(half - (...))` head was treated as a callee applied to the inner parens, yielding `MT2008: value of type {integer} is not callable`. **Workaround:** never juxtapose paren groups; break the expression into intermediate `let`s (`let quarter = half / 2; let even = quarter * 2; let bit = half - even`). **Suggested fix:** only treat `expr(...)` as a call when `expr` is a callable path/closure expression, not for arbitrary parenthesised arithmetic.
+
 ## P1 — Major ergonomic gaps for real programs
 
 ### L3. `String` has no insert / remove / slice / char-indexing ✅ **[P1]**

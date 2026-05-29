@@ -172,6 +172,12 @@ void mui_text_push(int64_t handle, uint32_t codepoint);
 void mui_text_draw(int64_t handle, float x, float y,
                    float r, float g, float b, float a);
 
+/* layout helpers: position by integer line/col using shim metrics, so the
+ * Mighty side needs no int->float math (v0.36 has no numeric cast). */
+void mui_text_draw_line(int64_t handle, int32_t line, float r, float g, float b, float a);
+void mui_draw_cursor(int64_t handle, int32_t line, int32_t col,
+                     float r, float g, float b, float a);
+
 /* events: poll returns the tag, accessors read the last-polled event */
 int32_t mui_poll_event_s(int64_t handle);
 int32_t mui_event_codepoint(int64_t handle);

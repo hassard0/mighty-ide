@@ -152,6 +152,45 @@ pub extern "C" fn mui_text_draw(
     }
 }
 
+/// Draw a text-cursor caret at logical (`line`, `col`) using the shim's own
+/// monospace metrics (8px advance, 18px line height, 8px padding — matched to
+/// the IDE's render loop). Avoids forcing the Mighty side to convert integer
+/// line/col into float pixels, which v0.36 can't do (no int→float cast; see
+/// docs/mighty-language-lessons.md L19).
+#[no_mangle]
+pub extern "C" fn mui_draw_cursor(handle: i64, line: i32, col: i32, r: f32, g: f32, b: f32, a: f32) {
+    const PAD: f32 = 8.0;
+    const LINE_H: f32 = 18.0;
+    const CHAR_W: f32 = 8.0;
+    let x = PAD + (col.max(0) as f32) * CHAR_W;
+    let y = PAD + (line.max(0) as f32) * LINE_H;
+    unsafe {
+        crate::mui_fill_rect(
+            handle as usize as *mut MuiContext,
+            x,
+            y,
+            2.0,
+            16.0,
+            MuiColor::new(r, g, b, a),
+        )
+    };
+}
+
+/// Draw the staged text at logical `line` (column 0) using the shim's metrics,
+/// then clear the stage. Companion to [`mui_draw_cursor`] so text and caret use
+/// identical layout without the Mighty side doing int→float math.
+#[no_mangle]
+pub extern "C" fn mui_text_draw_line(handle: i64, line: i32, r: f32, g: f32, b: f32, a: f32) {
+    const PAD: f32 = 8.0;
+    const LINE_H: f32 = 18.0;
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        let y = PAD + (line.max(0) as f32) * LINE_H;
+        let s = std::mem::take(&mut ctx.text_stage);
+        let clip = ctx.clip;
+        ctx.text.queue(PAD, y, &s, MuiColor::new(r, g, b, a), clip);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // event pump (scalar accessors over the last-polled event)
 // ---------------------------------------------------------------------------

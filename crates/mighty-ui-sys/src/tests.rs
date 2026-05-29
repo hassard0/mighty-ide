@@ -194,6 +194,41 @@ fn event_queue_returns_pushed_events_fifo_then_empty() {
     }
 }
 
+// ---- scalar file-I/O ABI (save staging -> write -> load -> read by index) ----
+
+#[test]
+fn save_staging_writes_then_load_reads_back_round_trip() {
+    use crate::{
+        mui_load, mui_load_byte, mui_path_commit, mui_path_push, mui_save_commit, mui_save_push,
+    };
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    // Point the shim at a temp file by staging the path byte-by-byte.
+    let dir = std::env::temp_dir();
+    let path = dir.join("mui_save_roundtrip.txt");
+    let _ = std::fs::remove_file(&path);
+    for b in path.to_string_lossy().as_bytes() {
+        mui_path_push(handle, *b as u32);
+    }
+    mui_path_commit(handle);
+
+    // Stage "Hi\n!" and commit.
+    for b in b"Hi\n!" {
+        mui_save_push(handle, *b as u32);
+    }
+    assert_eq!(mui_save_commit(handle), 0, "save_commit should succeed");
+    assert_eq!(std::fs::read(&path).unwrap(), b"Hi\n!");
+
+    // Load it back and read each byte by index.
+    assert_eq!(mui_load(handle), 4, "load should report 4 bytes");
+    let got: Vec<i32> = (0..5).map(|i| mui_load_byte(handle, i)).collect();
+    assert_eq!(got, vec![b'H' as i32, b'i' as i32, 10, b'!' as i32, -1]);
+
+    let _ = std::fs::remove_file(&path);
+}
+
 #[test]
 fn translate_close_and_resize_events() {
     let mut q = EventQueue::default();
