@@ -11,6 +11,7 @@
 //! * [`window`] — winit window + `pump_events` + event-queue translation
 
 mod abi;
+mod diagnostics;
 mod ffi;
 mod gpu;
 mod layout;
@@ -65,6 +66,8 @@ pub struct MuiContext {
     load_buf: Vec<u8>,
     /// Bytes staged for `mui_save_commit`.
     save_buf: Vec<u8>,
+    /// Latest parsed diagnostics from `mty check` (refreshed on demand).
+    diags: Vec<diagnostics::Diag>,
 }
 
 // ---------------------------------------------------------------------------
@@ -135,6 +138,7 @@ pub(crate) fn build_context(
         path_stage: Vec::new(),
         load_buf: Vec::new(),
         save_buf: Vec::new(),
+        diags: Vec::new(),
     });
     Box::into_raw(ctx)
 }
@@ -421,6 +425,7 @@ impl MuiContext {
             path_stage: Vec::new(),
             load_buf: Vec::new(),
             save_buf: Vec::new(),
+            diags: Vec::new(),
         })
     }
 

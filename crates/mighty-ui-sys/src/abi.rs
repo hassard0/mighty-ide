@@ -28,6 +28,7 @@
 
 use std::path::PathBuf;
 
+use crate::diagnostics::{self, Severity};
 use crate::ffi::*;
 use crate::layout;
 use crate::MuiContext;
@@ -514,6 +515,175 @@ pub extern "C" fn mui_save_commit(handle: i64) -> i32 {
             eprintln!("mui_save_commit({}): {e}", path.display());
             -1
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// live diagnostics (scalar getters over the parsed `mty check` result)
+// ---------------------------------------------------------------------------
+
+/// Re-run `mty check` on the currently-configured file path, parse the result,
+/// store it in the context, and return the diagnostic count. Returns `0` (and
+/// clears the stored set) if there is no configured path or the handle is null.
+///
+/// The IDE calls this after the initial load and after each Ctrl+S save (the
+/// on-disk file is current after save), so the markers track the saved file.
+#[no_mangle]
+pub extern "C" fn mui_diag_refresh(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let Some(path) = ctx.file_path.clone() else {
+        ctx.diags.clear();
+        return 0;
+    };
+    ctx.diags = diagnostics::run_check(&path);
+    let n = ctx.diags.len() as i32;
+    println!("diags: {n}");
+    for d in &ctx.diags {
+        let sev = match d.severity {
+            Severity::Error => "error",
+            Severity::Warning => "warning",
+        };
+        println!(
+            "  diag[{sev} {}] line={} col={}..{} {}",
+            d.code, d.line, d.col_start, d.col_end, d.message
+        );
+    }
+    n
+}
+
+/// Number of diagnostics currently stored.
+#[no_mangle]
+pub extern "C" fn mui_diag_count(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.diags.len() as i32)
+}
+
+/// 0-based line of diagnostic `i`, or `-1` if out of range.
+#[no_mangle]
+pub extern "C" fn mui_diag_line(handle: i64, i: i32) -> i32 {
+    diag_field(handle, i, |d| d.line)
+}
+
+/// 0-based start column of diagnostic `i`, or `-1` if out of range.
+#[no_mangle]
+pub extern "C" fn mui_diag_col_start(handle: i64, i: i32) -> i32 {
+    diag_field(handle, i, |d| d.col_start)
+}
+
+/// 0-based end column (exclusive) of diagnostic `i`, or `-1` if out of range.
+#[no_mangle]
+pub extern "C" fn mui_diag_col_end(handle: i64, i: i32) -> i32 {
+    diag_field(handle, i, |d| d.col_end)
+}
+
+/// Severity of diagnostic `i`: `0` = error, `1` = warning, or `-1` if out of
+/// range.
+#[no_mangle]
+pub extern "C" fn mui_diag_severity(handle: i64, i: i32) -> i32 {
+    diag_field(handle, i, |d| d.severity as i32)
+}
+
+/// Shared accessor: project a field of diagnostic `i`, returning `-1` for a
+/// null handle or out-of-range index.
+fn diag_field(handle: i64, i: i32, f: impl Fn(&diagnostics::Diag) -> i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    if i < 0 {
+        return -1;
+    }
+    match ctx.diags.get(i as usize) {
+        Some(d) => f(d),
+        None => -1,
+    }
+}
+
+/// Draw a thin diagnostic underline at screen `row` spanning text columns
+/// `[col_start, col_end)`, offset right of the gutter sized for `total_lines`.
+/// Pixel math lives here because Mighty has no int->float cast (L19). A zero or
+/// negative width is widened to one cell so a marker is always visible.
+#[no_mangle]
+pub extern "C" fn mui_underline_row(
+    handle: i64,
+    row: i32,
+    col_start: i32,
+    col_end: i32,
+    total_lines: i32,
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+) {
+    let x = layout::text_x(total_lines.max(1) as u64, col_start);
+    let cells = (col_end - col_start).max(1) as f32;
+    let w = cells * layout::CHAR_W;
+    // Sit the underline at the bottom of the row's line box.
+    let y = layout::row_y(row) + layout::LINE_H - 2.0;
+    unsafe {
+        crate::mui_fill_rect(
+            handle as usize as *mut MuiContext,
+            x,
+            y,
+            w,
+            2.0,
+            MuiColor::new(r, g, b, a),
+        )
+    };
+}
+
+/// Draw a diagnostic marker in the gutter at screen `row` (a small square at the
+/// left padding). Used to flag a row that has a diagnostic even when its span is
+/// off to the side.
+#[no_mangle]
+pub extern "C" fn mui_diag_gutter_mark(handle: i64, row: i32, r: f32, g: f32, b: f32, a: f32) {
+    let y = layout::row_y(row) + 4.0;
+    unsafe {
+        crate::mui_fill_rect(
+            handle as usize as *mut MuiContext,
+            2.0,
+            y,
+            4.0,
+            layout::LINE_H - 8.0,
+            MuiColor::new(r, g, b, a),
+        )
+    };
+}
+
+/// Draw the bottom status bar: a full-width band across the bottom of the
+/// window, green when `error_count == 0` else red. Mighty can't build strings,
+/// so the error count itself is rendered by the Mighty side staging digits into
+/// the text buffer and drawing them over this bar.
+#[no_mangle]
+pub extern "C" fn mui_status_bar(handle: i64, error_count: i32) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let w = ctx.gpu.width as f32;
+    let h = ctx.gpu.height as f32;
+    let bar_h = layout::LINE_H;
+    let y = (h - bar_h).max(0.0);
+    let color = if error_count == 0 {
+        MuiColor::new(0.16, 0.45, 0.20, 1.0) // green
+    } else {
+        MuiColor::new(0.55, 0.14, 0.14, 1.0) // red
+    };
+    unsafe {
+        crate::mui_fill_rect(handle as usize as *mut MuiContext, 0.0, y, w, bar_h, color);
+    }
+}
+
+/// Draw the staged text (the status label/count, staged codepoint-by-codepoint)
+/// inside the status bar at the bottom of the window. Clears the stage.
+#[no_mangle]
+pub extern "C" fn mui_status_draw_text(handle: i64, r: f32, g: f32, b: f32, a: f32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        let h = ctx.gpu.height as f32;
+        let y = (h - layout::LINE_H + 1.0).max(0.0);
+        let s = std::mem::take(&mut ctx.text_stage);
+        let clip = ctx.clip;
+        ctx.text
+            .queue(layout::PAD, y, &s, MuiColor::new(r, g, b, a), clip);
     }
 }
 
