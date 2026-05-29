@@ -9,7 +9,18 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-05-29 (multi-file workspace: tabs + file-tree sidebar)._
+_Last updated: 2026-05-29 (integrated terminal: PTY + VT grid, all shim-side)._
+
+> **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
+> was built without hitting any new language friction — the existing constraints
+> already dictated the shape. Per **L21** the rows×cols terminal grid + VT parser
+> + PTY live entirely in the shim; Mighty only toggles the panel, forwards a
+> codepoint/keycode + mods to `mui_term_*`, and calls `mui_term_pump` +
+> `mui_term_draw` each frame. Mighty never holds a grid `Vec`, so L21's
+> nested-loop SIGSEGV is sidestepped by construction. Ctrl+` is detected as a
+> `Char` event (codepoint 96) with the Ctrl mod set — `Key::Character` emits text
+> even when Ctrl is held (a winit/shim behavior the IDE already relied on for
+> Ctrl+S, not a Mighty issue).
 
 ---
 

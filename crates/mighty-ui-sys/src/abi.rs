@@ -82,8 +82,19 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
     let title = format!("{} — Mighty IDE", basename(&path));
     println!("mui_init_s: editing {}", path.display());
 
-    let ptr = crate::build_context(width, height, title, Some(path));
-    ptr as usize as i64
+    let handle = crate::build_context(width, height, title, Some(path)) as usize as i64;
+
+    // Launch-test hook: with MUI_TERM_AUTOOPEN set, eagerly open the terminal so
+    // a headless (non-interactive) run can prove the PTY/grid wiring end-to-end
+    // — the terminal otherwise only opens on a Ctrl+` keypress, which a headless
+    // run can't deliver. No effect on normal interactive launches.
+    if std::env::var_os("MUI_TERM_AUTOOPEN").is_some() {
+        let opened = mui_term_open(handle);
+        println!("mui_init_s: MUI_TERM_AUTOOPEN -> mui_term_open = {opened}");
+        mui_log_terminal(handle);
+    }
+
+    handle
 }
 
 /// Tear down a context created with [`mui_init_s`].

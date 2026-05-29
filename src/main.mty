@@ -113,6 +113,22 @@ extern c {
   fn mui_tree_open_row(handle: I64, i: I32) -> I32
   // stdout evidence (computed counts; Mighty `log` is literal-only, L1)
   fn mui_log_workspace(handle: I64)
+  // ---- integrated terminal (sub-project 5): all logic shim-side ----
+  // Mighty only toggles the panel, routes focused keystrokes, and per frame
+  // calls pump + draw. The PTY/VT grid live entirely in the shim (L21: Mighty
+  // never touches the terminal grid Vec).
+  fn mui_term_open(handle: I64) -> I32
+  fn mui_term_close(handle: I64)
+  fn mui_term_running(handle: I64) -> I32
+  fn mui_term_is_open(handle: I64) -> I32
+  fn mui_term_key(handle: I64, keycode: I32, mods: I32)
+  fn mui_term_send_codepoint(handle: I64, codepoint: I32, mods: I32)
+  fn mui_term_send_byte(handle: I64, byte: I32)
+  fn mui_term_pump(handle: I64)
+  fn mui_term_rows(handle: I64) -> I32
+  fn mui_term_cols(handle: I64) -> I32
+  fn mui_term_draw(handle: I64)
+  fn mui_log_terminal(handle: I64)
 }
 
 // ---- event tags / keys / mods (mirror mighty_ui.h) ----
@@ -582,6 +598,13 @@ fn main() {
   let mut find_nav = false
   let mut find_idx: I32 = 0
 
+  // ---- integrated terminal (sub-project 5) ----
+  // When `term_focus` is true the terminal panel is open AND has keyboard focus:
+  // Char/Key events route to the shell (mui_term_*) instead of the editor.
+  // Ctrl+` toggles the panel; while focused, Ctrl+` returns focus to the editor.
+  // The grid/PTY live shim-side, so Mighty just forwards scalars (L21-safe).
+  let mut term_focus = false
+
   while running {
     let rows_i = mui_visible_rows(h)
     let rows = i32_to_usize(rows_i)
@@ -649,10 +672,39 @@ fn main() {
             }
           }
         }
+      } else if term_focus {
+        // -------- terminal has focus: route keystrokes to the shell ---------
+        // The key->byte mapping lives shim-side; Mighty forwards codepoint/key
+        // + mods. Ctrl+` (backtick, cp 96) returns focus to the editor without
+        // forwarding the keystroke to the shell.
+        if tag == ev_char() {
+          let cp = mui_event_codepoint(h)
+          let mods = mui_event_mods(h)
+          if ctrl_held(mods) && cp == 96 {                  // Ctrl+` : unfocus
+            term_focus = false
+          } else {
+            mui_term_send_codepoint(h, cp, mods)
+          }
+        } else if tag == ev_key() {
+          let k = mui_event_key(h)
+          let kmods = mui_event_mods(h)
+          mui_term_key(h, k, kmods)
+        }
       } else if tag == ev_char() {
         let cp = mui_event_codepoint(h)
         let mods = mui_event_mods(h)
-        if ctrl_held(mods) && (cp == 115 || cp == 83) {     // Ctrl+S / Ctrl+s
+        if ctrl_held(mods) && cp == 96 {                    // Ctrl+` : toggle terminal
+          if mui_term_is_open(h) == 1 {
+            // Panel already open but editor-focused -> give it focus.
+            term_focus = true
+          } else {
+            let ok = mui_term_open(h)
+            if ok == 1 {
+              term_focus = true
+              mui_log_terminal(h)
+            }
+          }
+        } else if ctrl_held(mods) && (cp == 115 || cp == 83) {     // Ctrl+S / Ctrl+s
           let rc = save_buffer(h, buf)
           if rc == 0 { log("mighty-ide: saved") } else { log("mighty-ide: save FAILED") }
           // The on-disk file is current after save; re-check it + clear dirty.
@@ -810,6 +862,15 @@ fn main() {
       if total > rows { first = total - rows } else { first = 0 }
     }
 
+    // sub-project 5: drain PTY output into the shim's terminal grid BEFORE the
+    // frame so this frame draws current shell output. No-op when closed.
+    let term_on = mui_term_is_open(h)
+    if term_on == 1 {
+      mui_term_pump(h)
+      // If the shell exited, drop focus so keystrokes go back to the editor.
+      if mui_term_running(h) == 0 { term_focus = false }
+    }
+
     let total_now = line_count(buf)
     let total_now_i = usize_to_i32(total_now)
     mui_begin_frame_s(h)
@@ -820,6 +881,8 @@ fn main() {
     // sub-projects 1+3: tab bar (top) + file-tree sidebar (left).
     mui_sidebar_draw(h)
     mui_tab_bar_draw(h)
+    // sub-project 5: the terminal panel (lower third) over the editor body.
+    if term_on == 1 { mui_term_draw(h) }
     if prompt_kind != 0 { mui_prompt_draw(h) }
     mui_end_frame_s(h)
 
