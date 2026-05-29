@@ -41,6 +41,17 @@ extern c {
   fn mui_save_clear(handle: I64)
   fn mui_save_push(handle: I64, byte: I32)
   fn mui_save_commit(handle: I64) -> I32
+  // live diagnostics (shim runs `mty check`, parses, stores; we read scalars)
+  fn mui_diag_refresh(handle: I64) -> I32
+  fn mui_diag_count(handle: I64) -> I32
+  fn mui_diag_line(handle: I64, i: I32) -> I32
+  fn mui_diag_col_start(handle: I64, i: I32) -> I32
+  fn mui_diag_col_end(handle: I64, i: I32) -> I32
+  fn mui_diag_severity(handle: I64, i: I32) -> I32
+  fn mui_underline_row(handle: I64, row: I32, col_start: I32, col_end: I32, total_lines: I32, r: F32, g: F32, b: F32, a: F32)
+  fn mui_diag_gutter_mark(handle: I64, row: I32, r: F32, g: F32, b: F32, a: F32)
+  fn mui_status_bar(handle: I64, error_count: I32)
+  fn mui_status_draw_text(handle: I64, r: F32, g: F32, b: F32, a: F32)
 }
 
 // ---- event tags / keys / mods (mirror mighty_ui.h) ----
@@ -300,6 +311,68 @@ fn draw_buffer(h: I64, buf: Vec[I32], cur: USize, first: USize, rows: USize) {
   }
 }
 
+// ---- diagnostics overlay + status bar ----
+//
+// The diag set lives shim-side (it ran `mty check` and parsed the report); we
+// read it back through scalar getters, so this is a FLAT `while d < count` loop
+// with no Mighty Vec read inside (L21 only bites on Mighty-owned Vec params).
+// For each diag whose line is on a visible row we draw a red gutter mark and a
+// red underline under its [col_start, col_end) span.
+
+fn count_errors(h: I64) -> I32 {
+  let total = mui_diag_count(h)
+  let mut errs: I32 = 0
+  let mut d: I32 = 0
+  while d < total {
+    if mui_diag_severity(h, d) == 0 { errs = errs + 1 }
+    d = d + 1
+  }
+  errs
+}
+
+fn draw_diagnostics(h: I64, total_lines_i: I32, first: USize, rows: USize) {
+  let first_i = usize_to_i32(first)
+  let last_i = usize_to_i32(first + rows)        // exclusive screen-line bound
+  let count = mui_diag_count(h)
+  let mut d: I32 = 0
+  while d < count {
+    let dline = mui_diag_line(h, d)
+    if dline >= first_i && dline < last_i {
+      let row = dline - first_i
+      let cs = mui_diag_col_start(h, d)
+      let ce = mui_diag_col_end(h, d)
+      let sev = mui_diag_severity(h, d)
+      if sev == 0 {
+        // error: red
+        mui_diag_gutter_mark(h, row, 0.85_f32, 0.18_f32, 0.18_f32, 1.0_f32)
+        mui_underline_row(h, row, cs, ce, total_lines_i, 0.85_f32, 0.18_f32, 0.18_f32, 1.0_f32)
+      } else {
+        // warning: amber
+        mui_diag_gutter_mark(h, row, 0.9_f32, 0.7_f32, 0.2_f32, 1.0_f32)
+        mui_underline_row(h, row, cs, ce, total_lines_i, 0.9_f32, 0.7_f32, 0.2_f32, 1.0_f32)
+      }
+    }
+    d = d + 1
+  }
+}
+
+// Bottom status bar: green when 0 errors, red with the error count otherwise.
+// The bar itself is a shim-drawn rect; the count is staged as digit codepoints
+// (reusing push_line_number) and drawn over the bar via mui_status_draw_text.
+fn draw_status_bar(h: I64) {
+  let errs = count_errors(h)
+  mui_status_bar(h, errs)
+  if errs == 0 {
+    // "0" — a single green-bar zero label.
+    mui_text_push(h, 48)                                  // '0'
+    mui_status_draw_text(h, 0.85_f32, 0.95_f32, 0.85_f32, 1.0_f32)
+  } else {
+    // Render the error count as digits over the red bar.
+    push_line_number(h, i32_to_usize(errs))
+    mui_status_draw_text(h, 1.0_f32, 0.9_f32, 0.9_f32, 1.0_f32)
+  }
+}
+
 // Save the whole buffer to disk through the shim's staged save buffer.
 fn save_buffer(h: I64, buf: Vec[I32]) -> I32 {
   mui_save_clear(h)
@@ -330,6 +403,10 @@ fn main() {
   }
   log("mighty-ide: buffer ready")
 
+  // Initial diagnostics pass on the on-disk file.
+  let dn = mui_diag_refresh(h)
+  if dn == 0 { log("mighty-ide: diagnostics clean") } else { log("mighty-ide: diagnostics found") }
+
   let mut cur: USize = 0
   let mut first: USize = 0          // top visible line (scroll offset)
   let mut running = true
@@ -350,6 +427,8 @@ fn main() {
         if ctrl_held(mods) && (cp == 115 || cp == 83) {     // Ctrl+S / Ctrl+s
           let rc = save_buffer(h, buf)
           if rc == 0 { log("mighty-ide: saved") } else { log("mighty-ide: save FAILED") }
+          // The on-disk file is current after save; re-check it.
+          if rc == 0 { let _r = mui_diag_refresh(h) }
         } else if cp >= 32 && cp < 127 {                    // printable ASCII
           buf = insert_at(buf, cur, cp)
           cur = cur + 1
@@ -400,8 +479,12 @@ fn main() {
       if total > rows { first = total - rows } else { first = 0 }
     }
 
+    let total_now = line_count(buf)
+    let total_now_i = usize_to_i32(total_now)
     mui_begin_frame_s(h)
     draw_buffer(h, buf, cur, first, rows)
+    draw_diagnostics(h, total_now_i, first, rows)
+    draw_status_bar(h)
     mui_end_frame_s(h)
 
     frame = frame + 1

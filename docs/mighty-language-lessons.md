@@ -182,6 +182,15 @@ Discovered building the gutter+scroll render loop. A function `fn draw_buffer(h:
 
 **Why it matters:** any non-trivial Mighty program that walks a collection with nested loops + conditionals (i.e. most real code) can hit a silent memory-corruption crash with no diagnostic. **Suggested fix:** audit the Cranelift backend's liveness/spill handling for aggregate (`Vec`/`String`) locals & params that are live across loop back-edges and used only within nested branch arms; add a regression test (flat-top-read then nested-loop-body-read of the same Vec param).
 
+### L22. `mty check` diagnostics: coarse spans (type errors resolve to the enclosing `fn` start `1:1`), ANSI always on, `check` ≠ full typecheck ✅ **[P2]**
+Discovered building the live-diagnostics engine (shim runs `mty check <path>`, parses, exposes scalar getters). Findings for v0.36:
+- **Format** (per diagnostic): a header line `[MT<digits>] <Error|Warning>: <message>` followed by an ariadne location line `╭─[<path>:<line>:<col>]` (line/col **1-based**). Diagnostics are separated by blank lines. A clean file prints one line `ok: <path>` and exits 0.
+- **Coarse spans:** type-mismatch errors (`MT2001`, `MT2019`, arg-mismatch) report their span as the **enclosing function's start `1:1`**, not the offending token — so an inline underline lands on the `fn` line, not the bad expression. Multiple distinct errors in one fn all report `…:1:1`. The IDE still parses + renders them, but per-error positioning is only as good as the compiler's span.
+- **ANSI always emitted:** `NO_COLOR=1` / `TERM=dumb` are **not** honored; output is always SGR-colored, so any parser must strip ANSI (`ESC[ … m`). (`mui-sys/src/diagnostics.rs::strip_ansi`.)
+- **`check` is narrower than expected:** an undefined identifier (`log(undefined_thing)`) and a trivial parse glitch (`let =`) both printed `ok:` here — only type-level errors surfaced. So `mty check` is not a full lint pass in v0.36; missing diagnostics aren't a parser bug on our side.
+- **No end column:** the report gives only a start col; the engine records `col_end = col_start + 1` so the underline is a visible one-cell marker.
+**Suggested fix (stardust):** carry the real expression span into type-error diagnostics (don't collapse to the fn header); honor `NO_COLOR`; widen `check` to report name-resolution/parse errors.
+
 ## P1 — Major ergonomic gaps for real programs
 
 ### L3. `String` has no insert / remove / slice / char-indexing ✅ **[P1]**

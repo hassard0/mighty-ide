@@ -1,0 +1,4 @@
+fn main() {
+  let x: I32 = "this is not an int"
+  log("with_error")
+}
