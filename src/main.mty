@@ -1,10 +1,10 @@
-// Mighty IDE — milestone 2: prove the native FFI -> wgpu pipeline.
+// Mighty IDE — milestone 3: static render of a file's lines.
 //
-// Binds the scalar-only shim ABI (see crates/mighty-ui-sys/include/mighty_ui.h
-// and abi.rs for WHY scalar-only: v0.36 extern c can't pass pointers/structs).
-// Opens a real window, clears it for a few frames, then exits. The runtime
-// stub (vendor/mtyrt.lib) satisfies the mty_runtime_* imports; it is NOT
-// declared here (it only satisfies the linker).
+// The shim loads the source file (mui_load) and exposes it as bytes by index
+// (mui_load_byte). Mighty walks the bytes, and for each line stages its
+// codepoints (mui_text_push) and draws them (mui_text_draw) at the right y.
+// Scalar-only ABI throughout — see crates/mighty-ui-sys/include/mighty_ui.h
+// and docs/mighty-language-lessons.md L17 for why.
 
 extern c {
   fn mui_init_s(width: I32, height: I32) -> I64
@@ -12,6 +12,34 @@ extern c {
   fn mui_begin_frame_s(handle: I64)
   fn mui_end_frame_s(handle: I64)
   fn mui_poll_event_s(handle: I64) -> I32
+  fn mui_fill_rect_s(handle: I64, x: F32, y: F32, w: F32, h: F32, r: F32, g: F32, b: F32, a: F32)
+  fn mui_text_push(handle: I64, codepoint: I32)
+  fn mui_text_draw(handle: I64, x: F32, y: F32, r: F32, g: F32, b: F32, a: F32)
+  fn mui_load(handle: I64) -> I64
+  fn mui_load_byte(handle: I64, i: I64) -> I32
+}
+
+// Render every visible line of the loaded file once.
+fn draw_file(h: I64, n: I64) {
+  let pad: F32 = 8.0_f32
+  let line_h: F32 = 18.0_f32
+  let mut y: F32 = pad
+  let mut i: I64 = 0
+  let mut line: I64 = 0
+  // Stage the current line's bytes, flushing on newline (10) or EOF.
+  while i < n {
+    let b = mui_load_byte(h, i)
+    if b == 10 {
+      mui_text_draw(h, pad, y, 0.85_f32, 0.87_f32, 0.9_f32, 1.0_f32)
+      y = y + line_h
+      line = line + 1
+    } else if b >= 0 {
+      mui_text_push(h, b)
+    }
+    i = i + 1
+  }
+  // Final line (no trailing newline).
+  mui_text_draw(h, pad, y, 0.85_f32, 0.87_f32, 0.9_f32, 1.0_f32)
 }
 
 fn main() {
@@ -20,19 +48,24 @@ fn main() {
   if h == 0 {
     log("mighty-ide: mui_init_s failed")
   } else {
-    log("mighty-ide: window open")
-    let mut frame: I32 = 0
-    while frame < 90 {
-      // Drain events (ignore them this milestone; just keep the loop alive).
-      let mut ev = mui_poll_event_s(h)
-      while ev != 0 {
-        ev = mui_poll_event_s(h)
+    let n = mui_load(h)
+    if n < 0 {
+      log("mighty-ide: mui_load failed")
+    } else {
+      log("mighty-ide: file loaded")
+      let mut frame: I32 = 0
+      while frame < 120 {
+        let mut ev = mui_poll_event_s(h)
+        while ev != 0 {
+          ev = mui_poll_event_s(h)
+        }
+        mui_begin_frame_s(h)
+        draw_file(h, n)
+        mui_end_frame_s(h)
+        frame = frame + 1
       }
-      mui_begin_frame_s(h)
-      mui_end_frame_s(h)
-      frame = frame + 1
     }
-    log("mighty-ide: rendered frames, shutting down")
+    log("mighty-ide: shutting down")
     mui_shutdown_s(h)
   }
   log("mighty-ide: done")
