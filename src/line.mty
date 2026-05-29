@@ -1,0 +1,46 @@
+// Line — an editable byte vector (UTF-8 bytes, ASCII-correct for MVP-0).
+//
+// A Line is a growable Vec[U8]. Insert/delete rebuild the byte vector
+// with capture-and-rebind pushes (`out = out.push(b)`), the only growth
+// idiom the current interpreter honors — see docs/mighty-language-lessons.md
+// L12 (statement-form `v.push(x)` is a no-op; capture the returned Vec).
+
+pub type Line = Vec[U8]
+
+pub fn line_new() -> Line {
+  Vec.new()
+}
+
+pub fn line_len(l: Line) -> USize {
+  l.len()
+}
+
+pub fn line_byte_at(l: Line, idx: USize) -> U8 {
+  match l.get(idx) {
+    Some(b) => b
+    None => 0_u8
+  }
+}
+
+// Rebuild with the new byte spliced at `idx` (capture-push only).
+pub fn line_insert(l: Line, idx: USize, b: U8) -> Line effect alloc {
+  let mut out: Line = Vec.new()
+  let mut i: USize = 0
+  while i < l.len() {
+    if i == idx { out = out.push(b) }
+    out = out.push(line_byte_at(l, i))
+    i = i + 1
+  }
+  if idx >= l.len() { out = out.push(b) }
+  out
+}
+
+pub fn line_delete(l: Line, idx: USize) -> Line effect alloc {
+  let mut out: Line = Vec.new()
+  let mut i: USize = 0
+  while i < l.len() {
+    if i != idx { out = out.push(line_byte_at(l, i)) }
+    i = i + 1
+  }
+  out
+}

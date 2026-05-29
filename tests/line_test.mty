@@ -1,0 +1,64 @@
+// TDD test for the editable Line (Vec[U8]) model.
+//
+// NOTE: the `mty test` runner parses + typechecks + runs each test file
+// in isolation (no cross-file module resolution — `use mod.{...}` of a
+// sibling src/ module does NOT link in its functions). So the Line
+// implementation under test is included inline here, mirroring
+// `src/line.mty`. See docs/mighty-language-lessons.md L13 (no package
+// module resolution in the test runner) and L12 (capture-push idiom).
+
+type Line = Vec[U8]
+
+fn line_new() -> Line { Vec.new() }
+fn line_len(l: Line) -> USize { l.len() }
+fn line_byte_at(l: Line, idx: USize) -> U8 {
+  match l.get(idx) {
+    Some(b) => b
+    None => 0_u8
+  }
+}
+fn line_insert(l: Line, idx: USize, b: U8) -> Line {
+  let mut out: Line = Vec.new()
+  let mut i: USize = 0
+  while i < l.len() {
+    if i == idx { out = out.push(b) }
+    out = out.push(line_byte_at(l, i))
+    i = i + 1
+  }
+  if idx >= l.len() { out = out.push(b) }
+  out
+}
+fn line_delete(l: Line, idx: USize) -> Line {
+  let mut out: Line = Vec.new()
+  let mut i: USize = 0
+  while i < l.len() {
+    if i != idx { out = out.push(line_byte_at(l, i)) }
+    i = i + 1
+  }
+  out
+}
+
+fn test_insert_into_empty() {
+  let l = line_new()
+  let l2 = line_insert(l, 0, 65_u8)   // 'A'
+  if line_len(l2) != 1 { panic("len != 1") }
+  if line_byte_at(l2, 0) != 65_u8 { panic("byte != A") }
+}
+
+fn test_insert_middle() {
+  let mut l = line_new()
+  l = line_insert(l, 0, 65_u8)        // "A"
+  l = line_insert(l, 1, 67_u8)        // "AC"
+  l = line_insert(l, 1, 66_u8)        // "ABC"
+  if line_len(l) != 3 { panic("len != 3") }
+  if line_byte_at(l, 1) != 66_u8 { panic("mid byte != B") }
+}
+
+fn test_delete() {
+  let mut l = line_new()
+  l = line_insert(l, 0, 65_u8)
+  l = line_insert(l, 1, 66_u8)
+  l = line_delete(l, 0)               // remove 'A' -> "B"
+  if line_len(l) != 1 { panic("len != 1 after delete") }
+  if line_byte_at(l, 0) != 66_u8 { panic("remaining byte != B") }
+}

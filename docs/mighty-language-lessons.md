@@ -9,11 +9,47 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-05-28 (during sub-project 0, before the Phase-0 spike ran)._
+_Last updated: 2026-05-29 (during Phase 1 — pure-Mighty editor model TDD)._
 
 ---
 
 ## P0 — Blocks building real native apps in Mighty
+
+### L12. `Vec[T].push(x)` as a statement is a NO-OP — it returns a new value but never mutates the receiver ✅ **[P0]**
+Confirmed by reading the interpreter (`crates/mty-ir/src/interp/run.rs:1929` `"push" => ... (Array(xs), Some(v)) => { let mut out = xs.clone(); out.push(v.clone()); Array(out) }`) and by runtime probes under **both** `mty test`, `mty run`, and `mty run --legacy-interp`:
+```mty
+let mut v: Vec[U8] = Vec.new()
+v.push(65_u8)        // statement form — DISCARDED
+v.push(66_u8)
+v.len()              // == 0  (!!)  push never mutated v
+```
+The method *returns* the grown `Array` (the in-source comment admits "they can only return the new value — the caller is responsible for storing it back"), but a bare `v.push(x)` statement throws that return away, so the binding never grows. `pop()` and `clear()` have the same return-only behavior. This silently breaks every push-loop in the editor plan (Line/Buffer were specified with statement-form `out.push(...)`).
+
+**Workaround (verified ✅):** capture-and-rebind — `v = v.push(x)`. Despite `push` nominally returning `Unit`, the typechecker accepts `let mut v: Vec[U8] = Vec.new(); v = v.push(65_u8)` and the rebinding grows the vec correctly (`len()`, `v[i]`, `.get(i)` all then work). The whole Phase-1 model is written in this style.
+
+Related gotchas found while probing:
+- Empty array literal `[]` does **not** unify with `Vec[U8]` (`MT2001: expected Vec[U8], found [?0; 0]`). Start from `Vec.new()` (a growable Array), not `[]`.
+- A non-empty literal `[a, b, c]` is a **fixed-size array** `[T; N]`: `.get(i)` works and reads are fine, but `pop()` and index-assign `v[i] = x` against it do not behave as a growable Vec. Use `Vec.new()` + capture-push to get a real growable buffer.
+
+**Why it matters:** Mutating-method-as-statement is the single most common collection idiom; having it silently no-op (rather than error) is a correctness landmine for any real program, not just the IDE. **Suggested fix:** make `Stmt::Expr(MethodCall{recv, "push"/"pop"/"clear", ..})` write the returned value back to `recv`'s place (the deref-write path the comment mentions, generalized to plain locals), OR give `Vec` true in-place mutation in the value model. Until then, document the `v = v.push(x)` idiom prominently.
+
+### L13. `mty test` / the pipeline has NO package-level module resolution — `use mod.{fn}` of a sibling `src/` module silently resolves to nothing ✅ **[P0]**
+The test runner (`crates/mty-stdlib/src/test.rs::run_dir`) walks `tests/`, then for **each file independently** does `parse_source(one_file) → lower → typecheck → run test_* fns`. There is no step that reads `src/`, no manifest-driven module graph, no linking of sibling files. `crates/mty-driver/src/pipeline.rs` operates on a single `ParsedFile`. Probe:
+```mty
+// tests/x_test.mty
+use exp.{add_one}            // exp.mty defines `pub fn add_one(x)->x+1`
+fn test() { if add_one(2) != 3 { panic("...") } }   // FAILS: add_one returns a default, not 3
+```
+The `use` neither errors nor imports — the call resolves to some default and returns the wrong value. Same applies to `mty check` (single PATH) — you can only check one file's closure at a time.
+
+**Workaround:** Phase-1 test files are **self-contained** — each `tests/<mod>_test.mty` inlines the implementation it exercises (mirroring the canonical `src/<mod>.mty`, which is kept separately and validated with `mty check`). This duplicates code between `src/` and `tests/` but is the only way to get green `mty test` runs today.
+
+**Why it matters:** A multi-file Mighty package can't be unit-tested as a package; you cannot test `src/foo.mty` from `tests/foo_test.mty` without copy-pasting. This blocks normal TDD-against-modules and any non-trivial app layout. **Suggested fix:** assemble the package (all `src/**/*.mty` + the test file) into one HIR `Package` before lower/typecheck/run in the test runner, and make `use <localmod>.{...}` resolve against sibling modules (erroring on a genuinely missing symbol instead of returning a silent default).
+
+### L14. Public functions that allocate must declare `effect alloc` ✅ **[P2-for-us, by-design]**
+`pub fn line_insert(...) -> Line { ...Vec.new()/push... }` fails `mty check` with `MT4001: public function 'line_insert' is missing declared effect(s): alloc`. Fix is to annotate: `pub fn line_insert(...) -> Line effect alloc { ... }` (effect clause goes after the return type; `effect a | E` and `!{a}` row forms also exist). This is intended (effects are a public contract per §9), not a bug — logged so the pattern is on record: any `pub` fn in `src/` that constructs a `Vec`/`String` needs `effect alloc`. (Non-`pub` helpers and `test_*` fns in test files don't trip it, which is why the inlined test copies omit it.)
+
+
 
 ### L1. `mty build` (native Cranelift) lags `mty run` (interpreter); no interpreter fallback in built binaries 🔎 **[P0]**
 `mty run` JIT-compiles and "Programs whose MtyIR the native backend can't yet lower fall
