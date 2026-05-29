@@ -1,0 +1,16 @@
+// Test-only convenience: build a Line (Vec[U8]) from a String literal's
+// bytes. Uses the capture-push idiom (L12). Cross-file `use` doesn't
+// resolve (L13), so the Line type is declared locally.
+
+pub type Line = Vec[U8]
+
+pub fn line_of(s: String) -> Line effect alloc {
+  let mut l: Line = Vec.new()
+  let bytes = s.bytes()
+  let mut i: USize = 0
+  while i < bytes.len() {
+    l = l.push(bytes[i])
+    i = i + 1
+  }
+  l
+}
