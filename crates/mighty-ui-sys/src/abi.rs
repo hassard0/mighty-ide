@@ -317,6 +317,30 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         }
     }
 
+    // Screenshot/render hook for the in-file replace bar: with
+    // MUI_REPLACE_AUTOOPEN set, open the replace bar with seeded find/replace
+    // fields and LEAVE it open + focused on the replace field so a headless
+    // capture shows it (the bar otherwise only draws while `replacing` in the
+    // Mighty loop, which a non-interactive run can't enter). The env value is an
+    // optional "find:replace" seed (default "world:Mighty"). No effect on launches.
+    if std::env::var_os("MUI_REPLACE_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let raw = std::env::var("MUI_REPLACE_AUTOOPEN").unwrap_or_default();
+            let raw = raw.trim();
+            let (find, repl) = if raw.is_empty() || raw == "1" {
+                ("world", "Mighty")
+            } else {
+                raw.split_once(':').unwrap_or((raw, ""))
+            };
+            ctx.replace_bar.open(find);
+            ctx.replace_bar.toggle_focus(); // focus the replace field
+            for ch in repl.chars() {
+                ctx.replace_bar.push(ch as u32);
+            }
+            println!("mui_init_s: MUI_REPLACE_AUTOOPEN -> find=\"{find}\" repl=\"{repl}\"");
+        }
+    }
+
     // Screenshot/render hook for the theme picker: with MUI_THEMEPICKER_AUTOOPEN
     // set, open the chooser and LEAVE it open so a headless screenshot shows the
     // overlay (it otherwise only draws while the Mighty loop routes to it). The
@@ -4540,6 +4564,30 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         ctx.dl_round(cx, cy - 1.0, 2.0, layout::LINE_H - 2.0, 1.0, theme::ACCENT_BRIGHT());
     }
 
+    // 4b) Bracket-match highlight — a thin outline box around the bracket the
+    //     cursor is on/next to AND its depth-counted partner, when both are on
+    //     visible rows. Subtle (1px accent stroke) so it reads as a pairing hint.
+    {
+        let pair = {
+            let m = ctx.tabs.active_model();
+            m.bracket_match().map(|(ml, mc)| {
+                let (cl, cc) = bracket_source_cell(m);
+                (cl as usize, cc as usize, ml, mc)
+            })
+        };
+        if let Some((cl, cc, ml, mc)) = pair {
+            let cw = layout::CHAR_W;
+            for (li, co) in [(cl, cc), (ml, mc)] {
+                if li >= first && li < first + rows {
+                    let row = (li - first) as i32;
+                    let x = layout::text_x_in(region, total_u64, co as i32);
+                    let y = layout::row_y_in(region, row);
+                    ctx.dl_stroke(x - 1.0, y - 1.0, cw + 2.0, layout::LINE_H - 2.0, 2.0, theme::ACCENT_LINE(), 1.0);
+                }
+            }
+        }
+    }
+
     // 5) Minimap — a faint right strip with one tiny colored bar per buffer line,
     //    sized by the line's first syntax span color + length, plus a viewport box.
     {
@@ -4640,6 +4688,72 @@ pub extern "C" fn mui_edit_probe(handle: i64) {
         m.cursor_col(),
         m.dirty()
     );
+
+    // ---- power-feature probe: comment toggle, auto-close, auto-indent,
+    //      duplicate, move-line, word-motion, bracket-match, in-file replace.
+    //      Drives a fresh scratch model so the assertions are deterministic.
+    {
+        use crate::editor::TextModel;
+        let p = ctx.tabs.active_model_mut();
+        *p = TextModel::from_bytes(b"let x = 1\nlet y = 2");
+
+        // 1) toggle comment on line 0.
+        p.move_to(0, 0);
+        p.toggle_line_comment();
+        let commented = p.line(0).to_string();
+
+        // 2) auto-close: type '(' -> "()".
+        p.move_to(1, p.line_len(1) as i32);
+        let smart_open = p.insert_char_smart('(');
+        let autoclosed = p.line(1).to_string();
+
+        // 3) auto-indent: after "{" Enter adds one level.
+        let q = ctx.tabs.active_model_mut();
+        *q = TextModel::from_bytes(b"fn f() {");
+        q.move_to(0, 8);
+        q.newline_auto_indent();
+        let indent_len = q.line_len(1);
+
+        // 4) duplicate the first line.
+        let d = ctx.tabs.active_model_mut();
+        *d = TextModel::from_bytes(b"dup_me");
+        d.move_to(0, 0);
+        d.duplicate();
+        let dup_count = d.line_count();
+
+        // 5) bracket match across the inserted pair.
+        let b = ctx.tabs.active_model_mut();
+        *b = TextModel::from_bytes(b"a(bc)d");
+        b.move_to(0, 1);
+        let bm = b.bracket_match();
+
+        // 6) in-file replace all.
+        let r = ctx.tabs.active_model_mut();
+        *r = TextModel::from_bytes(b"x x x");
+        let n_repl = r.replace_all("x", "yy");
+        let replaced = r.line(0).to_string();
+
+        // 7) word motion.
+        let w = ctx.tabs.active_model_mut();
+        *w = TextModel::from_bytes(b"alpha beta gamma");
+        w.move_to(0, 0);
+        w.move_word_right(false);
+        let word_col = w.cursor_col();
+
+        println!(
+            "edit-probe[power]: comment=\"{commented}\" smart_open={smart_open} \
+             autoclose=\"{autoclosed}\" indent_len={indent_len} dup_lines={dup_count} \
+             bracket_match={bm:?} replace_all={n_repl} replaced=\"{replaced}\" \
+             word_col={word_col}"
+        );
+
+        // Leave a representative buffer in place for the screenshot frame.
+        let f = ctx.tabs.active_model_mut();
+        *f = TextModel::from_bytes(
+            b"fn main() {\n  // greet the world\n  let msg = greeting(\"world\")\n  print(msg)\n}",
+        );
+        f.move_to(0, 10);
+    }
 }
 
 // ---- live-model undo / redo (shim-side snapshots; L28 workaround) ----
@@ -4712,4 +4826,327 @@ pub extern "C" fn mui_ed_redo(handle: i64) -> i32 {
         }
         None => 0,
     }
+}
+
+// ---------------------------------------------------------------------------
+// Editor power-features (toggle comment, auto-indent, auto-close, bracket
+// match, duplicate / move-line, word motion, select word/line, in-file
+// replace) — all pure `TextModel` ops exposed as scalar `mui_ed_*` ABI.
+// ---------------------------------------------------------------------------
+
+// ---- Feature 1: toggle line comment (Ctrl+/) ----
+
+/// Toggle a `// ` line comment on the cursor line or every selected line.
+#[no_mangle]
+pub extern "C" fn mui_ed_toggle_comment(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.toggle_line_comment();
+    }
+}
+
+// ---- Feature 2: auto-indent on Enter ----
+
+/// Insert a newline that copies the leading whitespace (and adds/removes one
+/// indent level for `{` / `}`). The IDE routes Enter here instead of the plain
+/// `mui_ed_newline`.
+#[no_mangle]
+pub extern "C" fn mui_ed_newline_indent(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.newline_auto_indent();
+    }
+}
+
+// ---- Feature 3: bracket / quote auto-close + skip-over + pair backspace ----
+
+/// Smart char insert with bracket/quote auto-close + skip-over. Returns `1` if
+/// smart handling applied (the IDE must NOT also insert the char), `0` to fall
+/// back to a plain `mui_ed_insert_char`.
+#[no_mangle]
+pub extern "C" fn mui_ed_insert_smart(handle: i64, cp: i32) -> i32 {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
+            return i32::from(m.insert_char_smart(ch));
+        }
+    }
+    0
+}
+
+/// Smart backspace that deletes a matching empty bracket/quote pair. Returns
+/// `1` if a pair was removed, `0` to fall back to a plain `mui_ed_backspace`.
+#[no_mangle]
+pub extern "C" fn mui_ed_backspace_smart(handle: i64) -> i32 {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        return i32::from(m.backspace_smart());
+    }
+    0
+}
+
+// ---- Feature 4: bracket match (renderer highlights both brackets) ----
+
+/// `1` if the cursor is on/next to a bracket with a visible match, else `0`.
+/// Caches the cursor-side bracket + its match for `mui_ed_bracket_*` readback.
+#[no_mangle]
+pub extern "C" fn mui_ed_bracket_match(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    i32::from(ctx.tabs.active_model().bracket_match().is_some())
+}
+
+/// 0-based line of the cursor-side bracket being highlighted, or `-1`.
+#[no_mangle]
+pub extern "C" fn mui_ed_bracket_cur_line(handle: i64) -> i32 {
+    bracket_field(handle, |c| c.0)
+}
+
+/// 0-based col of the cursor-side bracket being highlighted, or `-1`.
+#[no_mangle]
+pub extern "C" fn mui_ed_bracket_cur_col(handle: i64) -> i32 {
+    bracket_field(handle, |c| c.1)
+}
+
+/// 0-based line of the MATCHING bracket, or `-1`.
+#[no_mangle]
+pub extern "C" fn mui_ed_bracket_match_line(handle: i64) -> i32 {
+    bracket_field(handle, |c| c.2)
+}
+
+/// 0-based col of the MATCHING bracket, or `-1`.
+#[no_mangle]
+pub extern "C" fn mui_ed_bracket_match_col(handle: i64) -> i32 {
+    bracket_field(handle, |c| c.3)
+}
+
+/// Resolve the cursor-side bracket cell + its match cell as `(cl,cc,ml,mc)` and
+/// project a field; `-1` when there is no match. Recomputes per call (cheap).
+fn bracket_field(handle: i64, f: impl Fn((i32, i32, i32, i32)) -> i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let m = ctx.tabs.active_model();
+    let Some((ml, mc)) = m.bracket_match() else {
+        return -1;
+    };
+    // Determine which cursor-side bracket produced the match (right then left).
+    let (cl, cc) = bracket_source_cell(m);
+    f((cl, cc, ml as i32, mc as i32))
+}
+
+/// The `(line, col)` of the bracket the cursor is highlighting — the char to
+/// the right if it matches, else the char to the left.
+fn bracket_source_cell(m: &TextModel) -> (i32, i32) {
+    let line = m.cursor_line();
+    let col = m.cursor_col();
+    let is_bracket = |ch: Option<char>| matches!(ch, Some('(' | ')' | '[' | ']' | '{' | '}'));
+    let right = m.line(line).chars().nth(col);
+    if is_bracket(right) {
+        // Confirm the right bracket is the one with a match.
+        let mut probe = m.clone();
+        probe.move_to(line as i32, col as i32);
+        if probe.bracket_match().is_some() && is_bracket(right) {
+            // bracket_match prefers the right char, so this is the source.
+            return (line as i32, col as i32);
+        }
+    }
+    (line as i32, (col as i32 - 1).max(0))
+}
+
+// ---- Feature 5: duplicate + move line ----
+
+/// Duplicate the current line or selection (copy inserted below).
+#[no_mangle]
+pub extern "C" fn mui_ed_duplicate(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.duplicate();
+    }
+}
+
+/// Move the current line / selected line range up by one.
+#[no_mangle]
+pub extern "C" fn mui_ed_move_lines_up(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.move_lines_up();
+    }
+}
+
+/// Move the current line / selected line range down by one.
+#[no_mangle]
+pub extern "C" fn mui_ed_move_lines_down(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.move_lines_down();
+    }
+}
+
+// ---- Feature 7: word motion + selection-extending motion + smart home ----
+
+/// Extending/collapsing single-step motion: `dir` is a `DIR_*` constant,
+/// `extend != 0` keeps/grows the selection (Shift held).
+#[no_mangle]
+pub extern "C" fn mui_ed_move_ext(handle: i64, dir: i32, extend: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.move_cursor_ext(dir, extend != 0);
+    }
+}
+
+/// Word-wise motion left/right; `extend != 0` grows the selection.
+#[no_mangle]
+pub extern "C" fn mui_ed_move_word(handle: i64, right: i32, extend: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        if right != 0 {
+            m.move_word_right(extend != 0);
+        } else {
+            m.move_word_left(extend != 0);
+        }
+    }
+}
+
+/// Smart Home (first-non-ws then col 0); `extend != 0` grows the selection.
+#[no_mangle]
+pub extern "C" fn mui_ed_home_smart(handle: i64, extend: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.home_smart(extend != 0);
+    }
+}
+
+/// Select the word under the cursor. Returns its char length.
+#[no_mangle]
+pub extern "C" fn mui_ed_select_word(handle: i64) -> i32 {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        return m.select_word().chars().count() as i32;
+    }
+    0
+}
+
+/// `1` if the active model has a non-empty selection, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_ed_has_selection(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.tabs.active_model().has_selection()))
+}
+
+// ---------------------------------------------------------------------------
+// Feature 6 — in-file find/replace bar (Ctrl+H)
+// ---------------------------------------------------------------------------
+
+/// Open the in-file replace bar, seeding the find field from the current find
+/// prompt query (if any) or the selected word.
+#[no_mangle]
+pub extern "C" fn mui_replace_open(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        // Seed: prefer the existing find query, else the word under the cursor.
+        let mut seed = ctx.prompt.query_string();
+        if seed.is_empty() {
+            seed = ctx.tabs.active_model_mut().select_word();
+        }
+        ctx.replace_bar.open(&seed);
+    }
+}
+
+/// `1` if the replace bar is active.
+#[no_mangle]
+pub extern "C" fn mui_replace_active(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.replace_bar.is_active()))
+}
+
+/// Type a codepoint into the focused field.
+#[no_mangle]
+pub extern "C" fn mui_replace_push(handle: i64, cp: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if cp >= 0 {
+            ctx.replace_bar.push(cp as u32);
+        }
+    }
+}
+
+/// Backspace the focused field.
+#[no_mangle]
+pub extern "C" fn mui_replace_backspace(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.replace_bar.backspace();
+    }
+}
+
+/// Toggle focus between the find and replace fields (Tab). Returns `1` when the
+/// replace field is now focused, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_replace_toggle_focus(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.replace_bar.toggle_focus())
+}
+
+/// `1` if the replace field currently has focus.
+#[no_mangle]
+pub extern "C" fn mui_replace_focus(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.replace_bar.replace_focus())
+}
+
+/// Close the replace bar (clears its fields).
+#[no_mangle]
+pub extern "C" fn mui_replace_cancel(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.replace_bar.cancel();
+    }
+}
+
+/// Replace the next occurrence (at/after the cursor, wrapping) of the find
+/// field with the replace field, in the active model. Returns `1` if a
+/// replacement was made, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_replace_next(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let needle = ctx.replace_bar.find_string();
+    let repl = ctx.replace_bar.repl_string();
+    i32::from(ctx.tabs.active_model_mut().replace_next(&needle, &repl))
+}
+
+/// Replace ALL occurrences of the find field with the replace field in the
+/// active model. Returns the replacement count.
+#[no_mangle]
+pub extern "C" fn mui_replace_all(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let needle = ctx.replace_bar.find_string();
+    let repl = ctx.replace_bar.repl_string();
+    ctx.tabs.active_model_mut().replace_all(&needle, &repl) as i32
+}
+
+/// Draw the in-file replace bar: two stacked input rows (find + replace) as a
+/// band above the status bar, the focused field marked. No-op when inactive.
+#[no_mangle]
+pub extern "C" fn mui_replace_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if !ctx.replace_bar.is_active() {
+        return;
+    }
+    let w = ctx.gpu.width as f32;
+    let h = ctx.gpu.height as f32;
+    let bar_h = layout::LINE_H;
+    // Two rows above the 30px status bar.
+    let top = (h - 30.0 - 2.0 * bar_h).max(0.0);
+    let chrome = theme::CHROME_FONT_SIZE;
+    let clip = ctx.clip;
+    let left = layout::region(ctx.sidebar_visible).left;
+    let text_x = left + layout::PAD + 12.0;
+    let find_line = ctx.replace_bar.display_find();
+    let repl_line = ctx.replace_bar.display_replace();
+    let repl_focus = ctx.replace_bar.replace_focus() == 1;
+
+    let handle_ptr = handle as usize as *mut MuiContext;
+    unsafe {
+        // Elevated two-row band + top divider + ember accent edge.
+        crate::mui_fill_rect(handle_ptr, 0.0, top, w, 2.0 * bar_h, theme::ELEVATED());
+        crate::mui_fill_rect(handle_ptr, 0.0, top, w, 1.0, theme::BORDER());
+        crate::mui_fill_rect(handle_ptr, left, top, 3.0, 2.0 * bar_h, theme::EMBER());
+    }
+    // Focus highlight behind the active row.
+    let focus_y = if repl_focus { top + bar_h } else { top };
+    ctx.dl_rect(left + 3.0, focus_y, w - left - 3.0, bar_h, theme::accent_a(0.08));
+
+    let fy = top + (bar_h - chrome) * 0.5 - 1.0;
+    let ry = top + bar_h + (bar_h - chrome) * 0.5 - 1.0;
+    ctx.text.queue_sized(text_x, fy, &find_line, theme::TEXT(), chrome, clip);
+    ctx.text.queue_sized(text_x, ry, &repl_line, theme::TEXT(), chrome, clip);
 }

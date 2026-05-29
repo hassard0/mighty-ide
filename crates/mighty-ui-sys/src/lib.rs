@@ -106,6 +106,8 @@ pub struct MuiContext {
     prompt: prompt::PromptState,
     /// Find-search engine over the buffer streamed in from Mighty.
     find: prompt::FindState,
+    /// In-buffer find/replace bar (Ctrl+H): find + replace fields + focus.
+    replace_bar: prompt::ReplaceBar,
 
     // ---- multi-file workspace state (tabs + file tree) ----
     /// Open tabs + per-tab cursor/scroll/dirty state (shim-owned, L17).
@@ -521,6 +523,7 @@ pub(crate) fn build_context(
         status_cursor: (1, 1),
         prompt: prompt::PromptState::new(),
         find: prompt::FindState::new(),
+        replace_bar: prompt::ReplaceBar::new(),
         tabs: tab_store,
         tree: file_tree,
         sidebar_visible: true,
@@ -1128,6 +1131,7 @@ impl MuiContext {
             status_cursor: (1, 1),
             prompt: prompt::PromptState::new(),
             find: prompt::FindState::new(),
+            replace_bar: prompt::ReplaceBar::new(),
             tabs,
             tree: tree::FileTree::new(),
             sidebar_visible: true,

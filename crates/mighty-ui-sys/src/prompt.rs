@@ -246,6 +246,102 @@ impl FindState {
     }
 }
 
+/// In-buffer find/replace bar (Ctrl+H), shim-owned (L17). Holds a find field
+/// and a replace field plus which field has focus; the actual replacement runs
+/// against the active [`crate::editor::TextModel`] in the ABI. Pure + testable.
+#[derive(Debug, Default)]
+pub struct ReplaceBar {
+    active: bool,
+    /// `false` = the find field has focus, `true` = the replace field.
+    replace_focus: bool,
+    find: Vec<char>,
+    repl: Vec<char>,
+}
+
+impl ReplaceBar {
+    pub fn new() -> Self {
+        ReplaceBar::default()
+    }
+
+    /// Open the bar, seeding the find field with `seed` (e.g. the current find
+    /// query or selected word) and focusing the find field.
+    pub fn open(&mut self, seed: &str) {
+        self.active = true;
+        self.replace_focus = false;
+        self.find = seed.chars().collect();
+        self.repl.clear();
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.active
+    }
+
+    pub fn cancel(&mut self) {
+        self.active = false;
+        self.replace_focus = false;
+        self.find.clear();
+        self.repl.clear();
+    }
+
+    /// Toggle focus between the find and replace fields (Tab). Returns the new
+    /// focus (`1` = replace field, `0` = find field).
+    pub fn toggle_focus(&mut self) -> i32 {
+        self.replace_focus = !self.replace_focus;
+        i32::from(self.replace_focus)
+    }
+
+    /// `1` if the replace field has focus, else `0`.
+    pub fn replace_focus(&self) -> i32 {
+        i32::from(self.replace_focus)
+    }
+
+    /// Append a char to the focused field.
+    pub fn push(&mut self, codepoint: u32) {
+        if !self.active {
+            return;
+        }
+        if let Some(ch) = char::from_u32(codepoint) {
+            if self.replace_focus {
+                self.repl.push(ch);
+            } else {
+                self.find.push(ch);
+            }
+        }
+    }
+
+    /// Backspace the focused field.
+    pub fn backspace(&mut self) {
+        if !self.active {
+            return;
+        }
+        if self.replace_focus {
+            self.repl.pop();
+        } else {
+            self.find.pop();
+        }
+    }
+
+    pub fn find_string(&self) -> String {
+        self.find.iter().collect()
+    }
+
+    pub fn repl_string(&self) -> String {
+        self.repl.iter().collect()
+    }
+
+    /// The two-segment label drawn in the bar (find field, then replace field),
+    /// with a `>` marker in front of the focused field.
+    pub fn display_find(&self) -> String {
+        let cue = if self.replace_focus { "  " } else { "> " };
+        format!("{cue}Find: {}", self.find_string())
+    }
+
+    pub fn display_replace(&self) -> String {
+        let cue = if self.replace_focus { "> " } else { "  " };
+        format!("{cue}Replace: {}", self.repl_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -436,5 +532,36 @@ mod tests {
         // Only the lowercase one matches.
         assert_eq!(f.count(), 1);
         assert_eq!(f.get(0).unwrap().col, 6);
+    }
+
+    // ---- ReplaceBar ----
+
+    #[test]
+    fn replace_bar_focus_and_fields() {
+        let mut r = ReplaceBar::new();
+        assert!(!r.is_active());
+        r.open("foo");
+        assert!(r.is_active());
+        assert_eq!(r.find_string(), "foo");
+        assert_eq!(r.replace_focus(), 0);
+        // Type into the find field.
+        r.push(b'!' as u32);
+        assert_eq!(r.find_string(), "foo!");
+        // Switch focus -> replace field.
+        assert_eq!(r.toggle_focus(), 1);
+        r.push(b'b' as u32);
+        r.push(b'a' as u32);
+        r.push(b'r' as u32);
+        assert_eq!(r.repl_string(), "bar");
+        assert_eq!(r.find_string(), "foo!");
+        // Backspace targets the focused (replace) field.
+        r.backspace();
+        assert_eq!(r.repl_string(), "ba");
+        // Labels mark the focused field.
+        assert!(r.display_replace().starts_with("> Replace:"));
+        assert!(r.display_find().starts_with("  Find:"));
+        r.cancel();
+        assert!(!r.is_active());
+        assert_eq!(r.find_string(), "");
     }
 }

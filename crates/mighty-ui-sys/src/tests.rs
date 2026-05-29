@@ -485,6 +485,68 @@ fn editor_abi_drives_live_model_and_undo() {
 }
 
 #[test]
+fn editor_power_features_via_abi() {
+    use crate::{
+        mui_ed_backspace_smart, mui_ed_bracket_match, mui_ed_duplicate, mui_ed_insert_char,
+        mui_ed_insert_smart, mui_ed_line_count, mui_ed_move_lines_down, mui_ed_move_to,
+        mui_ed_newline_indent, mui_ed_toggle_comment, mui_replace_active, mui_replace_all,
+        mui_replace_open, mui_replace_push, mui_replace_toggle_focus,
+    };
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    // Toggle comment on a freshly-typed line.
+    for c in "let x = 1".chars() {
+        mui_ed_insert_char(h, c as i32);
+    }
+    mui_ed_toggle_comment(h);
+    assert_eq!(ctx.tabs.active_model().line(0), "// let x = 1");
+    mui_ed_toggle_comment(h);
+    assert_eq!(ctx.tabs.active_model().line(0), "let x = 1");
+
+    // Auto-close: typing '(' inserts a pair and reports smart-handled.
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    mui_ed_move_to(h, 0, 9);
+    assert_eq!(mui_ed_insert_smart(h, '(' as i32), 1);
+    assert_eq!(ctx.tabs.active_model().line(0), "let x = 1()");
+    // Pair-backspace removes both.
+    assert_eq!(mui_ed_backspace_smart(h), 1);
+    assert_eq!(ctx.tabs.active_model().line(0), "let x = 1");
+
+    // Auto-indent on Enter after a brace.
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    for c in " {".chars() {
+        mui_ed_insert_char(h, c as i32);
+    }
+    mui_ed_newline_indent(h);
+    assert_eq!(ctx.tabs.active_model().line(1), "  ");
+
+    // Duplicate + move line down.
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let before = mui_ed_line_count(h);
+    mui_ed_duplicate(h);
+    assert_eq!(mui_ed_line_count(h), before + 1);
+    mui_ed_move_lines_down(h);
+
+    // Bracket match: place cursor before a '(' typed earlier — none here, so 0.
+    let _ = mui_ed_bracket_match(h);
+
+    // In-file replace bar: open seeds the find field from the word under the
+    // cursor ("foo"); type the replacement; replace-all.
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    *ctx.tabs.active_model_mut() = crate::editor::TextModel::from_bytes(b"foo foo foo");
+    ctx.tabs.active_model_mut().move_to(0, 0);
+    mui_replace_open(h); // seeds find = "foo"
+    assert_eq!(mui_replace_active(h), 1);
+    assert_eq!(mui_replace_toggle_focus(h), 1); // focus replace field
+    for c in "bar".chars() {
+        mui_replace_push(h, c as i32);
+    }
+    assert_eq!(mui_replace_all(h), 3);
+    assert_eq!(ctx.tabs.active_model().line(0), "bar bar bar");
+}
+
+#[test]
 fn translate_close_and_resize_events() {
     let mut q = EventQueue::default();
     translate_window_event(&mut q, &winit::event::WindowEvent::CloseRequested);
