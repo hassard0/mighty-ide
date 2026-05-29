@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-05-29 (integrated terminal: PTY + VT grid, all shim-side)._
+_Last updated: 2026-05-29 (autocomplete dropdown: shim-side engine + mty-lsp semantic provider; L24)._
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -204,6 +204,15 @@ Discovered building the live-diagnostics engine (shim runs `mty check <path>`, p
 
 ### L23. Native `log(...)` accepts only a string LITERAL → no computed-value tracing from Mighty ✅ **[P1]**
 Re-confirmed building the multi-file workspace (tabs + file tree). The IDE wanted to print the live `tab_count` / tree-entry count to stdout as headless launch evidence, but native `mty build` lowers `log` only for string-literal arguments (the CODEGEN_V0_2_NOTES "non-literal string in log/print" gap, first noted in L1). `log(tab_count)` (an `I32`) and any `"prefix" + n` concatenation are both unavailable — Mighty has no string building (L3) and no int→string conversion. **Workaround (verified ✅):** push the print into the shim — a zero-arg-from-Mighty FFI entry (`mui_log_workspace(handle)`) reads the counts shim-side and `println!`s them. Every "show me a computed number" trace in a built Mighty app must round-trip through a Rust FFI printer like this; Mighty `log` is only for fixed string milestones. **Suggested fix:** lower non-literal `log`/`print` args in native codegen (pair with int/float→string formatting in the stdlib), so a built binary can trace computed values without an FFI shim.
+
+### L24. `mty lsp` completion is solid — but a stdio client must (a) byte-count `Content-Length` and (b) stage `didOpen` BEFORE `completion` ✅ **[finding, not a Mighty-source limitation]**
+Discovered building the autocomplete dropdown (sub-project 6). `mty.exe lsp` is a full tower-lsp 3.17 server over stdio (`crates/mty-lsp/src/server.rs::run_stdio` → `Server::new(stdin, stdout, socket)`), and its `textDocument/completion` (`completion.rs`) is **good**: it returns the keyword set + every top-level def by name (`DefMap::by_name`) + locals-in-scope + receiver-aware methods after `.`. Live probe at `let|le` returned 171 labels including `let`. So the semantic provider is worth wiring (the IDE merges its labels ahead of buffer words).
+
+Two client-side gotchas that cost real time (both are LSP-client bugs, NOT Mighty issues — logged so the shape is on record for any future Mighty tooling that speaks LSP):
+- **`Content-Length` is a BYTE count.** A PowerShell `$json.Length` (UTF-16 code units) gave 75 for a 107-byte body → the server replied `{"error":{"code":-32700,"message":"Parse error"},"id":null}` and answered nothing. The Rust client uses `json.len()` (bytes) and works. (`completion.rs::lsp::frame`.)
+- **`didOpen` must land before `completion`.** Firing `initialize`+`initialized`+`didOpen`+`completion` in ONE write burst makes the completion request race ahead of the document open, so the server answers with no result (the doc isn't in its store yet) — observed as 0 labels. **Fix (verified ✅):** stage the writes on a writer thread with brief pauses (`80/40/120 ms`) so `didOpen` settles first; then completion returns 171 labels in ~0.25 s.
+- **Blocking-pipe robustness (Windows):** the child's stdout pipe is blocking and the server never closes stdout on its own, so a naive read-with-deadline loop blocks forever (a test hung 492 s until the child was killed). **Fix (verified ✅):** read on a worker thread, stop as soon as the `"id":2` completion response bytes appear, and bound the wait with `recv_timeout`; on timeout KILL the child to force EOF and unblock the reader. The LSP path is best-effort — any spawn/parse/timeout failure silently falls back to the buffer-word provider, so the editor never blocks. (`completion.rs::lsp::semantic_labels_with_timeout`.)
+**No Mighty-source limitation** surfaced building sub-project 6: per L21 the candidate list + selection live entirely in the shim (`completion.rs::CompletionEngine`), and Mighty only streams the buffer in (like find), requests at `(line, col)`, moves the selection, and reads the accepted text back to insert via the existing flat `insert_at`/`delete_at` ops — so Mighty never holds the candidate `Vec`.
 
 ## P1 — Major ergonomic gaps for real programs
 
