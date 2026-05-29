@@ -1,0 +1,18 @@
+// Mighty IDE — editor power-features demo
+// Ctrl+/ toggle comment · Alt+Up/Down move line · Ctrl+Shift+D duplicate
+fn greeting(name: Str) -> Str {
+  let prefix = "Hello, "
+  let result = prefix + name + "!"
+  result
+}
+
+fn main() {
+  let names = ["world", "Mighty", "editor"]
+  let mut i = 0
+  while i < names.len() {
+    let who = names[i]
+    let msg = greeting(who)
+    print(msg)
+    i = i + 1
+  }
+}

@@ -9,6 +9,7 @@ A native, **GPU vector-rendered** IDE **written in [Mighty](https://github.com/h
 ## Features (working today)
 
 - **Live editing** — open any file, type/insert/delete/newline, save (Ctrl+S), syntax-colored body, current-line band, line-number gutter, cursor-following scroll, click-to-place-cursor, mouse-wheel scroll, undo/redo (Ctrl+Z / Ctrl+Y)
+- **Editor power-features** — toggle line comment (Ctrl+/), auto-indent on Enter (copies leading whitespace; `{`/`}` add/remove a level), bracket/quote auto-close + skip-over + empty-pair backspace, bracket-match highlight, duplicate line/selection (Ctrl+Shift+D), move line up/down (Alt+↑ / Alt+↓), in-file find & replace (Ctrl+H: replace-next / replace-all), word-wise motion (Ctrl+←/→), smart Home, and Shift+motion selection
 - **Navigation** — go-to-line (Ctrl+G), find with match highlighting (Ctrl+F), go-to-definition (F12, cross-file), jump-back (Ctrl+−), hover info (Ctrl+K)
 - **Workspace** — tabs (Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W, click), file-tree sidebar (Ctrl+B), open-by-path (Ctrl+O)
 - **Language intelligence (via Mighty's own `mty-lsp`)** — live `mty check` diagnostics (gutter dots + squiggle underlines), autocomplete (Ctrl+Space: semantic LSP completions + buffer words)
