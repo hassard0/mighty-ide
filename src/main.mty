@@ -161,6 +161,26 @@ extern c {
   fn mui_def_target_line(handle: I64) -> I32
   fn mui_def_target_col(handle: I64) -> I32
   fn mui_def_open_target(handle: I64) -> I32
+  // ---- undo / redo (Feature A): shim-owned history (snapshots live shim-side) ----
+  // Mighty streams its post-edit buffer in (like save), the shim coalesces typing
+  // runs + decides whether to push. seed on load/switch; break on non-insert
+  // boundaries; record after each edit-group. undo/redo restore into load_buf,
+  // which Mighty pulls via mui_load_byte; the cursor comes back as scalars.
+  fn mui_undo_seed_begin(handle: I64)
+  fn mui_undo_seed_byte(handle: I64, byte: I32)
+  fn mui_undo_seed_commit(handle: I64, cur_line: I32, cur_col: I32)
+  fn mui_undo_break(handle: I64)
+  fn mui_undo_record_begin(handle: I64)
+  fn mui_undo_record_byte(handle: I64, byte: I32)
+  fn mui_undo_record_commit(handle: I64, cur_line: I32, cur_col: I32) -> I32
+  fn mui_undo(handle: I64) -> I32
+  fn mui_redo(handle: I64) -> I32
+  fn mui_undo_cursor_line(handle: I64) -> I32
+  fn mui_undo_cursor_col(handle: I64) -> I32
+  fn mui_undo_depth(handle: I64) -> I32
+  fn mui_redo_depth(handle: I64) -> I32
+  // ---- format document (Feature B): runs `mty fmt <path>` in place ----
+  fn mui_format_current(handle: I64) -> I32
 }
 
 // ---- event tags / keys / mods (mirror mighty_ui.h) ----
@@ -183,6 +203,39 @@ fn key_f12() -> I32 { 14 }
 fn prompt_goto() -> I32 { 1 }
 fn prompt_find() -> I32 { 2 }
 fn prompt_open() -> I32 { 3 }
+
+// Feature A chord predicates. Spelled as flat boolean expressions (no juxtaposed
+// parens, L20) so native codegen accepts them.
+fn is_z_key(cp: I32) -> Bool { cp == 122 || cp == 90 }      // 'z' / 'Z'
+fn is_y_key(cp: I32) -> Bool { cp == 121 || cp == 89 }      // 'y' / 'Y'
+fn is_i_key(cp: I32) -> Bool { cp == 105 || cp == 73 }      // 'i' / 'I'
+
+// Ctrl+Z (without Shift) = undo.
+fn is_undo_chord(cp: I32, mods: I32) -> Bool {
+  let ctrl = ctrl_held(mods)
+  let shift = shift_held(mods)
+  let z = is_z_key(cp)
+  ctrl && z && !shift
+}
+
+// Ctrl+Y OR Ctrl+Shift+Z = redo.
+fn is_redo_chord(cp: I32, mods: I32) -> Bool {
+  let ctrl = ctrl_held(mods)
+  let shift = shift_held(mods)
+  let y = is_y_key(cp)
+  let z = is_z_key(cp)
+  let shift_z = z && shift
+  let any = y || shift_z
+  ctrl && any
+}
+
+// Ctrl+Shift+I = format document.
+fn is_format_chord(cp: I32, mods: I32) -> Bool {
+  let ctrl = ctrl_held(mods)
+  let shift = shift_held(mods)
+  let i = is_i_key(cp)
+  ctrl && shift && i
+}
 
 // True if the shift bit (value 1) is set in `mods`.
 fn shift_held(mods: I32) -> Bool {
@@ -621,6 +674,69 @@ fn save_buffer(h: I64, buf: Vec[I32]) -> I32 {
   mui_save_commit(h)
 }
 
+// ---- undo / redo (Feature A) -----------------------------------------------
+//
+// The snapshot stack lives shim-side (L21: Mighty can't manage nested undo
+// Vecs). These helpers stream the live buffer into the shim (reusing the
+// save/tab-store byte path) so the shim can baseline (seed) or record it.
+
+// Seed the history baseline with the current buffer (called on load / tab
+// switch so undo history is per active buffer). FLAT scan over buf (L21-safe).
+fn seed_history(h: I64, buf: Vec[I32], cur: USize) {
+  mui_undo_seed_begin(h)
+  let mut i: USize = 0
+  while i < buf.len() {
+    mui_undo_seed_byte(h, byte_at(buf, i))
+    i = i + 1
+  }
+  let cl = usize_to_i32(line_of(buf, cur))
+  let cc = usize_to_i32(col_of(buf, cur))
+  mui_undo_seed_commit(h, cl, cc)
+}
+
+// Record the current post-edit buffer as a history step (the shim coalesces a
+// typing run or pushes a fresh snapshot). FLAT scan over buf (L21-safe).
+fn record_history(h: I64, buf: Vec[I32], cur: USize) {
+  mui_undo_record_begin(h)
+  let mut i: USize = 0
+  while i < buf.len() {
+    mui_undo_record_byte(h, byte_at(buf, i))
+    i = i + 1
+  }
+  let cl = usize_to_i32(line_of(buf, cur))
+  let cc = usize_to_i32(col_of(buf, cur))
+  let _r = mui_undo_record_commit(h, cl, cc)
+}
+
+// Pull the shim's load buffer (the bytes an undo/redo restored into it, or a
+// freshly (re)loaded file) into a fresh Mighty buffer. `n` is the byte count
+// reported by mui_undo / mui_redo (I32) or mui_load (I64). No Mighty Vec param
+// read (L21-safe: pushes onto a fresh local from the scalar byte getter).
+fn pull_load_buffer(h: I64, n: I32) -> Vec[I32] effect alloc {
+  let mut out: Vec[I32] = Vec.new()
+  let mut i: I64 = 0
+  let mut k: I32 = 0
+  while k < n {
+    let b = mui_load_byte(h, i)
+    if b >= 0 { out = out.push(b) }
+    i = i + 1
+    k = k + 1
+  }
+  out
+}
+
+// Same as pull_load_buffer but for an I64 byte count (mui_load returns I64).
+fn pull_load_buffer_i64(h: I64, n: I64) -> Vec[I32] effect alloc {
+  let mut out: Vec[I32] = Vec.new()
+  let mut i: I64 = 0
+  while i < n {
+    let b = mui_load_byte(h, i)
+    if b >= 0 { out = out.push(b) }
+    i = i + 1
+  }
+  out
+}
+
 // ---- multi-file workspace: tab byte-swap helpers (sub-project 4) ----
 //
 // The live edit buffer lives in Mighty; all OTHER tabs live shim-side. To
@@ -690,6 +806,12 @@ fn main() {
   let mut active: I32 = mui_tab_active(h)
   let mut buf: Vec[I32] = load_tab_buffer(h, active)
   log("mighty-ide: buffer ready")
+
+  // Feature A: seed the undo history baseline with the freshly loaded buffer.
+  seed_history(h, buf, 0)
+  // Track the active tab so we can re-seed history when the live buffer is
+  // replaced wholesale (tab switch/open/close, go-to-def cross-file, etc.).
+  let mut last_active: I32 = active
 
   // Workspace wiring evidence for non-interactive runs (the user can't see it).
   // Mighty native `log` takes only string literals (L1), so the shim prints the
@@ -838,6 +960,7 @@ fn main() {
             buf = insert_at(buf, cur, cp)
             cur = cur + 1
             mui_tab_set_dirty(h, active, 1)
+            record_history(h, buf, cur)
             let cnt = request_completion(h, buf, cur)
             if cnt == 0 { mui_complete_cancel(h); completing = false }
           } else {
@@ -848,6 +971,7 @@ fn main() {
               buf = insert_at(buf, cur, cp)
               cur = cur + 1
               mui_tab_set_dirty(h, active, 1)
+              record_history(h, buf, cur)
             }
           }
         } else if tag == ev_key() {
@@ -864,6 +988,9 @@ fn main() {
             // New cursor = cur - prefix_len + accept_len (computed, no struct).
             cur = cur - i32_to_usize(plen) + i32_to_usize(alen)
             mui_tab_set_dirty(h, active, 1)
+            // A completion accept is a discrete edit, not part of a typing run.
+            mui_undo_break(h)
+            record_history(h, buf, cur)
             mui_complete_cancel(h)
             completing = false
           } else if k == key_escape() {
@@ -874,6 +1001,8 @@ fn main() {
               cur = cur - 1
               buf = delete_at(buf, cur)
               mui_tab_set_dirty(h, active, 1)
+              mui_undo_break(h)
+              record_history(h, buf, cur)
               let cnt = request_completion(h, buf, cur)
               if cnt == 0 { mui_complete_cancel(h); completing = false }
             } else {
@@ -925,6 +1054,60 @@ fn main() {
             mui_tab_set_dirty(h, active, 0)
             let _r = mui_diag_refresh(h)
           }
+        } else if is_undo_chord(cp, mods) {                  // Ctrl+Z : undo
+          // Feature A: undo. The shim restores the prior snapshot into its load
+          // buffer (we pull it) and returns the restored cursor as scalars.
+          mui_complete_cancel(h)
+          completing = false
+          find_nav = false
+          let n = mui_undo(h)
+          if n >= 0 {
+            buf = pull_load_buffer(h, n)
+            let rl = i32_to_usize(mui_undo_cursor_line(h))
+            let rc2 = i32_to_usize(mui_undo_cursor_col(h))
+            cur = offset_of(buf, rl, rc2)
+            mui_tab_set_dirty(h, active, 1)
+          }
+        } else if is_redo_chord(cp, mods) {                  // Ctrl+Y / Ctrl+Shift+Z : redo
+          // Feature A: redo (mirror of undo).
+          mui_complete_cancel(h)
+          completing = false
+          find_nav = false
+          let n = mui_redo(h)
+          if n >= 0 {
+            buf = pull_load_buffer(h, n)
+            let rl = i32_to_usize(mui_undo_cursor_line(h))
+            let rc2 = i32_to_usize(mui_undo_cursor_col(h))
+            cur = offset_of(buf, rl, rc2)
+            mui_tab_set_dirty(h, active, 1)
+          }
+        } else if is_format_chord(cp, mods) {                // Ctrl+Shift+I : format document
+          // Feature B: save -> push an undo boundary+snapshot -> format in place
+          // -> reload the formatted file -> seed isn't needed (record makes it
+          // undoable). Save first so the formatter sees the current text.
+          let rc = save_buffer(h, buf)
+          if rc == 0 {
+            mui_tab_set_dirty(h, active, 0)
+            // Push the pre-format buffer as a discrete undo step so Ctrl+Z reverts
+            // the format in one move.
+            mui_undo_break(h)
+            record_history(h, buf, cur)
+            let ok = mui_format_current(h)
+            if ok == 1 {
+              // Reload the formatted file via the existing load path, keeping the
+              // cursor line where possible.
+              let keep_line = line_of(buf, cur)
+              let n = mui_load(h)
+              if n >= 0 {
+                buf = pull_load_buffer_i64(h, n)
+                cur = offset_of(buf, keep_line, 0)
+                // Record the formatted result as the new step (undoable).
+                mui_undo_break(h)
+                record_history(h, buf, cur)
+                let _r = mui_diag_refresh(h)
+              }
+            }
+          }
         } else if ctrl_held(mods) && (cp == 103 || cp == 71) {   // Ctrl+G / Ctrl+g
           mui_prompt_open(h, prompt_goto())
           prompt_kind = prompt_goto()
@@ -946,6 +1129,10 @@ fn main() {
           first = i32_to_usize(mui_tab_scroll(h, active))
           find_nav = false
           let _r = mui_diag_refresh(h)
+          // Close may keep the same index but a different file; re-seed now and
+          // update the tracker so the post-loop check doesn't double-seed.
+          seed_history(h, buf, cur)
+          last_active = active
         } else if find_nav && (cp == 110 || cp == 78) {     // 'n' / 'N': next match
           let cnt = mui_find_count(h)
           if cnt > 0 {
@@ -958,6 +1145,8 @@ fn main() {
           buf = insert_at(buf, cur, cp)
           cur = cur + 1
           mui_tab_set_dirty(h, active, 1)
+          // Feature A: record the typing edit (the shim coalesces a run).
+          record_history(h, buf, cur)
         }
       } else if tag == ev_key() {
         let k = mui_event_key(h)
@@ -1020,25 +1209,34 @@ fn main() {
             find_nav = false
             let _r = mui_diag_refresh(h)
           } else {
-            // Plain Tab inserts a tab character.
+            // Plain Tab inserts a tab character (a discrete edit, breaks the run).
+            mui_undo_break(h)
             buf = insert_at(buf, cur, 9)
             cur = cur + 1
             mui_tab_set_dirty(h, active, 1)
+            record_history(h, buf, cur)
           }
         } else if k == key_left() {
           if cur > 0 { cur = cur - 1 }
+          mui_undo_break(h)                                 // cursor move ends a typing run
         } else if k == key_right() {
           if cur < buf.len() { cur = cur + 1 }
+          mui_undo_break(h)
         } else if k == key_up() {
           cur = move_vertical(buf, cur, false)
+          mui_undo_break(h)
         } else if k == key_down() {
           cur = move_vertical(buf, cur, true)
+          mui_undo_break(h)
         } else if k == key_backspace() {
           if cur > 0 {
             find_nav = false
             cur = cur - 1
             buf = delete_at(buf, cur)
             mui_tab_set_dirty(h, active, 1)
+            // A delete is a discrete edit, not part of a forward typing run.
+            mui_undo_break(h)
+            record_history(h, buf, cur)
           }
         } else if k == key_enter() {
           if find_nav {
@@ -1049,9 +1247,12 @@ fn main() {
               cur = cursor_for_match(h, buf, find_idx, cur)
             }
           } else {
+            // A newline is a discrete edit, breaks the typing run.
+            mui_undo_break(h)
             buf = insert_at(buf, cur, 10)
             cur = cur + 1
             mui_tab_set_dirty(h, active, 1)
+            record_history(h, buf, cur)
           }
         }
       } else if tag == ev_scroll() {
@@ -1112,6 +1313,14 @@ fn main() {
     if hovering && cur != hover_at {
       mui_hover_clear(h)
       hovering = false
+    }
+
+    // Feature A: when the active tab changed this frame the live buffer was
+    // replaced wholesale, so re-seed the undo baseline for the new buffer
+    // (history is per active buffer; undo/redo never re-seed, they record).
+    if active != last_active {
+      seed_history(h, buf, cur)
+      last_active = active
     }
 
     // Keep the cursor on-screen, then clamp `first` so we never scroll past EOF.
