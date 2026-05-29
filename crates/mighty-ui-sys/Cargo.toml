@@ -7,7 +7,7 @@ publish = false
 [lib]
 # `staticlib` for the C ABI the Mighty IDE links against; `lib` (rlib) so the
 # in-crate `#[test]` harness can build (a pure staticlib can't host tests).
-crate-type = ["staticlib", "lib"]
+crate-type = ["cdylib", "staticlib", "lib"]
 
 [dependencies]
 winit = "0.30"

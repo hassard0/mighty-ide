@@ -140,6 +140,58 @@ void mui_end_frame(MuiContext *ctx);
  * Returns true if an event was written, false when the queue is empty. */
 bool mui_poll_event(MuiContext *ctx, MuiEvent *out_ev);
 
+/* =========================================================================
+ * SCALAR-ONLY ABI (mui_*_s and staging fns)
+ *
+ * v0.36 Mighty `extern c` can only express scalar arg/return shapes from
+ * Mighty-owned data (no pointers, no by-value/returned structs, no out-params,
+ * no Str->*U8). The functions above pass MuiColor by value, byte pointers, and
+ * a MuiEvent out-pointer, so they are NOT callable from a built Mighty program.
+ * The surface below re-exposes the same capabilities using only scalars and is
+ * what src/main.mty binds. The opaque context is an i64 handle (a MuiContext*
+ * cast to int); colors are four floats; text and file bytes are staged into
+ * shim-owned buffers one unit at a time.
+ * ========================================================================= */
+
+/* init/shutdown: handle is an opaque i64 (0 == failure/null). */
+int64_t mui_init_s(uint32_t width, uint32_t height);
+void    mui_shutdown_s(int64_t handle);
+
+/* frame lifecycle + clip */
+void mui_begin_frame_s(int64_t handle);
+void mui_end_frame_s(int64_t handle);
+void mui_set_clip_s(int64_t handle, uint32_t x, uint32_t y, uint32_t w, uint32_t h);
+
+/* rect: color as four floats in 0..=1 */
+void mui_fill_rect_s(int64_t handle, float x, float y, float w, float h,
+                     float r, float g, float b, float a);
+
+/* text staging + draw: push codepoints, then draw (which clears the stage) */
+void mui_text_clear(int64_t handle);
+void mui_text_push(int64_t handle, uint32_t codepoint);
+void mui_text_draw(int64_t handle, float x, float y,
+                   float r, float g, float b, float a);
+
+/* events: poll returns the tag, accessors read the last-polled event */
+int32_t mui_poll_event_s(int64_t handle);
+int32_t mui_event_codepoint(int64_t handle);
+int32_t mui_event_key(int64_t handle);
+int32_t mui_event_mods(int64_t handle);
+int32_t mui_event_width(int64_t handle);
+int32_t mui_event_height(int64_t handle);
+
+/* file I/O (shim-owned). Path is staged byte-by-byte then committed. */
+void    mui_path_clear(int64_t handle);
+void    mui_path_push(int64_t handle, uint32_t byte);
+void    mui_path_commit(int64_t handle);
+int64_t mui_load(int64_t handle);              /* -> byte length, or -1 */
+int32_t mui_load_byte(int64_t handle, int64_t i); /* -> byte, or -1 */
+void    mui_save_clear(int64_t handle);
+void    mui_save_push(int64_t handle, uint32_t byte);
+int32_t mui_save_commit(int64_t handle);       /* -> 0 ok, -1 err */
+
+int32_t mui_smoke_add_s(int32_t a, int32_t b);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

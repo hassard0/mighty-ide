@@ -1,0 +1,39 @@
+// Mighty IDE — milestone 2: prove the native FFI -> wgpu pipeline.
+//
+// Binds the scalar-only shim ABI (see crates/mighty-ui-sys/include/mighty_ui.h
+// and abi.rs for WHY scalar-only: v0.36 extern c can't pass pointers/structs).
+// Opens a real window, clears it for a few frames, then exits. The runtime
+// stub (vendor/mtyrt.lib) satisfies the mty_runtime_* imports; it is NOT
+// declared here (it only satisfies the linker).
+
+extern c {
+  fn mui_init_s(width: I32, height: I32) -> I64
+  fn mui_shutdown_s(handle: I64)
+  fn mui_begin_frame_s(handle: I64)
+  fn mui_end_frame_s(handle: I64)
+  fn mui_poll_event_s(handle: I64) -> I32
+}
+
+fn main() {
+  log("mighty-ide: starting")
+  let h = mui_init_s(900, 600)
+  if h == 0 {
+    log("mighty-ide: mui_init_s failed")
+  } else {
+    log("mighty-ide: window open")
+    let mut frame: I32 = 0
+    while frame < 90 {
+      // Drain events (ignore them this milestone; just keep the loop alive).
+      let mut ev = mui_poll_event_s(h)
+      while ev != 0 {
+        ev = mui_poll_event_s(h)
+      }
+      mui_begin_frame_s(h)
+      mui_end_frame_s(h)
+      frame = frame + 1
+    }
+    log("mighty-ide: rendered frames, shutting down")
+    mui_shutdown_s(h)
+  }
+  log("mighty-ide: done")
+}

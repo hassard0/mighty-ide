@@ -1,0 +1,19 @@
+[package]
+name = "mighty-ide"
+version = "0.1.0"
+edition = "2026"
+
+# The wgpu render shim, linked as a DLL via its import library. The DLL itself
+# (target/mighty_ui_sys.dll) must sit next to the output exe at runtime — the
+# build-ide.sh script copies it there.
+[[extern_lib]]
+name = "mighty_ui_sys"
+kind = "dynamic"
+path = "vendor/mighty_ui_sys.dll.lib"
+
+# Runtime-symbol stub: satisfies the mty_runtime_* imports every Mighty object
+# references. Not the production runtime — see vendor/mty_runtime_stub.c.
+[[extern_lib]]
+name = "mtyrt"
+kind = "static"
+path = "vendor/mtyrt.lib"

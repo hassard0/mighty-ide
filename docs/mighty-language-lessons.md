@@ -150,6 +150,17 @@ does not — worth confirming, as it changes which IDE substrate is viable today
 
 ---
 
+### L17. `extern c` can pass ONLY scalars from Mighty-owned data — no pointers, structs, or out-params ✅ **[P0]**
+v0.36's real `extern c` (the post-L11 direct-call ABI) works, but the *Mighty side* can only originate **scalar** values: `I32`, `I64`, `F32`, `F64`, `U8`/`USize`. Verified end-to-end via `mty build` (a probe linking a C lib + the runtime stub):
+- `fn probe_alloc(w: I32, h: I32) -> I64` then `fn probe_sum(handle: I64) -> I32` round-trips a C pointer through Mighty as an `I64` handle and back — **works** (the linchpin for the opaque-handle pattern). `F32` args also pass correctly.
+- But every extern-c-matrix row that takes a pointer (`*U8`, row 03/04), a `Str` (row 09), a by-value struct (row 05/07), or an out-pointer (row 04) is marked "works (**wrapper**)": the Mighty source calls a *zero-arg* C entrypoint and **C owns the buffer/struct**. There is no Mighty syntax that yields the address of a Mighty `Vec[U8]`/`String`/local to hand across FFI, and `Str → *U8` coercion is rejected by typeck. `#[repr(C)]` structs can't be constructed-and-passed or returned from Mighty either.
+
+**Consequence for the IDE / any FFI app:** the C ABI must be **scalar-only**. We revised `crates/mighty-ui-sys` to add a parallel `mui_*_s` surface (`abi.rs`): the context is an `i64` handle; colors are four `f32`; **the shim owns all buffers** — text is staged codepoint-by-codepoint (`mui_text_push`/`mui_text_draw`), events are polled to a scalar tag with scalar field accessors (`mui_event_codepoint/_key/_mods`), and file I/O lives entirely in the shim (`mui_load`+`mui_load_byte` for read, `mui_save_push`/`mui_save_commit` for write) because Mighty can pass neither a path string nor a byte buffer. The original struct/pointer ABI in `lib.rs` stays for the Rust GPU tests but is NOT callable from built Mighty.
+**Suggested fix:** the v0.37 follow-ups already listed in `extern-c-matrix.md` (Str→*U8 coercion, address-of FFI locals, struct-literal-as-arg) — without at least address-of-local + Str→*U8, FFI apps must push bulk data one scalar at a time.
+
+### L18. `std.fs` is a Rust capability API, not a Mighty-callable surface in built binaries 🔎 **[P1]**
+`crates/mty-stdlib/src/fs.rs` exposes `read/read_file/write/write_file/stat/open/...` but they take a `&FsCap` and `&Path`/`&[u8]` — Rust-internal types. There is no Mighty-source path that constructs those, and (per L17) Mighty can't pass a path string across FFI anyway. So **Ctrl+S "save the buffer to disk" cannot be done from Mighty `std.fs` in a `mty build` binary.** The IDE delegates file I/O to the shim instead (the shim's Rust side calls `std::fs`). Needs confirming whether `mty run` (interpreter) exposes a higher-level `fs` to Mighty source.
+
 ## P1 — Major ergonomic gaps for real programs
 
 ### L3. `String` has no insert / remove / slice / char-indexing ✅ **[P1]**

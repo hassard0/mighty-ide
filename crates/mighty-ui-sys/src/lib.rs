@@ -10,12 +10,16 @@
 //! * [`text`]   — glyphon font system, atlas, renderer, measurement
 //! * [`window`] — winit window + `pump_events` + event-queue translation
 
+mod abi;
 mod ffi;
 mod gpu;
 mod text;
 mod window;
 
+pub use abi::*;
 pub use ffi::*;
+
+use std::path::PathBuf;
 
 use std::sync::Arc;
 
@@ -46,6 +50,20 @@ pub struct MuiContext {
     frame: Option<wgpu::SurfaceTexture>,
     frame_view: Option<wgpu::TextureView>,
     in_frame: bool,
+
+    // ---- scalar-ABI staging state (see abi.rs) ----
+    /// Text accumulated codepoint-by-codepoint before a `mui_text_draw`.
+    text_stage: String,
+    /// Last event delivered by `mui_poll_event_s`, read by scalar accessors.
+    last_event: MuiEvent,
+    /// Configured source/target file path (shim owns file I/O).
+    file_path: Option<PathBuf>,
+    /// Path bytes staged before `mui_path_commit`.
+    path_stage: Vec<u8>,
+    /// Bytes of the most recently loaded file (read by index).
+    load_buf: Vec<u8>,
+    /// Bytes staged for `mui_save_commit`.
+    save_buf: Vec<u8>,
 }
 
 // ---------------------------------------------------------------------------
@@ -99,6 +117,12 @@ pub unsafe extern "C" fn mui_init(
         frame: None,
         frame_view: None,
         in_frame: false,
+        text_stage: String::new(),
+        last_event: MuiEvent::none(),
+        file_path: None,
+        path_stage: Vec::new(),
+        load_buf: Vec::new(),
+        save_buf: Vec::new(),
     });
     Box::into_raw(ctx)
 }
@@ -379,6 +403,12 @@ impl MuiContext {
             frame: None,
             frame_view: None,
             in_frame: false,
+            text_stage: String::new(),
+            last_event: MuiEvent::none(),
+            file_path: None,
+            path_stage: Vec::new(),
+            load_buf: Vec::new(),
+            save_buf: Vec::new(),
         })
     }
 
