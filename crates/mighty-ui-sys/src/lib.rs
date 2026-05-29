@@ -29,6 +29,7 @@ mod terminal;
 mod text;
 mod theme;
 mod tree;
+mod vello_proof;
 mod window;
 
 pub use abi::*;
@@ -162,6 +163,13 @@ pub struct MuiContext {
     /// scripted-edit model survives the IDE's initial load — letting a headless
     /// screenshot capture the LIVE-edited buffer (screenshots/06-edit.png).
     pub(crate) edit_probe_lock: bool,
+
+    // ---- Vello proof (MUI_VELLO_PROOF=1; Phase 1 renderer upgrade) ----
+    /// When `MUI_VELLO_PROOF` is set, [`render_and_present`] renders a static
+    /// Vello vector scene (gradients/rounded/shadow/AA text) instead of the
+    /// rect/glyphon UI, proving CSS-quality output. Built lazily on the first
+    /// proof frame; `None` for normal runs (the rect path is fully unaffected).
+    vello_proof: Option<vello_proof::VelloProof>,
 }
 
 // ---------------------------------------------------------------------------
@@ -308,6 +316,7 @@ pub(crate) fn build_context(
         ed_undo: Vec::new(),
         ed_redo: Vec::new(),
         edit_probe_lock: false,
+        vello_proof: None,
     });
     Box::into_raw(ctx)
 }
@@ -474,6 +483,15 @@ pub unsafe extern "C" fn mui_end_frame(ctx: *mut MuiContext) {
 /// Shared by `mui_end_frame` and tests: encode rects + text and submit.
 fn render_and_present(ctx: &mut MuiContext) {
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+
+    // Vello proof path (MUI_VELLO_PROOF=1): render the static vector proof scene
+    // through Vello instead of the rect/glyphon UI. Vello manages its own GPU
+    // submission (compute + blit), so we bypass the rect encoder entirely.
+    if vello_proof::proof_enabled() {
+        render_vello_proof(ctx, w, h);
+        return;
+    }
+
     // Determine the view to render into. Both the surface frame view and the
     // offscreen view are owned elsewhere (ctx.frame_view / ctx.gpu.target), so
     // a borrow suffices.
@@ -528,6 +546,50 @@ fn render_and_present(ctx: &mut MuiContext) {
     // Screenshot mode: on the configured frame, read the offscreen texture back
     // and write a PNG. Done after every other draw call this frame, so the PNG
     // is a faithful capture of the full UI. The next poll returns Close.
+    maybe_capture_screenshot(ctx);
+}
+
+/// Render the static Vello proof scene to the active target (surface or
+/// offscreen texture), lazily constructing the Vello renderer on first use.
+/// Vello owns its GPU submission; we just hand it the device/queue + target.
+fn render_vello_proof(ctx: &mut MuiContext, w: u32, h: u32) {
+    // Lazily build the renderer (knows whether it needs a blit pipeline for the
+    // surface format vs. a pure offscreen renderer).
+    if ctx.vello_proof.is_none() {
+        let surface_format = match &ctx.gpu.target {
+            RenderTarget::Surface(_) => Some(ctx.gpu.format),
+            RenderTarget::Offscreen { .. } => None,
+        };
+        match vello_proof::VelloProof::new(&ctx.gpu.device, surface_format) {
+            Ok(vp) => ctx.vello_proof = Some(vp),
+            Err(e) => {
+                eprintln!("mui vello proof: {e}");
+                return;
+            }
+        }
+    }
+    let vp = ctx.vello_proof.as_mut().unwrap();
+
+    match &ctx.gpu.target {
+        RenderTarget::Offscreen { view, .. } => {
+            if let Err(e) = vp.render_to_texture(&ctx.gpu.device, &ctx.gpu.queue, view, w, h) {
+                eprintln!("mui vello proof: {e}");
+            }
+        }
+        RenderTarget::Surface(_) => {
+            if let Some(frame) = ctx.frame.take() {
+                if let Err(e) =
+                    vp.render_to_surface(&ctx.gpu.device, &ctx.gpu.queue, &frame, w, h)
+                {
+                    eprintln!("mui vello proof: {e}");
+                }
+                frame.present();
+            }
+            ctx.frame_view = None;
+        }
+    }
+
+    // Still honor the screenshot capture on the offscreen path.
     maybe_capture_screenshot(ctx);
 }
 
@@ -699,6 +761,7 @@ impl MuiContext {
             ed_undo: Vec::new(),
             ed_redo: Vec::new(),
             edit_probe_lock: false,
+            vello_proof: None,
         })
     }
 

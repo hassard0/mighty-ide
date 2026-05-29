@@ -72,6 +72,22 @@ pub const CLEAR_COLOR: wgpu::Color = wgpu::Color {
     a: 1.0,
 };
 
+/// Features Vello's compute pipeline can opt into when the adapter supports
+/// them. `CLEAR_TEXTURE` is used by Vello to clear intermediate targets; it is
+/// requested only if available so the rect path on weaker adapters is unaffected.
+fn vello_features(adapter: &wgpu::Adapter) -> wgpu::Features {
+    adapter.features() & wgpu::Features::CLEAR_TEXTURE
+}
+
+/// Limits Vello needs for its compute shaders. Vello's reference setup uses the
+/// default (non-downlevel) limits — its storage-buffer and workgroup-storage
+/// usage exceeds `downlevel_defaults`. These limits are clamped to whatever the
+/// adapter actually reports so we never request more than the device allows. The
+/// rect/glyphon path works fine under these (more generous) limits too.
+fn vello_limits(adapter: &wgpu::Adapter) -> wgpu::Limits {
+    wgpu::Limits::default().using_resolution(adapter.limits())
+}
+
 fn request_adapter(
     instance: &wgpu::Instance,
     compatible_surface: Option<&wgpu::Surface<'static>>,
@@ -107,8 +123,10 @@ impl Gpu {
         let (device, queue) = pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
                 label: Some("mui device"),
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::downlevel_defaults(),
+                // Vello-compatible features/limits (see `vello_limits`). Shared by
+                // the rect path; Vello reuses this same Device/Queue.
+                required_features: vello_features(&adapter),
+                required_limits: vello_limits(&adapter),
                 memory_hints: wgpu::MemoryHints::default(),
             },
             None,
@@ -169,8 +187,8 @@ impl Gpu {
         let (device, queue) = pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
                 label: Some("mui offscreen device"),
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::downlevel_defaults(),
+                required_features: vello_features(&adapter),
+                required_limits: vello_limits(&adapter),
                 memory_hints: wgpu::MemoryHints::default(),
             },
             None,
@@ -189,7 +207,12 @@ impl Gpu {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            // STORAGE_BINDING lets Vello's compute pipeline render straight into
+            // this texture (`Renderer::render_to_texture`); RENDER_ATTACHMENT +
+            // COPY_SRC keep the rect path and PNG readback working.
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::STORAGE_BINDING,
             view_formats: &[],
         });
         let view = texture.create_view(&Default::default());
@@ -276,7 +299,9 @@ impl Gpu {
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
                     format: self.format,
-                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                        | wgpu::TextureUsages::COPY_SRC
+                        | wgpu::TextureUsages::STORAGE_BINDING,
                     view_formats: &[],
                 });
                 *view = new.create_view(&Default::default());

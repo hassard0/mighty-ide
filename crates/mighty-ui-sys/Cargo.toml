@@ -13,6 +13,11 @@ crate-type = ["cdylib", "staticlib", "lib"]
 winit = "0.30"
 wgpu = "22"
 glyphon = "0.6"
+# Vello 0.3 pins wgpu ^22.1.0 — matches the shim's wgpu 22 exactly, so the GPU
+# vector renderer shares the shim's existing Device/Queue with no wgpu bump.
+# `skrifa` (re-exported via vello) drives glyph outlines/metrics for text.
+vello = "0.3.0"
+skrifa = "0.22"
 pollster = "0.3"
 raw-window-handle = "0.6"
 bytemuck = { version = "1", features = ["derive"] }
