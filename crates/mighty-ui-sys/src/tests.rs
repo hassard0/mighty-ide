@@ -63,6 +63,36 @@ fn fill_rect_produces_red_texels_and_clear_elsewhere() {
 }
 
 #[test]
+fn vello_rounded_rect_fills_center_and_softens_corner() {
+    // The default render path is the Vello UI; a rounded rect should fill solid
+    // at its center and be anti-aliased (corner pixel not fully saturated).
+    let mut ctx = ctx_or_skip!();
+    let p: *mut MuiContext = &mut ctx;
+    unsafe {
+        mui_begin_frame(p);
+        // Push a rounded rect directly via the display-list helper.
+        if let Some(c) = p.as_mut() {
+            c.dl_round(8.0, 8.0, 40.0, 40.0, 10.0, MuiColor::new(0.0, 1.0, 0.0, 1.0));
+        }
+        mui_end_frame(p);
+    }
+    let pixels = ctx.read_pixels();
+    // Center is solid green.
+    let center = px(&pixels, 28, 28, W);
+    assert!(
+        center.1 > 200 && center.0 < 60,
+        "expected solid green at center, got {center:?}"
+    );
+    // The extreme top-left corner of the bounding box is outside the rounded
+    // corner → should be (near) clear, proving the corner was rounded.
+    let corner = px(&pixels, 8, 8, W);
+    assert!(
+        is_clearish(corner),
+        "expected rounded (clear) corner at (8,8), got {corner:?}"
+    );
+}
+
+#[test]
 fn text_measure_returns_positive_extents() {
     let mut ctx = ctx_or_skip!();
     let p: *mut MuiContext = &mut ctx;

@@ -281,15 +281,12 @@ impl CompletionEngine {
         }
 
         let clip = ctx.clip;
-        let handle_ptr = ctx as *mut crate::MuiContext;
+        let radius = 10.0_f32;
 
-        // Faux drop shadow + border + elevated card with a top highlight.
-        unsafe {
-            crate::mui_fill_rect(handle_ptr, box_x + 5.0, box_y + 7.0, box_w, box_h, theme::SHADOW);
-            crate::mui_fill_rect(handle_ptr, box_x - 1.0, box_y - 1.0, box_w + 2.0, box_h + 2.0, theme::BORDER);
-            crate::mui_fill_rect(handle_ptr, box_x, box_y, box_w, box_h, theme::ELEVATED_2);
-            crate::mui_fill_rect(handle_ptr, box_x, box_y, box_w, 1.0, theme::HIGHLIGHT);
-        }
+        // Soft drop shadow + rounded elevated card (vertical gradient) + border.
+        ctx.dl_shadow(box_x, box_y + 6.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.6), 22.0);
+        ctx.dl_grad_v(box_x, box_y, box_w, box_h, radius, theme::ELEVATED_2, theme::ELEVATED);
+        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::hex(0x2a3140, 1.0), 1.0);
 
         for vis in 0..shown {
             let idx = top + vis;
@@ -297,25 +294,27 @@ impl CompletionEngine {
             let row_y = box_y + pad + vis as f32 * row_h;
             let selected = idx == self.sel;
             if selected {
-                unsafe {
-                    crate::mui_fill_rect(handle_ptr, box_x, row_y, box_w, row_h, theme::EMBER_SOFT);
-                }
+                ctx.dl_grad_h(box_x + 4.0, row_y, box_w - 8.0, row_h, 7.0, theme::hex(0xF4A259, 0.15), 0.9);
             }
-            // Type badge: a small colored rounded square with a letter. Semantic
+            // Type badge: a small rounded colored square with a letter. Semantic
             // (LSP) candidates get a function badge; buffer words get a keyword one.
             let (badge_bg, badge_fg, letter) = if cand.semantic {
-                (MuiColor::new(0.498, 0.690, 0.910, 0.18), theme::SYN_FUNCTION, "\u{0192}")
+                (MuiColor::new(0.498, 0.690, 0.910, 0.18), theme::SYN_FUNCTION, "f")
             } else {
                 (MuiColor::new(0.725, 0.612, 0.961, 0.18), theme::SYN_KEYWORD, "K")
             };
-            let bx = box_x + 8.0;
-            let by = row_y + (row_h - 16.0) * 0.5;
-            unsafe { crate::mui_fill_rect(handle_ptr, bx, by, 16.0, 16.0, badge_bg); }
-            ctx.text.queue_sized(bx + 4.0, by + 1.0, letter, badge_fg, 11.0, clip);
+            let bx = box_x + 10.0;
+            let by = row_y + (row_h - 18.0) * 0.5;
+            ctx.dl_round(bx, by, 18.0, 18.0, 5.0, badge_bg);
+            ctx.text.queue_ui_sized(bx + 5.0, by + 2.0, letter, badge_fg, 11.0, clip);
 
             let fg = if selected { theme::TEXT } else { theme::DIM };
             ctx.text
-                .queue_sized(box_x + 32.0, row_y + (row_h - chrome) * 0.5, &cand.text, fg, chrome, clip);
+                .queue_sized(box_x + 36.0, row_y + (row_h - chrome) * 0.5, &cand.text, fg, chrome, clip);
+            // Dim right-aligned hint (kind), UI family, matching the mockup.
+            let hint = if cand.semantic { "fn" } else { "word" };
+            let hw = hint.chars().count() as f32 * (chrome - 1.0) * 0.55;
+            ctx.text.queue_ui_sized(box_x + box_w - 12.0 - hw, row_y + (row_h - chrome) * 0.5 + 1.0, hint, theme::TEXT_4, chrome - 1.0, clip);
         }
     }
 }

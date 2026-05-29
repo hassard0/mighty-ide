@@ -30,6 +30,7 @@ mod text;
 mod theme;
 mod tree;
 mod vello_proof;
+mod vello_ui;
 mod window;
 
 pub use abi::*;
@@ -170,6 +171,133 @@ pub struct MuiContext {
     /// rect/glyphon UI, proving CSS-quality output. Built lazily on the first
     /// proof frame; `None` for normal runs (the rect path is fully unaffected).
     vello_proof: Option<vello_proof::VelloProof>,
+
+    // ---- Vello UI backend (Phase 2: the DEFAULT render path) ----
+    /// The per-frame display list the chrome/editor draw functions build (rounded
+    /// rects, gradients, shadows, squiggles, glyph runs). Replayed into a Vello
+    /// scene each frame by [`vello_ui::VelloUi`].
+    dl: vello_ui::DisplayList,
+    /// The Vello UI renderer, built lazily on the first frame. `None` until then.
+    vello_ui: Option<vello_ui::VelloUi>,
+}
+
+// ---------------------------------------------------------------------------
+// Vello display-list helpers (used by the chrome/editor draw functions to emit
+// CSS-quality primitives — rounded rects, gradients, shadows, squiggles).
+// ---------------------------------------------------------------------------
+
+impl MuiContext {
+    /// A flat filled rect (the `mui_fill_rect` primitive), routed to the active
+    /// (base/overlay) layer.
+    pub(crate) fn dl_rect(&mut self, x: f32, y: f32, w: f32, h: f32, color: MuiColor) {
+        self.dl.on_overlay = self.overlay;
+        self.dl.clip = self.clip.map(|(x, y, w, h)| (x as f32, y as f32, w as f32, h as f32));
+        self.dl.push(vello_ui::UiCmd::Rect { x, y, w, h, color });
+    }
+    /// A filled rounded rect.
+    pub(crate) fn dl_round(&mut self, x: f32, y: f32, w: f32, h: f32, radius: f32, color: MuiColor) {
+        self.dl.on_overlay = self.overlay;
+        self.dl.clip = self.clip.map(|(x, y, w, h)| (x as f32, y as f32, w as f32, h as f32));
+        self.dl.push(vello_ui::UiCmd::RoundRect { x, y, w, h, radius, color });
+    }
+    /// A left→right fading horizontal gradient (current-line band / row tints).
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn dl_grad_h(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        color: MuiColor,
+        fade: f32,
+    ) {
+        self.dl.on_overlay = self.overlay;
+        self.dl.clip = self.clip.map(|(x, y, w, h)| (x as f32, y as f32, w as f32, h as f32));
+        self.dl.push(vello_ui::UiCmd::GradH { x, y, w, h, radius, color, fade });
+    }
+    /// A top→bottom vertical gradient (elevated panels/cards).
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn dl_grad_v(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        top: MuiColor,
+        bottom: MuiColor,
+    ) {
+        self.dl.on_overlay = self.overlay;
+        self.dl.clip = self.clip.map(|(x, y, w, h)| (x as f32, y as f32, w as f32, h as f32));
+        self.dl.push(vello_ui::UiCmd::GradV { x, y, w, h, radius, top, bottom });
+    }
+    /// A soft (blurred) drop shadow under a rounded rect.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn dl_shadow(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        color: MuiColor,
+        blur: f32,
+    ) {
+        self.dl.on_overlay = self.overlay;
+        self.dl.clip = self.clip.map(|(x, y, w, h)| (x as f32, y as f32, w as f32, h as f32));
+        self.dl.push(vello_ui::UiCmd::Shadow { x, y, w, h, radius, color, blur });
+    }
+    /// A hairline stroke around a rounded rect (borders).
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn dl_stroke(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        radius: f32,
+        color: MuiColor,
+        width: f32,
+    ) {
+        self.dl.on_overlay = self.overlay;
+        self.dl.clip = self.clip.map(|(x, y, w, h)| (x as f32, y as f32, w as f32, h as f32));
+        self.dl.push(vello_ui::UiCmd::StrokeRound { x, y, w, h, radius, color, width });
+    }
+    /// A radial glow over a clip rect (ember brand tile, soft accent glows).
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn dl_glow(
+        &mut self,
+        cx: f32,
+        cy: f32,
+        radius: f32,
+        inner: MuiColor,
+        outer: MuiColor,
+        clip_x: f32,
+        clip_y: f32,
+        clip_w: f32,
+        clip_h: f32,
+    ) {
+        self.dl.on_overlay = self.overlay;
+        self.dl.clip = self.clip.map(|(x, y, w, h)| (x as f32, y as f32, w as f32, h as f32));
+        self.dl.push(vello_ui::UiCmd::RadialGlow {
+            cx,
+            cy,
+            radius,
+            inner,
+            outer,
+            clip_x,
+            clip_y,
+            clip_w,
+            clip_h,
+        });
+    }
+    /// A wavy red diagnostic underline.
+    pub(crate) fn dl_squiggle(&mut self, x: f32, y: f32, w: f32, color: MuiColor) {
+        self.dl.on_overlay = self.overlay;
+        self.dl.clip = self.clip.map(|(x, y, w, h)| (x as f32, y as f32, w as f32, h as f32));
+        self.dl.push(vello_ui::UiCmd::Squiggle { x, y, w, color });
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -317,6 +445,8 @@ pub(crate) fn build_context(
         ed_redo: Vec::new(),
         edit_probe_lock: false,
         vello_proof: None,
+        dl: vello_ui::DisplayList::default(),
+        vello_ui: None,
     });
     Box::into_raw(ctx)
 }
@@ -350,6 +480,10 @@ pub unsafe extern "C" fn mui_fill_rect(
     color: MuiColor,
 ) {
     let Some(ctx) = ctx.as_mut() else { return };
+    // Vello path (default): a flat rect in the display list.
+    ctx.dl_rect(x, y, w, h, color);
+    // Legacy rect-pipeline path (kept for the GPU unit tests that assert on
+    // `ctx.rects`); unused by the default Vello render.
     let inst = RectInstance {
         pos: [x, y],
         size: [w, h],
@@ -427,6 +561,7 @@ pub unsafe extern "C" fn mui_begin_frame(ctx: *mut MuiContext) {
     let Some(ctx) = ctx.as_mut() else { return };
     ctx.rects.clear();
     ctx.rects_overlay.clear();
+    ctx.dl.clear();
     ctx.overlay = false;
     ctx.clip = None;
     ctx.text.begin();
@@ -480,6 +615,19 @@ pub unsafe extern "C" fn mui_end_frame(ctx: *mut MuiContext) {
     ctx.in_frame = false;
 }
 
+/// `true` when the legacy solid-rect + glyphon render path should be used
+/// instead of the default Vello UI (env `MUI_LEGACY_RENDER=1`). The Vello UI is
+/// the DEFAULT (Phase 2); this gate is retained only as a fallback / for the
+/// rect-pipeline GPU tests.
+fn legacy_render_enabled() -> bool {
+    std::env::var("MUI_LEGACY_RENDER")
+        .map(|v| {
+            let v = v.trim();
+            !v.is_empty() && v != "0"
+        })
+        .unwrap_or(false)
+}
+
 /// Shared by `mui_end_frame` and tests: encode rects + text and submit.
 fn render_and_present(ctx: &mut MuiContext) {
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
@@ -489,6 +637,13 @@ fn render_and_present(ctx: &mut MuiContext) {
     // submission (compute + blit), so we bypass the rect encoder entirely.
     if vello_proof::proof_enabled() {
         render_vello_proof(ctx, w, h);
+        return;
+    }
+
+    // Default Phase-2 path: render the whole IDE as a Vello scene from the
+    // per-frame display list (the chrome/editor draw functions built it).
+    if !legacy_render_enabled() {
+        render_vello_ui(ctx, w, h);
         return;
     }
 
@@ -546,6 +701,59 @@ fn render_and_present(ctx: &mut MuiContext) {
     // Screenshot mode: on the configured frame, read the offscreen texture back
     // and write a PNG. Done after every other draw call this frame, so the PNG
     // is a faithful capture of the full UI. The next poll returns Close.
+    maybe_capture_screenshot(ctx);
+}
+
+/// Render the whole IDE as a Vello scene from the per-frame display list (the
+/// DEFAULT Phase-2 path). The chrome/editor draw functions pushed rounded rects,
+/// gradients, shadows, squiggles and (via glyphon's queued runs) text into
+/// `ctx.dl` + `ctx.text`; here we fold the text runs into the display list and
+/// replay it over the atmosphere. Vello owns its own GPU submission.
+fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
+    // Lazily build the Vello renderer (with a blit pipeline for the surface
+    // format in windowed mode, or pure offscreen for the screenshot path).
+    if ctx.vello_ui.is_none() {
+        let surface_format = match &ctx.gpu.target {
+            RenderTarget::Surface(_) => Some(ctx.gpu.format),
+            RenderTarget::Offscreen { .. } => None,
+        };
+        match vello_ui::VelloUi::new(&ctx.gpu.device, surface_format) {
+            Ok(v) => ctx.vello_ui = Some(v),
+            Err(e) => {
+                eprintln!("mui vello ui: {e}");
+                return;
+            }
+        }
+    }
+
+    // Fold the queued glyphon text runs into the display list (each keeps its
+    // layer/font/size/color), so the Vello scene reproduces all chrome + code.
+    ctx.text.drain_into_display_list(&mut ctx.dl);
+
+    // Render. Borrow the renderer out so we can also borrow gpu/dl immutably.
+    let mut vp = ctx.vello_ui.take().unwrap();
+    match &ctx.gpu.target {
+        RenderTarget::Offscreen { view, .. } => {
+            if let Err(e) =
+                vp.render_to_texture(&ctx.gpu.device, &ctx.gpu.queue, view, w, h, &ctx.dl)
+            {
+                eprintln!("mui vello ui: {e}");
+            }
+        }
+        RenderTarget::Surface(_) => {
+            if let Some(frame) = ctx.frame.take() {
+                if let Err(e) =
+                    vp.render_to_surface(&ctx.gpu.device, &ctx.gpu.queue, &frame, w, h, &ctx.dl)
+                {
+                    eprintln!("mui vello ui: {e}");
+                }
+                frame.present();
+            }
+            ctx.frame_view = None;
+        }
+    }
+    ctx.vello_ui = Some(vp);
+
     maybe_capture_screenshot(ctx);
 }
 
@@ -762,6 +970,8 @@ impl MuiContext {
             ed_redo: Vec::new(),
             edit_probe_lock: false,
             vello_proof: None,
+            dl: vello_ui::DisplayList::default(),
+            vello_ui: None,
         })
     }
 

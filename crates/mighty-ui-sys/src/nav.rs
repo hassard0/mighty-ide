@@ -20,6 +20,7 @@
 
 use crate::ffi::MuiColor;
 use crate::layout;
+use crate::theme;
 
 // ---------------------------------------------------------------------------
 // Hover state
@@ -102,26 +103,12 @@ impl HoverState {
         }
 
         let clip = ctx.clip;
-        let handle_ptr = ctx as *mut crate::MuiContext;
-        unsafe {
-            crate::mui_fill_rect(
-                handle_ptr,
-                box_x - 1.0,
-                box_y - 1.0,
-                box_w + 2.0,
-                box_h + 2.0,
-                MuiColor::new(0.36, 0.40, 0.30, 1.0), // border
-            );
-            crate::mui_fill_rect(
-                handle_ptr,
-                box_x,
-                box_y,
-                box_w,
-                box_h,
-                MuiColor::new(0.16, 0.17, 0.13, 0.98), // panel (warm tint)
-            );
-        }
-        let fg = MuiColor::new(0.90, 0.92, 0.82, 1.0);
+        let radius = 9.0_f32;
+        // Soft shadow + rounded elevated card + hairline border.
+        ctx.dl_shadow(box_x, box_y + 5.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.6), 18.0);
+        ctx.dl_grad_v(box_x, box_y, box_w, box_h, radius, theme::ELEVATED_2, theme::ELEVATED);
+        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::hex(0x2a3140, 1.0), 1.0);
+        let fg = theme::TEXT;
         for (i, line) in self.lines.iter().enumerate() {
             let row_y = box_y + pad + i as f32 * row_h;
             ctx.text.queue(box_x + 6.0, row_y + 1.0, line, fg, clip);

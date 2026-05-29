@@ -803,24 +803,14 @@ pub extern "C" fn mui_underline_row(
     b: f32,
     a: f32,
 ) {
-    let region = unsafe { ctx(handle) }.map_or(layout::region(false), |c| {
-        layout::region(c.sidebar_visible)
-    });
+    let Some(ctx) = (unsafe { ctx(handle) }) else { return };
+    let region = layout::region(ctx.sidebar_visible);
     let x = layout::text_x_in(region, total_lines.max(1) as u64, col_start);
     let cells = (col_end - col_start).max(1) as f32;
     let w = cells * layout::CHAR_W;
-    // Sit the underline at the bottom of the row's line box.
-    let y = layout::row_y_in(region, row) + layout::LINE_H - 2.0;
-    unsafe {
-        crate::mui_fill_rect(
-            handle as usize as *mut MuiContext,
-            x,
-            y,
-            w,
-            2.0,
-            MuiColor::new(r, g, b, a),
-        )
-    };
+    // Sit the wavy squiggle near the bottom of the row's line box.
+    let y = layout::row_y_in(region, row) + layout::LINE_H - 4.0;
+    ctx.dl_squiggle(x, y, w, MuiColor::new(r, g, b, a));
 }
 
 /// Draw a diagnostic marker in the gutter at screen `row` (a small square at the
@@ -828,20 +818,11 @@ pub extern "C" fn mui_underline_row(
 /// off to the side.
 #[no_mangle]
 pub extern "C" fn mui_diag_gutter_mark(handle: i64, row: i32, r: f32, g: f32, b: f32, a: f32) {
-    let region = unsafe { ctx(handle) }.map_or(layout::region(false), |c| {
-        layout::region(c.sidebar_visible)
-    });
-    let y = layout::row_y_in(region, row) + 4.0;
-    unsafe {
-        crate::mui_fill_rect(
-            handle as usize as *mut MuiContext,
-            region.left + 2.0,
-            y,
-            4.0,
-            layout::LINE_H - 8.0,
-            MuiColor::new(r, g, b, a),
-        )
-    };
+    let Some(ctx) = (unsafe { ctx(handle) }) else { return };
+    let region = layout::region(ctx.sidebar_visible);
+    // A small rounded dot in the gutter flagging the diagnostic row.
+    let cy = layout::row_y_in(region, row) + layout::LINE_H * 0.5 - 3.0;
+    ctx.dl_round(region.left + 3.0, cy, 6.0, 6.0, 3.0, MuiColor::new(r, g, b, a));
 }
 
 /// Draw the bottom status bar: a full-width band across the bottom of the
@@ -911,15 +892,13 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     let y = (h - bar_h).max(0.0);
     let chrome = theme::CHROME_FONT_SIZE - 1.0;
     let clip = ctx.clip;
-    let handle_ptr = handle as usize as *mut MuiContext;
     let scale = chrome / theme::FONT_SIZE;
     let advance = layout::CHAR_W * scale;
     let text_w = |s: &str| s.chars().count() as f32 * advance;
 
-    unsafe {
-        crate::mui_fill_rect(handle_ptr, 0.0, y, w, bar_h, theme::ELEVATED);
-        crate::mui_fill_rect(handle_ptr, 0.0, y, w, 1.0, theme::BORDER);
-    }
+    // Elevated band (subtle vertical gradient) + a thin top divider.
+    ctx.dl_grad_v(0.0, y, w, bar_h, 0.0, theme::hex(0x11141b, 1.0), theme::hex(0x0c0e13, 1.0));
+    ctx.dl_rect(0.0, y, w, 1.0, theme::BORDER);
     let ty = y + (bar_h - chrome) * 0.5 - 1.0;
 
     let (line1, col1) = ctx.status_cursor;
@@ -941,12 +920,11 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
 
     // ---- left cluster: branch glyph + "main"  |  file path ----
     let mut x = 12.0;
-    // divider helper closure-free (borrow juggling): draw inline.
-    ctx.text.queue_sized(x, ty, "\u{2387}", theme::TEXT_4, chrome, clip);
+    ctx.text.queue_sized(x, ty, "\u{25C6}", theme::TEXT_4, chrome, clip);
     x += advance + 4.0;
     ctx.text.queue_sized(x, ty, "main", theme::DIM, chrome, clip);
     x += text_w("main") + 12.0;
-    unsafe { crate::mui_fill_rect(handle_ptr, x, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT); }
+    ctx.dl_rect(x, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT);
     x += 12.0;
     ctx.text.queue_sized(x, ty, &path, theme::DIM, chrome, clip);
 
@@ -954,15 +932,25 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     // Segments: Ln/Col · Spaces:2 · UTF-8 · Mighty(ember dot) · diagnostics chip.
     let mut rx = w - 12.0;
 
-    // Diagnostics chip: green ● N when clean, red when errors.
+    // Diagnostics chip: a rounded pill (green tint/●N when clean, red on errors).
     let chip_n = error_count.max(0);
     let chip = format!("\u{25CF} {chip_n}");
-    let chip_w = text_w(&chip);
-    rx -= chip_w;
-    let chip_color = if error_count > 0 { theme::ERROR } else { theme::GREEN };
-    ctx.text.queue_sized(rx, ty, &chip, chip_color, chrome, clip);
+    let chip_text_w = text_w(&chip);
+    let pill_pad = 9.0;
+    let pill_w = chip_text_w + 2.0 * pill_pad;
+    let pill_h = 18.0;
+    rx -= pill_w;
+    let (chip_fg, chip_bg, chip_border) = if error_count > 0 {
+        (theme::ERROR, theme::hex(0xF2545B, 0.10), theme::hex(0xF2545B, 0.20))
+    } else {
+        (theme::GREEN, theme::hex(0x5BD6A0, 0.10), theme::hex(0x5BD6A0, 0.20))
+    };
+    let py = y + (bar_h - pill_h) * 0.5;
+    ctx.dl_round(rx, py, pill_w, pill_h, pill_h * 0.5, chip_bg);
+    ctx.dl_stroke(rx, py, pill_w, pill_h, pill_h * 0.5, chip_border, 1.0);
+    ctx.text.queue_sized(rx + pill_pad, ty, &chip, chip_fg, chrome, clip);
     rx -= 14.0;
-    unsafe { crate::mui_fill_rect(handle_ptr, rx, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT); }
+    ctx.dl_rect(rx, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT);
     rx -= 12.0;
 
     // "Mighty" with an ember dot.
@@ -970,9 +958,9 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     rx -= text_w(mighty);
     ctx.text.queue_sized(rx, ty, mighty, theme::EMBER, chrome, clip);
     rx -= 12.0;
-    unsafe { crate::mui_fill_rect(handle_ptr, rx + 2.0, y + bar_h * 0.5 - 3.0, 6.0, 6.0, theme::EMBER); }
+    ctx.dl_round(rx + 2.0, y + bar_h * 0.5 - 3.5, 7.0, 7.0, 3.5, theme::EMBER);
     rx -= 12.0;
-    unsafe { crate::mui_fill_rect(handle_ptr, rx, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT); }
+    ctx.dl_rect(rx, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT);
     rx -= 12.0;
 
     // "UTF-8".
@@ -980,7 +968,7 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     rx -= text_w(enc);
     ctx.text.queue_sized(rx, ty, enc, theme::DIM, chrome, clip);
     rx -= 12.0;
-    unsafe { crate::mui_fill_rect(handle_ptr, rx, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT); }
+    ctx.dl_rect(rx, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT);
     rx -= 12.0;
 
     // "Spaces: 2".
@@ -988,7 +976,7 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     rx -= text_w(sp);
     ctx.text.queue_sized(rx, ty, sp, theme::DIM, chrome, clip);
     rx -= 12.0;
-    unsafe { crate::mui_fill_rect(handle_ptr, rx, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT); }
+    ctx.dl_rect(rx, y + 7.0, 1.0, bar_h - 14.0, theme::BORDER_SOFT);
     rx -= 12.0;
 
     // "Ln L, Col C".
@@ -1460,50 +1448,62 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
         return;
     };
     let h = ctx.gpu.height as f32;
-    let handle_ptr = handle as usize as *mut MuiContext;
     let clip = ctx.clip;
     let rw = layout::RAIL_W;
 
-    unsafe {
-        // Rail panel (deepest bg) + a soft right divider.
-        crate::mui_fill_rect(handle_ptr, 0.0, 0.0, rw, h, theme::BG_2);
-        crate::mui_fill_rect(handle_ptr, rw - 1.0, 0.0, 1.0, h, theme::BORDER_SOFT);
-        // Brand mark: a small ember rounded square near the top.
-        let bx = (rw - 30.0) * 0.5;
-        crate::mui_fill_rect(handle_ptr, bx, 12.0, 30.0, 30.0, theme::EMBER);
-    }
-    // Brand "M" centered on the mark (dark on ember).
-    ctx.text.queue_sized(
-        (rw - 9.0) * 0.5,
+    // Rail panel: a top→bottom gradient (deepest bg) + a soft right divider.
+    ctx.dl_grad_v(0.0, 0.0, rw, h, 0.0, theme::BG_2, theme::hex(0x080a0d, 1.0));
+    ctx.dl_rect(rw - 1.0, 0.0, 1.0, h, theme::BORDER_SOFT);
+
+    // Brand mark: an ember radial-gradient rounded tile near the top, with a
+    // soft ember glow-shadow beneath (matches the mockup's `.brand`).
+    let bx = (rw - 30.0) * 0.5;
+    ctx.dl_shadow(bx, 18.0, 30.0, 30.0, 9.0, theme::hex(0xF4A259, 0.45), 10.0);
+    ctx.dl_round(bx, 12.0, 30.0, 30.0, 9.0, theme::EMBER);
+    // Radial highlight (warm top-left → ember) inside the tile.
+    ctx.dl_glow(
+        bx + 9.0,
         18.0,
+        26.0,
+        theme::hex(0xffd9a8, 1.0),
+        theme::hex(0xF4A259, 0.0),
+        bx,
+        12.0,
+        30.0,
+        30.0,
+    );
+    // Brand "M" centered on the mark (dark on ember), UI family.
+    ctx.text.queue_ui_sized(
+        (rw - 11.0) * 0.5,
+        17.0,
         "M",
         theme::hex(0x2a1a0c, 1.0),
         16.0,
         clip,
     );
 
-    // Icon column. Explorer (index 0) is the active view.
-    let icons = ["\u{2630}", "\u{2315}", "\u{2387}", "\u{25B7}", "\u{2726}"];
+    // Icon column. Explorer (index 0) is the active view. Glyphs chosen to be
+    // present in JetBrains Mono: Explorer ≡, Search ○, Source-control ◆, Run ▷,
+    // Agents ✶.
+    let icons = ["\u{2261}", "\u{25CB}", "\u{25C6}", "\u{25B7}", "\u{2736}"];
     let icon_top = 64.0;
     let step = 38.0;
     for (i, ic) in icons.iter().enumerate() {
         let cy = icon_top + i as f32 * step;
         let active = i == 0;
         if active {
-            unsafe {
-                // Ember selection bar at the left edge of the rail.
-                crate::mui_fill_rect(handle_ptr, 0.0, cy + 6.0, 2.0, 20.0, theme::EMBER);
-            }
+            // Ember selection bar (rounded) at the left edge of the rail + glow.
+            ctx.dl_round(0.0, cy + 6.0, 2.0, 20.0, 1.0, theme::EMBER);
         }
         let color = if active { theme::EMBER } else { theme::TEXT_3 };
         ctx.text
             .queue_sized((rw - 12.0) * 0.5, cy + 4.0, ic, color, 15.0, clip);
     }
-    // Settings gear pinned near the bottom.
+    // Settings (gear ⚙ is absent in JetBrains Mono → use ⊙) near the bottom.
     ctx.text.queue_sized(
         (rw - 12.0) * 0.5,
         h - 34.0,
-        "\u{2699}",
+        "\u{2299}",
         theme::TEXT_3,
         15.0,
         clip,
@@ -1570,35 +1570,31 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
     let w = ctx.gpu.width as f32;
     let active = ctx.tabs.active();
     let count = ctx.tabs.count();
-    let handle_ptr = handle as usize as *mut MuiContext;
     let clip = ctx.clip;
     let bar_h = layout::TAB_BAR_H;
     let chrome = theme::CHROME_FONT_SIZE;
     let rail = layout::RAIL_W;
 
-    // Elevated background band (right of the rail) + a thin bottom divider.
-    unsafe {
-        crate::mui_fill_rect(handle_ptr, rail, 0.0, w - rail, bar_h, theme::ELEVATED);
-        crate::mui_fill_rect(handle_ptr, rail, bar_h - 1.0, w - rail, 1.0, theme::BORDER);
-    }
+    // Elevated background band (right of the rail), a subtle top→bottom gradient
+    // matching the mockup, + a thin bottom divider.
+    ctx.dl_grad_v(rail, 0.0, w - rail, bar_h, 0.0, theme::hex(0x0d1016, 1.0), theme::hex(0x0b0d12, 1.0));
+    ctx.dl_rect(rail, bar_h - 1.0, w - rail, 1.0, theme::BORDER);
 
     for i in 0..count {
         let x = rail + i as f32 * layout::TAB_W;
         let is_active = i == active;
-        // Active tab: editor-field bg + a top highlight + an ember underline glow.
+        // Active tab: editor-field bg + a top highlight + a soft ember underline
+        // glow (a blurred ember bar) and a crisp ember underline.
         if is_active {
-            unsafe {
-                crate::mui_fill_rect(handle_ptr, x, 0.0, layout::TAB_W, bar_h, theme::BG_EDIT);
-                crate::mui_fill_rect(handle_ptr, x, 0.0, layout::TAB_W, 1.0, theme::HIGHLIGHT);
-                // Soft wide low-alpha glow + a crisp 2px ember underline.
-                crate::mui_fill_rect(handle_ptr, x, bar_h - 4.0, layout::TAB_W, 4.0, theme::EMBER_SOFT);
-                crate::mui_fill_rect(handle_ptr, x + 16.0, bar_h - 2.0, layout::TAB_W - 32.0, 2.0, theme::EMBER);
-            }
+            ctx.dl_rect(x, 0.0, layout::TAB_W, bar_h, theme::BG_EDIT);
+            ctx.dl_rect(x, 0.0, layout::TAB_W, 1.0, theme::HIGHLIGHT);
+            // Soft wide glow under the tab (blurred ember) + crisp 2px underline
+            // that fades at the ends (drawn as a centered rounded ember bar).
+            ctx.dl_shadow(x + 18.0, bar_h - 3.0, layout::TAB_W - 36.0, 3.0, 1.5, theme::hex(0xF4A259, 0.85), 6.0);
+            ctx.dl_round(x + 20.0, bar_h - 2.0, layout::TAB_W - 40.0, 2.0, 1.0, theme::EMBER);
         }
         // Right divider between tabs.
-        unsafe {
-            crate::mui_fill_rect(handle_ptr, x + layout::TAB_W - 1.0, 8.0, 1.0, bar_h - 16.0, theme::BORDER_SOFT);
-        }
+        ctx.dl_rect(x + layout::TAB_W - 1.0, 9.0, 1.0, bar_h - 18.0, theme::BORDER_SOFT);
         if let Some(tab) = ctx.tabs.get(i) {
             let base = tab.basename();
             let is_mty = base.ends_with(".mty");
@@ -1612,9 +1608,7 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
             } else {
                 theme::TEAL
             };
-            unsafe {
-                crate::mui_fill_rect(handle_ptr, x + 14.0, bar_h * 0.5 - 3.0, 6.0, 6.0, dot_color);
-            }
+            ctx.dl_round(x + 14.0, bar_h * 0.5 - 3.5, 7.0, 7.0, 3.5, dot_color);
             let mut label = base;
             let max_chars = ((layout::TAB_W - 44.0) / layout::CHAR_W).floor() as usize;
             if label.chars().count() > max_chars && max_chars > 1 {
@@ -1786,17 +1780,14 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
         return;
     }
     let h = ctx.gpu.height as f32;
-    let handle_ptr = handle as usize as *mut MuiContext;
     let clip = ctx.clip;
     let chrome = theme::CHROME_FONT_SIZE;
     let sx = layout::RAIL_W; // sidebar starts right of the rail
     let sw = layout::SIDEBAR_W;
 
-    // Panel background + a right divider.
-    unsafe {
-        crate::mui_fill_rect(handle_ptr, sx, 0.0, sw, h, theme::PANEL);
-        crate::mui_fill_rect(handle_ptr, sx + sw - 1.0, layout::TAB_BAR_H, 1.0, h, theme::BORDER);
-    }
+    // Panel background (subtle vertical gradient) + a right divider.
+    ctx.dl_grad_v(sx, 0.0, sw, h, 0.0, theme::hex(0x0a0c11, 1.0), theme::hex(0x090b0f, 1.0));
+    ctx.dl_rect(sx + sw - 1.0, layout::TAB_BAR_H, 1.0, h, theme::BORDER);
 
     // Uppercase tracked section header (a chevron + the workspace folder name).
     let header = ctx
@@ -1833,33 +1824,36 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
     let active_path = ctx.tabs.active_path();
     let count = ctx.tree.count();
     for i in 0..count {
-        let Some(row) = ctx.tree.get(i) else { continue };
+        // Snapshot the row fields into owned values so the immutable borrow on
+        // `ctx.tree` ends before any `ctx.dl_*` / `ctx.text` mutable borrow.
+        let (is_dir, expanded, depth, name, selected) = {
+            let Some(row) = ctx.tree.get(i) else { continue };
+            let selected = !row.is_dir
+                && active_path.is_some()
+                && row.path == *active_path.as_ref().unwrap();
+            (row.is_dir, row.expanded, row.depth, row.display_name(), selected)
+        };
         let y = row_top + (i as f32) * layout::LINE_H;
         if y > h {
             break;
         }
-        let selected = !row.is_dir && active_path.is_some() && row.path == *active_path.as_ref().unwrap();
-        // Selected row: an ember-soft tint band + an ember left bar.
+        // Selected row: an ember-soft left→right gradient tint + an ember left
+        // bar (rounded), matching the mockup's `.row.active`.
         if selected {
-            unsafe {
-                crate::mui_fill_rect(handle_ptr, sx, y - 1.0, sw, layout::LINE_H, theme::EMBER_SOFT);
-                crate::mui_fill_rect(handle_ptr, sx, y - 1.0, 2.0, layout::LINE_H, theme::EMBER);
-            }
+            ctx.dl_grad_h(sx + 4.0, y - 1.0, sw - 6.0, layout::LINE_H, 6.0, theme::hex(0xF4A259, 0.16), 0.85);
+            ctx.dl_round(sx, y - 1.0, 2.0, layout::LINE_H, 1.0, theme::EMBER);
         }
         let base_indent = sx + layout::PAD + 6.0;
-        let indent = base_indent + (row.depth as f32) * layout::TREE_INDENT;
+        let indent = base_indent + (depth as f32) * layout::TREE_INDENT;
         // Indent guides for depth.
-        for d in 0..row.depth {
+        for d in 0..depth {
             let gx = base_indent + (d as f32) * layout::TREE_INDENT;
-            unsafe {
-                crate::mui_fill_rect(handle_ptr, gx, y - 1.0, 1.0, layout::LINE_H, theme::BORDER);
-            }
+            ctx.dl_rect(gx, y - 1.0, 1.0, layout::LINE_H, theme::hex(0xffffff, 0.05));
         }
-        let name = row.display_name();
         let is_mty = name.ends_with(".mty");
         // Icon: a chevron for dirs, a small glyph for files.
-        let (icon, icon_color): (&str, _) = if row.is_dir {
-            (if row.expanded { "\u{25BE}" } else { "\u{25B8}" }, theme::TEAL)
+        let (icon, icon_color): (&str, _) = if is_dir {
+            (if expanded { "\u{25BE}" } else { "\u{25B8}" }, theme::TEAL)
         } else if is_mty {
             ("\u{25CF}", theme::EMBER)
         } else {
@@ -1873,7 +1867,7 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
         if shown.chars().count() > avail && avail > 1 {
             shown = shown.chars().take(avail - 1).collect::<String>() + "…";
         }
-        let fg = if selected || row.is_dir {
+        let fg = if selected || is_dir {
             theme::TEXT
         } else {
             theme::DIM
@@ -2096,20 +2090,19 @@ pub extern "C" fn mui_term_draw(handle: i64) {
     let panel_left = layout::term_panel_left(region);
     let panel_w = (width as f32 - panel_left).max(0.0);
 
-    // Background band + a 1px top border + a dim TERMINAL header label so the
-    // panel reads as a distinct, intentional pane.
-    unsafe {
-        crate::mui_fill_rect(handle_ptr, panel_left, panel_top, panel_w, panel_h, theme::PANEL);
-        crate::mui_fill_rect(handle_ptr, panel_left, panel_top, panel_w, 1.0, theme::BORDER);
-    }
-    ctx.text.queue_sized(
-        panel_left + layout::PAD,
-        panel_top + 2.0,
+    // Rounded-top panel (a rounded rect whose bottom corners are off-screen) +
+    // an ember top accent line + a dim "TERMINAL" header (UI family).
+    ctx.dl_round(panel_left, panel_top, panel_w, panel_h + 12.0, 10.0, theme::ELEVATED);
+    ctx.dl_rect(panel_left, panel_top, panel_w, 1.0, theme::BORDER);
+    ctx.text.queue_ui_sized(
+        panel_left + layout::PAD + 4.0,
+        panel_top + 4.0,
         "TERMINAL",
         theme::DIM,
-        theme::CHROME_FONT_SIZE,
+        theme::CHROME_FONT_SIZE - 1.0,
         clip,
     );
+    let _ = handle_ptr;
 
     // Snapshot the grid into owned data so the borrow on `ctx.terminal` ends
     // before we borrow `ctx.text`.
@@ -3457,42 +3450,35 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
     {
         let field_top = region.top;
         let field_h = (win_h - 30.0 - field_top).max(0.0); // 30 = status bar
-        unsafe {
-            crate::mui_fill_rect(
-                handle_ptr,
-                region.left,
-                field_top,
-                win_w - region.left,
-                field_h,
-                MuiColor::new(0.055, 0.063, 0.086, 0.84),
-            );
-            // A soft left inner shadow against the sidebar edge for depth.
-            crate::mui_fill_rect(
-                handle_ptr,
-                region.left,
-                field_top,
-                10.0,
-                field_h,
-                MuiColor::new(0.0, 0.0, 0.0, 0.18),
-            );
-        }
+        ctx.dl_rect(
+            region.left,
+            field_top,
+            win_w - region.left,
+            field_h,
+            MuiColor::new(0.055, 0.063, 0.086, 0.84),
+        );
+        // A soft left inner shadow against the sidebar edge for depth.
+        ctx.dl_grad_h(
+            region.left,
+            field_top,
+            18.0,
+            field_h,
+            0.0,
+            MuiColor::new(0.0, 0.0, 0.0, 0.28),
+            1.0,
+        );
     }
 
     // 1) Current-line highlight band (only when the cursor row is visible), with
-    //    a soft ember left-glow fading across the left third.
+    //    a soft ember left→clear gradient glow.
     if cur_line >= first && cur_line < first + rows {
         let row = (cur_line - first) as i32;
         let y = layout::row_y_in(region, row);
         let band_w = win_w - region.left;
-        unsafe {
-            // Faint full-row band.
-            crate::mui_fill_rect(handle_ptr, region.left, y - 2.0, band_w, layout::LINE_H, theme::CURRENT_LINE);
-            // Ember left-glow: a few stacked low-alpha rects fading rightward.
-            let third = band_w / 3.0;
-            crate::mui_fill_rect(handle_ptr, region.left, y - 2.0, third, layout::LINE_H, MuiColor::new(0.957, 0.635, 0.349, 0.06));
-            crate::mui_fill_rect(handle_ptr, region.left, y - 2.0, third * 0.55, layout::LINE_H, MuiColor::new(0.957, 0.635, 0.349, 0.05));
-            crate::mui_fill_rect(handle_ptr, region.left, y - 2.0, third * 0.25, layout::LINE_H, MuiColor::new(0.957, 0.635, 0.349, 0.05));
-        }
+        // Faint full-row band.
+        ctx.dl_rect(region.left, y - 2.0, band_w, layout::LINE_H, theme::CURRENT_LINE);
+        // Ember left glow fading across the left ~45% of the band.
+        ctx.dl_grad_h(region.left, y - 2.0, band_w, layout::LINE_H, 0.0, MuiColor::new(0.957, 0.635, 0.349, 0.14), 0.45);
     }
 
     // 2) Selection rects (per visible line within the range).
@@ -3557,18 +3543,17 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         }
     }
 
-    // 4) Caret — a 2px-wide ember vertical bar with a faint glow behind it.
+    // 4) Caret — a 2px-wide ember vertical bar with a soft ember glow behind it.
     if cur_line >= first && cur_line < first + rows {
         let row = (cur_line - first) as i32;
         let cx = layout::text_x_in(region, total_u64, cur_col as i32);
         let cy = layout::row_y_in(region, row);
-        unsafe {
-            // Faint wider glow.
-            crate::mui_fill_rect(handle_ptr, cx - 2.0, cy - 1.0, 6.0, layout::LINE_H - 2.0, MuiColor::new(0.957, 0.635, 0.349, 0.22));
-            // Crisp 2px caret.
-            crate::mui_fill_rect(handle_ptr, cx, cy - 1.0, 2.0, layout::LINE_H - 2.0, theme::EMBER);
-        }
+        // Soft blurred glow.
+        ctx.dl_shadow(cx, cy + 1.0, 2.0, layout::LINE_H - 6.0, 1.0, theme::hex(0xF4A259, 0.9), 4.0);
+        // Crisp 2px rounded caret.
+        ctx.dl_round(cx, cy - 1.0, 2.0, layout::LINE_H - 2.0, 1.0, theme::EMBER);
     }
+    let _ = handle_ptr;
 }
 
 /// Launch-test hook: with `MUI_EDIT_PROBE` set, run a scripted insert, newline,

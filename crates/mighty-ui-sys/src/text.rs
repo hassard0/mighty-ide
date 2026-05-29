@@ -118,6 +118,39 @@ impl Text {
         self.overlay = false;
     }
 
+    /// Push the queued text runs into a Vello [`DisplayList`] (Phase-2 render
+    /// path). Each run carries its own layer (base/overlay), font family, size
+    /// and color, so the Vello backend reproduces the glyphon output exactly.
+    /// Consumes nothing — the runs remain queued (the Vello path is the only
+    /// consumer, but keeping them lets the legacy glyphon path still work if
+    /// re-enabled). Colors are converted back to floats from the packed u8.
+    pub fn drain_into_display_list(&self, dl: &mut crate::vello_ui::DisplayList) {
+        for cmd in &self.cmds {
+            let c = cmd.color;
+            let to_f = |v: u8| v as f32 / 255.0;
+            let color = MuiColor::new(to_f(c.r()), to_f(c.g()), to_f(c.b()), to_f(c.a()));
+            let run = crate::vello_ui::UiCmd::Text {
+                x: cmd.x,
+                y: cmd.y,
+                text: cmd.text.clone(),
+                color,
+                size: cmd.size,
+                ui: cmd.ui,
+            };
+            // Text clip is stored as (left, top, right, bottom) ints; convert
+            // back to (x, y, w, h) floats for the Vello clip layer.
+            let clip = cmd.clip.map(|(l, t, r, b)| {
+                (l as f32, t as f32, (r - l) as f32, (b - t) as f32)
+            });
+            let entry = (run, clip);
+            if cmd.overlay {
+                dl.overlay.push(entry);
+            } else {
+                dl.base.push(entry);
+            }
+        }
+    }
+
     /// Tag subsequently-queued text as overlay-layer (or base when `false`).
     pub fn set_overlay(&mut self, overlay: bool) {
         self.overlay = overlay;
