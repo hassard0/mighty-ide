@@ -230,9 +230,9 @@ impl VelloUi {
         Ok(Self { renderer, code, ui })
     }
 
-    /// The Aurora Noir window base color (#0c0e13).
+    /// The window base / GPU clear color — the active theme's `bg`.
     fn base_color() -> Color {
-        Color::rgba8(0x0c, 0x0e, 0x13, 0xff)
+        col(crate::theme::BG())
     }
 
     /// Render `dl` (laid over the atmosphere) to an offscreen texture.
@@ -324,34 +324,29 @@ impl VelloUi {
         }
     }
 
-    /// The layered "Aurora Noir" atmosphere from the mockup `body` background:
-    /// cool-blue top-left, muted-magenta top-right, teal bottom — each a radial
-    /// glow over the base color (already painted by `base_color`).
+    /// The layered atmosphere painted behind the whole window, read from the
+    /// active theme's `atmosphere` radial stops (each a glow over the base color
+    /// already painted by `base_color`). Themes vary this: Vivid = cool-blue /
+    /// magenta / teal noir; Aurora = teal/indigo/violet aurora; Warm = soft warm
+    /// paper washes. On a light theme the glows are near-opaque blends rather
+    /// than additive screens, so they read as warm paper rather than dark glow.
     fn paint_atmosphere(&self, scene: &mut Scene, w: f64, h: f64) {
-        radial(
-            scene,
-            Point::new(w * 0.12, h * -0.08),
-            w * 0.78,
-            Color::rgba8(0x1f, 0x2f, 0x4e, 0xff),
-            w,
-            h,
-        );
-        radial(
-            scene,
-            Point::new(w * 1.0, 0.0),
-            w * 0.62,
-            Color::rgba8(0x32, 0x21, 0x38, 0xff),
-            w,
-            h,
-        );
-        radial(
-            scene,
-            Point::new(w * 0.6, h * 1.2),
-            w * 0.85,
-            Color::rgba8(0x12, 0x26, 0x32, 0xff),
-            w,
-            h,
-        );
+        let theme = crate::theme::active();
+        let light = theme.is_light;
+        for stop in theme.atmosphere.iter() {
+            if stop.radius <= 0.0 || stop.color.a <= 0.0 {
+                continue;
+            }
+            radial_themed(
+                scene,
+                Point::new(w * stop.cx as f64, h * stop.cy as f64),
+                w * stop.radius as f64,
+                col(stop.color),
+                w,
+                h,
+                light,
+            );
+        }
     }
 
     fn paint_cmd(&self, scene: &mut Scene, cmd: &UiCmd) {
@@ -646,16 +641,37 @@ impl VelloUi {
     }
 }
 
-/// Fill the canvas region with a radial glow fading `color`→transparent.
-fn radial(scene: &mut Scene, center: Point, radius: f64, color: Color, w: f64, h: f64) {
-    let grad = Gradient::new_radial(center, radius as f32).with_stops([
-        (0.0, color),
-        (
-            0.5,
-            Color::rgba8(color.r, color.g, color.b, (color.a as f32 * 0.42) as u8),
-        ),
-        (1.0, Color::rgba8(color.r, color.g, color.b, 0x00)),
-    ]);
+/// Radial atmosphere stop. On a DARK theme the stop fades color→transparent so
+/// it reads as an additive glow over the near-black base. On a LIGHT (paper)
+/// theme the wash color is near the paper hue and is given a low overall alpha
+/// so it tints the paper gently rather than darkening it — soft warm light.
+fn radial_themed(
+    scene: &mut Scene,
+    center: Point,
+    radius: f64,
+    color: Color,
+    w: f64,
+    h: f64,
+    light: bool,
+) {
+    let stops: [(f32, Color); 3] = if light {
+        // Gentle paper tint: the wash at low alpha at the center, fading out.
+        [
+            (0.0, Color::rgba8(color.r, color.g, color.b, 0x9e)),
+            (0.6, Color::rgba8(color.r, color.g, color.b, 0x3c)),
+            (1.0, Color::rgba8(color.r, color.g, color.b, 0x00)),
+        ]
+    } else {
+        [
+            (0.0, color),
+            (
+                0.5,
+                Color::rgba8(color.r, color.g, color.b, (color.a as f32 * 0.42) as u8),
+            ),
+            (1.0, Color::rgba8(color.r, color.g, color.b, 0x00)),
+        ]
+    };
+    let grad = Gradient::new_radial(center, radius as f32).with_stops(stops);
     scene.fill(
         Fill::NonZero,
         Affine::IDENTITY,

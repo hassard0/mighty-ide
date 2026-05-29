@@ -288,13 +288,13 @@ fn scm_rows_top() -> f32 {
 /// Display color for a git status letter (Vivid Modern palette).
 fn git_status_color(status: char) -> MuiColor {
     match status {
-        'A' => theme::GREEN,
-        'M' => theme::WARNING,
-        'D' => theme::ERROR,
-        'U' => theme::INFO,
-        'R' => theme::ACCENT_BRIGHT,
-        'C' => theme::ERROR,
-        _ => theme::DIM,
+        'A' => theme::GREEN(),
+        'M' => theme::WARNING(),
+        'D' => theme::ERROR(),
+        'U' => theme::INFO(),
+        'R' => theme::ACCENT_BRIGHT(),
+        'C' => theme::ERROR(),
+        _ => theme::DIM(),
     }
 }
 
@@ -317,37 +317,37 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
     let sw = layout::SIDEBAR_W;
     use crate::icons;
 
-    ctx.dl_rect(sx, 0.0, sw, h, theme::BG_2);
-    ctx.dl_rect(sx + sw - 1.0, 0.0, 1.0, h, theme::BORDER);
+    ctx.dl_rect(sx, 0.0, sw, h, theme::BG_2());
+    ctx.dl_rect(sx + sw - 1.0, 0.0, 1.0, h, theme::BORDER());
 
     // header band
     let head_h = 40.0;
-    ctx.dl_rect(sx, 0.0, sw, head_h, theme::BG_2);
-    ctx.dl_rect(sx, head_h - 1.0, sw, 1.0, theme::BORDER_SOFT);
+    ctx.dl_rect(sx, 0.0, sw, head_h, theme::BG_2());
+    ctx.dl_rect(sx, head_h - 1.0, sw, 1.0, theme::BORDER_SOFT());
     let title = "SOURCE CONTROL";
     let tracked: String = title.chars().flat_map(|c| [c, '\u{2009}']).collect();
     ctx.text.queue_ui_sized(
         sx + 14.0,
         (head_h - (chrome - 2.0)) * 0.5 - 1.0,
         &tracked,
-        theme::DIM,
+        theme::DIM(),
         chrome - 2.0,
         clip,
     );
     let act_y = (head_h - 15.0) * 0.5;
-    ctx.dl_icon(sx + sw - 50.0, act_y, 15.0, 15.0, icons::CHECK, theme::GREEN, 1.8, false);
-    ctx.dl_icon(sx + sw - 28.0, act_y, 15.0, 15.0, icons::REFRESH, theme::TEXT_3, 1.5, false);
+    ctx.dl_icon(sx + sw - 50.0, act_y, 15.0, 15.0, icons::CHECK, theme::GREEN(), 1.8, false);
+    ctx.dl_icon(sx + sw - 28.0, act_y, 15.0, 15.0, icons::REFRESH, theme::TEXT_3(), 1.5, false);
 
     // commit-message box
     let box_y = head_h + 8.0;
     let box_h = 38.0;
-    ctx.dl_round(sx + 10.0, box_y, sw - 20.0, box_h, 7.0, theme::BG_1);
-    ctx.dl_stroke(sx + 10.0, box_y, sw - 20.0, box_h, 7.0, theme::BORDER_STRONG, 1.0);
+    ctx.dl_round(sx + 10.0, box_y, sw - 20.0, box_h, 7.0, theme::BG_1());
+    ctx.dl_stroke(sx + 10.0, box_y, sw - 20.0, box_h, 7.0, theme::BORDER_STRONG(), 1.0);
     let msg = ctx.scm.message_string();
     let (msg_text, msg_col) = if msg.is_empty() {
-        ("Message (Enter to commit)".to_string(), theme::TEXT_3)
+        ("Message (Enter to commit)".to_string(), theme::TEXT_3())
     } else {
-        (msg, theme::TEXT)
+        (msg, theme::TEXT())
     };
     let mut shown = msg_text;
     let avail = ((sw - 36.0) / adv).floor() as usize;
@@ -362,28 +362,28 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
     let behind = ctx.scm.status.behind;
     let count = ctx.scm.count();
     let sec_y = box_y + box_h + 6.0;
-    ctx.text.queue_ui_sized(sx + 14.0, sec_y + 3.0, "CHANGES", theme::DIM, chrome - 2.0, clip);
+    ctx.text.queue_ui_sized(sx + 14.0, sec_y + 3.0, "CHANGES", theme::DIM(), chrome - 2.0, clip);
     let cnt_str = count.to_string();
-    ctx.text.queue_ui_sized(sx + 70.0, sec_y + 3.0, &cnt_str, theme::TEXT_3, chrome - 2.0, clip);
+    ctx.text.queue_ui_sized(sx + 70.0, sec_y + 3.0, &cnt_str, theme::TEXT_3(), chrome - 2.0, clip);
     if !branch.is_empty() {
-        ctx.dl_icon(sx + sw - 96.0, sec_y + 1.0, 12.0, 12.0, icons::BRANCH, theme::ACCENT_BRIGHT, 1.5, false);
+        ctx.dl_icon(sx + sw - 96.0, sec_y + 1.0, 12.0, 12.0, icons::BRANCH, theme::ACCENT_BRIGHT(), 1.5, false);
         let mut bp = branch.clone();
         if bp.chars().count() > 8 {
             bp = bp.chars().take(7).collect::<String>() + "\u{2026}";
         }
-        ctx.text.queue_ui_sized(sx + sw - 80.0, sec_y + 3.0, &bp, theme::TEXT_1, chrome - 2.0, clip);
+        ctx.text.queue_ui_sized(sx + sw - 80.0, sec_y + 3.0, &bp, theme::TEXT_1(), chrome - 2.0, clip);
         if ahead > 0 || behind > 0 {
             let ab = format!("\u{2191}{ahead} \u{2193}{behind}");
-            ctx.text.queue_ui_sized(sx + sw - 30.0, sec_y + 3.0, &ab, theme::TEXT_3, chrome - 3.0, clip);
+            ctx.text.queue_ui_sized(sx + sw - 30.0, sec_y + 3.0, &ab, theme::TEXT_3(), chrome - 3.0, clip);
         }
     }
 
     if ctx.scm.root.is_none() {
-        ctx.text.queue_ui_sized(sx + 14.0, scm_rows_top() + 4.0, "Not a git repository", theme::TEXT_3, chrome, clip);
+        ctx.text.queue_ui_sized(sx + 14.0, scm_rows_top() + 4.0, "Not a git repository", theme::TEXT_3(), chrome, clip);
         return;
     }
     if count == 0 {
-        ctx.text.queue_ui_sized(sx + 14.0, scm_rows_top() + 4.0, "No changes", theme::TEXT_3, chrome, clip);
+        ctx.text.queue_ui_sized(sx + 14.0, scm_rows_top() + 4.0, "No changes", theme::TEXT_3(), chrome, clip);
         return;
     }
 
@@ -414,7 +414,7 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
         if shown_name.chars().count() > avail && avail > 1 {
             shown_name = shown_name.chars().take(avail - 1).collect::<String>() + "\u{2026}";
         }
-        ctx.text.queue_ui_sized(name_x, txt_y, &shown_name, theme::TEXT_1, chrome, clip);
+        ctx.text.queue_ui_sized(name_x, txt_y, &shown_name, theme::TEXT_1(), chrome, clip);
         if !dir.is_empty() {
             let dx = name_x + (shown_name.chars().count() as f32) * adv + 6.0;
             if dx < sx + sw - 40.0 {
@@ -423,13 +423,13 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
                 if shown_dir.chars().count() > davail && davail > 1 {
                     shown_dir = shown_dir.chars().take(davail - 1).collect::<String>() + "\u{2026}";
                 }
-                ctx.text.queue_ui_sized(dx, txt_y, &shown_dir, theme::TEXT_4, chrome - 1.5, clip);
+                ctx.text.queue_ui_sized(dx, txt_y, &shown_dir, theme::TEXT_4(), chrome - 1.5, clip);
             }
         }
 
         let act_x = sx + sw - 26.0;
         let glyph = if staged { icons::UNSTAGE_MINUS } else { icons::STAGE_PLUS };
-        let acol = if staged { theme::TEXT_3 } else { theme::GREEN };
+        let acol = if staged { theme::TEXT_3() } else { theme::GREEN() };
         ctx.dl_icon(act_x, icon_y, 14.0, 14.0, glyph, acol, 1.7, false);
     }
 }
@@ -662,17 +662,17 @@ pub extern "C" fn mui_search_draw(handle: i64) {
     let sw = layout::SIDEBAR_W;
     use crate::icons;
 
-    ctx.dl_rect(sx, 0.0, sw, h, theme::BG_2);
-    ctx.dl_rect(sx + sw - 1.0, 0.0, 1.0, h, theme::BORDER);
+    ctx.dl_rect(sx, 0.0, sw, h, theme::BG_2());
+    ctx.dl_rect(sx + sw - 1.0, 0.0, 1.0, h, theme::BORDER());
 
     // header band
     let head_h = 40.0;
-    ctx.dl_rect(sx, 0.0, sw, head_h, theme::BG_2);
-    ctx.dl_rect(sx, head_h - 1.0, sw, 1.0, theme::BORDER_SOFT);
+    ctx.dl_rect(sx, 0.0, sw, head_h, theme::BG_2());
+    ctx.dl_rect(sx, head_h - 1.0, sw, 1.0, theme::BORDER_SOFT());
     let title = "SEARCH";
     let tracked: String = title.chars().flat_map(|c| [c, '\u{2009}']).collect();
-    ctx.text.queue_ui_sized(sx + 14.0, (head_h - (chrome - 2.0)) * 0.5 - 1.0, &tracked, theme::DIM, chrome - 2.0, clip);
-    ctx.dl_icon(sx + sw - 28.0, (head_h - 15.0) * 0.5, 15.0, 15.0, icons::REFRESH, theme::TEXT_3, 1.5, false);
+    ctx.text.queue_ui_sized(sx + 14.0, (head_h - (chrome - 2.0)) * 0.5 - 1.0, &tracked, theme::DIM(), chrome - 2.0, clip);
+    ctx.dl_icon(sx + sw - 28.0, (head_h - 15.0) * 0.5, 15.0, 15.0, icons::REFRESH, theme::TEXT_3(), 1.5, false);
 
     let replace_focus = ctx.search.replace_focus;
     let query = ctx.search.query_string();
@@ -681,14 +681,14 @@ pub extern "C" fn mui_search_draw(handle: i64) {
     // query box
     let box_h = 30.0;
     let qy = head_h + 6.0;
-    let q_border = if !replace_focus { theme::ACCENT_LINE } else { theme::BORDER_STRONG };
-    ctx.dl_round(sx + 10.0, qy, sw - 20.0, box_h, 7.0, theme::BG_1);
+    let q_border = if !replace_focus { theme::ACCENT_LINE() } else { theme::BORDER_STRONG() };
+    ctx.dl_round(sx + 10.0, qy, sw - 20.0, box_h, 7.0, theme::BG_1());
     ctx.dl_stroke(sx + 10.0, qy, sw - 20.0, box_h, 7.0, q_border, 1.0);
-    ctx.dl_icon(sx + 16.0, qy + (box_h - 13.0) * 0.5, 13.0, 13.0, icons::SEARCH, theme::TEXT_3, 1.5, false);
+    ctx.dl_icon(sx + 16.0, qy + (box_h - 13.0) * 0.5, 13.0, 13.0, icons::SEARCH, theme::TEXT_3(), 1.5, false);
     let (q_text, q_col) = if query.is_empty() {
-        ("Search".to_string(), theme::TEXT_3)
+        ("Search".to_string(), theme::TEXT_3())
     } else {
-        (query.clone(), theme::TEXT)
+        (query.clone(), theme::TEXT())
     };
     let qavail = ((sw - 56.0) / adv).floor() as usize;
     let qshown = tail(&q_text, qavail);
@@ -696,14 +696,14 @@ pub extern "C" fn mui_search_draw(handle: i64) {
 
     // replace box
     let ry = qy + box_h + 6.0;
-    let r_border = if replace_focus { theme::ACCENT_LINE } else { theme::BORDER_STRONG };
-    ctx.dl_round(sx + 10.0, ry, sw - 20.0, box_h, 7.0, theme::BG_1);
+    let r_border = if replace_focus { theme::ACCENT_LINE() } else { theme::BORDER_STRONG() };
+    ctx.dl_round(sx + 10.0, ry, sw - 20.0, box_h, 7.0, theme::BG_1());
     ctx.dl_stroke(sx + 10.0, ry, sw - 20.0, box_h, 7.0, r_border, 1.0);
-    ctx.dl_icon(sx + 16.0, ry + (box_h - 13.0) * 0.5, 13.0, 13.0, icons::REPLACE, theme::TEXT_3, 1.5, false);
+    ctx.dl_icon(sx + 16.0, ry + (box_h - 13.0) * 0.5, 13.0, 13.0, icons::REPLACE, theme::TEXT_3(), 1.5, false);
     let (r_text, r_col) = if replace.is_empty() {
-        ("Replace".to_string(), theme::TEXT_3)
+        ("Replace".to_string(), theme::TEXT_3())
     } else {
-        (replace.clone(), theme::TEXT)
+        (replace.clone(), theme::TEXT())
     };
     let rshown = tail(&r_text, qavail);
     ctx.text.queue_ui_sized(sx + 34.0, ry + (box_h - chrome) * 0.5 - 1.0, &rshown, r_col, chrome, clip);
@@ -717,11 +717,11 @@ pub extern "C" fn mui_search_draw(handle: i64) {
         } else {
             "No results"
         };
-        ctx.text.queue_ui_sized(sx + 14.0, search_rows_top() + 4.0, msg, theme::TEXT_3, chrome, clip);
+        ctx.text.queue_ui_sized(sx + 14.0, search_rows_top() + 4.0, msg, theme::TEXT_3(), chrome, clip);
         return;
     }
     let summary = format!("{total} results in {fc} files");
-    ctx.text.queue_ui_sized(sx + 14.0, ry + box_h + 6.0, &summary, theme::TEXT_3, chrome - 2.0, clip);
+    ctx.text.queue_ui_sized(sx + 14.0, ry + box_h + 6.0, &summary, theme::TEXT_3(), chrome - 2.0, clip);
 
     let row_h = layout::LINE_H;
     let top = search_rows_top();
@@ -737,15 +737,15 @@ pub extern "C" fn mui_search_draw(handle: i64) {
         if y > h {
             break;
         }
-        ctx.dl_icon(sx + 12.0, y + (row_h - 12.0) * 0.5, 12.0, 12.0, icons::CHEVRON_DOWN, theme::TEXT_3, 2.0, false);
+        ctx.dl_icon(sx + 12.0, y + (row_h - 12.0) * 0.5, 12.0, 12.0, icons::CHEVRON_DOWN, theme::TEXT_3(), 2.0, false);
         let (icon, icol) = crate::abi::file_icon_for(&rel, false);
         ctx.dl_icon(sx + 28.0, y + (row_h - 14.0) * 0.5, 14.0, 14.0, icon, icol, 1.4, false);
         let ravail = (((sx + sw - 40.0) - (sx + 46.0)) / adv).floor() as usize;
         let rshown = tail(&rel, ravail);
-        ctx.text.queue_ui_sized(sx + 46.0, y + (row_h - chrome) * 0.5 - 1.0, &rshown, theme::TEXT_1, chrome, clip);
+        ctx.text.queue_ui_sized(sx + 46.0, y + (row_h - chrome) * 0.5 - 1.0, &rshown, theme::TEXT_1(), chrome, clip);
         let cnt = mc.to_string();
-        ctx.dl_round(sx + sw - 30.0, y + (row_h - 15.0) * 0.5, 20.0, 15.0, 7.5, theme::BG_4);
-        ctx.text.queue_ui_sized(sx + sw - 26.0, y + (row_h - (chrome - 2.0)) * 0.5 - 1.0, &cnt, theme::TEXT_3, chrome - 2.0, clip);
+        ctx.dl_round(sx + sw - 30.0, y + (row_h - 15.0) * 0.5, 20.0, 15.0, 7.5, theme::BG_4());
+        ctx.text.queue_ui_sized(sx + sw - 26.0, y + (row_h - (chrome - 2.0)) * 0.5 - 1.0, &cnt, theme::TEXT_3(), chrome - 2.0, clip);
         visual += 1;
 
         for _ in 0..mc {
@@ -760,14 +760,14 @@ pub extern "C" fn mui_search_draw(handle: i64) {
             let trimmed = preview.trim_start();
             let trimmed_off = preview.chars().count() as i32 - trimmed.chars().count() as i32;
             let ln = format!("{}", line + 1);
-            ctx.text.queue_ui_sized(sx + 30.0, y + (row_h - chrome) * 0.5 - 1.0, &ln, theme::TEXT_4, chrome - 1.0, clip);
+            ctx.text.queue_ui_sized(sx + 30.0, y + (row_h - chrome) * 0.5 - 1.0, &ln, theme::TEXT_4(), chrome - 1.0, clip);
             let preview_x = sx + 30.0 + (ln.chars().count() as f32) * adv + 8.0;
             let rel_col = col - trimmed_off;
             if rel_col >= 0 && needle_len > 0 {
                 let hx = preview_x + (rel_col as f32) * adv;
                 let hw = (needle_len as f32) * adv;
                 if hx < sx + sw - 12.0 {
-                    ctx.dl_round(hx - 1.0, y + 2.0, hw + 2.0, row_h - 5.0, 3.0, theme::SELECTION);
+                    ctx.dl_round(hx - 1.0, y + 2.0, hw + 2.0, row_h - 5.0, 3.0, theme::SELECTION());
                 }
             }
             let pavail = (((sx + sw - 14.0) - preview_x) / adv).floor() as usize;
@@ -775,7 +775,7 @@ pub extern "C" fn mui_search_draw(handle: i64) {
             if pv.chars().count() > pavail && pavail > 1 {
                 pv = pv.chars().take(pavail - 1).collect::<String>() + "\u{2026}";
             }
-            ctx.text.queue_ui_sized(preview_x, y + (row_h - chrome) * 0.5 - 1.0, &pv, theme::TEXT_1, chrome, clip);
+            ctx.text.queue_ui_sized(preview_x, y + (row_h - chrome) * 0.5 - 1.0, &pv, theme::TEXT_1(), chrome, clip);
             visual += 1;
             mi += 1;
         }

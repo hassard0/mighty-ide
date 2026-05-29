@@ -834,8 +834,8 @@ impl SigState {
         let clip = ctx.clip;
         let radius = 9.0_f32;
         ctx.dl_shadow(box_x, box_y + 5.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.6), 18.0);
-        ctx.dl_grad_v(box_x, box_y, box_w, box_h, radius, theme::ELEVATED_2, theme::ELEVATED);
-        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::hex(0x2a3140, 1.0), 1.0);
+        ctx.dl_grad_v(box_x, box_y, box_w, box_h, radius, theme::ELEVATED_2(), theme::ELEVATED());
+        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG(), 1.0);
 
         let text_x = box_x + pad;
         let label_y = box_y + pad - 0.5;
@@ -844,24 +844,24 @@ impl SigState {
             if clen > 0 {
                 let hx = text_x + cstart as f32 * advance - 2.0;
                 let hw = clen as f32 * advance + 4.0;
-                ctx.dl_round(hx, label_y - 1.0, hw, chrome + 4.0, 4.0, theme::hex(0x7c5cff, 0.26));
-                ctx.dl_stroke(hx, label_y - 1.0, hw, chrome + 4.0, 4.0, theme::ACCENT_LINE, 1.0);
+                ctx.dl_round(hx, label_y - 1.0, hw, chrome + 4.0, 4.0, theme::accent_a(0.26));
+                ctx.dl_stroke(hx, label_y - 1.0, hw, chrome + 4.0, 4.0, theme::ACCENT_LINE(), 1.0);
             }
         }
         // The signature label, with the active param drawn in accent on top.
-        ctx.text.queue_sized(text_x, label_y, label, theme::TEXT, chrome, clip);
+        ctx.text.queue_sized(text_x, label_y, label, theme::TEXT(), chrome, clip);
         if let Some((cstart, clen)) = hi_span {
             if clen > 0 {
                 if let Some(p) = active_param {
                     let px = text_x + cstart as f32 * advance;
-                    ctx.text.queue_sized(px, label_y, p, theme::ACCENT_BRIGHT, chrome, clip);
+                    ctx.text.queue_sized(px, label_y, p, theme::ACCENT_BRIGHT(), chrome, clip);
                 }
             }
         }
         // Optional doc line, dim, below the signature.
         if has_doc {
             let dy = label_y + line_h;
-            ctx.text.queue_sized(text_x, dy, &sig.doc, theme::TEXT_3, chrome - 1.0, clip);
+            ctx.text.queue_sized(text_x, dy, &sig.doc, theme::TEXT_3(), chrome - 1.0, clip);
         }
     }
 }
@@ -956,25 +956,25 @@ impl RenameState {
         let box_y = layout::TAB_BAR_H + layout::BREADCRUMB_H + 24.0;
         let radius = 10.0;
         ctx.dl_shadow(box_x, box_y + 8.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.7), 26.0);
-        ctx.dl_grad_v(box_x, box_y, box_w, box_h, radius, theme::ELEVATED_2, theme::ELEVATED);
-        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::ACCENT_LINE, 1.0);
+        ctx.dl_grad_v(box_x, box_y, box_w, box_h, radius, theme::ELEVATED_2(), theme::ELEVATED());
+        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::ACCENT_LINE(), 1.0);
 
         // Header: "Rename Symbol".
         let title = "Rename Symbol";
-        ctx.text.queue_ui_sized(box_x + 14.0, box_y + 8.0, title, theme::TEXT_3, 11.0, clip);
+        ctx.text.queue_ui_sized(box_x + 14.0, box_y + 8.0, title, theme::TEXT_3(), 11.0, clip);
 
         // Input field with the editable new name.
         let field_x = box_x + 14.0;
         let field_y = box_y + 26.0;
         let field_w = box_w - 28.0;
         let field_h = 22.0;
-        ctx.dl_round(field_x, field_y, field_w, field_h, 5.0, theme::BG_1);
-        ctx.dl_stroke(field_x, field_y, field_w, field_h, 5.0, theme::BORDER_STRONG, 1.0);
+        ctx.dl_round(field_x, field_y, field_w, field_h, 5.0, theme::BG_1());
+        ctx.dl_stroke(field_x, field_y, field_w, field_h, 5.0, theme::BORDER_STRONG(), 1.0);
         let name = self.name_string();
-        ctx.text.queue_sized(field_x + 7.0, field_y + 4.0, &name, theme::ACCENT_BRIGHT, chrome, clip);
+        ctx.text.queue_sized(field_x + 7.0, field_y + 4.0, &name, theme::ACCENT_BRIGHT(), chrome, clip);
         // Caret after the name.
         let caret_x = field_x + 7.0 + name.chars().count() as f32 * layout::CHAR_W;
-        ctx.dl_rect(caret_x, field_y + 4.0, 1.5, chrome + 2.0, theme::ACCENT_BRIGHT);
+        ctx.dl_rect(caret_x, field_y + 4.0, 1.5, chrome + 2.0, theme::ACCENT_BRIGHT());
     }
 }
 
@@ -1076,21 +1076,21 @@ impl CodeActionState {
         let clip = ctx.clip;
         let radius = 8.0_f32;
         ctx.dl_shadow(box_x, box_y + 8.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.8), 24.0);
-        ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED);
-        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG, 1.0);
+        ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED());
+        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG(), 1.0);
 
         for (i, a) in self.actions.iter().enumerate() {
             let row_y = box_y + pad + i as f32 * row_h;
             let selected = i == self.sel;
             if selected {
-                ctx.dl_grad_h(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::hex(0x7c5cff, 0.20), 0.9);
-                ctx.dl_stroke(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::ACCENT_LINE, 1.0);
+                ctx.dl_grad_h(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::accent_a(0.20), 0.9);
+                ctx.dl_stroke(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::ACCENT_LINE(), 1.0);
             }
             // Lightbulb glyph badge for quick-fix vibe.
             let bx = box_x + 10.0;
             let by = row_y + (row_h - 18.0) * 0.5;
             let badge = if a.fix_all_mty {
-                theme::hex(0x7c5cff, 0.16)
+                theme::accent_a(0.16)
             } else {
                 MuiColor::new(1.0, 0.824, 0.478, 0.16)
             };
@@ -1098,10 +1098,10 @@ impl CodeActionState {
             let glyph = if a.fix_all_mty { "\u{2713}" } else { "\u{1f4a1}" };
             // Fall back to a simple ASCII-safe mark; the UI font may lack emoji.
             let glyph = if glyph == "\u{1f4a1}" { "\u{2055}" } else { glyph };
-            ctx.text.queue_ui_sized(bx + 4.5, by + 3.0, glyph, theme::SYN_FUNCTION, 11.0, clip);
+            ctx.text.queue_ui_sized(bx + 4.5, by + 3.0, glyph, theme::SYN_FUNCTION(), 11.0, clip);
 
             let ty = row_y + (row_h - chrome) * 0.5 - 0.5;
-            let fg = if selected { theme::TEXT } else { theme::TEXT_1 };
+            let fg = if selected { theme::TEXT() } else { theme::TEXT_1() };
             ctx.text.queue_ui_sized(box_x + 36.0, ty, &a.title, fg, chrome, clip);
         }
     }

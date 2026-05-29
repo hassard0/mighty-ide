@@ -317,6 +317,21 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         }
     }
 
+    // Screenshot/render hook for the theme picker: with MUI_THEMEPICKER_AUTOOPEN
+    // set, open the chooser and LEAVE it open so a headless screenshot shows the
+    // overlay (it otherwise only draws while the Mighty loop routes to it). The
+    // active theme itself is selected by MUI_THEME (resolved in build_context).
+    if std::env::var_os("MUI_THEMEPICKER_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            ctx.theme_picker.open();
+            ctx.theme_picker_autoopen = true;
+            println!(
+                "mui_init_s: MUI_THEMEPICKER_AUTOOPEN -> theme picker open, active={}",
+                crate::theme::active_id().name()
+            );
+        }
+    }
+
     // Screenshot/render hook for the activity-rail panels: with
     // MUI_PANEL_AUTOOPEN set to "scm" or "search", switch the sidebar to that
     // panel and seed its data (run git status / a search) so a headless
@@ -1085,8 +1100,8 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
 
     use crate::icons;
     // Status band (mockup linear-gradient near-black) + a thin top divider.
-    ctx.dl_grad_v(0.0, y, w, bar_h, 0.0, theme::hex(0x0d0d13, 1.0), theme::hex(0x090910, 1.0));
-    ctx.dl_rect(0.0, y, w, 1.0, theme::BORDER);
+    ctx.dl_grad_v(0.0, y, w, bar_h, 0.0, theme::STATUS_TOP(), theme::STATUS_BOTTOM());
+    ctx.dl_rect(0.0, y, w, 1.0, theme::BORDER());
     let ty = y + (bar_h - chrome) * 0.5 - 1.0;
     let icon_y = y + (bar_h - 13.0) * 0.5;
 
@@ -1094,29 +1109,29 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
 
     // ---- left cluster: branch icon + "main" ↑2 ↓0 · problems (err/warn) ----
     let mut x = 10.0;
-    ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::BRANCH, theme::TEXT_1, 1.5, false);
+    ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::BRANCH, theme::TEXT_1(), 1.5, false);
     x += 18.0;
-    ctx.text.queue_sized(x, ty, "main", theme::TEXT_1, chrome, clip);
+    ctx.text.queue_sized(x, ty, "main", theme::TEXT_1(), chrome, clip);
     x += text_w("main") + 6.0;
-    ctx.text.queue_sized(x, ty, "\u{2191}2 \u{2193}0", theme::TEXT_3, chrome, clip);
+    ctx.text.queue_sized(x, ty, "\u{2191}2 \u{2193}0", theme::TEXT_3(), chrome, clip);
     x += text_w("\u{2191}2 \u{2193}0") + 12.0;
 
     // Errors (red circle + N) and warnings (warn triangle + N).
     let n_err = error_count.max(0);
-    ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::ERROR_CIRCLE, theme::ERROR, 1.5, false);
+    ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::ERROR_CIRCLE, theme::ERROR(), 1.5, false);
     x += 16.0;
-    ctx.text.queue_sized(x, ty, &n_err.to_string(), if n_err > 0 { theme::ERROR } else { theme::TEXT_1 }, chrome, clip);
+    ctx.text.queue_sized(x, ty, &n_err.to_string(), if n_err > 0 { theme::ERROR() } else { theme::TEXT_1() }, chrome, clip);
     x += text_w(&n_err.to_string()) + 10.0;
-    ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::WARN_TRI, theme::WARNING, 1.5, false);
+    ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::WARN_TRI, theme::WARNING(), 1.5, false);
     x += 16.0;
-    ctx.text.queue_sized(x, ty, "1", theme::WARNING, chrome, clip);
+    ctx.text.queue_sized(x, ty, "1", theme::WARNING(), chrome, clip);
 
     // ---- right cluster (laid out right-to-left) ----
     let mut rx = w - 12.0;
 
     // Bell (notifications) at the far right.
     rx -= 16.0;
-    ctx.dl_icon(rx, icon_y - 0.5, 14.0, 14.0, icons::BELL, theme::DIM, 1.5, false);
+    ctx.dl_icon(rx, icon_y - 0.5, 14.0, 14.0, icons::BELL, theme::DIM(), 1.5, false);
     rx -= 10.0;
 
     // Language pill "Mighty" with an indigo gradient + an M glyph.
@@ -1126,28 +1141,28 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     let pill_h = 19.0;
     rx -= pill_w;
     let py = y + (bar_h - pill_h) * 0.5;
-    ctx.dl_grad_v(rx, py, pill_w, pill_h, 6.0, theme::hex(0x7c5cff, 0.22), theme::hex(0x7c5cff, 0.10));
-    ctx.dl_stroke(rx, py, pill_w, pill_h, 6.0, theme::ACCENT_LINE, 1.0);
-    ctx.dl_icon(rx + 8.0, py + (pill_h - 11.0) * 0.5, 11.0, 11.0, icons::LANG_M, theme::ACCENT_BRIGHT, 1.8, false);
-    ctx.text.queue_ui_sized(rx + 22.0, ty + 0.5, lang, theme::ACCENT_BRIGHT, chrome - 1.5, clip);
+    ctx.dl_grad_v(rx, py, pill_w, pill_h, 6.0, theme::accent_a(0.22), theme::accent_a(0.10));
+    ctx.dl_stroke(rx, py, pill_w, pill_h, 6.0, theme::ACCENT_LINE(), 1.0);
+    ctx.dl_icon(rx + 8.0, py + (pill_h - 11.0) * 0.5, 11.0, 11.0, icons::LANG_M, theme::ACCENT_BRIGHT(), 1.8, false);
+    ctx.text.queue_ui_sized(rx + 22.0, ty + 0.5, lang, theme::ACCENT_BRIGHT(), chrome - 1.5, clip);
     rx -= 12.0;
 
     // "UTF-8".
     let enc = "UTF-8";
     rx -= text_w(enc);
-    ctx.text.queue_sized(rx, ty, enc, theme::DIM, chrome, clip);
+    ctx.text.queue_sized(rx, ty, enc, theme::DIM(), chrome, clip);
     rx -= 14.0;
 
     // "Spaces: 2".
     let sp = "Spaces: 2";
     rx -= text_w(sp);
-    ctx.text.queue_sized(rx, ty, sp, theme::DIM, chrome, clip);
+    ctx.text.queue_sized(rx, ty, sp, theme::DIM(), chrome, clip);
     rx -= 14.0;
 
     // "Ln L, Col C".
     let lc = format!("Ln {line1}, Col {col1}");
     rx -= text_w(&lc);
-    ctx.text.queue_sized(rx, ty, &lc, theme::DIM, chrome, clip);
+    ctx.text.queue_sized(rx, ty, &lc, theme::DIM(), chrome, clip);
 }
 
 // ---------------------------------------------------------------------------
@@ -1233,11 +1248,11 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
     let text_x = layout::region(ctx.sidebar_visible).left + layout::PAD + 12.0;
     unsafe {
         // Elevated band + top divider + an ember accent bar on the left edge.
-        crate::mui_fill_rect(handle_ptr, 0.0, y, w, bar_h, theme::ELEVATED);
-        crate::mui_fill_rect(handle_ptr, 0.0, y, w, 1.0, theme::BORDER);
-        crate::mui_fill_rect(handle_ptr, layout::region(ctx.sidebar_visible).left, y, 3.0, bar_h, theme::EMBER);
+        crate::mui_fill_rect(handle_ptr, 0.0, y, w, bar_h, theme::ELEVATED());
+        crate::mui_fill_rect(handle_ptr, 0.0, y, w, 1.0, theme::BORDER());
+        crate::mui_fill_rect(handle_ptr, layout::region(ctx.sidebar_visible).left, y, 3.0, bar_h, theme::EMBER());
     }
-    ctx.text.queue_sized(text_x, text_y, &text, theme::TEXT, chrome, clip);
+    ctx.text.queue_sized(text_x, text_y, &text, theme::TEXT(), chrome, clip);
 }
 
 // ---------------------------------------------------------------------------
@@ -1351,7 +1366,7 @@ pub extern "C" fn mui_find_highlight_row(
             y,
             w,
             layout::LINE_H,
-            theme::FIND_HIGHLIGHT,
+            theme::FIND_HIGHLIGHT(),
         )
     };
 }
@@ -1623,8 +1638,8 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
     use crate::icons;
 
     // Rail panel (near-black) + a hairline right divider.
-    ctx.dl_rect(0.0, 0.0, rw, h, theme::BG_RAIL);
-    ctx.dl_rect(rw - 1.0, 0.0, 1.0, h, theme::BORDER);
+    ctx.dl_rect(0.0, 0.0, rw, h, theme::BG_RAIL());
+    ctx.dl_rect(rw - 1.0, 0.0, 1.0, h, theme::BORDER());
 
     // Brand mark: a small indigo logo glyph (the wordmark "M" path) near the top.
     let logo_sz = 20.0;
@@ -1635,7 +1650,7 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
         logo_sz,
         logo_sz,
         "M4 19V7.5a1 1 0 0 1 1.6-.8L12 12l6.4-5.3a1 1 0 0 1 1.6.8V19",
-        theme::ACCENT_BRIGHT,
+        theme::ACCENT_BRIGHT(),
         2.0,
         false,
     );
@@ -1665,11 +1680,11 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
         let iy = cy + (cell - icon_sz) * 0.5;
         if active {
             // Tile (top-lit indigo gradient) + left accent bar + soft glow.
-            ctx.dl_grad_v(cx, cy, cell, cell, 8.0, theme::ACCENT_FAINT, theme::hex(0x7c5cff, 0.04));
-            ctx.dl_round(0.0, cy + 9.0, 3.0, cell - 18.0, 1.5, theme::ACCENT);
-            ctx.dl_shadow(0.0, cy + 9.0, 3.0, cell - 18.0, 1.5, theme::ACCENT_GLOW, 8.0);
+            ctx.dl_grad_v(cx, cy, cell, cell, 8.0, theme::ACCENT_FAINT(), theme::accent_a(0.04));
+            ctx.dl_round(0.0, cy + 9.0, 3.0, cell - 18.0, 1.5, theme::ACCENT());
+            ctx.dl_shadow(0.0, cy + 9.0, 3.0, cell - 18.0, 1.5, theme::ACCENT_GLOW(), 8.0);
         }
-        let color = if active { theme::ACCENT_BRIGHT } else { theme::DIM };
+        let color = if active { theme::ACCENT_BRIGHT() } else { theme::DIM() };
         let fill_run = path == &icons::RUN;
         ctx.dl_icon(ix, iy, icon_sz, icon_sz, path, color, 1.5, fill_run);
         if path == &icons::AGENTS {
@@ -1680,15 +1695,15 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
             let bw = 15.0;
             let bx = cx + cell - bw - 2.0;
             let by = cy + 3.0;
-            ctx.dl_round(bx, by, bw, 15.0, 7.5, theme::ACCENT);
-            ctx.text.queue_ui_sized(bx + 4.0, by + 1.5, "3", theme::TEXT, 9.0, None);
+            ctx.dl_round(bx, by, bw, 15.0, 7.5, theme::ACCENT());
+            ctx.text.queue_ui_sized(bx + 4.0, by + 1.5, "3", theme::TEXT(), 9.0, None);
         }
     }
 
     // Bottom: accounts + settings.
     let sx = (rw - icon_sz) * 0.5;
-    ctx.dl_icon(sx, h - 80.0, icon_sz, icon_sz, icons::USER, theme::DIM, 1.5, false);
-    ctx.dl_icon(sx, h - 42.0, icon_sz, icon_sz, icons::SETTINGS, theme::DIM, 1.5, false);
+    ctx.dl_icon(sx, h - 80.0, icon_sz, icon_sz, icons::USER, theme::DIM(), 1.5, false);
+    ctx.dl_icon(sx, h - 42.0, icon_sz, icon_sz, icons::SETTINGS, theme::DIM(), 1.5, false);
 }
 
 /// Draw the breadcrumb bar at the top of the editor body (`path › file › symbol`,
@@ -1709,8 +1724,8 @@ pub extern "C" fn mui_breadcrumb_draw(handle: i64) {
 
     // Editor field background under the breadcrumb + a soft bottom divider.
     unsafe {
-        crate::mui_fill_rect(handle_ptr, left, top, w - left, bar_h, theme::BG_EDIT);
-        crate::mui_fill_rect(handle_ptr, left, top + bar_h - 1.0, w - left, 1.0, theme::BORDER_SOFT);
+        crate::mui_fill_rect(handle_ptr, left, top, w - left, bar_h, theme::BG_EDIT());
+        crate::mui_fill_rect(handle_ptr, left, top + bar_h - 1.0, w - left, 1.0, theme::BORDER_SOFT());
     }
 
     let parent = ctx
@@ -1735,20 +1750,20 @@ pub extern "C" fn mui_breadcrumb_draw(handle: i64) {
     };
     let sep = |ctx: &mut MuiContext, x: &mut f32| {
         *x += 4.0;
-        ctx.dl_icon(*x, icon_y, 12.0, 12.0, crate::icons::CHEVRON, theme::TEXT_4, 1.5, false);
+        ctx.dl_icon(*x, icon_y, 12.0, 12.0, crate::icons::CHEVRON, theme::TEXT_4(), 1.5, false);
         *x += 12.0 + 4.0;
     };
     // Folder icon for the first segment.
-    ctx.dl_icon(x, icon_y, 13.0, 13.0, crate::icons::FOLDER, theme::DIM, 1.4, false);
+    ctx.dl_icon(x, icon_y, 13.0, 13.0, crate::icons::FOLDER, theme::DIM(), 1.4, false);
     x += 13.0 + 6.0;
-    put(ctx, &mut x, &parent, theme::DIM);
+    put(ctx, &mut x, &parent, theme::DIM());
     sep(ctx, &mut x);
-    put(ctx, &mut x, &file, theme::TEXT_1);
+    put(ctx, &mut x, &file, theme::TEXT_1());
     sep(ctx, &mut x);
     // Function symbol + "main" in function gold.
-    ctx.dl_icon(x, icon_y, 13.0, 13.0, crate::icons::FN_SYMBOL, theme::SYN_FUNCTION, 1.5, false);
+    ctx.dl_icon(x, icon_y, 13.0, 13.0, crate::icons::FN_SYMBOL, theme::SYN_FUNCTION(), 1.5, false);
     x += 13.0 + 5.0;
-    put(ctx, &mut x, "main", theme::SYN_FUNCTION);
+    put(ctx, &mut x, "main", theme::SYN_FUNCTION());
 }
 
 /// Draw the tab bar across the top of the window (right of the activity rail):
@@ -1771,21 +1786,21 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
 
     use crate::icons;
     // Tab-bar background (panel) + a thin bottom divider.
-    ctx.dl_rect(body_left, 0.0, w - body_left, bar_h, theme::BG_2);
-    ctx.dl_rect(body_left, bar_h - 1.0, w - body_left, 1.0, theme::BORDER);
+    ctx.dl_rect(body_left, 0.0, w - body_left, bar_h, theme::BG_2());
+    ctx.dl_rect(body_left, bar_h - 1.0, w - body_left, 1.0, theme::BORDER());
 
     for i in 0..count {
         let x = body_left + i as f32 * layout::TAB_W;
         let is_active = i == active;
         // Active tab: editor-field bg + a top accent gradient bar (`.tab.active`).
         if is_active {
-            ctx.dl_rect(x, 0.0, layout::TAB_W, bar_h, theme::BG_1);
+            ctx.dl_rect(x, 0.0, layout::TAB_W, bar_h, theme::BG_1());
             // Top 2px accent gradient bar with glow.
-            ctx.dl_shadow(x, 0.0, layout::TAB_W, 2.0, 0.0, theme::ACCENT_GLOW, 6.0);
-            ctx.dl_rect(x, 0.0, layout::TAB_W, 2.0, theme::ACCENT);
+            ctx.dl_shadow(x, 0.0, layout::TAB_W, 2.0, 0.0, theme::ACCENT_GLOW(), 6.0);
+            ctx.dl_rect(x, 0.0, layout::TAB_W, 2.0, theme::ACCENT());
         }
         // Right divider between tabs.
-        ctx.dl_rect(x + layout::TAB_W - 1.0, 0.0, 1.0, bar_h, theme::BORDER_SOFT);
+        ctx.dl_rect(x + layout::TAB_W - 1.0, 0.0, 1.0, bar_h, theme::BORDER_SOFT());
         if let Some(tab) = ctx.tabs.get(i) {
             let base = tab.basename();
             let dirty = tab.dirty;
@@ -1797,15 +1812,15 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
             if label.chars().count() > max_chars && max_chars > 1 {
                 label = label.chars().take(max_chars - 1).collect::<String>() + "…";
             }
-            let fg = if is_active { theme::TEXT } else { theme::DIM };
+            let fg = if is_active { theme::TEXT() } else { theme::DIM() };
             let ty = (bar_h - chrome) * 0.5 - 1.0;
             ctx.text.queue_ui_sized(x + 34.0, ty, &label, fg, chrome, clip);
             // Trailing affordance: a dirty dot (active) or a close ×.
             let tx = x + layout::TAB_W - 24.0;
             if is_active || dirty {
-                ctx.dl_round(tx + 3.0, bar_h * 0.5 - 3.5, 7.0, 7.0, 3.5, theme::ACCENT_BRIGHT);
+                ctx.dl_round(tx + 3.0, bar_h * 0.5 - 3.5, 7.0, 7.0, 3.5, theme::ACCENT_BRIGHT());
             } else {
-                ctx.dl_icon(tx, (bar_h - 12.0) * 0.5, 12.0, 12.0, icons::CLOSE, theme::TEXT_3, 1.6, false);
+                ctx.dl_icon(tx, (bar_h - 12.0) * 0.5, 12.0, 12.0, icons::CLOSE, theme::TEXT_3(), 1.6, false);
             }
         }
     }
@@ -1813,8 +1828,8 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
     // Right edge: run + more actions (mockup `.tb-actions`).
     let ax = w - 64.0;
     let ay = (bar_h - 16.0) * 0.5;
-    ctx.dl_icon(ax, ay, 16.0, 16.0, icons::RUN, theme::GREEN, 1.5, true);
-    ctx.dl_icon(ax + 28.0, ay, 16.0, 16.0, icons::DOTS, theme::TEXT_3, 0.0, true);
+    ctx.dl_icon(ax, ay, 16.0, 16.0, icons::RUN, theme::GREEN(), 1.5, true);
+    ctx.dl_icon(ax + 28.0, ay, 16.0, 16.0, icons::DOTS, theme::TEXT_3(), 0.0, true);
 }
 
 /// Pick a vector file icon + color for a basename. Active tabs / `.mty` use the
@@ -1822,13 +1837,13 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
 pub(crate) fn file_icon_for(base: &str, active: bool) -> (&'static str, MuiColor) {
     use crate::icons;
     if base.ends_with(".mty") {
-        (icons::FILE_MTY, if active { theme::ACCENT_BRIGHT } else { theme::SYN_TYPE })
+        (icons::FILE_MTY, if active { theme::ACCENT_BRIGHT() } else { theme::SYN_TYPE() })
     } else if base.ends_with(".toml") {
-        (icons::FILE_TOML, theme::WARNING)
+        (icons::FILE_TOML, theme::WARNING())
     } else if base.ends_with(".md") {
-        (icons::FILE_MD, theme::INFO)
+        (icons::FILE_MD, theme::INFO())
     } else {
-        (icons::FILE_TXT, theme::TEXT_3)
+        (icons::FILE_TXT, theme::TEXT_3())
     }
 }
 
@@ -1984,13 +1999,13 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
     use crate::icons;
 
     // Panel background (panel color) + a right divider.
-    ctx.dl_rect(sx, 0.0, sw, h, theme::BG_2);
-    ctx.dl_rect(sx + sw - 1.0, 0.0, 1.0, h, theme::BORDER);
+    ctx.dl_rect(sx, 0.0, sw, h, theme::BG_2());
+    ctx.dl_rect(sx + sw - 1.0, 0.0, 1.0, h, theme::BORDER());
 
     // Section-header band (mockup `.sb-head`, 40px) with a bottom hairline.
     let head_h = 40.0;
-    ctx.dl_rect(sx, 0.0, sw, head_h, theme::BG_2);
-    ctx.dl_rect(sx, head_h - 1.0, sw, 1.0, theme::BORDER_SOFT);
+    ctx.dl_rect(sx, 0.0, sw, head_h, theme::BG_2());
+    ctx.dl_rect(sx, head_h - 1.0, sw, 1.0, theme::BORDER_SOFT());
     let header = ctx
         .tree
         .root()
@@ -2003,15 +2018,15 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
         sx + 14.0,
         (head_h - (chrome - 2.0)) * 0.5 - 1.0,
         &tracked,
-        theme::DIM,
+        theme::DIM(),
         chrome - 2.0,
         clip,
     );
     // Header actions (new file / new folder / collapse) right-aligned.
     let act_y = (head_h - 15.0) * 0.5;
-    ctx.dl_icon(sx + sw - 72.0, act_y, 15.0, 15.0, icons::NEW_FILE, theme::TEXT_3, 1.5, false);
-    ctx.dl_icon(sx + sw - 50.0, act_y, 15.0, 15.0, icons::NEW_FOLDER, theme::TEXT_3, 1.5, false);
-    ctx.dl_icon(sx + sw - 28.0, act_y, 15.0, 15.0, icons::COLLAPSE, theme::TEXT_3, 1.5, false);
+    ctx.dl_icon(sx + sw - 72.0, act_y, 15.0, 15.0, icons::NEW_FILE, theme::TEXT_3(), 1.5, false);
+    ctx.dl_icon(sx + sw - 50.0, act_y, 15.0, 15.0, icons::NEW_FOLDER, theme::TEXT_3(), 1.5, false);
+    ctx.dl_icon(sx + sw - 28.0, act_y, 15.0, 15.0, icons::COLLAPSE, theme::TEXT_3(), 1.5, false);
 
     // File rows. Mockup row height is 28px; we keep LINE_H rhythm but draw a
     // 28px-tall hover/selection capsule centered on the row baseline.
@@ -2033,9 +2048,9 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
         }
         // Selected row: indigo-faint left→right tint capsule + indigo left bar.
         if selected {
-            ctx.dl_grad_h(sx + 8.0, y, sw - 16.0, row_h, 5.0, theme::ACCENT_FAINT, 0.9);
-            ctx.dl_round(sx, y + 3.0, 2.0, row_h - 6.0, 1.0, theme::ACCENT);
-            ctx.dl_shadow(sx, y + 3.0, 2.0, row_h - 6.0, 1.0, theme::ACCENT_GLOW, 6.0);
+            ctx.dl_grad_h(sx + 8.0, y, sw - 16.0, row_h, 5.0, theme::ACCENT_FAINT(), 0.9);
+            ctx.dl_round(sx, y + 3.0, 2.0, row_h - 6.0, 1.0, theme::ACCENT());
+            ctx.dl_shadow(sx, y + 3.0, 2.0, row_h - 6.0, 1.0, theme::ACCENT_GLOW(), 6.0);
         }
         let base_indent = sx + 12.0;
         let indent = base_indent + (depth as f32) * layout::TREE_INDENT;
@@ -2048,12 +2063,12 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
             // Chevron: pointing down when expanded, right when collapsed.
             if expanded {
                 // rotate 90°: draw a downward chevron via a path variant.
-                ctx.dl_icon(content_x, icon_y, 12.0, 12.0, "M6 9l6 6 6-6", theme::TEXT_3, 2.0, false);
+                ctx.dl_icon(content_x, icon_y, 12.0, 12.0, "M6 9l6 6 6-6", theme::TEXT_3(), 2.0, false);
             } else {
-                ctx.dl_icon(content_x, icon_y, 12.0, 12.0, icons::CHEVRON, theme::TEXT_3, 2.0, false);
+                ctx.dl_icon(content_x, icon_y, 12.0, 12.0, icons::CHEVRON, theme::TEXT_3(), 2.0, false);
             }
             content_x += 14.0;
-            ctx.dl_icon(content_x, icon_y, 15.0, 15.0, icons::FOLDER, theme::DIM, 1.4, false);
+            ctx.dl_icon(content_x, icon_y, 15.0, 15.0, icons::FOLDER, theme::DIM(), 1.4, false);
             content_x += 17.0;
         } else {
             // File: skip the chevron column to align under folder contents.
@@ -2068,7 +2083,7 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
         if shown.chars().count() > avail && avail > 1 {
             shown = shown.chars().take(avail - 1).collect::<String>() + "…";
         }
-        let fg = if selected { theme::TEXT } else { theme::TEXT_1 };
+        let fg = if selected { theme::TEXT() } else { theme::TEXT_1() };
         ctx.text.queue_ui_sized(name_x, txt_y, &shown, fg, chrome, clip);
         // Git status letter, right-aligned (mockup `.row .git`): M/A/U.
         if let Some((gl, gc)) = git_status_for(&name) {
@@ -2081,9 +2096,9 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
 /// reads like the mockup (M warn / A green / U info). Returns `None` for clean.
 fn git_status_for(name: &str) -> Option<(&'static str, MuiColor)> {
     match name {
-        "main.mty" | "Mighty.toml" => Some(("M", theme::WARNING)),
-        "agents.mty" => Some(("A", theme::GREEN)),
-        "README.md" => Some(("U", theme::INFO)),
+        "main.mty" | "Mighty.toml" => Some(("M", theme::WARNING())),
+        "agents.mty" => Some(("A", theme::GREEN())),
+        "README.md" => Some(("U", theme::INFO())),
         _ => None,
     }
 }
@@ -2304,13 +2319,13 @@ pub extern "C" fn mui_term_draw(handle: i64) {
 
     // Rounded-top panel (a rounded rect whose bottom corners are off-screen) +
     // an ember top accent line + a dim "TERMINAL" header (UI family).
-    ctx.dl_round(panel_left, panel_top, panel_w, panel_h + 12.0, 10.0, theme::ELEVATED);
-    ctx.dl_rect(panel_left, panel_top, panel_w, 1.0, theme::BORDER);
+    ctx.dl_round(panel_left, panel_top, panel_w, panel_h + 12.0, 10.0, theme::ELEVATED());
+    ctx.dl_rect(panel_left, panel_top, panel_w, 1.0, theme::BORDER());
     ctx.text.queue_ui_sized(
         panel_left + layout::PAD + 4.0,
         panel_top + 4.0,
         "TERMINAL",
-        theme::DIM,
+        theme::DIM(),
         theme::CHROME_FONT_SIZE - 1.0,
         clip,
     );
@@ -2763,6 +2778,115 @@ pub extern "C" fn mui_palette_draw(handle: i64) {
     ctx.overlay = false;
     ctx.text.set_overlay(false);
     ctx.palette = engine;
+}
+
+// ---------------------------------------------------------------------------
+// Color theme — query + set the active theme, and the theme-picker overlay.
+// ---------------------------------------------------------------------------
+
+/// Number of selectable color themes.
+#[no_mangle]
+pub extern "C" fn mui_theme_count(_handle: i64) -> i32 {
+    crate::theme::ThemeId::ALL.len() as i32
+}
+
+/// Index (0-based) of the currently-active theme.
+#[no_mangle]
+pub extern "C" fn mui_theme_active(_handle: i64) -> i32 {
+    crate::theme::active_id().index()
+}
+
+/// Set the active theme to index `idx`, persist the choice, and return the
+/// applied index (or the current index if `idx` is out of range).
+#[no_mangle]
+pub extern "C" fn mui_theme_set(_handle: i64, idx: i32) -> i32 {
+    if let Some(id) = crate::theme::ThemeId::from_index(idx) {
+        crate::theme::set_active(id);
+        crate::config::save_theme(id);
+        id.index()
+    } else {
+        crate::theme::active_id().index()
+    }
+}
+
+/// Length (chars) of theme `idx`'s display name, or `0` if out of range.
+#[no_mangle]
+pub extern "C" fn mui_theme_name_len(_handle: i64, idx: i32) -> i32 {
+    crate::theme::ThemeId::from_index(idx)
+        .map(|id| id.name().chars().count() as i32)
+        .unwrap_or(0)
+}
+
+/// The `i`th char (codepoint) of theme `idx`'s display name, or `-1` out of
+/// range. Mighty reads names char-by-char (strings can't cross the FFI, L17).
+#[no_mangle]
+pub extern "C" fn mui_theme_name_char(_handle: i64, idx: i32, i: i32) -> i32 {
+    if i < 0 {
+        return -1;
+    }
+    crate::theme::ThemeId::from_index(idx)
+        .and_then(|id| id.name().chars().nth(i as usize))
+        .map(|c| c as i32)
+        .unwrap_or(-1)
+}
+
+/// Open the theme-picker overlay (remembers the active theme to revert to).
+#[no_mangle]
+pub extern "C" fn mui_theme_picker_open(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.theme_picker.open();
+    }
+}
+
+/// `1` if the theme picker is open, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_theme_picker_active(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| if c.theme_picker.is_active() { 1 } else { 0 })
+}
+
+/// Move the picker highlight by `delta` (wrapping) AND preview that theme live.
+#[no_mangle]
+pub extern "C" fn mui_theme_picker_move(handle: i64, delta: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.theme_picker.move_sel(delta);
+    }
+}
+
+/// 0-based highlighted row index in the picker.
+#[no_mangle]
+pub extern "C" fn mui_theme_picker_sel(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.theme_picker.selection() as i32)
+}
+
+/// Commit the highlighted theme (keep + persist), close the picker; returns the
+/// committed theme index.
+#[no_mangle]
+pub extern "C" fn mui_theme_picker_apply(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(-1, |c| c.theme_picker.commit())
+}
+
+/// Cancel the picker, reverting to the theme that was active when it opened.
+#[no_mangle]
+pub extern "C" fn mui_theme_picker_cancel(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.theme_picker.cancel();
+    }
+}
+
+/// Draw the theme-picker overlay (no-op when inactive).
+#[no_mangle]
+pub extern "C" fn mui_theme_picker_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let picker = std::mem::take(&mut ctx.theme_picker);
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
+    picker.draw(ctx, w, h);
+    ctx.overlay = false;
+    ctx.text.set_overlay(false);
+    ctx.theme_picker = picker;
 }
 
 /// Print the live palette state to stdout (count, selection, selected id,
@@ -4327,7 +4451,7 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
             field_top,
             win_w - region.left,
             field_h,
-            theme::BG_1,
+            theme::BG_1(),
         );
     }
 
@@ -4341,8 +4465,8 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         let row = (cur_line - first) as i32;
         let y = layout::row_y_in(region, row);
         let band_w = mm_x - region.left;
-        ctx.dl_grad_h(region.left, y - 1.0, band_w, layout::LINE_H, 0.0, theme::hex(0x7c5cff, 0.07), 0.6);
-        ctx.dl_rect(region.left, y - 1.0, 2.0, layout::LINE_H, theme::ACCENT);
+        ctx.dl_grad_h(region.left, y - 1.0, band_w, layout::LINE_H, 0.0, theme::accent_a(0.07), 0.6);
+        ctx.dl_rect(region.left, y - 1.0, 2.0, layout::LINE_H, theme::ACCENT());
     }
 
     // 2) Selection rects (per visible line within the range).
@@ -4365,7 +4489,7 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
             let w = (e - s) as f32 * layout::CHAR_W;
             let y = layout::row_y_in(region, row);
             unsafe {
-                crate::mui_fill_rect(handle_ptr, x, y - 2.0, w, layout::LINE_H, theme::SELECTION);
+                crate::mui_fill_rect(handle_ptr, x, y - 2.0, w, layout::LINE_H, theme::SELECTION());
             }
         }
     }
@@ -4380,9 +4504,9 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         let num_w = num.chars().count() as f32 * layout::CHAR_W * (chrome / theme::FONT_SIZE);
         let gx = (gutter_right - num_w).max(region.left + 2.0);
         let gcol = if li == cur_line {
-            theme::GUTTER_ACTIVE
+            theme::GUTTER_ACTIVE()
         } else {
-            theme::GUTTER
+            theme::GUTTER()
         };
         ctx.text.queue_sized(gx, y + 3.0, &num, gcol, chrome, clip);
 
@@ -4412,8 +4536,8 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         let row = (cur_line - first) as i32;
         let cx = layout::text_x_in(region, total_u64, cur_col as i32);
         let cy = layout::row_y_in(region, row);
-        ctx.dl_shadow(cx, cy + 1.0, 2.0, layout::LINE_H - 6.0, 1.0, theme::ACCENT_GLOW, 4.0);
-        ctx.dl_round(cx, cy - 1.0, 2.0, layout::LINE_H - 2.0, 1.0, theme::ACCENT_BRIGHT);
+        ctx.dl_shadow(cx, cy + 1.0, 2.0, layout::LINE_H - 6.0, 1.0, theme::ACCENT_GLOW(), 4.0);
+        ctx.dl_round(cx, cy - 1.0, 2.0, layout::LINE_H - 2.0, 1.0, theme::ACCENT_BRIGHT());
     }
 
     // 5) Minimap — a faint right strip with one tiny colored bar per buffer line,
@@ -4422,7 +4546,7 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         let field_top = region.top;
         let field_h = (win_h - 30.0 - field_top).max(0.0);
         // Left divider + a faint left→transparent shade.
-        ctx.dl_rect(mm_x, field_top, 1.0, field_h, theme::BORDER_SOFT);
+        ctx.dl_rect(mm_x, field_top, 1.0, field_h, theme::BORDER_SOFT());
         ctx.dl_grad_h(mm_x, field_top, 24.0, field_h, 0.0, MuiColor::new(0.0, 0.0, 0.0, 0.18), 1.0);
         let mm_pad_x = mm_x + 10.0;
         let mm_inner_w = mm_w - 20.0;
@@ -4446,7 +4570,7 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
                 .iter()
                 .find(|s| !line.chars().skip(s.start).take(s.len).collect::<String>().trim().is_empty())
                 .map(|s| s.color)
-                .unwrap_or(theme::DIM);
+                .unwrap_or(theme::DIM());
             // Bar length proportional to line length, clamped to the strip.
             let frac = ((trimmed_len as f32) / 48.0).min(1.0);
             let bx = mm_pad_x + (indent * 0.6).min(mm_inner_w * 0.4);
@@ -4458,8 +4582,8 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         // Viewport box over the visible range.
         let vp_y = mm_top + (first as f32) * mm_line_h;
         let vp_h = (rows.min(shown_lines.saturating_sub(first)) as f32 * mm_line_h).max(mm_line_h);
-        ctx.dl_round(mm_x + 4.0, vp_y - 1.0, mm_w - 8.0, vp_h + 2.0, 3.0, theme::hex(0x7c5cff, 0.08));
-        ctx.dl_stroke(mm_x + 4.0, vp_y - 1.0, mm_w - 8.0, vp_h + 2.0, 3.0, theme::ACCENT_LINE, 1.0);
+        ctx.dl_round(mm_x + 4.0, vp_y - 1.0, mm_w - 8.0, vp_h + 2.0, 3.0, theme::accent_a(0.08));
+        ctx.dl_stroke(mm_x + 4.0, vp_y - 1.0, mm_w - 8.0, vp_h + 2.0, 3.0, theme::ACCENT_LINE(), 1.0);
     }
     let _ = handle_ptr;
 }

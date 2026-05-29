@@ -106,9 +106,9 @@ impl HoverState {
         let radius = 9.0_f32;
         // Soft shadow + rounded elevated card + hairline border.
         ctx.dl_shadow(box_x, box_y + 5.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.6), 18.0);
-        ctx.dl_grad_v(box_x, box_y, box_w, box_h, radius, theme::ELEVATED_2, theme::ELEVATED);
-        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::hex(0x2a3140, 1.0), 1.0);
-        let fg = theme::TEXT;
+        ctx.dl_grad_v(box_x, box_y, box_w, box_h, radius, theme::ELEVATED_2(), theme::ELEVATED());
+        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG(), 1.0);
+        let fg = theme::TEXT();
         for (i, line) in self.lines.iter().enumerate() {
             let row_y = box_y + pad + i as f32 * row_h;
             ctx.text.queue(box_x + 6.0, row_y + 1.0, line, fg, clip);

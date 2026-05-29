@@ -59,7 +59,7 @@ pub fn highlight_line(line: &str) -> Vec<Span> {
             spans.push(Span {
                 start: i,
                 len: n - i,
-                color: theme::SYN_COMMENT,
+                color: theme::SYN_COMMENT(),
             });
             break;
         }
@@ -82,7 +82,7 @@ pub fn highlight_line(line: &str) -> Vec<Span> {
             spans.push(Span {
                 start,
                 len: i - start,
-                color: theme::SYN_STRING,
+                color: theme::SYN_STRING(),
             });
             continue;
         }
@@ -103,7 +103,7 @@ pub fn highlight_line(line: &str) -> Vec<Span> {
             spans.push(Span {
                 start,
                 len: i - start,
-                color: theme::SYN_STRING,
+                color: theme::SYN_STRING(),
             });
             continue;
         }
@@ -117,7 +117,7 @@ pub fn highlight_line(line: &str) -> Vec<Span> {
             spans.push(Span {
                 start,
                 len: i - start,
-                color: theme::SYN_NUMBER,
+                color: theme::SYN_NUMBER(),
             });
             continue;
         }
@@ -138,15 +138,15 @@ pub fn highlight_line(line: &str) -> Vec<Span> {
             let is_call = j < n && chars[j] == '(';
 
             let color = if KEYWORDS.contains(&word.as_str()) {
-                theme::SYN_KEYWORD
+                theme::SYN_KEYWORD()
             } else if TYPES.contains(&word.as_str())
                 || word.chars().next().map(|c| c.is_uppercase()).unwrap_or(false)
             {
-                theme::SYN_TYPE
+                theme::SYN_TYPE()
             } else if is_call {
-                theme::SYN_FUNCTION
+                theme::SYN_FUNCTION()
             } else {
-                theme::SYN_DEFAULT
+                theme::SYN_DEFAULT()
             };
             spans.push(Span {
                 start,
@@ -169,7 +169,7 @@ pub fn highlight_line(line: &str) -> Vec<Span> {
         spans.push(Span {
             start,
             len: i - start,
-            color: theme::SYN_PUNCT,
+            color: theme::SYN_PUNCT(),
         });
     }
 
@@ -186,26 +186,26 @@ mod tests {
         // First span is the keyword "fn".
         assert_eq!(spans[0].start, 0);
         assert_eq!(spans[0].len, 2);
-        assert_eq!(spans[0].color, theme::SYN_KEYWORD);
+        assert_eq!(spans[0].color, theme::SYN_KEYWORD());
         // "add" before '(' is a function call.
         let add = spans.iter().find(|s| s.start == 3).unwrap();
-        assert_eq!(add.color, theme::SYN_FUNCTION);
+        assert_eq!(add.color, theme::SYN_FUNCTION());
         // "I32" is a type.
-        assert!(spans.iter().any(|s| s.color == theme::SYN_TYPE));
+        assert!(spans.iter().any(|s| s.color == theme::SYN_TYPE()));
     }
 
     #[test]
     fn comment_runs_to_eol() {
         let spans = highlight_line("let x = 1 // trailing");
         let c = spans.last().unwrap();
-        assert_eq!(c.color, theme::SYN_COMMENT);
+        assert_eq!(c.color, theme::SYN_COMMENT());
     }
 
     #[test]
     fn string_and_number() {
         let spans = highlight_line(r#"log("hi", 42)"#);
-        assert!(spans.iter().any(|s| s.color == theme::SYN_STRING));
-        assert!(spans.iter().any(|s| s.color == theme::SYN_NUMBER));
+        assert!(spans.iter().any(|s| s.color == theme::SYN_STRING()));
+        assert!(spans.iter().any(|s| s.color == theme::SYN_NUMBER()));
     }
 
     #[test]

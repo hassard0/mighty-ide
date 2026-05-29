@@ -12,6 +12,7 @@
 
 mod abi;
 mod completion;
+mod config;
 mod diagnostics;
 mod editor;
 mod ffi;
@@ -33,6 +34,7 @@ mod tabs;
 mod terminal;
 mod text;
 mod theme;
+mod themepicker;
 mod tree;
 mod vello_proof;
 mod vello_ui;
@@ -159,6 +161,14 @@ pub struct MuiContext {
     /// shim-owned. Mighty opens it, feeds chars, moves the selection, and reads
     /// the selected command id back to dispatch.
     palette: palette::PaletteEngine,
+
+    // ---- color-theme picker (Preferences: Color Theme) ----
+    /// The theme chooser overlay (3 themes, live preview), shim-owned. Mighty
+    /// opens it, moves the highlight (live preview), and commits/cancels.
+    theme_picker: themepicker::ThemePicker,
+    /// Screenshot-only hook (`MUI_THEMEPICKER_AUTOOPEN`): when `true`, the theme
+    /// picker is force-drawn each frame so a headless capture shows it.
+    theme_picker_autoopen: bool,
 
     // ---- offscreen screenshot mode (MUI_SCREENSHOT) ----
     /// When `Some`, the context renders into an offscreen texture (no window)
@@ -409,6 +419,11 @@ pub(crate) fn build_context(
     title: String,
     file_path: Option<PathBuf>,
 ) -> *mut MuiContext {
+    // Activate the persisted (or MUI_THEME-overridden) color theme before any
+    // draw call so the whole IDE — including the first frame / screenshots —
+    // renders in the chosen theme. Default is Vivid Modern.
+    theme::set_active(config::resolve_startup_theme());
+
     let mut queue = Box::new(EventQueue::default());
     let queue_ptr: *mut EventQueue = queue.as_mut();
 
@@ -522,6 +537,8 @@ pub(crate) fn build_context(
         history: history::HistoryStore::new(),
         restored_cursor: (0, 0),
         palette: palette::PaletteEngine::new(),
+        theme_picker: themepicker::ThemePicker::new(),
+        theme_picker_autoopen: false,
         screenshot,
         ed_undo: Vec::new(),
         ed_redo: Vec::new(),
@@ -872,6 +889,19 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         ctx.rename = rename;
     }
 
+    // Screenshot hook for the theme picker: force-draw the chooser when armed so
+    // a headless capture shows it (it otherwise only draws while the Mighty loop
+    // routes to it, which a non-interactive run can't enter).
+    if ctx.theme_picker_autoopen && ctx.theme_picker.is_active() {
+        let picker = std::mem::take(&mut ctx.theme_picker);
+        ctx.overlay = true;
+        ctx.text.set_overlay(true);
+        picker.draw(ctx, w, h);
+        ctx.overlay = false;
+        ctx.text.set_overlay(false);
+        ctx.theme_picker = picker;
+    }
+
     // Fold the queued glyphon text runs into the display list (each keeps its
     // layer/font/size/color), so the Vello scene reproduces all chrome + code.
     ctx.text.drain_into_display_list(&mut ctx.dl);
@@ -1114,6 +1144,8 @@ impl MuiContext {
             history: history::HistoryStore::new(),
             restored_cursor: (0, 0),
             palette: palette::PaletteEngine::new(),
+            theme_picker: themepicker::ThemePicker::new(),
+            theme_picker_autoopen: false,
             screenshot: None,
             ed_undo: Vec::new(),
             ed_redo: Vec::new(),

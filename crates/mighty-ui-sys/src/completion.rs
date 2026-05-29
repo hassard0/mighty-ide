@@ -288,8 +288,8 @@ impl CompletionEngine {
         // Soft drop shadow + rounded raised card + hairline border (mockup
         // `.autocomplete`).
         ctx.dl_shadow(box_x, box_y + 8.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.8), 24.0);
-        ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED);
-        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG, 1.0);
+        ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED());
+        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG(), 1.0);
 
         for vis in 0..shown {
             let idx = top + vis;
@@ -297,8 +297,8 @@ impl CompletionEngine {
             let row_y = box_y + pad + vis as f32 * row_h;
             let selected = idx == self.sel;
             if selected {
-                ctx.dl_grad_h(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::hex(0x7c5cff, 0.20), 0.9);
-                ctx.dl_stroke(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::ACCENT_LINE, 1.0);
+                ctx.dl_grad_h(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::accent_a(0.20), 0.9);
+                ctx.dl_stroke(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::ACCENT_LINE(), 1.0);
             }
             // Type badge: a small rounded colored square with a letter, classified
             // by a light heuristic (mockup badge colors).
@@ -311,29 +311,29 @@ impl CompletionEngine {
 
             let ty = row_y + (row_h - chrome) * 0.5 - 0.5;
             let name_x = box_x + 38.0;
-            ctx.text.queue_sized(name_x, ty, &cand.text, theme::TEXT, chrome, clip);
+            ctx.text.queue_sized(name_x, ty, &cand.text, theme::TEXT(), chrome, clip);
             // Signature hint immediately after the name, dimmer mono.
             if !sig.is_empty() {
                 let sx = name_x + cand.text.chars().count() as f32 * advance + 2.0;
-                ctx.text.queue_sized(sx, ty, sig, theme::TEXT_3, chrome - 1.0, clip);
+                ctx.text.queue_sized(sx, ty, sig, theme::TEXT_3(), chrome - 1.0, clip);
             }
             // Right-aligned dim kind.
             let kw = kind.chars().count() as f32 * (chrome - 1.5) * 0.55;
-            ctx.text.queue_ui_sized(box_x + box_w - 12.0 - kw, ty, kind, theme::TEXT_3, chrome - 1.5, clip);
+            ctx.text.queue_ui_sized(box_x + box_w - 12.0 - kw, ty, kind, theme::TEXT_3(), chrome - 1.5, clip);
         }
 
         // Signature-hint footer (mockup `.ac-hint`): the selected candidate's
         // signature on a divided strip, the name in accent + a "· pure" tail.
         let hint_y = box_y + box_h - hint_h;
-        ctx.dl_rect(box_x + 1.0, hint_y, box_w - 2.0, 1.0, theme::BORDER);
-        ctx.dl_round(box_x + 1.0, hint_y, box_w - 2.0, hint_h - 1.0, 0.0, theme::BG_2);
+        ctx.dl_rect(box_x + 1.0, hint_y, box_w - 2.0, 1.0, theme::BORDER());
+        ctx.dl_round(box_x + 1.0, hint_y, box_w - 2.0, hint_h - 1.0, 0.0, theme::BG_2());
         if let Some(sel) = self.candidates.get(self.sel) {
             let hy = hint_y + (hint_h - (chrome - 1.0)) * 0.5 - 0.5;
             let mut hx = box_x + 12.0;
-            ctx.text.queue_sized(hx, hy, &sel.text, theme::ACCENT_BRIGHT, chrome - 1.0, clip);
+            ctx.text.queue_sized(hx, hy, &sel.text, theme::ACCENT_BRIGHT(), chrome - 1.0, clip);
             hx += sel.text.chars().count() as f32 * (advance * 0.93);
             let tail = if sel.semantic { "(a: I32, b: I32) \u{2192} I32  \u{00B7} pure" } else { "  \u{00B7} local symbol" };
-            ctx.text.queue_sized(hx, hy, tail, theme::DIM, chrome - 1.0, clip);
+            ctx.text.queue_sized(hx, hy, tail, theme::DIM(), chrome - 1.0, clip);
         }
     }
 }
@@ -353,7 +353,7 @@ fn classify_candidate(cand: &Candidate) -> (MuiColor, MuiColor, &'static str, &'
     if KEYWORDS.contains(&t) {
         return (
             MuiColor::new(0.718, 0.580, 1.0, 0.14),
-            theme::SYN_KEYWORD,
+            theme::SYN_KEYWORD(),
             "K",
             "keyword",
             "",
@@ -362,7 +362,7 @@ fn classify_candidate(cand: &Candidate) -> (MuiColor, MuiColor, &'static str, &'
     if t.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
         return (
             MuiColor::new(0.353, 0.820, 0.769, 0.14),
-            theme::SYN_TYPE,
+            theme::SYN_TYPE(),
             "T",
             "struct",
             "",
@@ -371,7 +371,7 @@ fn classify_candidate(cand: &Candidate) -> (MuiColor, MuiColor, &'static str, &'
     if cand.semantic {
         return (
             MuiColor::new(1.0, 0.824, 0.478, 0.14),
-            theme::SYN_FUNCTION,
+            theme::SYN_FUNCTION(),
             "\u{0192}",
             "\u{2192} fn",
             "(…)",
@@ -379,7 +379,7 @@ fn classify_candidate(cand: &Candidate) -> (MuiColor, MuiColor, &'static str, &'
     }
     (
         MuiColor::new(0.843, 0.843, 0.890, 0.10),
-        theme::SYN_DEFAULT,
+        theme::SYN_DEFAULT(),
         "x",
         "local",
         "",

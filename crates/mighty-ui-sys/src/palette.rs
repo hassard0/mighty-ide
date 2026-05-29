@@ -44,6 +44,7 @@ pub const CMD_REDO: u32 = 14;
 pub const CMD_AUTOCOMPLETE: u32 = 15;
 pub const CMD_JUMP_BACK: u32 = 16;
 pub const CMD_QUIT: u32 = 17;
+pub const CMD_COLOR_THEME: u32 = 18;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -65,6 +66,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_AUTOCOMPLETE,     label: "Trigger Autocomplete", keybinding: "Ctrl+Space" },
     Command { id: CMD_JUMP_BACK,        label: "Jump Back",          keybinding: "Ctrl+-" },
     Command { id: CMD_QUIT,             label: "Quit",               keybinding: "Esc / close" },
+    Command { id: CMD_COLOR_THEME,      label: "Preferences: Color Theme", keybinding: "" },
 ];
 
 /// Match quality for ranking. Lower sorts first.
@@ -258,6 +260,7 @@ impl PaletteEngine {
             CMD_AUTOCOMPLETE => (icons::AGENTS, "Suggest completions at the cursor", false),
             CMD_JUMP_BACK => (icons::CHEVRON, "Return to the previous location", false),
             CMD_QUIT => (icons::CLOSE, "Close the editor", false),
+            CMD_COLOR_THEME => (icons::SETTINGS, "Switch the editor color theme", false),
             _ => (icons::CHEVRON, "", false),
         }
     }
@@ -294,40 +297,40 @@ impl PaletteEngine {
 
         // Scrim: dim + a faint indigo top wash.
         ctx.dl_rect(0.0, 0.0, w, h, MuiColor::new(0.0, 0.0, 0.0, 0.55));
-        ctx.dl_grad_v(0.0, 0.0, w, h * 0.5, 0.0, theme::hex(0x7c5cff, 0.05), theme::hex(0x7c5cff, 0.0));
+        ctx.dl_grad_v(0.0, 0.0, w, h * 0.5, 0.0, theme::accent_a(0.05), theme::accent_a(0.0));
         // Drop shadow + indigo glow + card + border.
         ctx.dl_shadow(box_x, box_y + 14.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.85), 40.0);
-        ctx.dl_shadow(box_x, box_y, box_w, box_h, radius, theme::ACCENT_GLOW, 40.0);
-        ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED);
-        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG, 1.0);
+        ctx.dl_shadow(box_x, box_y, box_w, box_h, radius, theme::ACCENT_GLOW(), 40.0);
+        ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED());
+        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG(), 1.0);
 
         // ---- search field ----
-        ctx.dl_rect(box_x + 1.0, box_y + search_h - 1.0, box_w - 2.0, 1.0, theme::BORDER);
-        ctx.dl_icon(box_x + 18.0, box_y + (search_h - 20.0) * 0.5, 20.0, 20.0, icons::SEARCH, theme::DIM, 1.7, false);
+        ctx.dl_rect(box_x + 1.0, box_y + search_h - 1.0, box_w - 2.0, 1.0, theme::BORDER());
+        ctx.dl_icon(box_x + 18.0, box_y + (search_h - 20.0) * 0.5, 20.0, 20.0, icons::SEARCH, theme::DIM(), 1.7, false);
         let q_text_x = box_x + 50.0;
         let qy = box_y + (search_h - 16.0) * 0.5 - 1.0;
         let (q_str, q_color): (&str, _) = if self.query.is_empty() {
-            ("Type a command\u{2026}", theme::TEXT_3)
+            ("Type a command\u{2026}", theme::TEXT_3())
         } else {
-            (self.query.as_str(), theme::TEXT)
+            (self.query.as_str(), theme::TEXT())
         };
         // Search font is larger (16px) per the mockup.
         ctx.text.queue_ui_sized(q_text_x, qy, q_str, q_color, 16.0, clip);
         let qadv = 16.0 * 0.52;
         let caret_x = q_text_x + self.query.chars().count() as f32 * qadv + 1.0;
-        ctx.dl_round(caret_x, box_y + (search_h - 18.0) * 0.5, 2.0, 18.0, 1.0, theme::ACCENT_BRIGHT);
+        ctx.dl_round(caret_x, box_y + (search_h - 18.0) * 0.5, 2.0, 18.0, 1.0, theme::ACCENT_BRIGHT());
         // ⌘K mode pill (right).
         let pill_w = 40.0;
         let pill_x = box_x + box_w - pill_w - 18.0;
         let pill_y = box_y + (search_h - 22.0) * 0.5;
-        ctx.dl_round(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_FAINT);
-        ctx.dl_stroke(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_LINE, 1.0);
-        ctx.text.queue_ui_sized(pill_x + 8.0, pill_y + 4.5, "\u{2318}K", theme::ACCENT_BRIGHT, 10.5, clip);
+        ctx.dl_round(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_FAINT());
+        ctx.dl_stroke(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_LINE(), 1.0);
+        ctx.text.queue_ui_sized(pill_x + 8.0, pill_y + 4.5, "\u{2318}K", theme::ACCENT_BRIGHT(), 10.5, clip);
 
         // ---- category label ----
         let cat_y = box_y + search_h + 9.0;
         let cat: String = "COMMANDS".chars().flat_map(|c| [c, '\u{2009}']).collect();
-        ctx.text.queue_ui_sized(box_x + 18.0, cat_y, &cat, theme::TEXT_3, chrome - 2.5, clip);
+        ctx.text.queue_ui_sized(box_x + 18.0, cat_y, &cat, theme::TEXT_3(), chrome - 2.5, clip);
 
         // ---- rows ----
         let list_top = box_y + search_h + cat_h;
@@ -338,33 +341,37 @@ impl PaletteEngine {
             let selected = idx == self.sel;
             let (icon, desc, fill) = Self::meta(cmd.id);
             if selected {
-                ctx.dl_grad_h(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::hex(0x7c5cff, 0.22), 0.9);
-                ctx.dl_stroke(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::ACCENT_LINE, 1.0);
-                ctx.dl_shadow(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::ACCENT_GLOW, 16.0);
+                ctx.dl_grad_h(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::accent_a(0.22), 0.9);
+                ctx.dl_stroke(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::ACCENT_LINE(), 1.0);
+                ctx.dl_shadow(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::ACCENT_GLOW(), 16.0);
             }
             // Leading icon tile (30px rounded, bordered).
             let tile = 30.0;
             let tile_x = box_x + 18.0;
             let tile_y = ry + (row_h - tile) * 0.5;
             if selected {
-                ctx.dl_round(tile_x, tile_y, tile, tile, 7.0, theme::hex(0x7c5cff, 0.10));
-                ctx.dl_stroke(tile_x, tile_y, tile, tile, 7.0, theme::ACCENT_LINE, 1.0);
+                ctx.dl_round(tile_x, tile_y, tile, tile, 7.0, theme::accent_a(0.10));
+                ctx.dl_stroke(tile_x, tile_y, tile, tile, 7.0, theme::ACCENT_LINE(), 1.0);
             } else {
-                ctx.dl_round(tile_x, tile_y, tile, tile, 7.0, theme::BG_2);
-                ctx.dl_stroke(tile_x, tile_y, tile, tile, 7.0, theme::BORDER, 1.0);
+                ctx.dl_round(tile_x, tile_y, tile, tile, 7.0, theme::BG_2());
+                ctx.dl_stroke(tile_x, tile_y, tile, tile, 7.0, theme::BORDER(), 1.0);
             }
-            let icon_col = if selected { theme::ACCENT_BRIGHT } else { theme::TEXT_1 };
+            let icon_col = if selected { theme::ACCENT_BRIGHT() } else { theme::TEXT_1() };
             ctx.dl_icon(tile_x + 6.5, tile_y + 6.5, 17.0, 17.0, icon, icon_col, 1.6, fill);
 
             // Title + dim description (two lines).
             let txt_x = box_x + 60.0;
-            ctx.text.queue_ui_sized(txt_x, ry + 11.0, cmd.label, theme::TEXT, 13.5, clip);
+            ctx.text.queue_ui_sized(txt_x, ry + 11.0, cmd.label, theme::TEXT(), 13.5, clip);
             if !desc.is_empty() {
-                ctx.text.queue_ui_sized(txt_x, ry + 28.0, desc, theme::TEXT_3, 11.5, clip);
+                ctx.text.queue_ui_sized(txt_x, ry + 28.0, desc, theme::TEXT_3(), 11.5, clip);
             }
 
-            // Right-aligned kbd pills.
-            let parts: Vec<&str> = cmd.keybinding.split('+').collect();
+            // Right-aligned kbd pills (commands with no keybinding draw none).
+            let parts: Vec<&str> = if cmd.keybinding.is_empty() {
+                Vec::new()
+            } else {
+                cmd.keybinding.split('+').collect()
+            };
             let pill_pad = 7.0;
             let gap = 4.0;
             let kadv = 11.0 * 0.55;
@@ -379,9 +386,9 @@ impl PaletteEngine {
             for (k, part) in parts.iter().enumerate() {
                 let pw = widths[k];
                 let (pbg, pborder, pfg) = if selected {
-                    (theme::hex(0x7c5cff, 0.10), theme::ACCENT_LINE, theme::ACCENT_BRIGHT)
+                    (theme::accent_a(0.10), theme::ACCENT_LINE(), theme::ACCENT_BRIGHT())
                 } else {
-                    (theme::BG_2, theme::BORDER_STRONG, theme::TEXT_1)
+                    (theme::BG_2(), theme::BORDER_STRONG(), theme::TEXT_1())
                 };
                 ctx.dl_round(px, py, pw, pill_h, 5.0, pbg);
                 ctx.dl_stroke(px, py, pw, pill_h, 5.0, pborder, 1.0);
@@ -393,24 +400,24 @@ impl PaletteEngine {
 
         // ---- footer hint line ----
         let foot_y = box_y + box_h - foot_h;
-        ctx.dl_rect(box_x + 1.0, foot_y, box_w - 2.0, 1.0, theme::BORDER);
-        ctx.dl_round(box_x + 1.0, foot_y, box_w - 2.0, foot_h - 1.0, 0.0, theme::BG_2);
+        ctx.dl_rect(box_x + 1.0, foot_y, box_w - 2.0, 1.0, theme::BORDER());
+        ctx.dl_round(box_x + 1.0, foot_y, box_w - 2.0, foot_h - 1.0, 0.0, theme::BG_2());
         let fty = foot_y + (foot_h - chrome + 1.0) * 0.5 - 1.0;
         let mut fx = box_x + 18.0;
         let foot_seg = |ctx: &mut crate::MuiContext, key: &str, label: &str, fx: &mut f32| {
             let kw = (key.chars().count() as f32 * 6.0 + 10.0).max(20.0);
-            ctx.dl_round(*fx, foot_y + (foot_h - 18.0) * 0.5, kw, 18.0, 4.0, theme::BG_1);
-            ctx.dl_stroke(*fx, foot_y + (foot_h - 18.0) * 0.5, kw, 18.0, 4.0, theme::BORDER_STRONG, 1.0);
-            ctx.text.queue_ui_sized(*fx + 5.0, foot_y + (foot_h - 10.0) * 0.5, key, theme::TEXT_1, 10.0, clip);
+            ctx.dl_round(*fx, foot_y + (foot_h - 18.0) * 0.5, kw, 18.0, 4.0, theme::BG_1());
+            ctx.dl_stroke(*fx, foot_y + (foot_h - 18.0) * 0.5, kw, 18.0, 4.0, theme::BORDER_STRONG(), 1.0);
+            ctx.text.queue_ui_sized(*fx + 5.0, foot_y + (foot_h - 10.0) * 0.5, key, theme::TEXT_1(), 10.0, clip);
             *fx += kw + 6.0;
-            ctx.text.queue_ui_sized(*fx, fty, label, theme::TEXT_3, 11.0, clip);
+            ctx.text.queue_ui_sized(*fx, fty, label, theme::TEXT_3(), 11.0, clip);
             *fx += label.chars().count() as f32 * 6.0 + 16.0;
         };
         foot_seg(ctx, "\u{2191}\u{2193}", "navigate", &mut fx);
         foot_seg(ctx, "\u{21B5}", "select", &mut fx);
         foot_seg(ctx, "esc", "dismiss", &mut fx);
         let tag = "Mighty Command Palette";
-        ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT, 11.0, clip);
+        ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
     }
 }
 

@@ -63,7 +63,7 @@ pub struct Gpu {
 }
 
 /// The clear color used at the start of every frame — the Aurora Noir window
-/// base `#0c0e13`. Kept in sync with [`crate::theme::BG`]. The atmospheric glow
+/// base `#0c0e13`. Kept in sync with [`crate::theme::BG()`]. The atmospheric glow
 /// is then drawn on top as a full-window textured quad ([`Gpu::render_background`]).
 pub const CLEAR_COLOR: wgpu::Color = wgpu::Color {
     r: 0x0c as f64 / 255.0,
