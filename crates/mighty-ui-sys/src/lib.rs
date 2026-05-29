@@ -179,6 +179,11 @@ pub struct MuiContext {
     dl: vello_ui::DisplayList,
     /// The Vello UI renderer, built lazily on the first frame. `None` until then.
     vello_ui: Option<vello_ui::VelloUi>,
+    /// Screenshot-only hook (`MUI_COMPLETE_AUTOOPEN`): when `Some`, the
+    /// autocomplete dropdown is force-drawn at this `(row, col)` each frame so a
+    /// headless capture shows it (it otherwise only draws while `completing` in
+    /// the Mighty loop, which a non-interactive run can't enter). `None` normally.
+    complete_autoopen: Option<(i32, i32)>,
 }
 
 // ---------------------------------------------------------------------------
@@ -447,6 +452,7 @@ pub(crate) fn build_context(
         vello_proof: None,
         dl: vello_ui::DisplayList::default(),
         vello_ui: None,
+        complete_autoopen: None,
     });
     Box::into_raw(ctx)
 }
@@ -726,6 +732,22 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         }
     }
 
+    // Screenshot hook: force-draw the autocomplete dropdown when armed (so a
+    // headless capture shows it). Mirrors `mui_complete_draw_at` exactly.
+    if let Some((row, col)) = ctx.complete_autoopen {
+        let region = layout::region(ctx.sidebar_visible);
+        let total = ctx.tabs.active_model().line_count().max(1) as u64;
+        let cx = layout::text_x_in(region, total, col);
+        let cy = layout::row_y_in(region, row);
+        let engine = std::mem::take(&mut ctx.complete);
+        ctx.overlay = true;
+        ctx.text.set_overlay(true);
+        engine.draw(ctx, cx, cy, w, h);
+        ctx.overlay = false;
+        ctx.text.set_overlay(false);
+        ctx.complete = engine;
+    }
+
     // Fold the queued glyphon text runs into the display list (each keeps its
     // layer/font/size/color), so the Vello scene reproduces all chrome + code.
     ctx.text.drain_into_display_list(&mut ctx.dl);
@@ -972,6 +994,7 @@ impl MuiContext {
             vello_proof: None,
             dl: vello_ui::DisplayList::default(),
             vello_ui: None,
+            complete_autoopen: None,
         })
     }
 

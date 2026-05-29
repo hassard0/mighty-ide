@@ -158,6 +158,39 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         }
     }
 
+    // Screenshot/render hook for autocomplete: with MUI_COMPLETE_AUTOOPEN set,
+    // run a scripted completion request against the active buffer and LEAVE the
+    // dropdown open + anchored, so a headless screenshot shows it (the dropdown
+    // otherwise only renders while the Mighty loop is `completing`). The env
+    // value is the prefix to complete (default `"cl"`). No effect on launches.
+    if std::env::var_os("MUI_COMPLETE_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let prefix = std::env::var("MUI_COMPLETE_AUTOOPEN")
+                .ok()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty() && v != "1")
+                .unwrap_or_else(|| "cl".to_string());
+            // Build active-tab bytes + a newline + the prefix; request there.
+            let active = ctx.tabs.active();
+            let mut buf: Vec<u8> = Vec::new();
+            let n = ctx.tabs.load_len(active);
+            for i in 0..(n.max(0) as usize) {
+                let b = ctx.tabs.load_byte(active, i);
+                if (0..=255).contains(&b) {
+                    buf.push(b as u8);
+                }
+            }
+            buf.push(b'\n');
+            buf.extend_from_slice(prefix.as_bytes());
+            let cursor = buf.len();
+            ctx.complete_buf = buf;
+            let count = ctx.complete.request(&ctx.complete_buf, cursor, &[]);
+            // Anchor near the top of the editor body so the card is fully visible.
+            ctx.complete_autoopen = Some((6, prefix.chars().count() as i32 + 8));
+            println!("mui_init_s: MUI_COMPLETE_AUTOOPEN -> prefix=\"{prefix}\" candidates={count}");
+        }
+    }
+
     handle
 }
 
