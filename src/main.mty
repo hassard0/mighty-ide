@@ -76,6 +76,43 @@ extern c {
   fn mui_find_match_offset(handle: I64, i: I32) -> I32
   fn mui_find_needle_len(handle: I64) -> I32
   fn mui_find_highlight_row(handle: I64, row: I32, col_start: I32, len: I32, total_lines: I32)
+  // ---- multi-file workspace (sub-project 4): tabs + file tree + sidebar ----
+  // path staging (reused from load/save) for Ctrl+O open-by-path
+  fn mui_path_clear(handle: I64)
+  fn mui_path_push(handle: I64, byte: I32)
+  // tab store
+  fn mui_tab_count(handle: I64) -> I32
+  fn mui_tab_active(handle: I64) -> I32
+  fn mui_tab_open_path(handle: I64) -> I32
+  fn mui_tab_switch(handle: I64, idx: I32) -> I32
+  fn mui_tab_next(handle: I64) -> I32
+  fn mui_tab_prev(handle: I64) -> I32
+  fn mui_tab_close(handle: I64, idx: I32) -> I32
+  fn mui_tab_index_at_click(handle: I64) -> I32
+  fn mui_tab_store_begin(handle: I64, idx: I32)
+  fn mui_tab_store_byte(handle: I64, idx: I32, byte: I32)
+  fn mui_tab_store_commit(handle: I64, idx: I32, cursor_line: I32, cursor_col: I32, scroll_first: I32)
+  fn mui_tab_set_dirty(handle: I64, idx: I32, dirty: I32)
+  fn mui_tab_load(handle: I64, idx: I32) -> I64
+  fn mui_tab_load_byte(handle: I64, idx: I32, i: I64) -> I32
+  fn mui_tab_cursor_line(handle: I64, idx: I32) -> I32
+  fn mui_tab_cursor_col(handle: I64, idx: I32) -> I32
+  fn mui_tab_scroll(handle: I64, idx: I32) -> I32
+  fn mui_tab_bar_draw(handle: I64)
+  // file-tree sidebar
+  fn mui_sidebar_visible(handle: I64) -> I32
+  fn mui_sidebar_toggle(handle: I64) -> I32
+  fn mui_sidebar_draw(handle: I64)
+  fn mui_tree_refresh(handle: I64) -> I32
+  fn mui_tree_count(handle: I64) -> I32
+  fn mui_tree_is_dir(handle: I64, i: I32) -> I32
+  fn mui_tree_depth(handle: I64, i: I32) -> I32
+  fn mui_tree_is_expanded(handle: I64, i: I32) -> I32
+  fn mui_tree_toggle(handle: I64, i: I32) -> I32
+  fn mui_tree_row_at_click(handle: I64) -> I32
+  fn mui_tree_open_row(handle: I64, i: I32) -> I32
+  // stdout evidence (computed counts; Mighty `log` is literal-only, L1)
+  fn mui_log_workspace(handle: I64)
 }
 
 // ---- event tags / keys / mods (mirror mighty_ui.h) ----
@@ -90,11 +127,21 @@ fn key_up() -> I32 { 3 }
 fn key_down() -> I32 { 4 }
 fn key_backspace() -> I32 { 5 }
 fn key_enter() -> I32 { 6 }
+fn key_tab() -> I32 { 7 }
 fn key_escape() -> I32 { 8 }
 
 // prompt kinds (mirror PromptKind in prompt.rs)
 fn prompt_goto() -> I32 { 1 }
 fn prompt_find() -> I32 { 2 }
+fn prompt_open() -> I32 { 3 }
+
+// True if the shift bit (value 1) is set in `mods`.
+fn shift_held(mods: I32) -> Bool {
+  let half = mods / 2
+  let even = half * 2
+  let bit = mods - even
+  bit == 1
+}
 
 // True if the ctrl bit (value 2) is set in `mods`. No `%` in v0.36, so test
 // the bit via integer division parity: (mods / 2) is odd  <=>  bit 1 set.
@@ -442,6 +489,53 @@ fn save_buffer(h: I64, buf: Vec[I32]) -> I32 {
   mui_save_commit(h)
 }
 
+// ---- multi-file workspace: tab byte-swap helpers (sub-project 4) ----
+//
+// The live edit buffer lives in Mighty; all OTHER tabs live shim-side. To
+// switch tabs we serialize the live buffer (+ cursor/scroll) into the active
+// slot, then pull the target slot's bytes back into a fresh Mighty buffer and
+// restore its saved cursor/scroll. Both directions are FLAT loops (L21-safe):
+// the store loop's condition reads `buf` each step; the load loop reads no
+// Mighty Vec param (it pushes onto a fresh local from scalar getters).
+
+// Serialize the live buffer + editor state into tab slot `idx`. FLAT scan.
+fn store_tab(h: I64, buf: Vec[I32], idx: I32, cur: USize, first: USize) {
+  mui_tab_store_begin(h, idx)
+  let mut i: USize = 0
+  while i < buf.len() {
+    mui_tab_store_byte(h, idx, byte_at(buf, i))
+    i = i + 1
+  }
+  let cl = usize_to_i32(line_of(buf, cur))
+  let cc = usize_to_i32(col_of(buf, cur))
+  let fl = usize_to_i32(first)
+  mui_tab_store_commit(h, idx, cl, cc, fl)
+}
+
+// Pull tab slot `idx`'s bytes into a fresh Mighty buffer. No Vec param read.
+fn load_tab_buffer(h: I64, idx: I32) -> Vec[I32] effect alloc {
+  let mut out: Vec[I32] = Vec.new()
+  let n = mui_tab_load(h, idx)
+  if n > 0 {
+    let mut i: I64 = 0
+    while i < n {
+      let b = mui_tab_load_byte(h, idx, i)
+      if b >= 0 { out = out.push(b) }
+      i = i + 1
+    }
+  }
+  out
+}
+
+// Restore a buffer cursor offset from tab slot `idx`'s saved (line, col),
+// clamped to `buf` (a freshly-loaded buffer). FLAT helper reuse after a flat
+// load loop is L21-safe.
+fn restore_cursor(buf: Vec[I32], h: I64, idx: I32) -> USize {
+  let l = i32_to_usize(mui_tab_cursor_line(h, idx))
+  let c = i32_to_usize(mui_tab_cursor_col(h, idx))
+  offset_of(buf, l, c)
+}
+
 // Jump the cursor to find match `idx` (0-based). Returns the new cursor offset,
 // or the unchanged `cur` if the index is out of range. Uses the match's
 // (line, col) and the buffer's own offset_of (clamped).
@@ -460,17 +554,15 @@ fn main() {
     log("mighty-ide: mui_init_s failed")
     return
   }
-  let n = mui_load(h)
-  let mut buf: Vec[I32] = Vec.new()
-  if n > 0 {
-    let mut i: I64 = 0
-    while i < n {
-      let b = mui_load_byte(h, i)
-      if b >= 0 { buf = buf.push(b) }
-      i = i + 1
-    }
-  }
+  // The shim opened argv[1] as tab 0; pull its bytes into the live buffer.
+  let mut active: I32 = mui_tab_active(h)
+  let mut buf: Vec[I32] = load_tab_buffer(h, active)
   log("mighty-ide: buffer ready")
+
+  // Workspace wiring evidence for non-interactive runs (the user can't see it).
+  // Mighty native `log` takes only string literals (L1), so the shim prints the
+  // computed tab_count / tree entry count to stdout.
+  mui_log_workspace(h)
 
   // Initial diagnostics pass on the on-disk file.
   let dn = mui_diag_refresh(h)
@@ -483,7 +575,7 @@ fn main() {
   let headless_limit: I32 = 240   // self-terminate so non-interactive runs exit
 
   // ---- prompt / find mode state ----
-  // prompt_kind: 0 = none, 1 = goto, 2 = find (mirrors the shim's active prompt).
+  // prompt_kind: 0 = none, 1 = goto, 2 = find, 3 = open (mirrors the shim).
   let mut prompt_kind: I32 = 0
   // After a successful Find, `find_nav` is true and `find_idx` is the current
   // match; Enter / 'n' advance, Escape / any edit clears. Matches live shim-side.
@@ -520,6 +612,27 @@ fn main() {
               }
               mui_prompt_cancel(h)
               prompt_kind = 0
+            } else if prompt_kind == prompt_open() {
+              // sub-project 4: stream the typed path into the shim, open as a
+              // tab. Save the current buffer into its slot first (byte-swap).
+              store_tab(h, buf, active, cur, first)
+              mui_path_clear(h)
+              let plen = mui_prompt_len(h)
+              let mut pi: I32 = 0
+              while pi < plen {
+                let pc = mui_prompt_char(h, pi)
+                if pc >= 0 { mui_path_push(h, pc) }
+                pi = pi + 1
+              }
+              let newidx = mui_tab_open_path(h)
+              active = newidx
+              buf = load_tab_buffer(h, active)
+              cur = restore_cursor(buf, h, active)
+              first = i32_to_usize(mui_tab_scroll(h, active))
+              find_nav = false
+              let _r = mui_diag_refresh(h)
+              mui_prompt_cancel(h)
+              prompt_kind = 0
             } else {
               // feature 4: run the find, jump to the first match if any.
               let cnt = run_find(h, buf)
@@ -542,8 +655,11 @@ fn main() {
         if ctrl_held(mods) && (cp == 115 || cp == 83) {     // Ctrl+S / Ctrl+s
           let rc = save_buffer(h, buf)
           if rc == 0 { log("mighty-ide: saved") } else { log("mighty-ide: save FAILED") }
-          // The on-disk file is current after save; re-check it.
-          if rc == 0 { let _r = mui_diag_refresh(h) }
+          // The on-disk file is current after save; re-check it + clear dirty.
+          if rc == 0 {
+            mui_tab_set_dirty(h, active, 0)
+            let _r = mui_diag_refresh(h)
+          }
         } else if ctrl_held(mods) && (cp == 103 || cp == 71) {   // Ctrl+G / Ctrl+g
           mui_prompt_open(h, prompt_goto())
           prompt_kind = prompt_goto()
@@ -551,6 +667,20 @@ fn main() {
         } else if ctrl_held(mods) && (cp == 102 || cp == 70) {   // Ctrl+F / Ctrl+f
           mui_prompt_open(h, prompt_find())
           prompt_kind = prompt_find()
+        } else if ctrl_held(mods) && (cp == 111 || cp == 79) {   // Ctrl+O / Ctrl+o: open file
+          mui_prompt_open(h, prompt_open())
+          prompt_kind = prompt_open()
+          find_nav = false
+        } else if ctrl_held(mods) && (cp == 98 || cp == 66) {    // Ctrl+B / Ctrl+b: toggle sidebar
+          let _s = mui_sidebar_toggle(h)
+        } else if ctrl_held(mods) && (cp == 119 || cp == 87) {   // Ctrl+W / Ctrl+w: close active tab
+          store_tab(h, buf, active, cur, first)
+          active = mui_tab_close(h, active)
+          buf = load_tab_buffer(h, active)
+          cur = restore_cursor(buf, h, active)
+          first = i32_to_usize(mui_tab_scroll(h, active))
+          find_nav = false
+          let _r = mui_diag_refresh(h)
         } else if find_nav && (cp == 110 || cp == 78) {     // 'n' / 'N': next match
           let cnt = mui_find_count(h)
           if cnt > 0 {
@@ -562,11 +692,34 @@ fn main() {
           find_nav = false
           buf = insert_at(buf, cur, cp)
           cur = cur + 1
+          mui_tab_set_dirty(h, active, 1)
         }
       } else if tag == ev_key() {
         let k = mui_event_key(h)
         if k == key_escape() {
           find_nav = false                                  // clear find highlights
+        } else if k == key_tab() {
+          let kmods = mui_event_mods(h)
+          if ctrl_held(kmods) {
+            // sub-project 2: Ctrl+Tab next / Ctrl+Shift+Tab prev. Byte-swap the
+            // live buffer into the active slot, then load the new one.
+            store_tab(h, buf, active, cur, first)
+            if shift_held(kmods) {
+              active = mui_tab_prev(h)
+            } else {
+              active = mui_tab_next(h)
+            }
+            buf = load_tab_buffer(h, active)
+            cur = restore_cursor(buf, h, active)
+            first = i32_to_usize(mui_tab_scroll(h, active))
+            find_nav = false
+            let _r = mui_diag_refresh(h)
+          } else {
+            // Plain Tab inserts a tab character.
+            buf = insert_at(buf, cur, 9)
+            cur = cur + 1
+            mui_tab_set_dirty(h, active, 1)
+          }
         } else if k == key_left() {
           if cur > 0 { cur = cur - 1 }
         } else if k == key_right() {
@@ -580,6 +733,7 @@ fn main() {
             find_nav = false
             cur = cur - 1
             buf = delete_at(buf, cur)
+            mui_tab_set_dirty(h, active, 1)
           }
         } else if k == key_enter() {
           if find_nav {
@@ -592,6 +746,7 @@ fn main() {
           } else {
             buf = insert_at(buf, cur, 10)
             cur = cur + 1
+            mui_tab_set_dirty(h, active, 1)
           }
         }
       } else if tag == ev_scroll() {
@@ -603,12 +758,46 @@ fn main() {
           first = first + 3
         }
       } else if tag == ev_mouse_down() {
-        let total = line_count(buf)
-        let total_i = usize_to_i32(total)
-        let first_i = usize_to_i32(first)
-        let cl_i = mui_click_line(h, first_i, total_i)
-        let cc_i = mui_click_col(h, total_i)
-        cur = offset_of(buf, i32_to_usize(cl_i), i32_to_usize(cc_i))
+        // Route the click: tab bar (top), sidebar (left), or the text area.
+        let tab_hit = mui_tab_index_at_click(h)
+        let tree_hit = mui_tree_row_at_click(h)
+        if tab_hit >= 0 {
+          // sub-project 2: clicking a tab switches to it (byte-swap first).
+          if tab_hit != active {
+            store_tab(h, buf, active, cur, first)
+            active = mui_tab_switch(h, tab_hit)
+            buf = load_tab_buffer(h, active)
+            cur = restore_cursor(buf, h, active)
+            first = i32_to_usize(mui_tab_scroll(h, active))
+            find_nav = false
+            let _r = mui_diag_refresh(h)
+          }
+        } else if tree_hit >= 0 {
+          // sub-project 3: dir row toggles expand; file row opens in a tab.
+          let isdir = mui_tree_is_dir(h, tree_hit)
+          if isdir == 1 {
+            let _c = mui_tree_toggle(h, tree_hit)
+          } else if isdir == 0 {
+            store_tab(h, buf, active, cur, first)
+            let newidx = mui_tree_open_row(h, tree_hit)
+            if newidx >= 0 {
+              active = newidx
+              buf = load_tab_buffer(h, active)
+              cur = restore_cursor(buf, h, active)
+              first = i32_to_usize(mui_tab_scroll(h, active))
+              find_nav = false
+              let _r = mui_diag_refresh(h)
+            }
+          }
+        } else {
+          // Text area: place the cursor.
+          let total = line_count(buf)
+          let total_i = usize_to_i32(total)
+          let first_i = usize_to_i32(first)
+          let cl_i = mui_click_line(h, first_i, total_i)
+          let cc_i = mui_click_col(h, total_i)
+          cur = offset_of(buf, i32_to_usize(cl_i), i32_to_usize(cc_i))
+        }
       }
       tag = mui_poll_event_s(h)
     }
@@ -628,6 +817,9 @@ fn main() {
     if find_nav { draw_find_highlights(h, total_now_i, first, rows) }
     draw_diagnostics(h, total_now_i, first, rows)
     draw_status_bar(h, buf, cur)
+    // sub-projects 1+3: tab bar (top) + file-tree sidebar (left).
+    mui_sidebar_draw(h)
+    mui_tab_bar_draw(h)
     if prompt_kind != 0 { mui_prompt_draw(h) }
     mui_end_frame_s(h)
 

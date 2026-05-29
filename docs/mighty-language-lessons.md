@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-05-29 (during Phase 1 — pure-Mighty editor model TDD)._
+_Last updated: 2026-05-29 (multi-file workspace: tabs + file-tree sidebar)._
 
 ---
 
@@ -190,6 +190,9 @@ Discovered building the live-diagnostics engine (shim runs `mty check <path>`, p
 - **`check` is narrower than expected:** an undefined identifier (`log(undefined_thing)`) and a trivial parse glitch (`let =`) both printed `ok:` here — only type-level errors surfaced. So `mty check` is not a full lint pass in v0.36; missing diagnostics aren't a parser bug on our side.
 - **No end column:** the report gives only a start col; the engine records `col_end = col_start + 1` so the underline is a visible one-cell marker.
 **Suggested fix (stardust):** carry the real expression span into type-error diagnostics (don't collapse to the fn header); honor `NO_COLOR`; widen `check` to report name-resolution/parse errors.
+
+### L23. Native `log(...)` accepts only a string LITERAL → no computed-value tracing from Mighty ✅ **[P1]**
+Re-confirmed building the multi-file workspace (tabs + file tree). The IDE wanted to print the live `tab_count` / tree-entry count to stdout as headless launch evidence, but native `mty build` lowers `log` only for string-literal arguments (the CODEGEN_V0_2_NOTES "non-literal string in log/print" gap, first noted in L1). `log(tab_count)` (an `I32`) and any `"prefix" + n` concatenation are both unavailable — Mighty has no string building (L3) and no int→string conversion. **Workaround (verified ✅):** push the print into the shim — a zero-arg-from-Mighty FFI entry (`mui_log_workspace(handle)`) reads the counts shim-side and `println!`s them. Every "show me a computed number" trace in a built Mighty app must round-trip through a Rust FFI printer like this; Mighty `log` is only for fixed string milestones. **Suggested fix:** lower non-literal `log`/`print` args in native codegen (pair with int/float→string formatting in the stdlib), so a built binary can trace computed values without an FFI shim.
 
 ## P1 — Major ergonomic gaps for real programs
 
