@@ -15,21 +15,25 @@ pub const CHAR_W: f32 = crate::theme::CHAR_W;
 /// Gap (px) between the line-number gutter and the text column.
 pub const GUTTER_GAP: f32 = crate::theme::SPACE;
 /// Base 8px spacing unit (re-exported from the theme for layout sites).
+#[allow(dead_code)]
 pub const SPACE: f32 = crate::theme::SPACE;
 
-/// Height (px) of the top tab bar (matches the mockup's 38px tabs row).
-pub const TAB_BAR_H: f32 = 38.0;
+/// Height (px) of the top tab bar (matches the mockup's 40px tabs row).
+pub const TAB_BAR_H: f32 = 40.0;
 /// Height (px) of the breadcrumb bar at the top of the editor body.
 pub const BREADCRUMB_H: f32 = 30.0;
-/// Width (px) of the far-left activity rail (icons column).
+/// Width (px) of the far-left activity rail (icons column) — mockup `52px`.
 pub const RAIL_W: f32 = 52.0;
 /// Width (px) of one tab in the tab bar (fixed-width tabs keep click→index math
 /// trivial: `idx = floor((x - RAIL_W) / TAB_W)`).
-pub const TAB_W: f32 = 150.0;
+pub const TAB_W: f32 = 160.0;
 /// Width (px) of the file-tree sidebar content (right of the rail) when shown.
-pub const SIDEBAR_W: f32 = 196.0;
-/// Pixels of indentation per tree depth level.
-pub const TREE_INDENT: f32 = 14.0;
+/// Mockup sidebar column is `248px` total; rail is separate, so the panel is
+/// `248 - 52 = 196`… but the mockup's body grid is `52px 248px 1fr`, meaning the
+/// sidebar panel itself is 248. Match that.
+pub const SIDEBAR_W: f32 = 248.0;
+/// Pixels of indentation per tree depth level (mockup `.indent` = 16px).
+pub const TREE_INDENT: f32 = 16.0;
 
 /// Fraction of the window height the integrated terminal panel occupies when
 /// open (a "lower third").
@@ -200,6 +204,9 @@ pub fn term_cell_y(height: u32, row: usize) -> f32 {
 }
 
 /// Map the tab-bar pixel x to a tab index (`floor((x - RAIL_W) / TAB_W)`).
+/// Retained for the unit test + as the no-sidebar inverse; the live click
+/// handler ([`crate::mui_tab_index_at_click`]) offsets by the sidebar width.
+#[allow(dead_code)]
 pub fn tab_index_at(x: f32) -> u32 {
     if x <= RAIL_W {
         0
@@ -211,7 +218,8 @@ pub fn tab_index_at(x: f32) -> u32 {
 /// Y pixel (top) of the first file row in the sidebar — below the tab bar and
 /// the dim uppercase section header.
 pub fn tree_rows_top() -> f32 {
-    TAB_BAR_H + PAD + LINE_H
+    // Sidebar header band (40px) + 6px gap, matching `mui_sidebar_draw`.
+    40.0 + 6.0
 }
 
 /// Map a sidebar pixel y to a tree row index. Rows start at [`tree_rows_top`]

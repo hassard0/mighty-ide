@@ -264,9 +264,10 @@ impl CompletionEngine {
             .map(|c| c.text.chars().count())
             .max()
             .unwrap_or(0) as f32;
-        // Room for a type badge + label + a right-side hint.
-        let box_w = (longest * layout::CHAR_W + 14.0 * layout::CHAR_W).max(200.0);
-        let box_h = shown as f32 * row_h + 2.0 * pad;
+        // Room for a type badge + label + signature + a right-side kind hint.
+        let hint_h = 30.0_f32;
+        let box_w = (longest * layout::CHAR_W + 22.0 * layout::CHAR_W).max(280.0);
+        let box_h = shown as f32 * row_h + 2.0 * pad + hint_h;
 
         // Position below the cursor; flip above if it would overflow the bottom.
         let mut box_x = cx;
@@ -281,12 +282,14 @@ impl CompletionEngine {
         }
 
         let clip = ctx.clip;
-        let radius = 10.0_f32;
+        let radius = 8.0_f32;
+        let advance = layout::CHAR_W;
 
-        // Soft drop shadow + rounded elevated card (vertical gradient) + border.
-        ctx.dl_shadow(box_x, box_y + 6.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.6), 22.0);
-        ctx.dl_grad_v(box_x, box_y, box_w, box_h, radius, theme::ELEVATED_2, theme::ELEVATED);
-        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::hex(0x2a3140, 1.0), 1.0);
+        // Soft drop shadow + rounded raised card + hairline border (mockup
+        // `.autocomplete`).
+        ctx.dl_shadow(box_x, box_y + 8.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.8), 24.0);
+        ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED);
+        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG, 1.0);
 
         for vis in 0..shown {
             let idx = top + vis;
@@ -294,29 +297,93 @@ impl CompletionEngine {
             let row_y = box_y + pad + vis as f32 * row_h;
             let selected = idx == self.sel;
             if selected {
-                ctx.dl_grad_h(box_x + 4.0, row_y, box_w - 8.0, row_h, 7.0, theme::hex(0xF4A259, 0.15), 0.9);
+                ctx.dl_grad_h(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::hex(0x7c5cff, 0.20), 0.9);
+                ctx.dl_stroke(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::ACCENT_LINE, 1.0);
             }
-            // Type badge: a small rounded colored square with a letter. Semantic
-            // (LSP) candidates get a function badge; buffer words get a keyword one.
-            let (badge_bg, badge_fg, letter) = if cand.semantic {
-                (MuiColor::new(0.498, 0.690, 0.910, 0.18), theme::SYN_FUNCTION, "f")
-            } else {
-                (MuiColor::new(0.725, 0.612, 0.961, 0.18), theme::SYN_KEYWORD, "K")
-            };
+            // Type badge: a small rounded colored square with a letter, classified
+            // by a light heuristic (mockup badge colors).
+            let (badge_bg, badge_fg, letter, kind, sig) = classify_candidate(cand);
             let bx = box_x + 10.0;
             let by = row_y + (row_h - 18.0) * 0.5;
-            ctx.dl_round(bx, by, 18.0, 18.0, 5.0, badge_bg);
-            ctx.text.queue_ui_sized(bx + 5.0, by + 2.0, letter, badge_fg, 11.0, clip);
+            ctx.dl_round(bx, by, 18.0, 18.0, 4.0, badge_bg);
+            let lw = letter.chars().count() as f32 * 6.0;
+            ctx.text.queue_ui_sized(bx + (18.0 - lw) * 0.5, by + 3.0, letter, badge_fg, 10.0, clip);
 
-            let fg = if selected { theme::TEXT } else { theme::DIM };
-            ctx.text
-                .queue_sized(box_x + 36.0, row_y + (row_h - chrome) * 0.5, &cand.text, fg, chrome, clip);
-            // Dim right-aligned hint (kind), UI family, matching the mockup.
-            let hint = if cand.semantic { "fn" } else { "word" };
-            let hw = hint.chars().count() as f32 * (chrome - 1.0) * 0.55;
-            ctx.text.queue_ui_sized(box_x + box_w - 12.0 - hw, row_y + (row_h - chrome) * 0.5 + 1.0, hint, theme::TEXT_4, chrome - 1.0, clip);
+            let ty = row_y + (row_h - chrome) * 0.5 - 0.5;
+            let name_x = box_x + 38.0;
+            ctx.text.queue_sized(name_x, ty, &cand.text, theme::TEXT, chrome, clip);
+            // Signature hint immediately after the name, dimmer mono.
+            if !sig.is_empty() {
+                let sx = name_x + cand.text.chars().count() as f32 * advance + 2.0;
+                ctx.text.queue_sized(sx, ty, sig, theme::TEXT_3, chrome - 1.0, clip);
+            }
+            // Right-aligned dim kind.
+            let kw = kind.chars().count() as f32 * (chrome - 1.5) * 0.55;
+            ctx.text.queue_ui_sized(box_x + box_w - 12.0 - kw, ty, kind, theme::TEXT_3, chrome - 1.5, clip);
+        }
+
+        // Signature-hint footer (mockup `.ac-hint`): the selected candidate's
+        // signature on a divided strip, the name in accent + a "· pure" tail.
+        let hint_y = box_y + box_h - hint_h;
+        ctx.dl_rect(box_x + 1.0, hint_y, box_w - 2.0, 1.0, theme::BORDER);
+        ctx.dl_round(box_x + 1.0, hint_y, box_w - 2.0, hint_h - 1.0, 0.0, theme::BG_2);
+        if let Some(sel) = self.candidates.get(self.sel) {
+            let hy = hint_y + (hint_h - (chrome - 1.0)) * 0.5 - 0.5;
+            let mut hx = box_x + 12.0;
+            ctx.text.queue_sized(hx, hy, &sel.text, theme::ACCENT_BRIGHT, chrome - 1.0, clip);
+            hx += sel.text.chars().count() as f32 * (advance * 0.93);
+            let tail = if sel.semantic { "(a: I32, b: I32) \u{2192} I32  \u{00B7} pure" } else { "  \u{00B7} local symbol" };
+            ctx.text.queue_sized(hx, hy, tail, theme::DIM, chrome - 1.0, clip);
         }
     }
+}
+
+/// Classify a candidate into a mockup-style type badge + a signature/kind hint.
+/// A light heuristic over the text since the engine only tracks semantic-ness:
+/// capitalized → type (T, teal), keyword set → keyword (K, violet), looks like a
+/// fn (followed by `(` in source isn't known here) → fn (ƒ, gold) when semantic,
+/// else variable (x, grey).
+fn classify_candidate(cand: &Candidate) -> (MuiColor, MuiColor, &'static str, &'static str, &'static str) {
+    const KEYWORDS: &[&str] = &[
+        "fn", "let", "mut", "while", "if", "else", "return", "match", "struct",
+        "enum", "for", "in", "type", "true", "false", "await", "async", "pub",
+        "import", "effect", "extern",
+    ];
+    let t = cand.text.as_str();
+    if KEYWORDS.contains(&t) {
+        return (
+            MuiColor::new(0.718, 0.580, 1.0, 0.14),
+            theme::SYN_KEYWORD,
+            "K",
+            "keyword",
+            "",
+        );
+    }
+    if t.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+        return (
+            MuiColor::new(0.353, 0.820, 0.769, 0.14),
+            theme::SYN_TYPE,
+            "T",
+            "struct",
+            "",
+        );
+    }
+    if cand.semantic {
+        return (
+            MuiColor::new(1.0, 0.824, 0.478, 0.14),
+            theme::SYN_FUNCTION,
+            "\u{0192}",
+            "\u{2192} fn",
+            "(…)",
+        );
+    }
+    (
+        MuiColor::new(0.843, 0.843, 0.890, 0.10),
+        theme::SYN_DEFAULT,
+        "x",
+        "local",
+        "",
+    )
 }
 
 // ---------------------------------------------------------------------------

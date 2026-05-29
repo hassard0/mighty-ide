@@ -117,6 +117,7 @@ pub enum UiCmd {
     },
     /// A radial glow filled over its bounding rect, fading center→edge. Used for
     /// the ember brand tile + soft accent glows.
+    #[allow(dead_code)]
     RadialGlow {
         cx: f32,
         cy: f32,
@@ -134,6 +135,24 @@ pub enum UiCmd {
         y: f32,
         w: f32,
         color: MuiColor,
+    },
+    /// A real vector icon: an SVG path (24x24 viewBox by convention) scaled into
+    /// the box `(x, y, w, h)`, then stroked (and/or filled) in `color`. This is
+    /// the crisp-icon primitive that replaces unicode-glyph "icons".
+    Icon {
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        /// SVG path `d=` data, in a 0..`vb` user-space box.
+        path: &'static str,
+        color: MuiColor,
+        /// Stroke width in *target* pixels (0 = fill only).
+        stroke: f32,
+        /// When `true`, also fill the path (used for solid badges/play tris).
+        fill: bool,
+        /// The source viewBox edge length (typically 24.0).
+        vb: f32,
     },
     /// An anti-aliased monospace/UI text run at baseline-top `(x, y)`.
     Text {
@@ -507,6 +526,43 @@ impl VelloUi {
                     &path,
                 );
             }
+            UiCmd::Icon {
+                x,
+                y,
+                w,
+                h,
+                path,
+                color,
+                stroke,
+                fill,
+                vb,
+            } => {
+                let Ok(bez) = BezPath::from_svg(path) else {
+                    return;
+                };
+                // Scale the viewBox box into the target box, preserving aspect by
+                // using a uniform scale (the smaller of the two) and centering.
+                let vb = (*vb as f64).max(1.0);
+                let sx = (*w as f64) / vb;
+                let sy = (*h as f64) / vb;
+                let s = sx.min(sy);
+                let off_x = *x as f64 + ((*w as f64) - vb * s) * 0.5;
+                let off_y = *y as f64 + ((*h as f64) - vb * s) * 0.5;
+                let aff = Affine::translate((off_x, off_y)) * Affine::scale(s);
+                let c = col(*color);
+                if *fill {
+                    scene.fill(Fill::NonZero, aff, c, None, &bez);
+                }
+                if *stroke > 0.0 {
+                    // Stroke width is specified in target px; divide by the scale
+                    // so the affine doesn't double-scale it.
+                    let sw = (*stroke as f64) / s.max(1e-6);
+                    let st = Stroke::new(sw)
+                        .with_caps(vello::kurbo::Cap::Round)
+                        .with_join(vello::kurbo::Join::Round);
+                    scene.stroke(&st, aff, c, None, &bez);
+                }
+            }
             UiCmd::Text {
                 x,
                 y,
@@ -607,6 +663,74 @@ fn radial(scene: &mut Scene, center: Point, radius: f64, color: Color, w: f64, h
         None,
         &Rect::new(0.0, 0.0, w, h),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::icons;
+
+    /// Every icon in the registry must be valid SVG path data that `kurbo` can
+    /// parse into a non-empty `BezPath` — the contract the `Icon` primitive
+    /// relies on (a parse failure silently draws nothing).
+    #[test]
+    fn all_registry_icons_parse_to_nonempty_paths() {
+        let all: &[(&str, &str)] = &[
+            ("EXPLORER", icons::EXPLORER),
+            ("SEARCH", icons::SEARCH),
+            ("GIT", icons::GIT),
+            ("RUN", icons::RUN),
+            ("AGENTS", icons::AGENTS),
+            ("AGENTS_DOT", icons::AGENTS_DOT),
+            ("USER", icons::USER),
+            ("SETTINGS", icons::SETTINGS),
+            ("FOLDER", icons::FOLDER),
+            ("FILE_MTY", icons::FILE_MTY),
+            ("FILE_TOML", icons::FILE_TOML),
+            ("FILE_MD", icons::FILE_MD),
+            ("FILE_TXT", icons::FILE_TXT),
+            ("CHEVRON", icons::CHEVRON),
+            ("CLOSE", icons::CLOSE),
+            ("DOTS", icons::DOTS),
+            ("NEW_FILE", icons::NEW_FILE),
+            ("NEW_FOLDER", icons::NEW_FOLDER),
+            ("COLLAPSE", icons::COLLAPSE),
+            ("FN_SYMBOL", icons::FN_SYMBOL),
+            ("BRANCH", icons::BRANCH),
+            ("PLUS", icons::PLUS),
+            ("ERROR_CIRCLE", icons::ERROR_CIRCLE),
+            ("WARN_TRI", icons::WARN_TRI),
+            ("LF", icons::LF),
+            ("LANG_M", icons::LANG_M),
+            ("BELL", icons::BELL),
+            ("TEST_BOX", icons::TEST_BOX),
+            ("INFO_I", icons::INFO_I),
+        ];
+        for (name, d) in all {
+            let bez = BezPath::from_svg(d)
+                .unwrap_or_else(|e| panic!("icon `{name}` failed to parse: {e}"));
+            assert!(
+                !bez.elements().is_empty(),
+                "icon `{name}` parsed to an empty path"
+            );
+        }
+    }
+
+    /// An `Icon` scaled into a target box paints into the scene without
+    /// panicking (smoke test over the affine + stroke math).
+    #[test]
+    fn icon_paints_into_scene() {
+        let mut scene = Scene::new();
+        let bez = BezPath::from_svg(icons::FILE_MTY).expect("parse");
+        let aff = Affine::translate((10.0, 10.0)) * Affine::scale(14.0 / 24.0);
+        scene.stroke(
+            &Stroke::new(2.0),
+            aff,
+            Color::rgba8(0x9d, 0x83, 0xff, 0xff),
+            None,
+            &bez,
+        );
+    }
 }
 
 

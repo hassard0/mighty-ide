@@ -18,6 +18,7 @@ mod ffi;
 mod format;
 mod gpu;
 mod history;
+mod icons;
 mod layout;
 mod nav;
 mod palette;
@@ -270,7 +271,7 @@ impl MuiContext {
         self.dl.push(vello_ui::UiCmd::StrokeRound { x, y, w, h, radius, color, width });
     }
     /// A radial glow over a clip rect (ember brand tile, soft accent glows).
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, dead_code)]
     pub(crate) fn dl_glow(
         &mut self,
         cx: f32,
@@ -296,6 +297,46 @@ impl MuiContext {
             clip_w,
             clip_h,
         });
+    }
+    /// A real vector icon (SVG path scaled into the box, stroked at `stroke`px,
+    /// optionally filled). The canonical icon primitive that replaces glyphs.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn dl_icon(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        path: &'static str,
+        color: MuiColor,
+        stroke: f32,
+        fill: bool,
+    ) {
+        self.dl.on_overlay = self.overlay;
+        self.dl.clip = self.clip.map(|(x, y, w, h)| (x as f32, y as f32, w as f32, h as f32));
+        self.dl.push(vello_ui::UiCmd::Icon {
+            x,
+            y,
+            w,
+            h,
+            path,
+            color,
+            stroke,
+            fill,
+            vb: crate::icons::VB,
+        });
+    }
+    /// A stroked icon at the default 1.5px stroke (the common case).
+    #[allow(dead_code)]
+    pub(crate) fn dl_icon_stroke(
+        &mut self,
+        x: f32,
+        y: f32,
+        sz: f32,
+        path: &'static str,
+        color: MuiColor,
+    ) {
+        self.dl_icon(x, y, sz, sz, path, color, 1.5, false);
     }
     /// A wavy red diagnostic underline.
     pub(crate) fn dl_squiggle(&mut self, x: f32, y: f32, w: f32, color: MuiColor) {

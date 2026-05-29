@@ -374,8 +374,10 @@ fn click_routing_tab_bar_sidebar_and_text() {
 
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
-    // Click in the tab bar over tab 1 (tabs start right of the activity rail).
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, layout::RAIL_W + layout::TAB_W + 5.0, 4.0, 0);
+    // Click in the tab bar over tab 1. Tabs start right of the rail AND the
+    // sidebar (when shown), matching `mui_tab_bar_draw`.
+    let body_left = layout::RAIL_W + layout::SIDEBAR_W;
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, body_left + layout::TAB_W + 5.0, 4.0, 0);
     assert_eq!(mui_tab_index_at_click(handle), 1);
     // Same x but below the tab bar -> not a tab click.
     ctx.last_event.y = layout::TAB_BAR_H + 50.0;

@@ -12,7 +12,6 @@
 //! matches. An empty query lists every command in registry order.
 
 use crate::ffi::MuiColor;
-use crate::layout;
 use crate::theme;
 
 /// A single editor command in the palette: a stable numeric `id` (the contract
@@ -236,102 +235,182 @@ impl PaletteEngine {
         }
     }
 
-    /// Draw a centered overlay box: the query line on top, then the filtered
-    /// commands (label left, keybinding right-aligned), the selection
-    /// highlighted. No-op when inactive. `width`/`height` are the window size.
+    /// A vector icon + a short description for a command id, matching the
+    /// mockup's rich palette rows.
+    fn meta(id: u32) -> (&'static str, &'static str, bool) {
+        use crate::icons;
+        // (icon path, description, fill?)
+        match id {
+            CMD_OPEN_FILE => (icons::NEW_FILE, "Open a file from the workspace", false),
+            CMD_SAVE => (icons::FILE_MTY, "Write the active file to disk", false),
+            CMD_FIND => (icons::SEARCH, "Search within the current document", false),
+            CMD_GOTO_LINE => (icons::CHEVRON, "Jump to a specific line number", false),
+            CMD_GOTO_DEFINITION => (icons::FN_SYMBOL, "Navigate to the symbol definition", false),
+            CMD_HOVER => (icons::INFO_I, "Show type & docs at the cursor", false),
+            CMD_TOGGLE_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
+            CMD_TOGGLE_SIDEBAR => (icons::EXPLORER, "Show or hide the file explorer", false),
+            CMD_NEXT_TAB => (icons::CHEVRON, "Switch to the next open tab", false),
+            CMD_PREV_TAB => (icons::CHEVRON, "Switch to the previous open tab", false),
+            CMD_CLOSE_TAB => (icons::CLOSE, "Close the active editor tab", false),
+            CMD_FORMAT_DOCUMENT => (icons::PLUS, "Apply mightyfmt to active file", false),
+            CMD_UNDO => (icons::CHEVRON, "Undo the last edit", false),
+            CMD_REDO => (icons::CHEVRON, "Redo the last undone edit", false),
+            CMD_AUTOCOMPLETE => (icons::AGENTS, "Suggest completions at the cursor", false),
+            CMD_JUMP_BACK => (icons::CHEVRON, "Return to the previous location", false),
+            CMD_QUIT => (icons::CLOSE, "Close the editor", false),
+            _ => (icons::CHEVRON, "", false),
+        }
+    }
+
+    /// Draw the rich command palette overlay (mockup `.palette`): a dim scrim, a
+    /// rounded indigo-glow card with a search field (magnifier + caret + ⌘K
+    /// pill), a "COMMANDS" category, rows with icon + title + dim description +
+    /// right-aligned kbd pills (selected row indigo-tinted with a key-glow), and
+    /// a footer hint line. No-op when inactive.
     pub fn draw(&self, ctx: &mut crate::MuiContext, width: u32, height: u32) {
         if !self.active {
             return;
         }
+        use crate::icons;
         let w = width as f32;
         let h = height as f32;
-        let row_h = layout::LINE_H;
-        let pad = layout::SPACE;
         let chrome = theme::CHROME_FONT_SIZE;
+        let clip = ctx.clip;
 
         let top = self.scroll_top();
-        let shown = self.filtered.len().saturating_sub(top).min(VISIBLE);
-        // The query row is always drawn, even when there are no matches.
-        let rows = shown + 1;
+        let shown = self.filtered.len().saturating_sub(top).min(VISIBLE).min(6);
 
-        // A fixed ~640px-wide centered card, clamped to the window.
-        let box_w = 640.0_f32.min(w - 4.0 * pad);
-        let box_h = rows as f32 * row_h + 2.0 * pad;
-
-        // Centered horizontally; anchored near the top third vertically.
+        // Card geometry (mockup: 600px wide, search 56px, cat 25px, rows 50px,
+        // footer ~37px).
+        let box_w = 600.0_f32.min(w - 80.0);
+        let search_h = 56.0;
+        let cat_h = 25.0;
+        let row_h = 50.0;
+        let foot_h = 37.0;
+        let box_h = search_h + cat_h + shown as f32 * row_h + 10.0 + foot_h;
         let box_x = ((w - box_w) * 0.5).max(0.0);
-        let box_y = (h * 0.16).max(0.0).min((h - box_h).max(0.0));
+        let box_y = 96.0_f32.min((h - box_h).max(0.0));
+        let radius = 12.0_f32;
 
-        let clip = ctx.clip;
-        let radius = 14.0_f32;
+        // Scrim: dim + a faint indigo top wash.
+        ctx.dl_rect(0.0, 0.0, w, h, MuiColor::new(0.0, 0.0, 0.0, 0.55));
+        ctx.dl_grad_v(0.0, 0.0, w, h * 0.5, 0.0, theme::hex(0x7c5cff, 0.05), theme::hex(0x7c5cff, 0.0));
+        // Drop shadow + indigo glow + card + border.
+        ctx.dl_shadow(box_x, box_y + 14.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.85), 40.0);
+        ctx.dl_shadow(box_x, box_y, box_w, box_h, radius, theme::ACCENT_GLOW, 40.0);
+        ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED);
+        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG, 1.0);
 
-        let scale = chrome / theme::FONT_SIZE;
-        let advance = layout::CHAR_W * scale;
-        // Full-window scrim: dim + recede the editor behind the overlay.
-        ctx.dl_rect(0.0, 0.0, w, h, MuiColor::new(0.02, 0.024, 0.031, 0.6));
-        // Soft drop shadow under the card.
-        ctx.dl_shadow(box_x, box_y + 10.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.7), 30.0);
-        // Rounded elevated card (vertical gradient) + a hairline border + a teal
-        // accent glow (matches the mockup's `.palette`).
-        ctx.dl_grad_v(box_x, box_y, box_w, box_h, radius, theme::ELEVATED_2, theme::ELEVATED);
-        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::hex(0x2a3140, 1.0), 1.0);
-        // Query-row divider.
-        ctx.dl_rect(box_x + 1.0, box_y + pad + row_h - 1.0, box_w - 2.0, 1.0, theme::BORDER);
-
-        // Query row: a magnifier glyph (⌕ is absent in JetBrains Mono → ○) +
-        // the typed text + an ember caret.
-        let qy = box_y + pad + (row_h - chrome) * 0.5 - 1.0;
-        ctx.text.queue_sized(box_x + 18.0, qy, "\u{25CB}", theme::EMBER, chrome, clip);
-        let q_text_x = box_x + 18.0 + 2.0 * advance;
+        // ---- search field ----
+        ctx.dl_rect(box_x + 1.0, box_y + search_h - 1.0, box_w - 2.0, 1.0, theme::BORDER);
+        ctx.dl_icon(box_x + 18.0, box_y + (search_h - 20.0) * 0.5, 20.0, 20.0, icons::SEARCH, theme::DIM, 1.7, false);
+        let q_text_x = box_x + 50.0;
+        let qy = box_y + (search_h - 16.0) * 0.5 - 1.0;
         let (q_str, q_color): (&str, _) = if self.query.is_empty() {
             ("Type a command\u{2026}", theme::TEXT_3)
         } else {
             (self.query.as_str(), theme::TEXT)
         };
-        ctx.text.queue_sized(q_text_x, qy, q_str, q_color, chrome, clip);
-        if !self.query.is_empty() {
-            let caret_x = q_text_x + self.query.chars().count() as f32 * advance + 1.0;
-            ctx.dl_round(caret_x, box_y + pad + 4.0, 2.0, row_h - 8.0, 1.0, theme::EMBER);
-        }
+        // Search font is larger (16px) per the mockup.
+        ctx.text.queue_ui_sized(q_text_x, qy, q_str, q_color, 16.0, clip);
+        let qadv = 16.0 * 0.52;
+        let caret_x = q_text_x + self.query.chars().count() as f32 * qadv + 1.0;
+        ctx.dl_round(caret_x, box_y + (search_h - 18.0) * 0.5, 2.0, 18.0, 1.0, theme::ACCENT_BRIGHT);
+        // ⌘K mode pill (right).
+        let pill_w = 40.0;
+        let pill_x = box_x + box_w - pill_w - 18.0;
+        let pill_y = box_y + (search_h - 22.0) * 0.5;
+        ctx.dl_round(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_FAINT);
+        ctx.dl_stroke(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_LINE, 1.0);
+        ctx.text.queue_ui_sized(pill_x + 8.0, pill_y + 4.5, "\u{2318}K", theme::ACCENT_BRIGHT, 10.5, clip);
 
-        // Command rows.
+        // ---- category label ----
+        let cat_y = box_y + search_h + 9.0;
+        let cat: String = "COMMANDS".chars().flat_map(|c| [c, '\u{2009}']).collect();
+        ctx.text.queue_ui_sized(box_x + 18.0, cat_y, &cat, theme::TEXT_3, chrome - 2.5, clip);
+
+        // ---- rows ----
+        let list_top = box_y + search_h + cat_h;
         for vis in 0..shown {
             let idx = top + vis;
             let cmd = &self.filtered[idx];
-            let row_y = box_y + pad + (vis + 1) as f32 * row_h;
+            let ry = list_top + vis as f32 * row_h;
             let selected = idx == self.sel;
+            let (icon, desc, fill) = Self::meta(cmd.id);
             if selected {
-                // Rounded ember-tint row (left→right gradient) + ember left bar.
-                ctx.dl_grad_h(box_x + 6.0, row_y + 1.0, box_w - 12.0, row_h - 2.0, 9.0, theme::hex(0xF4A259, 0.16), 0.9);
-                ctx.dl_round(box_x + 6.0, row_y + 3.0, 3.0, row_h - 6.0, 1.5, theme::EMBER);
+                ctx.dl_grad_h(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::hex(0x7c5cff, 0.22), 0.9);
+                ctx.dl_stroke(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::ACCENT_LINE, 1.0);
+                ctx.dl_shadow(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::ACCENT_GLOW, 16.0);
             }
-            let fg = if selected { theme::TEXT } else { theme::DIM };
-            let ic = if selected { theme::EMBER } else { theme::TEXT_3 };
-            let ry = row_y + (row_h - chrome) * 0.5 - 1.0;
-            // Leading icon bullet + label.
-            ctx.text.queue_sized(box_x + 18.0, ry, "\u{203A}", ic, chrome, clip);
-            ctx.text.queue_sized(box_x + 36.0, ry, cmd.label, fg, chrome, clip);
+            // Leading icon tile (30px rounded, bordered).
+            let tile = 30.0;
+            let tile_x = box_x + 18.0;
+            let tile_y = ry + (row_h - tile) * 0.5;
+            if selected {
+                ctx.dl_round(tile_x, tile_y, tile, tile, 7.0, theme::hex(0x7c5cff, 0.10));
+                ctx.dl_stroke(tile_x, tile_y, tile, tile, 7.0, theme::ACCENT_LINE, 1.0);
+            } else {
+                ctx.dl_round(tile_x, tile_y, tile, tile, 7.0, theme::BG_2);
+                ctx.dl_stroke(tile_x, tile_y, tile, tile, 7.0, theme::BORDER, 1.0);
+            }
+            let icon_col = if selected { theme::ACCENT_BRIGHT } else { theme::TEXT_1 };
+            ctx.dl_icon(tile_x + 6.5, tile_y + 6.5, 17.0, 17.0, icon, icon_col, 1.6, fill);
 
-            // Keybinding rendered as small rounded bordered "pills", right-aligned.
+            // Title + dim description (two lines).
+            let txt_x = box_x + 60.0;
+            ctx.text.queue_ui_sized(txt_x, ry + 11.0, cmd.label, theme::TEXT, 13.5, clip);
+            if !desc.is_empty() {
+                ctx.text.queue_ui_sized(txt_x, ry + 28.0, desc, theme::TEXT_3, 11.5, clip);
+            }
+
+            // Right-aligned kbd pills.
             let parts: Vec<&str> = cmd.keybinding.split('+').collect();
             let pill_pad = 7.0;
             let gap = 4.0;
+            let kadv = 11.0 * 0.55;
             let widths: Vec<f32> = parts
                 .iter()
-                .map(|p| p.chars().count() as f32 * advance + 2.0 * pill_pad)
+                .map(|p| (p.chars().count() as f32 * kadv + 2.0 * pill_pad).max(22.0))
                 .collect();
             let total_w: f32 = widths.iter().sum::<f32>() + gap * (parts.len().saturating_sub(1)) as f32;
-            let mut px = (box_x + box_w - 16.0 - total_w).max(box_x + 36.0);
-            let pill_h = chrome + 7.0;
-            let py = row_y + (row_h - pill_h) * 0.5;
+            let mut px = box_x + box_w - 20.0 - total_w;
+            let pill_h = 21.0;
+            let py = ry + (row_h - pill_h) * 0.5;
             for (k, part) in parts.iter().enumerate() {
                 let pw = widths[k];
-                ctx.dl_round(px, py, pw, pill_h, 5.0, theme::hex(0xffffff, 0.04));
-                ctx.dl_stroke(px, py, pw, pill_h, 5.0, theme::BORDER, 1.0);
-                ctx.text.queue_ui_sized(px + pill_pad, py + 2.5, part, theme::TEXT_3, chrome - 2.0, clip);
+                let (pbg, pborder, pfg) = if selected {
+                    (theme::hex(0x7c5cff, 0.10), theme::ACCENT_LINE, theme::ACCENT_BRIGHT)
+                } else {
+                    (theme::BG_2, theme::BORDER_STRONG, theme::TEXT_1)
+                };
+                ctx.dl_round(px, py, pw, pill_h, 5.0, pbg);
+                ctx.dl_stroke(px, py, pw, pill_h, 5.0, pborder, 1.0);
+                let lbl_w = part.chars().count() as f32 * kadv;
+                ctx.text.queue_ui_sized(px + (pw - lbl_w) * 0.5, py + 4.5, part, pfg, 11.0, clip);
                 px += pw + gap;
             }
         }
+
+        // ---- footer hint line ----
+        let foot_y = box_y + box_h - foot_h;
+        ctx.dl_rect(box_x + 1.0, foot_y, box_w - 2.0, 1.0, theme::BORDER);
+        ctx.dl_round(box_x + 1.0, foot_y, box_w - 2.0, foot_h - 1.0, 0.0, theme::BG_2);
+        let fty = foot_y + (foot_h - chrome + 1.0) * 0.5 - 1.0;
+        let mut fx = box_x + 18.0;
+        let foot_seg = |ctx: &mut crate::MuiContext, key: &str, label: &str, fx: &mut f32| {
+            let kw = (key.chars().count() as f32 * 6.0 + 10.0).max(20.0);
+            ctx.dl_round(*fx, foot_y + (foot_h - 18.0) * 0.5, kw, 18.0, 4.0, theme::BG_1);
+            ctx.dl_stroke(*fx, foot_y + (foot_h - 18.0) * 0.5, kw, 18.0, 4.0, theme::BORDER_STRONG, 1.0);
+            ctx.text.queue_ui_sized(*fx + 5.0, foot_y + (foot_h - 10.0) * 0.5, key, theme::TEXT_1, 10.0, clip);
+            *fx += kw + 6.0;
+            ctx.text.queue_ui_sized(*fx, fty, label, theme::TEXT_3, 11.0, clip);
+            *fx += label.chars().count() as f32 * 6.0 + 16.0;
+        };
+        foot_seg(ctx, "\u{2191}\u{2193}", "navigate", &mut fx);
+        foot_seg(ctx, "\u{21B5}", "select", &mut fx);
+        foot_seg(ctx, "esc", "dismiss", &mut fx);
+        let tag = "Mighty Command Palette";
+        ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT, 11.0, clip);
     }
 }
 
