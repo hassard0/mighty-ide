@@ -229,6 +229,144 @@ fn save_staging_writes_then_load_reads_back_round_trip() {
     let _ = std::fs::remove_file(&path);
 }
 
+// ---- multi-file workspace ABI (tabs + tree + click routing) ----
+
+#[test]
+fn tab_abi_open_switch_close_and_byte_round_trip() {
+    use crate::{
+        mui_path_push, mui_tab_active, mui_tab_close, mui_tab_count, mui_tab_cursor_col,
+        mui_tab_cursor_line, mui_tab_load, mui_tab_load_byte, mui_tab_open_path, mui_tab_scroll,
+        mui_tab_store_begin, mui_tab_store_byte, mui_tab_store_commit, mui_tab_switch,
+    };
+
+    let mut ctx = ctx_or_skip!();
+    // The offscreen context starts with an empty store; seed a scratch tab as
+    // the real init path (build_context) does.
+    ctx.tabs.ensure_scratch();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    // No file opened -> one scratch tab.
+    assert_eq!(mui_tab_count(handle), 1);
+    assert_eq!(mui_tab_active(handle), 0);
+
+    // Open a real file as a new tab via the staged-path ABI.
+    let dir = std::env::temp_dir();
+    let path = dir.join("mui_tababi_open.txt");
+    std::fs::write(&path, b"hello\nworld").unwrap();
+    for b in path.to_string_lossy().as_bytes() {
+        mui_path_push(handle, *b as u32);
+    }
+    let idx = mui_tab_open_path(handle);
+    assert_eq!(idx, 1);
+    assert_eq!(mui_tab_count(handle), 2);
+    assert_eq!(mui_tab_active(handle), 1);
+
+    // Its bytes are readable via the tab-load ABI.
+    assert_eq!(mui_tab_load(handle, 1), 11);
+    let got: Vec<i32> = (0..3).map(|i| mui_tab_load_byte(handle, 1, i)).collect();
+    assert_eq!(got, vec![b'h' as i32, b'e' as i32, b'l' as i32]);
+
+    // Byte-swap: store a fresh buffer + state into tab 0, read it back.
+    mui_tab_store_begin(handle, 0);
+    for b in b"AB\nC" {
+        mui_tab_store_byte(handle, 0, *b as i32);
+    }
+    mui_tab_store_commit(handle, 0, 1, 0, 0);
+    mui_tab_switch(handle, 0);
+    assert_eq!(mui_tab_active(handle), 0);
+    assert_eq!(mui_tab_load(handle, 0), 4);
+    assert_eq!(mui_tab_cursor_line(handle, 0), 1);
+    assert_eq!(mui_tab_cursor_col(handle, 0), 0);
+    assert_eq!(mui_tab_scroll(handle, 0), 0);
+
+    // Close tab 0 -> tab 1 remains, count 1.
+    mui_tab_close(handle, 0);
+    assert_eq!(mui_tab_count(handle), 1);
+
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn tree_abi_scan_toggle_and_open_row() {
+    use crate::{
+        mui_tab_count, mui_tree_count, mui_tree_is_dir, mui_tree_open_row, mui_tree_refresh,
+        mui_tree_toggle,
+    };
+
+    let mut ctx = ctx_or_skip!();
+    // Point the tree at a temp dir with a known shape.
+    let root = std::env::temp_dir().join("mui_treeabi");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("sub")).unwrap();
+    std::fs::write(root.join("sub").join("deep.txt"), b"deep").unwrap();
+    std::fs::write(root.join("a.txt"), b"hi").unwrap();
+    ctx.tree.set_root(root.clone());
+
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    assert_eq!(mui_tree_refresh(handle), 2); // sub/ + a.txt
+    assert_eq!(mui_tree_count(handle), 2);
+    assert_eq!(mui_tree_is_dir(handle, 0), 1); // sub/
+    assert_eq!(mui_tree_is_dir(handle, 1), 0); // a.txt
+
+    // Expand the dir -> deep.txt splices in.
+    assert_eq!(mui_tree_toggle(handle, 0), 3);
+
+    // Opening the file row (a.txt is now at row 2 after expand) opens a tab.
+    let before = mui_tab_count(handle);
+    let opened = mui_tree_open_row(handle, 2);
+    assert!(opened >= 0, "expected a file row to open, got {opened}");
+    assert_eq!(mui_tab_count(handle), before + 1);
+
+    // Opening a directory row is a no-op (returns -1).
+    assert_eq!(mui_tree_open_row(handle, 0), -1);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn click_routing_tab_bar_sidebar_and_text() {
+    use crate::ffi::MuiEvent;
+    use crate::{mui_tab_index_at_click, mui_tree_row_at_click};
+    use crate::layout;
+
+    let mut ctx = ctx_or_skip!();
+    // Two tabs so index 1 is valid.
+    ctx.tabs.ensure_scratch();
+    ctx.tabs
+        .open_path(std::env::temp_dir().join("mui_click_b.txt"));
+    // A tree with a couple rows.
+    let root = std::env::temp_dir().join("mui_clickrt");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("x.txt"), b"x").unwrap();
+    ctx.tree.set_root(root.clone());
+    ctx.sidebar_visible = true;
+
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    // Click in the tab bar over tab 1.
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, layout::TAB_W + 5.0, 4.0, 0);
+    assert_eq!(mui_tab_index_at_click(handle), 1);
+    // Same x but below the tab bar -> not a tab click.
+    ctx.last_event.y = layout::TAB_BAR_H + 50.0;
+    assert_eq!(mui_tab_index_at_click(handle), -1);
+
+    // Click in the sidebar over row 0.
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        10.0,
+        layout::TAB_BAR_H + 2.0,
+        0,
+    );
+    assert_eq!(mui_tree_row_at_click(handle), 0);
+    // Click right of the sidebar (in text area) -> not a tree click.
+    ctx.last_event.x = layout::SIDEBAR_W + 100.0;
+    assert_eq!(mui_tree_row_at_click(handle), -1);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 #[test]
 fn translate_close_and_resize_events() {
     let mut q = EventQueue::default();

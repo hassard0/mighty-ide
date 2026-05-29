@@ -16,7 +16,9 @@ mod ffi;
 mod gpu;
 mod layout;
 mod prompt;
+mod tabs;
 mod text;
+mod tree;
 mod window;
 
 pub use abi::*;
@@ -79,6 +81,14 @@ pub struct MuiContext {
     prompt: prompt::PromptState,
     /// Find-search engine over the buffer streamed in from Mighty.
     find: prompt::FindState,
+
+    // ---- multi-file workspace state (tabs + file tree) ----
+    /// Open tabs + per-tab cursor/scroll/dirty state (shim-owned, L17).
+    tabs: tabs::TabStore,
+    /// File-tree sidebar model.
+    tree: tree::FileTree,
+    /// Whether the sidebar is currently shown (toggled by Ctrl+B).
+    sidebar_visible: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +148,23 @@ pub(crate) fn build_context(
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_default();
 
+    // Seed the tab store with the initial file as tab 0 (or a scratch tab), and
+    // root the file tree at that file's directory (or the cwd).
+    let mut tab_store = tabs::TabStore::new();
+    if let Some(p) = file_path.clone() {
+        tab_store.open_path(p);
+    } else {
+        tab_store.ensure_scratch();
+    }
+    let tree_root = file_path
+        .as_ref()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+        .filter(|d| !d.as_os_str().is_empty())
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_default();
+    let mut file_tree = tree::FileTree::new();
+    file_tree.set_root(tree_root);
+
     let ctx = Box::new(MuiContext {
         gpu,
         text,
@@ -160,6 +187,9 @@ pub(crate) fn build_context(
         status_cursor: (1, 1),
         prompt: prompt::PromptState::new(),
         find: prompt::FindState::new(),
+        tabs: tab_store,
+        tree: file_tree,
+        sidebar_visible: true,
     });
     Box::into_raw(ctx)
 }
@@ -451,6 +481,9 @@ impl MuiContext {
             status_cursor: (1, 1),
             prompt: prompt::PromptState::new(),
             find: prompt::FindState::new(),
+            tabs: tabs::TabStore::new(),
+            tree: tree::FileTree::new(),
+            sidebar_visible: true,
         })
     }
 

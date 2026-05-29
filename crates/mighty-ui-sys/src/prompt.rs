@@ -17,6 +17,8 @@ pub enum PromptKind {
     Goto = 1,
     /// Find: the query is a substring to search for.
     Find = 2,
+    /// Open file: the query is a (relative) path to open as a tab.
+    Open = 3,
 }
 
 impl PromptKind {
@@ -24,6 +26,7 @@ impl PromptKind {
         match k {
             1 => Some(PromptKind::Goto),
             2 => Some(PromptKind::Find),
+            3 => Some(PromptKind::Open),
             _ => None,
         }
     }
@@ -33,6 +36,7 @@ impl PromptKind {
         match self {
             PromptKind::Goto => "Go to line: ",
             PromptKind::Find => "Find: ",
+            PromptKind::Open => "Open: ",
         }
     }
 }
