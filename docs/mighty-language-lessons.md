@@ -33,23 +33,32 @@ args to all calls (incl. FFI), integer widening correctness (U8/U16→I32/I64), 
 non-literal `log`/print lowering. Add a conformance suite that runs each example through
 **both** `mty run` and `mty build` and diffs behavior.
 
-### L2. External static-library linking for `extern c` is undocumented / unclear ✅ **[P0]**
-`extern c { fn ... }` exists (`examples/14_extern_c.mty`) and `mty build` "emits a host-
-format `.o`, then links via the platform C linker." But there is **no documented way to
-tell `mty build` to link an additional static library** (e.g. our `mighty_ui_sys.lib`).
-The only escape hatch hinted at is the manual-link path (`.o` left in `target/`, see
-diagnostic `MT8008`).
+### L2. `mty build` cannot link ANY user library; link driver is clang-only ✅ **[P0]**
+Confirmed by reading `crates/mty-codegen-cranelift/src/object.rs`:
+- `link_executable()` invokes the linker as exactly **`<linker> obj.o -o out.exe`** (plus
+  `-lc` on unix). It adds **no user libraries and no Mighty runtime archive** — there is no
+  flag, manifest key, or env var to inject `mighty_ui_sys.lib`. So `mty build` can *never*
+  produce a binary that resolves `extern c` symbols defined in an external lib.
+- `find_linker()` order: `STARDUST_LINKER` env → `clang` → `gcc` → `cc` → `lld-link`. It
+  uses **GNU/clang `-o` argument syntax**, so MSVC `link.exe` is unusable (wrong syntax),
+  and even `lld-link` (in the candidate list) is MSVC-style and would choke on `-o` — a
+  latent inconsistency.
+- On a clean Windows box with only the MSVC Rust toolchain (no clang), `mty build` prints
+  `wrote object target\x.o (no linker found; set $STARDUST_LINKER)` and emits just the COFF
+  `.o`. `STARDUST_LINKER` is mentioned only in `MT8008`, not in `mty build --help` or
+  getting-started.
 
-**Why it matters:** Native apps that bind C/Rust libraries (GUI, audio, DB drivers) need
-this. It's the literal foundation of the IDE.
-**Suggested work:** A first-class manifest mechanism, e.g.
-```toml
-[build]
-native-libs = ["mighty_ui_sys"]
-link-search = ["target/debug"]
-```
-plus docs + an example that links a real C archive. (Already on the v0.36 priority list per
-project notes — this entry adds the concrete manifest shape an app author wants.)
+**Why it matters:** This is *the* foundation of the IDE (Mighty calling a Rust GPU shim)
+and of any native app that binds C/Rust. Today the only path is to manually link mty's
+emitted `.o` yourself with clang — undocumented and fiddly.
+**Suggested work (high value):**
+1. Add a manifest mechanism, e.g. `[build] native-libs = ["mighty_ui_sys"]`,
+   `link-search = ["target/debug"]`, that `mty build` appends to the link line.
+2. Support MSVC `link.exe`/`lld-link` arg syntax (detect linker flavor; emit `/OUT:` +
+   positional libs for MSVC-style, `-o` for GNU-style) so Windows works without clang.
+3. Document `STARDUST_LINKER` in `mty build --help` and getting-started.
+(Overlaps the v0.36 "static-lib linking + extern c matrix" item — this entry pins the
+concrete root cause and the arg-syntax bug.)
 
 ---
 
