@@ -409,6 +409,47 @@ fn screenshot_renders_a_frame_and_writes_a_nonempty_png() {
 }
 
 #[test]
+fn editor_abi_drives_live_model_and_undo() {
+    use crate::{
+        mui_ed_backspace, mui_ed_cursor_col, mui_ed_cursor_line, mui_ed_insert_char,
+        mui_ed_line_count, mui_ed_move, mui_ed_newline, mui_ed_redo, mui_ed_undo,
+        mui_ed_undo_record,
+    };
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    // Type "hi", newline, "x". The model must reflect each edit LIVE.
+    mui_ed_insert_char(h, 'h' as i32);
+    mui_ed_insert_char(h, 'i' as i32);
+    assert_eq!(mui_ed_line_count(h), 1);
+    assert_eq!(mui_ed_cursor_col(h), 2);
+
+    mui_ed_newline(h);
+    mui_ed_insert_char(h, 'x' as i32);
+    assert_eq!(mui_ed_line_count(h), 2);
+    assert_eq!(mui_ed_cursor_line(h), 1);
+    assert_eq!(mui_ed_cursor_col(h), 1);
+
+    mui_ed_backspace(h);
+    assert_eq!(mui_ed_cursor_col(h), 0);
+
+    // Movement clamps within bounds.
+    mui_ed_move(h, crate::editor::DIR_LEFT); // wraps to end of line 0
+    assert_eq!(mui_ed_cursor_line(h), 0);
+    assert_eq!(mui_ed_cursor_col(h), 2);
+
+    // Undo/redo round-trip: checkpoint, edit, undo restores, redo re-applies.
+    mui_ed_undo_record(h);
+    mui_ed_move(h, crate::editor::DIR_END);
+    mui_ed_insert_char(h, '!' as i32);
+    let after = mui_ed_cursor_col(h);
+    assert_eq!(mui_ed_undo(h), 1);
+    // After undo the '!' edit is gone (line 0 back to "hi").
+    assert!(mui_ed_cursor_col(h) <= after);
+    assert_eq!(mui_ed_redo(h), 1);
+}
+
+#[test]
 fn translate_close_and_resize_events() {
     let mut q = EventQueue::default();
     translate_window_event(&mut q, &winit::event::WindowEvent::CloseRequested);

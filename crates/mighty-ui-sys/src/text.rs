@@ -5,10 +5,11 @@
 //! color)` draw commands; [`Text::render`] shapes them into a single
 //! `TextRenderer::prepare` + `render` pass.
 //!
-//! Fonts: loaded from the system font database via cosmic-text's default
-//! `FontSystem::new()` (which uses fontdb's system source). A monospace family
-//! is requested by generic `Family::Monospace`. Bundling a `.ttf` for fully
-//! deterministic metrics across machines is a later nicety (see plan Task 2.3).
+//! Fonts: the bundled **JetBrains Mono** (`fonts/*.ttf`, SIL OFL) is embedded
+//! into the binary via `include_bytes!` and loaded into a fresh `FontSystem`
+//! (NOT the OS default) so metrics are deterministic across machines. The
+//! editor uses `theme::FONT_SIZE` (≈15px); chrome (tabs/sidebar/status) uses
+//! the smaller `theme::CHROME_FONT_SIZE` via [`Text::queue_sized`].
 
 use glyphon::{
     Attrs, Buffer as TextBuffer, Cache, Color, Family, FontSystem, Metrics, Resolution, Shaping,
@@ -16,10 +17,17 @@ use glyphon::{
 };
 
 use crate::ffi::MuiColor;
+use crate::theme;
 
-/// Default monospace metrics (font size / line height in px).
-const FONT_SIZE: f32 = 16.0;
-const LINE_HEIGHT: f32 = 20.0;
+/// The distinctive bundled monospace family (JetBrains Mono).
+const FONT_FAMILY: &str = "JetBrains Mono";
+/// Regular + Bold faces, embedded so the binary is self-contained.
+const FONT_REGULAR: &[u8] = include_bytes!("../../../fonts/JetBrainsMono-Regular.ttf");
+const FONT_BOLD: &[u8] = include_bytes!("../../../fonts/JetBrainsMono-Bold.ttf");
+
+/// Default editor metrics (font size / line height in px), from the theme.
+const FONT_SIZE: f32 = theme::FONT_SIZE;
+const LINE_HEIGHT: f32 = theme::LINE_HEIGHT;
 
 /// A queued text draw command for the current frame.
 struct TextCmd {
@@ -27,6 +35,7 @@ struct TextCmd {
     y: f32,
     text: String,
     color: Color,
+    size: f32,
     clip: Option<(i32, i32, i32, i32)>, // left, top, right, bottom
 }
 
@@ -50,7 +59,16 @@ impl Text {
         queue: &wgpu::Queue,
         format: wgpu::TextureFormat,
     ) -> Self {
-        let font_system = FontSystem::new();
+        // Build a FontSystem seeded ONLY with the bundled JetBrains Mono faces
+        // (no OS fonts), so the IDE's glyphs are identical everywhere.
+        let locale = "en-US".to_string();
+        let mut db = glyphon::fontdb::Database::new();
+        db.load_font_data(FONT_REGULAR.to_vec());
+        db.load_font_data(FONT_BOLD.to_vec());
+        db.set_monospace_family(FONT_FAMILY);
+        db.set_sans_serif_family(FONT_FAMILY);
+        db.set_serif_family(FONT_FAMILY);
+        let font_system = FontSystem::new_with_locale_and_db(locale, db);
         let swash_cache = SwashCache::new();
         let cache = Cache::new(device);
         let viewport = Viewport::new(device, &cache);
@@ -72,14 +90,29 @@ impl Text {
         self.cmds.clear();
     }
 
-    /// Queue a text string to be drawn at (`x`, `y`) (baseline-top, in pixels).
-    /// `clip` is an optional scissor rect (x, y, w, h) in pixels.
+    /// Queue a text string to be drawn at (`x`, `y`) (baseline-top, in pixels)
+    /// at the default editor font size. `clip` is an optional scissor rect
+    /// (x, y, w, h) in pixels.
     pub fn queue(
         &mut self,
         x: f32,
         y: f32,
         text: &str,
         color: MuiColor,
+        clip: Option<(u32, u32, u32, u32)>,
+    ) {
+        self.queue_sized(x, y, text, color, FONT_SIZE, clip);
+    }
+
+    /// Like [`Text::queue`] but at an explicit font `size` (px). Used for the
+    /// smaller chrome text (tabs / sidebar / status / overlays).
+    pub fn queue_sized(
+        &mut self,
+        x: f32,
+        y: f32,
+        text: &str,
+        color: MuiColor,
+        size: f32,
         clip: Option<(u32, u32, u32, u32)>,
     ) {
         let clip = clip.map(|(cx, cy, cw, ch)| {
@@ -95,6 +128,7 @@ impl Text {
             y,
             text: text.to_string(),
             color: mui_to_color(color),
+            size,
             clip,
         });
     }
@@ -109,7 +143,7 @@ impl Text {
         buffer.set_text(
             &mut self.font_system,
             text,
-            Attrs::new().family(Family::Monospace),
+            Attrs::new().family(Family::Name(FONT_FAMILY)),
             Shaping::Advanced,
         );
         buffer.shape_until_scroll(&mut self.font_system, false);
@@ -149,13 +183,16 @@ impl Text {
         // Build one shaped buffer per command.
         let mut buffers: Vec<TextBuffer> = Vec::with_capacity(self.cmds.len());
         for cmd in &self.cmds {
+            // Each command may have its own font size; line height tracks it at
+            // the editor's ≈1.5 ratio so chrome text stays vertically centered.
+            let line_h = (cmd.size * (LINE_HEIGHT / FONT_SIZE)).max(cmd.size + 1.0);
             let mut buffer =
-                TextBuffer::new(&mut self.font_system, Metrics::new(FONT_SIZE, LINE_HEIGHT));
+                TextBuffer::new(&mut self.font_system, Metrics::new(cmd.size, line_h));
             buffer.set_size(&mut self.font_system, Some(screen_w as f32), Some(screen_h as f32));
             buffer.set_text(
                 &mut self.font_system,
                 &cmd.text,
-                Attrs::new().family(Family::Monospace),
+                Attrs::new().family(Family::Name(FONT_FAMILY)),
                 Shaping::Advanced,
             );
             buffer.shape_until_scroll(&mut self.font_system, false);

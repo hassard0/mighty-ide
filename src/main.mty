@@ -1,48 +1,65 @@
-// Mighty IDE — usable single-file editor: open arbitrary file (argv, shim-side),
-// line-number gutter, cursor-following vertical scroll, mouse-click to place the
-// cursor, editing + Ctrl+S save.
+// Mighty IDE — usable single-file editor with LIVE editing.
 //
-// The editor model lives in Mighty as a flat Vec[I32] of byte values (lines
-// joined by '\n' = 10) plus a cursor byte-offset (USize). Shape forced by
-// v0.36 limits (docs/mighty-language-lessons.md):
-//   * L15 multi-field struct reads broken -> cursor/viewport are scalars.
-//   * L4  Vec has no insert/remove -> edits rebuild via capture-push (L12).
-//   * L17 extern c is scalar-only -> i64 handle, 4-float colors, codepoint-
-//         staged text, scalar event accessors, byte-staged save buffer; the
-//         target path + window title are resolved shim-side from argv.
-//   * L19 no int<->float `as` cast -> the buffer is Vec[I32] (never U8) and all
-//         pixel layout is done shim-side from integer line/col/row (gutter,
-//         mui_text_draw_row / mui_draw_cursor_row / mui_click_*).
-//   * L21 a Vec param read inside a nested/branchy loop body is clobbered by
-//         native codegen -> draw_buffer renders the visible range as ONE flat
-//         `while i < buf.len()` scan (see that fn).
+// ## Where the editable buffer lives (L28 workaround)
+//
+// Under v0.36 native `mty build`, a Mighty `Vec[I32]` grown with the
+// `v = v.push(x)` capture-rebind idiom comes back EMPTY (confirmed codegen bug,
+// docs/mighty-language-lessons.md L28). So the editor's buffer can't live in
+// Mighty under the native binary. The authoritative text model (lines + cursor
+// + selection + scroll + dirty) now lives SHIM-SIDE (crates/.../editor.rs), and
+// Mighty drives edits through scalar `mui_ed_*` ops. Editing reflects LIVE on
+// screen: `mui_ed_draw` renders straight from the mutated model each frame.
+//
+// Mighty still owns: the event loop, key routing, command dispatch, find /
+// diagnostics / tabs / terminal / completion / nav / palette. It just delegates
+// buffer storage + edits to the shim. The code stays flat (L20/L21).
+//
+// Other v0.36 limits still shape the FFI surface (see docs):
+//   * L17 extern c is scalar-only -> i64 handle, 4-float colors, scalar events.
+//   * L19 no int<->float `as` cast -> all pixel layout is done shim-side from
+//         integer line/col; a manual usize_to_i32 / i32_to_usize is the only
+//         width "conversion".
 
 extern c {
   fn mui_init_s(width: I32, height: I32) -> I64
   fn mui_shutdown_s(handle: I64)
   fn mui_begin_frame_s(handle: I64)
   fn mui_end_frame_s(handle: I64)
-  fn mui_text_push(handle: I64, codepoint: I32)
-  fn mui_text_draw_line(handle: I64, line: I32, r: F32, g: F32, b: F32, a: F32)
-  fn mui_text_draw_row(handle: I64, row: I32, total_lines: I32, r: F32, g: F32, b: F32, a: F32)
-  fn mui_gutter_draw_row(handle: I64, row: I32, r: F32, g: F32, b: F32, a: F32)
-  fn mui_draw_cursor(handle: I64, line: I32, col: I32, r: F32, g: F32, b: F32, a: F32)
-  fn mui_draw_cursor_row(handle: I64, row: I32, col: I32, total_lines: I32, r: F32, g: F32, b: F32, a: F32)
   fn mui_visible_rows(handle: I64) -> I32
-  fn mui_buf_line_count(handle: I64) -> I32
-  fn mui_draw_buffer_self(handle: I64, first: I32, rows: I32, cur_line: I32, cur_col: I32)
-  fn mui_click_line(handle: I64, first_line: I32, total_lines: I32) -> I32
-  fn mui_click_col(handle: I64, total_lines: I32) -> I32
   fn mui_poll_event_s(handle: I64) -> I32
   fn mui_event_codepoint(handle: I64) -> I32
   fn mui_event_key(handle: I64) -> I32
   fn mui_event_mods(handle: I64) -> I32
   fn mui_event_scroll_dir(handle: I64) -> I32
-  fn mui_load(handle: I64) -> I64
-  fn mui_load_byte(handle: I64, i: I64) -> I32
-  fn mui_save_clear(handle: I64)
-  fn mui_save_push(handle: I64, byte: I32)
-  fn mui_save_commit(handle: I64) -> I32
+  // ---- authoritative editor text model (shim-side; L28 workaround) ----
+  fn mui_ed_insert_char(handle: I64, cp: I32)
+  fn mui_ed_backspace(handle: I64)
+  fn mui_ed_delete(handle: I64)
+  fn mui_ed_newline(handle: I64)
+  fn mui_ed_move(handle: I64, dir: I32)
+  fn mui_ed_move_to(handle: I64, line: I32, col: I32)
+  fn mui_ed_cursor_line(handle: I64) -> I32
+  fn mui_ed_cursor_col(handle: I64) -> I32
+  fn mui_ed_line_count(handle: I64) -> I32
+  fn mui_ed_line_len(handle: I64, line: I32) -> I32
+  fn mui_ed_set_scroll(handle: I64, first: I32)
+  fn mui_ed_first_visible(handle: I64) -> I32
+  fn mui_ed_dirty(handle: I64) -> I32
+  fn mui_ed_set_dirty(handle: I64, dirty: I32)
+  fn mui_ed_load(handle: I64) -> I64
+  fn mui_ed_save(handle: I64) -> I32
+  fn mui_ed_find_run(handle: I64) -> I32
+  fn mui_ed_complete_request(handle: I64) -> I32
+  fn mui_ed_complete_accept(handle: I64) -> I32
+  fn mui_ed_nav_stream(handle: I64)
+  fn mui_ed_tab_switch(handle: I64, idx: I32) -> I32
+  fn mui_ed_click(handle: I64) -> I32
+  fn mui_ed_draw(handle: I64, rows: I32)
+  // live-model undo/redo (shim-side snapshots)
+  fn mui_ed_undo_reset(handle: I64)
+  fn mui_ed_undo_record(handle: I64)
+  fn mui_ed_undo(handle: I64) -> I32
+  fn mui_ed_redo(handle: I64) -> I32
   // live diagnostics (shim runs `mty check`, parses, stores; we read scalars)
   fn mui_diag_refresh(handle: I64) -> I32
   fn mui_diag_count(handle: I64) -> I32
@@ -52,55 +69,36 @@ extern c {
   fn mui_diag_severity(handle: I64, i: I32) -> I32
   fn mui_underline_row(handle: I64, row: I32, col_start: I32, col_end: I32, total_lines: I32, r: F32, g: F32, b: F32, a: F32)
   fn mui_diag_gutter_mark(handle: I64, row: I32, r: F32, g: F32, b: F32, a: F32)
-  fn mui_status_bar(handle: I64, error_count: I32)
-  fn mui_status_draw_text(handle: I64, r: F32, g: F32, b: F32, a: F32)
-  // feature 1: enriched status bar (filename + Ln/Col + error count, drawn shim-side)
+  // enriched status bar (filename + Ln/Col + error count, composed shim-side)
   fn mui_status_set_cursor(handle: I64, line1: I32, col1: I32)
   fn mui_status_render(handle: I64, error_count: I32)
-  // feature 2: reusable bottom prompt (shim owns the query buffer)
+  // reusable bottom prompt (shim owns the query buffer)
   fn mui_prompt_open(handle: I64, kind: I32)
   fn mui_prompt_push(handle: I64, codepoint: I32)
   fn mui_prompt_backspace(handle: I64)
   fn mui_prompt_cancel(handle: I64)
-  fn mui_prompt_active(handle: I64) -> I32
   fn mui_prompt_len(handle: I64) -> I32
   fn mui_prompt_char(handle: I64, i: I32) -> I32
   fn mui_prompt_draw(handle: I64)
-  // feature 3: go-to-line
   fn mui_prompt_goto_target(handle: I64) -> I32
-  // feature 4: find (stream buffer in, search shim-side, read matches back)
-  fn mui_find_reset(handle: I64)
-  fn mui_find_push_byte(handle: I64, byte: I32)
-  fn mui_find_run(handle: I64) -> I32
+  // find (search shim-side over the model, read matches back)
   fn mui_find_count(handle: I64) -> I32
   fn mui_find_match_line(handle: I64, i: I32) -> I32
   fn mui_find_match_col(handle: I64, i: I32) -> I32
-  fn mui_find_match_offset(handle: I64, i: I32) -> I32
   fn mui_find_needle_len(handle: I64) -> I32
   fn mui_find_highlight_row(handle: I64, row: I32, col_start: I32, len: I32, total_lines: I32)
-  // ---- multi-file workspace (sub-project 4): tabs + file tree + sidebar ----
-  // path staging (reused from load/save) for Ctrl+O open-by-path
+  // path staging (for Ctrl+O open-by-path)
   fn mui_path_clear(handle: I64)
   fn mui_path_push(handle: I64, byte: I32)
   // tab store
   fn mui_tab_count(handle: I64) -> I32
   fn mui_tab_active(handle: I64) -> I32
   fn mui_tab_open_path(handle: I64) -> I32
-  fn mui_tab_switch(handle: I64, idx: I32) -> I32
   fn mui_tab_next(handle: I64) -> I32
   fn mui_tab_prev(handle: I64) -> I32
   fn mui_tab_close(handle: I64, idx: I32) -> I32
   fn mui_tab_index_at_click(handle: I64) -> I32
-  fn mui_tab_store_begin(handle: I64, idx: I32)
-  fn mui_tab_store_byte(handle: I64, idx: I32, byte: I32)
-  fn mui_tab_store_commit(handle: I64, idx: I32, cursor_line: I32, cursor_col: I32, scroll_first: I32)
   fn mui_tab_set_dirty(handle: I64, idx: I32, dirty: I32)
-  fn mui_tab_load(handle: I64, idx: I32) -> I64
-  fn mui_tab_load_into(handle: I64, idx: I32) -> I64
-  fn mui_tab_load_byte(handle: I64, idx: I32, i: I64) -> I32
-  fn mui_tab_cursor_line(handle: I64, idx: I32) -> I32
-  fn mui_tab_cursor_col(handle: I64, idx: I32) -> I32
-  fn mui_tab_scroll(handle: I64, idx: I32) -> I32
   fn mui_tab_bar_draw(handle: I64)
   // file-tree sidebar
   fn mui_sidebar_visible(handle: I64) -> I32
@@ -109,55 +107,27 @@ extern c {
   fn mui_tree_refresh(handle: I64) -> I32
   fn mui_tree_count(handle: I64) -> I32
   fn mui_tree_is_dir(handle: I64, i: I32) -> I32
-  fn mui_tree_depth(handle: I64, i: I32) -> I32
-  fn mui_tree_is_expanded(handle: I64, i: I32) -> I32
   fn mui_tree_toggle(handle: I64, i: I32) -> I32
   fn mui_tree_row_at_click(handle: I64) -> I32
   fn mui_tree_open_row(handle: I64, i: I32) -> I32
-  // stdout evidence (computed counts; Mighty `log` is literal-only, L1)
+  // stdout evidence (computed counts; Mighty `log` is literal-only, L23)
   fn mui_log_workspace(handle: I64)
-  // buffer-accumulation probe: prints the live Mighty buf.len() next to the
-  // shim's own load byte count, to verify the real-arena runtime fix (L28).
-  fn mui_probe_buf_len(handle: I64, mty_buf_len: I32)
-  // ---- integrated terminal (sub-project 5): all logic shim-side ----
-  // Mighty only toggles the panel, routes focused keystrokes, and per frame
-  // calls pump + draw. The PTY/VT grid live entirely in the shim (L21: Mighty
-  // never touches the terminal grid Vec).
+  // ---- integrated terminal ----
   fn mui_term_open(handle: I64) -> I32
-  fn mui_term_close(handle: I64)
-  fn mui_term_running(handle: I64) -> I32
   fn mui_term_is_open(handle: I64) -> I32
+  fn mui_term_running(handle: I64) -> I32
   fn mui_term_key(handle: I64, keycode: I32, mods: I32)
   fn mui_term_send_codepoint(handle: I64, codepoint: I32, mods: I32)
-  fn mui_term_send_byte(handle: I64, byte: I32)
   fn mui_term_pump(handle: I64)
-  fn mui_term_rows(handle: I64) -> I32
-  fn mui_term_cols(handle: I64) -> I32
   fn mui_term_draw(handle: I64)
   fn mui_log_terminal(handle: I64)
-  // ---- autocomplete dropdown (sub-project 6): shim-side engine ----
-  // Mighty streams the buffer in (like find), requests completion at (line,col),
-  // then drives the dropdown via scalar getters/movers and reads the accepted
-  // text back to insert. The candidate list + selection live shim-side (L21:
-  // Mighty never holds the candidate Vec).
-  fn mui_complete_reset(handle: I64)
-  fn mui_complete_push_byte(handle: I64, byte: I32)
-  fn mui_complete_request(handle: I64, line: I32, col: I32) -> I32
+  // ---- autocomplete dropdown (shim-side engine) ----
   fn mui_complete_count(handle: I64) -> I32
-  fn mui_complete_active(handle: I64) -> I32
   fn mui_complete_sel(handle: I64) -> I32
   fn mui_complete_move(handle: I64, delta: I32)
-  fn mui_complete_prefix_len(handle: I64) -> I32
-  fn mui_complete_accept_len(handle: I64) -> I32
-  fn mui_complete_accept_char(handle: I64, i: I32) -> I32
   fn mui_complete_cancel(handle: I64)
   fn mui_complete_draw_at(handle: I64, row: I32, col: I32, total_lines: I32)
-  // ---- hover + go-to-definition (sub-project 7): shim-side LSP nav ----
-  // Mighty streams the buffer in (like completion/find), requests hover/def at
-  // (line,col) 0-based, then reads scalars back. The hover popup + the resolved
-  // definition target live shim-side (L21: Mighty never holds the result Vec).
-  fn mui_nav_reset(handle: I64)
-  fn mui_nav_push_byte(handle: I64, byte: I32)
+  // ---- hover + go-to-definition (shim-side LSP nav) ----
   fn mui_hover_request(handle: I64, line: I32, col: I32) -> I32
   fn mui_hover_active(handle: I64) -> I32
   fn mui_hover_clear(handle: I64)
@@ -167,39 +137,14 @@ extern c {
   fn mui_def_target_line(handle: I64) -> I32
   fn mui_def_target_col(handle: I64) -> I32
   fn mui_def_open_target(handle: I64) -> I32
-  // ---- undo / redo (Feature A): shim-owned history (snapshots live shim-side) ----
-  // Mighty streams its post-edit buffer in (like save), the shim coalesces typing
-  // runs + decides whether to push. seed on load/switch; break on non-insert
-  // boundaries; record after each edit-group. undo/redo restore into load_buf,
-  // which Mighty pulls via mui_load_byte; the cursor comes back as scalars.
-  fn mui_undo_seed_begin(handle: I64)
-  fn mui_undo_seed_byte(handle: I64, byte: I32)
-  fn mui_undo_seed_commit(handle: I64, cur_line: I32, cur_col: I32)
-  fn mui_undo_break(handle: I64)
-  fn mui_undo_record_begin(handle: I64)
-  fn mui_undo_record_byte(handle: I64, byte: I32)
-  fn mui_undo_record_commit(handle: I64, cur_line: I32, cur_col: I32) -> I32
-  fn mui_undo(handle: I64) -> I32
-  fn mui_redo(handle: I64) -> I32
-  fn mui_undo_cursor_line(handle: I64) -> I32
-  fn mui_undo_cursor_col(handle: I64) -> I32
-  fn mui_undo_depth(handle: I64) -> I32
-  fn mui_redo_depth(handle: I64) -> I32
-  // ---- format document (Feature B): runs `mty fmt <path>` in place ----
+  // ---- format document (`mty fmt <path>`) ----
   fn mui_format_current(handle: I64) -> I32
   // ---- command palette (Ctrl+Shift+P): shim-side registry + filtering ----
-  // Mighty opens the palette, routes Char/Backspace/Up/Down/Enter/Escape to it,
-  // and on Enter reads the selected command id back to dispatch to the SAME
-  // helper the keybinding triggers. The command Vec + filter + selection live
-  // shim-side (L21: Mighty never holds the command list).
   fn mui_palette_open(handle: I64)
   fn mui_palette_push_char(handle: I64, cp: I32)
   fn mui_palette_backspace(handle: I64)
-  fn mui_palette_count(handle: I64) -> I32
   fn mui_palette_move(handle: I64, delta: I32)
-  fn mui_palette_sel(handle: I64) -> I32
   fn mui_palette_selected_id(handle: I64) -> I32
-  fn mui_palette_active(handle: I64) -> I32
   fn mui_palette_cancel(handle: I64)
   fn mui_palette_draw(handle: I64)
 }
@@ -223,14 +168,6 @@ fn cmd_autocomplete() -> I32 { 15 }
 fn cmd_jump_back() -> I32 { 16 }
 fn cmd_quit() -> I32 { 17 }
 
-// Ctrl+Shift+P = open command palette. Flat predicate (L20-safe).
-fn is_palette_chord(cp: I32, mods: I32) -> Bool {
-  let ctrl = ctrl_held(mods)
-  let shift = shift_held(mods)
-  let p = cp == 112 || cp == 80      // 'p' / 'P'
-  ctrl && shift && p
-}
-
 // ---- event tags / keys / mods (mirror mighty_ui.h) ----
 fn ev_char() -> I32 { 1 }
 fn ev_key() -> I32 { 2 }
@@ -245,29 +182,42 @@ fn key_backspace() -> I32 { 5 }
 fn key_enter() -> I32 { 6 }
 fn key_tab() -> I32 { 7 }
 fn key_escape() -> I32 { 8 }
+fn key_delete() -> I32 { 9 }
 fn key_f12() -> I32 { 14 }
+
+// editor move directions (mirror editor.rs DIR_*)
+fn dir_left() -> I32 { 0 }
+fn dir_right() -> I32 { 1 }
+fn dir_up() -> I32 { 2 }
+fn dir_down() -> I32 { 3 }
 
 // prompt kinds (mirror PromptKind in prompt.rs)
 fn prompt_goto() -> I32 { 1 }
 fn prompt_find() -> I32 { 2 }
 fn prompt_open() -> I32 { 3 }
 
-// Feature A chord predicates. Spelled as flat boolean expressions (no juxtaposed
-// parens, L20) so native codegen accepts them.
+// Chord predicates spelled as flat boolean expressions (no juxtaposed parens,
+// L20) so native codegen accepts them.
 fn is_z_key(cp: I32) -> Bool { cp == 122 || cp == 90 }      // 'z' / 'Z'
 fn is_y_key(cp: I32) -> Bool { cp == 121 || cp == 89 }      // 'y' / 'Y'
 fn is_i_key(cp: I32) -> Bool { cp == 105 || cp == 73 }      // 'i' / 'I'
+fn is_p_key(cp: I32) -> Bool { cp == 112 || cp == 80 }      // 'p' / 'P'
 
-// Ctrl+Z (without Shift) = undo.
-fn is_undo_chord(cp: I32, mods: I32) -> Bool {
+fn is_palette_chord(cp: I32, mods: I32) -> Bool {
+  let ctrl = ctrl_held(mods)
+  let shift = shift_held(mods)
+  let p = is_p_key(cp)
+  ctrl && shift && p
+}
+
+fn is_undo_chord(cp: I32, mods: I32) -> Bool {           // Ctrl+Z (no Shift)
   let ctrl = ctrl_held(mods)
   let shift = shift_held(mods)
   let z = is_z_key(cp)
   ctrl && z && !shift
 }
 
-// Ctrl+Y OR Ctrl+Shift+Z = redo.
-fn is_redo_chord(cp: I32, mods: I32) -> Bool {
+fn is_redo_chord(cp: I32, mods: I32) -> Bool {           // Ctrl+Y or Ctrl+Shift+Z
   let ctrl = ctrl_held(mods)
   let shift = shift_held(mods)
   let y = is_y_key(cp)
@@ -277,8 +227,7 @@ fn is_redo_chord(cp: I32, mods: I32) -> Bool {
   ctrl && any
 }
 
-// Ctrl+Shift+I = format document.
-fn is_format_chord(cp: I32, mods: I32) -> Bool {
+fn is_format_chord(cp: I32, mods: I32) -> Bool {         // Ctrl+Shift+I
   let ctrl = ctrl_held(mods)
   let shift = shift_held(mods)
   let i = is_i_key(cp)
@@ -293,112 +242,13 @@ fn shift_held(mods: I32) -> Bool {
   bit == 1
 }
 
-// True if the ctrl bit (value 2) is set in `mods`. No `%` in v0.36, so test
-// the bit via integer division parity: (mods / 2) is odd  <=>  bit 1 set.
+// True if the ctrl bit (value 2) is set in `mods` (parity of mods/2; no `%`).
 fn ctrl_held(mods: I32) -> Bool {
-  // NB: nested parens juxtaposed `(a)(b)` parse as a CALL in v0.36 (L20),
-  // so spell the parity test out with intermediate lets, no nested parens.
   let half = mods / 2
   let quarter = half / 2
   let even = quarter * 2
   let bit = half - even
   bit == 1
-}
-
-// ---- buffer helpers (flat Vec[I32] of byte values; capture-push idiom L12) --
-
-fn byte_at(buf: Vec[I32], i: USize) -> I32 {
-  match buf.get(i) { Some(b) => b  None => 0 }
-}
-
-fn insert_at(buf: Vec[I32], at: USize, b: I32) -> Vec[I32] effect alloc {
-  let mut out: Vec[I32] = Vec.new()
-  let mut i: USize = 0
-  while i < buf.len() {
-    if i == at { out = out.push(b) }
-    out = out.push(byte_at(buf, i))
-    i = i + 1
-  }
-  if at >= buf.len() { out = out.push(b) }
-  out
-}
-
-fn delete_at(buf: Vec[I32], at: USize) -> Vec[I32] effect alloc {
-  let mut out: Vec[I32] = Vec.new()
-  let mut i: USize = 0
-  while i < buf.len() {
-    if i != at { out = out.push(byte_at(buf, i)) }
-    i = i + 1
-  }
-  out
-}
-
-// Column (bytes since the previous '\n') at byte-offset `cur`.
-fn col_of(buf: Vec[I32], cur: USize) -> USize {
-  let mut c: USize = 0
-  let mut i: USize = 0
-  while i < cur && i < buf.len() {
-    if byte_at(buf, i) == 10 { c = 0 } else { c = c + 1 }
-    i = i + 1
-  }
-  c
-}
-
-// Line index (number of '\n' before `cur`).
-fn line_of(buf: Vec[I32], cur: USize) -> USize {
-  let mut l: USize = 0
-  let mut i: USize = 0
-  while i < cur && i < buf.len() {
-    if byte_at(buf, i) == 10 { l = l + 1 }
-    i = i + 1
-  }
-  l
-}
-
-// Byte-offset of the start of line `target`.
-fn line_start(buf: Vec[I32], target: USize) -> USize {
-  let mut l: USize = 0
-  let mut i: USize = 0
-  while i < buf.len() && l < target {
-    if byte_at(buf, i) == 10 { l = l + 1 }
-    i = i + 1
-  }
-  i
-}
-
-// Length (bytes excluding '\n') of line `target`.
-fn line_len_of(buf: Vec[I32], target: USize) -> USize {
-  let start = line_start(buf, target)
-  let mut i = start
-  while i < buf.len() && byte_at(buf, i) != 10 { i = i + 1 }
-  i - start
-}
-
-fn line_count(buf: Vec[I32]) -> USize {
-  let mut n: USize = 1
-  let mut i: USize = 0
-  while i < buf.len() {
-    if byte_at(buf, i) == 10 { n = n + 1 }
-    i = i + 1
-  }
-  n
-}
-
-// Move cursor up/down a line, preserving column where possible.
-fn move_vertical(buf: Vec[I32], cur: USize, down: Bool) -> USize {
-  let cur_line = line_of(buf, cur)
-  let cur_col = col_of(buf, cur)
-  let mut target = cur_line
-  if down {
-    if cur_line + 1 < line_count(buf) { target = cur_line + 1 }
-  } else {
-    if cur_line > 0 { target = cur_line - 1 }
-  }
-  let start = line_start(buf, target)
-  let len = line_len_of(buf, target)
-  let mut col = cur_col
-  if col > len { col = len }
-  start + col
 }
 
 // USize -> I32 without an `as` cast (L19): count up in an I32 accumulator.
@@ -413,7 +263,6 @@ fn usize_to_i32(u: USize) -> I32 {
 }
 
 // I32 -> USize without an `as` cast (L19): count up in a USize accumulator.
-// Negative inputs clamp to 0.
 fn i32_to_usize(n: I32) -> USize {
   let mut u: USize = 0
   let mut i: I32 = 0
@@ -424,127 +273,24 @@ fn i32_to_usize(n: I32) -> USize {
   u
 }
 
-// Byte-offset of (line, col), col clamped to the line length.
-fn offset_of(buf: Vec[I32], line: USize, col: USize) -> USize {
-  let total = line_count(buf)
-  let mut l = line
-  if l >= total {
-    if total > 0 { l = total - 1 } else { l = 0 }
-  }
-  let start = line_start(buf, l)
-  let len = line_len_of(buf, l)
-  let mut c = col
-  if c > len { c = len }
-  start + c
-}
-
-// ---- viewport (first visible line + visible-row count) ----
-// Modeled as plain scalars rather than a struct (multi-field reads broken, L15).
-
-// Clamp `first` so the cursor line stays on screen given `rows` visible rows.
-fn scroll_to_cursor(first: USize, cursor_line: USize, rows: USize) -> USize {
+// Clamp the scroll `first` so the cursor line stays on screen given `rows`
+// visible rows. Pure integer math over the model's reported cursor line.
+fn scroll_to_cursor(first: I32, cursor_line: I32, rows: I32) -> I32 {
   let mut top = first
   if cursor_line < top {
     top = cursor_line
   } else if cursor_line >= top + rows {
-    // cursor_line - rows + 1, computed without risking underflow
     top = cursor_line + 1 - rows
   }
   top
 }
 
-// Stage the 1-based line number `n` as decimal-digit codepoints for the gutter.
-// No `%`/`as` in v0.36, so digits are produced by repeated division and a
-// reverse-then-emit pass over a small Vec[I32].
-fn push_line_number(h: I64, n: USize) {
-  let mut digits: Vec[I32] = Vec.new()
-  let mut v = n
-  if v == 0 { digits = digits.push(48) }   // '0'
-  while v > 0 {
-    let q = v / 10
-    let ten_q = q * 10
-    let d = v - ten_q                       // last digit
-    digits = digits.push(48 + usize_to_i32(d))
-    v = q
-  }
-  // digits are least-significant-first; emit reversed.
-  let mut j = digits.len()
-  while j > 0 {
-    j = j - 1
-    mui_text_push(h, byte_at(digits, j))
-  }
-}
-
-// ---- render the buffer + gutter + cursor (only the visible line range) ----
-//
-// Single flat scan over the buffer (the proven-working shape from milestone 3/4
-// — see L21: a Vec param read deep inside a nested-loop body after branches gets
-// clobbered by native codegen, so we keep ONE flat `while i < buf.len()` loop
-// and only emit draws for lines within [first, first+rows)). Per visible line we
-// stage its gutter number first, then its text, deferring both draw calls to the
-// line boundary.
-
-fn draw_buffer(h: I64, buf: Vec[I32], cur: USize, first: USize, rows: USize) {
-  let total = line_count(buf)
-  let total_i = usize_to_i32(total)
-  let last_visible = first + rows         // exclusive
-
-  let mut line: USize = 0                 // current buffer line index
-  let mut i: USize = 0
-  while i < buf.len() {
-    let b = byte_at(buf, i)
-    let visible = line >= first && line < last_visible
-    if b == 10 {
-      // end of a line: flush its staged text at its screen row
-      if visible {
-        let row_i = usize_to_i32(line - first)
-        mui_text_draw_row(h, row_i, total_i, 0.85_f32, 0.87_f32, 0.9_f32, 1.0_f32)
-      }
-      line = line + 1
-    } else {
-      if visible {
-        mui_text_push(h, b)
-      }
-    }
-    i = i + 1
-  }
-  // flush the final (unterminated) line if visible
-  if line >= first && line < last_visible {
-    let row_i = usize_to_i32(line - first)
-    mui_text_draw_row(h, row_i, total_i, 0.85_f32, 0.87_f32, 0.9_f32, 1.0_f32)
-  }
-
-  // Second pass: gutter numbers for each visible row (separate flat loop so we
-  // never interleave a buf-read with an FFI call inside a branchy body).
-  let mut r: USize = 0
-  while r < rows {
-    let line_idx = first + r
-    if line_idx < total {
-      let row_i = usize_to_i32(r)
-      push_line_number(h, line_idx + 1)
-      mui_gutter_draw_row(h, row_i, 0.45_f32, 0.48_f32, 0.55_f32, 1.0_f32)
-    }
-    r = r + 1
-  }
-
-  // cursor: only if on a visible row. Computed from cur with flat helpers.
-  let cur_line = line_of(buf, cur)
-  let cur_col = col_of(buf, cur)
-  if cur_line >= first && cur_line < last_visible {
-    let crow_i = usize_to_i32(cur_line - first)
-    let ccol_i = usize_to_i32(cur_col)
-    mui_draw_cursor_row(h, crow_i, ccol_i, total_i, 0.9_f32, 0.7_f32, 0.2_f32, 1.0_f32)
-  }
-}
-
-// ---- diagnostics overlay + status bar ----
+// ---- diagnostics overlay ----
 //
 // The diag set lives shim-side (it ran `mty check` and parsed the report); we
 // read it back through scalar getters, so this is a FLAT `while d < count` loop
-// with no Mighty Vec read inside (L21 only bites on Mighty-owned Vec params).
-// For each diag whose line is on a visible row we draw a red gutter mark and a
-// red underline under its [col_start, col_end) span.
-
+// with no Mighty Vec read inside. For each diag on a visible row we draw a small
+// gutter dot + an underline (red error / amber warning) under its span.
 fn count_errors(h: I64) -> I32 {
   let total = mui_diag_count(h)
   let mut errs: I32 = 0
@@ -556,9 +302,8 @@ fn count_errors(h: I64) -> I32 {
   errs
 }
 
-fn draw_diagnostics(h: I64, total_lines_i: I32, first: USize, rows: USize) {
-  let first_i = usize_to_i32(first)
-  let last_i = usize_to_i32(first + rows)        // exclusive screen-line bound
+fn draw_diagnostics(h: I64, total_lines_i: I32, first_i: I32, rows_i: I32) {
+  let last_i = first_i + rows_i        // exclusive screen-line bound
   let count = mui_diag_count(h)
   let mut d: I32 = 0
   while d < count {
@@ -569,51 +314,33 @@ fn draw_diagnostics(h: I64, total_lines_i: I32, first: USize, rows: USize) {
       let ce = mui_diag_col_end(h, d)
       let sev = mui_diag_severity(h, d)
       if sev == 0 {
-        // error: red
-        mui_diag_gutter_mark(h, row, 0.85_f32, 0.18_f32, 0.18_f32, 1.0_f32)
-        mui_underline_row(h, row, cs, ce, total_lines_i, 0.85_f32, 0.18_f32, 0.18_f32, 1.0_f32)
+        // error: red (#F2545B)
+        mui_diag_gutter_mark(h, row, 0.949_f32, 0.329_f32, 0.357_f32, 1.0_f32)
+        mui_underline_row(h, row, cs, ce, total_lines_i, 0.949_f32, 0.329_f32, 0.357_f32, 1.0_f32)
       } else {
-        // warning: amber
-        mui_diag_gutter_mark(h, row, 0.9_f32, 0.7_f32, 0.2_f32, 1.0_f32)
-        mui_underline_row(h, row, cs, ce, total_lines_i, 0.9_f32, 0.7_f32, 0.2_f32, 1.0_f32)
+        // warning: amber (#E5B567)
+        mui_diag_gutter_mark(h, row, 0.898_f32, 0.710_f32, 0.404_f32, 1.0_f32)
+        mui_underline_row(h, row, cs, ce, total_lines_i, 0.898_f32, 0.710_f32, 0.404_f32, 1.0_f32)
       }
     }
     d = d + 1
   }
 }
 
-// Bottom status bar (feature 1): the shim composes + draws
-// "<basename>   Ln L, Col C   N errors" (green band when clean, red otherwise).
-// Mighty just feeds the 1-based cursor line/col + the error count as scalars;
-// all string building lives shim-side (L17: Mighty can't build strings).
-fn draw_status_bar(h: I64, buf: Vec[I32], cur: USize) {
+// Status bar: feed the 1-based cursor line/col + error count; the shim composes
+// + draws the segmented status (filename / Ln,Col / diagnostics chip).
+fn draw_status_bar(h: I64) {
   let errs = count_errors(h)
-  // 1-based line/col for display (line_of/col_of are 0-based).
-  let line1 = usize_to_i32(line_of(buf, cur)) + 1
-  let col1 = usize_to_i32(col_of(buf, cur)) + 1
+  let line1 = mui_ed_cursor_line(h) + 1
+  let col1 = mui_ed_cursor_col(h) + 1
   mui_status_set_cursor(h, line1, col1)
   mui_status_render(h, errs)
 }
 
-// Feature 4: stream the whole editor buffer into the shim's find engine, then
-// run the search (needle = the active prompt query). Returns the match count.
-// FLAT scan over buf (L21-safe: the loop condition reads the Vec each step).
-fn run_find(h: I64, buf: Vec[I32]) -> I32 {
-  mui_find_reset(h)
-  let mut i: USize = 0
-  while i < buf.len() {
-    mui_find_push_byte(h, byte_at(buf, i))
-    i = i + 1
-  }
-  mui_find_run(h)
-}
-
-// Feature 4: highlight every match that falls on a visible row. Matches live
-// shim-side; this is a FLAT `while m < count` loop with no Mighty Vec read in
-// the body (L21 only bites on Mighty-owned Vec params), like draw_diagnostics.
-fn draw_find_highlights(h: I64, total_lines_i: I32, first: USize, rows: USize) {
-  let first_i = usize_to_i32(first)
-  let last_i = usize_to_i32(first + rows)
+// Highlight every find match that falls on a visible row. Matches live shim-side
+// (FLAT `while m < count` loop, no Mighty Vec read in the body).
+fn draw_find_highlights(h: I64, total_lines_i: I32, first_i: I32, rows_i: I32) {
+  let last_i = first_i + rows_i
   let needle_len = mui_find_needle_len(h)
   let count = mui_find_count(h)
   let mut m: I32 = 0
@@ -628,256 +355,42 @@ fn draw_find_highlights(h: I64, total_lines_i: I32, first: USize, rows: USize) {
   }
 }
 
-// ---- autocomplete (sub-project 6) ----
-//
-// Mighty can't pass its buffer across FFI (L17), so we stream it into the shim's
-// completion engine (mirroring run_find), then request completion at the cursor
-// (line, col). The candidate list + selection live shim-side; Mighty reads the
-// accepted text back and edits the buffer. FLAT scan over buf (L21-safe: the
-// loop condition reads the Vec each step).
-fn request_completion(h: I64, buf: Vec[I32], cur: USize) -> I32 {
-  mui_complete_reset(h)
-  let mut i: USize = 0
-  while i < buf.len() {
-    mui_complete_push_byte(h, byte_at(buf, i))
-    i = i + 1
-  }
-  let line = usize_to_i32(line_of(buf, cur))
-  let col = usize_to_i32(col_of(buf, cur))
-  mui_complete_request(h, line, col)
-}
-
-// Accept the selected candidate: delete `prefix_len` chars before the cursor,
-// then insert the accepted text. Reuses the existing delete_at / insert_at edit
-// ops. Returns the new cursor offset. FLAT (helpers run after flat loops).
-fn accept_completion(h: I64, buf: Vec[I32], cur: USize) -> Vec[I32] effect alloc {
-  let plen = mui_complete_prefix_len(h)
-  let alen = mui_complete_accept_len(h)
-  // Delete the prefix chars (each a single byte for ASCII identifiers).
-  let mut out = buf
-  let mut c = cur
-  let mut d: I32 = 0
-  while d < plen {
-    if c > 0 {
-      c = c - 1
-      out = delete_at(out, c)
-    }
-    d = d + 1
-  }
-  // Insert the accepted chars at the (now-shifted) cursor.
-  let mut a: I32 = 0
-  while a < alen {
-    let ch = mui_complete_accept_char(h, a)
-    if ch >= 0 {
-      out = insert_at(out, c, ch)
-      c = c + 1
-    }
-    a = a + 1
-  }
-  out
-}
-
-// ---- hover + go-to-definition (sub-project 7) ----
-//
-// Mighty can't pass its buffer across FFI (L17), so we stream it into the shim's
-// nav buffer (mirroring request_completion), then ask for hover / definition at
-// the cursor (line, col) 0-based. The result (hover popup / def target) lives
-// shim-side; Mighty reads scalars back. FLAT scan over buf (L21-safe: the loop
-// condition reads the Vec each step).
-
-// Stream the live buffer into the shim's nav buffer. FLAT scan.
-fn stream_nav_buf(h: I64, buf: Vec[I32]) {
-  mui_nav_reset(h)
-  let mut i: USize = 0
-  while i < buf.len() {
-    mui_nav_push_byte(h, byte_at(buf, i))
-    i = i + 1
-  }
-}
-
-// Request hover at the cursor `cur`. Returns 1 if hover text is available.
-fn request_hover(h: I64, buf: Vec[I32], cur: USize) -> I32 {
-  stream_nav_buf(h, buf)
-  let line = usize_to_i32(line_of(buf, cur))
-  let col = usize_to_i32(col_of(buf, cur))
-  mui_hover_request(h, line, col)
-}
-
-// Request go-to-definition at the cursor `cur`. Returns 1 if a location found.
-fn request_def(h: I64, buf: Vec[I32], cur: USize) -> I32 {
-  stream_nav_buf(h, buf)
-  let line = usize_to_i32(line_of(buf, cur))
-  let col = usize_to_i32(col_of(buf, cur))
-  mui_def_request(h, line, col)
-}
-
-// Save the whole buffer to disk through the shim's staged save buffer.
-fn save_buffer(h: I64, buf: Vec[I32]) -> I32 {
-  mui_save_clear(h)
-  let mut i: USize = 0
-  while i < buf.len() {
-    mui_save_push(h, byte_at(buf, i))
-    i = i + 1
-  }
-  mui_save_commit(h)
-}
-
-// ---- undo / redo (Feature A) -----------------------------------------------
-//
-// The snapshot stack lives shim-side (L21: Mighty can't manage nested undo
-// Vecs). These helpers stream the live buffer into the shim (reusing the
-// save/tab-store byte path) so the shim can baseline (seed) or record it.
-
-// Seed the history baseline with the current buffer (called on load / tab
-// switch so undo history is per active buffer). FLAT scan over buf (L21-safe).
-fn seed_history(h: I64, buf: Vec[I32], cur: USize) {
-  mui_undo_seed_begin(h)
-  let mut i: USize = 0
-  while i < buf.len() {
-    mui_undo_seed_byte(h, byte_at(buf, i))
-    i = i + 1
-  }
-  let cl = usize_to_i32(line_of(buf, cur))
-  let cc = usize_to_i32(col_of(buf, cur))
-  mui_undo_seed_commit(h, cl, cc)
-}
-
-// Record the current post-edit buffer as a history step (the shim coalesces a
-// typing run or pushes a fresh snapshot). FLAT scan over buf (L21-safe).
-fn record_history(h: I64, buf: Vec[I32], cur: USize) {
-  mui_undo_record_begin(h)
-  let mut i: USize = 0
-  while i < buf.len() {
-    mui_undo_record_byte(h, byte_at(buf, i))
-    i = i + 1
-  }
-  let cl = usize_to_i32(line_of(buf, cur))
-  let cc = usize_to_i32(col_of(buf, cur))
-  let _r = mui_undo_record_commit(h, cl, cc)
-}
-
-// Pull the shim's load buffer (the bytes an undo/redo restored into it, or a
-// freshly (re)loaded file) into a fresh Mighty buffer. `n` is the byte count
-// reported by mui_undo / mui_redo (I32) or mui_load (I64). No Mighty Vec param
-// read (L21-safe: pushes onto a fresh local from the scalar byte getter).
-fn pull_load_buffer(h: I64, n: I32) -> Vec[I32] effect alloc {
-  let mut out: Vec[I32] = Vec.new()
-  let mut i: I64 = 0
-  let mut k: I32 = 0
-  while k < n {
-    let b = mui_load_byte(h, i)
-    if b >= 0 { out = out.push(b) }
-    i = i + 1
-    k = k + 1
-  }
-  out
-}
-
-// Same as pull_load_buffer but for an I64 byte count (mui_load returns I64).
-fn pull_load_buffer_i64(h: I64, n: I64) -> Vec[I32] effect alloc {
-  let mut out: Vec[I32] = Vec.new()
-  let mut i: I64 = 0
-  while i < n {
-    let b = mui_load_byte(h, i)
-    if b >= 0 { out = out.push(b) }
-    i = i + 1
-  }
-  out
-}
-
-// ---- multi-file workspace: tab byte-swap helpers (sub-project 4) ----
-//
-// The live edit buffer lives in Mighty; all OTHER tabs live shim-side. To
-// switch tabs we serialize the live buffer (+ cursor/scroll) into the active
-// slot, then pull the target slot's bytes back into a fresh Mighty buffer and
-// restore its saved cursor/scroll. Both directions are FLAT loops (L21-safe):
-// the store loop's condition reads `buf` each step; the load loop reads no
-// Mighty Vec param (it pushes onto a fresh local from scalar getters).
-
-// Serialize the live buffer + editor state into tab slot `idx`. FLAT scan.
-fn store_tab(h: I64, buf: Vec[I32], idx: I32, cur: USize, first: USize) {
-  mui_tab_store_begin(h, idx)
-  let mut i: USize = 0
-  while i < buf.len() {
-    mui_tab_store_byte(h, idx, byte_at(buf, i))
-    i = i + 1
-  }
-  let cl = usize_to_i32(line_of(buf, cur))
-  let cc = usize_to_i32(col_of(buf, cur))
-  let fl = usize_to_i32(first)
-  mui_tab_store_commit(h, idx, cl, cc, fl)
-}
-
-// Pull tab slot `idx`'s bytes into a fresh Mighty buffer. No Vec param read.
-//
-// The shim first copies the slot's bytes into its `load_buf` (mui_tab_load_into),
-// then we pull them back through the TWO-arg `mui_load_byte(h, i)` getter via the
-// proven `pull_load_buffer_i64` loop. The three-arg `mui_tab_load_byte(h, idx, i)`
-// getter reads correct bytes in isolation but corrupts the `Vec.push` accumulator
-// when called from a tight Mighty loop under v0.36 native codegen (the buffer came
-// back empty even though each byte read fine), so we avoid it on this hot path.
-fn load_tab_buffer(h: I64, idx: I32) -> Vec[I32] effect alloc {
-  let n = mui_tab_load_into(h, idx)
-  pull_load_buffer_i64(h, n)
-}
-
-// Restore a buffer cursor offset from tab slot `idx`'s saved (line, col),
-// clamped to `buf` (a freshly-loaded buffer). FLAT helper reuse after a flat
-// load loop is L21-safe.
-fn restore_cursor(buf: Vec[I32], h: I64, idx: I32) -> USize {
-  let l = i32_to_usize(mui_tab_cursor_line(h, idx))
-  let c = i32_to_usize(mui_tab_cursor_col(h, idx))
-  offset_of(buf, l, c)
-}
-
-// Jump the cursor to find match `idx` (0-based). Returns the new cursor offset,
-// or the unchanged `cur` if the index is out of range. Uses the match's
-// (line, col) and the buffer's own offset_of (clamped).
-fn cursor_for_match(h: I64, buf: Vec[I32], idx: I32, cur: USize) -> USize {
+// Jump the cursor to find match `idx` (0-based). No-op if out of range.
+fn jump_to_match(h: I64, idx: I32) {
   let count = mui_find_count(h)
-  if idx < 0 || idx >= count { return cur }
-  let mline = mui_find_match_line(h, idx)
-  let mcol = mui_find_match_col(h, idx)
-  offset_of(buf, i32_to_usize(mline), i32_to_usize(mcol))
+  if idx >= 0 && idx < count {
+    let mline = mui_find_match_line(h, idx)
+    let mcol = mui_find_match_col(h, idx)
+    mui_ed_move_to(h, mline, mcol)
+  }
 }
 
 fn main() {
   log("mighty-ide: starting")
-  let h = mui_init_s(900, 600)
+  let h = mui_init_s(1280, 832)
   if h == 0 {
     log("mighty-ide: mui_init_s failed")
     return
   }
-  // The shim opened argv[1] as tab 0; pull its bytes into the live buffer.
-  let mut active: I32 = mui_tab_active(h)
-  let mut buf: Vec[I32] = load_tab_buffer(h, active)
+  // The shim opened argv[1] as tab 0 with its model populated from disk; load
+  // it into the active model (resets cursor to top) and seed undo history.
+  let active0 = mui_tab_active(h)
+  let _n0 = mui_ed_load(h)
+  mui_ed_undo_reset(h)
   log("mighty-ide: buffer ready")
-  // L28 probe: confirm the live Mighty buffer actually accumulated under the
-  // real-arena runtime (the old no-op-arena stub left buf.len()==0).
-  mui_probe_buf_len(h, usize_to_i32(buf.len()))
 
-  // Feature A: seed the undo history baseline with the freshly loaded buffer.
-  seed_history(h, buf, 0)
-  // Track the active tab so we can re-seed history when the live buffer is
-  // replaced wholesale (tab switch/open/close, go-to-def cross-file, etc.).
-  let mut last_active: I32 = active
-
-  // Workspace wiring evidence for non-interactive runs (the user can't see it).
-  // Mighty native `log` takes only string literals (L1), so the shim prints the
-  // computed tab_count / tree entry count to stdout.
+  // Workspace wiring evidence for non-interactive runs (shim prints counts;
+  // Mighty native `log` is literal-only, L23).
   mui_log_workspace(h)
 
   // Initial diagnostics pass on the on-disk file.
   let dn = mui_diag_refresh(h)
   if dn == 0 { log("mighty-ide: diagnostics clean") } else { log("mighty-ide: diagnostics found") }
 
-  let mut cur: USize = 0
-  let mut first: USize = 0          // top visible line (scroll offset)
   let mut running = true
   let mut frame: I32 = 0
   let headless_limit: I32 = 240   // self-terminate so non-interactive runs exit
 
-  // ---- prompt / find mode state ----
   // prompt_kind: 0 = none, 1 = goto, 2 = find, 3 = open (mirrors the shim).
   let mut prompt_kind: I32 = 0
   // After a successful Find, `find_nav` is true and `find_idx` is the current
@@ -885,51 +398,35 @@ fn main() {
   let mut find_nav = false
   let mut find_idx: I32 = 0
 
-  // ---- integrated terminal (sub-project 5) ----
-  // When `term_focus` is true the terminal panel is open AND has keyboard focus:
-  // Char/Key events route to the shell (mui_term_*) instead of the editor.
-  // Ctrl+` toggles the panel; while focused, Ctrl+` returns focus to the editor.
-  // The grid/PTY live shim-side, so Mighty just forwards scalars (L21-safe).
+  // Integrated terminal focus: when true, Char/Key route to the shell.
   let mut term_focus = false
-
-  // ---- autocomplete (sub-project 6) ----
-  // When `completing` is true the dropdown is open: Up/Down move the selection,
-  // Enter/Tab accept, Escape cancels, typing more letters refreshes the request,
-  // any other key cancels. The candidate list + selection live shim-side.
+  // Autocomplete dropdown open.
   let mut completing = false
-
-  // ---- hover + go-to-definition (sub-project 7) ----
-  // `hovering` is true while a hover popup is shown (Ctrl+K opens it; it closes
-  // when the cursor moves or on Escape). The popup anchors to the cursor cell at
-  // request time. F12 jumps to a definition; `have_prev` + (prev_line, prev_col)
-  // store ONE previous location so Ctrl+Minus can jump back. The hover text +
-  // def target live shim-side (L21-safe: Mighty never holds the result Vec).
+  // Hover popup shown; anchored to a cursor cell (line, col).
   let mut hovering = false
-  let mut hover_at: USize = 0   // cursor offset the popup anchors to
+  let mut hover_line: I32 = 0
+  let mut hover_col: I32 = 0
+  // One previous location for jump-back (Ctrl+Minus).
   let mut have_prev = false
-  let mut prev_line: USize = 0
-  let mut prev_col: USize = 0
-
-  // ---- command palette (Ctrl+Shift+P) ----
-  // When `palette_open` is true the overlay is shown: typing filters, Up/Down
-  // move the selection, Enter dispatches the selected command (same code path as
-  // its keybinding), Escape closes. The registry + filter + selection live
-  // shim-side (L21: Mighty never holds the command Vec).
+  let mut prev_line: I32 = 0
+  let mut prev_col: I32 = 0
+  // Command palette open.
   let mut palette_open = false
+  // First visible line (scroll); pushed to the model each frame.
+  let mut first: I32 = 0
+  // True while a contiguous typing run is in progress (so one Ctrl+Z undoes a
+  // run, not one char). An undo checkpoint is recorded at the START of a run.
+  let mut typing = false
 
   while running {
     let rows_i = mui_visible_rows(h)
-    let rows = i32_to_usize(rows_i)
 
     let mut tag = mui_poll_event_s(h)
-    while tag != 0 {
+    while tag != 0 && running {
       if tag == ev_close() {
         running = false
       } else if palette_open {
         // -------- command palette is open: route keystrokes to it -----------
-        // Typing filters; Up/Down move the selection; Enter dispatches the
-        // selected command id to the SAME helper its keybinding triggers;
-        // Escape closes. The list + filter + selection live shim-side.
         if tag == ev_char() {
           let cp = mui_event_codepoint(h)
           if cp >= 32 && cp < 127 { mui_palette_push_char(h, cp) }
@@ -945,22 +442,18 @@ fn main() {
             mui_palette_cancel(h)
             palette_open = false
           } else if k == key_enter() {
-            // Read the selected command id, close the palette, then dispatch.
             let id = mui_palette_selected_id(h)
             mui_palette_cancel(h)
             palette_open = false
-            // ---- dispatch: each arm runs the SAME code path as the key
-            // handler. Self-contained shim calls / flag sets reuse the exact
-            // helpers (save_buffer, request_completion, mui_*); buffer-mutating
-            // arms mirror the key handler's flat sequence (L20/L21-safe).
+            typing = false
             if id == cmd_open_file() {
               mui_prompt_open(h, prompt_open())
               prompt_kind = prompt_open()
               find_nav = false
             } else if id == cmd_save() {
-              let rc = save_buffer(h, buf)
+              let rc = mui_ed_save(h)
               if rc == 0 {
-                mui_tab_set_dirty(h, active, 0)
+                mui_tab_set_dirty(h, active0, 0)
                 let _r = mui_diag_refresh(h)
               }
             } else if id == cmd_find() {
@@ -971,38 +464,13 @@ fn main() {
               prompt_kind = prompt_goto()
               find_nav = false
             } else if id == cmd_goto_definition() {
-              let found = request_def(h, buf, cur)
-              if found == 1 {
-                prev_line = line_of(buf, cur)
-                prev_col = col_of(buf, cur)
-                have_prev = true
-                mui_hover_clear(h)
-                hovering = false
-                let same = mui_def_path_matches_current(h)
-                let tl = mui_def_target_line(h)
-                let tc = mui_def_target_col(h)
-                if same == 1 {
-                  if tl >= 0 { cur = offset_of(buf, i32_to_usize(tl), i32_to_usize(tc)) }
-                } else {
-                  store_tab(h, buf, active, cur, first)
-                  let newidx = mui_def_open_target(h)
-                  if newidx >= 0 {
-                    active = newidx
-                    buf = load_tab_buffer(h, active)
-                    if tl >= 0 {
-                      cur = offset_of(buf, i32_to_usize(tl), i32_to_usize(tc))
-                    } else {
-                      cur = restore_cursor(buf, h, active)
-                    }
-                    first = i32_to_usize(mui_tab_scroll(h, active))
-                    find_nav = false
-                    let _r = mui_diag_refresh(h)
-                  }
-                }
-              }
+              go_to_definition(h)
+              prev_line = mui_ed_cursor_line(h)
+              prev_col = mui_ed_cursor_col(h)
+              find_nav = false
             } else if id == cmd_hover() {
-              let ok = request_hover(h, buf, cur)
-              if ok == 1 { hovering = true; hover_at = cur } else { mui_hover_clear(h); hovering = false }
+              let ok = do_hover(h)
+              if ok == 1 { hovering = true; hover_line = mui_ed_cursor_line(h); hover_col = mui_ed_cursor_col(h) } else { hovering = false }
             } else if id == cmd_toggle_terminal() {
               if mui_term_is_open(h) == 1 {
                 term_focus = true
@@ -1013,80 +481,42 @@ fn main() {
             } else if id == cmd_toggle_sidebar() {
               let _s = mui_sidebar_toggle(h)
             } else if id == cmd_next_tab() {
-              store_tab(h, buf, active, cur, first)
-              active = mui_tab_next(h)
-              buf = load_tab_buffer(h, active)
-              cur = restore_cursor(buf, h, active)
-              first = i32_to_usize(mui_tab_scroll(h, active))
+              let a = mui_tab_next(h)
+              let _b = mui_ed_tab_switch(h, a)
+              mui_ed_undo_reset(h)
               find_nav = false
               let _r = mui_diag_refresh(h)
             } else if id == cmd_prev_tab() {
-              store_tab(h, buf, active, cur, first)
-              active = mui_tab_prev(h)
-              buf = load_tab_buffer(h, active)
-              cur = restore_cursor(buf, h, active)
-              first = i32_to_usize(mui_tab_scroll(h, active))
+              let a = mui_tab_prev(h)
+              let _b = mui_ed_tab_switch(h, a)
+              mui_ed_undo_reset(h)
               find_nav = false
               let _r = mui_diag_refresh(h)
             } else if id == cmd_close_tab() {
-              store_tab(h, buf, active, cur, first)
-              active = mui_tab_close(h, active)
-              buf = load_tab_buffer(h, active)
-              cur = restore_cursor(buf, h, active)
-              first = i32_to_usize(mui_tab_scroll(h, active))
+              let cur_active = mui_tab_active(h)
+              let a = mui_tab_close(h, cur_active)
+              let _b = mui_ed_tab_switch(h, a)
+              mui_ed_undo_reset(h)
               find_nav = false
               let _r = mui_diag_refresh(h)
-              seed_history(h, buf, cur)
-              last_active = active
             } else if id == cmd_format_document() {
-              let rc = save_buffer(h, buf)
-              if rc == 0 {
-                mui_tab_set_dirty(h, active, 0)
-                mui_undo_break(h)
-                record_history(h, buf, cur)
-                let ok = mui_format_current(h)
-                if ok == 1 {
-                  let keep_line = line_of(buf, cur)
-                  let n = mui_load(h)
-                  if n >= 0 {
-                    buf = pull_load_buffer_i64(h, n)
-                    cur = offset_of(buf, keep_line, 0)
-                    mui_undo_break(h)
-                    record_history(h, buf, cur)
-                    let _r = mui_diag_refresh(h)
-                  }
-                }
-              }
+              do_format(h)
             } else if id == cmd_undo() {
               mui_complete_cancel(h)
               completing = false
               find_nav = false
-              let n = mui_undo(h)
-              if n >= 0 {
-                buf = pull_load_buffer(h, n)
-                let rl = i32_to_usize(mui_undo_cursor_line(h))
-                let rc2 = i32_to_usize(mui_undo_cursor_col(h))
-                cur = offset_of(buf, rl, rc2)
-                mui_tab_set_dirty(h, active, 1)
-              }
+              let _u = mui_ed_undo(h)
             } else if id == cmd_redo() {
               mui_complete_cancel(h)
               completing = false
               find_nav = false
-              let n = mui_redo(h)
-              if n >= 0 {
-                buf = pull_load_buffer(h, n)
-                let rl = i32_to_usize(mui_undo_cursor_line(h))
-                let rc2 = i32_to_usize(mui_undo_cursor_col(h))
-                cur = offset_of(buf, rl, rc2)
-                mui_tab_set_dirty(h, active, 1)
-              }
+              let _u = mui_ed_redo(h)
             } else if id == cmd_autocomplete() {
-              let cnt = request_completion(h, buf, cur)
+              let cnt = mui_ed_complete_request(h)
               if cnt > 0 { completing = true } else { mui_complete_cancel(h) }
             } else if id == cmd_jump_back() {
               if have_prev {
-                cur = offset_of(buf, prev_line, prev_col)
+                mui_ed_move_to(h, prev_line, prev_col)
                 have_prev = false
                 mui_hover_clear(h)
                 hovering = false
@@ -1110,18 +540,11 @@ fn main() {
             prompt_kind = 0
           } else if k == key_enter() {
             if prompt_kind == prompt_goto() {
-              // feature 3: parse + jump (clamped), recenter.
               let target1 = mui_prompt_goto_target(h)
-              if target1 >= 1 {
-                let target0 = i32_to_usize(target1) - 1
-                cur = offset_of(buf, target0, 0)
-              }
+              if target1 >= 1 { mui_ed_move_to(h, target1 - 1, 0) }
               mui_prompt_cancel(h)
               prompt_kind = 0
             } else if prompt_kind == prompt_open() {
-              // sub-project 4: stream the typed path into the shim, open as a
-              // tab. Save the current buffer into its slot first (byte-swap).
-              store_tab(h, buf, active, cur, first)
               mui_path_clear(h)
               let plen = mui_prompt_len(h)
               let mut pi: I32 = 0
@@ -1131,25 +554,22 @@ fn main() {
                 pi = pi + 1
               }
               let newidx = mui_tab_open_path(h)
-              active = newidx
-              buf = load_tab_buffer(h, active)
-              cur = restore_cursor(buf, h, active)
-              first = i32_to_usize(mui_tab_scroll(h, active))
+              let _b = mui_ed_tab_switch(h, newidx)
+              mui_ed_undo_reset(h)
               find_nav = false
               let _r = mui_diag_refresh(h)
               mui_prompt_cancel(h)
               prompt_kind = 0
             } else {
-              // feature 4: run the find, jump to the first match if any.
-              let cnt = run_find(h, buf)
+              // find: run, jump to the first match if any (keep matches for nav).
+              let cnt = mui_ed_find_run(h)
               if cnt > 0 {
                 find_nav = true
                 find_idx = 0
-                cur = cursor_for_match(h, buf, find_idx, cur)
+                jump_to_match(h, find_idx)
               } else {
                 find_nav = false
               }
-              // Close the prompt but KEEP matches (highlight + 'n'/Enter nav).
               mui_prompt_cancel(h)
               prompt_kind = 0
             }
@@ -1157,9 +577,6 @@ fn main() {
         }
       } else if term_focus {
         // -------- terminal has focus: route keystrokes to the shell ---------
-        // The key->byte mapping lives shim-side; Mighty forwards codepoint/key
-        // + mods. Ctrl+` (backtick, cp 96) returns focus to the editor without
-        // forwarding the keystroke to the shell.
         if tag == ev_char() {
           let cp = mui_event_codepoint(h)
           let mods = mui_event_mods(h)
@@ -1175,30 +592,20 @@ fn main() {
         }
       } else if completing {
         // -------- autocomplete dropdown is open ------------------------------
-        // Up/Down move the selection; Enter/Tab accept; Escape cancels; typing
-        // a letter/digit/'_' inserts it then refreshes the request; backspace
-        // deletes then refreshes; any other key cancels. The candidate list +
-        // selection live shim-side (L21-safe: Mighty never holds the Vec).
         if tag == ev_char() {
           let cp = mui_event_codepoint(h)
           let is_ident = (cp >= 97 && cp <= 122) || (cp >= 65 && cp <= 90) || (cp >= 48 && cp <= 57) || cp == 95
           if is_ident {
-            // Insert the char, then re-request at the new cursor.
-            buf = insert_at(buf, cur, cp)
-            cur = cur + 1
-            mui_tab_set_dirty(h, active, 1)
-            record_history(h, buf, cur)
-            let cnt = request_completion(h, buf, cur)
+            mui_ed_insert_char(h, cp)
+            mui_tab_set_dirty(h, active0, 1)
+            let cnt = mui_ed_complete_request(h)
             if cnt == 0 { mui_complete_cancel(h); completing = false }
           } else {
-            // Non-identifier char: cancel the dropdown, then insert normally if printable.
             mui_complete_cancel(h)
             completing = false
             if cp >= 32 && cp < 127 {
-              buf = insert_at(buf, cur, cp)
-              cur = cur + 1
-              mui_tab_set_dirty(h, active, 1)
-              record_history(h, buf, cur)
+              mui_ed_insert_char(h, cp)
+              mui_tab_set_dirty(h, active0, 1)
             }
           }
         } else if tag == ev_key() {
@@ -1208,37 +615,21 @@ fn main() {
           } else if k == key_down() {
             mui_complete_move(h, 1)
           } else if k == key_enter() || k == key_tab() {
-            // Accept: delete prefix_len chars, insert the accepted text.
-            let plen = mui_complete_prefix_len(h)
-            let alen = mui_complete_accept_len(h)
-            buf = accept_completion(h, buf, cur)
-            // New cursor = cur - prefix_len + accept_len (computed, no struct).
-            cur = cur - i32_to_usize(plen) + i32_to_usize(alen)
-            mui_tab_set_dirty(h, active, 1)
-            // A completion accept is a discrete edit, not part of a typing run.
-            mui_undo_break(h)
-            record_history(h, buf, cur)
+            mui_ed_undo_record(h)
+            let _a = mui_ed_complete_accept(h)
+            mui_tab_set_dirty(h, active0, 1)
             mui_complete_cancel(h)
             completing = false
+            typing = false
           } else if k == key_escape() {
             mui_complete_cancel(h)
             completing = false
           } else if k == key_backspace() {
-            if cur > 0 {
-              cur = cur - 1
-              buf = delete_at(buf, cur)
-              mui_tab_set_dirty(h, active, 1)
-              mui_undo_break(h)
-              record_history(h, buf, cur)
-              let cnt = request_completion(h, buf, cur)
-              if cnt == 0 { mui_complete_cancel(h); completing = false }
-            } else {
-              mui_complete_cancel(h)
-              completing = false
-            }
+            mui_ed_backspace(h)
+            mui_tab_set_dirty(h, active0, 1)
+            let cnt = mui_ed_complete_request(h)
+            if cnt == 0 { mui_complete_cancel(h); completing = false }
           } else {
-            // Arrow left/right or other navigation: cancel the dropdown and let
-            // the next frame handle the key normally next time.
             mui_complete_cancel(h)
             completing = false
           }
@@ -1246,247 +637,154 @@ fn main() {
       } else if tag == ev_char() {
         let cp = mui_event_codepoint(h)
         let mods = mui_event_mods(h)
-        if is_palette_chord(cp, mods) {                     // Ctrl+Shift+P : command palette
+        if is_palette_chord(cp, mods) {                     // Ctrl+Shift+P : palette
           mui_palette_open(h)
           palette_open = true
+          typing = false
         } else if ctrl_held(mods) && cp == 32 {             // Ctrl+Space : autocomplete
-          let cnt = request_completion(h, buf, cur)
+          let cnt = mui_ed_complete_request(h)
           if cnt > 0 { completing = true } else { mui_complete_cancel(h) }
-        } else if ctrl_held(mods) && (cp == 107 || cp == 75) {  // Ctrl+K / Ctrl+k : hover
-          // Manual hover trigger: request hover at the cursor; show the popup
-          // until the cursor moves or Escape (sub-project 7). Simple + explicit,
-          // no idle-timer complexity.
-          let ok = request_hover(h, buf, cur)
-          if ok == 1 { hovering = true; hover_at = cur } else { mui_hover_clear(h); hovering = false }
+        } else if ctrl_held(mods) && (cp == 107 || cp == 75) {  // Ctrl+K : hover
+          let ok = do_hover(h)
+          if ok == 1 { hovering = true; hover_line = mui_ed_cursor_line(h); hover_col = mui_ed_cursor_col(h) } else { hovering = false }
         } else if ctrl_held(mods) && cp == 45 {             // Ctrl+Minus : jump back
           if have_prev {
-            cur = offset_of(buf, prev_line, prev_col)
+            mui_ed_move_to(h, prev_line, prev_col)
             have_prev = false
             mui_hover_clear(h)
             hovering = false
           }
         } else if ctrl_held(mods) && cp == 96 {             // Ctrl+` : toggle terminal
           if mui_term_is_open(h) == 1 {
-            // Panel already open but editor-focused -> give it focus.
             term_focus = true
           } else {
             let ok = mui_term_open(h)
-            if ok == 1 {
-              term_focus = true
-              mui_log_terminal(h)
-            }
+            if ok == 1 { term_focus = true; mui_log_terminal(h) }
           }
-        } else if ctrl_held(mods) && (cp == 115 || cp == 83) {     // Ctrl+S / Ctrl+s
-          let rc = save_buffer(h, buf)
+        } else if ctrl_held(mods) && (cp == 115 || cp == 83) {  // Ctrl+S : save
+          let rc = mui_ed_save(h)
           if rc == 0 { log("mighty-ide: saved") } else { log("mighty-ide: save FAILED") }
-          // The on-disk file is current after save; re-check it + clear dirty.
           if rc == 0 {
-            mui_tab_set_dirty(h, active, 0)
+            mui_tab_set_dirty(h, active0, 0)
             let _r = mui_diag_refresh(h)
           }
+          typing = false
         } else if is_undo_chord(cp, mods) {                  // Ctrl+Z : undo
-          // Feature A: undo. The shim restores the prior snapshot into its load
-          // buffer (we pull it) and returns the restored cursor as scalars.
           mui_complete_cancel(h)
           completing = false
           find_nav = false
-          let n = mui_undo(h)
-          if n >= 0 {
-            buf = pull_load_buffer(h, n)
-            let rl = i32_to_usize(mui_undo_cursor_line(h))
-            let rc2 = i32_to_usize(mui_undo_cursor_col(h))
-            cur = offset_of(buf, rl, rc2)
-            mui_tab_set_dirty(h, active, 1)
-          }
+          typing = false
+          let _u = mui_ed_undo(h)
         } else if is_redo_chord(cp, mods) {                  // Ctrl+Y / Ctrl+Shift+Z : redo
-          // Feature A: redo (mirror of undo).
           mui_complete_cancel(h)
           completing = false
           find_nav = false
-          let n = mui_redo(h)
-          if n >= 0 {
-            buf = pull_load_buffer(h, n)
-            let rl = i32_to_usize(mui_undo_cursor_line(h))
-            let rc2 = i32_to_usize(mui_undo_cursor_col(h))
-            cur = offset_of(buf, rl, rc2)
-            mui_tab_set_dirty(h, active, 1)
-          }
-        } else if is_format_chord(cp, mods) {                // Ctrl+Shift+I : format document
-          // Feature B: save -> push an undo boundary+snapshot -> format in place
-          // -> reload the formatted file -> seed isn't needed (record makes it
-          // undoable). Save first so the formatter sees the current text.
-          let rc = save_buffer(h, buf)
-          if rc == 0 {
-            mui_tab_set_dirty(h, active, 0)
-            // Push the pre-format buffer as a discrete undo step so Ctrl+Z reverts
-            // the format in one move.
-            mui_undo_break(h)
-            record_history(h, buf, cur)
-            let ok = mui_format_current(h)
-            if ok == 1 {
-              // Reload the formatted file via the existing load path, keeping the
-              // cursor line where possible.
-              let keep_line = line_of(buf, cur)
-              let n = mui_load(h)
-              if n >= 0 {
-                buf = pull_load_buffer_i64(h, n)
-                cur = offset_of(buf, keep_line, 0)
-                // Record the formatted result as the new step (undoable).
-                mui_undo_break(h)
-                record_history(h, buf, cur)
-                let _r = mui_diag_refresh(h)
-              }
-            }
-          }
-        } else if ctrl_held(mods) && (cp == 103 || cp == 71) {   // Ctrl+G / Ctrl+g
+          typing = false
+          let _u = mui_ed_redo(h)
+        } else if is_format_chord(cp, mods) {                // Ctrl+Shift+I : format
+          do_format(h)
+          typing = false
+        } else if ctrl_held(mods) && (cp == 103 || cp == 71) {   // Ctrl+G : go to line
           mui_prompt_open(h, prompt_goto())
           prompt_kind = prompt_goto()
           find_nav = false
-        } else if ctrl_held(mods) && (cp == 102 || cp == 70) {   // Ctrl+F / Ctrl+f
+        } else if ctrl_held(mods) && (cp == 102 || cp == 70) {   // Ctrl+F : find
           mui_prompt_open(h, prompt_find())
           prompt_kind = prompt_find()
-        } else if ctrl_held(mods) && (cp == 111 || cp == 79) {   // Ctrl+O / Ctrl+o: open file
+        } else if ctrl_held(mods) && (cp == 111 || cp == 79) {   // Ctrl+O : open file
           mui_prompt_open(h, prompt_open())
           prompt_kind = prompt_open()
           find_nav = false
-        } else if ctrl_held(mods) && (cp == 98 || cp == 66) {    // Ctrl+B / Ctrl+b: toggle sidebar
+        } else if ctrl_held(mods) && (cp == 98 || cp == 66) {    // Ctrl+B : toggle sidebar
           let _s = mui_sidebar_toggle(h)
-        } else if ctrl_held(mods) && (cp == 119 || cp == 87) {   // Ctrl+W / Ctrl+w: close active tab
-          store_tab(h, buf, active, cur, first)
-          active = mui_tab_close(h, active)
-          buf = load_tab_buffer(h, active)
-          cur = restore_cursor(buf, h, active)
-          first = i32_to_usize(mui_tab_scroll(h, active))
+        } else if ctrl_held(mods) && (cp == 119 || cp == 87) {   // Ctrl+W : close active tab
+          let cur_active = mui_tab_active(h)
+          let a = mui_tab_close(h, cur_active)
+          let _b = mui_ed_tab_switch(h, a)
+          mui_ed_undo_reset(h)
           find_nav = false
           let _r = mui_diag_refresh(h)
-          // Close may keep the same index but a different file; re-seed now and
-          // update the tracker so the post-loop check doesn't double-seed.
-          seed_history(h, buf, cur)
-          last_active = active
-        } else if find_nav && (cp == 110 || cp == 78) {     // 'n' / 'N': next match
+        } else if find_nav && (cp == 110 || cp == 78) {     // 'n' / 'N' : next match
           let cnt = mui_find_count(h)
           if cnt > 0 {
             find_idx = find_idx + 1
             if find_idx >= cnt { find_idx = 0 }
-            cur = cursor_for_match(h, buf, find_idx, cur)
+            jump_to_match(h, find_idx)
           }
-        } else if cp >= 32 && cp < 127 {                    // printable ASCII
+        } else if cp >= 32 && cp < 127 {                    // printable ASCII : insert
           find_nav = false
-          buf = insert_at(buf, cur, cp)
-          cur = cur + 1
-          mui_tab_set_dirty(h, active, 1)
-          // Feature A: record the typing edit (the shim coalesces a run).
-          record_history(h, buf, cur)
+          // Record an undo checkpoint at the start of a typing run only.
+          if !typing { mui_ed_undo_record(h); typing = true }
+          mui_ed_insert_char(h, cp)
+          mui_tab_set_dirty(h, active0, 1)
         }
       } else if tag == ev_key() {
         let k = mui_event_key(h)
         if k == key_f12() {
-          // sub-project 7: go-to-definition. Request at the cursor; if found,
-          // remember the current location (jump-back), then either move the
-          // cursor in the same file or open the target file as a tab (byte-swap
-          // the live buffer first so the current edit isn't lost) and move there.
-          let found = request_def(h, buf, cur)
-          if found == 1 {
-            prev_line = line_of(buf, cur)
-            prev_col = col_of(buf, cur)
-            have_prev = true
-            mui_hover_clear(h)
-            hovering = false
-            let same = mui_def_path_matches_current(h)
-            let tl = mui_def_target_line(h)
-            let tc = mui_def_target_col(h)
-            if same == 1 {
-              if tl >= 0 {
-                cur = offset_of(buf, i32_to_usize(tl), i32_to_usize(tc))
-              }
-            } else {
-              // Different file: save the live buffer, open the target tab, load
-              // it, then move the cursor to the target (reuse the tab-swap path).
-              store_tab(h, buf, active, cur, first)
-              let newidx = mui_def_open_target(h)
-              if newidx >= 0 {
-                active = newidx
-                buf = load_tab_buffer(h, active)
-                if tl >= 0 {
-                  cur = offset_of(buf, i32_to_usize(tl), i32_to_usize(tc))
-                } else {
-                  cur = restore_cursor(buf, h, active)
-                }
-                first = i32_to_usize(mui_tab_scroll(h, active))
-                find_nav = false
-                let _r = mui_diag_refresh(h)
-              }
-            }
-          }
+          go_to_definition(h)
+          prev_line = mui_ed_cursor_line(h)
+          prev_col = mui_ed_cursor_col(h)
+          find_nav = false
         } else if k == key_escape() {
-          find_nav = false                                  // clear find highlights
-          mui_hover_clear(h)                                // dismiss hover popup
+          find_nav = false
+          mui_hover_clear(h)
           hovering = false
         } else if k == key_tab() {
           let kmods = mui_event_mods(h)
           if ctrl_held(kmods) {
-            // sub-project 2: Ctrl+Tab next / Ctrl+Shift+Tab prev. Byte-swap the
-            // live buffer into the active slot, then load the new one.
-            store_tab(h, buf, active, cur, first)
-            if shift_held(kmods) {
-              active = mui_tab_prev(h)
-            } else {
-              active = mui_tab_next(h)
-            }
-            buf = load_tab_buffer(h, active)
-            cur = restore_cursor(buf, h, active)
-            first = i32_to_usize(mui_tab_scroll(h, active))
+            // Ctrl+Tab next / Ctrl+Shift+Tab prev. Tab switch is a plain index
+            // change now (each tab owns its model) — no byte-swap loop.
+            let mut a = mui_tab_next(h)
+            if shift_held(kmods) { a = mui_tab_prev(h) }
+            let _b = mui_ed_tab_switch(h, a)
+            mui_ed_undo_reset(h)
             find_nav = false
             let _r = mui_diag_refresh(h)
           } else {
-            // Plain Tab inserts a tab character (a discrete edit, breaks the run).
-            mui_undo_break(h)
-            buf = insert_at(buf, cur, 9)
-            cur = cur + 1
-            mui_tab_set_dirty(h, active, 1)
-            record_history(h, buf, cur)
+            if !typing { mui_ed_undo_record(h); typing = true }
+            mui_ed_insert_char(h, 9)
+            mui_tab_set_dirty(h, active0, 1)
           }
         } else if k == key_left() {
-          if cur > 0 { cur = cur - 1 }
-          mui_undo_break(h)                                 // cursor move ends a typing run
+          mui_ed_move(h, dir_left())
+          typing = false
         } else if k == key_right() {
-          if cur < buf.len() { cur = cur + 1 }
-          mui_undo_break(h)
+          mui_ed_move(h, dir_right())
+          typing = false
         } else if k == key_up() {
-          cur = move_vertical(buf, cur, false)
-          mui_undo_break(h)
+          mui_ed_move(h, dir_up())
+          typing = false
         } else if k == key_down() {
-          cur = move_vertical(buf, cur, true)
-          mui_undo_break(h)
+          mui_ed_move(h, dir_down())
+          typing = false
         } else if k == key_backspace() {
-          if cur > 0 {
-            find_nav = false
-            cur = cur - 1
-            buf = delete_at(buf, cur)
-            mui_tab_set_dirty(h, active, 1)
-            // A delete is a discrete edit, not part of a forward typing run.
-            mui_undo_break(h)
-            record_history(h, buf, cur)
-          }
+          find_nav = false
+          mui_ed_undo_record(h)
+          typing = false
+          mui_ed_backspace(h)
+          mui_tab_set_dirty(h, active0, 1)
+        } else if k == key_delete() {
+          find_nav = false
+          mui_ed_undo_record(h)
+          typing = false
+          mui_ed_delete(h)
+          mui_tab_set_dirty(h, active0, 1)
         } else if k == key_enter() {
           if find_nav {
             let cnt = mui_find_count(h)
             if cnt > 0 {
               find_idx = find_idx + 1
               if find_idx >= cnt { find_idx = 0 }
-              cur = cursor_for_match(h, buf, find_idx, cur)
+              jump_to_match(h, find_idx)
             }
           } else {
-            // A newline is a discrete edit, breaks the typing run.
-            mui_undo_break(h)
-            buf = insert_at(buf, cur, 10)
-            cur = cur + 1
-            mui_tab_set_dirty(h, active, 1)
-            record_history(h, buf, cur)
+            mui_ed_undo_record(h)
+            typing = false
+            mui_ed_newline(h)
+            mui_tab_set_dirty(h, active0, 1)
           }
         }
       } else if tag == ev_scroll() {
-        // Wheel up (dir +1) scrolls toward the top; wheel down scrolls down.
         let dir = mui_event_scroll_dir(h)
         if dir > 0 {
           if first >= 3 { first = first - 3 } else { first = 0 }
@@ -1498,131 +796,90 @@ fn main() {
         let tab_hit = mui_tab_index_at_click(h)
         let tree_hit = mui_tree_row_at_click(h)
         if tab_hit >= 0 {
-          // sub-project 2: clicking a tab switches to it (byte-swap first).
-          if tab_hit != active {
-            store_tab(h, buf, active, cur, first)
-            active = mui_tab_switch(h, tab_hit)
-            buf = load_tab_buffer(h, active)
-            cur = restore_cursor(buf, h, active)
-            first = i32_to_usize(mui_tab_scroll(h, active))
+          let cur_active = mui_tab_active(h)
+          if tab_hit != cur_active {
+            let _b = mui_ed_tab_switch(h, tab_hit)
+            mui_ed_undo_reset(h)
             find_nav = false
             let _r = mui_diag_refresh(h)
           }
         } else if tree_hit >= 0 {
-          // sub-project 3: dir row toggles expand; file row opens in a tab.
           let isdir = mui_tree_is_dir(h, tree_hit)
           if isdir == 1 {
             let _c = mui_tree_toggle(h, tree_hit)
           } else if isdir == 0 {
-            store_tab(h, buf, active, cur, first)
             let newidx = mui_tree_open_row(h, tree_hit)
             if newidx >= 0 {
-              active = newidx
-              buf = load_tab_buffer(h, active)
-              cur = restore_cursor(buf, h, active)
-              first = i32_to_usize(mui_tab_scroll(h, active))
+              let _b = mui_ed_tab_switch(h, newidx)
+              mui_ed_undo_reset(h)
               find_nav = false
               let _r = mui_diag_refresh(h)
             }
           }
         } else {
-          // Text area: place the cursor.
-          let total = line_count(buf)
-          let total_i = usize_to_i32(total)
-          let first_i = usize_to_i32(first)
-          let cl_i = mui_click_line(h, first_i, total_i)
-          let cc_i = mui_click_col(h, total_i)
-          cur = offset_of(buf, i32_to_usize(cl_i), i32_to_usize(cc_i))
+          // Text area: place the cursor (the shim maps pixel -> line/col).
+          let _l = mui_ed_click(h)
+          typing = false
         }
       }
       tag = mui_poll_event_s(h)
     }
 
-    // sub-project 7: dismiss the hover popup once the cursor leaves the cell it
-    // anchored to (any move/edit/click changes `cur`). Escape also clears it.
-    if hovering && cur != hover_at {
-      mui_hover_clear(h)
-      hovering = false
-    }
-
-    // Feature A: when the active tab changed this frame the live buffer was
-    // replaced wholesale, so re-seed the undo baseline for the new buffer
-    // (history is per active buffer; undo/redo never re-seed, they record).
-    if active != last_active {
-      seed_history(h, buf, cur)
-      last_active = active
+    // Dismiss the hover popup once the cursor leaves the anchored cell.
+    if hovering {
+      let cl = mui_ed_cursor_line(h)
+      let cc = mui_ed_cursor_col(h)
+      if cl != hover_line || cc != hover_col {
+        mui_hover_clear(h)
+        hovering = false
+      }
     }
 
     // Keep the cursor on-screen, then clamp `first` so we never scroll past EOF.
-    let cur_line = line_of(buf, cur)
-    first = scroll_to_cursor(first, cur_line, rows)
-    let total = line_count(buf)
-    if first + rows > total {
-      if total > rows { first = total - rows } else { first = 0 }
+    let cur_line = mui_ed_cursor_line(h)
+    first = scroll_to_cursor(first, cur_line, rows_i)
+    let total = mui_ed_line_count(h)
+    if first + rows_i > total {
+      if total > rows_i { first = total - rows_i } else { first = 0 }
     }
+    if first < 0 { first = 0 }
+    mui_ed_set_scroll(h, first)
 
-    // sub-project 5: drain PTY output into the shim's terminal grid BEFORE the
-    // frame so this frame draws current shell output. No-op when closed.
+    // Drain PTY output into the shim's terminal grid BEFORE the frame.
     let term_on = mui_term_is_open(h)
     if term_on == 1 {
       mui_term_pump(h)
-      // If the shell exited, drop focus so keystrokes go back to the editor.
       if mui_term_running(h) == 0 { term_focus = false }
     }
 
-    // Gutter sizing uses the shim's line count (its load_buf is the source of
-    // truth the body is drawn from), so diagnostics/find overlays line up with
-    // the shim-drawn gutter even when the Mighty-side `buf` is empty.
-    let total_now_i = mui_buf_line_count(h)
+    let total_now = mui_ed_line_count(h)
     mui_begin_frame_s(h)
-    // Draw the editor body (gutter + source text + cursor) shim-side from the
-    // shim's own copy of the active file bytes. This issues the same GPU rect/
-    // text draw calls as the per-line Mighty path, but reads the bytes shim-side
-    // so it is unaffected by the v0.36 native-codegen Vec.push fragility on the
-    // buffer-pull path (which left the Mighty-side `buf` empty for real files).
-    let cur_line_i = usize_to_i32(line_of(buf, cur))
-    let cur_col_i = usize_to_i32(col_of(buf, cur))
-    let first_i = usize_to_i32(first)
-    let rows_i2 = usize_to_i32(rows)
-    mui_draw_buffer_self(h, first_i, rows_i2, cur_line_i, cur_col_i)
-    if find_nav { draw_find_highlights(h, total_now_i, first, rows) }
-    draw_diagnostics(h, total_now_i, first, rows)
-    draw_status_bar(h, buf, cur)
-    // sub-projects 1+3: tab bar (top) + file-tree sidebar (left).
+    // Draw the editor body (current-line band + gutter + syntax-colored text +
+    // selection + caret) shim-side from the AUTHORITATIVE model. Editing is live.
+    mui_ed_draw(h, rows_i)
+    if find_nav { draw_find_highlights(h, total_now, first, rows_i) }
+    draw_diagnostics(h, total_now, first, rows_i)
+    draw_status_bar(h)
     mui_sidebar_draw(h)
     mui_tab_bar_draw(h)
-    // sub-project 5: the terminal panel (lower third) over the editor body.
     if term_on == 1 { mui_term_draw(h) }
     if prompt_kind != 0 { mui_prompt_draw(h) }
-    // sub-project 6: the autocomplete dropdown near the cursor. Draw last so it
-    // sits over everything. The shim positions/clamps the box from row/col.
+    // autocomplete dropdown near the cursor (drawn over the body).
     if completing {
-      let c_line = line_of(buf, cur)
-      let c_col = col_of(buf, cur)
-      if c_line >= first && c_line < first + rows {
-        let crow = usize_to_i32(c_line - first)
-        let ccol = usize_to_i32(c_col)
-        mui_complete_draw_at(h, crow, ccol, total_now_i)
+      let c_line = mui_ed_cursor_line(h)
+      let c_col = mui_ed_cursor_col(h)
+      if c_line >= first && c_line < first + rows_i {
+        mui_complete_draw_at(h, c_line - first, c_col, total_now)
       }
     }
-    // sub-project 7: the hover popup near the cursor (anchored to hover_at).
-    // Draw last (over everything). The shim positions/clamps the box from
-    // row/col and wraps the text to a few lines.
+    // hover popup near the anchored cell.
     if hovering {
-      let h_line = line_of(buf, hover_at)
-      let h_col = col_of(buf, hover_at)
-      if h_line >= first && h_line < first + rows {
-        let hrow = usize_to_i32(h_line - first)
-        let hcol = usize_to_i32(h_col)
-        mui_hover_draw(h, hrow, hcol, total_now_i)
+      if hover_line >= first && hover_line < first + rows_i {
+        mui_hover_draw(h, hover_line - first, hover_col, total_now)
       }
     }
-    // command palette: a centered overlay box, drawn last so it sits over
-    // everything. The shim positions/clamps the box and highlights the selection.
-    // Draw the palette unconditionally: `mui_palette_draw` no-ops unless the
-    // palette is active, so this is equivalent to the `palette_open` guard for
-    // interactive use, but also lets a shim-side MUI_PALETTE_AUTOOPEN (headless
-    // screenshot mode) render the overlay without a Ctrl+Shift+P keystroke.
+    // command palette: a centered overlay (no-ops unless active, so the
+    // MUI_PALETTE_AUTOOPEN screenshot hook renders it without a keystroke).
     mui_palette_draw(h)
     mui_end_frame_s(h)
 
@@ -1633,4 +890,59 @@ fn main() {
   log("mighty-ide: shutting down")
   mui_shutdown_s(h)
   log("mighty-ide: done")
+}
+
+// ---- shared action helpers (single shim-call actions factor cleanly, L27) ----
+
+// Hover at the cursor: stream the model, request hover. Returns 1 if available.
+fn do_hover(h: I64) -> I32 {
+  mui_ed_nav_stream(h)
+  let line = mui_ed_cursor_line(h)
+  let col = mui_ed_cursor_col(h)
+  mui_hover_request(h, line, col)
+}
+
+// Go-to-definition at the cursor. Moves the cursor in place (same file) or opens
+// the target file as a tab and jumps. The shim owns the resolved target.
+fn go_to_definition(h: I64) {
+  mui_ed_nav_stream(h)
+  let line = mui_ed_cursor_line(h)
+  let col = mui_ed_cursor_col(h)
+  let found = mui_def_request(h, line, col)
+  if found == 1 {
+    mui_hover_clear(h)
+    let same = mui_def_path_matches_current(h)
+    let tl = mui_def_target_line(h)
+    let tc = mui_def_target_col(h)
+    if same == 1 {
+      if tl >= 0 { mui_ed_move_to(h, tl, tc) }
+    } else {
+      let newidx = mui_def_open_target(h)
+      if newidx >= 0 {
+        let _b = mui_ed_tab_switch(h, newidx)
+        mui_ed_undo_reset(h)
+        if tl >= 0 { mui_ed_move_to(h, tl, tc) }
+        let _r = mui_diag_refresh(h)
+      }
+    }
+  }
+}
+
+// Format the active document in place: save -> checkpoint -> `mty fmt` -> reload
+// (only on success). The save+reload keeps the model authoritative; the undo
+// checkpoint makes the format reversible in one Ctrl+Z.
+fn do_format(h: I64) {
+  let active = mui_tab_active(h)
+  let rc = mui_ed_save(h)
+  if rc == 0 {
+    mui_tab_set_dirty(h, active, 0)
+    // Checkpoint the pre-format model so the whole format is one Ctrl+Z. Keep
+    // the checkpoint (no reset) after reload so undo can restore it.
+    mui_ed_undo_record(h)
+    let ok = mui_format_current(h)
+    if ok == 1 {
+      let _n = mui_ed_load(h)
+      let _r = mui_diag_refresh(h)
+    }
+  }
 }

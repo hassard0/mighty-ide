@@ -13,6 +13,7 @@
 mod abi;
 mod completion;
 mod diagnostics;
+mod editor;
 mod ffi;
 mod format;
 mod gpu;
@@ -22,9 +23,11 @@ mod nav;
 mod palette;
 mod prompt;
 mod screenshot;
+mod syntax;
 mod tabs;
 mod terminal;
 mod text;
+mod theme;
 mod tree;
 mod window;
 
@@ -141,6 +144,18 @@ pub struct MuiContext {
     /// and writes a PNG of the configured frame, then asks the loop to exit.
     /// `None` for normal windowed runs (behavior unchanged).
     screenshot: Option<screenshot::ScreenshotState>,
+
+    // ---- live editor model undo/redo (shim-side; L28 workaround) ----
+    /// Undo/redo of full [`editor::TextModel`] snapshots for the ACTIVE tab.
+    /// Since the editable buffer now lives shim-side (L28), undo also lives
+    /// here: `mui_ed_undo_record` pushes the current model, `mui_ed_undo`/`_redo`
+    /// restore one. Reset on load / tab switch (history is per active buffer).
+    ed_undo: Vec<editor::TextModel>,
+    ed_redo: Vec<editor::TextModel>,
+    /// When set by `MUI_EDIT_PROBE`, [`mui_ed_load`] becomes a no-op so the
+    /// scripted-edit model survives the IDE's initial load — letting a headless
+    /// screenshot capture the LIVE-edited buffer (screenshots/06-edit.png).
+    pub(crate) edit_probe_lock: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -282,6 +297,9 @@ pub(crate) fn build_context(
         restored_cursor: (0, 0),
         palette: palette::PaletteEngine::new(),
         screenshot,
+        ed_undo: Vec::new(),
+        ed_redo: Vec::new(),
+        edit_probe_lock: false,
     });
     Box::into_raw(ctx)
 }
@@ -605,6 +623,10 @@ impl MuiContext {
             }
         };
         let text = Text::new(&gpu.device, &gpu.queue, gpu.format);
+        // Seed a scratch tab so the active editor model is always present (the
+        // real `build_context` does this; tests build the context directly).
+        let mut tabs = tabs::TabStore::new();
+        tabs.ensure_scratch();
         Some(MuiContext {
             gpu,
             text,
@@ -627,7 +649,7 @@ impl MuiContext {
             status_cursor: (1, 1),
             prompt: prompt::PromptState::new(),
             find: prompt::FindState::new(),
-            tabs: tabs::TabStore::new(),
+            tabs,
             tree: tree::FileTree::new(),
             sidebar_visible: true,
             terminal: None,
@@ -641,6 +663,9 @@ impl MuiContext {
             restored_cursor: (0, 0),
             palette: palette::PaletteEngine::new(),
             screenshot: None,
+            ed_undo: Vec::new(),
+            ed_redo: Vec::new(),
+            edit_probe_lock: false,
         })
     }
 

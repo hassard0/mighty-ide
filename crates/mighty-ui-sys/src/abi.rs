@@ -31,6 +31,7 @@ use std::path::PathBuf;
 use crate::diagnostics::{self, Severity};
 use crate::ffi::*;
 use crate::layout;
+use crate::theme;
 use crate::MuiContext;
 
 /// Resolve the file to edit: `argv[1]` if given, else a scratch file in the
@@ -122,6 +123,15 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
     // (Ctrl+Shift+P can't be delivered non-interactively). See `mui_palette_probe`.
     if std::env::var_os("MUI_PALETTE_PROBE").is_some() {
         mui_palette_probe(handle);
+    }
+
+    // Launch-test hook for LIVE editing (L28 workaround): with MUI_EDIT_PROBE set,
+    // run a scripted insert/newline/backspace against the shim's authoritative
+    // text model and log the resulting line count + line lengths — proving the
+    // model mutates live (keystrokes can't be delivered non-interactively). See
+    // `mui_edit_probe`. The mutated model also renders into a screenshot frame.
+    if std::env::var_os("MUI_EDIT_PROBE").is_some() {
+        mui_edit_probe(handle);
     }
 
     // Screenshot/render hook for the command palette: with MUI_PALETTE_AUTOOPEN
@@ -894,45 +904,54 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
         return;
     };
 
-    // Band.
+    // Elevated full-width band (NOT a red bar) + a thin top divider.
     let w = ctx.gpu.width as f32;
     let h = ctx.gpu.height as f32;
     let bar_h = layout::LINE_H;
     let y = (h - bar_h).max(0.0);
-    let band = if error_count == 0 {
-        MuiColor::new(0.16, 0.45, 0.20, 1.0) // green
-    } else {
-        MuiColor::new(0.55, 0.14, 0.14, 1.0) // red
-    };
-
-    // Compose the label text.
-    let (line1, col1) = ctx.status_cursor;
-    let name = if ctx.file_name.is_empty() {
-        "(scratch)"
-    } else {
-        ctx.file_name.as_str()
-    };
-    let err_part = match error_count {
-        0 => "OK".to_string(),
-        1 => "1 error".to_string(),
-        n => format!("{n} errors"),
-    };
-    let label = format!("{name}    Ln {line1}, Col {col1}    {err_part}");
-
-    let text_y = (h - layout::LINE_H + 1.0).max(0.0);
-    let fg = if error_count == 0 {
-        MuiColor::new(0.85, 0.95, 0.85, 1.0)
-    } else {
-        MuiColor::new(1.0, 0.9, 0.9, 1.0)
-    };
-
+    let chrome = theme::CHROME_FONT_SIZE;
     let clip = ctx.clip;
     let handle_ptr = handle as usize as *mut MuiContext;
-    let text_x = layout::region(ctx.sidebar_visible).left + layout::PAD;
+
     unsafe {
-        crate::mui_fill_rect(handle_ptr, 0.0, y, w, bar_h, band);
+        crate::mui_fill_rect(handle_ptr, 0.0, y, w, bar_h, theme::ELEVATED);
+        crate::mui_fill_rect(handle_ptr, 0.0, y, w, 1.0, theme::BORDER);
     }
-    ctx.text.queue(text_x, text_y, &label, fg, clip);
+
+    let (line1, col1) = ctx.status_cursor;
+    let name = if ctx.file_name.is_empty() {
+        "(scratch)".to_string()
+    } else {
+        ctx.file_name.clone()
+    };
+    let ty = y + (bar_h - chrome) * 0.5 - 1.0;
+
+    // Left segment: filename (accent dot if dirty handled by tab bar).
+    let left_x = layout::PAD;
+    ctx.text.queue_sized(left_x, ty, &name, theme::TEXT, chrome, clip);
+
+    // Center segment: Ln L, Col C — with subtle dividers around it.
+    let center = format!("Ln {line1}, Col {col1}");
+    let center_w = center.chars().count() as f32 * layout::CHAR_W * (chrome / theme::FONT_SIZE);
+    let center_x = (w - center_w) * 0.5;
+    unsafe {
+        crate::mui_fill_rect(handle_ptr, center_x - 12.0, y + 5.0, 1.0, bar_h - 10.0, theme::BORDER);
+        crate::mui_fill_rect(handle_ptr, center_x + center_w + 12.0, y + 5.0, 1.0, bar_h - 10.0, theme::BORDER);
+    }
+    ctx.text.queue_sized(center_x, ty, &center, theme::DIM, chrome, clip);
+
+    // Right segment: a compact diagnostics chip (red `● N` only when errors).
+    if error_count > 0 {
+        let chip = format!("● {error_count}");
+        let chip_w = chip.chars().count() as f32 * layout::CHAR_W * (chrome / theme::FONT_SIZE);
+        let chip_x = (w - chip_w - layout::PAD).max(left_x);
+        ctx.text.queue_sized(chip_x, ty, &chip, theme::ERROR, chrome, clip);
+    } else {
+        let ok = "✓ OK";
+        let ok_w = ok.chars().count() as f32 * layout::CHAR_W * (chrome / theme::FONT_SIZE);
+        let ok_x = (w - ok_w - layout::PAD).max(left_x);
+        ctx.text.queue_sized(ok_x, ty, ok, theme::TEAL, chrome, clip);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1010,22 +1029,19 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
     let bar_h = layout::LINE_H;
     // Sit the prompt band one row above the status bar.
     let y = (h - 2.0 * bar_h).max(0.0);
-    let band = MuiColor::new(0.12, 0.18, 0.28, 1.0); // dark blue
+    let chrome = theme::CHROME_FONT_SIZE;
     let text = ctx.prompt.display_line();
-    let text_y = (y + 1.0).max(0.0);
+    let text_y = y + (bar_h - chrome) * 0.5 - 1.0;
     let clip = ctx.clip;
     let handle_ptr = handle as usize as *mut MuiContext;
-    let text_x = layout::region(ctx.sidebar_visible).left + layout::PAD;
+    let text_x = layout::region(ctx.sidebar_visible).left + layout::PAD + 12.0;
     unsafe {
-        crate::mui_fill_rect(handle_ptr, 0.0, y, w, bar_h, band);
+        // Elevated band + top divider + an ember accent bar on the left edge.
+        crate::mui_fill_rect(handle_ptr, 0.0, y, w, bar_h, theme::ELEVATED);
+        crate::mui_fill_rect(handle_ptr, 0.0, y, w, 1.0, theme::BORDER);
+        crate::mui_fill_rect(handle_ptr, layout::region(ctx.sidebar_visible).left, y, 3.0, bar_h, theme::EMBER);
     }
-    ctx.text.queue(
-        text_x,
-        text_y,
-        &text,
-        MuiColor::new(0.9, 0.92, 0.96, 1.0),
-        clip,
-    );
+    ctx.text.queue_sized(text_x, text_y, &text, theme::TEXT, chrome, clip);
 }
 
 // ---------------------------------------------------------------------------
@@ -1131,7 +1147,7 @@ pub extern "C" fn mui_find_highlight_row(
     let x = layout::text_x_in(region, total_lines.max(1) as u64, col_start);
     let cells = len.max(1) as f32;
     let w = cells * layout::CHAR_W;
-    let y = layout::row_y_in(region, row);
+    let y = layout::row_y_in(region, row) - 2.0;
     unsafe {
         crate::mui_fill_rect(
             handle as usize as *mut MuiContext,
@@ -1139,7 +1155,7 @@ pub extern "C" fn mui_find_highlight_row(
             y,
             w,
             layout::LINE_H,
-            MuiColor::new(0.35, 0.32, 0.10, 0.85), // subtle amber wash
+            theme::FIND_HIGHLIGHT,
         )
     };
 }
@@ -1404,53 +1420,52 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
     let count = ctx.tabs.count();
     let handle_ptr = handle as usize as *mut MuiContext;
     let clip = ctx.clip;
+    let bar_h = layout::TAB_BAR_H;
+    let chrome = theme::CHROME_FONT_SIZE;
 
-    // Background band for the whole bar.
+    // Elevated background band + a thin bottom divider.
     unsafe {
-        crate::mui_fill_rect(
-            handle_ptr,
-            0.0,
-            0.0,
-            w,
-            layout::TAB_BAR_H,
-            MuiColor::new(0.10, 0.11, 0.14, 1.0),
-        );
+        crate::mui_fill_rect(handle_ptr, 0.0, 0.0, w, bar_h, theme::ELEVATED);
+        crate::mui_fill_rect(handle_ptr, 0.0, bar_h - 1.0, w, 1.0, theme::BORDER);
     }
 
     for i in 0..count {
         let x = i as f32 * layout::TAB_W;
         let is_active = i == active;
-        let bg = if is_active {
-            MuiColor::new(0.18, 0.20, 0.26, 1.0)
-        } else {
-            MuiColor::new(0.12, 0.13, 0.17, 1.0)
-        };
+        // Active tab: a slightly lifted bg + a 2px ember underline.
+        if is_active {
+            unsafe {
+                crate::mui_fill_rect(handle_ptr, x, 0.0, layout::TAB_W, bar_h, theme::CURRENT_LINE);
+                crate::mui_fill_rect(handle_ptr, x, bar_h - 2.0, layout::TAB_W, 2.0, theme::EMBER);
+            }
+        }
+        // Right divider between tabs.
         unsafe {
-            crate::mui_fill_rect(
-                handle_ptr,
-                x,
-                0.0,
-                layout::TAB_W - 2.0,
-                layout::TAB_BAR_H,
-                bg,
-            );
+            crate::mui_fill_rect(handle_ptr, x + layout::TAB_W - 1.0, 4.0, 1.0, bar_h - 8.0, theme::BORDER);
         }
         if let Some(tab) = ctx.tabs.get(i) {
             let mut label = tab.basename();
-            if tab.dirty {
-                label.push('*');
-            }
-            // Truncate to fit the tab cell.
-            let max_chars = ((layout::TAB_W - 12.0) / layout::CHAR_W).floor() as usize;
+            // Truncate to fit, leaving room for a dirty dot.
+            let max_chars = ((layout::TAB_W - 28.0) / layout::CHAR_W).floor() as usize;
             if label.chars().count() > max_chars && max_chars > 1 {
                 label = label.chars().take(max_chars - 1).collect::<String>() + "…";
             }
-            let fg = if is_active {
-                MuiColor::new(0.95, 0.96, 1.0, 1.0)
-            } else {
-                MuiColor::new(0.6, 0.63, 0.7, 1.0)
-            };
-            ctx.text.queue(x + 6.0, 3.0, &label, fg, clip);
+            let fg = if is_active { theme::TEXT } else { theme::DIM };
+            let ty = (bar_h - chrome) * 0.5 - 1.0;
+            ctx.text.queue_sized(x + 14.0, ty, &label, fg, chrome, clip);
+            // Dirty indicator: a small ember dot near the right of the tab.
+            if tab.dirty {
+                unsafe {
+                    crate::mui_fill_rect(
+                        handle_ptr,
+                        x + layout::TAB_W - 16.0,
+                        bar_h * 0.5 - 3.0,
+                        6.0,
+                        6.0,
+                        theme::EMBER,
+                    );
+                }
+            }
         }
     }
 }
@@ -1600,46 +1615,77 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
     let h = ctx.gpu.height as f32;
     let handle_ptr = handle as usize as *mut MuiContext;
     let clip = ctx.clip;
+    let chrome = theme::CHROME_FONT_SIZE;
+    let sw = layout::SIDEBAR_W;
 
-    // Sidebar background, from below the tab bar to the bottom.
+    // Panel background + a right divider.
     unsafe {
-        crate::mui_fill_rect(
-            handle_ptr,
-            0.0,
-            layout::TAB_BAR_H,
-            layout::SIDEBAR_W,
-            (h - layout::TAB_BAR_H).max(0.0),
-            MuiColor::new(0.09, 0.10, 0.13, 1.0),
-        );
+        crate::mui_fill_rect(handle_ptr, 0.0, 0.0, sw, h, theme::PANEL);
+        crate::mui_fill_rect(handle_ptr, sw - 1.0, layout::TAB_BAR_H, 1.0, h, theme::BORDER);
     }
 
+    // Dim uppercase section header (the workspace folder name).
+    let header = ctx
+        .tree
+        .root()
+        .file_name()
+        .map(|s| s.to_string_lossy().to_uppercase())
+        .unwrap_or_else(|| "EXPLORER".to_string());
+    ctx.text.queue_sized(
+        layout::PAD + 2.0,
+        layout::TAB_BAR_H + layout::SPACE,
+        &header,
+        theme::DIM,
+        chrome,
+        clip,
+    );
+
+    // File rows start below the header.
+    let row_top = layout::TAB_BAR_H + layout::SPACE + layout::LINE_H;
+    let active_path = ctx.tabs.active_path();
     let count = ctx.tree.count();
     for i in 0..count {
         let Some(row) = ctx.tree.get(i) else { continue };
-        let y = layout::tree_row_y(i as i32);
+        let y = row_top + (i as f32) * layout::LINE_H;
         if y > h {
             break;
         }
-        let indent = layout::PAD + (row.depth as f32) * layout::TREE_INDENT;
-        // Directory disclosure marker.
+        let selected = !row.is_dir && active_path.is_some() && row.path == *active_path.as_ref().unwrap();
+        // Selected/hover background band + an ember left bar on the selected row.
+        if selected {
+            unsafe {
+                crate::mui_fill_rect(handle_ptr, 0.0, y - 1.0, sw, layout::LINE_H, theme::ELEVATED);
+                crate::mui_fill_rect(handle_ptr, 0.0, y - 1.0, 2.0, layout::LINE_H, theme::EMBER);
+            }
+        }
+        let indent = layout::PAD + 6.0 + (row.depth as f32) * layout::TREE_INDENT;
+        // Indent guides for depth.
+        for d in 0..row.depth {
+            let gx = layout::PAD + 6.0 + (d as f32) * layout::TREE_INDENT;
+            unsafe {
+                crate::mui_fill_rect(handle_ptr, gx, y - 1.0, 1.0, layout::LINE_H, theme::BORDER);
+            }
+        }
+        // Directory chevron (▸/▾) or a file glyph spacer.
         let mut name = String::new();
         if row.is_dir {
-            name.push_str(if row.expanded { "v " } else { "> " });
+            name.push_str(if row.expanded { "▾ " } else { "▸ " });
         } else {
             name.push_str("  ");
         }
         name.push_str(&row.display_name());
-        // Truncate to the sidebar width.
-        let avail = ((layout::SIDEBAR_W - indent) / layout::CHAR_W).floor() as usize;
+        let avail = ((sw - indent) / layout::CHAR_W).floor() as usize;
         if name.chars().count() > avail && avail > 1 {
             name = name.chars().take(avail - 1).collect::<String>() + "…";
         }
-        let fg = if row.is_dir {
-            MuiColor::new(0.7, 0.78, 0.95, 1.0)
+        let fg = if selected {
+            theme::TEXT
+        } else if row.is_dir {
+            theme::TEAL
         } else {
-            MuiColor::new(0.78, 0.80, 0.85, 1.0)
+            theme::TEXT
         };
-        ctx.text.queue(indent, y + 1.0, &name, fg, clip);
+        ctx.text.queue_sized(indent, y + 3.0, &name, fg, chrome, clip);
     }
 }
 
@@ -1857,25 +1903,20 @@ pub extern "C" fn mui_term_draw(handle: i64) {
     let panel_left = layout::term_panel_left(region);
     let panel_w = (width as f32 - panel_left).max(0.0);
 
-    // Background band + a 1px top border so the panel reads as a distinct pane.
+    // Background band + a 1px top border + a dim TERMINAL header label so the
+    // panel reads as a distinct, intentional pane.
     unsafe {
-        crate::mui_fill_rect(
-            handle_ptr,
-            panel_left,
-            panel_top,
-            panel_w,
-            panel_h,
-            MuiColor::new(0.06, 0.07, 0.09, 1.0),
-        );
-        crate::mui_fill_rect(
-            handle_ptr,
-            panel_left,
-            panel_top,
-            panel_w,
-            2.0,
-            MuiColor::new(0.20, 0.42, 0.55, 1.0),
-        );
+        crate::mui_fill_rect(handle_ptr, panel_left, panel_top, panel_w, panel_h, theme::PANEL);
+        crate::mui_fill_rect(handle_ptr, panel_left, panel_top, panel_w, 1.0, theme::BORDER);
     }
+    ctx.text.queue_sized(
+        panel_left + layout::PAD,
+        panel_top + 2.0,
+        "TERMINAL",
+        theme::DIM,
+        theme::CHROME_FONT_SIZE,
+        clip,
+    );
 
     // Snapshot the grid into owned data so the borrow on `ctx.terminal` ends
     // before we borrow `ctx.text`.
@@ -2856,5 +2897,560 @@ pub extern "C" fn mui_history_probe(handle: i64) {
         println!("history-probe: format outcome={outcome:?} on-disk {before} -> {after} bytes");
     } else {
         println!("history-probe: format skipped (no file_path)");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Authoritative editor text model (shim-side; L28 workaround)
+// ---------------------------------------------------------------------------
+//
+// Live editing under v0.36 native `mty build` was impossible: the Mighty
+// `Vec[I32]` edit buffer comes back EMPTY (L28 codegen bug). So the editable
+// buffer + cursor now live shim-side in the active tab's `TextModel`
+// (`editor.rs`), and Mighty drives edits through these scalar ops. Editing is
+// genuinely LIVE: `mui_ed_draw` renders directly from this mutated model each
+// frame. Move the model back to Mighty once the codegen bug is fixed.
+
+use crate::editor::TextModel;
+
+/// The active tab's editable model (mutable). `None` on a null handle.
+#[inline]
+unsafe fn model_mut<'a>(handle: i64) -> Option<&'a mut TextModel> {
+    ctx(handle).map(|c| c.tabs.active_model_mut())
+}
+
+/// Owned snapshot of the model fields [`mui_ed_draw`] needs, taken so the borrow
+/// on the model ends before the rect/text draw calls borrow the context again.
+struct EdDrawSnapshot {
+    total: usize,
+    first: usize,
+    cur_line: usize,
+    cur_col: usize,
+    sel: Option<((usize, usize), (usize, usize))>,
+    lines_for_view: Vec<(usize, String)>,
+}
+
+/// Insert one Unicode scalar at the cursor (a `\n` codepoint splits the line).
+#[no_mangle]
+pub extern "C" fn mui_ed_insert_char(handle: i64, cp: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
+            m.insert_char(ch);
+        }
+    }
+}
+
+/// Delete the char before the cursor (joining lines at column 0).
+#[no_mangle]
+pub extern "C" fn mui_ed_backspace(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.backspace();
+    }
+}
+
+/// Delete the char at the cursor (joining the next line at end of line).
+#[no_mangle]
+pub extern "C" fn mui_ed_delete(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.delete();
+    }
+}
+
+/// Insert a newline at the cursor.
+#[no_mangle]
+pub extern "C" fn mui_ed_newline(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.newline();
+    }
+}
+
+/// Move the cursor one step in `dir` (0=L 1=R 2=Up 3=Down 4=Home 5=End).
+#[no_mangle]
+pub extern "C" fn mui_ed_move(handle: i64, dir: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.move_cursor(dir);
+    }
+}
+
+/// Move the cursor to an explicit 0-based `(line, col)`, clamped.
+#[no_mangle]
+pub extern "C" fn mui_ed_move_to(handle: i64, line: i32, col: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.move_to(line, col);
+    }
+}
+
+/// 0-based cursor line of the active model.
+#[no_mangle]
+pub extern "C" fn mui_ed_cursor_line(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.tabs.active_model().cursor_line() as i32)
+}
+
+/// 0-based cursor column of the active model.
+#[no_mangle]
+pub extern "C" fn mui_ed_cursor_col(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.tabs.active_model().cursor_col() as i32)
+}
+
+/// Number of lines in the active model (>= 1).
+#[no_mangle]
+pub extern "C" fn mui_ed_line_count(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(1, |c| c.tabs.active_model().line_count() as i32)
+}
+
+/// Char length of line `line` (0-based) in the active model.
+#[no_mangle]
+pub extern "C" fn mui_ed_line_len(handle: i64, line: i32) -> i32 {
+    if line < 0 {
+        return 0;
+    }
+    unsafe { ctx(handle) }.map_or(0, |c| c.tabs.active_model().line_len(line as usize) as i32)
+}
+
+/// Set the top visible line (scroll offset) of the active model, clamped.
+#[no_mangle]
+pub extern "C" fn mui_ed_set_scroll(handle: i64, first: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.set_first_visible(first.max(0) as usize);
+    }
+}
+
+/// The active model's top visible line (scroll offset).
+#[no_mangle]
+pub extern "C" fn mui_ed_first_visible(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.tabs.active_model().first_visible() as i32)
+}
+
+/// `1` if the active model has unsaved edits, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_ed_dirty(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.tabs.active_model().dirty()))
+}
+
+/// Mark the active model clean (after a load) or dirty.
+#[no_mangle]
+pub extern "C" fn mui_ed_set_dirty(handle: i64, dirty: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.set_dirty(dirty != 0);
+    }
+}
+
+/// Load the active tab's file from disk into the active model (replacing it),
+/// resetting the cursor to the top. Returns the byte length, or `-1` on error.
+#[no_mangle]
+pub extern "C" fn mui_ed_load(handle: i64) -> i64 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    // Edit-probe screenshot mode: preserve the scripted-edit model so a headless
+    // capture shows the LIVE-edited buffer rather than the on-disk file.
+    if ctx.edit_probe_lock {
+        return ctx.tabs.active_model().to_bytes().len() as i64;
+    }
+    let Some(path) = ctx.tabs.active_path() else {
+        // No file (scratch tab): keep the empty model.
+        ctx.tabs.reload_active(b"");
+        return 0;
+    };
+    match std::fs::read(&path) {
+        Ok(bytes) => {
+            let n = bytes.len() as i64;
+            ctx.tabs.reload_active(&bytes);
+            println!("mui_ed_load: {} ({} bytes)", path.display(), n);
+            n
+        }
+        Err(e) => {
+            eprintln!("mui_ed_load({}): {e}", path.display());
+            ctx.tabs.reload_active(b"");
+            -1
+        }
+    }
+}
+
+/// Write the active model to its tab's file path. Returns `0` on success, `-1`
+/// on error (no path / IO failure). Marks the model clean on success.
+#[no_mangle]
+pub extern "C" fn mui_ed_save(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let Some(path) = ctx.tabs.active_path() else {
+        eprintln!("mui_ed_save: no file path for active tab");
+        return -1;
+    };
+    let bytes = ctx.tabs.active_model().to_bytes();
+    match std::fs::write(&path, &bytes) {
+        Ok(()) => {
+            ctx.tabs.active_model_mut().mark_clean();
+            println!("mui_ed_save: {} ({} bytes)", path.display(), bytes.len());
+            0
+        }
+        Err(e) => {
+            eprintln!("mui_ed_save({}): {e}", path.display());
+            -1
+        }
+    }
+}
+
+/// Stream the active model's bytes into the shim's find engine and run the
+/// search using the active prompt's query. Replaces the Mighty byte-push loop —
+/// the model is the source of truth. Returns the match count.
+#[no_mangle]
+pub extern "C" fn mui_ed_find_run(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let text = ctx.tabs.active_model().as_text();
+    ctx.find.reset();
+    for b in text.bytes() {
+        ctx.find.push_byte(b as u32);
+    }
+    let needle = ctx.prompt.query_string();
+    ctx.find.run(&needle)
+}
+
+/// Stream the active model into the completion engine and request completion at
+/// the cursor. Returns the candidate count. Replaces the Mighty byte-push loop.
+#[no_mangle]
+pub extern "C" fn mui_ed_complete_request(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let (line, col) = {
+        let m = ctx.tabs.active_model();
+        (m.cursor_line() as i32, m.cursor_col() as i32)
+    };
+    let text = ctx.tabs.active_model().as_text();
+    ctx.complete_buf = text.into_bytes();
+    let cursor = line_col_to_offset(&ctx.complete_buf, line, col);
+    let lsp_labels: Vec<String> = match ctx.file_path.clone() {
+        Some(path) => {
+            let source = String::from_utf8_lossy(&ctx.complete_buf).into_owned();
+            crate::completion::lsp::semantic_labels(&path, &source, line.max(0) as u32, col.max(0) as u32)
+        }
+        None => Vec::new(),
+    };
+    ctx.complete
+        .request(&ctx.complete_buf, cursor, &lsp_labels)
+        .min(i32::MAX as usize) as i32
+}
+
+/// Accept the selected completion candidate into the active model: delete the
+/// prefix chars before the cursor, then insert the accepted text. Returns the
+/// accepted text's char length.
+#[no_mangle]
+pub extern "C" fn mui_ed_complete_accept(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let prefix = ctx.complete.prefix_len();
+    let accepted = ctx.complete.accepted_text().to_string();
+    let m = ctx.tabs.active_model_mut();
+    for _ in 0..prefix {
+        m.backspace();
+    }
+    for ch in accepted.chars() {
+        m.insert_char(ch);
+    }
+    accepted.chars().count() as i32
+}
+
+/// Stream the active model into the nav buffer (hover / go-to-definition).
+#[no_mangle]
+pub extern "C" fn mui_ed_nav_stream(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        let text = ctx.tabs.active_model().as_text();
+        ctx.nav_buf = text.into_bytes();
+    }
+}
+
+/// Switch to tab `idx`, syncing the active path. Tab switching is now a plain
+/// index change (each tab owns its model), so no byte-swap loop is needed.
+/// Returns the new active index.
+#[no_mangle]
+pub extern "C" fn mui_ed_tab_switch(handle: i64, idx: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if idx >= 0 {
+        ctx.tabs.switch(idx as usize);
+        sync_active_path(ctx);
+    }
+    ctx.tabs.active() as i32
+}
+
+/// Map the last mouse-click pixel to a buffer `(line, col)` and move the active
+/// model's cursor there. Returns the resulting cursor line. Uses the gutter
+/// sizing from the model's own line count.
+#[no_mangle]
+pub extern "C" fn mui_ed_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let region = layout::region(ctx.sidebar_visible);
+    let total = ctx.tabs.active_model().line_count() as u64;
+    let first = ctx.tabs.active_model().first_visible() as u64;
+    let (line, col) =
+        layout::pixel_to_cell_in(region, ctx.last_event.x, ctx.last_event.y, first, total);
+    let m = ctx.tabs.active_model_mut();
+    m.move_to(line as i32, col as i32);
+    m.cursor_line() as i32
+}
+
+/// Draw the editor body from the authoritative model: the current-line band,
+/// right-aligned gutter numbers (the cursor's line brighter), syntax-colored
+/// source text, the translucent selection rect, and the 2px ember caret.
+/// `rows` is the visible row count; the model owns the scroll offset.
+#[no_mangle]
+pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let region = layout::region(ctx.sidebar_visible);
+    let clip = ctx.clip;
+    let handle_ptr = handle as usize as *mut MuiContext;
+    let rows = rows.max(0) as usize;
+
+    // Snapshot what we need from the model (ends the borrow before text/rect).
+    let snap = {
+        let m = ctx.tabs.active_model();
+        let total = m.line_count();
+        let first = m.first_visible();
+        let last = (first + rows).min(total);
+        EdDrawSnapshot {
+            total,
+            first,
+            cur_line: m.cursor_line(),
+            cur_col: m.cursor_col(),
+            sel: m.selection_range(),
+            lines_for_view: (first..last).map(|i| (i, m.line(i).to_string())).collect(),
+        }
+    };
+    let EdDrawSnapshot {
+        total,
+        first,
+        cur_line,
+        cur_col,
+        sel,
+        lines_for_view,
+    } = snap;
+
+    let total_u64 = total.max(1) as u64;
+    let text_x = layout::text_left_in(region, total_u64);
+    let gutter_right = text_x - layout::GUTTER_GAP; // right edge for right-align
+    let chrome = theme::CHROME_FONT_SIZE;
+
+    // 1) Current-line highlight band (only when the cursor row is visible).
+    if cur_line >= first && cur_line < first + rows {
+        let row = (cur_line - first) as i32;
+        let y = layout::row_y_in(region, row);
+        unsafe {
+            crate::mui_fill_rect(
+                handle_ptr,
+                region.left,
+                y - 2.0,
+                ctx.gpu.width as f32 - region.left,
+                layout::LINE_H,
+                theme::CURRENT_LINE,
+            );
+        }
+    }
+
+    // 2) Selection rects (per visible line within the range).
+    if let Some(((l0, c0), (l1, c1))) = sel {
+        for (line_idx, line) in &lines_for_view {
+            let li = *line_idx;
+            if li < l0 || li > l1 {
+                continue;
+            }
+            let line_chars = line.chars().count();
+            let s = if li == l0 { c0 } else { 0 };
+            // Extend one cell past EOL for multi-line selections to read as a
+            // full-line highlight.
+            let e = if li == l1 { c1 } else { line_chars + 1 };
+            if e <= s {
+                continue;
+            }
+            let row = (li - first) as i32;
+            let x = layout::text_x_in(region, total_u64, s as i32);
+            let w = (e - s) as f32 * layout::CHAR_W;
+            let y = layout::row_y_in(region, row);
+            unsafe {
+                crate::mui_fill_rect(handle_ptr, x, y - 2.0, w, layout::LINE_H, theme::SELECTION);
+            }
+        }
+    }
+
+    // 3) Gutter numbers + syntax-colored source text.
+    for (line_idx, line) in &lines_for_view {
+        let li = *line_idx;
+        let row = (li - first) as i32;
+        let y = layout::row_y_in(region, row);
+        // Right-aligned gutter number; the cursor's line is brighter.
+        let num = (li + 1).to_string();
+        let num_w = num.chars().count() as f32 * layout::CHAR_W * (chrome / theme::FONT_SIZE);
+        let gx = (gutter_right - num_w).max(region.left + 2.0);
+        let gcol = if li == cur_line {
+            theme::GUTTER_ACTIVE
+        } else {
+            theme::GUTTER
+        };
+        ctx.text.queue_sized(gx, y + 3.0, &num, gcol, chrome, clip);
+
+        // Syntax spans for the line.
+        let spans = crate::syntax::highlight_line(line);
+        if spans.is_empty() {
+            // Nothing to draw (blank line) — still leave the band.
+        } else {
+            let chars: Vec<char> = line.chars().collect();
+            for sp in spans {
+                let frag: String = chars
+                    .iter()
+                    .skip(sp.start)
+                    .take(sp.len)
+                    .collect();
+                if frag.trim().is_empty() {
+                    continue;
+                }
+                let x = text_x + sp.start as f32 * layout::CHAR_W;
+                ctx.text.queue(x, y, &frag, sp.color, clip);
+            }
+        }
+    }
+
+    // 4) Caret — a 2px-wide ember vertical bar at the cursor cell.
+    if cur_line >= first && cur_line < first + rows {
+        let row = (cur_line - first) as i32;
+        let cx = layout::text_x_in(region, total_u64, cur_col as i32);
+        let cy = layout::row_y_in(region, row);
+        unsafe {
+            crate::mui_fill_rect(handle_ptr, cx, cy - 1.0, 2.0, layout::LINE_H - 2.0, theme::EMBER);
+        }
+    }
+}
+
+/// Launch-test hook: with `MUI_EDIT_PROBE` set, run a scripted insert, newline,
+/// then backspace against the active model and log the resulting line count plus
+/// a line's char length, proving the model mutates LIVE under native codegen
+/// (where the old Mighty `Vec` buffer stayed empty, L28). The env value is the
+/// text to type (default `hello`); the probe types it, inserts a newline, types
+/// `world`, then backspaces once. No effect unless the var is set.
+#[no_mangle]
+pub extern "C" fn mui_edit_probe(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let Some(seed) = std::env::var_os("MUI_EDIT_PROBE") else {
+        return;
+    };
+    let typed = seed.to_string_lossy();
+    let typed = if typed.trim().is_empty() || typed == "1" {
+        "hello".to_string()
+    } else {
+        typed.into_owned()
+    };
+
+    // Lock out the IDE's initial reload so the edited model is what renders.
+    ctx.edit_probe_lock = true;
+
+    let m = ctx.tabs.active_model_mut();
+    let before_lines = m.line_count();
+    // Move to end of document so the probe appends rather than splitting.
+    let last = before_lines.saturating_sub(1);
+    m.move_to(last as i32, m.line_len(last) as i32);
+    for ch in typed.chars() {
+        m.insert_char(ch);
+    }
+    let after_type_line = m.cursor_line();
+    let after_type_len = m.line_len(after_type_line);
+    m.newline();
+    for ch in "world".chars() {
+        m.insert_char(ch);
+    }
+    let nl_line = m.cursor_line();
+    let nl_len_before_bs = m.line_len(nl_line);
+    m.backspace();
+    let nl_len_after_bs = m.line_len(nl_line);
+
+    println!(
+        "edit-probe: typed=\"{typed}\" lines {before_lines}->{} \
+         typed_line_len={after_type_len} newline_line_len {nl_len_before_bs}->{nl_len_after_bs} \
+         cursor=({},{}) dirty={}",
+        m.line_count(),
+        m.cursor_line(),
+        m.cursor_col(),
+        m.dirty()
+    );
+}
+
+// ---- live-model undo / redo (shim-side snapshots; L28 workaround) ----
+
+/// Cap the undo depth so a long session doesn't grow without bound.
+const ED_UNDO_CAP: usize = 256;
+
+/// Reset the editor undo/redo history (called on load / tab switch — history is
+/// per active buffer).
+#[no_mangle]
+pub extern "C" fn mui_ed_undo_reset(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.ed_undo.clear();
+        ctx.ed_redo.clear();
+    }
+}
+
+/// Push the CURRENT active model as an undo checkpoint (call before an edit
+/// group). Clears the redo stack. Coalesces no-op duplicates.
+#[no_mangle]
+pub extern "C" fn mui_ed_undo_record(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        let snap = ctx.tabs.active_model().clone();
+        // Skip if identical to the most recent checkpoint.
+        if let Some(last) = ctx.ed_undo.last() {
+            if last.as_text() == snap.as_text() {
+                return;
+            }
+        }
+        ctx.ed_undo.push(snap);
+        if ctx.ed_undo.len() > ED_UNDO_CAP {
+            ctx.ed_undo.remove(0);
+        }
+        ctx.ed_redo.clear();
+    }
+}
+
+/// Undo: restore the most recent checkpoint into the active model, pushing the
+/// current state onto the redo stack. Returns `1` on success, `0` if nothing to
+/// undo.
+#[no_mangle]
+pub extern "C" fn mui_ed_undo(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    match ctx.ed_undo.pop() {
+        Some(prev) => {
+            let current = ctx.tabs.active_model().clone();
+            ctx.ed_redo.push(current);
+            *ctx.tabs.active_model_mut() = prev;
+            1
+        }
+        None => 0,
+    }
+}
+
+/// Redo: restore the most recent redo checkpoint, pushing the current state back
+/// onto the undo stack. Returns `1` on success, `0` if nothing to redo.
+#[no_mangle]
+pub extern "C" fn mui_ed_redo(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    match ctx.ed_redo.pop() {
+        Some(next) => {
+            let current = ctx.tabs.active_model().clone();
+            ctx.ed_undo.push(current);
+            *ctx.tabs.active_model_mut() = next;
+            1
+        }
+        None => 0,
     }
 }

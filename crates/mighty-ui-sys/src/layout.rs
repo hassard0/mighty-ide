@@ -5,25 +5,27 @@
 //! Keeping it pure (no GPU/context) makes it unit-testable and lets the scalar
 //! ABI and the render loop agree on a single set of metrics.
 
-/// Left/top padding of the editor surface, in pixels.
-pub const PAD: f32 = 8.0;
-/// Vertical advance per text line, in pixels.
-pub const LINE_H: f32 = 18.0;
-/// Horizontal advance per monospace cell, in pixels (must match the font's
-/// monospace metrics closely enough for cursor/click alignment).
-pub const CHAR_W: f32 = 8.0;
+/// Left/top padding of the editor surface, in pixels (8px spacing rhythm).
+pub const PAD: f32 = crate::theme::SPACE;
+/// Vertical advance per text line, in pixels (≈1.5 line-height, from the theme).
+pub const LINE_H: f32 = crate::theme::LINE_HEIGHT;
+/// Horizontal advance per monospace cell, in pixels (must match the bundled
+/// JetBrains Mono advance at the editor font size for cursor/click alignment).
+pub const CHAR_W: f32 = crate::theme::CHAR_W;
 /// Gap (px) between the line-number gutter and the text column.
-pub const GUTTER_GAP: f32 = 8.0;
+pub const GUTTER_GAP: f32 = crate::theme::SPACE;
+/// Base 8px spacing unit (re-exported from the theme for layout sites).
+pub const SPACE: f32 = crate::theme::SPACE;
 
 /// Height (px) of the top tab bar.
-pub const TAB_BAR_H: f32 = 22.0;
+pub const TAB_BAR_H: f32 = 30.0;
 /// Width (px) of one tab in the tab bar (fixed-width tabs keep click→index math
 /// trivial: `idx = floor(x / TAB_W)`).
-pub const TAB_W: f32 = 120.0;
+pub const TAB_W: f32 = 132.0;
 /// Default width (px) of the file-tree sidebar when shown.
-pub const SIDEBAR_W: f32 = 180.0;
+pub const SIDEBAR_W: f32 = 230.0;
 /// Pixels of indentation per tree depth level.
-pub const TREE_INDENT: f32 = 12.0;
+pub const TREE_INDENT: f32 = 14.0;
 
 /// Fraction of the window height the integrated terminal panel occupies when
 /// open (a "lower third").
@@ -196,19 +198,29 @@ pub fn tab_index_at(x: f32) -> u32 {
     }
 }
 
-/// Map a sidebar pixel y to a tree row index. Rows start at the tab-bar bottom
+/// Y pixel (top) of the first file row in the sidebar — below the tab bar and
+/// the dim uppercase section header.
+pub fn tree_rows_top() -> f32 {
+    TAB_BAR_H + PAD + LINE_H
+}
+
+/// Map a sidebar pixel y to a tree row index. Rows start at [`tree_rows_top`]
 /// and advance by LINE_H. Returns the row index (caller bounds-checks).
 pub fn tree_row_at(y: f32) -> u32 {
-    if y <= TAB_BAR_H {
+    let top = tree_rows_top();
+    if y <= top {
         0
     } else {
-        ((y - TAB_BAR_H) / LINE_H).floor() as u32
+        ((y - top) / LINE_H).floor() as u32
     }
 }
 
-/// Y pixel (top) of tree sidebar row `i` (0-based, below the tab bar).
+/// Y pixel (top) of tree sidebar row `i` (0-based, below the header). The
+/// sidebar draw computes row y inline; this is retained as the click-mapping
+/// inverse and for tests.
+#[allow(dead_code)]
 pub fn tree_row_y(i: i32) -> f32 {
-    TAB_BAR_H + (i.max(0) as f32) * LINE_H
+    tree_rows_top() + (i.max(0) as f32) * LINE_H
 }
 
 /// Map a pixel `(x, y)` to a logical `(line, col)`.
@@ -271,10 +283,10 @@ mod tests {
         let g3 = gutter_width(100); // 3 digits
         assert!(g2 > g1);
         assert!(g3 > g2);
-        // 1 digit: 8 + 1*8 + 8 = 24
-        assert_eq!(g1, 24.0);
-        // 3 digits: 8 + 3*8 + 8 = 40
-        assert_eq!(g3, 40.0);
+        // 1 digit: PAD + 1*CHAR_W + GUTTER_GAP = 8 + 9 + 8 = 25
+        assert_eq!(g1, PAD + CHAR_W + GUTTER_GAP);
+        // 3 digits: 8 + 3*9 + 8 = 43
+        assert_eq!(g3, PAD + 3.0 * CHAR_W + GUTTER_GAP);
     }
 
     #[test]
@@ -288,8 +300,9 @@ mod tests {
 
     #[test]
     fn visible_rows_math() {
-        // 600px tall: (600-8)/18 = 32.8 -> 32 rows.
-        assert_eq!(visible_rows(600), 32);
+        // (600 - PAD) / LINE_H, floored, at least 1.
+        let expected = (((600.0 - PAD) / LINE_H).floor() as u32).max(1);
+        assert_eq!(visible_rows(600), expected);
         // Tiny window still yields at least one row.
         assert_eq!(visible_rows(1), 1);
         assert_eq!(visible_rows(0), 1);
@@ -361,15 +374,16 @@ mod tests {
 
     #[test]
     fn tree_row_mapping() {
-        // y within the tab bar -> row 0.
-        assert_eq!(tree_row_at(TAB_BAR_H - 1.0), 0);
-        // First row just below the tab bar.
-        assert_eq!(tree_row_at(TAB_BAR_H + 1.0), 0);
-        assert_eq!(tree_row_at(TAB_BAR_H + LINE_H + 1.0), 1);
-        assert_eq!(tree_row_at(TAB_BAR_H + 3.0 * LINE_H + 1.0), 3);
+        let top = tree_rows_top();
+        // y above the first row -> row 0.
+        assert_eq!(tree_row_at(top - 1.0), 0);
+        // First row just below the header.
+        assert_eq!(tree_row_at(top + 1.0), 0);
+        assert_eq!(tree_row_at(top + LINE_H + 1.0), 1);
+        assert_eq!(tree_row_at(top + 3.0 * LINE_H + 1.0), 3);
         // tree_row_y inverts.
-        assert_eq!(tree_row_y(0), TAB_BAR_H);
-        assert_eq!(tree_row_y(3), TAB_BAR_H + 3.0 * LINE_H);
+        assert_eq!(tree_row_y(0), top);
+        assert_eq!(tree_row_y(3), top + 3.0 * LINE_H);
     }
 
     #[test]

@@ -11,8 +11,8 @@
 //! each command's label, ranked so prefix matches sort ahead of looser fuzzy
 //! matches. An empty query lists every command in registry order.
 
-use crate::ffi::MuiColor;
 use crate::layout;
+use crate::theme;
 
 /// A single editor command in the palette: a stable numeric `id` (the contract
 /// with the Mighty dispatch switch), a human `label`, and the `keybinding`
@@ -245,76 +245,77 @@ impl PaletteEngine {
         let w = width as f32;
         let h = height as f32;
         let row_h = layout::LINE_H;
-        let pad = 6.0;
+        let pad = layout::SPACE;
+        let chrome = theme::CHROME_FONT_SIZE;
 
         let top = self.scroll_top();
         let shown = self.filtered.len().saturating_sub(top).min(VISIBLE);
         // The query row is always drawn, even when there are no matches.
         let rows = shown + 1;
 
-        // Box width: wide enough for the longest "label    keybinding" line, with
-        // a minimum so the empty/short states still look like a palette.
-        let longest = self
-            .filtered
-            .iter()
-            .skip(top)
-            .take(shown)
-            .map(|c| c.label.chars().count() + c.keybinding.chars().count() + 4)
-            .max()
-            .unwrap_or(0)
-            .max("Command Palette".len()) as f32;
-        let box_w = (longest * layout::CHAR_W + 4.0 * layout::CHAR_W).min(w - 2.0 * pad);
+        // A fixed ~640px-wide centered card, clamped to the window.
+        let box_w = 640.0_f32.min(w - 4.0 * pad);
         let box_h = rows as f32 * row_h + 2.0 * pad;
 
         // Centered horizontally; anchored near the top third vertically.
         let box_x = ((w - box_w) * 0.5).max(0.0);
-        let box_y = (h * 0.18).max(0.0).min((h - box_h).max(0.0));
+        let box_y = (h * 0.16).max(0.0).min((h - box_h).max(0.0));
 
         let clip = ctx.clip;
         let handle_ptr = ctx as *mut crate::MuiContext;
 
         unsafe {
-            // Border + panel background.
+            // Faux drop shadow: a darker offset rect behind the card.
+            crate::mui_fill_rect(
+                handle_ptr,
+                box_x + 6.0,
+                box_y + 8.0,
+                box_w,
+                box_h,
+                theme::SHADOW,
+            );
+            // 1px border + elevated card background.
             crate::mui_fill_rect(
                 handle_ptr,
                 box_x - 1.0,
                 box_y - 1.0,
                 box_w + 2.0,
                 box_h + 2.0,
-                MuiColor::new(0.30, 0.34, 0.42, 1.0),
+                theme::BORDER,
             );
+            crate::mui_fill_rect(handle_ptr, box_x, box_y, box_w, box_h, theme::ELEVATED);
+            // Query row band + a divider beneath it.
+            crate::mui_fill_rect(handle_ptr, box_x, box_y + pad, box_w, row_h, theme::PANEL);
             crate::mui_fill_rect(
                 handle_ptr,
                 box_x,
-                box_y,
+                box_y + pad + row_h - 1.0,
                 box_w,
-                box_h,
-                MuiColor::new(0.11, 0.13, 0.17, 0.99),
+                1.0,
+                theme::BORDER,
             );
-            // Query row band.
+            // An ember caret at the end of the query.
+            let q_len = self.query.chars().count() as f32;
+            let caret_x = box_x + 16.0 + q_len * layout::CHAR_W * (chrome / theme::FONT_SIZE);
             crate::mui_fill_rect(
                 handle_ptr,
-                box_x,
-                box_y + pad,
-                box_w,
-                row_h,
-                MuiColor::new(0.16, 0.19, 0.25, 1.0),
+                caret_x,
+                box_y + pad + 3.0,
+                2.0,
+                row_h - 6.0,
+                theme::EMBER,
             );
         }
 
-        // Query line: a leading "> " prompt then the typed text (or a hint).
-        let query_text = if self.query.is_empty() {
-            "> Type a command…".to_string()
+        // Query line: the typed text (or a dim hint).
+        let qy = box_y + pad + (row_h - chrome) * 0.5 - 1.0;
+        if self.query.is_empty() {
+            ctx.text
+                .queue_sized(box_x + 16.0, qy, "Type a command…", theme::DIM, chrome, clip);
         } else {
-            format!("> {}", self.query)
-        };
-        ctx.text.queue(
-            box_x + 8.0,
-            box_y + pad + 1.0,
-            &query_text,
-            MuiColor::new(0.95, 0.97, 1.0, 1.0),
-            clip,
-        );
+            ctx.text
+                .queue_sized(box_x + 16.0, qy, &self.query, theme::TEXT, chrome, clip);
+        }
 
         // Command rows.
         for vis in 0..shown {
@@ -324,34 +325,21 @@ impl PaletteEngine {
             let selected = idx == self.sel;
             if selected {
                 unsafe {
-                    crate::mui_fill_rect(
-                        handle_ptr,
-                        box_x,
-                        row_y,
-                        box_w,
-                        row_h,
-                        MuiColor::new(0.22, 0.34, 0.52, 1.0),
-                    );
+                    crate::mui_fill_rect(handle_ptr, box_x, row_y, box_w, row_h, theme::EMBER_TINT);
+                    // Ember left bar on the selected row.
+                    crate::mui_fill_rect(handle_ptr, box_x, row_y, 2.0, row_h, theme::EMBER);
                 }
             }
-            let fg = if selected {
-                MuiColor::new(0.98, 0.99, 1.0, 1.0)
-            } else {
-                MuiColor::new(0.80, 0.84, 0.90, 1.0)
-            };
+            let fg = if selected { theme::TEXT } else { theme::DIM };
+            let ry = row_y + (row_h - chrome) * 0.5 - 1.0;
             // Label on the left.
             ctx.text
-                .queue(box_x + 8.0, row_y + 1.0, cmd.label, fg, clip);
-            // Keybinding right-aligned (estimate width from char count).
-            let kb_w = cmd.keybinding.chars().count() as f32 * layout::CHAR_W;
-            let kb_x = (box_x + box_w - kb_w - 8.0).max(box_x + 8.0);
-            let kb_fg = if selected {
-                MuiColor::new(0.85, 0.90, 1.0, 1.0)
-            } else {
-                MuiColor::new(0.55, 0.60, 0.70, 1.0)
-            };
+                .queue_sized(box_x + 16.0, ry, cmd.label, fg, chrome, clip);
+            // Keybinding right-aligned (dim).
+            let kb_w = cmd.keybinding.chars().count() as f32 * layout::CHAR_W * (chrome / theme::FONT_SIZE);
+            let kb_x = (box_x + box_w - kb_w - 16.0).max(box_x + 16.0);
             ctx.text
-                .queue(kb_x, row_y + 1.0, cmd.keybinding, kb_fg, clip);
+                .queue_sized(kb_x, ry, cmd.keybinding, theme::DIM, chrome, clip);
         }
     }
 }

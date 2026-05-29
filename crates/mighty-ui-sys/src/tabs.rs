@@ -11,18 +11,24 @@
 
 use std::path::{Path, PathBuf};
 
-/// One open file tab. `bytes` is the file content as a flat byte buffer (the
-/// same shape Mighty streams in/out). The cursor/scroll fields preserve the
-/// per-tab editing position across switches.
+use crate::editor::TextModel;
+
+/// One open file tab. Since the L28 codegen bug forced the editable buffer
+/// shim-side, each tab now owns an authoritative [`TextModel`] (lines, cursor,
+/// scroll, dirty). The legacy `bytes`/cursor/scroll fields are retained only for
+/// the byte-swap ABI still referenced by older tests; the model is the source of
+/// truth for the active tab's editing.
 #[derive(Debug, Clone, Default)]
 pub struct Tab {
     /// Absolute or relative path of the file (None for an unsaved scratch tab).
     pub path: Option<PathBuf>,
-    /// File content as raw bytes.
+    /// File content as raw bytes (legacy byte-swap path; kept in sync on store).
     pub bytes: Vec<u8>,
-    /// 0-based cursor line saved when this tab was last active.
+    /// The authoritative editable text model for this tab.
+    pub model: TextModel,
+    /// 0-based cursor line saved when this tab was last active (legacy).
     pub cursor_line: i32,
-    /// 0-based cursor column saved when this tab was last active.
+    /// 0-based cursor column saved when this tab was last active (legacy).
     pub cursor_col: i32,
     /// Top visible line (scroll offset) saved when this tab was last active.
     pub scroll_first: i32,
@@ -88,9 +94,11 @@ impl TabStore {
             return i;
         }
         let bytes = std::fs::read(&path).unwrap_or_default();
+        let model = TextModel::from_bytes(&bytes);
         self.tabs.push(Tab {
             path: Some(path),
             bytes,
+            model,
             cursor_line: 0,
             cursor_col: 0,
             scroll_first: 0,
@@ -98,6 +106,31 @@ impl TabStore {
         });
         self.active = self.tabs.len() - 1;
         self.active
+    }
+
+    /// The active tab's authoritative editable model (shared ref).
+    pub fn active_model(&self) -> &TextModel {
+        // Always at least one tab exists.
+        &self.tabs[self.active.min(self.tabs.len().saturating_sub(1))].model
+    }
+
+    /// The active tab's authoritative editable model (mutable).
+    pub fn active_model_mut(&mut self) -> &mut TextModel {
+        let i = self.active.min(self.tabs.len().saturating_sub(1));
+        &mut self.tabs[i].model
+    }
+
+    /// Active tab's path, if any.
+    pub fn active_path(&self) -> Option<PathBuf> {
+        self.path(self.active)
+    }
+
+    /// Replace the active tab's model from raw bytes (load / reload from disk).
+    pub fn reload_active(&mut self, bytes: &[u8]) {
+        let i = self.active.min(self.tabs.len().saturating_sub(1));
+        self.tabs[i].model = TextModel::from_bytes(bytes);
+        self.tabs[i].bytes = bytes.to_vec();
+        self.tabs[i].dirty = false;
     }
 
     /// Ensure at least one tab exists. Used at startup if no file opened and on

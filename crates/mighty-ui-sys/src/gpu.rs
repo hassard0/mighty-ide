@@ -56,11 +56,12 @@ pub struct Gpu {
     screen_bind_group: wgpu::BindGroup,
 }
 
-/// The clear color used at the start of every frame (dark editor background).
+/// The clear color used at the start of every frame — the Ember Graphite editor
+/// background `#14161B`. Kept in sync with [`crate::theme::BG`].
 pub const CLEAR_COLOR: wgpu::Color = wgpu::Color {
-    r: 0.08,
-    g: 0.08,
-    b: 0.10,
+    r: 0x14 as f64 / 255.0,
+    g: 0x16 as f64 / 255.0,
+    b: 0x1B as f64 / 255.0,
     a: 1.0,
 };
 
