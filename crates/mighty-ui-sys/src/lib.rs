@@ -13,6 +13,7 @@
 mod abi;
 mod ffi;
 mod gpu;
+mod layout;
 mod text;
 mod window;
 
@@ -84,7 +85,18 @@ pub unsafe extern "C" fn mui_init(
     title_len: usize,
 ) -> *mut MuiContext {
     let title = read_utf8(title_ptr, title_len).unwrap_or_else(|| "Mighty IDE".to_string());
+    build_context(width, height, title, None)
+}
 
+/// Build a windowed context with an explicit window `title` and an optional
+/// pre-resolved `file_path`. Shared by [`mui_init`] and [`abi::mui_init_s`].
+/// Returns null on window/GPU failure.
+pub(crate) fn build_context(
+    width: u32,
+    height: u32,
+    title: String,
+    file_path: Option<PathBuf>,
+) -> *mut MuiContext {
     let mut queue = Box::new(EventQueue::default());
     let queue_ptr: *mut EventQueue = queue.as_mut();
 
@@ -119,7 +131,7 @@ pub unsafe extern "C" fn mui_init(
         in_frame: false,
         text_stage: String::new(),
         last_event: MuiEvent::none(),
-        file_path: None,
+        file_path,
         path_stage: Vec::new(),
         load_buf: Vec::new(),
         save_buf: Vec::new(),

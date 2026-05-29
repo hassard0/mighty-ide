@@ -29,7 +29,31 @@
 use std::path::PathBuf;
 
 use crate::ffi::*;
+use crate::layout;
 use crate::MuiContext;
+
+/// Resolve the file to edit: `argv[1]` if given, else a scratch file in the
+/// current directory. The scratch file is created empty if it does not exist
+/// (so the editor never defaults to its own source — see deliverable 1).
+fn resolve_target_path() -> PathBuf {
+    if let Some(arg) = std::env::args().nth(1) {
+        return PathBuf::from(arg);
+    }
+    let scratch = PathBuf::from("scratch.mty");
+    if !scratch.exists() {
+        if let Err(e) = std::fs::write(&scratch, b"") {
+            eprintln!("mui_init_s: could not create scratch file: {e}");
+        }
+    }
+    scratch
+}
+
+/// Basename of `path` (file name component), or the whole path as a fallback.
+fn basename(path: &std::path::Path) -> String {
+    path.file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.to_string_lossy().into_owned())
+}
 
 /// Cast an opaque `i64` handle back to a context reference. Returns `None` for
 /// null/zero handles.
@@ -45,12 +69,19 @@ unsafe fn ctx<'a>(handle: i64) -> Option<&'a mut MuiContext> {
 // init / shutdown
 // ---------------------------------------------------------------------------
 
-/// Open a window `width`x`height` (fixed title) and return an opaque `i64`
-/// handle, or `0` on failure. Scalar mirror of [`crate::mui_init`].
+/// Open a window `width`x`height` and return an opaque `i64` handle, or `0` on
+/// failure. Scalar mirror of [`crate::mui_init`] that additionally:
+///   * resolves the target file from `argv[1]` (or a scratch file — never the
+///     editor's own source);
+///   * titles the window with the file's basename;
+///   * eagerly loads the file so [`mui_load`] can report its length.
 #[no_mangle]
 pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
-    // SAFETY: passing a null title pointer is the documented "use default" path.
-    let ptr = unsafe { crate::mui_init(width, height, std::ptr::null(), 0) };
+    let path = resolve_target_path();
+    let title = format!("{} — Mighty IDE", basename(&path));
+    println!("mui_init_s: editing {}", path.display());
+
+    let ptr = crate::build_context(width, height, title, Some(path));
     ptr as usize as i64
 }
 
@@ -153,17 +184,17 @@ pub extern "C" fn mui_text_draw(
 }
 
 /// Draw a text-cursor caret at logical (`line`, `col`) using the shim's own
-/// monospace metrics (8px advance, 18px line height, 8px padding — matched to
-/// the IDE's render loop). Avoids forcing the Mighty side to convert integer
-/// line/col into float pixels, which v0.36 can't do (no int→float cast; see
-/// docs/mighty-language-lessons.md L19).
+/// monospace metrics (see [`crate::layout`]). Avoids forcing the Mighty side to
+/// convert integer line/col into float pixels, which v0.36 can't do (no
+/// int→float cast; see docs/mighty-language-lessons.md L19).
+///
+/// This legacy entry point assumes no gutter and no scroll (line == screen row,
+/// col relative to the left padding). Retained for back-compat; the IDE uses
+/// [`mui_draw_cursor_row`].
 #[no_mangle]
 pub extern "C" fn mui_draw_cursor(handle: i64, line: i32, col: i32, r: f32, g: f32, b: f32, a: f32) {
-    const PAD: f32 = 8.0;
-    const LINE_H: f32 = 18.0;
-    const CHAR_W: f32 = 8.0;
-    let x = PAD + (col.max(0) as f32) * CHAR_W;
-    let y = PAD + (line.max(0) as f32) * LINE_H;
+    let x = layout::PAD + (col.max(0) as f32) * layout::CHAR_W;
+    let y = layout::row_y(line);
     unsafe {
         crate::mui_fill_rect(
             handle as usize as *mut MuiContext,
@@ -177,18 +208,131 @@ pub extern "C" fn mui_draw_cursor(handle: i64, line: i32, col: i32, r: f32, g: f
 }
 
 /// Draw the staged text at logical `line` (column 0) using the shim's metrics,
-/// then clear the stage. Companion to [`mui_draw_cursor`] so text and caret use
-/// identical layout without the Mighty side doing int→float math.
+/// then clear the stage. Legacy (no gutter / no scroll); the IDE uses
+/// [`mui_text_draw_row`].
 #[no_mangle]
 pub extern "C" fn mui_text_draw_line(handle: i64, line: i32, r: f32, g: f32, b: f32, a: f32) {
-    const PAD: f32 = 8.0;
-    const LINE_H: f32 = 18.0;
     if let Some(ctx) = unsafe { ctx(handle) } {
-        let y = PAD + (line.max(0) as f32) * LINE_H;
+        let y = layout::row_y(line);
         let s = std::mem::take(&mut ctx.text_stage);
         let clip = ctx.clip;
-        ctx.text.queue(PAD, y, &s, MuiColor::new(r, g, b, a), clip);
+        ctx.text
+            .queue(layout::PAD, y, &s, MuiColor::new(r, g, b, a), clip);
     }
+}
+
+// ---------------------------------------------------------------------------
+// gutter + scroll-aware draw (used by the IDE render loop)
+// ---------------------------------------------------------------------------
+
+/// Number of whole text rows that fit in the current window height. The IDE
+/// uses this to size its viewport for cursor-following scroll.
+#[no_mangle]
+pub extern "C" fn mui_visible_rows(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(1, |c| layout::visible_rows(c.gpu.height) as i32)
+}
+
+/// Draw the staged text as a buffer line at screen row `row` (0-based from the
+/// top of the view), offset right of the line-number gutter sized for
+/// `total_lines`. Clears the stage.
+#[no_mangle]
+pub extern "C" fn mui_text_draw_row(
+    handle: i64,
+    row: i32,
+    total_lines: i32,
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        let x = layout::text_left(total_lines.max(1) as u64);
+        let y = layout::row_y(row);
+        let s = std::mem::take(&mut ctx.text_stage);
+        let clip = ctx.clip;
+        ctx.text.queue(x, y, &s, MuiColor::new(r, g, b, a), clip);
+    }
+}
+
+/// Draw the staged text (the 1-based line number, staged digit-by-digit) in the
+/// gutter at screen row `row`, right-aligned-ish at the left padding. Clears the
+/// stage.
+#[no_mangle]
+pub extern "C" fn mui_gutter_draw_row(handle: i64, row: i32, r: f32, g: f32, b: f32, a: f32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        let y = layout::row_y(row);
+        let s = std::mem::take(&mut ctx.text_stage);
+        let clip = ctx.clip;
+        ctx.text
+            .queue(layout::PAD, y, &s, MuiColor::new(r, g, b, a), clip);
+    }
+}
+
+/// Draw the cursor caret at screen `row` and buffer `col`, offset right of the
+/// gutter sized for `total_lines`.
+#[no_mangle]
+pub extern "C" fn mui_draw_cursor_row(
+    handle: i64,
+    row: i32,
+    col: i32,
+    total_lines: i32,
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+) {
+    let x = layout::text_x(total_lines.max(1) as u64, col);
+    let y = layout::row_y(row);
+    unsafe {
+        crate::mui_fill_rect(
+            handle as usize as *mut MuiContext,
+            x,
+            y,
+            2.0,
+            16.0,
+            MuiColor::new(r, g, b, a),
+        )
+    };
+}
+
+// ---------------------------------------------------------------------------
+// mouse-click -> cell (deliverable 4)
+// ---------------------------------------------------------------------------
+
+/// Map the last-polled event's pixel `(x, y)` to a buffer line, given the
+/// current top line `first_line` and gutter sizing `total_lines`. Stored for
+/// readback via [`mui_click_line`] / [`mui_click_col`]. Returns the line.
+#[no_mangle]
+pub extern "C" fn mui_click_line(
+    handle: i64,
+    first_line: i32,
+    total_lines: i32,
+) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let (line, _) = layout::pixel_to_cell(
+        ctx.last_event.x,
+        ctx.last_event.y,
+        first_line.max(0) as u64,
+        total_lines.max(1) as u64,
+    );
+    line as i32
+}
+
+/// Companion to [`mui_click_line`]: the column of the last mouse event's pixel.
+#[no_mangle]
+pub extern "C" fn mui_click_col(handle: i64, total_lines: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let (_, col) = layout::pixel_to_cell(
+        ctx.last_event.x,
+        ctx.last_event.y,
+        0,
+        total_lines.max(1) as u64,
+    );
+    col as i32
 }
 
 // ---------------------------------------------------------------------------
@@ -231,6 +375,23 @@ pub extern "C" fn mui_event_mods(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.last_event.mods as i32)
 }
 
+/// Sign of the last scroll event's vertical delta: `-1` (scroll content up /
+/// wheel down), `+1` (wheel up), or `0`. Mighty can't take a float delta and do
+/// int math with it (L19), so the shim reduces it to a sign here.
+#[no_mangle]
+pub extern "C" fn mui_event_scroll_dir(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| {
+        let dy = c.last_event.scroll_y;
+        if dy > 0.0 {
+            1
+        } else if dy < 0.0 {
+            -1
+        } else {
+            0
+        }
+    })
+}
+
 #[no_mangle]
 pub extern "C" fn mui_event_width(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.last_event.width as i32)
@@ -253,13 +414,22 @@ pub extern "C" fn mui_load(handle: i64) -> i64 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    let path = ctx
-        .file_path
-        .clone()
-        .unwrap_or_else(|| PathBuf::from("src/main.mty"));
+    // The path is always set by `mui_init_s`; never default to the editor's own
+    // source (the old footgun). With no path configured, report empty.
+    let Some(path) = ctx.file_path.clone() else {
+        eprintln!("mui_load: no file path configured");
+        ctx.load_buf.clear();
+        return 0;
+    };
     match std::fs::read(&path) {
         Ok(bytes) => {
             let n = bytes.len() as i64;
+            println!(
+                "mui_load: {} ({} bytes, {} lines)",
+                path.display(),
+                n,
+                bytes.iter().filter(|&&b| b == b'\n').count() + 1
+            );
             ctx.load_buf = bytes;
             n
         }
