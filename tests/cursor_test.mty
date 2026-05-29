@@ -1,0 +1,121 @@
+// TDD test for clamped Cursor movement.
+// Self-contained (see L13): impl inlined below, mirroring src/cursor.mty
+// (+ Line/Buffer primitives it depends on).
+
+type Line = Vec[U8]
+type Buffer = Vec[Line]
+type Cursor = Vec[USize]   // [line, col] — see L15 (struct field reads broken)
+
+fn line_new() -> Line { Vec.new() }
+fn line_len(l: Line) -> USize { l.len() }
+fn buffer_line_count(b: Buffer) -> USize { b.len() }
+fn buffer_line(b: Buffer, idx: USize) -> Line {
+  match b.get(idx) { Some(l) => l  None => line_new() }
+}
+fn line_length(b: Buffer, l: USize) -> USize { line_len(buffer_line(b, l)) }
+
+fn buffer_from_text(text: String) -> Buffer {
+  let mut out: Buffer = Vec.new()
+  let mut cur: Line = line_new()
+  let bytes = text.bytes()
+  let mut i: USize = 0
+  while i < bytes.len() {
+    let b = bytes[i]
+    if b == 10_u8 {
+      out = out.push(cur)
+      cur = line_new()
+    } else {
+      cur = cur.push(b)
+    }
+    i = i + 1
+  }
+  out = out.push(cur)
+  out
+}
+
+fn cur_make(line: USize, col: USize) -> Cursor {
+  let mut c: Cursor = Vec.new()
+  c = c.push(line)
+  c = c.push(col)
+  c
+}
+fn cur_new() -> Cursor { cur_make(0, 0) }
+fn cur_line(c: Cursor) -> USize { c[0] }
+fn cur_col(c: Cursor) -> USize { c[1] }
+
+fn cur_left(c: Cursor, b: Buffer) -> Cursor {
+  let line = cur_line(c)
+  let col = cur_col(c)
+  if col > 0 {
+    cur_make(line, col - 1)
+  } else if line > 0 {
+    let pl = line - 1
+    cur_make(pl, line_length(b, pl))
+  } else {
+    c
+  }
+}
+fn cur_right(c: Cursor, b: Buffer) -> Cursor {
+  let line = cur_line(c)
+  let col = cur_col(c)
+  let len = line_length(b, line)
+  if col < len {
+    cur_make(line, col + 1)
+  } else if (line + 1) < buffer_line_count(b) {
+    cur_make(line + 1, 0)
+  } else {
+    c
+  }
+}
+fn cur_up(c: Cursor, b: Buffer) -> Cursor {
+  let line = cur_line(c)
+  let col = cur_col(c)
+  if line == 0 {
+    c
+  } else {
+    let nl = line - 1
+    let len = line_length(b, nl)
+    let nc = if col < len { col } else { len }
+    cur_make(nl, nc)
+  }
+}
+fn cur_down(c: Cursor, b: Buffer) -> Cursor {
+  let line = cur_line(c)
+  let col = cur_col(c)
+  if (line + 1) >= buffer_line_count(b) {
+    c
+  } else {
+    let nl = line + 1
+    let len = line_length(b, nl)
+    let nc = if col < len { col } else { len }
+    cur_make(nl, nc)
+  }
+}
+
+fn test_right_clamps_to_line_end_then_wraps_down() {
+  let b = buffer_from_text(String.from_str("ab\ncd"))
+  let c0 = cur_new()                       // line 0, col 0
+  let c1 = cur_right(c0, b)                 // col 1
+  let c2 = cur_right(c1, b)                 // col 2 (end of "ab")
+  let c3 = cur_right(c2, b)                 // wraps to line 1, col 0
+  if cur_line(c3) != 1 { panic("wrap line != 1") }
+  if cur_col(c3) != 0 { panic("wrap col != 0") }
+}
+
+fn test_up_at_top_is_noop() {
+  let b = buffer_from_text(String.from_str("ab\ncd"))
+  let c = cur_up(cur_new(), b)
+  if cur_line(c) != 0 { panic("up-top line != 0") }
+  if cur_col(c) != 0 { panic("up-top col != 0") }
+}
+
+fn test_down_clamps_col_to_shorter_line() {
+  let b = buffer_from_text(String.from_str("abcd\nxy"))
+  let mut c = cur_new()
+  c = cur_right(c, b)
+  c = cur_right(c, b)
+  c = cur_right(c, b)                       // line 0 col 3
+  c = cur_down(c, b)                        // line 1 "xy" len 2 => clamp col to 2
+  if cur_line(c) != 1 { panic("down line != 1") }
+  if cur_col(c) != 2 { panic("down col != 2") }
+}

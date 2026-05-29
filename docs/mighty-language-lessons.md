@@ -46,6 +46,19 @@ The `use` neither errors nor imports — the call resolves to some default and r
 
 **Why it matters:** A multi-file Mighty package can't be unit-tested as a package; you cannot test `src/foo.mty` from `tests/foo_test.mty` without copy-pasting. This blocks normal TDD-against-modules and any non-trivial app layout. **Suggested fix:** assemble the package (all `src/**/*.mty` + the test file) into one HIR `Package` before lower/typecheck/run in the test runner, and make `use <localmod>.{...}` resolve against sibling modules (erroring on a genuinely missing symbol instead of returning a silent default).
 
+### L15. Struct field reads ALWAYS return field 0 — `t.b` / `t.col` ignore the field name ✅ **[P0]**
+Any read of a non-first named field returns the value of the **first** field instead. Probed under `mty test`:
+```mty
+struct T3 { a: USize, b: USize, c: USize }
+let t = T3 { a: 10, b: 20, c: 30 }
+t.a   // == 10  ✅
+t.b   // == 10  ❌ (should be 20 — returns field 0)
+t.c   // == 10  ❌ (should be 30)
+```
+Also reproduced with mixed field types (`struct Mixed { name: String, count: USize }; m.count` returns the `String`/first field, not 5). Single-field structs read correctly (`struct One { x }; o.x` is fine), which is why the bug hid until a 2-field type. `read_field(v, i)` in `crates/mty-ir/src/interp/run.rs:1392` indexes correctly, so the defect is upstream: the `field` **index** carried by `Rvalue::FieldRead` (HIR field-name → index resolution, or the projection emitted for `expr.fieldname`) collapses to 0. Tuple positional access (`t.0`/`t.1`) is *also* unavailable — it's a hard parse error (`MT0001: expected L_BRACE, got .`).
+
+**Why it matters:** `struct`s with ≥2 fields are unusable for reads — this guts the most basic aggregate. The plan's `Cursor { line, col }` and `Viewport { first_line, rows }` and `Token { kind, start, end }` all break. **Workaround used:** model small fixed records as a `Vec[USize]`/`Vec[T]` and access positionally by index (`v[0]`, `v[1]`), which the interpreter handles correctly. Cursor = `[line, col]`, Viewport = `[first_line, rows]`, each Token = `[kind, start, end]` flattened into a parallel `Vec`. The public function API (`cur_line`, `cur_col`, ...) is preserved; only the underlying representation changed. **Suggested fix:** fix the field-name→index resolution in HIR lowering (and/or the `expr.field` projection) so `FieldRead.field` is the declared field's ordinal; add the `tuple.N` positional-access grammar. This is the single highest-value correctness fix for writing ordinary Mighty programs.
+
 ### L14. Public functions that allocate must declare `effect alloc` ✅ **[P2-for-us, by-design]**
 `pub fn line_insert(...) -> Line { ...Vec.new()/push... }` fails `mty check` with `MT4001: public function 'line_insert' is missing declared effect(s): alloc`. Fix is to annotate: `pub fn line_insert(...) -> Line effect alloc { ... }` (effect clause goes after the return type; `effect a | E` and `!{a}` row forms also exist). This is intended (effects are a public contract per §9), not a bug — logged so the pattern is on record: any `pub` fn in `src/` that constructs a `Vec`/`String` needs `effect alloc`. (Non-`pub` helpers and `test_*` fns in test files don't trip it, which is why the inlined test copies omit it.)
 

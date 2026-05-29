@@ -1,0 +1,86 @@
+// Cursor — a {line, col} position with movement clamped to the buffer.
+//
+// Represented as a 2-element Vec[USize] = [line, col]. A `struct Cursor`
+// would be the natural model, but multi-field struct reads are broken in
+// the current interpreter (every field read returns field 0) — see
+// docs/mighty-language-lessons.md L15. Positional Vec access works, so the
+// public API (cur_new/cur_line/cur_col/cur_left/...) is preserved over a
+// Vec representation. Cross-file `use` doesn't resolve (L13), so Buffer/Line
+// accessors are re-declared.
+
+pub type Line = Vec[U8]
+pub type Buffer = Vec[Line]
+pub type Cursor = Vec[USize]   // [line, col]
+
+fn line_len(l: Line) -> USize { l.len() }
+fn buffer_line_count(b: Buffer) -> USize { b.len() }
+fn buffer_line(b: Buffer, idx: USize) -> Line effect alloc {
+  match b.get(idx) {
+    Some(l) => l
+    None => Vec.new()
+  }
+}
+fn line_length(b: Buffer, l: USize) -> USize effect alloc { line_len(buffer_line(b, l)) }
+
+pub fn cur_make(line: USize, col: USize) -> Cursor effect alloc {
+  let mut c: Cursor = Vec.new()
+  c = c.push(line)
+  c = c.push(col)
+  c
+}
+
+pub fn cur_new() -> Cursor effect alloc { cur_make(0, 0) }
+pub fn cur_line(c: Cursor) -> USize { c[0] }
+pub fn cur_col(c: Cursor) -> USize { c[1] }
+
+pub fn cur_left(c: Cursor, b: Buffer) -> Cursor effect alloc {
+  let line = cur_line(c)
+  let col = cur_col(c)
+  if col > 0 {
+    cur_make(line, col - 1)
+  } else if line > 0 {
+    let pl = line - 1
+    cur_make(pl, line_length(b, pl))
+  } else {
+    c
+  }
+}
+
+pub fn cur_right(c: Cursor, b: Buffer) -> Cursor effect alloc {
+  let line = cur_line(c)
+  let col = cur_col(c)
+  let len = line_length(b, line)
+  if col < len {
+    cur_make(line, col + 1)
+  } else if (line + 1) < buffer_line_count(b) {
+    cur_make(line + 1, 0)
+  } else {
+    c
+  }
+}
+
+pub fn cur_up(c: Cursor, b: Buffer) -> Cursor effect alloc {
+  let line = cur_line(c)
+  let col = cur_col(c)
+  if line == 0 {
+    c
+  } else {
+    let nl = line - 1
+    let len = line_length(b, nl)
+    let nc = if col < len { col } else { len }
+    cur_make(nl, nc)
+  }
+}
+
+pub fn cur_down(c: Cursor, b: Buffer) -> Cursor effect alloc {
+  let line = cur_line(c)
+  let col = cur_col(c)
+  if (line + 1) >= buffer_line_count(b) {
+    c
+  } else {
+    let nl = line + 1
+    let len = line_length(b, nl)
+    let nc = if col < len { col } else { len }
+    cur_make(nl, nc)
+  }
+}
