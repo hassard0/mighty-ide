@@ -19,6 +19,7 @@ mod format;
 mod gpu;
 mod history;
 mod icons;
+mod language;
 mod layout;
 mod nav;
 mod palette;
@@ -135,6 +136,14 @@ pub struct MuiContext {
     /// (same shape as `complete_buf`; the live unsaved source is the doc text).
     nav_buf: Vec<u8>,
 
+    // ---- deeper language intelligence (signature help / rename / code actions) ----
+    /// Signature-help popup state (parsed `SignatureInformation`), shim-owned.
+    sig: language::SigState,
+    /// Inline rename input + the parsed `WorkspaceEdit` from the last commit.
+    rename: language::RenameState,
+    /// Code-action menu state (action list + selection), shim-owned.
+    codeaction: language::CodeActionState,
+
     // ---- undo / redo history (shim-owned, L21) ----
     /// Undo + redo stacks of full buffer snapshots for the active tab. Mighty
     /// streams its post-edit buffer in (reusing the byte-streaming path) and the
@@ -188,6 +197,13 @@ pub struct MuiContext {
     /// headless capture shows it (it otherwise only draws while `completing` in
     /// the Mighty loop, which a non-interactive run can't enter). `None` normally.
     complete_autoopen: Option<(i32, i32)>,
+    /// Screenshot-only hooks for the language-intelligence overlays: when `Some`,
+    /// the signature popup / code-action menu is force-drawn at `(row, col)`;
+    /// `rename_autoopen` force-draws the centered rename input. `None`/`false`
+    /// for normal runs.
+    sig_autoopen: Option<(i32, i32)>,
+    codeaction_autoopen: Option<(i32, i32)>,
+    rename_autoopen: bool,
 
     // ---- activity-rail panels (Explorer / Search / Source Control) ----
     /// The sidebar's active panel: 0 = Explorer, 1 = Search, 2 = Source Control.
@@ -500,6 +516,9 @@ pub(crate) fn build_context(
         hover: nav::HoverState::new(),
         def: nav::DefState::new(),
         nav_buf: Vec::new(),
+        sig: language::SigState::new(),
+        rename: language::RenameState::new(),
+        codeaction: language::CodeActionState::new(),
         history: history::HistoryStore::new(),
         restored_cursor: (0, 0),
         palette: palette::PaletteEngine::new(),
@@ -511,6 +530,9 @@ pub(crate) fn build_context(
         dl: vello_ui::DisplayList::default(),
         vello_ui: None,
         complete_autoopen: None,
+        sig_autoopen: None,
+        codeaction_autoopen: None,
+        rename_autoopen: false,
         active_panel: PANEL_EXPLORER,
         scm: scm::ScmState::new(),
         search: search::SearchState::new(),
@@ -809,6 +831,47 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         ctx.complete = engine;
     }
 
+    // Screenshot hooks for the language-intelligence overlays (signature popup /
+    // code-action menu): force-draw when armed so a headless capture shows them.
+    if let Some((row, col)) = ctx.sig_autoopen {
+        let region = layout::region(ctx.sidebar_visible);
+        let total = ctx.tabs.active_model().line_count().max(1) as u64;
+        let cx = layout::text_x_in(region, total, col);
+        let cy = layout::row_y_in(region, row);
+        let sig = std::mem::take(&mut ctx.sig);
+        ctx.overlay = true;
+        ctx.text.set_overlay(true);
+        sig.draw(ctx, cx, cy, w, h);
+        ctx.overlay = false;
+        ctx.text.set_overlay(false);
+        ctx.sig = sig;
+    }
+    if let Some((row, col)) = ctx.codeaction_autoopen {
+        let region = layout::region(ctx.sidebar_visible);
+        let total = ctx.tabs.active_model().line_count().max(1) as u64;
+        let cx = layout::text_x_in(region, total, col);
+        let cy = layout::row_y_in(region, row);
+        let menu = std::mem::take(&mut ctx.codeaction);
+        ctx.overlay = true;
+        ctx.text.set_overlay(true);
+        menu.draw(ctx, cx, cy, w, h);
+        ctx.overlay = false;
+        ctx.text.set_overlay(false);
+        ctx.codeaction = menu;
+    }
+    // Rename input is centered (no anchor needed). In the LIVE path Mighty calls
+    // `mui_rename_draw` itself; here we only force it for the headless capture
+    // (the autoopen flag), to avoid double-drawing interactively.
+    if ctx.rename_autoopen && ctx.rename.is_active() {
+        let rename = std::mem::take(&mut ctx.rename);
+        ctx.overlay = true;
+        ctx.text.set_overlay(true);
+        rename.draw(ctx, w, h);
+        ctx.overlay = false;
+        ctx.text.set_overlay(false);
+        ctx.rename = rename;
+    }
+
     // Fold the queued glyphon text runs into the display list (each keeps its
     // layer/font/size/color), so the Vello scene reproduces all chrome + code.
     ctx.text.drain_into_display_list(&mut ctx.dl);
@@ -1045,6 +1108,9 @@ impl MuiContext {
             hover: nav::HoverState::new(),
             def: nav::DefState::new(),
             nav_buf: Vec::new(),
+            sig: language::SigState::new(),
+            rename: language::RenameState::new(),
+            codeaction: language::CodeActionState::new(),
             history: history::HistoryStore::new(),
             restored_cursor: (0, 0),
             palette: palette::PaletteEngine::new(),
@@ -1056,6 +1122,9 @@ impl MuiContext {
             dl: vello_ui::DisplayList::default(),
             vello_ui: None,
             complete_autoopen: None,
+            sig_autoopen: None,
+            codeaction_autoopen: None,
+            rename_autoopen: false,
             active_panel: PANEL_EXPLORER,
             scm: scm::ScmState::new(),
             search: search::SearchState::new(),

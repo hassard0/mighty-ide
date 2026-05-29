@@ -83,6 +83,18 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
     let title = format!("{} — Mighty IDE", basename(&path));
     println!("mui_init_s: editing {}", path.display());
 
+    // Optional window-size override (used by screenshot capture to hit an exact
+    // size, e.g. 1320x860). Falls back to the size Mighty passed.
+    let env_dim = |key: &str, fallback: u32| -> u32 {
+        std::env::var(key)
+            .ok()
+            .and_then(|v| v.trim().parse::<u32>().ok())
+            .filter(|&n| n >= 64)
+            .unwrap_or(fallback)
+    };
+    let width = env_dim("MUI_WIDTH", width);
+    let height = env_dim("MUI_HEIGHT", height);
+
     let handle = crate::build_context(width, height, title, Some(path)) as usize as i64;
 
     // Launch-test hook: with MUI_TERM_AUTOOPEN set, eagerly open the terminal so
@@ -198,6 +210,110 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
             // Anchor near the top of the editor body so the card is fully visible.
             ctx.complete_autoopen = Some((6, prefix.chars().count() as i32 + 8));
             println!("mui_init_s: MUI_COMPLETE_AUTOOPEN -> prefix=\"{prefix}\" candidates={count}");
+        }
+    }
+
+    // Launch-test hook for the language-intelligence features: with
+    // MUI_LANG_PROBE set, drive the REAL ABI (signatureHelp / rename / codeAction)
+    // against the active model + live `mty lsp` and log the results, proving the
+    // shim wiring end-to-end (the F2 / Ctrl+. / `(` triggers can't be delivered
+    // non-interactively). No effect on normal launches.
+    if std::env::var_os("MUI_LANG_PROBE").is_some() {
+        // Signature help: place the cursor just after `add(` in the demo, request.
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            // Find a line containing `(` to probe signature help; default cursor 0.
+            let text = ctx.tabs.active_model().as_text();
+            let mut sl = 0i32;
+            let mut sc = 0i32;
+            for (i, line) in text.split('\n').enumerate() {
+                if let Some(p) = line.find('(') {
+                    sl = i as i32;
+                    sc = line[..=p].chars().count() as i32;
+                    break;
+                }
+            }
+            ctx.tabs.active_model_mut().move_to(sl, sc);
+        }
+        let sig = mui_sig_request(handle, {
+            unsafe { ctx(handle) }.map(|c| c.tabs.active_model().cursor_line() as i32).unwrap_or(0)
+        }, {
+            unsafe { ctx(handle) }.map(|c| c.tabs.active_model().cursor_col() as i32).unwrap_or(0)
+        });
+        println!("lang-probe: signatureHelp available={sig}");
+        // Code actions on the cursor line.
+        let (cl, cc) = unsafe { ctx(handle) }
+            .map(|c| (c.tabs.active_model().cursor_line() as i32, c.tabs.active_model().cursor_col() as i32))
+            .unwrap_or((0, 0));
+        let ca = mui_codeaction_request(handle, cl, cc);
+        println!("lang-probe: codeActions={ca}");
+        mui_codeaction_cancel(handle);
+        // Rename prepare on the same position (don't commit — read-only probe).
+        let rp = mui_rename_prepare(handle, cl, cc);
+        println!("lang-probe: rename-prepare={rp}");
+        mui_rename_cancel(handle);
+    }
+
+    // Screenshot/render hooks for the deeper language-intelligence features:
+    // MUI_SIG_AUTOOPEN / MUI_RENAME_AUTOOPEN / MUI_CODEACTION_AUTOOPEN leave the
+    // signature popup / rename input / code-action menu open + anchored so a
+    // headless screenshot captures them (each draw is otherwise a no-op unless
+    // its UI is active, which a non-interactive run can't trigger). The env value
+    // optionally seeds the request position / new name. No effect on launches.
+    if std::env::var_os("MUI_SIG_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            // Seed a signature directly (so the capture is deterministic even if
+            // the LSP is slow): a representative `fn add` signature, active param 1.
+            let ok = ctx.sig.set(Some(crate::language::ParsedSignature {
+                label: "fn add(a: I32, b: I32) -> I32".to_string(),
+                params: vec!["a: I32".to_string(), "b: I32".to_string()],
+                active: 1,
+                doc: "Adds two integers and returns the sum.".to_string(),
+            }));
+            ctx.sig_autoopen = Some((9, 16));
+            println!("mui_init_s: MUI_SIG_AUTOOPEN -> signature active={ok}");
+        }
+    }
+    if std::env::var_os("MUI_RENAME_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let seed = std::env::var("MUI_RENAME_AUTOOPEN")
+                .ok()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty() && v != "1")
+                .unwrap_or_else(|| "add".to_string());
+            ctx.rename.open(&seed);
+            // Type a fresh name so the field shows an edited value.
+            ctx.rename.backspace();
+            ctx.rename.backspace();
+            ctx.rename.backspace();
+            for ch in "compute_sum".chars() {
+                ctx.rename.push(ch as u32);
+            }
+            ctx.rename_autoopen = true;
+            println!("mui_init_s: MUI_RENAME_AUTOOPEN -> rename open for \"{seed}\"");
+        }
+    }
+    if std::env::var_os("MUI_CODEACTION_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let actions = vec![
+                crate::language::CodeAction {
+                    title: "Replace 'prnt' with 'print'".to_string(),
+                    edit: None,
+                    fix_all_mty: false,
+                },
+                crate::language::CodeAction {
+                    title: "Import 'print' from std".to_string(),
+                    edit: None,
+                    fix_all_mty: false,
+                },
+                crate::language::CodeAction {
+                    title: "Fix all (mty)".to_string(),
+                    edit: None,
+                    fix_all_mty: true,
+                },
+            ];
+            let n = ctx.codeaction.set(actions);
+            ctx.codeaction_autoopen = Some((9, 6));
+            println!("mui_init_s: MUI_CODEACTION_AUTOOPEN -> {n} actions");
         }
     }
 
@@ -2930,6 +3046,666 @@ pub extern "C" fn mui_nav_probe(handle: i64) {
         }
         None => println!("nav-probe: def=<none>"),
     }
+}
+
+// ---------------------------------------------------------------------------
+// Deeper language intelligence — signature help / rename / code actions
+// ---------------------------------------------------------------------------
+//
+// Like hover/def, all three spawn `mty lsp`, run the staged handshake (L24), fire
+// one request over the LIVE active-model text, parse the answer, and own the UI
+// state. Mighty drives them through scalar getters/actions and reads the result
+// back. mty-lsp (v0.5) implements all three (verified): signatureHelp, rename
+// (changes WorkspaceEdit) + prepareRename, codeAction (quickfix / refactor /
+// source.fixAll.mighty kinds). `mty fix --apply` exists for the synthetic
+// "Fix all (mty)" action.
+
+/// The source text of the active model + its cursor as 0-based (line, col).
+fn active_source_and_cursor(ctx: &MuiContext) -> (String, u32, u32) {
+    let m = ctx.tabs.active_model();
+    (
+        m.as_text(),
+        m.cursor_line() as u32,
+        m.cursor_col() as u32,
+    )
+}
+
+/// Extract the identifier (`[A-Za-z_][A-Za-z0-9_]*`) that contains or ends at the
+/// char `col` on `line` of `text`. Returns `""` if the cursor isn't on an
+/// identifier (used to prefill the rename input).
+fn identifier_at(text: &str, line: u32, col: u32) -> String {
+    let line_str = text.split('\n').nth(line as usize).unwrap_or("");
+    let chars: Vec<char> = line_str.chars().collect();
+    let is_id = |c: char| c == '_' || c.is_ascii_alphanumeric();
+    let n = chars.len();
+    let c = (col as usize).min(n);
+    // Find an identifier covering the cursor: scan left for the start, right for
+    // the end, allowing the cursor to sit just after the identifier too.
+    let mut start = c;
+    while start > 0 && is_id(chars[start - 1]) {
+        start -= 1;
+    }
+    let mut end = c;
+    while end < n && is_id(chars[end]) {
+        end += 1;
+    }
+    if start == end {
+        return String::new();
+    }
+    // Reject a leading digit (numeric literal).
+    if chars[start].is_ascii_digit() {
+        return String::new();
+    }
+    chars[start..end].iter().collect()
+}
+
+// ---- signature help ----
+
+/// Request signature help at the cursor `(line, col)` (0-based) over the active
+/// model. Spawns `mty lsp`, parses `SignatureInformation`, stores the popup.
+/// Returns `1` if a signature is available, else `0` (clearing any prior popup).
+#[no_mangle]
+pub extern "C" fn mui_sig_request(handle: i64, line: i32, col: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.sig.clear();
+    let path = match ctx.file_path.clone() {
+        Some(p) => p,
+        None => return 0,
+    };
+    let (source, _, _) = active_source_and_cursor(ctx);
+    let raw = crate::language::lsp::request(
+        &path,
+        &source,
+        crate::language::lsp::Req::SignatureHelp {
+            line: line.max(0) as u32,
+            col: col.max(0) as u32,
+        },
+    );
+    let available = match crate::language::parse_signature_help(&raw) {
+        Some(sig) => ctx.sig.set(Some(sig)),
+        None => false,
+    };
+    println!("sig: line={line} col={col} available={available}");
+    i32::from(available)
+}
+
+/// `1` if a signature-help popup is currently active.
+#[no_mangle]
+pub extern "C" fn mui_sig_active(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.sig.is_active()))
+}
+
+/// Clear the signature-help popup.
+#[no_mangle]
+pub extern "C" fn mui_sig_clear(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.sig.clear();
+    }
+}
+
+/// Draw the signature popup ABOVE the cursor `(row, col)` (screen row + buffer
+/// col), offset past the gutter sized for `total_lines`. No-op when inactive.
+#[no_mangle]
+pub extern "C" fn mui_sig_draw(handle: i64, row: i32, col: i32, total_lines: i32) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if !ctx.sig.is_active() {
+        return;
+    }
+    let region = layout::region(ctx.sidebar_visible);
+    let x = layout::text_x_in(region, total_lines.max(1) as u64, col);
+    let y = layout::row_y_in(region, row);
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let sig = std::mem::take(&mut ctx.sig);
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
+    sig.draw(ctx, x, y, w, h);
+    ctx.overlay = false;
+    ctx.text.set_overlay(false);
+    ctx.sig = sig;
+}
+
+// ---- rename symbol (F2) ----
+
+/// Prepare a rename at the cursor `(line, col)`: derive the symbol under the
+/// cursor (preferring `prepareRename`'s range when the server provides one) and
+/// open the inline rename input prefilled with it. Returns `1` if a renamable
+/// symbol was found, else `0` (input not opened).
+#[no_mangle]
+pub extern "C" fn mui_rename_prepare(handle: i64, line: i32, col: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let (source, _, _) = active_source_and_cursor(ctx);
+    // Prefer the identifier under the cursor in the live buffer (robust + matches
+    // what prepareRename would return for mty-lsp). prepareRename is consulted
+    // only to confirm renamability when the local scan is empty.
+    let mut symbol = identifier_at(&source, line.max(0) as u32, col.max(0) as u32);
+    if symbol.is_empty() {
+        if let Some(path) = ctx.file_path.clone() {
+            let raw = crate::language::lsp::request(
+                &path,
+                &source,
+                crate::language::lsp::Req::PrepareRename {
+                    line: line.max(0) as u32,
+                    col: col.max(0) as u32,
+                },
+            );
+            // prepareRename returns a range; re-derive the symbol from its start.
+            if let Some((sl, sc)) = parse_prepare_rename_start(&raw) {
+                symbol = identifier_at(&source, sl, sc);
+            }
+        }
+    }
+    if symbol.is_empty() {
+        println!("rename: line={line} col={col} no-symbol");
+        return 0;
+    }
+    ctx.rename.open(&symbol);
+    println!("rename: prepare symbol=\"{symbol}\"");
+    1
+}
+
+/// Parse the `prepareRename` result's start `(line, character)`. The result is a
+/// `Range` `{"start":{"line":N,"character":N},"end":{...}}`.
+fn parse_prepare_rename_start(json: &str) -> Option<(u32, u32)> {
+    let bytes = json.as_bytes();
+    let start_at = find_subslice(bytes, b"\"start\"")?;
+    let region = &bytes[start_at..];
+    let line = read_uint_in(region, b"\"line\"")?;
+    let col = read_uint_in(region, b"\"character\"")?;
+    Some((line, col))
+}
+
+/// Open the rename input directly with an explicit `symbol` (used when Mighty
+/// already knows the identifier; kept simple for the ABI). Returns `1`.
+#[no_mangle]
+pub extern "C" fn mui_rename_open(handle: i64, line: i32, col: i32) -> i32 {
+    mui_rename_prepare(handle, line, col)
+}
+
+/// Append one Unicode scalar to the rename new-name buffer.
+#[no_mangle]
+pub extern "C" fn mui_rename_push_char(handle: i64, codepoint: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if codepoint >= 0 {
+            ctx.rename.push(codepoint as u32);
+        }
+    }
+}
+
+/// Remove the last char of the rename buffer.
+#[no_mangle]
+pub extern "C" fn mui_rename_backspace(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.rename.backspace();
+    }
+}
+
+/// `1` while the rename inline input is active.
+#[no_mangle]
+pub extern "C" fn mui_rename_active(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.rename.is_active()))
+}
+
+/// Cancel the rename input (discard the buffer + any staged edit).
+#[no_mangle]
+pub extern "C" fn mui_rename_cancel(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.rename.cancel();
+    }
+}
+
+/// Commit the rename: fire `textDocument/rename` with the typed new name at the
+/// cursor `(line, col)`, parse the `WorkspaceEdit`, apply it to every affected
+/// file (the active buffer's model in-place; other files on disk, refreshing any
+/// open tab for them), and save the active file. Returns the number of FILES
+/// changed (>= 1 on success), `0` if rename produced no edit, or `-1` on error.
+///
+/// Falls back to a workspace-wide identifier replace scoped to the original
+/// symbol (active file only) when the server returns no edit — clearly logged.
+#[no_mangle]
+pub extern "C" fn mui_rename_commit(handle: i64, line: i32, col: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    if !ctx.rename.is_active() {
+        return -1;
+    }
+    let new_name = ctx.rename.name_string();
+    let original = ctx.rename.original().to_string();
+    if new_name.is_empty() || new_name == original {
+        ctx.rename.cancel();
+        return 0;
+    }
+    let path = match ctx.file_path.clone() {
+        Some(p) => p,
+        None => {
+            ctx.rename.cancel();
+            return -1;
+        }
+    };
+    let (source, _, _) = active_source_and_cursor(ctx);
+    let raw = crate::language::lsp::request(
+        &path,
+        &source,
+        crate::language::lsp::Req::Rename {
+            line: line.max(0) as u32,
+            col: col.max(0) as u32,
+            new_name: new_name.clone(),
+        },
+    );
+    let mut we = crate::language::parse_workspace_edit(&raw);
+
+    // Fallback: server gave nothing — do a scoped identifier replace in the
+    // ACTIVE buffer only, clearly flagged as a fallback.
+    let mut fallback = false;
+    if we.is_empty() {
+        fallback = true;
+        let edits = fallback_rename_edits(&source, &original);
+        if edits.is_empty() {
+            ctx.rename.cancel();
+            println!("rename: commit new=\"{new_name}\" edits=0 (no LSP, no fallback match)");
+            return 0;
+        }
+        let uri = crate::language::lsp::file_uri(&path);
+        we.files.push((uri, edits));
+    }
+
+    let files_changed = apply_workspace_edit(ctx, &we, &new_name);
+    ctx.rename.set_edit(Some(we));
+    ctx.rename.cancel();
+    println!(
+        "rename: commit new=\"{new_name}\" files={files_changed} fallback={fallback}"
+    );
+    files_changed
+}
+
+/// Build fallback rename edits: every whole-word occurrence of `symbol` in
+/// `source`, as `TextEdit`s. A coarse but clearly-labeled fallback used only when
+/// the LSP returns no `WorkspaceEdit`.
+fn fallback_rename_edits(source: &str, symbol: &str) -> Vec<crate::language::TextEdit> {
+    let mut out = Vec::new();
+    if symbol.is_empty() {
+        return out;
+    }
+    let is_id = |c: char| c == '_' || c.is_ascii_alphanumeric();
+    let sym_chars: Vec<char> = symbol.chars().collect();
+    let slen = sym_chars.len();
+    for (li, raw_line) in source.split('\n').enumerate() {
+        let chars: Vec<char> = raw_line.chars().collect();
+        let mut i = 0usize;
+        while i + slen <= chars.len() {
+            if chars[i..i + slen] == sym_chars[..] {
+                let before_ok = i == 0 || !is_id(chars[i - 1]);
+                let after_ok = i + slen == chars.len() || !is_id(chars[i + slen]);
+                if before_ok && after_ok {
+                    out.push(crate::language::TextEdit {
+                        start_line: li as u32,
+                        start_col: i as u32,
+                        end_line: li as u32,
+                        end_col: (i + slen) as u32,
+                        new_text: String::new(), // filled by apply via new_name? no:
+                    });
+                    i += slen;
+                    continue;
+                }
+            }
+            i += 1;
+        }
+    }
+    out
+}
+
+/// Apply a [`WorkspaceEdit`](crate::language::WorkspaceEdit) across files,
+/// substituting `new_name` for any fallback edit whose `new_text` is empty (the
+/// LSP edits already carry their text). The active file's model is mutated
+/// in-place + saved; other files are rewritten on disk and any open tab for them
+/// is reloaded. Returns the count of files actually changed.
+fn apply_workspace_edit(
+    ctx: &mut MuiContext,
+    we: &crate::language::WorkspaceEdit,
+    new_name: &str,
+) -> i32 {
+    let current = ctx.file_path.clone();
+    let mut changed = 0i32;
+    for (uri, edits) in &we.files {
+        if edits.is_empty() {
+            continue;
+        }
+        let Some(fpath) = crate::nav::uri_to_path(uri) else {
+            continue;
+        };
+        // Fill empty new_text (fallback edits) with new_name.
+        let edits: Vec<crate::language::TextEdit> = edits
+            .iter()
+            .cloned()
+            .map(|mut e| {
+                if e.new_text.is_empty() {
+                    e.new_text = new_name.to_string();
+                }
+                e
+            })
+            .collect();
+
+        let is_current = current
+            .as_deref()
+            .map(|c| crate::nav::paths_equal(c, &fpath))
+            .unwrap_or(false);
+
+        if is_current {
+            // Apply to the active model in-place (preserves the live edit state),
+            // then save it to disk.
+            let m = ctx.tabs.active_model_mut();
+            let text = m.as_text();
+            let cl = m.cursor_line() as i32;
+            let cc = m.cursor_col() as i32;
+            let edited = crate::language::apply_text_edits(&text, &edits);
+            *m = crate::editor::TextModel::from_bytes(edited.as_bytes());
+            m.move_to(cl, cc);
+            if let Some(p) = current.clone() {
+                let _ = std::fs::write(&p, m.to_bytes());
+                m.mark_clean();
+            }
+            changed += 1;
+        } else {
+            // Other file: read from disk, apply, write back; refresh an open tab.
+            let disk = std::fs::read(&fpath).unwrap_or_default();
+            let text = String::from_utf8_lossy(&disk).into_owned();
+            let edited = crate::language::apply_text_edits(&text, &edits);
+            if std::fs::write(&fpath, edited.as_bytes()).is_ok() {
+                changed += 1;
+                // If this file is open in a tab, reopen it to refresh its model.
+                if ctx.tabs.find_by_path(&fpath).is_some() {
+                    let _ = ctx.tabs.open_path(fpath.clone());
+                }
+            }
+        }
+    }
+    // Restore active focus to the original file (open_path may have switched).
+    if let Some(p) = current {
+        let _ = ctx.tabs.open_path(p);
+        sync_active_path(ctx);
+    }
+    changed
+}
+
+/// Draw the rename inline input. No-op when inactive.
+#[no_mangle]
+pub extern "C" fn mui_rename_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if !ctx.rename.is_active() {
+        return;
+    }
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let rename = std::mem::take(&mut ctx.rename);
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
+    rename.draw(ctx, w, h);
+    ctx.overlay = false;
+    ctx.text.set_overlay(false);
+    ctx.rename = rename;
+}
+
+// ---- code actions / quick-fix (Ctrl+.) ----
+
+/// Request code actions for the current line/selection. Fires
+/// `textDocument/codeAction` for the cursor line range, parses the actions, and
+/// (when `mty fix` is available) appends a synthetic "Fix all (mty)" action.
+/// Returns the action count (0 leaves the menu closed).
+#[no_mangle]
+pub extern "C" fn mui_codeaction_request(handle: i64, line: i32, col: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.codeaction.cancel();
+    let path = match ctx.file_path.clone() {
+        Some(p) => p,
+        None => return 0,
+    };
+    let (source, _, _) = active_source_and_cursor(ctx);
+    let line0 = line.max(0) as u32;
+    // Use the cursor line's full range as the action range.
+    let line_len = source
+        .split('\n')
+        .nth(line0 as usize)
+        .map(|l| l.chars().count() as u32)
+        .unwrap_or(0);
+    let raw = crate::language::lsp::request(
+        &path,
+        &source,
+        crate::language::lsp::Req::CodeAction {
+            start_line: line0,
+            start_col: 0,
+            end_line: line0,
+            end_col: line_len.max(col.max(0) as u32),
+        },
+    );
+    let mut actions = crate::language::parse_code_actions(&raw);
+    let lsp_count = actions.len();
+    // Append "Fix all (mty)" if `mty fix` exists.
+    if mty_fix_available() {
+        actions.push(crate::language::CodeAction {
+            title: "Fix all (mty)".to_string(),
+            edit: None,
+            fix_all_mty: true,
+        });
+    }
+    let count = ctx.codeaction.set(actions);
+    println!("codeaction: line={line} lsp={lsp_count} total={count}");
+    count as i32
+}
+
+/// `1` if `mty fix --help` succeeds (the fixer subcommand exists).
+fn mty_fix_available() -> bool {
+    let mty = if let Ok(p) = std::env::var("MIGHTY_MTY") {
+        if !p.trim().is_empty() {
+            p
+        } else {
+            mty_default()
+        }
+    } else {
+        mty_default()
+    };
+    std::process::Command::new(&mty)
+        .arg("fix")
+        .arg("--help")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+fn mty_default() -> String {
+    const DEV: &str = r"C:\Users\ihass\stardust\target\debug\mty.exe";
+    if std::path::Path::new(DEV).exists() {
+        DEV.to_string()
+    } else {
+        "mty".to_string()
+    }
+}
+
+/// `1` while the code-action menu is active.
+#[no_mangle]
+pub extern "C" fn mui_codeaction_active(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.codeaction.is_active()))
+}
+
+/// Number of code actions in the menu.
+#[no_mangle]
+pub extern "C" fn mui_codeaction_count(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.codeaction.count() as i32)
+}
+
+/// 0-based selected action index.
+#[no_mangle]
+pub extern "C" fn mui_codeaction_sel(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.codeaction.selection() as i32)
+}
+
+/// Move the code-action selection by `delta` (wraps).
+#[no_mangle]
+pub extern "C" fn mui_codeaction_move(handle: i64, delta: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.codeaction.move_sel(delta);
+    }
+}
+
+/// Cancel/close the code-action menu.
+#[no_mangle]
+pub extern "C" fn mui_codeaction_cancel(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.codeaction.cancel();
+    }
+}
+
+/// Apply the selected code action: apply its inline `WorkspaceEdit`, or run
+/// `mty fix --apply` on the active file (the "Fix all (mty)" action) + reload.
+/// Returns `1` if anything changed, `0` otherwise. Closes the menu.
+#[no_mangle]
+pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let selected = ctx.codeaction.selected().cloned();
+    ctx.codeaction.cancel();
+    let Some(action) = selected else {
+        return 0;
+    };
+
+    if action.fix_all_mty {
+        // Save the live buffer, run `mty fix --apply`, reload.
+        let path = match ctx.file_path.clone() {
+            Some(p) => p,
+            None => return 0,
+        };
+        let bytes = ctx.tabs.active_model().to_bytes();
+        if std::fs::write(&path, &bytes).is_err() {
+            return 0;
+        }
+        ctx.tabs.active_model_mut().mark_clean();
+        let mty = mty_default();
+        let ok = std::process::Command::new(&mty)
+            .arg("fix")
+            .arg("--apply")
+            .arg(&path)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if ok {
+            if let Ok(reloaded) = std::fs::read(&path) {
+                ctx.tabs.reload_active(&reloaded);
+            }
+        }
+        println!("codeaction: apply Fix-all-mty ok={ok}");
+        return i32::from(ok);
+    }
+
+    // Inline-edit action.
+    if let Some(we) = &action.edit {
+        let we = we.clone();
+        let changed = apply_workspace_edit(ctx, &we, "");
+        println!("codeaction: apply edit files={changed}");
+        return i32::from(changed > 0);
+    }
+    println!("codeaction: apply (command/no-edit) — no-op");
+    0
+}
+
+/// The title of code action `i` as a staged string Mighty reads char-by-char:
+/// store it, then call `mui_codeaction_title_len` / `_char`. We stage into the
+/// existing `text_stage` buffer to avoid adding another scalar string channel.
+#[no_mangle]
+pub extern "C" fn mui_codeaction_title_stage(handle: i64, i: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.text_stage.clear();
+    if let Some(t) = ctx.codeaction.title(i.max(0) as usize) {
+        ctx.text_stage.push_str(t);
+        ctx.text_stage.chars().count() as i32
+    } else {
+        0
+    }
+}
+
+/// Length (chars) of the staged code-action title.
+#[no_mangle]
+pub extern "C" fn mui_codeaction_title_len(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.text_stage.chars().count() as i32)
+}
+
+/// The `i`th char (codepoint) of the staged code-action title, or `-1`.
+#[no_mangle]
+pub extern "C" fn mui_codeaction_title_char(handle: i64, i: i32) -> i32 {
+    unsafe { ctx(handle) }.map_or(-1, |c| {
+        c.text_stage
+            .chars()
+            .nth(i.max(0) as usize)
+            .map(|ch| ch as i32)
+            .unwrap_or(-1)
+    })
+}
+
+/// Draw the code-action menu near the cursor `(row, col)`. No-op when inactive.
+#[no_mangle]
+pub extern "C" fn mui_codeaction_draw(handle: i64, row: i32, col: i32, total_lines: i32) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if !ctx.codeaction.is_active() {
+        return;
+    }
+    let region = layout::region(ctx.sidebar_visible);
+    let x = layout::text_x_in(region, total_lines.max(1) as u64, col);
+    let y = layout::row_y_in(region, row);
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let menu = std::mem::take(&mut ctx.codeaction);
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
+    menu.draw(ctx, x, y, w, h);
+    ctx.overlay = false;
+    ctx.text.set_overlay(false);
+    ctx.codeaction = menu;
+}
+
+/// `read_uint_after` clone over an explicit region (avoids exporting the nav
+/// helper). Reads the unsigned integer value of `key` in `region`.
+fn read_uint_in(region: &[u8], key: &[u8]) -> Option<u32> {
+    let p = find_subslice(region, key)?;
+    let mut j = p + key.len();
+    while j < region.len() && matches!(region[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
+        j += 1;
+    }
+    let start = j;
+    let mut v: u32 = 0;
+    while j < region.len() && region[j].is_ascii_digit() {
+        v = v.saturating_mul(10).saturating_add((region[j] - b'0') as u32);
+        j += 1;
+    }
+    if j == start {
+        None
+    } else {
+        Some(v)
+    }
+}
+
+/// Find the first occurrence of `needle` in `hay` (byte substring search).
+fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
+    if needle.is_empty() || needle.len() > hay.len() {
+        return None;
+    }
+    hay.windows(needle.len()).position(|w| w == needle)
 }
 
 // ---------------------------------------------------------------------------
