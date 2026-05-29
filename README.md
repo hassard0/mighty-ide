@@ -1,6 +1,6 @@
 # Mighty IDE
 
-A native, GPU-rendered IDE **written in [Mighty](https://github.com/hassard0/Mighty)** — dogfooding the language by building its own development environment in it. First-class Mighty support, extensible to other languages.
+A native, **GPU vector-rendered** IDE **written in [Mighty](https://github.com/hassard0/Mighty)** — dogfooding the language by building its own development environment in it. The entire UI is drawn each frame as a [Vello](https://github.com/linebender/vello) scene (smooth gradients, true rounded corners, soft drop shadows, wavy diagnostic underlines, anti-aliased text), at CSS quality. First-class Mighty support, extensible to other languages.
 
 > **Status:** pre-alpha but functional. The editor builds, launches, and **edits real files live**. It is the forcing function for maturing Mighty — every place the language fights us is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md).
 
@@ -14,7 +14,7 @@ A native, GPU-rendered IDE **written in [Mighty](https://github.com/hassard0/Mig
 - **Language intelligence (via Mighty's own `mty-lsp`)** — live `mty check` diagnostics (gutter dots + squiggle underlines), autocomplete (Ctrl+Space: semantic LSP completions + buffer words)
 - **Integrated terminal** — real ConPTY shell with a VT parser (Ctrl+\`)
 - **Command palette** — Ctrl+Shift+P, fuzzy-filtered
-- **Theme** — the **"Ember Graphite"** dark design system with the bundled **JetBrains Mono** font (`fonts/`, SIL OFL)
+- **Theme** — the **"Aurora Noir"** dark design system rendered through **Vello** (GPU 2D vector renderer): a layered radial-gradient atmosphere, ember accents, rounded panels/cards with soft shadows, and AA text in the bundled **JetBrains Mono** (code) + **Bricolage Grotesque** (UI chrome) fonts (`fonts/`, SIL OFL)
 
 ## Live editing: the buffer lives shim-side (L28 workaround)
 
@@ -24,7 +24,7 @@ Under v0.36 native `mty build`, a Mighty `Vec` grown in a loop comes back empty 
 
 Two layers, one clean boundary:
 
-- **`crates/mighty-ui-sys`** — a Rust crate (winit + wgpu + glyphon, + `portable-pty` for the terminal) built as a **cdylib**, exposing a flat, **scalar-only** C ABI. It owns the window, GPU surface, text rendering, file I/O, terminal, the `mty-lsp` client, and layout. It is "dumb about editing" but does the heavy lifting that Mighty's young FFI can't yet express.
+- **`crates/mighty-ui-sys`** — a Rust crate (winit + wgpu + **Vello** for vector rendering, `portable-pty` for the terminal) built as a **cdylib**, exposing a flat, **scalar-only** C ABI. It owns the window, GPU surface, Vello scene-building + text shaping, file I/O, terminal, the `mty-lsp` client, and layout. Each frame the chrome/editor draw entry points build a display list of rounded rects / gradients / shadows / glyph runs that is replayed into one `vello::Scene` (`src/vello_ui.rs`). It is "dumb about editing" but does the heavy lifting that Mighty's young FFI can't yet express. (Setting `MUI_LEGACY_RENDER=1` falls back to the old solid-rect + glyphon path.)
 - **The IDE itself** (`src/main.mty`) — written in Mighty, linked against the shim via `extern c`. Mighty owns the main loop, input routing, and editor orchestration, driving the shim each frame via scalar calls.
 
 Why scalar-only: Mighty v0.36's `extern c` can pass only scalars (no strings/pointers/structs across the boundary), so strings, pixels, paths, and buffers live shim-side and are driven by scalar getters/setters. See the lessons doc (L17–L25) for the language constraints that shaped this design.

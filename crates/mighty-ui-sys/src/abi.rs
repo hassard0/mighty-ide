@@ -1588,10 +1588,10 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
         if is_active {
             ctx.dl_rect(x, 0.0, layout::TAB_W, bar_h, theme::BG_EDIT);
             ctx.dl_rect(x, 0.0, layout::TAB_W, 1.0, theme::HIGHLIGHT);
-            // Soft wide glow under the tab (blurred ember) + crisp 2px underline
-            // that fades at the ends (drawn as a centered rounded ember bar).
-            ctx.dl_shadow(x + 18.0, bar_h - 3.0, layout::TAB_W - 36.0, 3.0, 1.5, theme::hex(0xF4A259, 0.85), 6.0);
-            ctx.dl_round(x + 20.0, bar_h - 2.0, layout::TAB_W - 40.0, 2.0, 1.0, theme::EMBER);
+            // Soft, restrained ember underline glow (blurred) + a crisp centered
+            // 2px ember bar that reads as fading at the ends.
+            ctx.dl_shadow(x + 30.0, bar_h - 2.0, layout::TAB_W - 60.0, 2.0, 1.0, theme::hex(0xF4A259, 0.6), 5.0);
+            ctx.dl_round(x + 24.0, bar_h - 2.0, layout::TAB_W - 48.0, 2.0, 1.0, theme::EMBER);
         }
         // Right divider between tabs.
         ctx.dl_rect(x + layout::TAB_W - 1.0, 9.0, 1.0, bar_h - 18.0, theme::BORDER_SOFT);

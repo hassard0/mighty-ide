@@ -166,9 +166,12 @@ pub fn term_panel_left(region: Region) -> f32 {
     region.left
 }
 
-/// Number of whole terminal rows that fit in the panel (`>= 1`).
+/// Height (px) of the terminal panel's "TERMINAL" header band (above the grid).
+pub const TERM_HEADER_H: f32 = LINE_H;
+
+/// Number of whole terminal rows that fit in the panel below the header (`>= 1`).
 pub fn term_grid_rows(height: u32) -> usize {
-    let usable = term_panel_height(height) - PAD; // a little top padding
+    let usable = term_panel_height(height) - TERM_HEADER_H - PAD * 0.5;
     if usable <= 0.0 {
         return 1;
     }
@@ -190,9 +193,10 @@ pub fn term_cell_x(region: Region, col: usize) -> f32 {
     region.left + PAD + (col as f32) * CHAR_W
 }
 
-/// Y pixel (top) of terminal cell row `row` within the panel for window `height`.
+/// Y pixel (top) of terminal cell row `row` within the panel for window `height`
+/// — below the "TERMINAL" header band.
 pub fn term_cell_y(height: u32, row: usize) -> f32 {
-    term_panel_top(height) + PAD * 0.5 + (row as f32) * LINE_H
+    term_panel_top(height) + TERM_HEADER_H + (row as f32) * LINE_H
 }
 
 /// Map the tab-bar pixel x to a tab index (`floor((x - RAIL_W) / TAB_W)`).
