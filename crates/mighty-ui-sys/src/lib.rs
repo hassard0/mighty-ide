@@ -16,6 +16,7 @@ mod diagnostics;
 mod ffi;
 mod gpu;
 mod layout;
+mod nav;
 mod prompt;
 mod tabs;
 mod terminal;
@@ -105,6 +106,15 @@ pub struct MuiContext {
     /// Editor buffer bytes streamed in from Mighty for a completion request
     /// (mirrors the find streaming path — Mighty can't pass a buffer, L17).
     complete_buf: Vec<u8>,
+
+    // ---- hover + go-to-definition state ----
+    /// The hover popup (wrapped text + active flag), shim-owned.
+    hover: nav::HoverState,
+    /// The most recent resolved definition target (path + 0-based line/col).
+    def: nav::DefState,
+    /// Editor buffer bytes streamed in from Mighty for a hover/def request
+    /// (same shape as `complete_buf`; the live unsaved source is the doc text).
+    nav_buf: Vec<u8>,
 }
 
 // ---------------------------------------------------------------------------
@@ -210,6 +220,9 @@ pub(crate) fn build_context(
         term_open: false,
         complete: completion::CompletionEngine::new(),
         complete_buf: Vec::new(),
+        hover: nav::HoverState::new(),
+        def: nav::DefState::new(),
+        nav_buf: Vec::new(),
     });
     Box::into_raw(ctx)
 }
@@ -508,6 +521,9 @@ impl MuiContext {
             term_open: false,
             complete: completion::CompletionEngine::new(),
             complete_buf: Vec::new(),
+            hover: nav::HoverState::new(),
+            def: nav::DefState::new(),
+            nav_buf: Vec::new(),
         })
     }
 

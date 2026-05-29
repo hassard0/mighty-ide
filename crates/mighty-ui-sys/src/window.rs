@@ -77,6 +77,7 @@ fn named_key_code(k: NamedKey) -> Option<u32> {
         NamedKey::End => MUI_KEY_END,
         NamedKey::PageUp => MUI_KEY_PAGE_UP,
         NamedKey::PageDown => MUI_KEY_PAGE_DOWN,
+        NamedKey::F12 => MUI_KEY_F12,
         _ => return None,
     })
 }

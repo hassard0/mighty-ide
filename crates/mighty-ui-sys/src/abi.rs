@@ -102,6 +102,13 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         mui_log_completion(handle);
     }
 
+    // Launch-test hook for hover/definition: with MUI_NAV_PROBE set, run scripted
+    // hover + definition requests (F12 / the hover key can't be delivered
+    // non-interactively). See `mui_nav_probe`.
+    if std::env::var_os("MUI_NAV_PROBE").is_some() {
+        mui_nav_probe(handle);
+    }
+
     handle
 }
 
@@ -2025,4 +2032,232 @@ pub extern "C" fn mui_complete_probe(handle: i64) {
         lsp_labels.len(),
         ctx.complete.accepted_text()
     );
+}
+
+// ---------------------------------------------------------------------------
+// hover + go-to-definition (sub-project 7): shim-side LSP nav
+// ---------------------------------------------------------------------------
+//
+// Like completion, Mighty streams the live buffer into the shim (it can't pass a
+// buffer across FFI, L17), then asks for hover/definition at the cursor
+// `(line, col)` (0-based). The shim spawns `mty lsp`, runs the staged handshake
+// (L24), fires the request, parses the answer, and owns the result state. Mighty
+// reads scalars back: hover availability + a draw call; definition path-match +
+// target line/col + an open-target call.
+
+/// Begin streaming the editor buffer for a hover/def request: clear the buffer.
+#[no_mangle]
+pub extern "C" fn mui_nav_reset(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.nav_buf.clear();
+    }
+}
+
+/// Append one editor-buffer byte to the nav (hover/def) buffer.
+#[no_mangle]
+pub extern "C" fn mui_nav_push_byte(handle: i64, byte: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.nav_buf.push((byte & 0xff) as u8);
+    }
+}
+
+/// Request hover at the cursor `(line, col)` (0-based) over the streamed buffer.
+/// Spawns `mty lsp` (best-effort, short timeout), parses the hover markup, wraps
+/// it to a small popup, and stores it. Returns `1` if hover text is available,
+/// else `0` (and clears any prior popup). Graceful no-op if the buffer is empty
+/// or the server is absent.
+#[no_mangle]
+pub extern "C" fn mui_hover_request(handle: i64, line: i32, col: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.hover.clear();
+    let path = match ctx.file_path.clone() {
+        Some(p) => p,
+        None => return 0,
+    };
+    let source = String::from_utf8_lossy(&ctx.nav_buf).into_owned();
+    let raw = crate::nav::lsp::request(
+        &path,
+        &source,
+        line.max(0) as u32,
+        col.max(0) as u32,
+        crate::nav::lsp::Req::Hover,
+    );
+    let available = match crate::nav::parse_hover_value(&raw) {
+        Some(v) => ctx.hover.set_text(&v),
+        None => false,
+    };
+    println!(
+        "hover: line={} col={} available={} lines={}",
+        line,
+        col,
+        available,
+        ctx.hover.line_count()
+    );
+    i32::from(available)
+}
+
+/// `1` if a hover popup is currently active.
+#[no_mangle]
+pub extern "C" fn mui_hover_active(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.hover.is_active()))
+}
+
+/// Clear the hover popup.
+#[no_mangle]
+pub extern "C" fn mui_hover_clear(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.hover.clear();
+    }
+}
+
+/// Draw the hover popup near the cursor `(row, col)` (screen row + buffer col),
+/// offset past the gutter sized for `total_lines`. No-op when no hover is active.
+/// Mirrors `mui_complete_draw_at`'s pixel math (Mighty has no int->float, L19).
+#[no_mangle]
+pub extern "C" fn mui_hover_draw(handle: i64, row: i32, col: i32, total_lines: i32) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if !ctx.hover.is_active() {
+        return;
+    }
+    let region = layout::region(ctx.sidebar_visible);
+    let x = layout::text_x_in(region, total_lines.max(1) as u64, col);
+    let y = layout::row_y_in(region, row);
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let hover = std::mem::take(&mut ctx.hover);
+    hover.draw(ctx, x, y, w, h);
+    ctx.hover = hover;
+}
+
+/// Request go-to-definition at the cursor `(line, col)` (0-based) over the
+/// streamed buffer. Spawns `mty lsp`, parses the `Location`, resolves the uri to
+/// a path, and stores the target. Returns `1` if a definition location was
+/// found, else `0` (and clears any prior target).
+#[no_mangle]
+pub extern "C" fn mui_def_request(handle: i64, line: i32, col: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.def.clear();
+    let path = match ctx.file_path.clone() {
+        Some(p) => p,
+        None => return 0,
+    };
+    let source = String::from_utf8_lossy(&ctx.nav_buf).into_owned();
+    let raw = crate::nav::lsp::request(
+        &path,
+        &source,
+        line.max(0) as u32,
+        col.max(0) as u32,
+        crate::nav::lsp::Req::Definition,
+    );
+    let found = match crate::nav::parse_definition(&raw) {
+        Some((uri, tline, tcol)) => match crate::nav::uri_to_path(&uri) {
+            Some(tpath) => {
+                ctx.def.set(Some(crate::nav::DefTarget {
+                    path: tpath,
+                    line: tline,
+                    col: tcol,
+                }));
+                true
+            }
+            None => false,
+        },
+        None => false,
+    };
+    println!("def: line={line} col={col} found={found}");
+    i32::from(found)
+}
+
+/// `1` if the resolved definition target is in the CURRENTLY ACTIVE file (so
+/// Mighty moves the cursor in place rather than opening a tab). `0` if there is
+/// no target or it is in another file.
+#[no_mangle]
+pub extern "C" fn mui_def_path_matches_current(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let current = ctx.file_path.clone();
+    i32::from(ctx.def.path_matches(current.as_deref()))
+}
+
+/// 0-based target line of the resolved definition, or `-1` if none.
+#[no_mangle]
+pub extern "C" fn mui_def_target_line(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(-1, |c| {
+        c.def.target().map_or(-1, |t| t.line.min(i32::MAX as u32) as i32)
+    })
+}
+
+/// 0-based target column of the resolved definition, or `-1` if none.
+#[no_mangle]
+pub extern "C" fn mui_def_target_col(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(-1, |c| {
+        c.def.target().map_or(-1, |t| t.col.min(i32::MAX as u32) as i32)
+    })
+}
+
+/// Open the resolved definition target's file as a tab (via the existing tab
+/// store) and switch to it. Returns the tab index, or `-1` if there is no target
+/// / no path. Keeps `file_path` in sync so a follow-up hover/def queries the
+/// right document. Mighty calls this only when the target is in another file
+/// (after byte-swapping the live buffer into its own slot, as for any tab open).
+#[no_mangle]
+pub extern "C" fn mui_def_open_target(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let target_path = match ctx.def.target() {
+        Some(t) => t.path.clone(),
+        None => return -1,
+    };
+    let idx = ctx.tabs.open_path(target_path);
+    sync_active_path(ctx);
+    idx as i32
+}
+
+/// Launch-test hook: with `MUI_NAV_PROBE` set, run scripted hover + definition
+/// requests against a synthetic buffer so a headless run proves the wiring
+/// (F12 / the hover key can't be delivered non-interactively). The env value is
+/// an optional symbol whose definition+hover to probe (default a small built-in
+/// program). Logs the parsed results to stdout. No effect unless the var is set.
+#[no_mangle]
+pub extern "C" fn mui_nav_probe(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if std::env::var_os("MUI_NAV_PROBE").is_none() {
+        return;
+    }
+    // A self-contained program where `add` is defined on line 0 and used on
+    // line 5; hover + definition are probed on the use site (line 5, col 10).
+    let source = "fn add(a: I32, b: I32) -> I32 {\n  a + b\n}\n\nfn main() {\n  let r = add(1, 2)\n}\n";
+    let path = match ctx.file_path.clone() {
+        Some(p) => p,
+        None => {
+            println!("nav-probe: no file_path — skipped");
+            return;
+        }
+    };
+    let hraw = crate::nav::lsp::request(&path, source, 5, 10, crate::nav::lsp::Req::Hover);
+    match crate::nav::parse_hover_value(&hraw) {
+        Some(v) => {
+            let one_line = v.replace('\n', " ");
+            println!("nav-probe: hover=\"{}\"", one_line.trim());
+        }
+        None => println!("nav-probe: hover=<none>"),
+    }
+    let draw = crate::nav::lsp::request(&path, source, 5, 10, crate::nav::lsp::Req::Definition);
+    match crate::nav::parse_definition(&draw) {
+        Some((uri, line, col)) => {
+            let resolved = crate::nav::uri_to_path(&uri)
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_else(|| uri.clone());
+            println!("nav-probe: def line={line} col={col} path=\"{resolved}\"");
+        }
+        None => println!("nav-probe: def=<none>"),
+    }
 }

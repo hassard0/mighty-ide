@@ -60,6 +60,8 @@ pub const MUI_KEY_HOME: u32 = 10;
 pub const MUI_KEY_END: u32 = 11;
 pub const MUI_KEY_PAGE_UP: u32 = 12;
 pub const MUI_KEY_PAGE_DOWN: u32 = 13;
+/// F12 — bound to go-to-definition in the IDE (sub-project 7).
+pub const MUI_KEY_F12: u32 = 14;
 
 // ---------------------------------------------------------------------------
 // Mouse button codes (only used when tag == MUI_EVENT_MOUSE_DOWN/UP)
