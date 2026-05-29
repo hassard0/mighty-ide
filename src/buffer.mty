@@ -1,0 +1,113 @@
+// Buffer — a document as a Vec of Lines.
+//
+// from_text/to_text round-trip through UTF-8 bytes; split/join restructure
+// lines for Enter/Backspace editing. Built with the capture-push idiom
+// (`v = v.push(x)`) — see docs/mighty-language-lessons.md L12. Cross-file
+// `use` of `line.mty` does not resolve in the current toolchain (L13), so
+// the Line primitives are re-declared here.
+
+pub type Line = Vec[U8]
+pub type Buffer = Vec[Line]
+
+fn line_new() -> Line { Vec.new() }
+fn line_len(l: Line) -> USize { l.len() }
+fn line_byte_at(l: Line, idx: USize) -> U8 {
+  match l.get(idx) {
+    Some(b) => b
+    None => 0_u8
+  }
+}
+
+pub fn buffer_line_count(b: Buffer) -> USize { b.len() }
+
+pub fn buffer_line(b: Buffer, idx: USize) -> Line effect alloc {
+  match b.get(idx) {
+    Some(l) => l
+    None => line_new()
+  }
+}
+
+pub fn buffer_from_text(text: String) -> Buffer effect alloc {
+  let mut out: Buffer = Vec.new()
+  let mut cur: Line = line_new()
+  let bytes = text.bytes()
+  let mut i: USize = 0
+  while i < bytes.len() {
+    let b = bytes[i]
+    if b == 10_u8 {            // '\n'
+      out = out.push(cur)
+      cur = line_new()
+    } else {
+      cur = cur.push(b)
+    }
+    i = i + 1
+  }
+  out = out.push(cur)
+  out
+}
+
+pub fn buffer_to_text(b: Buffer) -> String effect alloc {
+  // Accumulate every byte (with '\n' between lines) then validate once.
+  let mut bytes: Vec[U8] = Vec.new()
+  let mut li: USize = 0
+  while li < b.len() {
+    if li > 0 { bytes = bytes.push(10_u8) }
+    let line = buffer_line(b, li)
+    let mut ci: USize = 0
+    while ci < line_len(line) {
+      bytes = bytes.push(line_byte_at(line, ci))
+      ci = ci + 1
+    }
+    li = li + 1
+  }
+  match String.from_utf8(bytes) {
+    Ok(s) => s
+    Err(_) => String.new()
+  }
+}
+
+pub fn buffer_split_line(b: Buffer, lineno: USize, col: USize) -> Buffer effect alloc {
+  let mut out: Buffer = Vec.new()
+  let mut i: USize = 0
+  while i < b.len() {
+    if i == lineno {
+      let src = buffer_line(b, i)
+      let mut left: Line = line_new()
+      let mut right: Line = line_new()
+      let mut c: USize = 0
+      while c < line_len(src) {
+        if c < col { left = left.push(line_byte_at(src, c)) }
+        else { right = right.push(line_byte_at(src, c)) }
+        c = c + 1
+      }
+      out = out.push(left)
+      out = out.push(right)
+    } else {
+      out = out.push(buffer_line(b, i))
+    }
+    i = i + 1
+  }
+  out
+}
+
+pub fn buffer_join_line(b: Buffer, lineno: USize) -> Buffer effect alloc {
+  let mut out: Buffer = Vec.new()
+  let mut i: USize = 0
+  while i < b.len() {
+    if i == lineno && (i + 1) < b.len() {
+      let mut merged = buffer_line(b, i)
+      let next = buffer_line(b, i + 1)
+      let mut c: USize = 0
+      while c < line_len(next) {
+        merged = merged.push(line_byte_at(next, c))
+        c = c + 1
+      }
+      out = out.push(merged)
+      i = i + 1          // skip the consumed next line
+    } else {
+      out = out.push(buffer_line(b, i))
+    }
+    i = i + 1
+  }
+  out
+}

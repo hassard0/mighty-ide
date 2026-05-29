@@ -1,0 +1,121 @@
+// TDD test for the Buffer (Vec[Line]) model.
+// Self-contained (see L13): impl is inlined below, mirroring src/buffer.mty
+// (+ the Line primitives it depends on, mirroring src/line.mty).
+
+type Line = Vec[U8]
+type Buffer = Vec[Line]
+
+fn line_new() -> Line { Vec.new() }
+fn line_len(l: Line) -> USize { l.len() }
+fn line_byte_at(l: Line, idx: USize) -> U8 {
+  match l.get(idx) { Some(b) => b  None => 0_u8 }
+}
+
+fn buffer_line_count(b: Buffer) -> USize { b.len() }
+fn buffer_line(b: Buffer, idx: USize) -> Line {
+  match b.get(idx) { Some(l) => l  None => line_new() }
+}
+fn buffer_from_text(text: String) -> Buffer {
+  let mut out: Buffer = Vec.new()
+  let mut cur: Line = line_new()
+  let bytes = text.bytes()
+  let mut i: USize = 0
+  while i < bytes.len() {
+    let b = bytes[i]
+    if b == 10_u8 {
+      out = out.push(cur)
+      cur = line_new()
+    } else {
+      cur = cur.push(b)
+    }
+    i = i + 1
+  }
+  out = out.push(cur)
+  out
+}
+fn buffer_to_text(b: Buffer) -> String {
+  let mut bytes: Vec[U8] = Vec.new()
+  let mut li: USize = 0
+  while li < b.len() {
+    if li > 0 { bytes = bytes.push(10_u8) }
+    let line = buffer_line(b, li)
+    let mut ci: USize = 0
+    while ci < line_len(line) {
+      bytes = bytes.push(line_byte_at(line, ci))
+      ci = ci + 1
+    }
+    li = li + 1
+  }
+  match String.from_utf8(bytes) { Ok(s) => s  Err(_) => String.new() }
+}
+fn buffer_split_line(b: Buffer, lineno: USize, col: USize) -> Buffer {
+  let mut out: Buffer = Vec.new()
+  let mut i: USize = 0
+  while i < b.len() {
+    if i == lineno {
+      let src = buffer_line(b, i)
+      let mut left: Line = line_new()
+      let mut right: Line = line_new()
+      let mut c: USize = 0
+      while c < line_len(src) {
+        if c < col { left = left.push(line_byte_at(src, c)) }
+        else { right = right.push(line_byte_at(src, c)) }
+        c = c + 1
+      }
+      out = out.push(left)
+      out = out.push(right)
+    } else {
+      out = out.push(buffer_line(b, i))
+    }
+    i = i + 1
+  }
+  out
+}
+fn buffer_join_line(b: Buffer, lineno: USize) -> Buffer {
+  let mut out: Buffer = Vec.new()
+  let mut i: USize = 0
+  while i < b.len() {
+    if i == lineno && (i + 1) < b.len() {
+      let mut merged = buffer_line(b, i)
+      let next = buffer_line(b, i + 1)
+      let mut c: USize = 0
+      while c < line_len(next) {
+        merged = merged.push(line_byte_at(next, c))
+        c = c + 1
+      }
+      out = out.push(merged)
+      i = i + 1
+    } else {
+      out = out.push(buffer_line(b, i))
+    }
+    i = i + 1
+  }
+  out
+}
+
+fn test_from_text_splits_on_newline() {
+  let b = buffer_from_text(String.from_str("ab\ncd\n"))  // trailing \n => 3 lines, last empty
+  if buffer_line_count(b) != 3 { panic("line count != 3") }
+  if line_len(buffer_line(b, 0)) != 2 { panic("line0 len != 2") }
+  if line_len(buffer_line(b, 2)) != 0 { panic("line2 len != 0") }
+}
+
+fn test_roundtrip() {
+  let b = buffer_from_text(String.from_str("hello\nworld"))
+  if buffer_to_text(b) != String.from_str("hello\nworld") { panic("roundtrip mismatch") }
+}
+
+fn test_split_line_at_col() {
+  let b = buffer_from_text(String.from_str("abcd"))
+  let b2 = buffer_split_line(b, 0, 2)         // "ab" | "cd"
+  if buffer_line_count(b2) != 2 { panic("split count != 2") }
+  if line_len(buffer_line(b2, 0)) != 2 { panic("split left len != 2") }
+  if line_len(buffer_line(b2, 1)) != 2 { panic("split right len != 2") }
+}
+
+fn test_join_line() {
+  let b = buffer_from_text(String.from_str("ab\ncd"))
+  let b2 = buffer_join_line(b, 0)             // join line 1 onto line 0 => "abcd"
+  if buffer_line_count(b2) != 1 { panic("join count != 1") }
+  if line_len(buffer_line(b2, 0)) != 4 { panic("join len != 4") }
+}
