@@ -60,6 +60,32 @@ extern c {
   fn mui_ed_undo_record(handle: I64)
   fn mui_ed_undo(handle: I64) -> I32
   fn mui_ed_redo(handle: I64) -> I32
+  // ---- editor power-features (comment / indent / auto-close / brackets /
+  //      duplicate / move-line / word-motion / select) ----
+  fn mui_ed_toggle_comment(handle: I64)
+  fn mui_ed_newline_indent(handle: I64)
+  fn mui_ed_insert_smart(handle: I64, cp: I32) -> I32
+  fn mui_ed_backspace_smart(handle: I64) -> I32
+  fn mui_ed_bracket_match(handle: I64) -> I32
+  fn mui_ed_duplicate(handle: I64)
+  fn mui_ed_move_lines_up(handle: I64)
+  fn mui_ed_move_lines_down(handle: I64)
+  fn mui_ed_move_ext(handle: I64, dir: I32, extend: I32)
+  fn mui_ed_move_word(handle: I64, right: I32, extend: I32)
+  fn mui_ed_home_smart(handle: I64, extend: I32)
+  fn mui_ed_select_word(handle: I64) -> I32
+  fn mui_ed_has_selection(handle: I64) -> I32
+  // ---- in-file find/replace bar (Ctrl+H) ----
+  fn mui_replace_open(handle: I64)
+  fn mui_replace_active(handle: I64) -> I32
+  fn mui_replace_push(handle: I64, cp: I32)
+  fn mui_replace_backspace(handle: I64)
+  fn mui_replace_toggle_focus(handle: I64) -> I32
+  fn mui_replace_focus(handle: I64) -> I32
+  fn mui_replace_cancel(handle: I64)
+  fn mui_replace_next(handle: I64) -> I32
+  fn mui_replace_all(handle: I64) -> I32
+  fn mui_replace_draw(handle: I64)
   // live diagnostics (shim runs `mty check`, parses, stores; we read scalars)
   fn mui_diag_refresh(handle: I64) -> I32
   fn mui_diag_count(handle: I64) -> I32
@@ -247,6 +273,8 @@ fn key_enter() -> I32 { 6 }
 fn key_tab() -> I32 { 7 }
 fn key_escape() -> I32 { 8 }
 fn key_delete() -> I32 { 9 }
+fn key_home() -> I32 { 10 }
+fn key_end() -> I32 { 11 }
 fn key_f12() -> I32 { 14 }
 fn key_f2() -> I32 { 15 }
 
@@ -255,6 +283,8 @@ fn dir_left() -> I32 { 0 }
 fn dir_right() -> I32 { 1 }
 fn dir_up() -> I32 { 2 }
 fn dir_down() -> I32 { 3 }
+fn dir_home() -> I32 { 4 }
+fn dir_end() -> I32 { 5 }
 
 // prompt kinds (mirror PromptKind in prompt.rs)
 fn prompt_goto() -> I32 { 1 }
@@ -335,6 +365,36 @@ fn ctrl_held(mods: I32) -> Bool {
   let even = quarter * 2
   let bit = half - even
   bit == 1
+}
+
+// True if the alt bit (value 4) is set in `mods` (parity of mods/4; no `%`).
+fn alt_held(mods: I32) -> Bool {
+  let quarter = mods / 4
+  let eighth = quarter / 2
+  let even = eighth * 2
+  let bit = quarter - even
+  bit == 1
+}
+
+// Convert a Bool to the I32 extend-flag the *_ext shim ops expect.
+fn ext_flag(b: Bool) -> I32 {
+  if b { 1 } else { 0 }
+}
+
+fn is_d_key(cp: I32) -> Bool { cp == 100 || cp == 68 }     // 'd' / 'D'
+fn is_h_key(cp: I32) -> Bool { cp == 104 || cp == 72 }     // 'h' / 'H'
+
+fn is_dup_chord(cp: I32, mods: I32) -> Bool {              // Ctrl+Shift+D
+  let ctrl = ctrl_held(mods)
+  let shift = shift_held(mods)
+  let d = is_d_key(cp)
+  ctrl && shift && d
+}
+
+fn is_replace_chord(cp: I32, mods: I32) -> Bool {          // Ctrl+H
+  let ctrl = ctrl_held(mods)
+  let h = is_h_key(cp)
+  ctrl && h
 }
 
 // USize -> I32 without an `as` cast (L19): count up in an I32 accumulator.
@@ -479,6 +539,8 @@ fn main() {
 
   // prompt_kind: 0 = none, 1 = goto, 2 = find, 3 = open (mirrors the shim).
   let mut prompt_kind: I32 = 0
+  // In-file find/replace bar (Ctrl+H) active: keys route to its two fields.
+  let mut replacing = false
   // After a successful Find, `find_nav` is true and `find_idx` is the current
   // match; Enter / 'n' advance, Escape / any edit clears. Matches live shim-side.
   let mut find_nav = false
@@ -643,6 +705,34 @@ fn main() {
           } else if k == key_escape() {
             mui_theme_picker_cancel(h)
             theme_picker_open = false
+          }
+        }
+      } else if replacing {
+        // -------- in-file replace bar open: route to find/replace fields ------
+        if tag == ev_char() {
+          let cp = mui_event_codepoint(h)
+          if cp >= 32 && cp < 127 { mui_replace_push(h, cp) }
+        } else if tag == ev_key() {
+          let k = mui_event_key(h)
+          if k == key_backspace() {
+            mui_replace_backspace(h)
+          } else if k == key_tab() {
+            let _f = mui_replace_toggle_focus(h)
+          } else if k == key_escape() {
+            mui_replace_cancel(h)
+            replacing = false
+          } else if k == key_enter() {
+            // Enter on the replace field replaces all; otherwise replace-next.
+            let rf = mui_replace_focus(h)
+            if rf == 1 {
+              mui_ed_undo_record(h)
+              let _n = mui_replace_all(h)
+              mui_tab_set_dirty(h, active0, 1)
+            } else {
+              mui_ed_undo_record(h)
+              let _r = mui_replace_next(h)
+              mui_tab_set_dirty(h, active0, 1)
+            }
           }
         }
       } else if prompt_kind != 0 {
@@ -926,6 +1016,23 @@ fn main() {
           mui_prompt_open(h, prompt_open())
           prompt_kind = prompt_open()
           find_nav = false
+        } else if is_dup_chord(cp, mods) {                       // Ctrl+Shift+D : duplicate
+          find_nav = false
+          mui_ed_undo_record(h)
+          typing = false
+          mui_ed_duplicate(h)
+          mui_tab_set_dirty(h, active0, 1)
+        } else if is_replace_chord(cp, mods) {                   // Ctrl+H : in-file replace
+          mui_replace_open(h)
+          replacing = true
+          find_nav = false
+          typing = false
+        } else if ctrl_held(mods) && cp == 47 {                  // Ctrl+/ : toggle comment
+          find_nav = false
+          mui_ed_undo_record(h)
+          typing = false
+          mui_ed_toggle_comment(h)
+          mui_tab_set_dirty(h, active0, 1)
         } else if ctrl_held(mods) && (cp == 98 || cp == 66) {    // Ctrl+B : toggle sidebar
           let _s = mui_sidebar_toggle(h)
         } else if ctrl_held(mods) && (cp == 119 || cp == 87) {   // Ctrl+W : close active tab
@@ -946,7 +1053,10 @@ fn main() {
           find_nav = false
           // Record an undo checkpoint at the start of a typing run only.
           if !typing { mui_ed_undo_record(h); typing = true }
-          mui_ed_insert_char(h, cp)
+          // Bracket/quote auto-close + skip-over first; fall back to a plain
+          // insert when the shim didn't handle it specially.
+          let smart = mui_ed_insert_smart(h, cp)
+          if smart == 0 { mui_ed_insert_char(h, cp) }
           mui_tab_set_dirty(h, active0, 1)
           // After typing '(' auto-trigger signature help; ')' dismisses it.
           if cp == 40 {
@@ -1002,22 +1112,60 @@ fn main() {
             mui_tab_set_dirty(h, active0, 1)
           }
         } else if k == key_left() {
-          mui_ed_move(h, dir_left())
+          let kmods = mui_event_mods(h)
+          let ext = ext_flag(shift_held(kmods))
+          if ctrl_held(kmods) {
+            mui_ed_move_word(h, 0, ext)                       // Ctrl+Left : word left
+          } else {
+            mui_ed_move_ext(h, dir_left(), ext)
+          }
           typing = false
         } else if k == key_right() {
-          mui_ed_move(h, dir_right())
+          let kmods = mui_event_mods(h)
+          let ext = ext_flag(shift_held(kmods))
+          if ctrl_held(kmods) {
+            mui_ed_move_word(h, 1, ext)                       // Ctrl+Right : word right
+          } else {
+            mui_ed_move_ext(h, dir_right(), ext)
+          }
           typing = false
         } else if k == key_up() {
-          mui_ed_move(h, dir_up())
+          let kmods = mui_event_mods(h)
+          if alt_held(kmods) {                                 // Alt+Up : move line up
+            find_nav = false
+            mui_ed_undo_record(h)
+            mui_ed_move_lines_up(h)
+            mui_tab_set_dirty(h, active0, 1)
+          } else {
+            mui_ed_move_ext(h, dir_up(), ext_flag(shift_held(kmods)))
+          }
           typing = false
         } else if k == key_down() {
-          mui_ed_move(h, dir_down())
+          let kmods = mui_event_mods(h)
+          if alt_held(kmods) {                                 // Alt+Down : move line down
+            find_nav = false
+            mui_ed_undo_record(h)
+            mui_ed_move_lines_down(h)
+            mui_tab_set_dirty(h, active0, 1)
+          } else {
+            mui_ed_move_ext(h, dir_down(), ext_flag(shift_held(kmods)))
+          }
+          typing = false
+        } else if k == key_home() {
+          let kmods = mui_event_mods(h)
+          mui_ed_home_smart(h, ext_flag(shift_held(kmods)))
+          typing = false
+        } else if k == key_end() {
+          let kmods = mui_event_mods(h)
+          mui_ed_move_ext(h, dir_end(), ext_flag(shift_held(kmods)))
           typing = false
         } else if k == key_backspace() {
           find_nav = false
           mui_ed_undo_record(h)
           typing = false
-          mui_ed_backspace(h)
+          // Smart pair-backspace (delete an empty () [] {} "" pair); else plain.
+          let pair = mui_ed_backspace_smart(h)
+          if pair == 0 { mui_ed_backspace(h) }
           mui_tab_set_dirty(h, active0, 1)
         } else if k == key_delete() {
           find_nav = false
@@ -1036,7 +1184,7 @@ fn main() {
           } else {
             mui_ed_undo_record(h)
             typing = false
-            mui_ed_newline(h)
+            mui_ed_newline_indent(h)
             mui_tab_set_dirty(h, active0, 1)
           }
         }
@@ -1183,6 +1331,9 @@ fn main() {
     mui_tab_bar_draw(h)
     if term_on == 1 { mui_term_draw(h) }
     if prompt_kind != 0 { mui_prompt_draw(h) }
+    // Replace bar no-ops unless active, so calling it unconditionally also lets
+    // the MUI_REPLACE_AUTOOPEN screenshot hook render it without a keystroke.
+    mui_replace_draw(h)
     // autocomplete dropdown near the cursor (drawn over the body).
     if completing {
       let c_line = mui_ed_cursor_line(h)
