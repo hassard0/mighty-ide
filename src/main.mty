@@ -1,15 +1,21 @@
-// Mighty IDE — milestone 4: editing + cursor + Ctrl+S save.
+// Mighty IDE — usable single-file editor: open arbitrary file (argv, shim-side),
+// line-number gutter, cursor-following vertical scroll, mouse-click to place the
+// cursor, editing + Ctrl+S save.
 //
 // The editor model lives in Mighty as a flat Vec[I32] of byte values (lines
 // joined by '\n' = 10) plus a cursor byte-offset (USize). Shape forced by
 // v0.36 limits (docs/mighty-language-lessons.md):
-//   * L15 multi-field struct reads broken -> cursor is one scalar offset.
+//   * L15 multi-field struct reads broken -> cursor/viewport are scalars.
 //   * L4  Vec has no insert/remove -> edits rebuild via capture-push (L12).
 //   * L17 extern c is scalar-only -> i64 handle, 4-float colors, codepoint-
-//         staged text, scalar event accessors, byte-staged save buffer.
-//   * L19 no int<->float `as` cast -> the buffer is Vec[I32] (never U8, so no
-//         U8<->I32 cast) and all pixel layout is done shim-side from integer
-//         line/col (mui_text_draw_line / mui_draw_cursor).
+//         staged text, scalar event accessors, byte-staged save buffer; the
+//         target path + window title are resolved shim-side from argv.
+//   * L19 no int<->float `as` cast -> the buffer is Vec[I32] (never U8) and all
+//         pixel layout is done shim-side from integer line/col/row (gutter,
+//         mui_text_draw_row / mui_draw_cursor_row / mui_click_*).
+//   * L21 a Vec param read inside a nested/branchy loop body is clobbered by
+//         native codegen -> draw_buffer renders the visible range as ONE flat
+//         `while i < buf.len()` scan (see that fn).
 
 extern c {
   fn mui_init_s(width: I32, height: I32) -> I64
@@ -18,11 +24,18 @@ extern c {
   fn mui_end_frame_s(handle: I64)
   fn mui_text_push(handle: I64, codepoint: I32)
   fn mui_text_draw_line(handle: I64, line: I32, r: F32, g: F32, b: F32, a: F32)
+  fn mui_text_draw_row(handle: I64, row: I32, total_lines: I32, r: F32, g: F32, b: F32, a: F32)
+  fn mui_gutter_draw_row(handle: I64, row: I32, r: F32, g: F32, b: F32, a: F32)
   fn mui_draw_cursor(handle: I64, line: I32, col: I32, r: F32, g: F32, b: F32, a: F32)
+  fn mui_draw_cursor_row(handle: I64, row: I32, col: I32, total_lines: I32, r: F32, g: F32, b: F32, a: F32)
+  fn mui_visible_rows(handle: I64) -> I32
+  fn mui_click_line(handle: I64, first_line: I32, total_lines: I32) -> I32
+  fn mui_click_col(handle: I64, total_lines: I32) -> I32
   fn mui_poll_event_s(handle: I64) -> I32
   fn mui_event_codepoint(handle: I64) -> I32
   fn mui_event_key(handle: I64) -> I32
   fn mui_event_mods(handle: I64) -> I32
+  fn mui_event_scroll_dir(handle: I64) -> I32
   fn mui_load(handle: I64) -> I64
   fn mui_load_byte(handle: I64, i: I64) -> I32
   fn mui_save_clear(handle: I64)
@@ -33,6 +46,8 @@ extern c {
 // ---- event tags / keys / mods (mirror mighty_ui.h) ----
 fn ev_char() -> I32 { 1 }
 fn ev_key() -> I32 { 2 }
+fn ev_mouse_down() -> I32 { 3 }
+fn ev_scroll() -> I32 { 5 }
 fn ev_close() -> I32 { 7 }
 fn key_left() -> I32 { 1 }
 fn key_right() -> I32 { 2 }
@@ -160,26 +175,129 @@ fn usize_to_i32(u: USize) -> I32 {
   n
 }
 
-// ---- render the buffer + cursor (all layout shim-side from int line/col) ----
+// I32 -> USize without an `as` cast (L19): count up in a USize accumulator.
+// Negative inputs clamp to 0.
+fn i32_to_usize(n: I32) -> USize {
+  let mut u: USize = 0
+  let mut i: I32 = 0
+  while i < n {
+    u = u + 1
+    i = i + 1
+  }
+  u
+}
 
-fn draw_buffer(h: I64, buf: Vec[I32], cur: USize) {
-  let mut line: I32 = 0
+// Byte-offset of (line, col), col clamped to the line length.
+fn offset_of(buf: Vec[I32], line: USize, col: USize) -> USize {
+  let total = line_count(buf)
+  let mut l = line
+  if l >= total {
+    if total > 0 { l = total - 1 } else { l = 0 }
+  }
+  let start = line_start(buf, l)
+  let len = line_len_of(buf, l)
+  let mut c = col
+  if c > len { c = len }
+  start + c
+}
+
+// ---- viewport (first visible line + visible-row count) ----
+// Modeled as plain scalars rather than a struct (multi-field reads broken, L15).
+
+// Clamp `first` so the cursor line stays on screen given `rows` visible rows.
+fn scroll_to_cursor(first: USize, cursor_line: USize, rows: USize) -> USize {
+  let mut top = first
+  if cursor_line < top {
+    top = cursor_line
+  } else if cursor_line >= top + rows {
+    // cursor_line - rows + 1, computed without risking underflow
+    top = cursor_line + 1 - rows
+  }
+  top
+}
+
+// Stage the 1-based line number `n` as decimal-digit codepoints for the gutter.
+// No `%`/`as` in v0.36, so digits are produced by repeated division and a
+// reverse-then-emit pass over a small Vec[I32].
+fn push_line_number(h: I64, n: USize) {
+  let mut digits: Vec[I32] = Vec.new()
+  let mut v = n
+  if v == 0 { digits = digits.push(48) }   // '0'
+  while v > 0 {
+    let q = v / 10
+    let ten_q = q * 10
+    let d = v - ten_q                       // last digit
+    digits = digits.push(48 + usize_to_i32(d))
+    v = q
+  }
+  // digits are least-significant-first; emit reversed.
+  let mut j = digits.len()
+  while j > 0 {
+    j = j - 1
+    mui_text_push(h, byte_at(digits, j))
+  }
+}
+
+// ---- render the buffer + gutter + cursor (only the visible line range) ----
+//
+// Single flat scan over the buffer (the proven-working shape from milestone 3/4
+// — see L21: a Vec param read deep inside a nested-loop body after branches gets
+// clobbered by native codegen, so we keep ONE flat `while i < buf.len()` loop
+// and only emit draws for lines within [first, first+rows)). Per visible line we
+// stage its gutter number first, then its text, deferring both draw calls to the
+// line boundary.
+
+fn draw_buffer(h: I64, buf: Vec[I32], cur: USize, first: USize, rows: USize) {
+  let total = line_count(buf)
+  let total_i = usize_to_i32(total)
+  let last_visible = first + rows         // exclusive
+
+  let mut line: USize = 0                 // current buffer line index
   let mut i: USize = 0
   while i < buf.len() {
     let b = byte_at(buf, i)
+    let visible = line >= first && line < last_visible
     if b == 10 {
-      mui_text_draw_line(h, line, 0.85_f32, 0.87_f32, 0.9_f32, 1.0_f32)
+      // end of a line: flush its staged text at its screen row
+      if visible {
+        let row_i = usize_to_i32(line - first)
+        mui_text_draw_row(h, row_i, total_i, 0.85_f32, 0.87_f32, 0.9_f32, 1.0_f32)
+      }
       line = line + 1
     } else {
-      mui_text_push(h, b)
+      if visible {
+        mui_text_push(h, b)
+      }
     }
     i = i + 1
   }
-  mui_text_draw_line(h, line, 0.85_f32, 0.87_f32, 0.9_f32, 1.0_f32)
+  // flush the final (unterminated) line if visible
+  if line >= first && line < last_visible {
+    let row_i = usize_to_i32(line - first)
+    mui_text_draw_row(h, row_i, total_i, 0.85_f32, 0.87_f32, 0.9_f32, 1.0_f32)
+  }
 
-  let cl = usize_to_i32(line_of(buf, cur))
-  let cc = usize_to_i32(col_of(buf, cur))
-  mui_draw_cursor(h, cl, cc, 0.9_f32, 0.7_f32, 0.2_f32, 1.0_f32)
+  // Second pass: gutter numbers for each visible row (separate flat loop so we
+  // never interleave a buf-read with an FFI call inside a branchy body).
+  let mut r: USize = 0
+  while r < rows {
+    let line_idx = first + r
+    if line_idx < total {
+      let row_i = usize_to_i32(r)
+      push_line_number(h, line_idx + 1)
+      mui_gutter_draw_row(h, row_i, 0.45_f32, 0.48_f32, 0.55_f32, 1.0_f32)
+    }
+    r = r + 1
+  }
+
+  // cursor: only if on a visible row. Computed from cur with flat helpers.
+  let cur_line = line_of(buf, cur)
+  let cur_col = col_of(buf, cur)
+  if cur_line >= first && cur_line < last_visible {
+    let crow_i = usize_to_i32(cur_line - first)
+    let ccol_i = usize_to_i32(cur_col)
+    mui_draw_cursor_row(h, crow_i, ccol_i, total_i, 0.9_f32, 0.7_f32, 0.2_f32, 1.0_f32)
+  }
 }
 
 // Save the whole buffer to disk through the shim's staged save buffer.
@@ -213,11 +331,15 @@ fn main() {
   log("mighty-ide: buffer ready")
 
   let mut cur: USize = 0
+  let mut first: USize = 0          // top visible line (scroll offset)
   let mut running = true
   let mut frame: I32 = 0
   let headless_limit: I32 = 240   // self-terminate so non-interactive runs exit
 
   while running {
+    let rows_i = mui_visible_rows(h)
+    let rows = i32_to_usize(rows_i)
+
     let mut tag = mui_poll_event_s(h)
     while tag != 0 {
       if tag == ev_close() {
@@ -251,12 +373,35 @@ fn main() {
           buf = insert_at(buf, cur, 10)
           cur = cur + 1
         }
+      } else if tag == ev_scroll() {
+        // Wheel up (dir +1) scrolls toward the top; wheel down scrolls down.
+        let dir = mui_event_scroll_dir(h)
+        if dir > 0 {
+          if first >= 3 { first = first - 3 } else { first = 0 }
+        } else if dir < 0 {
+          first = first + 3
+        }
+      } else if tag == ev_mouse_down() {
+        let total = line_count(buf)
+        let total_i = usize_to_i32(total)
+        let first_i = usize_to_i32(first)
+        let cl_i = mui_click_line(h, first_i, total_i)
+        let cc_i = mui_click_col(h, total_i)
+        cur = offset_of(buf, i32_to_usize(cl_i), i32_to_usize(cc_i))
       }
       tag = mui_poll_event_s(h)
     }
 
+    // Keep the cursor on-screen, then clamp `first` so we never scroll past EOF.
+    let cur_line = line_of(buf, cur)
+    first = scroll_to_cursor(first, cur_line, rows)
+    let total = line_count(buf)
+    if first + rows > total {
+      if total > rows { first = total - rows } else { first = 0 }
+    }
+
     mui_begin_frame_s(h)
-    draw_buffer(h, buf, cur)
+    draw_buffer(h, buf, cur, first, rows)
     mui_end_frame_s(h)
 
     frame = frame + 1
