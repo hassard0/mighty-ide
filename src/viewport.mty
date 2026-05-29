@@ -1,0 +1,30 @@
+// Viewport — first visible line + visible-row count, with scroll-to-cursor.
+//
+// Modeled as a 2-element Vec[USize] = [first_line, rows]. A struct would be
+// natural, but multi-field struct reads return field 0 in the current
+// interpreter (docs/mighty-language-lessons.md L15), so positional Vec
+// access is used and the public API is preserved.
+
+pub type Viewport = Vec[USize]   // [first_line, rows]
+
+pub fn vp_make(first_line: USize, rows: USize) -> Viewport effect alloc {
+  let mut v: Viewport = Vec.new()
+  v = v.push(first_line)
+  v = v.push(rows)
+  v
+}
+
+pub fn vp_new(rows: USize) -> Viewport effect alloc { vp_make(0, rows) }
+pub fn vp_first_line(vp: Viewport) -> USize { vp[0] }
+pub fn vp_visible_rows(vp: Viewport) -> USize { vp[1] }
+
+pub fn vp_scroll_to_cursor(vp: Viewport, cursor_line: USize, total_lines: USize) -> Viewport effect alloc {
+  let rows = vp_visible_rows(vp)
+  let mut top = vp_first_line(vp)
+  if cursor_line < top {
+    top = cursor_line
+  } else if cursor_line >= top + rows {
+    top = cursor_line - rows + 1
+  }
+  vp_make(top, rows)
+}

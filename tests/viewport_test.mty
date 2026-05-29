@@ -1,0 +1,44 @@
+// TDD test for viewport scroll-to-cursor math.
+// Self-contained (see L13); Viewport modeled as Vec[USize] = [first_line, rows]
+// (struct field reads are broken — L15).
+
+type Viewport = Vec[USize]   // [first_line, rows]
+
+fn vp_make(first_line: USize, rows: USize) -> Viewport {
+  let mut v: Viewport = Vec.new()
+  v = v.push(first_line)
+  v = v.push(rows)
+  v
+}
+fn vp_new(rows: USize) -> Viewport { vp_make(0, rows) }
+fn vp_first_line(vp: Viewport) -> USize { vp[0] }
+fn vp_visible_rows(vp: Viewport) -> USize { vp[1] }
+fn vp_scroll_to_cursor(vp: Viewport, cursor_line: USize, total_lines: USize) -> Viewport {
+  let rows = vp_visible_rows(vp)
+  let mut top = vp_first_line(vp)
+  if cursor_line < top {
+    top = cursor_line
+  } else if cursor_line >= top + rows {
+    top = cursor_line - rows + 1
+  }
+  vp_make(top, rows)
+}
+
+fn test_scroll_down_to_keep_cursor_visible() {
+  let vp = vp_new(10)                       // 10 visible rows
+  let vp2 = vp_scroll_to_cursor(vp, 25, 100)
+  if vp_first_line(vp2) != 16 { panic("scroll-down top != 16") }
+}
+
+fn test_scroll_up_when_cursor_above_top() {
+  let mut vp = vp_new(10)
+  vp = vp_scroll_to_cursor(vp, 25, 100)     // top 16
+  vp = vp_scroll_to_cursor(vp, 5, 100)      // cursor above top => top = 5
+  if vp_first_line(vp) != 5 { panic("scroll-up top != 5") }
+}
+
+fn test_no_scroll_when_visible() {
+  let vp = vp_new(10)
+  let vp2 = vp_scroll_to_cursor(vp, 3, 100)  // already visible => top stays 0
+  if vp_first_line(vp2) != 0 { panic("no-scroll top != 0") }
+}
