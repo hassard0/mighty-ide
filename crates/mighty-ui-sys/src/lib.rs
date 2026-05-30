@@ -38,6 +38,7 @@ mod palette;
 mod panels;
 mod problems;
 mod prompt;
+mod quickopen;
 mod run;
 mod scm;
 mod screenshot;
@@ -184,6 +185,13 @@ pub struct MuiContext {
     /// shim-owned. Mighty opens it, feeds chars, moves the selection, and reads
     /// the selected command id back to dispatch.
     palette: palette::PaletteEngine,
+
+    // ---- universal Quick-Open (Ctrl+P) ----
+    /// The Quick-Open finder: cached workspace file index + MRU + fuzzy matcher,
+    /// with mode prefixes (files / `>` commands / `@` symbols / `:` line). Mighty
+    /// opens it, feeds chars/keys, and reads back the chosen file path / symbol /
+    /// line to dispatch. Shim-owned (L17).
+    quickopen: quickopen::QuickOpen,
 
     // ---- color-theme picker (Preferences: Color Theme) ----
     /// The theme chooser overlay (3 themes, live preview), shim-owned. Mighty
@@ -627,6 +635,7 @@ pub(crate) fn build_context(
         history: history::HistoryStore::new(),
         restored_cursor: (0, 0),
         palette: palette::PaletteEngine::new(),
+        quickopen: quickopen::QuickOpen::new(),
         theme_picker: themepicker::ThemePicker::new(),
         theme_picker_autoopen: false,
         screenshot,
@@ -1247,6 +1256,7 @@ impl MuiContext {
             history: history::HistoryStore::new(),
             restored_cursor: (0, 0),
             palette: palette::PaletteEngine::new(),
+            quickopen: quickopen::QuickOpen::new(),
             theme_picker: themepicker::ThemePicker::new(),
             theme_picker_autoopen: false,
             screenshot: None,

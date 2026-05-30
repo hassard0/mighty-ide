@@ -229,6 +229,18 @@ extern c {
   fn mui_palette_selected_id(handle: I64) -> I32
   fn mui_palette_cancel(handle: I64)
   fn mui_palette_draw(handle: I64)
+  // ---- universal Quick-Open (Ctrl+P): files / > cmds / @ syms / : line ----
+  fn mui_quickopen_open(handle: I64)
+  fn mui_qo_push_char(handle: I64, cp: I32)
+  fn mui_qo_backspace(handle: I64)
+  fn mui_qo_move(handle: I64, delta: I32)
+  fn mui_qo_active(handle: I64) -> I32
+  fn mui_qo_mode(handle: I64) -> I32
+  fn mui_qo_accept(handle: I64, i: I32) -> I32
+  fn mui_qo_command_id(handle: I64, i: I32) -> I32
+  fn mui_qo_record_active(handle: I64)
+  fn mui_qo_cancel(handle: I64)
+  fn mui_qo_draw(handle: I64)
   // ---- AI copilot (Agents rail icon → right-docked chat panel) ----
   fn mui_ai_open(handle: I64) -> I32
   fn mui_ai_is_open(handle: I64) -> I32
@@ -490,6 +502,13 @@ fn is_palette_chord(cp: I32, mods: I32) -> Bool {
   let shift = shift_held(mods)
   let p = is_p_key(cp)
   ctrl && shift && p
+}
+
+fn is_quickopen_chord(cp: I32, mods: I32) -> Bool {      // Ctrl+P (no Shift)
+  let ctrl = ctrl_held(mods)
+  let shift = shift_held(mods)
+  let p = is_p_key(cp)
+  ctrl && p && !shift
 }
 
 fn is_undo_chord(cp: I32, mods: I32) -> Bool {           // Ctrl+Z (no Shift)
@@ -776,6 +795,8 @@ fn main() {
   let mut ai_focus = false
   // Command palette open.
   let mut palette_open = false
+  // Universal Quick-Open (Ctrl+P) overlay open: keys route to the finder.
+  let mut quickopen_open = false
   // Color-theme picker open (Preferences: Color Theme).
   let mut theme_picker_open = false
   // Run panel focused (Run rail icon / Ctrl+Shift+R): keys route to it (scroll).
@@ -930,6 +951,148 @@ fn main() {
             } else if id == cmd_run_tests() {
               let _t = mui_test_run(h)
               test_focus = true
+            }
+          }
+        }
+      } else if quickopen_open {
+        // -------- universal Quick-Open open: route keystrokes to the finder ---
+        // Mode by first char: (none) fuzzy files / `>` commands / `@` symbols /
+        // `:` go-to-line. Up/Down move; Enter accepts (shim opens the file /
+        // jumps to the symbol/line, or yields a command id we dispatch); Esc
+        // dismisses; Backspace past a prefix drops back to file mode.
+        if tag == ev_char() {
+          let cp = mui_event_codepoint(h)
+          if cp >= 32 && cp < 127 { mui_qo_push_char(h, cp) }
+        } else if tag == ev_key() {
+          let k = mui_event_key(h)
+          if k == key_backspace() {
+            mui_qo_backspace(h)
+          } else if k == key_up() {
+            mui_qo_move(h, -1)
+          } else if k == key_down() {
+            mui_qo_move(h, 1)
+          } else if k == key_escape() {
+            mui_qo_cancel(h)
+            quickopen_open = false
+          } else if k == key_enter() {
+            let mode = mui_qo_mode(h)
+            typing = false
+            if mode == 1 {
+              // Commands mode (`>`): read the selected palette command id, then
+              // dispatch to the same handlers the palette / keybindings use.
+              let id = mui_qo_command_id(h, -1)
+              mui_qo_cancel(h)
+              quickopen_open = false
+              if id == cmd_open_file() {
+                mui_prompt_open(h, prompt_open())
+                prompt_kind = prompt_open()
+                find_nav = false
+              } else if id == cmd_save() {
+                let rc = mui_ed_save(h)
+                if rc == 0 {
+                  mui_tab_set_dirty(h, active0, 0)
+                  let _r = mui_diag_refresh(h)
+                }
+              } else if id == cmd_find() {
+                mui_prompt_open(h, prompt_find())
+                prompt_kind = prompt_find()
+              } else if id == cmd_goto_line() {
+                mui_prompt_open(h, prompt_goto())
+                prompt_kind = prompt_goto()
+                find_nav = false
+              } else if id == cmd_goto_definition() {
+                go_to_definition(h)
+                prev_line = mui_ed_cursor_line(h)
+                prev_col = mui_ed_cursor_col(h)
+                find_nav = false
+              } else if id == cmd_hover() {
+                let ok = do_hover(h)
+                if ok == 1 { hovering = true; hover_line = mui_ed_cursor_line(h); hover_col = mui_ed_cursor_col(h) } else { hovering = false }
+              } else if id == cmd_toggle_terminal() {
+                if mui_term_is_open(h) == 1 {
+                  term_focus = true
+                } else {
+                  let ok = mui_term_open(h)
+                  if ok == 1 { term_focus = true; mui_log_terminal(h) }
+                }
+              } else if id == cmd_toggle_sidebar() {
+                let _s = mui_sidebar_toggle(h)
+              } else if id == cmd_next_tab() {
+                let a = mui_tab_next(h)
+                let _b = mui_ed_tab_switch(h, a)
+                mui_ed_undo_reset(h)
+                find_nav = false
+                let _r = mui_diag_refresh(h)
+              } else if id == cmd_prev_tab() {
+                let a = mui_tab_prev(h)
+                let _b = mui_ed_tab_switch(h, a)
+                mui_ed_undo_reset(h)
+                find_nav = false
+                let _r = mui_diag_refresh(h)
+              } else if id == cmd_close_tab() {
+                let cur_active = mui_tab_active(h)
+                let a = mui_tab_close(h, cur_active)
+                let _b = mui_ed_tab_switch(h, a)
+                mui_ed_undo_reset(h)
+                find_nav = false
+                let _r = mui_diag_refresh(h)
+              } else if id == cmd_format_document() {
+                do_format(h)
+              } else if id == cmd_undo() {
+                mui_complete_cancel(h)
+                completing = false
+                find_nav = false
+                let _u = mui_ed_undo(h)
+              } else if id == cmd_redo() {
+                mui_complete_cancel(h)
+                completing = false
+                find_nav = false
+                let _u = mui_ed_redo(h)
+              } else if id == cmd_autocomplete() {
+                let cnt = mui_ed_complete_request(h)
+                if cnt > 0 { completing = true } else { mui_complete_cancel(h) }
+              } else if id == cmd_jump_back() {
+                if have_prev {
+                  mui_ed_move_to(h, prev_line, prev_col)
+                  have_prev = false
+                  mui_hover_clear(h)
+                  hovering = false
+                }
+              } else if id == cmd_quit() {
+                running = false
+              } else if id == cmd_color_theme() {
+                mui_theme_picker_open(h)
+                theme_picker_open = true
+              } else if id == cmd_run_file() {
+                let _r = mui_run_start(h)
+                run_focus = true
+              } else if id == cmd_settings() {
+                let _s = mui_settings_open(h)
+                settings_open = true
+              } else if id == cmd_run_tests() {
+                let _t = mui_test_run(h)
+                test_focus = true
+              }
+            } else {
+              // Files / Symbols / Go-to-line: the shim performs the action
+              // (open the file as a tab, or move the cursor) and returns. We
+              // mirror the post-open housekeeping the prompt/palette do.
+              let r = mui_qo_accept(h, -1)
+              quickopen_open = false
+              if mode == 0 {
+                if r >= 0 {
+                  let _b = mui_ed_tab_switch(h, r)
+                  mui_ed_undo_reset(h)
+                  let _d = mui_diag_refresh(h)
+                  let _o = mui_outline_refresh(h)
+                  mui_qo_record_active(h)
+                }
+              } else {
+                // Symbols / go-to-line moved the cursor in the active doc.
+                find_nav = false
+                mui_hover_clear(h)
+                hovering = false
+              }
             }
           }
         }
@@ -1177,6 +1340,7 @@ fn main() {
               mui_ed_undo_reset(h)
               find_nav = false
               let _r = mui_diag_refresh(h)
+              mui_qo_record_active(h)
               mui_prompt_cancel(h)
               prompt_kind = 0
             } else if prompt_kind == prompt_ai() {
@@ -1362,6 +1526,10 @@ fn main() {
         if is_palette_chord(cp, mods) {                     // Ctrl+Shift+P : palette
           mui_palette_open(h)
           palette_open = true
+          typing = false
+        } else if is_quickopen_chord(cp, mods) {            // Ctrl+P : universal Quick-Open
+          mui_quickopen_open(h)
+          quickopen_open = true
           typing = false
         } else if is_run_chord(cp, mods) {                  // Ctrl+Shift+R : run the active file
           let _r = mui_run_start(h)
@@ -1829,6 +1997,7 @@ fn main() {
               find_nav = false
               let _r = mui_diag_refresh(h)
               let _o = mui_outline_refresh(h)
+              mui_qo_record_active(h)
             }
           }
         } else {
@@ -2002,6 +2171,9 @@ fn main() {
     // command palette: a centered overlay (no-ops unless active, so the
     // MUI_PALETTE_AUTOOPEN screenshot hook renders it without a keystroke).
     mui_palette_draw(h)
+    // universal Quick-Open: a centered overlay (no-ops unless active, so the
+    // MUI_QUICKOPEN_AUTOOPEN screenshot hook renders it without a keystroke).
+    mui_qo_draw(h)
     // color-theme picker: a centered overlay (no-ops unless active, so the
     // MUI_THEMEPICKER_AUTOOPEN screenshot hook renders it without a keystroke).
     mui_theme_picker_draw(h)

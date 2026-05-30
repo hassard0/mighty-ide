@@ -744,6 +744,30 @@ index 83db48f..f735c2d 100644
         }
     }
 
+    // Screenshot/render hook for Quick-Open: with MUI_QUICKOPEN_AUTOOPEN set,
+    // open the finder (seeded with the env value as a query) and LEAVE it open
+    // so a headless capture shows the overlay. A leading `@` first refreshes the
+    // outline so the symbol mode is populated. No effect on normal launches.
+    if let Some(seed) = std::env::var_os("MUI_QUICKOPEN_AUTOOPEN") {
+        let q = seed.to_string_lossy().into_owned();
+        let q = if q.trim() == "1" { String::new() } else { q };
+        if q.starts_with('@') {
+            let _ = crate::navsurfaces::mui_outline_refresh(handle);
+        }
+        mui_quickopen_open(handle);
+        for ch in q.chars() {
+            mui_qo_push_char(handle, ch as i32);
+        }
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            println!(
+                "mui_init_s: MUI_QUICKOPEN_AUTOOPEN -> quick-open open, mode={} rows={} query=\"{}\"",
+                ctx.quickopen.mode().scalar(),
+                ctx.quickopen.count(),
+                ctx.quickopen.query()
+            );
+        }
+    }
+
     handle
 }
 
@@ -3388,6 +3412,362 @@ pub extern "C" fn mui_palette_probe(handle: i64) {
         ctx.palette.selected_id()
     );
     ctx.palette.cancel();
+}
+
+// ---------------------------------------------------------------------------
+// Universal Quick-Open (Ctrl+P): files / `>` commands / `@` symbols / `:` line
+// ---------------------------------------------------------------------------
+//
+// One fast fuzzy finder whose mode switches on the first char of the query. The
+// file index + MRU + matcher live shim-side (`crate::quickopen`); the Symbols
+// and Commands modes pull their data from the active outline / palette registry.
+// Mighty opens it, routes Char/Backspace/Up/Down, and on Enter reads back the
+// chosen file path (opened as a tab) / symbol line / go-to-line target.
+
+/// The workspace root for the file index: the git toplevel of the active file's
+/// directory if one is found by walking up for a `.git`, else the tree root.
+///
+/// The start dir is resolved to an ABSOLUTE path first (the active file / tree
+/// root can be relative, e.g. launched as `mty src/main.mty`), so the `.git`
+/// walk yields concrete ancestor dirs rather than an empty relative parent —
+/// otherwise an empty `""` parent's `.git` resolves against cwd and we'd index
+/// nothing. Falls back to the current dir when no usable root is found.
+fn quickopen_root(ctx: &MuiContext) -> PathBuf {
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let start = ctx
+        .tabs
+        .active_path()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+        .filter(|d| !d.as_os_str().is_empty())
+        .unwrap_or_else(|| {
+            let r = ctx.tree.root().to_path_buf();
+            if r.as_os_str().is_empty() { cwd.clone() } else { r }
+        });
+    // Make absolute so ancestor walking is well-defined.
+    let start = if start.is_absolute() { start } else { cwd.join(start) };
+    let mut dir = start.as_path();
+    loop {
+        if dir.join(".git").exists() {
+            return dir.to_path_buf();
+        }
+        match dir.parent() {
+            Some(p) if !p.as_os_str().is_empty() => dir = p,
+            _ => break,
+        }
+    }
+    if start.as_os_str().is_empty() {
+        cwd
+    } else {
+        start
+    }
+}
+
+/// Re-seed the rows for the modes that draw from OUTER state (Symbols from the
+/// outline, Commands from the palette registry). A no-op for Files / GotoLine
+/// (the engine owns those). Called after every Quick-Open keystroke so those
+/// modes track the query. The outline already reflects the active document (the
+/// IDE refreshes it on open / tab switch), so we read it directly here.
+fn quickopen_sync_providers(ctx: &mut MuiContext) {
+    match ctx.quickopen.mode() {
+        crate::quickopen::Mode::Symbols => {
+            let syms: Vec<(String, i32, i32)> = ctx
+                .outline
+                .symbols()
+                .iter()
+                .enumerate()
+                .map(|(i, s)| (s.name.clone(), s.kind as i32, i as i32))
+                .collect();
+            ctx.quickopen.set_symbol_rows(&syms);
+        }
+        crate::quickopen::Mode::Commands => {
+            // Reuse the palette's fuzzy filter over the static command registry.
+            let q = crate::quickopen::Mode::strip(
+                crate::quickopen::Mode::Commands,
+                ctx.quickopen.query(),
+            )
+            .to_string();
+            let cmds: Vec<(String, i32)> =
+                crate::palette::filter_commands(crate::palette::COMMANDS, &q)
+                    .into_iter()
+                    .map(|c| (c.label.to_string(), c.id as i32))
+                    .collect();
+            ctx.quickopen.set_command_rows(&cmds);
+        }
+        _ => {}
+    }
+}
+
+/// Open Quick-Open: ensure the file index is built for the workspace root, then
+/// open the finder (empty query → MRU recents). Mighty calls this on Ctrl+P.
+#[no_mangle]
+pub extern "C" fn mui_quickopen_open(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let root = quickopen_root(ctx);
+    let n = ctx.quickopen.ensure_index(&root, false);
+    ctx.quickopen.open();
+    println!("quickopen: opened ({n} files indexed under {})", root.display());
+}
+
+/// Force-rebuild the workspace file index (e.g. after files change). Returns the
+/// indexed file count.
+#[no_mangle]
+pub extern "C" fn mui_quickopen_reindex(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let root = quickopen_root(ctx);
+    ctx.quickopen.ensure_index(&root, true) as i32
+}
+
+/// Append a typed char (codepoint) to the query and recompute. Re-seeds the
+/// Symbols/Commands modes from outer state when needed.
+#[no_mangle]
+pub extern "C" fn mui_qo_push_char(handle: i64, cp: i32) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
+        ctx.quickopen.push_char(ch);
+        quickopen_sync_providers(ctx);
+    }
+}
+
+/// Delete the last query char and recompute (Backspace past the prefix returns
+/// to Files mode + re-seeds it automatically).
+#[no_mangle]
+pub extern "C" fn mui_qo_backspace(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let _ = ctx.quickopen.backspace();
+    quickopen_sync_providers(ctx);
+}
+
+/// Number of result rows for the current query.
+#[no_mangle]
+pub extern "C" fn mui_qo_count(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.quickopen.count() as i32)
+}
+
+/// Move the selection by `delta` (positive = down), wrapping.
+#[no_mangle]
+pub extern "C" fn mui_qo_move(handle: i64, delta: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.quickopen.move_sel(delta);
+    }
+}
+
+/// Index (0-based) of the selected row.
+#[no_mangle]
+pub extern "C" fn mui_qo_sel(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.quickopen.selection() as i32)
+}
+
+/// `1` if the finder overlay is open, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_qo_active(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.quickopen.is_active()))
+}
+
+/// The current mode scalar (0 = files, 1 = commands, 2 = symbols, 3 = line).
+#[no_mangle]
+pub extern "C" fn mui_qo_mode(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.quickopen.mode().scalar())
+}
+
+/// Close the finder and clear its transient state (keeps the cached index/MRU).
+#[no_mangle]
+pub extern "C" fn mui_qo_cancel(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.quickopen.cancel();
+    }
+}
+
+/// Icon-kind discriminant of row `i` (see `quickopen::Row::ICON_*` + SymKind
+/// scalars), or `-1` out of range.
+#[no_mangle]
+pub extern "C" fn mui_qo_row_kind(handle: i64, i: i32) -> i32 {
+    if i < 0 {
+        return -1;
+    }
+    unsafe { ctx(handle) }.map_or(-1, |c| c.quickopen.row(i as usize).map_or(-1, |r| r.icon_kind))
+}
+
+/// Char count of row `i`'s name, or `-1` out of range.
+#[no_mangle]
+pub extern "C" fn mui_qo_row_name_len(handle: i64, i: i32) -> i32 {
+    if i < 0 {
+        return -1;
+    }
+    unsafe { ctx(handle) }.map_or(-1, |c| {
+        c.quickopen.row(i as usize).map_or(-1, |r| r.name.chars().count() as i32)
+    })
+}
+
+/// The `j`th char (codepoint) of row `i`'s name, or `-1` out of range.
+#[no_mangle]
+pub extern "C" fn mui_qo_row_name_char(handle: i64, i: i32, j: i32) -> i32 {
+    if i < 0 || j < 0 {
+        return -1;
+    }
+    unsafe { ctx(handle) }.map_or(-1, |c| {
+        c.quickopen
+            .row(i as usize)
+            .and_then(|r| r.name.chars().nth(j as usize))
+            .map_or(-1, |ch| ch as i32)
+    })
+}
+
+/// Char count of row `i`'s dim secondary (dir) string, or `-1` out of range.
+#[no_mangle]
+pub extern "C" fn mui_qo_row_dir_len(handle: i64, i: i32) -> i32 {
+    if i < 0 {
+        return -1;
+    }
+    unsafe { ctx(handle) }.map_or(-1, |c| {
+        c.quickopen.row(i as usize).map_or(-1, |r| r.dir.chars().count() as i32)
+    })
+}
+
+/// The `j`th char (codepoint) of row `i`'s dir string, or `-1` out of range.
+#[no_mangle]
+pub extern "C" fn mui_qo_row_dir_char(handle: i64, i: i32, j: i32) -> i32 {
+    if i < 0 || j < 0 {
+        return -1;
+    }
+    unsafe { ctx(handle) }.map_or(-1, |c| {
+        c.quickopen
+            .row(i as usize)
+            .and_then(|r| r.dir.chars().nth(j as usize))
+            .map_or(-1, |ch| ch as i32)
+    })
+}
+
+/// `1` if char position `j` of row `i`'s name is a fuzzy-matched char (drawn in
+/// the accent), else `0`. The matched-char mask drives the highlight rendering
+/// when Mighty draws the rows itself; the shim's own `mui_qo_draw` uses it too.
+#[no_mangle]
+pub extern "C" fn mui_qo_row_match(handle: i64, i: i32, j: i32) -> i32 {
+    if i < 0 || j < 0 {
+        return 0;
+    }
+    unsafe { ctx(handle) }.map_or(0, |c| {
+        c.quickopen
+            .row(i as usize)
+            .map_or(0, |r| i32::from(r.indices.contains(&(j as usize))))
+    })
+}
+
+/// Accept row `i` (`-1` = current selection) and act on it by mode:
+///   * Files / recents → open the file as a tab, returning the new tab index;
+///   * Symbols → jump to the symbol's line, returning the line (0-based);
+///   * Go-to-line → move the cursor to the line, returning the line (0-based).
+///
+/// Closes the finder. Returns `-1` on a non-actionable / empty selection.
+#[no_mangle]
+pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    if !ctx.quickopen.is_active() {
+        return -1;
+    }
+    let mode = ctx.quickopen.mode();
+    let result: i32 = match mode {
+        crate::quickopen::Mode::Files => {
+            match ctx.quickopen.accept_file_path(i) {
+                Some(path) if path.exists() => {
+                    let idx = ctx.tabs.open_path(path.clone());
+                    sync_active_path(ctx);
+                    ctx.quickopen.record_mru(path);
+                    idx as i32
+                }
+                _ => -1,
+            }
+        }
+        crate::quickopen::Mode::Symbols => {
+            let sym = ctx.quickopen.accept_symbol(i);
+            if sym < 0 {
+                -1
+            } else {
+                let line = ctx.outline.line_of(sym as usize);
+                if line < 0 {
+                    -1
+                } else {
+                    let model = ctx.tabs.active_model_mut();
+                    model.move_to(line, 0);
+                    let first = (line - 2).max(0);
+                    model.set_first_visible(first as usize);
+                    let _ = ctx.outline.set_cursor(line as u32);
+                    line
+                }
+            }
+        }
+        crate::quickopen::Mode::GotoLine => {
+            let n = ctx.quickopen.goto_line();
+            if n < 1 {
+                -1
+            } else {
+                let line = n - 1;
+                let model = ctx.tabs.active_model_mut();
+                model.move_to(line, 0);
+                let first = (line - 2).max(0);
+                model.set_first_visible(first as usize);
+                line
+            }
+        }
+        // Commands mode is dispatched on the Mighty side via the palette id;
+        // see `mui_qo_command_id`.
+        crate::quickopen::Mode::Commands => -1,
+    };
+    ctx.quickopen.cancel();
+    result
+}
+
+/// In Commands mode (`>` query), the palette command id of the selected row
+/// (`-1` = current), or `-1` when not in Commands mode / no match. Mighty reads
+/// this on Enter and dispatches to the SAME helper a keybinding triggers, then
+/// calls `mui_qo_cancel`.
+#[no_mangle]
+pub extern "C" fn mui_qo_command_id(handle: i64, i: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    if ctx.quickopen.mode() != crate::quickopen::Mode::Commands {
+        return -1;
+    }
+    let idx = if i < 0 { ctx.quickopen.selection() } else { i as usize };
+    ctx.quickopen.row(idx).map(|r| r.target).unwrap_or(-1)
+}
+
+/// Record `path`-by... — record the ACTIVE file as recently-opened. Called by
+/// Mighty whenever a file opens via any path (tabs, tree, prompt) so the MRU
+/// reflects real usage. No-op if there is no active file path.
+#[no_mangle]
+pub extern "C" fn mui_qo_record_active(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if let Some(p) = ctx.tabs.active_path() {
+            ctx.quickopen.record_mru(p);
+        }
+    }
+}
+
+/// Draw the Quick-Open overlay (no-op unless active). Centered card over the UI.
+#[no_mangle]
+pub extern "C" fn mui_qo_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let qo = std::mem::take(&mut ctx.quickopen);
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
+    qo.draw(ctx, w, h);
+    ctx.overlay = false;
+    ctx.text.set_overlay(false);
+    ctx.quickopen = qo;
 }
 
 // ---------------------------------------------------------------------------
