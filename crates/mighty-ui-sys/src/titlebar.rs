@@ -60,7 +60,9 @@ pub fn hit(x: f32, y: f32, win_w: f32, body_left: f32) -> Option<TitleHit> {
     // The caption strip is the tab-bar row right of the body, but NOT over a tab
     // (tabs handle their own clicks first in the IDE routing) — we report Drag
     // for the empty region to the right of the last tab and left of the controls.
-    if x >= body_left && x < cx {
+    // The run/more-actions icons live in [cx-60, cx); exclude that strip (+8px
+    // padding) so those clicks pass through to the IDE instead of starting a drag.
+    if x >= body_left && x < cx - 68.0 {
         return Some(TitleHit::Drag);
     }
     // The rail header (above the first rail icon, the M-mark strip) is also a

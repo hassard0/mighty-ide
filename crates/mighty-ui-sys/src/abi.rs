@@ -1397,11 +1397,22 @@ pub extern "C" fn mui_begin_frame_s(handle: i64) {
 #[no_mangle]
 pub extern "C" fn mui_end_frame_s(handle: i64) {
     unsafe { crate::mui_end_frame(handle as usize as *mut MuiContext) };
-    // Heartbeat: log every 60th frame so a frozen render loop is visible in the
-    // trace (a logical hang the OS message pump would not reveal).
+    // Heartbeat + frame-time: log every 60th frame with the avg ms/frame since the
+    // last heartbeat so the trace reveals both a frozen loop and real lag (a slow
+    // per-frame scene build the vsync'd present would otherwise hide as low fps).
+    use std::sync::Mutex;
+    use std::time::Instant;
+    static LAST: Mutex<Option<Instant>> = Mutex::new(None);
     let n = FRAME_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
     if n % 60 == 0 {
-        trace(&format!("FRAME {n}"));
+        let now = Instant::now();
+        if let Ok(mut g) = LAST.lock() {
+            if let Some(prev) = *g {
+                let ms = now.duration_since(prev).as_secs_f64() * 1000.0 / 60.0;
+                trace(&format!("FRAME {n}  avg {ms:.1}ms/frame ({:.0} fps)", 1000.0 / ms));
+            }
+            *g = Some(now);
+        }
     }
 }
 
@@ -3332,16 +3343,41 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
         }
     }
 
-    // ----- custom window controls (borderless title bar): minimize / maximize /
-    // close, at the far right of this row. The rest of the row is the OS-drag
-    // strip (see `crate::titlebar`). -----
+}
+
+/// Draw the borderless title-bar controls (minimize / maximize / close) at the
+/// far right of the top row, plus the run + more-actions icons just left of them.
+/// Drawn as a SEPARATE late pass (after the docked panels) so a right-docked panel
+/// like the AI copilot can never occlude the window controls — previously these
+/// lived at the end of `mui_tab_bar_draw` and the AI panel painted over them, so
+/// min/max/close vanished whenever that panel was open.
+#[no_mangle]
+pub extern "C" fn mui_window_controls_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    use crate::icons;
+    let w = ctx.gpu.width as f32;
+    let bar_h = layout::TAB_BAR_H;
     let btn_w = crate::titlebar::BTN_W;
     let controls_x = crate::titlebar::controls_x(w);
     let maximized = ctx.window_maximized;
     let icon_d = 14.0;
     let iy = (bar_h - icon_d) * 0.5;
-    // Hover/active wash is omitted (no per-frame cursor in the draw path); the
-    // close button gets a subtle red tint so it reads as the destructive control.
+
+    // A solid backing under the controls + run/dots so any panel drawn beneath
+    // can't bleed through (the AI panel header used to show under the icons).
+    let strip_x = controls_x - 60.0 - 8.0;
+    ctx.dl_rect(strip_x, 0.0, w - strip_x, bar_h, theme::BG_RAIL());
+    ctx.dl_rect(strip_x, 0.0, 1.0, bar_h, theme::BORDER_SOFT());
+
+    // Run + more-actions (just left of the window controls).
+    let ax = controls_x - 60.0;
+    let ay = (bar_h - 16.0) * 0.5;
+    ctx.dl_icon(ax, ay, 16.0, 16.0, icons::RUN, theme::GREEN(), 1.5, true);
+    ctx.dl_icon(ax + 28.0, ay, 16.0, 16.0, icons::DOTS, theme::TEXT_3(), 0.0, true);
+
+    // Minimize / maximize-restore / close. Close gets a red tint.
     for (i, path) in [
         icons::WIN_MIN,
         if maximized { icons::WIN_RESTORE } else { icons::WIN_MAX },
@@ -3355,12 +3391,31 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
         let cx = bx + (btn_w - icon_d) * 0.5;
         ctx.dl_icon(cx, iy, icon_d, icon_d, path, col, 1.5, false);
     }
+}
 
-    // Right edge (just left of the window controls): run + more actions.
+/// Hit-test the top-right run / more-actions icons (drawn by
+/// `mui_window_controls_draw`). Returns 1 = run, 2 = more-actions (⋯), else 0.
+/// Geometry mirrors the draw: run at `controls_x-60`, dots at `+28`, 16px wide,
+/// within the title-bar row height.
+#[no_mangle]
+pub extern "C" fn mui_topbar_action_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let x = ctx.last_event.x;
+    let y = ctx.last_event.y;
+    if y < 0.0 || y >= layout::TAB_BAR_H {
+        return 0;
+    }
+    let controls_x = crate::titlebar::controls_x(ctx.gpu.width as f32);
     let ax = controls_x - 60.0;
-    let ay = (bar_h - 16.0) * 0.5;
-    ctx.dl_icon(ax, ay, 16.0, 16.0, icons::RUN, theme::GREEN(), 1.5, true);
-    ctx.dl_icon(ax + 28.0, ay, 16.0, 16.0, icons::DOTS, theme::TEXT_3(), 0.0, true);
+    if x >= ax && x < ax + 18.0 {
+        return 1;
+    }
+    if x >= ax + 26.0 && x < ax + 46.0 {
+        return 2;
+    }
+    0
 }
 
 /// Pick a vector file icon + color for a basename. Active tabs / `.mty` use the

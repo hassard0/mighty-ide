@@ -213,6 +213,23 @@ Start-Sleep -Milliseconds 300
 Capture $hwnd "01b-fresh-typing"
 Log "fresh-launch typing captured"
 
+# --- DIAGNOSTICS for the reported issues ---
+# Autocomplete: type an identifier prefix; a completion popup should appear.
+Type-Text $hwnd " pr"
+Start-Sleep -Milliseconds 600
+Capture $hwnd "d1-autocomplete-probe"
+Press-VK $hwnd 0x1B
+Start-Sleep -Milliseconds 150
+# Right-docked AI panel: open it (Agents rail icon ~ logical y239) and check whether
+# the top-right window controls (min/max/close) remain visible.
+Click $hwnd 64 335
+Start-Sleep -Milliseconds 500
+Capture $hwnd "d2-ai-panel-topright"
+Press-VK $hwnd 0x1B
+# Let the frame-time heartbeat accumulate a couple of windows for the lag read.
+Start-Sleep -Milliseconds 2200
+Log "diagnostics captured"
+
 # Activity rail: icons are centered ~x=64, first icon ~y=143, then ~74px steps
 # (calibrated from 01-initial). slot1=Explorer 2=Search 3=SCM 4=Run 5=AI 6=Outline
 # 7=Debug 8=Test.

@@ -148,6 +148,8 @@ extern c {
   fn mui_tab_index_at_click(handle: I64) -> I32
   fn mui_tab_set_dirty(handle: I64, idx: I32, dirty: I32)
   fn mui_tab_bar_draw(handle: I64)
+  fn mui_window_controls_draw(handle: I64)
+  fn mui_topbar_action_at_click(handle: I64) -> I32
   fn mui_rail_draw(handle: I64)
   fn mui_breadcrumb_draw(handle: I64)
   // file-tree sidebar
@@ -2262,6 +2264,17 @@ fn main() {
           // the debounced request so a fresh suggestion can follow the pause.
           mui_ghost_dismiss(h)
           mui_ghost_arm(h)
+          // As-you-type autocomplete: after an identifier char, request completion
+          // and pop the dropdown when there are matches (like a real IDE). Setting
+          // `completing` hands subsequent keystrokes to the completion arm above,
+          // which inserts + re-filters; a non-match / Esc closes it.
+          let is_ident_cp = (cp >= 97 && cp <= 122) || (cp >= 65 && cp <= 90) || (cp >= 48 && cp <= 57) || cp == 95
+          if is_ident_cp {
+            let _c = mui_ed_complete_request(h)
+            mui_snippet_inject_completions(h)
+            let cnt = mui_complete_count(h)
+            if cnt > 0 { completing = true }
+          }
           // After typing '(' auto-trigger signature help; ')' dismisses it.
           if cp == 40 {
             let ok = do_signature_help(h)
@@ -2517,6 +2530,8 @@ fn main() {
         // here — a helper can't write the caller's `palette_open`/etc. locals, L27.)
         let welcome_owns = mui_welcome_active(h)
         let welcome_act = welcome_click_action(h, welcome_owns)
+        // Top-right title-bar action icons (run ▶ / more-actions ⋯). 0 = none.
+        let topbar_act = mui_topbar_action_at_click(h)
         if diff_on == 1 && diff_hunk >= 0 {
           // Inline-diff hunk header clicked: stage (working-tree) / unstage
           // (staged) that hunk. The shim picks the verb by the diff's side and
@@ -2603,8 +2618,9 @@ fn main() {
           // Agents (sparkles) icon: toggle the AI copilot panel + focus it.
           let opened = mui_ai_open(h)
           if opened == 1 { ai_focus = true } else { ai_focus = false }
-        } else if rail_hit == rail_run() {
-          // Run (play) icon: toggle the Run panel; running the file starts it.
+        } else if rail_hit == rail_run() || topbar_act == 1 {
+          // Run (play) icon OR the top-right run ▶ button: toggle the Run panel;
+          // running the file starts it.
           let opened = mui_run_toggle(h)
           if opened == 1 {
             run_focus = true
@@ -3027,6 +3043,11 @@ fn main() {
     // rows). No-op unless open, so calling it unconditionally also lets the
     // MUI_PROBLEMS_AUTOOPEN screenshot hook render it.
     mui_problems_draw(h)
+    // Window controls (min/max/close + run/⋯) drawn as a LATE pass — after every
+    // docked panel — so a right-docked panel (AI copilot) can never occlude them.
+    // Hidden in Zen mode (which hides all chrome). Clicks: min/max/close are
+    // intercepted shim-side; run/⋯ route through `mui_topbar_action_at_click`.
+    if zen_on == 0 { mui_window_controls_draw(h) }
     // Interactive breadcrumb dropdown (folder files / document symbols). No-op
     // unless active; the MUI_BREADCRUMB_AUTOOPEN hook renders it for capture.
     mui_crumb_menu_draw(h)
