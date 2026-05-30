@@ -433,6 +433,28 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         }
     }
 
+    // Screenshot/render hook for the debugger: with MUI_DEBUG_AUTOOPEN set, open
+    // the Run-and-Debug view, switch the sidebar to it, and seed a fake stopped
+    // state (breakpoints + a stopped line + call stack + variables) so a headless
+    // capture shows the debug view without a live `mty dap` session.
+    if std::env::var_os("MUI_DEBUG_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let p = ctx
+                .tabs
+                .active_path()
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "demo.mty".to_string());
+            ctx.dbg.seed_demo(&p);
+            ctx.active_panel = crate::PANEL_DEBUG;
+            ctx.sidebar_visible = true;
+            println!(
+                "mui_init_s: MUI_DEBUG_AUTOOPEN -> debug view seeded ({} frames, {} vars)",
+                ctx.dbg.stack_count(),
+                ctx.dbg.variable_count()
+            );
+        }
+    }
+
     // Screenshot/render hook for the inline git diff: with MUI_DIFF_AUTOOPEN set,
     // open the diff view with a representative sample diff (so a headless capture
     // shows the green/red hunk rendering without external git state).
@@ -1930,13 +1952,14 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
     // Activity icons. Explorer (index 0) active. Each is a 38x38 hit cell with a
     // 21px vector icon centered; the active one gets an indigo top-lit tile + a
     // left accent bar with glow (matches `.rail-btn.active`).
-    let rail_icons: [&str; 6] = [
+    let rail_icons: [&str; 7] = [
         icons::EXPLORER,
         icons::SEARCH,
         icons::GIT,
         icons::RUN,
         icons::AGENTS,
         icons::OUTLINE,
+        icons::DEBUG,
     ];
     let cell = 38.0;
     let icon_sz = 21.0;
@@ -1952,6 +1975,8 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
         // Slot 4 (Agents/AI) is active when the AI panel is open, even though it
         // is not a sidebar panel; the others track `active_panel`.
         let active = (i == 4 && ai_open) || (i != 4 && i as i32 == active_panel);
+        // Slot 6 (Debug) draws as filled when a session is paused (so the bug
+        // glows during a stop) — handled by `color` below via active_panel.
         let ix = (rw - icon_sz) * 0.5;
         let iy = cy + (cell - icon_sz) * 0.5;
         if active {

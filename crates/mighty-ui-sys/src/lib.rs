@@ -15,6 +15,8 @@ mod ai;
 mod completion;
 mod config;
 mod crumbmenu;
+mod dap;
+mod dapabi;
 mod diagnostics;
 mod diff;
 mod editor;
@@ -246,6 +248,12 @@ pub struct MuiContext {
     /// into a scrollable output view with clickable diagnostics. Shim-owned.
     run: run::RunPanel,
 
+    // ---- debugger (Run and Debug rail icon → DAP-driven debug view) ----
+    /// The debugger model: per-file breakpoints, the live `mty dap` session,
+    /// the current stop position, the call stack + selected frame, the
+    /// variables, and the debug console. Shim-owned (see `crate::dap`).
+    dbg: dap::DebugModel,
+
     // ---- inline git diff view (Source Control) ----
     /// The inline diff view: a parsed unified diff for one file, rendered in the
     /// editor area (read-only). `None`/inactive until `mui_diff_open`.
@@ -285,6 +293,8 @@ pub const PANEL_SEARCH: i32 = 1;
 pub const PANEL_SCM: i32 = 2;
 /// Outline (document symbols) sidebar panel — rail slot 5 (below Run/Agents).
 pub const PANEL_OUTLINE: i32 = 5;
+/// Run and Debug sidebar panel — rail slot 6 (the bug icon).
+pub const PANEL_DEBUG: i32 = 6;
 
 // ---------------------------------------------------------------------------
 // Vello display-list helpers (used by the chrome/editor draw functions to emit
@@ -615,6 +625,7 @@ pub(crate) fn build_context(
         search: search::SearchState::new(),
         ai: ai::AiPanel::new(),
         run: run::RunPanel::new(),
+        dbg: dap::DebugModel::new(),
         diff: diff::DiffView::new(),
         settings_panel: settingspanel::SettingsPanel::new(),
         outline: outline::OutlineState::new(),
@@ -1232,6 +1243,7 @@ impl MuiContext {
             search: search::SearchState::new(),
             ai: ai::AiPanel::new(),
             run: run::RunPanel::new(),
+            dbg: dap::DebugModel::new(),
             diff: diff::DiffView::new(),
             settings_panel: settingspanel::SettingsPanel::new(),
             outline: outline::OutlineState::new(),
