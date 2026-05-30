@@ -57,11 +57,24 @@ fn parse_theme(text: &str) -> Option<ThemeId> {
     None
 }
 
-/// Render the config blob for a given theme.
+/// Render the config blob for a given theme. (Retained for the round-trip test;
+/// production writes go through [`render_all`].)
+#[allow(dead_code)]
 fn render(theme: ThemeId) -> String {
     format!(
         "# Mighty IDE config\n# theme = vivid | aurora | warm\ntheme={}\n",
         theme.slug()
+    )
+}
+
+/// Render the full config blob: the theme line plus the editor-preference lines
+/// ([`crate::settings`]). Written by [`save_all`] so theme + settings persist
+/// together in one file.
+fn render_all(theme: ThemeId, settings: &crate::settings::Settings) -> String {
+    format!(
+        "# Mighty IDE config\n# theme = vivid | aurora | warm\ntheme={}\n{}",
+        theme.slug(),
+        crate::settings::render(settings),
     )
 }
 
@@ -73,10 +86,20 @@ pub fn load_theme() -> Option<ThemeId> {
 }
 
 /// Persist `theme` to the config file (creating the directory). Best-effort:
-/// returns `false` (and logs) on any I/O error.
+/// returns `false` (and logs) on any I/O error. Activates `theme` first so the
+/// shared writer ([`save_all`]) also preserves the current editor settings — the
+/// theme picker calls `theme::set_active(id)` before this, so the activation is
+/// idempotent.
 pub fn save_theme(theme: ThemeId) -> bool {
+    crate::theme::set_active(theme);
+    save_all()
+}
+
+/// Persist BOTH the active theme and the active editor settings to the config
+/// file (so the Settings panel + theme picker share one file). Best-effort.
+pub fn save_all() -> bool {
     let Some(path) = config_path() else {
-        eprintln!("config: no config directory available; theme not persisted");
+        eprintln!("config: no config directory available; settings not persisted");
         return false;
     };
     if let Some(parent) = path.parent() {
@@ -85,7 +108,8 @@ pub fn save_theme(theme: ThemeId) -> bool {
             return false;
         }
     }
-    match std::fs::write(&path, render(theme)) {
+    let blob = render_all(crate::theme::active_id(), &crate::settings::active());
+    match std::fs::write(&path, blob) {
         Ok(()) => true,
         Err(e) => {
             eprintln!("config: write {}: {e}", path.display());

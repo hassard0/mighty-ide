@@ -8,7 +8,7 @@
 //! Fonts: the bundled **JetBrains Mono** (`fonts/*.ttf`, SIL OFL) is embedded
 //! into the binary via `include_bytes!` and loaded into a fresh `FontSystem`
 //! (NOT the OS default) so metrics are deterministic across machines. The
-//! editor uses `theme::FONT_SIZE` (≈15px); chrome (tabs/sidebar/status) uses
+//! editor uses `theme::font_size()` (≈15px); chrome (tabs/sidebar/status) uses
 //! the smaller `theme::CHROME_FONT_SIZE` via [`Text::queue_sized`].
 
 use glyphon::{
@@ -32,9 +32,17 @@ const UI_REGULAR: &[u8] = include_bytes!("../../../fonts/BricolageGrotesque-Regu
 const UI_SEMIBOLD: &[u8] = include_bytes!("../../../fonts/BricolageGrotesque-SemiBold.ttf");
 const UI_BOLD: &[u8] = include_bytes!("../../../fonts/BricolageGrotesque-Bold.ttf");
 
-/// Default editor metrics (font size / line height in px), from the theme.
-const FONT_SIZE: f32 = theme::FONT_SIZE;
-const LINE_HEIGHT: f32 = theme::LINE_HEIGHT;
+/// Default editor metrics (font size / line height in px) — LIVE from the active
+/// settings (the Settings panel), so changing the editor font size re-shapes the
+/// code text next frame. Functions, not consts (see `crate::settings`).
+#[inline]
+fn font_size() -> f32 {
+    theme::FONT_SIZE()
+}
+#[inline]
+fn line_height() -> f32 {
+    theme::LINE_HEIGHT()
+}
 
 /// A queued text draw command for the current frame.
 struct TextCmd {
@@ -167,7 +175,7 @@ impl Text {
         color: MuiColor,
         clip: Option<(u32, u32, u32, u32)>,
     ) {
-        self.queue_sized(x, y, text, color, FONT_SIZE, clip);
+        self.queue_sized(x, y, text, color, font_size(), clip);
     }
 
     /// Like [`Text::queue`] but at an explicit font `size` (px). Used for the
@@ -232,7 +240,7 @@ impl Text {
     pub fn measure(&mut self, text: &str) -> (f32, f32) {
         let mut buffer = TextBuffer::new(
             &mut self.font_system,
-            Metrics::new(FONT_SIZE, LINE_HEIGHT),
+            Metrics::new(font_size(), line_height()),
         );
         buffer.set_size(&mut self.font_system, None, None);
         buffer.set_text(
@@ -249,7 +257,7 @@ impl Text {
             width = width.max(run.line_w);
             lines += 1;
         }
-        let height = (lines.max(1) as f32) * LINE_HEIGHT;
+        let height = (lines.max(1) as f32) * line_height();
         (width, height)
     }
 
@@ -286,7 +294,7 @@ impl Text {
         for cmd in &layer {
             // Each command may have its own font size; line height tracks it at
             // the editor's ≈1.5 ratio so chrome text stays vertically centered.
-            let line_h = (cmd.size * (LINE_HEIGHT / FONT_SIZE)).max(cmd.size + 1.0);
+            let line_h = (cmd.size * (line_height() / font_size())).max(cmd.size + 1.0);
             let mut buffer =
                 TextBuffer::new(&mut self.font_system, Metrics::new(cmd.size, line_h));
             buffer.set_size(&mut self.font_system, Some(screen_w as f32), Some(screen_h as f32));

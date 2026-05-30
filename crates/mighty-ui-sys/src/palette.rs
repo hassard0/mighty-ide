@@ -45,6 +45,8 @@ pub const CMD_AUTOCOMPLETE: u32 = 15;
 pub const CMD_JUMP_BACK: u32 = 16;
 pub const CMD_QUIT: u32 = 17;
 pub const CMD_COLOR_THEME: u32 = 18;
+pub const CMD_RUN_FILE: u32 = 19;
+pub const CMD_SETTINGS: u32 = 20;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -67,6 +69,8 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_JUMP_BACK,        label: "Jump Back",          keybinding: "Ctrl+-" },
     Command { id: CMD_QUIT,             label: "Quit",               keybinding: "Esc / close" },
     Command { id: CMD_COLOR_THEME,      label: "Preferences: Color Theme", keybinding: "" },
+    Command { id: CMD_RUN_FILE,         label: "Run File",           keybinding: "Ctrl+Shift+R" },
+    Command { id: CMD_SETTINGS,         label: "Preferences: Settings", keybinding: "Ctrl+," },
 ];
 
 /// Match quality for ranking. Lower sorts first.
@@ -261,6 +265,8 @@ impl PaletteEngine {
             CMD_JUMP_BACK => (icons::CHEVRON, "Return to the previous location", false),
             CMD_QUIT => (icons::CLOSE, "Close the editor", false),
             CMD_COLOR_THEME => (icons::SETTINGS, "Switch the editor color theme", false),
+            CMD_RUN_FILE => (icons::RUN, "Run the active Mighty file", true),
+            CMD_SETTINGS => (icons::SETTINGS, "Edit editor preferences", false),
             _ => (icons::CHEVRON, "", false),
         }
     }

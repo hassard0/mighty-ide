@@ -796,7 +796,7 @@ impl SigState {
             return;
         };
         let chrome = theme::CHROME_FONT_SIZE;
-        let advance = layout::CHAR_W;
+        let advance = layout::CHAR_W();
         let pad = 7.0;
         let label = &sig.label;
         // Compute the active-parameter highlight span by locating the param label
@@ -812,7 +812,7 @@ impl SigState {
         let label_w = label.chars().count() as f32 * advance;
         let doc_w = sig.doc.chars().count() as f32 * (chrome - 1.0) * 0.55;
         let box_w = (label_w.max(doc_w) + 2.0 * pad + 8.0).max(120.0);
-        let line_h = layout::LINE_H;
+        let line_h = layout::LINE_H();
         let lines = if has_doc { 2 } else { 1 };
         let box_h = lines as f32 * line_h + 2.0 * pad;
 
@@ -973,7 +973,7 @@ impl RenameState {
         let name = self.name_string();
         ctx.text.queue_sized(field_x + 7.0, field_y + 4.0, &name, theme::ACCENT_BRIGHT(), chrome, clip);
         // Caret after the name.
-        let caret_x = field_x + 7.0 + name.chars().count() as f32 * layout::CHAR_W;
+        let caret_x = field_x + 7.0 + name.chars().count() as f32 * layout::CHAR_W();
         ctx.dl_rect(caret_x, field_y + 4.0, 1.5, chrome + 2.0, theme::ACCENT_BRIGHT());
     }
 }
@@ -1050,7 +1050,7 @@ impl CodeActionState {
         if !self.active || self.actions.is_empty() {
             return;
         }
-        let row_h = layout::LINE_H;
+        let row_h = layout::LINE_H();
         let chrome = theme::CHROME_FONT_SIZE;
         let pad = 5.0;
         let longest = self

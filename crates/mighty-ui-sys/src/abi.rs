@@ -418,6 +418,65 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         }
     }
 
+    // Screenshot/render hook for the Run panel: with MUI_RUN_AUTOOPEN set, open
+    // the Run panel and seed fake output (a clickable diagnostic + an exit line)
+    // so a headless capture shows the panel without spawning a real process.
+    if std::env::var_os("MUI_RUN_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let p = ctx
+                .tabs
+                .active_path()
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "demo.mty".to_string());
+            ctx.run.seed_demo(&p);
+            println!("mui_init_s: MUI_RUN_AUTOOPEN -> run panel seeded ({} lines)", ctx.run.line_count());
+        }
+    }
+
+    // Screenshot/render hook for the inline git diff: with MUI_DIFF_AUTOOPEN set,
+    // open the diff view with a representative sample diff (so a headless capture
+    // shows the green/red hunk rendering without external git state).
+    if std::env::var_os("MUI_DIFF_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            const SAMPLE: &str = "\
+diff --git a/src/main.mty b/src/main.mty
+index 83db48f..f735c2d 100644
+--- a/src/main.mty
++++ b/src/main.mty
+@@ -1,6 +1,7 @@
+ fn main() {
+-  let name: Str = \"world\"
+-  log(\"Hello\")
++  let name: Str = \"Mighty\"
++  log(\"Hello, Mighty!\")
++  log(\"Welcome to the IDE\")
+   let n: I32 = 42
+ }
+@@ -20,3 +21,4 @@ fn helper() {
+   compute()
++  validate()
+   done()
+";
+            let n = ctx.diff.open("src/main.mty", false, SAMPLE);
+            println!("mui_init_s: MUI_DIFF_AUTOOPEN -> diff view open ({n} lines)");
+        }
+    }
+
+    // Screenshot/render hook for the Settings panel: with MUI_SETTINGS_AUTOOPEN
+    // set, open the Settings panel (and optionally pre-select a row via the env
+    // value, e.g. "2") so a headless capture shows the preference list.
+    if let Some(seed) = std::env::var_os("MUI_SETTINGS_AUTOOPEN") {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            ctx.settings_panel.open();
+            let v = seed.to_string_lossy();
+            if let Ok(row) = v.trim().parse::<i32>() {
+                // move_sel from row 0 to the requested row.
+                ctx.settings_panel.move_sel(row);
+            }
+            println!("mui_init_s: MUI_SETTINGS_AUTOOPEN -> settings panel open");
+        }
+    }
+
     handle
 }
 
@@ -529,7 +588,7 @@ pub extern "C" fn mui_text_draw(
 /// [`mui_draw_cursor_row`].
 #[no_mangle]
 pub extern "C" fn mui_draw_cursor(handle: i64, line: i32, col: i32, r: f32, g: f32, b: f32, a: f32) {
-    let x = layout::PAD + (col.max(0) as f32) * layout::CHAR_W;
+    let x = layout::PAD + (col.max(0) as f32) * layout::CHAR_W();
     let y = layout::row_y(line);
     unsafe {
         crate::mui_fill_rect(
@@ -645,7 +704,7 @@ pub extern "C" fn mui_draw_buffer_self(
         ];
         if !head.is_empty() && KEYWORDS.contains(&head) {
             ctx.text.queue(text_x, y, head, kw, clip);
-            let rest_x = text_x + (head.chars().count() as f32) * layout::CHAR_W;
+            let rest_x = text_x + (head.chars().count() as f32) * layout::CHAR_W();
             ctx.text.queue(rest_x, y, &text[first_word_end..], fg, clip);
         } else {
             ctx.text.queue(text_x, y, text, fg, clip);
@@ -1067,9 +1126,9 @@ pub extern "C" fn mui_underline_row(
     let region = layout::region(ctx.sidebar_visible);
     let x = layout::text_x_in(region, total_lines.max(1) as u64, col_start);
     let cells = (col_end - col_start).max(1) as f32;
-    let w = cells * layout::CHAR_W;
+    let w = cells * layout::CHAR_W();
     // Sit the wavy squiggle near the bottom of the row's line box.
-    let y = layout::row_y_in(region, row) + layout::LINE_H - 4.0;
+    let y = layout::row_y_in(region, row) + layout::LINE_H() - 4.0;
     ctx.dl_squiggle(x, y, w, MuiColor::new(r, g, b, a));
 }
 
@@ -1081,7 +1140,7 @@ pub extern "C" fn mui_diag_gutter_mark(handle: i64, row: i32, r: f32, g: f32, b:
     let Some(ctx) = (unsafe { ctx(handle) }) else { return };
     let region = layout::region(ctx.sidebar_visible);
     // A small rounded dot in the gutter flagging the diagnostic row.
-    let cy = layout::row_y_in(region, row) + layout::LINE_H * 0.5 - 3.0;
+    let cy = layout::row_y_in(region, row) + layout::LINE_H() * 0.5 - 3.0;
     ctx.dl_round(region.left + 3.0, cy, 6.0, 6.0, 3.0, MuiColor::new(r, g, b, a));
 }
 
@@ -1096,7 +1155,7 @@ pub extern "C" fn mui_status_bar(handle: i64, error_count: i32) {
     };
     let w = ctx.gpu.width as f32;
     let h = ctx.gpu.height as f32;
-    let bar_h = layout::LINE_H;
+    let bar_h = layout::LINE_H();
     let y = (h - bar_h).max(0.0);
     let color = if error_count == 0 {
         MuiColor::new(0.16, 0.45, 0.20, 1.0) // green
@@ -1114,7 +1173,7 @@ pub extern "C" fn mui_status_bar(handle: i64, error_count: i32) {
 pub extern "C" fn mui_status_draw_text(handle: i64, r: f32, g: f32, b: f32, a: f32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         let h = ctx.gpu.height as f32;
-        let y = (h - layout::LINE_H + 1.0).max(0.0);
+        let y = (h - layout::LINE_H() + 1.0).max(0.0);
         let s = std::mem::take(&mut ctx.text_stage);
         let clip = ctx.clip;
         ctx.text
@@ -1152,8 +1211,8 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     let y = (h - bar_h).max(0.0);
     let chrome = theme::CHROME_FONT_SIZE - 1.0;
     let clip = ctx.clip;
-    let scale = chrome / theme::FONT_SIZE;
-    let advance = layout::CHAR_W * scale;
+    let scale = chrome / theme::FONT_SIZE();
+    let advance = layout::CHAR_W() * scale;
     let text_w = |s: &str| s.chars().count() as f32 * advance;
 
     use crate::icons;
@@ -1295,7 +1354,7 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
     }
     let w = ctx.gpu.width as f32;
     let h = ctx.gpu.height as f32;
-    let bar_h = layout::LINE_H;
+    let bar_h = layout::LINE_H();
     // Sit the prompt band one row above the status bar.
     let y = (h - 2.0 * bar_h).max(0.0);
     let chrome = theme::CHROME_FONT_SIZE;
@@ -1415,7 +1474,7 @@ pub extern "C" fn mui_find_highlight_row(
     });
     let x = layout::text_x_in(region, total_lines.max(1) as u64, col_start);
     let cells = len.max(1) as f32;
-    let w = cells * layout::CHAR_W;
+    let w = cells * layout::CHAR_W();
     let y = layout::row_y_in(region, row) - 2.0;
     unsafe {
         crate::mui_fill_rect(
@@ -1423,7 +1482,7 @@ pub extern "C" fn mui_find_highlight_row(
             x,
             y,
             w,
-            layout::LINE_H,
+            layout::LINE_H(),
             theme::FIND_HIGHLIGHT(),
         )
     };
@@ -1869,7 +1928,7 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
             let icon_y = (bar_h - 14.0) * 0.5;
             ctx.dl_icon(x + 14.0, icon_y, 14.0, 14.0, icon, icon_col, 1.4, false);
             let mut label = base;
-            let max_chars = ((layout::TAB_W - 64.0) / layout::CHAR_W).floor() as usize;
+            let max_chars = ((layout::TAB_W - 64.0) / layout::CHAR_W()).floor() as usize;
             if label.chars().count() > max_chars && max_chars > 1 {
                 label = label.chars().take(max_chars - 1).collect::<String>() + "…";
             }
@@ -2091,7 +2150,7 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
 
     // File rows. Mockup row height is 28px; we keep LINE_H rhythm but draw a
     // 28px-tall hover/selection capsule centered on the row baseline.
-    let row_h = layout::LINE_H;
+    let row_h = layout::LINE_H();
     let row_top = head_h + 6.0;
     let active_path = ctx.tabs.active_path();
     let count = ctx.tree.count();
@@ -2139,7 +2198,7 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
             content_x += 17.0;
         }
         let name_x = content_x;
-        let avail = (((sx + sw - 28.0) - name_x) / layout::CHAR_W).floor() as usize;
+        let avail = (((sx + sw - 28.0) - name_x) / layout::CHAR_W()).floor() as usize;
         let mut shown = name.clone();
         if shown.chars().count() > avail && avail > 1 {
             shown = shown.chars().take(avail - 1).collect::<String>() + "…";
@@ -2438,8 +2497,8 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 handle_ptr,
                 cx,
                 cy,
-                layout::CHAR_W,
-                layout::LINE_H - 2.0,
+                layout::CHAR_W(),
+                layout::LINE_H() - 2.0,
                 MuiColor::new(0.486, 0.361, 1.0, 0.6),
             );
         }
@@ -4516,8 +4575,11 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         );
     }
 
-    // Minimap strip width (reserved on the right). Mockup `.minimap` ~76px.
-    let mm_w = 70.0_f32;
+    // Minimap strip width (reserved on the right). Mockup `.minimap` ~76px. When
+    // the minimap is disabled in Settings, reserve no strip (mm_w = 0) so the
+    // current-line band + text run to the right edge.
+    let minimap_on = crate::settings::minimap();
+    let mm_w = if minimap_on { 70.0_f32 } else { 0.0_f32 };
     let mm_x = win_w - mm_w;
 
     // 1) Current-line highlight band (only when the cursor row is visible), with
@@ -4526,8 +4588,8 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         let row = (cur_line - first) as i32;
         let y = layout::row_y_in(region, row);
         let band_w = mm_x - region.left;
-        ctx.dl_grad_h(region.left, y - 1.0, band_w, layout::LINE_H, 0.0, theme::accent_a(0.07), 0.6);
-        ctx.dl_rect(region.left, y - 1.0, 2.0, layout::LINE_H, theme::ACCENT());
+        ctx.dl_grad_h(region.left, y - 1.0, band_w, layout::LINE_H(), 0.0, theme::accent_a(0.07), 0.6);
+        ctx.dl_rect(region.left, y - 1.0, 2.0, layout::LINE_H(), theme::ACCENT());
     }
 
     // 2) Selection rects (per visible line within the range).
@@ -4547,10 +4609,10 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
             }
             let row = (li - first) as i32;
             let x = layout::text_x_in(region, total_u64, s as i32);
-            let w = (e - s) as f32 * layout::CHAR_W;
+            let w = (e - s) as f32 * layout::CHAR_W();
             let y = layout::row_y_in(region, row);
             unsafe {
-                crate::mui_fill_rect(handle_ptr, x, y - 2.0, w, layout::LINE_H, theme::SELECTION());
+                crate::mui_fill_rect(handle_ptr, x, y - 2.0, w, layout::LINE_H(), theme::SELECTION());
             }
         }
     }
@@ -4562,7 +4624,7 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         let y = layout::row_y_in(region, row);
         // Right-aligned gutter number; the cursor's line is brighter.
         let num = (li + 1).to_string();
-        let num_w = num.chars().count() as f32 * layout::CHAR_W * (chrome / theme::FONT_SIZE);
+        let num_w = num.chars().count() as f32 * layout::CHAR_W() * (chrome / theme::FONT_SIZE());
         let gx = (gutter_right - num_w).max(region.left + 2.0);
         let gcol = if li == cur_line {
             theme::GUTTER_ACTIVE()
@@ -4586,7 +4648,7 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
                 if frag.trim().is_empty() {
                     continue;
                 }
-                let x = text_x + sp.start as f32 * layout::CHAR_W;
+                let x = text_x + sp.start as f32 * layout::CHAR_W();
                 ctx.text.queue(x, y, &frag, sp.color, clip);
             }
         }
@@ -4597,8 +4659,8 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         let row = (cur_line - first) as i32;
         let cx = layout::text_x_in(region, total_u64, cur_col as i32);
         let cy = layout::row_y_in(region, row);
-        ctx.dl_shadow(cx, cy + 1.0, 2.0, layout::LINE_H - 6.0, 1.0, theme::ACCENT_GLOW(), 4.0);
-        ctx.dl_round(cx, cy - 1.0, 2.0, layout::LINE_H - 2.0, 1.0, theme::ACCENT_BRIGHT());
+        ctx.dl_shadow(cx, cy + 1.0, 2.0, layout::LINE_H() - 6.0, 1.0, theme::ACCENT_GLOW(), 4.0);
+        ctx.dl_round(cx, cy - 1.0, 2.0, layout::LINE_H() - 2.0, 1.0, theme::ACCENT_BRIGHT());
     }
 
     // 4b) Bracket-match highlight — a thin outline box around the bracket the
@@ -4613,13 +4675,13 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
             })
         };
         if let Some((cl, cc, ml, mc)) = pair {
-            let cw = layout::CHAR_W;
+            let cw = layout::CHAR_W();
             for (li, co) in [(cl, cc), (ml, mc)] {
                 if li >= first && li < first + rows {
                     let row = (li - first) as i32;
                     let x = layout::text_x_in(region, total_u64, co as i32);
                     let y = layout::row_y_in(region, row);
-                    ctx.dl_stroke(x - 1.0, y - 1.0, cw + 2.0, layout::LINE_H - 2.0, 2.0, theme::ACCENT_LINE(), 1.0);
+                    ctx.dl_stroke(x - 1.0, y - 1.0, cw + 2.0, layout::LINE_H() - 2.0, 2.0, theme::ACCENT_LINE(), 1.0);
                 }
             }
         }
@@ -4627,7 +4689,8 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
 
     // 5) Minimap — a faint right strip with one tiny colored bar per buffer line,
     //    sized by the line's first syntax span color + length, plus a viewport box.
-    {
+    //    Hidden when the "Show Minimap" preference is off (Settings panel).
+    if minimap_on {
         let field_top = region.top;
         let field_h = (win_h - 30.0 - field_top).max(0.0);
         // Left divider + a faint left→transparent shade.
@@ -5160,7 +5223,7 @@ pub extern "C" fn mui_replace_draw(handle: i64) {
     }
     let w = ctx.gpu.width as f32;
     let h = ctx.gpu.height as f32;
-    let bar_h = layout::LINE_H;
+    let bar_h = layout::LINE_H();
     // Two rows above the 30px status bar.
     let top = (h - 30.0 - 2.0 * bar_h).max(0.0);
     let chrome = theme::CHROME_FONT_SIZE;

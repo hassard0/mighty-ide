@@ -573,7 +573,7 @@ impl VelloUi {
 
     /// Draw a text run. `y` is the baseline-top (as the old text ABI used), so we
     /// shift down by the font ascent to put glyphs on a proper baseline. Code
-    /// uses the monospace cell advance (matches `layout::CHAR_W` proportionally);
+    /// uses the monospace cell advance (matches `layout::CHAR_W()` proportionally);
     /// UI text uses real per-glyph advances for proportional shaping.
     #[allow(clippy::too_many_arguments)]
     fn draw_text(
@@ -610,7 +610,7 @@ impl VelloUi {
         let baseline = y_top + size_px * 0.80;
         // For code, force a uniform monospace advance equal to the editor cell
         // so glyph x positions line up exactly with carets/selections/gutter.
-        let mono_advance = crate::theme::CHAR_W * (size_px / crate::theme::FONT_SIZE);
+        let mono_advance = crate::theme::CHAR_W() * (size_px / crate::theme::FONT_SIZE());
 
         let mut pen_x = x;
         let glyphs: Vec<vello::Glyph> = text

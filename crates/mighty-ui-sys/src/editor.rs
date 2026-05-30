@@ -656,25 +656,27 @@ impl TextModel {
         let tail_trim = tail.trim_start();
         let closes_next = tail_trim.starts_with('}');
 
-        const ONE: &str = "  "; // 2-space indent level (matches the demo)
+        // One indent level = the configured tab width in spaces (Settings panel).
+        let one_str = " ".repeat(crate::settings::tab_width().max(1) as usize);
+        let one: &str = &one_str;
 
         self.lines[li] = head;
         if opens && closes_next {
             // Between a `{` and a `}`: blank indented line, then the dedented `}`.
-            let inner = format!("{indent}{ONE}");
+            let inner = format!("{indent}{one}");
             self.lines.insert(li + 1, inner.clone());
             self.lines.insert(li + 2, format!("{indent}{tail}"));
             self.cur_line = li + 1;
             self.cur_col = inner.chars().count();
         } else if opens {
-            let new_line = format!("{indent}{ONE}{tail}");
-            let caret = format!("{indent}{ONE}").chars().count();
+            let new_line = format!("{indent}{one}{tail}");
+            let caret = format!("{indent}{one}").chars().count();
             self.lines.insert(li + 1, new_line);
             self.cur_line = li + 1;
             self.cur_col = caret;
         } else if closes_next && !indent.is_empty() {
             // New line is (or starts with) `}`: dedent one level.
-            let dedent: String = indent.chars().skip(ONE.len()).collect();
+            let dedent: String = indent.chars().skip(one.len()).collect();
             let new_line = format!("{dedent}{tail}");
             self.lines.insert(li + 1, new_line);
             self.cur_line = li + 1;
@@ -1295,6 +1297,17 @@ mod tests {
 
     // ---- Feature 2: auto-indent on Enter ----
 
+    /// Auto-indent uses the configured tab width (default 2). The settings global
+    /// is shared across tests, so pin it to the default (under the shared lock)
+    /// for the brace-indent assertions below.
+    fn pin_default_settings() -> std::sync::MutexGuard<'static, ()> {
+        let g = crate::settings::TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        crate::settings::set_active(crate::settings::Settings::default());
+        g
+    }
+
     #[test]
     fn auto_indent_copies_leading_whitespace() {
         let mut m = doc("    foo");
@@ -1307,6 +1320,7 @@ mod tests {
 
     #[test]
     fn auto_indent_after_open_brace_adds_level() {
+        let _g = pin_default_settings();
         let mut m = doc("fn main() {");
         m.move_to(0, 11);
         m.newline_auto_indent();
@@ -1316,6 +1330,7 @@ mod tests {
 
     #[test]
     fn auto_indent_between_braces_splits_and_dedents() {
+        let _g = pin_default_settings();
         let mut m = doc("  fn f() {}");
         // Cursor between { and }.
         m.move_to(0, 10);
@@ -1328,6 +1343,7 @@ mod tests {
 
     #[test]
     fn auto_indent_dedents_line_starting_with_close_brace() {
+        let _g = pin_default_settings();
         // Cursor before a `}` on an indented continuation line.
         let mut m = doc("    }");
         m.move_to(0, 4);

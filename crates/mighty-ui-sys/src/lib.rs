@@ -15,7 +15,9 @@ mod ai;
 mod completion;
 mod config;
 mod diagnostics;
+mod diff;
 mod editor;
+mod featureabi;
 mod ffi;
 mod format;
 mod gpu;
@@ -27,9 +29,12 @@ mod nav;
 mod palette;
 mod panels;
 mod prompt;
+mod run;
 mod scm;
 mod screenshot;
 mod search;
+mod settings;
+mod settingspanel;
 mod syntax;
 mod tabs;
 mod terminal;
@@ -231,6 +236,21 @@ pub struct MuiContext {
     /// The AI chat panel: transcript + input + live Anthropic stream, shim-owned.
     /// Mighty opens it, feeds chars/keys, sends, and pumps the stream each frame.
     ai: ai::AiPanel,
+
+    // ---- Run panel (the Run rail icon) ----
+    /// The Run panel: a background `mty run <path>` whose stdout/stderr streams
+    /// into a scrollable output view with clickable diagnostics. Shim-owned.
+    run: run::RunPanel,
+
+    // ---- inline git diff view (Source Control) ----
+    /// The inline diff view: a parsed unified diff for one file, rendered in the
+    /// editor area (read-only). `None`/inactive until `mui_diff_open`.
+    diff: diff::DiffView,
+
+    // ---- Settings panel (Preferences: Settings) ----
+    /// The Settings panel: editable live preferences (font size / tab width /
+    /// word wrap / minimap / theme). Shim-owned; changes apply live + persist.
+    settings_panel: settingspanel::SettingsPanel,
 }
 
 /// Panel ids (mirror the Mighty side + rail icon order).
@@ -431,6 +451,9 @@ pub(crate) fn build_context(
     // draw call so the whole IDE — including the first frame / screenshots —
     // renders in the chosen theme. Default is Vivid Modern.
     theme::set_active(config::resolve_startup_theme());
+    // Load the persisted editor preferences (font size / tab width / word wrap /
+    // minimap) into the active settings so the first frame already reflects them.
+    settings::load_into_active();
 
     let mut queue = Box::new(EventQueue::default());
     let queue_ptr: *mut EventQueue = queue.as_mut();
@@ -563,6 +586,9 @@ pub(crate) fn build_context(
         scm: scm::ScmState::new(),
         search: search::SearchState::new(),
         ai: ai::AiPanel::new(),
+        run: run::RunPanel::new(),
+        diff: diff::DiffView::new(),
+        settings_panel: settingspanel::SettingsPanel::new(),
     });
     Box::into_raw(ctx)
 }
@@ -1172,6 +1198,9 @@ impl MuiContext {
             scm: scm::ScmState::new(),
             search: search::SearchState::new(),
             ai: ai::AiPanel::new(),
+            run: run::RunPanel::new(),
+            diff: diff::DiffView::new(),
+            settings_panel: settingspanel::SettingsPanel::new(),
         })
     }
 

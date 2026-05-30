@@ -253,7 +253,7 @@ impl CompletionEngine {
 
         // Panel geometry: a box just below the cursor, widened to the longest
         // visible label.
-        let row_h = layout::LINE_H;
+        let row_h = layout::LINE_H();
         let pad = 5.0;
         let chrome = theme::CHROME_FONT_SIZE;
         let longest = self
@@ -266,7 +266,7 @@ impl CompletionEngine {
             .unwrap_or(0) as f32;
         // Room for a type badge + label + signature + a right-side kind hint.
         let hint_h = 30.0_f32;
-        let box_w = (longest * layout::CHAR_W + 22.0 * layout::CHAR_W).max(280.0);
+        let box_w = (longest * layout::CHAR_W() + 22.0 * layout::CHAR_W()).max(280.0);
         let box_h = shown as f32 * row_h + 2.0 * pad + hint_h;
 
         // Position below the cursor; flip above if it would overflow the bottom.
@@ -283,7 +283,7 @@ impl CompletionEngine {
 
         let clip = ctx.clip;
         let radius = 8.0_f32;
-        let advance = layout::CHAR_W;
+        let advance = layout::CHAR_W();
 
         // Soft drop shadow + rounded raised card + hairline border (mockup
         // `.autocomplete`).

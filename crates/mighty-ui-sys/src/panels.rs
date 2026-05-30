@@ -258,7 +258,7 @@ pub extern "C" fn mui_scm_row_at_click(handle: i64) -> i32 {
     if y < top {
         return -1;
     }
-    let i = ((y - top) / layout::LINE_H).floor() as i32;
+    let i = ((y - top) / layout::LINE_H()).floor() as i32;
     if i >= 0 && i < ctx.scm.count() {
         i
     } else {
@@ -284,7 +284,7 @@ pub extern "C" fn mui_scm_click_is_stage(handle: i64) -> i32 {
 
 /// Y pixel (top) of the first Source-Control changes row.
 fn scm_rows_top() -> f32 {
-    40.0 + 54.0 + layout::LINE_H
+    40.0 + 54.0 + layout::LINE_H()
 }
 
 /// Display color for a git status letter (Vivid Modern palette).
@@ -389,7 +389,7 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
         return;
     }
 
-    let row_h = layout::LINE_H;
+    let row_h = layout::LINE_H();
     let row_top = scm_rows_top();
     for i in 0..count {
         let (status, staged, name, dir) = {
@@ -609,7 +609,7 @@ pub extern "C" fn mui_search_row_at_click(handle: i64) -> i32 {
     if y < top {
         return -1;
     }
-    let clicked = ((y - top) / layout::LINE_H).floor() as i32;
+    let clicked = ((y - top) / layout::LINE_H()).floor() as i32;
     let mut visual = 0;
     let fc = ctx.search.file_count();
     let mut mi = 0;
@@ -725,7 +725,7 @@ pub extern "C" fn mui_search_draw(handle: i64) {
     let summary = format!("{total} results in {fc} files");
     ctx.text.queue_ui_sized(sx + 14.0, ry + box_h + 6.0, &summary, theme::TEXT_3(), chrome - 2.0, clip);
 
-    let row_h = layout::LINE_H;
+    let row_h = layout::LINE_H();
     let top = search_rows_top();
     let needle_len = ctx.search.query.len() as i32;
     let mut visual = 0i32;
@@ -921,7 +921,7 @@ pub extern "C" fn mui_ai_streaming(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_ai_scroll(handle: i64, dir: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        let step = layout::LINE_H * 3.0;
+        let step = layout::LINE_H() * 3.0;
         ctx.ai.scroll += dir as f32 * step;
         if ctx.ai.scroll < 0.0 {
             ctx.ai.scroll = 0.0;

@@ -76,7 +76,7 @@ impl HoverState {
         if !self.active || self.lines.is_empty() {
             return;
         }
-        let row_h = layout::LINE_H;
+        let row_h = layout::LINE_H();
         let pad = 4.0;
         let longest = self
             .lines
@@ -84,7 +84,7 @@ impl HoverState {
             .map(|l| l.chars().count())
             .max()
             .unwrap_or(0) as f32;
-        let box_w = (longest * layout::CHAR_W + 2.0 * layout::CHAR_W).max(60.0);
+        let box_w = (longest * layout::CHAR_W() + 2.0 * layout::CHAR_W()).max(60.0);
         let box_h = self.lines.len() as f32 * row_h + 2.0 * pad;
 
         let w = width as f32;

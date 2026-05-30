@@ -452,6 +452,22 @@ pub fn accent_a(a: f32) -> MuiColor {
     active().accent_a(a)
 }
 
+/// A green wash at alpha `a` (the active theme's green color) — added-line tint
+/// in the inline diff view.
+#[inline]
+pub fn green_wash(a: f32) -> MuiColor {
+    let g = active().green;
+    MuiColor::new(g.r, g.g, g.b, a)
+}
+
+/// A red/error wash at alpha `a` (the active theme's error color) — removed-line
+/// tint in the inline diff view.
+#[inline]
+pub fn error_wash(a: f32) -> MuiColor {
+    let e = active().error;
+    MuiColor::new(e.r, e.g, e.b, a)
+}
+
 // ---------------------------------------------------------------------------
 // Color accessors — same names the old `pub const`s used, now reading `active()`.
 // Draw sites call them as `theme::ACCENT()`, `theme::BG_2()`, etc.
@@ -527,14 +543,28 @@ color_fn!(STATUS_BOTTOM, status_bottom);
 // Metrics (px) — theme-independent, stay `const`.
 // ---------------------------------------------------------------------------
 
-/// Editor font size (px).
-pub const FONT_SIZE: f32 = 13.5;
-/// Editor line-height / row advance (px).
-pub const LINE_HEIGHT: f32 = 22.0;
+// NOTE: the editor metrics (font size / line height / cell advance) are now
+// LIVE preferences read from `crate::settings` (the Settings panel), so they are
+// functions rather than `const`. Chrome font size + the 8px spacing unit stay
+// constant (they are theme/layout rhythm, not user prefs).
+
+/// Editor font size (px) — live from the active settings.
+#[inline]
+pub fn FONT_SIZE() -> f32 {
+    crate::settings::font_size()
+}
+/// Editor line-height / row advance (px) — live from the active settings.
+#[inline]
+pub fn LINE_HEIGHT() -> f32 {
+    crate::settings::line_height()
+}
+/// Monospace cell advance for the editor font at the active size (px) — live.
+#[inline]
+pub fn CHAR_W() -> f32 {
+    crate::settings::char_w()
+}
 /// Chrome (tabs / sidebar / status) font size (px).
 pub const CHROME_FONT_SIZE: f32 = 12.5;
-/// Monospace cell advance for the editor font at [`FONT_SIZE`] (px).
-pub const CHAR_W: f32 = 8.1;
 /// Base 8px spacing unit.
 pub const SPACE: f32 = 8.0;
 

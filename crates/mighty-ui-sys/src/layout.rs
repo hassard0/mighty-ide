@@ -7,11 +7,22 @@
 
 /// Left/top padding of the editor surface, in pixels (8px spacing rhythm).
 pub const PAD: f32 = crate::theme::SPACE;
-/// Vertical advance per text line, in pixels (≈1.5 line-height, from the theme).
-pub const LINE_H: f32 = crate::theme::LINE_HEIGHT;
-/// Horizontal advance per monospace cell, in pixels (must match the bundled
-/// JetBrains Mono advance at the editor font size for cursor/click alignment).
-pub const CHAR_W: f32 = crate::theme::CHAR_W;
+/// Vertical advance per text line, in pixels — LIVE from the active settings
+/// (editor font size; see [`crate::settings`]). A function (not a const) so
+/// changing the font size in the Settings panel re-flows the editor next frame.
+#[inline]
+#[allow(non_snake_case)]
+pub fn LINE_H() -> f32 {
+    crate::theme::LINE_HEIGHT()
+}
+/// Horizontal advance per monospace cell, in pixels — LIVE from the active
+/// settings (must match the bundled JetBrains Mono advance at the editor font
+/// size for cursor/click alignment).
+#[inline]
+#[allow(non_snake_case)]
+pub fn CHAR_W() -> f32 {
+    crate::theme::CHAR_W()
+}
 /// Gap (px) between the line-number gutter and the text column.
 pub const GUTTER_GAP: f32 = crate::theme::SPACE;
 /// Base 8px spacing unit (re-exported from the theme for layout sites).
@@ -39,7 +50,11 @@ pub const TREE_INDENT: f32 = 16.0;
 /// open (a "lower third").
 pub const TERM_FRACTION: f32 = 0.33;
 /// Minimum terminal panel height (px) so it stays usable in small windows.
-pub const TERM_MIN_H: f32 = 4.0 * LINE_H;
+/// A function (depends on the live line height).
+#[inline]
+pub fn term_min_h() -> f32 {
+    4.0 * LINE_H()
+}
 
 /// The pixel offsets of the editable text region: the top edge (below the tab
 /// bar) and the left edge (right of the sidebar, if shown). The gutter/text/
@@ -79,7 +94,7 @@ pub fn digit_count(n: u64) -> u32 {
 /// `total_lines` is clamped to at least 1.
 pub fn gutter_width(total_lines: u64) -> f32 {
     let digits = digit_count(total_lines.max(1));
-    PAD + (digits as f32) * CHAR_W + GUTTER_GAP
+    PAD + (digits as f32) * CHAR_W() + GUTTER_GAP
 }
 
 /// X pixel where the text column starts (right edge of the gutter). Retained
@@ -97,23 +112,23 @@ pub fn text_left_in(region: Region, total_lines: u64) -> f32 {
 /// X pixel for `col` (0-based) within the text area (no offset; tests).
 #[allow(dead_code)]
 pub fn text_x(total_lines: u64, col: i32) -> f32 {
-    text_left(total_lines) + (col.max(0) as f32) * CHAR_W
+    text_left(total_lines) + (col.max(0) as f32) * CHAR_W()
 }
 
 /// Region-aware column x: shifted right past the sidebar.
 pub fn text_x_in(region: Region, total_lines: u64, col: i32) -> f32 {
-    text_left_in(region, total_lines) + (col.max(0) as f32) * CHAR_W
+    text_left_in(region, total_lines) + (col.max(0) as f32) * CHAR_W()
 }
 
 /// Y pixel (top) for a screen row index `row` (0-based, relative to the first
 /// visible line).
 pub fn row_y(row: i32) -> f32 {
-    PAD + (row.max(0) as f32) * LINE_H
+    PAD + (row.max(0) as f32) * LINE_H()
 }
 
 /// Region-aware row y: shifted down below the tab bar.
 pub fn row_y_in(region: Region, row: i32) -> f32 {
-    region.top + PAD + (row.max(0) as f32) * LINE_H
+    region.top + PAD + (row.max(0) as f32) * LINE_H()
 }
 
 /// How many whole text rows fit in a window `height` px tall (no offset; the
@@ -124,14 +139,14 @@ pub fn visible_rows(height: u32) -> u32 {
         return 1;
     }
     let usable = height as f32 - PAD;
-    ((usable / LINE_H).floor() as u32).max(1)
+    ((usable / LINE_H()).floor() as u32).max(1)
 }
 
 /// Region-aware visible-row count: the usable height is reduced by the tab bar
 /// at the top and two bands at the bottom (prompt + status), plus the terminal
 /// panel when it is open.
 pub fn visible_rows_in(region: Region, height: u32, term_open: bool) -> u32 {
-    let reserved_bottom = 2.0 * LINE_H; // prompt band + status band
+    let reserved_bottom = 2.0 * LINE_H(); // prompt band + status band
     let term = if term_open {
         term_panel_height(height)
     } else {
@@ -141,7 +156,7 @@ pub fn visible_rows_in(region: Region, height: u32, term_open: bool) -> u32 {
     if usable <= 0.0 {
         return 1;
     }
-    ((usable / LINE_H).floor() as u32).max(1)
+    ((usable / LINE_H()).floor() as u32).max(1)
 }
 
 // ---------------------------------------------------------------------------
@@ -153,14 +168,14 @@ pub fn visible_rows_in(region: Region, height: u32, term_open: bool) -> u32 {
 pub fn term_panel_height(height: u32) -> f32 {
     let h = height as f32;
     let frac = (h * TERM_FRACTION).floor();
-    frac.max(TERM_MIN_H).min((h - 2.0 * LINE_H).max(0.0))
+    frac.max(term_min_h()).min((h - 2.0 * LINE_H()).max(0.0))
 }
 
 /// Top y (px) of the terminal panel: it sits directly above the prompt + status
 /// bands at the very bottom of the window.
 pub fn term_panel_top(height: u32) -> f32 {
     let h = height as f32;
-    let reserved_bottom = 2.0 * LINE_H; // prompt + status bands
+    let reserved_bottom = 2.0 * LINE_H(); // prompt + status bands
     (h - reserved_bottom - term_panel_height(height)).max(0.0)
 }
 
@@ -171,15 +186,18 @@ pub fn term_panel_left(region: Region) -> f32 {
 }
 
 /// Height (px) of the terminal panel's "TERMINAL" header band (above the grid).
-pub const TERM_HEADER_H: f32 = LINE_H;
+#[inline]
+pub fn term_header_h() -> f32 {
+    LINE_H()
+}
 
 /// Number of whole terminal rows that fit in the panel below the header (`>= 1`).
 pub fn term_grid_rows(height: u32) -> usize {
-    let usable = term_panel_height(height) - TERM_HEADER_H - PAD * 0.5;
+    let usable = term_panel_height(height) - term_header_h() - PAD * 0.5;
     if usable <= 0.0 {
         return 1;
     }
-    ((usable / LINE_H).floor() as usize).max(1)
+    ((usable / LINE_H()).floor() as usize).max(1)
 }
 
 /// Number of whole terminal columns that fit in the panel for window width `w`
@@ -189,18 +207,18 @@ pub fn term_grid_cols(width: u32, region: Region) -> usize {
     if usable <= 0.0 {
         return 1;
     }
-    ((usable / CHAR_W).floor() as usize).max(1)
+    ((usable / CHAR_W()).floor() as usize).max(1)
 }
 
 /// X pixel of terminal cell column `col` within the panel.
 pub fn term_cell_x(region: Region, col: usize) -> f32 {
-    region.left + PAD + (col as f32) * CHAR_W
+    region.left + PAD + (col as f32) * CHAR_W()
 }
 
 /// Y pixel (top) of terminal cell row `row` within the panel for window `height`
 /// — below the "TERMINAL" header band.
 pub fn term_cell_y(height: u32, row: usize) -> f32 {
-    term_panel_top(height) + TERM_HEADER_H + (row as f32) * LINE_H
+    term_panel_top(height) + term_header_h() + (row as f32) * LINE_H()
 }
 
 /// Map the tab-bar pixel x to a tab index (`floor((x - RAIL_W) / TAB_W)`).
@@ -223,13 +241,13 @@ pub fn tree_rows_top() -> f32 {
 }
 
 /// Map a sidebar pixel y to a tree row index. Rows start at [`tree_rows_top`]
-/// and advance by LINE_H. Returns the row index (caller bounds-checks).
+/// and advance by LINE_H(). Returns the row index (caller bounds-checks).
 pub fn tree_row_at(y: f32) -> u32 {
     let top = tree_rows_top();
     if y <= top {
         0
     } else {
-        ((y - top) / LINE_H).floor() as u32
+        ((y - top) / LINE_H()).floor() as u32
     }
 }
 
@@ -238,7 +256,7 @@ pub fn tree_row_at(y: f32) -> u32 {
 /// inverse and for tests.
 #[allow(dead_code)]
 pub fn tree_row_y(i: i32) -> f32 {
-    tree_rows_top() + (i.max(0) as f32) * LINE_H
+    tree_rows_top() + (i.max(0) as f32) * LINE_H()
 }
 
 /// Map a pixel `(x, y)` to a logical `(line, col)`.
@@ -267,7 +285,7 @@ pub fn pixel_to_cell_in(
     let row = if y <= row_top {
         0
     } else {
-        ((y - row_top) / LINE_H).floor() as u64
+        ((y - row_top) / LINE_H()).floor() as u64
     };
     let line = first_line + row;
 
@@ -275,7 +293,7 @@ pub fn pixel_to_cell_in(
     let col = if x <= left {
         0
     } else {
-        ((x - left) / CHAR_W).floor().max(0.0) as u64
+        ((x - left) / CHAR_W()).floor().max(0.0) as u64
     };
     (line, col)
 }
@@ -301,25 +319,25 @@ mod tests {
         let g3 = gutter_width(100); // 3 digits
         assert!(g2 > g1);
         assert!(g3 > g2);
-        // 1 digit: PAD + 1*CHAR_W + GUTTER_GAP = 8 + 9 + 8 = 25
-        assert_eq!(g1, PAD + CHAR_W + GUTTER_GAP);
+        // 1 digit: PAD + 1*CHAR_W() + GUTTER_GAP = 8 + 9 + 8 = 25
+        assert_eq!(g1, PAD + CHAR_W() + GUTTER_GAP);
         // 3 digits: 8 + 3*9 + 8 = 43
-        assert_eq!(g3, PAD + 3.0 * CHAR_W + GUTTER_GAP);
+        assert_eq!(g3, PAD + 3.0 * CHAR_W() + GUTTER_GAP);
     }
 
     #[test]
     fn text_x_offsets_past_gutter() {
         let left = text_left(100);
         assert_eq!(text_x(100, 0), left);
-        assert_eq!(text_x(100, 3), left + 3.0 * CHAR_W);
+        assert_eq!(text_x(100, 3), left + 3.0 * CHAR_W());
         // Negative col clamps to 0.
         assert_eq!(text_x(100, -5), left);
     }
 
     #[test]
     fn visible_rows_math() {
-        // (600 - PAD) / LINE_H, floored, at least 1.
-        let expected = (((600.0 - PAD) / LINE_H).floor() as u32).max(1);
+        // (600 - PAD) / LINE_H(), floored, at least 1.
+        let expected = (((600.0 - PAD) / LINE_H()).floor() as u32).max(1);
         assert_eq!(visible_rows(600), expected);
         // Tiny window still yields at least one row.
         assert_eq!(visible_rows(1), 1);
@@ -339,7 +357,7 @@ mod tests {
         assert_eq!(l, 13);
 
         // Click near the center of column 5 maps back to col 5.
-        let x = text_x(total, 5) + CHAR_W * 0.5;
+        let x = text_x(total, 5) + CHAR_W() * 0.5;
         let (_, c) = pixel_to_cell(x, PAD, 0, total);
         assert_eq!(c, 5);
 
@@ -356,7 +374,7 @@ mod tests {
 
         // row_y_in is shifted down by the tab bar + breadcrumb; text_x_in right.
         assert_eq!(row_y_in(r, 0), TAB_BAR_H + BREADCRUMB_H + PAD);
-        assert_eq!(row_y_in(r, 2), TAB_BAR_H + BREADCRUMB_H + PAD + 2.0 * LINE_H);
+        assert_eq!(row_y_in(r, 2), TAB_BAR_H + BREADCRUMB_H + PAD + 2.0 * LINE_H());
         assert!(text_x_in(r, 100, 0) > text_x(100, 0));
         assert_eq!(text_x_in(r, 100, 0), RAIL_W + SIDEBAR_W + text_left(100));
 
@@ -377,7 +395,7 @@ mod tests {
         let (l3, _) = pixel_to_cell_in(r, text_left_in(r, total), row_y_in(r, 3) + 2.0, 0, total);
         assert_eq!(l3, 3);
         // Click at column 5.
-        let x = text_x_in(r, total, 5) + CHAR_W * 0.5;
+        let x = text_x_in(r, total, 5) + CHAR_W() * 0.5;
         let (_, c5) = pixel_to_cell_in(r, x, row_y_in(r, 0) + 1.0, 0, total);
         assert_eq!(c5, 5);
     }
@@ -397,11 +415,11 @@ mod tests {
         assert_eq!(tree_row_at(top - 1.0), 0);
         // First row just below the header.
         assert_eq!(tree_row_at(top + 1.0), 0);
-        assert_eq!(tree_row_at(top + LINE_H + 1.0), 1);
-        assert_eq!(tree_row_at(top + 3.0 * LINE_H + 1.0), 3);
+        assert_eq!(tree_row_at(top + LINE_H() + 1.0), 1);
+        assert_eq!(tree_row_at(top + 3.0 * LINE_H() + 1.0), 3);
         // tree_row_y inverts.
         assert_eq!(tree_row_y(0), top);
-        assert_eq!(tree_row_y(3), top + 3.0 * LINE_H);
+        assert_eq!(tree_row_y(3), top + 3.0 * LINE_H());
     }
 
     #[test]
@@ -426,12 +444,12 @@ mod tests {
 
     #[test]
     fn terminal_panel_geometry() {
-        // Lower third of a 600px window, clamped to >= TERM_MIN_H.
+        // Lower third of a 600px window, clamped to >= term_min_h().
         let h = term_panel_height(600);
-        assert!(h >= TERM_MIN_H);
+        assert!(h >= term_min_h());
         // The panel top + its height + the two bottom bands stay within height.
         let top = term_panel_top(600);
-        assert!(top + h + 2.0 * LINE_H <= 600.0 + 0.5);
+        assert!(top + h + 2.0 * LINE_H() <= 600.0 + 0.5);
         // Grid dimensions are positive.
         assert!(term_grid_rows(600) >= 1);
         let r = region(true);

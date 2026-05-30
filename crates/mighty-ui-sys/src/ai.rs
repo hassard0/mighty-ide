@@ -652,7 +652,7 @@ impl AiPanel {
         let input_pad = 10.0;
         let input_lines = wrap(&self.input, ((pw - 56.0) / (chrome * 0.55)) as usize);
         let n_in = input_lines.len().max(1) as f32;
-        let input_h = (n_in * layout::LINE_H).min(120.0) + 16.0;
+        let input_h = (n_in * layout::LINE_H()).min(120.0) + 16.0;
         let input_y = h - input_h - input_pad;
         let body_top = head_h + 6.0;
         let body_bottom = input_y - 8.0;
@@ -725,7 +725,7 @@ impl AiPanel {
             for (i, line) in input_lines.iter().enumerate() {
                 ctx.text.queue_sized(
                     px + 20.0,
-                    input_y + 9.0 + i as f32 * layout::LINE_H,
+                    input_y + 9.0 + i as f32 * layout::LINE_H(),
                     line,
                     theme::TEXT(),
                     chrome,
@@ -790,7 +790,7 @@ impl AiPanel {
         let chrome = theme::CHROME_FONT_SIZE;
         let row_h = 18.0_f32;
         let prose_cols = ((pw - 48.0) / (chrome * 0.55)) as usize;
-        let code_cols = ((pw - 56.0) / (theme::CHAR_W)) as usize;
+        let code_cols = ((pw - 56.0) / (theme::CHAR_W())) as usize;
 
         if self.transcript.is_empty() {
             ctx.text.queue_ui_sized(
