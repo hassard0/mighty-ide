@@ -150,6 +150,10 @@ extern c {
   fn mui_tab_bar_draw(handle: I64)
   fn mui_window_controls_draw(handle: I64)
   fn mui_topbar_action_at_click(handle: I64) -> I32
+  fn mui_explorer_header_at_click(handle: I64) -> I32
+  fn mui_tab_new_untitled(handle: I64) -> I32
+  fn mui_tree_collapse_all(handle: I64)
+  fn mui_newfolder_create(handle: I64) -> I32
   fn mui_rail_draw(handle: I64)
   fn mui_breadcrumb_draw(handle: I64)
   // file-tree sidebar
@@ -685,6 +689,7 @@ fn prompt_ai() -> I32 { 4 }
 fn prompt_open_folder() -> I32 { 5 }
 // New Project: the query is the project NAME (mui_newproj_create on Enter).
 fn prompt_new_project() -> I32 { 6 }
+fn prompt_new_folder() -> I32 { 7 }
 
 // activity-rail panel ids (mirror PANEL_* in lib.rs)
 fn panel_explorer() -> I32 { 0 }
@@ -1895,6 +1900,21 @@ fn main() {
               find_nav = false
               mui_prompt_cancel(h)
               prompt_kind = 0
+            } else if prompt_kind == prompt_new_folder() {
+              // New Folder: stage the typed name into the shared byte buffer, then
+              // create the directory under the workspace root + refresh the tree.
+              mui_path_clear(h)
+              let dlen = mui_prompt_len(h)
+              let mut di: I32 = 0
+              while di < dlen {
+                let dc = mui_prompt_char(h, di)
+                if dc >= 0 { mui_path_push(h, dc) }
+                di = di + 1
+              }
+              let _nf = mui_newfolder_create(h)
+              find_nav = false
+              mui_prompt_cancel(h)
+              prompt_kind = 0
             } else if prompt_kind == prompt_ai() {
               // Inline ask: copy the typed instruction into the AI input, then
               // send it (with the active file + selection as context). The answer
@@ -2532,6 +2552,10 @@ fn main() {
         let welcome_act = welcome_click_action(h, welcome_owns)
         // Top-right title-bar action icons (run ▶ / more-actions ⋯). 0 = none.
         let topbar_act = mui_topbar_action_at_click(h)
+        // Explorer header buttons (new file / new folder / collapse). 0 = none.
+        // Only meaningful when the Explorer panel is the active sidebar panel.
+        let mut explorer_hit: I32 = 0
+        if cur_panel == panel_explorer() { explorer_hit = mui_explorer_header_at_click(h) }
         if diff_on == 1 && diff_hunk >= 0 {
           // Inline-diff hunk header clicked: stage (working-tree) / unstage
           // (staged) that hunk. The shim picks the verb by the diff's side and
@@ -2614,6 +2638,21 @@ fn main() {
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
           }
+        } else if explorer_hit == 1 {
+          // Explorer header: New File -> a fresh untitled tab, focused for typing.
+          let ni = mui_tab_new_untitled(h)
+          let _b = mui_ed_tab_switch(h, ni)
+          mui_ed_undo_reset(h)
+          find_nav = false
+        } else if explorer_hit == 2 {
+          // Explorer header: New Folder -> prompt for the name (created under the
+          // workspace root, then the tree refreshes).
+          mui_prompt_open(h, prompt_new_folder())
+          prompt_kind = prompt_new_folder()
+          find_nav = false
+        } else if explorer_hit == 3 {
+          // Explorer header: Collapse all expanded folders in the tree.
+          mui_tree_collapse_all(h)
         } else if rail_hit == rail_agents() {
           // Agents (sparkles) icon: toggle the AI copilot panel + focus it.
           let opened = mui_ai_open(h)

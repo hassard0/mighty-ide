@@ -257,101 +257,83 @@ Capture $hwnd "01-initial"
 $resp0 = Is-Responsive $hwnd
 Log "responsive at startup: $resp0"
 
-# FRESH-LAUNCH TYPING TEST (no prior clicks/state - the real first-run scenario):
-# type immediately; the Welcome landing should dismiss and the text should appear.
-Type-Text $hwnd "fnmain"
-Start-Sleep -Milliseconds 300
-Capture $hwnd "01b-fresh-typing"
-Log "fresh-launch typing captured"
+# Derive the exact logical<->physical scale from the IDE's STARTUP_GEOM trace line,
+# so clicks hit LOGICAL targets precisely on any-DPI monitor (no more guessing).
+$scale = 1.0
+$tf = $env:MUI_TRACE
+if ($tf -and (Test-Path $tf)) {
+  $gl = Select-String -Path $tf -Pattern 'STARTUP_GEOM.*scale=([0-9.]+)' | Select-Object -First 1
+  if ($gl) { $scale = [double]$gl.Matches[0].Groups[1].Value }
+}
+Log "ui scale = $scale"
+function ClickL($lx, $ly) { Click $hwnd ([int][math]::Round($lx * $scale)) ([int][math]::Round($ly * $scale)) }
 
-# --- DIAGNOSTICS for the reported issues ---
-# Autocomplete: type an identifier prefix; a completion popup should appear.
-Type-Text $hwnd " pr"
-Start-Sleep -Milliseconds 600
-Capture $hwnd "d1-autocomplete-probe"
-Press-VK $hwnd 0x1B
-Start-Sleep -Milliseconds 150
-# Right-docked AI panel: open it (Agents rail icon ~ logical y239) and check whether
-# the top-right window controls (min/max/close) remain visible.
-Click $hwnd 64 335
+# Logical layout constants (mirror layout.rs): rail x=26; tree rows under the 40px
+# header; explorer header buttons at sidebar-right (300) -72/-50/-28, y=20.
+$treeX = 110
+
+# === FILE OPEN: click RUN.txt in the tree; the editor must show its contents. ===
+ClickL $treeX 188
 Start-Sleep -Milliseconds 500
-Capture $hwnd "d2-ai-panel-topright"
-Press-VK $hwnd 0x1B
-# Let the frame-time heartbeat accumulate a couple of windows for the lag read.
-Start-Sleep -Milliseconds 2200
-Log "diagnostics captured"
+Capture $hwnd "10-open-file"
+Log "file-open (tree RUN.txt) captured"
 
-# Activity rail: icons are centered ~x=64, first icon ~y=143, then ~74px steps
-# (calibrated from 01-initial). slot1=Explorer 2=Search 3=SCM 4=Run 5=AI 6=Outline
-# 7=Debug 8=Test.
-$railX = 64
-$icons = @(
-  @{ n='explorer'; y=143 },
-  @{ n='search';   y=217 },
-  @{ n='scm';      y=289 },
-  @{ n='run';      y=363 },
-  @{ n='ai';       y=437 },
-  @{ n='outline';  y=511 },
-  @{ n='debug';    y=585 }
+# === TOP-LEFT EXPLORER HEADER BUTTONS ===
+ClickL 228 20            # New File -> fresh untitled tab
+Start-Sleep -Milliseconds 350
+Capture $hwnd "11-new-file"
+Log "new-file button captured"
+ClickL 272 20            # Collapse all folders
+Start-Sleep -Milliseconds 300
+Capture $hwnd "12-collapse"
+ClickL 250 20            # New Folder -> name prompt opens
+Start-Sleep -Milliseconds 300
+Capture $hwnd "13-newfolder-prompt"
+Press-VK $hwnd 0x1B      # cancel the prompt
+Start-Sleep -Milliseconds 150
+
+# === RAIL NAVIGATION (logical x=26; slot center = 52 + slot*42 + 19) ===
+$rail = @(
+  @{ n='search';  y=113 },
+  @{ n='scm';     y=155 },
+  @{ n='outline'; y=281 },
+  @{ n='debug';   y=323 },
+  @{ n='test';    y=365 }
 )
 $slot = 0
-foreach ($ic in $icons) {
+foreach ($ic in $rail) {
   $slot++
-  Click $hwnd $railX $ic.y
-  Start-Sleep -Milliseconds 400
+  ClickL 26 $ic.y
+  Start-Sleep -Milliseconds 350
   $resp = Is-Responsive $hwnd
-  Capture $hwnd ("02-rail-{0}-{1}" -f $slot, $ic.n)
-  Log ("after rail click '{0}' (y={1}) : responsive={2}" -f $ic.n, $ic.y, $resp)
-  if (-not $resp) { Log "!!! LOCKUP DETECTED after rail click '$($ic.n)' - window stopped responding"; break }
+  Capture $hwnd ("20-rail-{0}-{1}" -f $slot, $ic.n)
+  Log ("rail '{0}' (ly={1}) responsive={2}" -f $ic.n, $ic.y, $resp)
+  if (-not $resp) { Log "!!! LOCKUP after rail '$($ic.n)'" }
 }
+ClickL 26 71             # back to Explorer
+Start-Sleep -Milliseconds 300
 
-# --- LOCKUP HYPOTHESIS: title-bar drag strip -> winit drag_window() enters an OS
-# modal move-loop when fired from a click. Click the rail header (top-left, y=15)
-# and the caption strip (top-right empty area) and check responsiveness. ---
-$resp = Is-Responsive $hwnd
-if ($resp) {
-  Click $hwnd 64 15
-  Start-Sleep -Milliseconds 500
-  $respDrag1 = Is-Responsive $hwnd
-  Capture $hwnd "04-after-railheader-click"
-  Log "after rail-header (drag region) click: responsive=$respDrag1"
-  if (-not $respDrag1) { Log "!!! LOCKUP after rail-header click (drag_window modal loop)" }
-}
-$resp = Is-Responsive $hwnd
-if ($resp) {
-  Click $hwnd 1000 25
-  Start-Sleep -Milliseconds 500
-  $respDrag2 = Is-Responsive $hwnd
-  Capture $hwnd "05-after-caption-click"
-  Log "after caption-strip click: responsive=$respDrag2"
-  if (-not $respDrag2) { Log "!!! LOCKUP after caption-strip click (drag_window modal loop)" }
-}
+# === AUTOCOMPLETE: open a real file, click into the editor, type an identifier ===
+ClickL $treeX 188        # RUN.txt
+Start-Sleep -Milliseconds 300
+ClickL 460 130           # editor body (logical), place caret
+Start-Sleep -Milliseconds 150
+Type-Text $hwnd "pr"
+Start-Sleep -Milliseconds 500
+Capture $hwnd "30-autocomplete"
+Press-VK $hwnd 0x1B
+Start-Sleep -Milliseconds 150
 
-# End-to-end typing: open a real file first (the welcome screen blocks editor
-# input), then type. Switch to Explorer (rail slot 0), open scratch.mty from the
-# tree, click into the editor body, and type.
-$resp = Is-Responsive $hwnd
-if ($resp) {
-  # Clear any band focus left over from the rail sweep (Run/Test) so typing is
-  # tested from a clean state, like a real fresh-launch user. Escape unfocuses.
-  Press-VK $hwnd 0x1B; Press-VK $hwnd 0x1B; Press-VK $hwnd 0x1B
-  Start-Sleep -Milliseconds 150
-  Click $hwnd 64 99          # Explorer rail icon (slot 0)
-  Start-Sleep -Milliseconds 300
-  Capture $hwnd "06-explorer"
-  Click $hwnd 250 366        # scratch.mty row in the file tree (opens it, dismisses welcome)
-  Start-Sleep -Milliseconds 400
-  Capture $hwnd "07-file-open"
-  Click $hwnd 720 400        # click into the editor body to focus the buffer
-  Start-Sleep -Milliseconds 200
-  Type-Text $hwnd "fnmain"
-  Start-Sleep -Milliseconds 300
-  Capture $hwnd "08-after-typing"
-  $respT = Is-Responsive $hwnd
-  Log "after typing: responsive=$respT"
-} else {
-  Log "skipping type test - window already unresponsive"
-}
+# === TYPING into a fresh untitled buffer ===
+ClickL 228 20            # New File
+Start-Sleep -Milliseconds 250
+ClickL 460 130           # editor body
+Start-Sleep -Milliseconds 100
+Type-Text $hwnd "fn main"
+Start-Sleep -Milliseconds 300
+Capture $hwnd "31-typing"
+$respT = Is-Responsive $hwnd
+Log "after typing: responsive=$respT"
 
 $respF = Is-Responsive $hwnd
 Log "final responsive: $respF"

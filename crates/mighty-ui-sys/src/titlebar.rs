@@ -18,8 +18,12 @@ pub fn bar_h() -> f32 {
 
 /// Width (px) of one window-control button (min / max / close).
 pub const BTN_W: f32 = 46.0;
-/// Thickness (px) of the invisible resize-grab band along each window edge.
-pub const EDGE: f32 = 6.0;
+/// Thickness (px) of the resize-grab band along each window edge. Widened from a
+/// too-thin 6px so the borderless window is actually easy to grab-resize.
+pub const EDGE: f32 = 9.0;
+/// Corners get a larger square grab zone (diagonal resize is the common case and
+/// the hardest to hit), so a corner wins within this distance of two edges.
+pub const CORNER: f32 = 18.0;
 
 /// A title-bar hit result (what a press at a point landed on).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -77,21 +81,41 @@ pub fn hit(x: f32, y: f32, win_w: f32, body_left: f32) -> Option<TitleHit> {
 /// [`crate::window::ResizeDir::from_code`]), or `0` when not on an edge. The grab
 /// band is [`EDGE`] px thick; corners (within `EDGE` of two edges) win.
 pub fn resize_code(x: f32, y: f32, win_w: f32, win_h: f32) -> i32 {
+    // Corners first, with a larger grab square (diagonal resize is hardest to hit).
+    let cw = x <= CORNER;
+    let ce = x >= win_w - CORNER;
+    let cn = y <= CORNER;
+    let cs = y >= win_h - CORNER;
+    if cn && cw {
+        return 5; // NorthWest
+    }
+    if cn && ce {
+        return 6; // NorthEast
+    }
+    if cs && cw {
+        return 7; // SouthWest
+    }
+    if cs && ce {
+        return 8; // SouthEast
+    }
+    // Edges (thinner band).
     let on_w = x <= EDGE;
     let on_e = x >= win_w - EDGE;
     let on_n = y <= EDGE;
     let on_s = y >= win_h - EDGE;
-    match (on_n, on_s, on_w, on_e) {
-        (true, _, true, _) => 5,  // NorthWest
-        (true, _, _, true) => 6,  // NorthEast
-        (_, true, true, _) => 7,  // SouthWest
-        (_, true, _, true) => 8,  // SouthEast
-        (true, _, _, _) => 3,     // North
-        (_, true, _, _) => 4,     // South
-        (_, _, true, _) => 1,     // West
-        (_, _, _, true) => 2,     // East
-        _ => 0,
+    if on_n {
+        return 3; // North
     }
+    if on_s {
+        return 4; // South
+    }
+    if on_w {
+        return 1; // West
+    }
+    if on_e {
+        return 2; // East
+    }
+    0
 }
 
 #[cfg(test)]

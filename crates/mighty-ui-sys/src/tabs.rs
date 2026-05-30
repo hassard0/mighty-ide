@@ -124,6 +124,14 @@ impl TabStore {
         self.active
     }
 
+    /// Open a fresh, empty, untitled tab and make it active (the New File action).
+    /// Returns the new tab's index.
+    pub fn new_untitled(&mut self) -> usize {
+        self.tabs.push(Tab::default());
+        self.active = self.tabs.len() - 1;
+        self.active
+    }
+
     /// Tab `i`'s editable model (shared ref), or `None` out of range. Used by
     /// the split-pane draw to render an UNFOCUSED pane's tab (the focused pane's
     /// tab is the active one, read via [`Self::active_model`]).

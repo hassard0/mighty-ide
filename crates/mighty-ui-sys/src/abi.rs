@@ -1404,6 +1404,17 @@ pub extern "C" fn mui_end_frame_s(handle: i64) {
     use std::time::Instant;
     static LAST: Mutex<Option<Instant>> = Mutex::new(None);
     let n = FRAME_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+    if n == 1 {
+        // One-time geometry line so the (external) test harness can compute the
+        // exact logical<->physical scale and click logical targets precisely.
+        if let Some(c) = unsafe { ctx(handle) } {
+            trace(&format!(
+                "STARTUP_GEOM logical_w={} logical_h={} phys_w={} phys_h={} scale={:.4}",
+                c.gpu.width, c.gpu.height, c.gpu.phys_width, c.gpu.phys_height,
+                crate::uiscale::ui_scale()
+            ));
+        }
+    }
     if n % 60 == 0 {
         let now = Instant::now();
         if let Ok(mut g) = LAST.lock() {
@@ -1867,7 +1878,30 @@ fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
         MUI_EVENT_MOUSE_DOWN if ev.button == MUI_MOUSE_LEFT => {
             let w = ctx.gpu.width as f32;
             let h = ctx.gpu.height as f32;
-            // Resize edge first (a corner press near the bar must resize, not drag).
+            let body_left = titlebar_body_left(ctx);
+            // PRIORITY: interactive title-bar BUTTONS (min/max/close) win over the
+            // resize edges — otherwise the enlarged top-right corner-resize zone
+            // swallows the close button. Resize edges then win over the drag strip
+            // (so you can grab the top edge to resize); drag is last.
+            let hit = crate::titlebar::hit(ev.x, ev.y, w, body_left);
+            match hit {
+                Some(crate::titlebar::TitleHit::Minimize) => {
+                    if let Some(host) = ctx.host.as_ref() {
+                        host.minimize();
+                    }
+                    return ShimAction::Consume;
+                }
+                Some(crate::titlebar::TitleHit::Maximize) => {
+                    let now = ctx.host.as_ref().is_some_and(|h| h.toggle_maximize());
+                    ctx.window_maximized = now;
+                    return ShimAction::Consume;
+                }
+                Some(crate::titlebar::TitleHit::Close) => {
+                    return ShimAction::Replace(MuiEvent::close());
+                }
+                _ => {}
+            }
+            // Resize edges/corners next.
             let rc = crate::titlebar::resize_code(ev.x, ev.y, w, h);
             if rc > 0 {
                 if let (Some(dir), Some(host)) =
@@ -1877,33 +1911,14 @@ fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
                 }
                 return ShimAction::Consume;
             }
-            let body_left = titlebar_body_left(ctx);
-            match crate::titlebar::hit(ev.x, ev.y, w, body_left) {
-                Some(crate::titlebar::TitleHit::Minimize) => {
-                    if let Some(host) = ctx.host.as_ref() {
-                        host.minimize();
-                    }
-                    ShimAction::Consume
+            // Drag strip last (caption row / rail header, not over a tab).
+            if hit == Some(crate::titlebar::TitleHit::Drag) {
+                if let Some(host) = ctx.host.as_ref() {
+                    host.drag();
                 }
-                Some(crate::titlebar::TitleHit::Maximize) => {
-                    let now = ctx.host.as_ref().is_some_and(|h| h.toggle_maximize());
-                    ctx.window_maximized = now;
-                    ShimAction::Consume
-                }
-                Some(crate::titlebar::TitleHit::Close) => {
-                    // Hand the IDE a real CLOSE so its existing exit path runs.
-                    ShimAction::Replace(MuiEvent::close())
-                }
-                Some(crate::titlebar::TitleHit::Drag) => {
-                    // Caption strip / rail header (and NOT over a tab — `hit`
-                    // already excludes the tab region via `body_left`): OS drag.
-                    if let Some(host) = ctx.host.as_ref() {
-                        host.drag();
-                    }
-                    ShimAction::Consume
-                }
-                None => ShimAction::PassThrough,
+                return ShimAction::Consume;
             }
+            ShimAction::PassThrough
         }
         // --- Ctrl+wheel zooms the whole UI; a plain wheel passes through to the
         // IDE as a normal scroll. ---
@@ -3358,6 +3373,13 @@ pub extern "C" fn mui_window_controls_draw(handle: i64) {
     };
     use crate::icons;
     let w = ctx.gpu.width as f32;
+    let wh = ctx.gpu.height as f32;
+    // Subtle 1px window frame: gives the borderless window a visible edge so the
+    // resize-grab band is discoverable (was invisible -> "guessing where to drag").
+    ctx.dl_rect(0.0, 0.0, w, 1.0, theme::BORDER());
+    ctx.dl_rect(0.0, wh - 1.0, w, 1.0, theme::BORDER());
+    ctx.dl_rect(0.0, 0.0, 1.0, wh, theme::BORDER());
+    ctx.dl_rect(w - 1.0, 0.0, 1.0, wh, theme::BORDER());
     let bar_h = layout::TAB_BAR_H;
     let btn_w = crate::titlebar::BTN_W;
     let controls_x = crate::titlebar::controls_x(w);
@@ -3416,6 +3438,83 @@ pub extern "C" fn mui_topbar_action_at_click(handle: i64) -> i32 {
         return 2;
     }
     0
+}
+
+/// Hit-test the Explorer header action icons (new file / new folder / collapse),
+/// drawn in `mui_sidebar_draw` as three 15px icons at sx+sw-72/-50/-28 in the 40px
+/// header band. Returns 1 = new file, 2 = new folder, 3 = collapse all, else 0.
+/// (Only meaningful while the Explorer panel + sidebar are visible.)
+#[no_mangle]
+pub extern "C" fn mui_explorer_header_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.sidebar_visible {
+        return 0;
+    }
+    let x = ctx.last_event.x;
+    let y = ctx.last_event.y;
+    if y < 0.0 || y >= 40.0 {
+        return 0;
+    }
+    let right = layout::RAIL_W + layout::SIDEBAR_W;
+    // Each icon is 15px wide; give a forgiving ~20px hit slot centered on it.
+    let nf = right - 72.0;
+    let nfo = right - 50.0;
+    let col = right - 28.0;
+    if x >= nf - 3.0 && x < nf + 18.0 {
+        return 1;
+    }
+    if x >= nfo - 3.0 && x < nfo + 18.0 {
+        return 2;
+    }
+    if x >= col - 3.0 && x < col + 18.0 {
+        return 3;
+    }
+    0
+}
+
+/// New File: open a fresh untitled tab and make it active. Returns its index.
+#[no_mangle]
+pub extern "C" fn mui_tab_new_untitled(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let idx = ctx.tabs.new_untitled();
+    sync_active_path(ctx);
+    idx as i32
+}
+
+/// Collapse every expanded folder in the file tree (Explorer "collapse all").
+#[no_mangle]
+pub extern "C" fn mui_tree_collapse_all(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.tree.collapse_all();
+    }
+}
+
+/// Create a new folder from the staged path bytes (the New Folder prompt query),
+/// resolved under the workspace root. Refreshes the tree. Returns 1 on success.
+#[no_mangle]
+pub extern "C" fn mui_newfolder_create(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let raw = String::from_utf8_lossy(&ctx.path_stage).into_owned();
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return 0;
+    }
+    let base = crate::wsabi::effective_root(ctx);
+    let cand = std::path::Path::new(raw);
+    let target = if cand.is_absolute() { cand.to_path_buf() } else { base.join(cand) };
+    match std::fs::create_dir_all(&target) {
+        Ok(_) => {
+            ctx.tree.refresh();
+            1
+        }
+        Err(_) => 0,
+    }
 }
 
 /// Pick a vector file icon + color for a basename. Active tabs / `.mty` use the

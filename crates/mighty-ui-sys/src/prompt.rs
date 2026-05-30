@@ -28,6 +28,9 @@ pub enum PromptKind {
     /// New Project: the query is a project NAME; on Enter the IDE runs
     /// `mty new <name>` and opens the result as the workspace.
     NewProject = 6,
+    /// New Folder: the query is a (relative) folder name created under the
+    /// workspace root; on Enter the IDE `mkdir`s it and refreshes the tree.
+    NewFolder = 7,
 }
 
 impl PromptKind {
@@ -39,6 +42,7 @@ impl PromptKind {
             4 => Some(PromptKind::Ai),
             5 => Some(PromptKind::OpenFolder),
             6 => Some(PromptKind::NewProject),
+            7 => Some(PromptKind::NewFolder),
             _ => None,
         }
     }
@@ -52,6 +56,7 @@ impl PromptKind {
             PromptKind::Ai => "Ask AI: ",
             PromptKind::OpenFolder => "Open Folder: ",
             PromptKind::NewProject => "New project name: ",
+            PromptKind::NewFolder => "New folder name: ",
         }
     }
 }

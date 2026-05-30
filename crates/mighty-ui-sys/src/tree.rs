@@ -80,6 +80,12 @@ impl FileTree {
 
     /// Toggle expand/collapse of the directory at row `i`. No-op for files or
     /// out-of-range rows. Returns true if it toggled a directory.
+    /// Collapse every expanded directory (the "collapse all" header action).
+    pub fn collapse_all(&mut self) {
+        self.expanded.clear();
+        self.rebuild();
+    }
+
     pub fn toggle(&mut self, i: usize) -> bool {
         let Some(row) = self.rows.get(i) else {
             return false;
