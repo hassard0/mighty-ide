@@ -845,6 +845,50 @@ Two quality wins landed together with zero new Mighty-source friction:
   pass (was 604; +14 savefmt + settings). Screenshot `screenshots/47-typography.png`
   (`MUI_TYPO_AUTOOPEN` seeds a comment-rich buffer) at 1320x860.
 
+### L45. Explicit workspace (Open Folder) + a debounced quick-fix lightbulb are pure-shim — no new Mighty draw/ladder arm, L37/L38 ceiling untouched ✅ **[finding, not a new limitation]**
+Two features landed with zero new Mighty-source friction:
+
+- **Explicit workspace.** The "workspace root" became a settable shim concept
+  (`crate::workspace::Workspace { root, name }` + `RecentWorkspaces` MRU, cap 10,
+  persisted to a `recent-workspaces` file in the config dir). The single source of
+  truth is `wsabi::effective_root` (explicit root, else the tree root); the file
+  tree, Quick-Open index (`quickopen_root`), Search/git (`panels::workspace_dir`),
+  and Agents discovery all read through it, and `mui_ws_open` re-roots the tree +
+  rebuilds the index + re-runs git status + re-scans Agents + records the recent in
+  one call. The **native folder picker is a PowerShell `FolderBrowserDialog`** shelled
+  out of the shim (`-STA -Command`), reading the chosen path off stdout; when it's
+  cancelled/unavailable the IDE falls back to a typed-path prompt (new
+  `PromptKind::OpenFolder`). Re-rooting reuses the SAME byte-staging buffer
+  (`mui_path_push`/`_clear`) the Open-File prompt uses — no new staging ABI. New ABI:
+  `mui_ws_root_*`/`_name_*`/`_open`/`_open_dialog`/`_open_recent`/`_recent_*`/`_dispatch`
+  + `mui_welcome_open_folder`. Welcome gained "RECENT FOLDERS" + "RECENT FILES"
+  columns + an "Open Folder…" quick action.
+
+- **Quick-fix lightbulb.** A debounced gutter bulb: `crate::lightbulb::Lightbulb`
+  owns the bookkeeping (which line was probed, idle-frame counter, last-drawn rect)
+  so the LSP isn't hit every frame — it only re-probes after the cursor SETTLES on a
+  new line for `IDLE_FRAMES`. The "has actions" probe REUSES the code-action request
+  path: `mui_codeaction_request` was refactored to a shared `compute_line_actions`
+  core that the read-only `mui_lightbulb_tick` calls without opening the menu. One
+  behavior tightening fell out: "Fix all (mty)" is now only offered when the LSP
+  returned at least one action, so the bulb (and the Ctrl+. menu) light only on
+  genuinely-fixable lines rather than every line. Clicking the bulb hit-tests its
+  drawn rect up-front in the existing mouse-down ladder, then runs the SAME
+  code-action path as Ctrl+.. New ABI: `mui_lightbulb_tick`/`_visible`/`_line`/
+  `_reset`/`_draw`/`_click` + a `LIGHTBULB` bulb icon.
+
+- **L37/L38 ceiling discipline held.** Ctrl+Shift+O (Open Folder) routes through the
+  existing `mui_chord` router (the `is_router_chord` predicate widened); the two new
+  palette commands ("File: Open Folder/Open Recent") route through a single new
+  `mui_ws_dispatch` arm-range (mirroring the git/pane dispatchers); the lightbulb
+  click + the recent-folder Welcome click fold into the existing mouse-down ladder;
+  the per-frame `mui_lightbulb_tick` is one call beside the other frame ticks. The
+  editor key ladder gained NO new top-level arm. Tests: 637 pass (was 618; +19
+  workspace/lightbulb/welcome). Screenshots `screenshots/48-openfolder.png`
+  (`MUI_WELCOME_AUTOOPEN` seeds recent folders + a STARDUST workspace name in the
+  explorer header) and `49-lightbulb.png` (`MUI_LIGHTBULB_AUTOOPEN` pins the bulb on
+  the type-error line of `examples/with_error.mty`) at 1320x860.
+
 ## Open questions to resolve as the IDE progresses
 - Exact `extern c` signature support: pointers (`*U8`), out-params (`&out T`), passing a
   `Vec`/slice as `(ptr, len)`, returning `#[repr(C)]` structs by value vs. out-param?

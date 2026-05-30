@@ -8,6 +8,21 @@ logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
 
 ## Unreleased
 
+### Workspace / Open Folder
+- The workspace root is now an explicit, settable concept. **File: Open Folder…**
+  (Ctrl+Shift+O, command palette, or the Welcome screen) opens a native Windows
+  folder picker (with a typed-path prompt fallback) and re-roots the file tree,
+  Quick-Open index, project Search, git, and Agents discovery to the chosen folder.
+- **Recent Folders** (MRU, cap 10) persist across restarts; reopen from the Welcome
+  screen's "Recent Folders" column or **File: Open Recent**.
+- The explorer header shows the active workspace name.
+
+### Quick-fix lightbulb
+- A lightbulb appears in the editor gutter when the cursor's line has available
+  code actions; clicking it (or Ctrl+.) opens the code-actions menu at that line.
+  The "has actions" check is debounced (refreshes on cursor-line-change / idle) so
+  the language server isn't spammed.
+
 ### Code-reading visual polish
 - Bracket-pair colorization: matched `()[]{}` are colored by nesting depth with
   a theme-derived rainbow palette; unmatched/extra brackets show an error color.
