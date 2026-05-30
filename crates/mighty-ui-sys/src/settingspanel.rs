@@ -349,11 +349,11 @@ mod tests {
 
     #[test]
     fn adjust_font_size_changes_live_metrics() {
+        let _g = guard();
         // Redirect config to a temp dir so save() is isolated.
         let tmp = std::env::temp_dir().join(format!("mui-setpanel-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::env::set_var("APPDATA", &tmp);
-        let _g = guard();
         let before = crate::layout::CHAR_W();
         let mut p = SettingsPanel::new();
         p.open(); // row 0 = FontSize
@@ -366,10 +366,10 @@ mod tests {
 
     #[test]
     fn adjust_tab_width_propagates() {
+        let _g = guard();
         let tmp = std::env::temp_dir().join(format!("mui-setpanel-tab-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::env::set_var("APPDATA", &tmp);
-        let _g = guard();
         let mut p = SettingsPanel::new();
         p.open();
         p.move_sel(1); // TabWidth
@@ -380,10 +380,10 @@ mod tests {
 
     #[test]
     fn toggle_word_wrap_and_minimap() {
+        let _g = guard();
         let tmp = std::env::temp_dir().join(format!("mui-setpanel-tog-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::env::set_var("APPDATA", &tmp);
-        let _g = guard();
         let mut p = SettingsPanel::new();
         p.open();
         p.move_sel(2); // WordWrap
@@ -399,10 +399,10 @@ mod tests {
 
     #[test]
     fn theme_row_cycles_and_persists() {
+        let _g = guard();
         let tmp = std::env::temp_dir().join(format!("mui-setpanel-theme-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::env::set_var("APPDATA", &tmp);
-        let _g = guard();
         let mut p = SettingsPanel::new();
         p.open();
         p.move_sel(4); // Theme
@@ -416,10 +416,10 @@ mod tests {
 
     #[test]
     fn font_size_clamps_at_bounds() {
+        let _g = guard();
         let tmp = std::env::temp_dir().join(format!("mui-setpanel-clamp-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::env::set_var("APPDATA", &tmp);
-        let _g = guard();
         let mut p = SettingsPanel::new();
         p.open();
         for _ in 0..100 {

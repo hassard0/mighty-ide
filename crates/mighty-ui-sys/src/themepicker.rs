@@ -218,6 +218,9 @@ mod tests {
 
     #[test]
     fn commit_keeps_and_persists() {
+        // Share the crate-wide test lock (settings/theme/config persistence all
+        // mutate global APPDATA) so this can't race other persistence tests.
+        let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // Redirect config to a temp dir so commit's save is isolated.
         let tmp = std::env::temp_dir().join(format!("mighty-ide-pick-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);

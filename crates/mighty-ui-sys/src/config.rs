@@ -153,6 +153,9 @@ mod tests {
 
     #[test]
     fn save_then_load_round_trip() {
+        // Share the crate-wide settings/theme test lock so this serializes with
+        // the theme-picker / settings-panel tests that also mutate global APPDATA.
+        let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // Point the config dir at a temp location for this test.
         let tmp = std::env::temp_dir().join(format!("mighty-ide-cfgtest-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
