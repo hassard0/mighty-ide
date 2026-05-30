@@ -821,7 +821,7 @@ mod tests {
 
     /// Spawn the real `mty lsp`, open a tiny program, and request hover +
     /// definition on a known symbol. SKIPS (passes with a note) if `mty` can't
-    /// spawn so CI without stardust stays green.
+    /// spawn so CI without `mty` stays green.
     #[test]
     fn lsp_hover_and_definition_end_to_end() {
         use std::path::PathBuf;

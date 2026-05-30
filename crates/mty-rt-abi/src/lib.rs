@@ -5,7 +5,7 @@
 //! program calls them). v0.36 ships no runtime archive, so an FFI binary must
 //! supply these or the linker rejects the object.
 //!
-//! This crate mirrors stardust's `crates/mty-runtime/src/{arena,codegen_abi}.rs`
+//! This crate mirrors Mighty's `crates/mty-runtime/src/{arena,codegen_abi}.rs`
 //! with a REAL `bumpalo`-backed arena, replacing the IDE's previous no-op C
 //! stub (`vendor/mty_runtime_stub.c`). The no-op stub's `arena_push`/`_pop`
 //! did nothing and `alloc` was a bare `malloc`; under that stub Mighty's `Vec`

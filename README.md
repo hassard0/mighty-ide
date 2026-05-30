@@ -18,6 +18,7 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - In-file find & replace (Ctrl+H), find with match highlighting (Ctrl+F)
 - **Multi-cursor** — add caret at next occurrence (Ctrl+D), add caret above/below (Ctrl+Alt+↑/↓), toggle caret on Alt+Click
 - **Snippets** — type a prefix + Tab to expand a template with navigable tab-stops
+- **Save conveniences** — opt-in trim-trailing-whitespace, ensure-final-newline, and timed auto-save (Settings)
 
 ### Navigation & Code-reading
 - **Universal Quick-Open (Ctrl+P)** — fuzzy files + MRU, with `>` command, `@` symbol, and `:` line modes in one overlay
@@ -26,12 +27,16 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Peek definition (Alt+F12)** — inline framed definition preview
 - **Sticky scroll** — pinned enclosing scopes
 - **Outline, Problems, and an interactive breadcrumb** code-nav bar
+- **Split editor (Ctrl+\)** — side-by-side panes, focus a pane with Ctrl+1 / Ctrl+2
+- **Bracket-pair colorization + indent guides** — nesting-depth rainbow brackets, faint per-level guides with an active-block highlight
+- **Interactive minimap** — click to jump; tall files compress so the whole file maps across the strip
 - Tabs (Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W, click), file-tree sidebar (Ctrl+B), open-by-path (Ctrl+O)
 - Project-wide Search panel (Ctrl+Shift+F)
 
 ### Language Intelligence
 - Hover info (Ctrl+K), autocomplete (Ctrl+Space — semantic LSP completions + buffer words)
 - Signature help (Ctrl+Shift+Space), rename symbol (F2), code actions / quick-fix (Ctrl+.)
+- **Quick-fix lightbulb** — a gutter bulb appears when the cursor's line has code actions; click it (or Ctrl+.) to open them (debounced so the server isn't spammed)
 - Live `mty check` diagnostics — gutter dots + wavy underlines
 - First-class Mighty intelligence over its own `mty-lsp`, plus **multi-language support**: config-driven highlighting + a generic LSP bridge across 15 languages
 
@@ -56,9 +61,12 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Run in Browser (Alt+W)** — build the active file to `wasm32-web` and run it in the browser via `mty serve` (web-game packages) or a `mty build --target wasm32-web` + static-server fallback; streams build/serve output, scrapes the served URL, opens the default browser, stop affordance. Sample: `examples/webspin/`
 
 ### Workspace & UX
+- **Explicit Workspace + Open Folder (Ctrl+Shift+O)** — native folder picker (typed-path fallback) re-roots the file tree, Quick-Open, Search, git, and Agents; **Recent Folders** (MRU) persist across restarts; explorer header shows the active workspace
+- **Live Markdown preview (Ctrl+Shift+V)** — themed, live-updating split-pane render
+- **Keyboard Shortcuts overlay (Ctrl+Shift+/)** — searchable command/binding reference with router-command remapping (persists to `keybindings.toml`)
 - Welcome screen, toast notifications, **Zen / focus mode (Alt+Z)**
 - **Mighty Agents panel (Alt+G)** — static agent-system topology, run + live `mty inspect`
-- Settings panel (Ctrl+,) — live font size / tab width / word wrap / minimap / theme
+- Settings panel (Ctrl+,) — live font size / tab width / word wrap / minimap / theme / bracket colors / indent guides / save conveniences
 - Integrated terminal (Ctrl+`) — a real ConPTY shell with a VT parser
 
 ### Themes
@@ -67,18 +75,18 @@ Three live-switchable design systems, all rendered through Vello:
 - **Aurora Glass** — dark glass over an aurora gradient
 - **Warm Studio** — a light, warm-paper theme
 
-Bundled fonts: **JetBrains Mono** (code) + **Bricolage Grotesque** (UI chrome), both SIL OFL (`fonts/`).
+Bundled fonts: **JetBrains Mono** (code) + **Bricolage Grotesque** (UI chrome), both SIL OFL (`fonts/`). **Real bold/italic faces** are used semantically — italic comments, bold headings and chrome — not synthesized slants.
 
 ## Gallery
 
 | | |
 |---|---|
-| ![Editor](screenshots/01-editor.png) | ![Quick-Open](screenshots/29-quickopen.png) |
-| ![Debugger](screenshots/24-debug.png) | ![Test runner](screenshots/25-test.png) |
-| ![Mighty Agents](screenshots/38-agents.png) | ![Git blame](screenshots/40-blame.png) |
-| ![Web Playground](screenshots/41-web.png) | ![Multi-cursor](screenshots/34-multicursor.png) |
-| ![Inline AI ghost-text](screenshots/31-ghost.png) | ![Command palette](screenshots/04-palette.png) |
-| ![Aurora Glass theme](screenshots/13-theme-aurora.png) | ![Warm Studio theme](screenshots/14-theme-warm.png) |
+| ![Split editor](screenshots/43-split.png) | ![Brackets & indent guides](screenshots/44-brackets-guides.png) |
+| ![Interactive minimap](screenshots/45-minimap.png) | ![Live Markdown preview](screenshots/46-markdown.png) |
+| ![Typography](screenshots/47-typography.png) | ![Open Folder](screenshots/48-openfolder.png) |
+| ![Quick-fix lightbulb](screenshots/49-lightbulb.png) | ![Keyboard Shortcuts](screenshots/50-shortcuts.png) |
+| ![Debugger](screenshots/24-debug.png) | ![Multi-cursor](screenshots/34-multicursor.png) |
+| ![Inline AI ghost-text](screenshots/31-ghost.png) | ![Aurora Glass theme](screenshots/13-theme-aurora.png) |
 
 ## Architecture
 
@@ -103,7 +111,7 @@ Prerequisites:
 
 `build-ide.sh` sets `MTY_LINKER=clang`, builds `mighty-ui-sys` as a DLL, stages the import lib + the bumpalo arena runtime, copies the DLL beside the exe, and runs `mty build`.
 
-- `MTY_LINKER` / `STARDUST_LINKER` — point `mty build` at clang (the build script sets both).
+- `MTY_LINKER` — point `mty build` at clang (the build script sets it).
 - `ANTHROPIC_API_KEY` — enables the AI copilot panel.
 - On a tight disk, set `CARGO_INCREMENTAL=0` and clear `target/debug/incremental` if a link fails on space.
 
@@ -111,7 +119,7 @@ See [BUILDING.md](BUILDING.md) for the exact toolchain paths and commands.
 
 ## Dogfooding Mighty
 
-The IDE is the **forcing function** for maturing Mighty: every place the language fights us while building real native software is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md), so each friction point can be promoted into a `stardust` issue / RFC. That feedback loop (lessons L1–L41) has already driven real fixes in the Mighty compiler — for example the native `Vec`-growth codegen bug ([L28](docs/mighty-language-lessons.md)), the `extern c` scalar ABI (L17), the LSP-client discipline (L24–L25), and the parse-stack ceiling worked around by the `mui_chord` router (L37–L38).
+The IDE is the **forcing function** for maturing Mighty: every place the language fights us while building real native software is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md), so each friction point can be promoted into a Mighty issue / RFC. That feedback loop (lessons L1–L46) has already driven real fixes in the Mighty compiler — for example the native `Vec`-growth codegen bug ([L28](docs/mighty-language-lessons.md)), the `extern c` scalar ABI (L17), the LSP-client discipline (L24–L25), and the parse-stack ceiling worked around by the `mui_chord` router (L37–L38, and the `!fn_call(args)` precedence trap found wiring the shortcuts overlay, L46).
 
 ## Status & known caveats
 

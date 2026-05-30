@@ -8,7 +8,7 @@
 //! [`crate::dapabi`]).
 //!
 //! ## What `mty dap` actually supports (verified against its source —
-//! `stardust/crates/mty-cli/src/cmd/dap.rs`, v0.32 Track A):
+//! Mighty's `crates/mty-cli/src/cmd/dap.rs`, v0.32 Track A):
 //!
 //! | request                | behaviour                                         |
 //! |------------------------|---------------------------------------------------|

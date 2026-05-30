@@ -1159,10 +1159,10 @@ filename src/main.mty
             // Seed representative RECENT FOLDERS (newest first) so the Welcome
             // screen's "Recent Folders" column is populated for the capture, and
             // set an explicit workspace so the explorer header shows its name.
-            for folder in ["C:\\Users\\you\\old-project", "C:\\Users\\you\\toy-lang", "C:\\Users\\you\\stardust"] {
+            for folder in ["C:\\Users\\you\\old-project", "C:\\Users\\you\\toy-lang", "C:\\Users\\you\\mighty-ide"] {
                 ctx.recent_workspaces.record(std::path::PathBuf::from(folder));
             }
-            ctx.workspace = crate::workspace::Workspace::new(std::path::PathBuf::from("C:\\Users\\you\\stardust"));
+            ctx.workspace = crate::workspace::Workspace::new(std::path::PathBuf::from("C:\\Users\\you\\mighty-ide"));
             println!(
                 "mui_init_s: MUI_WELCOME_AUTOOPEN -> welcome open, {} recents, {} folders",
                 ctx.quickopen.mru_len(),

@@ -6,7 +6,6 @@
 //   "C:\Program Files\LLVM\bin\llvm-ar.exe" rcs repro_print.lib repro_print.o
 //   cp ../target/debug/mty_rt_abi.lib mty_rt_abi.lib
 //   MTY_LINKER="C:\Program Files\LLVM\bin\clang.exe" \
-//     STARDUST_LINKER="C:\Program Files\LLVM\bin\clang.exe" \
 //     /c/Users/ihass/stardust/target/debug/mty.exe build repro.mty --out-dir .
 //   ./repro.exe
 //

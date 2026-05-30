@@ -43,6 +43,8 @@ the `mui_chord` router). This table is the authoritative list.
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
 | `Ctrl+W` | Close active tab |
 | `Ctrl+Shift+F` | Project-wide Search panel |
+| `Ctrl+\` | Split editor right (side-by-side panes) |
+| `Ctrl+1` / `Ctrl+2` | Focus the first / second editor pane |
 
 ## Language intelligence (via `mty-lsp` / per-language LSP)
 
@@ -90,8 +92,10 @@ the `mui_chord` router). This table is the authoritative list.
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+,` | Settings (font size / tab width / word wrap / minimap / theme) |
+| `Ctrl+,` | Settings (font size / tab width / word wrap / minimap / theme / bracket colors / indent guides / save conveniences) |
 | `Ctrl+`` ` `` ` | Toggle integrated terminal (ConPTY) |
+| `Ctrl+Shift+O` | Open Folder — re-root the workspace (file tree / Quick-Open / Search / git / Agents) |
+| `Ctrl+Shift+V` | Toggle live Markdown preview (themed split-pane render) |
 | `Alt+G` | Mighty Agents topology panel (rescan workspace) |
 | `Alt+Z` | Toggle Zen / focus mode |
 | `Ctrl+Shift+/` | Keyboard Shortcuts reference + remapping overlay |

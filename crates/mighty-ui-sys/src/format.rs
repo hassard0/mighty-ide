@@ -93,7 +93,7 @@ mod tests {
     use super::*;
 
     /// `true` if an `mty` binary is reachable (so we can skip the live test when
-    /// the compiler is absent, e.g. CI without stardust).
+    /// the compiler is absent, e.g. CI without `mty`).
     fn mty_available() -> bool {
         let mty = mty_path();
         // `mty fmt --check` on an empty stdin is a cheap liveness probe; but the

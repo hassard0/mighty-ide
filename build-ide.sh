@@ -36,6 +36,6 @@ cp target/debug/mighty_ui_sys.dll.lib vendor/mighty_ui_sys.dll.lib
 cp target/debug/mighty_ui_sys.dll     target/mighty_ui_sys.dll
 
 echo "[4/4] mty build src/main.mty -> target/main.exe"
-MTY_LINKER="$CLANG" STARDUST_LINKER="$CLANG" "$MTY" build src/main.mty --out-dir target
+MTY_LINKER="$CLANG" "$MTY" build src/main.mty --out-dir target
 
 echo "OK: $(ls -la target/main.exe)"

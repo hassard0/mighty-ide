@@ -885,7 +885,7 @@ Two features landed with zero new Mighty-source friction:
   the per-frame `mui_lightbulb_tick` is one call beside the other frame ticks. The
   editor key ladder gained NO new top-level arm. Tests: 637 pass (was 618; +19
   workspace/lightbulb/welcome). Screenshots `screenshots/48-openfolder.png`
-  (`MUI_WELCOME_AUTOOPEN` seeds recent folders + a STARDUST workspace name in the
+  (`MUI_WELCOME_AUTOOPEN` seeds recent folders + a workspace name in the
   explorer header) and `49-lightbulb.png` (`MUI_LIGHTBULB_AUTOOPEN` pins the bulb on
   the type-error line of `examples/with_error.mty`) at 1320x860.
 

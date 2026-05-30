@@ -37,7 +37,7 @@ This:
 
 ## Environment variables
 
-- `MTY_LINKER` / `STARDUST_LINKER` — point `mty build` at clang. `build-ide.sh` sets both to the clang path above.
+- `MTY_LINKER` — point `mty build` at clang. `build-ide.sh` sets it to the clang path above.
 - `ANTHROPIC_API_KEY` — enables the AI copilot panel (Ctrl+Shift+A). Optional.
 
 ## Disk / link notes

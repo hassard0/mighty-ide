@@ -940,7 +940,7 @@ mod tests {
 
     /// Guarded integration test: spawn the real `mty lsp` and ask for completion
     /// in a tiny program. SKIPS (passes with a note) if the server can't spawn
-    /// (no `mty` on PATH / dev build absent), so CI without stardust stays green.
+    /// (no `mty` on PATH / dev build absent), so CI without `mty` stays green.
     ///
     /// When the server IS available, asserts we got at least one keyword label
     /// (the LSP always returns the keyword set), proving the full handshake +
