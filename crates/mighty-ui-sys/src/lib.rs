@@ -37,6 +37,7 @@ mod nav;
 mod navsurfaces;
 mod outline;
 mod palette;
+mod peek;
 mod panels;
 mod problems;
 mod prompt;
@@ -47,6 +48,8 @@ mod screenshot;
 mod search;
 mod settings;
 mod settingspanel;
+mod sticky;
+mod stickyabi;
 mod syntax;
 mod tabs;
 mod terminal;
@@ -298,6 +301,18 @@ pub struct MuiContext {
     /// The Outline panel: the active file's symbols (LSP documentSymbol when the
     /// server implements it, else a shim-side scanner) + the cursor-current sym.
     outline: outline::OutlineState,
+
+    // ---- sticky scroll (pin enclosing-scope headers at the editor top) ----
+    /// The sticky-header set: the enclosing scopes of the top visible line,
+    /// recomputed each frame from the outline symbols + the scroll offset.
+    sticky: sticky::StickyState,
+
+    // ---- peek definition (inline framed definition preview) ----
+    /// The inline peek card: a resolved definition target + a previewed window of
+    /// its source lines, drawn below the cursor line. Inactive until opened.
+    /// (The `MUI_PEEK_AUTOOPEN` screenshot hook just opens it; the unconditional
+    /// `mui_peek_draw` call then renders it for the capture.)
+    peek: peek::PeekState,
 
     // ---- Problems panel (bottom dock; status-bar chip opens it) ----
     /// The Problems panel: aggregated `mty check` diagnostics across open tabs /
@@ -668,6 +683,8 @@ pub(crate) fn build_context(
         diff: diff::DiffView::new(),
         settings_panel: settingspanel::SettingsPanel::new(),
         outline: outline::OutlineState::new(),
+        sticky: sticky::StickyState::new(),
+        peek: peek::PeekState::new(),
         problems: problems::ProblemSet::new(),
         crumb_menu: crumbmenu::CrumbMenu::new(),
         crumb_files: Vec::new(),
@@ -1290,6 +1307,8 @@ impl MuiContext {
             diff: diff::DiffView::new(),
             settings_panel: settingspanel::SettingsPanel::new(),
             outline: outline::OutlineState::new(),
+            sticky: sticky::StickyState::new(),
+            peek: peek::PeekState::new(),
             problems: problems::ProblemSet::new(),
             crumb_menu: crumbmenu::CrumbMenu::new(),
             crumb_files: Vec::new(),

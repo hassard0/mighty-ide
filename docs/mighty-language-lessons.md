@@ -495,6 +495,41 @@ trigger it. `MUI_TEST_AUTOOPEN` seeds a mixed pass/fail result set for a headles
 the Run/Debug panels (process spawn + reader threads + incremental parse live in Rust; Mighty
 routes keys/clicks, pumps, reads scalars).
 
+## Sticky scroll + Peek definition (2026-05-30)
+
+Two code-reading DX features, both shim-owned + scalar-ABI driven (no new language
+limitation — same shape as every other surface).
+
+**Sticky scroll** (`crate::sticky` + `mui_sticky_*`): each frame the shim derives the
+enclosing-scope chain of the top visible line from the Outline symbols. The scanner gives
+only `(line, depth)`, so a symbol's end is **inferred as the next symbol with `depth <=
+self.depth`** (next sibling / dedent), else EOF. A symbol pins when `line < top < end` (its
+header has scrolled off AND its body still spans the top). Pinned most-outer-first, capped at
+5 (deepest kept). Drawn as an opaque elevated band (BG_4 + ELEVATED gradient + downward drop
+shadow + bottom hairline) at the editor-body top, syntax-colored like the source, clickable
+to jump. A `sticky_scroll` pref (default ON) gates it, persisted in the shared config.
+
+**Peek definition** (`crate::peek` + `mui_peek_*`, Alt+F12 + palette): reuses the nav
+`textDocument/definition` request, then reads a ±window of the target's source (live buffer
+when same-file so unsaved edits show, else from disk for cross-file) and draws a rounded,
+shadowed inline card below the cursor line with a `file:line` header + highlighted lines.
+Esc closes, Enter navigates (same-file cursor move or open-tab). The peek key routing takes
+priority while the card is up (captures Esc/Enter/Up/Down).
+
+**Screenshot hooks** `MUI_STICKY_AUTOOPEN` / `MUI_PEEK_AUTOOPEN`: both seed a representative
+buffer AND set `edit_probe_lock = true` so the IDE's initial `mui_ed_load` (which reloads
+argv[1] from disk) is a no-op and the seeded buffer survives for the capture. The sticky demo
+must be **longer than the visible row count** (~34 rows at 860px) or the
+`first + rows > total` scroll clamp resets `first` to 0 and nothing pins. Also init the
+Mighty loop's `first` from `mui_ed_first_visible(h)` (not hardcoded 0) so a seeded scroll
+survives the first frame. Captures: `screenshots/32-sticky.png`, `33-peek.png`.
+
+**Disk note (Windows, this machine):** C: runs chronically near-full and is shared with
+parallel build agents. Build with `CARGO_INCREMENTAL=0`; clear `target/debug/incremental` +
+stale `target/debug/deps/mighty_ui_sys-*.{exe,pdb}` test binaries (each ~25-240MB) when a
+link fails with os error 112. Do NOT pass a `CARGO_PROFILE_DEV_DEBUG` override mid-session —
+it diverges from the cached default profile and forces a full ~6GB dep rebuild.
+
 ## Open questions to resolve as the IDE progresses
 - Exact `extern c` signature support: pointers (`*U8`), out-params (`&out T`), passing a
   `Vec`/slice as `(ptr, len)`, returning `#[repr(C)]` structs by value vs. out-param?

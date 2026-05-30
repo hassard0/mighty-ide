@@ -37,7 +37,7 @@ use crate::MuiContext;
 
 /// Highlight one line for the active `lang`, preferring Markdown's tailored
 /// handling (headings/bullets/quotes) when the file is Markdown.
-fn highlight_for(line: &str, lang: Language) -> Vec<crate::syntax::Span> {
+pub(crate) fn highlight_for(line: &str, lang: Language) -> Vec<crate::syntax::Span> {
     if lang == Language::Markdown {
         crate::syntax::highlight_markdown_line(line)
     } else {
@@ -109,7 +109,7 @@ fn lsp_hover_raw(lang: Language, path: &std::path::Path, source: &str, line: u32
 
 /// Raw `textDocument/definition` response for the active `lang`. Mighty →
 /// `nav::lsp`; others → generic client; empty when no server.
-fn lsp_def_raw(lang: Language, path: &std::path::Path, source: &str, line: u32, col: u32) -> String {
+pub(crate) fn lsp_def_raw(lang: Language, path: &std::path::Path, source: &str, line: u32, col: u32) -> String {
     if lang == Language::Mighty {
         return crate::nav::lsp::request(path, source, line, col, crate::nav::lsp::Req::Definition);
     }
@@ -800,6 +800,58 @@ index 83db48f..f735c2d 100644
                 ctx.quickopen.mode().scalar(),
                 ctx.quickopen.count(),
                 ctx.quickopen.query()
+            );
+        }
+    }
+
+    // Screenshot/render hook for Sticky scroll: with MUI_STICKY_AUTOOPEN set,
+    // seed a representative nested buffer + scroll the editor INTO a method so the
+    // enclosing-scope headers (struct + fn) pin at the top, and recompute the
+    // sticky set so a headless capture shows the pinned band. No effect normally.
+    if std::env::var_os("MUI_STICKY_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            use crate::editor::TextModel;
+            // A long-enough document that the view genuinely scrolls deep inside a
+            // method (so the `struct Painter` + `fn render` headers pin above).
+            let demo = b"struct Painter {\n  width: I32,\n  height: I32,\n  buffer: Vec[Pixel],\n  gamma: F64,\n\n  fn render(self, scene: Scene) -> Frame {\n    let mut frame = Frame.new(self.width, self.height)\n    let mut depth = DepthBuffer.new(self.width, self.height)\n    let clear = Color.rgb(0.05, 0.06, 0.09)\n    frame.fill(clear)\n    for shape in scene.shapes {\n      let pixels = self.rasterize(shape)\n      for p in pixels {\n        if p.z < depth.at(p.x, p.y) {\n          depth.set(p.x, p.y, p.z)\n          let shaded = self.shade_pixel(p, scene.lights)\n          frame.blend(shaded)\n        }\n      }\n    }\n    self.apply_post_effects(frame)\n    frame.present()\n    frame\n  }\n\n  fn shade_pixel(self, p: Pixel, lights: Vec[Light]) -> Pixel {\n    let mut lit = p.albedo\n    for light in lights {\n      lit = lit + light.contribution(p.normal, p.position)\n    }\n    p.with_color(lit.clamp())\n  }\n\n  fn rasterize(self, shape: Shape) -> Vec[Pixel] {\n    shape.tessellate().map(|t| t.shade())\n  }\n\n  fn apply_post_effects(self, frame: Frame) {\n    frame.bloom(0.4)\n    frame.tonemap(self.gamma)\n    frame.vignette(0.2)\n  }\n}\n";
+            let m = ctx.tabs.active_model_mut();
+            *m = TextModel::from_bytes(demo);
+            // Scroll so the top visible line is deep inside `render` (line 11),
+            // leaving the `struct Painter` + `fn render` headers above the fold.
+            m.set_first_visible(11);
+            m.move_to(12, 8);
+            // Lock out the IDE's initial reload so the seeded buffer survives.
+            ctx.edit_probe_lock = true;
+        }
+        let _ = crate::navsurfaces::mui_outline_refresh(handle);
+        let n = crate::stickyabi::mui_sticky_count(handle);
+        println!("mui_init_s: MUI_STICKY_AUTOOPEN -> {n} sticky headers pinned");
+    }
+
+    // Screenshot/render hook for Peek definition: with MUI_PEEK_AUTOOPEN set, seed
+    // a buffer where a call site references a definition above, then open the peek
+    // card directly from the live buffer (no LSP dependency for the capture) so a
+    // headless screenshot shows the inline framed preview. No effect normally.
+    if std::env::var_os("MUI_PEEK_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            use crate::editor::TextModel;
+            let demo = b"fn greeting(name: Str) -> Str {\n  let prefix = \"Hello, \"\n  prefix + name + \"!\"\n}\n\nfn main() {\n  let msg = greeting(\"world\")\n  print(msg)\n}\n";
+            let m = ctx.tabs.active_model_mut();
+            *m = TextModel::from_bytes(demo);
+            // Cursor on the `greeting` call (line 6); peek the def at line 0.
+            m.move_to(6, 12);
+            let src = m.as_text();
+            let path = ctx
+                .file_path
+                .clone()
+                .unwrap_or_else(|| std::path::PathBuf::from("src/main.mty"));
+            let lang = ctx.language;
+            let ok = ctx.peek.open_at(path, 0, 3, 6, lang, Some(&src));
+            // Lock out the IDE's initial reload so the seeded buffer survives.
+            ctx.edit_probe_lock = true;
+            println!(
+                "mui_init_s: MUI_PEEK_AUTOOPEN -> peek open={ok} preview_lines={}",
+                ctx.peek.line_count()
             );
         }
     }

@@ -48,6 +48,7 @@ pub const CMD_COLOR_THEME: u32 = 18;
 pub const CMD_RUN_FILE: u32 = 19;
 pub const CMD_SETTINGS: u32 = 20;
 pub const CMD_RUN_TESTS: u32 = 21;
+pub const CMD_PEEK_DEFINITION: u32 = 22;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -73,6 +74,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_RUN_FILE,         label: "Run File",           keybinding: "Ctrl+Shift+R" },
     Command { id: CMD_SETTINGS,         label: "Preferences: Settings", keybinding: "Ctrl+," },
     Command { id: CMD_RUN_TESTS,        label: "Run Tests",          keybinding: "Ctrl+Shift+T" },
+    Command { id: CMD_PEEK_DEFINITION,  label: "Peek Definition",    keybinding: "Alt+F12" },
 ];
 
 /// Match quality for ranking. Lower sorts first.
@@ -270,6 +272,7 @@ impl PaletteEngine {
             CMD_RUN_FILE => (icons::RUN, "Run the active Mighty file", true),
             CMD_SETTINGS => (icons::SETTINGS, "Edit editor preferences", false),
             CMD_RUN_TESTS => (icons::BEAKER, "Run the package's tests (mty test)", false),
+            CMD_PEEK_DEFINITION => (icons::FN_SYMBOL, "Preview the definition inline (Alt+F12)", false),
             _ => (icons::CHEVRON, "", false),
         }
     }

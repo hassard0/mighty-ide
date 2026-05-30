@@ -196,6 +196,21 @@ extern c {
   fn mui_def_target_line(handle: I64) -> I32
   fn mui_def_target_col(handle: I64) -> I32
   fn mui_def_open_target(handle: I64) -> I32
+  // ---- sticky scroll (pin enclosing-scope headers at the editor top) ----
+  fn mui_sticky_count(handle: I64) -> I32
+  fn mui_sticky_line(handle: I64, i: I32) -> I32
+  fn mui_sticky_draw(handle: I64, region: I32)
+  fn mui_sticky_click(handle: I64) -> I32
+  // ---- peek definition (inline framed definition preview, Alt+F12) ----
+  fn mui_peek_open(handle: I64, line: I32, col: I32) -> I32
+  fn mui_peek_active(handle: I64) -> I32
+  fn mui_peek_line_count(handle: I64) -> I32
+  fn mui_peek_line_text(handle: I64, i: I32) -> I32
+  fn mui_peek_line_kind(handle: I64, i: I32) -> I32
+  fn mui_peek_close(handle: I64)
+  fn mui_peek_scroll(handle: I64, delta: I32)
+  fn mui_peek_goto(handle: I64) -> I32
+  fn mui_peek_draw(handle: I64, first: I32, rows: I32)
   // ---- format document (`mty fmt <path>`) ----
   fn mui_format_current(handle: I64) -> I32
   // ---- signature help (shim-side LSP) ----
@@ -425,6 +440,7 @@ fn cmd_color_theme() -> I32 { 18 }
 fn cmd_run_file() -> I32 { 19 }
 fn cmd_settings() -> I32 { 20 }
 fn cmd_run_tests() -> I32 { 21 }
+fn cmd_peek_definition() -> I32 { 22 }
 
 // ---- event tags / keys / mods (mirror mighty_ui.h) ----
 fn ev_char() -> I32 { 1 }
@@ -824,8 +840,10 @@ fn main() {
   let mut settings_open = false
   // Inline git diff view open (Source Control): keys route to it (scroll/close).
   let mut diff_open = false
-  // First visible line (scroll); pushed to the model each frame.
-  let mut first: I32 = 0
+  // First visible line (scroll); pushed to the model each frame. Initialized
+  // from the model so a seeded scroll (e.g. the MUI_STICKY_AUTOOPEN screenshot
+  // hook) survives the first frame instead of being reset to the top.
+  let mut first: I32 = mui_ed_first_visible(h)
   // True while a contiguous typing run is in progress (so one Ctrl+Z undoes a
   // run, not one char). An undo checkpoint is recorded at the START of a run.
   let mut typing = false
@@ -968,6 +986,8 @@ fn main() {
             } else if id == cmd_run_tests() {
               let _t = mui_test_run(h)
               test_focus = true
+            } else if id == cmd_peek_definition() {
+              let _p = peek_definition(h)
             }
           }
         }
@@ -1089,6 +1109,8 @@ fn main() {
               } else if id == cmd_run_tests() {
                 let _t = mui_test_run(h)
                 test_focus = true
+              } else if id == cmd_peek_definition() {
+                let _p = peek_definition(h)
               }
             } else {
               // Files / Symbols / Go-to-line: the shim performs the action
@@ -1716,11 +1738,36 @@ fn main() {
         }
       } else if tag == ev_key() {
         let k = mui_event_key(h)
-        if k == key_f12() {
-          go_to_definition(h)
-          prev_line = mui_ed_cursor_line(h)
-          prev_col = mui_ed_cursor_col(h)
-          find_nav = false
+        if mui_peek_active(h) == 1 {
+          // The inline peek card captures keys while it is up: Esc closes it,
+          // Enter navigates to the actual definition, Up/Down scroll the preview.
+          if k == key_escape() {
+            mui_peek_close(h)
+          } else if k == key_enter() {
+            let r = mui_peek_goto(h)
+            if r >= 0 {
+              let _b = mui_ed_tab_switch(h, mui_tab_active(h))
+              let _d = mui_diag_refresh(h)
+              let _o = mui_outline_refresh(h)
+            }
+            find_nav = false
+          } else if k == key_up() {
+            mui_peek_scroll(h, -1)
+          } else if k == key_down() {
+            mui_peek_scroll(h, 1)
+          } else {
+            mui_peek_close(h)                                 // any other key dismisses
+          }
+        } else if k == key_f12() {
+          let kmods = mui_event_mods(h)
+          if alt_held(kmods) {                               // Alt+F12 : peek definition
+            let _p = peek_definition(h)
+          } else {                                           // F12 : go to definition
+            go_to_definition(h)
+            prev_line = mui_ed_cursor_line(h)
+            prev_col = mui_ed_cursor_col(h)
+            find_nav = false
+          }
         } else if k == key_f2() {                            // F2 : rename symbol
           let cl = mui_ed_cursor_line(h)
           let cc = mui_ed_cursor_col(h)
@@ -2051,16 +2098,29 @@ fn main() {
             }
           }
         } else {
-          // Editor body: a click in the line-number gutter toggles a breakpoint
-          // on that line; otherwise place the cursor (shim maps pixel->line/col).
-          let total_g = mui_ed_line_count(h)
-          let gline = mui_bp_gutter_click(h, first, total_g)
-          if gline >= 0 {
-            let _b = mui_bp_toggle(h, gline)
-          } else {
-            mui_ghost_dismiss(h)                               // click moves cursor: ghost stale
-            let _l = mui_ed_click(h)
+          // A click on a pinned sticky header jumps to that scope's line (the
+          // sticky band overlays the top editor rows, so it takes priority).
+          let sticky_hit = mui_sticky_click(h)
+          if sticky_hit >= 0 {
+            mui_ghost_dismiss(h)
+            mui_ed_move_to(h, sticky_hit, 0)
+            first = scroll_to_cursor(first, sticky_hit, rows_i)
+            if first < 0 { first = 0 }
+            mui_ed_set_scroll(h, first)
             typing = false
+            find_nav = false
+          } else {
+            // Editor body: a click in the line-number gutter toggles a breakpoint
+            // on that line; otherwise place the cursor (shim maps pixel->line/col).
+            let total_g = mui_ed_line_count(h)
+            let gline = mui_bp_gutter_click(h, first, total_g)
+            if gline >= 0 {
+              let _b = mui_bp_toggle(h, gline)
+            } else {
+              mui_ghost_dismiss(h)                             // click moves cursor: ghost stale
+              let _l = mui_ed_click(h)
+              typing = false
+            }
           }
         }
       }
@@ -2101,6 +2161,11 @@ fn main() {
     }
     if first < 0 { first = 0 }
     mui_ed_set_scroll(h, first)
+
+    // Sticky scroll: recompute the enclosing-scope headers to pin for this frame
+    // from the outline + the (now-current) scroll offset. Mirrors the
+    // `sticky_scroll` preference; 0 when not scrolled / disabled / no scope.
+    let sticky_n = mui_sticky_count(h)
 
     // Drain AI stream deltas into the transcript BEFORE the frame so streamed
     // text renders live (returns 1 when the transcript changed).
@@ -2160,6 +2225,11 @@ fn main() {
     mui_dbg_draw(h, first, rows_i, total_now)
     if find_nav { draw_find_highlights(h, total_now, first, rows_i) }
     draw_diagnostics(h, total_now, first, rows_i)
+    // Sticky scroll: pin the enclosing-scope headers as an elevated band at the
+    // top of the editor body (over the scrolling code, under the chrome). No-op
+    // when nothing is pinned (not scrolled / disabled). Suppressed under the diff
+    // view (it owns the body region).
+    if mui_diff_active(h) == 0 { mui_sticky_draw(h, 0) }
     // The breadcrumb shares the band the inline-diff header occupies; suppress it
     // while the diff view is active so it doesn't faintly render over the header.
     if mui_diff_active(h) == 0 { mui_breadcrumb_draw(h) }
@@ -2228,6 +2298,10 @@ fn main() {
     }
     // rename inline input: a centered card (drawn over the body when active).
     if renaming { mui_rename_draw(h) }
+    // Peek definition: an inline framed card below the cursor line. No-op unless
+    // active, so calling it unconditionally also lets the MUI_PEEK_AUTOOPEN
+    // screenshot hook render it without a keystroke.
+    mui_peek_draw(h, first, rows_i)
     // command palette: a centered overlay (no-ops unless active, so the
     // MUI_PALETTE_AUTOOPEN screenshot hook renders it without a keystroke).
     mui_palette_draw(h)
@@ -2293,6 +2367,16 @@ fn go_to_definition(h: I64) {
       }
     }
   }
+}
+
+// Peek definition at the cursor: resolve the def (reusing the nav request) and
+// open the inline peek card below the current line. Returns 1 if a definition
+// was found + previewed, else 0 (a graceful no-op / "no definition").
+fn peek_definition(h: I64) -> I32 {
+  mui_ed_nav_stream(h)
+  let line = mui_ed_cursor_line(h)
+  let col = mui_ed_cursor_col(h)
+  mui_peek_open(h, line, col)
 }
 
 // Format the active document in place: save -> checkpoint -> `mty fmt` -> reload

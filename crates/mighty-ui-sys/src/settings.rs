@@ -53,6 +53,9 @@ pub struct Settings {
     /// Inline AI ghost-text completions (Copilot-style). Default ON, but
     /// effectively off without an `ANTHROPIC_API_KEY` (the engine never fires).
     pub inline_ai: bool,
+    /// Sticky scroll: pin the enclosing-scope headers at the editor top while
+    /// scrolled inside a nested scope. Default ON.
+    pub sticky_scroll: bool,
 }
 
 impl Default for Settings {
@@ -63,6 +66,7 @@ impl Default for Settings {
             word_wrap: false,
             minimap: true,
             inline_ai: true,
+            sticky_scroll: true,
         }
     }
 }
@@ -92,6 +96,7 @@ static ACTIVE: RwLock<Settings> = RwLock::new(Settings {
     word_wrap: false,
     minimap: true,
     inline_ai: true,
+    sticky_scroll: true,
 });
 
 /// The currently-active settings (by value; `Settings` is `Copy`).
@@ -142,6 +147,10 @@ pub fn minimap() -> bool {
 pub fn inline_ai() -> bool {
     active().inline_ai
 }
+#[inline]
+pub fn sticky_scroll() -> bool {
+    active().sticky_scroll
+}
 
 // ---------------------------------------------------------------------------
 // Config persistence — extends the shared `key=value` config file used for the
@@ -176,6 +185,7 @@ pub fn parse(text: &str) -> Settings {
             "word_wrap" => s.word_wrap = parse_bool(v),
             "minimap" => s.minimap = parse_bool(v),
             "inline_ai" => s.inline_ai = parse_bool(v),
+            "sticky_scroll" => s.sticky_scroll = parse_bool(v),
             _ => {}
         }
     }
@@ -190,12 +200,13 @@ fn parse_bool(v: &str) -> bool {
 /// [`crate::config`]).
 pub fn render(s: &Settings) -> String {
     format!(
-        "font_size={}\ntab_width={}\nword_wrap={}\nminimap={}\ninline_ai={}\n",
+        "font_size={}\ntab_width={}\nword_wrap={}\nminimap={}\ninline_ai={}\nsticky_scroll={}\n",
         s.font_size,
         s.tab_width,
         if s.word_wrap { "true" } else { "false" },
         if s.minimap { "true" } else { "false" },
         if s.inline_ai { "true" } else { "false" },
+        if s.sticky_scroll { "true" } else { "false" },
     )
 }
 
@@ -247,6 +258,7 @@ mod tests {
             word_wrap: true,
             minimap: false,
             inline_ai: true,
+            sticky_scroll: true,
         }
         .clamped();
         assert_eq!(s.font_size, FONT_MAX);
@@ -257,6 +269,7 @@ mod tests {
             word_wrap: false,
             minimap: true,
             inline_ai: false,
+            sticky_scroll: false,
         }
         .clamped();
         assert_eq!(s2.font_size, FONT_MIN);
@@ -282,6 +295,7 @@ mod tests {
             word_wrap: true,
             minimap: false,
             inline_ai: false,
+            sticky_scroll: false,
         };
         let blob = render(&s);
         let parsed = parse(&blob);
@@ -302,9 +316,32 @@ mod tests {
     }
 
     #[test]
+    fn sticky_scroll_defaults_on_and_round_trips() {
+        // Default ON.
+        assert!(Settings::default().sticky_scroll);
+        // Persists through render/parse.
+        let s = Settings { sticky_scroll: false, ..Default::default() };
+        assert!(!parse(&render(&s)).sticky_scroll);
+        // Unset key keeps the ON default.
+        assert!(parse("font_size=15\n").sticky_scroll);
+        // Parses "off"/"on".
+        assert!(!parse("sticky_scroll=off\n").sticky_scroll);
+        assert!(parse("sticky_scroll=on\n").sticky_scroll);
+    }
+
+    #[test]
+    fn sticky_scroll_accessor_reads_active() {
+        let _g = guard();
+        set_active(Settings { sticky_scroll: false, ..Default::default() });
+        assert!(!sticky_scroll());
+        set_active(Settings::default());
+        assert!(sticky_scroll());
+    }
+
+    #[test]
     fn set_active_clamps_and_reads_back() {
         let _g = guard();
-        set_active(Settings { font_size: 50.0, tab_width: 0, word_wrap: true, minimap: false, inline_ai: false });
+        set_active(Settings { font_size: 50.0, tab_width: 0, word_wrap: true, minimap: false, inline_ai: false, sticky_scroll: false });
         assert_eq!(font_size(), FONT_MAX);
         assert_eq!(tab_width(), TAB_MIN);
         assert!(word_wrap());
