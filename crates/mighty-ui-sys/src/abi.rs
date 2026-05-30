@@ -485,6 +485,42 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         }
     }
 
+    // Screenshot/render hook for inline AI ghost-text: with MUI_GHOST_AUTOOPEN
+    // set, seed a fake multi-line ghost suggestion anchored at the end of the
+    // active file's first non-empty line, so a headless capture shows the DIM
+    // ghost-text overlay after the cursor — without a live API call. The env value
+    // optionally overrides the suggestion text (newlines as "\n"). No effect on
+    // normal launches (the engine otherwise only fires on a real debounced call).
+    if let Some(seed) = std::env::var_os("MUI_GHOST_AUTOOPEN") {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let raw = seed.to_string_lossy();
+            let raw = raw.trim();
+            let suggestion = if raw.is_empty() || raw == "1" {
+                ".push(item)\n  total = total + 1\n  log(\"added\")".to_string()
+            } else {
+                raw.replace("\\n", "\n")
+            };
+            // Anchor at the end of the first non-empty line (or 0,0).
+            let (al, ac) = {
+                let m = ctx.tabs.active_model();
+                let mut anchor = (0usize, 0usize);
+                for li in 0..m.line_count() {
+                    if !m.line(li).trim().is_empty() {
+                        anchor = (li, m.line_len(li));
+                        break;
+                    }
+                }
+                anchor
+            };
+            ctx.tabs.active_model_mut().move_to(al as i32, ac as i32);
+            ctx.ghost.seed_demo(&suggestion, (al, ac));
+            println!(
+                "mui_init_s: MUI_GHOST_AUTOOPEN -> ghost seeded at ({al},{ac}), has_key={}",
+                crate::ai::api_key().is_some()
+            );
+        }
+    }
+
     // Screenshot/render hook for the activity-rail panels: with
     // MUI_PANEL_AUTOOPEN set to "scm" or "search", switch the sidebar to that
     // panel and seed its data (run git status / a search) so a headless

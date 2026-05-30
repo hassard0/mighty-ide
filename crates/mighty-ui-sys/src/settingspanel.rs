@@ -26,15 +26,17 @@ pub enum RowId {
     TabWidth,
     WordWrap,
     Minimap,
+    InlineAi,
     Theme,
 }
 
 impl RowId {
-    pub const ALL: [RowId; 5] = [
+    pub const ALL: [RowId; 6] = [
         RowId::FontSize,
         RowId::TabWidth,
         RowId::WordWrap,
         RowId::Minimap,
+        RowId::InlineAi,
         RowId::Theme,
     ];
 
@@ -44,6 +46,7 @@ impl RowId {
             RowId::TabWidth => "Tab Width",
             RowId::WordWrap => "Word Wrap",
             RowId::Minimap => "Show Minimap",
+            RowId::InlineAi => "Inline AI",
             RowId::Theme => "Color Theme",
         }
     }
@@ -54,6 +57,7 @@ impl RowId {
             RowId::TabWidth => "Spaces per indent level",
             RowId::WordWrap => "Soft-wrap long lines",
             RowId::Minimap => "Show the code minimap strip",
+            RowId::InlineAi => "AI ghost-text completions (needs API key)",
             RowId::Theme => "Switch the editor color theme",
         }
     }
@@ -144,6 +148,10 @@ impl SettingsPanel {
                 settings::update(|s| s.minimap = !s.minimap);
                 settings::save();
             }
+            RowId::InlineAi => {
+                settings::update(|s| s.inline_ai = !s.inline_ai);
+                settings::save();
+            }
             RowId::Theme => self.cycle_theme(1),
             RowId::FontSize => self.adjust(1),
             RowId::TabWidth => self.adjust(1),
@@ -171,6 +179,7 @@ impl SettingsPanel {
             RowId::TabWidth => format!("{}", s.tab_width),
             RowId::WordWrap => on_off(s.word_wrap),
             RowId::Minimap => on_off(s.minimap),
+            RowId::InlineAi => on_off(s.inline_ai),
             RowId::Theme => theme::active_id().name().to_string(),
         }
     }
@@ -333,7 +342,7 @@ mod tests {
         p.open();
         assert!(p.is_active());
         assert_eq!(p.selection(), 0);
-        assert_eq!(p.count(), 5);
+        assert_eq!(p.count(), 6);
     }
 
     #[test]
@@ -342,9 +351,26 @@ mod tests {
         let mut p = SettingsPanel::new();
         p.open();
         p.move_sel(-1);
-        assert_eq!(p.selection(), 4);
+        assert_eq!(p.selection(), 5);
         p.move_sel(1);
         assert_eq!(p.selection(), 0);
+    }
+
+    #[test]
+    fn toggle_inline_ai() {
+        let _g = guard();
+        let tmp = std::env::temp_dir().join(format!("mui-setpanel-iai-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::env::set_var("APPDATA", &tmp);
+        let mut p = SettingsPanel::new();
+        p.open();
+        p.move_sel(4); // InlineAi
+        assert!(settings::inline_ai()); // default on
+        p.toggle();
+        assert!(!settings::inline_ai());
+        p.toggle();
+        assert!(settings::inline_ai());
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     #[test]
@@ -405,7 +431,7 @@ mod tests {
         std::env::set_var("APPDATA", &tmp);
         let mut p = SettingsPanel::new();
         p.open();
-        p.move_sel(4); // Theme
+        p.move_sel(5); // Theme
         assert_eq!(theme::active_id(), ThemeId::Vivid);
         p.toggle(); // cycle forward
         assert_eq!(theme::active_id(), ThemeId::Aurora);

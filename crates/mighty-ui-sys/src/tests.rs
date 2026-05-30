@@ -492,7 +492,17 @@ fn editor_power_features_via_abi() {
         mui_ed_newline_indent, mui_ed_toggle_comment, mui_replace_active, mui_replace_all,
         mui_replace_open, mui_replace_push, mui_replace_toggle_focus,
     };
+    // Auto-indent reads the global tab width; pin defaults under the shared
+    // settings test lock so a parallel settings test can't leave it at 4 (the
+    // brace-indent assertion below expects a 2-space indent). Build the context
+    // FIRST — `build_context` calls `settings::load_into_active()`, which can pull
+    // a persisted tab_width a parallel settings test wrote — then pin defaults so
+    // our assertion is deterministic.
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
+    crate::settings::set_active(crate::settings::Settings::default());
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
     // Toggle comment on a freshly-typed line.

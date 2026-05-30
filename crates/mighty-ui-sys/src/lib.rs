@@ -23,6 +23,8 @@ mod editor;
 mod featureabi;
 mod ffi;
 mod format;
+mod ghost;
+mod ghostabi;
 mod gpu;
 mod history;
 mod icons;
@@ -259,6 +261,12 @@ pub struct MuiContext {
     /// The AI chat panel: transcript + input + live Anthropic stream, shim-owned.
     /// Mighty opens it, feeds chars/keys, sends, and pumps the stream each frame.
     ai: ai::AiPanel,
+
+    // ---- inline AI ghost-text completions (Copilot-style) ----
+    /// The inline ghost-text engine: debounce timer, generation-id cancel, the
+    /// background completion request, and the pending dim suggestion overlay.
+    /// Mighty arms it after edits, ticks/polls it each frame, and accepts/dismisses.
+    ghost: ghost::GhostState,
 
     // ---- Run panel (the Run rail icon) ----
     /// The Run panel: a background `mty run <path>` whose stdout/stderr streams
@@ -653,6 +661,7 @@ pub(crate) fn build_context(
         scm: scm::ScmState::new(),
         search: search::SearchState::new(),
         ai: ai::AiPanel::new(),
+        ghost: ghost::GhostState::new(),
         run: run::RunPanel::new(),
         tests_panel: tests_panel::TestPanel::new(),
         dbg: dap::DebugModel::new(),
@@ -1274,6 +1283,7 @@ impl MuiContext {
             scm: scm::ScmState::new(),
             search: search::SearchState::new(),
             ai: ai::AiPanel::new(),
+            ghost: ghost::GhostState::new(),
             run: run::RunPanel::new(),
             tests_panel: tests_panel::TestPanel::new(),
             dbg: dap::DebugModel::new(),

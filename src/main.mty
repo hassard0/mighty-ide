@@ -256,6 +256,17 @@ extern c {
   fn mui_ai_scroll(handle: I64, dir: I32)
   fn mui_ai_turn_count(handle: I64) -> I32
   fn mui_ai_draw(handle: I64)
+  // ---- inline AI ghost-text completions (Copilot-style) ----
+  fn mui_ghost_enabled(handle: I64) -> I32
+  fn mui_ghost_arm(handle: I64)
+  fn mui_ghost_tick(handle: I64) -> I32
+  fn mui_ghost_poll(handle: I64) -> I32
+  fn mui_ghost_has(handle: I64) -> I32
+  fn mui_ghost_accept(handle: I64) -> I32
+  fn mui_ghost_accept_word(handle: I64) -> I32
+  fn mui_ghost_dismiss(handle: I64)
+  fn mui_ghost_force(handle: I64) -> I32
+  fn mui_ghost_draw(handle: I64)
   // ---- color theme picker (Preferences: Color Theme) ----
   fn mui_theme_picker_open(handle: I64)
   fn mui_theme_picker_active(handle: I64) -> I32
@@ -604,6 +615,12 @@ fn is_replace_chord(cp: I32, mods: I32) -> Bool {          // Ctrl+H
   let ctrl = ctrl_held(mods)
   let h = is_h_key(cp)
   ctrl && h
+}
+
+fn is_ghost_chord(cp: I32, mods: I32) -> Bool {            // Alt+\ : force inline AI ghost
+  let alt = alt_held(mods)
+  let bs = cp == 92
+  alt && bs
 }
 
 fn is_t_key(cp: I32) -> Bool { cp == 116 || cp == 84 }     // 't' / 'T'
@@ -1548,6 +1565,9 @@ fn main() {
           let opened = mui_ai_open(h)
           if opened == 1 { ai_focus = true } else { ai_focus = false }
           typing = false
+        } else if is_ghost_chord(cp, mods) {                // Alt+\ : force an inline AI ghost completion
+          let _g = mui_ghost_force(h)
+          typing = false
         } else if is_inline_ask_chord(cp, mods) {           // Ctrl+I : inline ask about selection/file
           // Reuse the prompt UI to collect an instruction; routed on Enter to
           // the AI panel (see the prompt_kind == prompt_ai() branch).
@@ -1677,6 +1697,10 @@ fn main() {
           let smart = mui_ed_insert_smart(h, cp)
           if smart == 0 { mui_ed_insert_char(h, cp) }
           mui_tab_set_dirty(h, active0, 1)
+          // Inline AI: the current ghost (if any) is now stale — dismiss + re-arm
+          // the debounced request so a fresh suggestion can follow the pause.
+          mui_ghost_dismiss(h)
+          mui_ghost_arm(h)
           // After typing '(' auto-trigger signature help; ')' dismisses it.
           if cp == 40 {
             let ok = do_signature_help(h)
@@ -1726,6 +1750,7 @@ fn main() {
           hovering = false
           mui_sig_clear(h)
           sig_open = false
+          mui_ghost_dismiss(h)                                 // Esc dismisses the inline ghost
         } else if k == key_tab() {
           let kmods = mui_event_mods(h)
           if ctrl_held(kmods) {
@@ -1737,6 +1762,12 @@ fn main() {
             mui_ed_undo_reset(h)
             find_nav = false
             let _r = mui_diag_refresh(h)
+          } else if mui_ghost_has(h) == 1 {
+            // Tab accepts the inline AI ghost suggestion (insert at the cursor).
+            mui_ed_undo_record(h)
+            typing = false
+            let _a = mui_ghost_accept(h)
+            mui_tab_set_dirty(h, active0, 1)
           } else {
             if !typing { mui_ed_undo_record(h); typing = true }
             mui_ed_insert_char(h, 9)
@@ -1745,6 +1776,7 @@ fn main() {
         } else if k == key_left() {
           let kmods = mui_event_mods(h)
           let ext = ext_flag(shift_held(kmods))
+          mui_ghost_dismiss(h)                                // cursor move: ghost stale
           if ctrl_held(kmods) {
             mui_ed_move_word(h, 0, ext)                       // Ctrl+Left : word left
           } else {
@@ -1754,14 +1786,23 @@ fn main() {
         } else if k == key_right() {
           let kmods = mui_event_mods(h)
           let ext = ext_flag(shift_held(kmods))
-          if ctrl_held(kmods) {
+          if ctrl_held(kmods) && mui_ghost_has(h) == 1 {
+            // Ctrl+Right with a ghost shown: partial-accept ONE word; the rest of
+            // the suggestion stays as the ghost.
+            mui_ed_undo_record(h)
+            let _a = mui_ghost_accept_word(h)
+            mui_tab_set_dirty(h, active0, 1)
+          } else if ctrl_held(kmods) {
+            mui_ghost_dismiss(h)
             mui_ed_move_word(h, 1, ext)                       // Ctrl+Right : word right
           } else {
+            mui_ghost_dismiss(h)
             mui_ed_move_ext(h, dir_right(), ext)
           }
           typing = false
         } else if k == key_up() {
           let kmods = mui_event_mods(h)
+          mui_ghost_dismiss(h)                                 // cursor move: ghost stale
           if alt_held(kmods) {                                 // Alt+Up : move line up
             find_nav = false
             mui_ed_undo_record(h)
@@ -1773,6 +1814,7 @@ fn main() {
           typing = false
         } else if k == key_down() {
           let kmods = mui_event_mods(h)
+          mui_ghost_dismiss(h)                                 // cursor move: ghost stale
           if alt_held(kmods) {                                 // Alt+Down : move line down
             find_nav = false
             mui_ed_undo_record(h)
@@ -1784,10 +1826,12 @@ fn main() {
           typing = false
         } else if k == key_home() {
           let kmods = mui_event_mods(h)
+          mui_ghost_dismiss(h)
           mui_ed_home_smart(h, ext_flag(shift_held(kmods)))
           typing = false
         } else if k == key_end() {
           let kmods = mui_event_mods(h)
+          mui_ghost_dismiss(h)
           mui_ed_move_ext(h, dir_end(), ext_flag(shift_held(kmods)))
           typing = false
         } else if k == key_backspace() {
@@ -1798,12 +1842,16 @@ fn main() {
           let pair = mui_ed_backspace_smart(h)
           if pair == 0 { mui_ed_backspace(h) }
           mui_tab_set_dirty(h, active0, 1)
+          mui_ghost_dismiss(h)                                 // edit: ghost stale, re-arm
+          mui_ghost_arm(h)
         } else if k == key_delete() {
           find_nav = false
           mui_ed_undo_record(h)
           typing = false
           mui_ed_delete(h)
           mui_tab_set_dirty(h, active0, 1)
+          mui_ghost_dismiss(h)
+          mui_ghost_arm(h)
         } else if k == key_enter() {
           if find_nav {
             let cnt = mui_find_count(h)
@@ -1817,6 +1865,8 @@ fn main() {
             typing = false
             mui_ed_newline_indent(h)
             mui_tab_set_dirty(h, active0, 1)
+            mui_ghost_dismiss(h)                               // edit: ghost stale, re-arm
+            mui_ghost_arm(h)
           }
         }
       } else if tag == ev_scroll() {
@@ -2008,6 +2058,7 @@ fn main() {
           if gline >= 0 {
             let _b = mui_bp_toggle(h, gline)
           } else {
+            mui_ghost_dismiss(h)                               // click moves cursor: ghost stale
             let _l = mui_ed_click(h)
             typing = false
           }
@@ -2055,6 +2106,12 @@ fn main() {
     // text renders live (returns 1 when the transcript changed).
     let _ai_changed = mui_ai_pump(h)
 
+    // Inline AI ghost-text: fire the debounced request once the idle window has
+    // elapsed (tick), then drain any finished completion into the dim ghost
+    // overlay (poll). Both no-op when inline AI is disabled / no key is set.
+    let _g_fired = mui_ghost_tick(h)
+    let _g_ready = mui_ghost_poll(h)
+
     // Drain Run-panel process output into its line list BEFORE the frame so the
     // streamed stdout/stderr renders live (no-op when the panel is idle/closed).
     if mui_run_active(h) == 1 {
@@ -2092,6 +2149,9 @@ fn main() {
     // Draw the editor body (current-line band + gutter + syntax-colored text +
     // selection + caret) shim-side from the AUTHORITATIVE model. Editing is live.
     mui_ed_draw(h, rows_i)
+    // Inline AI ghost-text overlay: dim suggestion painted at the cursor, over the
+    // editor body but under chrome. No-op unless a ghost is currently shown.
+    mui_ghost_draw(h)
     // Inline git diff view: when open it paints over the editor body (read-only).
     // No-op unless active, so calling it unconditionally is safe.
     mui_diff_draw(h)

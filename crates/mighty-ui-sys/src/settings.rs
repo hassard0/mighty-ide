@@ -50,6 +50,9 @@ pub struct Settings {
     pub word_wrap: bool,
     /// Show the editor minimap strip.
     pub minimap: bool,
+    /// Inline AI ghost-text completions (Copilot-style). Default ON, but
+    /// effectively off without an `ANTHROPIC_API_KEY` (the engine never fires).
+    pub inline_ai: bool,
 }
 
 impl Default for Settings {
@@ -59,6 +62,7 @@ impl Default for Settings {
             tab_width: 2,
             word_wrap: false,
             minimap: true,
+            inline_ai: true,
         }
     }
 }
@@ -87,6 +91,7 @@ static ACTIVE: RwLock<Settings> = RwLock::new(Settings {
     tab_width: 2,
     word_wrap: false,
     minimap: true,
+    inline_ai: true,
 });
 
 /// The currently-active settings (by value; `Settings` is `Copy`).
@@ -133,6 +138,10 @@ pub fn word_wrap() -> bool {
 pub fn minimap() -> bool {
     active().minimap
 }
+#[inline]
+pub fn inline_ai() -> bool {
+    active().inline_ai
+}
 
 // ---------------------------------------------------------------------------
 // Config persistence — extends the shared `key=value` config file used for the
@@ -166,6 +175,7 @@ pub fn parse(text: &str) -> Settings {
             }
             "word_wrap" => s.word_wrap = parse_bool(v),
             "minimap" => s.minimap = parse_bool(v),
+            "inline_ai" => s.inline_ai = parse_bool(v),
             _ => {}
         }
     }
@@ -180,11 +190,12 @@ fn parse_bool(v: &str) -> bool {
 /// [`crate::config`]).
 pub fn render(s: &Settings) -> String {
     format!(
-        "font_size={}\ntab_width={}\nword_wrap={}\nminimap={}\n",
+        "font_size={}\ntab_width={}\nword_wrap={}\nminimap={}\ninline_ai={}\n",
         s.font_size,
         s.tab_width,
         if s.word_wrap { "true" } else { "false" },
         if s.minimap { "true" } else { "false" },
+        if s.inline_ai { "true" } else { "false" },
     )
 }
 
@@ -235,6 +246,7 @@ mod tests {
             tab_width: 99,
             word_wrap: true,
             minimap: false,
+            inline_ai: true,
         }
         .clamped();
         assert_eq!(s.font_size, FONT_MAX);
@@ -244,6 +256,7 @@ mod tests {
             tab_width: -3,
             word_wrap: false,
             minimap: true,
+            inline_ai: false,
         }
         .clamped();
         assert_eq!(s2.font_size, FONT_MIN);
@@ -268,6 +281,7 @@ mod tests {
             tab_width: 4,
             word_wrap: true,
             minimap: false,
+            inline_ai: false,
         };
         let blob = render(&s);
         let parsed = parse(&blob);
@@ -276,22 +290,26 @@ mod tests {
 
     #[test]
     fn parse_tolerates_noise_and_fills_defaults() {
-        let s = parse("# comment\ntheme=aurora\nfont_size=15\ngarbage\nminimap=off\n");
+        let s = parse("# comment\ntheme=aurora\nfont_size=15\ngarbage\nminimap=off\ninline_ai=off\n");
         assert!((s.font_size - 15.0).abs() < 0.001);
         // Unset keys keep defaults.
         assert_eq!(s.tab_width, 2);
         assert!(!s.minimap); // "off" -> false
         assert!(!s.word_wrap);
+        assert!(!s.inline_ai); // "off" -> false
+        // inline_ai defaults ON when unset.
+        assert!(parse("font_size=15\n").inline_ai);
     }
 
     #[test]
     fn set_active_clamps_and_reads_back() {
         let _g = guard();
-        set_active(Settings { font_size: 50.0, tab_width: 0, word_wrap: true, minimap: false });
+        set_active(Settings { font_size: 50.0, tab_width: 0, word_wrap: true, minimap: false, inline_ai: false });
         assert_eq!(font_size(), FONT_MAX);
         assert_eq!(tab_width(), TAB_MIN);
         assert!(word_wrap());
         assert!(!minimap());
+        assert!(!inline_ai());
         // Restore defaults for other tests.
         set_active(Settings::default());
     }
