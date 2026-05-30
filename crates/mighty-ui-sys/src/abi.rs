@@ -4524,6 +4524,13 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
+    // The inline-diff view owns the entire editor body region when active. Glyphs
+    // are composited in a single pass after all rects, so the editor's body text
+    // would otherwise show THROUGH the diff's opaque field background. Skip the
+    // editor body draw entirely while the diff is up.
+    if ctx.diff.is_active() {
+        return;
+    }
     let region = layout::region(ctx.sidebar_visible);
     let clip = ctx.clip;
     let handle_ptr = handle as usize as *mut MuiContext;
@@ -4588,8 +4595,13 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         let row = (cur_line - first) as i32;
         let y = layout::row_y_in(region, row);
         let band_w = mm_x - region.left;
-        ctx.dl_grad_h(region.left, y - 1.0, band_w, layout::LINE_H(), 0.0, theme::accent_a(0.07), 0.6);
-        ctx.dl_rect(region.left, y - 1.0, 2.0, layout::LINE_H(), theme::ACCENT());
+        // Nudge the band up 1px for optical centering on the glyph baseline, but
+        // never above the editor field top — on row 0 that 1px would bleed into
+        // the breadcrumb divider and show as a thin artifact at the very top.
+        let band_top = (y - 1.0).max(region.top);
+        let band_h = layout::LINE_H() - (band_top - (y - 1.0));
+        ctx.dl_grad_h(region.left, band_top, band_w, band_h, 0.0, theme::accent_a(0.07), 0.6);
+        ctx.dl_rect(region.left, band_top, 2.0, band_h, theme::ACCENT());
     }
 
     // 2) Selection rects (per visible line within the range).

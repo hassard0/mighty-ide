@@ -1584,7 +1584,9 @@ fn main() {
     mui_diff_draw(h)
     if find_nav { draw_find_highlights(h, total_now, first, rows_i) }
     draw_diagnostics(h, total_now, first, rows_i)
-    mui_breadcrumb_draw(h)
+    // The breadcrumb shares the band the inline-diff header occupies; suppress it
+    // while the diff view is active so it doesn't faintly render over the header.
+    if mui_diff_active(h) == 0 { mui_breadcrumb_draw(h) }
     draw_status_bar(h)
     // The sidebar shows the active panel: Explorer (file tree), Search, or
     // Source Control. Each draw is a no-op unless its panel is active.
