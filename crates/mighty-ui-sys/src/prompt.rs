@@ -31,6 +31,9 @@ pub enum PromptKind {
     /// New Folder: the query is a (relative) folder name created under the
     /// workspace root; on Enter the IDE `mkdir`s it and refreshes the tree.
     NewFolder = 7,
+    /// Save As: the query is a (relative) file name; on Enter the IDE writes the
+    /// active untitled buffer there, binds the tab to it, and refreshes the tree.
+    SaveAs = 8,
 }
 
 impl PromptKind {
@@ -43,6 +46,7 @@ impl PromptKind {
             5 => Some(PromptKind::OpenFolder),
             6 => Some(PromptKind::NewProject),
             7 => Some(PromptKind::NewFolder),
+            8 => Some(PromptKind::SaveAs),
             _ => None,
         }
     }
@@ -57,6 +61,7 @@ impl PromptKind {
             PromptKind::OpenFolder => "Open Folder: ",
             PromptKind::NewProject => "New project name: ",
             PromptKind::NewFolder => "New folder name: ",
+            PromptKind::SaveAs => "Save as: ",
         }
     }
 }

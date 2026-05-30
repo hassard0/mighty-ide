@@ -49,6 +49,7 @@ public static class Win {
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll", CharSet=CharSet.Auto)] public static extern bool PostMessage(IntPtr h, uint msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern short VkKeyScan(char ch);
 
     public delegate bool EnumProc(IntPtr h, IntPtr l);
     [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr l);
@@ -201,14 +202,21 @@ function Press-VK($h, $vk) {
 }
 
 function Type-Text($h, $text) {
-  # Post WM_KEYDOWN + WM_CHAR + WM_KEYUP per character so winit produces both a
-  # key event and the text. VK for ASCII letters/digits is the uppercase code.
+  # Post WM_KEYDOWN + WM_CHAR + WM_KEYUP per character. The KEYDOWN's VK must be
+  # the REAL virtual-key for the char (via VkKeyScan) or winit drops the WM_CHAR
+  # for punctuation like '_' and '.' (it associates text with a valid key-down).
+  $VK_SHIFT = 0x10
   foreach ($ch in $text.ToCharArray()) {
     $code = [int][char]$ch
-    $vk = [int][char]([string]$ch).ToUpper()
+    $vks = [Win]::VkKeyScan($ch)
+    $vk = $vks -band 0xFF                       # low byte = virtual-key code
+    $needShift = ((($vks -shr 8) -band 1) -eq 1)  # high byte bit0 = shift required
+    if ($vk -le 0) { $vk = $code; $needShift = $false }
+    if ($needShift) { [void][Win]::PostMessage($h, [Win]::WM_KEYDOWN, [IntPtr]$VK_SHIFT, [IntPtr]0); Start-Sleep -Milliseconds 4 }
     [void][Win]::PostMessage($h, [Win]::WM_KEYDOWN, [IntPtr]$vk,   [IntPtr]0); Start-Sleep -Milliseconds 6
     [void][Win]::PostMessage($h, [Win]::WM_CHAR,    [IntPtr]$code, [IntPtr]0); Start-Sleep -Milliseconds 6
-    [void][Win]::PostMessage($h, [Win]::WM_KEYUP,   [IntPtr]$vk,   [IntPtr]0); Start-Sleep -Milliseconds 10
+    [void][Win]::PostMessage($h, [Win]::WM_KEYUP,   [IntPtr]$vk,   [IntPtr]0); Start-Sleep -Milliseconds 6
+    if ($needShift) { [void][Win]::PostMessage($h, [Win]::WM_KEYUP, [IntPtr]$VK_SHIFT, [IntPtr]0); Start-Sleep -Milliseconds 4 }
   }
   Log "typed (PostMessage) '$text'"
 }
@@ -334,6 +342,28 @@ Start-Sleep -Milliseconds 300
 Capture $hwnd "31-typing"
 $respT = Is-Responsive $hwnd
 Log "after typing: responsive=$respT"
+
+# === SAVE-AS (untitled buffer) via the command palette (plain keys only) ===
+# Open the palette with the top-right more-actions button, filter to Save, Enter
+# triggers cmd_save which (untitled) opens the Save-As prompt; name it + Enter.
+$saveName = "harnesssaveas.mty"   # no shifted chars (PostMessage can't hold Shift)
+$savePath = Join-Path $WorkDir $saveName
+if (Test-Path $savePath) { Remove-Item $savePath -Force }
+Click $hwnd ($script:WinW - 264) 33
+Start-Sleep -Milliseconds 400
+Capture $hwnd "40-palette-open"
+Type-Text $hwnd "save"
+Start-Sleep -Milliseconds 300
+Press-VK $hwnd 0x0D
+Start-Sleep -Milliseconds 350
+Capture $hwnd "41-saveas-prompt"
+Type-Text $hwnd $saveName
+Start-Sleep -Milliseconds 250
+Press-VK $hwnd 0x0D
+Start-Sleep -Milliseconds 600
+Capture $hwnd "42-saved"
+Start-Sleep -Milliseconds 200
+if (Test-Path $savePath) { Log "SAVE-AS: file written OK -> $savePath" } else { Log "SAVE-AS: FILE NOT FOUND ($savePath)" }
 
 $respF = Is-Responsive $hwnd
 Log "final responsive: $respF"

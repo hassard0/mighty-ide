@@ -51,6 +51,8 @@ extern c {
   fn mui_ed_set_dirty(handle: I64, dirty: I32)
   fn mui_ed_load(handle: I64) -> I64
   fn mui_ed_save(handle: I64) -> I32
+  fn mui_active_has_path(handle: I64) -> I32
+  fn mui_save_as(handle: I64) -> I32
   fn mui_autosave_tick(handle: I64) -> I32
   fn mui_autosave_touch(handle: I64)
   fn mui_ed_find_run(handle: I64) -> I32
@@ -690,6 +692,7 @@ fn prompt_open_folder() -> I32 { 5 }
 // New Project: the query is the project NAME (mui_newproj_create on Enter).
 fn prompt_new_project() -> I32 { 6 }
 fn prompt_new_folder() -> I32 { 7 }
+fn prompt_save_as() -> I32 { 8 }
 
 // activity-rail panel ids (mirror PANEL_* in lib.rs)
 fn panel_explorer() -> I32 { 0 }
@@ -1244,10 +1247,16 @@ fn main() {
               prompt_kind = prompt_open()
               find_nav = false
             } else if id == cmd_save() {
-              let rc = mui_ed_save(h)
-              if rc == 0 {
-                mui_tab_set_dirty(h, active0, 0)
-                let _r = mui_diag_refresh(h)
+              if mui_active_has_path(h) == 0 {
+                mui_prompt_open(h, prompt_save_as())
+                prompt_kind = prompt_save_as()
+                find_nav = false
+              } else {
+                let rc = mui_ed_save(h)
+                if rc == 0 {
+                  mui_tab_set_dirty(h, active0, 0)
+                  let _r = mui_diag_refresh(h)
+                }
               }
             } else if id == cmd_find() {
               mui_prompt_open(h, prompt_find())
@@ -1422,10 +1431,16 @@ fn main() {
                 prompt_kind = prompt_open()
                 find_nav = false
               } else if id == cmd_save() {
-                let rc = mui_ed_save(h)
-                if rc == 0 {
-                  mui_tab_set_dirty(h, active0, 0)
-                  let _r = mui_diag_refresh(h)
+                if mui_active_has_path(h) == 0 {
+                  mui_prompt_open(h, prompt_save_as())
+                  prompt_kind = prompt_save_as()
+                  find_nav = false
+                } else {
+                  let rc = mui_ed_save(h)
+                  if rc == 0 {
+                    mui_tab_set_dirty(h, active0, 0)
+                    let _r = mui_diag_refresh(h)
+                  }
                 }
               } else if id == cmd_find() {
                 mui_prompt_open(h, prompt_find())
@@ -1915,6 +1930,27 @@ fn main() {
               find_nav = false
               mui_prompt_cancel(h)
               prompt_kind = 0
+            } else if prompt_kind == prompt_save_as() {
+              // Save As: stage the typed name, write the untitled buffer there,
+              // bind the tab to the path, then refresh SCM/diagnostics/tree.
+              mui_path_clear(h)
+              let slen = mui_prompt_len(h)
+              let mut si: I32 = 0
+              while si < slen {
+                let sc = mui_prompt_char(h, si)
+                if sc >= 0 { mui_path_push(h, sc) }
+                si = si + 1
+              }
+              let src = mui_save_as(h)
+              if src == 0 {
+                mui_tab_set_dirty(h, active0, 0)
+                let _r = mui_diag_refresh(h)
+                let _g = mui_scm_refresh(h)
+                let _o = mui_outline_refresh(h)
+              }
+              find_nav = false
+              mui_prompt_cancel(h)
+              prompt_kind = 0
             } else if prompt_kind == prompt_ai() {
               // Inline ask: copy the typed instruction into the AI input, then
               // send it (with the active file + selection as context). The answer
@@ -2192,14 +2228,21 @@ fn main() {
             if ok == 1 { term_focus = true; mui_log_terminal(h) }
           }
         } else if ctrl_held(mods) && (cp == 115 || cp == 83) {  // Ctrl+S : save
-          let rc = mui_ed_save(h)
-          if rc == 0 { log("mighty-ide: saved") } else { log("mighty-ide: save FAILED") }
-          if rc == 0 {
-            mui_tab_set_dirty(h, active0, 0)
-            let _r = mui_diag_refresh(h)
-            let _g = mui_scm_refresh(h)
-            let _o = mui_outline_refresh(h)
-            let _pr = mui_problems_refresh(h)
+          // Untitled buffer (no path): open a Save-As prompt instead of failing.
+          if mui_active_has_path(h) == 0 {
+            mui_prompt_open(h, prompt_save_as())
+            prompt_kind = prompt_save_as()
+            find_nav = false
+          } else {
+            let rc = mui_ed_save(h)
+            if rc == 0 { log("mighty-ide: saved") } else { log("mighty-ide: save FAILED") }
+            if rc == 0 {
+              mui_tab_set_dirty(h, active0, 0)
+              let _r = mui_diag_refresh(h)
+              let _g = mui_scm_refresh(h)
+              let _o = mui_outline_refresh(h)
+              let _pr = mui_problems_refresh(h)
+            }
           }
           typing = false
         } else if is_undo_chord(cp, mods) {                  // Ctrl+Z : undo
@@ -2653,6 +2696,10 @@ fn main() {
         } else if explorer_hit == 3 {
           // Explorer header: Collapse all expanded folders in the tree.
           mui_tree_collapse_all(h)
+        } else if topbar_act == 2 {
+          // Top-right more-actions (⋯) button: open the command palette.
+          mui_palette_open(h)
+          palette_open = true
         } else if rail_hit == rail_agents() {
           // Agents (sparkles) icon: toggle the AI copilot panel + focus it.
           let opened = mui_ai_open(h)

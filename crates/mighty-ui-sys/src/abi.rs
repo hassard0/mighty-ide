@@ -6867,6 +6867,53 @@ pub extern "C" fn mui_ed_save(handle: i64) -> i32 {
     }
 }
 
+/// `1` when the active tab is backed by a file path; `0` for an untitled buffer.
+/// The IDE uses this to route Ctrl+S to a Save-As prompt for untitled buffers.
+#[no_mangle]
+pub extern "C" fn mui_active_has_path(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| if c.tabs.active_has_path() { 1 } else { 0 })
+}
+
+/// Save-As: write the active (untitled) buffer to the path staged via
+/// `mui_path_clear`/`mui_path_push` (resolved under the workspace root), bind the
+/// tab to that path, mark it clean, and refresh the tree. Returns `0` on success.
+#[no_mangle]
+pub extern "C" fn mui_save_as(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let raw = String::from_utf8_lossy(&ctx.path_stage).into_owned();
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return -1;
+    }
+    let base = crate::wsabi::effective_root(ctx);
+    let cand = std::path::Path::new(raw);
+    let target = if cand.is_absolute() { cand.to_path_buf() } else { base.join(cand) };
+    if let Some(parent) = target.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let bytes = save_bytes_for_active(ctx);
+    let name = basename(&target);
+    match std::fs::write(&target, &bytes) {
+        Ok(()) => {
+            ctx.tabs.set_active_path(target.clone());
+            ctx.language = crate::langdetect::detect_path(&target);
+            ctx.file_path = Some(target);
+            ctx.tabs.active_model_mut().mark_clean();
+            ctx.autosave.disarm();
+            ctx.tree.refresh();
+            ctx.push_toast(crate::toast::Kind::Success, format!("Saved {name}"));
+            0
+        }
+        Err(e) => {
+            eprintln!("mui_save_as({}): {e}", target.display());
+            ctx.push_toast(crate::toast::Kind::Error, format!("Save failed: {name}"));
+            -1
+        }
+    }
+}
+
 /// Stream the active model's bytes into the shim's find engine and run the
 /// search using the active prompt's query. Replaces the Mighty byte-push loop —
 /// the model is the source of truth. Returns the match count.

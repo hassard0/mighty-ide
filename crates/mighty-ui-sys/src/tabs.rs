@@ -132,6 +132,21 @@ impl TabStore {
         self.active
     }
 
+    /// Set the active tab's file path (Save As on an untitled buffer binds it to a
+    /// real path so subsequent saves write there).
+    pub fn set_active_path(&mut self, path: PathBuf) {
+        let i = self.active.min(self.tabs.len().saturating_sub(1));
+        self.tabs[i].path = Some(path);
+    }
+
+    /// `true` when the active tab is backed by a file path (vs an untitled buffer).
+    pub fn active_has_path(&self) -> bool {
+        self.tabs
+            .get(self.active.min(self.tabs.len().saturating_sub(1)))
+            .map(|t| t.path.is_some())
+            .unwrap_or(false)
+    }
+
     /// Tab `i`'s editable model (shared ref), or `None` out of range. Used by
     /// the split-pane draw to render an UNFOCUSED pane's tab (the focused pane's
     /// tab is the active one, read via [`Self::active_model`]).
