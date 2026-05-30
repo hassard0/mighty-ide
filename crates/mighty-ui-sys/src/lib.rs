@@ -73,7 +73,9 @@ mod text;
 mod theme;
 mod themepicker;
 mod toast;
+mod titlebar;
 mod tree;
+mod uiscale;
 mod web;
 mod webabi;
 mod welcome;
@@ -323,6 +325,9 @@ pub struct MuiContext {
     /// The sidebar's active panel: 0 = Explorer, 1 = Search, 2 = Source Control.
     /// Switched by clicking a rail icon (`mui_panel_set`).
     active_panel: i32,
+    /// Whether the window is currently maximized (mirrored from winit on the
+    /// maximize/restore toggle), so the title bar draws the right glyph.
+    window_maximized: bool,
     /// Source-control (git) panel state: repo root + parsed status + commit msg.
     scm: scm::ScmState,
     /// The branch-switcher overlay (list + filter + create-branch input).
@@ -668,6 +673,9 @@ pub(crate) fn build_context(
     // Load the persisted editor preferences (font size / tab width / word wrap /
     // minimap) into the active settings so the first frame already reflects them.
     settings::load_into_active();
+    // Restore the persisted user zoom (Ctrl+=/-/0) so it survives a restart. The
+    // OS DPI factor is set below once the window exists (it knows the scale).
+    uiscale::set_user_zoom(config::load_zoom());
 
     let mut queue = Box::new(EventQueue::default());
     let queue_ptr: *mut EventQueue = queue.as_mut();
@@ -707,6 +715,11 @@ pub(crate) fn build_context(
                 return std::ptr::null_mut();
             }
         };
+        // Honor the OS display scale (e.g. 1.5 at 150% Windows scaling) so the UI
+        // matches other apps. Set BEFORE the GPU is built so `new_windowed`
+        // derives the logical size from the right factor. Combined with the
+        // restored user zoom this gives `ui_scale`.
+        uiscale::set_os_scale(window.scale_factor() as f32);
         let gpu = match Gpu::new_windowed(window.clone()) {
             Ok(g) => g,
             Err(e) => {
@@ -818,6 +831,7 @@ pub(crate) fn build_context(
         rename_autoopen: false,
         lightbulb_autoopen: None,
         active_panel: PANEL_EXPLORER,
+        window_maximized: false,
         scm: scm::ScmState::new(),
         branch_picker: scm::BranchPicker::new(),
         blame: crate::blame::BlameState::new(),
@@ -1209,12 +1223,14 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
     // layer/font/size/color), so the Vello scene reproduces all chrome + code.
     ctx.text.drain_into_display_list(&mut ctx.dl);
 
-    // Render. Borrow the renderer out so we can also borrow gpu/dl immutably.
+    // Render at the PHYSICAL target size (build_scene scales the logical scene up
+    // to it). Borrow the renderer out so we can also borrow gpu/dl immutably.
+    let (pw, ph) = (ctx.gpu.phys_width, ctx.gpu.phys_height);
     let mut vp = ctx.vello_ui.take().unwrap();
     match &ctx.gpu.target {
         RenderTarget::Offscreen { view, .. } => {
             if let Err(e) =
-                vp.render_to_texture(&ctx.gpu.device, &ctx.gpu.queue, view, w, h, &ctx.dl)
+                vp.render_to_texture(&ctx.gpu.device, &ctx.gpu.queue, view, pw, ph, &ctx.dl)
             {
                 eprintln!("mui vello ui: {e}");
             }
@@ -1222,7 +1238,7 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         RenderTarget::Surface(_) => {
             if let Some(frame) = ctx.frame.take() {
                 if let Err(e) =
-                    vp.render_to_surface(&ctx.gpu.device, &ctx.gpu.queue, &frame, w, h, &ctx.dl)
+                    vp.render_to_surface(&ctx.gpu.device, &ctx.gpu.queue, &frame, pw, ph, &ctx.dl)
                 {
                     eprintln!("mui vello ui: {e}");
                 }
@@ -1474,6 +1490,7 @@ impl MuiContext {
             rename_autoopen: false,
             lightbulb_autoopen: None,
             active_panel: PANEL_EXPLORER,
+            window_maximized: false,
             scm: scm::ScmState::new(),
             branch_picker: scm::BranchPicker::new(),
             blame: crate::blame::BlameState::new(),

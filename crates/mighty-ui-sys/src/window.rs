@@ -110,7 +110,11 @@ pub fn translate_window_event(q: &mut EventQueue, event: &WindowEvent) {
             q.mods = modifiers_bits(&mods.state());
         }
         WindowEvent::CursorMoved { position, .. } => {
-            q.cursor = (position.x as f32, position.y as f32);
+            // winit reports PHYSICAL pixels; hit-testing math is in LOGICAL px.
+            q.cursor = (
+                crate::uiscale::phys_to_logical(position.x as f32),
+                crate::uiscale::phys_to_logical(position.y as f32),
+            );
         }
         WindowEvent::MouseInput { state, button, .. } => {
             let tag = if *state == ElementState::Pressed {
@@ -201,8 +205,15 @@ impl ApplicationHandler for App {
         if self.window.is_some() {
             return;
         }
+        // Borderless: the IDE draws its OWN title bar (M mark + filename + min/
+        // max/close) so the default OS chrome no longer clashes with the in-app
+        // UI. The window stays resizable — on a borderless window winit still
+        // honors edge drag-resize via `drag_resize_window`, wired from the IDE's
+        // border hit regions. `with_decorations(false)` removes the OS caption.
         let attrs = Window::default_attributes()
             .with_title(self.title.clone())
+            .with_decorations(false)
+            .with_resizable(true)
             .with_inner_size(winit::dpi::PhysicalSize::new(self.width, self.height));
         match event_loop.create_window(attrs) {
             Ok(w) => {
@@ -221,6 +232,22 @@ impl ApplicationHandler for App {
         _id: WindowId,
         event: WindowEvent,
     ) {
+        // The OS DPI scale changed (e.g. the window moved to a monitor at a
+        // different scaling). Update the global factor and push a resize carrying
+        // the NEW physical inner size so the surface + projection reflow. Handled
+        // here (not in `translate_window_event`) because it needs the window.
+        if let WindowEvent::ScaleFactorChanged { scale_factor, .. } = &event {
+            crate::uiscale::set_os_scale(*scale_factor as f32);
+            if let Some(win) = self.window.as_ref() {
+                let size = win.inner_size();
+                let q = self.queue_mut();
+                let w = size.width.max(1);
+                let h = size.height.max(1);
+                q.pending_resize = Some((w, h));
+                q.push(MuiEvent::resize(w, h));
+            }
+            return;
+        }
         translate_window_event(self.queue_mut(), &event);
     }
 }
@@ -262,5 +289,146 @@ impl WindowHost {
     pub fn pump(&mut self) {
         self.event_loop
             .pump_app_events(Some(Duration::from_millis(0)), &mut self.app);
+    }
+
+    fn window(&self) -> Option<&Arc<Window>> {
+        self.app.window.as_ref()
+    }
+
+    /// Begin an OS-level window drag (custom title bar press). Best-effort.
+    pub fn drag(&self) {
+        if let Some(w) = self.window() {
+            let _ = w.drag_window();
+        }
+    }
+
+    /// Begin an OS-level resize drag from a window edge/corner. `dir` is a
+    /// [`ResizeDir`] code (see `crate::abi`). Best-effort.
+    pub fn drag_resize(&self, dir: ResizeDir) {
+        use winit::window::ResizeDirection as RD;
+        let rd = match dir {
+            ResizeDir::West => RD::West,
+            ResizeDir::East => RD::East,
+            ResizeDir::North => RD::North,
+            ResizeDir::South => RD::South,
+            ResizeDir::NorthWest => RD::NorthWest,
+            ResizeDir::NorthEast => RD::NorthEast,
+            ResizeDir::SouthWest => RD::SouthWest,
+            ResizeDir::SouthEast => RD::SouthEast,
+        };
+        if let Some(w) = self.window() {
+            let _ = w.drag_resize_window(rd);
+        }
+    }
+
+    /// Minimize the window.
+    pub fn minimize(&self) {
+        if let Some(w) = self.window() {
+            w.set_minimized(true);
+        }
+    }
+
+    /// Toggle maximize / restore. Returns the new maximized state.
+    pub fn toggle_maximize(&self) -> bool {
+        if let Some(w) = self.window() {
+            let now = !w.is_maximized();
+            w.set_maximized(now);
+            now
+        } else {
+            false
+        }
+    }
+}
+
+/// Window-edge resize directions (mirrors winit's `ResizeDirection`), used by the
+/// IDE's borderless edge hit regions via the scalar ABI.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ResizeDir {
+    West,
+    East,
+    North,
+    South,
+    NorthWest,
+    NorthEast,
+    SouthWest,
+    SouthEast,
+}
+
+impl ResizeDir {
+    /// Map a small integer code (from the scalar ABI) to a direction.
+    pub fn from_code(code: i32) -> Option<Self> {
+        Some(match code {
+            1 => ResizeDir::West,
+            2 => ResizeDir::East,
+            3 => ResizeDir::North,
+            4 => ResizeDir::South,
+            5 => ResizeDir::NorthWest,
+            6 => ResizeDir::NorthEast,
+            7 => ResizeDir::SouthWest,
+            8 => ResizeDir::SouthEast,
+            _ => return None,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn named_keys_map_to_codes() {
+        assert_eq!(named_key_code(NamedKey::Enter), Some(MUI_KEY_ENTER));
+        assert_eq!(named_key_code(NamedKey::Backspace), Some(MUI_KEY_BACKSPACE));
+        assert_eq!(named_key_code(NamedKey::ArrowLeft), Some(MUI_KEY_LEFT));
+        assert_eq!(named_key_code(NamedKey::Escape), Some(MUI_KEY_ESCAPE));
+        assert_eq!(named_key_code(NamedKey::F5), Some(MUI_KEY_F5));
+        // A named key with no IDE binding falls through to None (its text, if
+        // any, is surfaced as a Char instead).
+        assert_eq!(named_key_code(NamedKey::F3), None);
+    }
+
+    #[test]
+    fn mouse_buttons_map_to_codes() {
+        assert_eq!(mouse_button_code(MouseButton::Left), MUI_MOUSE_LEFT);
+        assert_eq!(mouse_button_code(MouseButton::Right), MUI_MOUSE_RIGHT);
+        assert_eq!(mouse_button_code(MouseButton::Middle), MUI_MOUSE_MIDDLE);
+        assert_eq!(mouse_button_code(MouseButton::Back), MUI_MOUSE_OTHER);
+    }
+
+    #[test]
+    fn modifiers_fold_to_bits() {
+        use winit::keyboard::ModifiersState;
+        assert_eq!(modifiers_bits(&ModifiersState::empty()), 0);
+        assert_eq!(modifiers_bits(&ModifiersState::CONTROL), MUI_MOD_CTRL);
+        assert_eq!(modifiers_bits(&ModifiersState::SHIFT), MUI_MOD_SHIFT);
+        let both = ModifiersState::CONTROL | ModifiersState::ALT;
+        assert_eq!(modifiers_bits(&both), MUI_MOD_CTRL | MUI_MOD_ALT);
+    }
+
+    #[test]
+    fn resize_dir_code_round_trip() {
+        for code in 1..=8 {
+            assert!(ResizeDir::from_code(code).is_some());
+        }
+        assert_eq!(ResizeDir::from_code(0), None);
+        assert_eq!(ResizeDir::from_code(9), None);
+        assert_eq!(ResizeDir::from_code(-1), None);
+    }
+
+    #[test]
+    fn cursor_moved_converts_physical_to_logical() {
+        // At ui_scale 2.0 a physical (200,100) cursor maps to logical (100,50)
+        // so clicks land in the same coordinate space the layout uses.
+        crate::uiscale::set_os_scale(2.0);
+        crate::uiscale::set_user_zoom(1.0);
+        let mut q = EventQueue::default();
+        let ev = WindowEvent::CursorMoved {
+            device_id: winit::event::DeviceId::dummy(),
+            position: winit::dpi::PhysicalPosition::new(200.0, 100.0),
+        };
+        translate_window_event(&mut q, &ev);
+        assert!((q.cursor.0 - 100.0).abs() < 0.01);
+        assert!((q.cursor.1 - 50.0).abs() < 0.01);
+        crate::uiscale::set_os_scale(1.0);
     }
 }

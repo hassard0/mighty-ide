@@ -82,6 +82,37 @@ pub fn save_recent_workspaces(blob: &str) -> bool {
     }
 }
 
+/// Full path to the persisted user-zoom file (a single float, e.g. `1.2`). Kept
+/// separate from the `key=value` `config` file so the zoom MRU persists without
+/// touching the theme/settings round-trip.
+pub fn zoom_path() -> Option<PathBuf> {
+    config_dir().map(|d| d.join("zoom"))
+}
+
+/// Load the persisted user zoom (clamped), or `1.0` when unset/unreadable.
+pub fn load_zoom() -> f32 {
+    let Some(path) = zoom_path() else {
+        return 1.0;
+    };
+    match std::fs::read_to_string(&path) {
+        Ok(text) => crate::uiscale::clamp_zoom(text.trim().parse::<f32>().unwrap_or(1.0)),
+        Err(_) => 1.0,
+    }
+}
+
+/// Persist the user `zoom`. Best-effort (returns `false` + logs on I/O error).
+pub fn save_zoom(zoom: f32) -> bool {
+    let Some(path) = zoom_path() else {
+        return false;
+    };
+    if let Some(parent) = path.parent() {
+        if std::fs::create_dir_all(parent).is_err() {
+            return false;
+        }
+    }
+    std::fs::write(&path, format!("{zoom}")).is_ok()
+}
+
 /// Parse a `key=value` config blob for the `theme=` line, returning the id.
 fn parse_theme(text: &str) -> Option<ThemeId> {
     for line in text.lines() {

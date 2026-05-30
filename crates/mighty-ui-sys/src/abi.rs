@@ -1793,24 +1793,149 @@ pub extern "C" fn mui_headless_frames() -> i32 {
 // event pump (scalar accessors over the last-polled event)
 // ---------------------------------------------------------------------------
 
+/// What the shim's own event interception decided to do with a popped event.
+enum ShimAction {
+    /// The shim consumed the event entirely (window drag/resize/min/max, or a
+    /// zoom gesture). The poll loop should drop it and pop the next one so the
+    /// IDE (main.mty) never sees it.
+    Consume,
+    /// Replace the event with this one before handing it to the IDE (used to turn
+    /// a title-bar Close-button press into a normal `MUI_EVENT_CLOSE`, which the
+    /// IDE's existing close path already handles).
+    Replace(MuiEvent),
+    /// Not a window-chrome / zoom event — hand it to the IDE unchanged.
+    PassThrough,
+}
+
+/// The custom (borderless) title bar + UI zoom live ENTIRELY shim-side: the IDE
+/// (main.mty) is unaware of them. This intercepts events as they are popped, so
+/// `main.mty`'s dispatch ladder never gains the extra nesting that overflowed the
+/// v0.36 recursive-descent parser (L37). Decides what to do with `ev` given the
+/// context `ctx`; performs the OS window action / zoom side effects inline.
+fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
+    match ev.tag {
+        // --- Mouse press: title-bar controls / drag strip / resize edges win
+        // over the IDE's normal click routing on a borderless window. Coords are
+        // already LOGICAL px (CursorMoved applied `phys_to_logical`). ---
+        MUI_EVENT_MOUSE_DOWN if ev.button == MUI_MOUSE_LEFT => {
+            let w = ctx.gpu.width as f32;
+            let h = ctx.gpu.height as f32;
+            // Resize edge first (a corner press near the bar must resize, not drag).
+            let rc = crate::titlebar::resize_code(ev.x, ev.y, w, h);
+            if rc > 0 {
+                if let (Some(dir), Some(host)) =
+                    (crate::window::ResizeDir::from_code(rc), ctx.host.as_ref())
+                {
+                    host.drag_resize(dir);
+                }
+                return ShimAction::Consume;
+            }
+            let body_left = titlebar_body_left(ctx);
+            match crate::titlebar::hit(ev.x, ev.y, w, body_left) {
+                Some(crate::titlebar::TitleHit::Minimize) => {
+                    if let Some(host) = ctx.host.as_ref() {
+                        host.minimize();
+                    }
+                    ShimAction::Consume
+                }
+                Some(crate::titlebar::TitleHit::Maximize) => {
+                    let now = ctx.host.as_ref().is_some_and(|h| h.toggle_maximize());
+                    ctx.window_maximized = now;
+                    ShimAction::Consume
+                }
+                Some(crate::titlebar::TitleHit::Close) => {
+                    // Hand the IDE a real CLOSE so its existing exit path runs.
+                    ShimAction::Replace(MuiEvent::close())
+                }
+                Some(crate::titlebar::TitleHit::Drag) => {
+                    // Caption strip / rail header (and NOT over a tab — `hit`
+                    // already excludes the tab region via `body_left`): OS drag.
+                    if let Some(host) = ctx.host.as_ref() {
+                        host.drag();
+                    }
+                    ShimAction::Consume
+                }
+                None => ShimAction::PassThrough,
+            }
+        }
+        // --- Ctrl+wheel zooms the whole UI; a plain wheel passes through to the
+        // IDE as a normal scroll. ---
+        MUI_EVENT_SCROLL if (ev.mods & MUI_MOD_CTRL) != 0 => {
+            if ev.scroll_y > 0.0 {
+                let _ = mui_zoom_in(ctx as *mut MuiContext as i64);
+                ShimAction::Consume
+            } else if ev.scroll_y < 0.0 {
+                let _ = mui_zoom_out(ctx as *mut MuiContext as i64);
+                ShimAction::Consume
+            } else {
+                ShimAction::PassThrough
+            }
+        }
+        // --- Ctrl+= / Ctrl++ / Ctrl+- / Ctrl+0 zoom (and are NOT emitted as text
+        // into the editor). ---
+        MUI_EVENT_CHAR if (ev.mods & MUI_MOD_CTRL) != 0 => {
+            let handle = ctx as *mut MuiContext as i64;
+            match ev.codepoint {
+                // '=' or '+'
+                61 | 43 => {
+                    let _ = mui_zoom_in(handle);
+                    ShimAction::Consume
+                }
+                // '-'
+                45 => {
+                    let _ = mui_zoom_out(handle);
+                    ShimAction::Consume
+                }
+                // '0'
+                48 => {
+                    let _ = mui_zoom_reset(handle);
+                    ShimAction::Consume
+                }
+                _ => ShimAction::PassThrough,
+            }
+        }
+        _ => ShimAction::PassThrough,
+    }
+}
+
 /// Pump + pop one event, storing it as the "current" event for the scalar
 /// accessors below. Returns the event tag (`MUI_EVENT_*`), or `0` when the
 /// queue is empty.
+///
+/// Window-chrome presses (custom title bar: drag / minimize / maximize / resize
+/// edges) and UI-zoom gestures (Ctrl+=/-/0, Ctrl+wheel) are intercepted HERE,
+/// shim-side, and never surface to the IDE — so `main.mty` needs no window/zoom
+/// code (and its dispatch ladder stays under the v0.36 parser's nesting ceiling).
 #[no_mangle]
 pub extern "C" fn mui_poll_event_s(handle: i64) -> i32 {
-    let Some(ctx) = (unsafe { ctx(handle) }) else {
+    if unsafe { ctx(handle) }.is_none() {
         return 0;
-    };
-    let mut ev = MuiEvent::none();
-    let got = unsafe {
-        crate::mui_poll_event(handle as usize as *mut MuiContext, &mut ev as *mut MuiEvent)
-    };
-    if got {
-        ctx.last_event = ev;
-        ev.tag as i32
-    } else {
-        ctx.last_event = MuiEvent::none();
-        0
+    }
+    loop {
+        let mut ev = MuiEvent::none();
+        let got = unsafe {
+            crate::mui_poll_event(handle as usize as *mut MuiContext, &mut ev as *mut MuiEvent)
+        };
+        // Borrow fresh AFTER the raw-handle pump call above (which can't coexist
+        // with a live `&mut MuiContext`).
+        let Some(c) = (unsafe { ctx(handle) }) else {
+            return 0;
+        };
+        if !got {
+            c.last_event = MuiEvent::none();
+            return 0;
+        }
+        match shim_intercept(c, &ev) {
+            ShimAction::Consume => continue,
+            ShimAction::Replace(rep) => {
+                c.last_event = rep;
+                return rep.tag as i32;
+            }
+            ShimAction::PassThrough => {
+                c.last_event = ev;
+                return ev.tag as i32;
+            }
+        }
     }
 }
 
@@ -1844,6 +1969,153 @@ pub extern "C" fn mui_event_scroll_dir(handle: i64) -> i32 {
             0
         }
     })
+}
+
+/// Sign of the last scroll event's vertical delta WITH the Ctrl modifier held
+/// (zoom gesture): `+1` (wheel up → zoom in), `-1` (wheel down → zoom out), `0`
+/// otherwise. The IDE checks this first so Ctrl+wheel zooms instead of scrolls.
+#[no_mangle]
+pub extern "C" fn mui_event_zoom_dir(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| {
+        if c.last_event.tag != MUI_EVENT_SCROLL || (c.last_event.mods & MUI_MOD_CTRL) == 0 {
+            return 0;
+        }
+        let dy = c.last_event.scroll_y;
+        if dy > 0.0 {
+            1
+        } else if dy < 0.0 {
+            -1
+        } else {
+            0
+        }
+    })
+}
+
+// ---------------------------------------------------------------------------
+// UI zoom (Ctrl+= / Ctrl+- / Ctrl+0, Ctrl+wheel). The factor is `os_scale ×
+// user_zoom`; these adjust `user_zoom`, persist it, and recompute the logical
+// surface size + projection so the next frame reflows at the new scale.
+// ---------------------------------------------------------------------------
+
+fn apply_zoom(handle: i64, new_zoom: f32) -> i32 {
+    crate::uiscale::set_user_zoom(new_zoom);
+    crate::config::save_zoom(crate::uiscale::user_zoom());
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.gpu.rescale();
+    }
+    (crate::uiscale::user_zoom() * 100.0).round() as i32
+}
+
+/// Zoom in one step. Returns the new zoom percent (e.g. 110).
+#[no_mangle]
+pub extern "C" fn mui_zoom_in(handle: i64) -> i32 {
+    let z = crate::uiscale::clamp_zoom(crate::uiscale::user_zoom() + crate::uiscale::ZOOM_STEP);
+    apply_zoom(handle, z)
+}
+
+/// Zoom out one step. Returns the new zoom percent.
+#[no_mangle]
+pub extern "C" fn mui_zoom_out(handle: i64) -> i32 {
+    let z = crate::uiscale::clamp_zoom(crate::uiscale::user_zoom() - crate::uiscale::ZOOM_STEP);
+    apply_zoom(handle, z)
+}
+
+/// Reset the user zoom to 100%. Returns 100.
+#[no_mangle]
+pub extern "C" fn mui_zoom_reset(handle: i64) -> i32 {
+    apply_zoom(handle, 1.0)
+}
+
+// ---------------------------------------------------------------------------
+// Custom (borderless) window title bar: hit-test the controls / drag strip /
+// resize edges, and drive the OS window actions (drag / minimize / maximize /
+// close). All hit-testing uses the LAST mouse position (logical px), matching
+// every other `*_at_click` entry point.
+// ---------------------------------------------------------------------------
+
+fn titlebar_body_left(ctx: &MuiContext) -> f32 {
+    layout::RAIL_W + if ctx.sidebar_visible { layout::SIDEBAR_W } else { 0.0 }
+}
+
+/// Hit-test the last click against the title bar. Returns: 0 = none, 1 = drag
+/// strip, 2 = minimize, 3 = maximize/restore, 4 = close.
+#[no_mangle]
+pub extern "C" fn mui_titlebar_hit_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    use crate::titlebar::TitleHit;
+    let w = ctx.gpu.width as f32;
+    let body_left = titlebar_body_left(ctx);
+    match crate::titlebar::hit(ctx.last_event.x, ctx.last_event.y, w, body_left) {
+        Some(TitleHit::Drag) => 1,
+        Some(TitleHit::Minimize) => 2,
+        Some(TitleHit::Maximize) => 3,
+        Some(TitleHit::Close) => 4,
+        None => 0,
+    }
+}
+
+/// Resize-edge hit code for the last mouse position (1..=8 per
+/// `crate::window::ResizeDir::from_code`), or 0 when not on an edge.
+#[no_mangle]
+pub extern "C" fn mui_window_resize_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let w = ctx.gpu.width as f32;
+    let h = ctx.gpu.height as f32;
+    crate::titlebar::resize_code(ctx.last_event.x, ctx.last_event.y, w, h)
+}
+
+/// Begin an OS window drag (call when the drag strip is pressed).
+#[no_mangle]
+pub extern "C" fn mui_window_drag(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if let Some(host) = ctx.host.as_ref() {
+            host.drag();
+        }
+    }
+}
+
+/// Begin an OS resize drag in direction `code` (1..=8). No-op for 0/unknown.
+#[no_mangle]
+pub extern "C" fn mui_window_resize(handle: i64, code: i32) {
+    if let Some(dir) = crate::window::ResizeDir::from_code(code) {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            if let Some(host) = ctx.host.as_ref() {
+                host.drag_resize(dir);
+            }
+        }
+    }
+}
+
+/// Minimize the window.
+#[no_mangle]
+pub extern "C" fn mui_window_minimize(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if let Some(host) = ctx.host.as_ref() {
+            host.minimize();
+        }
+    }
+}
+
+/// Toggle maximize / restore. Returns 1 when now maximized, else 0.
+#[no_mangle]
+pub extern "C" fn mui_window_toggle_maximize(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let now = match ctx.host.as_ref() {
+        Some(host) => host.toggle_maximize(),
+        None => false,
+    };
+    ctx.window_maximized = now;
+    if now {
+        1
+    } else {
+        0
+    }
 }
 
 #[no_mangle]
@@ -3019,8 +3291,32 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
         }
     }
 
-    // Right edge: run + more actions (mockup `.tb-actions`).
-    let ax = w - 64.0;
+    // ----- custom window controls (borderless title bar): minimize / maximize /
+    // close, at the far right of this row. The rest of the row is the OS-drag
+    // strip (see `crate::titlebar`). -----
+    let btn_w = crate::titlebar::BTN_W;
+    let controls_x = crate::titlebar::controls_x(w);
+    let maximized = ctx.window_maximized;
+    let icon_d = 14.0;
+    let iy = (bar_h - icon_d) * 0.5;
+    // Hover/active wash is omitted (no per-frame cursor in the draw path); the
+    // close button gets a subtle red tint so it reads as the destructive control.
+    for (i, path) in [
+        icons::WIN_MIN,
+        if maximized { icons::WIN_RESTORE } else { icons::WIN_MAX },
+        icons::CLOSE,
+    ]
+    .iter()
+    .enumerate()
+    {
+        let bx = controls_x + i as f32 * btn_w;
+        let col = if i == 2 { theme::ERROR() } else { theme::TEXT_3() };
+        let cx = bx + (btn_w - icon_d) * 0.5;
+        ctx.dl_icon(cx, iy, icon_d, icon_d, path, col, 1.5, false);
+    }
+
+    // Right edge (just left of the window controls): run + more actions.
+    let ax = controls_x - 60.0;
     let ay = (bar_h - 16.0) * 0.5;
     ctx.dl_icon(ax, ay, 16.0, 16.0, icons::RUN, theme::GREEN(), 1.5, true);
     ctx.dl_icon(ax + 28.0, ay, 16.0, 16.0, icons::DOTS, theme::TEXT_3(), 0.0, true);

@@ -306,7 +306,9 @@ impl VelloUi {
         col(crate::theme::BG())
     }
 
-    /// Render `dl` (laid over the atmosphere) to an offscreen texture.
+    /// Render `dl` (laid over the atmosphere) to an offscreen texture. `width` /
+    /// `height` are the PHYSICAL target size; the display list is in LOGICAL px,
+    /// so the whole scene is scaled by `ui_scale` to fill the physical target.
     pub fn render_to_texture(
         &mut self,
         device: &wgpu::Device,
@@ -333,7 +335,9 @@ impl VelloUi {
             .map_err(|e| format!("Vello render_to_texture failed: {e}"))
     }
 
-    /// Render `dl` to the winit surface texture.
+    /// Render `dl` to the winit surface texture. `width` / `height` are the
+    /// PHYSICAL surface size; the display list is in LOGICAL px and is scaled by
+    /// `ui_scale` to fill it (so the whole UI honors the OS scale + user zoom).
     pub fn render_to_surface(
         &mut self,
         device: &wgpu::Device,
@@ -360,17 +364,31 @@ impl VelloUi {
             .map_err(|e| format!("Vello render_to_surface failed: {e}"))
     }
 
-    /// Build the full Vello scene: atmosphere first, then base layer, then
-    /// overlay layer.
-    fn build_scene(&self, w: u32, h: u32, dl: &DisplayList) -> Scene {
-        let mut scene = Scene::new();
-        self.paint_atmosphere(&mut scene, w as f64, h as f64);
+    /// Build the full Vello scene at the PHYSICAL target size (`pw`×`ph`). The
+    /// display list + atmosphere are authored in LOGICAL px, so everything is
+    /// painted into a logical-sized child scene which is then appended under an
+    /// `ui_scale` transform — scaling the entire UI (chrome + editor + glyphs)
+    /// uniformly to the physical surface. `ui_scale == 1.0` reproduces the
+    /// historical (offscreen/screenshot) output exactly.
+    fn build_scene(&self, pw: u32, ph: u32, dl: &DisplayList) -> Scene {
+        let scale = crate::uiscale::ui_scale() as f64;
+        let lw = (pw as f64 / scale).max(1.0);
+        let lh = (ph as f64 / scale).max(1.0);
+
+        let mut inner = Scene::new();
+        self.paint_atmosphere(&mut inner, lw, lh);
         for (cmd, clip) in &dl.base {
-            self.paint_clipped(&mut scene, cmd, *clip);
+            self.paint_clipped(&mut inner, cmd, *clip);
         }
         for (cmd, clip) in &dl.overlay {
-            self.paint_clipped(&mut scene, cmd, *clip);
+            self.paint_clipped(&mut inner, cmd, *clip);
         }
+
+        if (scale - 1.0).abs() < f64::EPSILON {
+            return inner;
+        }
+        let mut scene = Scene::new();
+        scene.append(&inner, Some(Affine::scale(scale)));
         scene
     }
 

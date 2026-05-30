@@ -873,3 +873,209 @@ fn headless_frames_zero_without_env_positive_with_env() {
     std::env::remove_var("MUI_NAV_PROBE");
     assert_eq!(mui_headless_frames(), 0);
 }
+
+/// Shim-side window-chrome + zoom interception (the v0.36-parser-safe move of the
+/// title bar + zoom OUT of main.mty and INTO `mui_poll_event_s`). These drive
+/// REAL winit `WindowEvent`s through `translate_window_event` into the live event
+/// queue, then poll exactly as the IDE main loop does — so the same code path the
+/// OS exercises is exercised here.
+mod shim_chrome {
+    use super::*;
+    use crate::{
+        mui_event_codepoint, mui_poll_event_s, mui_window_toggle_maximize, mui_zoom_reset,
+    };
+    use winit::dpi::PhysicalPosition;
+    use winit::event::{DeviceId, ElementState, MouseButton, MouseScrollDelta, WindowEvent};
+
+    // Big enough that the title-bar controls (right edge) and interior are
+    // distinct, and edges aren't the whole window.
+    const WW: u32 = 1000;
+    const WH: u32 = 700;
+
+    fn handle(ctx: &mut MuiContext) -> i64 {
+        (ctx as *mut MuiContext) as usize as i64
+    }
+
+    fn move_to(ctx: &mut MuiContext, x: f32, y: f32) {
+        // winit reports PHYSICAL px; at ui_scale 1.0 logical == physical.
+        let ev = WindowEvent::CursorMoved {
+            device_id: DeviceId::dummy(),
+            position: PhysicalPosition::new(x as f64, y as f64),
+        };
+        translate_window_event(&mut ctx.queue, &ev);
+    }
+
+    fn press_left(ctx: &mut MuiContext) {
+        let ev = WindowEvent::MouseInput {
+            device_id: DeviceId::dummy(),
+            state: ElementState::Pressed,
+            button: MouseButton::Left,
+        };
+        translate_window_event(&mut ctx.queue, &ev);
+    }
+
+    fn ctrl_down(ctx: &mut MuiContext) {
+        // Emulate the modifier-state update winit pushes before the key/wheel.
+        let mods = winit::keyboard::ModifiersState::CONTROL;
+        let ev = WindowEvent::ModifiersChanged(mods.into());
+        translate_window_event(&mut ctx.queue, &ev);
+    }
+
+    fn wheel(ctx: &mut MuiContext, dy: f32) {
+        let ev = WindowEvent::MouseWheel {
+            device_id: DeviceId::dummy(),
+            delta: MouseScrollDelta::LineDelta(0.0, dy),
+            phase: winit::event::TouchPhase::Moved,
+        };
+        translate_window_event(&mut ctx.queue, &ev);
+    }
+
+    #[test]
+    fn close_button_press_is_delivered_as_close_event() {
+        crate::uiscale::set_os_scale(1.0);
+        crate::uiscale::set_user_zoom(1.0);
+        let mut ctx = match MuiContext::new_offscreen(WW, WH) {
+            Some(c) => c,
+            None => {
+                eprintln!("skip: no GPU adapter");
+                return;
+            }
+        };
+        let h = handle(&mut ctx);
+        // The close button is the rightmost ~46px of the title-bar row, y inside
+        // the bar. Move there, then press.
+        let cx = WW as f32 - crate::titlebar::BTN_W * 0.5;
+        move_to(&mut ctx, cx, 8.0);
+        press_left(&mut ctx);
+        // The shim turns the close-button press into a real CLOSE the IDE handles.
+        assert_eq!(mui_poll_event_s(h), MUI_EVENT_CLOSE as i32);
+        // Nothing else queued.
+        assert_eq!(mui_poll_event_s(h), 0);
+    }
+
+    #[test]
+    fn min_max_drag_and_resize_presses_are_consumed_not_delivered() {
+        crate::uiscale::set_os_scale(1.0);
+        crate::uiscale::set_user_zoom(1.0);
+        let mut ctx = match MuiContext::new_offscreen(WW, WH) {
+            Some(c) => c,
+            None => return,
+        };
+        let h = handle(&mut ctx);
+        // Minimize button (leftmost of the three controls).
+        let min_x = crate::titlebar::controls_x(WW as f32) + crate::titlebar::BTN_W * 0.5;
+        move_to(&mut ctx, min_x, 8.0);
+        press_left(&mut ctx);
+        // Caption-strip drag region (between body_left and controls), still in bar.
+        move_to(&mut ctx, WW as f32 * 0.5, 8.0);
+        press_left(&mut ctx);
+        // A resize edge (far right column, mid-height).
+        move_to(&mut ctx, WW as f32 - 1.0, WH as f32 * 0.5);
+        press_left(&mut ctx);
+        // All three are window chrome -> consumed -> the IDE sees an empty queue.
+        assert_eq!(
+            mui_poll_event_s(h),
+            0,
+            "title-bar/resize presses must not reach the IDE"
+        );
+    }
+
+    #[test]
+    fn interior_press_passes_through_to_the_ide() {
+        crate::uiscale::set_os_scale(1.0);
+        crate::uiscale::set_user_zoom(1.0);
+        let mut ctx = match MuiContext::new_offscreen(WW, WH) {
+            Some(c) => c,
+            None => return,
+        };
+        let h = handle(&mut ctx);
+        // Deep in the editor body, well below the bar and off the edges.
+        move_to(&mut ctx, WW as f32 * 0.5, WH as f32 * 0.5);
+        press_left(&mut ctx);
+        assert_eq!(
+            mui_poll_event_s(h),
+            MUI_EVENT_MOUSE_DOWN as i32,
+            "an interior click must reach the IDE unchanged"
+        );
+    }
+
+    #[test]
+    fn ctrl_plus_minus_zero_chars_zoom_and_are_swallowed() {
+        crate::uiscale::set_os_scale(1.0);
+        crate::uiscale::set_user_zoom(1.0);
+        let mut ctx = match MuiContext::new_offscreen(WW, WH) {
+            Some(c) => c,
+            None => return,
+        };
+        let h = handle(&mut ctx);
+        mui_zoom_reset(h);
+        ctrl_down(&mut ctx);
+        // Ctrl+'=' twice (a char event with the Ctrl modifier folded in).
+        for _ in 0..2 {
+            ctx.queue.push(MuiEvent::char('=' as u32, MUI_MOD_CTRL));
+        }
+        // The IDE polls and sees NOTHING (both swallowed as zoom).
+        assert_eq!(mui_poll_event_s(h), 0);
+        assert!(
+            (crate::uiscale::user_zoom() - 1.2).abs() < 0.001,
+            "two Ctrl+= steps -> 1.2, got {}",
+            crate::uiscale::user_zoom()
+        );
+        // Ctrl+'-' once -> back toward 1.1.
+        ctx.queue.push(MuiEvent::char('-' as u32, MUI_MOD_CTRL));
+        assert_eq!(mui_poll_event_s(h), 0);
+        assert!((crate::uiscale::user_zoom() - 1.1).abs() < 0.001);
+        // Ctrl+'0' resets.
+        ctx.queue.push(MuiEvent::char('0' as u32, MUI_MOD_CTRL));
+        assert_eq!(mui_poll_event_s(h), 0);
+        assert!((crate::uiscale::user_zoom() - 1.0).abs() < 0.001);
+        let _ = mui_event_codepoint(h); // no panic on the accessor
+        crate::uiscale::set_user_zoom(1.0);
+    }
+
+    #[test]
+    fn ctrl_wheel_zooms_plain_wheel_scrolls() {
+        crate::uiscale::set_os_scale(1.0);
+        crate::uiscale::set_user_zoom(1.0);
+        let mut ctx = match MuiContext::new_offscreen(WW, WH) {
+            Some(c) => c,
+            None => return,
+        };
+        let h = handle(&mut ctx);
+        mui_zoom_reset(h);
+        // Ctrl+wheel-up -> zoom in, swallowed.
+        ctrl_down(&mut ctx);
+        wheel(&mut ctx, 1.0);
+        assert_eq!(mui_poll_event_s(h), 0, "Ctrl+wheel must be swallowed");
+        assert!(crate::uiscale::user_zoom() > 1.0, "Ctrl+wheel-up zoomed in");
+        // A PLAIN wheel (no Ctrl) passes through as a normal scroll for the editor.
+        let mods = winit::keyboard::ModifiersState::empty();
+        translate_window_event(
+            &mut ctx.queue,
+            &WindowEvent::ModifiersChanged(mods.into()),
+        );
+        wheel(&mut ctx, -1.0);
+        assert_eq!(
+            mui_poll_event_s(h),
+            MUI_EVENT_SCROLL as i32,
+            "a plain wheel must reach the IDE as a scroll"
+        );
+        crate::uiscale::set_user_zoom(1.0);
+    }
+
+    #[test]
+    fn typed_char_without_ctrl_reaches_the_ide() {
+        crate::uiscale::set_os_scale(1.0);
+        crate::uiscale::set_user_zoom(1.0);
+        let mut ctx = match MuiContext::new_offscreen(WW, WH) {
+            Some(c) => c,
+            None => return,
+        };
+        let h = handle(&mut ctx);
+        // A normal typed 'h' (no modifiers) must NOT be swallowed.
+        ctx.queue.push(MuiEvent::char('h' as u32, 0));
+        assert_eq!(mui_poll_event_s(h), MUI_EVENT_CHAR as i32);
+        assert_eq!(mui_event_codepoint(h), 'h' as i32);
+        let _ = mui_window_toggle_maximize(h); // host is None -> no-op, no panic
+    }
+}

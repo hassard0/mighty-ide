@@ -64,6 +64,12 @@ pub const FILE_TXT: &str = "M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v1
 pub const CHEVRON: &str = "M9 6l6 6-6 6";
 /// Tab close ×.
 pub const CLOSE: &str = "M6 6l12 12M18 6 6 18";
+/// Window minimize (a single horizontal bar near the middle).
+pub const WIN_MIN: &str = "M6 12h12";
+/// Window maximize (a square outline).
+pub const WIN_MAX: &str = "M6 6h12v12H6z";
+/// Window restore (two offset squares — shown when maximized).
+pub const WIN_RESTORE: &str = "M8 8V6h10v10h-2 M6 9h10v9H6z";
 /// More (horizontal three dots) — filled.
 pub const DOTS: &str = "M6 10.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z M12 10.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z M18 10.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z";
 /// New file (doc with folded corner).

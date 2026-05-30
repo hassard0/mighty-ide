@@ -48,8 +48,16 @@ pub struct Gpu {
     pub queue: wgpu::Queue,
     pub target: RenderTarget,
     pub format: wgpu::TextureFormat,
+    /// **Logical** surface width/height (physical ÷ ui_scale). All layout / draw
+    /// / click math reads these so it stays in one (logical) coordinate space; the
+    /// rect projection uniform is built from these too, so logical coords fill the
+    /// physical surface and the whole UI scales up under DPI/zoom.
     pub width: u32,
     pub height: u32,
+    /// **Physical** surface width/height (winit `inner_size`, the real swapchain
+    /// size). Used to configure the surface, clamp the scissor, and read pixels.
+    pub phys_width: u32,
+    pub phys_height: u32,
 
     rect_pipeline: wgpu::RenderPipeline,
     screen_buf: wgpu::Buffer,
@@ -134,9 +142,14 @@ fn pick_surface_format(formats: &[wgpu::TextureFormat]) -> wgpu::TextureFormat {
 impl Gpu {
     /// Construct GPU state backed by a real window surface.
     pub fn new_windowed(window: Arc<Window>) -> Result<Self, String> {
+        // `inner_size()` is in PHYSICAL pixels. The surface is configured at the
+        // physical size; the projection / layout work in LOGICAL pixels.
         let size = window.inner_size();
-        let width = size.width.max(1);
-        let height = size.height.max(1);
+        let phys_width = size.width.max(1);
+        let phys_height = size.height.max(1);
+        let scale = crate::uiscale::ui_scale();
+        let width = ((phys_width as f32 / scale).round() as u32).max(1);
+        let height = ((phys_height as f32 / scale).round() as u32).max(1);
 
         let instance = wgpu::Instance::default();
         let surface = instance
@@ -162,8 +175,9 @@ impl Gpu {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format,
-            width,
-            height,
+            // Surface is the PHYSICAL size; the projection uses the LOGICAL size.
+            width: phys_width,
+            height: phys_height,
             present_mode: wgpu::PresentMode::Fifo,
             alpha_mode: caps.alpha_modes[0],
             view_formats: vec![],
@@ -182,6 +196,8 @@ impl Gpu {
             format,
             width,
             height,
+            phys_width,
+            phys_height,
             rect_pipeline,
             screen_buf,
             screen_bind_group,
@@ -247,6 +263,10 @@ impl Gpu {
             format,
             width,
             height,
+            // Offscreen (screenshot / headless tests) never scales: physical ==
+            // logical so PNG readback + scissor are unchanged.
+            phys_width: width,
+            phys_height: height,
             rect_pipeline,
             screen_buf,
             screen_bind_group,
@@ -279,11 +299,19 @@ impl Gpu {
     }
 
     /// Reconfigure the surface / resize the offscreen target.
-    pub fn resize(&mut self, width: u32, height: u32) {
-        let width = width.max(1);
-        let height = height.max(1);
+    /// Reconfigure for a new **physical** surface size (winit `Resized` /
+    /// `ScaleFactorChanged` deliver physical pixels). The logical size — used by
+    /// all layout/draw/click math + the projection — is `physical ÷ ui_scale`.
+    pub fn resize(&mut self, phys_width: u32, phys_height: u32) {
+        let phys_width = phys_width.max(1);
+        let phys_height = phys_height.max(1);
+        let scale = crate::uiscale::ui_scale();
+        let width = ((phys_width as f32 / scale).round() as u32).max(1);
+        let height = ((phys_height as f32 / scale).round() as u32).max(1);
         self.width = width;
         self.height = height;
+        self.phys_width = phys_width;
+        self.phys_height = phys_height;
         self.queue.write_buffer(
             &self.screen_buf,
             0,
@@ -297,8 +325,8 @@ impl Gpu {
                 let config = wgpu::SurfaceConfiguration {
                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                     format: self.format,
-                    width,
-                    height,
+                    width: phys_width,
+                    height: phys_height,
                     present_mode: wgpu::PresentMode::Fifo,
                     alpha_mode: wgpu::CompositeAlphaMode::Auto,
                     view_formats: vec![],
@@ -327,6 +355,24 @@ impl Gpu {
                 *texture = new;
             }
         }
+    }
+
+    /// Recompute the LOGICAL size + projection from the current physical size and
+    /// the (possibly changed) `ui_scale`, without reconfiguring the surface. Called
+    /// when the OS DPI factor or the user zoom changes but the physical surface
+    /// size did not (the surface is already the right physical size).
+    pub fn rescale(&mut self) {
+        let scale = crate::uiscale::ui_scale();
+        self.width = ((self.phys_width as f32 / scale).round() as u32).max(1);
+        self.height = ((self.phys_height as f32 / scale).round() as u32).max(1);
+        self.queue.write_buffer(
+            &self.screen_buf,
+            0,
+            bytemuck::bytes_of(&ScreenUniform {
+                size: [self.width as f32, self.height as f32],
+                _pad: [0.0, 0.0],
+            }),
+        );
     }
 
     /// Draw a batch of rects into `view`, clearing first iff `clear`.
@@ -369,11 +415,18 @@ impl Gpu {
         });
 
         if let Some((x, y, w, h)) = clip {
+            // The clip rect is in LOGICAL pixels (the layout space); the scissor is
+            // in PHYSICAL surface pixels, so scale it by ui_scale first.
+            let s = crate::uiscale::ui_scale();
+            let x = ((x as f32) * s).round() as u32;
+            let y = ((y as f32) * s).round() as u32;
+            let w = ((w as f32) * s).round() as u32;
+            let h = ((h as f32) * s).round() as u32;
             // Clamp scissor to the target bounds (wgpu validates this strictly).
-            let x = x.min(self.width);
-            let y = y.min(self.height);
-            let w = w.min(self.width - x);
-            let h = h.min(self.height - y);
+            let x = x.min(self.phys_width);
+            let y = y.min(self.phys_height);
+            let w = w.min(self.phys_width - x);
+            let h = h.min(self.phys_height - y);
             if w == 0 || h == 0 {
                 return; // fully clipped: nothing to draw (pass still cleared)
             }
