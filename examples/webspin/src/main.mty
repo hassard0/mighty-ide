@@ -1,0 +1,73 @@
+// webspin — a pure (non-FFI) Mighty program that compiles to
+// `wasm32-web` and animates a spinning arc + a frame counter in the
+// browser. This is the Mighty IDE's "Run in Browser" sample: a
+// self-contained Component-Model guest with NO extern-c / FFI (those
+// can't wasm-run), driven by `mty serve` (build → serve `web/` +
+// `main.wasm` → hot reload) or the IDE's wasm32-web build fallback.
+//
+// ## How it draws
+//
+// Until the `mty:web/canvas@0.1` WIT binding lands (v0.24), the guest
+// can't paint the canvas directly, so it speaks the v0.22 `log("evt:…")`
+// state-event channel the `web-game` template established: the agent
+// `log`s a phase event on each frame and the JS host in
+// `web/dom-shim.js` advances + renders the spinner. When the canvas WIT
+// lands, fold the draws into the agent and drop the JS mirror.
+//
+// Pure Mighty only — every handler/export `log`s a literal; nothing
+// crosses an FFI boundary, so `mty build --target wasm32-web` produces a
+// browser-runnable component.
+package webspin
+
+// ----------------------------------------------------------------
+// Spinner protocol — `Tick` advances one animation frame, `Reset`
+// returns to the origin. The JS host calls the matching exports below.
+// ----------------------------------------------------------------
+
+protocol Spinner {
+  Tick()  -> Unit
+  Reset() -> Unit
+}
+
+// ----------------------------------------------------------------
+// Spin agent — single source of truth for the animation. Each `Tick`
+// emits `evt:spin` (the host advances the angle + frame counter); the
+// `Reset` handler emits `evt:reset`. Keeping the math host-side keeps
+// the guest pure (no number→string formatting across the FFI/WIT edge,
+// which the v0.36 wasm32-web target does not yet lower for `log`).
+// ----------------------------------------------------------------
+
+agent Spin: Spinner {
+  spinning = true
+
+  on Tick() {
+    log("evt:spin")
+  }
+
+  on Reset() {
+    log("evt:reset")
+  }
+}
+
+// ----------------------------------------------------------------
+// Exported entry points the JS host calls. `start()` runs once at boot,
+// `tick()` advances one frame (≈ one `requestAnimationFrame`), `reset()`
+// restarts. These mirror the agent handlers so the v0.22 channel works
+// whether the host drives the agent mailbox or the exports directly.
+// ----------------------------------------------------------------
+
+export fn start() {
+  log("evt:start")
+}
+
+export fn tick() {
+  log("evt:spin")
+}
+
+export fn reset() {
+  log("evt:reset")
+}
+
+fn main() {
+  log("webspin: built")
+}
