@@ -26,8 +26,11 @@ mod format;
 mod gpu;
 mod history;
 mod icons;
+mod langdetect;
 mod language;
 mod layout;
+mod lspclient;
+mod lspregistry;
 mod nav;
 mod navsurfaces;
 mod outline;
@@ -102,6 +105,10 @@ pub struct MuiContext {
     last_event: MuiEvent,
     /// Configured source/target file path (shim owns file I/O).
     file_path: Option<PathBuf>,
+    /// The detected language of the active file (drives multi-language syntax
+    /// highlighting + the status-bar pill + the LSP bridge). Recomputed whenever
+    /// `file_path` changes (`sync_active_path` / `mui_path_commit`).
+    language: langdetect::Language,
     /// Path bytes staged before `mui_path_commit`.
     path_stage: Vec<u8>,
     /// Bytes of the most recently loaded file (read by index).
@@ -590,6 +597,10 @@ pub(crate) fn build_context(
         in_frame: false,
         text_stage: String::new(),
         last_event: MuiEvent::none(),
+        language: file_path
+            .as_ref()
+            .map(|p| langdetect::detect_path(p))
+            .unwrap_or(langdetect::Language::PlainText),
         file_path,
         path_stage: Vec::new(),
         load_buf: Vec::new(),
@@ -1209,6 +1220,7 @@ impl MuiContext {
             in_frame: false,
             text_stage: String::new(),
             last_event: MuiEvent::none(),
+            language: langdetect::Language::PlainText,
             file_path: None,
             path_stage: Vec::new(),
             load_buf: Vec::new(),

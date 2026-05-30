@@ -1,0 +1,23 @@
+{
+  "name": "mighty-ide",
+  "version": "0.36.0",
+  "description": "A polished Vivid-Modern Vello IDE",
+  "languages": ["mighty", "rust", "python", "json"],
+  "settings": {
+    "fontSize": 14,
+    "tabWidth": 2,
+    "wordWrap": false,
+    "minimap": true,
+    "theme": "vivid"
+  },
+  "lsp": {
+    "enabled": true,
+    "servers": {
+      "rust": "rust-analyzer",
+      "python": "pyright-langserver"
+    }
+  },
+  "counts": [1, 2, 3, 42, 100],
+  "active": true,
+  "fallback": null
+}

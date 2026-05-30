@@ -30,9 +30,104 @@ use std::path::PathBuf;
 
 use crate::diagnostics::{self, Severity};
 use crate::ffi::*;
+use crate::langdetect::Language;
 use crate::layout;
 use crate::theme;
 use crate::MuiContext;
+
+/// Highlight one line for the active `lang`, preferring Markdown's tailored
+/// handling (headings/bullets/quotes) when the file is Markdown.
+fn highlight_for(line: &str, lang: Language) -> Vec<crate::syntax::Span> {
+    if lang == Language::Markdown {
+        crate::syntax::highlight_markdown_line(line)
+    } else {
+        crate::syntax::highlight_line_lang(line, lang)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// LSP routing: Mighty keeps its dedicated `mty lsp` clients; every other
+// language routes through the generic `lspclient` against a registry-resolved
+// server (only when the binary is installed; otherwise silently no LSP).
+// ---------------------------------------------------------------------------
+
+/// The workspace root for an LSP `initialize` (the file's parent dir, else cwd).
+fn workspace_root(path: &std::path::Path) -> PathBuf {
+    path.parent()
+        .map(|p| p.to_path_buf())
+        .filter(|p| !p.as_os_str().is_empty())
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."))
+}
+
+/// Semantic completion labels for the active `lang`. Mighty → the existing
+/// `mty lsp` completion client (unchanged). Other languages → the generic
+/// client against the registry server, parsed for `label`s; empty (→ buffer
+/// words fallback) when no server is installed.
+fn lsp_semantic_labels(lang: Language, path: &std::path::Path, source: &str, line: u32, col: u32) -> Vec<String> {
+    if lang == Language::Mighty {
+        return crate::completion::lsp::semantic_labels(path, source, line, col);
+    }
+    let Some(spec) = crate::lspregistry::server_for(lang) else {
+        return Vec::new();
+    };
+    let root = workspace_root(path);
+    let raw = crate::lspclient::request(
+        &spec,
+        lang.lsp_id(),
+        &root,
+        path,
+        source,
+        crate::lspclient::Method::Completion,
+        line,
+        col,
+    );
+    crate::completion::lsp::scrape_labels(&raw)
+}
+
+/// Raw `textDocument/hover` response for the active `lang` (isolated id:2
+/// object). Mighty → `nav::lsp`; others → generic client; empty when no server.
+fn lsp_hover_raw(lang: Language, path: &std::path::Path, source: &str, line: u32, col: u32) -> String {
+    if lang == Language::Mighty {
+        return crate::nav::lsp::request(path, source, line, col, crate::nav::lsp::Req::Hover);
+    }
+    let Some(spec) = crate::lspregistry::server_for(lang) else {
+        return String::new();
+    };
+    let root = workspace_root(path);
+    crate::lspclient::request(
+        &spec,
+        lang.lsp_id(),
+        &root,
+        path,
+        source,
+        crate::lspclient::Method::Hover,
+        line,
+        col,
+    )
+}
+
+/// Raw `textDocument/definition` response for the active `lang`. Mighty →
+/// `nav::lsp`; others → generic client; empty when no server.
+fn lsp_def_raw(lang: Language, path: &std::path::Path, source: &str, line: u32, col: u32) -> String {
+    if lang == Language::Mighty {
+        return crate::nav::lsp::request(path, source, line, col, crate::nav::lsp::Req::Definition);
+    }
+    let Some(spec) = crate::lspregistry::server_for(lang) else {
+        return String::new();
+    };
+    let root = workspace_root(path);
+    crate::lspclient::request(
+        &spec,
+        lang.lsp_id(),
+        &root,
+        path,
+        source,
+        crate::lspclient::Method::Definition,
+        line,
+        col,
+    )
+}
 
 /// Resolve the file to edit: `argv[1]` if given, else a scratch file in the
 /// current directory. The scratch file is created empty if it does not exist
@@ -1157,7 +1252,9 @@ pub extern "C" fn mui_path_push(handle: i64, byte: u32) {
 pub extern "C" fn mui_path_commit(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         let s = String::from_utf8_lossy(&ctx.path_stage).into_owned();
-        ctx.file_path = Some(PathBuf::from(s));
+        let pb = PathBuf::from(s);
+        ctx.language = crate::langdetect::detect_path(&pb);
+        ctx.file_path = Some(pb);
     }
 }
 
@@ -1216,7 +1313,18 @@ pub extern "C" fn mui_diag_refresh(handle: i64) -> i32 {
         ctx.diags.clear();
         return 0;
     };
-    ctx.diags = diagnostics::run_check(&path);
+    // Mighty keeps using `mty check`; other languages surface their language
+    // server's publishDiagnostics (only when a server is installed). Either path
+    // is best-effort — failure/no-server yields an empty set, never a crash.
+    if ctx.language == Language::Mighty {
+        ctx.diags = diagnostics::run_check(&path);
+    } else if let Some(spec) = crate::lspregistry::server_for(ctx.language) {
+        let source = std::fs::read_to_string(&path).unwrap_or_default();
+        let root = workspace_root(&path);
+        ctx.diags = crate::lspclient::diagnostics(&spec, ctx.language.lsp_id(), &root, &path, &source);
+    } else {
+        ctx.diags.clear();
+    }
     let n = ctx.diags.len() as i32;
     println!("diags: {n}");
     for d in &ctx.diags {
@@ -1427,8 +1535,9 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     ctx.dl_icon(rx, icon_y - 0.5, 14.0, 14.0, icons::BELL, theme::DIM(), 1.5, false);
     rx -= 10.0;
 
-    // Language pill "Mighty" with an indigo gradient + an M glyph.
-    let lang = "Mighty";
+    // Language pill (detected from the active file) with an indigo gradient + an
+    // M glyph. Falls back to "Mighty" only when the active file is Mighty.
+    let lang = ctx.language.display_name();
     let lang_w = text_w(lang);
     let pill_w = lang_w + 30.0;
     let pill_h = 19.0;
@@ -1703,6 +1812,10 @@ pub(crate) fn sync_active_path(ctx: &mut MuiContext) {
         .and_then(|p| p.file_name())
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_default();
+    ctx.language = path
+        .as_ref()
+        .map(|p| crate::langdetect::detect_path(p))
+        .unwrap_or(crate::langdetect::Language::PlainText);
     ctx.file_path = path;
 }
 
@@ -2820,7 +2933,7 @@ pub extern "C" fn mui_complete_request(handle: i64, line: i32, col: i32) -> i32 
     let lsp_labels: Vec<String> = match ctx.file_path.clone() {
         Some(path) => {
             let source = String::from_utf8_lossy(&ctx.complete_buf).into_owned();
-            crate::completion::lsp::semantic_labels(&path, &source, line.max(0) as u32, col.max(0) as u32)
+            lsp_semantic_labels(ctx.language, &path, &source, line.max(0) as u32, col.max(0) as u32)
         }
         None => Vec::new(),
     };
@@ -3002,7 +3115,8 @@ pub extern "C" fn mui_complete_probe(handle: i64) {
             let source = String::from_utf8_lossy(&ctx.complete_buf).into_owned();
             // Position at the synthetic prefix: last line, col = prefix len.
             let last_line = source.bytes().filter(|&b| b == b'\n').count() as u32;
-            crate::completion::lsp::semantic_labels(
+            lsp_semantic_labels(
+                ctx.language,
                 &path,
                 &source,
                 last_line,
@@ -3319,13 +3433,7 @@ pub extern "C" fn mui_hover_request(handle: i64, line: i32, col: i32) -> i32 {
         None => return 0,
     };
     let source = String::from_utf8_lossy(&ctx.nav_buf).into_owned();
-    let raw = crate::nav::lsp::request(
-        &path,
-        &source,
-        line.max(0) as u32,
-        col.max(0) as u32,
-        crate::nav::lsp::Req::Hover,
-    );
+    let raw = lsp_hover_raw(ctx.language, &path, &source, line.max(0) as u32, col.max(0) as u32);
     let available = match crate::nav::parse_hover_value(&raw) {
         Some(v) => ctx.hover.set_text(&v),
         None => false,
@@ -3393,13 +3501,7 @@ pub extern "C" fn mui_def_request(handle: i64, line: i32, col: i32) -> i32 {
         None => return 0,
     };
     let source = String::from_utf8_lossy(&ctx.nav_buf).into_owned();
-    let raw = crate::nav::lsp::request(
-        &path,
-        &source,
-        line.max(0) as u32,
-        col.max(0) as u32,
-        crate::nav::lsp::Req::Definition,
-    );
+    let raw = lsp_def_raw(ctx.language, &path, &source, line.max(0) as u32, col.max(0) as u32);
     let found = match crate::nav::parse_definition(&raw) {
         Some((uri, tline, tcol)) => match crate::nav::uri_to_path(&uri) {
             Some(tpath) => {
@@ -4660,7 +4762,7 @@ pub extern "C" fn mui_ed_complete_request(handle: i64) -> i32 {
     let lsp_labels: Vec<String> = match ctx.file_path.clone() {
         Some(path) => {
             let source = String::from_utf8_lossy(&ctx.complete_buf).into_owned();
-            crate::completion::lsp::semantic_labels(&path, &source, line.max(0) as u32, col.max(0) as u32)
+            lsp_semantic_labels(ctx.language, &path, &source, line.max(0) as u32, col.max(0) as u32)
         }
         None => Vec::new(),
     };
@@ -4751,6 +4853,8 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
     let clip = ctx.clip;
     let handle_ptr = handle as usize as *mut MuiContext;
     let rows = rows.max(0) as usize;
+    // The active file's detected language drives multi-language highlighting.
+    let lang = ctx.language;
 
     // Snapshot what we need from the model (ends the borrow before text/rect).
     let snap = {
@@ -4861,8 +4965,8 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         };
         ctx.text.queue_sized(gx, y + 3.0, &num, gcol, chrome, clip);
 
-        // Syntax spans for the line.
-        let spans = crate::syntax::highlight_line(line);
+        // Syntax spans for the line (language-aware).
+        let spans = highlight_for(line, lang);
         if spans.is_empty() {
             // Nothing to draw (blank line) — still leave the band.
         } else {
@@ -4941,7 +5045,7 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
                 continue;
             }
             let indent = (line.chars().count() - trimmed_len) as f32;
-            let spans = crate::syntax::highlight_line(line);
+            let spans = highlight_for(line, lang);
             let color = spans
                 .iter()
                 .find(|s| !line.chars().skip(s.start).take(s.len).collect::<String>().trim().is_empty())
