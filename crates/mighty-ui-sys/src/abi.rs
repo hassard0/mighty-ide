@@ -477,6 +477,133 @@ index 83db48f..f735c2d 100644
         }
     }
 
+    // Screenshot/render hook for the Outline panel: with MUI_OUTLINE_AUTOOPEN set,
+    // switch the sidebar to the Outline panel and scan the active document's
+    // symbols so a headless capture shows the populated tree. Reports the path
+    // used (scanner / LSP). No effect on normal launches.
+    if std::env::var_os("MUI_OUTLINE_AUTOOPEN").is_some() {
+        let _ = crate::navsurfaces::mui_outline_refresh(handle);
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            ctx.active_panel = crate::PANEL_OUTLINE;
+            ctx.sidebar_visible = true;
+            // Park the cursor inside the second symbol so the current-row
+            // highlight is visible in the capture.
+            let target = ctx.outline.get(1).or_else(|| ctx.outline.get(0)).map(|s| s.line).unwrap_or(0);
+            let _ = ctx.outline.set_cursor(target);
+            println!(
+                "mui_init_s: MUI_OUTLINE_AUTOOPEN -> outline open, {} symbols ({})",
+                ctx.outline.count(),
+                if ctx.outline.used_lsp() { "lsp" } else { "scanner" }
+            );
+        }
+    }
+
+    // Screenshot/render hook for the Problems panel: with MUI_PROBLEMS_AUTOOPEN
+    // set, open the Problems dock and seed a representative aggregated set (no
+    // subprocess) so a headless capture shows grouped error/warning rows.
+    if std::env::var_os("MUI_PROBLEMS_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            use crate::diagnostics::{Diag, Severity};
+            let path = ctx
+                .tabs
+                .active_path()
+                .unwrap_or_else(|| std::path::PathBuf::from("src/main.mty"));
+            let other = path
+                .parent()
+                .map(|d| d.join("util.mty"))
+                .unwrap_or_else(|| std::path::PathBuf::from("util.mty"));
+            let mk = |l: i32, c: i32, s: Severity, code: &str, m: &str| Diag {
+                line: l,
+                col_start: c,
+                col_end: c + 1,
+                severity: s,
+                code: code.into(),
+                message: m.into(),
+            };
+            ctx.problems.aggregate(vec![
+                (
+                    path,
+                    vec![
+                        mk(4, 17, Severity::Error, "MT2001", "expected `I32`, found `Str`"),
+                        mk(11, 2, Severity::Warning, "MT3001", "unused variable `tmp`"),
+                    ],
+                ),
+                (
+                    other,
+                    vec![mk(7, 0, Severity::Error, "MT2019", "function returns `I32`, body produces `Bool`")],
+                ),
+            ]);
+            ctx.problems.set_open(true);
+            println!(
+                "mui_init_s: MUI_PROBLEMS_AUTOOPEN -> problems open ({} errors, {} warnings)",
+                ctx.problems.error_count(),
+                ctx.problems.warn_count()
+            );
+        }
+    }
+
+    // Screenshot/render hook for the interactive breadcrumb: with
+    // MUI_BREADCRUMB_AUTOOPEN set ("symbol" [default] or "file"), scan symbols
+    // and open the corresponding breadcrumb dropdown so a headless capture shows
+    // the palette-styled menu under the breadcrumb.
+    if let Some(which) = std::env::var_os("MUI_BREADCRUMB_AUTOOPEN") {
+        let _ = crate::navsurfaces::mui_outline_refresh(handle);
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let which = which.to_string_lossy().to_lowercase();
+            ctx.crumb_menu_autoopen = true;
+            use crate::crumbmenu::{MenuItem, MenuKind};
+            if which.contains("file") {
+                // Build a file menu from the active file's directory.
+                let dir = ctx.tabs.active_path().and_then(|p| p.parent().map(|d| d.to_path_buf()));
+                let files: Vec<(String, std::path::PathBuf)> = dir
+                    .as_ref()
+                    .map(|d| {
+                        let mut v: Vec<_> = std::fs::read_dir(d)
+                            .into_iter()
+                            .flatten()
+                            .flatten()
+                            .map(|e| e.path())
+                            .filter(|p| p.is_file() && p.extension().and_then(|e| e.to_str()) == Some("mty"))
+                            .filter_map(|p| p.file_name().map(|n| (n.to_string_lossy().into_owned(), p.clone())))
+                            .collect();
+                        v.sort();
+                        v
+                    })
+                    .unwrap_or_default();
+                let active = ctx.tabs.active_path();
+                let items: Vec<MenuItem> = files
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (name, full))| {
+                        let (icon, color) = file_icon_for(name, Some(full) == active.as_ref());
+                        MenuItem { label: name.clone(), icon: Some(icon), icon_color: color, depth: 0, target: i as i32 }
+                    })
+                    .collect();
+                ctx.crumb_files = files.into_iter().map(|(_, p)| p).collect();
+                let anchor = layout::RAIL_W + layout::SIDEBAR_W + 90.0;
+                let n = ctx.crumb_menu.open(MenuKind::Files, items, anchor);
+                println!("mui_init_s: MUI_BREADCRUMB_AUTOOPEN -> file menu ({n} files)");
+            } else {
+                let items: Vec<MenuItem> = ctx
+                    .outline
+                    .symbols()
+                    .iter()
+                    .enumerate()
+                    .map(|(i, s)| MenuItem {
+                        label: s.name.clone(),
+                        icon: Some(s.kind.icon()),
+                        icon_color: s.kind.color(),
+                        depth: s.depth,
+                        target: i as i32,
+                    })
+                    .collect();
+                let anchor = layout::RAIL_W + layout::SIDEBAR_W + 220.0;
+                let n = ctx.crumb_menu.open(MenuKind::Symbols, items, anchor);
+                println!("mui_init_s: MUI_BREADCRUMB_AUTOOPEN -> symbol menu ({n} symbols)");
+            }
+        }
+    }
+
     handle
 }
 
@@ -1233,15 +1360,19 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     ctx.text.queue_sized(x, ty, "\u{2191}2 \u{2193}0", theme::TEXT_3(), chrome, clip);
     x += text_w("\u{2191}2 \u{2193}0") + 12.0;
 
-    // Errors (red circle + N) and warnings (warn triangle + N).
-    let n_err = error_count.max(0);
+    // Errors (red circle + N) and warnings (warn triangle + N). Prefer the
+    // aggregated Problems counts when the Problems panel has run; otherwise fall
+    // back to the per-file `error_count` the caller passed (active-file diags).
+    let agg = ctx.problems.count() > 0 || ctx.problems.is_open();
+    let n_err = if agg { ctx.problems.error_count() } else { error_count.max(0) };
+    let n_warn = if agg { ctx.problems.warn_count() } else { 0 };
     ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::ERROR_CIRCLE, theme::ERROR(), 1.5, false);
     x += 16.0;
     ctx.text.queue_sized(x, ty, &n_err.to_string(), if n_err > 0 { theme::ERROR() } else { theme::TEXT_1() }, chrome, clip);
     x += text_w(&n_err.to_string()) + 10.0;
     ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::WARN_TRI, theme::WARNING(), 1.5, false);
     x += 16.0;
-    ctx.text.queue_sized(x, ty, "1", theme::WARNING(), chrome, clip);
+    ctx.text.queue_sized(x, ty, &n_warn.to_string(), if n_warn > 0 { theme::WARNING() } else { theme::TEXT_1() }, chrome, clip);
 
     // ---- right cluster (laid out right-to-left) ----
     let mut rx = w - 12.0;
@@ -1280,6 +1411,30 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     let lc = format!("Ln {line1}, Col {col1}");
     rx -= text_w(&lc);
     ctx.text.queue_sized(rx, ty, &lc, theme::DIM(), chrome, clip);
+}
+
+/// `1` if the last click landed on the status-bar problems chip (the
+/// error/warning counters in the left cluster), else `0`. Lets Mighty open the
+/// Problems panel when the chip is clicked. The chip spans the left band of the
+/// status bar after the branch label (~x 96..200) on the bottom 30px row.
+#[no_mangle]
+pub extern "C" fn mui_status_problems_chip_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let h = ctx.gpu.height as f32;
+    let y = ctx.last_event.y;
+    let x = ctx.last_event.x;
+    // Bottom status bar band.
+    if y < h - 30.0 {
+        return 0;
+    }
+    // The problems cluster (errors + warnings) sits after "main ↑2 ↓0".
+    if (96.0..=210.0).contains(&x) {
+        1
+    } else {
+        0
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1775,12 +1930,13 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
     // Activity icons. Explorer (index 0) active. Each is a 38x38 hit cell with a
     // 21px vector icon centered; the active one gets an indigo top-lit tile + a
     // left accent bar with glow (matches `.rail-btn.active`).
-    let rail_icons: [&str; 5] = [
+    let rail_icons: [&str; 6] = [
         icons::EXPLORER,
         icons::SEARCH,
         icons::GIT,
         icons::RUN,
         icons::AGENTS,
+        icons::OUTLINE,
     ];
     let cell = 38.0;
     let icon_sz = 21.0;
@@ -1880,10 +2036,21 @@ pub extern "C" fn mui_breadcrumb_draw(handle: i64) {
     sep(ctx, &mut x);
     put(ctx, &mut x, &file, theme::TEXT_1());
     sep(ctx, &mut x);
-    // Function symbol + "main" in function gold.
-    ctx.dl_icon(x, icon_y, 13.0, 13.0, crate::icons::FN_SYMBOL, theme::SYN_FUNCTION(), 1.5, false);
+    // Symbol segment: the symbol under the cursor (from the Outline data), drawn
+    // with its per-kind icon + color. Falls back to "main" when no symbol is
+    // resolved (matching the prior static breadcrumb).
+    let cur = ctx.outline.current();
+    let (sym_name, sym_icon, sym_color) = if cur >= 0 {
+        match ctx.outline.get(cur as usize) {
+            Some(s) => (s.name.clone(), s.kind.icon(), s.kind.color()),
+            None => ("main".to_string(), crate::icons::FN_SYMBOL, theme::SYN_FUNCTION()),
+        }
+    } else {
+        ("main".to_string(), crate::icons::FN_SYMBOL, theme::SYN_FUNCTION())
+    };
+    ctx.dl_icon(x, icon_y, 13.0, 13.0, sym_icon, sym_color, 1.5, false);
     x += 13.0 + 5.0;
-    put(ctx, &mut x, "main", theme::SYN_FUNCTION());
+    put(ctx, &mut x, &sym_name, sym_color);
 }
 
 /// Draw the tab bar across the top of the window (right of the activity rail):

@@ -39,7 +39,9 @@ pub extern "C" fn mui_panel_set(handle: i64, panel: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return crate::PANEL_EXPLORER;
     };
-    if (crate::PANEL_EXPLORER..=crate::PANEL_SCM).contains(&panel) {
+    if (crate::PANEL_EXPLORER..=crate::PANEL_SCM).contains(&panel)
+        || panel == crate::PANEL_OUTLINE
+    {
         ctx.active_panel = panel;
         ctx.sidebar_visible = true;
     }
@@ -69,7 +71,7 @@ pub extern "C" fn mui_rail_panel_at_click(handle: i64) -> i32 {
         return -1;
     }
     let slot = ((y - icon_top) / (cell + gap)).floor() as i32;
-    if (0..=4).contains(&slot) {
+    if (0..=5).contains(&slot) {
         let cy = icon_top + slot as f32 * (cell + gap);
         if y <= cy + cell {
             return slot;

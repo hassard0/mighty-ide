@@ -64,6 +64,10 @@ pub const COLLAPSE: &str = "M5 8h6V2M19 16h-6v6M5 8l5-5M19 16l-5 5";
 /// `fn` symbol marker for the breadcrumb (function-ish glyph).
 pub const FN_SYMBOL: &str = "M5 12h6V6m8 6h-6v6";
 
+// ---- Outline (document symbols) rail icon ----
+/// Outline / symbols list (a small tree: a stem with branch dots + lines).
+pub const OUTLINE: &str = "M5 6h3M5 12h3M5 18h3 M10.5 6h8.5M10.5 12h8.5M10.5 18h5 M6.5 6.8v10.4";
+
 // ---- Status bar ----
 /// Git-branch (status bar): two nodes + a branch.
 pub const BRANCH: &str = "M6 3.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z M6 15.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z M18 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z M6 8.5v7M18 10.5c0 4-4 3-8 5";

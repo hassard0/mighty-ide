@@ -1188,6 +1188,9 @@ pub mod lsp {
         PrepareRename { line: u32, col: u32 },
         Rename { line: u32, col: u32, new_name: String },
         CodeAction { start_line: u32, start_col: u32, end_line: u32, end_col: u32 },
+        /// `textDocument/documentSymbol` — the Outline panel's preferred source.
+        /// (mty-lsp v0.5 answers `-32601`; the shim then falls back to a scanner.)
+        DocumentSymbol,
     }
 
     impl Req {
@@ -1197,12 +1200,14 @@ pub mod lsp {
                 Req::PrepareRename { .. } => "textDocument/prepareRename",
                 Req::Rename { .. } => "textDocument/rename",
                 Req::CodeAction { .. } => "textDocument/codeAction",
+                Req::DocumentSymbol => "textDocument/documentSymbol",
             }
         }
 
         fn params(&self, uri: &str) -> String {
             let u = json_escape(uri);
             match self {
+                Req::DocumentSymbol => format!(r#"{{"textDocument":{{"uri":"{u}"}}}}"#),
                 Req::SignatureHelp { line, col } | Req::PrepareRename { line, col } => format!(
                     r#"{{"textDocument":{{"uri":"{u}"}},"position":{{"line":{line},"character":{col}}}}}"#
                 ),

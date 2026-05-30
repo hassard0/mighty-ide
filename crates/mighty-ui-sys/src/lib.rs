@@ -14,6 +14,7 @@ mod abi;
 mod ai;
 mod completion;
 mod config;
+mod crumbmenu;
 mod diagnostics;
 mod diff;
 mod editor;
@@ -26,8 +27,11 @@ mod icons;
 mod language;
 mod layout;
 mod nav;
+mod navsurfaces;
+mod outline;
 mod palette;
 mod panels;
+mod problems;
 mod prompt;
 mod run;
 mod scm;
@@ -251,12 +255,36 @@ pub struct MuiContext {
     /// The Settings panel: editable live preferences (font size / tab width /
     /// word wrap / minimap / theme). Shim-owned; changes apply live + persist.
     settings_panel: settingspanel::SettingsPanel,
+
+    // ---- Outline / document-symbols panel (rail slot 5) ----
+    /// The Outline panel: the active file's symbols (LSP documentSymbol when the
+    /// server implements it, else a shim-side scanner) + the cursor-current sym.
+    outline: outline::OutlineState,
+
+    // ---- Problems panel (bottom dock; status-bar chip opens it) ----
+    /// The Problems panel: aggregated `mty check` diagnostics across open tabs /
+    /// the workspace, grouped by file, click-to-jump. Shim-owned.
+    problems: problems::ProblemSet,
+
+    // ---- interactive breadcrumb dropdown ----
+    /// The breadcrumb quick-dropdown (folder files or document symbols), styled
+    /// like the command palette. Opened by clicking a breadcrumb segment.
+    crumb_menu: crumbmenu::CrumbMenu,
+    /// File paths backing the crumb file dropdown (index -> path), set when the
+    /// file segment opens so accept-by-index can resolve the chosen file.
+    crumb_files: Vec<PathBuf>,
+    /// Screenshot-only hook (`MUI_OUTLINE_AUTOOPEN` / `MUI_BREADCRUMB_AUTOOPEN`):
+    /// force the crumb menu / outline open for a headless capture. `false`
+    /// normally (the menu only opens via a click in the live loop).
+    crumb_menu_autoopen: bool,
 }
 
 /// Panel ids (mirror the Mighty side + rail icon order).
 pub const PANEL_EXPLORER: i32 = 0;
 pub const PANEL_SEARCH: i32 = 1;
 pub const PANEL_SCM: i32 = 2;
+/// Outline (document symbols) sidebar panel — rail slot 5 (below Run/Agents).
+pub const PANEL_OUTLINE: i32 = 5;
 
 // ---------------------------------------------------------------------------
 // Vello display-list helpers (used by the chrome/editor draw functions to emit
@@ -589,6 +617,11 @@ pub(crate) fn build_context(
         run: run::RunPanel::new(),
         diff: diff::DiffView::new(),
         settings_panel: settingspanel::SettingsPanel::new(),
+        outline: outline::OutlineState::new(),
+        problems: problems::ProblemSet::new(),
+        crumb_menu: crumbmenu::CrumbMenu::new(),
+        crumb_files: Vec::new(),
+        crumb_menu_autoopen: false,
     });
     Box::into_raw(ctx)
 }
@@ -1201,6 +1234,11 @@ impl MuiContext {
             run: run::RunPanel::new(),
             diff: diff::DiffView::new(),
             settings_panel: settingspanel::SettingsPanel::new(),
+            outline: outline::OutlineState::new(),
+            problems: problems::ProblemSet::new(),
+            crumb_menu: crumbmenu::CrumbMenu::new(),
+            crumb_files: Vec::new(),
+            crumb_menu_autoopen: false,
         })
     }
 
