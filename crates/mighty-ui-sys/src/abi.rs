@@ -7509,13 +7509,15 @@ fn draw_editor_pane(
             // Chevron glyph in the left band of the gutter. Subtle by default,
             // brighter when folded (so a collapsed region stands out).
             let cev_x = region.left + 2.0;
-            let cev_y = y + (layout::LINE_H() - chrome) * 0.5 - 1.0;
-            let glyph = if mark.folded { "\u{25B8}" } else { "\u{25BE}" }; // ▸ / ▾
+            // Vector chevron (the embedded UI font lacks the ▸/▾ geometric glyphs,
+            // which rendered as boxes): right when folded, down when open.
+            let icon = if mark.folded { crate::icons::CHEVRON } else { crate::icons::CHEVRON_DOWN };
             let mut col = if mark.folded { theme::TEXT_3() } else { theme::GUTTER() };
             if split_chrome && !focused {
                 col.a *= 0.6;
             }
-            ctx.text.queue_ui_sized(cev_x, cev_y, glyph, col, chrome - 1.0, clip);
+            let icon_y = y + (layout::LINE_H() - 11.0) * 0.5;
+            ctx.dl_icon(cev_x - 1.0, icon_y, 11.0, 11.0, icon, col, 1.6, false);
 
             // Folded indicator pill at the end of the header text: "⋯ N lines".
             if mark.folded {
@@ -7524,9 +7526,9 @@ fn draw_editor_pane(
                 if px < mm_x - 40.0 {
                     let n = mark.hidden;
                     let label = if n == 1 {
-                        "\u{22EF} 1 line".to_string()
+                        "... 1 line".to_string()
                     } else {
-                        format!("\u{22EF} {n} lines")
+                        format!("... {n} lines")
                     };
                     let pill_w = (label.chars().count() as f32) * (chrome * 0.55) + 12.0;
                     let pill_h = layout::LINE_H() - 5.0;

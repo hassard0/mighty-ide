@@ -904,7 +904,7 @@ impl QuickOpen {
             *fx += label.chars().count() as f32 * 6.0 + 16.0;
         };
         foot_seg(ctx, "\u{2191}\u{2193}", "navigate", &mut fx);
-        foot_seg(ctx, "\u{21B5}", "open", &mut fx);
+        foot_seg(ctx, "Enter", "open", &mut fx);
         foot_seg(ctx, "esc", "dismiss", &mut fx);
         let tag = "Quick Open";
         ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);

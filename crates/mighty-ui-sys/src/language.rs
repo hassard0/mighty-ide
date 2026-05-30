@@ -1095,10 +1095,11 @@ impl CodeActionState {
                 MuiColor::new(1.0, 0.824, 0.478, 0.16)
             };
             ctx.dl_round(bx, by, 18.0, 18.0, 4.0, badge);
-            let glyph = if a.fix_all_mty { "\u{2713}" } else { "\u{1f4a1}" };
-            // Fall back to a simple ASCII-safe mark; the UI font may lack emoji.
-            let glyph = if glyph == "\u{1f4a1}" { "\u{2055}" } else { glyph };
-            ctx.text.queue_ui_sized(bx + 4.5, by + 3.0, glyph, theme::SYN_FUNCTION(), 11.0, clip);
+            // Vector icon (the embedded UI fonts lack the emoji/symbol glyphs that
+            // previously rendered as boxes here): a check for "fix all", else a
+            // wrench for a single quick-fix.
+            let icon = if a.fix_all_mty { crate::icons::CHECK } else { crate::icons::WRENCH };
+            ctx.dl_icon(bx + 3.0, by + 3.0, 12.0, 12.0, icon, theme::SYN_FUNCTION(), 1.6, false);
 
             let ty = row_y + (row_h - chrome) * 0.5 - 0.5;
             let fg = if selected { theme::TEXT() } else { theme::TEXT_1() };

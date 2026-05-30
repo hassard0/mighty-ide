@@ -164,7 +164,7 @@ impl ThemePicker {
         let foot_y = box_y + box_h - foot_h;
         ctx.dl_rect(box_x + 1.0, foot_y, box_w - 2.0, 1.0, theme::BORDER());
         let fty = foot_y + (foot_h - 11.0) * 0.5;
-        ctx.text.queue_ui_sized(box_x + 18.0, fty, "\u{2191}\u{2193} preview   \u{21B5} apply   esc revert", theme::TEXT_3(), 11.0, clip);
+        ctx.text.queue_ui_sized(box_x + 18.0, fty, "\u{2191}\u{2193} preview   Enter apply   esc revert", theme::TEXT_3(), 11.0, clip);
         let tag = "Mighty Themes";
         ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
     }

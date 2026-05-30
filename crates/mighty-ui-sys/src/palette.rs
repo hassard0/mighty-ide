@@ -420,13 +420,14 @@ impl PaletteEngine {
         let qadv = 16.0 * 0.52;
         let caret_x = q_text_x + self.query.chars().count() as f32 * qadv + 1.0;
         ctx.dl_round(caret_x, box_y + (search_h - 18.0) * 0.5, 2.0, 18.0, 1.0, theme::ACCENT_BRIGHT());
-        // ⌘K mode pill (right).
+        // Command-mode pill (right). ASCII ">_" prompt motif (the UI font lacks the
+        // Mac command glyph, which also rendered as a box on Windows).
         let pill_w = 40.0;
         let pill_x = box_x + box_w - pill_w - 18.0;
         let pill_y = box_y + (search_h - 22.0) * 0.5;
         ctx.dl_round(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_FAINT());
         ctx.dl_stroke(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_LINE(), 1.0);
-        ctx.text.queue_ui_sized(pill_x + 8.0, pill_y + 4.5, "\u{2318}K", theme::ACCENT_BRIGHT(), 10.5, clip);
+        ctx.text.queue_ui_sized(pill_x + 11.0, pill_y + 4.5, ">_", theme::ACCENT_BRIGHT(), 10.5, clip);
 
         // ---- category label ----
         let cat_y = box_y + search_h + 9.0;
@@ -515,7 +516,7 @@ impl PaletteEngine {
             *fx += label.chars().count() as f32 * 6.0 + 16.0;
         };
         foot_seg(ctx, "\u{2191}\u{2193}", "navigate", &mut fx);
-        foot_seg(ctx, "\u{21B5}", "select", &mut fx);
+        foot_seg(ctx, "Enter", "select", &mut fx);
         foot_seg(ctx, "esc", "dismiss", &mut fx);
         let tag = "Mighty Command Palette";
         ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
