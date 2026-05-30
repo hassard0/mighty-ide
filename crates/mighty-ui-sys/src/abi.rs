@@ -638,6 +638,84 @@ index 83db48f..f735c2d 100644
         }
     }
 
+    // Screenshot/render hook for the branch switcher: with MUI_BRANCH_AUTOOPEN
+    // set, open the picker over a representative branch list so a headless capture
+    // shows the overlay without external git state.
+    if std::env::var_os("MUI_BRANCH_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let demo = "\
+* main
+  develop
+  feature/branch-switcher
+  feature/blame-gutter
+  remotes/origin/HEAD -> origin/main
+  remotes/origin/main
+  remotes/origin/develop
+";
+            ctx.scm.branches = crate::scm::parse_branches(demo);
+            let list = ctx.scm.branches.clone();
+            ctx.branch_picker.open(&list);
+            println!(
+                "mui_init_s: MUI_BRANCH_AUTOOPEN -> branch picker open ({} branches)",
+                list.len()
+            );
+        }
+    }
+
+    // Screenshot/render hook for the git blame gutter: with MUI_BLAME_AUTOOPEN
+    // set, seed a representative buffer + a parsed blame for it and activate the
+    // gutter so a headless capture shows the dim per-line sha · author · date band.
+    if std::env::var_os("MUI_BLAME_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            use crate::editor::TextModel;
+            let demo = b"fn main() {\n  let name: Str = \"Mighty\"\n  log(\"Hello, Mighty!\")\n  let n: I32 = 42\n  for i in 0..n {\n    log(i)\n  }\n}\n";
+            let m = ctx.tabs.active_model_mut();
+            *m = TextModel::from_bytes(demo);
+            ctx.edit_probe_lock = true;
+            // A porcelain blob covering the 8 demo lines across three commits.
+            let blob = "\
+1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b 1 1 2
+author Ada Lovelace
+author-time 1136239445
+author-tz +0000
+summary scaffold main
+filename src/main.mty
+\tfn main() {
+1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b 2 2
+\t  let name: Str = \"Mighty\"
+9f8e7d6c5b4a39281706f5e4d3c2b1a0978695a4 3 3 1
+author Grace Hopper
+author-time 1700000000
+author-tz +0000
+summary friendly greeting
+filename src/main.mty
+\t  log(\"Hello, Mighty!\")
+c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2 4 4 4
+author Linus T
+author-time 1685000000
+author-tz +0000
+summary loop demo
+filename src/main.mty
+\t  let n: I32 = 42
+c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2 5 5
+\t  for i in 0..n {
+c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2 6 6
+\t    log(i)
+c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2 7 7
+\t  }
+0000000000000000000000000000000000000000 8 8 1
+author Not Committed Yet
+author-time 1700000000
+author-tz +0000
+summary Version of ... (Not Committed Yet)
+filename src/main.mty
+\t}
+";
+            let n = ctx.blame.seed_demo(blob);
+            println!("mui_init_s: MUI_BLAME_AUTOOPEN -> blame gutter on ({n} lines)");
+        }
+    }
+
     // Screenshot/render hook for the Settings panel: with MUI_SETTINGS_AUTOOPEN
     // set, open the Settings panel (and optionally pre-select a row via the env
     // value, e.g. "2") so a headless capture shows the preference list.
@@ -1712,14 +1790,21 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
 
     let (line1, col1) = ctx.status_cursor;
 
-    // ---- left cluster: branch icon + "main" ↑2 ↓0 · problems (err/warn) ----
+    // ---- left cluster: branch icon + branch ↑N ↓M · problems (err/warn) ----
+    // Use the live SCM status when a repo was discovered; else a neutral default.
+    let branch = if ctx.scm.status.branch.is_empty() {
+        "main".to_string()
+    } else {
+        ctx.scm.status.branch.clone()
+    };
+    let ab = format!("\u{2191}{} \u{2193}{}", ctx.scm.status.ahead.max(0), ctx.scm.status.behind.max(0));
     let mut x = 10.0;
     ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::BRANCH, theme::TEXT_1(), 1.5, false);
     x += 18.0;
-    ctx.text.queue_sized(x, ty, "main", theme::TEXT_1(), chrome, clip);
-    x += text_w("main") + 6.0;
-    ctx.text.queue_sized(x, ty, "\u{2191}2 \u{2193}0", theme::TEXT_3(), chrome, clip);
-    x += text_w("\u{2191}2 \u{2193}0") + 12.0;
+    ctx.text.queue_sized(x, ty, &branch, theme::TEXT_1(), chrome, clip);
+    x += text_w(&branch) + 6.0;
+    ctx.text.queue_sized(x, ty, &ab, theme::TEXT_3(), chrome, clip);
+    x += text_w(&ab) + 12.0;
 
     // Errors (red circle + N) and warnings (warn triangle + N). Prefer the
     // aggregated Problems counts when the Problems panel has run; otherwise fall
@@ -6586,6 +6671,11 @@ pub extern "C" fn mui_chord(handle: i64, cp: i32, mods: i32) -> i32 {
     if alt && !ctrl && (cp == 'g' as i32 || cp == 'G' as i32) {
         let _ = crate::panels::mui_panel_set(handle, crate::PANEL_AGENTS_MTY);
         let _ = crate::agentsabi::mui_agents_refresh(handle);
+        return 1;
+    }
+    // Alt+B : toggle the git blame gutter for the active file.
+    if alt && !ctrl && (cp == 'b' as i32 || cp == 'B' as i32) {
+        let _ = crate::featureabi::mui_blame_toggle(handle);
         return 1;
     }
     0

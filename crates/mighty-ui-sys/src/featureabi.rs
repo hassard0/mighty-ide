@@ -434,6 +434,102 @@ pub extern "C" fn mui_diff_line_kind(handle: i64, i: i32) -> i32 {
     unsafe { ctx(handle) }.map_or(-1, |c| c.diff.line(i as usize).map_or(-1, |l| l.kind as i32))
 }
 
+/// Number of hunks in the current diff (for per-hunk stage/unstage affordances).
+#[no_mangle]
+pub extern "C" fn mui_diff_hunk_count(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.diff.hunk_count() as i32)
+}
+
+/// Map the last click's pixel y to the hunk index under it (so the IDE can place
+/// per-hunk Stage/Unstage buttons on the hunk-header row). Returns the hunk index
+/// or `-1` if the click was not on a diff row. Mirrors the body geometry in
+/// `mui_diff_draw`.
+#[no_mangle]
+pub extern "C" fn mui_diff_hunk_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    if !ctx.diff.is_active() {
+        return -1;
+    }
+    let region = layout::region(ctx.sidebar_visible);
+    let line_h = layout::LINE_H();
+    let field_top = region.top;
+    let head_h = 28.0_f32;
+    let body_top = field_top + head_h + 4.0;
+    let (x, y) = (ctx.last_event.x, ctx.last_event.y);
+    if x < region.left || y < body_top {
+        return -1;
+    }
+    let vis = ((y - body_top) / line_h).floor() as i32;
+    if vis < 0 {
+        return -1;
+    }
+    let idx = ctx.diff.first() + vis as usize;
+    ctx.diff.hunk_of_line(idx)
+}
+
+/// Stage a single hunk (`hunk` index) by reconstructing its patch and running
+/// `git apply --cached`. Refreshes SCM + the diff afterward. Returns `1` on
+/// success, `0` on failure (toasts the result either way).
+#[no_mangle]
+pub extern "C" fn mui_diff_stage_hunk(handle: i64, hunk: i32) -> i32 {
+    apply_one_hunk(handle, hunk, false)
+}
+
+/// Unstage a single hunk (`git apply --cached --reverse`). Returns `1`/`0`.
+#[no_mangle]
+pub extern "C" fn mui_diff_unstage_hunk(handle: i64, hunk: i32) -> i32 {
+    apply_one_hunk(handle, hunk, true)
+}
+
+/// Stage OR unstage a hunk based on which side the diff is showing: a working-
+/// tree diff stages the hunk, a staged (`--cached`) diff unstages it. This is the
+/// one the IDE calls on a hunk-header click. Returns `1`/`0`.
+#[no_mangle]
+pub extern "C" fn mui_diff_toggle_hunk(handle: i64, hunk: i32) -> i32 {
+    let reverse = unsafe { ctx(handle) }.map(|c| c.diff.staged()).unwrap_or(false);
+    apply_one_hunk(handle, hunk, reverse)
+}
+
+/// Shared stage/unstage-one-hunk worker.
+fn apply_one_hunk(handle: i64, hunk: i32, reverse: bool) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let Some(root) = ctx.scm.root.clone().or_else(|| Some(ctx.tree.root().to_path_buf())) else {
+        return 0;
+    };
+    let patch = match ctx.diff.hunk_patch(hunk) {
+        Some(p) => p,
+        None => {
+            ctx.push_toast(crate::toast::Kind::Warn, "No hunk selected");
+            return 0;
+        }
+    };
+    let (ok, msg) = crate::diff::apply_hunk(&root, &patch, reverse);
+    let verb = if reverse { "Unstaged" } else { "Staged" };
+    if ok {
+        ctx.push_toast(crate::toast::Kind::Success, format!("{verb} hunk"));
+        // Refresh SCM status + reopen the (worktree) diff so the hunk list updates.
+        let dir = ctx.tree.root().to_path_buf();
+        let _ = ctx.scm.refresh(&dir);
+        let path = ctx.diff.path().to_string();
+        let staged = ctx.diff.staged();
+        let blob = crate::diff::run_diff(&root, &path, staged);
+        if blob.trim().is_empty() {
+            ctx.diff.close();
+        } else {
+            ctx.diff.open(&path, staged, &blob);
+        }
+        1
+    } else {
+        let short = msg.lines().next().unwrap_or("git apply failed").to_string();
+        ctx.push_toast(crate::toast::Kind::Error, format!("Hunk apply failed: {short}"));
+        0
+    }
+}
+
 /// Draw the inline diff view in the editor body (read-only). No-op when
 /// inactive. Renders a header (file + ± counts), then hunk headers / colored
 /// add (green) / remove (red) / context lines with old+new line-number gutters.
@@ -510,6 +606,18 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
         if kind == LineKind::Hunk {
             // Hunk header spans the row (its own text already includes @@...@@).
             ctx.text.queue(region.left + 8.0, ty, &text, fg, clip);
+            // Per-hunk Stage / Unstage affordance, right-aligned on the header row.
+            // "Stage hunk" when viewing the working tree, "Unstage hunk" when
+            // viewing the staged side. Clicks land via `mui_diff_hunk_at_click`.
+            let staged = ctx.diff.staged();
+            let label = if staged { "\u{2212} Unstage hunk" } else { "+ Stage hunk" };
+            let lw = label.chars().count() as f32 * (chrome * 0.52) + 18.0;
+            let bx = w - 14.0 - lw;
+            let bh = line_h - 6.0;
+            let bcol = if staged { theme::WARNING() } else { theme::GREEN() };
+            ctx.dl_round(bx, y + 3.0, lw, bh, 5.0, theme::accent_a(0.10));
+            ctx.dl_stroke(bx, y + 3.0, lw, bh, 5.0, theme::BORDER_STRONG(), 1.0);
+            ctx.text.queue_ui_sized(bx + 9.0, ty, label, bcol, chrome - 1.0, clip);
             continue;
         }
 
@@ -538,6 +646,157 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
 
     // Gutter divider.
     ctx.dl_rect(region.left + gut_w, body_top, 1.0, field_h - head_h - 8.0, theme::BORDER_SOFT());
+}
+
+// ===========================================================================
+// Git blame gutter (toggle + per-line author/date/sha overlay)
+// ===========================================================================
+
+/// Repo-relative path of the active file (forward-slashed), or `None`.
+fn active_relpath(ctx: &MuiContext) -> Option<(std::path::PathBuf, String)> {
+    let root = ctx.scm.root.clone().or_else(|| Some(ctx.tree.root().to_path_buf()))?;
+    let abs = ctx.tabs.active_path()?;
+    let rel = abs
+        .strip_prefix(&root)
+        .map(|p| p.to_string_lossy().replace('\\', "/"))
+        .unwrap_or_else(|_| abs.to_string_lossy().into_owned());
+    Some((root, rel))
+}
+
+/// Toggle the git blame gutter for the active file (`git blame --porcelain`).
+/// Returns `1` if now active, `0` if toggled off / unavailable. Toasts on error.
+#[no_mangle]
+pub extern "C" fn mui_blame_toggle(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    // Ensure a repo is discovered.
+    let dir = ctx.tree.root().to_path_buf();
+    if ctx.scm.root.is_none() {
+        ctx.scm.refresh(&dir);
+    }
+    let Some((root, rel)) = active_relpath(ctx) else {
+        ctx.push_toast(crate::toast::Kind::Warn, "No file to blame");
+        return 0;
+    };
+    let now = ctx.blame.toggle(&root, &rel);
+    if now {
+        if ctx.blame.line_count() == 0 {
+            ctx.blame.close();
+            ctx.push_toast(crate::toast::Kind::Warn, "No blame (file not tracked?)");
+            return 0;
+        }
+        ctx.push_toast(crate::toast::Kind::Info, "Blame on \u{2014} toggle to hide");
+        1
+    } else {
+        0
+    }
+}
+
+/// `1` if the blame gutter is active, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_blame_active(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.blame.is_active()))
+}
+
+/// Number of blamed lines (for the active file).
+#[no_mangle]
+pub extern "C" fn mui_blame_line_count(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.blame.line_count() as i32)
+}
+
+/// Refresh blame for the active file after a save (invalidate the cache). No-op
+/// when the gutter is off / no file. The IDE calls this on save.
+#[no_mangle]
+pub extern "C" fn mui_blame_refresh(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if ctx.blame.is_active() {
+            if let Some((root, rel)) = active_relpath(ctx) {
+                ctx.blame.invalidate(&root, &rel);
+            }
+        }
+    }
+}
+
+/// Keep the blame gutter following the active tab: reload for the current file
+/// when it changed (the IDE calls this after a tab switch while blame is on).
+#[no_mangle]
+pub extern "C" fn mui_blame_sync(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if ctx.blame.is_active() {
+            if let Some((root, rel)) = active_relpath(ctx) {
+                ctx.blame.set_file(&root, &rel);
+            }
+        }
+    }
+}
+
+/// Draw the git blame as a dim inline annotation at the END of each visible
+/// editor line (GitLens-style `author · date · sha`), so it never obscures the
+/// code. A subtle separator dot precedes it. No-op when inactive or while the
+/// inline diff owns the body. `rows` is the visible row count.
+#[no_mangle]
+pub extern "C" fn mui_blame_draw(handle: i64, rows: i32) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if !ctx.blame.is_active() || ctx.diff.is_active() {
+        return;
+    }
+    let region = layout::region(ctx.sidebar_visible);
+    let clip = ctx.clip;
+    let chrome = theme::CHROME_FONT_SIZE - 1.5;
+    let line_h = layout::LINE_H();
+    let rows = rows.max(0) as usize;
+    let adv = layout::CHAR_W();
+    let win_w = ctx.gpu.width as f32;
+
+    // Snapshot what we need from the model (line lengths) before borrowing text.
+    let (first, total, line_lens): (usize, usize, Vec<usize>) = {
+        let m = ctx.tabs.active_model();
+        let first = m.first_visible();
+        let total = m.line_count();
+        let last = (first + rows).min(total);
+        let lens: Vec<usize> = (first..last).map(|i| m.line_len(i)).collect();
+        (first, total, lens)
+    };
+    let _ = total;
+    let top = region.top;
+    let text_left = layout::text_left_in(region, ctx.tabs.active_model().line_count().max(1) as u64);
+    // Annotations start a few columns past the longest visible line, but never
+    // less than a comfortable minimum column, and clamp inside the window.
+    let max_len = line_lens.iter().copied().max().unwrap_or(0);
+    let mut ann_x = text_left + (max_len as f32 + 3.0) * adv;
+    let min_x = text_left + 24.0 * adv;
+    if ann_x < min_x {
+        ann_x = min_x;
+    }
+    if ann_x > win_w - 220.0 {
+        ann_x = (win_w - 220.0).max(text_left + 4.0 * adv);
+    }
+
+    let ca = chrome * 0.5;
+    for (vis, _len) in line_lens.iter().enumerate() {
+        let idx = first + vis;
+        let Some(bl) = ctx.blame.line(idx) else { break };
+        let y = top + vis as f32 * line_h;
+        let ty = y + (line_h - chrome) * 0.5 - 1.0;
+        let label = if bl.uncommitted {
+            "\u{2022} Uncommitted changes".to_string()
+        } else if bl.sha.is_empty() {
+            continue;
+        } else {
+            let sha7: String = bl.sha.chars().take(7).collect();
+            format!("\u{2022} {} \u{00b7} {} \u{00b7} {}", bl.author, bl.date, sha7)
+        };
+        // Clip to the window width.
+        let avail = (((win_w - 12.0) - ann_x) / ca).floor() as usize;
+        let mut shown = label;
+        if shown.chars().count() > avail && avail > 1 {
+            shown = shown.chars().take(avail - 1).collect::<String>() + "\u{2026}";
+        }
+        ctx.text.queue_ui_sized(ann_x, ty, &shown, theme::TEXT_4(), chrome, clip);
+    }
 }
 
 // ===========================================================================

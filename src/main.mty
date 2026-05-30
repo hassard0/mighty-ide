@@ -383,6 +383,12 @@ extern c {
   fn mui_diff_scroll(handle: I64, delta: I32)
   fn mui_diff_line_kind(handle: I64, i: I32) -> I32
   fn mui_diff_draw(handle: I64)
+  // ---- per-hunk stage / unstage (inline diff) ----
+  fn mui_diff_hunk_count(handle: I64) -> I32
+  fn mui_diff_hunk_at_click(handle: I64) -> I32
+  fn mui_diff_stage_hunk(handle: I64, hunk: I32) -> I32
+  fn mui_diff_unstage_hunk(handle: I64, hunk: I32) -> I32
+  fn mui_diff_toggle_hunk(handle: I64, hunk: I32) -> I32
   // ---- Outline / document symbols panel (rail slot 5) ----
   fn mui_outline_refresh(handle: I64) -> I32
   fn mui_outline_count(handle: I64) -> I32
@@ -466,6 +472,29 @@ extern c {
   // ---- Zen / focus mode ----
   fn mui_zen_toggle(handle: I64) -> I32
   fn mui_zen_active(handle: I64) -> I32
+  // ---- git network actions + branch switcher + blame gutter ----
+  fn mui_git_push(handle: I64) -> I32
+  fn mui_git_pull(handle: I64) -> I32
+  fn mui_git_fetch(handle: I64) -> I32
+  fn mui_git_branches(handle: I64) -> I32
+  fn mui_git_dispatch(handle: I64, cmd_id: I32) -> I32
+  fn mui_branch_active(handle: I64) -> I32
+  fn mui_branch_push_char(handle: I64, codepoint: I32)
+  fn mui_branch_backspace(handle: I64)
+  fn mui_branch_query_len(handle: I64) -> I32
+  fn mui_branch_count(handle: I64) -> I32
+  fn mui_branch_move(handle: I64, delta: I32)
+  fn mui_branch_is_creating(handle: I64) -> I32
+  fn mui_branch_accept(handle: I64) -> I32
+  fn mui_branch_cancel(handle: I64)
+  fn mui_branch_draw(handle: I64)
+  fn mui_status_branch_at_click(handle: I64) -> I32
+  fn mui_scm_header_action_at_click(handle: I64) -> I32
+  fn mui_blame_toggle(handle: I64) -> I32
+  fn mui_blame_active(handle: I64) -> I32
+  fn mui_blame_refresh(handle: I64)
+  fn mui_blame_sync(handle: I64)
+  fn mui_blame_draw(handle: I64, rows: I32)
   // ---- centralized chord router (L37: new chords route here, not new arms) ----
   fn mui_chord(handle: I64, cp: I32, mods: I32) -> I32
 }
@@ -496,6 +525,9 @@ fn cmd_peek_definition() -> I32 { 22 }
 fn cmd_welcome() -> I32 { 23 }
 fn cmd_zen_mode() -> I32 { 24 }
 fn cmd_agents() -> I32 { 25 }    // Mighty: Agents (topology panel)
+// Git commands (26..30) are all dispatched shim-side via mui_git_dispatch, so
+// the palette / quick-open ladders need only ONE arm (id >= cmd_git_first).
+fn cmd_git_first() -> I32 { 26 } // Git: Switch Branch (lowest git id)
 
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
@@ -924,6 +956,9 @@ fn main() {
   let mut settings_open = false
   // Inline git diff view open (Source Control): keys route to it (scroll/close).
   let mut diff_open = false
+  // Branch switcher overlay open (Git: Switch Branch / status-bar branch click):
+  // keys route to the picker (filter / move / Enter checkout / Esc cancel).
+  let mut branch_open = false
   // First visible line (scroll); pushed to the model each frame. Initialized
   // from the model so a seeded scroll (e.g. the MUI_STICKY_AUTOOPEN screenshot
   // hook) survives the first frame instead of being reset to the top.
@@ -939,26 +974,58 @@ fn main() {
     while tag != 0 && running {
       if tag == ev_close() {
         running = false
-      } else if mui_crumb_menu_active(h) == 1 {
-        // -------- breadcrumb dropdown is open: navigate / accept / dismiss ----
-        if tag == ev_key() {
-          let k = mui_event_key(h)
-          if k == key_up() {
-            mui_crumb_menu_move(h, -1)
-          } else if k == key_down() {
-            mui_crumb_menu_move(h, 1)
-          } else if k == key_enter() {
-            let _acc = mui_crumb_menu_accept(h, -1)
-            mui_ed_undo_reset(h)
-            find_nav = false
-            let _r = mui_diag_refresh(h)
-            let _o = mui_outline_refresh(h)
-          } else if k == key_escape() {
+      } else if mui_crumb_menu_active(h) == 1 || mui_branch_active(h) == 1 {
+        // Two overlays share this arm (NESTED, not a new top-level arm — L37):
+        // the breadcrumb dropdown and the git branch switcher.
+        if mui_branch_active(h) == 1 {
+          // -------- branch switcher: filter/type, move, Enter checkout, Esc ----
+          if tag == ev_char() {
+            let cp = mui_event_codepoint(h)
+            if cp >= 32 && cp < 127 { mui_branch_push_char(h, cp) }
+          } else if tag == ev_key() {
+            let k = mui_event_key(h)
+            if k == key_backspace() {
+              mui_branch_backspace(h)
+            } else if k == key_up() {
+              mui_branch_move(h, -1)
+            } else if k == key_down() {
+              mui_branch_move(h, 1)
+            } else if k == key_enter() {
+              // Accept: 1 = checked-out/created (close), 2 = entered create mode
+              // (stay open for the name), 0 = failed (stay open).
+              let acc = mui_branch_accept(h)
+              if acc == 1 {
+                branch_open = false
+                find_nav = false
+                let _r = mui_diag_refresh(h)
+                let _o = mui_outline_refresh(h)
+              }
+            } else if k == key_escape() {
+              mui_branch_cancel(h)
+              branch_open = false
+            }
+          }
+        } else {
+          // -------- breadcrumb dropdown: navigate / accept / dismiss ----------
+          if tag == ev_key() {
+            let k = mui_event_key(h)
+            if k == key_up() {
+              mui_crumb_menu_move(h, -1)
+            } else if k == key_down() {
+              mui_crumb_menu_move(h, 1)
+            } else if k == key_enter() {
+              let _acc = mui_crumb_menu_accept(h, -1)
+              mui_ed_undo_reset(h)
+              find_nav = false
+              let _r = mui_diag_refresh(h)
+              let _o = mui_outline_refresh(h)
+            } else if k == key_escape() {
+              mui_crumb_menu_cancel(h)
+            }
+          } else if tag == ev_char() {
+            // Any printed char dismisses the dropdown.
             mui_crumb_menu_cancel(h)
           }
-        } else if tag == ev_char() {
-          // Any printed char dismisses the dropdown.
-          mui_crumb_menu_cancel(h)
         }
       } else if palette_open {
         // -------- command palette is open: route keystrokes to it -----------
@@ -1079,6 +1146,11 @@ fn main() {
             } else if id == cmd_agents() {
               let _p = mui_panel_set(h, panel_agents_mty())
               let _a = mui_agents_refresh(h)
+            } else if id >= cmd_git_first() {
+              // All Git commands (switch-branch/push/pull/fetch/blame) route to
+              // the single shim dispatcher (keeps the ladder flat — L37/L38).
+              let _g = mui_git_dispatch(h, id)
+              if mui_branch_active(h) == 1 { branch_open = true }
             }
           }
         }
@@ -1206,6 +1278,9 @@ fn main() {
                 mui_welcome_open(h)
               } else if id == cmd_zen_mode() {
                 let _z = mui_zen_toggle(h)
+              } else if id >= cmd_git_first() {
+                let _g = mui_git_dispatch(h, id)
+                if mui_branch_active(h) == 1 { branch_open = true }
               }
             } else {
               // Files / Symbols / Go-to-line: the shim performs the action
@@ -2040,6 +2115,13 @@ fn main() {
         let chip_hit = mui_status_problems_chip_at_click(h)
         let prob_on = mui_problems_is_open(h)
         let prob_hit = mui_problems_row_at_click(h)
+        // Git click targets (computed up-front so the dispatch ladder stays flat):
+        // the status-bar branch segment opens the switcher; a click on an inline-
+        // diff hunk header stages/unstages that hunk.
+        let branch_seg = mui_status_branch_at_click(h)
+        let diff_on = mui_diff_active(h)
+        let mut diff_hunk: I32 = 0 - 1
+        if diff_on == 1 { diff_hunk = mui_diff_hunk_at_click(h) }
         // When the Welcome screen owns the body, a click on it dispatches a
         // quick action (or opens a recent file). Handled first; if the click
         // missed the cards we fall through to the normal routing (rail/tabs).
@@ -2047,7 +2129,16 @@ fn main() {
         // here — a helper can't write the caller's `palette_open`/etc. locals, L27.)
         let welcome_owns = mui_welcome_active(h)
         let welcome_act = welcome_click_action(h, welcome_owns)
-        if welcome_act >= 0 {
+        if diff_on == 1 && diff_hunk >= 0 {
+          // Inline-diff hunk header clicked: stage (working-tree) / unstage
+          // (staged) that hunk. The shim picks the verb by the diff's side and
+          // refreshes SCM + the diff afterward.
+          let _hs = mui_diff_toggle_hunk(h, diff_hunk)
+        } else if branch_seg == 1 {
+          // Status-bar branch segment: open the branch switcher overlay.
+          let n = mui_git_branches(h)
+          if n >= 0 { branch_open = true }
+        } else if welcome_act >= 0 {
           if welcome_act == welcome_open_file() {
             mui_prompt_open(h, prompt_open())
             prompt_kind = prompt_open()
@@ -2197,10 +2288,22 @@ fn main() {
             }
           }
         } else if cur_panel == panel_scm() {
-          // Source Control panel: stage/unstage (right-edge action button) or —
-          // on the row body — open the file as a tab AND show its inline diff.
+          // Source Control panel: header actions (commit/pull/push/fetch) first,
+          // then stage/unstage (right-edge action button) or — on the row body —
+          // open the file as a tab AND show its inline diff.
+          let scm_act = mui_scm_header_action_at_click(h)
           let scm_hit = mui_scm_row_at_click(h)
-          if scm_hit >= 0 {
+          if scm_act > 0 {
+            if scm_act == 1 {
+              let _c = mui_scm_commit(h)
+            } else if scm_act == 2 {
+              let _pl = mui_git_pull(h)
+            } else if scm_act == 3 {
+              let _ps = mui_git_push(h)
+            } else if scm_act == 4 {
+              let _ft = mui_git_fetch(h)
+            }
+          } else if scm_hit >= 0 {
             let is_stage = mui_scm_click_is_stage(h)
             if is_stage == 1 {
               let _t = mui_scm_toggle_stage(h, scm_hit)
@@ -2396,6 +2499,9 @@ fn main() {
       // Draw the editor body (current-line band + gutter + syntax-colored text +
       // selection + caret) shim-side from the AUTHORITATIVE model. Editing is live.
       mui_ed_draw(h, rows_i)
+      // Git blame gutter: a dim per-line sha · author · date band over the left
+      // gutter. No-op unless toggled on (Alt+B / "Git: Toggle Blame").
+      mui_blame_draw(h, rows_i)
       // Inline AI ghost-text overlay: dim suggestion painted at the cursor, over the
       // editor body but under chrome. No-op unless a ghost is currently shown.
       mui_ghost_draw(h)
@@ -2504,6 +2610,9 @@ fn main() {
     // Settings panel: a centered overlay (no-ops unless active, so the
     // MUI_SETTINGS_AUTOOPEN screenshot hook renders it without a keystroke).
     mui_settings_draw(h)
+    // Branch switcher: a centered overlay (no-ops unless active, so the
+    // MUI_BRANCH_AUTOOPEN screenshot hook renders it without a keystroke).
+    mui_branch_draw(h)
     // Toast notifications: the TOP of the overlay order so transient cards sit
     // above every panel/overlay. No-op when the queue is empty.
     mui_toast_draw(h)

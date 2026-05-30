@@ -615,6 +615,60 @@ stale `target/debug/deps/mighty_ui_sys-*.{exe,pdb}` test binaries (each ~25-240M
 link fails with os error 112. Do NOT pass a `CARGO_PROFILE_DEV_DEBUG` override mid-session —
 it diverges from the cached default profile and forces a full ~6GB dep rebuild.
 
+## Real git client (2026-05-30) — branches / push-pull-fetch / per-hunk stage / blame
+
+Turning Source Control into a real git client (branch switcher, push/pull/fetch,
+per-hunk stage/unstage, blame gutter) re-confirmed the L37/L38 ceiling discipline
+end-to-end — `mty build` stayed green with **zero new top-level `else if` arms**:
+
+- **One shim-side dispatcher kept BOTH command ladders flat.** The five new Git
+  palette commands (ids 26-30: Switch Branch / Push / Pull / Fetch / Toggle Blame)
+  do NOT each get a `cmd_*` arm in the palette dispatch AND the quick-open `>`
+  dispatch (that would be 10 net-new arms across two near-ceiling ladders).
+  Instead each ladder got ONE arm — `else if id >= cmd_git_first() { mui_git_dispatch(h, id) }`
+  — and `mui_git_dispatch` fans out shim-side. This is the cleanest pattern when a
+  family of commands shares no per-command Mighty state.
+- **The branch-switcher overlay shares the breadcrumb-dropdown arm (NESTED, L37).**
+  Rather than a new top-level `else if branch_open` arm in the event-routing
+  ladder, the existing `else if mui_crumb_menu_active(h) == 1` arm was widened to
+  `... == 1 || mui_branch_active(h) == 1` and branches INSIDE on which overlay is
+  up. Same trick L38 used; the two overlays have disjoint key handling but live in
+  one arm.
+- **Status-bar branch click + diff hunk-stage click fold into the mouse-down
+  ladder by prepending ONE combined guard** (`if diff_on && diff_hunk>=0 {…} else if branch_seg==1 {…} else if welcome_act>=0 {…`).
+  The mouse-down ladder has margin (L38 already prepended the Welcome guard there).
+- **Alt+B (toggle blame) routes through the existing `mui_chord` shim router** — no
+  Mighty-side change beyond the already-widened Alt arm.
+- **Per-hunk staging is pure shim logic + git plumbing.** The diff parser already
+  tagged each display line; adding a `hunk: i32` field let `reconstruct_hunk_patch`
+  rebuild a byte-exact minimal unified diff (`--- a/<path>` / `+++ b/<path>` /
+  `@@…@@` + the hunk body with markers, trailing newline) which `git apply --cached`
+  (stage) / `--cached --reverse` (unstage) consumes on stdin. A guarded temp-repo
+  integration test (`integration_stage_hunk_into_index`) **ran** (git present): it
+  modifies a file, reconstructs hunk 0, stages it, and asserts `git diff --cached`
+  shows the change.
+- **Blame: inline end-of-line annotation, NOT a left band.** First attempt drew a
+  left blame band over the gutter — it overlapped the code (unreadable). Switched
+  to a GitLens-style dim `• author · date · sha` annotation right of each line's
+  content (using the model's per-line length), which never obscures code. Parser
+  handles git's INCREMENTAL porcelain headers (commit metadata emitted once per
+  sha; later lines reference the sha only → cache + back-fill) and a self-contained
+  civil-date conversion (no chrono dep). Cache per file, invalidated on save.
+
+**No new Mighty-source limitation.** All four features are scalar-ABI veneers over
+shim-owned state (L17/L21). Tests: 508 pass (was 490; +18 — branch-list parsing,
+git-output summarize, branch-picker filter/create, single-hunk patch reconstruction
+[byte-exact add/remove/context, multi-hunk selection, no-newline marker, parse
+round-trip], the temp-repo stage-hunk integration test, blame porcelain parsing
+[author/date/sha, incremental-header back-fill, uncommitted zero-sha, tz offset]).
+ABI added: `mui_git_push/pull/fetch/branches/dispatch`, `mui_branch_active/push_char/
+backspace/query_len/count/move/is_creating/accept/cancel/draw`, `mui_status_branch_at_click`,
+`mui_scm_header_action_at_click`, `mui_diff_hunk_count/hunk_at_click/stage_hunk/
+unstage_hunk/toggle_hunk`, `mui_blame_toggle/active/line_count/refresh/sync/draw`.
+Screenshots `screenshots/39-branches.png` (`MUI_BRANCH_AUTOOPEN`) + `40-blame.png`
+(`MUI_BLAME_AUTOOPEN`) at 1320x860. The status bar now reflects the LIVE branch +
+ahead/behind from `scm::ScmStatus` (was hardcoded `main ↑2 ↓0`).
+
 ## Open questions to resolve as the IDE progresses
 - Exact `extern c` signature support: pointers (`*U8`), out-params (`&out T`), passing a
   `Vec`/slice as `(ptr, len)`, returning `#[repr(C)]` structs by value vs. out-param?

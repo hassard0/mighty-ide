@@ -14,6 +14,7 @@ mod abi;
 mod agents;
 mod agentsabi;
 mod ai;
+mod blame;
 mod completion;
 mod config;
 mod crumbmenu;
@@ -261,6 +262,10 @@ pub struct MuiContext {
     active_panel: i32,
     /// Source-control (git) panel state: repo root + parsed status + commit msg.
     scm: scm::ScmState,
+    /// The branch-switcher overlay (list + filter + create-branch input).
+    branch_picker: scm::BranchPicker,
+    /// The git blame gutter (per-line author/date/sha, cached per file + toggle).
+    blame: crate::blame::BlameState,
     /// Project-wide find/replace panel state: query/replace buffers + results.
     search: search::SearchState,
 
@@ -709,6 +714,8 @@ pub(crate) fn build_context(
         rename_autoopen: false,
         active_panel: PANEL_EXPLORER,
         scm: scm::ScmState::new(),
+        branch_picker: scm::BranchPicker::new(),
+        blame: crate::blame::BlameState::new(),
         search: search::SearchState::new(),
         ai: ai::AiPanel::new(),
         ghost: ghost::GhostState::new(),
@@ -1336,6 +1343,8 @@ impl MuiContext {
             rename_autoopen: false,
             active_panel: PANEL_EXPLORER,
             scm: scm::ScmState::new(),
+            branch_picker: scm::BranchPicker::new(),
+            blame: crate::blame::BlameState::new(),
             search: search::SearchState::new(),
             ai: ai::AiPanel::new(),
             ghost: ghost::GhostState::new(),
