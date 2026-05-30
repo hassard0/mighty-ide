@@ -42,6 +42,8 @@ mod lspclient;
 mod lspregistry;
 mod nav;
 mod navsurfaces;
+mod newproj;
+mod newprojabi;
 mod outline;
 mod palette;
 mod panes;

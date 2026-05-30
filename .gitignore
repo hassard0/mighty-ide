@@ -16,3 +16,6 @@ vendor/mighty_ui_sys.dll.lib
 repro/*.lib
 repro/*.o
 repro/*.exe
+
+# rcedit (downloaded by package-win.sh from the electron/rcedit release; not vendored)
+tools/rcedit-x64.exe

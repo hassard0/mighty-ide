@@ -1,0 +1,59 @@
+// agents.mty — Mighty is AGENT-FIRST: agents, protocols, supervisors and
+// capability-scoped tools are first-class. Open the "Mighty Agents" panel
+// (the nodes icon on the activity rail) to see this file's topology drawn
+// from a static scan — no run required.
+
+package agents_demo
+
+use std.llm
+
+// ----- protocols: the typed message contracts agents speak -----
+
+protocol Ingest {
+  Submit(text: Str) -> U8
+  Flush() -> U8
+}
+
+protocol Summarize {
+  Ask(doc: Str) -> Str
+}
+
+// ----- a capability tool (callable by agents, scoped to a capability) -----
+
+@tool("Count the words in a chunk of text", cap: fs.read)
+fn word_count(text: Str) -> I32 {
+  // (toy body — the panel cares about the signature + annotation)
+  let mut n = 1
+  n = n + 1
+  n
+}
+
+// ----- agents -----
+
+// A plain message-passing agent implementing the Ingest protocol.
+agent Collector: Ingest {
+  on Submit(text) -> {
+    let _w = word_count(text)
+    1
+  }
+  on Flush() -> {
+    1
+  }
+}
+
+// An LLM-backed agent: it implements Summarize by asking a model.
+agent Summarizer: Summarize {
+  on Ask(doc) -> {
+    let answer = llm.complete("Summarize: " + doc)
+    answer
+  }
+}
+
+// A supervisor orchestrates child agents and restarts them on failure.
+supervisor Pipeline {
+  children = [Collector, Summarizer]
+}
+
+fn main() {
+  log("agents demo: Collector + Summarizer under Pipeline")
+}

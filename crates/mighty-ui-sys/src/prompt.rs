@@ -25,6 +25,9 @@ pub enum PromptKind {
     /// Open Folder: the query is a folder path to open as the workspace (the
     /// typed-path fallback when the native folder picker is unavailable).
     OpenFolder = 5,
+    /// New Project: the query is a project NAME; on Enter the IDE runs
+    /// `mty new <name>` and opens the result as the workspace.
+    NewProject = 6,
 }
 
 impl PromptKind {
@@ -35,6 +38,7 @@ impl PromptKind {
             3 => Some(PromptKind::Open),
             4 => Some(PromptKind::Ai),
             5 => Some(PromptKind::OpenFolder),
+            6 => Some(PromptKind::NewProject),
             _ => None,
         }
     }
@@ -47,6 +51,7 @@ impl PromptKind {
             PromptKind::Open => "Open: ",
             PromptKind::Ai => "Ask AI: ",
             PromptKind::OpenFolder => "Open Folder: ",
+            PromptKind::NewProject => "New project name: ",
         }
     }
 }

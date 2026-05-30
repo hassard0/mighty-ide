@@ -1,0 +1,34 @@
+// web-spinner.mty — a PURE Mighty program (no FFI) that targets the
+// browser. Use "Mighty: Run in Browser" (Alt+W) to build it for
+// wasm32-web and open it live.
+//
+// The guest stays pure: each Tick emits a state EVENT via `log("evt:…")`
+// and the JS host advances + paints a spinning arc. (Pure Mighty only —
+// nothing crosses an FFI boundary, so it compiles to a runnable
+// Component-Model guest.)
+
+package web_spinner
+
+// The animation contract the JS host drives.
+protocol Spinner {
+  Tick()  -> Unit
+  Reset() -> Unit
+}
+
+// Single source of truth for the animation. Tick advances one frame
+// (host bumps the angle), Reset returns to the origin.
+agent Spin: Spinner {
+  spinning = true
+
+  on Tick() {
+    log("evt:spin")
+  }
+
+  on Reset() {
+    log("evt:reset")
+  }
+}
+
+fn main() {
+  log("web-spinner: Alt+W to run in the browser")
+}

@@ -559,6 +559,8 @@ extern c {
   fn mui_ws_open_recent(handle: I64, i: I32) -> I32
   fn mui_ws_recent_count(handle: I64) -> I32
   fn mui_ws_dispatch(handle: I64, cmd_id: I32) -> I32
+  // ---- New Project (Mighty: New Project) — runs `mty new <name>` ----
+  fn mui_newproj_create(handle: I64) -> I32
   // ---- quick-fix lightbulb (gutter indicator) ----
   fn mui_lightbulb_tick(handle: I64) -> I32
   fn mui_lightbulb_visible(handle: I64) -> I32
@@ -613,6 +615,9 @@ fn cmd_keyboard_shortcuts() -> I32 { 38 } // Help: Keyboard Shortcuts overlay
 // the palette ladders gain ONE arm range, not three (L37/L38).
 fn cmd_fold_first() -> I32 { 39 } // Fold: Toggle at Cursor (lowest fold id)
 fn cmd_fold_last() -> I32 { 41 }  // Fold: Unfold All (highest fold id)
+// Mighty: New Project — prompts for a name, then `mui_newproj_create` runs
+// `mty new <name>` and opens the result as the workspace.
+fn cmd_new_project() -> I32 { 42 }
 
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
@@ -676,6 +681,8 @@ fn prompt_open() -> I32 { 3 }
 fn prompt_ai() -> I32 { 4 }
 // Open Folder typed-path fallback (native dialog unavailable / cancelled).
 fn prompt_open_folder() -> I32 { 5 }
+// New Project: the query is the project NAME (mui_newproj_create on Enter).
+fn prompt_new_project() -> I32 { 6 }
 
 // activity-rail panel ids (mirror PANEL_* in lib.rs)
 fn panel_explorer() -> I32 { 0 }
@@ -1365,6 +1372,12 @@ fn main() {
               // Open the Keyboard Shortcuts reference overlay (its own input mode,
               // gated by mui_keys_active; routed in the combined-overlay arm).
               mui_keys_open(h)
+            } else if id == cmd_new_project() {
+              // Mighty: New Project — collect a name via the bottom prompt; on
+              // Enter we run `mty new <name>` + open it (mui_newproj_create).
+              mui_prompt_open(h, prompt_new_project())
+              prompt_kind = prompt_new_project()
+              find_nav = false
             }
           }
         }
@@ -1521,6 +1534,10 @@ fn main() {
                 let _f = mui_fold_dispatch(h, id)
               } else if id == cmd_keyboard_shortcuts() {
                 mui_keys_open(h)
+              } else if id == cmd_new_project() {
+                mui_prompt_open(h, prompt_new_project())
+                prompt_kind = prompt_new_project()
+                find_nav = false
               }
             } else {
               // Files / Symbols / Go-to-line: the shim performs the action
@@ -1836,6 +1853,23 @@ fn main() {
                 fi = fi + 1
               }
               let _wo = mui_ws_open(h)
+              find_nav = false
+              mui_prompt_cancel(h)
+              prompt_kind = 0
+            } else if prompt_kind == prompt_new_project() {
+              // New Project: stage the typed NAME into the shared byte buffer,
+              // then run `mty new <name>` + open the result as the workspace.
+              // The shim validates the name + toasts (success / invalid / mty
+              // missing); we just clear the prompt afterward.
+              mui_path_clear(h)
+              let nlen = mui_prompt_len(h)
+              let mut ni: I32 = 0
+              while ni < nlen {
+                let nc = mui_prompt_char(h, ni)
+                if nc >= 0 { mui_path_push(h, nc) }
+                ni = ni + 1
+              }
+              let _np = mui_newproj_create(h)
               find_nav = false
               mui_prompt_cancel(h)
               prompt_kind = 0

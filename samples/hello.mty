@@ -1,0 +1,50 @@
+// hello.mty — a friendly first tour of Mighty: structs, functions,
+// pattern-style branching and a loop. Open it, hit Ctrl+Shift+R to Run,
+// or F12 on a name to jump to its definition.
+
+// A simple value type. Fields are typed; `struct` groups related data.
+struct Point {
+    x: I32,
+    y: I32,
+}
+
+// Free functions take typed params and declare a return type with `->`.
+fn add(a: I32, b: I32) -> I32 {
+    return a + b
+}
+
+// Manhattan distance from the origin — shows calling one fn from another.
+fn taxicab(p: Point) -> I32 {
+    let mut d = p.x
+    if d < 0 { d = 0 - d }          // abs(x)
+    let mut e = p.y
+    if e < 0 { e = 0 - e }          // abs(y)
+    return add(d, e)
+}
+
+// Branching that returns a string label for a number.
+fn classify(n: I32) -> Str {
+    if n < 0 {
+        return "negative"
+    } else if n == 0 {
+        return "zero"
+    } else {
+        return "positive"
+    }
+}
+
+fn main() {
+    let here = Point { x: 3, y: -4 }
+    let dist = taxicab(here)
+    log("distance from origin = " + classify(dist))
+
+    // A counting loop, summing 1..=5 the long way.
+    let mut total = 0
+    let mut i = 1
+    while i <= 5 {
+        total = add(total, i)
+        i = i + 1
+    }
+    log("sum 1..5 = " + classify(total))
+    log("welcome to Mighty!")
+}

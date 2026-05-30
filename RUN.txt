@@ -5,12 +5,37 @@ HOW TO RUN
 ----------
 1. Keep mighty-ide.exe and mighty_ui_sys.dll in the SAME folder (Windows loads
    the DLL from the exe's directory). Do not separate them.
-2. Double-click  mighty-ide.exe  to open the editor (it opens a scratch buffer).
+2. Double-click  mighty-ide.exe  to open the editor. With no file it opens the
+   Welcome screen — click "Open File", "Open Folder" or a recent entry, or just
+   start typing in the scratch buffer.
    OR open a specific file from a terminal:
        mighty-ide.exe path\to\file
-       mighty-ide.exe examples\demo.mty
+       mighty-ide.exe samples\hello.mty
 3. The fonts (JetBrains Mono + Bricolage Grotesque) are EMBEDDED in the binary —
    there is nothing else to install for the editor to render.
+
+DESKTOP SHORTCUT (optional)
+---------------------------
+To add a "Mighty IDE" shortcut to your Desktop (with the app icon), run the
+bundled script from this folder:
+    Right-click  Create-Desktop-Shortcut.ps1  ->  Run with PowerShell
+    or:  powershell -ExecutionPolicy Bypass -File Create-Desktop-Shortcut.ps1
+(Re-run with  -Remove  to delete the shortcut.)
+
+SAMPLES TO EXPLORE
+------------------
+The  samples\  folder has a few .mty files showcasing the language:
+    samples\hello.mty        structs, functions, branching, a loop
+    samples\agents.mty       agents / protocols / supervisor (see the Agents panel)
+    samples\web-spinner.mty  a pure browser program ("Run in Browser", Alt+W)
+Open the samples folder as a workspace (File: Open Folder, Ctrl+Shift+O) to
+browse them in the tree, or open one directly.
+
+NEW PROJECT
+-----------
+Command Palette (Ctrl+Shift+P)  ->  "Mighty: New Project" scaffolds a fresh
+project with  mty new <name>  and opens it as the workspace. (Needs the Mighty
+compiler `mty` on your PATH — see below.)
 
 WHAT WORKS STANDALONE (no other tools needed)
 ---------------------------------------------

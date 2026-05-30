@@ -132,9 +132,15 @@ pub(crate) fn lsp_def_raw(lang: Language, path: &std::path::Path, source: &str, 
 /// Resolve the file to edit: `argv[1]` if given, else a scratch file in the
 /// current directory. The scratch file is created empty if it does not exist
 /// (so the editor never defaults to its own source — see deliverable 1).
-fn resolve_target_path() -> PathBuf {
+///
+/// The `bool` return is `true` when a file argument WAS supplied. On a no-arg
+/// launch (`false`) the IDE forces the branded Welcome screen open so a
+/// double-click lands on the landing page instead of an anonymous scratch
+/// buffer (the path-backed scratch tab still exists underneath, so "New File" /
+/// typing dismisses Welcome straight into an editable buffer).
+fn resolve_target_path() -> (PathBuf, bool) {
     if let Some(arg) = std::env::args().nth(1) {
-        return PathBuf::from(arg);
+        return (PathBuf::from(arg), true);
     }
     let scratch = PathBuf::from("scratch.mty");
     if !scratch.exists() {
@@ -142,7 +148,32 @@ fn resolve_target_path() -> PathBuf {
             eprintln!("mui_init_s: could not create scratch file: {e}");
         }
     }
-    scratch
+    (scratch, false)
+}
+
+/// First-run onboarding: if the recent-folders MRU is empty AND a bundled
+/// `samples/` directory exists beside the running exe, record it so the Welcome
+/// screen surfaces a clickable "samples" recent folder. Idempotent — only seeds
+/// when the MRU is empty, so a returning user's real history is never touched.
+fn seed_first_run_samples(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if !ctx.recent_workspaces.is_empty() {
+        return;
+    }
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let Some(dir) = exe.parent() else {
+        return;
+    };
+    let samples = dir.join("samples");
+    if samples.is_dir() {
+        ctx.recent_workspaces.record(samples.clone());
+        let _ = crate::config::save_recent_workspaces(&ctx.recent_workspaces.to_blob());
+        println!("mui_init_s: first-run -> seeded samples folder {}", samples.display());
+    }
 }
 
 /// Basename of `path` (file name component), or the whole path as a fallback.
@@ -174,7 +205,7 @@ unsafe fn ctx<'a>(handle: i64) -> Option<&'a mut MuiContext> {
 ///   * eagerly loads the file so [`mui_load`] can report its length.
 #[no_mangle]
 pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
-    let path = resolve_target_path();
+    let (path, had_file_arg) = resolve_target_path();
     let title = format!("{} — Mighty IDE", basename(&path));
     println!("mui_init_s: editing {}", path.display());
 
@@ -191,6 +222,27 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
     let height = env_dim("MUI_HEIGHT", height);
 
     let handle = crate::build_context(width, height, title, Some(path)) as usize as i64;
+
+    // First-run onboarding: when there are no recent folders yet (a fresh
+    // install) and a bundled `samples/` dir sits next to the exe, seed it into
+    // the recents MRU so the Welcome screen's "Recent Folders" offers a
+    // one-click "samples" entry to explore. Non-destructive + idempotent (it
+    // only fires when the MRU is empty), so it never overrides a real history.
+    seed_first_run_samples(handle);
+
+    // No-arg launch (double-click): force the branded Welcome screen so the IDE
+    // opens to its landing page, not an anonymous scratch buffer. The path-backed
+    // scratch tab is still active underneath; "New File" / typing dismisses
+    // Welcome straight into it. A file-argument launch skips this and goes
+    // directly to the file. Suppressed under any headless/screenshot/probe env so
+    // the scripted captures + body screenshots aren't hijacked by the landing
+    // (the dedicated MUI_WELCOME_AUTOOPEN hook below covers capturing Welcome).
+    if !had_file_arg && !headless_mode_active() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            ctx.welcome.open();
+            println!("mui_init_s: no file arg -> Welcome screen forced open");
+        }
+    }
 
     // Launch-test hook: with MUI_TERM_AUTOOPEN set, eagerly open the terminal so
     // a headless (non-interactive) run can prove the PTY/grid wiring end-to-end

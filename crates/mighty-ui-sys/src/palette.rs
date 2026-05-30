@@ -104,6 +104,12 @@ pub const CMD_FOLD_FIRST: u32 = CMD_FOLD_TOGGLE;
 #[allow(dead_code)]
 pub const CMD_FOLD_LAST: u32 = CMD_UNFOLD_ALL;
 
+/// "Mighty: New Project" — prompts for a name, runs `mty new <name>` (needs the
+/// Mighty compiler on PATH), then opens the new project as the workspace. The
+/// Mighty side collects the name through the bottom prompt and dispatches to
+/// `mui_newproj_create`.
+pub const CMD_NEW_PROJECT: u32 = 42;
+
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
@@ -148,6 +154,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_FOLD_TOGGLE,      label: "Fold: Toggle at Cursor",  keybinding: "Ctrl+Shift+[" },
     Command { id: CMD_FOLD_ALL,         label: "Fold: Fold All",          keybinding: "" },
     Command { id: CMD_UNFOLD_ALL,       label: "Fold: Unfold All",        keybinding: "" },
+    Command { id: CMD_NEW_PROJECT,      label: "Mighty: New Project",     keybinding: "" },
 ];
 
 /// Match quality for ranking. Lower sorts first.
@@ -354,6 +361,7 @@ impl PaletteEngine {
             CMD_OPEN_FOLDER => (icons::FOLDER, "Open a folder as the workspace", false),
             CMD_OPEN_RECENT => (icons::FOLDER, "Reopen a recent workspace folder", false),
             CMD_KEYBOARD_SHORTCUTS => (icons::INFO_I, "List & remap all keyboard shortcuts", false),
+            CMD_NEW_PROJECT => (icons::NEW_FOLDER, "Scaffold a new Mighty project (mty new)", false),
             _ => (icons::CHEVRON, "", false),
         }
     }
