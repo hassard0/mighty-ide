@@ -1091,6 +1091,45 @@ filename src/main.mty
         }
     }
 
+    // Screenshot/render hook for the SPLIT EDITOR: with MUI_SPLIT_AUTOOPEN set,
+    // seed two files as tabs and split the editor side-by-side (left = first file,
+    // right = second), focusing the right pane — so a headless capture shows the
+    // two panes + divider + focus outline. No effect on normal launches.
+    if std::env::var_os("MUI_SPLIT_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            use crate::editor::TextModel;
+            let dir = std::env::temp_dir();
+            let left = dir.join("mighty_split_left.mty");
+            let right = dir.join("mighty_split_right.mty");
+            let left_src = b"// fib.mty \xE2\x80\x94 left pane\n\nfn fib(n: I32) -> I32 {\n  if n < 2 {\n    n\n  } else {\n    fib(n - 1) + fib(n - 2)\n  }\n}\n\nfn main() {\n  let mut total = 0\n  for i in 0..12 {\n    total = total + fib(i)\n  }\n  print(total)\n}\n";
+            let right_src = b"// greeter.mty \xE2\x80\x94 right pane (focused)\n\nagent Greeter {\n  state name: Str\n\n  fn greet(self) -> Str {\n    let prefix = \"Hello, \"\n    prefix + self.name + \"!\"\n  }\n}\n\nfn main() {\n  let g = Greeter { name: \"Mighty\" }\n  print(g.greet())\n}\n";
+            let _ = std::fs::write(&left, left_src);
+            let _ = std::fs::write(&right, right_src);
+            // Tab 0 (the initial scratch/file) becomes the left file; open the
+            // right file as tab 1.
+            let li = ctx.tabs.open_path(left.clone());
+            *ctx.tabs.active_model_mut() = TextModel::from_bytes(left_src);
+            let ri = ctx.tabs.open_path(right.clone());
+            *ctx.tabs.active_model_mut() = TextModel::from_bytes(right_src);
+            ctx.tabs.active_model_mut().move_to(11, 10);
+            // Bind pane 0 -> left tab, split right showing the right tab, focus it.
+            ctx.panes = crate::panes::PaneLayout::new(li);
+            let s = ctx.tabs.model_at(li).map(|m| m.first_visible()).unwrap_or(0);
+            ctx.tabs.switch(li);
+            ctx.panes.split_right(ri, s);
+            pane_rebind_focus(ctx);
+            ctx.welcome.dismiss();
+            ctx.edit_probe_lock = true;
+            println!(
+                "mui_init_s: MUI_SPLIT_AUTOOPEN -> {} panes (focused={}, left tab={}, right tab={})",
+                ctx.panes.count(),
+                ctx.panes.focused(),
+                li,
+                ri
+            );
+        }
+    }
+
     handle
 }
 
@@ -2257,6 +2296,8 @@ pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
         return ctx.tabs.active() as i32;
     }
     let a = ctx.tabs.close(idx as usize);
+    // Remap pane→tab indices so a pane never points past the end after a close.
+    ctx.panes.on_tab_closed(idx as usize, ctx.tabs.count());
     sync_active_path(ctx);
     a as i32
 }
@@ -5541,6 +5582,10 @@ pub extern "C" fn mui_ed_tab_switch(handle: i64, idx: i32) -> i32 {
     };
     if idx >= 0 {
         ctx.tabs.switch(idx as usize);
+        // The tab bar targets the FOCUSED pane: point it at the new active tab so
+        // the split stays coherent (a no-op binding when unsplit).
+        let f = ctx.panes.focused();
+        ctx.panes.set_tab(f, ctx.tabs.active());
         sync_active_path(ctx);
         // Opening / switching to any tab leaves the forced Welcome landing.
         ctx.welcome.dismiss();
@@ -5556,7 +5601,16 @@ pub extern "C" fn mui_ed_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    let region = layout::region(ctx.sidebar_visible);
+    let mut region = layout::region(ctx.sidebar_visible);
+    // When split, resolve the click against the FOCUSED pane's column (its left
+    // edge), so the gutter/text math lines up with where that pane is drawn. The
+    // focused pane's tab is the active tab (rebound on click→focus), so reading
+    // the active model is correct. Unsplit: the full region, unchanged.
+    let count = ctx.panes.count();
+    if count > 1 {
+        let win_w = ctx.gpu.width as f32;
+        region = layout::pane_region(region, win_w, count, ctx.panes.focused());
+    }
     let total = ctx.tabs.active_model().line_count() as u64;
     let first = ctx.tabs.active_model().first_visible() as u64;
     let (line, col) =
@@ -5570,6 +5624,11 @@ pub extern "C" fn mui_ed_click(handle: i64) -> i32 {
 /// right-aligned gutter numbers (the cursor's line brighter), syntax-colored
 /// source text, the translucent selection rect, and the 2px ember caret.
 /// `rows` is the visible row count; the model owns the scroll offset.
+///
+/// Pane-aware: with ONE pane this is byte-identical to the historical single
+/// editor (the full body region, the active tab, no divider / focus chrome). With
+/// a split it draws every pane into its column via [`draw_editor_pane`], plus the
+/// 1px dividers between them. See `crate::panes`.
 #[no_mangle]
 pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -5582,16 +5641,76 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
     if ctx.diff.is_active() {
         return;
     }
+    let count = ctx.panes.count();
     let region = layout::region(ctx.sidebar_visible);
-    let clip = ctx.clip;
+    let win_w = ctx.gpu.width as f32;
+    if count <= 1 {
+        // Unsplit: the full body span, the active tab, focused, no split chrome —
+        // identical to the historical draw.
+        let active = ctx.tabs.active();
+        draw_editor_pane(ctx, handle, rows, region, win_w, active, true, false);
+        return;
+    }
+    // Split: draw each pane into its column, then the dividers on top.
+    let focused = ctx.panes.focused();
+    for i in 0..count {
+        let pr = layout::pane_region(region, win_w, count, i);
+        let (_l, x_right) = layout::pane_bounds(region, win_w, count, i);
+        let tab = ctx.panes.tab_at(i).unwrap_or(0);
+        draw_editor_pane(ctx, handle, rows, pr, x_right, tab, i == focused, true);
+    }
+    // 1px dividers between adjacent panes.
+    {
+        let win_h = ctx.gpu.height as f32;
+        let div_top = region.top;
+        let div_h = (win_h - 30.0 - div_top).max(0.0); // 30 = status bar
+        for i in 0..count.saturating_sub(1) {
+            let dx = layout::pane_divider_x(region, win_w, count, i);
+            ctx.dl_rect(dx, div_top, layout::PANE_DIVIDER_W, div_h, theme::BORDER_SOFT());
+        }
+    }
+}
+
+/// Draw ONE editor pane (one tab) into `region` clipped to the right at
+/// `x_right`. `focused` brightens the gutter / draws the caret as primary;
+/// `split_chrome` adds the focus outline (only meaningful when there is more than
+/// one pane). With a single full-width pane (`split_chrome == false`,
+/// `x_right == window width`, `tab == active`) this reproduces the historical
+/// `mui_ed_draw` body exactly.
+#[allow(clippy::too_many_arguments)]
+fn draw_editor_pane(
+    ctx: &mut MuiContext,
+    handle: i64,
+    rows: i32,
+    region: layout::Region,
+    x_right: f32,
+    tab_idx: usize,
+    focused: bool,
+    split_chrome: bool,
+) {
     let handle_ptr = handle as usize as *mut MuiContext;
     let rows = rows.max(0) as usize;
     // The active file's detected language drives multi-language highlighting.
     let lang = ctx.language;
+    // Glyph clip: the existing context clip when unsplit (byte-identical), else
+    // this pane's column so a pane's text never bleeds across the divider.
+    let clip = if split_chrome {
+        let win_h = ctx.gpu.height as f32;
+        let cy = region.top.max(0.0) as u32;
+        let ch = (win_h - 30.0 - region.top).max(0.0) as u32; // above status bar
+        let cx = region.left.max(0.0) as u32;
+        let cw = (x_right - region.left).max(0.0) as u32;
+        Some((cx, cy, cw, ch))
+    } else {
+        ctx.clip
+    };
 
     // Snapshot what we need from the model (ends the borrow before text/rect).
     let snap = {
-        let m = ctx.tabs.active_model();
+        let m = ctx
+            .tabs
+            .model_at(tab_idx)
+            .unwrap_or_else(|| ctx.tabs.active_model());
         let total = m.line_count();
         let first = m.first_visible();
         let last = (first + rows).min(total);
@@ -5626,7 +5745,10 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
     let text_x = layout::text_left_in(region, total_u64);
     let gutter_right = text_x - layout::GUTTER_GAP; // right edge for right-align
     let chrome = theme::CHROME_FONT_SIZE;
-    let win_w = ctx.gpu.width as f32;
+    // The pane's right edge: the full window width when unsplit, else this pane's
+    // column right. Every right-anchored draw (field bg, minimap, current-line
+    // band) clips to this so a pane never bleeds into its neighbor.
+    let win_w = x_right;
     let win_h = ctx.gpu.height as f32;
 
     // 0) Editor field background (so the atmospheric glow doesn't wash the code).
@@ -5646,8 +5768,13 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
 
     // Minimap strip width (reserved on the right). Mockup `.minimap` ~76px. When
     // the minimap is disabled in Settings, reserve no strip (mm_w = 0) so the
-    // current-line band + text run to the right edge.
-    let minimap_on = crate::settings::minimap();
+    // current-line band + text run to the right edge. In a split, the minimap is
+    // suppressed on UNFOCUSED panes (focused-only is fine for v1) and on every
+    // pane that is too narrow to host it.
+    let pane_w = (x_right - region.left).max(0.0);
+    let minimap_on = crate::settings::minimap()
+        && (!split_chrome || focused)
+        && pane_w > 200.0;
     let mm_w = if minimap_on { 70.0_f32 } else { 0.0_f32 };
     let mm_x = win_w - mm_w;
 
@@ -5701,11 +5828,16 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         let num = (li + 1).to_string();
         let num_w = num.chars().count() as f32 * layout::CHAR_W() * (chrome / theme::FONT_SIZE());
         let gx = (gutter_right - num_w).max(region.left + 2.0);
-        let gcol = if li == cur_line {
+        let mut gcol = if li == cur_line {
             theme::GUTTER_ACTIVE()
         } else {
             theme::GUTTER()
         };
+        // Split panes: dim an UNFOCUSED pane's gutter so the focused pane's
+        // brighter active gutter reads as "where edits land". (No-op unsplit.)
+        if split_chrome && !focused {
+            gcol.a *= 0.55;
+        }
         ctx.text.queue_sized(gx, y + 3.0, &num, gcol, chrome, clip);
 
         // Syntax spans for the line (language-aware).
@@ -5740,6 +5872,16 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         let row = (cl - first) as i32;
         let cx = layout::text_x_in(region, total_u64, cc as i32);
         let cy = layout::row_y_in(region, row);
+        // An UNFOCUSED split pane shows a faint, glow-less caret (it isn't where
+        // typing lands). Unsplit panes are always focused -> unchanged.
+        if split_chrome && !focused {
+            if i == 0 {
+                let mut bar = theme::ACCENT_BRIGHT();
+                bar.a *= 0.35;
+                ctx.dl_round(cx, cy - 1.0, 2.0, layout::LINE_H() - 2.0, 1.0, bar);
+            }
+            continue;
+        }
         if i == 0 {
             ctx.dl_shadow(cx, cy + 1.0, 2.0, layout::LINE_H() - 6.0, 1.0, theme::ACCENT_GLOW(), 4.0);
             ctx.dl_round(cx, cy - 1.0, 2.0, layout::LINE_H() - 2.0, 1.0, theme::ACCENT_BRIGHT());
@@ -5760,7 +5902,10 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
     //     visible rows. Subtle (1px accent stroke) so it reads as a pairing hint.
     {
         let pair = {
-            let m = ctx.tabs.active_model();
+            let m = ctx
+                .tabs
+                .model_at(tab_idx)
+                .unwrap_or_else(|| ctx.tabs.active_model());
             m.bracket_match().map(|(ml, mc)| {
                 let (cl, cc) = bracket_source_cell(m);
                 (cl as usize, cc as usize, ml, mc)
@@ -5795,7 +5940,10 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         let max_lines = ((field_h - 20.0) / mm_line_h).floor() as usize;
         let shown_lines = total.min(max_lines);
         let mm_lines: Vec<(usize, String)> = {
-            let m = ctx.tabs.active_model();
+            let m = ctx
+                .tabs
+                .model_at(tab_idx)
+                .unwrap_or_else(|| ctx.tabs.active_model());
             (0..shown_lines).map(|i| (i, m.line(i).to_string())).collect()
         };
         for (i, line) in &mm_lines {
@@ -5825,7 +5973,245 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         ctx.dl_round(mm_x + 4.0, vp_y - 1.0, mm_w - 8.0, vp_h + 2.0, 3.0, theme::accent_a(0.08));
         ctx.dl_stroke(mm_x + 4.0, vp_y - 1.0, mm_w - 8.0, vp_h + 2.0, 3.0, theme::ACCENT_LINE(), 1.0);
     }
+
+    // 6) Focus outline (split only): a subtle 2px accent stroke around the
+    //    focused pane's column so it's clear where typing lands. Drawn last so it
+    //    sits over the field/text. No-op unsplit (split_chrome == false).
+    if split_chrome && focused {
+        let outline_top = region.top;
+        let outline_h = (win_h - 30.0 - outline_top).max(0.0);
+        ctx.dl_stroke(
+            region.left,
+            outline_top,
+            (x_right - region.left).max(0.0),
+            outline_h,
+            0.0,
+            theme::ACCENT_LINE(),
+            2.0,
+        );
+    }
     let _ = handle_ptr;
+}
+
+// ---------------------------------------------------------------------------
+// Editor pane layout (side-by-side split) — see `crate::panes`.
+// ---------------------------------------------------------------------------
+//
+// Panes are an ADDITIVE layer over the active-tab + per-tab `TextModel` state.
+// The focused pane's tab IS the active tab, so every `mui_ed_*` op + every
+// feature (completion/diag/nav/sticky/ghost/minimap) keeps operating on the
+// focused pane with ZERO per-feature changes. With exactly one pane the layer is
+// inert and the editor behaves byte-identically to before the split feature.
+
+/// Re-bind the active tab + scroll to whatever pane `panes.focused()` now points
+/// at: the CURRENT active model's scroll is stashed into the previously-focused
+/// pane (done by the `panes` mutation that already saved it), then we switch the
+/// tab store to the newly focused pane's tab and restore that pane's saved scroll
+/// into its model, and resync the active file path. Call after any `panes`
+/// mutation that may change the focused pane / its tab.
+fn pane_rebind_focus(ctx: &mut MuiContext) {
+    let f = ctx.panes.focused();
+    let tab = ctx.panes.tab_at(f).unwrap_or_else(|| ctx.tabs.active());
+    ctx.tabs.switch(tab);
+    if let Some(scroll) = ctx.panes.scroll_at(f) {
+        ctx.tabs.active_model_mut().set_first_visible(scroll);
+    }
+    sync_active_path(ctx);
+}
+
+/// The current live scroll of the active (focused) tab's model — saved into the
+/// focused pane before a focus/split change so each pane keeps its own scroll.
+#[inline]
+fn active_scroll(ctx: &MuiContext) -> usize {
+    ctx.tabs.active_model().first_visible()
+}
+
+/// Number of editor panes (>= 1). One means unsplit (identical to before).
+#[no_mangle]
+pub extern "C" fn mui_pane_count(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(1, |c| c.panes.count() as i32)
+}
+
+/// The focused pane index (0-based).
+#[no_mangle]
+pub extern "C" fn mui_pane_focused(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.panes.focused() as i32)
+}
+
+/// The tab index shown in pane `i`, or `-1` out of range.
+#[no_mangle]
+pub extern "C" fn mui_pane_tab(handle: i64, i: i32) -> i32 {
+    if i < 0 {
+        return -1;
+    }
+    unsafe { ctx(handle) }
+        .and_then(|c| c.panes.tab_at(i as usize))
+        .map_or(-1, |t| t as i32)
+}
+
+/// Set pane `i` to show tab `tab` (used when the tab bar opens a file into the
+/// focused pane). If `i` is the focused pane, the active tab + scroll re-bind so
+/// editing follows. Returns the focused tab index after the change.
+#[no_mangle]
+pub extern "C" fn mui_pane_set_tab(handle: i64, i: i32, tab: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if i >= 0 && tab >= 0 {
+        // Stash the focused pane's live scroll first so a focused retarget keeps
+        // the other pane's position intact.
+        let s = active_scroll(ctx);
+        ctx.panes.save_focused_scroll(s);
+        ctx.panes.set_tab(i as usize, tab as usize);
+        if i as usize == ctx.panes.focused() {
+            pane_rebind_focus(ctx);
+        }
+    }
+    ctx.panes.focused_tab() as i32
+}
+
+/// Split the focused pane to the RIGHT, creating a second pane that shows the
+/// SAME tab as the focused pane (so you immediately see two views of the file;
+/// open a different file into it via the tab bar). Focuses the new pane. Caps at
+/// 2 panes. Returns the new pane count.
+#[no_mangle]
+pub extern "C" fn mui_pane_split_right(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 1;
+    };
+    let cur_tab = ctx.panes.focused_tab();
+    let s = active_scroll(ctx);
+    ctx.panes.split_right(cur_tab, s);
+    pane_rebind_focus(ctx);
+    ctx.welcome.dismiss();
+    ctx.panes.count() as i32
+}
+
+/// Cycle focus to the next pane (wraps); rebinds the active tab + restores the
+/// newly focused pane's scroll. No-op with one pane. Returns the focused index.
+#[no_mangle]
+pub extern "C" fn mui_pane_focus_next(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let s = active_scroll(ctx);
+    ctx.panes.focus_next(s);
+    pane_rebind_focus(ctx);
+    ctx.panes.focused() as i32
+}
+
+/// Focus the pane the last mouse click landed in (for click→focus). Reads the
+/// last click's pixel `x` (panes split into columns, so only x selects the pane),
+/// rebinds the active tab + restores that pane's scroll. Returns the focused
+/// index. The caller still positions the caret via `mui_ed_click` afterward (it
+/// now resolves against the focused pane's column). No-op with one pane.
+#[no_mangle]
+pub extern "C" fn mui_pane_focus_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let count = ctx.panes.count();
+    if count <= 1 {
+        return 0;
+    }
+    let region = layout::region(ctx.sidebar_visible);
+    let win_w = ctx.gpu.width as f32;
+    let target = layout::pane_at_x(region, win_w, count, ctx.last_event.x);
+    if target != ctx.panes.focused() {
+        let s = active_scroll(ctx);
+        ctx.panes.focus(target, s);
+        pane_rebind_focus(ctx);
+    }
+    ctx.panes.focused() as i32
+}
+
+/// Close the focused pane. If one remains, the layout returns to the unsplit
+/// state (its tab/scroll restored). No-op with one pane. Returns the new count.
+#[no_mangle]
+pub extern "C" fn mui_pane_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 1;
+    };
+    let s = active_scroll(ctx);
+    ctx.panes.save_focused_scroll(s);
+    ctx.panes.close_focused();
+    pane_rebind_focus(ctx);
+    ctx.panes.count() as i32
+}
+
+/// Pane `i`'s editor-column bounds in pixels, for the Mighty side / tests:
+/// `mui_pane_region_left` / `_right`. With one pane these span the full editor
+/// body (left edge .. window right).
+#[no_mangle]
+pub extern "C" fn mui_pane_region_left(handle: i64, i: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let region = layout::region(ctx.sidebar_visible);
+    let win_w = ctx.gpu.width as f32;
+    let (l, _r) = layout::pane_bounds(region, win_w, ctx.panes.count(), i.max(0) as usize);
+    l as i32
+}
+
+#[no_mangle]
+pub extern "C" fn mui_pane_region_right(handle: i64, i: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let region = layout::region(ctx.sidebar_visible);
+    let win_w = ctx.gpu.width as f32;
+    let (_l, r) = layout::pane_bounds(region, win_w, ctx.panes.count(), i.max(0) as usize);
+    r as i32
+}
+
+/// Draw a single pane `i` into its column (the split render entry point). The
+/// unsplit path uses `mui_ed_draw`, which already loops panes itself; this is
+/// exposed so the Mighty side / a future per-pane drive can render one pane.
+#[no_mangle]
+pub extern "C" fn mui_pane_draw(handle: i64, i: i32, rows: i32) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if ctx.diff.is_active() {
+        return;
+    }
+    let count = ctx.panes.count();
+    let i = i.max(0) as usize;
+    if i >= count {
+        return;
+    }
+    let region = layout::region(ctx.sidebar_visible);
+    let win_w = ctx.gpu.width as f32;
+    let pr = layout::pane_region(region, win_w, count, i);
+    let (_l, x_right) = layout::pane_bounds(region, win_w, count, i);
+    let tab = ctx.panes.tab_at(i).unwrap_or(0);
+    let focused = i == ctx.panes.focused();
+    draw_editor_pane(ctx, handle, rows, pr, x_right, tab, focused, count > 1);
+}
+
+/// Dispatch a pane palette command (`CMD_SPLIT_RIGHT` / `CMD_FOCUS_NEXT_PANE` /
+/// `CMD_CLOSE_PANE`) to the matching `mui_pane_*` op. Keeps the Mighty palette
+/// ladder flat: all pane commands route through this one entry (the same pattern
+/// `mui_git_dispatch` uses). Returns the resulting pane count.
+#[no_mangle]
+pub extern "C" fn mui_pane_dispatch(handle: i64, cmd: i32) -> i32 {
+    let cmd = cmd as u32;
+    // Only ids in the pane block route here (mirrors `mui_git_dispatch`'s gate);
+    // anything else falls through to the resulting pane count unchanged.
+    if !(crate::palette::CMD_PANE_FIRST..=crate::palette::CMD_PANE_LAST).contains(&cmd) {
+        return mui_pane_count(handle);
+    }
+    if cmd == crate::palette::CMD_SPLIT_RIGHT {
+        return mui_pane_split_right(handle);
+    }
+    if cmd == crate::palette::CMD_FOCUS_NEXT_PANE {
+        let _ = mui_pane_focus_next(handle);
+        return mui_pane_count(handle);
+    }
+    if cmd == crate::palette::CMD_CLOSE_PANE {
+        return mui_pane_close(handle);
+    }
+    mui_pane_count(handle)
 }
 
 /// Launch-test hook: with `MUI_EDIT_PROBE` set, run a scripted insert, newline,
@@ -6744,6 +7130,28 @@ pub extern "C" fn mui_chord(handle: i64, cp: i32, mods: i32) -> i32 {
     if alt && !ctrl && (cp == 'w' as i32 || cp == 'W' as i32) {
         let _ = crate::webabi::mui_web_run(handle);
         return 1;
+    }
+    // Ctrl+\ : Split Editor Right (side-by-side panes). Routed here so the Mighty
+    // editor key ladder gains NO new top-level arm (L37/L38) — the existing
+    // router arm widened to forward Ctrl+\ too.
+    if ctrl && !alt && cp == 92 {
+        let _ = mui_pane_split_right(handle);
+        return 1;
+    }
+    // Ctrl+1 / Ctrl+2 : focus pane 1 / pane 2 (when split). Falls through (0) when
+    // the target pane doesn't exist so normal handling continues.
+    if ctrl && !alt && (cp == '1' as i32 || cp == '2' as i32) {
+        let want = if cp == '1' as i32 { 0 } else { 1 };
+        let Some(c) = (unsafe { ctx(handle) }) else {
+            return 0;
+        };
+        if want < c.panes.count() && want != c.panes.focused() {
+            let s = c.tabs.active_model().first_visible();
+            c.panes.focus(want, s);
+            pane_rebind_focus(c);
+            return 1;
+        }
+        return 0;
     }
     0
 }

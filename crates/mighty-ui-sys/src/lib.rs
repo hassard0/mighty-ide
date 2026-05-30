@@ -40,6 +40,7 @@ mod nav;
 mod navsurfaces;
 mod outline;
 mod palette;
+mod panes;
 mod peek;
 mod panels;
 mod problems;
@@ -148,6 +149,11 @@ pub struct MuiContext {
     // ---- multi-file workspace state (tabs + file tree) ----
     /// Open tabs + per-tab cursor/scroll/dirty state (shim-owned, L17).
     tabs: tabs::TabStore,
+    /// The editor **pane layout** (side-by-side split). Starts with ONE pane, so
+    /// it is inert (the unsplit path is byte-identical to before); a split adds a
+    /// second pane and `mui_pane_*` rebinds the active tab + per-pane scroll. See
+    /// `crate::panes`.
+    panes: panes::PaneLayout,
     /// File-tree sidebar model.
     tree: tree::FileTree,
     /// Whether the sidebar is currently shown (toggled by Ctrl+B).
@@ -702,6 +708,7 @@ pub(crate) fn build_context(
         prompt: prompt::PromptState::new(),
         find: prompt::FindState::new(),
         replace_bar: prompt::ReplaceBar::new(),
+        panes: panes::PaneLayout::new(tab_store.active()),
         tabs: tab_store,
         tree: file_tree,
         sidebar_visible: true,
@@ -1333,6 +1340,7 @@ impl MuiContext {
             prompt: prompt::PromptState::new(),
             find: prompt::FindState::new(),
             replace_bar: prompt::ReplaceBar::new(),
+            panes: panes::PaneLayout::new(tabs.active()),
             tabs,
             tree: tree::FileTree::new(),
             sidebar_visible: true,

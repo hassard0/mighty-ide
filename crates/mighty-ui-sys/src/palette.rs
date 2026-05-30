@@ -65,6 +65,15 @@ pub const CMD_GIT_FIRST: u32 = CMD_GIT_SWITCH_BRANCH;
 /// the git block so it stays out of the `>= CMD_GIT_FIRST` routing range.
 pub const CMD_RUN_IN_BROWSER: u32 = 31;
 
+/// Editor split-pane commands (routed to the single `mui_pane_dispatch` shim
+/// entry so the Mighty palette ladder gains ONE arm range, not three — L37/L38).
+pub const CMD_SPLIT_RIGHT: u32 = 32;
+pub const CMD_FOCUS_NEXT_PANE: u32 = 33;
+pub const CMD_CLOSE_PANE: u32 = 34;
+/// First/last pane command id (ids in `[FIRST, LAST]` route to `mui_pane_dispatch`).
+pub const CMD_PANE_FIRST: u32 = CMD_SPLIT_RIGHT;
+pub const CMD_PANE_LAST: u32 = CMD_CLOSE_PANE;
+
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
@@ -99,6 +108,9 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_GIT_FETCH,        label: "Git: Fetch",         keybinding: "" },
     Command { id: CMD_GIT_TOGGLE_BLAME, label: "Git: Toggle Blame",  keybinding: "Alt+B" },
     Command { id: CMD_RUN_IN_BROWSER,   label: "Mighty: Run in Browser", keybinding: "Alt+W" },
+    Command { id: CMD_SPLIT_RIGHT,      label: "Split Editor Right", keybinding: "Ctrl+\\" },
+    Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
+    Command { id: CMD_CLOSE_PANE,       label: "Close Editor Pane",  keybinding: "" },
 ];
 
 /// Match quality for ranking. Lower sorts first.

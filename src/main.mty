@@ -518,6 +518,10 @@ extern c {
   fn mui_blame_draw(handle: I64, rows: I32)
   // ---- centralized chord router (L37: new chords route here, not new arms) ----
   fn mui_chord(handle: I64, cp: I32, mods: I32) -> I32
+  // ---- editor split-pane layout (side-by-side) ----
+  fn mui_pane_count(handle: I64) -> I32
+  fn mui_pane_focus_at_click(handle: I64) -> I32
+  fn mui_pane_dispatch(handle: I64, cmd: I32) -> I32
 }
 
 // ---- command palette ids (mirror palette.rs COMMANDS) ----
@@ -551,6 +555,10 @@ fn cmd_agents() -> I32 { 25 }    // Mighty: Agents (topology panel)
 fn cmd_git_first() -> I32 { 26 } // Git: Switch Branch (lowest git id)
 fn cmd_git_last() -> I32 { 30 }  // Git: Toggle Blame (highest git id)
 fn cmd_run_in_browser() -> I32 { 31 } // Mighty: Run in Browser (wasm32-web)
+// Editor split-pane commands route to the single `mui_pane_dispatch` shim entry
+// (same one-arm-range pattern as git — keeps the palette ladder flat, L37/L38).
+fn cmd_pane_first() -> I32 { 32 } // Split Editor Right (lowest pane id)
+fn cmd_pane_last() -> I32 { 34 }  // Close Editor Pane (highest pane id)
 
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
@@ -776,6 +784,25 @@ fn is_alt_chord(cp: I32, mods: I32) -> Bool {
   let alt = alt_held(mods)
   let ctrl = ctrl_held(mods)
   alt && !ctrl
+}
+
+// Chords routed to the shim `mui_chord` dispatcher from the SINGLE existing
+// router arm (L37/L38: no new top-level editor-ladder arm). This is the Alt
+// chords PLUS the split-pane Ctrl chords (Ctrl+\ split, Ctrl+1/Ctrl+2 focus).
+// `mui_chord` returns 0 (unhandled) for a Ctrl+1/2 with no matching pane, so the
+// arm is a safe no-op then.
+fn is_router_chord(cp: I32, mods: I32) -> Bool {
+  let alt = alt_held(mods)
+  let ctrl = ctrl_held(mods)
+  if alt && !ctrl {
+    true
+  } else if ctrl && !alt && cp == 92 {     // Ctrl+\ : Split Editor Right
+    true
+  } else if ctrl && !alt && (cp == 49 || cp == 50) {  // Ctrl+1 / Ctrl+2 : focus pane
+    true
+  } else {
+    false
+  }
 }
 
 fn is_t_key(cp: I32) -> Bool { cp == 116 || cp == 84 }     // 't' / 'T'
@@ -1177,6 +1204,11 @@ fn main() {
             } else if id == cmd_run_in_browser() {
               let _w = mui_web_run(h)
               web_focus = true
+            } else if id >= cmd_pane_first() && id <= cmd_pane_last() {
+              // Split-pane commands (split right / focus next / close) route to the
+              // single shim dispatcher (one arm range — L37/L38). The shim rebinds
+              // the active tab + per-pane scroll itself, so nothing else is needed.
+              let _pn = mui_pane_dispatch(h, id)
             } else if id >= cmd_git_first() && id <= cmd_git_last() {
               // All Git commands (switch-branch/push/pull/fetch/blame) route to
               // the single shim dispatcher (keeps the ladder flat — L37/L38).
@@ -1314,6 +1346,8 @@ fn main() {
               } else if id == cmd_run_in_browser() {
                 let _w = mui_web_run(h)
                 web_focus = true
+              } else if id >= cmd_pane_first() && id <= cmd_pane_last() {
+                let _pn = mui_pane_dispatch(h, id)
               } else if id >= cmd_git_first() && id <= cmd_git_last() {
                 let _g = mui_git_dispatch(h, id)
                 if mui_branch_active(h) == 1 { branch_open = true }
@@ -1833,7 +1867,7 @@ fn main() {
           let opened = mui_ai_open(h)
           if opened == 1 { ai_focus = true } else { ai_focus = false }
           typing = false
-        } else if is_alt_chord(cp, mods) {                  // Alt chords (Alt+\ ghost, Alt+Z zen, …) via the shim router
+        } else if is_router_chord(cp, mods) {               // Alt chords (Alt+\ ghost, Alt+Z zen, …) + split-pane Ctrl chords (Ctrl+\, Ctrl+1/2) via the shim router
           let _c = mui_chord(h, cp, mods)
           typing = false
         } else if is_inline_ask_chord(cp, mods) {           // Ctrl+I : inline ask about selection/file
@@ -2478,6 +2512,9 @@ fn main() {
               let _b = mui_bp_toggle(h, gline)
             } else {
               mui_ghost_dismiss(h)                             // click moves cursor: ghost stale
+              // Split editor: a click first focuses the pane it landed in (the
+              // shim rebinds the active tab + per-pane scroll); no-op when unsplit.
+              let _pf = mui_pane_focus_at_click(h)
               let cmods = mui_event_mods(h)
               if alt_held(cmods) {                             // Alt+Click : toggle a caret
                 mui_ed_toggle_caret_click(h)

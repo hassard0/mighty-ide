@@ -120,6 +120,65 @@ pub fn region(sidebar_visible: bool) -> Region {
     region_chrome(sidebar_visible, zen_active())
 }
 
+/// Width (px) of the vertical divider between split editor panes.
+pub const PANE_DIVIDER_W: f32 = 1.0;
+
+/// Pixel column bounds `[left, right)` of pane `i` of `count` panes, given the
+/// editor body's `region` left edge and the window width `win_w`. The body
+/// `[region.left, win_w)` is divided into `count` equal columns separated by a
+/// [`PANE_DIVIDER_W`]-px divider. With `count == 1` this returns the full body
+/// span (`region.left .. win_w`) so the unsplit path is identical to today.
+///
+/// Returns `(left, right)`; callers derive a per-pane [`Region`] (same `top`,
+/// `left = left`) and clip drawing to `right`.
+pub fn pane_bounds(region: Region, win_w: f32, count: usize, i: usize) -> (f32, f32) {
+    let count = count.max(1);
+    let body_left = region.left;
+    let total = (win_w - body_left).max(0.0);
+    if count == 1 {
+        return (body_left, win_w);
+    }
+    let dividers = (count - 1) as f32 * PANE_DIVIDER_W;
+    let col_w = ((total - dividers) / count as f32).max(0.0);
+    let i = i.min(count - 1);
+    let left = body_left + (i as f32) * (col_w + PANE_DIVIDER_W);
+    let right = left + col_w;
+    (left, right)
+}
+
+/// The per-pane editor [`Region`] for pane `i` of `count`: the same top as the
+/// shared editor body, but its left edge shifted to the pane's column start.
+pub fn pane_region(region: Region, win_w: f32, count: usize, i: usize) -> Region {
+    let (left, _right) = pane_bounds(region, win_w, count, i);
+    Region {
+        top: region.top,
+        left,
+    }
+}
+
+/// X pixel of the divider drawn to the RIGHT of pane `i` (only meaningful for
+/// `i < count - 1`). The divider occupies `[x, x + PANE_DIVIDER_W)`.
+pub fn pane_divider_x(region: Region, win_w: f32, count: usize, i: usize) -> f32 {
+    let (_left, right) = pane_bounds(region, win_w, count, i);
+    right
+}
+
+/// Map a pixel `x` to the pane index it falls in (for click→focus). Clamps to
+/// `[0, count-1]`. With `count == 1` always returns 0.
+pub fn pane_at_x(region: Region, win_w: f32, count: usize, x: f32) -> usize {
+    let count = count.max(1);
+    if count == 1 {
+        return 0;
+    }
+    for i in 0..count {
+        let (_left, right) = pane_bounds(region, win_w, count, i);
+        if x < right + PANE_DIVIDER_W {
+            return i;
+        }
+    }
+    count - 1
+}
+
 /// Number of decimal digits needed to print `n` (minimum 1).
 pub fn digit_count(n: u64) -> u32 {
     let mut n = n;
@@ -473,6 +532,70 @@ mod tests {
         assert_eq!(region(true), region_chrome(true, true));
         assert!(zen_active());
         set_zen(before);
+    }
+
+    #[test]
+    fn pane_bounds_single_pane_is_full_body() {
+        let r = region(true);
+        let win_w = 1320.0;
+        // count == 1: the full body span, identical to the unsplit editor.
+        let (l, rgt) = pane_bounds(r, win_w, 1, 0);
+        assert_eq!(l, r.left);
+        assert_eq!(rgt, win_w);
+        // pane_region for a single pane == the shared region.
+        assert_eq!(pane_region(r, win_w, 1, 0), r);
+        // pane_at_x always 0.
+        assert_eq!(pane_at_x(r, win_w, 1, 5.0), 0);
+        assert_eq!(pane_at_x(r, win_w, 1, win_w - 1.0), 0);
+    }
+
+    #[test]
+    fn pane_bounds_two_columns_with_divider() {
+        let r = region(true);
+        let win_w = 1320.0;
+        let (l0, r0) = pane_bounds(r, win_w, 2, 0);
+        let (l1, r1) = pane_bounds(r, win_w, 2, 1);
+        // Pane 0 starts at the body left; pane 1 ends at the window right.
+        assert_eq!(l0, r.left);
+        assert!((r1 - win_w).abs() < 0.001, "r1={r1}");
+        // Equal column widths.
+        let w0 = r0 - l0;
+        let w1 = r1 - l1;
+        assert!((w0 - w1).abs() < 0.001, "w0={w0} w1={w1}");
+        // The divider sits between the two columns: pane 1's left = pane 0's
+        // right + divider width.
+        assert!((l1 - (r0 + PANE_DIVIDER_W)).abs() < 0.001, "l1={l1} r0={r0}");
+        // The two columns + the divider fill the whole body span.
+        let total = win_w - r.left;
+        assert!((w0 + w1 + PANE_DIVIDER_W - total).abs() < 0.001);
+        // Divider x for pane 0 == pane 0's right edge.
+        assert_eq!(pane_divider_x(r, win_w, 2, 0), r0);
+    }
+
+    #[test]
+    fn pane_region_shifts_left_for_right_pane() {
+        let r = region(true);
+        let win_w = 1320.0;
+        let pr0 = pane_region(r, win_w, 2, 0);
+        let pr1 = pane_region(r, win_w, 2, 1);
+        assert_eq!(pr0.top, r.top);
+        assert_eq!(pr1.top, r.top);
+        assert_eq!(pr0.left, r.left);
+        assert!(pr1.left > pr0.left, "right pane starts further right");
+    }
+
+    #[test]
+    fn pane_at_x_maps_click_to_column() {
+        let r = region(true);
+        let win_w = 1320.0;
+        let (l0, r0) = pane_bounds(r, win_w, 2, 0);
+        let (l1, _r1) = pane_bounds(r, win_w, 2, 1);
+        // A click in the middle of the left column -> pane 0.
+        assert_eq!(pane_at_x(r, win_w, 2, (l0 + r0) * 0.5), 0);
+        // A click well inside the right column -> pane 1.
+        assert_eq!(pane_at_x(r, win_w, 2, l1 + 20.0), 1);
+        // A click past the right edge clamps to the last pane.
+        assert_eq!(pane_at_x(r, win_w, 2, win_w + 100.0), 1);
     }
 
     #[test]

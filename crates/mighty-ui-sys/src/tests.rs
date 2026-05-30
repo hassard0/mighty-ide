@@ -485,6 +485,106 @@ fn editor_abi_drives_live_model_and_undo() {
 }
 
 #[test]
+fn pane_split_focus_close_via_abi() {
+    use crate::ffi::MuiEvent;
+    use crate::{
+        mui_pane_close, mui_pane_count, mui_pane_dispatch, mui_pane_focus_at_click,
+        mui_pane_focus_next, mui_pane_focused, mui_pane_split_right, mui_pane_tab,
+        mui_tab_active,
+    };
+
+    use crate::editor::TextModel;
+    let mut ctx = ctx_or_skip!();
+    // Seed two real tabs (scratch + one opened file) so a pane can show each.
+    // Give each model 40 lines so scroll offsets (7, 20) don't clamp.
+    let many = b"l\n".repeat(40);
+    ctx.tabs.ensure_scratch();
+    ctx.tabs
+        .open_path(std::env::temp_dir().join("mui_pane_b.txt"));
+    ctx.tabs.switch(1);
+    *ctx.tabs.active_model_mut() = TextModel::from_bytes(&many);
+    // Make tab 0 the active/left tab, bind the single pane to it (the unsplit
+    // invariant), and give it a distinct scroll so we can prove per-pane restore.
+    ctx.tabs.switch(0);
+    *ctx.tabs.active_model_mut() = TextModel::from_bytes(&many);
+    ctx.tabs.active_model_mut().set_first_visible(7);
+    ctx.panes = crate::panes::PaneLayout::new(0);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    // --- INVARIANT: one pane behaves exactly as before ---------------------
+    assert_eq!(mui_pane_count(h), 1);
+    assert_eq!(mui_pane_focused(h), 0);
+    assert_eq!(mui_pane_tab(h, 0), 0);
+    // Focus-next / close are no-ops with one pane (active tab unchanged).
+    assert_eq!(mui_pane_focus_next(h), 0);
+    assert_eq!(mui_pane_close(h), 1);
+    assert_eq!(mui_tab_active(h), 0);
+
+    // --- split -> two panes, new (right) pane focused, active tab rebinds --
+    assert_eq!(mui_pane_split_right(h), 2);
+    assert_eq!(mui_pane_count(h), 2);
+    assert_eq!(mui_pane_focused(h), 1);
+    // split_right clones the focused pane's tab, so both show tab 0 here.
+    assert_eq!(mui_pane_tab(h, 0), 0);
+    assert_eq!(mui_pane_tab(h, 1), 0);
+    // The focused pane's tab IS the active tab.
+    assert_eq!(mui_tab_active(h), 0);
+
+    // Point the right (focused) pane at the other tab via the tab-switch path,
+    // then scroll it; this is the per-pane scroll we must restore later.
+    {
+        let ctx = unsafe { &mut *(h as usize as *mut MuiContext) };
+        ctx.tabs.switch(1);
+        ctx.panes.set_tab(1, 1);
+        ctx.tabs.active_model_mut().set_first_visible(20);
+    }
+    assert_eq!(mui_pane_tab(h, 1), 1);
+
+    // --- focus pane 0: active tab rebinds to tab 0 + restores its scroll ----
+    let f0 = mui_pane_focus_next(h); // wraps 1 -> 0
+    assert_eq!(f0, 0);
+    assert_eq!(mui_tab_active(h), 0);
+    {
+        let ctx = unsafe { &mut *(h as usize as *mut MuiContext) };
+        assert_eq!(ctx.tabs.active_model().first_visible(), 7, "left pane scroll restored");
+    }
+
+    // --- click in the RIGHT pane's column focuses pane 1 + restores scroll --
+    {
+        let ctx = unsafe { &mut *(h as usize as *mut MuiContext) };
+        let region = crate::layout::region(ctx.sidebar_visible);
+        let win_w = ctx.gpu.width as f32;
+        let (l1, _r1) = crate::layout::pane_bounds(region, win_w, 2, 1);
+        // A click just inside the right column.
+        ctx.last_event =
+            MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, l1 + 1.0, region.top + 5.0, 0);
+    }
+    assert_eq!(mui_pane_focus_at_click(h), 1);
+    assert_eq!(mui_pane_focused(h), 1);
+    assert_eq!(mui_tab_active(h), 1);
+    {
+        let ctx = unsafe { &mut *(h as usize as *mut MuiContext) };
+        assert_eq!(ctx.tabs.active_model().first_visible(), 20, "right pane scroll restored");
+    }
+
+    // --- close the focused pane -> back to the single-pane state -----------
+    assert_eq!(mui_pane_close(h), 1);
+    assert_eq!(mui_pane_count(h), 1);
+    assert_eq!(mui_pane_focused(h), 0);
+    // The surviving (left) pane shows tab 0 and is the active tab.
+    assert_eq!(mui_pane_tab(h, 0), 0);
+    assert_eq!(mui_tab_active(h), 0);
+
+    // --- palette dispatch routes the same as the direct ops ----------------
+    assert_eq!(mui_pane_dispatch(h, crate::palette::CMD_SPLIT_RIGHT as i32), 2);
+    assert_eq!(mui_pane_dispatch(h, crate::palette::CMD_CLOSE_PANE as i32), 1);
+    // An out-of-block id is ignored (returns the current count, no panic).
+    assert_eq!(mui_pane_dispatch(h, 0), 1);
+
+    let _ = std::fs::remove_file(std::env::temp_dir().join("mui_pane_b.txt"));
+}
+
+#[test]
 fn editor_power_features_via_abi() {
     use crate::{
         mui_ed_backspace_smart, mui_ed_bracket_match, mui_ed_duplicate, mui_ed_insert_char,

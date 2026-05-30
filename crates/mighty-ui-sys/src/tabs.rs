@@ -108,6 +108,13 @@ impl TabStore {
         self.active
     }
 
+    /// Tab `i`'s editable model (shared ref), or `None` out of range. Used by
+    /// the split-pane draw to render an UNFOCUSED pane's tab (the focused pane's
+    /// tab is the active one, read via [`Self::active_model`]).
+    pub fn model_at(&self, i: usize) -> Option<&TextModel> {
+        self.tabs.get(i).map(|t| &t.model)
+    }
+
     /// The active tab's authoritative editable model (shared ref).
     pub fn active_model(&self) -> &TextModel {
         // Always at least one tab exists.
