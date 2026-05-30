@@ -538,6 +538,77 @@ must be **longer than the visible row count** (~34 rows at 860px) or the
 Mighty loop's `first` from `mui_ed_first_visible(h)` (not hardcoded 0) so a seeded scroll
 survives the first frame. Captures: `screenshots/32-sticky.png`, `33-peek.png`.
 
+## Mighty Agents panel (2026-05-30) — `mty inspect` reality + agent-system discovery
+
+The **Mighty Agents** panel (rail slot 8, `PANEL_AGENTS_MTY`; nodes/network icon
+distinct from the slot-4 AI-copilot robot head) is a bold agent-first feature no
+other IDE has: it statically discovers the workspace's agent system and renders
+it as a topology tree, runs an agent program, and (where possible) attaches a
+live inspector. Modules: `crate::agents` (pure scanner + snapshot parser) +
+`crate::agentsabi` (`AgentTopology` state + Vello draw + `mui_agents_*` ABI).
+
+**What `mty inspect` actually offers (probed live against v0.36):**
+- `mty inspect` connects to a runtime **control socket**, opt-in via the
+  `MTY_RUNTIME_CONTROL_SOCK` env var set *when the runtime starts*
+  (`MTY_RUNTIME_CONTROL_SOCK=<path> mty run prog.mty`, then `mty inspect --sock
+  <path>`). Flags: `--sock`, `--agent <id>`, `--json`, `--watch <ms>`, and the
+  v0.30 `--cost` mode (reads `~/.mty/observations.sqlite`: total $$, per-
+  provider/model/agent breakdown, p50/p95/p99 latency, `--top N`).
+- `--json` emits a `RuntimeSnapshot` v1: `{version, worker_count, timestamp_ms,
+  agents:[{agent_id, agent_type, supervisor_parent, mailbox_depth,
+  mailbox_high_water, in_flight_handler, in_flight_elapsed_ms, budget{...},
+  last_messages}]}`. The wire version is locked at 1 (additive only).
+- **⚠️ Windows blocker (verified empirically):** the runtime's control socket is
+  **Unix-domain-only**; the **Windows named-pipe backend is NOT implemented**
+  (v0.16, "Unix-only"). `mty run` with the env var set starts cleanly but binds
+  **no** socket; `mty inspect --sock <path>` returns the stub error *"the Windows
+  named-pipe control socket is not yet implemented (v0.16 Unix-only). Tracking:
+  dev/history/notes/INTROSPECT_V0_16_NOTES.md"*. With no env var at all it prints
+  *"no control-socket path"*. So **live inspect cannot attach on this Windows
+  box** — there is no socket to connect to, full stop.
+- **What we shipped given that reality:** discovery (static, reliable) + topology
+  + run are fully live. Live inspect is *wired but platform-gated*: `mui_agents_inspect`
+  runs `mty inspect --json`, and `agents::parse_snapshot` (the `RuntimeSnapshot`
+  v1 parser) is implemented + unit-tested, so the panel lights up with live
+  mailbox depths the moment it runs on Unix / once the Windows pipe lands. On
+  Windows the panel shows an honest note ("control socket is Unix-only in v0.36;
+  static topology + run are live") and never fakes data. **Suggested stardust
+  work:** implement the Windows named-pipe control-socket backend so `mty
+  inspect` works cross-platform (the v0.16 "Tier-1 followup").
+
+**Discovery findings (real v0.36 agent grammar, vs. the task's assumed shape):**
+- `@tool` is **not** a bare attribute — it requires args: `@tool("desc", cap:
+  fs.read)` then the `fn`. A bare `@tool` is `MT0001: unexpected token @`. The
+  scanner latches a `@tool`-prefixed line then tags the next `fn`.
+- There is **no `with llm` keyword** in v0.36; an "LLM-backed agent" is
+  conventionally one that `use std.llm` + takes an LLM client and calls it
+  (`client.messages(...)`, `AnthropicClient`, `Member.anthropic/openai`). The
+  scanner detects LLM-backing heuristically from those signals (and still honors
+  a forward-compat `with llm` header marker if it ever lands).
+- Real grammar confirmed by stardust examples: `protocol P { Msg(args) -> Ret }`,
+  `agent A: P { on Msg(args) -> body }` (also `agent A(ctorargs): P {...}`),
+  `supervisor S(strategy: one_for_one) { child x = spawn T(..); on_fail(x){...} }`.
+  The sample `examples/agents.mty` (2 protocols, 2 agents incl. one LLM-backed, 1
+  supervisor, 1 `@tool`) `mty check`s + `mty run`s clean.
+
+**No new Mighty-source limitation, and the L37/L38 ceiling held:** the panel is a
+new rail slot (just a `mui_panel_set` target + a 9th `rail_icons` entry — fine
+per L37) + a palette command ("Mighty: Agents", id 25) + an **Alt+G** keybinding
+routed through the existing `mui_chord` shim router (zero new top-level `else if`
+arms). The body-click + draw arms nest inside the existing mouse-down / draw
+chains (nesting is fine; only top-level siblings overflow). `mty build` stayed
+green — no parse-stack overflow. The Run action reuses `run::RunPanel`'s
+process-spawn/pump discipline verbatim (the embedded panel streams `mty run
+<file>` output). All topology state lives shim-side; Mighty refreshes, routes
+clicks, runs, pumps, and draws. Tests: 490 pass (was 472; +18 — scanner
+agent/protocol/tool/supervisor/edge discovery, LLM detection, brace-in-string
+robustness, the `RuntimeSnapshot` JSON parser, and the topology flattening).
+Screenshot `screenshots/38-agents.png` (`MUI_AGENTS_AUTOOPEN` seeds the model
+from the bundled sample) at 1320x860. ABI added: `mui_agents_refresh/count/
+node_kind/node_depth/node_line/node_name_len/node_name_char/edge_count/open_node/
+scroll/row_at_click/click_is_run/run/running/pump/run_line_count/inspect/
+live_count/live_mailbox/draw`.
+
 **Disk note (Windows, this machine):** C: runs chronically near-full and is shared with
 parallel build agents. Build with `CARGO_INCREMENTAL=0`; clear `target/debug/incremental` +
 stale `target/debug/deps/mighty_ui_sys-*.{exe,pdb}` test binaries (each ~25-240MB) when a
