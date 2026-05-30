@@ -58,7 +58,9 @@ mod tests_panel;
 mod text;
 mod theme;
 mod themepicker;
+mod toast;
 mod tree;
+mod welcome;
 mod vello_proof;
 mod vello_ui;
 mod window;
@@ -330,6 +332,26 @@ pub struct MuiContext {
     /// force the crumb menu / outline open for a headless capture. `false`
     /// normally (the menu only opens via a click in the live loop).
     crumb_menu_autoopen: bool,
+
+    // ---- Welcome / first-impression screen ----
+    /// The Welcome landing (brand + recents + quick actions + tips). Shown in the
+    /// editor body when no real file is open, or forced from the palette. Owns its
+    /// hit-test rects for click routing.
+    welcome: welcome::WelcomeState,
+
+    // ---- toast notifications (transient bottom-right cards) ----
+    /// The toast stack: shim-pushed transient cards (saved / committed / build
+    /// result / errors / theme changed …) that auto-dismiss. Drawn over chrome.
+    toasts: toast::ToastQueue,
+}
+
+impl MuiContext {
+    /// Push a toast from inside the shim (the common case — file saved, git
+    /// committed, build/run finished, errors, theme changed, …). Used across the
+    /// shim's existing code paths.
+    pub(crate) fn push_toast(&mut self, kind: toast::Kind, message: impl Into<String>) {
+        self.toasts.push(kind, message);
+    }
 }
 
 /// Panel ids (mirror the Mighty side + rail icon order).
@@ -689,6 +711,8 @@ pub(crate) fn build_context(
         crumb_menu: crumbmenu::CrumbMenu::new(),
         crumb_files: Vec::new(),
         crumb_menu_autoopen: false,
+        welcome: welcome::WelcomeState::new(),
+        toasts: toast::ToastQueue::new(),
     });
     Box::into_raw(ctx)
 }
@@ -1313,6 +1337,8 @@ impl MuiContext {
             crumb_menu: crumbmenu::CrumbMenu::new(),
             crumb_files: Vec::new(),
             crumb_menu_autoopen: false,
+            welcome: welcome::WelcomeState::new(),
+            toasts: toast::ToastQueue::new(),
         })
     }
 

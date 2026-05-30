@@ -557,6 +557,59 @@ fn editor_power_features_via_abi() {
 }
 
 #[test]
+fn welcome_active_when_no_file_open_then_inactive_after_edit() {
+    use crate::{mui_ed_insert_char, mui_welcome_active, mui_welcome_dismiss, mui_welcome_open};
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    // Fresh offscreen context: a scratch tab with no path + empty buffer → the
+    // Welcome screen is active.
+    assert_eq!(mui_welcome_active(h), 1);
+
+    // Typing into the (still path-less) buffer makes it non-empty → Welcome off.
+    mui_ed_insert_char(h, 'x' as i32);
+    assert_eq!(mui_welcome_active(h), 0);
+
+    // The palette "Welcome" command can force it back open regardless of buffer.
+    mui_welcome_open(h);
+    assert_eq!(mui_welcome_active(h), 1);
+    mui_welcome_dismiss(h);
+    assert_eq!(mui_welcome_active(h), 0);
+}
+
+#[test]
+fn zen_toggle_flips_active_and_layout_region() {
+    use crate::{mui_zen_active, mui_zen_toggle};
+    // The Zen flag is a process-global (so `layout::region` is zen-aware
+    // everywhere); serialize + restore so we don't disturb parallel layout tests.
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::layout::zen_active();
+    crate::layout::set_zen(false);
+
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_zen_active(h), 0);
+    let normal = crate::layout::region(true);
+
+    // Toggle on: active + the editor region recomputes to the zen (chrome-hidden)
+    // layout.
+    assert_eq!(mui_zen_toggle(h), 1);
+    assert_eq!(mui_zen_active(h), 1);
+    let zen = crate::layout::region(true);
+    assert!(zen.left < normal.left && zen.top < normal.top);
+
+    // Toggle off restores.
+    assert_eq!(mui_zen_toggle(h), 0);
+    assert_eq!(mui_zen_active(h), 0);
+    assert_eq!(crate::layout::region(true), normal);
+
+    crate::layout::set_zen(before);
+}
+
+#[test]
 fn translate_close_and_resize_events() {
     let mut q = EventQueue::default();
     translate_window_event(&mut q, &winit::event::WindowEvent::CloseRequested);

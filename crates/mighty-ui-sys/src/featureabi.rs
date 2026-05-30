@@ -82,7 +82,20 @@ pub extern "C" fn mui_run_running(handle: i64) -> i32 {
 /// frame (the IDE redraws). Call once per frame while the panel is open.
 #[no_mangle]
 pub extern "C" fn mui_run_pump(handle: i64) -> i32 {
-    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.run.pump()))
+    let Some(c) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let changed = c.run.pump();
+    if c.run.take_just_finished() {
+        let code = c.run.exit_code().unwrap_or(-1);
+        let ms = c.run.duration_ms();
+        if code == 0 {
+            c.push_toast(crate::toast::Kind::Success, format!("Run finished in {ms} ms"));
+        } else {
+            c.push_toast(crate::toast::Kind::Error, format!("Run failed (exit {code})"));
+        }
+    }
+    i32::from(changed)
 }
 
 /// The process exit code, or `-1000` while running / never run (so `-1` can mean

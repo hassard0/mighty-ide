@@ -125,6 +125,9 @@ pub struct TestPanel {
     /// The resolved click target (path, 0-based line, 0-based col) from the last
     /// row click, read back by the IDE to jump the editor.
     click_target: Option<(String, i32, i32)>,
+    /// Latch set by `pump` on the running→finished transition; read+cleared by
+    /// [`take_just_finished`] for a one-shot "Tests passed/failed" toast.
+    just_finished: bool,
 }
 
 impl TestPanel {
@@ -365,6 +368,7 @@ impl TestPanel {
                             self.duration_ms = s.elapsed().as_millis();
                         }
                         self.done = None;
+                        self.just_finished = true;
                         changed = true;
                     }
                     Err(TryRecvError::Empty) => {}
@@ -372,6 +376,11 @@ impl TestPanel {
             }
         }
         changed
+    }
+
+    /// Read+clear the running→finished latch (one-shot; for a results toast).
+    pub fn take_just_finished(&mut self) -> bool {
+        std::mem::take(&mut self.just_finished)
     }
 
     /// Append a chunk (possibly partial): split on newlines, carry an

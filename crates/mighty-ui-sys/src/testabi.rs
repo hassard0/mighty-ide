@@ -146,7 +146,20 @@ pub extern "C" fn mui_test_running(handle: i64) -> i32 {
 /// this frame (the IDE redraws). Call once per frame while the panel is open.
 #[no_mangle]
 pub extern "C" fn mui_test_pump(handle: i64) -> i32 {
-    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.tests_panel.pump()))
+    let Some(c) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let changed = c.tests_panel.pump();
+    if c.tests_panel.take_just_finished() {
+        let passed = c.tests_panel.passed();
+        let failed = c.tests_panel.failed();
+        if failed == 0 {
+            c.push_toast(crate::toast::Kind::Success, format!("{passed} tests passed"));
+        } else {
+            c.push_toast(crate::toast::Kind::Error, format!("{failed} of {} tests failed", passed + failed));
+        }
+    }
+    i32::from(changed)
 }
 
 // ===========================================================================

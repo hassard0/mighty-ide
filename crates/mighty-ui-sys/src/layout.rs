@@ -68,14 +68,56 @@ pub struct Region {
     pub left: f32,
 }
 
-/// Compute the editor body region given whether the sidebar is visible. The
-/// body sits right of the activity rail (+ sidebar) and below the tab bar +
-/// breadcrumb.
-pub fn region(sidebar_visible: bool) -> Region {
+/// Comfortable left/top margin for the centered Zen editor (px). The editor
+/// content column is inset by this on both sides so a full-window distraction-
+/// free editor isn't flush to the glass edges.
+pub const ZEN_MARGIN_X: f32 = 64.0;
+pub const ZEN_MARGIN_TOP: f32 = 28.0;
+
+/// Authoritative **Zen / focus mode** flag, mirrored from the IDE's toggle.
+///
+/// Zen mode is a global (mirroring the [`crate::settings`] / [`crate::theme`]
+/// active-value pattern) so [`region`] — called from ~40 draw/click sites — can
+/// be zen-aware WITHOUT threading a flag through every one. When set, the rail /
+/// sidebar / tab bar / breadcrumb / status bar are hidden and the editor body
+/// fills the window with a comfortable margin.
+static ZEN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Read the active Zen flag.
+#[inline]
+pub fn zen_active() -> bool {
+    ZEN.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// Set the active Zen flag (effective next frame: the region recomputes).
+#[inline]
+pub fn set_zen(on: bool) {
+    ZEN.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Pure region math for an explicit chrome state. In **Zen mode** the rail /
+/// sidebar / tab bar / breadcrumb are hidden and the body fills the window with
+/// a comfortable margin; otherwise the body sits right of the rail (+ sidebar)
+/// and below the tab bar + breadcrumb. Pure (no global) so it is unit-testable
+/// without racing the [`ZEN`] global.
+pub fn region_chrome(sidebar_visible: bool, zen: bool) -> Region {
+    if zen {
+        return Region {
+            top: ZEN_MARGIN_TOP,
+            left: ZEN_MARGIN_X,
+        };
+    }
     Region {
         top: TAB_BAR_H + BREADCRUMB_H,
         left: RAIL_W + if sidebar_visible { SIDEBAR_W } else { 0.0 },
     }
+}
+
+/// Compute the editor body region given whether the sidebar is visible. Reads
+/// the active [`zen_active`] flag so EVERY draw/click site is zen-aware without
+/// threading the flag through. See [`region_chrome`] for the pure form.
+pub fn region(sidebar_visible: bool) -> Region {
+    region_chrome(sidebar_visible, zen_active())
 }
 
 /// Number of decimal digits needed to print `n` (minimum 1).
@@ -398,6 +440,39 @@ mod tests {
         let x = text_x_in(r, total, 5) + CHAR_W() * 0.5;
         let (_, c5) = pixel_to_cell_in(r, x, row_y_in(r, 0) + 1.0, 0, total);
         assert_eq!(c5, 5);
+    }
+
+    #[test]
+    fn zen_region_hides_chrome_and_centers() {
+        // Pure form (no global): non-zen is the normal chrome-offset region.
+        let normal = region_chrome(true, false);
+        assert_eq!(normal.top, TAB_BAR_H + BREADCRUMB_H);
+        assert_eq!(normal.left, RAIL_W + SIDEBAR_W);
+        // Zen drops the rail/sidebar/tab-bar/breadcrumb offsets to a small margin.
+        let zen = region_chrome(true, true);
+        assert_eq!(zen.top, ZEN_MARGIN_TOP);
+        assert_eq!(zen.left, ZEN_MARGIN_X);
+        assert!(zen.left < normal.left, "zen body starts further left");
+        assert!(zen.top < normal.top, "zen body starts higher");
+        // Sidebar visibility is irrelevant in zen (chrome is hidden either way).
+        assert_eq!(region_chrome(false, true), region_chrome(true, true));
+    }
+
+    #[test]
+    fn zen_global_drives_region() {
+        // Mutates the process-global ZEN flag; restore it after so the other
+        // (zen-off) region tests aren't affected. Serialized by acquiring the
+        // crate test lock.
+        let _g = crate::settings::TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let before = zen_active();
+        set_zen(false);
+        assert_eq!(region(true), region_chrome(true, false));
+        set_zen(true);
+        assert_eq!(region(true), region_chrome(true, true));
+        assert!(zen_active());
+        set_zen(before);
     }
 
     #[test]

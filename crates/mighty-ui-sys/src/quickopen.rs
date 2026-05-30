@@ -480,6 +480,12 @@ impl QuickOpen {
         self.mru.len()
     }
 
+    /// The recently-opened paths, newest first (reused by the Welcome screen's
+    /// "Recently Opened" column).
+    pub fn recent_paths(&self) -> Vec<PathBuf> {
+        self.mru.entries().to_vec()
+    }
+
     pub fn is_active(&self) -> bool {
         self.active
     }

@@ -88,6 +88,9 @@ pub struct RunPanel {
     started: Option<Instant>,
     /// The last clicked clickable line's target, read back by the IDE.
     click_target: Option<(String, i32, i32)>,
+    /// Latch set by `pump` on the running→finished transition; read+cleared by
+    /// [`take_just_finished`] so the IDE can fire a one-shot "Run finished" toast.
+    just_finished: bool,
 }
 
 impl RunPanel {
@@ -118,6 +121,12 @@ impl RunPanel {
 
     pub fn exit_code(&self) -> Option<i32> {
         self.exit_code
+    }
+
+    /// Read+clear the running→finished latch (one-shot; for a "Run finished"
+    /// toast). Returns `true` exactly once per completed run.
+    pub fn take_just_finished(&mut self) -> bool {
+        std::mem::take(&mut self.just_finished)
     }
 
     pub fn duration_ms(&self) -> u128 {
@@ -331,6 +340,7 @@ impl RunPanel {
                             self.duration_ms = s.elapsed().as_millis();
                         }
                         self.done = None;
+                        self.just_finished = true;
                         changed = true;
                     }
                     Err(TryRecvError::Empty) => {}

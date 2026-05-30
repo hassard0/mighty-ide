@@ -244,8 +244,10 @@ pub extern "C" fn mui_scm_commit(handle: i64) -> i32 {
     let dir = workspace_dir(ctx);
     if ctx.scm.commit_message(&dir) {
         println!("scm: committed");
+        ctx.push_toast(crate::toast::Kind::Success, "Committed changes");
         1
     } else {
+        ctx.push_toast(crate::toast::Kind::Warn, "Nothing to commit");
         0
     }
 }

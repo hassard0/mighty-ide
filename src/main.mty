@@ -431,6 +431,22 @@ extern c {
   fn mui_settings_adjust(handle: I64, delta: I32)
   fn mui_settings_toggle(handle: I64)
   fn mui_settings_draw(handle: I64)
+  // ---- Welcome / first-impression screen ----
+  fn mui_welcome_active(handle: I64) -> I32
+  fn mui_welcome_open(handle: I64)
+  fn mui_welcome_dismiss(handle: I64)
+  fn mui_welcome_draw(handle: I64)
+  fn mui_welcome_click(handle: I64) -> I32
+  fn mui_welcome_open_recent(handle: I64, i: I32) -> I32
+  // ---- toast notifications (transient bottom-right cards) ----
+  fn mui_toast(handle: I64, kind: I32, msg_id: I32)
+  fn mui_toast_tick(handle: I64) -> I32
+  fn mui_toast_draw(handle: I64)
+  // ---- Zen / focus mode ----
+  fn mui_zen_toggle(handle: I64) -> I32
+  fn mui_zen_active(handle: I64) -> I32
+  // ---- centralized chord router (L37: new chords route here, not new arms) ----
+  fn mui_chord(handle: I64, cp: I32, mods: I32) -> I32
 }
 
 // ---- command palette ids (mirror palette.rs COMMANDS) ----
@@ -456,6 +472,27 @@ fn cmd_run_file() -> I32 { 19 }
 fn cmd_settings() -> I32 { 20 }
 fn cmd_run_tests() -> I32 { 21 }
 fn cmd_peek_definition() -> I32 { 22 }
+fn cmd_welcome() -> I32 { 23 }
+fn cmd_zen_mode() -> I32 { 24 }
+
+// Welcome screen action ids (mirror welcome.rs ACTION_*).
+fn welcome_open_file() -> I32 { 1 }
+fn welcome_quick_open() -> I32 { 2 }
+fn welcome_palette() -> I32 { 3 }
+fn welcome_new_file() -> I32 { 4 }
+fn welcome_toggle_theme() -> I32 { 5 }
+fn welcome_recent_base() -> I32 { 1000 }
+
+// Hit-test the click against the Welcome layout, but only when the Welcome
+// screen actually owns the body (`owns == 1`); otherwise -1 so the normal click
+// routing runs. Pure shim call (no caller-local writes, so it factors cleanly).
+fn welcome_click_action(h: I64, owns: I32) -> I32 {
+  if owns == 1 {
+    mui_welcome_click(h)
+  } else {
+    -1
+  }
+}
 
 // ---- event tags / keys / mods (mirror mighty_ui.h) ----
 fn ev_char() -> I32 { 1 }
@@ -652,10 +689,14 @@ fn is_replace_chord(cp: I32, mods: I32) -> Bool {          // Ctrl+H
   ctrl && h
 }
 
-fn is_ghost_chord(cp: I32, mods: I32) -> Bool {            // Alt+\ : force inline AI ghost
+// Alt+<char> with NO Ctrl. The single editor-ladder arm for ALL Alt chords;
+// the actual chord (Alt+\ ghost, Alt+Z zen, …) is dispatched by the shim's
+// `mui_chord` router so new chords never need a new top-level `else if` arm
+// (L37 — the ladder is at the mty v0.36 parse-stack ceiling).
+fn is_alt_chord(cp: I32, mods: I32) -> Bool {
   let alt = alt_held(mods)
-  let bs = cp == 92
-  alt && bs
+  let ctrl = ctrl_held(mods)
+  alt && !ctrl
 }
 
 fn is_t_key(cp: I32) -> Bool { cp == 116 || cp == 84 }     // 't' / 'T'
@@ -1007,6 +1048,10 @@ fn main() {
               test_focus = true
             } else if id == cmd_peek_definition() {
               let _p = peek_definition(h)
+            } else if id == cmd_welcome() {
+              mui_welcome_open(h)
+            } else if id == cmd_zen_mode() {
+              let _z = mui_zen_toggle(h)
             }
           }
         }
@@ -1130,6 +1175,10 @@ fn main() {
                 test_focus = true
               } else if id == cmd_peek_definition() {
                 let _p = peek_definition(h)
+              } else if id == cmd_welcome() {
+                mui_welcome_open(h)
+              } else if id == cmd_zen_mode() {
+                let _z = mui_zen_toggle(h)
               }
             } else {
               // Files / Symbols / Go-to-line: the shim performs the action
@@ -1606,8 +1655,8 @@ fn main() {
           let opened = mui_ai_open(h)
           if opened == 1 { ai_focus = true } else { ai_focus = false }
           typing = false
-        } else if is_ghost_chord(cp, mods) {                // Alt+\ : force an inline AI ghost completion
-          let _g = mui_ghost_force(h)
+        } else if is_alt_chord(cp, mods) {                  // Alt chords (Alt+\ ghost, Alt+Z zen, …) via the shim router
+          let _c = mui_chord(h, cp, mods)
           typing = false
         } else if is_inline_ask_chord(cp, mods) {           // Ctrl+I : inline ask about selection/file
           // Reuse the prompt UI to collect an instruction; routed on Enter to
@@ -1964,7 +2013,44 @@ fn main() {
         let chip_hit = mui_status_problems_chip_at_click(h)
         let prob_on = mui_problems_is_open(h)
         let prob_hit = mui_problems_row_at_click(h)
-        if crumb_on == 1 {
+        // When the Welcome screen owns the body, a click on it dispatches a
+        // quick action (or opens a recent file). Handled first; if the click
+        // missed the cards we fall through to the normal routing (rail/tabs).
+        // (Several actions set Mighty-side mode flags, so the dispatch is inline
+        // here — a helper can't write the caller's `palette_open`/etc. locals, L27.)
+        let welcome_owns = mui_welcome_active(h)
+        let welcome_act = welcome_click_action(h, welcome_owns)
+        if welcome_act >= 0 {
+          if welcome_act == welcome_open_file() {
+            mui_prompt_open(h, prompt_open())
+            prompt_kind = prompt_open()
+            find_nav = false
+          } else if welcome_act == welcome_quick_open() {
+            mui_quickopen_open(h)
+            quickopen_open = true
+          } else if welcome_act == welcome_palette() {
+            mui_palette_open(h)
+            palette_open = true
+          } else if welcome_act == welcome_new_file() {
+            // A fresh empty buffer IS the welcome state; just dismiss the forced
+            // landing so the (empty) editor shows and the user can type.
+            mui_welcome_dismiss(h)
+          } else if welcome_act == welcome_toggle_theme() {
+            mui_theme_picker_open(h)
+            theme_picker_open = true
+          } else {
+            // A recents row: open it as a tab (id - ACTION_RECENT_BASE).
+            let ridx = welcome_act - welcome_recent_base()
+            let newtab = mui_welcome_open_recent(h, ridx)
+            if newtab >= 0 {
+              let _b = mui_ed_tab_switch(h, newtab)
+              mui_ed_undo_reset(h)
+              find_nav = false
+              let _r = mui_diag_refresh(h)
+              let _o = mui_outline_refresh(h)
+            }
+          }
+        } else if crumb_on == 1 {
           // A dropdown is open: a row click accepts it, anything else dismisses.
           if crumb_hit >= 0 {
             let _acc = mui_crumb_menu_accept(h, crumb_hit)
@@ -2242,49 +2328,69 @@ fn main() {
       if mui_term_running(h) == 0 { term_focus = false }
     }
 
+    // Advance toast timers BEFORE drawing so expired cards disappear this frame.
+    let _toast_changed = mui_toast_tick(h)
+
+    // Welcome screen replaces the editor body when no file is open (or when
+    // forced from the palette). Zen / focus mode hides the rail, sidebar, tab
+    // bar, breadcrumb and status bar for a distraction-free full-window editor.
+    let welcome_on = mui_welcome_active(h)
+    let zen_on = mui_zen_active(h)
+
     let total_now = mui_ed_line_count(h)
     mui_begin_frame_s(h)
-    // Draw the editor body (current-line band + gutter + syntax-colored text +
-    // selection + caret) shim-side from the AUTHORITATIVE model. Editing is live.
-    mui_ed_draw(h, rows_i)
-    // Inline AI ghost-text overlay: dim suggestion painted at the cursor, over the
-    // editor body but under chrome. No-op unless a ghost is currently shown.
-    mui_ghost_draw(h)
-    // Inline git diff view: when open it paints over the editor body (read-only).
-    // No-op unless active, so calling it unconditionally is safe.
-    mui_diff_draw(h)
-    // Debugger gutter decorations: breakpoint dots + the stopped-line band +
-    // current-instruction arrow. No-op when there are no breakpoints / no stop.
-    mui_dbg_draw(h, first, rows_i, total_now)
-    if find_nav { draw_find_highlights(h, total_now, first, rows_i) }
-    draw_diagnostics(h, total_now, first, rows_i)
-    // Sticky scroll: pin the enclosing-scope headers as an elevated band at the
-    // top of the editor body (over the scrolling code, under the chrome). No-op
-    // when nothing is pinned (not scrolled / disabled). Suppressed under the diff
-    // view (it owns the body region).
-    if mui_diff_active(h) == 0 { mui_sticky_draw(h, 0) }
-    // The breadcrumb shares the band the inline-diff header occupies; suppress it
-    // while the diff view is active so it doesn't faintly render over the header.
-    if mui_diff_active(h) == 0 { mui_breadcrumb_draw(h) }
-    draw_status_bar(h)
-    // The sidebar shows the active panel: Explorer (file tree), Search, or
-    // Source Control. Each draw is a no-op unless its panel is active.
-    let cur_panel_draw = mui_panel_active(h)
-    if cur_panel_draw == panel_search() {
-      mui_search_draw(h)
-    } else if cur_panel_draw == panel_scm() {
-      mui_scm_draw(h)
-    } else if cur_panel_draw == panel_outline() {
-      mui_outline_draw(h)
-    } else if cur_panel_draw == panel_debug() {
-      mui_dbg_view_draw(h)
-    } else if cur_panel_draw == panel_test() {
-      mui_test_draw(h)
+    if welcome_on == 1 {
+      // Branded landing in the editor body (brand + recents + quick actions +
+      // tips). The chrome (sidebar/rail/tab bar) still frames it unless in Zen.
+      mui_welcome_draw(h)
     } else {
-      mui_sidebar_draw(h)
+      // Draw the editor body (current-line band + gutter + syntax-colored text +
+      // selection + caret) shim-side from the AUTHORITATIVE model. Editing is live.
+      mui_ed_draw(h, rows_i)
+      // Inline AI ghost-text overlay: dim suggestion painted at the cursor, over the
+      // editor body but under chrome. No-op unless a ghost is currently shown.
+      mui_ghost_draw(h)
+      // Inline git diff view: when open it paints over the editor body (read-only).
+      // No-op unless active, so calling it unconditionally is safe.
+      mui_diff_draw(h)
+      // Debugger gutter decorations: breakpoint dots + the stopped-line band +
+      // current-instruction arrow. No-op when there are no breakpoints / no stop.
+      mui_dbg_draw(h, first, rows_i, total_now)
+      if find_nav { draw_find_highlights(h, total_now, first, rows_i) }
+      draw_diagnostics(h, total_now, first, rows_i)
+      // Sticky scroll: pin the enclosing-scope headers as an elevated band at the
+      // top of the editor body (over the scrolling code, under the chrome). No-op
+      // when nothing is pinned (not scrolled / disabled). Suppressed under the diff
+      // view (it owns the body region) and under Zen mode.
+      if mui_diff_active(h) == 0 && zen_on == 0 { mui_sticky_draw(h, 0) }
     }
-    mui_rail_draw(h)
-    mui_tab_bar_draw(h)
+    // The breadcrumb shares the band the inline-diff header occupies; suppress it
+    // while the diff view is active so it doesn't faintly render over the header,
+    // on the Welcome screen, and in Zen mode.
+    if mui_diff_active(h) == 0 && welcome_on == 0 && zen_on == 0 { mui_breadcrumb_draw(h) }
+    // Status bar: hidden in Zen mode (distraction-free).
+    if zen_on == 0 { draw_status_bar(h) }
+    // The sidebar shows the active panel: Explorer (file tree), Search, or
+    // Source Control. Each draw is a no-op unless its panel is active. Hidden in
+    // Zen mode.
+    if zen_on == 0 {
+      let cur_panel_draw = mui_panel_active(h)
+      if cur_panel_draw == panel_search() {
+        mui_search_draw(h)
+      } else if cur_panel_draw == panel_scm() {
+        mui_scm_draw(h)
+      } else if cur_panel_draw == panel_outline() {
+        mui_outline_draw(h)
+      } else if cur_panel_draw == panel_debug() {
+        mui_dbg_view_draw(h)
+      } else if cur_panel_draw == panel_test() {
+        mui_test_draw(h)
+      } else {
+        mui_sidebar_draw(h)
+      }
+      mui_rail_draw(h)
+      mui_tab_bar_draw(h)
+    }
     // AI copilot panel (right-docked); no-op unless open. Drawn over the body so
     // its surface occludes the editor, but under transient overlays below.
     mui_ai_draw(h)
@@ -2347,6 +2453,9 @@ fn main() {
     // Settings panel: a centered overlay (no-ops unless active, so the
     // MUI_SETTINGS_AUTOOPEN screenshot hook renders it without a keystroke).
     mui_settings_draw(h)
+    // Toast notifications: the TOP of the overlay order so transient cards sit
+    // above every panel/overlay. No-op when the queue is empty.
+    mui_toast_draw(h)
     mui_end_frame_s(h)
 
     frame = frame + 1

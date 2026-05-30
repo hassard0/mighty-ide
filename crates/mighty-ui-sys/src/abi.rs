@@ -883,6 +883,56 @@ index 83db48f..f735c2d 100644
         }
     }
 
+    // Screenshot/render hook for the Welcome screen: with MUI_WELCOME_AUTOOPEN set,
+    // force the Welcome landing open and seed a couple of recents so a headless
+    // capture shows the branded landing with a populated "Recently Opened" column.
+    if std::env::var_os("MUI_WELCOME_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            ctx.welcome.open();
+            // Seed representative recents (newest first) for the right column.
+            let base = ctx
+                .file_path
+                .as_ref()
+                .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+                .unwrap_or_else(|| std::path::PathBuf::from("src"));
+            for name in ["main.mty", "lexer.mty", "Cargo.toml", "README.md"] {
+                ctx.quickopen.record_mru(base.join(name));
+            }
+            println!("mui_init_s: MUI_WELCOME_AUTOOPEN -> welcome open, {} recents", ctx.quickopen.mru_len());
+        }
+    }
+
+    // Screenshot/render hook for toasts: with MUI_TOAST_AUTOOPEN set, push a few
+    // stacked toasts of varied severity so a headless capture shows the bottom-
+    // right stack (toasts otherwise only appear on shim events a non-interactive
+    // run can't trigger).
+    if std::env::var_os("MUI_TOAST_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            use crate::toast::Kind;
+            ctx.push_toast(Kind::Error, "MT2001: expected I32, found Str");
+            ctx.push_toast(Kind::Info, "Theme: Vivid Modern");
+            ctx.push_toast(Kind::Success, "Run finished in 142 ms");
+            ctx.push_toast(Kind::Success, "Saved main.mty");
+            println!("mui_init_s: MUI_TOAST_AUTOOPEN -> {} toasts seeded", ctx.toasts.len());
+        }
+    }
+
+    // Screenshot/render hook for Zen mode: with MUI_ZEN_AUTOOPEN set, enable Zen
+    // mode AND seed a representative buffer so a headless capture shows the full-
+    // window distraction-free editor with real code (not an empty scratch).
+    if std::env::var_os("MUI_ZEN_AUTOOPEN").is_some() {
+        layout::set_zen(true);
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            use crate::editor::TextModel;
+            let demo = b"// Zen / focus mode \xE2\x80\x94 distraction-free editing.\n\nfn fib(n: I32) -> I32 {\n  if n < 2 {\n    n\n  } else {\n    fib(n - 1) + fib(n - 2)\n  }\n}\n\nagent Greeter {\n  state name: Str\n\n  fn greet(self) -> Str {\n    let prefix = \"Hello, \"\n    prefix + self.name + \"!\"\n  }\n}\n\nfn main() {\n  let mut total = 0\n  for i in 0..12 {\n    total = total + fib(i)\n  }\n  print(total)\n}\n";
+            let m = ctx.tabs.active_model_mut();
+            *m = TextModel::from_bytes(demo);
+            m.move_to(15, 28);
+            ctx.edit_probe_lock = true;
+        }
+        println!("mui_init_s: MUI_ZEN_AUTOOPEN -> zen mode on (demo buffer seeded)");
+    }
+
     handle
 }
 
@@ -3451,7 +3501,15 @@ pub extern "C" fn mui_theme_picker_sel(handle: i64) -> i32 {
 /// committed theme index.
 #[no_mangle]
 pub extern "C" fn mui_theme_picker_apply(handle: i64) -> i32 {
-    unsafe { ctx(handle) }.map_or(-1, |c| c.theme_picker.commit())
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let id = ctx.theme_picker.commit();
+    ctx.push_toast(
+        crate::toast::Kind::Info,
+        format!("Theme: {}", theme::active_id().name()),
+    );
+    id
 }
 
 /// Cancel the picker, reverting to the theme that was active when it opened.
@@ -4012,6 +4070,9 @@ pub extern "C" fn mui_def_request(handle: i64, line: i32, col: i32) -> i32 {
         None => false,
     };
     println!("def: line={line} col={col} found={found}");
+    if !found {
+        ctx.push_toast(crate::toast::Kind::Warn, "No definition found");
+    }
     i32::from(found)
 }
 
@@ -4948,6 +5009,7 @@ pub extern "C" fn mui_format_current(handle: i64) -> i32 {
     match crate::format::run_fmt(&path) {
         crate::format::FmtOutcome::Formatted => {
             println!("format: {} -> ok", path.display());
+            ctx.push_toast(crate::toast::Kind::Success, "Formatted document");
             1
         }
         crate::format::FmtOutcome::NotApplicable => {
@@ -4956,6 +5018,7 @@ pub extern "C" fn mui_format_current(handle: i64) -> i32 {
         }
         crate::format::FmtOutcome::Failed => {
             println!("format: {} -> failed", path.display());
+            ctx.push_toast(crate::toast::Kind::Error, "Format failed");
             -1
         }
     }
@@ -5214,14 +5277,17 @@ pub extern "C" fn mui_ed_save(handle: i64) -> i32 {
         return -1;
     };
     let bytes = ctx.tabs.active_model().to_bytes();
+    let name = basename(&path);
     match std::fs::write(&path, &bytes) {
         Ok(()) => {
             ctx.tabs.active_model_mut().mark_clean();
             println!("mui_ed_save: {} ({} bytes)", path.display(), bytes.len());
+            ctx.push_toast(crate::toast::Kind::Success, format!("Saved {name}"));
             0
         }
         Err(e) => {
             eprintln!("mui_ed_save({}): {e}", path.display());
+            ctx.push_toast(crate::toast::Kind::Error, format!("Save failed: {name}"));
             -1
         }
     }
@@ -5310,6 +5376,8 @@ pub extern "C" fn mui_ed_tab_switch(handle: i64, idx: i32) -> i32 {
     if idx >= 0 {
         ctx.tabs.switch(idx as usize);
         sync_active_path(ctx);
+        // Opening / switching to any tab leaves the forced Welcome landing.
+        ctx.welcome.dismiss();
     }
     ctx.tabs.active() as i32
 }
@@ -6272,4 +6340,227 @@ pub extern "C" fn mui_replace_draw(handle: i64) {
     let ry = top + bar_h + (bar_h - chrome) * 0.5 - 1.0;
     ctx.text.queue_sized(text_x, fy, &find_line, theme::TEXT(), chrome, clip);
     ctx.text.queue_sized(text_x, ry, &repl_line, theme::TEXT(), chrome, clip);
+}
+
+// ===========================================================================
+// Welcome / first-impression screen
+// ===========================================================================
+
+/// `true` when the Welcome screen should occupy the editor body: either it was
+/// forced open from the palette ("Welcome"), or no real file is open — the
+/// active tab has no path AND its buffer is empty (a fresh scratch). The Mighty
+/// side calls this each frame and, when set, draws the Welcome instead of the
+/// editor body and routes clicks through [`mui_welcome_click`].
+#[no_mangle]
+pub extern "C" fn mui_welcome_active(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.welcome.force_open {
+        return 1;
+    }
+    // "No file open": the active tab has no path and the buffer is empty.
+    let no_path = ctx.tabs.active_path().is_none();
+    let model = ctx.tabs.active_model();
+    let empty = model.line_count() <= 1 && model.line_len(0) == 0;
+    if no_path && empty {
+        1
+    } else {
+        0
+    }
+}
+
+/// Force the Welcome screen open (the palette "Welcome" command).
+#[no_mangle]
+pub extern "C" fn mui_welcome_open(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.welcome.open();
+    }
+}
+
+/// Dismiss the forced Welcome screen (called after opening a file from it).
+#[no_mangle]
+pub extern "C" fn mui_welcome_dismiss(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.welcome.dismiss();
+    }
+}
+
+/// Draw the Welcome screen over the editor body region. No-op work is fine to
+/// call unconditionally; the Mighty side only calls it when `mui_welcome_active`.
+#[no_mangle]
+pub extern "C" fn mui_welcome_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let region = layout::region(ctx.sidebar_visible);
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    // Take the recents snapshot out so we can borrow `ctx` mutably for the draw
+    // (the MRU lives in the Quick-Open engine).
+    let recents: Vec<std::path::PathBuf> = ctx.quickopen.recent_paths();
+    let mut welcome = std::mem::take(&mut ctx.welcome);
+    welcome.draw(ctx, region.left, region.top, w, h, &recents);
+    ctx.welcome = welcome;
+}
+
+/// Hit-test the LAST-POLLED mouse-down position against the Welcome layout
+/// (mirrors the other `*_at_click` ABI fns, which read `ctx.last_event`).
+/// Returns the action id (see `welcome.rs` `ACTION_*`), or -1 for none. For a
+/// recents row the id is `ACTION_RECENT_BASE + index`; the chosen file is then
+/// opened by [`mui_welcome_open_recent`].
+#[no_mangle]
+pub extern "C" fn mui_welcome_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return crate::welcome::ACTION_NONE;
+    };
+    ctx.welcome.click(ctx.last_event.x, ctx.last_event.y)
+}
+
+/// Open a Welcome recents row (`i = action - ACTION_RECENT_BASE`) as a new tab.
+/// Returns the resulting active tab index, or -1 if the row/path is invalid.
+#[no_mangle]
+pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    if i < 0 {
+        return -1;
+    }
+    let Some(path) = ctx.welcome.recent_path(i as usize).cloned() else {
+        return -1;
+    };
+    let idx = ctx.tabs.open_path(path.clone());
+    ctx.welcome.dismiss();
+    sync_active_path(ctx);
+    ctx.quickopen.record_mru(path);
+    idx as i32
+}
+
+// ===========================================================================
+// Toast notifications
+// ===========================================================================
+
+/// Predefined toast message ids for Mighty-originated toasts (strings can't
+/// cross the FFI, L17). Kept small + stable. `mui_toast(kind, msg_id)` looks up
+/// the string here.
+fn toast_message(msg_id: i32) -> &'static str {
+    match msg_id {
+        1 => "Saved",
+        2 => "Formatted document",
+        3 => "Committed changes",
+        4 => "No definition found",
+        5 => "Welcome to Mighty",
+        6 => "Zen mode on",
+        7 => "Zen mode off",
+        8 => "Copied",
+        9 => "Nothing to undo",
+        _ => "Done",
+    }
+}
+
+/// Push a predefined toast from the Mighty side. `kind` is the severity scalar
+/// (0=info, 1=success, 2=warn, 3=error); `msg_id` selects a predefined message.
+#[no_mangle]
+pub extern "C" fn mui_toast(handle: i64, kind: i32, msg_id: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.push_toast(crate::toast::Kind::from_scalar(kind), toast_message(msg_id));
+    }
+}
+
+/// Advance the toast timers once per frame (drops expired toasts). Returns 1 if
+/// the set changed (a toast expired) so the caller can request a redraw.
+#[no_mangle]
+pub extern "C" fn mui_toast_tick(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.toasts.tick() {
+        1
+    } else {
+        0
+    }
+}
+
+/// Draw the bottom-right toast stack over everything (overlay layer). No-op when
+/// empty.
+#[no_mangle]
+pub extern "C" fn mui_toast_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if ctx.toasts.is_empty() {
+        return;
+    }
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let was_overlay = ctx.overlay;
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
+    let toasts = std::mem::take(&mut ctx.toasts);
+    toasts.draw(ctx, w, h);
+    ctx.toasts = toasts;
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
+}
+
+// ===========================================================================
+// Zen / focus mode
+// ===========================================================================
+
+/// Toggle Zen / focus mode (hide rail + sidebar + tab bar + breadcrumb + status
+/// bar; full-window centered editor). Returns the new state (1 = on). Pushes a
+/// confirmation toast.
+#[no_mangle]
+pub extern "C" fn mui_zen_toggle(handle: i64) -> i32 {
+    let now = !layout::zen_active();
+    layout::set_zen(now);
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if now {
+            ctx.push_toast(crate::toast::Kind::Info, "Zen mode on \u{2014} Ctrl+K Z to exit");
+        } else {
+            ctx.push_toast(crate::toast::Kind::Info, "Zen mode off");
+        }
+    }
+    if now {
+        1
+    } else {
+        0
+    }
+}
+
+/// `true` (1) when Zen / focus mode is active. The layout reads the same flag.
+#[no_mangle]
+pub extern "C" fn mui_zen_active(_handle: i64) -> i32 {
+    if layout::zen_active() {
+        1
+    } else {
+        0
+    }
+}
+
+/// Centralized chord router for chords that must NOT each get their own
+/// top-level `else if` arm in `src/main.mty`'s editor key ladder (the ladder is
+/// at the mty v0.36 recursive-descent parse-stack ceiling — adding an arm
+/// overflows `mty build`; see docs/mighty-language-lessons.md L37). New chords
+/// are added HERE and the Mighty side calls `mui_chord` from a SINGLE existing
+/// arm. Returns `1` if the chord was consumed, `0` to fall through.
+///
+/// Handled today:
+///   * **Alt+Z** → toggle Zen / focus mode.
+///   * **Alt+\\** → force an inline AI ghost completion (kept here so the Mighty
+///     side's Alt arm is one call).
+#[no_mangle]
+pub extern "C" fn mui_chord(handle: i64, cp: i32, mods: i32) -> i32 {
+    let alt = (mods & 4) != 0;
+    let ctrl = (mods & 2) != 0;
+    // Alt+Z (no Ctrl): toggle Zen mode.
+    if alt && !ctrl && (cp == 'z' as i32 || cp == 'Z' as i32) {
+        let _ = mui_zen_toggle(handle);
+        return 1;
+    }
+    // Alt+\ : force an inline AI ghost completion.
+    if alt && !ctrl && cp == 92 {
+        let _ = crate::ghostabi::mui_ghost_force(handle);
+        return 1;
+    }
+    0
 }
