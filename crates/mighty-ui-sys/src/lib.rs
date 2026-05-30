@@ -35,6 +35,8 @@ mod icons;
 mod langdetect;
 mod language;
 mod layout;
+mod markdown;
+mod mdpreview;
 mod lspclient;
 mod lspregistry;
 mod nav;
@@ -390,6 +392,16 @@ pub struct MuiContext {
     /// The snippet DEFINITIONS themselves are language-keyed + computed on demand
     /// (`snippets::snippets_for`), so only the live session is held here.
     snippet_session: snippets::SnippetSession,
+
+    // ---- live Markdown preview ----
+    /// The markdown-preview render state (scroll + content height). The block
+    /// model is re-parsed from the live source buffer each frame, so this only
+    /// holds the scroll position. Shim-owned (see `crate::mdpreview`).
+    md_preview: mdpreview::MdPreview,
+    /// Which pane index is currently in PREVIEW mode (renders the rendered
+    /// markdown of the other pane's `.md` buffer instead of the editor body), or
+    /// `None` when no preview is open. The preview pane is the RIGHT split pane.
+    md_pane: Option<usize>,
 }
 
 impl MuiContext {
@@ -771,6 +783,8 @@ pub(crate) fn build_context(
         welcome: welcome::WelcomeState::new(),
         toasts: toast::ToastQueue::new(),
         snippet_session: snippets::SnippetSession::new(),
+        md_preview: mdpreview::MdPreview::new(),
+        md_pane: None,
     });
     Box::into_raw(ctx)
 }
@@ -1404,6 +1418,8 @@ impl MuiContext {
             welcome: welcome::WelcomeState::new(),
             toasts: toast::ToastQueue::new(),
             snippet_session: snippets::SnippetSession::new(),
+            md_preview: mdpreview::MdPreview::new(),
+            md_pane: None,
         })
     }
 

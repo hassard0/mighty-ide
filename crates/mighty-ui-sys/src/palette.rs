@@ -70,9 +70,11 @@ pub const CMD_RUN_IN_BROWSER: u32 = 31;
 pub const CMD_SPLIT_RIGHT: u32 = 32;
 pub const CMD_FOCUS_NEXT_PANE: u32 = 33;
 pub const CMD_CLOSE_PANE: u32 = 34;
+/// Open the live Markdown preview in a split pane (routes via `mui_pane_dispatch`).
+pub const CMD_MARKDOWN_PREVIEW: u32 = 35;
 /// First/last pane command id (ids in `[FIRST, LAST]` route to `mui_pane_dispatch`).
 pub const CMD_PANE_FIRST: u32 = CMD_SPLIT_RIGHT;
-pub const CMD_PANE_LAST: u32 = CMD_CLOSE_PANE;
+pub const CMD_PANE_LAST: u32 = CMD_MARKDOWN_PREVIEW;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -111,6 +113,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_SPLIT_RIGHT,      label: "Split Editor Right", keybinding: "Ctrl+\\" },
     Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
     Command { id: CMD_CLOSE_PANE,       label: "Close Editor Pane",  keybinding: "" },
+    Command { id: CMD_MARKDOWN_PREVIEW, label: "Markdown: Open Preview", keybinding: "Ctrl+Shift+V" },
 ];
 
 /// Match quality for ranking. Lower sorts first.

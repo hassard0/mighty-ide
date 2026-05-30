@@ -774,6 +774,41 @@ contains-x, plus the two settings round-trips + panel toggle). Screenshots
 and `45-minimap.png` (`MUI_MINIMAP_AUTOOPEN` seeds a 160-fn tall file scrolled
 partway) at 1320x860.
 
+### L43. Live Markdown preview is a pure-shim parser + themed Vello renderer reusing the EXISTING split-pane machinery — no new Mighty draw/ladder arm, L37/L38 ceiling untouched ✅ **[finding, not a new limitation]**
+A full live `.md` preview dropped in with zero new Mighty-source friction:
+
+- **A focused, dependency-free parser** (`crate::markdown`) → a `Block`/`Span`
+  render model: ATX headings (1–6, trailing-`#` stripped, `#word`/7-hash rejected),
+  inline `**bold**`/`*italic*`/`` `code` ``/`[text](url)`/`~~strike~~` with `\`
+  escaping and nesting, ordered+unordered lists (2-space indent = one depth level),
+  fenced code (``` / `~~~` + language tag, unterminated closes at EOF), blockquotes
+  (recurse on one stripped `>`), `---`/`***`/`___` rules, and simple pipe tables.
+  The one subtlety worth recording: the single-`*` emphasis scanner must **skip a
+  doubled `**` run** so `*a **b** c*` closes on the final lone `*` (else the italic
+  closes inside the bold); the inner slice is then re-parsed and finds the bold.
+
+- **The renderer reuses the pane system as-is.** A preview is just the RIGHT split
+  pane flipped into a "preview mode" flag (`md_pane: Option<usize>`); `mui_ed_draw`
+  already loops the panes, so a one-line branch in that loop calls the markdown
+  painter for the preview column instead of the editor body. The painter
+  (`crate::mdpreview`) pulls every color from `theme::*` (works in all 3 themes),
+  word-wraps proportional UI text by estimated advance, draws scaled headings (h1/h2
+  with a bottom hairline), a tinted rounded code card (monospace cell advance), inline
+  `code` chips, accent-underlined links, indented list markers, an accent-bar
+  blockquote, `---` dividers, and tables. Source = the live buffer of the OTHER pane,
+  re-parsed each frame (cheap for IDE files), so it updates as you type.
+  Limitation noted: the bundled UI face has no bold variant, so bold/headings read via
+  size + color, not weight.
+
+- **No new top-level Mighty arm (L37/L38).** Ctrl+Shift+V routes through the existing
+  `mui_chord` router (the `is_router_chord` predicate widened); the palette command
+  ("Markdown: Open Preview") routes through the existing `mui_pane_dispatch` range; the
+  breadcrumb "Preview" pill (shown only for `.md`) hit-tests up-front in the existing
+  mouse-down ladder. New ABI: `mui_md_open/_active/_set_source/_scroll/_draw/_close` +
+  `mui_md_button_at_click`. Tests: 604 pass (was 584; +20 markdown parser + preview
+  layout). Screenshot `screenshots/46-markdown.png` (`MUI_MD_AUTOOPEN` seeds a crafted
+  sample, source-left / rendered-right) at 1320x860.
+
 ## Open questions to resolve as the IDE progresses
 - Exact `extern c` signature support: pointers (`*U8`), out-params (`&out T`), passing a
   `Vec`/slice as `(ptr, len)`, returning `#[repr(C)]` structs by value vs. out-param?

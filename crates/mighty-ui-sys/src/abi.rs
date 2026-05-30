@@ -659,6 +659,65 @@ index 83db48f..f735c2d 100644
         }
     }
 
+    // Screenshot/render hook for the live Markdown preview: with MUI_MD_AUTOOPEN
+    // set, seed the active buffer with a crafted markdown sample (or the existing
+    // `.md` buffer), open the split preview, and the unconditional `mui_ed_draw`
+    // pane loop then renders source-on-left / rendered-on-right for the capture.
+    if std::env::var_os("MUI_MD_AUTOOPEN").is_some() {
+        {
+            use crate::editor::TextModel;
+            const SAMPLE: &str = "\
+# Markdown Preview
+
+A **live** preview rendered to the active *theme*, updating as you type. It \
+supports `inline code`, [links](https://mighty.dev), and ~~strikethrough~~.
+
+## Features
+
+- ATX headings, scaled by level
+- **Bold**, *italic*, and `code` spans
+  - nested list items by indent
+- ordered lists and tables
+
+1. Parse the buffer
+2. Build a block model
+3. Draw with Vello
+
+```rust
+fn render(md: &str) -> Scene {
+    let blocks = markdown::parse(md);
+    paint(blocks)
+}
+```
+
+> Blockquotes get an accent left-bar and dimmed text.
+
+| Feature | Status |
+|---------|--------|
+| Headings | done |
+| Code | done |
+
+---
+
+That's the whole set.
+";
+            if let Some(c) = unsafe { ctx(handle) } {
+                let m = c.tabs.active_model_mut();
+                *m = TextModel::from_bytes(SAMPLE.as_bytes());
+                c.edit_probe_lock = true;
+                c.language = crate::langdetect::Language::Markdown;
+            }
+            let r = mui_md_open(handle);
+            if let Some(c) = unsafe { ctx(handle) } {
+                println!(
+                    "mui_init_s: MUI_MD_AUTOOPEN -> preview open={r}, panes={}, md_pane={:?}",
+                    c.panes.count(),
+                    c.md_pane
+                );
+            }
+        }
+    }
+
     // Screenshot/render hook for the branch switcher: with MUI_BRANCH_AUTOOPEN
     // set, open the picker over a representative branch list so a headless capture
     // shows the overlay without external git state.
@@ -2648,6 +2707,55 @@ pub extern "C" fn mui_breadcrumb_draw(handle: i64) {
     ctx.dl_icon(x, icon_y, 13.0, 13.0, sym_icon, sym_color, 1.5, false);
     x += 13.0 + 5.0;
     put(ctx, &mut x, &sym_name, sym_color);
+
+    // Right-aligned "Preview" pill — shown only when the active file is Markdown.
+    // Clicking it (hit-tested by `mui_md_button_at_click`) opens the live preview.
+    if ctx.language == crate::langdetect::Language::Markdown {
+        let (bx, by, bw, bh) = md_button_rect(w, top, bar_h);
+        let active = ctx.md_pane.is_some() && ctx.md_preview.is_open();
+        let (bg, fg) = if active {
+            (theme::accent_a(0.18), theme::ACCENT_BRIGHT())
+        } else {
+            (theme::accent_a(0.10), theme::ACCENT())
+        };
+        ctx.dl_round(bx, by, bw, bh, 6.0, bg);
+        ctx.dl_stroke(bx, by, bw, bh, 6.0, theme::accent_a(0.30), 1.0);
+        ctx.dl_icon(bx + 8.0, by + (bh - 13.0) * 0.5, 13.0, 13.0, crate::icons::FILE_MD, fg, 1.5, false);
+        ctx.text.queue_ui_sized(bx + 26.0, by + (bh - chrome) * 0.5 + 0.5, "Preview", fg, chrome - 0.5, clip);
+    }
+}
+
+/// The screen rect `(x, y, w, h)` of the breadcrumb "Preview" pill for window
+/// width `w`, breadcrumb `top`, and bar height `bar_h`. Right-aligned.
+fn md_button_rect(w: f32, top: f32, bar_h: f32) -> (f32, f32, f32, f32) {
+    let bw = 92.0_f32;
+    let bh = (bar_h - 10.0).max(16.0);
+    let bx = w - bw - 12.0;
+    let by = top + (bar_h - bh) * 0.5;
+    (bx, by, bw, bh)
+}
+
+/// If the last click landed on the breadcrumb "Preview" pill (and the active file
+/// is Markdown), open the live preview and return `1`; else `0`. The Mighty side
+/// calls this on a click in the breadcrumb band before normal handling.
+#[no_mangle]
+pub extern "C" fn mui_md_button_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.language != crate::langdetect::Language::Markdown {
+        return 0;
+    }
+    let w = ctx.gpu.width as f32;
+    let top = layout::TAB_BAR_H;
+    let bar_h = layout::BREADCRUMB_H;
+    let (bx, by, bw, bh) = md_button_rect(w, top, bar_h);
+    let (px, py) = (ctx.last_event.x, ctx.last_event.y);
+    if px >= bx && px <= bx + bw && py >= by && py <= by + bh {
+        mui_md_open(handle)
+    } else {
+        0
+    }
 }
 
 /// Draw the tab bar across the top of the window (right of the activity rail):
@@ -5767,6 +5875,13 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
     for i in 0..count {
         let pr = layout::pane_region(region, win_w, count, i);
         let (_l, x_right) = layout::pane_bounds(region, win_w, count, i);
+        // Markdown preview pane: render the rendered markdown of the OTHER pane's
+        // `.md` buffer into this column instead of the editor body (L37/L38: no new
+        // Mighty draw arm — `mui_ed_draw` already owns the per-pane loop).
+        if ctx.md_pane == Some(i) && ctx.md_preview.is_open() {
+            draw_md_preview_pane(ctx, pr, x_right, i, count);
+            continue;
+        }
         let tab = ctx.panes.tab_at(i).unwrap_or(0);
         draw_editor_pane(ctx, handle, rows, pr, x_right, tab, i == focused, true);
     }
@@ -6462,7 +6577,154 @@ pub extern "C" fn mui_pane_dispatch(handle: i64, cmd: i32) -> i32 {
     if cmd == crate::palette::CMD_CLOSE_PANE {
         return mui_pane_close(handle);
     }
+    if cmd == crate::palette::CMD_MARKDOWN_PREVIEW {
+        return mui_md_open(handle);
+    }
     mui_pane_count(handle)
+}
+
+// ===========================================================================
+// Live Markdown preview (split-pane rendered view of the active `.md` buffer)
+// ===========================================================================
+
+/// The tab index of the EDITOR pane that backs the preview pane `preview_i` (the
+/// other pane in the split). Returns the source tab whose `.md` buffer is rendered.
+fn md_source_tab(ctx: &MuiContext, preview_i: usize) -> usize {
+    let count = ctx.panes.count();
+    // The source is the other pane; with 2 panes that's `1 - preview_i`.
+    let src = if count >= 2 { (preview_i + 1) % count } else { preview_i };
+    ctx.panes.tab_at(src).unwrap_or_else(|| ctx.tabs.active())
+}
+
+/// Draw the markdown-preview body into pane `preview_i`'s column. The source text
+/// is the live buffer of the editor pane beside it (re-parsed each frame so the
+/// preview updates as you type). Used by [`mui_ed_draw`]'s split loop.
+fn draw_md_preview_pane(
+    ctx: &mut MuiContext,
+    region: layout::Region,
+    x_right: f32,
+    preview_i: usize,
+    _count: usize,
+) {
+    let src_tab = md_source_tab(ctx, preview_i);
+    let source = ctx
+        .tabs
+        .model_at(src_tab)
+        .map(|m| m.as_text())
+        .unwrap_or_default();
+    let win_h = ctx.gpu.height as f32;
+    // Move the preview state out so we can borrow `ctx` mutably for drawing.
+    let mut preview = std::mem::take(&mut ctx.md_preview);
+    preview.draw(ctx, &source, region, x_right, win_h);
+    ctx.md_preview = preview;
+}
+
+/// Open the Markdown preview: split the editor to the right (if not already) and
+/// flag the right pane as the preview of the left pane's `.md` buffer. Idempotent
+/// (re-opening just re-focuses / re-arms). Returns `1` on success, `0` if there is
+/// no room to split. The preview re-renders live from the source buffer each frame.
+#[no_mangle]
+pub extern "C" fn mui_md_open(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    // Ensure a 2-pane split. The right pane becomes the preview; the left keeps
+    // the editor on the source buffer. Reuse the existing pane machinery.
+    if ctx.panes.count() < 2 {
+        let cur_tab = ctx.panes.focused_tab();
+        let s = active_scroll(ctx);
+        ctx.panes.split_right(cur_tab, s);
+        pane_rebind_focus(ctx);
+        ctx.welcome.dismiss();
+    }
+    // The preview is the LAST (right) pane; keep editing focus on the left pane so
+    // typing flows into the source buffer and the preview updates live.
+    let preview_i = ctx.panes.count() - 1;
+    ctx.md_pane = Some(preview_i);
+    ctx.md_preview.open();
+    // Focus the editor (left) pane so keystrokes edit the source.
+    let s = active_scroll(ctx);
+    ctx.panes.focus(0, s);
+    pane_rebind_focus(ctx);
+    1
+}
+
+/// `1` if the markdown preview pane is currently open, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_md_active(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.md_pane.is_some() && c.md_preview.is_open()))
+}
+
+/// Set the preview's SOURCE text explicitly (UTF-8 bytes at `ptr`/`len`). Normally
+/// the preview reads the live `.md` buffer of the editor pane each frame, so this
+/// is only needed for tests / headless rendering of a crafted sample. It seeds a
+/// scratch buffer the preview parses; the next live frame supersedes it. Here it
+/// simply parses + measures so callers can validate non-empty output. Returns the
+/// parsed block count.
+///
+/// # Safety
+/// `ptr` must point to `len` valid bytes (or be null with len 0).
+#[no_mangle]
+pub unsafe extern "C" fn mui_md_set_source(handle: i64, ptr: *const u8, len: usize) -> i32 {
+    if (unsafe { ctx(handle) }).is_none() {
+        return 0;
+    }
+    let src = if len == 0 || ptr.is_null() {
+        String::new()
+    } else {
+        let slice = unsafe { std::slice::from_raw_parts(ptr, len) };
+        String::from_utf8_lossy(slice).into_owned()
+    };
+    crate::markdown::parse(&src).len() as i32
+}
+
+/// Scroll the preview pane by `delta` lines (positive = down). Clamped to content.
+#[no_mangle]
+pub extern "C" fn mui_md_scroll(handle: i64, delta: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.md_preview.scroll_lines(delta);
+    }
+}
+
+/// Draw the markdown preview into its pane column (the split render entry point,
+/// mirroring `mui_pane_draw`). No-op when the preview is closed or not split.
+/// `mui_ed_draw` already renders the preview inline in its pane loop, so this is
+/// exposed for an explicit per-pane drive / tests.
+#[no_mangle]
+pub extern "C" fn mui_md_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let Some(i) = ctx.md_pane else { return };
+    if !ctx.md_preview.is_open() || i >= ctx.panes.count() {
+        return;
+    }
+    let region = layout::region(ctx.sidebar_visible);
+    let win_w = ctx.gpu.width as f32;
+    let count = ctx.panes.count();
+    let pr = layout::pane_region(region, win_w, count, i);
+    let (_l, x_right) = layout::pane_bounds(region, win_w, count, i);
+    draw_md_preview_pane(ctx, pr, x_right, i, count);
+}
+
+/// Close the markdown preview pane (collapse the split back to a single editor).
+#[no_mangle]
+pub extern "C" fn mui_md_close(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    ctx.md_preview.close();
+    // If the preview occupies the right pane, close that pane back to single.
+    if let Some(i) = ctx.md_pane.take() {
+        if ctx.panes.count() > 1 {
+            let s = active_scroll(ctx);
+            ctx.panes.save_focused_scroll(s);
+            // Focus the preview pane, then close it (leaves the editor pane).
+            ctx.panes.focus(i, s);
+            ctx.panes.close_focused();
+            pane_rebind_focus(ctx);
+        }
+    }
 }
 
 /// Launch-test hook: with `MUI_EDIT_PROBE` set, run a scripted insert, newline,
@@ -7355,6 +7617,13 @@ pub extern "C" fn mui_zen_active(_handle: i64) -> i32 {
 pub extern "C" fn mui_chord(handle: i64, cp: i32, mods: i32) -> i32 {
     let alt = (mods & 4) != 0;
     let ctrl = (mods & 2) != 0;
+    let shift = (mods & 1) != 0;
+    // Ctrl+Shift+V : open the live Markdown preview (split pane). Routed here so
+    // the Mighty key ladder gains NO new top-level arm (L37/L38).
+    if ctrl && shift && !alt && (cp == 'v' as i32 || cp == 'V' as i32) {
+        let _ = mui_md_open(handle);
+        return 1;
+    }
     // Alt+Z (no Ctrl): toggle Zen mode.
     if alt && !ctrl && (cp == 'z' as i32 || cp == 'Z' as i32) {
         let _ = mui_zen_toggle(handle);

@@ -464,6 +464,10 @@ extern c {
   // ---- interactive breadcrumb dropdown ----
   fn mui_breadcrumb_click_row(handle: I64) -> I32
   fn mui_breadcrumb_click(handle: I64) -> I32
+  // ---- markdown preview (split-pane rendered view) ----
+  fn mui_md_button_at_click(handle: I64) -> I32
+  fn mui_md_active(handle: I64) -> I32
+  fn mui_md_scroll(handle: I64, delta: I32)
   fn mui_crumb_menu_active(handle: I64) -> I32
   fn mui_crumb_menu_move(handle: I64, delta: I32)
   fn mui_crumb_menu_cancel(handle: I64)
@@ -560,7 +564,7 @@ fn cmd_run_in_browser() -> I32 { 31 } // Mighty: Run in Browser (wasm32-web)
 // Editor split-pane commands route to the single `mui_pane_dispatch` shim entry
 // (same one-arm-range pattern as git — keeps the palette ladder flat, L37/L38).
 fn cmd_pane_first() -> I32 { 32 } // Split Editor Right (lowest pane id)
-fn cmd_pane_last() -> I32 { 34 }  // Close Editor Pane (highest pane id)
+fn cmd_pane_last() -> I32 { 35 }  // Markdown: Open Preview (highest pane id)
 
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
@@ -796,11 +800,14 @@ fn is_alt_chord(cp: I32, mods: I32) -> Bool {
 fn is_router_chord(cp: I32, mods: I32) -> Bool {
   let alt = alt_held(mods)
   let ctrl = ctrl_held(mods)
+  let shift = shift_held(mods)
   if alt && !ctrl {
     true
   } else if ctrl && !alt && cp == 92 {     // Ctrl+\ : Split Editor Right
     true
   } else if ctrl && !alt && (cp == 49 || cp == 50) {  // Ctrl+1 / Ctrl+2 : focus pane
+    true
+  } else if ctrl && shift && !alt && (cp == 86 || cp == 118) {  // Ctrl+Shift+V : Markdown preview
     true
   } else {
     false
@@ -2247,6 +2254,10 @@ fn main() {
         let crumb_on = mui_crumb_menu_active(h)
         let crumb_hit = mui_crumb_menu_row_at_click(h)
         let bc_seg = mui_breadcrumb_click_row(h)
+        // Breadcrumb "Preview" pill (only present when the active file is .md):
+        // opens the live split-pane Markdown preview. Returns 1 when it handled
+        // the click. Computed up-front so the dispatch ladder stays flat (L27).
+        let md_btn = mui_md_button_at_click(h)
         let chip_hit = mui_status_problems_chip_at_click(h)
         let prob_on = mui_problems_is_open(h)
         let prob_hit = mui_problems_row_at_click(h)
@@ -2313,6 +2324,9 @@ fn main() {
           } else {
             mui_crumb_menu_cancel(h)
           }
+        } else if md_btn == 1 {
+          // Breadcrumb "Preview" pill: the shim already opened the split preview.
+          find_nav = false
         } else if bc_seg >= 0 {
           // Clicked a breadcrumb segment: open its dropdown (file / symbol).
           let _seg = mui_breadcrumb_click(h)
