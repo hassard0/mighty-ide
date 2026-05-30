@@ -140,3 +140,6 @@ pub const XMARK: &str = "M7 7l10 10M17 7 7 17";
 pub const TEST_BOX: &str = "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z M8 9.5 10.5 12 8 14.5M13 14.5h3";
 /// Info circle (hover / show docs).
 pub const INFO_I: &str = "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 11v5M12 8h.01";
+/// Globe (Web Playground / Run in Browser): a circle with a meridian + two
+/// latitude lines — a wasm32-web "run in the browser" glyph.
+pub const GLOBE: &str = "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M3 12h18 M12 3c2.5 2.4 3.8 5.6 3.8 9s-1.3 6.6-3.8 9c-2.5-2.4-3.8-5.6-3.8-9s1.3-6.6 3.8-9z";

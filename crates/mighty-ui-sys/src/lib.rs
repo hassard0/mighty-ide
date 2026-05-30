@@ -63,6 +63,8 @@ mod theme;
 mod themepicker;
 mod toast;
 mod tree;
+mod web;
+mod webabi;
 mod welcome;
 mod vello_proof;
 mod vello_ui;
@@ -284,6 +286,14 @@ pub struct MuiContext {
     /// The Run panel: a background `mty run <path>` whose stdout/stderr streams
     /// into a scrollable output view with clickable diagnostics. Shim-owned.
     run: run::RunPanel,
+
+    // ---- Web Playground (Run in Browser → wasm32-web + browser) ----
+    /// The Web Playground: builds the active file to `wasm32-web` and runs it in
+    /// the browser — either via a background `mty serve` (web-game packages) or a
+    /// `mty build --target wasm32-web` + static-server fallback. Streams the
+    /// build/serve output, scrapes the served URL, and offers a stop affordance.
+    /// Shim-owned (see `crate::web` / `crate::webabi`).
+    web: web::WebPlayground,
 
     // ---- Test panel (the beaker rail icon → Testing results view) ----
     /// The Test panel: a background `mty test` over the active file's package,
@@ -720,6 +730,7 @@ pub(crate) fn build_context(
         ai: ai::AiPanel::new(),
         ghost: ghost::GhostState::new(),
         run: run::RunPanel::new(),
+        web: web::WebPlayground::new(),
         tests_panel: tests_panel::TestPanel::new(),
         dbg: dap::DebugModel::new(),
         diff: diff::DiffView::new(),
@@ -1349,6 +1360,7 @@ impl MuiContext {
             ai: ai::AiPanel::new(),
             ghost: ghost::GhostState::new(),
             run: run::RunPanel::new(),
+            web: web::WebPlayground::new(),
             tests_panel: tests_panel::TestPanel::new(),
             dbg: dap::DebugModel::new(),
             diff: diff::DiffView::new(),

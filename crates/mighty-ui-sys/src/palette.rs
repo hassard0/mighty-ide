@@ -61,6 +61,9 @@ pub const CMD_GIT_FETCH: u32 = 29;
 pub const CMD_GIT_TOGGLE_BLAME: u32 = 30;
 /// First git command id (ids >= this are routed to `mui_git_dispatch`).
 pub const CMD_GIT_FIRST: u32 = CMD_GIT_SWITCH_BRANCH;
+/// Run the active file in the browser (wasm32-web Web Playground). Placed after
+/// the git block so it stays out of the `>= CMD_GIT_FIRST` routing range.
+pub const CMD_RUN_IN_BROWSER: u32 = 31;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -95,6 +98,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_GIT_PULL,         label: "Git: Pull",          keybinding: "" },
     Command { id: CMD_GIT_FETCH,        label: "Git: Fetch",         keybinding: "" },
     Command { id: CMD_GIT_TOGGLE_BLAME, label: "Git: Toggle Blame",  keybinding: "Alt+B" },
+    Command { id: CMD_RUN_IN_BROWSER,   label: "Mighty: Run in Browser", keybinding: "Alt+W" },
 ];
 
 /// Match quality for ranking. Lower sorts first.

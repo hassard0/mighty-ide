@@ -564,6 +564,27 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         }
     }
 
+    // Screenshot/render hook for the Web Playground: with MUI_WEB_AUTOOPEN set,
+    // open the Web panel and seed fake `mty serve` output (a scraped URL + build
+    // status) so a headless capture shows the panel without spawning a real
+    // server. No effect on normal launches.
+    if std::env::var_os("MUI_WEB_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let p = ctx
+                .tabs
+                .active_path()
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "examples/webspin/src/main.mty".to_string());
+            ctx.run.close();
+            ctx.web.seed_demo(&p);
+            println!(
+                "mui_init_s: MUI_WEB_AUTOOPEN -> web playground seeded ({} lines, url={})",
+                ctx.web.line_count(),
+                ctx.web.url()
+            );
+        }
+    }
+
     // Screenshot/render hook for the Test panel: with MUI_TEST_AUTOOPEN set,
     // switch the sidebar to the Testing view and seed a mix of pass/fail results
     // + a summary so a headless capture shows the results tree without spawning a
@@ -6676,6 +6697,12 @@ pub extern "C" fn mui_chord(handle: i64, cp: i32, mods: i32) -> i32 {
     // Alt+B : toggle the git blame gutter for the active file.
     if alt && !ctrl && (cp == 'b' as i32 || cp == 'B' as i32) {
         let _ = crate::featureabi::mui_blame_toggle(handle);
+        return 1;
+    }
+    // Alt+W : Run in Browser — build the active file to wasm32-web + serve it,
+    // then the Mighty loop opens the default browser when the URL is scraped.
+    if alt && !ctrl && (cp == 'w' as i32 || cp == 'W' as i32) {
+        let _ = crate::webabi::mui_web_run(handle);
         return 1;
     }
     0
