@@ -209,9 +209,13 @@ impl WelcomeState {
 
         // ---- Two columns: Quick actions (left) | Recently Opened (right) ----
         let gutter = 40.0_f32;
-        let half = (col_w - gutter) * 0.5;
+        // The START (quick actions) column carries the longest content (label +
+        // chord) so it gets more room; RECENT (folders/files) takes the rest. This
+        // keeps the chord from colliding with either the label or the right column.
+        let left_w = (col_w - gutter) * 0.58;
+        let half = (col_w - gutter) * 0.42; // RIGHT column (recents) width
         let left_x = cx;
-        let right_x = cx + half + gutter;
+        let right_x = cx + left_w + gutter;
         let row_h = 40.0_f32;
 
         // Section headers (bold UI face).
@@ -232,22 +236,22 @@ impl WelcomeState {
             // Label.
             ctx.text
                 .queue_ui_sized(left_x + 40.0, ry + 9.0, qa.label, theme::TEXT_1(), 14.0, clip);
-            // Keybinding hint (right-aligned within the column).
+            // Keybinding hint: right-aligned within the column, BUT never closer
+            // than 16px after the label (long labels like "Open Folder…" /
+            // "Command Palette" used to collide with their chord). Push the hint
+            // right past the label end when needed.
             if !qa.key.is_empty() {
                 let kw = qa.key.chars().count() as f32 * 6.4;
-                ctx.text.queue_ui_sized(
-                    left_x + half - kw - 4.0,
-                    ry + 11.0,
-                    qa.key,
-                    theme::TEXT_3(),
-                    11.5,
-                    clip,
-                );
+                let label_w = qa.label.chars().count() as f32 * 7.8; // 14px UI advance (over-estimate)
+                let right_aligned = left_x + left_w - kw - 4.0;
+                let after_label = left_x + 40.0 + label_w + 16.0;
+                let key_x = right_aligned.max(after_label);
+                ctx.text.queue_ui_sized(key_x, ry + 11.0, qa.key, theme::TEXT_3(), 11.5, clip);
             }
             self.hits.push(Hit {
                 x: left_x,
                 y: ry,
-                w: half,
+                w: left_w,
                 h: row_h,
                 action: qa.action,
             });

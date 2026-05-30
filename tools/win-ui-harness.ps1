@@ -54,6 +54,44 @@ public static class Win {
     [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr l);
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+    [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+    [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr ctx);
+
+    // Make THIS process per-monitor-DPI-aware (V2) so GetWindowRect + screen capture
+    // use true physical pixels that match the DPI-aware IDE's surface. Without this,
+    // on a >100% monitor Windows virtualises our coordinates and captures/clicks
+    // land in the wrong place (the root of the "everything is misaligned" confusion
+    // in the harness). DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4.
+    public static void MakeDpiAware() {
+        try { SetProcessDpiAwarenessContext((IntPtr)(-4)); } catch {}
+    }
+
+    // Force `h` to the foreground despite Windows' foreground lock by briefly
+    // attaching our input thread to the current foreground thread (the standard
+    // reliable activation hack). Returns true only if `h` actually became
+    // foreground - callers MUST refuse to trust a screen-capture otherwise.
+    public static bool ForceForeground(IntPtr h) {
+        // Minimize then restore: restoring a minimized window reliably ACTIVATES it
+        // (defeats the foreground lock without synthetic Alt/Alt-Tab, which were
+        // disruptive). Combined with AttachThreadInput + a TOPMOST bounce.
+        IntPtr fg = GetForegroundWindow();
+        uint dummy;
+        uint fgTid = GetWindowThreadProcessId(fg, out dummy);
+        uint myTid = GetCurrentThreadId();
+        bool attached = (fgTid != 0 && fgTid != myTid && AttachThreadInput(myTid, fgTid, true));
+        if (GetForegroundWindow() != h) {
+            ShowWindow(h, 6); // SW_MINIMIZE
+            ShowWindow(h, 9); // SW_RESTORE  (re-activates)
+        }
+        SetWindowPos(h, (IntPtr)(-1), 0, 0, 0, 0, 0x1 | 0x2 | 0x40); // HWND_TOPMOST
+        SetWindowPos(h, (IntPtr)(-2), 0, 0, 0, 0, 0x1 | 0x2 | 0x40); // HWND_NOTOPMOST
+        BringWindowToTop(h);
+        SetForegroundWindow(h);
+        if (attached) AttachThreadInput(myTid, fgTid, false);
+        return GetForegroundWindow() == h;
+    }
 
     // The largest visible top-level window owned by `pid`. winit briefly exposes a
     // tiny (14x14) helper window whose handle MainWindowHandle can latch onto;
@@ -109,6 +147,8 @@ public static class Win {
 }
 "@
 
+[Win]::MakeDpiAware()   # must run before any GetWindowRect / screen-capture calls
+
 function New-Dir($p) { if (-not (Test-Path $p)) { New-Item -ItemType Directory -Force $p | Out-Null } }
 New-Dir $OutDir
 
@@ -118,9 +158,15 @@ function Log($m) { $line = "[{0}] {1}" -f ((Get-Date).ToString('HH:mm:ss.fff')),
 function Get-WinRect($h) { $r = New-Object Win+RECT; [void][Win]::GetWindowRect($h, [ref]$r); return $r }
 
 function Capture($h, $name) {
+  # Bring the window truly foreground and CONFIRM it - a GPU window captured via
+  # CopyFromScreen while occluded yields the desktop/other windows, not the IDE.
+  $fg = $false
+  for ($i = 0; $i -lt 5; $i++) { $fg = [Win]::ForceForeground($h); if ($fg) { break }; Start-Sleep -Milliseconds 120 }
+  Start-Sleep -Milliseconds 120
   $r = Get-WinRect $h
   $w = $r.Right - $r.Left; $hh = $r.Bottom - $r.Top
   if ($w -le 0 -or $hh -le 0) { Log "capture '$name': window has zero size ($w x $hh)"; return $null }
+  if (-not $fg) { Log "capture '$name': !!! WINDOW NOT FOREGROUND - capture is UNTRUSTWORTHY" }
   $bmp = New-Object System.Drawing.Bitmap $w, $hh
   $g = [System.Drawing.Graphics]::FromImage($bmp)
   $g.CopyFromScreen($r.Left, $r.Top, 0, 0, (New-Object System.Drawing.Size $w, $hh))
@@ -174,7 +220,7 @@ Log "launching $Exe"
 $proc = Start-Process -FilePath $Exe -WorkingDirectory $WorkDir -PassThru
 Start-Sleep -Milliseconds $LaunchWaitMs
 
-# Resolve the top-level window handle — the LARGEST visible window of the process
+# Resolve the top-level window handle - the LARGEST visible window of the process
 # (winit briefly shows a 14x14 helper window that MainWindowHandle can latch onto).
 $hwnd = [IntPtr]::Zero
 for ($i = 0; $i -lt 60; $i++) {
@@ -195,18 +241,23 @@ Log ("window rect = {0},{1} {2}x{3}" -f $r.Left, $r.Top, ($r.Right-$r.Left), ($r
 # Move the window to the top-left and raise it, so the controlling terminal does
 # not overlap the capture and coordinates are stable.
 [void][Win]::ShowWindow($hwnd, 9)   # SW_RESTORE
-[void][Win]::MoveWindow($hwnd, 0, 0, 1200, 800, $true)
-Start-Sleep -Milliseconds 200
-[void][Win]::BringWindowToTop($hwnd)
-[void][Win]::SetForegroundWindow($hwnd)
-Start-Sleep -Milliseconds 400
+# Move to the top-left WITHOUT resizing (keep the window's natural physical size),
+# so the GPU surface stays in sync with the window — resizing here crossed monitors
+# / DPI and left the surface larger than the window, clipping the right-side chrome.
+$r0 = Get-WinRect $hwnd
+[void][Win]::MoveWindow($hwnd, 0, 0, ($r0.Right - $r0.Left), ($r0.Bottom - $r0.Top), $true)
+Start-Sleep -Milliseconds 250
+$fg0 = [Win]::ForceForeground($hwnd)
+Start-Sleep -Milliseconds 300
 $r = Get-WinRect $hwnd
-Log ("repositioned rect = {0},{1} {2}x{3}" -f $r.Left, $r.Top, ($r.Right-$r.Left), ($r.Bottom-$r.Top))
+$script:WinW = $r.Right - $r.Left
+$script:WinH = $r.Bottom - $r.Top
+Log ("window rect = {0},{1} {2}x{3}  foreground={4}" -f $r.Left, $r.Top, $script:WinW, $script:WinH, $fg0)
 Capture $hwnd "01-initial"
 $resp0 = Is-Responsive $hwnd
 Log "responsive at startup: $resp0"
 
-# FRESH-LAUNCH TYPING TEST (no prior clicks/state — the real first-run scenario):
+# FRESH-LAUNCH TYPING TEST (no prior clicks/state - the real first-run scenario):
 # type immediately; the Welcome landing should dismiss and the text should appear.
 Type-Text $hwnd "fnmain"
 Start-Sleep -Milliseconds 300
