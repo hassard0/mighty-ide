@@ -385,6 +385,59 @@ The Outline panel is a NEW sidebar panel on **rail slot 5** (`PANEL_OUTLINE = 5`
 
 All three are pure-shim: Mighty gained the `mui_outline_*` / `mui_problems_*` / `mui_breadcrumb_click[_row]` + `mui_crumb_menu_*` scalar ABIs and a few flat input-mode arms (the crumb dropdown is the highest-priority transient arm, like the palette). Per-kind symbol icons + colors are new vector glyphs (`SymKind::icon()`/`color()`) in the Vivid-Modern palette. Screenshot hooks `MUI_OUTLINE_AUTOOPEN` / `MUI_PROBLEMS_AUTOOPEN` (seeds a representative aggregated set, no subprocess) / `MUI_BREADCRUMB_AUTOOPEN=symbol|file` render all three headless. **No new language limitation.**
 
+## Debugger via `mty dap` (DAP client + UI)
+
+The debugger (`mui_dbg_*` / `mui_bp_*` ABI; modules `crate::dap` + `crate::dapabi`) drives
+Mighty's Debug Adapter Protocol server (`mty dap`, v0.32 Track A, source
+`stardust/crates/mty-cli/src/cmd/dap.rs`). Same shim-owns-everything, scalar-only shape as
+the LSP client: the shim spawns `mty dap` per session, runs the handshake on a worker thread,
+and drives a request/response + event loop, posting parsed events back over a channel the
+model drains each frame (`mui_dbg_pump`, the Run-panel/terminal poll/pump discipline, L32).
+
+**What `mty dap` actually supports (verified on the wire):**
+- `initialize` → capabilities (configurationDone, functionBreakpoints, restart, terminate,
+  evaluateForHovers; NOT conditional breakpoints, NOT setVariable, NOT stepBack).
+- `launch` → success, then **emits the `initialized` event in response to `launch`, not
+  `initialize`** (non-standard ordering — the client sends `launch` right after `initialize`
+  and waits for `initialized` before `setBreakpoints` + `configurationDone`).
+- `setBreakpoints` / `setFunctionBreakpoints` → verified by source line / `fn:`/`agent:` name.
+- `configurationDone` → resumes. `threads` → one thread (id 1, "main").
+- `stackTrace` → frames (id/name/line/source.path). `scopes` → a single synthetic "Locals"
+  (`variablesReference` 1000). `variables` → flat name/value/type rows (**no structured
+  expansion / no child references**). `continue`/`next`/`stepIn`/`stepOut`/`pause`, `evaluate`
+  (local-name + simple field access), `restart`, `disconnect`/`terminate`.
+- Events: `initialized`, `stopped` (reason entry/breakpoint/step/exception), `output`
+  (stdout/stderr), `exited`, `terminated`. **No `continued` event** — the client infers the
+  running state from issuing a resume.
+
+**Key gap / workaround (load-bearing):** line breakpoints are *verified* but **do not
+reliably FIRE on a plain `continue`** in v0.36 — the program runs to completion and emits
+`exited`/`terminated` without a `stopped`. By contrast `launch` with `stopOnEntry:true`
+**reliably stops** (reason "entry") with a valid stack, and `next`/`stepIn`/`stepOut` then
+work *and* populate locals (e.g. `{"name":"a","type":"int","value":"1"}` after the first
+step; locals are empty at the entry stop before any binding runs). So the IDE always launches
+with `stopOnEntry:true` (land paused at `main`, then step/continue) and still sends the user's
+breakpoints (verified, future-proof). The `stackTrace` `line` tends to report the function's
+declaration line rather than the precise current statement, so the current-instruction band
+tracks the selected frame's reported line.
+
+The live integration test (`dap::tests::live_dap_session_hits_breakpoint`) spawns `mty dap`
+against a tiny program, launches, and asserts a real `stopped` + ≥1 stack frame (it auto-skips
+if `mty` can't be spawned). It passes against v0.36: "stopped with 1 frame(s)".
+
+Pure JSON-scan gotcha (same family as the LSP parsers): search for the **key** form
+(`"event":`, `"variables":`, `"output":`) not the bare token — `mty dap` emits `"type":"event"`
+and `"command":"variables"`, so a search for `"event"`/`"variables"` would match the *value*.
+
+UI: a new "Run and Debug" rail slot (slot 6, bug icon) hosts a sidebar panel — a debug toolbar
+(continue/step-over/step-into/step-out/stop), a Call Stack section (click a frame → select +
+jump), a Variables section (name = value : type), and a Debug Console (the `output` events).
+Gutter clicks toggle breakpoints (red dots); the stopped line gets a distinct amber band + a
+gutter arrow. F5 start/continue, Shift+F5 stop, F10 next, F11 stepIn, Shift+F11 stepOut (new
+named key codes F5/F10/F11). `MUI_DEBUG_AUTOOPEN` seeds a fake stopped state for a headless
+capture (screenshots/24-debug.png). **No new language limitation** — process spawning,
+threads, framing all live shim-side; Mighty only routes keys/clicks, pumps, and reads scalars.
+
 ## Open questions to resolve as the IDE progresses
 - Exact `extern c` signature support: pointers (`*U8`), out-params (`&out T`), passing a
   `Vec`/slice as `(ptr, len)`, returning `#[repr(C)]` structs by value vs. out-param?

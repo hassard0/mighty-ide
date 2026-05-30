@@ -269,6 +269,34 @@ extern c {
   fn mui_run_click_col(handle: I64) -> I32
   fn mui_run_click_tab(handle: I64) -> I32
   fn mui_run_draw(handle: I64)
+  // ---- debugger (Run and Debug rail icon / DAP) ----
+  fn mui_dbg_start(handle: I64) -> I32
+  fn mui_dbg_continue(handle: I64) -> I32
+  fn mui_dbg_stop(handle: I64)
+  fn mui_dbg_step_over(handle: I64)
+  fn mui_dbg_step_into(handle: I64)
+  fn mui_dbg_step_out(handle: I64)
+  fn mui_dbg_toggle(handle: I64) -> I32
+  fn mui_dbg_active(handle: I64) -> I32
+  fn mui_dbg_state(handle: I64) -> I32
+  fn mui_dbg_pump(handle: I64) -> I32
+  fn mui_dbg_take_stopped(handle: I64) -> I32
+  fn mui_dbg_cur_line(handle: I64) -> I32
+  fn mui_dbg_cur_file_matches(handle: I64) -> I32
+  fn mui_bp_toggle(handle: I64, line: I32) -> I32
+  fn mui_bp_has(handle: I64, line: I32) -> I32
+  fn mui_bp_count(handle: I64) -> I32
+  fn mui_bp_line(handle: I64, i: I32) -> I32
+  fn mui_bp_gutter_click(handle: I64, first_line: I32, total_lines: I32) -> I32
+  fn mui_dbg_stack_count(handle: I64) -> I32
+  fn mui_dbg_sel_frame(handle: I64) -> I32
+  fn mui_dbg_frame_line(handle: I64, i: I32) -> I32
+  fn mui_dbg_select_frame(handle: I64, i: I32) -> I32
+  fn mui_dbg_var_count(handle: I64) -> I32
+  fn mui_dbg_click(handle: I64) -> I32
+  fn mui_dbg_toolbar_action(handle: I64, code: I32)
+  fn mui_dbg_draw(handle: I64, first: I32, rows: I32, total_lines: I32)
+  fn mui_dbg_view_draw(handle: I64)
   // ---- inline git diff view (Source Control) ----
   fn mui_diff_open(handle: I64, staged: I32) -> I32
   fn mui_diff_open_row(handle: I64, i: I32) -> I32
@@ -369,6 +397,9 @@ fn key_home() -> I32 { 10 }
 fn key_end() -> I32 { 11 }
 fn key_f12() -> I32 { 14 }
 fn key_f2() -> I32 { 15 }
+fn key_f5() -> I32 { 16 }
+fn key_f10() -> I32 { 17 }
+fn key_f11() -> I32 { 18 }
 
 // editor move directions (mirror editor.rs DIR_*)
 fn dir_left() -> I32 { 0 }
@@ -392,10 +423,14 @@ fn panel_explorer() -> I32 { 0 }
 fn panel_search() -> I32 { 1 }
 fn panel_scm() -> I32 { 2 }
 fn panel_outline() -> I32 { 5 }  // Outline (document symbols) — rail slot 5
+fn panel_debug() -> I32 { 6 }    // Run and Debug — rail slot 6 (bug icon)
 // Rail icon slots that are not sidebar panels.
 fn rail_run() -> I32 { 3 }      // Run panel (play triangle icon)
 fn rail_agents() -> I32 { 4 }   // AI copilot (Agents sparkles icon)
 fn rail_outline() -> I32 { 5 }  // Outline panel rail slot
+fn rail_debug() -> I32 { 6 }    // Run and Debug rail slot (bug icon)
+// Debug toolbar click codes (mirror TOOLBAR_BASE in dapabi.rs).
+fn dbg_toolbar_base() -> I32 { 1000 }
 
 // Chord predicates spelled as flat boolean expressions (no juxtaposed parens,
 // L20) so native codegen accepts them.
@@ -1395,6 +1430,18 @@ fn main() {
             mui_sig_clear(h)
             sig_open = false
           }
+        } else if k == key_f5() {                            // F5 / Shift+F5 : start-continue / stop
+          let kmods = mui_event_mods(h)
+          if shift_held(kmods) {
+            mui_dbg_stop(h)
+          } else {
+            let _st = mui_dbg_start(h)
+          }
+        } else if k == key_f10() {                           // F10 : step over
+          mui_dbg_step_over(h)
+        } else if k == key_f11() {                           // F11 / Shift+F11 : step into / out
+          let kmods = mui_event_mods(h)
+          if shift_held(kmods) { mui_dbg_step_out(h) } else { mui_dbg_step_into(h) }
         } else if k == key_escape() {
           find_nav = false
           mui_hover_clear(h)
@@ -1553,6 +1600,9 @@ fn main() {
           } else {
             run_focus = false
           }
+        } else if rail_hit == rail_debug() {
+          // Debug (bug) icon: switch the sidebar to the Run-and-Debug view.
+          let _p = mui_panel_set(h, panel_debug())
         } else if rail_hit >= 0 {
           let _p = mui_panel_set(h, rail_hit)
           if rail_hit == panel_scm() {
@@ -1568,6 +1618,21 @@ fn main() {
           if o_hit >= 0 {
             let _j = mui_outline_open_row(h, o_hit)
             typing = false
+          }
+        } else if cur_panel == panel_debug() {
+          // Debug view: a toolbar button (continue/step/stop) or a call-stack
+          // frame row. The shim encodes toolbar hits as >= dbg_toolbar_base().
+          let d_hit = mui_dbg_click(h)
+          if d_hit >= dbg_toolbar_base() {
+            mui_dbg_toolbar_action(h, d_hit)
+          } else if d_hit >= 0 {
+            // Select the frame -> updates variables + the editor jump target.
+            let fline = mui_dbg_select_frame(h, d_hit)
+            if fline >= 0 {
+              if mui_dbg_cur_file_matches(h) == 1 {
+                mui_ed_move_to(h, fline, 0)
+              }
+            }
           }
         } else if cur_panel == panel_scm() {
           // Source Control panel: stage/unstage (right-edge action button) or —
@@ -1628,9 +1693,16 @@ fn main() {
             }
           }
         } else {
-          // Text area: place the cursor (the shim maps pixel -> line/col).
-          let _l = mui_ed_click(h)
-          typing = false
+          // Editor body: a click in the line-number gutter toggles a breakpoint
+          // on that line; otherwise place the cursor (shim maps pixel->line/col).
+          let total_g = mui_ed_line_count(h)
+          let gline = mui_bp_gutter_click(h, first, total_g)
+          if gline >= 0 {
+            let _b = mui_bp_toggle(h, gline)
+          } else {
+            let _l = mui_ed_click(h)
+            typing = false
+          }
         }
       }
       tag = mui_poll_event_s(h)
@@ -1681,6 +1753,19 @@ fn main() {
       let _rc = mui_run_pump(h)
     }
 
+    // Drain DAP adapter events into the debug model BEFORE the frame (stop
+    // position, stack, variables). When a fresh stop arrives, jump the editor to
+    // the stopped line if it's in the visible file.
+    let _dbgc = mui_dbg_pump(h)
+    if mui_dbg_take_stopped(h) == 1 {
+      let dl = mui_dbg_cur_line(h)
+      if dl >= 0 {
+        if mui_dbg_cur_file_matches(h) == 1 {
+          mui_ed_move_to(h, dl, 0)
+        }
+      }
+    }
+
     // Drain PTY output into the shim's terminal grid BEFORE the frame.
     let term_on = mui_term_is_open(h)
     if term_on == 1 {
@@ -1696,6 +1781,9 @@ fn main() {
     // Inline git diff view: when open it paints over the editor body (read-only).
     // No-op unless active, so calling it unconditionally is safe.
     mui_diff_draw(h)
+    // Debugger gutter decorations: breakpoint dots + the stopped-line band +
+    // current-instruction arrow. No-op when there are no breakpoints / no stop.
+    mui_dbg_draw(h, first, rows_i, total_now)
     if find_nav { draw_find_highlights(h, total_now, first, rows_i) }
     draw_diagnostics(h, total_now, first, rows_i)
     // The breadcrumb shares the band the inline-diff header occupies; suppress it
@@ -1711,6 +1799,8 @@ fn main() {
       mui_scm_draw(h)
     } else if cur_panel_draw == panel_outline() {
       mui_outline_draw(h)
+    } else if cur_panel_draw == panel_debug() {
+      mui_dbg_view_draw(h)
     } else {
       mui_sidebar_draw(h)
     }
