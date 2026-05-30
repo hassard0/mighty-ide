@@ -4,7 +4,21 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1–L41).
+(lessons L1–L42).
+
+## Unreleased
+
+### Code-reading visual polish
+- Bracket-pair colorization: matched `()[]{}` are colored by nesting depth with
+  a theme-derived rainbow palette; unmatched/extra brackets show an error color.
+  Toggle **Bracket Colors** (Settings, default on).
+- Indent guides: faint vertical guide lines at each indentation level (carried
+  across blank lines), with the cursor block's active level brightened. Toggle
+  **Indent Guides** (Settings, default on).
+- Interactive minimap: clicking the minimap jumps the editor to the matching
+  source line (tall files compress so the whole file maps across the strip), with
+  a clearer viewport rectangle over the visible range. (Drag-to-scroll not yet —
+  the event model is click-only.)
 
 ## v0.2.0
 

@@ -731,6 +731,49 @@ line_char/scroll/click/draw`. Screenshot `screenshots/41-web.png`
 icon `icons::GLOBE`. Pure sample: `examples/webspin/` (Spin agent → spinning arc
 + frame counter).
 
+### L42. Code-reading polish (bracket colors, indent guides, interactive minimap) is all pure-shim render/geometry math behind ONE folded click — ZERO new Mighty-source friction, L37/L38 ceiling untouched ✅ **[finding, not a new limitation]**
+Adding three editor visual features re-confirmed that draw-only + geometry work
+never stresses the Mighty side or the parse-stack ceiling:
+
+- **All three are pure shim code.** A new `crate::colorize` module holds the
+  testable math — bracket-depth assignment (continuous stack scan from line 0 so
+  pairs keep a stable color across scroll; string/comment chars masked via the
+  syntax spans), indent-guide depth-per-line with blank-line carry (`min` of the
+  nearest non-blank above/below so a blank inside a block keeps its rail but a
+  blank between blocks drops), the depth→palette-index (`depth % n`, palette
+  derived from the active theme so it fits Vivid/Aurora/Warm), and `MinimapGeom`
+  (line↔pixel mapping + center-scroll). The editor body draw (`abi.rs`
+  `draw_editor_pane`) just consumes them: indent guides drawn under the text
+  (faint accent, active rail brighter), bracket glyphs **re-drawn** over the
+  punctuation in their depth color (rather than fighting the per-token span
+  granularity), and the minimap compresses tall files so the whole file maps
+  across the strip + the viewport rectangle reads clearly.
+
+- **The interactive minimap added NO new top-level ladder arm.** Click→jump is
+  folded into the existing `mui_ed_click` (it hit-tests the focused pane's stashed
+  `minimap_geom` first, jumps + centers, else falls through to normal cell
+  placement) — so the Mighty mouse-down arm is unchanged. The cursor-move +
+  `scroll_to_cursor` that already runs each frame carries the jump into view, so
+  even the scroll bookkeeping needed no Mighty change. Drag-to-scroll was **not**
+  done (the event model exposes click + a `last_event` position but no
+  move/drag stream); click-to-jump + the viewport rectangle is the shipped scope.
+  New ABI (probing/tests only): `mui_minimap_click(x,y)->line`,
+  `mui_minimap_active/_left/_width`.
+
+- **Settings.** Two new persisted toggles `bracket_colors` / `indent_guides`
+  (default ON), round-tripped through the shared `key=value` config and surfaced
+  as two new Settings-panel rows (the panel is now 8 rows, still fits 860px).
+
+**No new Mighty-source limitation.** Tests: 584 pass (was 562; +22 — bracket
+depth nested/wrap/extra-closer/mismatch/cross-line/masked, depth→index wrap,
+palette non-empty per theme, leading-indent spaces+tabs, guide-levels,
+indent-depth blank-line carry both directions, active-level-from-cursor across
+tab widths, minimap click top/middle/bottom/short-file + center-scroll clamp +
+contains-x, plus the two settings round-trips + panel toggle). Screenshots
+`screenshots/44-brackets-guides.png` (`MUI_BRACKETS_AUTOOPEN` seeds nested code)
+and `45-minimap.png` (`MUI_MINIMAP_AUTOOPEN` seeds a 160-fn tall file scrolled
+partway) at 1320x860.
+
 ## Open questions to resolve as the IDE progresses
 - Exact `extern c` signature support: pointers (`*U8`), out-params (`&out T`), passing a
   `Vec`/slice as `(ptr, len)`, returning `#[repr(C)]` structs by value vs. out-param?
