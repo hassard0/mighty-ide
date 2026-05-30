@@ -28,6 +28,7 @@ The entire UI is drawn each frame as a Vello scene — smooth gradients, true ro
 - Source Control: git status panel (Ctrl+Shift+G) with an inline diff view
 - Command palette (Ctrl+Shift+P), fuzzy-filtered
 - Run panel (Ctrl+Shift+R) — background `mty run` with streamed output + clickable diagnostics
+- Run in Browser (Alt+W) — build the active file to `wasm32-web` and run it in the browser via `mty serve` (web-game packages) or a `mty build --target wasm32-web` + static-server fallback; streams build/serve output, scrapes the served URL, opens the default browser, stop affordance. Sample: `examples/webspin/`
 - Settings panel (Ctrl+,) — live font size / tab width / word wrap / minimap / theme
 
 ### AI
@@ -54,6 +55,7 @@ Bundled fonts: **JetBrains Mono** (code) + **Bricolage Grotesque** (UI chrome), 
 | ![Inline diff](screenshots/19-diff.png) | ![Autocomplete](screenshots/07-autocomplete.png) |
 | ![Aurora Glass theme](screenshots/13-theme-aurora.png) | ![Warm Studio theme](screenshots/14-theme-warm.png) |
 | ![AI copilot](screenshots/17-ai.png) | ![Settings](screenshots/20-settings.png) |
+| ![Web Playground](screenshots/41-web.png) | |
 
 ## Architecture
 

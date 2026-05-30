@@ -669,6 +669,68 @@ Screenshots `screenshots/39-branches.png` (`MUI_BRANCH_AUTOOPEN`) + `40-blame.pn
 (`MUI_BLAME_AUTOOPEN`) at 1320x860. The status bar now reflects the LIVE branch +
 ahead/behind from `scm::ScmStatus` (was hardcoded `main ↑2 ↓0`).
 
+### L41. The Web Playground ("Run in Browser") proved Mighty's on-by-default WASM Component-Model web tooling end-to-end — and re-confirmed the L37/L38 ceiling discipline ✅ **[finding + tooling notes]**
+Building the IDE's **Run in Browser** action (build the active Mighty file to
+`wasm32-web` and run it in the browser) exercised Mighty's web toolchain and
+held the parse-stack ceiling with **no new top-level editor-ladder arm**.
+
+- **What `mty serve` / `wasm32-web` actually do (v0.36, verified):**
+  - `mty build --target wasm32-web <file>` emits a **Component-Model** `.wasm`
+    to `<dir>/target/<stem>.wasm` (default; `--no-component` for a bare core
+    module). It works both on a file inside a package AND on a bare standalone
+    `.mty` file. The pure `examples/webspin` sample built to a 2172-byte
+    component.
+  - `mty serve` reads `mighty.toml`, builds with `--target wasm32-web`, and
+    serves `web/` + the freshly-built **`main.wasm`** on `127.0.0.1:<port>`
+    (default **8000**; `--port`, `--manifest-dir`, `--watch`). It is
+    **package-scoped, not file-scoped** — it needs a `mighty.toml` + a `web/`
+    dir (the `mty new --template web-game` shape: `mighty.toml`, `src/main.mty`,
+    `web/index.html`, `web/dom-shim.js`). Its **only** stdout line is the
+    scrapeable banner `mty serve: listening on http://127.0.0.1:<port>`.
+    `--watch` adds a `/_reload` websocket that pushes `reload` on every
+    successful rebuild. Verified: `/` → 200, `/main.wasm` → 200, `/dom-shim.js`
+    → 200.
+  - **Browsers can't run a component directly** — the `web-game` `dom-shim.js`
+    scans the Component-Model envelope for the inner `\0asm\x01\x00\x00\x00`
+    core-module preamble and instantiates that, wiring `log(ptr,len)` over
+    linear memory as a `(env|mty).log` import. The guest speaks the v0.22
+    `log("evt:…")` state-event channel; the `mty:web/canvas@0.1` WIT binding
+    (direct canvas draws) is slated for v0.24 and not yet usable.
+
+- **Gaps found:** module-level `let mut` globals are a **parse error**
+  (`unexpected token let`); number→string formatting for `log` does not lower on
+  `wasm32-web` in v0.36 (so a "spinner counter" guest must keep the arithmetic
+  host-side and `log` only literals). Keeping the sample to literal `log`s +
+  agent state is what makes it build cleanly. **Web samples must be pure** — an
+  `extern "C"` program won't wasm-run.
+
+- **The IDE wiring (mode-switch + L37/L38 held):** the Web Playground picks
+  `Mode::Serve` when the file's package has both `mighty.toml` + a `web/` dir,
+  else falls back to `Mode::Build` (`mty build --target wasm32-web` → a generated
+  HTML harness in a temp dir → `python -m http.server`). It reuses the
+  `crate::run` spawn/reader-thread/pump pattern verbatim; the served URL is
+  scraped from output and opened via `cmd /C start "" <url>`. **No new top-level
+  ladder arm:** the chord lives in the shim `mui_chord` router (**Alt+W**, the
+  L38 escape hatch), the palette command (`CMD_RUN_IN_BROWSER` id 31, "Mighty:
+  Run in Browser") dispatches through the existing palette/quick-open arms, and
+  the focused-panel input was folded into the **existing `run_focus` arm**
+  (widened to `run_focus || web_focus` with a nested `if web_focus` — nesting is
+  fine, only new top-level siblings overflow). The git dispatch arm was
+  range-bounded (`>= cmd_git_first() && <= cmd_git_last()`) so id 31 isn't
+  swallowed by the catch-all git route.
+
+**No new Mighty-source limitation.** Tests: 523 pass (was 508; +15 — URL
+extract [banner/punctuation/https/absent], `port_of`, pump-scrape+fresh-latch,
+feed split/partial, error-line latch, `decide_mode` serve-vs-build, `seed_demo`,
+scroll clamp, empty-open no-op, + a **guarded integration test that built the
+pure `webspin` sample to a real `wasm32-web` component** and asserted the `.wasm`
+— it RAN and PASSED, producing a 2172-byte component). ABI added: `mui_web_run/
+stop/toggle/active/running/pump/open_browser/url_len/url_char/line_count/line_len/
+line_char/scroll/click/draw`. Screenshot `screenshots/41-web.png`
+(`MUI_WEB_AUTOOPEN` seeds a `mty serve` session + scraped URL) at 1320x860. New
+icon `icons::GLOBE`. Pure sample: `examples/webspin/` (Spin agent → spinning arc
++ frame counter).
+
 ## Open questions to resolve as the IDE progresses
 - Exact `extern c` signature support: pointers (`*U8`), out-params (`&out T`), passing a
   `Vec`/slice as `(ptr, len)`, returning `#[repr(C)]` structs by value vs. out-param?
