@@ -44,6 +44,8 @@ mod settingspanel;
 mod syntax;
 mod tabs;
 mod terminal;
+mod testabi;
+mod tests_panel;
 mod text;
 mod theme;
 mod themepicker;
@@ -248,6 +250,11 @@ pub struct MuiContext {
     /// into a scrollable output view with clickable diagnostics. Shim-owned.
     run: run::RunPanel,
 
+    // ---- Test panel (the beaker rail icon → Testing results view) ----
+    /// The Test panel: a background `mty test` over the active file's package,
+    /// parsed into a pass/fail results tree with click-to-jump. Shim-owned.
+    tests_panel: tests_panel::TestPanel,
+
     // ---- debugger (Run and Debug rail icon → DAP-driven debug view) ----
     /// The debugger model: per-file breakpoints, the live `mty dap` session,
     /// the current stop position, the call stack + selected frame, the
@@ -295,6 +302,8 @@ pub const PANEL_SCM: i32 = 2;
 pub const PANEL_OUTLINE: i32 = 5;
 /// Run and Debug sidebar panel — rail slot 6 (the bug icon).
 pub const PANEL_DEBUG: i32 = 6;
+/// Testing sidebar panel — rail slot 7 (the beaker icon).
+pub const PANEL_TEST: i32 = 7;
 
 // ---------------------------------------------------------------------------
 // Vello display-list helpers (used by the chrome/editor draw functions to emit
@@ -625,6 +634,7 @@ pub(crate) fn build_context(
         search: search::SearchState::new(),
         ai: ai::AiPanel::new(),
         run: run::RunPanel::new(),
+        tests_panel: tests_panel::TestPanel::new(),
         dbg: dap::DebugModel::new(),
         diff: diff::DiffView::new(),
         settings_panel: settingspanel::SettingsPanel::new(),
@@ -1243,6 +1253,7 @@ impl MuiContext {
             search: search::SearchState::new(),
             ai: ai::AiPanel::new(),
             run: run::RunPanel::new(),
+            tests_panel: tests_panel::TestPanel::new(),
             dbg: dap::DebugModel::new(),
             diff: diff::DiffView::new(),
             settings_panel: settingspanel::SettingsPanel::new(),

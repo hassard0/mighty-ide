@@ -111,6 +111,12 @@ pub const CHEVRON_DOWN: &str = "M6 9l6 6 6-6";
 /// Replace (swap arrows) — the replace field marker.
 pub const REPLACE: &str = "M4 7h11l-3-3M20 17H9l3 3";
 
+// ---- Testing (Test panel rail icon + result-row marks) ----
+/// Beaker / flask (Testing rail icon): a tapered flask with a neck + a fill line.
+pub const BEAKER: &str = "M9 3h6 M10 3v5L5.5 17.5A2 2 0 0 0 7.3 20.5h9.4a2 2 0 0 0 1.8-3L14 8V3 M8 13h8";
+/// Red x mark (failed test row) — two crossing strokes inside the row box.
+pub const XMARK: &str = "M7 7l10 10M17 7 7 17";
+
 // ---- Command palette icons ----
 /// Test workspace (terminal-ish box with a prompt).
 pub const TEST_BOX: &str = "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z M8 9.5 10.5 12 8 14.5M13 14.5h3";
