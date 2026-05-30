@@ -931,6 +931,46 @@ mty v0.36 parse gotcha worth recording:
   `screenshots/50-shortcuts.png` (`MUI_SHORTCUTS_AUTOOPEN="alt"` opens the overlay
   filtered) at 1320x860.
 
+### L47. mty `&&` / `||` do NOT short-circuit — both operands always evaluate ⚠️ **[NEW language gotcha, P1 — correctness risk]**
+Discovered while debugging live windowed input with the new Windows UI harness
+(`tools/win-ui-harness.ps1` + the `MUI_TRACE` shim event log). A guard written as
+`(run_focus || web_focus) && !(tag == ev_mouse_down() && mui_rail_panel_at_click(h) >= 0)`
+called `mui_rail_panel_at_click(h)` on **every** event — including `char`/`key`
+events where `tag == ev_mouse_down()` is false. In a short-circuiting language the
+right operand of the inner `&&` would never run. The trace proved otherwise: a
+`rail_panel_at_click x=0.0 y=0.0 -> -1` line appeared for each keystroke.
+
+- **Why it matters:** this is a real correctness footgun, not just perf. Idioms
+  like `if p != null && p.field > 0` or `if i < len && arr[i] == x` (guard-then-use)
+  will execute the second operand even when the guard is false — a null-deref /
+  out-of-bounds in any language that assumes short-circuit. We only got away with it
+  here because `mui_rail_panel_at_click` is side-effect-free and tolerates `(0,0)`.
+- **Fix/idiom for now:** never rely on the guard half of `&&`/`||` to protect the
+  other half. Nest the dependent access (`if guard { if use {...} }`) or bind the
+  cheap guard first. Keep both operands independently safe to evaluate.
+- **Language ask (P1):** make `&&`/`||` short-circuit (the near-universal contract).
+  If lazy evaluation is intentionally out of scope, this MUST be loudly documented —
+  it silently breaks guard patterns ported from every other language.
+
+### L48. Offscreen render tests are blind to the live winit event loop — a real Windows input/screenshot harness is mandatory **[process finding]**
+The IDE's prior "verification" rendered offscreen and pushed input straight through
+the ABI, so it never exercised the live window: real DPI scaling, real click
+hit-testing, OS focus, and event routing. A user run surfaced four bugs the
+offscreen path could never see (dead rail, click-locks-up, can't-type, OS-frame).
+Built `tools/win-ui-harness.ps1`: launches the real `.exe`, resolves the LARGEST
+visible top-level window of the process (winit briefly exposes a 14×14 helper
+window `MainWindowHandle` can latch onto — picking by area avoids it), injects
+input via **`PostMessage` to the HWND** (focus-independent — `SendInput` silently
+lost every event to the foreground-locked terminal), screen-captures via
+`CopyFromScreen` (works for the GPU/DXGI surface; `PrintWindow` returns black), and
+probes `SendMessageTimeout(WM_NULL, ABORTIFHUNG)` for true Win32 hangs. Paired with
+the env-gated `MUI_TRACE` shim log (every popped event + its shim classification +
+a per-60-frame heartbeat), it makes the live app fully observable: it pinpointed the
+focus-trap routing bug (clicks reached `main.mty` but a keyboard-focus arm swallowed
+the `mouse_down`) and confirmed each fix. **Takeaway:** GUI changes must be verified
+with real simulated input on a live window, not offscreen renders; keep the harness
+green.
+
 ## Open questions to resolve as the IDE progresses
 - Exact `extern c` signature support: pointers (`*U8`), out-params (`&out T`), passing a
   `Vec`/slice as `(ptr, len)`, returning `#[repr(C)]` structs by value vs. out-param?

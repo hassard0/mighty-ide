@@ -36,6 +36,7 @@ pub extern "C" fn mui_panel_active(handle: i64) -> i32 {
 /// active panel.
 #[no_mangle]
 pub extern "C" fn mui_panel_set(handle: i64, panel: i32) -> i32 {
+    crate::abi::trace(&format!("panel_set req={panel}"));
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return crate::PANEL_EXPLORER;
     };
@@ -69,23 +70,23 @@ pub extern "C" fn mui_rail_panel_at_click(handle: i64) -> i32 {
     };
     let x = ctx.last_event.x;
     let y = ctx.last_event.y;
-    if !(0.0..=layout::RAIL_W).contains(&x) {
-        return -1;
-    }
-    let cell = 38.0_f32;
-    let gap = 4.0_f32;
-    let icon_top = 52.0_f32;
-    if y < icon_top {
-        return -1;
-    }
-    let slot = ((y - icon_top) / (cell + gap)).floor() as i32;
-    if (0..=8).contains(&slot) {
-        let cy = icon_top + slot as f32 * (cell + gap);
-        if y <= cy + cell {
-            return slot;
+    let mut out = -1;
+    if (0.0..=layout::RAIL_W).contains(&x) {
+        let cell = 38.0_f32;
+        let gap = 4.0_f32;
+        let icon_top = 52.0_f32;
+        if y >= icon_top {
+            let slot = ((y - icon_top) / (cell + gap)).floor() as i32;
+            if (0..=8).contains(&slot) {
+                let cy = icon_top + slot as f32 * (cell + gap);
+                if y <= cy + cell {
+                    out = slot;
+                }
+            }
         }
     }
-    -1
+    crate::abi::trace(&format!("rail_panel_at_click x={x:.1} y={y:.1} -> {out}"));
+    out
 }
 
 /// The workspace directory the SCM/search panels operate over: the EXPLICIT

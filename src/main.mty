@@ -1562,8 +1562,12 @@ fn main() {
             }
           }
         }
-      } else if ai_focus {
+      } else if ai_focus && tag != ev_mouse_down() {
         // -------- AI copilot panel focused: route keys to its input ----------
+        // (mouse_down is intentionally NOT captured here: a click is positional
+        // and must reach the unified mouse router at `ev_mouse_down()` below so
+        // the rail / tabs / panel bodies stay clickable while the AI panel has
+        // keyboard focus. Previously this arm swallowed clicks, freezing the rail.)
         if tag == ev_char() {
           let cp = mui_event_codepoint(h)
           let mods = mui_event_mods(h)
@@ -1637,8 +1641,12 @@ fn main() {
             settings_open = false
           }
         }
-      } else if run_focus || web_focus {
+      } else if (run_focus || web_focus) && !(tag == ev_mouse_down() && mui_rail_panel_at_click(h) >= 0) {
         // -------- Bottom-band panel focused: Run panel OR Web Playground -------
+        // A rail-icon click escapes to the unified router (so the rail stays live
+        // while this band has focus); the band still handles its own row/button
+        // clicks and keyboard. The `tag == ev_mouse_down()` guard short-circuits
+        // so the rail hit-test only runs for actual clicks.
         // Both are scroll-output bands with esc-to-unfocus; the Web panel adds
         // Stop / Open-in-browser header buttons. Sharing this ONE top-level arm
         // keeps the editor key ladder at its L37/L38 parse-stack ceiling (no new
@@ -1664,6 +1672,10 @@ fn main() {
             } else if wc == 2 {
               // Open the served URL in the default browser.
               let _ob = mui_web_open_browser(h)
+            } else {
+              // Clicked outside the Web band: release focus so the click flow
+              // recovers (the next click reaches the editor / its target).
+              web_focus = false
             }
           }
         } else {
@@ -1696,6 +1708,10 @@ fn main() {
                   run_focus = false
                 }
               }
+            } else {
+              // Clicked outside the Run output band: release focus so the click
+              // flow recovers (the next click reaches the editor / its target).
+              run_focus = false
             }
           }
         }
@@ -1757,6 +1773,10 @@ fn main() {
                   test_focus = false
                 }
               }
+            } else {
+              // Clicked outside the Test results: release focus so the click flow
+              // recovers (the next click reaches the editor / its target).
+              test_focus = false
             }
           }
         }
@@ -1903,8 +1923,10 @@ fn main() {
             }
           }
         }
-      } else if term_focus {
+      } else if term_focus && tag != ev_mouse_down() {
         // -------- terminal has focus: route keystrokes to the shell ---------
+        // mouse_down falls through to the unified router so the rail/tabs stay
+        // clickable while the terminal has keyboard focus.
         if tag == ev_char() {
           let cp = mui_event_codepoint(h)
           let mods = mui_event_mods(h)
@@ -2021,8 +2043,10 @@ fn main() {
           mui_codeaction_cancel(h)
           code_action_open = false
         }
-      } else if mui_panel_active(h) == panel_search() {
+      } else if mui_panel_active(h) == panel_search() && tag != ev_mouse_down() {
         // -------- Search panel has focus: type into the query/replace field ---
+        // mouse_down falls through to the unified router (rail clicks switch
+        // panels; a result-row click opens the match) — see `ev_mouse_down()`.
         if tag == ev_char() {
           let cp = mui_event_codepoint(h)
           if cp >= 32 && cp < 127 { mui_search_push_char(h, cp) }
@@ -2044,8 +2068,10 @@ fn main() {
             let _p = mui_panel_set(h, panel_explorer())
           }
         }
-      } else if mui_panel_active(h) == panel_scm() {
+      } else if mui_panel_active(h) == panel_scm() && tag != ev_mouse_down() {
         // -------- Source Control panel has focus: commit-message input --------
+        // mouse_down falls through to the unified router (rail clicks switch
+        // panels; a row click stages/opens the file) — see `ev_mouse_down()`.
         if tag == ev_char() {
           let cp = mui_event_codepoint(h)
           if cp >= 32 && cp < 127 { mui_scm_msg_push(h, cp) }
@@ -2219,6 +2245,10 @@ fn main() {
           }
         } else if cp >= 32 && cp < 127 {                    // printable ASCII : insert
           find_nav = false
+          // Typing on the Welcome landing dismisses it so the editor (and what
+          // the user is typing) becomes visible — otherwise the first keystrokes
+          // vanish into the hidden buffer behind the landing.
+          if mui_welcome_active(h) == 1 { mui_welcome_dismiss(h) }
           // Record an undo checkpoint at the start of a typing run only.
           if !typing { mui_ed_undo_record(h); typing = true }
           // Snippet mode: typing over a selected tab-stop placeholder replaces it
@@ -2781,6 +2811,15 @@ fn main() {
                 let _l = mui_ed_click(h)                       // plain click: place the single caret
               }
               typing = false
+              // Clicking into the editor body restores editor keyboard focus:
+              // drop any transient band/panel focus so typing goes to the buffer
+              // (previously, after focusing Run/Test/Terminal/AI, keystrokes were
+              // trapped there until Escape — an editor click now releases it).
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
             }
           }
         }

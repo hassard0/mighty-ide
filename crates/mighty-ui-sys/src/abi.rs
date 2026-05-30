@@ -1397,6 +1397,12 @@ pub extern "C" fn mui_begin_frame_s(handle: i64) {
 #[no_mangle]
 pub extern "C" fn mui_end_frame_s(handle: i64) {
     unsafe { crate::mui_end_frame(handle as usize as *mut MuiContext) };
+    // Heartbeat: log every 60th frame so a frozen render loop is visible in the
+    // trace (a logical hang the OS message pump would not reveal).
+    let n = FRAME_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+    if n % 60 == 0 {
+        trace(&format!("FRAME {n}"));
+    }
 }
 
 #[no_mangle]
@@ -1807,6 +1813,36 @@ enum ShimAction {
     PassThrough,
 }
 
+/// Append a line to the trace file named by the `MUI_TRACE` env var, if set.
+/// Used by the Windows UI harness to see exactly what input the live event loop
+/// receives and how the shim classifies it (clicks, keys, drag/zoom intercepts,
+/// frame heartbeat) — the offscreen render tests could not observe any of this.
+pub(crate) fn trace(msg: &str) {
+    use std::io::Write;
+    use std::sync::OnceLock;
+    // Resolve MUI_TRACE once: when unset (the normal case) this is a cheap cached
+    // `None` check, so the trace calls scattered through the hot event/frame paths
+    // cost nothing in a normal run.
+    static PATH: OnceLock<Option<String>> = OnceLock::new();
+    let Some(path) = PATH.get_or_init(|| std::env::var("MUI_TRACE").ok()) else {
+        return;
+    };
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(f, "{msg}");
+    }
+}
+
+fn trace_event(ev: &MuiEvent, action: &str) {
+    trace(&format!(
+        "EV tag={} btn={} x={:.1} y={:.1} mods={} cp={} key={} scrolly={:.1} -> {}",
+        ev.tag, ev.button, ev.x, ev.y, ev.mods, ev.codepoint, ev.key, ev.scroll_y, action
+    ));
+}
+
+/// Monotonic frame counter for the trace heartbeat (detects a frozen render loop
+/// even when the OS message pump still answers — i.e. a logical, not Win32, hang).
+static FRAME_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 /// The custom (borderless) title bar + UI zoom live ENTIRELY shim-side: the IDE
 /// (main.mty) is unaware of them. This intercepts events as they are popped, so
 /// `main.mty`'s dispatch ladder never gains the extra nesting that overflowed the
@@ -1926,12 +1962,17 @@ pub extern "C" fn mui_poll_event_s(handle: i64) -> i32 {
             return 0;
         }
         match shim_intercept(c, &ev) {
-            ShimAction::Consume => continue,
+            ShimAction::Consume => {
+                trace_event(&ev, "consume");
+                continue;
+            }
             ShimAction::Replace(rep) => {
+                trace_event(&ev, "replace->close");
                 c.last_event = rep;
                 return rep.tag as i32;
             }
             ShimAction::PassThrough => {
+                trace_event(&ev, "passthrough");
                 c.last_event = ev;
                 return ev.tag as i32;
             }
@@ -8426,6 +8467,7 @@ pub extern "C" fn mui_ed_insert_char_multi(handle: i64, cp: i32) {
 /// smart/plain branch when multiple carets are active.
 #[no_mangle]
 pub extern "C" fn mui_ed_insert_smart_multi(handle: i64, cp: i32) {
+    trace(&format!("ed_insert_smart_multi cp={cp}"));
     if let Some(m) = unsafe { model_mut(handle) } {
         if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
             m.insert_char_smart_multi(ch);
@@ -8648,6 +8690,7 @@ pub extern "C" fn mui_welcome_open(handle: i64) {
 /// Dismiss the forced Welcome screen (called after opening a file from it).
 #[no_mangle]
 pub extern "C" fn mui_welcome_dismiss(handle: i64) {
+    trace("welcome_dismiss");
     if let Some(ctx) = unsafe { ctx(handle) } {
         ctx.welcome.dismiss();
     }
@@ -8681,7 +8724,9 @@ pub extern "C" fn mui_welcome_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return crate::welcome::ACTION_NONE;
     };
-    ctx.welcome.click(ctx.last_event.x, ctx.last_event.y)
+    let a = ctx.welcome.click(ctx.last_event.x, ctx.last_event.y);
+    trace(&format!("welcome_click x={:.1} y={:.1} -> {a}", ctx.last_event.x, ctx.last_event.y));
+    a
 }
 
 /// Open a Welcome recents row (`i = action - ACTION_RECENT_BASE`) as a new tab.
