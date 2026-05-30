@@ -40,9 +40,43 @@ use crate::ffi::MuiColor;
 
 // Bundled fonts (same faces glyphon used), embedded so the binary is
 // self-contained. JetBrains Mono = code + monospace chrome; Bricolage Grotesque
-// = UI labels (headers, wordmark, status, badges).
+// = UI labels (headers, wordmark, status, badges). Each family carries its REAL
+// bold / italic faces (no faux synthesis) so emphasis renders as a true face.
 const FONT_CODE: &[u8] = include_bytes!("../../../fonts/JetBrainsMono-Regular.ttf");
+const FONT_CODE_BOLD: &[u8] = include_bytes!("../../../fonts/JetBrainsMono-Bold.ttf");
+const FONT_CODE_ITALIC: &[u8] = include_bytes!("../../../fonts/JetBrainsMono-Italic.ttf");
+const FONT_CODE_BOLD_ITALIC: &[u8] =
+    include_bytes!("../../../fonts/JetBrainsMono-BoldItalic.ttf");
 const FONT_UI: &[u8] = include_bytes!("../../../fonts/BricolageGrotesque-SemiBold.ttf");
+const FONT_UI_BOLD: &[u8] = include_bytes!("../../../fonts/BricolageGrotesque-Bold.ttf");
+
+/// The face a glyph run is drawn in. `Bold` / `Italic` select a TRUE bundled
+/// face (not a faux/synthesized slant or weight). `BoldItalic` is the combined
+/// face; the UI family (Bricolage) has no italic so italic UI text falls back to
+/// the bold UI face for emphasis.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum FontStyle {
+    #[default]
+    Regular,
+    Bold,
+    Italic,
+    BoldItalic,
+}
+
+impl FontStyle {
+    /// Combine a base style with bold / italic flags (used when flattening
+    /// markdown spans that may nest `**_x_**`).
+    pub fn with(self, bold: bool, italic: bool) -> FontStyle {
+        let b = bold || matches!(self, FontStyle::Bold | FontStyle::BoldItalic);
+        let i = italic || matches!(self, FontStyle::Italic | FontStyle::BoldItalic);
+        match (b, i) {
+            (true, true) => FontStyle::BoldItalic,
+            (true, false) => FontStyle::Bold,
+            (false, true) => FontStyle::Italic,
+            (false, false) => FontStyle::Regular,
+        }
+    }
+}
 
 /// Convert a shim [`MuiColor`] (0..=1 floats) to a Vello/peniko [`Color`].
 #[inline]
@@ -163,6 +197,8 @@ pub enum UiCmd {
         size: f32,
         /// `true` shapes in the UI family (Bricolage Grotesque) rather than code.
         ui: bool,
+        /// The face (regular / bold / italic / bold-italic) to shape this run in.
+        style: FontStyle,
     },
 }
 
@@ -207,7 +243,11 @@ impl DisplayList {
 pub struct VelloUi {
     renderer: Renderer,
     code: Font,
+    code_bold: Font,
+    code_italic: Font,
+    code_bold_italic: Font,
     ui: Font,
+    ui_bold: Font,
 }
 
 impl VelloUi {
@@ -226,8 +266,39 @@ impl VelloUi {
         )
         .map_err(|e| format!("Vello Renderer::new failed: {e}"))?;
         let code = Font::new(Blob::new(Arc::new(FONT_CODE)), 0);
+        let code_bold = Font::new(Blob::new(Arc::new(FONT_CODE_BOLD)), 0);
+        let code_italic = Font::new(Blob::new(Arc::new(FONT_CODE_ITALIC)), 0);
+        let code_bold_italic = Font::new(Blob::new(Arc::new(FONT_CODE_BOLD_ITALIC)), 0);
         let ui = Font::new(Blob::new(Arc::new(FONT_UI)), 0);
-        Ok(Self { renderer, code, ui })
+        let ui_bold = Font::new(Blob::new(Arc::new(FONT_UI_BOLD)), 0);
+        Ok(Self {
+            renderer,
+            code,
+            code_bold,
+            code_italic,
+            code_bold_italic,
+            ui,
+            ui_bold,
+        })
+    }
+
+    /// Resolve a `(ui, style)` pair to the real bundled face. Code has all four
+    /// faces; the UI family has only regular + bold, so any italic UI request
+    /// uses the bold UI face (emphasis) — never a faux slant.
+    fn face(&self, ui: bool, style: FontStyle) -> &Font {
+        if ui {
+            match style {
+                FontStyle::Regular | FontStyle::Italic => &self.ui,
+                FontStyle::Bold | FontStyle::BoldItalic => &self.ui_bold,
+            }
+        } else {
+            match style {
+                FontStyle::Regular => &self.code,
+                FontStyle::Bold => &self.code_bold,
+                FontStyle::Italic => &self.code_italic,
+                FontStyle::BoldItalic => &self.code_bold_italic,
+            }
+        }
     }
 
     /// The window base / GPU clear color — the active theme's `bg`.
@@ -565,8 +636,9 @@ impl VelloUi {
                 color,
                 size,
                 ui,
+                style,
             } => {
-                self.draw_text(scene, text, *x, *y, *size, col(*color), *ui);
+                self.draw_text(scene, text, *x, *y, *size, col(*color), *ui, *style);
             }
         }
     }
@@ -585,11 +657,12 @@ impl VelloUi {
         size_px: f32,
         color: Color,
         ui: bool,
+        style: FontStyle,
     ) {
         if text.is_empty() {
             return;
         }
-        let font = if ui { &self.ui } else { &self.code };
+        let font = self.face(ui, style);
         let font_ref = {
             let file = match FileRef::new(font.data.as_ref()) {
                 Ok(f) => f,

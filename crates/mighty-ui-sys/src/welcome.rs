@@ -170,8 +170,15 @@ impl WelcomeState {
 
         // Wordmark to the right of the tile.
         let word_x = tx + tile + 22.0;
-        ctx.text
-            .queue_ui_sized(word_x, y + 8.0, "Mighty", theme::TEXT(), 40.0, clip);
+        ctx.text.queue_ui_styled(
+            word_x,
+            y + 8.0,
+            "Mighty",
+            theme::TEXT(),
+            40.0,
+            crate::vello_ui::FontStyle::Bold,
+            clip,
+        );
         ctx.text.queue_ui_sized(
             word_x + 2.0,
             y + 50.0,
@@ -190,11 +197,13 @@ impl WelcomeState {
         let right_x = cx + half + gutter;
         let row_h = 40.0_f32;
 
-        // Section headers.
-        ctx.text
-            .queue_ui_sized(left_x, y, "START", theme::TEXT_3(), 11.5, clip);
-        ctx.text
-            .queue_ui_sized(right_x, y, "RECENT", theme::TEXT_3(), 11.5, clip);
+        // Section headers (bold UI face).
+        ctx.text.queue_ui_styled(
+            left_x, y, "START", theme::TEXT_3(), 11.5, crate::vello_ui::FontStyle::Bold, clip,
+        );
+        ctx.text.queue_ui_styled(
+            right_x, y, "RECENT", theme::TEXT_3(), 11.5, crate::vello_ui::FontStyle::Bold, clip,
+        );
         let rows_top = y + 22.0;
 
         // Quick actions (left column).

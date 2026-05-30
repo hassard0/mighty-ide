@@ -426,15 +426,31 @@ impl Painter<'_> {
             } else {
                 base
             };
-            self.ctx
-                .text
-                .queue_ui_sized(px, y, &piece.text, color, size, self.clip);
+            // Pick a TRUE face from the piece's emphasis (plus the line-level bold
+            // for headings). `**bold**` / headings -> Bricolage Bold (a true bold
+            // UI face). `*italic*` has no italic in the UI family, so it shapes in
+            // the code family's TRUE italic face (a genuine slant, never faux).
+            let bold = base_bold || matches!(piece.kind, PieceKind::Bold);
+            let italic = matches!(piece.kind, PieceKind::Italic);
+            if italic && !bold {
+                self.ctx.text.queue_styled(
+                    px,
+                    y,
+                    &piece.text,
+                    color,
+                    size,
+                    crate::vello_ui::FontStyle::Italic,
+                    self.clip,
+                );
+            } else {
+                let style = crate::vello_ui::FontStyle::default().with(bold, italic);
+                self.ctx
+                    .text
+                    .queue_ui_styled(px, y, &piece.text, color, size, style, self.clip);
+            }
             if matches!(piece.kind, PieceKind::Strike) {
                 self.ctx.dl_rect(px, y + size * 0.5, adv, 1.0, theme::DIM());
             }
-            // We can't change the embedded font weight per-run (one UI face), so
-            // bold/heading text reads via color emphasis; keep advance consistent.
-            let _ = base_bold;
             px += adv;
         }
     }

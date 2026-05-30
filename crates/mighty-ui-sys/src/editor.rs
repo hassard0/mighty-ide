@@ -155,6 +155,49 @@ impl TextModel {
         self.lines.join("\n")
     }
 
+    /// Replace the document text in place (re-splitting into lines on `\n`,
+    /// stripping a trailing `\r` per line), clamping every caret + the scroll to
+    /// the new line/col bounds. Used by the on-save transforms (trim trailing
+    /// whitespace / ensure final newline) so the in-memory buffer matches what
+    /// was written to disk WITHOUT jumping the cursor to the top. Returns `true`
+    /// if the text actually changed.
+    pub fn set_text_preserving_cursor(&mut self, text: &str) -> bool {
+        let mut new_lines: Vec<String> = text
+            .split('\n')
+            .map(|l| l.strip_suffix('\r').unwrap_or(l).to_string())
+            .collect();
+        if new_lines.is_empty() {
+            new_lines.push(String::new());
+        }
+        if new_lines == self.lines {
+            return false;
+        }
+        self.lines = new_lines;
+        let max_line = self.lines.len().saturating_sub(1);
+        for c in &mut self.carets {
+            if c.line > max_line {
+                c.line = max_line;
+            }
+            let max_col = self.lines[c.line].chars().count();
+            if c.col > max_col {
+                c.col = max_col;
+            }
+            if let Some(a) = c.anchor.as_mut() {
+                if a.0 > max_line {
+                    a.0 = max_line;
+                }
+                let amax = self.lines[a.0].chars().count();
+                if a.1 > amax {
+                    a.1 = amax;
+                }
+            }
+        }
+        if self.first_visible > max_line {
+            self.first_visible = max_line;
+        }
+        true
+    }
+
     // ---- accessors ----
 
     pub fn line_count(&self) -> usize {

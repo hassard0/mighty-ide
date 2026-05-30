@@ -48,6 +48,8 @@ extern c {
   fn mui_ed_set_dirty(handle: I64, dirty: I32)
   fn mui_ed_load(handle: I64) -> I64
   fn mui_ed_save(handle: I64) -> I32
+  fn mui_autosave_tick(handle: I64) -> I32
+  fn mui_autosave_touch(handle: I64)
   fn mui_ed_find_run(handle: I64) -> I32
   fn mui_ed_complete_request(handle: I64) -> I32
   fn mui_ed_complete_accept(handle: I64) -> I32
@@ -2645,6 +2647,11 @@ fn main() {
 
     // Advance toast timers BEFORE drawing so expired cards disappear this frame.
     let _toast_changed = mui_toast_tick(h)
+
+    // Auto-save tick: when the Auto Save pref is ON, save the active file ~1.2s
+    // after the last edit (debounced; only real file-backed, dirty tabs). No-op
+    // when the pref is OFF or the tab has no path. Returns 1 when a save fired.
+    let _autosaved = mui_autosave_tick(h)
 
     // Welcome screen replaces the editor body when no file is open (or when
     // forced from the palette). Zen / focus mode hides the rail, sidebar, tab

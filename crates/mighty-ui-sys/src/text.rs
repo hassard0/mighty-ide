@@ -18,12 +18,16 @@ use glyphon::{
 
 use crate::ffi::MuiColor;
 use crate::theme;
+use crate::vello_ui::FontStyle;
 
 /// The distinctive bundled monospace family (JetBrains Mono) — used for code.
 const FONT_FAMILY: &str = "JetBrains Mono";
-/// Regular + Bold faces, embedded so the binary is self-contained.
+/// Regular + Bold + Italic + BoldItalic faces, embedded so the binary is
+/// self-contained (real faces, not faux synthesis).
 const FONT_REGULAR: &[u8] = include_bytes!("../../../fonts/JetBrainsMono-Regular.ttf");
 const FONT_BOLD: &[u8] = include_bytes!("../../../fonts/JetBrainsMono-Bold.ttf");
+const FONT_ITALIC: &[u8] = include_bytes!("../../../fonts/JetBrainsMono-Italic.ttf");
+const FONT_BOLD_ITALIC: &[u8] = include_bytes!("../../../fonts/JetBrainsMono-BoldItalic.ttf");
 
 /// The bundled UI family (Bricolage Grotesque, SIL OFL) — used for chrome labels
 /// (sidebar header, status bar, tabs, breadcrumb) to match the mockup's UI font.
@@ -59,6 +63,8 @@ struct TextCmd {
     /// `true` to shape this command in the UI family (Bricolage Grotesque)
     /// instead of the monospace code family.
     ui: bool,
+    /// The face (regular / bold / italic / bold-italic) for this run.
+    style: FontStyle,
 }
 
 pub struct Text {
@@ -91,6 +97,8 @@ impl Text {
         let mut db = glyphon::fontdb::Database::new();
         db.load_font_data(FONT_REGULAR.to_vec());
         db.load_font_data(FONT_BOLD.to_vec());
+        db.load_font_data(FONT_ITALIC.to_vec());
+        db.load_font_data(FONT_BOLD_ITALIC.to_vec());
         // UI family (Bricolage Grotesque) for chrome labels.
         db.load_font_data(UI_REGULAR.to_vec());
         db.load_font_data(UI_SEMIBOLD.to_vec());
@@ -144,6 +152,7 @@ impl Text {
                 color,
                 size: cmd.size,
                 ui: cmd.ui,
+                style: cmd.style,
             };
             // Text clip is stored as (left, top, right, bottom) ints; convert
             // back to (x, y, w, h) floats for the Vello clip layer.
@@ -206,6 +215,36 @@ impl Text {
             clip,
             overlay: self.overlay,
             ui: false,
+            style: FontStyle::Regular,
+        });
+    }
+
+    /// Like [`Text::queue_sized`] but in an explicit code-font `style` (used to
+    /// render comments in italic / keywords in bold via a TRUE face).
+    #[allow(clippy::too_many_arguments)]
+    pub fn queue_styled(
+        &mut self,
+        x: f32,
+        y: f32,
+        text: &str,
+        color: MuiColor,
+        size: f32,
+        style: FontStyle,
+        clip: Option<(u32, u32, u32, u32)>,
+    ) {
+        let clip = clip.map(|(cx, cy, cw, ch)| {
+            (cx as i32, cy as i32, (cx + cw) as i32, (cy + ch) as i32)
+        });
+        self.cmds.push(TextCmd {
+            x,
+            y,
+            text: text.to_string(),
+            color: mui_to_color(color),
+            size,
+            clip,
+            overlay: self.overlay,
+            ui: false,
+            style,
         });
     }
 
@@ -233,6 +272,37 @@ impl Text {
             clip,
             overlay: self.overlay,
             ui: self.has_ui_font,
+            style: FontStyle::Regular,
+        });
+    }
+
+    /// Like [`Text::queue_ui_sized`] but in an explicit UI-font `style` (bold for
+    /// headers / active tab / wordmark; the UI family has no italic so italic
+    /// maps to the bold face for emphasis).
+    #[allow(clippy::too_many_arguments)]
+    pub fn queue_ui_styled(
+        &mut self,
+        x: f32,
+        y: f32,
+        text: &str,
+        color: MuiColor,
+        size: f32,
+        style: FontStyle,
+        clip: Option<(u32, u32, u32, u32)>,
+    ) {
+        let clip = clip.map(|(cx, cy, cw, ch)| {
+            (cx as i32, cy as i32, (cx + cw) as i32, (cy + ch) as i32)
+        });
+        self.cmds.push(TextCmd {
+            x,
+            y,
+            text: text.to_string(),
+            color: mui_to_color(color),
+            size,
+            clip,
+            overlay: self.overlay,
+            ui: self.has_ui_font,
+            style,
         });
     }
 

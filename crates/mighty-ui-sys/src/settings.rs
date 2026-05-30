@@ -62,6 +62,13 @@ pub struct Settings {
     /// Indent guides: faint vertical lines at each indentation level, the active
     /// (cursor block) level brightened. Default ON.
     pub indent_guides: bool,
+    /// On save: strip trailing whitespace from every line. Default ON.
+    pub trim_ws: bool,
+    /// On save: ensure the file ends with exactly one trailing newline. Default ON.
+    pub final_newline: bool,
+    /// Auto-save the active file after a short edit-idle window (debounced).
+    /// Default OFF. Only ever saves real file-backed, dirty tabs.
+    pub autosave: bool,
 }
 
 impl Default for Settings {
@@ -75,6 +82,9 @@ impl Default for Settings {
             sticky_scroll: true,
             bracket_colors: true,
             indent_guides: true,
+            trim_ws: true,
+            final_newline: true,
+            autosave: false,
         }
     }
 }
@@ -107,6 +117,9 @@ static ACTIVE: RwLock<Settings> = RwLock::new(Settings {
     sticky_scroll: true,
     bracket_colors: true,
     indent_guides: true,
+    trim_ws: true,
+    final_newline: true,
+    autosave: false,
 });
 
 /// The currently-active settings (by value; `Settings` is `Copy`).
@@ -169,6 +182,18 @@ pub fn bracket_colors() -> bool {
 pub fn indent_guides() -> bool {
     active().indent_guides
 }
+#[inline]
+pub fn trim_ws() -> bool {
+    active().trim_ws
+}
+#[inline]
+pub fn final_newline() -> bool {
+    active().final_newline
+}
+#[inline]
+pub fn autosave() -> bool {
+    active().autosave
+}
 
 // ---------------------------------------------------------------------------
 // Config persistence — extends the shared `key=value` config file used for the
@@ -206,6 +231,9 @@ pub fn parse(text: &str) -> Settings {
             "sticky_scroll" => s.sticky_scroll = parse_bool(v),
             "bracket_colors" => s.bracket_colors = parse_bool(v),
             "indent_guides" => s.indent_guides = parse_bool(v),
+            "trim_ws" => s.trim_ws = parse_bool(v),
+            "final_newline" => s.final_newline = parse_bool(v),
+            "autosave" => s.autosave = parse_bool(v),
             _ => {}
         }
     }
@@ -220,7 +248,7 @@ fn parse_bool(v: &str) -> bool {
 /// [`crate::config`]).
 pub fn render(s: &Settings) -> String {
     format!(
-        "font_size={}\ntab_width={}\nword_wrap={}\nminimap={}\ninline_ai={}\nsticky_scroll={}\nbracket_colors={}\nindent_guides={}\n",
+        "font_size={}\ntab_width={}\nword_wrap={}\nminimap={}\ninline_ai={}\nsticky_scroll={}\nbracket_colors={}\nindent_guides={}\ntrim_ws={}\nfinal_newline={}\nautosave={}\n",
         s.font_size,
         s.tab_width,
         if s.word_wrap { "true" } else { "false" },
@@ -229,6 +257,9 @@ pub fn render(s: &Settings) -> String {
         if s.sticky_scroll { "true" } else { "false" },
         if s.bracket_colors { "true" } else { "false" },
         if s.indent_guides { "true" } else { "false" },
+        if s.trim_ws { "true" } else { "false" },
+        if s.final_newline { "true" } else { "false" },
+        if s.autosave { "true" } else { "false" },
     )
 }
 
@@ -277,12 +308,7 @@ mod tests {
         let s = Settings {
             font_size: 99.0,
             tab_width: 99,
-            word_wrap: true,
-            minimap: false,
-            inline_ai: true,
-            sticky_scroll: true,
-            bracket_colors: true,
-            indent_guides: true,
+            ..Default::default()
         }
         .clamped();
         assert_eq!(s.font_size, FONT_MAX);
@@ -290,12 +316,7 @@ mod tests {
         let s2 = Settings {
             font_size: 1.0,
             tab_width: -3,
-            word_wrap: false,
-            minimap: true,
-            inline_ai: false,
-            sticky_scroll: false,
-            bracket_colors: true,
-            indent_guides: true,
+            ..Default::default()
         }
         .clamped();
         assert_eq!(s2.font_size, FONT_MIN);
@@ -324,6 +345,9 @@ mod tests {
             sticky_scroll: false,
             bracket_colors: false,
             indent_guides: false,
+            trim_ws: false,
+            final_newline: false,
+            autosave: true,
         };
         let blob = render(&s);
         let parsed = parse(&blob);
@@ -389,7 +413,7 @@ mod tests {
     #[test]
     fn set_active_clamps_and_reads_back() {
         let _g = guard();
-        set_active(Settings { font_size: 50.0, tab_width: 0, word_wrap: true, minimap: false, inline_ai: false, sticky_scroll: false, bracket_colors: true, indent_guides: true });
+        set_active(Settings { font_size: 50.0, tab_width: 0, word_wrap: true, minimap: false, inline_ai: false, ..Default::default() });
         assert_eq!(font_size(), FONT_MAX);
         assert_eq!(tab_width(), TAB_MIN);
         assert!(word_wrap());

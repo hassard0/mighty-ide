@@ -742,6 +742,21 @@ That's the whole set.
         }
     }
 
+    // Screenshot/render hook for the typography pass: with MUI_TYPO_AUTOOPEN set,
+    // seed a comment-rich Mighty buffer so a headless capture shows the editor's
+    // real italic-comment face (and the bold active-tab / EXPLORER header chrome).
+    if std::env::var_os("MUI_TYPO_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            use crate::editor::TextModel;
+            let demo = b"// greeter.mty \xE2\x80\x94 comments render in a TRUE italic face.\n// Block of doc text: note the slanted glyphs vs. the upright code below.\n\nagent Greeter {\n  state name: Str  // inline comment, also italic\n\n  // Build a friendly greeting for the stored name.\n  fn greet(self) -> Str {\n    let prefix = \"Hello, \"   // string + comment on one line\n    prefix + self.name + \"!\"\n  }\n}\n\nfn main() {\n  // The active tab label + EXPLORER header read in a bold UI face.\n  let g = Greeter { name: \"Mighty\" }\n  print(g.greet())\n}\n";
+            let m = ctx.tabs.active_model_mut();
+            *m = TextModel::from_bytes(demo);
+            ctx.edit_probe_lock = true;
+            ctx.language = crate::langdetect::Language::Mighty;
+            println!("mui_init_s: MUI_TYPO_AUTOOPEN -> comment-rich buffer seeded");
+        }
+    }
+
     // Screenshot/render hook for the git blame gutter: with MUI_BLAME_AUTOOPEN
     // set, seed a representative buffer + a parsed blame for it and activate the
     // gutter so a headless capture shows the dim per-line sha · author · date band.
@@ -2806,7 +2821,14 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
             }
             let fg = if is_active { theme::TEXT() } else { theme::DIM() };
             let ty = (bar_h - chrome) * 0.5 - 1.0;
-            ctx.text.queue_ui_sized(x + 34.0, ty, &label, fg, chrome, clip);
+            // The ACTIVE tab's label reads in the bold UI face so the current
+            // file stands out among the tabs.
+            let style = if is_active {
+                crate::vello_ui::FontStyle::Bold
+            } else {
+                crate::vello_ui::FontStyle::Regular
+            };
+            ctx.text.queue_ui_styled(x + 34.0, ty, &label, fg, chrome, style, clip);
             // Trailing affordance: a dirty dot (active) or a close ×.
             let tx = x + layout::TAB_W - 24.0;
             if is_active || dirty {
@@ -3006,12 +3028,13 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
         .unwrap_or_else(|| "EXPLORER".to_string());
     // Letter-spaced uppercase header (insert thin spaces), UI family.
     let tracked: String = header.chars().flat_map(|c| [c, '\u{2009}']).collect();
-    ctx.text.queue_ui_sized(
+    ctx.text.queue_ui_styled(
         sx + 14.0,
         (head_h - (chrome - 2.0)) * 0.5 - 1.0,
         &tracked,
         theme::DIM(),
         chrome - 2.0,
+        crate::vello_ui::FontStyle::Bold,
         clip,
     );
     // Header actions (new file / new folder / collapse) right-aligned.
@@ -5619,6 +5642,108 @@ pub extern "C" fn mui_ed_load(handle: i64) -> i64 {
     }
 }
 
+/// Compute the bytes to write for the active tab, applying the enabled on-save
+/// transforms (trim trailing whitespace / ensure final newline) and updating the
+/// in-memory model so the buffer matches disk (cursor preserved). Returns the
+/// exact bytes that should be written.
+fn save_bytes_for_active(ctx: &mut MuiContext) -> Vec<u8> {
+    let trim = crate::settings::trim_ws();
+    let final_nl = crate::settings::final_newline();
+    let text = ctx.tabs.active_model().as_text();
+    let out = crate::savefmt::apply(&text, trim, final_nl);
+    if (trim || final_nl) && out != text {
+        // Reflect the transform back into the live buffer (keeps the cursor) so
+        // the trimmed whitespace doesn't reappear as an unsaved edit.
+        ctx.tabs
+            .active_model_mut()
+            .set_text_preserving_cursor(&out);
+    }
+    out.into_bytes()
+}
+
+/// A cheap content signature of the active buffer (FNV-1a over the bytes) used to
+/// detect edits between auto-save ticks without per-op instrumentation.
+fn autosave_signature(text: &str) -> u64 {
+    let mut h: u64 = 0xcbf29ce484222325;
+    for b in text.as_bytes() {
+        h ^= *b as u64;
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    h
+}
+
+/// Per-frame auto-save tick: when the `autosave` pref is ON and the active tab is
+/// a real file-backed, dirty tab whose edit-idle window has elapsed, save it
+/// (applying the same on-save transforms). Returns `1` if a save fired this
+/// frame, else `0`. Safe on read-only/diff/preview/welcome/scratch states: those
+/// have no file path, so `active_path()` is `None` and nothing is written.
+#[no_mangle]
+pub extern "C" fn mui_autosave_tick(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !crate::settings::autosave() {
+        // Keep the clock disarmed so toggling autosave on doesn't immediately
+        // fire on a stale timestamp. Forget the signature so the next enabled
+        // tick re-baselines instead of treating accrued edits as one big change.
+        ctx.autosave.disarm();
+        ctx.autosave_sig = None;
+        return 0;
+    }
+    // Detect edits by a cheap content signature of the active buffer; a change
+    // (re)arms the debounce window. This avoids instrumenting every edit op while
+    // still giving per-edit-idle debouncing.
+    let sig = autosave_signature(&ctx.tabs.active_model().as_text());
+    match ctx.autosave_sig {
+        Some(prev) if prev == sig => {}
+        _ => {
+            // First observation or a real change since the last tick.
+            if ctx.autosave_sig.is_some() {
+                ctx.autosave.touch();
+            }
+            ctx.autosave_sig = Some(sig);
+        }
+    }
+    // Only auto-save a real, file-backed, dirty tab.
+    if !ctx.tabs.active_model().dirty() {
+        ctx.autosave.disarm();
+        return 0;
+    }
+    let Some(path) = ctx.tabs.active_path() else {
+        return 0;
+    };
+    if !ctx.autosave.due() {
+        return 0;
+    }
+    let bytes = save_bytes_for_active(ctx);
+    let name = basename(&path);
+    match std::fs::write(&path, &bytes) {
+        Ok(()) => {
+            ctx.tabs.active_model_mut().mark_clean();
+            // Re-baseline the signature to the (possibly transformed) saved text
+            // so the next tick doesn't see the transform as a fresh edit.
+            ctx.autosave_sig = Some(autosave_signature(&ctx.tabs.active_model().as_text()));
+            println!("mui_autosave: {} ({} bytes)", path.display(), bytes.len());
+            ctx.push_toast(crate::toast::Kind::Info, format!("Auto-saved {name}"));
+            1
+        }
+        Err(e) => {
+            eprintln!("mui_autosave({}): {e}", path.display());
+            0
+        }
+    }
+}
+
+/// Record an edit for the auto-save debounce clock. The IDE calls this whenever
+/// the active buffer changes (keystroke / paste / delete) so the idle window
+/// restarts; auto-save fires ~1.2s after the last edit (see [`mui_autosave_tick`]).
+#[no_mangle]
+pub extern "C" fn mui_autosave_touch(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.autosave.touch();
+    }
+}
+
 /// Write the active model to its tab's file path. Returns `0` on success, `-1`
 /// on error (no path / IO failure). Marks the model clean on success.
 #[no_mangle]
@@ -5630,11 +5755,12 @@ pub extern "C" fn mui_ed_save(handle: i64) -> i32 {
         eprintln!("mui_ed_save: no file path for active tab");
         return -1;
     };
-    let bytes = ctx.tabs.active_model().to_bytes();
+    let bytes = save_bytes_for_active(ctx);
     let name = basename(&path);
     match std::fs::write(&path, &bytes) {
         Ok(()) => {
             ctx.tabs.active_model_mut().mark_clean();
+            ctx.autosave.disarm();
             println!("mui_ed_save: {} ({} bytes)", path.display(), bytes.len());
             ctx.push_toast(crate::toast::Kind::Success, format!("Saved {name}"));
             0
@@ -6125,6 +6251,12 @@ fn draw_editor_pane(
             // Nothing to draw (blank line) — still leave the band.
         } else {
             let chars: Vec<char> = line.chars().collect();
+            let com_c = theme::SYN_COMMENT();
+            let is_comment = |c: MuiColor| {
+                (c.r - com_c.r).abs() < 0.004
+                    && (c.g - com_c.g).abs() < 0.004
+                    && (c.b - com_c.b).abs() < 0.004
+            };
             for sp in spans {
                 let frag: String = chars
                     .iter()
@@ -6135,7 +6267,21 @@ fn draw_editor_pane(
                     continue;
                 }
                 let x = text_x + sp.start as f32 * layout::CHAR_W();
-                ctx.text.queue(x, y, &frag, sp.color, clip);
+                // Comments render in the TRUE italic face (a tasteful editorial
+                // touch); all other tokens stay in the regular code face.
+                if is_comment(sp.color) {
+                    ctx.text.queue_styled(
+                        x,
+                        y,
+                        &frag,
+                        sp.color,
+                        theme::FONT_SIZE(),
+                        crate::vello_ui::FontStyle::Italic,
+                        clip,
+                    );
+                } else {
+                    ctx.text.queue(x, y, &frag, sp.color, clip);
+                }
             }
         }
     }

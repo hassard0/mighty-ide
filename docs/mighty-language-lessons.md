@@ -797,8 +797,19 @@ A full live `.md` preview dropped in with zero new Mighty-source friction:
   `code` chips, accent-underlined links, indented list markers, an accent-bar
   blockquote, `---` dividers, and tables. Source = the live buffer of the OTHER pane,
   re-parsed each frame (cheap for IDE files), so it updates as you type.
-  Limitation noted: the bundled UI face has no bold variant, so bold/headings read via
-  size + color, not weight.
+
+  **RESOLVED (typography pass):** the text path now carries a `FontStyle`
+  (Regular/Bold/Italic/BoldItalic) and the Vello backend selects a REAL bundled
+  face per run — no faux weight/slant. The bundled families gained their missing
+  faces: JetBrains Mono **Bold/Italic/BoldItalic** + Bricolage Grotesque **Bold**
+  (all SIL OFL). So markdown headings and `**bold**` now render in a true bold
+  face; `*italic*` renders in a true italic (the UI family has no italic, so
+  italic body text shapes in the code family's genuine italic). The same channel
+  renders editor **comments in italic** (detected by the comment color) and the
+  bold UI chrome (active tab label, EXPLORER header, the welcome wordmark +
+  section headers). Verified distinct (not faux) in `screenshots/47-typography.png`.
+  New text ABI: `Text::queue_styled` / `queue_ui_styled`; the per-run advance in
+  Vello uses each face's own `advance_width`, so bold's wider glyphs don't collide.
 
 - **No new top-level Mighty arm (L37/L38).** Ctrl+Shift+V routes through the existing
   `mui_chord` router (the `is_router_chord` predicate widened); the palette command
@@ -808,6 +819,31 @@ A full live `.md` preview dropped in with zero new Mighty-source friction:
   `mui_md_button_at_click`. Tests: 604 pass (was 584; +20 markdown parser + preview
   layout). Screenshot `screenshots/46-markdown.png` (`MUI_MD_AUTOOPEN` seeds a crafted
   sample, source-left / rendered-right) at 1320x860.
+
+### L44. Real bold/italic faces + on-save conveniences are pure-shim render + I/O — no new Mighty arm, L37/L38 ceiling untouched ✅ **[finding, not a new limitation]**
+Two quality wins landed together with zero new Mighty-source friction:
+
+- **True typography.** The display-list `Text` command grew a `FontStyle`; the
+  Vello backend holds all four code faces (JetBrains Mono Regular/Bold/Italic/
+  BoldItalic) + UI Regular/Bold (Bricolage) and picks the REAL face per run.
+  Applied to: markdown headings/`**bold**` (bold), `*italic*` (true italic via
+  the code face — the UI family has no italic), editor comments (italic, keyed off
+  the comment color), and bold UI chrome (active tab, EXPLORER header, welcome
+  wordmark/section headers). Each face's own `advance_width` drives layout so
+  bold's wider glyphs don't collide. Verified distinct in `47-typography.png`.
+
+- **Save conveniences.** Pure functions in `crate::savefmt` (trim trailing ws,
+  ensure final newline; both CRLF-safe) gate behind Settings toggles (`trim_ws`
+  /`final_newline` default ON) and run in `mui_ed_save`, reflected back into the
+  live buffer via `TextModel::set_text_preserving_cursor` (cursor kept). **Auto
+  save** (default OFF) is a debounced clock (`AutoSave`, ~1.2s idle) ticked each
+  frame by `mui_autosave_tick`; it detects edits via a cheap FNV signature of the
+  active buffer (no per-op instrumentation) and only ever writes real file-backed,
+  dirty tabs (read-only/diff/preview/welcome/scratch have no path → skipped). New
+  ABI: `mui_autosave_tick` / `mui_autosave_touch` + settings getters
+  `trim_ws`/`final_newline`/`autosave`, all surfaced as Settings rows. Tests: 618
+  pass (was 604; +14 savefmt + settings). Screenshot `screenshots/47-typography.png`
+  (`MUI_TYPO_AUTOOPEN` seeds a comment-rich buffer) at 1320x860.
 
 ## Open questions to resolve as the IDE progresses
 - Exact `extern c` signature support: pointers (`*U8`), out-params (`&out T`), passing a

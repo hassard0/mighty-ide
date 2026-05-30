@@ -29,11 +29,14 @@ pub enum RowId {
     BracketColors,
     IndentGuides,
     InlineAi,
+    TrimWhitespace,
+    FinalNewline,
+    AutoSave,
     Theme,
 }
 
 impl RowId {
-    pub const ALL: [RowId; 8] = [
+    pub const ALL: [RowId; 11] = [
         RowId::FontSize,
         RowId::TabWidth,
         RowId::WordWrap,
@@ -41,6 +44,9 @@ impl RowId {
         RowId::BracketColors,
         RowId::IndentGuides,
         RowId::InlineAi,
+        RowId::TrimWhitespace,
+        RowId::FinalNewline,
+        RowId::AutoSave,
         RowId::Theme,
     ];
 
@@ -53,6 +59,9 @@ impl RowId {
             RowId::BracketColors => "Bracket Colors",
             RowId::IndentGuides => "Indent Guides",
             RowId::InlineAi => "Inline AI",
+            RowId::TrimWhitespace => "Trim Whitespace",
+            RowId::FinalNewline => "Final Newline",
+            RowId::AutoSave => "Auto Save",
             RowId::Theme => "Color Theme",
         }
     }
@@ -66,6 +75,9 @@ impl RowId {
             RowId::BracketColors => "Rainbow-color matched brackets by depth",
             RowId::IndentGuides => "Show vertical indent guide lines",
             RowId::InlineAi => "AI ghost-text completions (needs API key)",
+            RowId::TrimWhitespace => "Strip trailing whitespace on save",
+            RowId::FinalNewline => "Ensure a trailing newline on save",
+            RowId::AutoSave => "Save the file shortly after you stop typing",
             RowId::Theme => "Switch the editor color theme",
         }
     }
@@ -168,6 +180,18 @@ impl SettingsPanel {
                 settings::update(|s| s.inline_ai = !s.inline_ai);
                 settings::save();
             }
+            RowId::TrimWhitespace => {
+                settings::update(|s| s.trim_ws = !s.trim_ws);
+                settings::save();
+            }
+            RowId::FinalNewline => {
+                settings::update(|s| s.final_newline = !s.final_newline);
+                settings::save();
+            }
+            RowId::AutoSave => {
+                settings::update(|s| s.autosave = !s.autosave);
+                settings::save();
+            }
             RowId::Theme => self.cycle_theme(1),
             RowId::FontSize => self.adjust(1),
             RowId::TabWidth => self.adjust(1),
@@ -198,6 +222,9 @@ impl SettingsPanel {
             RowId::BracketColors => on_off(s.bracket_colors),
             RowId::IndentGuides => on_off(s.indent_guides),
             RowId::InlineAi => on_off(s.inline_ai),
+            RowId::TrimWhitespace => on_off(s.trim_ws),
+            RowId::FinalNewline => on_off(s.final_newline),
+            RowId::AutoSave => on_off(s.autosave),
             RowId::Theme => theme::active_id().name().to_string(),
         }
     }
@@ -360,7 +387,7 @@ mod tests {
         p.open();
         assert!(p.is_active());
         assert_eq!(p.selection(), 0);
-        assert_eq!(p.count(), 8);
+        assert_eq!(p.count(), 11);
     }
 
     #[test]
@@ -369,7 +396,7 @@ mod tests {
         let mut p = SettingsPanel::new();
         p.open();
         p.move_sel(-1);
-        assert_eq!(p.selection(), 7);
+        assert_eq!(p.selection(), 10);
         p.move_sel(1);
         assert_eq!(p.selection(), 0);
     }
@@ -461,6 +488,29 @@ mod tests {
     }
 
     #[test]
+    fn toggle_save_conveniences() {
+        let _g = guard();
+        let tmp = std::env::temp_dir().join(format!("mui-setpanel-save-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::env::set_var("APPDATA", &tmp);
+        let mut p = SettingsPanel::new();
+        p.open();
+        p.move_sel(7); // TrimWhitespace
+        assert!(settings::trim_ws()); // default on
+        p.toggle();
+        assert!(!settings::trim_ws());
+        p.move_sel(1); // FinalNewline
+        assert!(settings::final_newline()); // default on
+        p.toggle();
+        assert!(!settings::final_newline());
+        p.move_sel(1); // AutoSave
+        assert!(!settings::autosave()); // default off
+        p.toggle();
+        assert!(settings::autosave());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
     fn theme_row_cycles_and_persists() {
         let _g = guard();
         let tmp = std::env::temp_dir().join(format!("mui-setpanel-theme-{}", std::process::id()));
@@ -468,7 +518,7 @@ mod tests {
         std::env::set_var("APPDATA", &tmp);
         let mut p = SettingsPanel::new();
         p.open();
-        p.move_sel(7); // Theme
+        p.move_sel(10); // Theme
         assert_eq!(theme::active_id(), ThemeId::Vivid);
         p.toggle(); // cycle forward
         assert_eq!(theme::active_id(), ThemeId::Aurora);

@@ -50,6 +50,7 @@ mod problems;
 mod prompt;
 mod quickopen;
 mod run;
+mod savefmt;
 mod scm;
 mod screenshot;
 mod search;
@@ -134,6 +135,12 @@ pub struct MuiContext {
     load_buf: Vec<u8>,
     /// Bytes staged for `mui_save_commit`.
     save_buf: Vec<u8>,
+    /// Auto-save debounce clock (armed on edit, fires after idle when enabled).
+    autosave: savefmt::AutoSave,
+    /// Last-observed content signature of the active model, used by the auto-save
+    /// tick to detect edits (and re-arm the debounce) without instrumenting every
+    /// edit op. `None` until the first tick observes the buffer.
+    autosave_sig: Option<u64>,
     /// Latest parsed diagnostics from `mty check` (refreshed on demand).
     diags: Vec<diagnostics::Diag>,
 
@@ -721,6 +728,8 @@ pub(crate) fn build_context(
         path_stage: Vec::new(),
         load_buf: Vec::new(),
         save_buf: Vec::new(),
+        autosave: savefmt::AutoSave::new(),
+        autosave_sig: None,
         diags: Vec::new(),
         file_name,
         status_cursor: (1, 1),
@@ -1356,6 +1365,8 @@ impl MuiContext {
             path_stage: Vec::new(),
             load_buf: Vec::new(),
             save_buf: Vec::new(),
+            autosave: savefmt::AutoSave::new(),
+            autosave_sig: None,
             diags: Vec::new(),
             file_name: String::new(),
             status_cursor: (1, 1),
