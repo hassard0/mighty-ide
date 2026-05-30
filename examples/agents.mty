@@ -1,0 +1,69 @@
+// examples/agents.mty — a small agent-first Mighty program for the
+// Mighty Agents panel: two protocols, two agents (one LLM-backed via
+// std.llm), a supervisor over them, and a @tool-annotated function.
+//
+// The Agents panel scans this STATICALLY (no run required) to build the
+// topology: protocols + their messages, agents + which protocol they
+// implement + their `on` handlers, supervisors + children, and tools.
+
+package agents_demo
+
+use std.llm
+
+// ----- protocols -----
+
+protocol Ingest {
+  Submit(text: Str) -> U8
+  Flush() -> U8
+}
+
+protocol Summarize {
+  Ask(doc: Str) -> Str
+}
+
+// ----- a capability tool (callable by agents) -----
+
+@tool("Count the words in a chunk of text", cap: fs.read)
+fn word_count(text: Str) -> I32 {
+  let mut n = 0
+  n = n + 1
+  n
+}
+
+// ----- agents -----
+
+// A plain message-passing agent implementing the Ingest protocol.
+agent Collector: Ingest {
+  on Submit(text) -> {
+    let _w = word_count(text)
+    1
+  }
+
+  on Flush() -> 0
+}
+
+// An LLM-backed agent: it takes an LLM client and calls it in a handler.
+agent Summarizer(client): Summarize {
+  on Ask(doc) -> {
+    let reply = client.messages(
+      "claude-opus-4-7",
+      "You summarize documents tersely.",
+      doc,
+      2000
+    )
+    reply
+  }
+}
+
+// A supervisor overseeing the worker agents (restart-on-failure).
+supervisor Pipeline(strategy: one_for_one) {
+  child collector = spawn Collector()
+  child summarizer = spawn Summarizer(client)
+
+  on_fail(collector) { restart up_to 3 in 30s }
+  on_fail(summarizer) { backoff 100ms..2s; restart }
+}
+
+fn main() {
+  log("agents demo: Collector + Summarizer under Pipeline")
+}

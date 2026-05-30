@@ -11,6 +11,8 @@
 //! * [`window`] — winit window + `pump_events` + event-queue translation
 
 mod abi;
+mod agents;
+mod agentsabi;
 mod ai;
 mod completion;
 mod config;
@@ -304,6 +306,13 @@ pub struct MuiContext {
     /// server implements it, else a shim-side scanner) + the cursor-current sym.
     outline: outline::OutlineState,
 
+    // ---- Mighty Agents panel (rail slot 8 → agent-system topology view) ----
+    /// The Mighty Agents panel: a STATIC discovery of the workspace's agent
+    /// system (protocols / agents / handlers / tools / supervisors + agent→
+    /// protocol edges) rendered as a topology tree, plus a Run action and a
+    /// best-effort live-inspect surface. Shim-owned (see `crate::agentsabi`).
+    agents: agentsabi::AgentTopology,
+
     // ---- sticky scroll (pin enclosing-scope headers at the editor top) ----
     /// The sticky-header set: the enclosing scopes of the top visible line,
     /// recomputed each frame from the outline symbols + the scroll offset.
@@ -364,6 +373,10 @@ pub const PANEL_OUTLINE: i32 = 5;
 pub const PANEL_DEBUG: i32 = 6;
 /// Testing sidebar panel — rail slot 7 (the beaker icon).
 pub const PANEL_TEST: i32 = 7;
+/// Mighty Agents sidebar panel — rail slot 8 (the network/nodes icon). The
+/// agent-system topology view (protocols / agents / handlers / tools /
+/// supervisors). Unique to an agent-first language.
+pub const PANEL_AGENTS_MTY: i32 = 8;
 
 // ---------------------------------------------------------------------------
 // Vello display-list helpers (used by the chrome/editor draw functions to emit
@@ -705,6 +718,7 @@ pub(crate) fn build_context(
         diff: diff::DiffView::new(),
         settings_panel: settingspanel::SettingsPanel::new(),
         outline: outline::OutlineState::new(),
+        agents: agentsabi::AgentTopology::new(),
         sticky: sticky::StickyState::new(),
         peek: peek::PeekState::new(),
         problems: problems::ProblemSet::new(),
@@ -1331,6 +1345,7 @@ impl MuiContext {
             diff: diff::DiffView::new(),
             settings_panel: settingspanel::SettingsPanel::new(),
             outline: outline::OutlineState::new(),
+            agents: agentsabi::AgentTopology::new(),
             sticky: sticky::StickyState::new(),
             peek: peek::PeekState::new(),
             problems: problems::ProblemSet::new(),

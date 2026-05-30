@@ -81,6 +81,20 @@ pub const FN_SYMBOL: &str = "M5 12h6V6m8 6h-6v6";
 /// Outline / symbols list (a small tree: a stem with branch dots + lines).
 pub const OUTLINE: &str = "M5 6h3M5 12h3M5 18h3 M10.5 6h8.5M10.5 12h8.5M10.5 18h5 M6.5 6.8v10.4";
 
+// ---- Mighty Agents (topology) rail icon ----
+/// Agent network / nodes graph (the Mighty Agents rail icon, slot 8): three
+/// nodes connected by edges — a message-passing topology glyph. Distinct from
+/// the AI-copilot robot head (`AGENTS`, slot 4) so the two never read alike.
+pub const AGENTS_NET: &str = "M6 5.5a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4z M18 5.5a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4z M12 14a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4z M7.6 9.3 10.8 14 M16.4 9.3 13.2 14";
+/// Protocol contract glyph (a diamond) used by topology rows.
+pub const PROTO_DIAMOND: &str = "M12 3 21 12 12 21 3 12z";
+/// Supervisor glyph (a shield) used by topology rows.
+pub const SHIELD: &str = "M12 3 19 6v6c0 4-3 6.5-7 9-4-2.5-7-5-7-9V6z";
+/// Tool / wrench glyph used by topology rows.
+pub const WRENCH: &str = "M14.5 6.5a3.5 3.5 0 0 0-4.6 4.6L4 17l3 3 5.9-5.9a3.5 3.5 0 0 0 4.6-4.6l-2.2 2.2-2.1-.6-.6-2.1z";
+/// Message / envelope glyph used by topology protocol-message rows.
+pub const ENVELOPE: &str = "M4 7a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z M4.5 7.5 12 13l7.5-5.5";
+
 // ---- Status bar ----
 /// Git-branch (status bar): two nodes + a branch.
 pub const BRANCH: &str = "M6 3.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z M6 15.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z M18 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z M6 8.5v7M18 10.5c0 4-4 3-8 5";

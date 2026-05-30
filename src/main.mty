@@ -396,6 +396,27 @@ extern c {
   fn mui_outline_current(handle: I64) -> I32
   fn mui_outline_row_at_click(handle: I64) -> I32
   fn mui_outline_draw(handle: I64)
+  // ---- Mighty Agents panel (rail slot 8) — agent-system topology ----
+  fn mui_agents_refresh(handle: I64) -> I32
+  fn mui_agents_count(handle: I64) -> I32
+  fn mui_agents_node_kind(handle: I64, i: I32) -> I32
+  fn mui_agents_node_depth(handle: I64, i: I32) -> I32
+  fn mui_agents_node_line(handle: I64, i: I32) -> I32
+  fn mui_agents_node_name_len(handle: I64, i: I32) -> I32
+  fn mui_agents_node_name_char(handle: I64, i: I32, j: I32) -> I32
+  fn mui_agents_edge_count(handle: I64) -> I32
+  fn mui_agents_open_node(handle: I64, i: I32) -> I32
+  fn mui_agents_scroll(handle: I64, dir: I32)
+  fn mui_agents_row_at_click(handle: I64) -> I32
+  fn mui_agents_click_is_run(handle: I64) -> I32
+  fn mui_agents_run(handle: I64) -> I32
+  fn mui_agents_running(handle: I64) -> I32
+  fn mui_agents_pump(handle: I64) -> I32
+  fn mui_agents_run_line_count(handle: I64) -> I32
+  fn mui_agents_inspect(handle: I64) -> I32
+  fn mui_agents_live_count(handle: I64) -> I32
+  fn mui_agents_live_mailbox(handle: I64, i: I32) -> I32
+  fn mui_agents_draw(handle: I64)
   // ---- Problems panel (bottom dock; status-bar chip opens it) ----
   fn mui_problems_refresh(handle: I64) -> I32
   fn mui_problems_toggle(handle: I64) -> I32
@@ -474,6 +495,7 @@ fn cmd_run_tests() -> I32 { 21 }
 fn cmd_peek_definition() -> I32 { 22 }
 fn cmd_welcome() -> I32 { 23 }
 fn cmd_zen_mode() -> I32 { 24 }
+fn cmd_agents() -> I32 { 25 }    // Mighty: Agents (topology panel)
 
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
@@ -541,12 +563,14 @@ fn panel_scm() -> I32 { 2 }
 fn panel_outline() -> I32 { 5 }  // Outline (document symbols) — rail slot 5
 fn panel_debug() -> I32 { 6 }    // Run and Debug — rail slot 6 (bug icon)
 fn panel_test() -> I32 { 7 }     // Testing results — rail slot 7 (beaker icon)
+fn panel_agents_mty() -> I32 { 8 } // Mighty Agents topology — rail slot 8 (nodes icon)
 // Rail icon slots that are not sidebar panels.
 fn rail_run() -> I32 { 3 }      // Run panel (play triangle icon)
 fn rail_agents() -> I32 { 4 }   // AI copilot (Agents sparkles icon)
 fn rail_outline() -> I32 { 5 }  // Outline panel rail slot
 fn rail_debug() -> I32 { 6 }    // Run and Debug rail slot (bug icon)
 fn rail_test() -> I32 { 7 }     // Testing rail slot (beaker icon)
+fn rail_agents_mty() -> I32 { 8 } // Mighty Agents topology rail slot (nodes icon)
 // Debug toolbar click codes (mirror TOOLBAR_BASE in dapabi.rs).
 fn dbg_toolbar_base() -> I32 { 1000 }
 // Test toolbar click codes (mirror TB_RUN/TB_STOP in testabi.rs).
@@ -1052,6 +1076,9 @@ fn main() {
               mui_welcome_open(h)
             } else if id == cmd_zen_mode() {
               let _z = mui_zen_toggle(h)
+            } else if id == cmd_agents() {
+              let _p = mui_panel_set(h, panel_agents_mty())
+              let _a = mui_agents_refresh(h)
             }
           }
         }
@@ -2096,6 +2123,10 @@ fn main() {
           // Testing (beaker) icon: switch the sidebar to the Testing view + focus.
           let _p = mui_panel_set(h, panel_test())
           test_focus = true
+        } else if rail_hit == rail_agents_mty() {
+          // Mighty Agents (nodes) icon: switch to the topology view + rescan.
+          let _p = mui_panel_set(h, panel_agents_mty())
+          let _a = mui_agents_refresh(h)
         } else if rail_hit >= 0 {
           let _p = mui_panel_set(h, rail_hit)
           if rail_hit == panel_scm() {
@@ -2104,6 +2135,19 @@ fn main() {
             let _q = mui_search_query_len(h)
           } else if rail_hit == panel_outline() {
             let _o = mui_outline_refresh(h)
+          }
+        } else if cur_panel == panel_agents_mty() {
+          // Mighty Agents panel: header "Run" affordance runs the active file;
+          // a topology row click jumps to the agent/protocol/handler/tool def.
+          let is_run = mui_agents_click_is_run(h)
+          if is_run == 1 {
+            let _r = mui_agents_run(h)
+          } else {
+            let a_hit = mui_agents_row_at_click(h)
+            if a_hit >= 0 {
+              let _j = mui_agents_open_node(h, a_hit)
+              typing = false
+            }
           }
         } else if cur_panel == panel_outline() {
           // Outline panel: click a symbol row to jump the editor to it.
@@ -2308,6 +2352,11 @@ fn main() {
       let _tc = mui_test_pump(h)
     }
 
+    // Drain the Mighty Agents panel's `mty run` output while a run is in flight.
+    if mui_agents_running(h) == 1 {
+      let _ac = mui_agents_pump(h)
+    }
+
     // Drain DAP adapter events into the debug model BEFORE the frame (stop
     // position, stack, variables). When a fresh stop arrives, jump the editor to
     // the stopped line if it's in the visible file.
@@ -2385,6 +2434,8 @@ fn main() {
         mui_dbg_view_draw(h)
       } else if cur_panel_draw == panel_test() {
         mui_test_draw(h)
+      } else if cur_panel_draw == panel_agents_mty() {
+        mui_agents_draw(h)
       } else {
         mui_sidebar_draw(h)
       }

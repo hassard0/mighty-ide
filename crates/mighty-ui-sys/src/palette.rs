@@ -51,6 +51,7 @@ pub const CMD_RUN_TESTS: u32 = 21;
 pub const CMD_PEEK_DEFINITION: u32 = 22;
 pub const CMD_WELCOME: u32 = 23;
 pub const CMD_ZEN_MODE: u32 = 24;
+pub const CMD_AGENTS: u32 = 25;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -79,6 +80,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_PEEK_DEFINITION,  label: "Peek Definition",    keybinding: "Alt+F12" },
     Command { id: CMD_WELCOME,          label: "Welcome",            keybinding: "" },
     Command { id: CMD_ZEN_MODE,         label: "Toggle Zen Mode",    keybinding: "Alt+Z" },
+    Command { id: CMD_AGENTS,           label: "Mighty: Agents",     keybinding: "Alt+G" },
 ];
 
 /// Match quality for ranking. Lower sorts first.

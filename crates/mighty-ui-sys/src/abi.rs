@@ -933,6 +933,25 @@ index 83db48f..f735c2d 100644
         println!("mui_init_s: MUI_ZEN_AUTOOPEN -> zen mode on (demo buffer seeded)");
     }
 
+    // Screenshot/render hook for the Mighty Agents panel: with MUI_AGENTS_AUTOOPEN
+    // set, switch the sidebar to the topology view and seed the model from the
+    // bundled examples/agents.mty so a headless capture shows the full topology
+    // (protocols/agents/handlers/tools/supervisors) without scanning a real tree.
+    if std::env::var_os("MUI_AGENTS_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            ctx.agents.seed_demo();
+            ctx.active_panel = crate::PANEL_AGENTS_MTY;
+            ctx.sidebar_visible = true;
+            println!(
+                "mui_init_s: MUI_AGENTS_AUTOOPEN -> agents topology seeded ({} agents, {} protocols, {} tools, {} supervisors)",
+                ctx.agents.agent_count(),
+                ctx.agents.protocol_count(),
+                ctx.agents.tool_count(),
+                ctx.agents.supervisor_count()
+            );
+        }
+    }
+
     handle
 }
 
@@ -2277,7 +2296,7 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
     // Activity icons. Explorer (index 0) active. Each is a 38x38 hit cell with a
     // 21px vector icon centered; the active one gets an indigo top-lit tile + a
     // left accent bar with glow (matches `.rail-btn.active`).
-    let rail_icons: [&str; 8] = [
+    let rail_icons: [&str; 9] = [
         icons::EXPLORER,
         icons::SEARCH,
         icons::GIT,
@@ -2286,6 +2305,7 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
         icons::OUTLINE,
         icons::DEBUG,
         icons::BEAKER,
+        icons::AGENTS_NET,
     ];
     let cell = 38.0;
     let icon_sz = 21.0;
@@ -6560,6 +6580,12 @@ pub extern "C" fn mui_chord(handle: i64, cp: i32, mods: i32) -> i32 {
     // Alt+\ : force an inline AI ghost completion.
     if alt && !ctrl && cp == 92 {
         let _ = crate::ghostabi::mui_ghost_force(handle);
+        return 1;
+    }
+    // Alt+G : open the Mighty Agents topology panel + (re)scan the workspace.
+    if alt && !ctrl && (cp == 'g' as i32 || cp == 'G' as i32) {
+        let _ = crate::panels::mui_panel_set(handle, crate::PANEL_AGENTS_MTY);
+        let _ = crate::agentsabi::mui_agents_refresh(handle);
         return 1;
     }
     0
