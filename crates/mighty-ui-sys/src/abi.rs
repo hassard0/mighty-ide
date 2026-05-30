@@ -856,6 +856,29 @@ filename src/main.mty
         }
     }
 
+    // Screenshot/render hook for code folding: with MUI_FOLD_AUTOOPEN set, seed a
+    // buffer with several brace blocks, compute foldable ranges, and FOLD a couple
+    // regions so a headless capture shows the ▸/▾ gutter chevrons + the faint
+    // "⋯ N lines" indicator on a collapsed region. No effect on normal launches.
+    if std::env::var_os("MUI_FOLD_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            use crate::editor::TextModel;
+            let demo = b"struct Vec2 {\n  x: F32,\n  y: F32,\n}\n\nfn length(v: Vec2) -> F32 {\n  let s = v.x * v.x + v.y * v.y\n  sqrt(s)\n}\n\nfn normalize(v: Vec2) -> Vec2 {\n  let len = length(v)\n  if len > 0.0 {\n    Vec2 { x: v.x / len, y: v.y / len }\n  } else {\n    v\n  }\n}\n\nagent Mover {\n  fn step(self, by: Vec2) {\n    log(\"moving\")\n  }\n}\n";
+            let m = ctx.tabs.active_model_mut();
+            *m = TextModel::from_bytes(demo);
+            ctx.language = crate::langdetect::Language::Mighty;
+            ctx.edit_probe_lock = true;
+            ctx.tabs.recompute_active_fold();
+            // Fold the `struct Vec2` block (header line 0) and the `step` method
+            // (header line 20) so the capture shows both a folded + open chevron.
+            let f = ctx.tabs.active_fold_mut();
+            f.toggle(0);
+            f.toggle(20);
+            let n = f.ranges().len();
+            println!("mui_init_s: MUI_FOLD_AUTOOPEN -> {n} foldable regions, 2 folded");
+        }
+    }
+
     // Screenshot/render hook for the Settings panel: with MUI_SETTINGS_AUTOOPEN
     // set, open the Settings panel (and optionally pre-select a row via the env
     // value, e.g. "2") so a headless capture shows the preference list.
@@ -5840,11 +5863,26 @@ struct EdDrawSnapshot {
     cur_line: usize,
     cur_col: usize,
     sel: Option<((usize, usize), (usize, usize))>,
+    /// The lines actually painted, in screen order: `(source_line, text)`. With
+    /// folding active this SKIPS lines hidden inside a folded region, so the
+    /// screen row of `lines_for_view[k]` is simply `k`.
     lines_for_view: Vec<(usize, String)>,
     /// Every caret's `(line, col)` (caret[0] = primary), for multi-cursor draw.
     carets: Vec<(usize, usize)>,
     /// Every caret's selection range (for multi-cursor selection highlights).
     selections: Vec<((usize, usize), (usize, usize))>,
+    /// For each painted line, whether it STARTS a foldable region and (if so)
+    /// whether it is currently folded + how many lines it hides. Drives the
+    /// gutter chevron + the "⋯ N lines" indicator. Keyed by source line.
+    fold_marks: std::collections::HashMap<usize, FoldMark>,
+}
+
+/// A painted line's fold decoration: it starts a region, is/ isn't folded, and
+/// (when folded) hides `hidden` inner lines.
+#[derive(Clone, Copy)]
+struct FoldMark {
+    folded: bool,
+    hidden: usize,
 }
 
 /// Insert one Unicode scalar at the cursor (a `\n` codepoint splits the line).
@@ -5936,6 +5974,177 @@ pub extern "C" fn mui_ed_set_scroll(handle: i64, first: i32) {
 #[no_mangle]
 pub extern "C" fn mui_ed_first_visible(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.tabs.active_model().first_visible() as i32)
+}
+
+// ===========================================================================
+// Code folding (per-tab; see `crate::fold`)
+// ===========================================================================
+//
+// The fold state (foldable ranges + folded headers + the visible↔source line
+// mapping) lives per-tab in the TabStore (L17/L21/L28: pure + shim-owned). The
+// editor body draw ([`draw_editor_pane`]) consults it to skip folded lines and
+// draw the gutter chevrons + the "⋯ N lines" indicator; the cursor/click paths
+// use the visible↔source mapping. These scalar ops drive it from the Mighty
+// side (which can't hold a Vec) and are exercised by the unit tests in
+// `crate::fold`.
+
+/// Recompute the active tab's foldable ranges from its current buffer (call
+/// after edits / load). Folded headers that still open a region are preserved.
+/// Returns the number of foldable regions.
+#[no_mangle]
+pub extern "C" fn mui_fold_recompute(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.tabs.recompute_active_fold();
+    ctx.tabs.active_fold().ranges().len() as i32
+}
+
+/// Toggle the fold of the region whose HEADER is `line` (0-based). No-op if
+/// `line` starts no foldable region. Returns `1` if a region was toggled.
+#[no_mangle]
+pub extern "C" fn mui_fold_toggle_at(handle: i64, line: i32) -> i32 {
+    if line < 0 {
+        return 0;
+    }
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    i32::from(ctx.tabs.active_fold_mut().toggle(line as usize))
+}
+
+/// Toggle the fold of the INNERMOST region containing `line` (so "fold at the
+/// cursor" works from a body line, not just the header). Returns the folded
+/// header line (0-based), or `-1` if no region encloses `line`.
+#[no_mangle]
+pub extern "C" fn mui_fold_toggle_at_cursor(handle: i64, line: i32) -> i32 {
+    if line < 0 {
+        return -1;
+    }
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    ctx.tabs
+        .active_fold_mut()
+        .toggle_at_cursor(line as usize)
+        .map(|h| h as i32)
+        .unwrap_or(-1)
+}
+
+/// Fold EVERY foldable region in the active tab. Returns the folded region count.
+#[no_mangle]
+pub extern "C" fn mui_fold_all(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let f = ctx.tabs.active_fold_mut();
+    f.fold_all();
+    f.ranges().len() as i32
+}
+
+/// Unfold every region in the active tab.
+#[no_mangle]
+pub extern "C" fn mui_unfold_all(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.tabs.active_fold_mut().unfold_all();
+    }
+}
+
+/// `1` if the region whose header is `line` is currently folded, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_fold_is_folded(handle: i64, line: i32) -> i32 {
+    if line < 0 {
+        return 0;
+    }
+    unsafe { ctx(handle) }
+        .map_or(0, |c| i32::from(c.tabs.active_fold().is_folded(line as usize)))
+}
+
+/// `1` if `line` STARTS a foldable region (a gutter chevron is drawn there).
+#[no_mangle]
+pub extern "C" fn mui_fold_is_foldable(handle: i64, line: i32) -> i32 {
+    if line < 0 {
+        return 0;
+    }
+    unsafe { ctx(handle) }
+        .map_or(0, |c| i32::from(c.tabs.active_fold().is_foldable_start(line as usize)))
+}
+
+/// The END line (0-based) of the foldable region whose header is `line`, or
+/// `-1` if `line` starts no region. (`mui_fold_region_at`.)
+#[no_mangle]
+pub extern "C" fn mui_fold_region_at(handle: i64, line: i32) -> i32 {
+    if line < 0 {
+        return -1;
+    }
+    unsafe { ctx(handle) }.map_or(-1, |c| {
+        c.tabs
+            .active_fold()
+            .region_at(line as usize)
+            .map(|r| r.end as i32)
+            .unwrap_or(-1)
+    })
+}
+
+/// The number of VISIBLE lines (buffer total minus lines hidden by folds).
+#[no_mangle]
+pub extern "C" fn mui_fold_visible_count(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| {
+        let total = c.tabs.active_model().line_count();
+        c.tabs.active_fold().visible_count(total) as i32
+    })
+}
+
+/// Map a 0-based VISIBLE row to the buffer line it shows (skipping folded
+/// lines). Clamps past-the-end to the last line.
+#[no_mangle]
+pub extern "C" fn mui_fold_visible_to_source(handle: i64, row: i32) -> i32 {
+    if row < 0 {
+        return 0;
+    }
+    unsafe { ctx(handle) }.map_or(row, |c| {
+        let total = c.tabs.active_model().line_count();
+        c.tabs.active_fold().visible_to_source(row as usize, total) as i32
+    })
+}
+
+/// Map a buffer `line` to its VISIBLE row index. A hidden line maps to the row
+/// of its enclosing (visible) fold header.
+#[no_mangle]
+pub extern "C" fn mui_fold_source_to_visible(handle: i64, line: i32) -> i32 {
+    if line < 0 {
+        return 0;
+    }
+    unsafe { ctx(handle) }.map_or(line, |c| {
+        let total = c.tabs.active_model().line_count();
+        c.tabs.active_fold().source_to_visible(line as usize, total) as i32
+    })
+}
+
+/// Dispatch a code-folding palette command (`CMD_FOLD_TOGGLE` / `CMD_FOLD_ALL`
+/// / `CMD_UNFOLD_ALL`) — the single Mighty palette/quick-open arm-range routes
+/// here so the ladder gains ONE arm, not three (L37/L38). Toggle acts on the
+/// region enclosing the CURSOR line. Returns `1` when handled, `0` otherwise.
+#[no_mangle]
+pub extern "C" fn mui_fold_dispatch(handle: i64, cmd_id: i32) -> i32 {
+    use crate::palette::*;
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let id = cmd_id as u32;
+    if id == CMD_FOLD_TOGGLE {
+        let line = ctx.tabs.active_model().cursor_line();
+        ctx.tabs.active_fold_mut().toggle_at_cursor(line);
+        1
+    } else if id == CMD_FOLD_ALL {
+        ctx.tabs.active_fold_mut().fold_all();
+        1
+    } else if id == CMD_UNFOLD_ALL {
+        ctx.tabs.active_fold_mut().unfold_all();
+        1
+    } else {
+        0
+    }
 }
 
 /// `1` if the active model has unsaved edits, else `0`.
@@ -6216,6 +6425,12 @@ pub extern "C" fn mui_ed_tab_switch(handle: i64, idx: i32) -> i32 {
 /// sizing from the model's own line count.
 #[no_mangle]
 pub extern "C" fn mui_ed_click(handle: i64) -> i32 {
+    // Fold gutter: a click on a chevron toggles that region instead of placing
+    // the cursor. Done first (no new Mighty ladder arm — L37/L38). When a chevron
+    // was toggled, leave the cursor where it is and return its line.
+    if mui_fold_gutter_click(handle) >= 0 {
+        return unsafe { ctx(handle) }.map_or(0, |c| c.tabs.active_model().cursor_line() as i32);
+    }
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
@@ -6256,10 +6471,73 @@ pub extern "C" fn mui_ed_click(handle: i64) -> i32 {
     let first = ctx.tabs.active_model().first_visible() as u64;
     let (line, col) =
         layout::pixel_to_cell_in(region, ctx.last_event.x, ctx.last_event.y, first, total);
+    // `pixel_to_cell_in` returns `line = first + screen_row` (it has no fold
+    // awareness). Translate the screen row through the fold mapping to the SOURCE
+    // line actually painted there, so a click below a folded region lands on the
+    // right line. With no folds active this is identical (`src == line`).
+    let screen_row = (line - first) as usize;
+    let total_u = total as usize;
+    let first_vis = ctx.tabs.active_fold().source_to_visible(first as usize, total_u);
+    let src = ctx
+        .tabs
+        .active_fold()
+        .visible_to_source(first_vis + screen_row, total_u);
     let m = ctx.tabs.active_model_mut();
-    m.move_to(line as i32, col as i32);
+    m.move_to(src as i32, col as i32);
     m.cursor_line() as i32
 }
+
+/// Hit-test the LAST mouse-click against the fold gutter (the chevron column to
+/// the left of the line numbers) and, if it landed on a foldable region's
+/// header row, toggle that fold. Returns the toggled header line (0-based), or
+/// `-1` when the click wasn't on a chevron. The Mighty side calls this BEFORE
+/// the normal editor click so a chevron click folds instead of moving the
+/// cursor. Visible-row aware: the click y maps through the fold mapping to the
+/// source line actually shown on that row.
+#[no_mangle]
+pub extern "C" fn mui_fold_gutter_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let (ex, ey) = (ctx.last_event.x, ctx.last_event.y);
+    let mut region = layout::region(ctx.sidebar_visible);
+    let count = ctx.panes.count();
+    if count > 1 {
+        let win_w = ctx.gpu.width as f32;
+        region = layout::pane_region(region, win_w, count, ctx.panes.focused());
+    }
+    // The chevron sits in a narrow band at the LEFT of the gutter (before the
+    // right-aligned line numbers). Accept a click anywhere in the first
+    // `FOLD_GUTTER_W` px of the gutter column.
+    let band_left = region.left;
+    let band_right = region.left + FOLD_GUTTER_W;
+    if ex < band_left || ex > band_right {
+        return -1;
+    }
+    // Which VISIBLE row was clicked, then the source line shown there.
+    let row_top = region.top + layout::PAD;
+    if ey < row_top {
+        return -1;
+    }
+    let vis_row = ((ey - row_top) / layout::LINE_H()).floor() as usize;
+    let first = ctx.tabs.active_model().first_visible();
+    let total = ctx.tabs.active_model().line_count();
+    // `first` is a SOURCE line; convert it to a visible row, add the clicked row
+    // offset, then back to the source line that is actually painted there.
+    let first_vis = ctx.tabs.active_fold().source_to_visible(first, total);
+    let src = ctx
+        .tabs
+        .active_fold()
+        .visible_to_source(first_vis + vis_row, total);
+    if ctx.tabs.active_fold().is_foldable_start(src) {
+        ctx.tabs.active_fold_mut().toggle(src);
+        return src as i32;
+    }
+    -1
+}
+
+/// Width (px) of the clickable fold-chevron band at the left of the gutter.
+pub(crate) const FOLD_GUTTER_W: f32 = 14.0;
 
 /// Map a minimap pixel `(x, y)` to the buffer line it represents, or `-1` if the
 /// point is outside the focused pane's minimap strip (or the minimap is hidden).
@@ -6331,6 +6609,12 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
     if ctx.diff.is_active() {
         return;
     }
+    // Keep the active tab's foldable ranges current with the live buffer. The
+    // edit buffer lives shim-side (L28) and edits land between frames; recomputing
+    // here (cheap linear scan, folds preserved where headers survive) means the
+    // gutter chevrons + the visible↔source mapping always match what's on screen
+    // without threading a recompute call through every Mighty edit site.
+    ctx.tabs.recompute_active_fold();
     let count = ctx.panes.count();
     let region = layout::region(ctx.sidebar_visible);
     let win_w = ctx.gpu.width as f32;
@@ -6408,22 +6692,44 @@ fn draw_editor_pane(
             .tabs
             .model_at(tab_idx)
             .unwrap_or_else(|| ctx.tabs.active_model());
+        let fold = ctx
+            .tabs
+            .fold_at(tab_idx)
+            .unwrap_or_else(|| ctx.tabs.active_fold());
         let total = m.line_count();
         let first = m.first_visible();
-        let last = (first + rows).min(total);
         let caret_n = m.caret_count();
         let carets: Vec<(usize, usize)> = (0..caret_n).filter_map(|i| m.caret_at(i)).collect();
         let selections: Vec<((usize, usize), (usize, usize))> =
             (0..caret_n).filter_map(|i| m.caret_selection(i)).collect();
+        // FOLD-AWARE visible window: the next `rows` non-hidden source lines
+        // starting at the scroll offset. Each painted line's screen row is its
+        // index in this Vec. With no folds active this is exactly `first..last`.
+        let vis_lines = fold.visible_lines_from(first, rows, total);
+        let lines_for_view: Vec<(usize, String)> =
+            vis_lines.iter().map(|&i| (i, m.line(i).to_string())).collect();
+        let mut fold_marks = std::collections::HashMap::new();
+        for &li in &vis_lines {
+            if fold.is_foldable_start(li) {
+                fold_marks.insert(
+                    li,
+                    FoldMark {
+                        folded: fold.is_folded(li),
+                        hidden: fold.hidden_count_at(li),
+                    },
+                );
+            }
+        }
         EdDrawSnapshot {
             total,
             first,
             cur_line: m.cursor_line(),
             cur_col: m.cursor_col(),
             sel: m.selection_range(),
-            lines_for_view: (first..last).map(|i| (i, m.line(i).to_string())).collect(),
+            lines_for_view,
             carets,
             selections,
+            fold_marks,
         }
     };
     let EdDrawSnapshot {
@@ -6435,8 +6741,22 @@ fn draw_editor_pane(
         lines_for_view,
         carets,
         selections,
+        fold_marks,
     } = snap;
     let _ = sel; // superseded by `selections` (still computed for back-compat).
+    let _ = first; // superseded by the fold-aware `row_of` mapping below.
+
+    // Source line -> painted screen row, for the visible window. With folding
+    // this is NOT `li - first` (folded lines are skipped), so every per-line
+    // draw (band/selection/caret/indent-guide/bracket) resolves its row here.
+    let row_of: std::collections::HashMap<usize, i32> = lines_for_view
+        .iter()
+        .enumerate()
+        .map(|(k, (li, _))| (*li, k as i32))
+        .collect();
+    // The last source line currently painted (for "is this on screen" tests that
+    // previously used `first + rows`). When nothing is painted, treat as `first`.
+    let last_src = lines_for_view.last().map(|(li, _)| *li).unwrap_or(first);
 
     let total_u64 = total.max(1) as u64;
     let text_x = layout::text_left_in(region, total_u64);
@@ -6477,8 +6797,8 @@ fn draw_editor_pane(
 
     // 1) Current-line highlight band (only when the cursor row is visible), with
     //    a soft indigo left→clear gradient glow + a 2px indigo left edge.
-    if cur_line >= first && cur_line < first + rows {
-        let row = (cur_line - first) as i32;
+    //    Fold-aware: the row is resolved through `row_of` (folded lines skipped).
+    if let Some(&row) = row_of.get(&cur_line) {
         let y = layout::row_y_in(region, row);
         let band_w = mm_x - region.left;
         // Nudge the band up 1px for optical centering on the glyph baseline, but
@@ -6519,7 +6839,7 @@ fn draw_editor_pane(
             if levels == 0 {
                 continue;
             }
-            let row = (*li - first) as i32;
+            let row = row_of.get(li).copied().unwrap_or(0);
             let y = layout::row_y_in(region, row);
             for lvl in 0..levels {
                 let gx = text_x + (lvl * tw) as f32 * layout::CHAR_W();
@@ -6559,7 +6879,7 @@ fn draw_editor_pane(
             if e <= s {
                 continue;
             }
-            let row = (li - first) as i32;
+            let row = row_of.get(&li).copied().unwrap_or(0);
             let x = layout::text_x_in(region, total_u64, s as i32);
             let w = (e - s) as f32 * layout::CHAR_W();
             let y = layout::row_y_in(region, row);
@@ -6570,9 +6890,9 @@ fn draw_editor_pane(
     }
 
     // 3) Gutter numbers + syntax-colored source text.
-    for (line_idx, line) in &lines_for_view {
+    for (row_idx, (line_idx, line)) in lines_for_view.iter().enumerate() {
         let li = *line_idx;
-        let row = (li - first) as i32;
+        let row = row_idx as i32;
         let y = layout::row_y_in(region, row);
         // Right-aligned gutter number; the cursor's line is brighter.
         let num = (li + 1).to_string();
@@ -6631,6 +6951,51 @@ fn draw_editor_pane(
         }
     }
 
+    // 3c) Fold gutter chevrons + the "⋯ N lines" folded indicator. A subtle
+    //     ▾ (open) / ▸ (folded) glyph is drawn in the chevron band at the LEFT of
+    //     the gutter next to every foldable region's header; a folded header also
+    //     shows a faint pill "⋯ N lines" at the end of its text so the hidden span
+    //     reads at a glance. Fold-state is per-tab (`fold_marks`, keyed by source
+    //     line); rows resolve through the painted order so the marks land on the
+    //     right screen rows even with nested folds active.
+    if !fold_marks.is_empty() {
+        for (row_idx, (line_idx, line)) in lines_for_view.iter().enumerate() {
+            let Some(mark) = fold_marks.get(line_idx) else { continue };
+            let row = row_idx as i32;
+            let y = layout::row_y_in(region, row);
+            // Chevron glyph in the left band of the gutter. Subtle by default,
+            // brighter when folded (so a collapsed region stands out).
+            let cev_x = region.left + 2.0;
+            let cev_y = y + (layout::LINE_H() - chrome) * 0.5 - 1.0;
+            let glyph = if mark.folded { "\u{25B8}" } else { "\u{25BE}" }; // ▸ / ▾
+            let mut col = if mark.folded { theme::TEXT_3() } else { theme::GUTTER() };
+            if split_chrome && !focused {
+                col.a *= 0.6;
+            }
+            ctx.text.queue_ui_sized(cev_x, cev_y, glyph, col, chrome - 1.0, clip);
+
+            // Folded indicator pill at the end of the header text: "⋯ N lines".
+            if mark.folded {
+                let end_col = line.chars().count();
+                let px = text_x + (end_col as f32 + 1.0) * layout::CHAR_W();
+                if px < mm_x - 40.0 {
+                    let n = mark.hidden;
+                    let label = if n == 1 {
+                        "\u{22EF} 1 line".to_string()
+                    } else {
+                        format!("\u{22EF} {n} lines")
+                    };
+                    let pill_w = (label.chars().count() as f32) * (chrome * 0.55) + 12.0;
+                    let pill_h = layout::LINE_H() - 5.0;
+                    let py = y - 1.0;
+                    ctx.dl_round(px, py, pill_w.min(mm_x - px - 6.0), pill_h, 4.0, theme::accent_a(0.14));
+                    let tcol = theme::TEXT_3();
+                    ctx.text.queue_ui_sized(px + 6.0, py + (pill_h - (chrome - 1.0)) * 0.5, &label, tcol, chrome - 1.0, clip);
+                }
+            }
+        }
+    }
+
     // 3b) Bracket-pair colorization — re-draw each matched `()[]{}` glyph in a
     //     rainbow color by NESTING DEPTH, over-painting the punctuation glyph from
     //     step 3. Depth is tracked from the buffer start so brackets keep a stable
@@ -6644,7 +7009,9 @@ fn draw_editor_pane(
         // Scan from line 0 to the last visible line so depth is correct, but only
         // tag the visible window. Build the string/comment mask per line from its
         // syntax spans (a span colored as a string/comment masks its chars).
-        let scan_hi = (first + rows).min(total);
+        // Scan from line 0 through the last PAINTED source line (folds can push
+        // the painted window past `first + rows` source lines).
+        let scan_hi = (last_src + 1).min(total);
         let scan_lines: Vec<String> = {
             let m = ctx
                 .tabs
@@ -6672,12 +7039,11 @@ fn draw_editor_pane(
             },
         );
         for t in tags {
-            if t.line < first || t.line >= first + rows {
-                continue;
-            }
+            // Only re-paint brackets on PAINTED rows (fold-aware: a bracket on a
+            // hidden line has no screen row).
+            let Some(&row) = row_of.get(&t.line) else { continue };
             let line = &scan_lines[t.line];
             let Some(ch) = line.chars().nth(t.col) else { continue };
-            let row = (t.line - first) as i32;
             let x = text_x + t.col as f32 * layout::CHAR_W();
             let y = layout::row_y_in(region, row);
             let mut c = if t.error { err_col } else { palette[t.color_index] };
@@ -6694,10 +7060,8 @@ fn draw_editor_pane(
     //    slightly dimmer so the primary stays distinguishable. With one caret this
     //    is identical to the historical single-caret draw (primary == cur_line).
     for (i, (cl, cc)) in carets.iter().copied().enumerate() {
-        if cl < first || cl >= first + rows {
-            continue;
-        }
-        let row = (cl - first) as i32;
+        // Fold-aware: a caret on a hidden line has no painted row.
+        let Some(&row) = row_of.get(&cl) else { continue };
         let cx = layout::text_x_in(region, total_u64, cc as i32);
         let cy = layout::row_y_in(region, row);
         // An UNFOCUSED split pane shows a faint, glow-less caret (it isn't where
@@ -6742,8 +7106,7 @@ fn draw_editor_pane(
         if let Some((cl, cc, ml, mc)) = pair {
             let cw = layout::CHAR_W();
             for (li, co) in [(cl, cc), (ml, mc)] {
-                if li >= first && li < first + rows {
-                    let row = (li - first) as i32;
+                if let Some(&row) = row_of.get(&li) {
                     let x = layout::text_x_in(region, total_u64, co as i32);
                     let y = layout::row_y_in(region, row);
                     ctx.dl_stroke(x - 1.0, y - 1.0, cw + 2.0, layout::LINE_H() - 2.0, 2.0, theme::ACCENT_LINE(), 1.0);
@@ -8181,6 +8544,21 @@ pub extern "C" fn mui_chord(handle: i64, cp: i32, mods: i32) -> i32 {
     let resolved = unsafe { ctx(handle) }.and_then(|c| c.shortcuts.overrides().resolve(cp, mods));
     if let Some(id) = resolved {
         return router_dispatch(handle, id);
+    }
+
+    // Ctrl+Shift+[ : toggle the fold of the region enclosing the cursor.
+    // Ctrl+Shift+] : unfold (toggle) it again. Both routed here (no new Mighty
+    // ladder arm — L37/L38). `[`==91, `]`==93. The `{`/`}` codepoints (123/125)
+    // are accepted too since some layouts deliver the shifted glyph.
+    if ctrl && shift && !alt && (cp == 91 || cp == 123) {
+        let _ = mui_fold_dispatch(handle, crate::palette::CMD_FOLD_TOGGLE as i32);
+        return 1;
+    }
+    if ctrl && shift && !alt && (cp == 93 || cp == 125) {
+        // Symmetric "fold/unfold" toggle at the cursor (same op; toggling twice
+        // restores) so a single chord pair feels natural.
+        let _ = mui_fold_dispatch(handle, crate::palette::CMD_FOLD_TOGGLE as i32);
+        return 1;
     }
 
     // Alt+\ : force an inline AI ghost completion. (Not remappable — kept literal.)

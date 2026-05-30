@@ -91,6 +91,19 @@ pub const CMD_WS_LAST: u32 = CMD_OPEN_RECENT;
 /// list + remapping). Dispatched directly in `src/main.mty` to `mui_keys_open`.
 pub const CMD_KEYBOARD_SHORTCUTS: u32 = 38;
 
+/// Code-folding commands, routed via `mui_fold_dispatch` so the Mighty palette
+/// ladder gains ONE arm range, not three (L37/L38 parse-stack ceiling). Toggle
+/// folds the region at the cursor; Fold/Unfold All act on the whole buffer.
+pub const CMD_FOLD_TOGGLE: u32 = 39;
+pub const CMD_FOLD_ALL: u32 = 40;
+pub const CMD_UNFOLD_ALL: u32 = 41;
+/// First/last fold command id (ids in `[FIRST, LAST]` route to `mui_fold_dispatch`;
+/// the range is mirrored by the Mighty `cmd_fold_first/last` helpers).
+#[allow(dead_code)]
+pub const CMD_FOLD_FIRST: u32 = CMD_FOLD_TOGGLE;
+#[allow(dead_code)]
+pub const CMD_FOLD_LAST: u32 = CMD_UNFOLD_ALL;
+
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
@@ -132,6 +145,9 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_OPEN_FOLDER,      label: "File: Open Folder",   keybinding: "Ctrl+Shift+O" },
     Command { id: CMD_OPEN_RECENT,      label: "File: Open Recent",   keybinding: "" },
     Command { id: CMD_KEYBOARD_SHORTCUTS, label: "Help: Keyboard Shortcuts", keybinding: "Ctrl+Shift+/" },
+    Command { id: CMD_FOLD_TOGGLE,      label: "Fold: Toggle at Cursor",  keybinding: "Ctrl+Shift+[" },
+    Command { id: CMD_FOLD_ALL,         label: "Fold: Fold All",          keybinding: "" },
+    Command { id: CMD_UNFOLD_ALL,       label: "Fold: Unfold All",        keybinding: "" },
 ];
 
 /// Match quality for ranking. Lower sorts first.

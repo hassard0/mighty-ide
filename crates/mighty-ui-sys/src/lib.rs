@@ -26,6 +26,7 @@ mod diff;
 mod editor;
 mod featureabi;
 mod ffi;
+mod fold;
 mod format;
 mod ghost;
 mod ghostabi;

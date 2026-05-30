@@ -545,6 +545,10 @@ extern c {
   fn mui_blame_draw(handle: I64, rows: I32)
   // ---- centralized chord router (L37: new chords route here, not new arms) ----
   fn mui_chord(handle: I64, cp: I32, mods: I32) -> I32
+  // ---- code folding (per-tab) — fold/unfold/fold-all route via mui_fold_dispatch.
+  // Recompute, gutter-click, and the visible↔source mapping are all shim-internal
+  // (driven from mui_ed_draw / mui_ed_click), so only the dispatcher is declared.
+  fn mui_fold_dispatch(handle: I64, cmd_id: I32) -> I32
   // ---- editor split-pane layout (side-by-side) ----
   fn mui_pane_count(handle: I64) -> I32
   fn mui_pane_focus_at_click(handle: I64) -> I32
@@ -605,6 +609,10 @@ fn cmd_pane_last() -> I32 { 35 }  // Markdown: Open Preview (highest pane id)
 fn cmd_ws_first() -> I32 { 36 } // File: Open Folder (lowest ws id)
 fn cmd_ws_last() -> I32 { 37 }  // File: Open Recent (highest ws id)
 fn cmd_keyboard_shortcuts() -> I32 { 38 } // Help: Keyboard Shortcuts overlay
+// Code-folding commands route to the single `mui_fold_dispatch` shim entry so
+// the palette ladders gain ONE arm range, not three (L37/L38).
+fn cmd_fold_first() -> I32 { 39 } // Fold: Toggle at Cursor (lowest fold id)
+fn cmd_fold_last() -> I32 { 41 }  // Fold: Unfold All (highest fold id)
 
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
@@ -1349,6 +1357,10 @@ fn main() {
                   find_nav = false
                 }
               }
+            } else if id >= cmd_fold_first() && id <= cmd_fold_last() {
+              // Code-folding commands (toggle / fold-all / unfold-all) route to
+              // the single shim dispatcher (one arm range — L37/L38).
+              let _f = mui_fold_dispatch(h, id)
             } else if id == cmd_keyboard_shortcuts() {
               // Open the Keyboard Shortcuts reference overlay (its own input mode,
               // gated by mui_keys_active; routed in the combined-overlay arm).
@@ -1505,6 +1517,8 @@ fn main() {
                     find_nav = false
                   }
                 }
+              } else if id >= cmd_fold_first() && id <= cmd_fold_last() {
+                let _f = mui_fold_dispatch(h, id)
               } else if id == cmd_keyboard_shortcuts() {
                 mui_keys_open(h)
               }

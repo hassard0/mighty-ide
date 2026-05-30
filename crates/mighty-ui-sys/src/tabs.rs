@@ -12,6 +12,16 @@
 use std::path::{Path, PathBuf};
 
 use crate::editor::TextModel;
+use crate::fold::FoldState;
+
+/// Snapshot a model's lines into owned strings (for the fold scanner, which is
+/// pure over `&[String]`). The model stores newlines as line boundaries, so this
+/// is one `String` per buffer line.
+fn model_lines(model: &TextModel) -> Vec<String> {
+    (0..model.line_count())
+        .map(|i| model.line(i).to_string())
+        .collect()
+}
 
 /// One open file tab. Since the L28 codegen bug forced the editable buffer
 /// shim-side, each tab now owns an authoritative [`TextModel`] (lines, cursor,
@@ -26,6 +36,9 @@ pub struct Tab {
     pub bytes: Vec<u8>,
     /// The authoritative editable text model for this tab.
     pub model: TextModel,
+    /// Per-tab code-folding state (foldable ranges + folded headers). Recomputed
+    /// from the model on edit / load; folded headers preserved where they survive.
+    pub fold: FoldState,
     /// 0-based cursor line saved when this tab was last active (legacy).
     pub cursor_line: i32,
     /// 0-based cursor column saved when this tab was last active (legacy).
@@ -95,10 +108,13 @@ impl TabStore {
         }
         let bytes = std::fs::read(&path).unwrap_or_default();
         let model = TextModel::from_bytes(&bytes);
+        let mut fold = FoldState::new();
+        fold.recompute_owned(&model_lines(&model));
         self.tabs.push(Tab {
             path: Some(path),
             bytes,
             model,
+            fold,
             cursor_line: 0,
             cursor_col: 0,
             scroll_first: 0,
@@ -127,6 +143,31 @@ impl TabStore {
         &mut self.tabs[i].model
     }
 
+    /// The active tab's code-fold state (shared ref).
+    pub fn active_fold(&self) -> &FoldState {
+        &self.tabs[self.active.min(self.tabs.len().saturating_sub(1))].fold
+    }
+
+    /// The active tab's code-fold state (mutable).
+    pub fn active_fold_mut(&mut self) -> &mut FoldState {
+        let i = self.active.min(self.tabs.len().saturating_sub(1));
+        &mut self.tabs[i].fold
+    }
+
+    /// Tab `i`'s fold state (shared ref), or `None` out of range (for the
+    /// split-pane draw of an UNFOCUSED tab).
+    pub fn fold_at(&self, i: usize) -> Option<&FoldState> {
+        self.tabs.get(i).map(|t| &t.fold)
+    }
+
+    /// Recompute the active tab's foldable ranges from its current model lines
+    /// (preserving folded headers that still open a region). Called after edits.
+    pub fn recompute_active_fold(&mut self) {
+        let i = self.active.min(self.tabs.len().saturating_sub(1));
+        let lines = model_lines(&self.tabs[i].model);
+        self.tabs[i].fold.recompute_owned(&lines);
+    }
+
     /// Active tab's path, if any.
     pub fn active_path(&self) -> Option<PathBuf> {
         self.path(self.active)
@@ -138,6 +179,10 @@ impl TabStore {
         self.tabs[i].model = TextModel::from_bytes(bytes);
         self.tabs[i].bytes = bytes.to_vec();
         self.tabs[i].dirty = false;
+        // A fresh buffer: recompute folds and drop any stale folded state.
+        let lines = model_lines(&self.tabs[i].model);
+        self.tabs[i].fold = FoldState::new();
+        self.tabs[i].fold.recompute_owned(&lines);
     }
 
     /// Ensure at least one tab exists. Used at startup if no file opened and on
