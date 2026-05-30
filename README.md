@@ -4,37 +4,62 @@
 
 The entire UI is drawn each frame as a Vello scene — smooth gradients, true rounded corners, soft drop shadows, wavy diagnostic underlines, anti-aliased text — at CSS quality. The editor orchestration is Mighty source (`src/main.mty`) calling a Rust rendering/services shim across a scalar `extern c` ABI. First-class Mighty support, extensible to other languages.
 
-![Mighty IDE](screenshots/01-editor.png)
+![Mighty IDE](screenshots/24-debug.png)
 
 ## Features
 
-### Editing
+Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [CHANGELOG.md](CHANGELOG.md).
+
+### Editing & Multi-cursor
 - Live edit / save (Ctrl+S) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
 - Undo / redo (Ctrl+Z / Ctrl+Y), typing-run coalescing
 - Toggle line comment (Ctrl+/), auto-indent on Enter (brace-aware), bracket/quote auto-close + skip-over + empty-pair backspace, bracket-match highlight
 - Duplicate line/selection (Ctrl+Shift+D), move line up/down (Alt+↑ / Alt+↓), word-wise motion (Ctrl+←/→), smart Home, Shift+motion selection
 - In-file find & replace (Ctrl+H), find with match highlighting (Ctrl+F)
+- **Multi-cursor** — add caret at next occurrence (Ctrl+D), add caret above/below (Ctrl+Alt+↑/↓), toggle caret on Alt+Click
+- **Snippets** — type a prefix + Tab to expand a template with navigable tab-stops
 
-### Navigation & Intelligence
+### Navigation & Code-reading
+- **Universal Quick-Open (Ctrl+P)** — fuzzy files + MRU, with `>` command, `@` symbol, and `:` line modes in one overlay
+- Command palette (Ctrl+Shift+P), fuzzy-filtered
 - Go-to-line (Ctrl+G), go-to-definition (F12, cross-file), jump-back (Ctrl+−)
-- Hover info (Ctrl+K), autocomplete (Ctrl+Space — semantic LSP completions + buffer words)
-- Signature help, rename symbol (F2), code actions / quick-fix (Ctrl+.)
-- Live `mty check` diagnostics — gutter dots + wavy underlines
-- All language intelligence speaks to Mighty's own `mty-lsp` over stdio
-
-### Workspace
+- **Peek definition (Alt+F12)** — inline framed definition preview
+- **Sticky scroll** — pinned enclosing scopes
+- **Outline, Problems, and an interactive breadcrumb** code-nav bar
 - Tabs (Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W, click), file-tree sidebar (Ctrl+B), open-by-path (Ctrl+O)
 - Project-wide Search panel (Ctrl+Shift+F)
-- Source Control: git status panel (Ctrl+Shift+G) with an inline diff view
-- Command palette (Ctrl+Shift+P), fuzzy-filtered
-- Run panel (Ctrl+Shift+R) — background `mty run` with streamed output + clickable diagnostics
-- Run in Browser (Alt+W) — build the active file to `wasm32-web` and run it in the browser via `mty serve` (web-game packages) or a `mty build --target wasm32-web` + static-server fallback; streams build/serve output, scrapes the served URL, opens the default browser, stop affordance. Sample: `examples/webspin/`
-- Settings panel (Ctrl+,) — live font size / tab width / word wrap / minimap / theme
+
+### Language Intelligence
+- Hover info (Ctrl+K), autocomplete (Ctrl+Space — semantic LSP completions + buffer words)
+- Signature help (Ctrl+Shift+Space), rename symbol (F2), code actions / quick-fix (Ctrl+.)
+- Live `mty check` diagnostics — gutter dots + wavy underlines
+- First-class Mighty intelligence over its own `mty-lsp`, plus **multi-language support**: config-driven highlighting + a generic LSP bridge across 15 languages
 
 ### AI
 - AI copilot Agents panel (Ctrl+Shift+A) — streaming Anthropic chat
 - Inline ask (Ctrl+I)
+- **Inline AI ghost-text** (Copilot-style) — debounced suggestions, force with Alt+\, word-wise partial accept (Ctrl+→)
 - Reads `ANTHROPIC_API_KEY` from the environment
+
+### Source Control
+- Source Control panel (Ctrl+Shift+G) — git status + inline diff view
+- **Branch switcher + push / pull / fetch**
+- **Per-hunk stage / unstage** (reconstructed unified patches)
+- **Blame gutter (Alt+B)** — porcelain-parsed, per-file cached
+
+### Run · Test · Debug
+- Run panel (Ctrl+Shift+R) — background `mty run` with streamed output + clickable diagnostics
+- **Test runner panel (Ctrl+Shift+T)** — shim-side `mty-test` parser + results model
+- **Debugger (DAP)** — a shim-side client driving `mty dap`: breakpoints, run controls, call stack + variables, Run-and-Debug view (F5 start-continue / Shift+F5 stop, F10 step-over, F11 / Shift+F11 step-into/out)
+
+### Web
+- **Run in Browser (Alt+W)** — build the active file to `wasm32-web` and run it in the browser via `mty serve` (web-game packages) or a `mty build --target wasm32-web` + static-server fallback; streams build/serve output, scrapes the served URL, opens the default browser, stop affordance. Sample: `examples/webspin/`
+
+### Workspace & UX
+- Welcome screen, toast notifications, **Zen / focus mode (Alt+Z)**
+- **Mighty Agents panel (Alt+G)** — static agent-system topology, run + live `mty inspect`
+- Settings panel (Ctrl+,) — live font size / tab width / word wrap / minimap / theme
+- Integrated terminal (Ctrl+`) — a real ConPTY shell with a VT parser
 
 ### Themes
 Three live-switchable design systems, all rendered through Vello:
@@ -42,20 +67,18 @@ Three live-switchable design systems, all rendered through Vello:
 - **Aurora Glass** — dark glass over an aurora gradient
 - **Warm Studio** — a light, warm-paper theme
 
-### Terminal
-- Integrated terminal (Ctrl+`) — a real ConPTY shell with a VT parser
-
 Bundled fonts: **JetBrains Mono** (code) + **Bricolage Grotesque** (UI chrome), both SIL OFL (`fonts/`).
 
 ## Gallery
 
 | | |
 |---|---|
-| ![Editor](screenshots/01-editor.png) | ![Command palette](screenshots/04-palette.png) |
-| ![Inline diff](screenshots/19-diff.png) | ![Autocomplete](screenshots/07-autocomplete.png) |
+| ![Editor](screenshots/01-editor.png) | ![Quick-Open](screenshots/29-quickopen.png) |
+| ![Debugger](screenshots/24-debug.png) | ![Test runner](screenshots/25-test.png) |
+| ![Mighty Agents](screenshots/38-agents.png) | ![Git blame](screenshots/40-blame.png) |
+| ![Web Playground](screenshots/41-web.png) | ![Multi-cursor](screenshots/34-multicursor.png) |
+| ![Inline AI ghost-text](screenshots/31-ghost.png) | ![Command palette](screenshots/04-palette.png) |
 | ![Aurora Glass theme](screenshots/13-theme-aurora.png) | ![Warm Studio theme](screenshots/14-theme-warm.png) |
-| ![AI copilot](screenshots/17-ai.png) | ![Settings](screenshots/20-settings.png) |
-| ![Web Playground](screenshots/41-web.png) | |
 
 ## Architecture
 
@@ -88,7 +111,7 @@ See [BUILDING.md](BUILDING.md) for the exact toolchain paths and commands.
 
 ## Dogfooding Mighty
 
-The IDE is the **forcing function** for maturing Mighty: every place the language fights us while building real native software is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md), so each friction point can be promoted into a `stardust` issue / RFC. That feedback loop has already driven real fixes in the Mighty compiler — for example the native `Vec`-growth codegen bug ([L28](docs/mighty-language-lessons.md)), the `extern c` scalar ABI (L17), and the LSP-client discipline (L24–L25).
+The IDE is the **forcing function** for maturing Mighty: every place the language fights us while building real native software is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md), so each friction point can be promoted into a `stardust` issue / RFC. That feedback loop (lessons L1–L41) has already driven real fixes in the Mighty compiler — for example the native `Vec`-growth codegen bug ([L28](docs/mighty-language-lessons.md)), the `extern c` scalar ABI (L17), the LSP-client discipline (L24–L25), and the parse-stack ceiling worked around by the `mui_chord` router (L37–L38).
 
 ## Status & known caveats
 
