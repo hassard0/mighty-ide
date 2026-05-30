@@ -816,3 +816,60 @@ fn translate_close_and_resize_events() {
     assert_eq!(r.height, 600);
     assert_eq!(q.pending_resize, Some((800, 600)));
 }
+
+/// `mui_headless_frames` returns 0 for a normal interactive run (no headless
+/// env), and a positive cap when a headless/screenshot/probe env is set. Env
+/// vars are process-global, so all cases run sequentially in one test with
+/// careful cleanup (and the suite is single-threaded for env-touching tests).
+#[test]
+fn headless_frames_zero_without_env_positive_with_env() {
+    use crate::abi::mui_headless_frames;
+
+    // Clean any leftover headless env this test cares about so the baseline is
+    // a true "interactive" launch.
+    let keys = [
+        "MUI_HEADLESS_FRAMES",
+        "MUI_SCREENSHOT",
+        "MUI_PALETTE_AUTOOPEN",
+        "MUI_NAV_PROBE",
+    ];
+    for k in keys {
+        std::env::remove_var(k);
+    }
+
+    // Interactive: no headless env -> run forever (0).
+    assert_eq!(
+        mui_headless_frames(),
+        0,
+        "no headless env should mean run-until-close (0)"
+    );
+
+    // Dedicated MUI_HEADLESS_FRAMES with a valid positive value -> that value.
+    std::env::set_var("MUI_HEADLESS_FRAMES", "120");
+    assert_eq!(mui_headless_frames(), 120);
+    // Invalid / non-positive -> falls back to the default cap.
+    std::env::set_var("MUI_HEADLESS_FRAMES", "notanumber");
+    assert!(mui_headless_frames() > 0);
+    std::env::set_var("MUI_HEADLESS_FRAMES", "0");
+    assert!(mui_headless_frames() > 0);
+    std::env::remove_var("MUI_HEADLESS_FRAMES");
+    assert_eq!(mui_headless_frames(), 0);
+
+    // Screenshot mode -> positive cap.
+    std::env::set_var("MUI_SCREENSHOT", "out.png");
+    assert!(mui_headless_frames() > 0);
+    std::env::remove_var("MUI_SCREENSHOT");
+    assert_eq!(mui_headless_frames(), 0);
+
+    // Any *_AUTOOPEN screenshot hook -> positive cap.
+    std::env::set_var("MUI_PALETTE_AUTOOPEN", "1");
+    assert!(mui_headless_frames() > 0);
+    std::env::remove_var("MUI_PALETTE_AUTOOPEN");
+    assert_eq!(mui_headless_frames(), 0);
+
+    // Any *_PROBE scripted probe -> positive cap.
+    std::env::set_var("MUI_NAV_PROBE", "1");
+    assert!(mui_headless_frames() > 0);
+    std::env::remove_var("MUI_NAV_PROBE");
+    assert_eq!(mui_headless_frames(), 0);
+}

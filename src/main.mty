@@ -27,6 +27,9 @@ extern c {
   fn mui_end_frame_s(handle: I64)
   fn mui_visible_rows(handle: I64) -> I32
   fn mui_poll_event_s(handle: I64) -> I32
+  // Frame cap for non-interactive (headless / screenshot / probe) runs: returns
+  // a positive cap when a headless env is set, else 0 (= run until window Close).
+  fn mui_headless_frames() -> I32
   fn mui_event_codepoint(handle: I64) -> I32
   fn mui_event_key(handle: I64) -> I32
   fn mui_event_mods(handle: I64) -> I32
@@ -1016,7 +1019,10 @@ fn main() {
 
   let mut running = true
   let mut frame: I32 = 0
-  let headless_limit: I32 = 240   // self-terminate so non-interactive runs exit
+  // 0 for a normal interactive launch (run forever until the window Close
+  // event); a positive cap only when a headless/screenshot/probe env is set, so
+  // non-interactive captures/tests still exit. Gated shim-side (mui_headless_frames).
+  let headless_limit: I32 = mui_headless_frames()
 
   // prompt_kind: 0 = none, 1 = goto, 2 = find, 3 = open (mirrors the shim).
   let mut prompt_kind: I32 = 0
@@ -2997,7 +3003,10 @@ fn main() {
     mui_end_frame_s(h)
 
     frame = frame + 1
-    if frame >= headless_limit { running = false }
+    // Only self-terminate in headless/screenshot/probe mode (headless_limit > 0).
+    // A normal run keeps headless_limit == 0 and loops until the window Close
+    // event flips `running` to false (handled in the poll arm above).
+    if headless_limit > 0 && frame >= headless_limit { running = false }
   }
 
   log("mighty-ide: shutting down")

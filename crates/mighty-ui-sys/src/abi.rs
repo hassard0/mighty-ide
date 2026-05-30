@@ -1666,6 +1666,55 @@ pub extern "C" fn mui_click_col(handle: i64, total_lines: i32) -> i32 {
 }
 
 // ---------------------------------------------------------------------------
+// headless / screenshot self-termination cap
+// ---------------------------------------------------------------------------
+
+/// Default per-mode frame cap when a headless/screenshot/probe env is set.
+/// Overridable with `MUI_HEADLESS_FRAMES=<n>`.
+const DEFAULT_HEADLESS_FRAMES: i32 = 240;
+
+/// True when the process is running in a non-interactive (headless / screenshot
+/// / probe) mode and the main loop should self-terminate after a frame cap
+/// rather than block on a window Close event that will never arrive.
+///
+/// Detected when ANY of these env vars is set:
+///   * `MUI_HEADLESS_FRAMES` (dedicated, also sets the cap value),
+///   * `MUI_SCREENSHOT` (offscreen screenshot capture),
+///   * any `MUI_*_AUTOOPEN` (screenshot autoopen hooks),
+///   * any `MUI_*_PROBE` (scripted headless probes).
+///
+/// A plain interactive launch sets none of these, so it runs forever until the
+/// user closes the window.
+pub(crate) fn headless_mode_active() -> bool {
+    if std::env::var_os("MUI_HEADLESS_FRAMES").is_some()
+        || std::env::var_os("MUI_SCREENSHOT").is_some()
+    {
+        return true;
+    }
+    std::env::vars_os().any(|(k, _)| {
+        let Some(k) = k.to_str() else { return false };
+        k.starts_with("MUI_") && (k.ends_with("_AUTOOPEN") || k.ends_with("_PROBE"))
+    })
+}
+
+/// The frame cap the IDE main loop should self-terminate at, or `0` to run
+/// forever (until a window Close event). Returns a positive cap only when a
+/// headless/screenshot/probe env is set (see [`headless_mode_active`]); the
+/// value is `MUI_HEADLESS_FRAMES` if a valid positive integer, else
+/// [`DEFAULT_HEADLESS_FRAMES`]. A normal interactive run returns `0`.
+#[no_mangle]
+pub extern "C" fn mui_headless_frames() -> i32 {
+    if !headless_mode_active() {
+        return 0;
+    }
+    std::env::var("MUI_HEADLESS_FRAMES")
+        .ok()
+        .and_then(|v| v.trim().parse::<i32>().ok())
+        .filter(|&n| n > 0)
+        .unwrap_or(DEFAULT_HEADLESS_FRAMES)
+}
+
+// ---------------------------------------------------------------------------
 // event pump (scalar accessors over the last-polled event)
 // ---------------------------------------------------------------------------
 
