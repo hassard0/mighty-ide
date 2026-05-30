@@ -1,0 +1,43 @@
+// Outline demo: a spread of symbol kinds for the Outline panel + breadcrumb.
+
+struct Point {
+  x: I32,
+  y: I32,
+}
+
+enum Shape {
+  Circle,
+  Square,
+  Triangle,
+}
+
+type NodeId = I32
+
+protocol Drawable {
+  fn draw(self)
+}
+
+impl Drawable for Point {
+  fn draw(self) {
+    log("point")
+  }
+  fn translate(self, dx: I32, dy: I32) -> Point {
+    Point { x: self.x + dx, y: self.y + dy }
+  }
+}
+
+agent Painter {
+  fn paint(self, shape: Shape) {
+    log("painting")
+  }
+}
+
+fn add(a: I32, b: I32) -> I32 {
+  a + b
+}
+
+fn main() {
+  let p = Point { x: 1, y: 2 }
+  let total = add(p.x, p.y)
+  log("done")
+}
