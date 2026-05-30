@@ -31,18 +31,64 @@ pub const DIR_DOWN: i32 = 3;
 pub const DIR_HOME: i32 = 4;
 pub const DIR_END: i32 = 5;
 
-/// An editable document: lines of text + a cursor + an optional selection
-/// anchor + the top visible line (scroll). Always holds at least one line.
+/// A single caret: a cursor position plus an optional selection anchor.
+///
+/// A `TextModel` always holds at least one caret; `carets[0]` is the PRIMARY
+/// caret, which every legacy single-cursor accessor reads/writes. With exactly
+/// one caret the model behaves identically to the old single-cursor model.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Caret {
+    /// 0-based cursor line.
+    pub line: usize,
+    /// 0-based cursor column (in chars).
+    pub col: usize,
+    /// Selection anchor `(line, col)`; `None` when this caret has no selection.
+    pub anchor: Option<(usize, usize)>,
+}
+
+impl Caret {
+    fn at(line: usize, col: usize) -> Self {
+        Caret { line, col, anchor: None }
+    }
+
+    /// `true` if this caret spans a non-empty selection.
+    fn has_selection(&self) -> bool {
+        match self.anchor {
+            Some(a) => a != (self.line, self.col),
+            None => false,
+        }
+    }
+
+    /// Normalized selection range `((l0,c0),(l1,c1))`, start <= end, or `None`.
+    fn selection_range(&self) -> Option<((usize, usize), (usize, usize))> {
+        let a = self.anchor?;
+        let b = (self.line, self.col);
+        if a == b {
+            return None;
+        }
+        if a <= b {
+            Some((a, b))
+        } else {
+            Some((b, a))
+        }
+    }
+}
+
+/// An editable document: lines of text + one or more carets (each a cursor +
+/// optional selection anchor) + the top visible line (scroll). Always holds at
+/// least one line and at least one caret.
+///
+/// ## Multi-cursor invariant
+///
+/// `carets[0]` is the PRIMARY caret. With exactly one caret every operation is
+/// byte-for-byte identical to the historical single-cursor model, so all legacy
+/// accessors (`cursor_line`/`cursor_col`/`anchor`/…) just read `carets[0]`.
 #[derive(Debug, Clone)]
 pub struct TextModel {
     /// The document lines (no embedded newlines). Always non-empty.
     lines: Vec<String>,
-    /// 0-based cursor line.
-    cur_line: usize,
-    /// 0-based cursor column (in chars).
-    cur_col: usize,
-    /// Selection anchor `(line, col)`; `None` when there is no selection.
-    anchor: Option<(usize, usize)>,
+    /// The carets; `carets[0]` is primary. Always non-empty.
+    carets: Vec<Caret>,
     /// Top visible line (scroll offset).
     first_visible: usize,
     /// True if edited since the last `mark_clean` (load / save).
@@ -53,12 +99,23 @@ impl Default for TextModel {
     fn default() -> Self {
         TextModel {
             lines: vec![String::new()],
-            cur_line: 0,
-            cur_col: 0,
-            anchor: None,
+            carets: vec![Caret::at(0, 0)],
             first_visible: 0,
             dirty: false,
         }
+    }
+}
+
+// Internal accessors for the primary caret's fields. These keep the rest of the
+// file (which was written against `cur_line`/`cur_col`/`anchor`) unchanged.
+impl TextModel {
+    #[inline]
+    fn primary(&self) -> &Caret {
+        &self.carets[0]
+    }
+    #[inline]
+    fn primary_mut(&mut self) -> &mut Caret {
+        &mut self.carets[0]
     }
 }
 
@@ -81,9 +138,7 @@ impl TextModel {
         }
         TextModel {
             lines,
-            cur_line: 0,
-            cur_col: 0,
-            anchor: None,
+            carets: vec![Caret::at(0, 0)],
             first_visible: 0,
             dirty: false,
         }
@@ -107,11 +162,11 @@ impl TextModel {
     }
 
     pub fn cursor_line(&self) -> usize {
-        self.cur_line
+        self.carets[0].line
     }
 
     pub fn cursor_col(&self) -> usize {
-        self.cur_col
+        self.carets[0].col
     }
 
     pub fn first_visible(&self) -> usize {
@@ -147,13 +202,13 @@ impl TextModel {
     /// Set the selection anchor to the current cursor (begin selecting), or
     /// clear it. (Reserved for shift-select; the ABI exposes a clear.)
     pub fn clear_selection(&mut self) {
-        self.anchor = None;
+        self.carets[0].anchor = None;
     }
 
     /// `true` if there is an active selection spanning at least one char.
     pub fn has_selection(&self) -> bool {
-        match self.anchor {
-            Some(a) => a != (self.cur_line, self.cur_col),
+        match self.carets[0].anchor {
+            Some(a) => a != (self.carets[0].line, self.carets[0].col),
             None => false,
         }
     }
@@ -161,8 +216,8 @@ impl TextModel {
     /// The normalized selection range `((l0,c0),(l1,c1))` with start <= end, or
     /// `None` when there is no selection.
     pub fn selection_range(&self) -> Option<((usize, usize), (usize, usize))> {
-        let a = self.anchor?;
-        let b = (self.cur_line, self.cur_col);
+        let a = self.carets[0].anchor?;
+        let b = (self.carets[0].line, self.carets[0].col);
         if a == b {
             return None;
         }
@@ -177,9 +232,9 @@ impl TextModel {
 
     /// Clamp the cursor column to the current line's length.
     fn clamp_col(&mut self) {
-        let len = self.line_len(self.cur_line);
-        if self.cur_col > len {
-            self.cur_col = len;
+        let len = self.line_len(self.carets[0].line);
+        if self.carets[0].col > len {
+            self.carets[0].col = len;
         }
     }
 
@@ -197,7 +252,7 @@ impl TextModel {
     /// don't implement selection-delete-on-type yet, so just clear) and mark
     /// dirty.
     fn begin_edit(&mut self) {
-        self.anchor = None;
+        self.carets[0].anchor = None;
         self.dirty = true;
     }
 
@@ -215,49 +270,49 @@ impl TextModel {
             return; // ignore bare CR
         }
         self.begin_edit();
-        let li = self.cur_line;
-        let col = self.cur_col;
+        let li = self.carets[0].line;
+        let col = self.carets[0].col;
         let line = &self.lines[li];
         let (head, tail) = Self::split_line(line, col);
         self.lines[li] = format!("{head}{ch}{tail}");
-        self.cur_col = col + 1;
+        self.carets[0].col = col + 1;
     }
 
     /// Insert a newline at the cursor, splitting the current line.
     pub fn newline(&mut self) {
         self.begin_edit();
-        let li = self.cur_line;
-        let col = self.cur_col;
+        let li = self.carets[0].line;
+        let col = self.carets[0].col;
         let (head, tail) = Self::split_line(&self.lines[li], col);
         self.lines[li] = head;
         self.lines.insert(li + 1, tail);
-        self.cur_line = li + 1;
-        self.cur_col = 0;
+        self.carets[0].line = li + 1;
+        self.carets[0].col = 0;
     }
 
     /// Delete the char before the cursor (joining lines at column 0). No-op at
     /// the very start of the document.
     pub fn backspace(&mut self) {
-        if self.cur_col > 0 {
+        if self.carets[0].col > 0 {
             self.begin_edit();
-            let li = self.cur_line;
-            let col = self.cur_col;
+            let li = self.carets[0].line;
+            let col = self.carets[0].col;
             let s = &self.lines[li];
             let (head, tail) = Self::split_line(s, col);
             // Drop the last char of `head`.
             let mut hc: Vec<char> = head.chars().collect();
             hc.pop();
             let new_head: String = hc.into_iter().collect();
-            self.cur_col = col - 1;
+            self.carets[0].col = col - 1;
             self.lines[li] = format!("{new_head}{tail}");
-        } else if self.cur_line > 0 {
+        } else if self.carets[0].line > 0 {
             // Join this line onto the end of the previous one.
             self.begin_edit();
-            let li = self.cur_line;
+            let li = self.carets[0].line;
             let cur = self.lines.remove(li);
             let prev_len = self.line_len(li - 1);
-            self.cur_line = li - 1;
-            self.cur_col = prev_len;
+            self.carets[0].line = li - 1;
+            self.carets[0].col = prev_len;
             self.lines[li - 1].push_str(&cur);
         }
     }
@@ -265,8 +320,8 @@ impl TextModel {
     /// Delete the char at the cursor (joining the next line when at end of
     /// line). No-op at the very end of the document.
     pub fn delete(&mut self) {
-        let li = self.cur_line;
-        let col = self.cur_col;
+        let li = self.carets[0].line;
+        let col = self.carets[0].col;
         let len = self.line_len(li);
         if col < len {
             self.begin_edit();
@@ -284,43 +339,43 @@ impl TextModel {
     /// Move the cursor one step in `dir` (one of the `DIR_*` constants),
     /// clamping to document/line bounds. Clears the selection.
     pub fn move_cursor(&mut self, dir: i32) {
-        self.anchor = None;
+        self.carets[0].anchor = None;
         match dir {
             DIR_LEFT => {
-                if self.cur_col > 0 {
-                    self.cur_col -= 1;
-                } else if self.cur_line > 0 {
-                    self.cur_line -= 1;
-                    self.cur_col = self.line_len(self.cur_line);
+                if self.carets[0].col > 0 {
+                    self.carets[0].col -= 1;
+                } else if self.carets[0].line > 0 {
+                    self.carets[0].line -= 1;
+                    self.carets[0].col = self.line_len(self.carets[0].line);
                 }
             }
             DIR_RIGHT => {
-                let len = self.line_len(self.cur_line);
-                if self.cur_col < len {
-                    self.cur_col += 1;
-                } else if self.cur_line + 1 < self.lines.len() {
-                    self.cur_line += 1;
-                    self.cur_col = 0;
+                let len = self.line_len(self.carets[0].line);
+                if self.carets[0].col < len {
+                    self.carets[0].col += 1;
+                } else if self.carets[0].line + 1 < self.lines.len() {
+                    self.carets[0].line += 1;
+                    self.carets[0].col = 0;
                 }
             }
             DIR_UP => {
-                if self.cur_line > 0 {
-                    self.cur_line -= 1;
+                if self.carets[0].line > 0 {
+                    self.carets[0].line -= 1;
                     self.clamp_col();
                 } else {
-                    self.cur_col = 0;
+                    self.carets[0].col = 0;
                 }
             }
             DIR_DOWN => {
-                if self.cur_line + 1 < self.lines.len() {
-                    self.cur_line += 1;
+                if self.carets[0].line + 1 < self.lines.len() {
+                    self.carets[0].line += 1;
                     self.clamp_col();
                 } else {
-                    self.cur_col = self.line_len(self.cur_line);
+                    self.carets[0].col = self.line_len(self.carets[0].line);
                 }
             }
-            DIR_HOME => self.cur_col = 0,
-            DIR_END => self.cur_col = self.line_len(self.cur_line),
+            DIR_HOME => self.carets[0].col = 0,
+            DIR_END => self.carets[0].col = self.line_len(self.carets[0].line),
             _ => {}
         }
     }
@@ -328,11 +383,11 @@ impl TextModel {
     /// Move the cursor to an explicit `(line, col)`, clamped to the document.
     /// Clears the selection. Used by click, go-to-line, find, go-to-definition.
     pub fn move_to(&mut self, line: i32, col: i32) {
-        self.anchor = None;
+        self.carets[0].anchor = None;
         let li = (line.max(0) as usize).min(self.lines.len().saturating_sub(1));
-        self.cur_line = li;
+        self.carets[0].line = li;
         let len = self.line_len(li);
-        self.cur_col = (col.max(0) as usize).min(len);
+        self.carets[0].col = (col.max(0) as usize).min(len);
     }
 
     // -----------------------------------------------------------------------
@@ -341,8 +396,8 @@ impl TextModel {
 
     /// If there is no anchor, drop one at the current cursor (begin selecting).
     fn begin_or_keep_anchor(&mut self) {
-        if self.anchor.is_none() {
-            self.anchor = Some((self.cur_line, self.cur_col));
+        if self.carets[0].anchor.is_none() {
+            self.carets[0].anchor = Some((self.carets[0].line, self.carets[0].col));
         }
     }
 
@@ -353,7 +408,7 @@ impl TextModel {
         if extend {
             self.begin_or_keep_anchor();
         } else {
-            self.anchor = None;
+            self.carets[0].anchor = None;
         }
         self.step(dir);
     }
@@ -363,40 +418,40 @@ impl TextModel {
     fn step(&mut self, dir: i32) {
         match dir {
             DIR_LEFT => {
-                if self.cur_col > 0 {
-                    self.cur_col -= 1;
-                } else if self.cur_line > 0 {
-                    self.cur_line -= 1;
-                    self.cur_col = self.line_len(self.cur_line);
+                if self.carets[0].col > 0 {
+                    self.carets[0].col -= 1;
+                } else if self.carets[0].line > 0 {
+                    self.carets[0].line -= 1;
+                    self.carets[0].col = self.line_len(self.carets[0].line);
                 }
             }
             DIR_RIGHT => {
-                let len = self.line_len(self.cur_line);
-                if self.cur_col < len {
-                    self.cur_col += 1;
-                } else if self.cur_line + 1 < self.lines.len() {
-                    self.cur_line += 1;
-                    self.cur_col = 0;
+                let len = self.line_len(self.carets[0].line);
+                if self.carets[0].col < len {
+                    self.carets[0].col += 1;
+                } else if self.carets[0].line + 1 < self.lines.len() {
+                    self.carets[0].line += 1;
+                    self.carets[0].col = 0;
                 }
             }
             DIR_UP => {
-                if self.cur_line > 0 {
-                    self.cur_line -= 1;
+                if self.carets[0].line > 0 {
+                    self.carets[0].line -= 1;
                     self.clamp_col();
                 } else {
-                    self.cur_col = 0;
+                    self.carets[0].col = 0;
                 }
             }
             DIR_DOWN => {
-                if self.cur_line + 1 < self.lines.len() {
-                    self.cur_line += 1;
+                if self.carets[0].line + 1 < self.lines.len() {
+                    self.carets[0].line += 1;
                     self.clamp_col();
                 } else {
-                    self.cur_col = self.line_len(self.cur_line);
+                    self.carets[0].col = self.line_len(self.carets[0].line);
                 }
             }
-            DIR_HOME => self.cur_col = 0,
-            DIR_END => self.cur_col = self.line_len(self.cur_line),
+            DIR_HOME => self.carets[0].col = 0,
+            DIR_END => self.carets[0].col = self.line_len(self.carets[0].line),
             _ => {}
         }
     }
@@ -408,19 +463,19 @@ impl TextModel {
         if extend {
             self.begin_or_keep_anchor();
         } else {
-            self.anchor = None;
+            self.carets[0].anchor = None;
         }
-        let chars: Vec<char> = self.lines[self.cur_line].chars().collect();
+        let chars: Vec<char> = self.lines[self.carets[0].line].chars().collect();
         let first_non_ws = chars
             .iter()
             .position(|c| !c.is_whitespace())
             .unwrap_or(chars.len());
-        self.cur_col = if self.cur_col == first_non_ws {
+        self.carets[0].col = if self.carets[0].col == first_non_ws {
             0
         } else {
             first_non_ws
         };
-        self.cur_col
+        self.carets[0].col
     }
 
     // -----------------------------------------------------------------------
@@ -433,18 +488,18 @@ impl TextModel {
         if extend {
             self.begin_or_keep_anchor();
         } else {
-            self.anchor = None;
+            self.carets[0].anchor = None;
         }
-        if self.cur_col == 0 {
+        if self.carets[0].col == 0 {
             // Hop to the end of the previous line.
-            if self.cur_line > 0 {
-                self.cur_line -= 1;
-                self.cur_col = self.line_len(self.cur_line);
+            if self.carets[0].line > 0 {
+                self.carets[0].line -= 1;
+                self.carets[0].col = self.line_len(self.carets[0].line);
             }
             return;
         }
-        let chars: Vec<char> = self.lines[self.cur_line].chars().collect();
-        let mut i = self.cur_col;
+        let chars: Vec<char> = self.lines[self.carets[0].line].chars().collect();
+        let mut i = self.carets[0].col;
         // Skip whitespace immediately to the left.
         while i > 0 && chars[i - 1].is_whitespace() {
             i -= 1;
@@ -456,7 +511,7 @@ impl TextModel {
                 i -= 1;
             }
         }
-        self.cur_col = i;
+        self.carets[0].col = i;
     }
 
     /// Move one "word" right (skip a run of word chars then whitespace), or to
@@ -465,19 +520,19 @@ impl TextModel {
         if extend {
             self.begin_or_keep_anchor();
         } else {
-            self.anchor = None;
+            self.carets[0].anchor = None;
         }
-        let chars: Vec<char> = self.lines[self.cur_line].chars().collect();
+        let chars: Vec<char> = self.lines[self.carets[0].line].chars().collect();
         let len = chars.len();
-        if self.cur_col >= len {
+        if self.carets[0].col >= len {
             // Hop to the start of the next line.
-            if self.cur_line + 1 < self.lines.len() {
-                self.cur_line += 1;
-                self.cur_col = 0;
+            if self.carets[0].line + 1 < self.lines.len() {
+                self.carets[0].line += 1;
+                self.carets[0].col = 0;
             }
             return;
         }
-        let mut i = self.cur_col;
+        let mut i = self.carets[0].col;
         // Skip the run of same-class chars under/after the cursor.
         if i < len && !chars[i].is_whitespace() {
             let word = is_word_char(chars[i]);
@@ -489,27 +544,27 @@ impl TextModel {
         while i < len && chars[i].is_whitespace() {
             i += 1;
         }
-        self.cur_col = i;
+        self.carets[0].col = i;
     }
 
     /// Select the word under the cursor (sets the anchor at its start and the
     /// cursor at its end). No-op (clears selection) if not on a word char.
     /// Returns the selected text.
     pub fn select_word(&mut self) -> String {
-        let chars: Vec<char> = self.lines[self.cur_line].chars().collect();
+        let chars: Vec<char> = self.lines[self.carets[0].line].chars().collect();
         let len = chars.len();
         // Find the word boundaries around (or just before) the cursor.
-        let mut s = self.cur_col.min(len);
+        let mut s = self.carets[0].col.min(len);
         // If sitting just past a word char, step back onto it.
         if s == len && s > 0 && is_word_char(chars[s - 1]) {
             s -= 1;
         }
         if s >= len || !is_word_char(chars[s]) {
             // Try the char to the left.
-            if self.cur_col > 0 && is_word_char(chars[self.cur_col - 1]) {
-                s = self.cur_col - 1;
+            if self.carets[0].col > 0 && is_word_char(chars[self.carets[0].col - 1]) {
+                s = self.carets[0].col - 1;
             } else {
-                self.anchor = None;
+                self.carets[0].anchor = None;
                 return String::new();
             }
         }
@@ -521,8 +576,8 @@ impl TextModel {
         while end < len && is_word_char(chars[end]) {
             end += 1;
         }
-        self.anchor = Some((self.cur_line, start));
-        self.cur_col = end;
+        self.carets[0].anchor = Some((self.carets[0].line, start));
+        self.carets[0].col = end;
         chars[start..end].iter().collect()
     }
 
@@ -530,8 +585,8 @@ impl TextModel {
     /// or start of the next line so a trailing newline is included when there is
     /// one). Used by Ctrl+L-style line select / as the basis for duplicate.
     pub fn select_line(&mut self) {
-        self.anchor = Some((self.cur_line, 0));
-        self.cur_col = self.line_len(self.cur_line);
+        self.carets[0].anchor = Some((self.carets[0].line, 0));
+        self.carets[0].col = self.line_len(self.carets[0].line);
     }
 
     /// The text currently selected (empty string when there is no selection).
@@ -570,7 +625,7 @@ impl TextModel {
     fn affected_line_range(&self) -> (usize, usize) {
         match self.selection_range() {
             Some(((l0, _), (l1, _))) => (l0, l1),
-            None => (self.cur_line, self.cur_line),
+            None => (self.carets[0].line, self.carets[0].line),
         }
     }
 
@@ -644,8 +699,8 @@ impl TextModel {
     /// between `{` and `}` yields a blank indented line + a dedented `}`).
     pub fn newline_auto_indent(&mut self) {
         self.begin_edit();
-        let li = self.cur_line;
-        let col = self.cur_col;
+        let li = self.carets[0].line;
+        let col = self.carets[0].col;
         let line = self.lines[li].clone();
         let (head, tail) = Self::split_line(&line, col);
 
@@ -666,26 +721,26 @@ impl TextModel {
             let inner = format!("{indent}{one}");
             self.lines.insert(li + 1, inner.clone());
             self.lines.insert(li + 2, format!("{indent}{tail}"));
-            self.cur_line = li + 1;
-            self.cur_col = inner.chars().count();
+            self.carets[0].line = li + 1;
+            self.carets[0].col = inner.chars().count();
         } else if opens {
             let new_line = format!("{indent}{one}{tail}");
             let caret = format!("{indent}{one}").chars().count();
             self.lines.insert(li + 1, new_line);
-            self.cur_line = li + 1;
-            self.cur_col = caret;
+            self.carets[0].line = li + 1;
+            self.carets[0].col = caret;
         } else if closes_next && !indent.is_empty() {
             // New line is (or starts with) `}`: dedent one level.
             let dedent: String = indent.chars().skip(one.len()).collect();
             let new_line = format!("{dedent}{tail}");
             self.lines.insert(li + 1, new_line);
-            self.cur_line = li + 1;
-            self.cur_col = dedent.chars().count();
+            self.carets[0].line = li + 1;
+            self.carets[0].col = dedent.chars().count();
         } else {
             let new_line = format!("{indent}{tail}");
             self.lines.insert(li + 1, new_line);
-            self.cur_line = li + 1;
-            self.cur_col = indent.chars().count();
+            self.carets[0].line = li + 1;
+            self.carets[0].col = indent.chars().count();
         }
     }
 
@@ -712,15 +767,15 @@ impl TextModel {
     /// The char immediately to the right of the cursor (the one `delete` would
     /// remove), or `None` at end of line.
     fn char_after(&self) -> Option<char> {
-        self.lines[self.cur_line].chars().nth(self.cur_col)
+        self.lines[self.carets[0].line].chars().nth(self.carets[0].col)
     }
 
     /// The char immediately to the left of the cursor, or `None` at col 0.
     fn char_before(&self) -> Option<char> {
-        if self.cur_col == 0 {
+        if self.carets[0].col == 0 {
             return None;
         }
-        self.lines[self.cur_line].chars().nth(self.cur_col - 1)
+        self.lines[self.carets[0].line].chars().nth(self.carets[0].col - 1)
     }
 
     /// Smart insert of `ch` with bracket/quote auto-close + skip-over.
@@ -738,7 +793,7 @@ impl TextModel {
     pub fn insert_char_smart(&mut self, ch: char) -> bool {
         // Skip-over: typing a closer that already sits to the right.
         if Self::is_close_char(ch) && self.char_after() == Some(ch) {
-            self.cur_col += 1;
+            self.carets[0].col += 1;
             return true;
         }
         // Auto-close openers.
@@ -752,11 +807,11 @@ impl TextModel {
                 }
             }
             self.begin_edit();
-            let li = self.cur_line;
-            let col = self.cur_col;
+            let li = self.carets[0].line;
+            let col = self.carets[0].col;
             let (head, tail) = Self::split_line(&self.lines[li], col);
             self.lines[li] = format!("{head}{ch}{close}{tail}");
-            self.cur_col = col + 1; // between the pair
+            self.carets[0].col = col + 1; // between the pair
             return true;
         }
         false
@@ -770,8 +825,8 @@ impl TextModel {
         if let (Some(b), Some(a)) = (before, after) {
             if Self::close_for(b) == Some(a) {
                 self.begin_edit();
-                let li = self.cur_line;
-                let col = self.cur_col;
+                let li = self.carets[0].line;
+                let col = self.carets[0].col;
                 let s = &self.lines[li];
                 let chars: Vec<char> = s.chars().collect();
                 // Remove the char before AND the char at the cursor.
@@ -783,7 +838,7 @@ impl TextModel {
                     out.push(*c);
                 }
                 self.lines[li] = out;
-                self.cur_col = col - 1;
+                self.carets[0].col = col - 1;
                 return true;
             }
         }
@@ -800,14 +855,14 @@ impl TextModel {
     pub fn bracket_match(&self) -> Option<(usize, usize)> {
         // Prefer the bracket the cursor is sitting just before.
         if let Some(c) = self.char_after() {
-            if let Some(m) = self.match_from(self.cur_line, self.cur_col, c) {
+            if let Some(m) = self.match_from(self.carets[0].line, self.carets[0].col, c) {
                 return Some(m);
             }
         }
         // Then the bracket just to the left.
-        if self.cur_col > 0 {
+        if self.carets[0].col > 0 {
             if let Some(c) = self.char_before() {
-                if let Some(m) = self.match_from(self.cur_line, self.cur_col - 1, c) {
+                if let Some(m) = self.match_from(self.carets[0].line, self.carets[0].col - 1, c) {
                     return Some(m);
                 }
             }
@@ -893,9 +948,9 @@ impl TextModel {
             self.lines.insert(insert_at + i, line);
         }
         // Move the cursor (and selection, if any) down onto the copy.
-        self.cur_line += n;
-        if let Some((al, ac)) = self.anchor {
-            self.anchor = Some((al + n, ac));
+        self.carets[0].line += n;
+        if let Some((al, ac)) = self.carets[0].anchor {
+            self.carets[0].anchor = Some((al + n, ac));
         }
         self.clamp_col();
     }
@@ -910,9 +965,9 @@ impl TextModel {
         self.begin_edit_keep_sel();
         let above = self.lines.remove(l0 - 1);
         self.lines.insert(l1, above);
-        self.cur_line -= 1;
-        if let Some((al, ac)) = self.anchor {
-            self.anchor = Some((al.saturating_sub(1), ac));
+        self.carets[0].line -= 1;
+        if let Some((al, ac)) = self.carets[0].anchor {
+            self.carets[0].anchor = Some((al.saturating_sub(1), ac));
         }
         self.clamp_col();
     }
@@ -927,9 +982,9 @@ impl TextModel {
         self.begin_edit_keep_sel();
         let below = self.lines.remove(l1 + 1);
         self.lines.insert(l0, below);
-        self.cur_line += 1;
-        if let Some((al, ac)) = self.anchor {
-            self.anchor = Some((al + 1, ac));
+        self.carets[0].line += 1;
+        if let Some((al, ac)) = self.carets[0].anchor {
+            self.carets[0].anchor = Some((al + 1, ac));
         }
         self.clamp_col();
     }
@@ -946,7 +1001,7 @@ impl TextModel {
         if needle.is_empty() {
             return false;
         }
-        let from = (self.cur_line, self.cur_col);
+        let from = (self.carets[0].line, self.carets[0].col);
         // Search forward from the cursor, then wrap.
         if let Some((l, c)) = self.find_from(needle, from) {
             self.apply_replace_at(l, c, needle, repl);
@@ -979,7 +1034,7 @@ impl TextModel {
         }
         if count > 0 {
             self.dirty = true;
-            self.anchor = None;
+            self.carets[0].anchor = None;
             self.clamp_col();
         }
         count
@@ -1014,15 +1069,457 @@ impl TextModel {
     /// past the replacement.
     fn apply_replace_at(&mut self, line: usize, col: usize, needle: &str, repl: &str) {
         self.dirty = true;
-        self.anchor = None;
+        self.carets[0].anchor = None;
         let chars: Vec<char> = self.lines[line].chars().collect();
         let needle_chars = needle.chars().count();
         let head: String = chars[..col].iter().collect();
         let tail: String = chars[(col + needle_chars).min(chars.len())..].iter().collect();
         self.lines[line] = format!("{head}{repl}{tail}");
-        self.cur_line = line;
-        self.cur_col = col + repl.chars().count();
+        self.carets[0].line = line;
+        self.carets[0].col = col + repl.chars().count();
         self.clamp_col();
+    }
+
+    // =======================================================================
+    // Multi-cursor (multiple simultaneous carets / selections)
+    // =======================================================================
+    //
+    // The model holds `carets[0..n]` with `carets[0]` PRIMARY. Every legacy
+    // single-cursor op above reads/writes `carets[0]` and is unchanged. The
+    // helpers below let the IDE add/move/collapse secondary carets and apply
+    // edits + motion to ALL carets at once.
+    //
+    // Edits are applied BACK-TO-FRONT (highest document position first) by
+    // running an existing single-caret op with that caret swapped into the
+    // primary slot, then translating the *other* carets by the edit's effect.
+    // Translation is computed from the change to the active caret's position
+    // plus the change in this/other lines' lengths, which is enough for the
+    // char-level edits the IDE performs (insert/backspace/delete/newline/etc.).
+
+    /// Number of carets (>= 1).
+    pub fn caret_count(&self) -> usize {
+        self.carets.len()
+    }
+
+    /// The `i`-th caret's `(line, col)`, or `None` out of range.
+    pub fn caret_at(&self, i: usize) -> Option<(usize, usize)> {
+        self.carets.get(i).map(|c| (c.line, c.col))
+    }
+
+    /// The `i`-th caret's selection range, or `None` (out of range / no sel).
+    pub fn caret_selection(&self, i: usize) -> Option<((usize, usize), (usize, usize))> {
+        self.carets.get(i).and_then(|c| c.selection_range())
+    }
+
+    /// Collapse to the PRIMARY caret only and clear its selection (Esc).
+    pub fn collapse_carets(&mut self) {
+        let mut p = self.carets[0];
+        p.anchor = None;
+        self.carets.clear();
+        self.carets.push(p);
+    }
+
+    /// Sort carets by document position (line, col) ascending and merge any
+    /// that coincide at the same cursor position (keeping the FIRST, which for
+    /// a back-to-front edit pass is the one whose selection we want to keep).
+    /// The PRIMARY caret (the one currently at `carets[0]`) is preserved as the
+    /// representative of its position so the primary identity survives a merge.
+    fn normalize_carets(&mut self) {
+        if self.carets.len() <= 1 {
+            return;
+        }
+        // Remember the primary's identity by value; after sort/dedup we restore
+        // it to slot 0 (or its merge representative at the same position).
+        let primary = self.carets[0];
+        // Stable sort by (line, col) so equal positions keep insertion order.
+        self.carets.sort_by_key(|c| (c.line, c.col));
+        let mut deduped: Vec<Caret> = Vec::with_capacity(self.carets.len());
+        for c in self.carets.drain(..) {
+            match deduped.last() {
+                Some(last) if last.line == c.line && last.col == c.col => {
+                    // Same cursor position: merge. Prefer a caret that carries a
+                    // selection so a Ctrl+D match isn't silently dropped.
+                    if deduped.last().unwrap().anchor.is_none() && c.anchor.is_some() {
+                        *deduped.last_mut().unwrap() = c;
+                    }
+                }
+                _ => deduped.push(c),
+            }
+        }
+        self.carets = deduped;
+        // Restore the primary to slot 0: find the caret at the primary position.
+        if let Some(idx) = self
+            .carets
+            .iter()
+            .position(|c| c.line == primary.line && c.col == primary.col)
+        {
+            self.carets.swap(0, idx);
+        }
+    }
+
+    /// Run a single-caret op (closure receiving `&mut self` with the chosen
+    /// caret installed as primary) at EVERY caret, processed back-to-front, and
+    /// translate the remaining carets by the active caret's net displacement so
+    /// their offsets stay valid. Returns nothing; callers mark dirty as needed.
+    ///
+    /// `op` must mutate ONLY `lines` and the primary caret (every existing edit
+    /// op does). Because we process highest-position carets first, edits at a
+    /// later caret never shift the positions of earlier (lower) carets, so we
+    /// only translate carets that sit AFTER the active one, by the active
+    /// caret's delta.
+    fn for_each_caret_edit(&mut self, op: impl Fn(&mut TextModel)) {
+        if self.carets.len() == 1 {
+            op(self);
+            return;
+        }
+        // Indices sorted by descending document position (back-to-front).
+        let mut order: Vec<usize> = (0..self.carets.len()).collect();
+        order.sort_by(|&a, &b| {
+            (self.carets[b].line, self.carets[b].col).cmp(&(self.carets[a].line, self.carets[a].col))
+        });
+        for &idx in &order {
+            // Install caret `idx` as primary, snapshot pre-op state.
+            self.carets.swap(0, idx);
+            let before_line = self.carets[0].line;
+            let before_col = self.carets[0].col;
+            let before_lines = self.lines.len();
+            op(self);
+            let after_col = self.carets[0].col;
+            let line_delta = self.lines.len() as isize - before_lines as isize;
+            // Persist the mutated caret back, restore slot order.
+            let mutated = self.carets[0];
+            self.carets.swap(0, idx);
+            self.carets[idx] = mutated;
+            // Translate every OTHER caret that sits strictly after the edit
+            // point so its (line, col) tracks the inserted/removed text.
+            for (j, c) in self.carets.iter_mut().enumerate() {
+                if j == idx {
+                    continue;
+                }
+                // Only carets at or beyond the edited line are affected.
+                if c.line < before_line {
+                    continue;
+                }
+                if c.line == before_line {
+                    // Same line as the edit's start. If the caret is at/after the
+                    // edit column, shift its column by the col delta (and possibly
+                    // onto a new line when a newline split occurred).
+                    if c.col >= before_col {
+                        if line_delta > 0 {
+                            // A newline was inserted here: text after the edit
+                            // column moved down `line_delta` lines, rebased to the
+                            // column delta on the final new line.
+                            let col_shift = after_col as isize - before_col as isize;
+                            c.line = (c.line as isize + line_delta) as usize;
+                            c.col = (c.col as isize + col_shift).max(0) as usize;
+                            shift_anchor(c, before_line, before_col, line_delta, col_shift, true);
+                        } else {
+                            let col_shift = after_col as isize - before_col as isize;
+                            c.col = (c.col as isize + col_shift).max(0) as usize;
+                            shift_anchor(c, before_line, before_col, line_delta, col_shift, false);
+                        }
+                    }
+                } else {
+                    // A line strictly after the edit's start line: only the line
+                    // index shifts (by how many lines were added/removed).
+                    c.line = (c.line as isize + line_delta).max(0) as usize;
+                    if let Some((al, ac)) = c.anchor {
+                        if al >= before_line {
+                            c.anchor = Some(((al as isize + line_delta).max(0) as usize, ac));
+                        }
+                    }
+                }
+            }
+        }
+        self.clamp_all_carets();
+        self.normalize_carets();
+    }
+
+    /// Clamp every caret (and its anchor) into the current document bounds.
+    fn clamp_all_carets(&mut self) {
+        let last_line = self.lines.len().saturating_sub(1);
+        for c in &mut self.carets {
+            c.line = c.line.min(last_line);
+            let len = self.lines.get(c.line).map(|s| s.chars().count()).unwrap_or(0);
+            c.col = c.col.min(len);
+            if let Some((al, ac)) = c.anchor {
+                let al = al.min(last_line);
+                let alen = self.lines.get(al).map(|s| s.chars().count()).unwrap_or(0);
+                c.anchor = Some((al, ac.min(alen)));
+            }
+        }
+    }
+
+    // ---- multi-caret edits (apply at EVERY caret, back-to-front) ----
+
+    /// Insert one scalar at every caret. With one caret == [`insert_char`].
+    pub fn insert_char_multi(&mut self, ch: char) {
+        self.for_each_caret_edit(|m| m.insert_char(ch));
+    }
+
+    /// Smart insert (auto-close/skip-over) at every caret; falls back to a plain
+    /// insert at carets the smart path declined. With one caret == identical to
+    /// `insert_char_smart` followed by the caller's fallback.
+    pub fn insert_char_smart_multi(&mut self, ch: char) {
+        self.for_each_caret_edit(|m| {
+            if !m.insert_char_smart(ch) {
+                m.insert_char(ch);
+            }
+        });
+    }
+
+    /// Newline (auto-indent) at every caret. With one caret == `newline_auto_indent`.
+    pub fn newline_indent_multi(&mut self) {
+        self.for_each_caret_edit(|m| m.newline_auto_indent());
+    }
+
+    /// Plain newline at every caret. With one caret == [`newline`].
+    pub fn newline_multi(&mut self) {
+        self.for_each_caret_edit(|m| m.newline());
+    }
+
+    /// Backspace at every caret. With one caret == [`backspace`].
+    pub fn backspace_multi(&mut self) {
+        self.for_each_caret_edit(|m| {
+            if !m.backspace_smart() {
+                m.backspace();
+            }
+        });
+    }
+
+    /// Delete-forward at every caret. With one caret == [`delete`].
+    pub fn delete_multi(&mut self) {
+        self.for_each_caret_edit(|m| m.delete());
+    }
+
+    // ---- multi-caret motion (move EVERY caret; Shift extends each) ----
+
+    /// Single-step motion at every caret (`extend` keeps/grows each selection).
+    pub fn move_ext_multi(&mut self, dir: i32, extend: bool) {
+        for c in &mut self.carets {
+            Self::caret_step_ext(&self.lines, c, dir, extend);
+        }
+        self.normalize_carets();
+    }
+
+    /// Word motion at every caret.
+    pub fn move_word_multi(&mut self, right: bool, extend: bool) {
+        // Reuse the single-caret word ops by swapping each caret to primary.
+        let n = self.carets.len();
+        for i in 0..n {
+            self.carets.swap(0, i);
+            if right {
+                self.move_word_right(extend);
+            } else {
+                self.move_word_left(extend);
+            }
+            self.carets.swap(0, i);
+        }
+        self.normalize_carets();
+    }
+
+    /// Smart-home at every caret.
+    pub fn home_smart_multi(&mut self, extend: bool) {
+        let n = self.carets.len();
+        for i in 0..n {
+            self.carets.swap(0, i);
+            self.home_smart(extend);
+            self.carets.swap(0, i);
+        }
+        self.normalize_carets();
+    }
+
+    /// Pure step of one caret in `dir`, with anchor handling for `extend`. The
+    /// motion mirrors [`step`] but operates on an arbitrary caret against
+    /// `lines` (so it can run for every caret without touching `self`).
+    fn caret_step_ext(lines: &[String], c: &mut Caret, dir: i32, extend: bool) {
+        if extend {
+            if c.anchor.is_none() {
+                c.anchor = Some((c.line, c.col));
+            }
+        } else {
+            c.anchor = None;
+        }
+        let line_len = |li: usize| lines.get(li).map(|s| s.chars().count()).unwrap_or(0);
+        match dir {
+            DIR_LEFT => {
+                if c.col > 0 {
+                    c.col -= 1;
+                } else if c.line > 0 {
+                    c.line -= 1;
+                    c.col = line_len(c.line);
+                }
+            }
+            DIR_RIGHT => {
+                let len = line_len(c.line);
+                if c.col < len {
+                    c.col += 1;
+                } else if c.line + 1 < lines.len() {
+                    c.line += 1;
+                    c.col = 0;
+                }
+            }
+            DIR_UP => {
+                if c.line > 0 {
+                    c.line -= 1;
+                    c.col = c.col.min(line_len(c.line));
+                } else {
+                    c.col = 0;
+                }
+            }
+            DIR_DOWN => {
+                if c.line + 1 < lines.len() {
+                    c.line += 1;
+                    c.col = c.col.min(line_len(c.line));
+                } else {
+                    c.col = line_len(c.line);
+                }
+            }
+            DIR_HOME => c.col = 0,
+            DIR_END => c.col = line_len(c.line),
+            _ => {}
+        }
+    }
+
+    // ---- add carets ----
+
+    /// Add a caret on the line `delta` (±1) away from the PRIMARY caret at the
+    /// same column (column-block carets; Ctrl+Alt+Up/Down). Clamps the column to
+    /// the target line's length. No-op at the document edge. Returns `true` when
+    /// a caret was added.
+    pub fn add_caret_vertical(&mut self, delta: isize) -> bool {
+        let p = self.carets[0];
+        let target = p.line as isize + delta;
+        if target < 0 || target as usize >= self.lines.len() {
+            return false;
+        }
+        let tl = target as usize;
+        let col = p.col.min(self.line_len(tl));
+        let new = Caret::at(tl, col);
+        // Don't duplicate an existing caret at that exact spot.
+        if self.carets.iter().any(|c| c.line == tl && c.col == col) {
+            return false;
+        }
+        // Insert and make it primary so a repeated press keeps extending.
+        self.carets.insert(0, new);
+        self.normalize_carets();
+        // Re-make the just-added caret primary (normalize may have reordered).
+        if let Some(idx) = self.carets.iter().position(|c| c.line == tl && c.col == col) {
+            self.carets.swap(0, idx);
+        }
+        true
+    }
+
+    /// Ctrl+D. If the primary caret has no selection, select the word under it
+    /// (and make that the primary selection). If it already has a selection, add
+    /// a NEW caret selecting the next occurrence of the selected text (searching
+    /// forward from the end of the last/primary selection, wrapping), make it
+    /// primary, and return `true`. Returns `false` when there is no other match
+    /// (or no word under the caret).
+    pub fn add_caret_next_occurrence(&mut self) -> bool {
+        // Phase 1: no selection -> select the word under the primary caret.
+        if !self.carets[0].has_selection() {
+            let word = self.select_word();
+            return !word.is_empty();
+        }
+        // Phase 2: a selection exists -> find the next occurrence of its text.
+        let needle = self.selected_text();
+        if needle.is_empty() || needle.contains('\n') {
+            return false;
+        }
+        // Start searching just after the primary selection's end.
+        let start = self
+            .carets[0]
+            .selection_range()
+            .map(|(_, end)| end)
+            .unwrap_or((self.carets[0].line, self.carets[0].col));
+        // Collect positions already covered by a caret's selection so we skip them.
+        let occupied: Vec<((usize, usize), (usize, usize))> =
+            self.carets.iter().filter_map(|c| c.selection_range()).collect();
+        let needle_chars = needle.chars().count();
+        // Search forward from `start`, then wrap to the top.
+        let found = self
+            .find_occurrence_from(&needle, start)
+            .or_else(|| self.find_occurrence_from(&needle, (0, 0)));
+        let Some((fl, fc)) = found else {
+            return false;
+        };
+        let new = Caret {
+            line: fl,
+            col: fc + needle_chars,
+            anchor: Some((fl, fc)),
+        };
+        // Skip if this exact selection is already held by a caret.
+        let new_range = ((fl, fc), (fl, fc + needle_chars));
+        if occupied.contains(&new_range) {
+            return false;
+        }
+        self.carets.insert(0, new);
+        true
+    }
+
+    /// Find `needle` at or after `(line, col)` (char coords), returning the match
+    /// start. Single-line needles only (callers guarantee no `\n`).
+    fn find_occurrence_from(&self, needle: &str, from: (usize, usize)) -> Option<(usize, usize)> {
+        let (fl, fc) = from;
+        for li in fl..self.lines.len() {
+            let line_str = &self.lines[li];
+            let start_col = if li == fl { fc } else { 0 };
+            let chars: Vec<char> = line_str.chars().collect();
+            let search_byte: usize = chars.iter().take(start_col.min(chars.len())).map(|c| c.len_utf8()).sum();
+            if search_byte <= line_str.len() {
+                if let Some(b) = line_str[search_byte..].find(needle) {
+                    let abs = search_byte + b;
+                    let col = line_str[..abs].chars().count();
+                    return Some((li, col));
+                }
+            }
+        }
+        None
+    }
+
+    /// Toggle a caret at `(line, col)` (Alt+Click). If a caret already sits at
+    /// that exact position, remove it (unless it's the only one); otherwise add
+    /// one and make it primary.
+    pub fn toggle_caret_at(&mut self, line: i32, col: i32) {
+        let li = (line.max(0) as usize).min(self.lines.len().saturating_sub(1));
+        let col = (col.max(0) as usize).min(self.line_len(li));
+        if let Some(idx) = self.carets.iter().position(|c| c.line == li && c.col == col) {
+            if self.carets.len() > 1 {
+                self.carets.remove(idx);
+            }
+        } else {
+            self.carets.insert(0, Caret::at(li, col));
+        }
+    }
+
+    #[cfg(test)]
+    fn set_primary_for_test(&mut self, line: usize, col: usize, anchor: Option<(usize, usize)>) {
+        self.carets[0] = Caret { line, col, anchor };
+    }
+}
+
+/// Shift a caret's anchor by an edit at `(before_line, before_col)` that moved
+/// content by `line_delta` lines / `col_shift` columns. `crossed_line` marks an
+/// edit that pushed content onto a new line (newline insert).
+fn shift_anchor(
+    c: &mut Caret,
+    before_line: usize,
+    before_col: usize,
+    line_delta: isize,
+    col_shift: isize,
+    crossed_line: bool,
+) {
+    if let Some((al, ac)) = c.anchor {
+        if al == before_line && ac >= before_col {
+            if crossed_line && line_delta > 0 {
+                c.anchor = Some(((al as isize + line_delta).max(0) as usize, (ac as isize + col_shift).max(0) as usize));
+            } else {
+                c.anchor = Some((al, (ac as isize + col_shift).max(0) as usize));
+            }
+        } else if al > before_line {
+            c.anchor = Some(((al as isize + line_delta).max(0) as usize, ac));
+        }
     }
 }
 
@@ -1257,9 +1754,7 @@ mod tests {
     #[test]
     fn comment_toggle_multi_line_all_commented_uncomments() {
         let mut m = doc("a\nb\nc");
-        m.anchor = Some((0, 0));
-        m.cur_line = 2;
-        m.cur_col = 1;
+        m.set_primary_for_test(2, 1, Some((0, 0)));
         m.toggle_line_comment();
         assert_eq!(m.line(0), "// a");
         assert_eq!(m.line(1), "// b");
@@ -1275,9 +1770,7 @@ mod tests {
     fn comment_toggle_mixed_comments_all() {
         // One line commented, one not -> "not all commented" so comment both.
         let mut m = doc("// a\nb");
-        m.anchor = Some((0, 0));
-        m.cur_line = 1;
-        m.cur_col = 1;
+        m.set_primary_for_test(1, 1, Some((0, 0)));
         m.toggle_line_comment();
         assert_eq!(m.line(0), "// // a");
         assert_eq!(m.line(1), "// b");
@@ -1286,9 +1779,7 @@ mod tests {
     #[test]
     fn comment_toggle_skips_blank_lines() {
         let mut m = doc("a\n\nb");
-        m.anchor = Some((0, 0));
-        m.cur_line = 2;
-        m.cur_col = 1;
+        m.set_primary_for_test(2, 1, Some((0, 0)));
         m.toggle_line_comment();
         assert_eq!(m.line(0), "// a");
         assert_eq!(m.line(1), ""); // blank stays blank
@@ -1454,9 +1945,7 @@ mod tests {
     #[test]
     fn duplicate_selection_range() {
         let mut m = doc("a\nb\nc");
-        m.anchor = Some((0, 0));
-        m.cur_line = 1;
-        m.cur_col = 1;
+        m.set_primary_for_test(1, 1, Some((0, 0)));
         m.duplicate();
         assert_eq!(m.line_count(), 5);
         assert_eq!(m.line(0), "a");
@@ -1594,5 +2083,213 @@ mod tests {
         m.move_to(0, 1);
         m.select_line();
         assert_eq!(m.selected_text(), "abc");
+    }
+
+    // ---- Multi-cursor ----
+
+    /// Helper: positions of all carets as a sorted Vec for order-independent asserts.
+    fn caret_positions(m: &TextModel) -> Vec<(usize, usize)> {
+        let mut v: Vec<(usize, usize)> = (0..m.caret_count()).filter_map(|i| m.caret_at(i)).collect();
+        v.sort();
+        v
+    }
+
+    #[test]
+    fn single_caret_is_default_and_primary_unchanged() {
+        let mut m = doc("hello");
+        assert_eq!(m.caret_count(), 1);
+        // Single-caret multi-ops behave exactly like the legacy single-cursor ops.
+        m.move_to(0, 0);
+        m.insert_char_multi('X');
+        assert_eq!(m.line(0), "Xhello");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 1));
+        assert_eq!(m.caret_count(), 1);
+    }
+
+    #[test]
+    fn add_caret_vertical_adds_column_block_and_clamps_short_lines() {
+        let mut m = doc("aaaa\nbb\ncccc");
+        m.move_to(0, 3);
+        assert!(m.add_caret_vertical(1)); // add on line 1 at col 3 -> clamped to 2
+        assert_eq!(m.caret_count(), 2);
+        assert_eq!(caret_positions(&m), vec![(0, 3), (1, 2)]);
+        // Add again downward from the new primary (line 1) -> line 2 col... primary col is 2.
+        assert!(m.add_caret_vertical(1));
+        assert_eq!(m.caret_count(), 3);
+        assert_eq!(caret_positions(&m), vec![(0, 3), (1, 2), (2, 2)]);
+        // At the top edge, add-above is a no-op.
+        m.collapse_carets();
+        m.move_to(0, 0);
+        assert!(!m.add_caret_vertical(-1));
+        assert_eq!(m.caret_count(), 1);
+    }
+
+    #[test]
+    fn multi_insert_applies_at_every_caret_back_to_front() {
+        let mut m = doc("aa\nbb\ncc");
+        // Carets at the start of each line.
+        m.move_to(0, 0);
+        m.add_caret_vertical(1);
+        m.add_caret_vertical(1); // primary now line 2, plus line 1 and line 0
+        assert_eq!(m.caret_count(), 3);
+        m.insert_char_multi('>');
+        assert_eq!(m.line(0), ">aa");
+        assert_eq!(m.line(1), ">bb");
+        assert_eq!(m.line(2), ">cc");
+        // Every caret advanced one column.
+        assert_eq!(caret_positions(&m), vec![(0, 1), (1, 1), (2, 1)]);
+    }
+
+    #[test]
+    fn multi_insert_same_line_offsets_stay_correct() {
+        // Two carets on the SAME line at different columns: back-to-front edit
+        // must keep the earlier caret's offset valid.
+        let mut m = doc("abcdef");
+        m.move_to(0, 1);
+        m.carets.push(Caret::at(0, 4));
+        assert_eq!(m.caret_count(), 2);
+        m.insert_char_multi('*');
+        // Inserts at col 4 then col 1: "a*bc d*ef" -> "a*bcd*ef"
+        assert_eq!(m.line(0), "a*bcd*ef");
+        // carets now after each inserted '*'
+        assert_eq!(caret_positions(&m), vec![(0, 2), (0, 6)]);
+    }
+
+    #[test]
+    fn multi_backspace_at_every_caret() {
+        let mut m = doc("xa\nxb\nxc");
+        m.move_to(0, 1);
+        m.add_caret_vertical(1);
+        m.add_caret_vertical(1);
+        assert_eq!(m.caret_count(), 3);
+        m.backspace_multi(); // delete the 'x' before each caret
+        assert_eq!(m.line(0), "a");
+        assert_eq!(m.line(1), "b");
+        assert_eq!(m.line(2), "c");
+        assert_eq!(caret_positions(&m), vec![(0, 0), (1, 0), (2, 0)]);
+    }
+
+    #[test]
+    fn multi_newline_splits_at_every_caret() {
+        let mut m = doc("aXb\ncXd");
+        m.move_to(0, 1);
+        m.add_caret_vertical(1); // caret on line 1 col 1
+        assert_eq!(m.caret_count(), 2);
+        m.newline_multi();
+        assert_eq!(m.line_count(), 4);
+        assert_eq!(m.line(0), "a");
+        assert_eq!(m.line(1), "Xb");
+        assert_eq!(m.line(2), "c");
+        assert_eq!(m.line(3), "Xd");
+    }
+
+    #[test]
+    fn multi_motion_moves_every_caret_and_merges_on_collision() {
+        let mut m = doc("ab\nab");
+        m.move_to(0, 0);
+        m.add_caret_vertical(1); // carets (0,0) and (1,0)
+        assert_eq!(m.caret_count(), 2);
+        m.move_ext_multi(DIR_RIGHT, false);
+        assert_eq!(caret_positions(&m), vec![(0, 1), (1, 1)]);
+        // Move both to End -> distinct lines, stay 2.
+        m.move_ext_multi(DIR_END, false);
+        assert_eq!(caret_positions(&m), vec![(0, 2), (1, 2)]);
+    }
+
+    #[test]
+    fn carets_at_same_position_merge() {
+        let mut m = doc("abc");
+        m.move_to(0, 1);
+        m.carets.push(Caret::at(0, 2));
+        // Move left: (0,1)->(0,0) and (0,2)->(0,1) — distinct, stays 2.
+        m.move_ext_multi(DIR_LEFT, false);
+        assert_eq!(m.caret_count(), 2);
+        // Move left again: (0,0) stays at 0, (0,1)->(0,0) — collide, merge to 1.
+        m.move_ext_multi(DIR_LEFT, false);
+        assert_eq!(m.caret_count(), 1);
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 0));
+    }
+
+    #[test]
+    fn esc_collapses_to_primary_and_clears_selection() {
+        let mut m = doc("hello world hello");
+        m.move_to(0, 0);
+        // Ctrl+D: select word, then add next occurrence.
+        assert!(m.add_caret_next_occurrence()); // selects "hello"
+        assert!(m.add_caret_next_occurrence()); // adds caret on 2nd "hello"
+        assert!(m.caret_count() >= 2);
+        m.collapse_carets();
+        assert_eq!(m.caret_count(), 1);
+        assert!(!m.has_selection());
+    }
+
+    #[test]
+    fn ctrl_d_selects_word_then_adds_next_occurrence_with_wrap() {
+        let mut m = doc("foo bar foo baz foo");
+        m.move_to(0, 0);
+        // 1st Ctrl+D: select "foo" under the caret (no new caret yet).
+        assert!(m.add_caret_next_occurrence());
+        assert_eq!(m.caret_count(), 1);
+        assert_eq!(m.selected_text(), "foo");
+        // 2nd: add a caret on the 2nd "foo" (col 8..11).
+        assert!(m.add_caret_next_occurrence());
+        assert_eq!(m.caret_count(), 2);
+        // 3rd: add a caret on the 3rd "foo" (col 16..19).
+        assert!(m.add_caret_next_occurrence());
+        assert_eq!(m.caret_count(), 3);
+        // Every caret holds a "foo" selection.
+        for i in 0..m.caret_count() {
+            assert!(m.caret_selection(i).is_some());
+        }
+        // Multi-edit: typing replaces conceptually? We only insert; verify all 3
+        // "foo" got a char inserted at the caret (end of each selection).
+        m.insert_char_multi('!');
+        assert_eq!(m.line(0), "foo! bar foo! baz foo!");
+    }
+
+    #[test]
+    fn ctrl_d_no_match_returns_false() {
+        let mut m = doc("unique stuff here");
+        m.move_to(0, 0);
+        assert!(m.add_caret_next_occurrence()); // selects "unique"
+        // No second "unique" -> no new caret.
+        assert!(!m.add_caret_next_occurrence());
+        assert_eq!(m.caret_count(), 1);
+    }
+
+    #[test]
+    fn ctrl_d_wraps_around() {
+        let mut m = doc("aa zz aa");
+        // Put the cursor on the SECOND "aa" then Ctrl+D twice; the 2nd should
+        // wrap to the first occurrence.
+        m.move_to(0, 6);
+        assert!(m.add_caret_next_occurrence()); // selects 2nd "aa" (6..8)
+        assert_eq!(m.selected_text(), "aa");
+        assert!(m.add_caret_next_occurrence()); // wraps to 1st "aa" (0..2)
+        assert_eq!(m.caret_count(), 2);
+        assert_eq!(caret_positions(&m), vec![(0, 2), (0, 8)]);
+    }
+
+    #[test]
+    fn toggle_caret_adds_and_removes() {
+        let mut m = doc("abc\ndef");
+        m.move_to(0, 0);
+        m.toggle_caret_at(1, 2); // add a 2nd caret
+        assert_eq!(m.caret_count(), 2);
+        m.toggle_caret_at(1, 2); // toggle it off
+        assert_eq!(m.caret_count(), 1);
+        // Cannot remove the last caret.
+        m.toggle_caret_at(0, 0);
+        assert_eq!(m.caret_count(), 1);
+    }
+
+    #[test]
+    fn caret_accessors_match_legacy_for_single_caret() {
+        let mut m = doc("abc");
+        m.move_to(0, 2);
+        assert_eq!(m.caret_count(), 1);
+        assert_eq!(m.caret_at(0), Some((0, 2)));
+        assert_eq!(m.caret_at(1), None);
+        assert_eq!(m.caret_selection(0), None);
     }
 }

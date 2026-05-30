@@ -856,6 +856,33 @@ index 83db48f..f735c2d 100644
         }
     }
 
+    // Screenshot/render hook for multi-cursor: with MUI_MULTICURSOR_AUTOOPEN set,
+    // seed a representative buffer and several carets + selections (a column block
+    // plus Ctrl+D occurrence selections) so a headless capture shows multiple
+    // carets/selections rendering in the Vivid-Modern look. No effect on launches.
+    if std::env::var_os("MUI_MULTICURSOR_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            use crate::editor::TextModel;
+            let demo = b"fn main() {\n  let count = count + 1\n  let count = count + 2\n  let count = count + 3\n  print(count)\n  print(count)\n}\n";
+            let m = ctx.tabs.active_model_mut();
+            *m = TextModel::from_bytes(demo);
+            // Ctrl+D chain: select "count" under the caret, then add the next few
+            // occurrences as secondary carets (each a live selection).
+            m.move_to(1, 6); // on the first "count"
+            let _ = m.add_caret_next_occurrence(); // select "count"
+            let _ = m.add_caret_next_occurrence(); // + next occurrence
+            let _ = m.add_caret_next_occurrence(); // + next
+            let _ = m.add_caret_next_occurrence(); // + next
+            let _ = m.add_caret_next_occurrence(); // + next
+            // Lock out the IDE's initial reload so the seeded carets survive.
+            ctx.edit_probe_lock = true;
+            println!(
+                "mui_init_s: MUI_MULTICURSOR_AUTOOPEN -> {} carets seeded",
+                ctx.tabs.active_model().caret_count()
+            );
+        }
+    }
+
     handle
 }
 
@@ -5032,6 +5059,10 @@ struct EdDrawSnapshot {
     cur_col: usize,
     sel: Option<((usize, usize), (usize, usize))>,
     lines_for_view: Vec<(usize, String)>,
+    /// Every caret's `(line, col)` (caret[0] = primary), for multi-cursor draw.
+    carets: Vec<(usize, usize)>,
+    /// Every caret's selection range (for multi-cursor selection highlights).
+    selections: Vec<((usize, usize), (usize, usize))>,
 }
 
 /// Insert one Unicode scalar at the cursor (a `\n` codepoint splits the line).
@@ -5330,6 +5361,10 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         let total = m.line_count();
         let first = m.first_visible();
         let last = (first + rows).min(total);
+        let caret_n = m.caret_count();
+        let carets: Vec<(usize, usize)> = (0..caret_n).filter_map(|i| m.caret_at(i)).collect();
+        let selections: Vec<((usize, usize), (usize, usize))> =
+            (0..caret_n).filter_map(|i| m.caret_selection(i)).collect();
         EdDrawSnapshot {
             total,
             first,
@@ -5337,6 +5372,8 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
             cur_col: m.cursor_col(),
             sel: m.selection_range(),
             lines_for_view: (first..last).map(|i| (i, m.line(i).to_string())).collect(),
+            carets,
+            selections,
         }
     };
     let EdDrawSnapshot {
@@ -5346,7 +5383,10 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         cur_col,
         sel,
         lines_for_view,
+        carets,
+        selections,
     } = snap;
+    let _ = sel; // superseded by `selections` (still computed for back-compat).
 
     let total_u64 = total.max(1) as u64;
     let text_x = layout::text_left_in(region, total_u64);
@@ -5392,8 +5432,9 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         ctx.dl_rect(region.left, band_top, 2.0, band_h, theme::ACCENT());
     }
 
-    // 2) Selection rects (per visible line within the range).
-    if let Some(((l0, c0), (l1, c1))) = sel {
+    // 2) Selection rects — one pass per caret's selection (multi-cursor). With a
+    //    single caret this draws exactly the one primary selection as before.
+    for ((l0, c0), (l1, c1)) in selections.iter().copied() {
         for (line_idx, line) in &lines_for_view {
             let li = *line_idx;
             if li < l0 || li > l1 {
@@ -5454,14 +5495,31 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
         }
     }
 
-    // 4) Caret — a 2px-wide indigo vertical bar with a soft indigo glow behind it.
-    if cur_line >= first && cur_line < first + rows {
-        let row = (cur_line - first) as i32;
-        let cx = layout::text_x_in(region, total_u64, cur_col as i32);
+    // 4) Carets — a 2px-wide indigo vertical bar with a soft glow behind each.
+    //    The PRIMARY caret (carets[0]) is full-bright; secondary carets are drawn
+    //    slightly dimmer so the primary stays distinguishable. With one caret this
+    //    is identical to the historical single-caret draw (primary == cur_line).
+    for (i, (cl, cc)) in carets.iter().copied().enumerate() {
+        if cl < first || cl >= first + rows {
+            continue;
+        }
+        let row = (cl - first) as i32;
+        let cx = layout::text_x_in(region, total_u64, cc as i32);
         let cy = layout::row_y_in(region, row);
-        ctx.dl_shadow(cx, cy + 1.0, 2.0, layout::LINE_H() - 6.0, 1.0, theme::ACCENT_GLOW(), 4.0);
-        ctx.dl_round(cx, cy - 1.0, 2.0, layout::LINE_H() - 2.0, 1.0, theme::ACCENT_BRIGHT());
+        if i == 0 {
+            ctx.dl_shadow(cx, cy + 1.0, 2.0, layout::LINE_H() - 6.0, 1.0, theme::ACCENT_GLOW(), 4.0);
+            ctx.dl_round(cx, cy - 1.0, 2.0, layout::LINE_H() - 2.0, 1.0, theme::ACCENT_BRIGHT());
+        } else {
+            // Secondary caret: dimmer bar, lighter glow.
+            let mut glow = theme::ACCENT_GLOW();
+            glow.a *= 0.6;
+            ctx.dl_shadow(cx, cy + 1.0, 2.0, layout::LINE_H() - 6.0, 1.0, glow, 3.0);
+            let mut bar = theme::ACCENT_BRIGHT();
+            bar.a *= 0.7;
+            ctx.dl_round(cx, cy - 1.0, 2.0, layout::LINE_H() - 2.0, 1.0, bar);
+        }
     }
+    let _ = (cur_line, cur_col); // primary now drawn via the carets loop (i==0).
 
     // 4b) Bracket-match highlight — a thin outline box around the bracket the
     //     cursor is on/next to AND its depth-counted partner, when both are on
@@ -5921,6 +5979,171 @@ pub extern "C" fn mui_ed_select_word(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_ed_has_selection(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.tabs.active_model().has_selection()))
+}
+
+// ---------------------------------------------------------------------------
+// Multi-cursor (multiple simultaneous carets / selections)
+// ---------------------------------------------------------------------------
+//
+// The active model holds a list of carets with caret[0] = PRIMARY. Every
+// existing `mui_ed_*` edit/motion op above now implicitly applies at ALL carets
+// via the model's `*_multi` methods (the IDE routes edits through the `_multi`
+// entry points below). With exactly one caret each op is byte-identical to the
+// legacy single-cursor behavior, so all pre-existing tests/accessors are
+// unaffected. Features that read the cursor (completion / diagnostics / nav /
+// hover / sticky scroll) keep using the PRIMARY caret via `mui_ed_cursor_*`.
+
+/// Number of carets in the active model (>= 1).
+#[no_mangle]
+pub extern "C" fn mui_ed_caret_count(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(1, |c| c.tabs.active_model().caret_count() as i32)
+}
+
+/// 0-based line of caret `i` (0 = primary), or `-1` out of range.
+#[no_mangle]
+pub extern "C" fn mui_ed_caret_n_line(handle: i64, i: i32) -> i32 {
+    if i < 0 {
+        return -1;
+    }
+    unsafe { ctx(handle) }
+        .and_then(|c| c.tabs.active_model().caret_at(i as usize))
+        .map_or(-1, |(l, _)| l as i32)
+}
+
+/// 0-based col of caret `i` (0 = primary), or `-1` out of range.
+#[no_mangle]
+pub extern "C" fn mui_ed_caret_n_col(handle: i64, i: i32) -> i32 {
+    if i < 0 {
+        return -1;
+    }
+    unsafe { ctx(handle) }
+        .and_then(|c| c.tabs.active_model().caret_at(i as usize))
+        .map_or(-1, |(_, c)| c as i32)
+}
+
+/// Ctrl+D: select the word at the primary caret (first press), or add a caret on
+/// the next occurrence of the current selection (wrapping). Returns `1` if a
+/// word was selected or a caret added, else `0` (no word / no other match).
+#[no_mangle]
+pub extern "C" fn mui_ed_add_caret_next(handle: i64) -> i32 {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        return i32::from(m.add_caret_next_occurrence());
+    }
+    0
+}
+
+/// Ctrl+Alt+Up: add a column-block caret on the line above the primary caret.
+/// Returns `1` if added, `0` at the top edge.
+#[no_mangle]
+pub extern "C" fn mui_ed_add_caret_above(handle: i64) -> i32 {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        return i32::from(m.add_caret_vertical(-1));
+    }
+    0
+}
+
+/// Ctrl+Alt+Down: add a column-block caret on the line below the primary caret.
+/// Returns `1` if added, `0` at the bottom edge.
+#[no_mangle]
+pub extern "C" fn mui_ed_add_caret_below(handle: i64) -> i32 {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        return i32::from(m.add_caret_vertical(1));
+    }
+    0
+}
+
+/// Esc: collapse to the primary caret only and clear its selection.
+#[no_mangle]
+pub extern "C" fn mui_ed_collapse_carets(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.collapse_carets();
+    }
+}
+
+/// Alt+Click: toggle a caret at the last click's `(line, col)`.
+#[no_mangle]
+pub extern "C" fn mui_ed_toggle_caret_click(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let region = layout::region(ctx.sidebar_visible);
+    let total = ctx.tabs.active_model().line_count() as u64;
+    let first = ctx.tabs.active_model().first_visible() as u64;
+    let (line, col) =
+        layout::pixel_to_cell_in(region, ctx.last_event.x, ctx.last_event.y, first, total);
+    ctx.tabs.active_model_mut().toggle_caret_at(line as i32, col as i32);
+}
+
+// ---- multi-caret edit / motion entry points (apply at EVERY caret) ----
+
+/// Insert one scalar at every caret (a `\n` codepoint splits at each).
+#[no_mangle]
+pub extern "C" fn mui_ed_insert_char_multi(handle: i64, cp: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
+            m.insert_char_multi(ch);
+        }
+    }
+}
+
+/// Smart insert (auto-close/skip-over) at every caret, falling back to a plain
+/// insert where the smart path declined. Replaces the Mighty-side
+/// smart/plain branch when multiple carets are active.
+#[no_mangle]
+pub extern "C" fn mui_ed_insert_smart_multi(handle: i64, cp: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
+            m.insert_char_smart_multi(ch);
+        }
+    }
+}
+
+/// Backspace at every caret (smart pair-delete where applicable).
+#[no_mangle]
+pub extern "C" fn mui_ed_backspace_multi(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.backspace_multi();
+    }
+}
+
+/// Delete-forward at every caret.
+#[no_mangle]
+pub extern "C" fn mui_ed_delete_multi(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.delete_multi();
+    }
+}
+
+/// Newline + auto-indent at every caret.
+#[no_mangle]
+pub extern "C" fn mui_ed_newline_indent_multi(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.newline_indent_multi();
+    }
+}
+
+/// Single-step motion at every caret; `extend != 0` grows each selection.
+#[no_mangle]
+pub extern "C" fn mui_ed_move_ext_multi(handle: i64, dir: i32, extend: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.move_ext_multi(dir, extend != 0);
+    }
+}
+
+/// Word motion at every caret; `right != 0` moves right, `extend != 0` grows.
+#[no_mangle]
+pub extern "C" fn mui_ed_move_word_multi(handle: i64, right: i32, extend: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.move_word_multi(right != 0, extend != 0);
+    }
+}
+
+/// Smart-home at every caret; `extend != 0` grows each selection.
+#[no_mangle]
+pub extern "C" fn mui_ed_home_smart_multi(handle: i64, extend: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.home_smart_multi(extend != 0);
+    }
 }
 
 // ---------------------------------------------------------------------------

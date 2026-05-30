@@ -75,6 +75,21 @@ extern c {
   fn mui_ed_home_smart(handle: I64, extend: I32)
   fn mui_ed_select_word(handle: I64) -> I32
   fn mui_ed_has_selection(handle: I64) -> I32
+  // ---- multi-cursor (multiple carets / selections) ----
+  fn mui_ed_caret_count(handle: I64) -> I32
+  fn mui_ed_add_caret_next(handle: I64) -> I32          // Ctrl+D
+  fn mui_ed_add_caret_above(handle: I64) -> I32         // Ctrl+Alt+Up
+  fn mui_ed_add_caret_below(handle: I64) -> I32         // Ctrl+Alt+Down
+  fn mui_ed_collapse_carets(handle: I64)                // Esc
+  fn mui_ed_toggle_caret_click(handle: I64)             // Alt+Click
+  fn mui_ed_insert_char_multi(handle: I64, cp: I32)
+  fn mui_ed_insert_smart_multi(handle: I64, cp: I32)
+  fn mui_ed_backspace_multi(handle: I64)
+  fn mui_ed_delete_multi(handle: I64)
+  fn mui_ed_newline_indent_multi(handle: I64)
+  fn mui_ed_move_ext_multi(handle: I64, dir: I32, extend: I32)
+  fn mui_ed_move_word_multi(handle: I64, right: I32, extend: I32)
+  fn mui_ed_home_smart_multi(handle: I64, extend: I32)
   // ---- in-file find/replace bar (Ctrl+H) ----
   fn mui_replace_open(handle: I64)
   fn mui_replace_active(handle: I64) -> I32
@@ -611,11 +626,15 @@ fn is_inline_ask_chord(cp: I32, mods: I32) -> Bool {       // Ctrl+I : inline as
   ctrl && i && !shift
 }
 
-fn is_dup_chord(cp: I32, mods: I32) -> Bool {              // Ctrl+Shift+D
+// Ctrl+D (add caret) or Ctrl+Shift+D (duplicate) — one chord, dispatched on
+// shift at the call site. Alt must NOT be held (that's reserved). Folding both
+// into one arm keeps the editor's giant if/else ladder shallow enough for the
+// mty compiler's recursive-descent stack.
+fn is_d_chord(cp: I32, mods: I32) -> Bool {
   let ctrl = ctrl_held(mods)
-  let shift = shift_held(mods)
+  let alt = alt_held(mods)
   let d = is_d_key(cp)
-  ctrl && shift && d
+  ctrl && d && !alt
 }
 
 fn is_r_key(cp: I32) -> Bool { cp == 114 || cp == 82 }     // 'r' / 'R'
@@ -1677,12 +1696,16 @@ fn main() {
           mui_prompt_open(h, prompt_open())
           prompt_kind = prompt_open()
           find_nav = false
-        } else if is_dup_chord(cp, mods) {                       // Ctrl+Shift+D : duplicate
+        } else if is_d_chord(cp, mods) {                         // Ctrl+D add-caret / Ctrl+Shift+D duplicate
           find_nav = false
-          mui_ed_undo_record(h)
           typing = false
-          mui_ed_duplicate(h)
-          mui_tab_set_dirty(h, active0, 1)
+          if shift_held(mods) {                                  // Ctrl+Shift+D : duplicate line/sel
+            mui_ed_undo_record(h)
+            mui_ed_duplicate(h)
+            mui_tab_set_dirty(h, active0, 1)
+          } else {                                               // Ctrl+D : add caret at next occurrence
+            let _d = mui_ed_add_caret_next(h)
+          }
         } else if is_replace_chord(cp, mods) {                   // Ctrl+H : in-file replace
           mui_replace_open(h)
           replacing = true
@@ -1714,10 +1737,9 @@ fn main() {
           find_nav = false
           // Record an undo checkpoint at the start of a typing run only.
           if !typing { mui_ed_undo_record(h); typing = true }
-          // Bracket/quote auto-close + skip-over first; fall back to a plain
-          // insert when the shim didn't handle it specially.
-          let smart = mui_ed_insert_smart(h, cp)
-          if smart == 0 { mui_ed_insert_char(h, cp) }
+          // Bracket/quote auto-close + skip-over at EVERY caret (falls back to a
+          // plain insert per-caret where the smart path declines).
+          mui_ed_insert_smart_multi(h, cp)
           mui_tab_set_dirty(h, active0, 1)
           // Inline AI: the current ghost (if any) is now stale — dismiss + re-arm
           // the debounced request so a fresh suggestion can follow the pause.
@@ -1798,6 +1820,7 @@ fn main() {
           mui_sig_clear(h)
           sig_open = false
           mui_ghost_dismiss(h)                                 // Esc dismisses the inline ghost
+          mui_ed_collapse_carets(h)                            // Esc collapses to the primary caret
         } else if k == key_tab() {
           let kmods = mui_event_mods(h)
           if ctrl_held(kmods) {
@@ -1817,7 +1840,7 @@ fn main() {
             mui_tab_set_dirty(h, active0, 1)
           } else {
             if !typing { mui_ed_undo_record(h); typing = true }
-            mui_ed_insert_char(h, 9)
+            mui_ed_insert_char_multi(h, 9)
             mui_tab_set_dirty(h, active0, 1)
           }
         } else if k == key_left() {
@@ -1825,9 +1848,9 @@ fn main() {
           let ext = ext_flag(shift_held(kmods))
           mui_ghost_dismiss(h)                                // cursor move: ghost stale
           if ctrl_held(kmods) {
-            mui_ed_move_word(h, 0, ext)                       // Ctrl+Left : word left
+            mui_ed_move_word_multi(h, 0, ext)                 // Ctrl+Left : word left
           } else {
-            mui_ed_move_ext(h, dir_left(), ext)
+            mui_ed_move_ext_multi(h, dir_left(), ext)
           }
           typing = false
         } else if k == key_right() {
@@ -1841,53 +1864,58 @@ fn main() {
             mui_tab_set_dirty(h, active0, 1)
           } else if ctrl_held(kmods) {
             mui_ghost_dismiss(h)
-            mui_ed_move_word(h, 1, ext)                       // Ctrl+Right : word right
+            mui_ed_move_word_multi(h, 1, ext)                 // Ctrl+Right : word right
           } else {
             mui_ghost_dismiss(h)
-            mui_ed_move_ext(h, dir_right(), ext)
+            mui_ed_move_ext_multi(h, dir_right(), ext)
           }
           typing = false
         } else if k == key_up() {
           let kmods = mui_event_mods(h)
           mui_ghost_dismiss(h)                                 // cursor move: ghost stale
-          if alt_held(kmods) {                                 // Alt+Up : move line up
+          if ctrl_held(kmods) && alt_held(kmods) {             // Ctrl+Alt+Up : add caret above
+            find_nav = false
+            let _a = mui_ed_add_caret_above(h)
+          } else if alt_held(kmods) {                          // Alt+Up : move line up
             find_nav = false
             mui_ed_undo_record(h)
             mui_ed_move_lines_up(h)
             mui_tab_set_dirty(h, active0, 1)
           } else {
-            mui_ed_move_ext(h, dir_up(), ext_flag(shift_held(kmods)))
+            mui_ed_move_ext_multi(h, dir_up(), ext_flag(shift_held(kmods)))
           }
           typing = false
         } else if k == key_down() {
           let kmods = mui_event_mods(h)
           mui_ghost_dismiss(h)                                 // cursor move: ghost stale
-          if alt_held(kmods) {                                 // Alt+Down : move line down
+          if ctrl_held(kmods) && alt_held(kmods) {             // Ctrl+Alt+Down : add caret below
+            find_nav = false
+            let _a = mui_ed_add_caret_below(h)
+          } else if alt_held(kmods) {                          // Alt+Down : move line down
             find_nav = false
             mui_ed_undo_record(h)
             mui_ed_move_lines_down(h)
             mui_tab_set_dirty(h, active0, 1)
           } else {
-            mui_ed_move_ext(h, dir_down(), ext_flag(shift_held(kmods)))
+            mui_ed_move_ext_multi(h, dir_down(), ext_flag(shift_held(kmods)))
           }
           typing = false
         } else if k == key_home() {
           let kmods = mui_event_mods(h)
           mui_ghost_dismiss(h)
-          mui_ed_home_smart(h, ext_flag(shift_held(kmods)))
+          mui_ed_home_smart_multi(h, ext_flag(shift_held(kmods)))
           typing = false
         } else if k == key_end() {
           let kmods = mui_event_mods(h)
           mui_ghost_dismiss(h)
-          mui_ed_move_ext(h, dir_end(), ext_flag(shift_held(kmods)))
+          mui_ed_move_ext_multi(h, dir_end(), ext_flag(shift_held(kmods)))
           typing = false
         } else if k == key_backspace() {
           find_nav = false
           mui_ed_undo_record(h)
           typing = false
-          // Smart pair-backspace (delete an empty () [] {} "" pair); else plain.
-          let pair = mui_ed_backspace_smart(h)
-          if pair == 0 { mui_ed_backspace(h) }
+          // Backspace at EVERY caret (smart pair-delete where applicable).
+          mui_ed_backspace_multi(h)
           mui_tab_set_dirty(h, active0, 1)
           mui_ghost_dismiss(h)                                 // edit: ghost stale, re-arm
           mui_ghost_arm(h)
@@ -1895,7 +1923,7 @@ fn main() {
           find_nav = false
           mui_ed_undo_record(h)
           typing = false
-          mui_ed_delete(h)
+          mui_ed_delete_multi(h)
           mui_tab_set_dirty(h, active0, 1)
           mui_ghost_dismiss(h)
           mui_ghost_arm(h)
@@ -1910,7 +1938,7 @@ fn main() {
           } else {
             mui_ed_undo_record(h)
             typing = false
-            mui_ed_newline_indent(h)
+            mui_ed_newline_indent_multi(h)
             mui_tab_set_dirty(h, active0, 1)
             mui_ghost_dismiss(h)                               // edit: ghost stale, re-arm
             mui_ghost_arm(h)
@@ -2118,7 +2146,12 @@ fn main() {
               let _b = mui_bp_toggle(h, gline)
             } else {
               mui_ghost_dismiss(h)                             // click moves cursor: ghost stale
-              let _l = mui_ed_click(h)
+              let cmods = mui_event_mods(h)
+              if alt_held(cmods) {                             // Alt+Click : toggle a caret
+                mui_ed_toggle_caret_click(h)
+              } else {
+                let _l = mui_ed_click(h)                       // plain click: place the single caret
+              }
               typing = false
             }
           }
