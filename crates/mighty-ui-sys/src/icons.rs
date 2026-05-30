@@ -27,6 +27,19 @@ pub const GIT: &str = "M6.5 3.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z M6.5 15.5a2
 pub const RUN: &str = "M7 5.5 18 12 7 18.5z";
 /// Agents (robot head).
 pub const AGENTS: &str = "M5 8h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z M12 5v3 M9.5 16h5";
+
+/// Debug (a ladybug / "play-bug" — Run and Debug rail icon).
+pub const DEBUG: &str = "M9 8a3 3 0 0 1 6 0 M8.5 8h7a1 1 0 0 1 1 1v3a4.5 4.5 0 0 1-9 0V9a1 1 0 0 1 1-1z M5 10H2.5 M5 14H2.5 M5 18l1.5-2 M19 10h2.5 M19 14h2.5 M19 18l-1.5-2 M12 13v6";
+/// Debug controls (filled / stroked) used by the debug toolbar.
+pub const DBG_CONTINUE: &str = "M7 5.5 18 12 7 18.5z";
+pub const DBG_STOP: &str = "M6.5 6.5h11v11h-11z";
+pub const DBG_STEP_OVER: &str = "M5 10a7 7 0 0 1 13 1.5 M18 6.5V12h-5.5 M12 16.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z";
+pub const DBG_STEP_INTO: &str = "M12 4v9 M8.5 9.5 12 13l3.5-3.5 M12 17.5a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z";
+pub const DBG_STEP_OUT: &str = "M12 13V4 M8.5 7.5 12 4l3.5 3.5 M12 17.5a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z";
+/// Solid breakpoint dot path (filled circle in the gutter).
+pub const BREAKPOINT: &str = "M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12z";
+/// Current-instruction arrow (filled), drawn in the gutter at the stopped line.
+pub const DBG_ARROW: &str = "M5 8.5h7V5l7 7-7 7v-3.5H5z";
 /// Agent eyes/antenna dot (filled), used together with AGENTS.
 pub const AGENTS_DOT: &str = "M12 2.6a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8z M9.5 11.9a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z M14.5 11.9a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z";
 /// Accounts (user).

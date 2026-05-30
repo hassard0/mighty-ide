@@ -64,6 +64,12 @@ pub const MUI_KEY_PAGE_DOWN: u32 = 13;
 pub const MUI_KEY_F12: u32 = 14;
 /// F2 — bound to rename symbol in the IDE.
 pub const MUI_KEY_F2: u32 = 15;
+/// F5 — start / continue debugging.
+pub const MUI_KEY_F5: u32 = 16;
+/// F10 — step over (debug).
+pub const MUI_KEY_F10: u32 = 17;
+/// F11 — step into (debug); Shift+F11 steps out.
+pub const MUI_KEY_F11: u32 = 18;
 
 // ---------------------------------------------------------------------------
 // Mouse button codes (only used when tag == MUI_EVENT_MOUSE_DOWN/UP)
