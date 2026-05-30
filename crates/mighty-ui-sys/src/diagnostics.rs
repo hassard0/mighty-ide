@@ -94,6 +94,12 @@ fn strip_ansi(s: &str) -> String {
     out
 }
 
+/// Public re-export of [`strip_ansi`] so other shim modules (the Run panel) can
+/// sanitize compiler output the same way.
+pub fn strip_ansi_public(s: &str) -> String {
+    strip_ansi(s)
+}
+
 /// Number of bytes in a UTF-8 sequence given its first byte.
 fn utf8_len(b: u8) -> usize {
     if b < 0x80 {
