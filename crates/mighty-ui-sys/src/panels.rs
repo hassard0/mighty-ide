@@ -294,6 +294,40 @@ pub extern "C" fn mui_scm_click_is_stage(handle: i64) -> i32 {
     }
 }
 
+/// Map the last click to a Source-Control HEADER action button:
+/// `1` = commit, `2` = pull, `3` = push, `4` = fetch, `0` = none. Mirrors the
+/// header icon geometry in `mui_scm_draw` (four 15px icons in the right of the
+/// 40px header band).
+#[no_mangle]
+pub extern "C" fn mui_scm_header_action_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_SCM {
+        return 0;
+    }
+    let (x, y) = (ctx.last_event.x, ctx.last_event.y);
+    if !(0.0..=40.0).contains(&y) {
+        return 0;
+    }
+    let sx = layout::RAIL_W;
+    let sw = layout::SIDEBAR_W;
+    // Icon centers at sw-94 (commit), sw-72 (pull), sw-50 (push), sw-28 (fetch),
+    // each ~15px wide — use 11px half-windows around each.
+    let hit = |cx: f32| -> bool { (x - cx).abs() <= 11.0 };
+    if hit(sx + sw - 94.0 + 7.0) {
+        1
+    } else if hit(sx + sw - 72.0 + 7.0) {
+        2
+    } else if hit(sx + sw - 50.0 + 7.0) {
+        3
+    } else if hit(sx + sw - 28.0 + 7.0) {
+        4
+    } else {
+        0
+    }
+}
+
 /// Y pixel (top) of the first Source-Control changes row.
 fn scm_rows_top() -> f32 {
     40.0 + 54.0 + layout::LINE_H()
@@ -348,8 +382,12 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
         chrome - 2.0,
         clip,
     );
+    // Header action row: commit (check) · pull (down) · push (up) · fetch
+    // (refresh). Hit-tested by `mui_scm_header_action_at_click`.
     let act_y = (head_h - 15.0) * 0.5;
-    ctx.dl_icon(sx + sw - 50.0, act_y, 15.0, 15.0, icons::CHECK, theme::GREEN(), 1.8, false);
+    ctx.dl_icon(sx + sw - 94.0, act_y, 15.0, 15.0, icons::CHECK, theme::GREEN(), 1.8, false);
+    ctx.dl_icon(sx + sw - 72.0, act_y, 15.0, 15.0, icons::ARROW_DOWN, theme::TEXT_3(), 1.7, false);
+    ctx.dl_icon(sx + sw - 50.0, act_y, 15.0, 15.0, icons::ARROW_UP, theme::TEXT_3(), 1.7, false);
     ctx.dl_icon(sx + sw - 28.0, act_y, 15.0, 15.0, icons::REFRESH, theme::TEXT_3(), 1.5, false);
 
     // commit-message box
@@ -445,6 +483,334 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
         let glyph = if staged { icons::UNSTAGE_MINUS } else { icons::STAGE_PLUS };
         let acol = if staged { theme::TEXT_3() } else { theme::GREEN() };
         ctx.dl_icon(act_x, icon_y, 14.0, 14.0, glyph, acol, 1.7, false);
+    }
+}
+
+// ===========================================================================
+// Git network actions (push / pull / fetch) + branch switcher + blame gutter
+// ===========================================================================
+
+/// Run `git push` (never force). Refreshes ahead/behind + toasts the result.
+/// Returns `1` on success, `0` on failure.
+#[no_mangle]
+pub extern "C" fn mui_git_push(handle: i64) -> i32 {
+    git_action(handle, crate::scm::GitAction::Push, "Pushed")
+}
+
+/// Run `git pull --ff-only`. Refreshes status + toasts the result.
+#[no_mangle]
+pub extern "C" fn mui_git_pull(handle: i64) -> i32 {
+    git_action(handle, crate::scm::GitAction::Pull, "Pulled")
+}
+
+/// Run `git fetch`. Refreshes status + toasts the result.
+#[no_mangle]
+pub extern "C" fn mui_git_fetch(handle: i64) -> i32 {
+    git_action(handle, crate::scm::GitAction::Fetch, "Fetched")
+}
+
+/// Shared push/pull/fetch worker: run + refresh + toast (success message uses
+/// git's own last line; failures surface git's exact error).
+fn git_action(handle: i64, action: crate::scm::GitAction, ok_verb: &str) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let dir = workspace_dir(ctx);
+    let res = ctx.scm.run_action(action, &dir);
+    if res.ok {
+        ctx.push_toast(crate::toast::Kind::Success, format!("{ok_verb}: {}", res.message));
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Error, format!("Git error: {}", res.message));
+        0
+    }
+}
+
+/// Open the branch switcher overlay (refreshing the branch list first). Returns
+/// the number of branches, or `-1` if not a git repo.
+#[no_mangle]
+pub extern "C" fn mui_git_branches(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let dir = workspace_dir(ctx);
+    if ctx.scm.root.is_none() {
+        ctx.scm.refresh(&dir);
+    }
+    if ctx.scm.root.is_none() {
+        ctx.push_toast(crate::toast::Kind::Warn, "Not a git repository");
+        return -1;
+    }
+    let n = ctx.scm.refresh_branches();
+    let list = ctx.scm.branches.clone();
+    ctx.branch_picker.open(&list);
+    n
+}
+
+/// `1` if the branch switcher overlay is open, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_branch_active(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.branch_picker.is_active()))
+}
+
+/// Append a typed char to the branch filter / new-branch-name buffer.
+#[no_mangle]
+pub extern "C" fn mui_branch_push_char(handle: i64, codepoint: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if codepoint >= 0 {
+            if let Some(ch) = char::from_u32(codepoint as u32) {
+                ctx.branch_picker.push_char(ch);
+            }
+        }
+    }
+}
+
+/// Backspace the branch filter / new-branch-name buffer.
+#[no_mangle]
+pub extern "C" fn mui_branch_backspace(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.branch_picker.backspace();
+    }
+}
+
+/// Length (chars) of the branch filter / new-branch-name buffer.
+#[no_mangle]
+pub extern "C" fn mui_branch_query_len(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.branch_picker.query_len() as i32)
+}
+
+/// Number of rows in the branch picker (filtered branches + the create row).
+#[no_mangle]
+pub extern "C" fn mui_branch_count(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.branch_picker.count() as i32)
+}
+
+/// Move the branch-picker selection by `delta` (wrapping).
+#[no_mangle]
+pub extern "C" fn mui_branch_move(handle: i64, delta: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.branch_picker.move_sel(delta);
+    }
+}
+
+/// `1` if the picker is in "Create branch…" (typing a new name) mode, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_branch_is_creating(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.branch_picker.is_creating()))
+}
+
+/// Accept the current branch-picker selection.
+///
+///   * On a branch row → checkout that branch (refreshes + toasts), closes.
+///   * On the "Create branch…" row (and not yet creating) → switch into create
+///     mode (returns `2`; the IDE keeps the overlay open for name entry).
+///   * While creating → create + switch to the typed branch, closes.
+///
+/// Returns `1` on a completed checkout/create, `2` when it entered create mode,
+/// `0` on failure (toasts the git result).
+#[no_mangle]
+pub extern "C" fn mui_branch_accept(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let dir = workspace_dir(ctx);
+    if ctx.branch_picker.is_creating() {
+        let name = ctx.branch_picker.query_string();
+        let name = name.trim().to_string();
+        if name.is_empty() {
+            ctx.push_toast(crate::toast::Kind::Warn, "Enter a branch name");
+            return 0;
+        }
+        let res = ctx.scm.create_and_switch(&name, &dir);
+        if res.ok {
+            ctx.push_toast(crate::toast::Kind::Success, format!("Created branch {name}"));
+            ctx.branch_picker.cancel();
+            1
+        } else {
+            ctx.push_toast(crate::toast::Kind::Error, format!("Git error: {}", res.message));
+            0
+        }
+    } else if ctx.branch_picker.selection_is_create() {
+        ctx.branch_picker.enter_create_mode();
+        2
+    } else if let Some(name) = ctx.branch_picker.selected_name() {
+        let res = ctx.scm.checkout_branch(&name, &dir);
+        if res.ok {
+            ctx.push_toast(crate::toast::Kind::Success, format!("Switched to {name}"));
+            ctx.branch_picker.cancel();
+            1
+        } else {
+            ctx.push_toast(crate::toast::Kind::Error, format!("Git error: {}", res.message));
+            0
+        }
+    } else {
+        0
+    }
+}
+
+/// Close the branch switcher without acting.
+#[no_mangle]
+pub extern "C" fn mui_branch_cancel(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.branch_picker.cancel();
+    }
+}
+
+/// `1` if the last click landed on the status-bar branch segment (branch icon +
+/// name + ahead/behind, in the left cluster). Lets the IDE open the branch
+/// switcher by clicking the branch in the status bar.
+#[no_mangle]
+pub extern "C" fn mui_status_branch_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let h = ctx.gpu.height as f32;
+    let (x, y) = (ctx.last_event.x, ctx.last_event.y);
+    if y < h - 30.0 {
+        return 0;
+    }
+    // The branch segment is the leftmost ~150px of the status bar (icon at x=10,
+    // name + ahead/behind through ~x 150), before the problems cluster.
+    if (0.0..=150.0).contains(&x) {
+        1
+    } else {
+        0
+    }
+}
+
+/// Single shim-side dispatcher for the new Git palette commands, so the Mighty
+/// palette / quick-open dispatch ladders need only ONE new arm each (calling
+/// this) instead of one per command — keeping clear of the mty parse-stack
+/// ceiling (L37/L38). `cmd_id` is a `palette::CMD_GIT_*` id. Returns `1` if the
+/// id was a git command (handled), `0` otherwise (caller falls through).
+#[no_mangle]
+pub extern "C" fn mui_git_dispatch(handle: i64, cmd_id: i32) -> i32 {
+    use crate::palette;
+    let id = cmd_id as u32;
+    if id < palette::CMD_GIT_FIRST {
+        return 0;
+    }
+    if id == palette::CMD_GIT_SWITCH_BRANCH {
+        let _ = mui_git_branches(handle);
+        1
+    } else if id == palette::CMD_GIT_PUSH {
+        let _ = mui_git_push(handle);
+        1
+    } else if id == palette::CMD_GIT_PULL {
+        let _ = mui_git_pull(handle);
+        1
+    } else if id == palette::CMD_GIT_FETCH {
+        let _ = mui_git_fetch(handle);
+        1
+    } else if id == palette::CMD_GIT_TOGGLE_BLAME {
+        let _ = crate::featureabi::mui_blame_toggle(handle);
+        1
+    } else {
+        0
+    }
+}
+
+/// Draw the branch-switcher overlay (a palette-styled centered card). No-op when
+/// inactive. Lists the filtered branches (current marked) + a "Create branch…"
+/// row, or — in create mode — a single new-branch-name input.
+#[no_mangle]
+pub extern "C" fn mui_branch_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if !ctx.branch_picker.is_active() {
+        return;
+    }
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let picker = std::mem::take(&mut ctx.branch_picker);
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
+    draw_branch_picker(&picker, ctx, w, h);
+    ctx.overlay = false;
+    ctx.text.set_overlay(false);
+    ctx.branch_picker = picker;
+}
+
+/// Render the branch picker card (extracted so `mui_branch_draw` can take the
+/// picker out of `ctx` for the borrow).
+fn draw_branch_picker(p: &crate::scm::BranchPicker, ctx: &mut MuiContext, width: u32, height: u32) {
+    use crate::icons;
+    let w = width as f32;
+    let h = height as f32;
+    let chrome = theme::CHROME_FONT_SIZE;
+    let clip = ctx.clip;
+
+    let row_h = 34.0_f32;
+    let head_h = 50.0_f32;
+    let creating = p.is_creating();
+    let rows = if creating { 1 } else { p.count().min(10) };
+    let box_w = 460.0_f32.min(w - 80.0);
+    let box_h = head_h + rows as f32 * row_h + 16.0;
+    let box_x = ((w - box_w) * 0.5).max(0.0);
+    let box_y = 100.0_f32.min((h - box_h).max(0.0));
+    let radius = 12.0_f32;
+
+    // Scrim + glow + card.
+    ctx.dl_rect(0.0, 0.0, w, h, MuiColor::new(0.0, 0.0, 0.0, 0.55));
+    ctx.dl_shadow(box_x, box_y + 14.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.85), 40.0);
+    ctx.dl_shadow(box_x, box_y, box_w, box_h, radius, theme::ACCENT_GLOW(), 40.0);
+    ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED());
+    ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG(), 1.0);
+
+    // Header: branch icon + title + the filter / new-name input.
+    ctx.dl_icon(box_x + 16.0, box_y + 16.0, 16.0, 16.0, icons::BRANCH, theme::ACCENT_BRIGHT(), 1.6, false);
+    let title = if creating { "Create Branch" } else { "Switch Branch" };
+    ctx.text.queue_ui_sized(box_x + 40.0, box_y + 8.0, title, theme::TEXT(), 13.0, clip);
+    let q = p.query_string();
+    let (qtext, qcol) = if q.is_empty() {
+        let ph = if creating { "New branch name\u{2026}" } else { "Filter branches\u{2026}" };
+        (ph.to_string(), theme::TEXT_3())
+    } else {
+        (q.clone(), theme::TEXT())
+    };
+    ctx.text.queue_ui_sized(box_x + 40.0, box_y + 26.0, &qtext, qcol, chrome, clip);
+    let qadv = chrome * 0.52;
+    let caret_x = box_x + 40.0 + q.chars().count() as f32 * qadv + 1.0;
+    ctx.dl_round(caret_x, box_y + 25.0, 2.0, 15.0, 1.0, theme::ACCENT_BRIGHT());
+    ctx.dl_rect(box_x + 1.0, box_y + head_h - 1.0, box_w - 2.0, 1.0, theme::BORDER());
+
+    let list_top = box_y + head_h + 6.0;
+    if creating {
+        ctx.text.queue_ui_sized(box_x + 18.0, list_top + 8.0, "Press Enter to create & switch \u{00b7} Esc to cancel", theme::TEXT_3(), chrome - 1.0, clip);
+        return;
+    }
+    for vis in 0..rows {
+        let ry = list_top + vis as f32 * row_h;
+        let selected = vis == p.selection();
+        if selected {
+            ctx.dl_round(box_x + 8.0, ry + 1.0, box_w - 16.0, row_h - 2.0, 7.0, theme::accent_a(0.20));
+            ctx.dl_stroke(box_x + 8.0, ry + 1.0, box_w - 16.0, row_h - 2.0, 7.0, theme::ACCENT_LINE(), 1.0);
+        }
+        if p.is_create_row(vis) {
+            ctx.dl_icon(box_x + 18.0, ry + (row_h - 14.0) * 0.5, 14.0, 14.0, icons::PLUS, theme::GREEN(), 1.7, false);
+            ctx.text.queue_ui_sized(box_x + 42.0, ry + (row_h - chrome) * 0.5 - 1.0, "Create branch\u{2026}", theme::TEXT(), chrome, clip);
+            continue;
+        }
+        if let Some(e) = p.entry_at(vis) {
+            let (icon, icol) = if e.remote {
+                (icons::GIT, theme::TEXT_3())
+            } else {
+                (icons::BRANCH, theme::ACCENT_BRIGHT())
+            };
+            ctx.dl_icon(box_x + 18.0, ry + (row_h - 14.0) * 0.5, 14.0, 14.0, icon, icol, 1.5, false);
+            let name_col = if e.current { theme::GREEN() } else { theme::TEXT_1() };
+            let mut nm = e.name.clone();
+            let avail = ((box_w - 110.0) / qadv).floor() as usize;
+            if nm.chars().count() > avail && avail > 4 {
+                nm = nm.chars().take(avail - 1).collect::<String>() + "\u{2026}";
+            }
+            ctx.text.queue_ui_sized(box_x + 42.0, ry + (row_h - chrome) * 0.5 - 1.0, &nm, name_col, chrome, clip);
+            if e.current {
+                ctx.text.queue_ui_sized(box_x + box_w - 64.0, ry + (row_h - (chrome - 2.0)) * 0.5 - 1.0, "current", theme::GREEN(), chrome - 2.0, clip);
+            } else if e.remote {
+                ctx.text.queue_ui_sized(box_x + box_w - 60.0, ry + (row_h - (chrome - 2.0)) * 0.5 - 1.0, "remote", theme::TEXT_4(), chrome - 2.0, clip);
+            }
+        }
     }
 }
 

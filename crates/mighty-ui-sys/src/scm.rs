@@ -267,6 +267,191 @@ pub fn commit(root: &Path, message: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Result of a network git action (push / pull / fetch): success flag + the
+/// combined stdout+stderr git emitted (surfaced to the user as a toast). Never
+/// force-pushes; the caller passes only safe argument sets.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GitResult {
+    pub ok: bool,
+    pub message: String,
+}
+
+/// Run `git -C <root> <args...>`, capturing combined stdout+stderr. Pure-ish
+/// wrapper: returns `(success, trimmed combined output)`. Used by push/pull/
+/// fetch/branch ops so the exact git message can be toasted.
+fn run_git(root: &Path, args: &[&str]) -> GitResult {
+    let out = Command::new("git").arg("-C").arg(root).args(args).output();
+    match out {
+        Ok(o) => {
+            let mut combined = String::new();
+            combined.push_str(&String::from_utf8_lossy(&o.stdout));
+            let err = String::from_utf8_lossy(&o.stderr);
+            if !err.trim().is_empty() {
+                if !combined.trim().is_empty() {
+                    combined.push('\n');
+                }
+                combined.push_str(&err);
+            }
+            GitResult {
+                ok: o.status.success(),
+                message: summarize(combined.trim()),
+            }
+        }
+        Err(e) => GitResult {
+            ok: false,
+            message: format!("git failed to start: {e}"),
+        },
+    }
+}
+
+/// Collapse multi-line git output into a single short line for a toast: take the
+/// last non-empty line (git's most relevant message is usually last), trimmed.
+fn summarize(out: &str) -> String {
+    let line = out
+        .lines()
+        .rev()
+        .map(|l| l.trim())
+        .find(|l| !l.is_empty())
+        .unwrap_or("");
+    if line.is_empty() {
+        "done".to_string()
+    } else {
+        line.to_string()
+    }
+}
+
+/// Push the current branch (`git push`). Never force-pushes. Returns the git
+/// result (success + message) for a toast.
+pub fn push(root: &Path) -> GitResult {
+    run_git(root, &["push"])
+}
+
+/// Pull with fast-forward only (`git pull --ff-only`) so a non-trivial merge
+/// never silently happens. Returns the git result for a toast.
+pub fn pull(root: &Path) -> GitResult {
+    run_git(root, &["pull", "--ff-only"])
+}
+
+/// Fetch all remotes (`git fetch`). Returns the git result for a toast.
+pub fn fetch(root: &Path) -> GitResult {
+    run_git(root, &["fetch"])
+}
+
+/// Checkout / switch to an existing local or remote branch (`git switch`,
+/// falling back to `git checkout`). Returns the git result.
+pub fn checkout(root: &Path, name: &str) -> GitResult {
+    let r = run_git(root, &["switch", name]);
+    if r.ok {
+        return r;
+    }
+    // Fall back to `git checkout` (older git / detached situations / remote ref).
+    run_git(root, &["checkout", name])
+}
+
+/// Create + switch to a new branch (`git switch -c <name>`). Returns the result.
+pub fn create_branch(root: &Path, name: &str) -> GitResult {
+    run_git(root, &["switch", "-c", name])
+}
+
+/// Run `git -C <root> branch --all` and parse it into a [`BranchList`].
+pub fn branch_list(root: &Path) -> BranchList {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["branch", "--all", "--no-color"])
+        .output();
+    match out {
+        Ok(o) if o.status.success() => parse_branches(&String::from_utf8_lossy(&o.stdout)),
+        _ => BranchList::default(),
+    }
+}
+
+/// A single branch row from `git branch --all`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BranchEntry {
+    /// The ref name to check out (e.g. `main`, `feature/x`, `origin/main`).
+    pub name: String,
+    /// `true` for the current branch (the `* ` marker).
+    pub current: bool,
+    /// `true` for a remote-tracking branch (`remotes/...`).
+    pub remote: bool,
+}
+
+/// Parsed `git branch --all` output.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct BranchList {
+    pub entries: Vec<BranchEntry>,
+}
+
+#[allow(dead_code)]
+impl BranchList {
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+    pub fn get(&self, i: usize) -> Option<&BranchEntry> {
+        self.entries.get(i)
+    }
+    /// Index of the current branch, if present.
+    pub fn current_index(&self) -> Option<usize> {
+        self.entries.iter().position(|e| e.current)
+    }
+}
+
+/// Parse `git branch --all` output into a [`BranchList`]. Pure; no IO.
+///
+/// Handles:
+///   * the `* ` current-branch marker (and the worktree `+ ` marker);
+///   * indented local + `remotes/<remote>/<name>` rows;
+///   * the `remotes/origin/HEAD -> origin/main` symbolic-ref row (skipped — it's
+///     an alias, not a checkout target);
+///   * a `(HEAD detached at <sha>)` row (skipped).
+pub fn parse_branches(out: &str) -> BranchList {
+    let mut list = BranchList::default();
+    for raw in out.lines() {
+        let line = raw.trim_end();
+        if line.trim().is_empty() {
+            continue;
+        }
+        // Marker column: "* " current, "+ " worktree, "  " plain.
+        let (current, rest) = if let Some(r) = line.strip_prefix("* ") {
+            (true, r)
+        } else if let Some(r) = line.strip_prefix("+ ") {
+            (false, r)
+        } else {
+            (false, line.trim_start())
+        };
+        let rest = rest.trim();
+        if rest.is_empty() {
+            continue;
+        }
+        // Skip a detached-HEAD pseudo-row "(HEAD detached at abc1234)".
+        if rest.starts_with('(') {
+            continue;
+        }
+        // The first whitespace-delimited token is the ref name; anything after
+        // (e.g. "-> origin/main") makes this a symbolic alias we skip.
+        let name = rest.split_whitespace().next().unwrap_or("");
+        if name.is_empty() {
+            continue;
+        }
+        if rest.contains("->") {
+            // remotes/origin/HEAD -> origin/main — alias, not a target.
+            continue;
+        }
+        let remote = name.starts_with("remotes/");
+        let name = name.strip_prefix("remotes/").unwrap_or(name).to_string();
+        list.entries.push(BranchEntry {
+            name,
+            current,
+            remote,
+        });
+    }
+    list
+}
+
 /// Unified diff for one path (`git -C <root> diff -- <path>`), staged side
 /// included via a second call when the worktree diff is empty. Best-effort;
 /// returns "" on error. (Optional inline-diff feature.)
@@ -307,6 +492,8 @@ pub struct ScmState {
     pub status: ScmStatus,
     /// The commit-message input buffer.
     pub message: Vec<char>,
+    /// The most recently fetched branch list (for the branch picker).
+    pub branches: BranchList,
 }
 
 impl ScmState {
@@ -377,6 +564,235 @@ impl ScmState {
 
     pub fn message_string(&self) -> String {
         self.message.iter().collect()
+    }
+
+    /// Run a network/branch git action and refresh status afterwards. Returns the
+    /// [`GitResult`] (success + git message) for the caller to toast. No-op (with
+    /// an error result) if there is no repo root.
+    pub fn run_action(&mut self, action: GitAction, dir: &Path) -> GitResult {
+        let Some(root) = self.root.clone() else {
+            return GitResult {
+                ok: false,
+                message: "Not a git repository".to_string(),
+            };
+        };
+        let res = match action {
+            GitAction::Push => push(&root),
+            GitAction::Pull => pull(&root),
+            GitAction::Fetch => fetch(&root),
+        };
+        // Always refresh so ahead/behind + changes reflect the new state.
+        self.refresh(dir);
+        res
+    }
+
+    /// Refresh the branch list from git (for the branch picker).
+    pub fn refresh_branches(&mut self) -> i32 {
+        match &self.root {
+            Some(root) => {
+                self.branches = branch_list(root);
+                self.branches.len() as i32
+            }
+            None => {
+                self.branches = BranchList::default();
+                0
+            }
+        }
+    }
+
+    /// Checkout branch `name`, then refresh status + branches. Returns the result.
+    pub fn checkout_branch(&mut self, name: &str, dir: &Path) -> GitResult {
+        let Some(root) = self.root.clone() else {
+            return GitResult {
+                ok: false,
+                message: "Not a git repository".to_string(),
+            };
+        };
+        let res = checkout(&root, name);
+        if res.ok {
+            self.refresh(dir);
+            self.refresh_branches();
+        }
+        res
+    }
+
+    /// Create + switch to a new branch `name`, then refresh. Returns the result.
+    pub fn create_and_switch(&mut self, name: &str, dir: &Path) -> GitResult {
+        let Some(root) = self.root.clone() else {
+            return GitResult {
+                ok: false,
+                message: "Not a git repository".to_string(),
+            };
+        };
+        let res = create_branch(&root, name);
+        if res.ok {
+            self.refresh(dir);
+            self.refresh_branches();
+        }
+        res
+    }
+}
+
+/// A network git action selected from a palette command / SCM button.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GitAction {
+    Push,
+    Pull,
+    Fetch,
+}
+
+/// The branch-switcher overlay (shim-owned, scalar-driven). Lists local + remote
+/// branches with a fuzzy filter; Up/Down move, Enter checks out the selection,
+/// and a "Create branch…" mode lets the user type a new branch name. Mirrors the
+/// command palette / theme picker pattern.
+#[derive(Debug, Default)]
+pub struct BranchPicker {
+    active: bool,
+    /// The full branch list captured when the picker opened.
+    branches: Vec<BranchEntry>,
+    /// The typed filter / new-branch-name buffer (chars).
+    query: Vec<char>,
+    /// Filtered indices into `branches` for the current query.
+    filtered: Vec<usize>,
+    /// Selected row into `filtered` (0-based). When in create mode, unused.
+    sel: usize,
+    /// `true` while the user is typing a NEW branch name (the "Create branch…"
+    /// row was chosen); Enter then creates it.
+    creating: bool,
+}
+
+impl BranchPicker {
+    pub fn new() -> Self {
+        BranchPicker::default()
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.active
+    }
+
+    pub fn is_creating(&self) -> bool {
+        self.creating
+    }
+
+    /// Open the picker over `list`, selecting the current branch's row.
+    pub fn open(&mut self, list: &BranchList) {
+        self.active = true;
+        self.creating = false;
+        self.query.clear();
+        self.branches = list.entries.clone();
+        self.refilter();
+        // Start the highlight on the current branch if it survived the filter.
+        if let Some(cur) = self.branches.iter().position(|e| e.current) {
+            if let Some(p) = self.filtered.iter().position(|&i| i == cur) {
+                self.sel = p;
+            }
+        }
+    }
+
+    fn refilter(&mut self) {
+        let q: String = self.query.iter().collect::<String>().to_ascii_lowercase();
+        self.filtered = self
+            .branches
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| q.is_empty() || e.name.to_ascii_lowercase().contains(&q))
+            .map(|(i, _)| i)
+            .collect();
+        if self.sel >= self.filtered.len() {
+            self.sel = self.filtered.len().saturating_sub(1);
+        }
+    }
+
+    /// Number of rows: filtered branches + one trailing "Create branch…" row when
+    /// not already in create mode.
+    pub fn count(&self) -> usize {
+        if self.creating {
+            0
+        } else {
+            self.filtered.len() + 1
+        }
+    }
+
+    pub fn selection(&self) -> usize {
+        self.sel
+    }
+
+    pub fn query_string(&self) -> String {
+        self.query.iter().collect()
+    }
+
+    pub fn query_len(&self) -> usize {
+        self.query.len()
+    }
+
+    /// The branch name at filtered row `i`, or `None` for the "Create branch…"
+    /// row / out of range.
+    pub fn name_at(&self, i: usize) -> Option<&str> {
+        self.filtered.get(i).and_then(|&bi| self.branches.get(bi)).map(|e| e.name.as_str())
+    }
+
+    pub fn entry_at(&self, i: usize) -> Option<&BranchEntry> {
+        self.filtered.get(i).and_then(|&bi| self.branches.get(bi))
+    }
+
+    /// `true` if filtered row `i` is the trailing "Create branch…" row.
+    pub fn is_create_row(&self, i: usize) -> bool {
+        !self.creating && i == self.filtered.len()
+    }
+
+    pub fn push_char(&mut self, ch: char) {
+        self.query.push(ch);
+        if !self.creating {
+            self.sel = 0;
+            self.refilter();
+        }
+    }
+
+    pub fn backspace(&mut self) {
+        self.query.pop();
+        if !self.creating {
+            self.sel = 0;
+            self.refilter();
+        }
+    }
+
+    pub fn move_sel(&mut self, delta: i32) {
+        let n = self.count();
+        if n == 0 {
+            return;
+        }
+        let n_i = n as i32;
+        let mut s = self.sel as i32 + delta;
+        s %= n_i;
+        if s < 0 {
+            s += n_i;
+        }
+        self.sel = s as usize;
+    }
+
+    /// Switch into "Create branch…" mode (clears the query for the new name).
+    pub fn enter_create_mode(&mut self) {
+        self.creating = true;
+        self.query.clear();
+    }
+
+    /// `true` if the current selection is the "Create branch…" row.
+    pub fn selection_is_create(&self) -> bool {
+        self.is_create_row(self.sel)
+    }
+
+    /// The selected branch name (when a branch row is highlighted).
+    pub fn selected_name(&self) -> Option<String> {
+        self.name_at(self.sel).map(|s| s.to_string())
+    }
+
+    pub fn cancel(&mut self) {
+        self.active = false;
+        self.creating = false;
+        self.query.clear();
+        self.branches.clear();
+        self.filtered.clear();
+        self.sel = 0;
     }
 }
 
@@ -488,5 +904,112 @@ mod tests {
     fn quoted_path_unquoted() {
         let s = parse_status("## main\n M \"with space.rs\"\n");
         assert_eq!(s.entries[0].path, "with space.rs");
+    }
+
+    // ---- branch-list parsing ----
+
+    #[test]
+    fn branches_basic_current_and_remote() {
+        let out = "\
+* main
+  develop
+  remotes/origin/HEAD -> origin/main
+  remotes/origin/main
+  remotes/origin/develop
+";
+        let bl = parse_branches(out);
+        // The "-> origin/main" alias row is skipped.
+        assert_eq!(bl.len(), 4);
+        assert_eq!(bl.entries[0].name, "main");
+        assert!(bl.entries[0].current);
+        assert!(!bl.entries[0].remote);
+        assert_eq!(bl.entries[1].name, "develop");
+        assert!(!bl.entries[1].current);
+        // Remotes have the "remotes/" prefix stripped + remote flag set.
+        assert_eq!(bl.entries[2].name, "origin/main");
+        assert!(bl.entries[2].remote);
+        assert_eq!(bl.entries[3].name, "origin/develop");
+        assert!(bl.entries[3].remote);
+        assert_eq!(bl.current_index(), Some(0));
+    }
+
+    #[test]
+    fn branches_worktree_marker_and_detached_skipped() {
+        let out = "\
+  feature/a
++ feature/b
+* (HEAD detached at 1a2b3c4)
+  main
+";
+        let bl = parse_branches(out);
+        // The detached pseudo-row is dropped; the "+ " worktree marker is parsed
+        // as a normal (non-current) branch.
+        assert_eq!(bl.len(), 3);
+        assert_eq!(bl.entries[0].name, "feature/a");
+        assert_eq!(bl.entries[1].name, "feature/b");
+        assert!(!bl.entries[1].current);
+        assert_eq!(bl.entries[2].name, "main");
+        assert_eq!(bl.current_index(), None);
+    }
+
+    #[test]
+    fn branches_empty_input() {
+        assert!(parse_branches("").is_empty());
+        assert!(parse_branches("\n\n  \n").is_empty());
+    }
+
+    // ---- git-output summarize (toast text) ----
+
+    #[test]
+    fn summarize_takes_last_nonempty_line() {
+        let out = "remote: Enumerating objects\nTo github.com:me/repo.git\n   abc..def  main -> main";
+        assert_eq!(summarize(out), "abc..def  main -> main");
+    }
+
+    #[test]
+    fn summarize_empty_is_done() {
+        assert_eq!(summarize("   \n\n"), "done");
+        assert_eq!(summarize(""), "done");
+    }
+
+    // ---- branch picker ----
+
+    #[test]
+    fn branch_picker_open_selects_current_and_filters() {
+        let bl = parse_branches("* main\n  develop\n  feature/login\n");
+        let mut p = BranchPicker::new();
+        assert!(!p.is_active());
+        p.open(&bl);
+        assert!(p.is_active());
+        // count = 3 branches + 1 "Create branch…" row.
+        assert_eq!(p.count(), 4);
+        // Current branch (main) is selected.
+        assert_eq!(p.selected_name(), Some("main".to_string()));
+        // Filter to "fea" -> only feature/login (+ create row).
+        p.push_char('f');
+        p.push_char('e');
+        p.push_char('a');
+        assert_eq!(p.count(), 2);
+        assert_eq!(p.name_at(0), Some("feature/login"));
+        assert!(p.is_create_row(1));
+    }
+
+    #[test]
+    fn branch_picker_create_mode() {
+        let bl = parse_branches("* main\n");
+        let mut p = BranchPicker::new();
+        p.open(&bl);
+        // Move to the create row (index 1) and enter create mode.
+        p.move_sel(1);
+        assert!(p.selection_is_create());
+        p.enter_create_mode();
+        assert!(p.is_creating());
+        for ch in "feat/x".chars() {
+            p.push_char(ch);
+        }
+        assert_eq!(p.query_string(), "feat/x");
+        p.cancel();
+        assert!(!p.is_active());
+        assert!(!p.is_creating());
     }
 }

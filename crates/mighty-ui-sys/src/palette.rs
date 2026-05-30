@@ -52,6 +52,15 @@ pub const CMD_PEEK_DEFINITION: u32 = 22;
 pub const CMD_WELCOME: u32 = 23;
 pub const CMD_ZEN_MODE: u32 = 24;
 pub const CMD_AGENTS: u32 = 25;
+// Git commands — dispatched shim-side via `mui_git_dispatch` so the Mighty
+// dispatch ladders need only ONE new arm each (L37/L38 parse-stack ceiling).
+pub const CMD_GIT_SWITCH_BRANCH: u32 = 26;
+pub const CMD_GIT_PUSH: u32 = 27;
+pub const CMD_GIT_PULL: u32 = 28;
+pub const CMD_GIT_FETCH: u32 = 29;
+pub const CMD_GIT_TOGGLE_BLAME: u32 = 30;
+/// First git command id (ids >= this are routed to `mui_git_dispatch`).
+pub const CMD_GIT_FIRST: u32 = CMD_GIT_SWITCH_BRANCH;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -81,6 +90,11 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_WELCOME,          label: "Welcome",            keybinding: "" },
     Command { id: CMD_ZEN_MODE,         label: "Toggle Zen Mode",    keybinding: "Alt+Z" },
     Command { id: CMD_AGENTS,           label: "Mighty: Agents",     keybinding: "Alt+G" },
+    Command { id: CMD_GIT_SWITCH_BRANCH, label: "Git: Switch Branch", keybinding: "" },
+    Command { id: CMD_GIT_PUSH,         label: "Git: Push",          keybinding: "" },
+    Command { id: CMD_GIT_PULL,         label: "Git: Pull",          keybinding: "" },
+    Command { id: CMD_GIT_FETCH,        label: "Git: Fetch",         keybinding: "" },
+    Command { id: CMD_GIT_TOGGLE_BLAME, label: "Git: Toggle Blame",  keybinding: "Alt+B" },
 ];
 
 /// Match quality for ranking. Lower sorts first.
@@ -279,6 +293,11 @@ impl PaletteEngine {
             CMD_SETTINGS => (icons::SETTINGS, "Edit editor preferences", false),
             CMD_RUN_TESTS => (icons::BEAKER, "Run the package's tests (mty test)", false),
             CMD_PEEK_DEFINITION => (icons::FN_SYMBOL, "Preview the definition inline (Alt+F12)", false),
+            CMD_GIT_SWITCH_BRANCH => (icons::BRANCH, "Checkout or create a git branch", false),
+            CMD_GIT_PUSH => (icons::GIT, "Push commits to the remote", false),
+            CMD_GIT_PULL => (icons::GIT, "Pull (fast-forward only) from the remote", false),
+            CMD_GIT_FETCH => (icons::GIT, "Fetch refs from the remote", false),
+            CMD_GIT_TOGGLE_BLAME => (icons::GIT, "Show git blame in the gutter", false),
             _ => (icons::CHEVRON, "", false),
         }
     }

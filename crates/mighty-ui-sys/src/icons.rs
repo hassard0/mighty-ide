@@ -122,6 +122,10 @@ pub const STAGE_PLUS: &str = "M12 6v12M6 12h12";
 pub const UNSTAGE_MINUS: &str = "M6 12h12";
 /// Chevron-down (expanded file group in search results).
 pub const CHEVRON_DOWN: &str = "M6 9l6 6 6-6";
+/// Up arrow (git push — outgoing commits).
+pub const ARROW_UP: &str = "M12 20V4M5 11l7-7 7 7";
+/// Down arrow (git pull — incoming commits).
+pub const ARROW_DOWN: &str = "M12 4v16M5 13l7 7 7-7";
 /// Replace (swap arrows) — the replace field marker.
 pub const REPLACE: &str = "M4 7h11l-3-3M20 17H9l3 3";
 
