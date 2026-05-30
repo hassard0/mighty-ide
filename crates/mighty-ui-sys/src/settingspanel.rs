@@ -26,16 +26,20 @@ pub enum RowId {
     TabWidth,
     WordWrap,
     Minimap,
+    BracketColors,
+    IndentGuides,
     InlineAi,
     Theme,
 }
 
 impl RowId {
-    pub const ALL: [RowId; 6] = [
+    pub const ALL: [RowId; 8] = [
         RowId::FontSize,
         RowId::TabWidth,
         RowId::WordWrap,
         RowId::Minimap,
+        RowId::BracketColors,
+        RowId::IndentGuides,
         RowId::InlineAi,
         RowId::Theme,
     ];
@@ -46,6 +50,8 @@ impl RowId {
             RowId::TabWidth => "Tab Width",
             RowId::WordWrap => "Word Wrap",
             RowId::Minimap => "Show Minimap",
+            RowId::BracketColors => "Bracket Colors",
+            RowId::IndentGuides => "Indent Guides",
             RowId::InlineAi => "Inline AI",
             RowId::Theme => "Color Theme",
         }
@@ -57,6 +63,8 @@ impl RowId {
             RowId::TabWidth => "Spaces per indent level",
             RowId::WordWrap => "Soft-wrap long lines",
             RowId::Minimap => "Show the code minimap strip",
+            RowId::BracketColors => "Rainbow-color matched brackets by depth",
+            RowId::IndentGuides => "Show vertical indent guide lines",
             RowId::InlineAi => "AI ghost-text completions (needs API key)",
             RowId::Theme => "Switch the editor color theme",
         }
@@ -148,6 +156,14 @@ impl SettingsPanel {
                 settings::update(|s| s.minimap = !s.minimap);
                 settings::save();
             }
+            RowId::BracketColors => {
+                settings::update(|s| s.bracket_colors = !s.bracket_colors);
+                settings::save();
+            }
+            RowId::IndentGuides => {
+                settings::update(|s| s.indent_guides = !s.indent_guides);
+                settings::save();
+            }
             RowId::InlineAi => {
                 settings::update(|s| s.inline_ai = !s.inline_ai);
                 settings::save();
@@ -179,6 +195,8 @@ impl SettingsPanel {
             RowId::TabWidth => format!("{}", s.tab_width),
             RowId::WordWrap => on_off(s.word_wrap),
             RowId::Minimap => on_off(s.minimap),
+            RowId::BracketColors => on_off(s.bracket_colors),
+            RowId::IndentGuides => on_off(s.indent_guides),
             RowId::InlineAi => on_off(s.inline_ai),
             RowId::Theme => theme::active_id().name().to_string(),
         }
@@ -342,7 +360,7 @@ mod tests {
         p.open();
         assert!(p.is_active());
         assert_eq!(p.selection(), 0);
-        assert_eq!(p.count(), 6);
+        assert_eq!(p.count(), 8);
     }
 
     #[test]
@@ -351,7 +369,7 @@ mod tests {
         let mut p = SettingsPanel::new();
         p.open();
         p.move_sel(-1);
-        assert_eq!(p.selection(), 5);
+        assert_eq!(p.selection(), 7);
         p.move_sel(1);
         assert_eq!(p.selection(), 0);
     }
@@ -364,7 +382,7 @@ mod tests {
         std::env::set_var("APPDATA", &tmp);
         let mut p = SettingsPanel::new();
         p.open();
-        p.move_sel(4); // InlineAi
+        p.move_sel(6); // InlineAi
         assert!(settings::inline_ai()); // default on
         p.toggle();
         assert!(!settings::inline_ai());
@@ -424,6 +442,25 @@ mod tests {
     }
 
     #[test]
+    fn toggle_bracket_colors_and_indent_guides() {
+        let _g = guard();
+        let tmp = std::env::temp_dir().join(format!("mui-setpanel-bg-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::env::set_var("APPDATA", &tmp);
+        let mut p = SettingsPanel::new();
+        p.open();
+        p.move_sel(4); // BracketColors
+        assert!(settings::bracket_colors()); // default on
+        p.toggle();
+        assert!(!settings::bracket_colors());
+        p.move_sel(1); // IndentGuides
+        assert!(settings::indent_guides()); // default on
+        p.toggle();
+        assert!(!settings::indent_guides());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
     fn theme_row_cycles_and_persists() {
         let _g = guard();
         let tmp = std::env::temp_dir().join(format!("mui-setpanel-theme-{}", std::process::id()));
@@ -431,7 +468,7 @@ mod tests {
         std::env::set_var("APPDATA", &tmp);
         let mut p = SettingsPanel::new();
         p.open();
-        p.move_sel(5); // Theme
+        p.move_sel(7); // Theme
         assert_eq!(theme::active_id(), ThemeId::Vivid);
         p.toggle(); // cycle forward
         assert_eq!(theme::active_id(), ThemeId::Aurora);

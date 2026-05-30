@@ -1130,6 +1130,45 @@ filename src/main.mty
         }
     }
 
+    // Screenshot/render hook for bracket colors + indent guides: with
+    // MUI_BRACKETS_AUTOOPEN set, seed a deeply-nested buffer and place the cursor
+    // inside a nested block so a headless capture shows the rainbow brackets +
+    // (active) indent guides. No effect on normal launches.
+    if std::env::var_os("MUI_BRACKETS_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            use crate::editor::TextModel;
+            let demo = b"// Bracket colors + indent guides \xE2\x80\x94 nested code.\nfn process(items: List, opts: Opts) -> Result {\n  let mut acc = []\n  for item in items {\n    if item.valid {\n      match item.kind {\n        Kind::A => {\n          acc.push(transform(item, [opts.a, opts.b, (opts.c + 1)]))\n        }\n        Kind::B => {\n          while item.has_next() {\n            let next = item.next({ depth: (level * 2), tags: [\"x\", \"y\"] })\n            acc.push(next)\n          }\n        }\n        _ => { skip(item) }\n      }\n    }\n  }\n  Ok({ values: acc, count: len(acc) })\n}\n";
+            let m = ctx.tabs.active_model_mut();
+            *m = TextModel::from_bytes(demo);
+            m.move_to(13, 12); // inside the nested while block
+            ctx.welcome.dismiss();
+            ctx.edit_probe_lock = true;
+        }
+        println!("mui_init_s: MUI_BRACKETS_AUTOOPEN -> nested demo seeded");
+    }
+
+    // Screenshot/render hook for the interactive minimap: with MUI_MINIMAP_AUTOOPEN
+    // set, seed a TALL buffer and scroll partway down so a headless capture shows
+    // the minimap bars + the viewport rectangle over the visible range.
+    if std::env::var_os("MUI_MINIMAP_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            use crate::editor::TextModel;
+            let mut src = String::from("// minimap.mty \u{2014} a tall file for the minimap viewport.\n");
+            for i in 0..160 {
+                src.push_str(&format!(
+                    "fn unit_{i}(n: I32) -> I32 {{\n  if n < 2 {{\n    n\n  }} else {{\n    unit_{i}(n - 1) + n\n  }}\n}}\n\n"
+                ));
+            }
+            let m = ctx.tabs.active_model_mut();
+            *m = TextModel::from_bytes(src.as_bytes());
+            m.move_to(300, 4);
+            m.set_first_visible(280);
+            ctx.welcome.dismiss();
+            ctx.edit_probe_lock = true;
+        }
+        println!("mui_init_s: MUI_MINIMAP_AUTOOPEN -> tall demo seeded");
+    }
+
     handle
 }
 
@@ -5601,6 +5640,29 @@ pub extern "C" fn mui_ed_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    // Interactive minimap: a click landing in the focused pane's minimap strip
+    // jumps the editor so the clicked position maps to the corresponding source
+    // line (scroll there + move the cursor to that line). Folded in here (no new
+    // Mighty ladder arm — L37/L38 discipline). Falls through to normal cell
+    // placement when the click is outside the strip / minimap is hidden.
+    let (ex, ey) = (ctx.last_event.x, ctx.last_event.y);
+    if let Some(g) = ctx.minimap_geom {
+        let win_h = ctx.gpu.height as f32;
+        let in_band = ey >= g.top - 4.0 && ey <= (win_h - 30.0);
+        if g.contains_x(ex) && in_band {
+            let line = g.line_at_y(ey);
+            let rows = layout::visible_rows_in(
+                layout::region(ctx.sidebar_visible),
+                ctx.gpu.height,
+                false,
+            ) as usize;
+            let first = g.scroll_to_center(line, rows);
+            let m = ctx.tabs.active_model_mut();
+            m.set_first_visible(first);
+            m.move_to(line as i32, 0);
+            return m.cursor_line() as i32;
+        }
+    }
     let mut region = layout::region(ctx.sidebar_visible);
     // When split, resolve the click against the FOCUSED pane's column (its left
     // edge), so the gutter/text math lines up with where that pane is drawn. The
@@ -5618,6 +5680,55 @@ pub extern "C" fn mui_ed_click(handle: i64) -> i32 {
     let m = ctx.tabs.active_model_mut();
     m.move_to(line as i32, col as i32);
     m.cursor_line() as i32
+}
+
+/// Map a minimap pixel `(x, y)` to the buffer line it represents, or `-1` if the
+/// point is outside the focused pane's minimap strip (or the minimap is hidden).
+/// Companion to the folded-in minimap jump in [`mui_ed_click`]; exposed for the
+/// Mighty side / tests that want the mapping without moving the cursor.
+#[no_mangle]
+pub extern "C" fn mui_minimap_click(handle: i64, x: f32, y: f32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let Some(g) = ctx.minimap_geom else {
+        return -1;
+    };
+    let win_h = ctx.gpu.height as f32;
+    let in_band = y >= g.top - 4.0 && y <= (win_h - 30.0);
+    if g.contains_x(x) && in_band {
+        g.line_at_y(y) as i32
+    } else {
+        -1
+    }
+}
+
+/// `1` when the focused pane currently shows an interactive minimap strip (its
+/// geometry is live), else `0`. Lets the Mighty side / tests probe presence.
+#[no_mangle]
+pub extern "C" fn mui_minimap_active(handle: i64) -> i32 {
+    match unsafe { ctx(handle) } {
+        Some(ctx) if ctx.minimap_geom.is_some() => 1,
+        _ => 0,
+    }
+}
+
+/// The minimap strip's left x (pixels), or `-1.0` when hidden.
+#[no_mangle]
+pub extern "C" fn mui_minimap_left(handle: i64) -> f32 {
+    match unsafe { ctx(handle) } {
+        Some(ctx) => ctx.minimap_geom.map(|g| g.x).unwrap_or(-1.0),
+        None => -1.0,
+    }
+}
+
+/// The minimap strip's width (pixels), or `0.0` when hidden.
+#[no_mangle]
+pub extern "C" fn mui_minimap_width(handle: i64) -> f32 {
+    match unsafe { ctx(handle) } {
+        Some(ctx) => ctx.minimap_geom.map(|g| g.w).unwrap_or(0.0),
+        None => 0.0,
+    }
 }
 
 /// Draw the editor body from the authoritative model: the current-line band,
@@ -5793,6 +5904,59 @@ fn draw_editor_pane(
         ctx.dl_rect(region.left, band_top, 2.0, band_h, theme::ACCENT());
     }
 
+    // 1b) Indent guides — faint vertical lines at each indent level inside the
+    //     code body, the cursor block's level brightened. Drawn UNDER the text
+    //     (after the band, before selections) so glyphs sit on top. Carries depth
+    //     across blank lines from neighbors. Gated by the `indent_guides` pref.
+    if crate::settings::indent_guides() {
+        let tw = crate::settings::tab_width().max(1) as usize;
+        // Scan the whole visible window plus a little context above/below so a
+        // blank line at the window edge still carries its block's depth.
+        let ctx_lines: Vec<String> = {
+            let m = ctx
+                .tabs
+                .model_at(tab_idx)
+                .unwrap_or_else(|| ctx.tabs.active_model());
+            let lo = first.saturating_sub(4);
+            let hi = (first + rows + 4).min(total);
+            (lo..hi).map(|i| m.line(i).to_string()).collect()
+        };
+        let lo = first.saturating_sub(4);
+        let refs: Vec<&str> = ctx_lines.iter().map(|s| s.as_str()).collect();
+        let depths = crate::colorize::indent_depths(&refs, tw);
+        let active = crate::colorize::active_indent_level(&refs, cur_line.saturating_sub(lo), tw);
+        let guide_w = 1.0_f32;
+        for (li, _line) in &lines_for_view {
+            let idx = li.saturating_sub(lo);
+            let Some(&cols) = depths.get(idx) else { continue };
+            let levels = crate::colorize::guide_levels(cols, tw);
+            if levels == 0 {
+                continue;
+            }
+            let row = (*li - first) as i32;
+            let y = layout::row_y_in(region, row);
+            for lvl in 0..levels {
+                let gx = text_x + (lvl * tw) as f32 * layout::CHAR_W();
+                if gx >= mm_x {
+                    break;
+                }
+                // The active rail (the cursor block's level) is brightened along
+                // every line deep enough to contain it, so the whole "you are
+                // here" column reads — not just the cursor row.
+                let is_active = active == Some(lvl);
+                let mut c = if is_active {
+                    theme::accent_a(0.42)
+                } else {
+                    theme::accent_a(0.10)
+                };
+                if split_chrome && !focused {
+                    c.a *= 0.5;
+                }
+                ctx.dl_rect(gx, y, guide_w, layout::LINE_H(), c);
+            }
+        }
+    }
+
     // 2) Selection rects — one pass per caret's selection (multi-cursor). With a
     //    single caret this draws exactly the one primary selection as before.
     for ((l0, c0), (l1, c1)) in selections.iter().copied() {
@@ -5861,6 +6025,64 @@ fn draw_editor_pane(
         }
     }
 
+    // 3b) Bracket-pair colorization — re-draw each matched `()[]{}` glyph in a
+    //     rainbow color by NESTING DEPTH, over-painting the punctuation glyph from
+    //     step 3. Depth is tracked from the buffer start so brackets keep a stable
+    //     color regardless of scroll; string/comment chars are masked out via the
+    //     syntax spans. Unmatched/extra brackets get the error color. Gated by the
+    //     `bracket_colors` pref (default ON). Lives alongside the cursor-adjacent
+    //     bracket-match outline (step 4b).
+    if crate::settings::bracket_colors() {
+        let palette = crate::colorize::bracket_palette();
+        let err_col = crate::colorize::bracket_error_color();
+        // Scan from line 0 to the last visible line so depth is correct, but only
+        // tag the visible window. Build the string/comment mask per line from its
+        // syntax spans (a span colored as a string/comment masks its chars).
+        let scan_hi = (first + rows).min(total);
+        let scan_lines: Vec<String> = {
+            let m = ctx
+                .tabs
+                .model_at(tab_idx)
+                .unwrap_or_else(|| ctx.tabs.active_model());
+            (0..scan_hi).map(|i| m.line(i).to_string()).collect()
+        };
+        let str_c = theme::SYN_STRING();
+        let com_c = theme::SYN_COMMENT();
+        let same = |a: MuiColor, b: MuiColor| {
+            (a.r - b.r).abs() < 0.004 && (a.g - b.g).abs() < 0.004 && (a.b - b.b).abs() < 0.004
+        };
+        let line_refs: Vec<(usize, &str)> =
+            scan_lines.iter().enumerate().map(|(i, s)| (i, s.as_str())).collect();
+        let tags = crate::colorize::colorize_brackets(
+            line_refs.iter().copied(),
+            palette.len(),
+            |line_no| {
+                let line = &scan_lines[line_no];
+                highlight_for(line, lang)
+                    .iter()
+                    .filter(|sp| same(sp.color, str_c) || same(sp.color, com_c))
+                    .map(|sp| (sp.start, sp.len))
+                    .collect()
+            },
+        );
+        for t in tags {
+            if t.line < first || t.line >= first + rows {
+                continue;
+            }
+            let line = &scan_lines[t.line];
+            let Some(ch) = line.chars().nth(t.col) else { continue };
+            let row = (t.line - first) as i32;
+            let x = text_x + t.col as f32 * layout::CHAR_W();
+            let y = layout::row_y_in(region, row);
+            let mut c = if t.error { err_col } else { palette[t.color_index] };
+            if split_chrome && !focused {
+                c.a *= 0.7;
+            }
+            let mut s = [0u8; 4];
+            ctx.text.queue(x, y, ch.encode_utf8(&mut s), c, clip);
+        }
+    }
+
     // 4) Carets — a 2px-wide indigo vertical bar with a soft glow behind each.
     //    The PRIMARY caret (carets[0]) is full-bright; secondary carets are drawn
     //    slightly dimmer so the primary stays distinguishable. With one caret this
@@ -5925,8 +6147,14 @@ fn draw_editor_pane(
     }
 
     // 5) Minimap — a faint right strip with one tiny colored bar per buffer line,
-    //    sized by the line's first syntax span color + length, plus a viewport box.
-    //    Hidden when the "Show Minimap" preference is off (Settings panel).
+    //    sized by the line's first syntax span color + length, plus a clearer
+    //    viewport rectangle over the currently-visible range. INTERACTIVE: the
+    //    strip's geometry is stashed on the context so a click in the strip
+    //    (`mui_ed_click`) jumps the editor to the matching source line. Tall files
+    //    (more lines than fit) compress so the WHOLE file maps across the strip and
+    //    a bottom click lands near EOF. Hidden when "Show Minimap" is off.
+    //    `minimap_geom` is cleared on UNFOCUSED panes so clicks only hit the
+    //    focused pane's strip.
     if minimap_on {
         let field_top = region.top;
         let field_h = (win_h - 30.0 - field_top).max(0.0);
@@ -5936,9 +6164,14 @@ fn draw_editor_pane(
         let mm_pad_x = mm_x + 10.0;
         let mm_inner_w = mm_w - 20.0;
         let mm_top = field_top + 10.0;
-        let mm_line_h = 4.0_f32; // per-line vertical advance in the minimap
-        let max_lines = ((field_h - 20.0) / mm_line_h).floor() as usize;
-        let shown_lines = total.min(max_lines);
+        let avail_h = (field_h - 20.0).max(0.0);
+        // Per-line advance: 4px max, but compress to fit a tall file in the strip.
+        let mm_line_h = if total > 0 {
+            4.0_f32.min(avail_h / total as f32).max(0.5)
+        } else {
+            4.0
+        };
+        let shown_lines = total; // every line is represented (compressed if tall)
         let mm_lines: Vec<(usize, String)> = {
             let m = ctx
                 .tabs
@@ -5946,6 +6179,7 @@ fn draw_editor_pane(
                 .unwrap_or_else(|| ctx.tabs.active_model());
             (0..shown_lines).map(|i| (i, m.line(i).to_string())).collect()
         };
+        let bar_h = (mm_line_h - 1.5).clamp(1.0, 2.5);
         for (i, line) in &mm_lines {
             let yy = mm_top + (*i as f32) * mm_line_h;
             let trimmed_len = line.trim_start().chars().count();
@@ -5965,13 +6199,30 @@ fn draw_editor_pane(
             let bw = (frac * mm_inner_w).max(2.0).min(mm_inner_w - (bx - mm_pad_x));
             let mut c = color;
             c.a = 0.55;
-            ctx.dl_round(bx, yy, bw, 2.5, 1.0, c);
+            ctx.dl_round(bx, yy, bw, bar_h, 1.0, c);
         }
-        // Viewport box over the visible range.
+        // Stash geometry for the click router (focused pane only). The vertical
+        // field band is [field_top, field_top + field_h).
+        let geom = crate::colorize::MinimapGeom {
+            x: mm_x,
+            w: mm_w,
+            top: mm_top,
+            line_h: mm_line_h,
+            shown_lines,
+            total,
+        };
+        if focused {
+            ctx.minimap_geom = Some(geom);
+        }
+        // Viewport rectangle over the currently-visible range: a filled accent
+        // wash + a brighter 1px border so the visible window reads clearly.
         let vp_y = mm_top + (first as f32) * mm_line_h;
-        let vp_h = (rows.min(shown_lines.saturating_sub(first)) as f32 * mm_line_h).max(mm_line_h);
-        ctx.dl_round(mm_x + 4.0, vp_y - 1.0, mm_w - 8.0, vp_h + 2.0, 3.0, theme::accent_a(0.08));
-        ctx.dl_stroke(mm_x + 4.0, vp_y - 1.0, mm_w - 8.0, vp_h + 2.0, 3.0, theme::ACCENT_LINE(), 1.0);
+        let vis = rows.min(total.saturating_sub(first)).max(1);
+        let vp_h = (vis as f32 * mm_line_h).max(6.0);
+        ctx.dl_round(mm_x + 4.0, vp_y - 1.0, mm_w - 8.0, vp_h + 2.0, 3.0, theme::accent_a(0.16));
+        ctx.dl_stroke(mm_x + 4.0, vp_y - 1.0, mm_w - 8.0, vp_h + 2.0, 3.0, theme::ACCENT_LINE(), 1.2);
+    } else if focused {
+        ctx.minimap_geom = None;
     }
 
     // 6) Focus outline (split only): a subtle 2px accent stroke around the

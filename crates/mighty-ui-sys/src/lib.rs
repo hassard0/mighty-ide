@@ -15,6 +15,7 @@ mod agents;
 mod agentsabi;
 mod ai;
 mod blame;
+mod colorize;
 mod completion;
 mod config;
 mod crumbmenu;
@@ -238,6 +239,12 @@ pub struct MuiContext {
     /// scripted-edit model survives the IDE's initial load — letting a headless
     /// screenshot capture the LIVE-edited buffer (screenshots/06-edit.png).
     pub(crate) edit_probe_lock: bool,
+
+    /// The interactive minimap's last-drawn geometry (for the FOCUSED pane), so
+    /// the editor click router ([`mui_ed_click`]) can hit-test a click in the
+    /// strip and jump the editor to the corresponding source line. Updated each
+    /// frame by the minimap draw; `None` when the minimap is hidden / too narrow.
+    pub(crate) minimap_geom: Option<colorize::MinimapGeom>,
 
     // ---- Vello proof (MUI_VELLO_PROOF=1; Phase 1 renderer upgrade) ----
     /// When `MUI_VELLO_PROOF` is set, [`render_and_present`] renders a static
@@ -732,6 +739,7 @@ pub(crate) fn build_context(
         ed_undo: Vec::new(),
         ed_redo: Vec::new(),
         edit_probe_lock: false,
+        minimap_geom: None,
         vello_proof: None,
         dl: vello_ui::DisplayList::default(),
         vello_ui: None,
@@ -1364,6 +1372,7 @@ impl MuiContext {
             ed_undo: Vec::new(),
             ed_redo: Vec::new(),
             edit_probe_lock: false,
+            minimap_geom: None,
             vello_proof: None,
             dl: vello_ui::DisplayList::default(),
             vello_ui: None,

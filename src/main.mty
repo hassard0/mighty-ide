@@ -54,6 +54,8 @@ extern c {
   fn mui_ed_nav_stream(handle: I64)
   fn mui_ed_tab_switch(handle: I64, idx: I32) -> I32
   fn mui_ed_click(handle: I64) -> I32
+  fn mui_minimap_click(handle: I64, x: F32, y: F32) -> I32
+  fn mui_minimap_active(handle: I64) -> I32
   fn mui_ed_draw(handle: I64, rows: I32)
   // live-model undo/redo (shim-side snapshots)
   fn mui_ed_undo_reset(handle: I64)

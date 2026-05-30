@@ -56,6 +56,12 @@ pub struct Settings {
     /// Sticky scroll: pin the enclosing-scope headers at the editor top while
     /// scrolled inside a nested scope. Default ON.
     pub sticky_scroll: bool,
+    /// Bracket-pair colorization: color matched `()[]{}` by nesting depth using
+    /// a theme-derived rainbow palette. Default ON.
+    pub bracket_colors: bool,
+    /// Indent guides: faint vertical lines at each indentation level, the active
+    /// (cursor block) level brightened. Default ON.
+    pub indent_guides: bool,
 }
 
 impl Default for Settings {
@@ -67,6 +73,8 @@ impl Default for Settings {
             minimap: true,
             inline_ai: true,
             sticky_scroll: true,
+            bracket_colors: true,
+            indent_guides: true,
         }
     }
 }
@@ -97,6 +105,8 @@ static ACTIVE: RwLock<Settings> = RwLock::new(Settings {
     minimap: true,
     inline_ai: true,
     sticky_scroll: true,
+    bracket_colors: true,
+    indent_guides: true,
 });
 
 /// The currently-active settings (by value; `Settings` is `Copy`).
@@ -151,6 +161,14 @@ pub fn inline_ai() -> bool {
 pub fn sticky_scroll() -> bool {
     active().sticky_scroll
 }
+#[inline]
+pub fn bracket_colors() -> bool {
+    active().bracket_colors
+}
+#[inline]
+pub fn indent_guides() -> bool {
+    active().indent_guides
+}
 
 // ---------------------------------------------------------------------------
 // Config persistence — extends the shared `key=value` config file used for the
@@ -186,6 +204,8 @@ pub fn parse(text: &str) -> Settings {
             "minimap" => s.minimap = parse_bool(v),
             "inline_ai" => s.inline_ai = parse_bool(v),
             "sticky_scroll" => s.sticky_scroll = parse_bool(v),
+            "bracket_colors" => s.bracket_colors = parse_bool(v),
+            "indent_guides" => s.indent_guides = parse_bool(v),
             _ => {}
         }
     }
@@ -200,13 +220,15 @@ fn parse_bool(v: &str) -> bool {
 /// [`crate::config`]).
 pub fn render(s: &Settings) -> String {
     format!(
-        "font_size={}\ntab_width={}\nword_wrap={}\nminimap={}\ninline_ai={}\nsticky_scroll={}\n",
+        "font_size={}\ntab_width={}\nword_wrap={}\nminimap={}\ninline_ai={}\nsticky_scroll={}\nbracket_colors={}\nindent_guides={}\n",
         s.font_size,
         s.tab_width,
         if s.word_wrap { "true" } else { "false" },
         if s.minimap { "true" } else { "false" },
         if s.inline_ai { "true" } else { "false" },
         if s.sticky_scroll { "true" } else { "false" },
+        if s.bracket_colors { "true" } else { "false" },
+        if s.indent_guides { "true" } else { "false" },
     )
 }
 
@@ -259,6 +281,8 @@ mod tests {
             minimap: false,
             inline_ai: true,
             sticky_scroll: true,
+            bracket_colors: true,
+            indent_guides: true,
         }
         .clamped();
         assert_eq!(s.font_size, FONT_MAX);
@@ -270,6 +294,8 @@ mod tests {
             minimap: true,
             inline_ai: false,
             sticky_scroll: false,
+            bracket_colors: true,
+            indent_guides: true,
         }
         .clamped();
         assert_eq!(s2.font_size, FONT_MIN);
@@ -296,6 +322,8 @@ mod tests {
             minimap: false,
             inline_ai: false,
             sticky_scroll: false,
+            bracket_colors: false,
+            indent_guides: false,
         };
         let blob = render(&s);
         let parsed = parse(&blob);
@@ -330,6 +358,26 @@ mod tests {
     }
 
     #[test]
+    fn bracket_colors_and_indent_guides_default_on_and_round_trip() {
+        // Both default ON.
+        assert!(Settings::default().bracket_colors);
+        assert!(Settings::default().indent_guides);
+        // Persist through render/parse.
+        let s = Settings { bracket_colors: false, indent_guides: false, ..Default::default() };
+        let p = parse(&render(&s));
+        assert!(!p.bracket_colors);
+        assert!(!p.indent_guides);
+        // Unset keys keep the ON default.
+        assert!(parse("font_size=15\n").bracket_colors);
+        assert!(parse("font_size=15\n").indent_guides);
+        // Parse "off"/"on".
+        assert!(!parse("bracket_colors=off\n").bracket_colors);
+        assert!(parse("bracket_colors=on\n").bracket_colors);
+        assert!(!parse("indent_guides=off\n").indent_guides);
+        assert!(parse("indent_guides=on\n").indent_guides);
+    }
+
+    #[test]
     fn sticky_scroll_accessor_reads_active() {
         let _g = guard();
         set_active(Settings { sticky_scroll: false, ..Default::default() });
@@ -341,7 +389,7 @@ mod tests {
     #[test]
     fn set_active_clamps_and_reads_back() {
         let _g = guard();
-        set_active(Settings { font_size: 50.0, tab_width: 0, word_wrap: true, minimap: false, inline_ai: false, sticky_scroll: false });
+        set_active(Settings { font_size: 50.0, tab_width: 0, word_wrap: true, minimap: false, inline_ai: false, sticky_scroll: false, bracket_colors: true, indent_guides: true });
         assert_eq!(font_size(), FONT_MAX);
         assert_eq!(tab_width(), TAB_MIN);
         assert!(word_wrap());
