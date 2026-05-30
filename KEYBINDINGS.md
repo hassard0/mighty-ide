@@ -94,7 +94,21 @@ the `mui_chord` router). This table is the authoritative list.
 | `Ctrl+`` ` `` ` | Toggle integrated terminal (ConPTY) |
 | `Alt+G` | Mighty Agents topology panel (rescan workspace) |
 | `Alt+Z` | Toggle Zen / focus mode |
+| `Ctrl+Shift+/` | Keyboard Shortcuts reference + remapping overlay |
 | `Esc` | Dismiss the active overlay / panel / menu |
+
+## Customizing shortcuts
+
+Open the **Keyboard Shortcuts** overlay (`Ctrl+Shift+/`, or the command palette →
+"Help: Keyboard Shortcuts"). It lists every command with its current binding and
+a substring filter (by command name OR key). The router-routed commands (Zen,
+Agents, Toggle Blame, Run in Browser, Split Editor Right, Markdown Preview, Open
+Folder) are **remappable**: select one, press `Enter`, then press the new chord —
+which must be `Alt`+a letter. Conflicts with another command are detected and
+warned. `Ctrl+R` resets the selected command to its default; `Ctrl+Shift+R`
+resets all. Overrides persist to `%APPDATA%/mighty-ide/keybindings.toml` and load
+at startup. Ladder-fixed chords (Save, Undo, Find, …) are shown read-only as
+`(fixed)`.
 
 ## Snippets
 

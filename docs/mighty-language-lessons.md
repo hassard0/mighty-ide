@@ -889,6 +889,48 @@ Two features landed with zero new Mighty-source friction:
   explorer header) and `49-lightbulb.png` (`MUI_LIGHTBULB_AUTOOPEN` pins the bulb on
   the type-error line of `examples/with_error.mty`) at 1320x860.
 
+### L46. The Keyboard Shortcuts overlay + remapping is pure-shim — but `!fn_call(args)` is a NEW mty parse trap: unary `!` binds tighter than the call ⚠️ **[finding + NEW language gotcha, P2]**
+The discoverability+customization feature (a searchable list of every command/
+binding + remapping the router-routed subset) landed shim-side with the usual
+scalar ABI and ZERO new top-level editor-ladder arms — but surfaced one concrete
+mty v0.36 parse gotcha worth recording:
+
+- **`!fn_call(args)` mis-parses.** Writing `!ctrl_held(mods)` in a condition
+  type-errored as **MT2008 "value of type `Bool` is not callable"** (reported at
+  the unhelpful `1:1`). The parser binds the prefix `!` to the *identifier* before
+  the call — i.e. it reads `(!ctrl_held)(mods)` and then tries to call the `Bool`.
+  Every existing `!`-on-Bool in `main.mty` negates a **local** (`!ctrl`, `!shift`),
+  never a call result, which is why this never bit before. **Fix/idiom:** bind the
+  call to a `let` first (`let ctrl = ctrl_held(mods)`) then negate the local
+  (`!ctrl`). (Parenthesizing — `!(ctrl_held(mods))` — likely also works but the
+  let-binding matches the established style.)
+
+- **Feature shape (pure-shim, L37/L38 held).** `crate::shortcuts` owns the row
+  assembly (palette `COMMANDS` + a static ladder-fixed table → name/keys/
+  remappable), a substring filter (name OR key), an `Overrides` map (command id →
+  `Chord{cp,mods}`) with conflict detection, reset-one/reset-all, and a
+  `keybindings.toml` save/load round-trip in the config dir. The overlay is a
+  Vivid-Modern card with kbd pills mirroring the palette. Remapping covers the
+  **router-dispatchable subset** (Zen/Agents/Blame/Run-in-Browser/Split/Markdown-
+  preview/Open-Folder) — the commands `mui_chord` both detects AND fully dispatches.
+  `mui_chord` now resolves the incoming chord through `Overrides::resolve` FIRST
+  (override wins; a remapped command's freed default stops firing) via a new
+  `router_dispatch(handle, cmd_id)` helper that both the override path and capture
+  share. **Remap targets are constrained to `Alt`+letter** — the one modifier class
+  `is_router_chord` forwards wholesale to the router, so a new chord always reaches
+  it without growing the ladder (a Mighty-side gate can't be data-driven from the
+  shim). The overlay's input mode NESTS into the existing breadcrumb/branch
+  combined arm (now three overlays, one top-level arm); the open-chord is
+  Ctrl+Shift+/ added to `is_router_chord`; the palette command "Help: Keyboard
+  Shortcuts" dispatches to `mui_keys_open`. New ABI: `mui_keys_open/_active/
+  _capturing/_push_char/_backspace/_move/_sel/_count/_row_name_*/_row_keys_*/
+  _row_remappable/_begin_capture/_capture_chord/_reset/_reset_all/_cancel/_draw`.
+  Tests: 649 pass (was 637; +12 — chord normalize/label/token round-trip, row
+  assembly, filter, override set/resolve, conflict, reset one+all, render/parse +
+  save/load round-trip, capture records override, fixed-row rejected). Screenshot
+  `screenshots/50-shortcuts.png` (`MUI_SHORTCUTS_AUTOOPEN="alt"` opens the overlay
+  filtered) at 1320x860.
+
 ## Open questions to resolve as the IDE progresses
 - Exact `extern c` signature support: pointers (`*U8`), out-params (`&out T`), passing a
   `Vec`/slice as `(ptr, len)`, returning `#[repr(C)]` structs by value vs. out-param?
