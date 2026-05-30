@@ -140,6 +140,10 @@ pub const XMARK: &str = "M7 7l10 10M17 7 7 17";
 pub const TEST_BOX: &str = "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z M8 9.5 10.5 12 8 14.5M13 14.5h3";
 /// Info circle (hover / show docs).
 pub const INFO_I: &str = "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 11v5M12 8h.01";
+/// Quick-fix lightbulb (gutter indicator + code-action menu mark): a rounded
+/// bulb glass over a short filament, with a two-line screw base beneath. Drawn
+/// accent-tinted, only when code actions exist for the line.
+pub const LIGHTBULB: &str = "M12 3a6 6 0 0 0-3.8 10.6c.7.6 1.1 1.2 1.2 2.1l.1.8h5l.1-.8c.1-.9.5-1.5 1.2-2.1A6 6 0 0 0 12 3z M9.5 19.5h5 M10.5 21.5h3";
 /// Globe (Web Playground / Run in Browser): a circle with a meridian + two
 /// latitude lines — a wasm32-web "run in the browser" glyph.
 pub const GLOBE: &str = "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M3 12h18 M12 3c2.5 2.4 3.8 5.6 3.8 9s-1.3 6.6-3.8 9c-2.5-2.4-3.8-5.6-3.8-9s1.3-6.6 3.8-9z";

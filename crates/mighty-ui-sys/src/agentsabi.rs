@@ -670,7 +670,7 @@ pub extern "C" fn mui_agents_refresh(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    let root = ctx.tree.root().to_path_buf();
+    let root = crate::wsabi::effective_root(ctx);
     let mut topo = std::mem::take(&mut ctx.agents);
     let n = topo.refresh(&root);
     println!(

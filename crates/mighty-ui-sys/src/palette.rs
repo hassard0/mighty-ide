@@ -76,6 +76,17 @@ pub const CMD_MARKDOWN_PREVIEW: u32 = 35;
 pub const CMD_PANE_FIRST: u32 = CMD_SPLIT_RIGHT;
 pub const CMD_PANE_LAST: u32 = CMD_MARKDOWN_PREVIEW;
 
+/// Workspace / Open-Folder commands, routed via `mui_ws_dispatch` so the Mighty
+/// palette ladder gains ONE arm range, not two (L37/L38 parse-stack ceiling).
+pub const CMD_OPEN_FOLDER: u32 = 36;
+pub const CMD_OPEN_RECENT: u32 = 37;
+/// First/last workspace command id (range mirrored by the Mighty `cmd_ws_*`
+/// helpers + routed via `mui_ws_dispatch`).
+#[allow(dead_code)]
+pub const CMD_WS_FIRST: u32 = CMD_OPEN_FOLDER;
+#[allow(dead_code)]
+pub const CMD_WS_LAST: u32 = CMD_OPEN_RECENT;
+
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
@@ -114,6 +125,8 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
     Command { id: CMD_CLOSE_PANE,       label: "Close Editor Pane",  keybinding: "" },
     Command { id: CMD_MARKDOWN_PREVIEW, label: "Markdown: Open Preview", keybinding: "Ctrl+Shift+V" },
+    Command { id: CMD_OPEN_FOLDER,      label: "File: Open Folder",   keybinding: "Ctrl+Shift+O" },
+    Command { id: CMD_OPEN_RECENT,      label: "File: Open Recent",   keybinding: "" },
 ];
 
 /// Match quality for ranking. Lower sorts first.
@@ -317,6 +330,8 @@ impl PaletteEngine {
             CMD_GIT_PULL => (icons::GIT, "Pull (fast-forward only) from the remote", false),
             CMD_GIT_FETCH => (icons::GIT, "Fetch refs from the remote", false),
             CMD_GIT_TOGGLE_BLAME => (icons::GIT, "Show git blame in the gutter", false),
+            CMD_OPEN_FOLDER => (icons::FOLDER, "Open a folder as the workspace", false),
+            CMD_OPEN_RECENT => (icons::FOLDER, "Reopen a recent workspace folder", false),
             _ => (icons::CHEVRON, "", false),
         }
     }

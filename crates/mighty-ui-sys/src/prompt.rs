@@ -22,6 +22,9 @@ pub enum PromptKind {
     /// AI inline-ask: the query is a natural-language instruction routed to the
     /// AI copilot panel (Ctrl+I).
     Ai = 4,
+    /// Open Folder: the query is a folder path to open as the workspace (the
+    /// typed-path fallback when the native folder picker is unavailable).
+    OpenFolder = 5,
 }
 
 impl PromptKind {
@@ -31,6 +34,7 @@ impl PromptKind {
             2 => Some(PromptKind::Find),
             3 => Some(PromptKind::Open),
             4 => Some(PromptKind::Ai),
+            5 => Some(PromptKind::OpenFolder),
             _ => None,
         }
     }
@@ -42,6 +46,7 @@ impl PromptKind {
             PromptKind::Find => "Find: ",
             PromptKind::Open => "Open: ",
             PromptKind::Ai => "Ask AI: ",
+            PromptKind::OpenFolder => "Open Folder: ",
         }
     }
 }

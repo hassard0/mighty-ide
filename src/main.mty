@@ -494,6 +494,7 @@ extern c {
   fn mui_welcome_draw(handle: I64)
   fn mui_welcome_click(handle: I64) -> I32
   fn mui_welcome_open_recent(handle: I64, i: I32) -> I32
+  fn mui_welcome_open_folder(handle: I64, i: I32) -> I32
   // ---- toast notifications (transient bottom-right cards) ----
   fn mui_toast(handle: I64, kind: I32, msg_id: I32)
   fn mui_toast_tick(handle: I64) -> I32
@@ -530,6 +531,19 @@ extern c {
   fn mui_pane_count(handle: I64) -> I32
   fn mui_pane_focus_at_click(handle: I64) -> I32
   fn mui_pane_dispatch(handle: I64, cmd: I32) -> I32
+  // ---- workspace / open-folder (explicit, settable root) ----
+  fn mui_ws_open(handle: I64) -> I32
+  fn mui_ws_open_dialog(handle: I64) -> I32
+  fn mui_ws_open_recent(handle: I64, i: I32) -> I32
+  fn mui_ws_recent_count(handle: I64) -> I32
+  fn mui_ws_dispatch(handle: I64, cmd_id: I32) -> I32
+  // ---- quick-fix lightbulb (gutter indicator) ----
+  fn mui_lightbulb_tick(handle: I64) -> I32
+  fn mui_lightbulb_visible(handle: I64) -> I32
+  fn mui_lightbulb_line(handle: I64) -> I32
+  fn mui_lightbulb_reset(handle: I64)
+  fn mui_lightbulb_draw(handle: I64, row: I32, total_lines: I32)
+  fn mui_lightbulb_click(handle: I64) -> I32
 }
 
 // ---- command palette ids (mirror palette.rs COMMANDS) ----
@@ -568,13 +582,20 @@ fn cmd_run_in_browser() -> I32 { 31 } // Mighty: Run in Browser (wasm32-web)
 fn cmd_pane_first() -> I32 { 32 } // Split Editor Right (lowest pane id)
 fn cmd_pane_last() -> I32 { 35 }  // Markdown: Open Preview (highest pane id)
 
+// Workspace / Open-Folder commands route to the single `mui_ws_dispatch` shim
+// entry (same one-arm-range pattern as git/pane — keeps the ladder flat).
+fn cmd_ws_first() -> I32 { 36 } // File: Open Folder (lowest ws id)
+fn cmd_ws_last() -> I32 { 37 }  // File: Open Recent (highest ws id)
+
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
 fn welcome_quick_open() -> I32 { 2 }
 fn welcome_palette() -> I32 { 3 }
 fn welcome_new_file() -> I32 { 4 }
 fn welcome_toggle_theme() -> I32 { 5 }
+fn welcome_open_folder() -> I32 { 6 }
 fn welcome_recent_base() -> I32 { 1000 }
+fn welcome_recent_folder_base() -> I32 { 2000 }
 
 // Hit-test the click against the Welcome layout, but only when the Welcome
 // screen actually owns the body (`owns == 1`); otherwise -1 so the normal click
@@ -626,6 +647,8 @@ fn prompt_open() -> I32 { 3 }
 // prompt only styles known kinds, so reuse `prompt_find()`'s styling by opening
 // with that kind but tracking `prompt_ai()` Mighty-side for the Enter dispatch.
 fn prompt_ai() -> I32 { 4 }
+// Open Folder typed-path fallback (native dialog unavailable / cancelled).
+fn prompt_open_folder() -> I32 { 5 }
 
 // activity-rail panel ids (mirror PANEL_* in lib.rs)
 fn panel_explorer() -> I32 { 0 }
@@ -810,6 +833,8 @@ fn is_router_chord(cp: I32, mods: I32) -> Bool {
   } else if ctrl && !alt && (cp == 49 || cp == 50) {  // Ctrl+1 / Ctrl+2 : focus pane
     true
   } else if ctrl && shift && !alt && (cp == 86 || cp == 118) {  // Ctrl+Shift+V : Markdown preview
+    true
+  } else if ctrl && shift && !alt && (cp == 79 || cp == 111) {  // Ctrl+Shift+O : Open Folder
     true
   } else {
     false
@@ -1225,6 +1250,25 @@ fn main() {
               // the single shim dispatcher (keeps the ladder flat — L37/L38).
               let _g = mui_git_dispatch(h, id)
               if mui_branch_active(h) == 1 { branch_open = true }
+            } else if id >= cmd_ws_first() && id <= cmd_ws_last() {
+              // Workspace commands (Open Folder / Open Recent) route to the single
+              // shim dispatcher. Return 2 => native dialog unavailable: fall back
+              // to a typed-path prompt. Return 3 => Open Recent: reopen the most
+              // recent folder, or prompt when there are none yet.
+              let wr = mui_ws_dispatch(h, id)
+              if wr == 2 {
+                mui_prompt_open(h, prompt_open_folder())
+                prompt_kind = prompt_open_folder()
+                find_nav = false
+              } else if wr == 3 {
+                if mui_ws_recent_count(h) > 0 {
+                  let _or = mui_ws_open_recent(h, 0)
+                } else {
+                  mui_prompt_open(h, prompt_open_folder())
+                  prompt_kind = prompt_open_folder()
+                  find_nav = false
+                }
+              }
             }
           }
         }
@@ -1362,6 +1406,21 @@ fn main() {
               } else if id >= cmd_git_first() && id <= cmd_git_last() {
                 let _g = mui_git_dispatch(h, id)
                 if mui_branch_active(h) == 1 { branch_open = true }
+              } else if id >= cmd_ws_first() && id <= cmd_ws_last() {
+                let wr = mui_ws_dispatch(h, id)
+                if wr == 2 {
+                  mui_prompt_open(h, prompt_open_folder())
+                  prompt_kind = prompt_open_folder()
+                  find_nav = false
+                } else if wr == 3 {
+                  if mui_ws_recent_count(h) > 0 {
+                    let _or = mui_ws_open_recent(h, 0)
+                  } else {
+                    mui_prompt_open(h, prompt_open_folder())
+                    prompt_kind = prompt_open_folder()
+                    find_nav = false
+                  }
+                }
               }
             } else {
               // Files / Symbols / Go-to-line: the shim performs the action
@@ -1661,6 +1720,23 @@ fn main() {
               find_nav = false
               let _r = mui_diag_refresh(h)
               mui_qo_record_active(h)
+              mui_prompt_cancel(h)
+              prompt_kind = 0
+            } else if prompt_kind == prompt_open_folder() {
+              // Open Folder typed-path fallback: stage the typed path into the
+              // shared byte buffer, then re-root the workspace (tree/index/search/
+              // git/agents) + record the folder in recents. The shim toasts the
+              // result + validates the path.
+              mui_path_clear(h)
+              let flen = mui_prompt_len(h)
+              let mut fi: I32 = 0
+              while fi < flen {
+                let fc = mui_prompt_char(h, fi)
+                if fc >= 0 { mui_path_push(h, fc) }
+                fi = fi + 1
+              }
+              let _wo = mui_ws_open(h)
+              find_nav = false
               mui_prompt_cancel(h)
               prompt_kind = 0
             } else if prompt_kind == prompt_ai() {
@@ -2304,8 +2380,22 @@ fn main() {
           } else if welcome_act == welcome_toggle_theme() {
             mui_theme_picker_open(h)
             theme_picker_open = true
+          } else if welcome_act == welcome_open_folder() {
+            // Open Folder quick action: native picker, prompt fallback.
+            let wd = mui_ws_open_dialog(h)
+            if wd == 0 {
+              mui_prompt_open(h, prompt_open_folder())
+              prompt_kind = prompt_open_folder()
+              find_nav = false
+            }
+          } else if welcome_act >= welcome_recent_folder_base() {
+            // A recent FOLDER row: re-root the workspace (id - FOLDER_BASE).
+            let fidx = welcome_act - welcome_recent_folder_base()
+            let _wf = mui_welcome_open_folder(h, fidx)
+            find_nav = false
+            let _r = mui_diag_refresh(h)
           } else {
-            // A recents row: open it as a tab (id - ACTION_RECENT_BASE).
+            // A recent FILE row: open it as a tab (id - ACTION_RECENT_BASE).
             let ridx = welcome_act - welcome_recent_base()
             let newtab = mui_welcome_open_recent(h, ridx)
             if newtab >= 0 {
@@ -2522,11 +2612,28 @@ fn main() {
             typing = false
             find_nav = false
           } else {
-            // Editor body: a click in the line-number gutter toggles a breakpoint
-            // on that line; otherwise place the cursor (shim maps pixel->line/col).
+            // Editor body. The quick-fix lightbulb (when shown in the gutter) is
+            // hit-tested first: a click on it opens the code-action menu at the
+            // bulb's line (same path as Ctrl+.). Otherwise a gutter click toggles
+            // a breakpoint, and a body click places the cursor.
             let total_g = mui_ed_line_count(h)
+            let bulb_hit = mui_lightbulb_click(h)
             let gline = mui_bp_gutter_click(h, first, total_g)
-            if gline >= 0 {
+            if bulb_hit == 1 {
+              let lb_l = mui_lightbulb_line(h)
+              if lb_l >= 0 {
+                mui_ed_move_to(h, lb_l, 0)
+                let cnt = mui_codeaction_request(h, lb_l, 0)
+                if cnt > 0 {
+                  code_action_open = true
+                  ca_line = lb_l
+                  ca_col = 0
+                } else {
+                  mui_codeaction_cancel(h)
+                }
+              }
+              typing = false
+            } else if gline >= 0 {
               let _b = mui_bp_toggle(h, gline)
             } else {
               mui_ghost_dismiss(h)                             // click moves cursor: ghost stale
@@ -2653,6 +2760,11 @@ fn main() {
     // when the pref is OFF or the tab has no path. Returns 1 when a save fired.
     let _autosaved = mui_autosave_tick(h)
 
+    // Quick-fix lightbulb: advance its debounce + (when due) probe the cursor
+    // line for code actions. The shim rate-limits the probe so the LSP isn't hit
+    // every frame. Returns 1 when the bulb is visible (drawn below, in the gutter).
+    let _lightbulb_on = mui_lightbulb_tick(h)
+
     // Welcome screen replaces the editor body when no file is open (or when
     // forced from the palette). Zen / focus mode hides the rail, sidebar, tab
     // bar, breadcrumb and status bar for a distraction-free full-window editor.
@@ -2683,6 +2795,15 @@ fn main() {
       mui_dbg_draw(h, first, rows_i, total_now)
       if find_nav { draw_find_highlights(h, total_now, first, rows_i) }
       draw_diagnostics(h, total_now, first, rows_i)
+      // Quick-fix lightbulb: a gutter bulb on the cursor line when it has code
+      // actions (visibility computed by the debounced tick above). Drawn after
+      // diagnostics so it reads as the actionable affordance on a fixable line.
+      if mui_lightbulb_visible(h) == 1 {
+        let lb_line = mui_lightbulb_line(h)
+        if lb_line >= first && lb_line < first + rows_i {
+          mui_lightbulb_draw(h, lb_line - first, total_now)
+        }
+      }
       // Sticky scroll: pin the enclosing-scope headers as an elevated band at the
       // top of the editor body (over the scrolling code, under the chrome). No-op
       // when nothing is pinned (not scrolled / disabled). Suppressed under the diff

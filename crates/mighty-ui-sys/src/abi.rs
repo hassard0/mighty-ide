@@ -412,6 +412,28 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         }
     }
 
+    // Screenshot/render hook for the quick-fix lightbulb: with
+    // MUI_LIGHTBULB_AUTOOPEN set, mark the cursor line as having code actions so
+    // the gutter bulb is drawn for a headless capture (it otherwise needs a live
+    // LSP probe via the debounced tick). The env value optionally seeds the line.
+    if std::env::var_os("MUI_LIGHTBULB_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            // Default to line 0 so the bulb survives main()'s `mui_ed_load`
+            // (which resets the cursor to the top); the line value is honored only
+            // when it stays put. The cursor is moved to match so `visible_for`
+            // agrees, and a `_force_line` field keeps it pinned past the reset.
+            let line = std::env::var("MUI_LIGHTBULB_AUTOOPEN")
+                .ok()
+                .and_then(|v| v.trim().parse::<i32>().ok())
+                .filter(|v| *v >= 0)
+                .unwrap_or(0);
+            ctx.tabs.active_model_mut().move_to(line, 0);
+            ctx.lightbulb.set_result(line, true);
+            ctx.lightbulb_autoopen = Some(line);
+            println!("mui_init_s: MUI_LIGHTBULB_AUTOOPEN -> bulb on line {line}");
+        }
+    }
+
     // Screenshot/render hook for the in-file replace bar: with
     // MUI_REPLACE_AUTOOPEN set, open the replace bar with seeded find/replace
     // fields and LEAVE it open + focused on the replace field so a headless
@@ -1111,7 +1133,18 @@ filename src/main.mty
             for name in ["main.mty", "lexer.mty", "Cargo.toml", "README.md"] {
                 ctx.quickopen.record_mru(base.join(name));
             }
-            println!("mui_init_s: MUI_WELCOME_AUTOOPEN -> welcome open, {} recents", ctx.quickopen.mru_len());
+            // Seed representative RECENT FOLDERS (newest first) so the Welcome
+            // screen's "Recent Folders" column is populated for the capture, and
+            // set an explicit workspace so the explorer header shows its name.
+            for folder in ["C:\\Users\\you\\old-project", "C:\\Users\\you\\toy-lang", "C:\\Users\\you\\stardust"] {
+                ctx.recent_workspaces.record(std::path::PathBuf::from(folder));
+            }
+            ctx.workspace = crate::workspace::Workspace::new(std::path::PathBuf::from("C:\\Users\\you\\stardust"));
+            println!(
+                "mui_init_s: MUI_WELCOME_AUTOOPEN -> welcome open, {} recents, {} folders",
+                ctx.quickopen.mru_len(),
+                ctx.recent_workspaces.len()
+            );
         }
     }
 
@@ -3020,12 +3053,17 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
     let head_h = 40.0;
     ctx.dl_rect(sx, 0.0, sw, head_h, theme::BG_2());
     ctx.dl_rect(sx, head_h - 1.0, sw, 1.0, theme::BORDER_SOFT());
-    let header = ctx
-        .tree
-        .root()
-        .file_name()
-        .map(|s| s.to_string_lossy().to_uppercase())
-        .unwrap_or_else(|| "EXPLORER".to_string());
+    // The explorer header shows the EXPLICIT workspace name (Open Folder), else
+    // the tree-root basename, else "EXPLORER".
+    let header = if !ctx.workspace.is_empty() {
+        ctx.workspace.name().to_uppercase()
+    } else {
+        ctx.tree
+            .root()
+            .file_name()
+            .map(|s| s.to_string_lossy().to_uppercase())
+            .unwrap_or_else(|| "EXPLORER".to_string())
+    };
     // Letter-spaced uppercase header (insert thin spaces), UI family.
     let tracked: String = header.chars().flat_map(|c| [c, '\u{2009}']).collect();
     ctx.text.queue_ui_styled(
@@ -3983,6 +4021,11 @@ pub extern "C" fn mui_palette_probe(handle: i64) {
 /// otherwise an empty `""` parent's `.git` resolves against cwd and we'd index
 /// nothing. Falls back to the current dir when no usable root is found.
 fn quickopen_root(ctx: &MuiContext) -> PathBuf {
+    // An EXPLICIT workspace (Open Folder) wins — the index is rooted there
+    // directly rather than re-deriving from the active file's git toplevel.
+    if !ctx.workspace.is_empty() {
+        return ctx.workspace.root().to_path_buf();
+    }
     let cwd = std::env::current_dir().unwrap_or_default();
     let start = ctx
         .tabs
@@ -4556,7 +4599,7 @@ pub extern "C" fn mui_nav_probe(handle: i64) {
 // "Fix all (mty)" action.
 
 /// The source text of the active model + its cursor as 0-based (line, col).
-fn active_source_and_cursor(ctx: &MuiContext) -> (String, u32, u32) {
+pub(crate) fn active_source_and_cursor(ctx: &MuiContext) -> (String, u32, u32) {
     let m = ctx.tabs.active_model();
     (
         m.as_text(),
@@ -4959,13 +5002,32 @@ pub extern "C" fn mui_codeaction_request(handle: i64, line: i32, col: i32) -> i3
         return 0;
     };
     ctx.codeaction.cancel();
-    let path = match ctx.file_path.clone() {
-        Some(p) => p,
-        None => return 0,
+    let actions = compute_line_actions(ctx, line, col);
+    if actions.is_empty() {
+        println!("codeaction: line={line} total=0");
+        return 0;
+    }
+    let count = ctx.codeaction.set(actions);
+    println!("codeaction: line={line} total={count}");
+    count as i32
+}
+
+/// Compute the code actions available for `line` (0-based) at `col` WITHOUT
+/// touching the menu state — the shared core of [`mui_codeaction_request`] and
+/// the quick-fix lightbulb probe ([`crate::wsabi::mui_lightbulb_tick`]). Fires
+/// `textDocument/codeAction` over the line's full range, parses the actions, and
+/// (when `mty fix` is available + the LSP returned at least one action) appends
+/// the synthetic "Fix all (mty)" action. Returns the actions in menu order.
+pub(crate) fn compute_line_actions(
+    ctx: &MuiContext,
+    line: i32,
+    col: i32,
+) -> Vec<crate::language::CodeAction> {
+    let Some(path) = ctx.file_path.clone() else {
+        return Vec::new();
     };
     let (source, _, _) = active_source_and_cursor(ctx);
     let line0 = line.max(0) as u32;
-    // Use the cursor line's full range as the action range.
     let line_len = source
         .split('\n')
         .nth(line0 as usize)
@@ -4982,22 +5044,21 @@ pub extern "C" fn mui_codeaction_request(handle: i64, line: i32, col: i32) -> i3
         },
     );
     let mut actions = crate::language::parse_code_actions(&raw);
-    let lsp_count = actions.len();
-    // Append "Fix all (mty)" if `mty fix` exists.
-    if mty_fix_available() {
+    // Only offer "Fix all (mty)" when there's an actual fixable diagnostic on the
+    // line (the LSP returned at least one action) — so the lightbulb never lights
+    // every line just because the `mty fix` subcommand exists.
+    if !actions.is_empty() && mty_fix_available() {
         actions.push(crate::language::CodeAction {
             title: "Fix all (mty)".to_string(),
             edit: None,
             fix_all_mty: true,
         });
     }
-    let count = ctx.codeaction.set(actions);
-    println!("codeaction: line={line} lsp={lsp_count} total={count}");
-    count as i32
+    actions
 }
 
 /// `1` if `mty fix --help` succeeds (the fixer subcommand exists).
-fn mty_fix_available() -> bool {
+pub(crate) fn mty_fix_available() -> bool {
     let mty = if let Ok(p) = std::env::var("MIGHTY_MTY") {
         if !p.trim().is_empty() {
             p
@@ -5862,6 +5923,9 @@ pub extern "C" fn mui_ed_tab_switch(handle: i64, idx: i32) -> i32 {
         sync_active_path(ctx);
         // Opening / switching to any tab leaves the forced Welcome landing.
         ctx.welcome.dismiss();
+        // The quick-fix lightbulb tracked the OLD buffer's line; reset it so it
+        // re-probes against the new active buffer rather than lingering.
+        ctx.lightbulb.reset();
     }
     ctx.tabs.active() as i32
 }
@@ -7609,8 +7673,9 @@ pub extern "C" fn mui_welcome_draw(handle: i64) {
     // Take the recents snapshot out so we can borrow `ctx` mutably for the draw
     // (the MRU lives in the Quick-Open engine).
     let recents: Vec<std::path::PathBuf> = ctx.quickopen.recent_paths();
+    let folders: Vec<std::path::PathBuf> = ctx.recent_workspaces.entries().to_vec();
     let mut welcome = std::mem::take(&mut ctx.welcome);
-    welcome.draw(ctx, region.left, region.top, w, h, &recents);
+    welcome.draw(ctx, region.left, region.top, w, h, &recents, &folders);
     ctx.welcome = welcome;
 }
 
@@ -7645,6 +7710,24 @@ pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
     sync_active_path(ctx);
     ctx.quickopen.record_mru(path);
     idx as i32
+}
+
+/// Open a Welcome RECENT-FOLDER row (`i = action - ACTION_RECENT_FOLDER_BASE`) as
+/// the workspace (re-rooting the tree/index/search/git/agents). Returns `1` on
+/// success, `0` if the row/path is invalid.
+#[no_mangle]
+pub extern "C" fn mui_welcome_open_folder(handle: i64, i: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if i < 0 {
+        return 0;
+    }
+    let Some(path) = ctx.welcome.recent_folder(i as usize).cloned() else {
+        return 0;
+    };
+    ctx.welcome.dismiss();
+    crate::wsabi::mui_ws_open_recent_path(ctx, &path)
 }
 
 // ===========================================================================
@@ -7795,6 +7878,14 @@ pub extern "C" fn mui_chord(handle: i64, cp: i32, mods: i32) -> i32 {
     // then the Mighty loop opens the default browser when the URL is scraped.
     if alt && !ctrl && (cp == 'w' as i32 || cp == 'W' as i32) {
         let _ = crate::webabi::mui_web_run(handle);
+        return 1;
+    }
+    // Ctrl+Shift+O : Open Folder as workspace (native folder picker). Routed here
+    // so the Mighty editor key ladder gains NO new top-level arm (L37/L38). When
+    // the native dialog is unavailable/cancelled the palette path offers a typed-
+    // path prompt fallback; the chord just fires the dialog.
+    if ctrl && shift && !alt && (cp == 'o' as i32 || cp == 'O' as i32) {
+        let _ = crate::wsabi::mui_ws_open_dialog(handle);
         return 1;
     }
     // Ctrl+\ : Split Editor Right (side-by-side panes). Routed here so the Mighty

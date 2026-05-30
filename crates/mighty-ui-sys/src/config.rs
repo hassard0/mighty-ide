@@ -41,6 +41,47 @@ pub fn config_path() -> Option<PathBuf> {
     config_dir().map(|d| d.join("config"))
 }
 
+/// Full path to the recent-workspaces file (one absolute folder path per line,
+/// newest first). Kept separate from the `key=value` `config` file so the
+/// open-folder MRU persists independently of theme/editor settings.
+pub fn recent_workspaces_path() -> Option<PathBuf> {
+    config_dir().map(|d| d.join("recent-workspaces"))
+}
+
+/// Load the persisted recent-workspaces list (newest first), or empty when
+/// unset/unreadable. Best-effort.
+pub fn load_recent_workspaces() -> Vec<PathBuf> {
+    let Some(path) = recent_workspaces_path() else {
+        return Vec::new();
+    };
+    match std::fs::read_to_string(&path) {
+        Ok(text) => crate::workspace::parse_blob(&text),
+        Err(_) => Vec::new(),
+    }
+}
+
+/// Persist the recent-workspaces `blob` (one path per line). Best-effort:
+/// returns `false` (and logs) on any I/O error.
+pub fn save_recent_workspaces(blob: &str) -> bool {
+    let Some(path) = recent_workspaces_path() else {
+        eprintln!("config: no config directory; recent workspaces not persisted");
+        return false;
+    };
+    if let Some(parent) = path.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            eprintln!("config: create_dir_all {}: {e}", parent.display());
+            return false;
+        }
+    }
+    match std::fs::write(&path, blob) {
+        Ok(()) => true,
+        Err(e) => {
+            eprintln!("config: write {}: {e}", path.display());
+            false
+        }
+    }
+}
+
 /// Parse a `key=value` config blob for the `theme=` line, returning the id.
 fn parse_theme(text: &str) -> Option<ThemeId> {
     for line in text.lines() {

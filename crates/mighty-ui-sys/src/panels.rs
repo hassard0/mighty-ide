@@ -88,10 +88,11 @@ pub extern "C" fn mui_rail_panel_at_click(handle: i64) -> i32 {
     -1
 }
 
-/// The workspace directory the SCM/search panels operate over (the file-tree
-/// root). Cloned so callers don't hold a borrow on the tree.
+/// The workspace directory the SCM/search panels operate over: the EXPLICIT
+/// workspace root (set via Open Folder), falling back to the file-tree root when
+/// no explicit workspace is set. Cloned so callers don't hold a borrow.
 fn workspace_dir(ctx: &MuiContext) -> std::path::PathBuf {
-    ctx.tree.root().to_path_buf()
+    crate::wsabi::effective_root(ctx)
 }
 
 // ===========================================================================

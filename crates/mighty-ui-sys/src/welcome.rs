@@ -26,10 +26,16 @@ pub const ACTION_OPEN_FILE: i32 = 1;
 pub const ACTION_QUICK_OPEN: i32 = 2;
 pub const ACTION_COMMAND_PALETTE: i32 = 3;
 pub const ACTION_NEW_FILE: i32 = 4;
+#[allow(dead_code)]
 pub const ACTION_TOGGLE_THEME: i32 = 5;
+pub const ACTION_OPEN_FOLDER: i32 = 6;
 /// MRU recents: returned id is `ACTION_RECENT_BASE + i` (i = row in the recents
 /// list). The Mighty side reads the path back via [`WelcomeState::recent_path`].
 pub const ACTION_RECENT_BASE: i32 = 1000;
+/// Recent FOLDERS: returned id is `ACTION_RECENT_FOLDER_BASE + i`. The Mighty
+/// side reads the folder back via [`WelcomeState::recent_folder`] and opens it
+/// as the workspace.
+pub const ACTION_RECENT_FOLDER_BASE: i32 = 2000;
 
 /// One quick-action row: icon + label + keybinding hint + the action id.
 struct QuickAction {
@@ -41,10 +47,10 @@ struct QuickAction {
 
 const QUICK_ACTIONS: &[QuickAction] = &[
     QuickAction { icon: icons::EXPLORER, label: "Open File\u{2026}", key: "Ctrl+O", action: ACTION_OPEN_FILE },
+    QuickAction { icon: icons::FOLDER, label: "Open Folder\u{2026}", key: "Ctrl+Shift+O", action: ACTION_OPEN_FOLDER },
     QuickAction { icon: icons::SEARCH, label: "Quick Open", key: "Ctrl+P", action: ACTION_QUICK_OPEN },
     QuickAction { icon: icons::TEST_BOX, label: "Command Palette", key: "Ctrl+Shift+P", action: ACTION_COMMAND_PALETTE },
     QuickAction { icon: icons::NEW_FILE, label: "New File", key: "", action: ACTION_NEW_FILE },
-    QuickAction { icon: icons::SETTINGS, label: "Toggle Theme", key: "", action: ACTION_TOGGLE_THEME },
 ];
 
 /// A small keybinding cheat row (label + chord).
@@ -88,8 +94,10 @@ pub struct WelcomeState {
     pub force_open: bool,
     /// Hit rectangles from the last draw (action id per region).
     hits: Vec<Hit>,
-    /// The recent paths shown in the last draw (index = recents row).
+    /// The recent file paths shown in the last draw (index = recents row).
     recents: Vec<PathBuf>,
+    /// The recent FOLDER paths shown in the last draw (index = folder row).
+    recent_folders: Vec<PathBuf>,
 }
 
 impl WelcomeState {
@@ -112,6 +120,12 @@ impl WelcomeState {
         self.recents.get(i)
     }
 
+    /// Resolve a recent-folder row to its path (for an
+    /// `ACTION_RECENT_FOLDER_BASE + i` click).
+    pub fn recent_folder(&self, i: usize) -> Option<&PathBuf> {
+        self.recent_folders.get(i)
+    }
+
     /// Hit-test a window-space click against the last drawn layout. Returns the
     /// action id, or [`ACTION_NONE`].
     pub fn click(&self, px: f32, py: f32) -> i32 {
@@ -126,6 +140,7 @@ impl WelcomeState {
     /// Draw the Welcome screen filling the editor body region. `recents` is the
     /// MRU list (newest first) so the "Recently Opened" column can be clicked.
     /// Records hit rects + the recents snapshot for the next [`click`].
+    #[allow(clippy::too_many_arguments)]
     pub fn draw(
         &mut self,
         ctx: &mut crate::MuiContext,
@@ -134,9 +149,11 @@ impl WelcomeState {
         width: u32,
         height: u32,
         recents: &[PathBuf],
+        folders: &[PathBuf],
     ) {
         self.hits.clear();
         self.recents.clear();
+        self.recent_folders.clear();
 
         let clip = ctx.clip;
         let w = width as f32;
@@ -202,7 +219,7 @@ impl WelcomeState {
             left_x, y, "START", theme::TEXT_3(), 11.5, crate::vello_ui::FontStyle::Bold, clip,
         );
         ctx.text.queue_ui_styled(
-            right_x, y, "RECENT", theme::TEXT_3(), 11.5, crate::vello_ui::FontStyle::Bold, clip,
+            right_x, y, "RECENT FOLDERS", theme::TEXT_3(), 11.5, crate::vello_ui::FontStyle::Bold, clip,
         );
         let rows_top = y + 22.0;
 
@@ -236,20 +253,69 @@ impl WelcomeState {
             });
         }
 
-        // Recently Opened (right column).
-        if recents.is_empty() {
+        // Recent FOLDERS (right column, top). Workspaces are the new emphasis of
+        // the Open-Folder feature, so they lead; recent files follow below.
+        let folder_rows = QUICK_ACTIONS.len().min(3);
+        if folders.is_empty() {
             ctx.text.queue_ui_sized(
                 right_x,
                 rows_top + 9.0,
+                "No recent folders yet",
+                theme::TEXT_3(),
+                13.0,
+                clip,
+            );
+        } else {
+            for (i, path) in folders.iter().take(folder_rows).enumerate() {
+                let ry = rows_top + i as f32 * row_h;
+                let name = path
+                    .file_name()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| path.to_string_lossy().into_owned());
+                let dir = path.to_string_lossy().into_owned();
+                // Folder glyph + name + dim full path.
+                ctx.dl_icon(right_x, ry + 10.0, 16.0, 16.0, icons::FOLDER, theme::ACCENT_BRIGHT(), 1.6, false);
+                ctx.text
+                    .queue_ui_sized(right_x + 26.0, ry + 6.0, &name, theme::TEXT_1(), 13.5, clip);
+                let dir_short = shorten_dir(&dir, half - 30.0);
+                ctx.text.queue_ui_sized(
+                    right_x + 26.0,
+                    ry + 23.0,
+                    &dir_short,
+                    theme::TEXT_3(),
+                    11.0,
+                    clip,
+                );
+                self.hits.push(Hit {
+                    x: right_x,
+                    y: ry,
+                    w: half,
+                    h: row_h,
+                    action: ACTION_RECENT_FOLDER_BASE + i as i32,
+                });
+                self.recent_folders.push(path.clone());
+            }
+        }
+
+        // Recent FILES (right column, below the folders).
+        let files_top = rows_top + (folder_rows as f32) * row_h + 10.0;
+        ctx.text.queue_ui_styled(
+            right_x, files_top, "RECENT FILES", theme::TEXT_3(), 11.5, crate::vello_ui::FontStyle::Bold, clip,
+        );
+        let files_rows_top = files_top + 22.0;
+        if recents.is_empty() {
+            ctx.text.queue_ui_sized(
+                right_x,
+                files_rows_top + 9.0,
                 "No recent files yet",
                 theme::TEXT_3(),
                 13.0,
                 clip,
             );
         } else {
-            let max_rows = QUICK_ACTIONS.len();
+            let max_rows = QUICK_ACTIONS.len().saturating_sub(folder_rows).max(2);
             for (i, path) in recents.iter().take(max_rows).enumerate() {
-                let ry = rows_top + i as f32 * row_h;
+                let ry = files_rows_top + i as f32 * row_h;
                 let name = path
                     .file_name()
                     .map(|s| s.to_string_lossy().into_owned())
@@ -258,7 +324,6 @@ impl WelcomeState {
                     .parent()
                     .map(|d| d.to_string_lossy().into_owned())
                     .unwrap_or_default();
-                // File glyph + name + dim path.
                 ctx.dl_icon(right_x, ry + 10.0, 16.0, 16.0, file_icon(&name), theme::ACCENT_BRIGHT(), 1.6, false);
                 ctx.text
                     .queue_ui_sized(right_x + 26.0, ry + 6.0, &name, theme::TEXT_1(), 13.5, clip);
@@ -352,6 +417,9 @@ mod tests {
         w.hits.push(Hit { x: 100.0, y: 240.0, w: 300.0, h: 40.0, action: ACTION_QUICK_OPEN });
         w.hits.push(Hit { x: 500.0, y: 200.0, w: 300.0, h: 40.0, action: ACTION_RECENT_BASE });
         w.recents.push(PathBuf::from("/proj/src/main.mty"));
+        // A recent folder row + its backing path.
+        w.hits.push(Hit { x: 500.0, y: 300.0, w: 300.0, h: 40.0, action: ACTION_RECENT_FOLDER_BASE });
+        w.recent_folders.push(PathBuf::from("/proj"));
         w
     }
 
@@ -377,6 +445,16 @@ mod tests {
         let idx = (action - ACTION_RECENT_BASE) as usize;
         assert_eq!(w.recent_path(idx).unwrap(), &PathBuf::from("/proj/src/main.mty"));
         assert!(w.recent_path(99).is_none());
+    }
+
+    #[test]
+    fn recent_folder_action_resolves_path() {
+        let w = synthetic();
+        let action = w.click(550.0, 310.0);
+        assert!(action >= ACTION_RECENT_FOLDER_BASE);
+        let idx = (action - ACTION_RECENT_FOLDER_BASE) as usize;
+        assert_eq!(w.recent_folder(idx).unwrap(), &PathBuf::from("/proj"));
+        assert!(w.recent_folder(99).is_none());
     }
 
     #[test]

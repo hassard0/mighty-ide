@@ -73,6 +73,9 @@ mod tree;
 mod web;
 mod webabi;
 mod welcome;
+mod workspace;
+mod wsabi;
+mod lightbulb;
 mod vello_proof;
 mod vello_ui;
 mod window;
@@ -168,6 +171,22 @@ pub struct MuiContext {
     tree: tree::FileTree,
     /// Whether the sidebar is currently shown (toggled by Ctrl+B).
     sidebar_visible: bool,
+
+    // ---- explicit workspace (open-folder) ----
+    /// The EXPLICIT workspace `{ root, name }`. Everything that operates over the
+    /// project (file tree, Quick-Open index, Search, git, Agents) reads its
+    /// directory from here. Defaults to the historically-derived root (the opened
+    /// file's parent / cwd). Re-rooted by `mui_ws_open` (see `crate::wsabi`).
+    workspace: workspace::Workspace,
+    /// Recently-opened folders MRU (cap 10), surfaced on Welcome + "Open Recent",
+    /// persisted to the config dir. Shim-owned (L17).
+    recent_workspaces: workspace::RecentWorkspaces,
+
+    // ---- quick-fix lightbulb (gutter indicator over fixable lines) ----
+    /// The lightbulb gutter indicator state: the line it tracks + whether code
+    /// actions exist there, refreshed on a debounce (cursor-line-change / idle).
+    /// Shim-owned (see `crate::lightbulb` / `crate::wsabi`).
+    lightbulb: lightbulb::Lightbulb,
 
     // ---- integrated terminal state ----
     /// The PTY-backed terminal, lazily spawned on first open (`mui_term_open`).
@@ -281,6 +300,11 @@ pub struct MuiContext {
     sig_autoopen: Option<(i32, i32)>,
     codeaction_autoopen: Option<(i32, i32)>,
     rename_autoopen: bool,
+    /// Screenshot-only hook (`MUI_LIGHTBULB_AUTOOPEN`): when `Some(line)`, the
+    /// quick-fix lightbulb is pinned to `line` each frame (the cursor re-seated +
+    /// the bulb kept visible) so a headless capture shows the gutter bulb without
+    /// a live LSP probe. `None` for normal runs.
+    lightbulb_autoopen: Option<i32>,
 
     // ---- activity-rail panels (Explorer / Search / Source Control) ----
     /// The sidebar's active panel: 0 = Explorer, 1 = Search, 2 = Source Control.
@@ -703,7 +727,13 @@ pub(crate) fn build_context(
         .or_else(|| std::env::current_dir().ok())
         .unwrap_or_default();
     let mut file_tree = tree::FileTree::new();
-    file_tree.set_root(tree_root);
+    file_tree.set_root(tree_root.clone());
+
+    // The explicit workspace defaults to the derived tree root. Recent folders
+    // are restored from the persisted MRU (best-effort).
+    let workspace = workspace::Workspace::new(tree_root);
+    let mut recent_workspaces = workspace::RecentWorkspaces::new();
+    recent_workspaces.set_all(config::load_recent_workspaces());
 
     let ctx = Box::new(MuiContext {
         gpu,
@@ -740,6 +770,9 @@ pub(crate) fn build_context(
         tabs: tab_store,
         tree: file_tree,
         sidebar_visible: true,
+        workspace,
+        recent_workspaces,
+        lightbulb: lightbulb::Lightbulb::new(),
         terminal: None,
         term_open: false,
         complete: completion::CompletionEngine::new(),
@@ -768,6 +801,7 @@ pub(crate) fn build_context(
         sig_autoopen: None,
         codeaction_autoopen: None,
         rename_autoopen: false,
+        lightbulb_autoopen: None,
         active_panel: PANEL_EXPLORER,
         scm: scm::ScmState::new(),
         branch_picker: scm::BranchPicker::new(),
@@ -1377,6 +1411,9 @@ impl MuiContext {
             tabs,
             tree: tree::FileTree::new(),
             sidebar_visible: true,
+            workspace: workspace::Workspace::default(),
+            recent_workspaces: workspace::RecentWorkspaces::new(),
+            lightbulb: lightbulb::Lightbulb::new(),
             terminal: None,
             term_open: false,
             complete: completion::CompletionEngine::new(),
@@ -1405,6 +1442,7 @@ impl MuiContext {
             sig_autoopen: None,
             codeaction_autoopen: None,
             rename_autoopen: false,
+            lightbulb_autoopen: None,
             active_panel: PANEL_EXPLORER,
             scm: scm::ScmState::new(),
             branch_picker: scm::BranchPicker::new(),

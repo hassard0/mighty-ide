@@ -710,6 +710,98 @@ fn zen_toggle_flips_active_and_layout_region() {
 }
 
 #[test]
+fn workspace_open_reroots_tree_and_index_and_records_recent() {
+    use crate::wsabi::{
+        mui_ws_name_len, mui_ws_open, mui_ws_recent_count, mui_ws_root_len,
+    };
+    use crate::{mui_path_clear, mui_path_push, mui_quickopen_reindex};
+
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    // A temp folder with a couple of files to index.
+    let root = std::env::temp_dir().join(format!("mui_ws_open_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("alpha.mty"), b"fn main() {}").unwrap();
+    std::fs::write(root.join("beta.txt"), b"hello").unwrap();
+    let root_str = root.to_string_lossy().into_owned();
+
+    // Stage the folder path (byte buffer) + open it as the workspace.
+    mui_path_clear(h);
+    for b in root_str.bytes() {
+        mui_path_push(h, b as u32);
+    }
+    assert_eq!(mui_ws_open(h), 1, "open of a valid folder should succeed");
+
+    // The tree re-rooted there (its root drives the file list).
+    assert_eq!(ctx.tree.root(), crate::workspace::validate_folder(&root_str).unwrap());
+    // The workspace name + root are now non-empty.
+    assert!(mui_ws_root_len(h) > 0);
+    assert!(mui_ws_name_len(h) > 0);
+    // The Quick-Open index re-rooted at the workspace finds both files.
+    assert_eq!(mui_quickopen_reindex(h), 2, "index should re-root + see 2 files");
+    // The folder was recorded in the recents MRU.
+    assert_eq!(mui_ws_recent_count(h), 1);
+
+    // Opening a non-existent folder fails (and doesn't grow recents).
+    mui_path_clear(h);
+    for b in root.join("nope-missing").to_string_lossy().bytes() {
+        mui_path_push(h, b as u32);
+    }
+    assert_eq!(mui_ws_open(h), 0, "missing folder should fail");
+    assert_eq!(mui_ws_recent_count(h), 1, "failed open must not record a recent");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn lightbulb_visibility_and_click_open_actions() {
+    use crate::ffi::MuiEvent;
+    use crate::wsabi::{
+        mui_lightbulb_click, mui_lightbulb_line, mui_lightbulb_reset, mui_lightbulb_visible,
+    };
+
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    // No actions probed yet -> hidden, no line, no click hit.
+    assert_eq!(mui_lightbulb_visible(h), 0);
+    assert_eq!(mui_lightbulb_line(h), -1);
+    assert_eq!(mui_lightbulb_click(h), 0);
+
+    // Simulate a probe that found actions on the cursor's line (line 0 by
+    // default for a fresh scratch buffer).
+    let cursor = ctx.tabs.active_model().cursor_line() as i32;
+    ctx.lightbulb.set_result(cursor, true);
+    assert_eq!(mui_lightbulb_visible(h), 1, "bulb shows when actions exist for the line");
+    assert_eq!(mui_lightbulb_line(h), cursor);
+
+    // Draw it so its gutter rect is recorded, then a click on that rect hits.
+    crate::wsabi::mui_lightbulb_draw(h, cursor, 1);
+    let region = crate::layout::region(ctx.sidebar_visible);
+    let cx = region.left + 8.0; // inside the bulb's ~17px-wide gutter slot
+    let cy = crate::layout::row_y_in(region, cursor) + crate::layout::LINE_H() * 0.5;
+    ctx.last_event = MuiEvent::none();
+    ctx.last_event.x = cx;
+    ctx.last_event.y = cy;
+    assert_eq!(mui_lightbulb_click(h), 1, "a click on the drawn bulb should hit");
+
+    // A click far away misses.
+    ctx.last_event.x = cx + 400.0;
+    assert_eq!(mui_lightbulb_click(h), 0);
+
+    // No actions -> hidden even on the same line.
+    ctx.lightbulb.set_result(cursor, false);
+    assert_eq!(mui_lightbulb_visible(h), 0);
+
+    // Reset clears everything.
+    ctx.lightbulb.set_result(cursor, true);
+    mui_lightbulb_reset(h);
+    assert_eq!(mui_lightbulb_visible(h), 0);
+}
+
+#[test]
 fn translate_close_and_resize_events() {
     let mut q = EventQueue::default();
     translate_window_event(&mut q, &winit::event::WindowEvent::CloseRequested);
