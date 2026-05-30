@@ -19,6 +19,9 @@ pub enum PromptKind {
     Find = 2,
     /// Open file: the query is a (relative) path to open as a tab.
     Open = 3,
+    /// AI inline-ask: the query is a natural-language instruction routed to the
+    /// AI copilot panel (Ctrl+I).
+    Ai = 4,
 }
 
 impl PromptKind {
@@ -27,6 +30,7 @@ impl PromptKind {
             1 => Some(PromptKind::Goto),
             2 => Some(PromptKind::Find),
             3 => Some(PromptKind::Open),
+            4 => Some(PromptKind::Ai),
             _ => None,
         }
     }
@@ -37,6 +41,7 @@ impl PromptKind {
             PromptKind::Goto => "Go to line: ",
             PromptKind::Find => "Find: ",
             PromptKind::Open => "Open: ",
+            PromptKind::Ai => "Ask AI: ",
         }
     }
 }

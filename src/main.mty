@@ -229,6 +229,21 @@ extern c {
   fn mui_palette_selected_id(handle: I64) -> I32
   fn mui_palette_cancel(handle: I64)
   fn mui_palette_draw(handle: I64)
+  // ---- AI copilot (Agents rail icon → right-docked chat panel) ----
+  fn mui_ai_open(handle: I64) -> I32
+  fn mui_ai_is_open(handle: I64) -> I32
+  fn mui_ai_has_key(handle: I64) -> I32
+  fn mui_ai_input_push(handle: I64, codepoint: I32)
+  fn mui_ai_input_backspace(handle: I64)
+  fn mui_ai_input_newline(handle: I64)
+  fn mui_ai_input_len(handle: I64) -> I32
+  fn mui_ai_send(handle: I64) -> I32
+  fn mui_ai_send_inline(handle: I64) -> I32
+  fn mui_ai_pump(handle: I64) -> I32
+  fn mui_ai_streaming(handle: I64) -> I32
+  fn mui_ai_scroll(handle: I64, dir: I32)
+  fn mui_ai_turn_count(handle: I64) -> I32
+  fn mui_ai_draw(handle: I64)
   // ---- color theme picker (Preferences: Color Theme) ----
   fn mui_theme_picker_open(handle: I64)
   fn mui_theme_picker_active(handle: I64) -> I32
@@ -290,11 +305,17 @@ fn dir_end() -> I32 { 5 }
 fn prompt_goto() -> I32 { 1 }
 fn prompt_find() -> I32 { 2 }
 fn prompt_open() -> I32 { 3 }
+// Inline-ask instruction prompt (Ctrl+I). Not a shim PromptKind; the shim's
+// prompt only styles known kinds, so reuse `prompt_find()`'s styling by opening
+// with that kind but tracking `prompt_ai()` Mighty-side for the Enter dispatch.
+fn prompt_ai() -> I32 { 4 }
 
 // activity-rail panel ids (mirror PANEL_* in lib.rs)
 fn panel_explorer() -> I32 { 0 }
 fn panel_search() -> I32 { 1 }
 fn panel_scm() -> I32 { 2 }
+// Rail icon slots that are not sidebar panels.
+fn rail_agents() -> I32 { 4 }   // AI copilot (Agents sparkles icon)
 
 // Chord predicates spelled as flat boolean expressions (no juxtaposed parens,
 // L20) so native codegen accepts them.
@@ -383,6 +404,21 @@ fn ext_flag(b: Bool) -> I32 {
 
 fn is_d_key(cp: I32) -> Bool { cp == 100 || cp == 68 }     // 'd' / 'D'
 fn is_h_key(cp: I32) -> Bool { cp == 104 || cp == 72 }     // 'h' / 'H'
+fn is_a_key(cp: I32) -> Bool { cp == 97 || cp == 65 }      // 'a' / 'A'
+
+fn is_ai_panel_chord(cp: I32, mods: I32) -> Bool {         // Ctrl+Shift+A : AI panel
+  let ctrl = ctrl_held(mods)
+  let shift = shift_held(mods)
+  let a = is_a_key(cp)
+  ctrl && shift && a
+}
+
+fn is_inline_ask_chord(cp: I32, mods: I32) -> Bool {       // Ctrl+I : inline ask
+  let ctrl = ctrl_held(mods)
+  let shift = shift_held(mods)
+  let i = is_i_key(cp)
+  ctrl && i && !shift
+}
 
 fn is_dup_chord(cp: I32, mods: I32) -> Bool {              // Ctrl+Shift+D
   let ctrl = ctrl_held(mods)
@@ -570,6 +606,8 @@ fn main() {
   let mut have_prev = false
   let mut prev_line: I32 = 0
   let mut prev_col: I32 = 0
+  // AI copilot panel focused: Char/Key route to its multi-line input.
+  let mut ai_focus = false
   // Command palette open.
   let mut palette_open = false
   // Color-theme picker open (Preferences: Color Theme).
@@ -691,6 +729,36 @@ fn main() {
             }
           }
         }
+      } else if ai_focus {
+        // -------- AI copilot panel focused: route keys to its input ----------
+        if tag == ev_char() {
+          let cp = mui_event_codepoint(h)
+          let mods = mui_event_mods(h)
+          if is_ai_panel_chord(cp, mods) {                  // Ctrl+Shift+A : close/unfocus
+            let _o = mui_ai_open(h)
+            ai_focus = false
+          } else if cp >= 32 && cp < 127 {
+            mui_ai_input_push(h, cp)
+          }
+        } else if tag == ev_key() {
+          let k = mui_event_key(h)
+          let kmods = mui_event_mods(h)
+          if k == key_backspace() {
+            mui_ai_input_backspace(h)
+          } else if k == key_enter() {
+            if shift_held(kmods) {
+              mui_ai_input_newline(h)                        // Shift+Enter : newline
+            } else {
+              let _s = mui_ai_send(h)                        // Enter : send
+            }
+          } else if k == key_up() {
+            mui_ai_scroll(h, -1)
+          } else if k == key_down() {
+            mui_ai_scroll(h, 1)
+          } else if k == key_escape() {
+            ai_focus = false                                 // Escape : back to editor (panel stays open)
+          }
+        }
       } else if theme_picker_open {
         // -------- color-theme picker open: Up/Down preview, Enter apply -------
         if tag == ev_key() {
@@ -767,6 +835,21 @@ fn main() {
               mui_ed_undo_reset(h)
               find_nav = false
               let _r = mui_diag_refresh(h)
+              mui_prompt_cancel(h)
+              prompt_kind = 0
+            } else if prompt_kind == prompt_ai() {
+              // Inline ask: copy the typed instruction into the AI input, then
+              // send it (with the active file + selection as context). The answer
+              // streams into the right-docked AI panel.
+              let qlen = mui_prompt_len(h)
+              let mut qi: I32 = 0
+              while qi < qlen {
+                let qc = mui_prompt_char(h, qi)
+                if qc >= 0 { mui_ai_input_push(h, qc) }
+                qi = qi + 1
+              }
+              let _s = mui_ai_send_inline(h)
+              ai_focus = true
               mui_prompt_cancel(h)
               prompt_kind = 0
             } else {
@@ -937,6 +1020,17 @@ fn main() {
         if is_palette_chord(cp, mods) {                     // Ctrl+Shift+P : palette
           mui_palette_open(h)
           palette_open = true
+          typing = false
+        } else if is_ai_panel_chord(cp, mods) {             // Ctrl+Shift+A : AI copilot panel
+          let opened = mui_ai_open(h)
+          if opened == 1 { ai_focus = true } else { ai_focus = false }
+          typing = false
+        } else if is_inline_ask_chord(cp, mods) {           // Ctrl+I : inline ask about selection/file
+          // Reuse the prompt UI to collect an instruction; routed on Enter to
+          // the AI panel (see the prompt_kind == prompt_ai() branch).
+          mui_prompt_open(h, prompt_ai())
+          prompt_kind = prompt_ai()
+          find_nav = false
           typing = false
         } else if is_search_panel_chord(cp, mods) {         // Ctrl+Shift+F : search panel
           let _p = mui_panel_set(h, panel_search())
@@ -1201,7 +1295,11 @@ fn main() {
         let rail_hit = mui_rail_panel_at_click(h)
         let tab_hit = mui_tab_index_at_click(h)
         let cur_panel = mui_panel_active(h)
-        if rail_hit >= 0 {
+        if rail_hit == rail_agents() {
+          // Agents (sparkles) icon: toggle the AI copilot panel + focus it.
+          let opened = mui_ai_open(h)
+          if opened == 1 { ai_focus = true } else { ai_focus = false }
+        } else if rail_hit >= 0 {
           let _p = mui_panel_set(h, rail_hit)
           if rail_hit == panel_scm() {
             let _s = mui_scm_refresh(h)
@@ -1301,6 +1399,10 @@ fn main() {
     if first < 0 { first = 0 }
     mui_ed_set_scroll(h, first)
 
+    // Drain AI stream deltas into the transcript BEFORE the frame so streamed
+    // text renders live (returns 1 when the transcript changed).
+    let _ai_changed = mui_ai_pump(h)
+
     // Drain PTY output into the shim's terminal grid BEFORE the frame.
     let term_on = mui_term_is_open(h)
     if term_on == 1 {
@@ -1329,6 +1431,9 @@ fn main() {
     }
     mui_rail_draw(h)
     mui_tab_bar_draw(h)
+    // AI copilot panel (right-docked); no-op unless open. Drawn over the body so
+    // its surface occludes the editor, but under transient overlays below.
+    mui_ai_draw(h)
     if term_on == 1 { mui_term_draw(h) }
     if prompt_kind != 0 { mui_prompt_draw(h) }
     // Replace bar no-ops unless active, so calling it unconditionally also lets

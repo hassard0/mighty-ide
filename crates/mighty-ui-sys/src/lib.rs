@@ -11,6 +11,7 @@
 //! * [`window`] — winit window + `pump_events` + event-queue translation
 
 mod abi;
+mod ai;
 mod completion;
 mod config;
 mod diagnostics;
@@ -225,6 +226,11 @@ pub struct MuiContext {
     scm: scm::ScmState,
     /// Project-wide find/replace panel state: query/replace buffers + results.
     search: search::SearchState,
+
+    // ---- AI copilot (Agents rail icon → right-docked chat panel) ----
+    /// The AI chat panel: transcript + input + live Anthropic stream, shim-owned.
+    /// Mighty opens it, feeds chars/keys, sends, and pumps the stream each frame.
+    ai: ai::AiPanel,
 }
 
 /// Panel ids (mirror the Mighty side + rail icon order).
@@ -556,6 +562,7 @@ pub(crate) fn build_context(
         active_panel: PANEL_EXPLORER,
         scm: scm::ScmState::new(),
         search: search::SearchState::new(),
+        ai: ai::AiPanel::new(),
     });
     Box::into_raw(ctx)
 }
@@ -1164,6 +1171,7 @@ impl MuiContext {
             active_panel: PANEL_EXPLORER,
             scm: scm::ScmState::new(),
             search: search::SearchState::new(),
+            ai: ai::AiPanel::new(),
         })
     }
 

@@ -356,6 +356,40 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         }
     }
 
+    // Screenshot/render hook for the AI copilot panel: with MUI_AI_AUTOOPEN set,
+    // open the right-docked AI panel and seed a fake transcript (no network) so a
+    // headless screenshot captures the chat UI — distinct user/assistant turns, a
+    // monospace code card, and (with the value "stream") a live "thinking…"
+    // indicator. No effect on normal launches.
+    if std::env::var_os("MUI_AI_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            ctx.ai.open = true;
+            ctx.ai.force_transcript = true;
+            ctx.ai.transcript.push(crate::ai::Turn {
+                role: crate::ai::Role::User,
+                text: "How do I read a file and print its line count in Mighty?".to_string(),
+            });
+            ctx.ai.transcript.push(crate::ai::Turn {
+                role: crate::ai::Role::Assistant,
+                text: "Use the std `fs` effect to read the bytes, then count the \
+                       newlines. Here's a small function:\n\n\
+                       ```\nfn line_count(path: Str) -> I32 {\n  \
+                       let bytes = fs::read(path)\n  \
+                       let mut n: I32 = 1\n  \
+                       for b in bytes { if b == 10 { n = n + 1 } }\n  \
+                       n\n}\n```\n\n\
+                       Call it from `main` and `log` the result. The `for` loop \
+                       walks the bytes once, so it's O(n)."
+                    .to_string(),
+            });
+            println!(
+                "mui_init_s: MUI_AI_AUTOOPEN -> AI panel open, {} turns, has_key={}",
+                ctx.ai.transcript.len(),
+                crate::ai::api_key().is_some()
+            );
+        }
+    }
+
     // Screenshot/render hook for the activity-rail panels: with
     // MUI_PANEL_AUTOOPEN set to "scm" or "search", switch the sidebar to that
     // panel and seed its data (run git status / a search) so a headless
@@ -1697,9 +1731,12 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
     // The active rail icon reflects the live sidebar panel: 0 Explorer,
     // 1 Search, 2 SourceControl (Run/Agents stay decorative).
     let active_panel = ctx.active_panel;
+    let ai_open = ctx.ai.open;
     for (i, path) in rail_icons.iter().enumerate() {
         let cy = icon_top + i as f32 * (cell + gap);
-        let active = i as i32 == active_panel;
+        // Slot 4 (Agents/AI) is active when the AI panel is open, even though it
+        // is not a sidebar panel; the others track `active_panel`.
+        let active = (i == 4 && ai_open) || (i != 4 && i as i32 == active_panel);
         let ix = (rw - icon_sz) * 0.5;
         let iy = cy + (cell - icon_sz) * 0.5;
         if active {

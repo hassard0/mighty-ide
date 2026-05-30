@@ -46,10 +46,12 @@ pub extern "C" fn mui_panel_set(handle: i64, panel: i32) -> i32 {
     ctx.active_panel
 }
 
-/// Map the last click's pixel position to a rail panel index, or `-1` if the
-/// click was not on one of the three switchable rail icons. The rail geometry
-/// mirrors `mui_rail_draw`: a column of 38px cells starting at y=52 with a 4px
-/// gap; icons 0/1/2 are Explorer / Search / SourceControl.
+/// Map the last click's pixel position to a rail icon slot, or `-1` if the click
+/// was not on a rail icon. The rail geometry mirrors `mui_rail_draw`: a column of
+/// 38px cells starting at y=52 with a 4px gap. Slots 0/1/2 are the switchable
+/// sidebar panels (Explorer / Search / SourceControl); slot 3 is Run
+/// (decorative); slot 4 is the AI copilot (Agents) — the IDE toggles the AI
+/// panel for slot 4 rather than calling `mui_panel_set`.
 #[no_mangle]
 pub extern "C" fn mui_rail_panel_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -67,7 +69,7 @@ pub extern "C" fn mui_rail_panel_at_click(handle: i64) -> i32 {
         return -1;
     }
     let slot = ((y - icon_top) / (cell + gap)).floor() as i32;
-    if (0..=2).contains(&slot) {
+    if (0..=4).contains(&slot) {
         let cy = icon_top + slot as f32 * (cell + gap);
         if y <= cy + cell {
             return slot;
@@ -780,4 +782,176 @@ pub extern "C" fn mui_search_draw(handle: i64) {
             mi += 1;
         }
     }
+}
+
+// ===========================================================================
+// AI copilot panel — right-docked chat over the Anthropic Messages API.
+// (Backend + state + draw live in `crate::ai`; this is the scalar ABI veneer.)
+// ===========================================================================
+
+/// Toggle the AI panel open/closed (the Agents rail icon / Ctrl+Shift+A).
+/// Returns `1` if it is now open, `0` if closed.
+#[no_mangle]
+pub extern "C" fn mui_ai_open(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.ai.open = !ctx.ai.open;
+    if ctx.ai.open {
+        1
+    } else {
+        0
+    }
+}
+
+/// `1` if the AI panel is currently open, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_ai_is_open(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| if c.ai.open { 1 } else { 0 })
+}
+
+/// `1` if an `ANTHROPIC_API_KEY` (or `CLAUDE_API_KEY`) is set, else `0`. The IDE
+/// uses this to decide whether sending is meaningful.
+#[no_mangle]
+pub extern "C" fn mui_ai_has_key(_handle: i64) -> i32 {
+    if crate::ai::api_key().is_some() {
+        1
+    } else {
+        0
+    }
+}
+
+/// Append one Unicode scalar to the AI input buffer.
+#[no_mangle]
+pub extern "C" fn mui_ai_input_push(handle: i64, codepoint: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if codepoint >= 0 {
+            if let Some(ch) = char::from_u32(codepoint as u32) {
+                ctx.ai.input.push(ch);
+            }
+        }
+    }
+}
+
+/// Delete the last char of the AI input buffer.
+#[no_mangle]
+pub extern "C" fn mui_ai_input_backspace(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.ai.input.pop();
+    }
+}
+
+/// Insert a newline into the AI input (Shift+Enter).
+#[no_mangle]
+pub extern "C" fn mui_ai_input_newline(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.ai.input.push('\n');
+    }
+}
+
+/// Number of chars in the AI input buffer.
+#[no_mangle]
+pub extern "C" fn mui_ai_input_len(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.ai.input.chars().count() as i32)
+}
+
+/// Send the current input as a new turn, embedding the active file's content
+/// (and any selection) as context. Spawns the background streaming request.
+/// Returns `1` if a request was started, `0` otherwise (blank input / already
+/// streaming / no key).
+#[no_mangle]
+pub extern "C" fn mui_ai_send(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let file_name = ctx.file_name.clone();
+    let content = ctx.tabs.active_model().as_text();
+    let selection = ctx.tabs.active_model().selected_text();
+    let system = crate::ai::build_system_prompt(&file_name, &content, &selection);
+    if ctx.ai.send(system) {
+        1
+    } else {
+        0
+    }
+}
+
+/// Seed an inline-ask: pre-fill the AI input with `instruction` about the current
+/// selection/file, open the panel, and send it. Mighty stages the instruction
+/// via `mui_ai_input_push` (reusing the prompt UI) then calls this. Returns the
+/// same as [`mui_ai_send`].
+#[no_mangle]
+pub extern "C" fn mui_ai_send_inline(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.ai.open = true;
+    // The instruction is already in ctx.ai.input (pushed char-by-char by Mighty).
+    let file_name = ctx.file_name.clone();
+    let content = ctx.tabs.active_model().as_text();
+    let selection = ctx.tabs.active_model().selected_text();
+    let system = crate::ai::build_system_prompt(&file_name, &content, &selection);
+    if ctx.ai.send(system) {
+        1
+    } else {
+        0
+    }
+}
+
+/// Drain pending stream deltas into the transcript. Returns `1` if the
+/// transcript changed this frame (the IDE redraws), else `0`. Called each frame.
+#[no_mangle]
+pub extern "C" fn mui_ai_pump(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.ai.pump() {
+        1
+    } else {
+        0
+    }
+}
+
+/// `1` while a request is in flight (assistant turn streaming), else `0`.
+#[no_mangle]
+pub extern "C" fn mui_ai_streaming(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| if c.ai.is_streaming() { 1 } else { 0 })
+}
+
+/// Scroll the transcript by `dir` (negative = up/earlier, positive = down).
+#[no_mangle]
+pub extern "C" fn mui_ai_scroll(handle: i64, dir: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        let step = layout::LINE_H * 3.0;
+        ctx.ai.scroll += dir as f32 * step;
+        if ctx.ai.scroll < 0.0 {
+            ctx.ai.scroll = 0.0;
+        }
+    }
+}
+
+/// Number of turns in the transcript (for tests / status).
+#[no_mangle]
+pub extern "C" fn mui_ai_turn_count(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| c.ai.transcript.len() as i32)
+}
+
+/// Draw the AI panel (no-op when closed). Mighty calls this each frame.
+#[no_mangle]
+pub extern "C" fn mui_ai_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if !ctx.ai.open {
+        return;
+    }
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    // Render on the overlay layer so the chat card occludes editor glyphs that
+    // sit underneath the right-docked panel band.
+    let panel = std::mem::take(&mut ctx.ai);
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
+    panel.draw(ctx, w, h);
+    ctx.overlay = false;
+    ctx.text.set_overlay(false);
+    ctx.ai = panel;
 }

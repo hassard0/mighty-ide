@@ -24,3 +24,7 @@ bytemuck = { version = "1", features = ["derive"] }
 portable-pty = "0.9"
 # PNG encoding for the offscreen screenshot mode (MUI_SCREENSHOT).
 png = "0.17"
+# Blocking HTTP+TLS client for the AI copilot (Anthropic Messages API, SSE
+# streaming). rustls (no system OpenSSL); `json` feature for the request body.
+ureq = { version = "2", features = ["tls", "json"] }
+serde_json = "1"
