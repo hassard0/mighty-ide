@@ -80,6 +80,26 @@ pub struct Text {
     has_ui_font: bool,
 }
 
+/// Seed a fresh `fontdb` with ONLY the bundled (embedded) faces and wire up the
+/// generic-family aliases. No OS fonts and no filesystem access — every face
+/// comes from the `include_bytes!` constants above, so the IDE renders the same
+/// regardless of cwd or whether a `fonts/` dir ships alongside the exe.
+fn build_font_db() -> glyphon::fontdb::Database {
+    let mut db = glyphon::fontdb::Database::new();
+    db.load_font_data(FONT_REGULAR.to_vec());
+    db.load_font_data(FONT_BOLD.to_vec());
+    db.load_font_data(FONT_ITALIC.to_vec());
+    db.load_font_data(FONT_BOLD_ITALIC.to_vec());
+    // UI family (Bricolage Grotesque) for chrome labels.
+    db.load_font_data(UI_REGULAR.to_vec());
+    db.load_font_data(UI_SEMIBOLD.to_vec());
+    db.load_font_data(UI_BOLD.to_vec());
+    db.set_monospace_family(FONT_FAMILY);
+    db.set_sans_serif_family(UI_FAMILY);
+    db.set_serif_family(FONT_FAMILY);
+    db
+}
+
 fn mui_to_color(c: MuiColor) -> Color {
     let to_u8 = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
     Color::rgba(to_u8(c.r), to_u8(c.g), to_u8(c.b), to_u8(c.a))
@@ -92,20 +112,11 @@ impl Text {
         format: wgpu::TextureFormat,
     ) -> Self {
         // Build a FontSystem seeded ONLY with the bundled JetBrains Mono faces
-        // (no OS fonts), so the IDE's glyphs are identical everywhere.
+        // (no OS fonts), so the IDE's glyphs are identical everywhere — and so a
+        // double-clicked exe with an arbitrary cwd never has to find a fonts/
+        // dir on disk (the faces are `include_bytes!`'d into the binary).
         let locale = "en-US".to_string();
-        let mut db = glyphon::fontdb::Database::new();
-        db.load_font_data(FONT_REGULAR.to_vec());
-        db.load_font_data(FONT_BOLD.to_vec());
-        db.load_font_data(FONT_ITALIC.to_vec());
-        db.load_font_data(FONT_BOLD_ITALIC.to_vec());
-        // UI family (Bricolage Grotesque) for chrome labels.
-        db.load_font_data(UI_REGULAR.to_vec());
-        db.load_font_data(UI_SEMIBOLD.to_vec());
-        db.load_font_data(UI_BOLD.to_vec());
-        db.set_monospace_family(FONT_FAMILY);
-        db.set_sans_serif_family(UI_FAMILY);
-        db.set_serif_family(FONT_FAMILY);
+        let db = build_font_db();
         let has_ui_font = db
             .faces()
             .any(|f| f.families.iter().any(|(name, _)| name == UI_FAMILY));
@@ -443,5 +454,33 @@ impl Text {
 
         self.atlas.trim();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{build_font_db, FONT_FAMILY, UI_FAMILY};
+
+    /// Both bundled families must register from the EMBEDDED bytes alone — no OS
+    /// fonts, no `fonts/` dir on disk — so a double-clicked exe with an arbitrary
+    /// cwd always has its glyphs. Guards against accidentally reverting to a
+    /// filesystem/cwd-relative font load.
+    #[test]
+    fn embedded_fonts_register_both_families() {
+        let db = build_font_db();
+        let has_family = |name: &str| {
+            db.faces()
+                .any(|f| f.families.iter().any(|(n, _)| n == name))
+        };
+        assert!(
+            has_family(FONT_FAMILY),
+            "code family '{FONT_FAMILY}' did not register from embedded bytes"
+        );
+        assert!(
+            has_family(UI_FAMILY),
+            "UI family '{UI_FAMILY}' did not register from embedded bytes"
+        );
+        // All four code faces + three UI faces -> at least 7 registered faces.
+        assert!(db.len() >= 7, "expected >=7 embedded faces, got {}", db.len());
     }
 }

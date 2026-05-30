@@ -1,0 +1,43 @@
+Mighty IDE — Windows (x64)
+==========================
+
+HOW TO RUN
+----------
+1. Keep mighty-ide.exe and mighty_ui_sys.dll in the SAME folder (Windows loads
+   the DLL from the exe's directory). Do not separate them.
+2. Double-click  mighty-ide.exe  to open the editor (it opens a scratch buffer).
+   OR open a specific file from a terminal:
+       mighty-ide.exe path\to\file
+       mighty-ide.exe examples\demo.mty
+3. The fonts (JetBrains Mono + Bricolage Grotesque) are EMBEDDED in the binary —
+   there is nothing else to install for the editor to render.
+
+WHAT WORKS STANDALONE (no other tools needed)
+---------------------------------------------
+The full editor runs with just the two files above:
+  - Open / edit / save files; auto-save; dirty tracking
+  - Multiple tabs, split panes, file-tree sidebar, Open Folder (workspace)
+  - Syntax highlighting + theming (multiple built-in themes, theme picker)
+  - Find / replace, multi-cursor, word/line motions, duplicate/move lines,
+    auto-close brackets, comment toggling, bracket matching
+  - Quick Open, command palette, breadcrumb / outline navigation, minimap
+  - Markdown preview
+  - Keyboard Shortcuts reference overlay (and remapping)
+  - Integrated terminal
+
+WHAT NEEDS EXTRA TOOLS ON YOUR PATH
+-----------------------------------
+These features shell out to external tools; install them and put them on PATH:
+  - LSP / live diagnostics / go-to-def / hover / rename / code actions,
+    Run, Test, Debug (DAP), the agents panel, and the web view
+        -> need the Mighty compiler `mty` on PATH
+  - Building / running Mighty PROGRAMS you write
+        -> needs `mty` AND a C toolchain (clang) for the native linker
+  - AI copilot (inline completions / chat)
+        -> set the ANTHROPIC_API_KEY environment variable to enable AI features
+
+NOTES
+-----
+- First launch may take a moment while the GPU (wgpu) initializes.
+- The renderer uses your GPU via wgpu/Vello; it falls back to a software
+  adapter if no suitable GPU is found.

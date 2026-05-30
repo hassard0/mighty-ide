@@ -107,6 +107,30 @@ fn request_adapter(
     })
 }
 
+/// Pick the swapchain texture format for the windowed (surface) path.
+///
+/// Vello's `render_to_surface` blit step calls `ImageFormat::from_wgpu` on the
+/// surface texture format, which ONLY accepts the non-sRGB `Rgba8Unorm` /
+/// `Bgra8Unorm` — every other variant (incl. the sRGB `*UnormSrgb` formats)
+/// hits `unimplemented!()` and panics (vello-0.3.0 `recording.rs:255`, which
+/// aborts the process since `mui_end_frame` is an `extern "C"` non-unwinding
+/// boundary). Vello's blit shader already emits sRGB-encoded bytes, so a UNORM
+/// surface is the correct, non-double-corrected target. Prefer a Vello-supported
+/// UNORM format; fall back to the first offered format only if neither is
+/// present (the legacy rect/glyphon path tolerates sRGB).
+fn pick_surface_format(formats: &[wgpu::TextureFormat]) -> wgpu::TextureFormat {
+    formats
+        .iter()
+        .copied()
+        .find(|f| {
+            matches!(
+                f,
+                wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Rgba8Unorm
+            )
+        })
+        .unwrap_or_else(|| formats.first().copied().unwrap_or(wgpu::TextureFormat::Bgra8Unorm))
+}
+
 impl Gpu {
     /// Construct GPU state backed by a real window surface.
     pub fn new_windowed(window: Arc<Window>) -> Result<Self, String> {
@@ -134,12 +158,7 @@ impl Gpu {
         .map_err(|e| format!("request_device failed: {e}"))?;
 
         let caps = surface.get_capabilities(&adapter);
-        let format = caps
-            .formats
-            .iter()
-            .copied()
-            .find(|f| f.is_srgb())
-            .unwrap_or(caps.formats[0]);
+        let format = pick_surface_format(&caps.formats);
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format,
@@ -808,3 +827,35 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     return in.color;
 }
 "#;
+
+#[cfg(test)]
+mod tests {
+    use super::pick_surface_format;
+    use wgpu::TextureFormat::*;
+
+    /// The windowed surface format must be a Vello-blittable UNORM format — an
+    /// sRGB choice would abort the process in `render_to_surface` (the windowed
+    /// IDE crash this fix resolves). When both UNORM and sRGB are offered (the
+    /// usual Windows case), the UNORM one must win regardless of order.
+    #[test]
+    fn windowed_format_is_unorm_not_srgb() {
+        // Typical Windows surface caps: sRGB listed first.
+        let caps = [Bgra8UnormSrgb, Bgra8Unorm, Rgba8Unorm, Rgba8UnormSrgb];
+        let f = pick_surface_format(&caps);
+        assert!(matches!(f, Bgra8Unorm | Rgba8Unorm), "got {f:?}");
+        assert!(!f.is_srgb(), "must not pick an sRGB format, got {f:?}");
+
+        // Rgba ordering / sRGB-first also resolves to a UNORM format.
+        assert!(!pick_surface_format(&[Rgba8UnormSrgb, Rgba8Unorm]).is_srgb());
+        assert_eq!(pick_surface_format(&[Bgra8Unorm]), Bgra8Unorm);
+    }
+
+    /// If a driver somehow offered only sRGB formats we still return *something*
+    /// (the legacy rect path tolerates it); the picker must not panic on the
+    /// fallback branch.
+    #[test]
+    fn picker_falls_back_without_panicking() {
+        assert_eq!(pick_surface_format(&[Bgra8UnormSrgb]), Bgra8UnormSrgb);
+        assert_eq!(pick_surface_format(&[]), Bgra8Unorm);
+    }
+}
