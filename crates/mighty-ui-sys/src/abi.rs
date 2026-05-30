@@ -433,6 +433,29 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         }
     }
 
+    // Screenshot/render hook for the Test panel: with MUI_TEST_AUTOOPEN set,
+    // switch the sidebar to the Testing view and seed a mix of pass/fail results
+    // + a summary so a headless capture shows the results tree without spawning a
+    // real `mty test`. No effect on normal launches.
+    if std::env::var_os("MUI_TEST_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let pkg = ctx
+                .tabs
+                .active_path()
+                .map(|p| crate::tests_panel::TestPanel::package_dir(&p).to_string_lossy().into_owned())
+                .unwrap_or_else(|| "demo".to_string());
+            ctx.tests_panel.seed_demo(&pkg);
+            ctx.active_panel = crate::PANEL_TEST;
+            ctx.sidebar_visible = true;
+            println!(
+                "mui_init_s: MUI_TEST_AUTOOPEN -> testing view seeded ({} passed, {} failed, {} total)",
+                ctx.tests_panel.passed(),
+                ctx.tests_panel.failed(),
+                ctx.tests_panel.total()
+            );
+        }
+    }
+
     // Screenshot/render hook for the debugger: with MUI_DEBUG_AUTOOPEN set, open
     // the Run-and-Debug view, switch the sidebar to it, and seed a fake stopped
     // state (breakpoints + a stopped line + call stack + variables) so a headless
@@ -1952,7 +1975,7 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
     // Activity icons. Explorer (index 0) active. Each is a 38x38 hit cell with a
     // 21px vector icon centered; the active one gets an indigo top-lit tile + a
     // left accent bar with glow (matches `.rail-btn.active`).
-    let rail_icons: [&str; 7] = [
+    let rail_icons: [&str; 8] = [
         icons::EXPLORER,
         icons::SEARCH,
         icons::GIT,
@@ -1960,6 +1983,7 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
         icons::AGENTS,
         icons::OUTLINE,
         icons::DEBUG,
+        icons::BEAKER,
     ];
     let cell = 38.0;
     let icon_sz = 21.0;

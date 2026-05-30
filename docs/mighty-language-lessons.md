@@ -438,6 +438,49 @@ named key codes F5/F10/F11). `MUI_DEBUG_AUTOOPEN` seeds a fake stopped state for
 capture (screenshots/24-debug.png). **No new language limitation** — process spawning,
 threads, framing all live shim-side; Mighty only routes keys/clicks, pumps, and reads scalars.
 
+## `mty test` runner (v0.36) — Test panel findings
+
+`mty test` (confirmed against `mty.exe test --help` + a live run) discovers
+`tests/*.test.mty` (legacy bare `tests/*.mty` still accepted) in the current package and runs
+every top-level `fn test_*`. A test PASSES if its body returns normally and FAILS if it traps
+(`panic`, OOB, assertion, step-budget). Note: the body must type-check as `Unit` — a bare
+`assert x == y` expression fails to compile (`returns Unit, body produces Bool`); use a
+non-trapping body or `panic(...)` for the fail case.
+
+**Output format (NOT identical to the task's assumed shape):**
+```
+test sample.test::test_adds ... ok
+test sample.test::test_fails ... FAILED
+  reason: trap MT5001: <message>
+test sample.test::test_passes_again ... ok
+
+test result: 2 passed; 1 failed; 3 total
+```
+- There is **no `running N tests` header** and **no duration** in the summary line (we time the
+  run shim-side). The per-test name is `<file-stem>::<fn>` (e.g. `sample.test::test_adds`).
+- The failure detail is a `  reason: <trap text>` line; it carries **no file:line** location.
+- `--format json` emits one object per test + a final summary object (`{"passed":N,"failed":N,"total":N,...}`),
+  and the per-test JSON object DOES carry a `"file"` field (absolute path), unlike pretty output.
+
+**Scoping flag:** the discovery-root override is **`--manifest-dir <path>`** (help says
+"Defaults to the cwd"), NOT `--dir`. The Test panel runs `mty test --manifest-dir <pkg>` where
+`<pkg>` is the nearest ancestor of the active file containing `mighty.toml`.
+
+**No name filtering.** `mty test` rejects any positional arg or `--filter` (`error: unexpected
+argument`). So "Run Test at Cursor" re-runs the WHOLE package; the IDE records the cursor's
+enclosing `fn test_*` name only to highlight that row. Click-to-jump on a failed row works by
+scanning the package's `tests/` dir for the `fn <name>` declaration (the report has no location),
+guarding against prefix collisions (`test_adds` vs `test_adds_more`).
+
+UI: a new "Testing" rail slot (slot 7, beaker icon) hosts a sidebar panel — a Run/Re-run + Stop
+toolbar, a colored proportional pass/fail summary bar (passed green / failed red) with counts +
+duration, and a results tree (green check / red x per row, suite badge, failure message on a
+red-railed detail row, failed rows clickable to jump). Ctrl+Shift+T + palette "Run Tests" both
+trigger it. `MUI_TEST_AUTOOPEN` seeds a mixed pass/fail result set for a headless capture
+(screenshots/25-test.png). **No new language limitation** — same shim-owns-everything shape as
+the Run/Debug panels (process spawn + reader threads + incremental parse live in Rust; Mighty
+routes keys/clicks, pumps, reads scalars).
+
 ## Open questions to resolve as the IDE progresses
 - Exact `extern c` signature support: pointers (`*U8`), out-params (`&out T`), passing a
   `Vec`/slice as `(ptr, len)`, returning `#[repr(C)]` structs by value vs. out-param?
