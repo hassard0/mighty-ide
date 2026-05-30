@@ -473,6 +473,29 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         }
     }
 
+    // Screenshot/render hook for the keyboard-shortcuts overlay: with
+    // MUI_SHORTCUTS_AUTOOPEN set, open the overlay (optionally seeding a filter
+    // query, e.g. "alt") and LEAVE it open so a headless screenshot shows it
+    // (`mui_keys_draw` is a no-op unless active). No effect on normal launches.
+    if std::env::var_os("MUI_SHORTCUTS_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            ctx.shortcuts.open();
+            if let Some(seed) = std::env::var_os("MUI_SHORTCUTS_AUTOOPEN") {
+                let q = seed.to_string_lossy();
+                if !q.trim().is_empty() && q != "1" {
+                    for ch in q.chars() {
+                        ctx.shortcuts.push_char(ch);
+                    }
+                }
+            }
+            ctx.shortcuts_autoopen = true;
+            println!(
+                "mui_init_s: MUI_SHORTCUTS_AUTOOPEN -> shortcuts open, count={}",
+                ctx.shortcuts.count()
+            );
+        }
+    }
+
     // Screenshot/render hook for the AI copilot panel: with MUI_AI_AUTOOPEN set,
     // open the right-docked AI panel and seed a fake transcript (no network) so a
     // headless screenshot captures the chat UI — distinct user/assistant turns, a
@@ -3832,6 +3855,215 @@ pub extern "C" fn mui_palette_draw(handle: i64) {
     ctx.overlay = false;
     ctx.text.set_overlay(false);
     ctx.palette = engine;
+}
+
+// ---------------------------------------------------------------------------
+// Keyboard Shortcuts overlay + remapping (Help: Keyboard Shortcuts).
+//
+// Same shim-owned, scalar-only ABI shape as the palette: Mighty opens the
+// overlay, feeds chars/keys, moves the selection, begins capture, records a
+// captured chord, resets, and reads rows back char-by-char (strings can't
+// cross the FFI, L17). The chord router consults the override map via
+// `crate::shortcuts::Overrides::resolve` (see `mui_chord`).
+// ---------------------------------------------------------------------------
+
+/// Open the shortcuts overlay (clears the filter, rebuilds the list).
+#[no_mangle]
+pub extern "C" fn mui_keys_open(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.shortcuts.open();
+    }
+}
+
+/// `1` while the overlay is active.
+#[no_mangle]
+pub extern "C" fn mui_keys_active(handle: i64) -> i32 {
+    match unsafe { ctx(handle) } {
+        Some(ctx) if ctx.shortcuts.is_active() => 1,
+        _ => 0,
+    }
+}
+
+/// `1` while in capture mode (waiting for the new chord).
+#[no_mangle]
+pub extern "C" fn mui_keys_capturing(handle: i64) -> i32 {
+    match unsafe { ctx(handle) } {
+        Some(ctx) if ctx.shortcuts.is_capturing() => 1,
+        _ => 0,
+    }
+}
+
+/// Append a typed char to the filter (ignored while capturing).
+#[no_mangle]
+pub extern "C" fn mui_keys_push_char(handle: i64, cp: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if let Some(ch) = char::from_u32(cp.max(0) as u32) {
+            ctx.shortcuts.push_char(ch);
+        }
+    }
+}
+
+/// Delete the last filter char.
+#[no_mangle]
+pub extern "C" fn mui_keys_backspace(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.shortcuts.backspace();
+    }
+}
+
+/// Move the selection by `delta` (wraps).
+#[no_mangle]
+pub extern "C" fn mui_keys_move(handle: i64, delta: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.shortcuts.move_sel(delta);
+    }
+}
+
+/// The selected row's command id (`< 0` for fixed rows / no selection).
+#[no_mangle]
+pub extern "C" fn mui_keys_sel(handle: i64) -> i32 {
+    match unsafe { ctx(handle) } {
+        Some(ctx) => ctx.shortcuts.selected_id(),
+        None => -1,
+    }
+}
+
+/// Number of (filtered) rows.
+#[no_mangle]
+pub extern "C" fn mui_keys_count(handle: i64) -> i32 {
+    match unsafe { ctx(handle) } {
+        Some(ctx) => ctx.shortcuts.count() as i32,
+        None => 0,
+    }
+}
+
+/// Char length of row `idx`'s name.
+#[no_mangle]
+pub extern "C" fn mui_keys_row_name_len(handle: i64, idx: i32) -> i32 {
+    match unsafe { ctx(handle) } {
+        Some(ctx) if idx >= 0 => ctx.shortcuts.row_name(idx as usize).chars().count() as i32,
+        _ => 0,
+    }
+}
+
+/// The `i`th char of row `idx`'s name (`-1` out of range).
+#[no_mangle]
+pub extern "C" fn mui_keys_row_name_char(handle: i64, idx: i32, i: i32) -> i32 {
+    if idx < 0 || i < 0 {
+        return -1;
+    }
+    match unsafe { ctx(handle) } {
+        Some(ctx) => ctx
+            .shortcuts
+            .row_name(idx as usize)
+            .chars()
+            .nth(i as usize)
+            .map(|c| c as i32)
+            .unwrap_or(-1),
+        None => -1,
+    }
+}
+
+/// Char length of row `idx`'s key binding string.
+#[no_mangle]
+pub extern "C" fn mui_keys_row_keys_len(handle: i64, idx: i32) -> i32 {
+    match unsafe { ctx(handle) } {
+        Some(ctx) if idx >= 0 => ctx.shortcuts.row_keys(idx as usize).chars().count() as i32,
+        _ => 0,
+    }
+}
+
+/// The `i`th char of row `idx`'s key binding (`-1` out of range).
+#[no_mangle]
+pub extern "C" fn mui_keys_row_keys_char(handle: i64, idx: i32, i: i32) -> i32 {
+    if idx < 0 || i < 0 {
+        return -1;
+    }
+    match unsafe { ctx(handle) } {
+        Some(ctx) => ctx
+            .shortcuts
+            .row_keys(idx as usize)
+            .chars()
+            .nth(i as usize)
+            .map(|c| c as i32)
+            .unwrap_or(-1),
+        None => -1,
+    }
+}
+
+/// `1` if row `idx` is remappable (router-routed), else `0`.
+#[no_mangle]
+pub extern "C" fn mui_keys_row_remappable(handle: i64, idx: i32) -> i32 {
+    match unsafe { ctx(handle) } {
+        Some(ctx) if idx >= 0 && ctx.shortcuts.row_remappable(idx as usize) => 1,
+        _ => 0,
+    }
+}
+
+/// Enter capture mode for the selected row (only if remappable). Returns `1` if
+/// capture started, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_keys_begin_capture(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    i32::from(ctx.shortcuts.begin_capture())
+}
+
+/// Record a captured chord `(cp, mods)` as the override for the command in
+/// capture mode. `1` = saved, `2` = saved with a conflict warning, `0` = ignored.
+#[no_mangle]
+pub extern "C" fn mui_keys_capture_chord(handle: i64, cp: i32, mods: i32) -> i32 {
+    match unsafe { ctx(handle) } {
+        Some(ctx) => ctx.shortcuts.capture_chord(cp, mods),
+        None => 0,
+    }
+}
+
+/// Reset the selected row to its default chord. `1` if an override was cleared.
+#[no_mangle]
+pub extern "C" fn mui_keys_reset(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    i32::from(ctx.shortcuts.reset_selected())
+}
+
+/// Reset ALL overrides to defaults.
+#[no_mangle]
+pub extern "C" fn mui_keys_reset_all(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.shortcuts.reset_all();
+    }
+}
+
+/// Cancel: while capturing, exit capture mode; else close the overlay.
+#[no_mangle]
+pub extern "C" fn mui_keys_cancel(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if ctx.shortcuts.is_capturing() {
+            ctx.shortcuts.cancel_capture();
+        } else {
+            ctx.shortcuts.cancel();
+        }
+    }
+}
+
+/// Draw the shortcuts overlay (no-op unless active). Same borrow-split as the
+/// palette draw.
+#[no_mangle]
+pub extern "C" fn mui_keys_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let engine = std::mem::take(&mut ctx.shortcuts);
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
+    engine.draw(ctx, w, h);
+    ctx.overlay = false;
+    ctx.text.set_overlay(false);
+    ctx.shortcuts = engine;
 }
 
 // ---------------------------------------------------------------------------
@@ -7831,6 +8063,40 @@ pub extern "C" fn mui_zen_active(_handle: i64) -> i32 {
     }
 }
 
+/// Perform a remappable command by its palette id (the cleanly router-
+/// dispatchable subset — see [`crate::shortcuts::is_remappable`]). Both the
+/// default chords and any remapped chords funnel through here so a command's
+/// behavior is identical no matter which chord fired it. Returns `1` (consumed).
+fn router_dispatch(handle: i64, cmd_id: u32) -> i32 {
+    use crate::palette::*;
+    match cmd_id {
+        x if x == CMD_ZEN_MODE => {
+            let _ = mui_zen_toggle(handle);
+        }
+        x if x == CMD_AGENTS => {
+            let _ = crate::panels::mui_panel_set(handle, crate::PANEL_AGENTS_MTY);
+            let _ = crate::agentsabi::mui_agents_refresh(handle);
+        }
+        x if x == CMD_GIT_TOGGLE_BLAME => {
+            let _ = crate::featureabi::mui_blame_toggle(handle);
+        }
+        x if x == CMD_RUN_IN_BROWSER => {
+            let _ = crate::webabi::mui_web_run(handle);
+        }
+        x if x == CMD_SPLIT_RIGHT => {
+            let _ = mui_pane_split_right(handle);
+        }
+        x if x == CMD_MARKDOWN_PREVIEW => {
+            let _ = mui_md_open(handle);
+        }
+        x if x == CMD_OPEN_FOLDER => {
+            let _ = crate::wsabi::mui_ws_open_dialog(handle);
+        }
+        _ => return 0,
+    }
+    1
+}
+
 /// Centralized chord router for chords that must NOT each get their own
 /// top-level `else if` arm in `src/main.mty`'s editor key ladder (the ladder is
 /// at the mty v0.36 recursive-descent parse-stack ceiling — adding an arm
@@ -7847,52 +8113,30 @@ pub extern "C" fn mui_chord(handle: i64, cp: i32, mods: i32) -> i32 {
     let alt = (mods & 4) != 0;
     let ctrl = (mods & 2) != 0;
     let shift = (mods & 1) != 0;
-    // Ctrl+Shift+V : open the live Markdown preview (split pane). Routed here so
-    // the Mighty key ladder gains NO new top-level arm (L37/L38).
-    if ctrl && shift && !alt && (cp == 'v' as i32 || cp == 'V' as i32) {
-        let _ = mui_md_open(handle);
+
+    // Ctrl+Shift+/ (Ctrl+?) : open the Keyboard Shortcuts reference overlay. Not
+    // a remappable command itself (it's how you GET to remapping), so it stays a
+    // literal arm here. Routed through `mui_chord` so the Mighty ladder gains NO
+    // new top-level arm (L37/L38).
+    if ctrl && shift && !alt && cp == 47 {
+        mui_keys_open(handle);
         return 1;
     }
-    // Alt+Z (no Ctrl): toggle Zen mode.
-    if alt && !ctrl && (cp == 'z' as i32 || cp == 'Z' as i32) {
-        let _ = mui_zen_toggle(handle);
-        return 1;
+
+    // --- remapping: the override map wins over the hard-coded default chords. ---
+    // Resolve the incoming chord to a remappable command id (an override, or the
+    // command's default chord when it hasn't been remapped away) and dispatch it.
+    // This is what makes a remapped command fire on its NEW chord and stop firing
+    // on the freed default. The 7 remappable commands ALL go through here, so
+    // their literal default arms no longer exist below.
+    let resolved = unsafe { ctx(handle) }.and_then(|c| c.shortcuts.overrides().resolve(cp, mods));
+    if let Some(id) = resolved {
+        return router_dispatch(handle, id);
     }
-    // Alt+\ : force an inline AI ghost completion.
+
+    // Alt+\ : force an inline AI ghost completion. (Not remappable — kept literal.)
     if alt && !ctrl && cp == 92 {
         let _ = crate::ghostabi::mui_ghost_force(handle);
-        return 1;
-    }
-    // Alt+G : open the Mighty Agents topology panel + (re)scan the workspace.
-    if alt && !ctrl && (cp == 'g' as i32 || cp == 'G' as i32) {
-        let _ = crate::panels::mui_panel_set(handle, crate::PANEL_AGENTS_MTY);
-        let _ = crate::agentsabi::mui_agents_refresh(handle);
-        return 1;
-    }
-    // Alt+B : toggle the git blame gutter for the active file.
-    if alt && !ctrl && (cp == 'b' as i32 || cp == 'B' as i32) {
-        let _ = crate::featureabi::mui_blame_toggle(handle);
-        return 1;
-    }
-    // Alt+W : Run in Browser — build the active file to wasm32-web + serve it,
-    // then the Mighty loop opens the default browser when the URL is scraped.
-    if alt && !ctrl && (cp == 'w' as i32 || cp == 'W' as i32) {
-        let _ = crate::webabi::mui_web_run(handle);
-        return 1;
-    }
-    // Ctrl+Shift+O : Open Folder as workspace (native folder picker). Routed here
-    // so the Mighty editor key ladder gains NO new top-level arm (L37/L38). When
-    // the native dialog is unavailable/cancelled the palette path offers a typed-
-    // path prompt fallback; the chord just fires the dialog.
-    if ctrl && shift && !alt && (cp == 'o' as i32 || cp == 'O' as i32) {
-        let _ = crate::wsabi::mui_ws_open_dialog(handle);
-        return 1;
-    }
-    // Ctrl+\ : Split Editor Right (side-by-side panes). Routed here so the Mighty
-    // editor key ladder gains NO new top-level arm (L37/L38) — the existing
-    // router arm widened to forward Ctrl+\ too.
-    if ctrl && !alt && cp == 92 {
-        let _ = mui_pane_split_right(handle);
         return 1;
     }
     // Ctrl+1 / Ctrl+2 : focus pane 1 / pane 2 (when split). Falls through (0) when

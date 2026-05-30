@@ -57,6 +57,7 @@ mod search;
 mod settings;
 mod settingspanel;
 mod snippets;
+mod shortcuts;
 mod snippetsabi;
 mod sticky;
 mod stickyabi;
@@ -249,6 +250,15 @@ pub struct MuiContext {
     /// Screenshot-only hook (`MUI_THEMEPICKER_AUTOOPEN`): when `true`, the theme
     /// picker is force-drawn each frame so a headless capture shows it.
     theme_picker_autoopen: bool,
+
+    // ---- keyboard shortcuts overlay + remapping (Help: Keyboard Shortcuts) ----
+    /// The shortcuts reference overlay (full command/keybinding list + filter +
+    /// remapping capture) and the persisted override map. Mighty opens it, feeds
+    /// chars/keys, and the chord router resolves remaps through its override map.
+    shortcuts: shortcuts::ShortcutsEngine,
+    /// Screenshot-only hook (`MUI_SHORTCUTS_AUTOOPEN`): when `true`, the shortcuts
+    /// overlay is force-drawn each frame so a headless capture shows it.
+    shortcuts_autoopen: bool,
 
     // ---- offscreen screenshot mode (MUI_SCREENSHOT) ----
     /// When `Some`, the context renders into an offscreen texture (no window)
@@ -789,6 +799,8 @@ pub(crate) fn build_context(
         quickopen: quickopen::QuickOpen::new(),
         theme_picker: themepicker::ThemePicker::new(),
         theme_picker_autoopen: false,
+        shortcuts: shortcuts::ShortcutsEngine::new(),
+        shortcuts_autoopen: false,
         screenshot,
         ed_undo: Vec::new(),
         ed_redo: Vec::new(),
@@ -1177,6 +1189,19 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         ctx.theme_picker = picker;
     }
 
+    // Screenshot hook for the keyboard-shortcuts overlay: force-draw when armed so
+    // a headless capture shows it (it otherwise only draws while the Mighty loop
+    // routes to it, which a non-interactive run can't enter).
+    if ctx.shortcuts_autoopen && ctx.shortcuts.is_active() {
+        let engine = std::mem::take(&mut ctx.shortcuts);
+        ctx.overlay = true;
+        ctx.text.set_overlay(true);
+        engine.draw(ctx, w, h);
+        ctx.overlay = false;
+        ctx.text.set_overlay(false);
+        ctx.shortcuts = engine;
+    }
+
     // Fold the queued glyphon text runs into the display list (each keeps its
     // layer/font/size/color), so the Vello scene reproduces all chrome + code.
     ctx.text.drain_into_display_list(&mut ctx.dl);
@@ -1430,6 +1455,8 @@ impl MuiContext {
             quickopen: quickopen::QuickOpen::new(),
             theme_picker: themepicker::ThemePicker::new(),
             theme_picker_autoopen: false,
+            shortcuts: shortcuts::ShortcutsEngine::new(),
+            shortcuts_autoopen: false,
             screenshot: None,
             ed_undo: Vec::new(),
             ed_redo: Vec::new(),
