@@ -31,6 +31,9 @@ pub struct Candidate {
     pub text: String,
     /// `true` for an LSP-provided semantic candidate, `false` for a buffer word.
     pub semantic: bool,
+    /// `true` for a snippet prefix (shows a distinct "snippet" badge; accepting
+    /// it expands the snippet body rather than inserting the label text).
+    pub snippet: bool,
 }
 
 /// Whether a byte is part of an identifier (`[A-Za-z0-9_]`).
@@ -153,6 +156,7 @@ impl CompletionEngine {
                 self.candidates.push(Candidate {
                     text: label.clone(),
                     semantic: true,
+                    snippet: false,
                 });
             }
         }
@@ -164,12 +168,45 @@ impl CompletionEngine {
                 self.candidates.push(Candidate {
                     text: w,
                     semantic: false,
+                    snippet: false,
                 });
             }
         }
 
         self.active = !self.candidates.is_empty();
         self.candidates.len()
+    }
+
+    /// Inject snippet prefixes (already filtered to the current request's prefix)
+    /// at the FRONT of the candidate list — snippets are the most intentional
+    /// match, so they rank first and get a distinct "snippet" badge. Skips any
+    /// prefix already present. Re-activates the dropdown if it adds candidates.
+    /// Call right after [`request`].
+    pub fn inject_snippets(&mut self, snippet_prefixes: &[String]) {
+        let existing: std::collections::HashSet<String> =
+            self.candidates.iter().map(|c| c.text.clone()).collect();
+        let mut front: Vec<Candidate> = Vec::new();
+        for p in snippet_prefixes {
+            if !existing.contains(p) {
+                front.push(Candidate {
+                    text: p.clone(),
+                    semantic: false,
+                    snippet: true,
+                });
+            }
+        }
+        if front.is_empty() {
+            return;
+        }
+        front.append(&mut self.candidates);
+        self.candidates = front;
+        self.active = true;
+    }
+
+    /// `true` if the currently-selected candidate is a snippet prefix (so the
+    /// accept path should EXPAND rather than insert the literal text).
+    pub fn accepted_is_snippet(&self) -> bool {
+        self.active && self.candidates.get(self.sel).map(|c| c.snippet).unwrap_or(false)
     }
 
     pub fn count(&self) -> usize {
@@ -350,6 +387,16 @@ fn classify_candidate(cand: &Candidate) -> (MuiColor, MuiColor, &'static str, &'
         "import", "effect", "extern",
     ];
     let t = cand.text.as_str();
+    // Snippet prefixes get a distinct badge regardless of how the text looks.
+    if cand.snippet {
+        return (
+            MuiColor::new(0.482, 0.800, 1.0, 0.16),
+            theme::SYN_FUNCTION(),
+            "\u{2026}", // ellipsis glyph — "expands to more"
+            "snippet",
+            "",
+        );
+    }
     if KEYWORDS.contains(&t) {
         return (
             MuiColor::new(0.718, 0.580, 1.0, 0.14),
@@ -812,6 +859,40 @@ mod tests {
         // The Mighty side deletes prefix_len chars, inserts accepted_text chars.
         assert_eq!(e2.accepted_text().chars().count(), 7);
         let _ = e; // silence unused in the inactive branch
+    }
+
+    #[test]
+    fn inject_snippets_prepends_with_badge_and_flags_accept() {
+        let mut e = CompletionEngine::new();
+        // Buffer offers "format", "for_each" for prefix "for".
+        let src = b"format for_each fo";
+        e.request(src, src.len(), &[]);
+        let before = e.count();
+        // Inject the `for` snippet prefix.
+        e.inject_snippets(&["for".to_string()]);
+        // It went to the FRONT and is the selected (sel=0) candidate.
+        assert_eq!(e.count(), before + 1);
+        assert_eq!(e.accepted_text(), "for");
+        assert!(e.accepted_is_snippet(), "snippet entry must flag the accept path");
+        assert!(e.candidates[0].snippet);
+        // Its badge classifies as a snippet (distinct from keyword/type/var).
+        let (_, _, letter, kind, _) = classify_candidate(&e.candidates[0]);
+        assert_eq!(kind, "snippet");
+        assert_eq!(letter, "\u{2026}");
+        // Moving off the snippet entry clears the snippet-accept flag.
+        e.move_sel(1);
+        assert!(!e.accepted_is_snippet());
+    }
+
+    #[test]
+    fn inject_snippets_skips_duplicates() {
+        let mut e = CompletionEngine::new();
+        // Buffer already contains "for".
+        e.request(b"for fo", 6, &[]);
+        let before = e.count();
+        e.inject_snippets(&["for".to_string()]);
+        // No duplicate added (the buffer word already covered "for").
+        assert_eq!(e.count(), before);
     }
 
     #[test]

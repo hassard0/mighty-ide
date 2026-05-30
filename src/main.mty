@@ -297,6 +297,16 @@ extern c {
   fn mui_ghost_dismiss(handle: I64)
   fn mui_ghost_force(handle: I64) -> I32
   fn mui_ghost_draw(handle: I64)
+  // ---- snippets (prefix -> template expansion with navigable tab-stops) ----
+  fn mui_snippet_try_expand(handle: I64) -> I32
+  fn mui_snippet_active(handle: I64) -> I32
+  fn mui_snippet_next_stop(handle: I64) -> I32
+  fn mui_snippet_prev_stop(handle: I64) -> I32
+  fn mui_snippet_cancel(handle: I64)
+  fn mui_snippet_replace_stop(handle: I64) -> I32
+  fn mui_snippet_inject_completions(handle: I64)
+  fn mui_snippet_complete_is(handle: I64) -> I32
+  fn mui_snippet_complete_expand(handle: I64) -> I32
   // ---- color theme picker (Preferences: Color Theme) ----
   fn mui_theme_picker_open(handle: I64)
   fn mui_theme_picker_active(handle: I64) -> I32
@@ -1130,7 +1140,9 @@ fn main() {
               find_nav = false
               let _u = mui_ed_redo(h)
             } else if id == cmd_autocomplete() {
-              let cnt = mui_ed_complete_request(h)
+              let _c = mui_ed_complete_request(h)
+              mui_snippet_inject_completions(h)
+              let cnt = mui_complete_count(h)
               if cnt > 0 { completing = true } else { mui_complete_cancel(h) }
             } else if id == cmd_jump_back() {
               if have_prev {
@@ -1268,7 +1280,9 @@ fn main() {
                 find_nav = false
                 let _u = mui_ed_redo(h)
               } else if id == cmd_autocomplete() {
-                let cnt = mui_ed_complete_request(h)
+                let _c = mui_ed_complete_request(h)
+                mui_snippet_inject_completions(h)
+                let cnt = mui_complete_count(h)
                 if cnt > 0 { completing = true } else { mui_complete_cancel(h) }
               } else if id == cmd_jump_back() {
                 if have_prev {
@@ -1657,7 +1671,9 @@ fn main() {
           if is_ident {
             mui_ed_insert_char(h, cp)
             mui_tab_set_dirty(h, active0, 1)
-            let cnt = mui_ed_complete_request(h)
+            let _c = mui_ed_complete_request(h)
+            mui_snippet_inject_completions(h)
+            let cnt = mui_complete_count(h)
             if cnt == 0 { mui_complete_cancel(h); completing = false }
           } else {
             mui_complete_cancel(h)
@@ -1674,8 +1690,14 @@ fn main() {
           } else if k == key_down() {
             mui_complete_move(h, 1)
           } else if k == key_enter() || k == key_tab() {
+            // (3) Accept the selected candidate. A snippet entry EXPANDS its body
+            // (and begins the tab-stop session); a plain entry inserts its text.
             mui_ed_undo_record(h)
-            let _a = mui_ed_complete_accept(h)
+            if mui_snippet_complete_is(h) == 1 {
+              let _e = mui_snippet_complete_expand(h)
+            } else {
+              let _a = mui_ed_complete_accept(h)
+            }
             mui_tab_set_dirty(h, active0, 1)
             mui_complete_cancel(h)
             completing = false
@@ -1686,7 +1708,9 @@ fn main() {
           } else if k == key_backspace() {
             mui_ed_backspace(h)
             mui_tab_set_dirty(h, active0, 1)
-            let cnt = mui_ed_complete_request(h)
+            let _c = mui_ed_complete_request(h)
+            mui_snippet_inject_completions(h)
+            let cnt = mui_complete_count(h)
             if cnt == 0 { mui_complete_cancel(h); completing = false }
           } else {
             mui_complete_cancel(h)
@@ -1843,7 +1867,9 @@ fn main() {
             mui_codeaction_cancel(h)
           }
         } else if ctrl_held(mods) && cp == 32 {             // Ctrl+Space : autocomplete
-          let cnt = mui_ed_complete_request(h)
+          let _c = mui_ed_complete_request(h)
+          mui_snippet_inject_completions(h)                 // snippet prefixes appear with a "snippet" badge
+          let cnt = mui_complete_count(h)
           if cnt > 0 { completing = true } else { mui_complete_cancel(h) }
         } else if ctrl_held(mods) && (cp == 107 || cp == 75) {  // Ctrl+K : hover
           let ok = do_hover(h)
@@ -1940,6 +1966,9 @@ fn main() {
           find_nav = false
           // Record an undo checkpoint at the start of a typing run only.
           if !typing { mui_ed_undo_record(h); typing = true }
+          // Snippet mode: typing over a selected tab-stop placeholder replaces it
+          // (delete the selection first so the typed char takes its place).
+          if mui_snippet_active(h) == 1 { let _r = mui_snippet_replace_stop(h) }
           // Bracket/quote auto-close + skip-over at EVERY caret (falls back to a
           // plain insert per-caret where the smart path declines).
           mui_ed_insert_smart_multi(h, cp)
@@ -2023,6 +2052,7 @@ fn main() {
           mui_sig_clear(h)
           sig_open = false
           mui_ghost_dismiss(h)                                 // Esc dismisses the inline ghost
+          mui_snippet_cancel(h)                                // Esc ends the snippet tab-stop session
           mui_ed_collapse_carets(h)                            // Esc collapses to the primary caret
         } else if k == key_tab() {
           let kmods = mui_event_mods(h)
@@ -2035,13 +2065,30 @@ fn main() {
             mui_ed_undo_reset(h)
             find_nav = false
             let _r = mui_diag_refresh(h)
+          } else if mui_snippet_active(h) == 1 {
+            // (1) A tab-stop session is in progress: Shift+Tab -> previous stop,
+            // Tab -> next stop. The final Tab jumps to $0 and ends the session.
+            typing = false
+            if shift_held(kmods) {
+              let _p = mui_snippet_prev_stop(h)
+            } else {
+              let _n = mui_snippet_next_stop(h)
+            }
           } else if mui_ghost_has(h) == 1 {
-            // Tab accepts the inline AI ghost suggestion (insert at the cursor).
+            // (2) Tab accepts the inline AI ghost suggestion (insert at cursor).
             mui_ed_undo_record(h)
             typing = false
             let _a = mui_ghost_accept(h)
             mui_tab_set_dirty(h, active0, 1)
+          } else if mui_snippet_try_expand(h) == 1 {
+            // (4) The word before the cursor is a snippet prefix -> expand it,
+            // begin the tab-stop session, select the first stop. (Step (3),
+            // completion dropdown, is handled in the `completing` branch above.)
+            typing = false
+            mui_tab_set_dirty(h, active0, 1)
+            mui_ghost_dismiss(h)
           } else {
+            // (5) Nothing took the Tab -> insert an indent.
             if !typing { mui_ed_undo_record(h); typing = true }
             mui_ed_insert_char_multi(h, 9)
             mui_tab_set_dirty(h, active0, 1)

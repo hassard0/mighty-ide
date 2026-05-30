@@ -228,6 +228,58 @@ impl TextModel {
         }
     }
 
+    /// Collapse to the PRIMARY caret and set an explicit selection from
+    /// `start (line,col)` to `end (line,col)` (the cursor lands at `end`, the
+    /// anchor at `start`), clamped to the document. When `start == end` this just
+    /// places the cursor there with no selection. Used by the snippet engine to
+    /// select a tab-stop's placeholder. Does not mark dirty (it is pure motion).
+    pub fn set_selection(&mut self, start: (usize, usize), end: (usize, usize)) {
+        let last = self.lines.len().saturating_sub(1);
+        let clamp = |(l, c): (usize, usize)| {
+            let l = l.min(last);
+            let len = self.lines.get(l).map(|s| s.chars().count()).unwrap_or(0);
+            (l, c.min(len))
+        };
+        let s = clamp(start);
+        let e = clamp(end);
+        // Collapse to a single primary caret carrying this selection.
+        let caret = Caret {
+            line: e.0,
+            col: e.1,
+            anchor: if s == e { None } else { Some(s) },
+        };
+        self.carets.clear();
+        self.carets.push(caret);
+    }
+
+    /// Delete the PRIMARY caret's selected text (if any), collapsing the cursor to
+    /// the selection start. No-op (returns `false`) when there is no selection.
+    /// Marks dirty when it removes text. Used so typing over a tab-stop placeholder
+    /// replaces it.
+    pub fn delete_selection(&mut self) -> bool {
+        let Some(((l0, c0), (l1, c1))) = self.selection_range() else {
+            return false;
+        };
+        self.dirty = true;
+        if l0 == l1 {
+            let chars: Vec<char> = self.lines[l0].chars().collect();
+            let head: String = chars[..c0.min(chars.len())].iter().collect();
+            let tail: String = chars[c1.min(chars.len())..].iter().collect();
+            self.lines[l0] = format!("{head}{tail}");
+        } else {
+            let first: Vec<char> = self.lines[l0].chars().collect();
+            let head: String = first[..c0.min(first.len())].iter().collect();
+            let last: Vec<char> = self.lines[l1].chars().collect();
+            let tail: String = last[c1.min(last.len())..].iter().collect();
+            // Remove the intervening lines (l0+1 ..= l1) and merge head+tail.
+            self.lines.drain((l0 + 1)..=l1);
+            self.lines[l0] = format!("{head}{tail}");
+        }
+        self.carets.clear();
+        self.carets.push(Caret::at(l0, c0));
+        true
+    }
+
     // ---- internal helpers ----
 
     /// Clamp the cursor column to the current line's length.
@@ -1591,6 +1643,42 @@ mod tests {
         assert_eq!(m.line_count(), 2);
         assert_eq!(m.line(0), "a");
         assert_eq!(m.line(1), "b");
+    }
+
+    #[test]
+    fn set_selection_selects_range_and_clamps() {
+        let mut m = doc("hello world");
+        m.set_selection((0, 6), (0, 11));
+        assert!(m.has_selection());
+        assert_eq!(m.selected_text(), "world");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 11));
+        // Equal start==end places the cursor with no selection.
+        m.set_selection((0, 3), (0, 3));
+        assert!(!m.has_selection());
+        assert_eq!(m.cursor_col(), 3);
+        // Out-of-range cols clamp to the line length.
+        m.set_selection((0, 0), (0, 999));
+        assert_eq!(m.selected_text(), "hello world");
+    }
+
+    #[test]
+    fn delete_selection_single_line_and_multi_line() {
+        let mut m = doc("hello world");
+        m.set_selection((0, 5), (0, 11)); // " world"
+        assert!(m.delete_selection());
+        assert_eq!(m.line(0), "hello");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 5));
+        assert!(!m.has_selection());
+        // No selection -> no-op.
+        assert!(!m.delete_selection());
+
+        // Multi-line selection.
+        let mut m2 = doc("aaa\nbbb\nccc");
+        m2.set_selection((0, 1), (2, 1)); // from "a|aa" to "c|cc"
+        assert!(m2.delete_selection());
+        assert_eq!(m2.line_count(), 1);
+        assert_eq!(m2.line(0), "acc");
+        assert_eq!((m2.cursor_line(), m2.cursor_col()), (0, 1));
     }
 
     #[test]

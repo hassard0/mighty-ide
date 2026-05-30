@@ -51,6 +51,8 @@ mod screenshot;
 mod search;
 mod settings;
 mod settingspanel;
+mod snippets;
+mod snippetsabi;
 mod sticky;
 mod stickyabi;
 mod syntax;
@@ -367,6 +369,14 @@ pub struct MuiContext {
     /// The toast stack: shim-pushed transient cards (saved / committed / build
     /// result / errors / theme changed …) that auto-dismiss. Drawn over chrome.
     toasts: toast::ToastQueue,
+
+    // ---- snippets (prefix → template expansion with navigable tab-stops) ----
+    /// The active tab-stop navigation session over an expanded snippet (inactive
+    /// until `mui_snippet_try_expand` succeeds). Drives the cursor/selection to
+    /// each `$1 $2 … $0` stop on Tab / Shift+Tab; ends on the final stop or Esc.
+    /// The snippet DEFINITIONS themselves are language-keyed + computed on demand
+    /// (`snippets::snippets_for`), so only the live session is held here.
+    snippet_session: snippets::SnippetSession,
 }
 
 impl MuiContext {
@@ -745,6 +755,7 @@ pub(crate) fn build_context(
         crumb_menu_autoopen: false,
         welcome: welcome::WelcomeState::new(),
         toasts: toast::ToastQueue::new(),
+        snippet_session: snippets::SnippetSession::new(),
     });
     Box::into_raw(ctx)
 }
@@ -1375,6 +1386,7 @@ impl MuiContext {
             crumb_menu_autoopen: false,
             welcome: welcome::WelcomeState::new(),
             toasts: toast::ToastQueue::new(),
+            snippet_session: snippets::SnippetSession::new(),
         })
     }
 

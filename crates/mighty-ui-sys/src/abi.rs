@@ -955,6 +955,46 @@ filename src/main.mty
         }
     }
 
+    // Screenshot/render hook for snippets: with MUI_SNIPPET_AUTOOPEN set, seed a
+    // representative buffer, type a snippet prefix on a fresh indented line, and
+    // EXPAND it via the real engine so a headless capture shows the snippet body
+    // inserted with the first tab-stop ($1) selected. The env value optionally
+    // overrides the prefix (default "fn"). No effect on normal launches.
+    if let Some(seed) = std::env::var_os("MUI_SNIPPET_AUTOOPEN") {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            use crate::editor::TextModel;
+            let prefix = {
+                let v = seed.to_string_lossy().trim().to_string();
+                if v.is_empty() || v == "1" { "fn".to_string() } else { v }
+            };
+            // A small program with a blank, indented call site at the end where the
+            // snippet expands (so the multi-line body + selection are clearly shown).
+            let demo = b"// snippets: type a prefix + Tab to expand,\n// then Tab / Shift+Tab to jump between $1 $2 ... $0.\n\nstruct Vec2 {\n  x: F64,\n  y: F64,\n}\n\n";
+            let m = ctx.tabs.active_model_mut();
+            *m = TextModel::from_bytes(demo);
+            // Type the prefix on the trailing blank line (with a small indent so the
+            // continuation-line indentation is visible in the capture).
+            let last = m.line_count().saturating_sub(1);
+            m.move_to(last as i32, 0);
+            for ch in "  ".chars() {
+                m.insert_char(ch);
+            }
+            for ch in prefix.chars() {
+                m.insert_char(ch);
+            }
+            ctx.edit_probe_lock = true;
+            // Expand via the real engine + begin the tab-stop session (selects $1).
+            let lang = ctx.language;
+            let session = &mut ctx.snippet_session;
+            let model = ctx.tabs.active_model_mut();
+            let ok = crate::snippets::try_expand(model, session, lang);
+            println!(
+                "mui_init_s: MUI_SNIPPET_AUTOOPEN -> prefix=\"{prefix}\" expanded={ok}, active={}",
+                ctx.snippet_session.is_active()
+            );
+        }
+    }
+
     // Screenshot/render hook for multi-cursor: with MUI_MULTICURSOR_AUTOOPEN set,
     // seed a representative buffer and several carets + selections (a column block
     // plus Ctrl+D occurrence selections) so a headless capture shows multiple
