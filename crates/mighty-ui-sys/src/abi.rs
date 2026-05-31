@@ -9467,3 +9467,15 @@ pub extern "C" fn mui_chord(handle: i64, cp: i32, mods: i32) -> i32 {
     }
     0
 }
+
+/// Resolve a remappable chord to a palette command id without executing it.
+/// Mighty feeds the returned id into its shared command dispatcher, so remapped
+/// commands use the same path as palette Enter, Quick Open command mode, and
+/// mouse activation. Returns `-1` for fixed router chords or unbound chords.
+#[no_mangle]
+pub extern "C" fn mui_chord_command_id(handle: i64, cp: i32, mods: i32) -> i32 {
+    unsafe { ctx(handle) }
+        .and_then(|c| c.shortcuts.overrides().resolve(cp, mods))
+        .map(|id| id as i32)
+        .unwrap_or(-1)
+}

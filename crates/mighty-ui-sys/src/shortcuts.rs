@@ -125,23 +125,11 @@ pub struct ShortcutRow {
     pub remappable: bool,
 }
 
-/// The set of palette command ids that are BOTH detected and fully dispatched by
-/// [`crate::abi::mui_chord`] — the cleanly remappable subset (L37/L38: the router
-/// can fire them on any chord with no `src/main.mty` ladder change). Other palette
-/// commands (Save / Find / …) dispatch through main.mty locals and so are shown
-/// read-only here.
+/// The set of palette command ids that can be rebound to an Alt+letter chord.
+/// The router resolves to a palette id and Mighty executes it through the shared
+/// command dispatcher, so every palette command is eligible.
 pub fn is_remappable(cmd_id: u32) -> bool {
-    use crate::palette::*;
-    matches!(
-        cmd_id,
-        x if x == CMD_ZEN_MODE
-            || x == CMD_AGENTS
-            || x == CMD_GIT_TOGGLE_BLAME
-            || x == CMD_RUN_IN_BROWSER
-            || x == CMD_SPLIT_RIGHT
-            || x == CMD_MARKDOWN_PREVIEW
-            || x == CMD_OPEN_FOLDER
-    )
+    crate::palette::COMMANDS.iter().any(|cmd| cmd.id == cmd_id)
 }
 
 /// The DEFAULT chord for a remappable command (what the router fires on out of
@@ -158,6 +146,22 @@ pub fn default_chord(cmd_id: u32) -> Option<Chord> {
         x if x == CMD_SPLIT_RIGHT => c(92, MOD_CTRL),
         x if x == CMD_MARKDOWN_PREVIEW => c('v' as i32, MOD_CTRL | MOD_SHIFT),
         x if x == CMD_OPEN_FOLDER => c('o' as i32, MOD_CTRL | MOD_SHIFT),
+        x if x == CMD_OPEN_FILE => c('o' as i32, MOD_CTRL),
+        x if x == CMD_SAVE => c('s' as i32, MOD_CTRL),
+        x if x == CMD_FIND => c('f' as i32, MOD_CTRL),
+        x if x == CMD_GOTO_LINE => c('g' as i32, MOD_CTRL),
+        x if x == CMD_HOVER => c('k' as i32, MOD_CTRL),
+        x if x == CMD_TOGGLE_TERMINAL => c('`' as i32, MOD_CTRL),
+        x if x == CMD_TOGGLE_SIDEBAR => c('b' as i32, MOD_CTRL),
+        x if x == CMD_CLOSE_TAB => c('w' as i32, MOD_CTRL),
+        x if x == CMD_FORMAT_DOCUMENT => c('i' as i32, MOD_CTRL | MOD_SHIFT),
+        x if x == CMD_AUTOCOMPLETE => c(' ' as i32, MOD_CTRL),
+        x if x == CMD_JUMP_BACK => c('-' as i32, MOD_CTRL),
+        x if x == CMD_RUN_FILE => c('r' as i32, MOD_CTRL | MOD_SHIFT),
+        x if x == CMD_SETTINGS => c(',' as i32, MOD_CTRL),
+        x if x == CMD_RUN_TESTS => c('t' as i32, MOD_CTRL | MOD_SHIFT),
+        x if x == CMD_KEYBOARD_SHORTCUTS => c('/' as i32, MOD_CTRL | MOD_SHIFT),
+        x if x == CMD_FOLD_TOGGLE => c('[' as i32, MOD_CTRL | MOD_SHIFT),
         _ => None,
     }
 }
@@ -901,15 +905,33 @@ mod tests {
         assert!(rows.len() >= COMMANDS.len() + FIXED.len());
         assert_eq!(rows[0].name, COMMANDS[0].label);
         assert_eq!(rows[0].cmd_id, COMMANDS[0].id as i32);
-        // Remappable flag is set for the router subset only.
-        let zen = rows.iter().find(|r| r.cmd_id == CMD_ZEN_MODE as i32).unwrap();
-        assert!(zen.remappable);
+        // Every palette command can be rebound to an Alt+letter chord.
+        assert!(rows[..COMMANDS.len()].iter().all(|r| r.remappable));
         let save = rows.iter().find(|r| r.cmd_id == CMD_SAVE as i32).unwrap();
-        assert!(!save.remappable);
+        assert!(save.remappable);
         // Fixed rows are read-only with negative ids.
         let fixed = rows.iter().filter(|r| r.cmd_id < 0).count();
         assert_eq!(fixed, FIXED.len());
         assert!(rows.iter().filter(|r| r.cmd_id < 0).all(|r| !r.remappable));
+    }
+
+    #[test]
+    fn all_palette_commands_are_alt_remappable() {
+        for cmd in COMMANDS {
+            assert!(is_remappable(cmd.id), "{} should be remappable", cmd.label);
+        }
+    }
+
+    #[test]
+    fn direct_default_chords_resolve_for_common_commands() {
+        let ov = Overrides::new();
+        assert_eq!(ov.resolve('s' as i32, MOD_CTRL), Some(CMD_SAVE));
+        assert_eq!(ov.resolve('f' as i32, MOD_CTRL), Some(CMD_FIND));
+        assert_eq!(ov.resolve('r' as i32, MOD_CTRL | MOD_SHIFT), Some(CMD_RUN_FILE));
+        assert_eq!(
+            ov.resolve('t' as i32, MOD_CTRL | MOD_SHIFT),
+            Some(CMD_RUN_TESTS)
+        );
     }
 
     #[test]

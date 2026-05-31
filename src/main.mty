@@ -566,6 +566,7 @@ extern c {
   fn mui_blame_draw(handle: I64, rows: I32)
   // ---- centralized chord router (L37: new chords route here, not new arms) ----
   fn mui_chord(handle: I64, cp: I32, mods: I32) -> I32
+  fn mui_chord_command_id(handle: I64, cp: I32, mods: I32) -> I32
   // ---- code folding (per-tab) — fold/unfold/fold-all route via mui_fold_dispatch.
   // Recompute, gutter-click, and the visible↔source mapping are all shim-internal
   // (driven from mui_ed_draw / mui_ed_click), so only the dispatcher is declared.
@@ -2033,7 +2034,12 @@ fn main() {
           if opened == 1 { ai_focus = true } else { ai_focus = false }
           typing = false
         } else if is_router_chord(cp, mods) {               // Alt chords (Alt+\ ghost, Alt+Z zen, …) + split-pane Ctrl chords (Ctrl+\, Ctrl+1/2) via the shim router
-          let _c = mui_chord(h, cp, mods)
+          let rid = mui_chord_command_id(h, cp, mods)
+          if rid >= 0 {
+            command_click_id = rid
+          } else {
+            let _c = mui_chord(h, cp, mods)
+          }
           typing = false
         } else if is_inline_ask_chord(cp, mods) {           // Ctrl+I : inline ask about selection/file
           // Reuse the prompt UI to collect an instruction; routed on Enter to
