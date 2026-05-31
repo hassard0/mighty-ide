@@ -811,6 +811,25 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_COPY_ACTIVE_FILE_RELATIVE_PATH)
         .unwrap();
     assert_eq!(copy_relative.label, "File: Copy Active File Relative Path");
+
+    let clear_notifications = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_CLEAR_NOTIFICATIONS)
+        .unwrap();
+    assert_eq!(clear_notifications.label, "Notifications: Clear All Toasts");
+}
+
+#[test]
+fn toast_clear_abi_dismisses_visible_notifications() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    assert_eq!(crate::mui_toast_clear(handle), 0);
+    ctx.push_toast(crate::toast::Kind::Info, "First");
+    ctx.push_toast(crate::toast::Kind::Warn, "Second");
+    assert_eq!(ctx.toasts.len(), 2);
+    assert_eq!(crate::mui_toast_clear(handle), 1);
+    assert!(ctx.toasts.is_empty());
+    assert_eq!(crate::mui_toast_clear(handle), 0);
 }
 
 #[test]
@@ -1851,6 +1870,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
             CMD_COPY_ACTIVE_FILE_RELATIVE_PATH,
             "cmd_copy_active_file_relative_path",
         ),
+        (CMD_CLEAR_NOTIFICATIONS, "cmd_clear_notifications"),
         (CMD_OPEN_FILE, "cmd_open_file"),
         (CMD_SAVE, "cmd_save"),
         (CMD_SAVE_AS, "cmd_save_as"),

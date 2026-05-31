@@ -51,6 +51,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Copy Active File Path** copies the active file's full path to the system
   clipboard from the command palette; **Copy Active File Relative Path** copies
   the workspace-rooted slash-normalized path for issues, imports, and docs.
+- **Notifications: Clear All Toasts** dismisses the visible toast stack on demand
+  so stale save/build/error messages can be cleared immediately.
 - Agents live-inspect notes now reflect the Mighty runtime's Windows named-pipe
   control endpoint work, so the IDE no longer documents Windows as static-only.
 

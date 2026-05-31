@@ -554,6 +554,7 @@ extern c {
   // ---- toast notifications (transient bottom-right cards) ----
   fn mui_toast(handle: I64, kind: I32, msg_id: I32)
   fn mui_toast_tick(handle: I64) -> I32
+  fn mui_toast_clear(handle: I64) -> I32
   fn mui_toast_draw(handle: I64)
   // ---- Zen / focus mode ----
   fn mui_zen_toggle(handle: I64) -> I32
@@ -619,6 +620,7 @@ fn cmd_delete_active_file() -> I32 { 48 }
 fn cmd_reveal_active_file_in_os() -> I32 { 49 }
 fn cmd_copy_active_file_path() -> I32 { 50 }
 fn cmd_copy_active_file_relative_path() -> I32 { 51 }
+fn cmd_clear_notifications() -> I32 { 52 }
 fn cmd_open_file() -> I32 { 1 }
 fn cmd_save() -> I32 { 2 }
 fn cmd_save_as() -> I32 { 43 }
@@ -3134,6 +3136,9 @@ fn main() {
           find_nav = false
         } else if id == cmd_copy_active_file_relative_path() {
           let _crp = mui_file_copy_active_relative_path(h)
+          find_nav = false
+        } else if id == cmd_clear_notifications() {
+          let _tc = mui_toast_clear(h)
           find_nav = false
         } else if id == cmd_delete_active_file() {
           mui_prompt_open(h, prompt_delete_file())

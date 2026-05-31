@@ -162,6 +162,14 @@ impl ToastQueue {
         before != self.toasts.len()
     }
 
+    /// Clear every visible toast. Returns `true` when the stack changed so the
+    /// caller can request a redraw.
+    pub fn clear(&mut self) -> bool {
+        let had_toasts = !self.toasts.is_empty();
+        self.toasts.clear();
+        had_toasts
+    }
+
     /// Number of currently-live toasts.
     pub fn len(&self) -> usize {
         self.toasts.len()
@@ -436,5 +444,17 @@ mod tests {
         let mut q = ToastQueue::new();
         q.push(Kind::Info, "\r\n\t");
         assert_eq!(q.toasts()[0].message, "Notification");
+    }
+
+    #[test]
+    fn clear_drops_all_visible_toasts_and_reports_change() {
+        let mut q = ToastQueue::new();
+        assert!(!q.clear());
+        q.push(Kind::Info, "one");
+        q.push(Kind::Warn, "two");
+        assert_eq!(q.len(), 2);
+        assert!(q.clear());
+        assert!(q.is_empty());
+        assert!(!q.clear());
     }
 }

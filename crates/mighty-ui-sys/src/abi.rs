@@ -10091,6 +10091,15 @@ pub extern "C" fn mui_toast_tick(handle: i64) -> i32 {
     }
 }
 
+/// Clear all visible toast notifications. Returns 1 when anything was removed.
+#[no_mangle]
+pub extern "C" fn mui_toast_clear(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    i32::from(ctx.toasts.clear())
+}
+
 /// Draw the bottom-right toast stack over everything (overlay layer). No-op when
 /// empty.
 #[no_mangle]

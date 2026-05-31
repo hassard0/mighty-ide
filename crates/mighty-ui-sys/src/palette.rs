@@ -127,6 +127,8 @@ pub const CMD_REVEAL_ACTIVE_FILE_IN_OS: u32 = 49;
 pub const CMD_COPY_ACTIVE_FILE_PATH: u32 = 50;
 /// Copy the active file's path relative to the workspace/tree root.
 pub const CMD_COPY_ACTIVE_FILE_RELATIVE_PATH: u32 = 51;
+/// Clear every visible toast notification.
+pub const CMD_CLEAR_NOTIFICATIONS: u32 = 52;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -142,6 +144,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_COPY_ACTIVE_FILE_PATH, label: "File: Copy Active File Path", keybinding: "" },
     Command { id: CMD_COPY_ACTIVE_FILE_RELATIVE_PATH, label: "File: Copy Active File Relative Path", keybinding: "" },
     Command { id: CMD_DELETE_ACTIVE_FILE, label: "File: Delete Active File", keybinding: "" },
+    Command { id: CMD_CLEAR_NOTIFICATIONS, label: "Notifications: Clear All Toasts", keybinding: "" },
     Command { id: CMD_FIND,             label: "Find",               keybinding: "Ctrl+F" },
     Command { id: CMD_GOTO_LINE,        label: "Go to Line",         keybinding: "Ctrl+G" },
     Command { id: CMD_GOTO_DEFINITION,  label: "Go to Definition",   keybinding: "F12" },
@@ -436,6 +439,7 @@ impl PaletteEngine {
             CMD_COPY_ACTIVE_FILE_PATH => (icons::FILE_MTY, "Copy the active file path to the clipboard", false),
             CMD_COPY_ACTIVE_FILE_RELATIVE_PATH => (icons::FILE_MTY, "Copy the workspace-relative path", false),
             CMD_DELETE_ACTIVE_FILE => (icons::ERROR_CIRCLE, "Delete the active file after confirmation", false),
+            CMD_CLEAR_NOTIFICATIONS => (icons::CLOSE, "Dismiss every visible toast notification", false),
             CMD_FIND => (icons::SEARCH, "Search within the current document", false),
             CMD_GOTO_LINE => (icons::CHEVRON, "Jump to a specific line number", false),
             CMD_GOTO_DEFINITION => (icons::FN_SYMBOL, "Navigate to the symbol definition", false),
