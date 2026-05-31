@@ -1022,3 +1022,18 @@ on PATH still produced object-only output in this environment.
   executable is not produced. It should also honor `MTY_LINKER` on Windows paths
   with spaces, or emit the exact env/path it tried so linker discovery failures
   are actionable.
+
+### L51. Runtime ABI archives must track Mighty's imported symbol table **[language/tooling gap, P1]**
+After fixing `build-ide.sh` to fail on missing `target/main.exe`, the next native
+link failure was not linker discovery: `clang` was found, but `main.o` referenced
+new typed runtime symbols such as `mty_runtime_log_i32`, `mty_runtime_print_sep`,
+`mty_runtime_fmt_i32`, and `mty_runtime_str_concat`. The IDE's vendored
+`mty_rt_abi.lib` only exported the older runtime ABI, so the linker stopped with
+undefined symbols.
+
+- **IDE-side fix:** `crates/mty-rt-abi` now mirrors the compiler's typed
+  log/print/format/string-concat runtime surface, and the build restages the
+  refreshed static library into `vendor/mty_rt_abi.lib`.
+- **Mighty ask:** publish the runtime ABI symbol list as a generated header,
+  crate, or default static runtime artifact so native projects do not have to
+  manually discover new `mty_runtime_*` imports after compiler changes.

@@ -24,6 +24,7 @@
 
 use bumpalo::Bump;
 use std::cell::RefCell;
+use std::io::Write;
 
 // ---- arena ----------------------------------------------------------
 
@@ -77,6 +78,29 @@ unsafe fn read_bytes<'a>(ptr: i64, len: i64) -> &'a [u8] {
     std::slice::from_raw_parts(ptr as usize as *const u8, len as usize)
 }
 
+thread_local! {
+    static FMT_STRINGS: RefCell<Vec<Box<str>>> = const { RefCell::new(Vec::new()) };
+}
+
+fn intern_fmt(s: String) -> (i64, i64) {
+    FMT_STRINGS.with(|t| {
+        let boxed = s.into_boxed_str();
+        let ptr = boxed.as_ptr() as i64;
+        let len = boxed.len() as i64;
+        t.borrow_mut().push(boxed);
+        (ptr, len)
+    })
+}
+
+unsafe fn write_str_pair(dst: i64, ptr: i64, len: i64) {
+    if dst == 0 {
+        return;
+    }
+    let p = dst as usize as *mut i64;
+    p.write(ptr);
+    p.add(1).write(len);
+}
+
 #[no_mangle]
 pub extern "C" fn mty_runtime_log(ptr: i64, len: i64) {
     let bytes = unsafe { read_bytes(ptr, len) };
@@ -86,7 +110,6 @@ pub extern "C" fn mty_runtime_log(ptr: i64, len: i64) {
 
 #[no_mangle]
 pub extern "C" fn mty_runtime_print(ptr: i64, len: i64) {
-    use std::io::Write;
     let bytes = unsafe { read_bytes(ptr, len) };
     let stdout = std::io::stdout();
     let mut lock = stdout.lock();
@@ -170,6 +193,159 @@ pub extern "C" fn mty_runtime_log_i64(v: i64) {
     println!("{v}");
 }
 
+#[no_mangle]
+pub extern "C" fn mty_runtime_log_i32(v: i32) {
+    println!("{v}");
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_log_u32(v: u32) {
+    println!("{v}");
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_log_u64(v: u64) {
+    println!("{v}");
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_log_usize(v: i64) {
+    println!("{}", v as u64);
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_log_f32(v: f32) {
+    println!("{v}");
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_log_f64(v: f64) {
+    println!("{v}");
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_log_bool(v: i8) {
+    println!("{}", v != 0);
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_print_i32(v: i32) {
+    print!("{v}");
+    let _ = std::io::stdout().flush();
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_print_i64(v: i64) {
+    print!("{v}");
+    let _ = std::io::stdout().flush();
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_print_u32(v: u32) {
+    print!("{v}");
+    let _ = std::io::stdout().flush();
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_print_u64(v: u64) {
+    print!("{v}");
+    let _ = std::io::stdout().flush();
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_print_usize(v: i64) {
+    print!("{}", v as u64);
+    let _ = std::io::stdout().flush();
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_print_f32(v: f32) {
+    print!("{v}");
+    let _ = std::io::stdout().flush();
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_print_f64(v: f64) {
+    print!("{v}");
+    let _ = std::io::stdout().flush();
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_print_bool(v: i8) {
+    print!("{}", v != 0);
+    let _ = std::io::stdout().flush();
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_print_sep() {
+    print!(" ");
+    let _ = std::io::stdout().flush();
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_print_newline() {
+    println!();
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fmt_i32(v: i32, dst: i64) {
+    let (p, l) = intern_fmt(v.to_string());
+    unsafe { write_str_pair(dst, p, l) };
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fmt_i64_to_slot(v: i64, dst: i64) {
+    let (p, l) = intern_fmt(v.to_string());
+    unsafe { write_str_pair(dst, p, l) };
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fmt_u32(v: u32, dst: i64) {
+    let (p, l) = intern_fmt(v.to_string());
+    unsafe { write_str_pair(dst, p, l) };
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fmt_u64(v: u64, dst: i64) {
+    let (p, l) = intern_fmt(v.to_string());
+    unsafe { write_str_pair(dst, p, l) };
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fmt_usize(v: i64, dst: i64) {
+    let (p, l) = intern_fmt((v as u64).to_string());
+    unsafe { write_str_pair(dst, p, l) };
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fmt_f32(v: f32, dst: i64) {
+    let (p, l) = intern_fmt(v.to_string());
+    unsafe { write_str_pair(dst, p, l) };
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fmt_f64(v: f64, dst: i64) {
+    let (p, l) = intern_fmt(v.to_string());
+    unsafe { write_str_pair(dst, p, l) };
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fmt_bool(v: i8, dst: i64) {
+    let (p, l) = intern_fmt((v != 0).to_string());
+    unsafe { write_str_pair(dst, p, l) };
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_str_concat(aptr: i64, alen: i64, bptr: i64, blen: i64, dst: i64) {
+    let a = unsafe { read_bytes(aptr, alen) };
+    let b = unsafe { read_bytes(bptr, blen) };
+    let mut s = String::with_capacity(a.len() + b.len());
+    s.push_str(&String::from_utf8_lossy(a));
+    s.push_str(&String::from_utf8_lossy(b));
+    let (p, l) = intern_fmt(s);
+    unsafe { write_str_pair(dst, p, l) };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -193,5 +369,27 @@ mod tests {
     #[test]
     fn budget_charge_ok() {
         assert_eq!(mty_runtime_budget_charge(123), 1);
+    }
+
+    #[test]
+    fn fmt_i32_writes_string_slot() {
+        let mut slot = [0_i64; 2];
+        mty_runtime_fmt_i32(42, slot.as_mut_ptr() as i64);
+        let bytes = unsafe { read_bytes(slot[0], slot[1]) };
+        assert_eq!(bytes, b"42");
+    }
+
+    #[test]
+    fn concat_writes_string_slot() {
+        let mut slot = [0_i64; 2];
+        mty_runtime_str_concat(
+            "Mighty".as_ptr() as i64,
+            6,
+            " IDE".as_ptr() as i64,
+            4,
+            slot.as_mut_ptr() as i64,
+        );
+        let bytes = unsafe { read_bytes(slot[0], slot[1]) };
+        assert_eq!(bytes, b"Mighty IDE");
     }
 }
