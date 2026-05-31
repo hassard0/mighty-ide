@@ -23,7 +23,7 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Close Saved Tabs to the Left/Right**: directional tab cleanup around the
   active file, still preserving dirty buffers.
 - **Reopen Closed Tab** (`Ctrl+Alt+T`): restores the most recently closed editor
-  tab after an accidental close.
+  tab after an accidental close, including clean tabs removed by cleanup commands.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,
   ensure a final newline, and timed auto-save.
 

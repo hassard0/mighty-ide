@@ -1239,3 +1239,14 @@ for Mighty to reload the editor.
 - **Language note:** no new gap surfaced. The feature does reinforce the broader
   L63 note: command dispatch would be cleaner if Mighty had an ergonomic
   table-driven or enum-driven dispatcher instead of one scalar arm per command.
+
+### L65. Bulk cleanup history remains a tab-store invariant **[finding, P3]**
+Making bulk cleanup commands reversible did not require new Mighty language
+work. The shim already owns the closed-tab stack, so **Close Saved Tabs**,
+**Close Other Saved Tabs**, and directional cleanup can feed recoverable clean
+tabs into the same history that `Ctrl+Alt+T` consumes.
+
+- **IDE note:** cleanup commands should not be destructive when the removed tab
+  has file-backed content. Empty scratch tabs are still intentionally skipped.
+- **Language note:** no new gap surfaced. This again points to the same
+  dispatcher ergonomics gap from L63/L64, but the runtime boundary is sound.

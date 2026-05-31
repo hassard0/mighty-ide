@@ -918,6 +918,16 @@ fn close_saved_tabs_preserves_dirty_buffers_and_reports_count() {
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Closed 3 saved tabs");
 
+    assert_eq!(crate::mui_tab_reopen_closed(handle), 1);
+    assert_eq!(ctx.tabs.active(), 1);
+    assert_eq!(ctx.tabs.get(1).unwrap().basename(), "clean_c.mty");
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reopened clean_c.mty");
+
+    assert_eq!(crate::mui_tab_reopen_closed(handle), 2);
+    assert_eq!(ctx.tabs.active(), 2);
+    assert_eq!(ctx.tabs.get(2).unwrap().basename(), "clean_a.mty");
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reopened clean_a.mty");
+
     let _ = std::fs::remove_dir_all(&root);
 }
 
@@ -950,6 +960,11 @@ fn close_other_saved_tabs_keeps_active_and_dirty_buffers() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Closed 2 other saved tabs");
+
+    assert_eq!(crate::mui_tab_reopen_closed(handle), 2);
+    assert_eq!(ctx.tabs.active(), 2);
+    assert_eq!(ctx.tabs.get(2).unwrap().basename(), "clean_c.mty");
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reopened clean_c.mty");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -999,6 +1014,16 @@ fn close_saved_tabs_to_side_preserves_dirty_buffers() {
     assert!(ctx.tabs.is_dirty(2));
     let left_toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(left_toast.message, "Closed 2 saved tabs to the left");
+
+    assert_eq!(crate::mui_tab_reopen_closed(handle), 3);
+    assert_eq!(ctx.tabs.active(), 3);
+    assert_eq!(ctx.tabs.get(3).unwrap().basename(), "clean_left.mty");
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reopened clean_left.mty");
+
+    assert_eq!(crate::mui_tab_reopen_closed(handle), 4);
+    assert_eq!(ctx.tabs.active(), 4);
+    assert_eq!(ctx.tabs.get(4).unwrap().basename(), "clean_right.mty");
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reopened clean_right.mty");
 
     let _ = std::fs::remove_dir_all(&root);
 }

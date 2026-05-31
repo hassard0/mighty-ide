@@ -315,6 +315,12 @@ impl TabStore {
         }
     }
 
+    fn remember_closed_many(&mut self, tabs: Vec<Tab>) {
+        for tab in tabs {
+            self.remember_closed(tab);
+        }
+    }
+
     fn is_reopenable(tab: &Tab) -> bool {
         tab.path.is_some() || tab.is_dirty() || !tab.model.to_bytes().is_empty() || !tab.bytes.is_empty()
     }
@@ -329,18 +335,21 @@ impl TabStore {
         if self.tabs.len() == 1 && !self.tabs[0].is_dirty() && self.tabs[0].path.is_none() {
             return 0;
         }
-        let before = self.tabs.len();
         let old_active = self.active.min(self.tabs.len().saturating_sub(1));
-        let mut kept: Vec<(usize, Tab)> = self
-            .tabs
-            .drain(..)
-            .enumerate()
-            .filter(|(_, tab)| tab.is_dirty())
-            .collect();
-        let removed = before.saturating_sub(kept.len());
+        let mut kept: Vec<(usize, Tab)> = Vec::new();
+        let mut removed_tabs: Vec<Tab> = Vec::new();
+        for (idx, tab) in self.tabs.drain(..).enumerate() {
+            if tab.is_dirty() {
+                kept.push((idx, tab));
+            } else {
+                removed_tabs.push(tab);
+            }
+        }
+        let removed = removed_tabs.len();
         if kept.is_empty() {
             self.tabs.push(Tab::default());
             self.active = 0;
+            self.remember_closed_many(removed_tabs);
             return removed;
         }
         let new_active = kept
@@ -350,6 +359,7 @@ impl TabStore {
             .unwrap_or_else(|| kept.len().saturating_sub(1));
         self.tabs = kept.drain(..).map(|(_, tab)| tab).collect();
         self.active = new_active;
+        self.remember_closed_many(removed_tabs);
         removed
     }
 
@@ -361,14 +371,16 @@ impl TabStore {
             return 0;
         }
         let old_active = self.active.min(self.tabs.len().saturating_sub(1));
-        let before = self.tabs.len();
-        let mut kept: Vec<(usize, Tab)> = self
-            .tabs
-            .drain(..)
-            .enumerate()
-            .filter(|(idx, tab)| *idx == old_active || tab.is_dirty())
-            .collect();
-        let removed = before.saturating_sub(kept.len());
+        let mut kept: Vec<(usize, Tab)> = Vec::new();
+        let mut removed_tabs: Vec<Tab> = Vec::new();
+        for (idx, tab) in self.tabs.drain(..).enumerate() {
+            if idx == old_active || tab.is_dirty() {
+                kept.push((idx, tab));
+            } else {
+                removed_tabs.push(tab);
+            }
+        }
+        let removed = removed_tabs.len();
         let new_active = kept
             .iter()
             .position(|(idx, _)| *idx == old_active)
@@ -376,6 +388,7 @@ impl TabStore {
         self.tabs = kept.drain(..).map(|(_, tab)| tab).collect();
         self.active = new_active;
         self.ensure_scratch();
+        self.remember_closed_many(removed_tabs);
         removed
     }
 
@@ -388,15 +401,20 @@ impl TabStore {
         }
         let active = self.active.min(self.tabs.len().saturating_sub(1));
         let before = self.tabs.len();
-        self.tabs = self
-            .tabs
-            .drain(..)
-            .enumerate()
-            .filter(|(idx, tab)| *idx <= active || tab.is_dirty())
-            .map(|(_, tab)| tab)
-            .collect();
+        let mut kept: Vec<Tab> = Vec::new();
+        let mut removed_tabs: Vec<Tab> = Vec::new();
+        for (idx, tab) in self.tabs.drain(..).enumerate() {
+            if idx <= active || tab.is_dirty() {
+                kept.push(tab);
+            } else {
+                removed_tabs.push(tab);
+            }
+        }
+        self.tabs = kept;
         self.active = active.min(self.tabs.len().saturating_sub(1));
-        before.saturating_sub(self.tabs.len())
+        let removed = before.saturating_sub(self.tabs.len());
+        self.remember_closed_many(removed_tabs);
+        removed
     }
 
     /// Close clean tabs to the left of the active tab, preserving dirty tabs.
@@ -408,12 +426,15 @@ impl TabStore {
         }
         let old_active = self.active.min(self.tabs.len().saturating_sub(1));
         let before = self.tabs.len();
-        let mut kept: Vec<(usize, Tab)> = self
-            .tabs
-            .drain(..)
-            .enumerate()
-            .filter(|(idx, tab)| *idx >= old_active || tab.is_dirty())
-            .collect();
+        let mut kept: Vec<(usize, Tab)> = Vec::new();
+        let mut removed_tabs: Vec<Tab> = Vec::new();
+        for (idx, tab) in self.tabs.drain(..).enumerate() {
+            if idx >= old_active || tab.is_dirty() {
+                kept.push((idx, tab));
+            } else {
+                removed_tabs.push(tab);
+            }
+        }
         let removed = before.saturating_sub(kept.len());
         let new_active = kept
             .iter()
@@ -421,6 +442,7 @@ impl TabStore {
             .unwrap_or(0);
         self.tabs = kept.drain(..).map(|(_, tab)| tab).collect();
         self.active = new_active;
+        self.remember_closed_many(removed_tabs);
         removed
     }
 
@@ -650,6 +672,27 @@ mod tests {
     }
 
     #[test]
+    fn close_saved_tabs_can_be_reopened_from_history() {
+        let mut s = TabStore::new();
+        let clean_a = write_tmp("tabs_close_saved_reopen_a.txt", b"a");
+        let dirty_b = write_tmp("tabs_close_saved_reopen_b.txt", b"b");
+        let clean_c = write_tmp("tabs_close_saved_reopen_c.txt", b"c");
+        s.open_path(clean_a);
+        let dirty = s.open_path(dirty_b);
+        s.set_dirty(dirty, true);
+        s.open_path(clean_c);
+
+        assert_eq!(s.close_saved(), 2);
+        assert_eq!(s.closed_count(), 2);
+        let reopened = s.reopen_closed().unwrap();
+        assert_eq!(s.active(), reopened);
+        assert!(s.get(reopened).unwrap().basename().contains("tabs_close_saved_reopen_c"));
+        let reopened = s.reopen_closed().unwrap();
+        assert!(s.get(reopened).unwrap().basename().contains("tabs_close_saved_reopen_a"));
+        assert_eq!(s.closed_count(), 0);
+    }
+
+    #[test]
     fn close_other_saved_keeps_active_and_dirty_tabs() {
         let mut s = TabStore::new();
         let clean_active = write_tmp("tabs_close_other_saved_active.txt", b"a");
@@ -709,6 +752,9 @@ mod tests {
         assert!(s.get(0).unwrap().basename().contains("tabs_close_left_dirty"));
         assert!(s.get(1).unwrap().basename().contains("tabs_close_left_active"));
         assert!(s.get(0).unwrap().is_dirty());
+        assert_eq!(s.closed_count(), 1);
+        let reopened = s.reopen_closed().unwrap();
+        assert!(s.get(reopened).unwrap().basename().contains("tabs_close_left_clean"));
     }
 
     #[test]
