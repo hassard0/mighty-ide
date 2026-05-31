@@ -126,7 +126,7 @@ impl ToastQueue {
 
     /// Test/seam hook: push with an explicit timestamp.
     pub fn push_at(&mut self, kind: Kind, message: impl Into<String>, now: Instant) {
-        let message = message.into();
+        let message = sanitize_message(message.into());
         // De-dupe an identical message that is still on screen: refresh it
         // instead of stacking duplicates (e.g. repeated "Saved").
         if let Some(t) = self
@@ -300,6 +300,31 @@ fn accent_a(c: MuiColor, a: f32) -> MuiColor {
     MuiColor::new(c.r, c.g, c.b, a)
 }
 
+/// Toasts are single-line cards. Normalize multi-line command output before it
+/// hits layout so old/gutter text cannot visually bleed into the next toast.
+fn sanitize_message(raw: String) -> String {
+    let mut out = String::new();
+    let mut last_space = false;
+    for ch in raw.chars() {
+        let ch = if ch.is_control() { ' ' } else { ch };
+        if ch.is_whitespace() {
+            if !last_space {
+                out.push(' ');
+                last_space = true;
+            }
+        } else {
+            out.push(ch);
+            last_space = false;
+        }
+    }
+    let trimmed = out.trim();
+    if trimmed.is_empty() {
+        "Notification".to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
 /// Truncate `s` to roughly `max_px` wide at the UI font, appending an ellipsis.
 /// Uses a coarse per-char advance estimate (the proportional UI font); good
 /// enough for a one-line toast message (the renderer clips anyway).
@@ -391,5 +416,25 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert!(!q.tick_at(t0 + LIFETIME + Duration::from_millis(1)));
         assert_eq!(q.len(), 1);
+    }
+
+    #[test]
+    fn push_sanitizes_multiline_messages_for_single_line_cards() {
+        let mut q = ToastQueue::new();
+        q.push(
+            Kind::Error,
+            "Save failed:\r\nC:\\tmp\\main.mty\tpermission denied\u{0007}",
+        );
+        assert_eq!(
+            q.toasts()[0].message,
+            "Save failed: C:\\tmp\\main.mty permission denied"
+        );
+    }
+
+    #[test]
+    fn blank_messages_fall_back_to_a_stable_label() {
+        let mut q = ToastQueue::new();
+        q.push(Kind::Info, "\r\n\t");
+        assert_eq!(q.toasts()[0].message, "Notification");
     }
 }
