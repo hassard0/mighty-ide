@@ -1735,6 +1735,85 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     }
 }
 
+#[test]
+fn every_palette_command_is_routed_by_mighty_dispatcher() {
+    use crate::palette::*;
+
+    let main = include_str!("../../../src/main.mty");
+    let ranges = [
+        (CMD_GIT_FIRST, CMD_GIT_TOGGLE_BLAME),
+        (CMD_PANE_FIRST, CMD_PANE_LAST),
+        (CMD_WS_FIRST, CMD_WS_LAST),
+        (CMD_FOLD_FIRST, CMD_FOLD_LAST),
+    ];
+    let direct = [
+        (CMD_NEW_FILE, "cmd_new_file"),
+        (CMD_NEW_FOLDER, "cmd_new_folder"),
+        (CMD_RENAME_ACTIVE_FILE, "cmd_rename_active_file"),
+        (CMD_REVEAL_ACTIVE_FILE, "cmd_reveal_active_file"),
+        (CMD_DELETE_ACTIVE_FILE, "cmd_delete_active_file"),
+        (CMD_OPEN_FILE, "cmd_open_file"),
+        (CMD_SAVE, "cmd_save"),
+        (CMD_SAVE_AS, "cmd_save_as"),
+        (CMD_FIND, "cmd_find"),
+        (CMD_GOTO_LINE, "cmd_goto_line"),
+        (CMD_GOTO_DEFINITION, "cmd_goto_definition"),
+        (CMD_HOVER, "cmd_hover"),
+        (CMD_TOGGLE_TERMINAL, "cmd_toggle_terminal"),
+        (CMD_TOGGLE_SIDEBAR, "cmd_toggle_sidebar"),
+        (CMD_NEXT_TAB, "cmd_next_tab"),
+        (CMD_PREV_TAB, "cmd_prev_tab"),
+        (CMD_CLOSE_TAB, "cmd_close_tab"),
+        (CMD_FORMAT_DOCUMENT, "cmd_format_document"),
+        (CMD_UNDO, "cmd_undo"),
+        (CMD_REDO, "cmd_redo"),
+        (CMD_AUTOCOMPLETE, "cmd_autocomplete"),
+        (CMD_JUMP_BACK, "cmd_jump_back"),
+        (CMD_QUIT, "cmd_quit"),
+        (CMD_COLOR_THEME, "cmd_color_theme"),
+        (CMD_RUN_FILE, "cmd_run_file"),
+        (CMD_SETTINGS, "cmd_settings"),
+        (CMD_RUN_TESTS, "cmd_run_tests"),
+        (CMD_PEEK_DEFINITION, "cmd_peek_definition"),
+        (CMD_WELCOME, "cmd_welcome"),
+        (CMD_ZEN_MODE, "cmd_zen_mode"),
+        (CMD_AGENTS, "cmd_agents"),
+        (CMD_RUN_IN_BROWSER, "cmd_run_in_browser"),
+        (CMD_KEYBOARD_SHORTCUTS, "cmd_keyboard_shortcuts"),
+        (CMD_NEW_PROJECT, "cmd_new_project"),
+    ];
+
+    for cmd in COMMANDS {
+        if ranges
+            .iter()
+            .find(|(first, last)| cmd.id >= *first && cmd.id <= *last)
+            .is_some()
+        {
+            continue;
+        }
+        let Some((_, helper)) = direct.iter().find(|(id, _)| *id == cmd.id) else {
+            panic!(
+                "palette command `{}` ({}) has no expected dispatcher mapping; add a direct helper or a range",
+                cmd.label, cmd.id
+            );
+        };
+        let helper_def = format!("fn {helper}() -> I32 {{ {}", cmd.id);
+        assert!(
+            main.contains(&helper_def),
+            "Mighty helper `{helper}` must mirror palette id {} for `{}`",
+            cmd.id,
+            cmd.label
+        );
+        let dispatch_arm = format!("id == {helper}()");
+        assert!(
+            main.contains(&dispatch_arm),
+            "palette command `{}` ({}) must be handled by the central Mighty dispatcher",
+            cmd.label,
+            cmd.id
+        );
+    }
+}
+
 /// Shim-side window-chrome + zoom interception (the v0.36-parser-safe move of the
 /// title bar + zoom OUT of main.mty and INTO `mui_poll_event_s`). These drive
 /// REAL winit `WindowEvent`s through `translate_window_event` into the live event
