@@ -190,9 +190,8 @@ fn pathext() -> Vec<String> {
 /// no server configured for this language, it's explicitly disabled, or the
 /// program isn't found on PATH.
 ///
-/// Special-case Mighty: the program resolves through the existing
-/// [`mty_resolved_path`] (honors `MIGHTY_MTY` + the dev-build fallback) so the
-/// `mty lsp` path keeps working exactly as before even when `mty` isn't on PATH.
+/// Special-case Mighty: the program resolves through the shared compiler
+/// resolver so `mty lsp` keeps working even when `mty` is not on PATH.
 pub fn server_for(lang: Language) -> Option<ServerSpec> {
     resolve_spec(lang, load_override(lang))
 }
@@ -216,8 +215,7 @@ pub fn resolve_spec(
     };
 
     if lang == Language::Mighty {
-        // The Mighty client resolves `mty` itself (MIGHTY_MTY / dev path / PATH);
-        // hand back the program as-is so behavior is unchanged.
+        // The Mighty client resolves `mty` itself through the shared resolver.
         let resolved = mty_resolved_path();
         return Some(ServerSpec {
             program: resolved,
@@ -233,19 +231,9 @@ pub fn resolve_spec(
     })
 }
 
-/// The `mty` path used for the Mighty LSP/diagnostics (honors `MIGHTY_MTY`, then
-/// the known dev build path, else bare `mty`). Mirrors the per-module helpers.
+/// The `mty` path used for the Mighty LSP/diagnostics.
 pub fn mty_resolved_path() -> String {
-    if let Ok(p) = std::env::var("MIGHTY_MTY") {
-        if !p.trim().is_empty() {
-            return p;
-        }
-    }
-    const DEV: &str = r"C:\Users\ihass\stardust\target\debug\mty.exe";
-    if Path::new(DEV).exists() {
-        return DEV.to_string();
-    }
-    "mty".to_string()
+    crate::mty::path()
 }
 
 /// Whether `lang` has any configured server at all (ignoring whether it's
@@ -342,7 +330,7 @@ boguslang = whatever
 
     #[test]
     fn resolve_spec_mighty_always_available() {
-        // Mighty resolves itself (MIGHTY_MTY / dev path / bare `mty`) without a
+        // Mighty resolves itself through the shared compiler resolver without a
         // PATH check, so a spec is always produced with the `lsp` arg.
         let spec = resolve_spec(Language::Mighty, None).expect("mighty spec");
         assert_eq!(spec.args, vec!["lsp".to_string()]);

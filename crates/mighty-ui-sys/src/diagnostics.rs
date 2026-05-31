@@ -201,19 +201,9 @@ pub fn parse_check_output(raw: &str) -> Vec<Diag> {
     diags
 }
 
-/// Resolve the path to the `mty` compiler: honor `MIGHTY_MTY`, else fall back to
-/// the known dev build path, else bare `mty` (relying on `PATH`).
+/// Resolve the path to the `mty` compiler through the shared resolver.
 fn mty_path() -> String {
-    if let Ok(p) = std::env::var("MIGHTY_MTY") {
-        if !p.trim().is_empty() {
-            return p;
-        }
-    }
-    const DEV: &str = r"C:\Users\ihass\stardust\target\debug\mty.exe";
-    if Path::new(DEV).exists() {
-        return DEV.to_string();
-    }
-    "mty".to_string()
+    crate::mty::path()
 }
 
 /// Run `mty check <path>` and parse the result. Returns the parsed diagnostics.

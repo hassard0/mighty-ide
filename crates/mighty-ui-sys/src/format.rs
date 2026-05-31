@@ -32,20 +32,9 @@ pub fn is_mty_path(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// Resolve the path to the `mty` compiler: honor `MIGHTY_MTY`, else the known
-/// dev build path, else bare `mty` (relying on `PATH`). Mirrors
-/// [`crate::diagnostics`]'s resolver so both subprocess features agree.
+/// Resolve the path to the `mty` compiler through the shared resolver.
 fn mty_path() -> String {
-    if let Ok(p) = std::env::var("MIGHTY_MTY") {
-        if !p.trim().is_empty() {
-            return p;
-        }
-    }
-    const DEV: &str = r"C:\Users\ihass\stardust\target\debug\mty.exe";
-    if Path::new(DEV).exists() {
-        return DEV.to_string();
-    }
-    "mty".to_string()
+    crate::mty::path()
 }
 
 /// Format `path` in place via `mty fmt <path>`, but ONLY if it is a `.mty` file.

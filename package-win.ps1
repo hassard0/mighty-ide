@@ -5,7 +5,7 @@
 [CmdletBinding()]
 param(
   [string]$Version = "v0.3.0",
-  [string]$Mty = "C:\Users\ihass\stardust\target\debug\mty.exe",
+  [string]$Mty = "",
   [string]$Clang = "C:\Program Files\LLVM\bin\clang.exe"
 )
 

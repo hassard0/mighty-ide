@@ -604,17 +604,33 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
         }
 
         if kind == LineKind::Hunk {
-            // Hunk header spans the row (its own text already includes @@...@@).
-            ctx.text.queue(region.left + 8.0, ty, &text, fg, clip);
             // Per-hunk Stage / Unstage affordance, right-aligned on the header row.
             // "Stage hunk" when viewing the working tree, "Unstage hunk" when
             // viewing the staged side. Clicks land via `mui_diff_hunk_at_click`.
             let staged = ctx.diff.staged();
-            let label = if staged { "\u{2212} Unstage hunk" } else { "+ Stage hunk" };
+            let pane_w = (w - region.left).max(0.0);
+            let label = if pane_w < 360.0 {
+                if staged { "\u{2212} Unstage" } else { "+ Stage" }
+            } else if staged {
+                "\u{2212} Unstage hunk"
+            } else {
+                "+ Stage hunk"
+            };
             let lw = label.chars().count() as f32 * (chrome * 0.52) + 18.0;
             let bx = w - 14.0 - lw;
             let bh = line_h - 6.0;
             let bcol = if staged { theme::WARNING() } else { theme::GREEN() };
+
+            // Hunk header spans the row, but must reserve room for the stage
+            // pill. Narrow panes used to paint the pill directly over the
+            // optional section text after the second @@.
+            let hunk_x = region.left + 8.0;
+            let hunk_avail = ((bx - hunk_x - 10.0) / adv).floor().max(0.0) as usize;
+            let mut shown = text;
+            if shown.chars().count() > hunk_avail && hunk_avail > 1 {
+                shown = shown.chars().take(hunk_avail - 1).collect::<String>() + "\u{2026}";
+            }
+            ctx.text.queue(hunk_x, ty, &shown, fg, clip);
             ctx.dl_round(bx, y + 3.0, lw, bh, 5.0, theme::accent_a(0.10));
             ctx.dl_stroke(bx, y + 3.0, lw, bh, 5.0, theme::BORDER_STRONG(), 1.0);
             ctx.text.queue_ui_sized(bx + 9.0, ty, label, bcol, chrome - 1.0, clip);

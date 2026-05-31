@@ -851,16 +851,7 @@ pub struct DapSession {
 }
 
 fn mty_path() -> String {
-    if let Ok(p) = std::env::var("MIGHTY_MTY") {
-        if !p.trim().is_empty() {
-            return p;
-        }
-    }
-    const DEV: &str = r"C:\Users\ihass\stardust\target\debug\mty.exe";
-    if Path::new(DEV).exists() {
-        return DEV.to_string();
-    }
-    "mty".to_string()
+    crate::mty::path()
 }
 
 fn file_uri_path(path: &Path) -> String {

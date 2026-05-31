@@ -26,19 +26,9 @@ unsafe fn ctx<'a>(handle: i64) -> Option<&'a mut MuiContext> {
     (handle as usize as *mut MuiContext).as_mut()
 }
 
-/// Resolve the `mty` compiler path: `MIGHTY_MTY` env, else the dev build path,
-/// else bare `mty` (found on PATH). Shared shape with the other shim sites.
+/// Resolve the `mty` compiler path through the shared resolver.
 fn mty_path() -> String {
-    if let Ok(p) = std::env::var("MIGHTY_MTY") {
-        if !p.trim().is_empty() {
-            return p;
-        }
-    }
-    const DEV: &str = r"C:\Users\ihass\stardust\target\debug\mty.exe";
-    if Path::new(DEV).exists() {
-        return DEV.to_string();
-    }
-    "mty".to_string()
+    crate::mty::path()
 }
 
 /// Create a new Mighty project from the NAME staged in the shared path buffer.

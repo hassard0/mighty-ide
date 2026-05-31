@@ -4,7 +4,7 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$Mty = "C:\Users\ihass\stardust\target\debug\mty.exe",
+  [string]$Mty = "",
   [string]$Clang = "C:\Program Files\LLVM\bin\clang.exe",
   [switch]$Release
 )
@@ -13,6 +13,40 @@ $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
 
+function Resolve-MtyCompiler {
+  param([string]$Requested)
+
+  if (-not [string]::IsNullOrWhiteSpace($Requested)) {
+    if (Test-Path -LiteralPath $Requested -PathType Leaf) {
+      return (Resolve-Path -LiteralPath $Requested).Path
+    }
+    throw "mty compiler not found: $Requested"
+  }
+
+  if (-not [string]::IsNullOrWhiteSpace($env:MIGHTY_MTY)) {
+    if (Test-Path -LiteralPath $env:MIGHTY_MTY -PathType Leaf) {
+      return (Resolve-Path -LiteralPath $env:MIGHTY_MTY).Path
+    }
+    throw "MIGHTY_MTY points to a missing compiler: $env:MIGHTY_MTY"
+  }
+
+  foreach ($candidate in @(
+    "C:\Users\ihass\stardust\target\release\mty.exe",
+    "C:\Users\ihass\stardust\target\debug\mty.exe",
+    "C:\Users\ihass\stardust-v035-T2\target\debug\mty.exe"
+  )) {
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+      return (Resolve-Path -LiteralPath $candidate).Path
+    }
+  }
+
+  $cmd = Get-Command mty -ErrorAction SilentlyContinue
+  if ($cmd) { return $cmd.Source }
+
+  throw "mty compiler not found. Set -Mty or MIGHTY_MTY."
+}
+
+$Mty = Resolve-MtyCompiler $Mty
 if (-not (Test-Path -LiteralPath $Mty -PathType Leaf)) {
   throw "mty compiler not found: $Mty"
 }

@@ -6378,15 +6378,7 @@ pub(crate) fn compute_line_actions(
 
 /// `1` if `mty fix --help` succeeds (the fixer subcommand exists).
 pub(crate) fn mty_fix_available() -> bool {
-    let mty = if let Ok(p) = std::env::var("MIGHTY_MTY") {
-        if !p.trim().is_empty() {
-            p
-        } else {
-            mty_default()
-        }
-    } else {
-        mty_default()
-    };
+    let mty = mty_default();
     std::process::Command::new(&mty)
         .arg("fix")
         .arg("--help")
@@ -6399,12 +6391,7 @@ pub(crate) fn mty_fix_available() -> bool {
 }
 
 fn mty_default() -> String {
-    const DEV: &str = r"C:\Users\ihass\stardust\target\debug\mty.exe";
-    if std::path::Path::new(DEV).exists() {
-        DEV.to_string()
-    } else {
-        "mty".to_string()
-    }
+    crate::mty::path()
 }
 
 /// `1` while the code-action menu is active.

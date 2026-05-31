@@ -203,19 +203,9 @@ impl TestPanel {
         self.first = f as usize;
     }
 
-    /// Resolve `mty`. Mirrors [`crate::run`]'s resolver (honors `MIGHTY_MTY`,
-    /// else the dev build, else bare `mty`).
+    /// Resolve `mty` through the shared Mighty compiler resolver.
     fn mty_path() -> String {
-        if let Ok(p) = std::env::var("MIGHTY_MTY") {
-            if !p.trim().is_empty() {
-                return p;
-            }
-        }
-        const DEV: &str = r"C:\Users\ihass\stardust\target\debug\mty.exe";
-        if Path::new(DEV).exists() {
-            return DEV.to_string();
-        }
-        "mty".to_string()
+        crate::mty::path()
     }
 
     /// The package directory for `file`: the nearest ancestor that contains a

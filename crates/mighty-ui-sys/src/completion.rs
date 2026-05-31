@@ -496,16 +496,7 @@ pub mod lsp {
 
     /// Resolve the `mty` binary the same way diagnostics does.
     fn mty_path() -> String {
-        if let Ok(p) = std::env::var("MIGHTY_MTY") {
-            if !p.trim().is_empty() {
-                return p;
-            }
-        }
-        const DEV: &str = r"C:\Users\ihass\stardust\target\debug\mty.exe";
-        if Path::new(DEV).exists() {
-            return DEV.to_string();
-        }
-        "mty".to_string()
+        crate::mty::path()
     }
 
     /// Frame a JSON-RPC message with the LSP `Content-Length` header.
@@ -1006,9 +997,9 @@ mod tests {
         use std::path::PathBuf;
         use std::time::Duration;
 
-        // Resolve mty the way the client does; if it's not present, skip.
-        let dev = PathBuf::from(r"C:\Users\ihass\stardust\target\debug\mty.exe");
-        let has_mty = std::env::var_os("MIGHTY_MTY").is_some() || dev.exists();
+        // Resolve mty the way the client does; if it is not present, skip.
+        let mty = PathBuf::from(crate::mty::path());
+        let has_mty = std::env::var_os("MIGHTY_MTY").is_some() || mty.exists();
         if !has_mty {
             eprintln!("lsp_semantic_completion_end_to_end: no mty binary — skipping");
             return;

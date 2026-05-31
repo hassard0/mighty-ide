@@ -38,6 +38,7 @@ mod language;
 mod layout;
 mod markdown;
 mod mdpreview;
+mod mty;
 mod lspclient;
 mod lspregistry;
 mod nav;
