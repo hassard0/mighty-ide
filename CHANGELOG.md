@@ -18,6 +18,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   leaves untitled buffers dirty with a toast that says they still need Save As.
 - **Close Saved Tabs**: clears clean tab clutter while preserving every dirty
   buffer.
+- **Close Other Saved Tabs**: keeps the active tab plus dirty tabs and removes
+  the rest of the clean tab clutter.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,
   ensure a final newline, and timed auto-save.
 

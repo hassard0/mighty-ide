@@ -151,6 +151,7 @@ extern c {
   fn mui_tab_prev(handle: I64) -> I32
   fn mui_tab_close(handle: I64, idx: I32) -> I32
   fn mui_tab_close_saved(handle: I64) -> I32
+  fn mui_tab_close_other_saved(handle: I64) -> I32
   fn mui_tab_index_at_click(handle: I64) -> I32
   fn mui_tab_close_index_at_click(handle: I64) -> I32
   fn mui_tab_set_dirty(handle: I64, idx: I32, dirty: I32)
@@ -638,6 +639,7 @@ fn cmd_next_tab() -> I32 { 9 }
 fn cmd_prev_tab() -> I32 { 10 }
 fn cmd_close_tab() -> I32 { 11 }
 fn cmd_close_saved_tabs() -> I32 { 54 }
+fn cmd_close_other_saved_tabs() -> I32 { 55 }
 fn cmd_format_document() -> I32 { 12 }
 fn cmd_undo() -> I32 { 13 }
 fn cmd_redo() -> I32 { 14 }
@@ -3259,6 +3261,15 @@ fn main() {
           }
         } else if id == cmd_close_saved_tabs() {
           let a = mui_tab_close_saved(h)
+          if a >= 0 {
+            let _b = mui_ed_tab_switch(h, a)
+            mui_ed_undo_reset(h)
+            find_nav = false
+            let _r = mui_diag_refresh(h)
+            let _o = mui_outline_refresh(h)
+          }
+        } else if id == cmd_close_other_saved_tabs() {
+          let a = mui_tab_close_other_saved(h)
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)

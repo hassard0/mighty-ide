@@ -3041,6 +3041,26 @@ pub extern "C" fn mui_tab_close_saved(handle: i64) -> i32 {
     active as i32
 }
 
+/// Close every clean tab except the active tab, preserving dirty tabs. Returns
+/// the new active tab index, or -1 when nothing was closed.
+#[no_mangle]
+pub extern "C" fn mui_tab_close_other_saved(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let removed = ctx.tabs.close_other_saved();
+    if removed == 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No other saved tabs to close");
+        return -1;
+    }
+    let active = ctx.tabs.active();
+    sync_active_path(ctx);
+    ctx.panes = crate::panes::PaneLayout::new(active);
+    let noun = if removed == 1 { "tab" } else { "tabs" };
+    ctx.push_toast(crate::toast::Kind::Info, format!("Closed {removed} other saved {noun}"));
+    active as i32
+}
+
 /// Request application exit. If any tab has unsaved edits, the first request
 /// warns and returns `0`; a second request within five seconds returns `1` so
 /// Mighty can exit intentionally. Clean workspaces return `1` immediately.

@@ -829,6 +829,12 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_SAVED_TABS)
         .unwrap();
     assert_eq!(close_saved.label, "File: Close Saved Tabs");
+
+    let close_other_saved = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_OTHER_SAVED_TABS)
+        .unwrap();
+    assert_eq!(close_other_saved.label, "File: Close Other Saved Tabs");
 }
 
 #[test]
@@ -892,6 +898,39 @@ fn close_saved_tabs_preserves_dirty_buffers_and_reports_count() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Closed 3 saved tabs");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn close_other_saved_tabs_keeps_active_and_dirty_buffers() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_close_other_saved_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let active_a = root.join("active_a.mty");
+    let dirty_b = root.join("dirty_b.mty");
+    let clean_c = root.join("clean_c.mty");
+    std::fs::write(&active_a, "a").unwrap();
+    std::fs::write(&dirty_b, "b").unwrap();
+    std::fs::write(&clean_c, "c").unwrap();
+
+    let active = ctx.tabs.open_path(active_a);
+    let dirty = ctx.tabs.open_path(dirty_b);
+    ctx.tabs.set_dirty(dirty, true);
+    ctx.tabs.open_path(clean_c);
+    ctx.tabs.switch(active);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_tab_close_other_saved(handle), 0);
+    assert_eq!(ctx.tabs.count(), 2);
+    assert_eq!(ctx.tabs.active(), 0);
+    assert_eq!(ctx.tabs.get(0).unwrap().basename(), "active_a.mty");
+    assert_eq!(ctx.tabs.get(1).unwrap().basename(), "dirty_b.mty");
+    assert!(ctx.tabs.is_dirty(1));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Closed 2 other saved tabs");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -1987,6 +2026,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_PREV_TAB, "cmd_prev_tab"),
         (CMD_CLOSE_TAB, "cmd_close_tab"),
         (CMD_CLOSE_SAVED_TABS, "cmd_close_saved_tabs"),
+        (CMD_CLOSE_OTHER_SAVED_TABS, "cmd_close_other_saved_tabs"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),
         (CMD_UNDO, "cmd_undo"),
         (CMD_REDO, "cmd_redo"),

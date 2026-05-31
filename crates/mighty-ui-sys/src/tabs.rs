@@ -310,6 +310,32 @@ impl TabStore {
         removed
     }
 
+    /// Close every clean tab except the active tab, preserving all dirty tabs.
+    /// Returns the number of tabs removed.
+    pub fn close_other_saved(&mut self) -> usize {
+        if self.tabs.is_empty() {
+            self.ensure_scratch();
+            return 0;
+        }
+        let old_active = self.active.min(self.tabs.len().saturating_sub(1));
+        let before = self.tabs.len();
+        let mut kept: Vec<(usize, Tab)> = self
+            .tabs
+            .drain(..)
+            .enumerate()
+            .filter(|(idx, tab)| *idx == old_active || tab.is_dirty())
+            .collect();
+        let removed = before.saturating_sub(kept.len());
+        let new_active = kept
+            .iter()
+            .position(|(idx, _)| *idx == old_active)
+            .unwrap_or(0);
+        self.tabs = kept.drain(..).map(|(_, tab)| tab).collect();
+        self.active = new_active;
+        self.ensure_scratch();
+        removed
+    }
+
     /// True when tab `idx` has unsaved edits.
     pub fn is_dirty(&self, idx: usize) -> bool {
         self.tabs.get(idx).map(Tab::is_dirty).unwrap_or(false)
@@ -533,5 +559,27 @@ mod tests {
         assert!(s.get(0).unwrap().path.is_none());
         assert_eq!(s.active(), 0);
         assert_eq!(s.close_saved(), 0);
+    }
+
+    #[test]
+    fn close_other_saved_keeps_active_and_dirty_tabs() {
+        let mut s = TabStore::new();
+        let clean_active = write_tmp("tabs_close_other_saved_active.txt", b"a");
+        let dirty = write_tmp("tabs_close_other_saved_dirty.txt", b"b");
+        let clean_other = write_tmp("tabs_close_other_saved_other.txt", b"c");
+        let ia = s.open_path(clean_active);
+        let ib = s.open_path(dirty);
+        s.open_path(clean_other);
+        s.set_dirty(ib, true);
+        s.switch(ia);
+
+        assert_eq!(s.close_other_saved(), 1);
+        assert_eq!(s.count(), 2);
+        assert_eq!(s.active(), 0);
+        assert!(s.get(0).unwrap().basename().contains("tabs_close_other_saved_active"));
+        assert!(s.get(1).unwrap().basename().contains("tabs_close_other_saved_dirty"));
+        assert!(!s.get(0).unwrap().is_dirty());
+        assert!(s.get(1).unwrap().is_dirty());
+        assert_eq!(s.close_other_saved(), 0);
     }
 }

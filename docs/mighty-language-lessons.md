@@ -1201,3 +1201,15 @@ the returned active-tab index.
 - **Language note:** no new gap surfaced. The current scalar command boundary is
   adequate because the safety-critical tab filtering and dirty checks are
   shim-owned and unit-tested.
+
+### L62. Active-context tab cleanup is still shim-owned **[finding, P3]**
+Adding **Close Other Saved Tabs** followed the same boundary as L61. The shim
+keeps the active tab, preserves every dirty tab, removes only clean inactive
+tabs, and returns the new active index for Mighty to reload the editor surfaces.
+
+- **Why it matters for the IDE:** daily work often starts from one file of
+  interest with many navigation tabs around it. Users need a fast cleanup command
+  that narrows the workspace without risking unsaved edits.
+- **Language note:** no new gap surfaced. A future Mighty enum/result ABI would
+  make these command outcomes clearer, but the current scalar return plus
+  shim-owned tab filtering remains adequate and testable.
