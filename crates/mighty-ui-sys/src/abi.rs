@@ -293,6 +293,18 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         mui_edit_probe(handle);
     }
 
+    // Screenshot/render hook for the unsaved-work confirmation. This arms the
+    // same state as a real dirty-tab close so headless captures can verify the
+    // modal layout without synthetic input.
+    if std::env::var_os("MUI_DIRTY_CONFIRM_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let active = ctx.tabs.active();
+            ctx.tabs.set_dirty(active, true);
+            ctx.pending_dirty_close = Some((active, std::time::Instant::now()));
+            println!("mui_init_s: MUI_DIRTY_CONFIRM_AUTOOPEN -> dirty confirm open");
+        }
+    }
+
     // Screenshot/render hook for the command palette: with MUI_PALETTE_AUTOOPEN
     // set, open the palette and LEAVE it open so it renders into the frame
     // (`mui_palette_draw` is a no-op unless the palette is active). Unlike
@@ -2851,6 +2863,15 @@ pub(crate) fn sync_active_path(ctx: &mut MuiContext) {
     ctx.file_path = path;
 }
 
+fn close_tab_unchecked(ctx: &mut MuiContext, idx_u: usize) -> i32 {
+    // Remap pane->tab indices so a pane never points past the end after a close.
+    ctx.pending_dirty_close = None;
+    let a = ctx.tabs.close(idx_u);
+    ctx.panes.on_tab_closed(idx_u, ctx.tabs.count());
+    sync_active_path(ctx);
+    a as i32
+}
+
 /// Number of open tabs (always >= 1).
 #[no_mangle]
 pub extern "C" fn mui_tab_count(handle: i64) -> i32 {
@@ -3020,6 +3041,143 @@ pub extern "C" fn mui_quit_request(handle: i64) -> i32 {
         format!("{dirty} unsaved {noun}; quit again to discard"),
     );
     0
+}
+
+fn dirty_confirm_active(ctx: &MuiContext) -> bool {
+    ctx.pending_dirty_close.is_some() || ctx.pending_quit.is_some()
+}
+
+fn dirty_confirm_rects(ctx: &MuiContext) -> ((f32, f32, f32, f32), (f32, f32, f32, f32)) {
+    let w = ctx.gpu.width as f32;
+    let h = ctx.gpu.height as f32;
+    let card_w = w.min(520.0).max(320.0).min((w - 32.0).max(280.0));
+    let card_h = 184.0;
+    let card_x = ((w - card_w) * 0.5).max(16.0);
+    let card_y = ((h - card_h) * 0.5).max(48.0);
+    let btn_w = 112.0;
+    let btn_h = 34.0;
+    let by = card_y + card_h - 54.0;
+    let discard = (card_x + card_w - btn_w - 24.0, by, btn_w, btn_h);
+    let cancel = (discard.0 - btn_w - 12.0, by, btn_w, btn_h);
+    (cancel, discard)
+}
+
+#[no_mangle]
+pub extern "C" fn mui_dirty_confirm_active(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    i32::from(dirty_confirm_active(ctx))
+}
+
+#[no_mangle]
+pub extern "C" fn mui_dirty_confirm_cancel(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.pending_dirty_close = None;
+        ctx.pending_quit = None;
+    }
+}
+
+/// Commit the destructive choice in the unsaved-work confirmation overlay.
+/// Returns -2 for confirmed app quit, -1 if no confirmation is active, or the
+/// active tab index after a confirmed tab close.
+#[no_mangle]
+pub extern "C" fn mui_dirty_confirm_discard(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    if ctx.pending_quit.is_some() {
+        ctx.pending_quit = None;
+        ctx.pending_dirty_close = None;
+        return -2;
+    }
+    let Some((idx_u, _)) = ctx.pending_dirty_close else {
+        return -1;
+    };
+    ctx.tabs.mark_clean(idx_u);
+    close_tab_unchecked(ctx, idx_u)
+}
+
+/// Hit-test the unsaved-work confirmation overlay. Returns 1 for Cancel, 2 for
+/// Discard, or 0 for a miss.
+#[no_mangle]
+pub extern "C" fn mui_dirty_confirm_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !dirty_confirm_active(ctx) {
+        return 0;
+    }
+    let (cancel, discard) = dirty_confirm_rects(ctx);
+    let (px, py) = (ctx.last_event.x, ctx.last_event.y);
+    let hit = |r: (f32, f32, f32, f32)| px >= r.0 && px <= r.0 + r.2 && py >= r.1 && py <= r.1 + r.3;
+    if hit(cancel) {
+        1
+    } else if hit(discard) {
+        2
+    } else {
+        0
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn mui_dirty_confirm_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if !dirty_confirm_active(ctx) {
+        return;
+    }
+
+    let (w, h) = (ctx.gpu.width as f32, ctx.gpu.height as f32);
+    let card_w = w.min(520.0).max(320.0).min((w - 32.0).max(280.0));
+    let card_h = 184.0;
+    let card_x = ((w - card_w) * 0.5).max(16.0);
+    let card_y = ((h - card_h) * 0.5).max(48.0);
+    let chrome = theme::CHROME_FONT_SIZE;
+    let clip = ctx.clip;
+    let dirty = ctx.tabs.dirty_count();
+    let (title, detail) = if ctx.pending_quit.is_some() {
+        let noun = if dirty == 1 { "tab has" } else { "tabs have" };
+        (
+            "Discard unsaved changes?",
+            format!("{dirty} {noun} unsaved edits. Discarding closes Mighty IDE."),
+        )
+    } else {
+        let name = ctx
+            .pending_dirty_close
+            .and_then(|(idx, _)| ctx.tabs.get(idx).map(|t| t.basename()))
+            .unwrap_or_else(|| "this tab".to_string());
+        (
+            "Close unsaved tab?",
+            format!("{name} has unsaved edits. Discarding cannot be undone."),
+        )
+    };
+    let (cancel, discard) = dirty_confirm_rects(ctx);
+
+    let was_overlay = ctx.overlay;
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
+    ctx.dl_rect(0.0, 0.0, w, h, MuiColor::new(0.0, 0.0, 0.0, 0.42));
+    ctx.dl_shadow(card_x, card_y, card_w, card_h, 8.0, theme::SHADOW(), 24.0);
+    ctx.dl_round(card_x, card_y, card_w, card_h, 8.0, theme::ELEVATED());
+    ctx.dl_stroke(card_x, card_y, card_w, card_h, 8.0, theme::BORDER_STRONG(), 1.0);
+    ctx.dl_rect(card_x, card_y, 4.0, card_h, theme::WARNING());
+
+    ctx.text.queue_ui_sized(card_x + 24.0, card_y + 24.0, title, theme::TEXT(), chrome + 2.0, clip);
+    ctx.text.queue_ui_sized(card_x + 24.0, card_y + 58.0, &detail, theme::TEXT_1(), chrome, clip);
+    ctx.text.queue_ui_sized(card_x + 24.0, card_y + 86.0, "Choose Cancel to keep working, or Discard to close without saving.", theme::DIM(), chrome - 1.0, clip);
+
+    ctx.dl_round(cancel.0, cancel.1, cancel.2, cancel.3, 6.0, theme::BG_4());
+    ctx.dl_stroke(cancel.0, cancel.1, cancel.2, cancel.3, 6.0, theme::BORDER(), 1.0);
+    ctx.text.queue_ui_sized(cancel.0 + 31.0, cancel.1 + 8.0, "Cancel", theme::TEXT(), chrome, clip);
+
+    ctx.dl_round(discard.0, discard.1, discard.2, discard.3, 6.0, theme::error_wash(0.22));
+    ctx.dl_stroke(discard.0, discard.1, discard.2, discard.3, 6.0, theme::ERROR(), 1.0);
+    ctx.text.queue_ui_sized(discard.0 + 26.0, discard.1 + 8.0, "Discard", theme::ERROR(), chrome, clip);
+
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
 }
 
 /// Map the tab bar pixel x of the last click to a tab index, or -1 if the click

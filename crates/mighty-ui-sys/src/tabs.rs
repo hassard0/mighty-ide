@@ -315,6 +315,14 @@ impl TabStore {
         }
     }
 
+    /// Mark slot `idx` clean in both the chrome flag and authoritative model.
+    pub fn mark_clean(&mut self, idx: usize) {
+        if let Some(t) = self.tabs.get_mut(idx) {
+            t.dirty = false;
+            t.model.mark_clean();
+        }
+    }
+
     /// Byte length of slot `idx`'s buffer (the count Mighty pulls), or -1.
     pub fn load_len(&self, idx: usize) -> i64 {
         match self.tabs.get(idx) {

@@ -154,6 +154,11 @@ extern c {
   fn mui_tab_set_dirty(handle: I64, idx: I32, dirty: I32)
   fn mui_tab_bar_draw(handle: I64)
   fn mui_quit_request(handle: I64) -> I32
+  fn mui_dirty_confirm_active(handle: I64) -> I32
+  fn mui_dirty_confirm_click(handle: I64) -> I32
+  fn mui_dirty_confirm_discard(handle: I64) -> I32
+  fn mui_dirty_confirm_cancel(handle: I64)
+  fn mui_dirty_confirm_draw(handle: I64)
   fn mui_window_controls_draw(handle: I64)
   fn mui_topbar_action_at_click(handle: I64) -> I32
   fn mui_explorer_header_at_click(handle: I64) -> I32
@@ -1140,12 +1145,47 @@ fn main() {
         if mui_quit_request(h) == 1 {
           running = false
         }
-      } else if mui_keys_active(h) == 1 || mui_crumb_menu_active(h) == 1 || mui_branch_active(h) == 1 {
-        // THREE overlays share this ONE top-level arm (NESTED, not new sibling
-        // arms — L37): the keyboard-shortcuts overlay, the breadcrumb dropdown,
-        // and the git branch switcher. Folding them here keeps the editor key
+      } else if mui_dirty_confirm_active(h) == 1 || mui_keys_active(h) == 1 || mui_crumb_menu_active(h) == 1 || mui_branch_active(h) == 1 {
+        // FOUR overlays share this ONE top-level arm (NESTED, not new sibling
+        // arms — L37): unsaved-work confirmation, the keyboard-shortcuts
+        // overlay, the breadcrumb dropdown, and the git branch switcher. Folding
+        // them here keeps the editor key
         // ladder at its mty-parse-stack ceiling (no new top-level `else if`).
-        if mui_keys_active(h) == 1 {
+        if mui_dirty_confirm_active(h) == 1 {
+          if tag == ev_key() {
+            let k = mui_event_key(h)
+            if k == key_escape() {
+              mui_dirty_confirm_cancel(h)
+            } else if k == key_enter() {
+              let dr = mui_dirty_confirm_discard(h)
+              if dr == -2 {
+                running = false
+              } else if dr >= 0 {
+                let _b = mui_ed_tab_switch(h, dr)
+                mui_ed_undo_reset(h)
+                find_nav = false
+                let _r = mui_diag_refresh(h)
+                let _o = mui_outline_refresh(h)
+              }
+            }
+          } else if tag == ev_mouse_down() {
+            let dc = mui_dirty_confirm_click(h)
+            if dc == 1 {
+              mui_dirty_confirm_cancel(h)
+            } else if dc == 2 {
+              let dr = mui_dirty_confirm_discard(h)
+              if dr == -2 {
+                running = false
+              } else if dr >= 0 {
+                let _b = mui_ed_tab_switch(h, dr)
+                mui_ed_undo_reset(h)
+                find_nav = false
+                let _r = mui_diag_refresh(h)
+                let _o = mui_outline_refresh(h)
+              }
+            }
+          }
+        } else if mui_keys_active(h) == 1 {
           // -------- keyboard shortcuts overlay --------------------------------
           // While capturing a new chord, ANY key (char or key event) is recorded
           // as the chord via `mui_keys_capture_chord` (cp + the current mods); Esc
@@ -3361,6 +3401,7 @@ fn main() {
     // Keyboard Shortcuts overlay: a centered overlay (no-ops unless active, so
     // the MUI_SHORTCUTS_AUTOOPEN screenshot hook renders it without a keystroke).
     mui_keys_draw(h)
+    mui_dirty_confirm_draw(h)
     // Toast notifications: the TOP of the overlay order so transient cards sit
     // above every panel/overlay. No-op when the queue is empty.
     mui_toast_draw(h)
