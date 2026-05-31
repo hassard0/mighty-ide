@@ -1008,6 +1008,10 @@ fn search_rows_top() -> f32 {
     40.0 + 30.0 + 6.0 + 30.0 + 24.0
 }
 
+fn search_rows_bottom(height: u32) -> f32 {
+    height as f32 - layout::LINE_H() - 4.0
+}
+
 /// Map the last click's pixel y to a flattened search-result match index, or
 /// `-1` for a file-header row / no row.
 #[no_mangle]
@@ -1022,7 +1026,7 @@ pub extern "C" fn mui_search_row_at_click(handle: i64) -> i32 {
     }
     let top = search_rows_top();
     let y = ctx.last_event.y;
-    if y < top {
+    if y < top || y >= search_rows_bottom(ctx.gpu.height) {
         return -1;
     }
     let clicked = ((y - top) / layout::LINE_H()).floor() as i32;
@@ -1143,6 +1147,7 @@ pub extern "C" fn mui_search_draw(handle: i64) {
 
     let row_h = layout::LINE_H();
     let top = search_rows_top();
+    let bottom = search_rows_bottom(ctx.gpu.height);
     let needle_len = ctx.search.query.len() as i32;
     let mut visual = 0i32;
     let mut mi = 0i32;
@@ -1152,7 +1157,7 @@ pub extern "C" fn mui_search_draw(handle: i64) {
             (file.rel.clone(), file.match_count)
         };
         let y = top + (visual as f32) * row_h;
-        if y > h {
+        if y + row_h > bottom {
             break;
         }
         ctx.dl_icon(sx + 12.0, y + (row_h - 12.0) * 0.5, 12.0, 12.0, icons::CHEVRON_DOWN, theme::TEXT_3(), 2.0, false);
@@ -1168,7 +1173,7 @@ pub extern "C" fn mui_search_draw(handle: i64) {
 
         for _ in 0..mc {
             let y = top + (visual as f32) * row_h;
-            if y > h {
+            if y + row_h > bottom {
                 return;
             }
             let (line, col, preview) = {
