@@ -1097,3 +1097,23 @@ Quick-Open/Welcome MRU state plus the config-directory I/O.
   daily editor instead of a per-process demo list.
 - **Language note:** no new gap surfaced. The same scalar-command boundary
   remains sufficient for persistence features when the shim owns file paths.
+
+### L55. Modal overlay composition needs shim-owned layer hygiene **[finding, P3]**
+Fixing command-palette / branch-switcher text bleed-through exposed a renderer
+ordering issue, not a Mighty language issue. Mighty calls each overlay draw hook
+in a fixed scalar order, while the Rust shim queues shapes and text into base /
+overlay display-list layers. Earlier overlay text from panels such as AI can
+outlive its visual surface unless the active modal clears stale overlay text and
+temporarily owns the full viewport clip.
+
+- **Why it matters for the IDE:** command palette, Quick-Open, settings, theme
+  picker, shortcuts, dirty-confirm, and branch switcher must behave like true
+  modal surfaces: readable text, opaque card, no background labels bleeding
+  through, and no inherited editor/sidebar clipping.
+- **IDE-side fix:** modal draw wrappers now clear earlier overlay text only when
+  their own overlay is active, temporarily remove inherited clips while drawing
+  centered cards, and restore the previous clip afterward. The Windows harness
+  coordinates were also updated to match the current topbar / Explorer header.
+- **Language note:** no new gap surfaced. Mighty can keep issuing scalar draw
+  calls; the shim should continue owning retained UI layers, clipping, and modal
+  z-order invariants.
