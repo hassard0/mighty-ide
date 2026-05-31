@@ -1488,7 +1488,7 @@ fn main() {
             mui_settings_toggle(h)
           }
         }
-      } else if (run_focus || web_focus) && !(tag == ev_mouse_down() && (mui_rail_panel_at_click(h) >= 0 || mui_rail_utility_at_click(h) >= 0)) {
+      } else if (run_focus || web_focus) && !(tag == ev_mouse_down() && (mui_rail_panel_at_click(h) >= 0 || mui_rail_utility_at_click(h) >= 0 || mui_topbar_action_at_click(h) > 0)) {
         // -------- Bottom-band panel focused: Run panel OR Web Playground -------
         // A rail-icon click escapes to the unified router (so the rail stays live
         // while this band has focus); the band still handles its own row/button
@@ -1578,10 +1578,29 @@ fn main() {
           if dir > 0 { mui_test_scroll(h, -3) } else { mui_test_scroll(h, 3) }
         } else if tag == ev_mouse_down() {
           // A rail click while focused can switch panels; check it first so the
-          // beaker/other rail icons still work.
+          // beaker/other rail icons, utility icons, and titlebar actions still
+          // work on the first click.
           let rail_hit = mui_rail_panel_at_click(h)
+          let rail_util = mui_rail_utility_at_click(h)
+          let topbar_act = mui_topbar_action_at_click(h)
           let tb_hit = mui_test_toolbar_at_click(h)
-          if rail_hit == rail_test() {
+          if rail_util == 1 {
+            let opened = mui_ai_open(h)
+            if opened == 1 { ai_focus = true } else { ai_focus = false }
+            test_focus = false
+          } else if rail_util == 2 {
+            let _s = mui_settings_open(h)
+            settings_open = true
+            test_focus = false
+          } else if topbar_act == 1 {
+            let opened = mui_run_toggle(h)
+            if opened == 1 { run_focus = true; if mui_run_running(h) == 0 { let _r = mui_run_start(h) } }
+            test_focus = false
+          } else if topbar_act == 2 {
+            mui_palette_open(h)
+            palette_open = true
+            test_focus = false
+          } else if rail_hit == rail_test() {
             // Re-clicking the beaker toggles the panel off.
             let _o = mui_test_toggle(h)
             test_focus = false
