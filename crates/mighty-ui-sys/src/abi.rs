@@ -37,6 +37,10 @@ use crate::MuiContext;
 
 fn record_recent_file(ctx: &mut MuiContext, path: PathBuf) {
     ctx.quickopen.record_mru(path);
+    persist_recent_files(ctx);
+}
+
+fn persist_recent_files(ctx: &MuiContext) {
     let _ = crate::config::save_recent_files(&ctx.quickopen.recent_blob());
 }
 
@@ -5763,6 +5767,14 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
                     record_recent_file(ctx, path);
                     idx as i32
                 }
+                Some(path) => {
+                    let removed = ctx.quickopen.remove_recent_path(&path);
+                    if removed {
+                        persist_recent_files(ctx);
+                    }
+                    ctx.push_toast(crate::toast::Kind::Warn, format!("Recent file missing: {}", basename(&path)));
+                    -1
+                }
                 _ => -1,
             }
         }
@@ -9758,6 +9770,14 @@ pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
     let Some(path) = ctx.welcome.recent_path(i as usize).cloned() else {
         return -1;
     };
+    if !path.is_file() {
+        let removed = ctx.quickopen.remove_recent_path(&path);
+        if removed {
+            persist_recent_files(ctx);
+        }
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Recent file missing: {}", basename(&path)));
+        return -1;
+    }
     let idx = ctx.tabs.open_path(path.clone());
     ctx.welcome.dismiss();
     sync_active_path(ctx);

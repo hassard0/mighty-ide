@@ -337,6 +337,13 @@ impl Mru {
         self.paths.truncate(MRU_CAP);
     }
 
+    /// Remove `path` from the MRU, returning true when a row was removed.
+    pub fn remove(&mut self, path: &Path) -> bool {
+        let before = self.paths.len();
+        self.paths.retain(|p| p != path);
+        self.paths.len() != before
+    }
+
     /// The recents, newest first.
     pub fn entries(&self) -> &[PathBuf] {
         &self.paths
@@ -495,6 +502,11 @@ impl QuickOpen {
     /// Record `path` as recently opened (called whenever any file opens).
     pub fn record_mru(&mut self, path: PathBuf) {
         self.mru.record(path);
+    }
+
+    /// Remove a stale recent-file path.
+    pub fn remove_recent_path(&mut self, path: &Path) -> bool {
+        self.mru.remove(path)
     }
 
     /// Restore the recent-file MRU from persisted config.
@@ -1154,6 +1166,16 @@ mod tests {
             &[PathBuf::from("/newest.mty"), PathBuf::from("/older.mty")]
         );
         assert_eq!(mru.to_blob(), "/newest.mty\n/older.mty\n");
+    }
+
+    #[test]
+    fn mru_remove_drops_stale_path() {
+        let mut mru = Mru::new();
+        mru.record(PathBuf::from("/a.mty"));
+        mru.record(PathBuf::from("/b.mty"));
+        assert!(mru.remove(Path::new("/a.mty")));
+        assert_eq!(mru.entries(), &[PathBuf::from("/b.mty")]);
+        assert!(!mru.remove(Path::new("/missing.mty")));
     }
 
     #[test]

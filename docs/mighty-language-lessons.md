@@ -1087,9 +1087,10 @@ edit.
 
 ### L54. Persisted recent files follow the existing shim-owned config pattern **[finding, P3]**
 The recent-file MRU now persists across IDE restarts, matching the already
-persisted recent-workspace MRU. This did not require Mighty language work:
-Mighty already calls a scalar hook whenever a real file is opened, and the Rust
-shim owns the Quick-Open/Welcome MRU state plus the config-directory I/O.
+persisted recent-workspace MRU, and stale missing files are pruned instead of
+opening as blank tabs. This did not require Mighty language work: Mighty already
+calls a scalar hook whenever a real file is opened, and the Rust shim owns the
+Quick-Open/Welcome MRU state plus the config-directory I/O.
 
 - **Why it matters for the IDE:** Welcome and Quick-Open no longer forget the
   files a user worked on after relaunch, so Open Recent behaves like a real
