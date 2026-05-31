@@ -57,6 +57,65 @@ public static class G {
 if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Force $OutDir | Out-Null }
 $report = [System.Collections.Generic.List[string]]::new()
 function Log($m){ $l="[{0}] {1}" -f ((Get-Date).ToString('HH:mm:ss')),$m; $report.Add($l); Write-Host $l }
+function Test-UsefulCapture($bmp) {
+  $w = $bmp.Width
+  $h = $bmp.Height
+  if ($w -lt 64 -or $h -lt 64) { return $false }
+
+  $samples = 0
+  $same = 0
+  $first = $bmp.GetPixel([Math]::Min(8, $w - 1), [Math]::Min(8, $h - 1)).ToArgb()
+  $min = 255
+  $max = 0
+
+  for ($y = 8; $y -lt $h; $y += [Math]::Max(16, [int]($h / 24))) {
+    for ($x = 8; $x -lt $w; $x += [Math]::Max(16, [int]($w / 32))) {
+      $argb = $bmp.GetPixel($x, $y).ToArgb()
+      if ($argb -eq $first) { $same++ }
+      $c = [System.Drawing.Color]::FromArgb($argb)
+      $lum = [int](($c.R * 0.299) + ($c.G * 0.587) + ($c.B * 0.114))
+      if ($lum -lt $min) { $min = $lum }
+      if ($lum -gt $max) { $max = $lum }
+      $samples++
+    }
+  }
+
+  if ($samples -eq 0) { return $false }
+  $sameRatio = $same / [double]$samples
+  $contrast = $max - $min
+  return ($sameRatio -lt 0.985 -and $contrast -gt 8)
+}
+function Save-Capture($h, $path) {
+  $r = New-Object G+RECT
+  [void][G]::GetWindowRect($h, [ref]$r)
+  $w = $r.R - $r.L
+  $ht = $r.B - $r.T
+
+  $lastError = $null
+  for ($try = 1; $try -le 10; $try++) {
+    $bmp = $null
+    $g = $null
+    try {
+      $bmp = New-Object System.Drawing.Bitmap $w, $ht
+      $g = [System.Drawing.Graphics]::FromImage($bmp)
+      $g.CopyFromScreen($r.L, $r.T, 0, 0, (New-Object System.Drawing.Size $w, $ht))
+      if (Test-UsefulCapture $bmp) {
+        $bmp.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
+        return @{ ok = $true; width = $w; height = $ht; tries = $try }
+      }
+      $lastError = "blank-or-flat capture on try $try"
+    } catch {
+      $lastError = $_.Exception.Message
+    } finally {
+      if ($g) { $g.Dispose() }
+      if ($bmp) { $bmp.Dispose() }
+    }
+    Start-Sleep -Milliseconds 180
+    [void][G]::Fg($h)
+  }
+
+  return @{ ok = $false; width = $w; height = $ht; tries = 10; error = $lastError }
+}
 
 # name ; env var ; env value
 $cases = @(
@@ -103,7 +162,12 @@ $cases = @(
 
 if ($Case -and $Case.Count -gt 0) {
   $wanted = @{}
-  foreach ($name in $Case) { $wanted[$name.ToLowerInvariant()] = $true }
+  foreach ($name in $Case) {
+    foreach ($part in ($name -split ',')) {
+      $key = $part.Trim().ToLowerInvariant()
+      if ($key.Length -gt 0) { $wanted[$key] = $true }
+    }
+  }
   $cases = @($cases | Where-Object { $wanted.ContainsKey($_.n.ToLowerInvariant()) })
   if ($cases.Count -eq 0) {
     throw "No overlay-gallery cases matched: $($Case -join ', ')"
@@ -127,21 +191,12 @@ foreach ($c in $cases) {
     if ($h -ne [IntPtr]::Zero) { for ($k=0;$k -lt 5;$k++){ $fg=[G]::Fg($h); if($fg){break}; Start-Sleep -Milliseconds 120 } }
     Start-Sleep -Milliseconds 250
     if ($h -ne [IntPtr]::Zero -and $fg) {
-      $bmp = $null
-      $g = $null
-      try {
-        $r = New-Object G+RECT; [void][G]::GetWindowRect($h,[ref]$r)
-        $w=$r.R-$r.L; $ht=$r.B-$r.T
-        $bmp = New-Object System.Drawing.Bitmap $w,$ht
-        $g = [System.Drawing.Graphics]::FromImage($bmp)
-        $g.CopyFromScreen($r.L,$r.T,0,0,(New-Object System.Drawing.Size $w,$ht))
-        $bmp.Save((Join-Path $OutDir "$($c.n).png"),[System.Drawing.Imaging.ImageFormat]::Png)
-        Log "$($c.n): OK ($w x $ht)"
-      } catch {
-        Log "$($c.n): CAPTURE-ERROR $($_.Exception.Message)"
-      } finally {
-        if ($g) { $g.Dispose() }
-        if ($bmp) { $bmp.Dispose() }
+      $capture = Save-Capture $h (Join-Path $OutDir "$($c.n).png")
+      if ($capture.ok) {
+        $suffix = if ($capture.tries -gt 1) { ", tries=$($capture.tries)" } else { "" }
+        Log "$($c.n): OK ($($capture.width) x $($capture.height)$suffix)"
+      } else {
+        Log "$($c.n): CAPTURE-ERROR $($capture.error)"
       }
     } else {
       Log "$($c.n): FAILED (hwnd=$($h) fg=$fg exited=$($p.HasExited))"
