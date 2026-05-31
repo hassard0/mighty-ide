@@ -3785,10 +3785,12 @@ pub extern "C" fn mui_window_controls_draw(handle: i64) {
     ctx.overlay = was_overlay;
 }
 
-/// Hit-test the top-right run / more-actions icons (drawn by
-/// `mui_window_controls_draw`). Returns 1 = run, 2 = more-actions (⋯), else 0.
-/// Geometry mirrors the draw: run at `controls_x-60`, dots at `+28`, 16px wide,
-/// within the title-bar row height.
+/// Hit-test the top-right run / more-actions strip (drawn by
+/// `mui_window_controls_draw`). Returns 1 = run, 2 = more-actions, else 0.
+/// Geometry mirrors the draw: run at `controls_x-60`; the rest of the reserved
+/// action strip to the left of the window controls opens the command palette.
+/// This keeps the visible "..." affordance forgiving instead of leaving a dead
+/// gap between the glyph and the native minimize button.
 #[no_mangle]
 pub extern "C" fn mui_topbar_action_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -3807,7 +3809,7 @@ pub extern "C" fn mui_topbar_action_at_click(handle: i64) -> i32 {
     if x >= ax && x < ax + 18.0 {
         return 1;
     }
-    if x >= ax + 26.0 && x < ax + 46.0 {
+    if x >= ax + 24.0 && x < controls_x {
         return 2;
     }
     0

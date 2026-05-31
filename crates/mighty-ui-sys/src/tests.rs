@@ -659,6 +659,18 @@ fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
     assert_eq!(mui_topbar_action_at_click(handle), 1);
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, menu_x, 4.0, 0);
     assert_eq!(mui_topbar_action_at_click(handle), 2);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        controls_x - 2.0,
+        4.0,
+        0,
+    );
+    assert_eq!(
+        mui_topbar_action_at_click(handle),
+        2,
+        "the dead gap before native window controls should still open More"
+    );
     ctx.last_event.y = crate::layout::TAB_BAR_H + 1.0;
     assert_eq!(mui_topbar_action_at_click(handle), 0);
 
