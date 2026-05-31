@@ -308,6 +308,7 @@ extern c {
   // ---- AI copilot (Agents rail icon → right-docked chat panel) ----
   fn mui_ai_open(handle: I64) -> I32
   fn mui_ai_is_open(handle: I64) -> I32
+  fn mui_ai_click(handle: I64) -> I32
   fn mui_ai_has_key(handle: I64) -> I32
   fn mui_ai_input_push(handle: I64, codepoint: I32)
   fn mui_ai_input_backspace(handle: I64)
@@ -514,6 +515,7 @@ extern c {
   fn mui_settings_active(handle: I64) -> I32
   fn mui_settings_move(handle: I64, delta: I32)
   fn mui_settings_sel(handle: I64) -> I32
+  fn mui_settings_click(handle: I64) -> I32
   fn mui_settings_adjust(handle: I64, delta: I32)
   fn mui_settings_toggle(handle: I64)
   fn mui_settings_draw(handle: I64)
@@ -1660,6 +1662,9 @@ fn main() {
           } else if k == key_escape() {
             ai_focus = false                                 // Escape : back to editor (panel stays open)
           }
+        } else if tag == ev_scroll() {
+          let dir = mui_event_scroll_dir(h)
+          if dir > 0 { mui_ai_scroll(h, -3) } else { mui_ai_scroll(h, 3) }
         }
       } else if theme_picker_open {
         // -------- color-theme picker open: Up/Down preview, Enter apply -------
@@ -1704,6 +1709,18 @@ fn main() {
           } else if k == key_escape() {
             mui_settings_close(h)
             settings_open = false
+          }
+        } else if tag == ev_mouse_down() {
+          let sc = mui_settings_click(h)
+          if sc == 0 {
+            mui_settings_close(h)
+            settings_open = false
+          } else if sc == 2 {
+            mui_settings_adjust(h, -1)
+          } else if sc == 3 {
+            mui_settings_adjust(h, 1)
+          } else if sc == 4 {
+            mui_settings_toggle(h)
           }
         }
       } else if (run_focus || web_focus) && !(tag == ev_mouse_down() && (mui_rail_panel_at_click(h) >= 0 || mui_rail_utility_at_click(h) >= 0)) {
@@ -2659,6 +2676,7 @@ fn main() {
         let welcome_act = welcome_click_action(h, welcome_owns)
         // Top-right title-bar action icons (run ▶ / more-actions ⋯). 0 = none.
         let topbar_act = mui_topbar_action_at_click(h)
+        let ai_click = mui_ai_click(h)
         // Explorer header buttons (new file / new folder / collapse). 0 = none.
         // Only meaningful when the Explorer panel is the active sidebar panel.
         let mut explorer_hit: I32 = 0
@@ -2783,6 +2801,13 @@ fn main() {
           // Top-right more-actions (⋯) button: open the command palette.
           mui_palette_open(h)
           palette_open = true
+        } else if ai_click == 2 {
+          let _s = mui_ai_send(h)
+          ai_focus = true
+          typing = false
+        } else if ai_click == 1 {
+          ai_focus = true
+          typing = false
         } else if rail_hit == rail_agents() {
           // Agents (sparkles) icon: toggle the AI copilot panel + focus it.
           let opened = mui_ai_open(h)

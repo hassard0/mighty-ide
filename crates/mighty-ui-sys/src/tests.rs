@@ -361,6 +361,7 @@ fn click_routing_tab_bar_sidebar_and_text() {
         mui_tree_row_at_click,
     };
     use crate::layout;
+    use crate::panels::mui_ai_click;
 
     let mut ctx = ctx_or_skip!();
     // Two tabs so index 1 is valid.
@@ -375,6 +376,7 @@ fn click_routing_tab_bar_sidebar_and_text() {
     ctx.tree.set_root(root.clone());
     ctx.sidebar_visible = true;
     ctx.gpu.width = 900;
+    ctx.gpu.height = 600;
 
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -427,6 +429,27 @@ fn click_routing_tab_bar_sidebar_and_text() {
         0,
     );
     assert_eq!(mui_rail_utility_at_click(handle), 2);
+
+    // The right-docked AI panel owns its surface, including the send affordance,
+    // while still leaving the top-right chrome strip to title-bar actions.
+    ctx.ai.open = true;
+    ctx.ai.input = "ship it".to_string();
+    let (px, pw, input_y, input_h) =
+        crate::ai::input_geometry(&ctx.ai.input, ctx.gpu.width, ctx.gpu.height);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        px + pw - 24.0,
+        input_y + input_h - 20.0,
+        0,
+    );
+    assert_eq!(mui_ai_click(handle), 2);
+    ctx.last_event.x = px + 24.0;
+    assert_eq!(mui_ai_click(handle), 1);
+    ctx.last_event.x = px - 2.0;
+    assert_eq!(mui_ai_click(handle), 0);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, reserved_x, 4.0, 0);
+    assert_eq!(mui_ai_click(handle), 0);
 
     let _ = std::fs::remove_dir_all(&root);
 }

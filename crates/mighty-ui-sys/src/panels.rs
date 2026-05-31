@@ -1190,6 +1190,38 @@ pub extern "C" fn mui_ai_is_open(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| if c.ai.open { 1 } else { 0 })
 }
 
+/// Map the last click to the right-docked AI panel:
+/// `0` = miss, `1` = input/body focus, `2` = send button.
+#[no_mangle]
+pub extern "C" fn mui_ai_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.ai.open {
+        return 0;
+    }
+    let (x, y) = (ctx.last_event.x, ctx.last_event.y);
+    let (px, pw, input_y, input_h) =
+        crate::ai::input_geometry(&ctx.ai.input, ctx.gpu.width, ctx.gpu.height);
+    if x < px || x > px + pw || y < 0.0 || y > ctx.gpu.height as f32 {
+        return 0;
+    }
+    // Preserve the title-bar run/more/window-control strip: it is drawn above
+    // the AI panel and should continue to receive clicks.
+    let controls_x = crate::titlebar::controls_x(ctx.gpu.width as f32);
+    if y <= layout::TAB_BAR_H && x >= controls_x - crate::titlebar::ACTION_STRIP_W {
+        return 0;
+    }
+    let send_x0 = px + pw - 44.0;
+    let send_x1 = px + pw - 12.0;
+    let send_y0 = input_y + input_h - 36.0;
+    let send_y1 = input_y + input_h - 4.0;
+    if (send_x0..=send_x1).contains(&x) && (send_y0..=send_y1).contains(&y) {
+        return 2;
+    }
+    1
+}
+
 /// `1` if an `ANTHROPIC_API_KEY` (or `CLAUDE_API_KEY`) is set, else `0`. The IDE
 /// uses this to decide whether sending is meaningful.
 #[no_mangle]

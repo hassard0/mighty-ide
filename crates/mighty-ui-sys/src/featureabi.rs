@@ -842,6 +842,17 @@ pub extern "C" fn mui_settings_sel(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.settings_panel.selection() as i32)
 }
 
+/// Click the Settings overlay. Returns: 0 miss/outside, 1 select,
+/// 2 decrement, 3 increment, 4 toggle/cycle. Row selection is updated on hits.
+#[no_mangle]
+pub extern "C" fn mui_settings_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.settings_panel
+        .click(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height)
+}
+
 /// Adjust the selected numeric/theme row by `delta` (font px, tab spaces, or
 /// theme cycle). Applies live + persists.
 #[no_mangle]

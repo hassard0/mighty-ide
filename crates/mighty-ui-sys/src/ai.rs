@@ -472,6 +472,21 @@ impl AiPanel {
 /// Width of the right-docked AI panel (px).
 pub const AI_PANEL_W: f32 = 360.0;
 
+/// Geometry for the bottom input composer, shared by draw and click hit-tests.
+pub fn input_geometry(input: &str, width: u32, height: u32) -> (f32, f32, f32, f32) {
+    let w = width as f32;
+    let h = height as f32;
+    let pw = AI_PANEL_W;
+    let px = w - pw;
+    let chrome = theme::CHROME_FONT_SIZE;
+    let input_pad = 10.0;
+    let input_lines = wrap(input, ((pw - 56.0) / (chrome * 0.55)) as usize);
+    let n_in = input_lines.len().max(1) as f32;
+    let input_h = (n_in * layout::LINE_H()).min(120.0) + 16.0;
+    let input_y = h - input_h - input_pad;
+    (px, pw, input_y, input_h)
+}
+
 /// A simple line of rendered transcript content (already wrapped/segmented).
 enum Seg {
     /// A normal text line for `role`.
@@ -649,11 +664,8 @@ impl AiPanel {
         );
 
         // ---- input box at the bottom ----
-        let input_pad = 10.0;
+        let (_gx, _gw, input_y, input_h) = input_geometry(&self.input, width, height);
         let input_lines = wrap(&self.input, ((pw - 56.0) / (chrome * 0.55)) as usize);
-        let n_in = input_lines.len().max(1) as f32;
-        let input_h = (n_in * layout::LINE_H()).min(120.0) + 16.0;
-        let input_y = h - input_h - input_pad;
         let body_top = head_h + 6.0;
         let body_bottom = input_y - 8.0;
 

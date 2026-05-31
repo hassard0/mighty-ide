@@ -132,6 +132,20 @@ impl Grid {
         self.cur_col = 0;
     }
 
+    fn clear_from_cursor_to_end(&mut self) {
+        let start = self.cur_row * self.cols + self.cur_col.min(self.cols - 1);
+        for c in &mut self.cells[start..] {
+            *c = Cell::default();
+        }
+    }
+
+    fn clear_from_start_to_cursor(&mut self) {
+        let end = self.cur_row * self.cols + self.cur_col.min(self.cols - 1);
+        for c in &mut self.cells[..=end] {
+            *c = Cell::default();
+        }
+    }
+
     /// Scroll the whole grid up one line: drop row 0, shift the rest up, blank
     /// the last row. Used when the cursor would advance past the last row.
     fn scroll_up(&mut self) {
@@ -368,8 +382,9 @@ impl VtParser {
         }
     }
 
-    /// Inside a CSI: accumulate until a final byte (0x40..=0x7e). Only `m` (SGR)
-    /// is acted on; every other final byte is consumed harmlessly.
+    /// Inside a CSI: accumulate until a final byte (0x40..=0x7e). Handles the
+    /// core shell sequences we need (SGR, DSR, erase display); others are
+    /// consumed harmlessly.
     fn csi(&mut self, grid: &mut Grid, b: u8) {
         match b {
             // Parameter bytes (0x30..=0x3f) and intermediates (0x20..=0x2f).
@@ -382,8 +397,10 @@ impl VtParser {
                     // Device Status Report. ConPTY emits `ESC[6n` at startup and
                     // blocks until answered, so we must reply.
                     self.handle_dsr(grid);
+                } else if b == b'J' {
+                    self.erase_display(grid);
                 }
-                // All other finals (J/K/H/A..D/etc.) are intentionally skipped.
+                // All other finals (K/H/A..D/etc.) are intentionally skipped.
                 self.csi.clear();
                 self.state = State::Ground;
             }
@@ -426,6 +443,25 @@ impl VtParser {
                 90..=97 => grid.cur_fg = (n - 90 + 8) as u8, // bright 8..=15
                 _ => {}                              // ignore everything else
             }
+        }
+    }
+
+    fn erase_display(&mut self, grid: &mut Grid) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        if params.starts_with('?') {
+            return;
+        }
+        let mode = params
+            .split(';')
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<u32>().ok())
+            .unwrap_or(0);
+        match mode {
+            0 => grid.clear_from_cursor_to_end(),
+            1 => grid.clear_from_start_to_cursor(),
+            2 | 3 => grid.clear(),
+            _ => {}
         }
     }
 
@@ -842,15 +878,24 @@ mod tests {
     }
 
     #[test]
-    fn unknown_csi_is_consumed_without_garbage() {
-        // ESC[2J (clear screen) is NOT implemented but must be swallowed cleanly
-        // with no stray glyphs landing in the grid.
-        let g = grid_feed(2, 10, b"\x1b[2JOK");
-        // The "2J" must not appear; only "OK" prints.
+    fn erase_display_clears_screen_without_garbage() {
+        let g = grid_feed(2, 10, b"junk\x1b[2JOK");
+        // The old content and "2J" escape bytes must not appear; only OK prints.
         assert_eq!(g.cell(0, 0).ch, 'O');
         assert_eq!(g.cell(0, 1).ch, 'K');
+        assert!(!g.contains("junk"));
         assert!(!g.contains("2J"));
         assert!(!g.contains("["));
+    }
+
+    #[test]
+    fn erase_display_default_clears_from_cursor_to_end() {
+        let g = grid_feed(2, 10, b"abc\x1b[JZ");
+        assert_eq!(g.cell(0, 0).ch, 'a');
+        assert_eq!(g.cell(0, 1).ch, 'b');
+        assert_eq!(g.cell(0, 2).ch, 'c');
+        assert_eq!(g.cell(0, 3).ch, 'Z');
+        assert_eq!(g.cell(0, 4).ch, ' ');
     }
 
     #[test]

@@ -118,6 +118,45 @@ impl SettingsPanel {
         self.sel
     }
 
+    /// Classify a mouse click against the drawn Settings card and update the
+    /// selected row on row hits. Returns: 0 miss, 1 select, 2 decrement,
+    /// 3 increment, 4 toggle/cycle.
+    pub fn click(&mut self, x: f32, y: f32, width: u32, height: u32) -> i32 {
+        if !self.active {
+            return 0;
+        }
+        let (box_x, box_y, box_w, _box_h, list_top, row_h) = Self::geometry(width, height);
+        if x < box_x || x > box_x + box_w || y < box_y {
+            return 0;
+        }
+        let row = ((y - list_top) / row_h).floor() as i32;
+        if row < 0 || row as usize >= RowId::ALL.len() {
+            return 0;
+        }
+        self.sel = row as usize;
+        let row_id = self.selected();
+        let ry = list_top + row as f32 * row_h;
+        let ctrl_right = box_x + box_w - 22.0;
+        if row_id.is_numeric() {
+            let step = 22.0;
+            let py = ry + (row_h - step) * 0.5;
+            let plus_x = ctrl_right - step;
+            let val = Self::value_str(&settings::active(), row_id);
+            let val_w = val.chars().count() as f32 * 7.5;
+            let val_x = plus_x - 14.0 - val_w;
+            let minus_x = val_x - 14.0 - step;
+            if (minus_x..=minus_x + step).contains(&x) && (py..=py + step).contains(&y) {
+                return 2;
+            }
+            if (plus_x..=plus_x + step).contains(&x) && (py..=py + step).contains(&y) {
+                return 3;
+            }
+            1
+        } else {
+            4
+        }
+    }
+
     #[allow(dead_code)]
     pub fn count(&self) -> usize {
         RowId::ALL.len()
@@ -125,6 +164,21 @@ impl SettingsPanel {
 
     fn selected(&self) -> RowId {
         RowId::ALL[self.sel.min(RowId::ALL.len() - 1)]
+    }
+
+    fn geometry(width: u32, height: u32) -> (f32, f32, f32, f32, f32, f32) {
+        let w = width as f32;
+        let h = height as f32;
+        let rows = RowId::ALL.len();
+        let head_h = 50.0_f32;
+        let row_h = 56.0_f32;
+        let foot_h = 34.0_f32;
+        let box_w = 500.0_f32.min(w - 80.0);
+        let box_h = head_h + rows as f32 * row_h + foot_h + 12.0;
+        let box_x = ((w - box_w) * 0.5).max(0.0);
+        let box_y = ((h - box_h) * 0.5).max(40.0);
+        let list_top = box_y + head_h;
+        (box_x, box_y, box_w, box_h, list_top, row_h)
     }
 
     /// Move the highlight by `delta`, wrapping.
@@ -244,14 +298,10 @@ impl SettingsPanel {
         let clip = ctx.clip;
         let cur = settings::active();
 
-        let rows = RowId::ALL.len();
         let head_h = 50.0_f32;
         let row_h = 56.0_f32;
         let foot_h = 34.0_f32;
-        let box_w = 500.0_f32.min(w - 80.0);
-        let box_h = head_h + rows as f32 * row_h + foot_h + 12.0;
-        let box_x = ((w - box_w) * 0.5).max(0.0);
-        let box_y = ((h - box_h) * 0.5).max(40.0);
+        let (box_x, box_y, box_w, box_h, _list_top, _row_h) = Self::geometry(width, height);
         let radius = 12.0_f32;
 
         // Scrim (lighter on a light theme).
@@ -399,6 +449,26 @@ mod tests {
         assert_eq!(p.selection(), 10);
         p.move_sel(1);
         assert_eq!(p.selection(), 0);
+    }
+
+    #[test]
+    fn mouse_click_selects_toggles_and_steps() {
+        let _g = guard();
+        let mut p = SettingsPanel::new();
+        p.open();
+        let (box_x, _box_y, box_w, _box_h, list_top, row_h) = SettingsPanel::geometry(900, 760);
+        // Row 2 is Word Wrap; a row click selects it and reports toggle/cycle.
+        assert_eq!(p.click(box_x + 24.0, list_top + row_h * 2.0 + 10.0, 900, 760), 4);
+        assert_eq!(p.selection(), 2);
+
+        // Row 0 is Font Size; hit the plus button precisely.
+        let ctrl_right = box_x + box_w - 22.0;
+        let plus_x = ctrl_right - 22.0;
+        assert_eq!(p.click(plus_x + 10.0, list_top + 20.0, 900, 760), 3);
+        assert_eq!(p.selection(), 0);
+
+        // A miss outside the card is reported as a miss so Mighty can dismiss it.
+        assert_eq!(p.click(box_x - 2.0, list_top + 20.0, 900, 760), 0);
     }
 
     #[test]
