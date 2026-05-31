@@ -600,6 +600,41 @@ fn new_project_invalid_and_existing_names_toast_without_shelling_out() {
 }
 
 #[test]
+fn new_folder_validates_name_clears_stage_and_toasts() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_new_folder_guards");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("taken")).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.path_stage.extend_from_slice(b"..\\escape");
+    assert_eq!(crate::mui_newfolder_create(handle), 0);
+    assert!(ctx.path_stage.is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Name must not contain path separators");
+
+    ctx.path_stage.extend_from_slice(b"taken");
+    assert_eq!(crate::mui_newfolder_create(handle), 0);
+    assert!(ctx.path_stage.is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Folder already exists: taken");
+
+    ctx.path_stage.extend_from_slice(b"fresh");
+    assert_eq!(crate::mui_newfolder_create(handle), 1);
+    assert!(ctx.path_stage.is_empty());
+    assert!(root.join("fresh").is_dir());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Created folder: fresh");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
     use crate::ffi::MuiEvent;
     use crate::mui_topbar_action_at_click;

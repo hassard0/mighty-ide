@@ -3873,20 +3873,34 @@ pub extern "C" fn mui_newfolder_create(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    let raw = String::from_utf8_lossy(&ctx.path_stage).into_owned();
-    let raw = raw.trim();
-    if raw.is_empty() {
+    let staged = std::mem::take(&mut ctx.path_stage);
+    let raw = String::from_utf8_lossy(&staged).into_owned();
+    let name = match crate::newproj::validate_name(&raw) {
+        Ok(n) => n,
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Warn, e.clone());
+            println!("newfolder: invalid name: {e}");
+            return 0;
+        }
+    };
+    let base = crate::wsabi::effective_root(ctx);
+    let target = base.join(&name);
+    if target.exists() {
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Folder already exists: {name}"));
+        println!("newfolder: target already exists: {}", target.display());
         return 0;
     }
-    let base = crate::wsabi::effective_root(ctx);
-    let cand = std::path::Path::new(raw);
-    let target = if cand.is_absolute() { cand.to_path_buf() } else { base.join(cand) };
-    match std::fs::create_dir_all(&target) {
+    match std::fs::create_dir(&target) {
         Ok(_) => {
             ctx.tree.refresh();
+            ctx.push_toast(crate::toast::Kind::Success, format!("Created folder: {name}"));
             1
         }
-        Err(_) => 0,
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, format!("Folder create failed: {name}"));
+            println!("newfolder: failed to create {}: {e}", target.display());
+            0
+        }
     }
 }
 
