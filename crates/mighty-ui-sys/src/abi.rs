@@ -10100,6 +10100,21 @@ pub extern "C" fn mui_toast_clear(handle: i64) -> i32 {
     i32::from(ctx.toasts.clear())
 }
 
+/// Dismiss the toast under the last mouse-down position. Returns 1 on hit.
+#[no_mangle]
+pub extern "C" fn mui_toast_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.last_event.tag != crate::ffi::MUI_EVENT_MOUSE_DOWN
+        || ctx.last_event.button != crate::ffi::MUI_MOUSE_LEFT
+    {
+        return 0;
+    }
+    let (x, y) = (ctx.last_event.x, ctx.last_event.y);
+    i32::from(ctx.toasts.dismiss_at(ctx.gpu.width, ctx.gpu.height, x, y, std::time::Instant::now()))
+}
+
 /// Draw the bottom-right toast stack over everything (overlay layer). No-op when
 /// empty.
 #[no_mangle]

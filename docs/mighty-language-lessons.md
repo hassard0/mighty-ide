@@ -1157,3 +1157,18 @@ is the only case that should open the fallback prompt.
   conventions in the event ladder. Until Mighty has ergonomic enum/result values
   across `extern c`, the ABI should keep small result-code contracts documented
   and covered by tests.
+
+### L59. Clickable/clearable toasts stay within scalar overlay routing **[finding, P3]**
+Making stale toast notifications dismissible did not require a Mighty language
+change. The shim now owns toast hit-testing and mutation (`ToastQueue::dismiss_at`,
+`mui_toast_click`, `mui_toast_clear`), while Mighty only gives mouse-down events
+first chance to the toast overlay before routing the same click to panels/editor
+surfaces underneath.
+
+- **Why it matters for the IDE:** transient notifications must not leave stale
+  text covering the workspace. Users can click a single toast to dismiss it or run
+  **Notifications: Clear All Toasts** from the command palette to clear the whole
+  stack.
+- **Language note:** no new gap surfaced. This is another case where shim-owned
+  geometry is the right boundary: Mighty routes a scalar click result, while Rust
+  computes the overlay card rectangles and removes the clicked item.

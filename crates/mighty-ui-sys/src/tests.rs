@@ -833,6 +833,27 @@ fn toast_clear_abi_dismisses_visible_notifications() {
 }
 
 #[test]
+fn toast_click_abi_dismisses_hit_toast_and_consumes_only_hits() {
+    use crate::ffi::MuiEvent;
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 600;
+    ctx.push_toast(crate::toast::Kind::Info, "Old");
+    ctx.push_toast(crate::toast::Kind::Warn, "New");
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 10.0, 10.0, 0);
+    assert_eq!(crate::mui_toast_click(handle), 0);
+    assert_eq!(ctx.toasts.len(), 2);
+
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 860.0, 530.0, 0);
+    assert_eq!(crate::mui_toast_click(handle), 1);
+    assert_eq!(ctx.toasts.len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].message, "Old");
+}
+
+#[test]
 fn active_file_os_reveal_builds_platform_file_manager_command() {
     let path = std::path::Path::new("C:\\workspace\\src\\main.mty");
     let Some((program, args)) = crate::abi::platform_reveal_command(path) else {

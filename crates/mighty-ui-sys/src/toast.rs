@@ -170,6 +170,45 @@ impl ToastQueue {
         had_toasts
     }
 
+    /// Dismiss the toast under a window-space point. Returns `true` when a toast
+    /// was removed. Hit-testing mirrors the draw stack so the newest/lower toast
+    /// wins when cards overlap during animation.
+    pub fn dismiss_at(&mut self, width: u32, height: u32, x: f32, y: f32, now: Instant) -> bool {
+        let Some(idx) = self.hit_index_at(width, height, x, y, now) else {
+            return false;
+        };
+        self.toasts.remove(idx);
+        true
+    }
+
+    fn hit_index_at(&self, width: u32, height: u32, x: f32, y: f32, now: Instant) -> Option<usize> {
+        if self.toasts.is_empty() {
+            return None;
+        }
+        let w = width as f32;
+        let h = height as f32;
+        let margin = 18.0_f32;
+        let card_w = 320.0_f32.min(w - 2.0 * margin);
+        let card_h = 56.0_f32;
+        let gap = 12.0_f32;
+        let bottom = h - margin - theme::LINE_HEIGHT();
+        for (rev, t) in self.toasts.iter().rev().enumerate() {
+            let presence = t.presence(now);
+            let slot = rev as f32;
+            let cy_settled = bottom - card_h - slot * (card_h + gap);
+            let cy = if presence > 0.001 {
+                cy_settled + (1.0 - presence) * 16.0
+            } else {
+                cy_settled
+            };
+            let cx = w - margin - card_w;
+            if x >= cx && x <= cx + card_w && y >= cy && y <= cy + card_h {
+                return Some(self.toasts.len() - 1 - rev);
+            }
+        }
+        None
+    }
+
     /// Number of currently-live toasts.
     pub fn len(&self) -> usize {
         self.toasts.len()
@@ -285,7 +324,7 @@ impl ToastQueue {
                 11.0,
                 card_clip,
             );
-            let msg = truncate(&t.message, card_w - 64.0);
+            let msg = truncate(&t.message, card_w - 88.0);
             ctx.text.queue_ui_sized(
                 tx,
                 cy + 28.0,
@@ -293,6 +332,16 @@ impl ToastQueue {
                 with_alpha(theme::TEXT(), alpha),
                 13.0,
                 card_clip,
+            );
+            ctx.dl_icon(
+                cx + card_w - 28.0,
+                cy + 20.0,
+                13.0,
+                13.0,
+                icons::CLOSE,
+                with_alpha(theme::TEXT_3(), alpha * 0.8),
+                1.6,
+                false,
             );
         }
     }
@@ -456,5 +505,19 @@ mod tests {
         assert!(q.clear());
         assert!(q.is_empty());
         assert!(!q.clear());
+    }
+
+    #[test]
+    fn dismiss_at_removes_clicked_toast_only() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+        q.push_at(Kind::Info, "top", t0);
+        q.push_at(Kind::Warn, "bottom", t0);
+        assert!(!q.dismiss_at(900, 600, 10.0, 10.0, t0 + Duration::from_millis(500)));
+
+        // Newest toast is bottom-most, right-aligned.
+        assert!(q.dismiss_at(900, 600, 860.0, 530.0, t0 + Duration::from_millis(500)));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "top");
     }
 }
