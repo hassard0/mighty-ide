@@ -406,7 +406,7 @@ impl AgentTopology {
                     self.snapshot = Some(snap);
                     n as i32
                 } else {
-                    // The stub / no-socket error lands on stderr (or stdout).
+                    // Transport/no-socket/runtime errors land on stderr (or stdout).
                     let msg = if !stderr.trim().is_empty() {
                         stderr.trim().to_string()
                     } else {
@@ -463,18 +463,14 @@ impl AgentTopology {
         self.model = agents::scan_file(&f, src);
         self.root = Some(PathBuf::from("examples"));
         self.rebuild();
-        // A representative live note (the Windows reality).
+        // A representative live note for captures without a running program.
         self.inspect_note = default_inspect_note();
     }
 }
 
-/// The default live-inspect note (the honest platform reality on Windows).
+/// The default live-inspect note shown before a runtime is attached.
 fn default_inspect_note() -> String {
-    if cfg!(windows) {
-        "Live inspect: static + run".to_string()
-    } else {
-        "Live inspect: launch a program with MTY_RUNTIME_CONTROL_SOCK set to attach.".to_string()
-    }
+    "Live inspect: set control socket".to_string()
 }
 
 /// Resolve the `mty` compiler path through the shared Mighty compiler resolver.
@@ -931,7 +927,7 @@ pub extern "C" fn mui_agents_run_line_count(handle: i64) -> i32 {
 }
 
 /// Attempt a best-effort live inspect (`mty inspect --json`). Returns the live
-/// agent count, or `-1` if unavailable (no socket / Windows stub / parse fail).
+/// agent count, or `-1` if unavailable (no socket / command failure / parse fail).
 /// The reason is surfaced in the panel's live-inspect note line.
 #[no_mangle]
 pub extern "C" fn mui_agents_inspect(handle: i64) -> i32 {
