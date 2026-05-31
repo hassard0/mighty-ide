@@ -1131,3 +1131,15 @@ Welcome only after a successful re-root.
 - **Language note:** no new gap surfaced. Recent-file/folder recovery should stay
   with the shim-owned MRU and workspace model; Mighty only needs scalar action ids
   and does not need to own path validation or MRU mutation.
+
+### L57. Agents inspect/run header actions are still scalar routing **[finding, P3]**
+Making the Mighty Agents panel's live inspect path reachable from the UI did not
+require new Mighty language work. The panel now exposes separate shim-side
+header hit-tests for Inspect and Run, and the Mighty event ladder only branches
+on scalar booleans before calling `mui_agents_inspect` or `mui_agents_run`.
+
+- **Why it matters for the IDE:** a feature is not complete just because the ABI
+  exists; every visible panel affordance needs a real click target and a test.
+- **Language note:** no new gap surfaced. This follows the same scalar-command
+  pattern as the other panels; richer UI hit geometry remains easier and safer in
+  the shim.

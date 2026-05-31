@@ -489,6 +489,7 @@ extern c {
   fn mui_agents_scroll(handle: I64, dir: I32)
   fn mui_agents_row_at_click(handle: I64) -> I32
   fn mui_agents_click_is_run(handle: I64) -> I32
+  fn mui_agents_click_is_inspect(handle: I64) -> I32
   fn mui_agents_run(handle: I64) -> I32
   fn mui_agents_running(handle: I64) -> I32
   fn mui_agents_pump(handle: I64) -> I32
@@ -2909,10 +2910,13 @@ fn main() {
             let _o = mui_outline_refresh(h)
           }
         } else if cur_panel == panel_agents_mty() {
-          // Mighty Agents panel: header "Run" affordance runs the active file;
-          // a topology row click jumps to the agent/protocol/handler/tool def.
+          // Mighty Agents panel: header affordances run or inspect the active
+          // program; a topology row click jumps to a definition.
           let is_run = mui_agents_click_is_run(h)
-          if is_run == 1 {
+          let is_inspect = mui_agents_click_is_inspect(h)
+          if is_inspect == 1 {
+            let _i = mui_agents_inspect(h)
+          } else if is_run == 1 {
             let _r = mui_agents_run(h)
           } else {
             let a_hit = mui_agents_row_at_click(h)

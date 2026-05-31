@@ -555,7 +555,17 @@ impl AgentTopology {
             chrome - 2.0,
             clip,
         );
-        // A small "Run" affordance icon at the header's right edge.
+        // Small header affordances: Inspect (live runtime snapshot) + Run.
+        ctx.dl_icon(
+            sx + sw - 52.0,
+            (head_h - 15.0) * 0.5,
+            15.0,
+            15.0,
+            crate::icons::INFO_I,
+            theme::ACCENT_BRIGHT(),
+            1.6,
+            true,
+        );
         ctx.dl_icon(
             sx + sw - 28.0,
             (head_h - 15.0) * 0.5,
@@ -835,7 +845,28 @@ pub extern "C" fn mui_agents_click_is_run(handle: i64) -> i32 {
         return 0;
     };
     let run_x0 = layout::sidebar_right() - 34.0;
-    if ctx.last_event.y <= 40.0 && ctx.last_event.x >= run_x0 {
+    if ctx.last_event.y <= 40.0
+        && ctx.last_event.x >= run_x0
+        && ctx.last_event.x <= layout::sidebar_right()
+    {
+        1
+    } else {
+        0
+    }
+}
+
+/// `1` if the last click landed on the header "Inspect" affordance, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_agents_click_is_inspect(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let inspect_x0 = layout::sidebar_right() - 58.0;
+    let inspect_x1 = layout::sidebar_right() - 34.0;
+    if ctx.last_event.y <= 40.0
+        && ctx.last_event.x >= inspect_x0
+        && ctx.last_event.x < inspect_x1
+    {
         1
     } else {
         0
@@ -1101,5 +1132,37 @@ mod tests {
             .map(|a| a.to_string_lossy().to_string())
             .collect();
         assert_eq!(args, vec!["inspect", "--json"]);
+    }
+
+    #[test]
+    fn header_affordances_hit_inspect_and_run_separately() {
+        let mut ctx = match crate::MuiContext::new_offscreen(900, 600) {
+            Some(c) => c,
+            None => return,
+        };
+        ctx.sidebar_visible = true;
+        ctx.active_panel = crate::PANEL_AGENTS_MTY;
+        let h = (&mut ctx as *mut crate::MuiContext) as usize as i64;
+        let right = layout::sidebar_right();
+
+        ctx.last_event = crate::ffi::MuiEvent::mouse(
+            crate::ffi::MUI_EVENT_MOUSE_DOWN,
+            0,
+            right - 48.0,
+            20.0,
+            0,
+        );
+        assert_eq!(mui_agents_click_is_inspect(h), 1);
+        assert_eq!(mui_agents_click_is_run(h), 0);
+
+        ctx.last_event = crate::ffi::MuiEvent::mouse(
+            crate::ffi::MUI_EVENT_MOUSE_DOWN,
+            0,
+            right - 20.0,
+            20.0,
+            0,
+        );
+        assert_eq!(mui_agents_click_is_inspect(h), 0);
+        assert_eq!(mui_agents_click_is_run(h), 1);
     }
 }
