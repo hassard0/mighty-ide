@@ -396,7 +396,6 @@ impl Painter<'_> {
     fn draw_span_line(&mut self, line: &[Piece], x: f32, y: f32, size: f32, base: crate::ffi::MuiColor, base_bold: bool) {
         let mut px = x;
         for piece in line {
-            let adv = piece.text.chars().count() as f32 * piece_advance(piece, size);
             match piece.kind {
                 PieceKind::Code => {
                     // Inline code chip: a tinted rounded background + mono text.
@@ -411,6 +410,7 @@ impl Painter<'_> {
                     continue;
                 }
                 PieceKind::Link => {
+                    let adv = ui_draw_advance(self.ctx, &piece.text, size);
                     self.ctx
                         .text
                         .queue_ui_sized(px, y, &piece.text, theme::ACCENT(), size, self.clip);
@@ -432,6 +432,7 @@ impl Painter<'_> {
             // the code family's TRUE italic face (a genuine slant, never faux).
             let bold = base_bold || matches!(piece.kind, PieceKind::Bold);
             let italic = matches!(piece.kind, PieceKind::Italic);
+            let adv = ui_draw_advance(self.ctx, &piece.text, size);
             if italic && !bold {
                 self.ctx.text.queue_styled(
                     px,
@@ -454,6 +455,11 @@ impl Painter<'_> {
             px += adv;
         }
     }
+}
+
+fn ui_draw_advance(ctx: &mut MuiContext, text: &str, size: f32) -> f32 {
+    let trailing_spaces = text.chars().rev().take_while(|&ch| ch == ' ').count();
+    ctx.text.measure_ui_sized(text, size).0 + trailing_spaces as f32 * size * 0.34
 }
 
 /// Per-char advance estimate for a piece at `size` (mono for code, proportional
@@ -501,18 +507,26 @@ fn flatten_spans(spans: &[Span], kind: PieceKind, out: &mut Vec<Piece>) {
     }
 }
 
-/// Split `t` on whitespace into word pieces (each carrying a trailing space so
-/// wrapping re-joins naturally).
+/// Split `t` into word pieces while preserving source whitespace as a single
+/// trailing space on the preceding piece. This keeps styled span boundaries from
+/// visually joining words, e.g. `A **live** preview`.
 fn push_words(t: &str, kind: PieceKind, out: &mut Vec<Piece>) {
-    let mut first = true;
-    for word in t.split_whitespace() {
-        let text = if first { word.to_string() } else { format!(" {word}") };
-        first = false;
-        out.push(Piece { text, kind });
+    let mut buf = String::new();
+    for ch in t.chars() {
+        if ch.is_whitespace() {
+            if !buf.is_empty() {
+                buf.push(' ');
+                out.push(Piece { text: std::mem::take(&mut buf), kind });
+            } else if !out.last().is_some_and(|last| last.text.ends_with(' ')) {
+                out.push(Piece { text: " ".to_string(), kind });
+            }
+        } else {
+            buf.push(ch);
+        }
     }
-    // Preserve a leading/trailing space context loosely: if `t` ended with a
-    // space and there were words, the next piece (different span) keeps reading
-    // naturally because we prefix following words. Good enough for preview.
+    if !buf.is_empty() {
+        out.push(Piece { text: buf, kind });
+    }
 }
 
 /// Word-wrap flattened spans to `width` px at `size`, returning lines of pieces.
@@ -579,6 +593,15 @@ mod tests {
         let mut out = Vec::new();
         flatten_spans(&spans, PieceKind::Plain, &mut out);
         assert!(out.iter().any(|p| p.kind == PieceKind::Link && p.text == "the docs"));
+    }
+
+    #[test]
+    fn span_boundaries_keep_spaces() {
+        let spans = markdown::parse_inline("A **live** preview rendered to `code` spans");
+        let mut out = Vec::new();
+        flatten_spans(&spans, PieceKind::Plain, &mut out);
+        let rendered: String = out.iter().map(|p| p.text.as_str()).collect();
+        assert_eq!(rendered, "A live preview rendered to code spans");
     }
 
     #[test]

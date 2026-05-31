@@ -342,6 +342,30 @@ impl Text {
         (width, height)
     }
 
+    /// Shape UI-family text at an explicit size and return its pixel extent.
+    pub fn measure_ui_sized(&mut self, text: &str, size: f32) -> (f32, f32) {
+        let line_h = (size * (line_height() / font_size())).max(size + 1.0);
+        let mut buffer = TextBuffer::new(&mut self.font_system, Metrics::new(size, line_h));
+        buffer.set_size(&mut self.font_system, None, None);
+        let family = if self.has_ui_font { UI_FAMILY } else { FONT_FAMILY };
+        buffer.set_text(
+            &mut self.font_system,
+            text,
+            Attrs::new().family(Family::Name(family)),
+            Shaping::Advanced,
+        );
+        buffer.shape_until_scroll(&mut self.font_system, false);
+
+        let mut width = 0.0f32;
+        let mut lines = 0u32;
+        for run in buffer.layout_runs() {
+            width = width.max(run.line_w);
+            lines += 1;
+        }
+        let height = (lines.max(1) as f32) * line_h;
+        (width, height)
+    }
+
     /// Build per-command cosmic-text buffers, prepare, and render the requested
     /// layer (`overlay = false` for base text, `true` for overlay-layer text).
     /// Called twice per frame so an opaque overlay rect can sit between the two
