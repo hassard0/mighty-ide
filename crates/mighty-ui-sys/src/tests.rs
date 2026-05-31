@@ -574,6 +574,32 @@ fn search_replace_all_toasts_visible_result() {
 }
 
 #[test]
+fn new_project_invalid_and_existing_names_toast_without_shelling_out() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_new_project_guards");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("taken")).unwrap();
+    ctx.workspace.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.path_stage.extend_from_slice(b"bad/name");
+    assert_eq!(crate::newprojabi::mui_newproj_create(handle), 0);
+    assert!(ctx.path_stage.is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Name must not contain path separators");
+
+    ctx.path_stage.extend_from_slice(b"taken");
+    assert_eq!(crate::newprojabi::mui_newproj_create(handle), 0);
+    assert!(ctx.path_stage.is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert!(toast.message.contains("already exists"));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
     use crate::ffi::MuiEvent;
     use crate::mui_topbar_action_at_click;
