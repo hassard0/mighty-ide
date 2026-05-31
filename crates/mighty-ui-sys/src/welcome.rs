@@ -214,7 +214,7 @@ impl WelcomeState {
         // The "M" mark, in on-accent ink (white reads on the saturated tile in
         // every theme).
         let mark_ink = MuiColor::new(1.0, 1.0, 1.0, 0.96);
-        ctx.dl_icon(tx + 12.0, y + 12.0, 40.0, 40.0, icons::LANG_M, mark_ink, 3.0, false);
+        ctx.dl_icon(tx + 12.0, y + 12.0, 40.0, 40.0, icons::LANG_M_FILL, mark_ink, 0.0, true);
 
         // Wordmark to the right of the tile.
         let word_x = tx + tile + if compact { 16.0 } else { 22.0 };

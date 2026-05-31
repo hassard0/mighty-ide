@@ -5,8 +5,8 @@ The taskbar icon has to work at 16px, so this is deliberately simpler than the
 large Welcome art: a high-contrast Mighty "M" stroke on a saturated tile,
 rendered separately at 16/32/48/256 and assembled into one multi-resolution ico.
 
-The glyph mirrors the IDE's in-app `icons::LANG_M` path `M5 18 V7 l7 6 l7 -6 v11`
-(a 24-unit viewBox), so the desktop/Explorer icon matches the UI mark.
+The glyph mirrors the IDE's in-app `icons::LANG_M_FILL` path, so the
+desktop/Explorer icon matches the UI mark.
 
 Run: python tools/make-icon.py  (writes assets/mighty-ide.ico)
 """
@@ -23,9 +23,8 @@ ACCENT_EDGE = (201, 244, 255, 255)
 INK = (255, 255, 255, 255)
 INK_SHADOW = (19, 16, 52, 145)
 
-# The centered LANG_M polyline on a 24-unit viewBox:
-# (5,18)->(5,7)->(12,13)->(19,7)->(19,18).
-GLYPH = [(5, 18), (5, 7), (12, 13), (19, 7), (19, 18)]
+# Filled Mighty monogram on a 24-unit viewBox.
+GLYPH = [(4.5, 18.5), (4.5, 5.5), (8.3, 5.5), (12, 11.1), (15.7, 5.5), (19.5, 5.5), (19.5, 18.5), (15.8, 18.5), (15.8, 11.6), (12, 17), (8.2, 11.6), (8.2, 18.5)]
 
 SS = 8  # supersample factor for crisp antialiasing, then downscale.
 
@@ -58,19 +57,13 @@ def render(size: int) -> Image.Image:
     d.rounded_rectangle([inset, inset, s - inset, s - inset], radius=radius, outline=ACCENT_EDGE, width=max(1, SS))
     d.line([(s * 0.16, s * 0.18), (s * 0.62, s * 0.18)], fill=(255, 255, 255, 55), width=max(1, SS))
 
-    # White Mighty "M" stroke. Scale the 24-unit glyph into the tile's safe area.
+    # White Mighty monogram. Scale the 24-unit glyph into the tile's safe area.
     pad = s * 0.125
     span = s - 2 * pad
     pts = [(pad + (x / 24.0) * span, pad + (y / 24.0) * span) for (x, y) in GLYPH]
-    width = max(SS * 2, int(s * 0.145))
-
-    # Shadow then main stroke, with rounded joins/caps via overdrawn dots.
     shadow_pts = [(x + max(1, s * 0.012), y + max(1, s * 0.018)) for x, y in pts]
-    d.line(shadow_pts, fill=INK_SHADOW, width=int(width * 1.08), joint="curve")
-    d.line(pts, fill=INK, width=width, joint="curve")
-    r = width / 2
-    for px, py in pts:
-        d.ellipse([px - r, py - r, px + r, py + r], fill=INK)
+    d.polygon(shadow_pts, fill=INK_SHADOW)
+    d.polygon(pts, fill=INK)
 
     return img.resize((size, size), Image.LANCZOS)
 

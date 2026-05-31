@@ -809,6 +809,7 @@ mod tests {
             ("WARN_TRI", icons::WARN_TRI),
             ("LF", icons::LF),
             ("LANG_M", icons::LANG_M),
+            ("LANG_M_FILL", icons::LANG_M_FILL),
             ("BELL", icons::BELL),
             ("TEST_BOX", icons::TEST_BOX),
             ("INFO_I", icons::INFO_I),
@@ -839,5 +840,4 @@ mod tests {
         );
     }
 }
-
 

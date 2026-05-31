@@ -115,6 +115,9 @@ pub const LF: &str = "M5 7l-3 5 3 5M19 7l3 5-3 5M14 4l-4 16";
 /// Mighty language / brand mark. Kept optically centered in the 24px viewBox so
 /// it reads cleanly in the rail logo, Welcome tile, status pill, and Windows ico.
 pub const LANG_M: &str = "M5 18V7l7 6 7-6v11";
+/// Filled Mighty monogram for brand tiles. The negative notch reads more clearly
+/// than the open stroke at rail/taskbar sizes.
+pub const LANG_M_FILL: &str = "M4.5 18.5V5.5h3.8l3.7 5.6 3.7-5.6h3.8v13h-3.7v-6.9L12 17l-3.8-5.4v6.9z";
 /// Bell / notifications.
 pub const BELL: &str = "M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7z M10 20a2 2 0 0 0 4 0";
 

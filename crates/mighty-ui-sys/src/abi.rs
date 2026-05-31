@@ -2577,7 +2577,7 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     let py = y + (bar_h - pill_h) * 0.5;
     ctx.dl_grad_v(rx, py, pill_w, pill_h, 6.0, theme::accent_a(0.22), theme::accent_a(0.10));
     ctx.dl_stroke(rx, py, pill_w, pill_h, 6.0, theme::ACCENT_LINE(), 1.0);
-    ctx.dl_icon(rx + 8.0, py + (pill_h - 11.0) * 0.5, 11.0, 11.0, icons::LANG_M, theme::ACCENT_BRIGHT(), 1.8, false);
+    ctx.dl_icon(rx + 8.0, py + (pill_h - 11.0) * 0.5, 11.0, 11.0, icons::LANG_M_FILL, theme::ACCENT_BRIGHT(), 0.0, true);
     ctx.text.queue_ui_sized(rx + 22.0, ty + 0.5, lang, theme::ACCENT_BRIGHT(), chrome - 1.5, clip);
     rx -= 12.0;
 
@@ -3443,10 +3443,10 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
         ly + 5.0,
         logo_tile - 10.0,
         logo_tile - 10.0,
-        icons::LANG_M,
+        icons::LANG_M_FILL,
         theme::TEXT(),
-        2.75,
-        false,
+        0.0,
+        true,
     );
 
     // Activity icons. Explorer (index 0) active. Each is a 38x38 hit cell with a
