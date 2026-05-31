@@ -15,9 +15,8 @@
 //!   * `${1:label}` — a tab-stop with placeholder text pre-selected.
 //!   * `$0` — the FINAL cursor position (jumped to last; ends the session).
 //!
-//! Two equal-numbered stops both appear in the session (the first is the primary
-//! navigation target; the rest are recorded so a future mirror pass can update
-//! them — single-stop is fully supported, mirroring is a nice-to-have).
+//! Two equal-numbered stops share one navigation target: the first is the
+//! editable primary placeholder; later equal stops mirror its text.
 //!
 //! ## Expansion
 //!
@@ -226,7 +225,10 @@ pub fn expand(body: &str, indent: &str, cur_line: usize, cur_col: usize) -> Expa
 #[derive(Debug, Clone, Default)]
 pub struct SnippetSession {
     stops: Vec<Stop>,
-    /// Index of the current stop (`0..stops.len()`); `stops.len()` means done.
+    /// Navigation indexes into `stops`. Equal-numbered stops appear once here;
+    /// later equal stops are mirrors, not extra Tab destinations.
+    nav: Vec<usize>,
+    /// Index into `nav`; `nav.len()` means done.
     cur: usize,
     active: bool,
 }
@@ -244,9 +246,18 @@ impl SnippetSession {
         // Drop nothing — but only activate if there's at least one stop to land on.
         if stops.is_empty() {
             self.active = false;
+            self.stops.clear();
+            self.nav.clear();
             return false;
         }
         self.stops = stops;
+        self.nav.clear();
+        let mut seen = std::collections::HashSet::new();
+        for (i, stop) in self.stops.iter().enumerate() {
+            if seen.insert(stop.num) {
+                self.nav.push(i);
+            }
+        }
         self.cur = 0;
         self.active = true;
         true
@@ -261,7 +272,7 @@ impl SnippetSession {
         if !self.active {
             return None;
         }
-        self.stops.get(self.cur).copied()
+        self.nav.get(self.cur).and_then(|i| self.stops.get(*i)).copied()
     }
 
     /// Advance to the next stop. Returns the new current stop, or `None` (and ends
@@ -270,14 +281,14 @@ impl SnippetSession {
         if !self.active {
             return None;
         }
-        if self.cur + 1 >= self.stops.len() {
+        if self.cur + 1 >= self.nav.len() {
             // Past the final stop -> session over.
-            self.cur = self.stops.len();
+            self.cur = self.nav.len();
             self.active = false;
             return None;
         }
         self.cur += 1;
-        self.stops.get(self.cur).copied()
+        self.current()
     }
 
     /// Step back to the previous stop. Returns the new current stop (clamped at
@@ -289,14 +300,130 @@ impl SnippetSession {
         if self.cur > 0 {
             self.cur -= 1;
         }
-        self.stops.get(self.cur).copied()
+        self.current()
     }
 
     /// End the session (Esc / typing past the end / cursor leaving the region).
     pub fn cancel(&mut self) {
         self.active = false;
         self.stops.clear();
+        self.nav.clear();
         self.cur = 0;
+    }
+
+    /// Delete the current primary placeholder before typing over it. The current
+    /// stop's range collapses to its start; mirrors keep their old placeholder
+    /// ranges until `sync_mirrors_from_current`.
+    pub fn replace_current_selection(&mut self, model: &mut TextModel) -> bool {
+        let Some(stop_idx) = self.nav.get(self.cur).copied() else {
+            return false;
+        };
+        let Some(stop) = self.stops.get_mut(stop_idx) else {
+            return false;
+        };
+        let removed = model.delete_selection();
+        if removed {
+            stop.end = stop.start;
+        }
+        removed
+    }
+
+    /// Copy the current primary placeholder text into all same-numbered mirror
+    /// stops, keeping later tab-stop positions aligned after each replacement.
+    pub fn sync_mirrors_from_current(&mut self, model: &mut TextModel) {
+        let Some(primary_idx) = self.nav.get(self.cur).copied() else {
+            return;
+        };
+        let Some(primary) = self.stops.get(primary_idx).copied() else {
+            return;
+        };
+        if primary.num == 0 {
+            return;
+        }
+        let cursor = (model.cursor_line(), model.cursor_col());
+        if cursor.0 != primary.start.0 || cursor.1 < primary.start.1 {
+            return;
+        }
+        let replacement = text_between(model, primary.start, cursor);
+        if replacement.contains('\n') {
+            return;
+        }
+        self.stops[primary_idx].end = cursor;
+
+        let mut mirrors: Vec<usize> = self
+            .stops
+            .iter()
+            .enumerate()
+            .filter(|(i, s)| *i != primary_idx && s.num == primary.num)
+            .map(|(i, _)| i)
+            .collect();
+        mirrors.sort_by_key(|i| self.stops[*i].start);
+        mirrors.reverse();
+
+        for i in mirrors {
+            let old = self.stops[i];
+            if old.start.0 != old.end.0 {
+                continue;
+            }
+            replace_range(model, old.start, old.end, &replacement);
+            let new_end = (old.start.0, old.start.1 + replacement.chars().count());
+            self.stops[i].end = new_end;
+            self.shift_after_single_line_edit(i, old.start, old.end, new_end);
+        }
+        model.set_selection(self.stops[primary_idx].end, self.stops[primary_idx].end);
+    }
+
+    fn shift_after_single_line_edit(
+        &mut self,
+        edited_idx: usize,
+        start: (usize, usize),
+        old_end: (usize, usize),
+        new_end: (usize, usize),
+    ) {
+        if start.0 != old_end.0 || start.0 != new_end.0 {
+            return;
+        }
+        let old_len = old_end.1.saturating_sub(start.1);
+        let new_len = new_end.1.saturating_sub(start.1);
+        let delta = new_len as isize - old_len as isize;
+        if delta == 0 {
+            return;
+        }
+        let shift = |col: usize| -> usize {
+            if delta >= 0 {
+                col.saturating_add(delta as usize)
+            } else {
+                col.saturating_sub((-delta) as usize)
+            }
+        };
+        for (i, stop) in self.stops.iter_mut().enumerate() {
+            if i == edited_idx || stop.start.0 != start.0 {
+                continue;
+            }
+            if stop.start.1 >= old_end.1 {
+                stop.start.1 = shift(stop.start.1);
+            }
+            if stop.end.1 >= old_end.1 {
+                stop.end.1 = shift(stop.end.1);
+            }
+        }
+    }
+}
+
+fn text_between(model: &TextModel, start: (usize, usize), end: (usize, usize)) -> String {
+    if start.0 != end.0 {
+        return String::new();
+    }
+    let line = model.line(start.0);
+    let chars: Vec<char> = line.chars().collect();
+    chars[start.1.min(chars.len())..end.1.min(chars.len())].iter().collect()
+}
+
+fn replace_range(model: &mut TextModel, start: (usize, usize), end: (usize, usize), text: &str) {
+    model.set_selection(start, end);
+    let _ = model.delete_selection();
+    for ch in text.chars() {
+        model.insert_char(ch);
     }
 }
 
@@ -652,6 +779,40 @@ mod tests {
         assert_eq!(s.prev_stop().unwrap().num, 1);
         // Prev at the first stays at the first.
         assert_eq!(s.prev_stop().unwrap().num, 1);
+    }
+
+    #[test]
+    fn session_skips_duplicate_mirror_stops_for_navigation() {
+        let stops = vec![
+            Stop { num: 1, start: (0, 0), end: (0, 1) },
+            Stop { num: 1, start: (0, 5), end: (0, 6) },
+            Stop { num: 2, start: (0, 10), end: (0, 11) },
+            Stop { num: 0, start: (0, 12), end: (0, 12) },
+        ];
+        let mut s = SnippetSession::new();
+        assert!(s.begin(stops));
+        assert_eq!(s.current().unwrap().num, 1);
+        assert_eq!(s.next_stop().unwrap().num, 2);
+        assert_eq!(s.next_stop().unwrap().num, 0);
+        assert_eq!(s.next_stop(), None);
+    }
+
+    #[test]
+    fn session_mirrors_placeholder_typing() {
+        let mut m = TextModel::from_bytes(b"for");
+        m.move_to(0, 3);
+        let mut s = SnippetSession::new();
+        assert!(try_expand(&mut m, &mut s, Language::JavaScript));
+        assert_eq!(m.selected_text(), "i");
+        assert!(s.replace_current_selection(&mut m));
+        m.insert_char('j');
+        s.sync_mirrors_from_current(&mut m);
+        assert_eq!(m.line(0), "for (let j = 0; j < n; j++) {");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 10));
+        let next = s.next_stop().unwrap();
+        assert_eq!(next.num, 2);
+        m.set_selection(next.start, next.end);
+        assert_eq!(m.selected_text(), "n");
     }
 
     #[test]

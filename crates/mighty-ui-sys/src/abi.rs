@@ -9474,9 +9474,14 @@ pub extern "C" fn mui_ed_insert_char_multi(handle: i64, cp: i32) {
 #[no_mangle]
 pub extern "C" fn mui_ed_insert_smart_multi(handle: i64, cp: i32) {
     trace(&format!("ed_insert_smart_multi cp={cp}"));
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(c) = unsafe { ctx(handle) } {
         if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
-            m.insert_char_smart_multi(ch);
+            c.tabs.active_model_mut().insert_char_smart_multi(ch);
+            if c.snippet_session.is_active() {
+                let session = &mut c.snippet_session;
+                let model = c.tabs.active_model_mut();
+                session.sync_mirrors_from_current(model);
+            }
         }
     }
 }

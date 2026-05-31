@@ -117,7 +117,9 @@ pub extern "C" fn mui_snippet_replace_stop(handle: i64) -> i32 {
     if !c.snippet_session.is_active() {
         return 0;
     }
-    i32::from(c.tabs.active_model_mut().delete_selection())
+    let session = &mut c.snippet_session;
+    let model = c.tabs.active_model_mut();
+    i32::from(session.replace_current_selection(model))
 }
 
 /// Completion-source hook: after a completion request, prepend the snippet

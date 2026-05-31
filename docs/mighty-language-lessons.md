@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-05-31 (Explorer file operations + prompt-string staging pressure — L52. Prior: Windows packaging/runtime ABI hardening — L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages — L35; verified live against rust-analyzer 1.95.0. Developer-workflow features — Run panel + inline git diff + live Settings panel — L33/L34; LIVE EDITING via a shim-side authoritative text model — the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-05-31 (snippet mirror placeholders — L53; Explorer file operations + prompt-string staging pressure — L52. Prior: Windows packaging/runtime ABI hardening — L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages — L35; verified live against rust-analyzer 1.95.0. Developer-workflow features — Run panel + inline git diff + live Settings panel — L33/L34; LIVE EDITING via a shim-side authoritative text model — the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -1068,3 +1068,19 @@ to mutate caller-local state (`prompt_kind`, `find_nav`, focus booleans).
   compiler-owned temporary string view, or first-class bindings for common
   shim-owned string buffers. Longer term, lightweight block helpers that can
   mutate caller locals would also make command dispatch less repetitive.
+
+### L53. Snippet mirrors confirm the shim-owned editor-state pattern **[finding, P3]**
+Implementing VS Code-style mirrored snippet placeholders (`${1:i}` repeated in a
+template) did not require a Mighty language change. The existing scalar event
+route stayed intact: Mighty still calls `mui_snippet_replace_stop` before normal
+typed-character insertion and `mui_ed_insert_smart_multi` for the actual edit.
+The shim now owns the richer state: primary tab-stop navigation indexes, mirror
+placeholder ranges, range replacement, and position shifting after each mirrored
+edit.
+
+- **Why it matters for the IDE:** users now get expected snippet behavior such as
+  JavaScript `for` expanding with all repeated iterator names kept in sync, while
+  Tab navigation skips duplicate mirror stops and lands only on meaningful fields.
+- **Language note:** no new gap surfaced. This is the right current architecture
+  for high-touch editor mechanics: keep mutable text/range state in Rust, expose
+  small scalar hooks to Mighty, and avoid growing the already-deep event ladder.
