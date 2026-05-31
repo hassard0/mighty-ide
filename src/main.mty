@@ -1130,6 +1130,7 @@ fn main() {
 
     let mut tag = mui_poll_event_s(h)
     while tag != 0 && running {
+      let mut command_click_id: I32 = -1
       if tag == ev_close() {
         running = false
       } else if mui_keys_active(h) == 1 || mui_crumb_menu_active(h) == 1 || mui_branch_active(h) == 1 {
@@ -1466,6 +1467,11 @@ fn main() {
           if ph < 0 {
             mui_palette_cancel(h)
             palette_open = false
+          } else {
+            command_click_id = mui_palette_selected_id(h)
+            mui_palette_cancel(h)
+            palette_open = false
+            typing = false
           }
         }
       } else if quickopen_open {
@@ -1682,7 +1688,12 @@ fn main() {
             quickopen_open = false
           } else {
             let mode = mui_qo_mode(h)
-            if mode != 1 {
+            if mode == 1 {
+              command_click_id = mui_qo_command_id(h, qh)
+              mui_qo_cancel(h)
+              quickopen_open = false
+              typing = false
+            } else {
               let r = mui_qo_accept(h, qh)
               quickopen_open = false
               if mode == 0 {
@@ -3155,6 +3166,165 @@ fn main() {
               ai_focus = false
             }
           }
+        }
+      }
+      if command_click_id >= 0 {
+        let id = command_click_id
+        if id == cmd_open_file() {
+          let oi = mui_open_file_dialog(h)
+          if oi >= 0 {
+            let _b = mui_ed_tab_switch(h, oi)
+            mui_ed_undo_reset(h)
+            find_nav = false
+            let _r = mui_diag_refresh(h)
+            let _o = mui_outline_refresh(h)
+            mui_qo_record_active(h)
+          } else {
+            mui_prompt_open(h, prompt_open())
+            prompt_kind = prompt_open()
+            find_nav = false
+          }
+        } else if id == cmd_save() {
+          if mui_active_has_path(h) == 0 {
+            let sr = mui_save_as_dialog(h)
+            if sr == 0 {
+              mui_tab_set_dirty(h, active0, 0)
+              let _r = mui_diag_refresh(h)
+              let _g = mui_scm_refresh(h)
+              let _o = mui_outline_refresh(h)
+            } else {
+              mui_prompt_open(h, prompt_save_as())
+              prompt_kind = prompt_save_as()
+              find_nav = false
+            }
+          } else {
+            let rc = mui_ed_save(h)
+            if rc == 0 {
+              mui_tab_set_dirty(h, active0, 0)
+              let _r = mui_diag_refresh(h)
+            }
+          }
+        } else if id == cmd_find() {
+          mui_prompt_open(h, prompt_find())
+          prompt_kind = prompt_find()
+        } else if id == cmd_goto_line() {
+          mui_prompt_open(h, prompt_goto())
+          prompt_kind = prompt_goto()
+          find_nav = false
+        } else if id == cmd_goto_definition() {
+          go_to_definition(h)
+          prev_line = mui_ed_cursor_line(h)
+          prev_col = mui_ed_cursor_col(h)
+          find_nav = false
+        } else if id == cmd_hover() {
+          let ok = do_hover(h)
+          if ok == 1 { hovering = true; hover_line = mui_ed_cursor_line(h); hover_col = mui_ed_cursor_col(h) } else { hovering = false }
+        } else if id == cmd_toggle_terminal() {
+          if mui_term_is_open(h) == 1 {
+            term_focus = true
+          } else {
+            let ok = mui_term_open(h)
+            if ok == 1 { term_focus = true; mui_log_terminal(h) }
+          }
+        } else if id == cmd_toggle_sidebar() {
+          let _s = mui_sidebar_toggle(h)
+        } else if id == cmd_next_tab() {
+          let a = mui_tab_next(h)
+          let _b = mui_ed_tab_switch(h, a)
+          mui_ed_undo_reset(h)
+          find_nav = false
+          let _r = mui_diag_refresh(h)
+        } else if id == cmd_prev_tab() {
+          let a = mui_tab_prev(h)
+          let _b = mui_ed_tab_switch(h, a)
+          mui_ed_undo_reset(h)
+          find_nav = false
+          let _r = mui_diag_refresh(h)
+        } else if id == cmd_close_tab() {
+          let cur_active = mui_tab_active(h)
+          let a = mui_tab_close(h, cur_active)
+          let _b = mui_ed_tab_switch(h, a)
+          mui_ed_undo_reset(h)
+          find_nav = false
+          let _r = mui_diag_refresh(h)
+        } else if id == cmd_format_document() {
+          do_format(h)
+        } else if id == cmd_undo() {
+          mui_complete_cancel(h)
+          completing = false
+          find_nav = false
+          let _u = mui_ed_undo(h)
+        } else if id == cmd_redo() {
+          mui_complete_cancel(h)
+          completing = false
+          find_nav = false
+          let _u = mui_ed_redo(h)
+        } else if id == cmd_autocomplete() {
+          let _c = mui_ed_complete_request(h)
+          mui_snippet_inject_completions(h)
+          let cnt = mui_complete_count(h)
+          if cnt > 0 { completing = true } else { mui_complete_cancel(h) }
+        } else if id == cmd_jump_back() {
+          if have_prev {
+            mui_ed_move_to(h, prev_line, prev_col)
+            have_prev = false
+            mui_hover_clear(h)
+            hovering = false
+          }
+        } else if id == cmd_quit() {
+          running = false
+        } else if id == cmd_color_theme() {
+          mui_theme_picker_open(h)
+          theme_picker_open = true
+        } else if id == cmd_run_file() {
+          let _r = mui_run_start(h)
+          run_focus = true
+        } else if id == cmd_settings() {
+          let _s = mui_settings_open(h)
+          settings_open = true
+        } else if id == cmd_run_tests() {
+          let _t = mui_test_run(h)
+          test_focus = true
+        } else if id == cmd_peek_definition() {
+          let _p = peek_definition(h)
+        } else if id == cmd_welcome() {
+          mui_welcome_open(h)
+        } else if id == cmd_zen_mode() {
+          let _z = mui_zen_toggle(h)
+        } else if id == cmd_agents() {
+          let _p = mui_panel_set(h, panel_agents_mty())
+          let _a = mui_agents_refresh(h)
+        } else if id == cmd_run_in_browser() {
+          let _w = mui_web_run(h)
+          web_focus = true
+        } else if id >= cmd_pane_first() && id <= cmd_pane_last() {
+          let _pn = mui_pane_dispatch(h, id)
+        } else if id >= cmd_git_first() && id <= cmd_git_last() {
+          let _g = mui_git_dispatch(h, id)
+          if mui_branch_active(h) == 1 { branch_open = true }
+        } else if id >= cmd_ws_first() && id <= cmd_ws_last() {
+          let wr = mui_ws_dispatch(h, id)
+          if wr == 2 {
+            mui_prompt_open(h, prompt_open_folder())
+            prompt_kind = prompt_open_folder()
+            find_nav = false
+          } else if wr == 3 {
+            if mui_ws_recent_count(h) > 0 {
+              let _or = mui_ws_open_recent(h, 0)
+            } else {
+              mui_prompt_open(h, prompt_open_folder())
+              prompt_kind = prompt_open_folder()
+              find_nav = false
+            }
+          }
+        } else if id >= cmd_fold_first() && id <= cmd_fold_last() {
+          let _f = mui_fold_dispatch(h, id)
+        } else if id == cmd_keyboard_shortcuts() {
+          mui_keys_open(h)
+        } else if id == cmd_new_project() {
+          mui_prompt_open(h, prompt_new_project())
+          prompt_kind = prompt_new_project()
+          find_nav = false
         }
       }
       tag = mui_poll_event_s(h)
