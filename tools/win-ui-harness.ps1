@@ -180,13 +180,19 @@ function Capture($h, $name) {
   if (-not $fg) { Log "capture '$name': !!! WINDOW NOT FOREGROUND - capture is UNTRUSTWORTHY" }
   $bmp = New-Object System.Drawing.Bitmap $w, $hh
   $g = [System.Drawing.Graphics]::FromImage($bmp)
-  $g.CopyFromScreen($r.Left, $r.Top, 0, 0, (New-Object System.Drawing.Size $w, $hh))
-  $g.Dispose()
-  $path = Join-Path $OutDir "$name.png"
-  $bmp.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
-  $bmp.Dispose()
-  Log "capture '$name' -> $path  ($w x $hh)"
-  return $path
+  try {
+    $g.CopyFromScreen($r.Left, $r.Top, 0, 0, (New-Object System.Drawing.Size $w, $hh))
+    $path = Join-Path $OutDir "$name.png"
+    $bmp.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
+    Log "capture '$name' -> $path  ($w x $hh)"
+    return $path
+  } catch {
+    Log "capture '$name': FAILED - $($_.Exception.Message)"
+    return $null
+  } finally {
+    $g.Dispose()
+    $bmp.Dispose()
+  }
 }
 
 function Is-Responsive($h, $timeoutMs = 1200) {
