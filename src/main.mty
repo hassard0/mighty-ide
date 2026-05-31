@@ -208,6 +208,7 @@ extern c {
   fn mui_search_file_count(handle: I64) -> I32
   fn mui_search_match_count(handle: I64) -> I32
   fn mui_search_open(handle: I64, i: I32) -> I32
+  fn mui_search_action_at_click(handle: I64) -> I32
   fn mui_search_row_at_click(handle: I64) -> I32
   fn mui_search_draw(handle: I64)
   // stdout evidence (computed counts; Mighty `log` is literal-only, L23)
@@ -2906,15 +2907,22 @@ fn main() {
             }
           }
         } else if cur_panel == panel_search() {
-          // Search panel: open the file at the clicked match.
-          let s_hit = mui_search_row_at_click(h)
-          if s_hit >= 0 {
+          // Search panel: input/button clicks first, then result rows.
+          let s_act = mui_search_action_at_click(h)
+          if s_act == 1 {
+            let _c = mui_search_run(h)
+          } else if s_act == 2 {
+            let _r = mui_search_replace_all(h)
+          } else {
+            let s_hit = mui_search_row_at_click(h)
+            if s_hit >= 0 {
             let newidx = mui_search_open(h, s_hit)
             if newidx >= 0 {
               let _b = mui_ed_tab_switch(h, newidx)
               mui_ed_undo_reset(h)
               find_nav = false
               let _r = mui_diag_refresh(h)
+            }
             }
           }
         } else if mui_tree_row_at_click(h) >= 0 {

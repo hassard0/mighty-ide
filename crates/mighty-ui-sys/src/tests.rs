@@ -512,6 +512,40 @@ fn click_routing_tab_bar_sidebar_and_text() {
 }
 
 #[test]
+fn search_panel_clicks_focus_fields_and_return_actions() {
+    use crate::ffi::MuiEvent;
+
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_SEARCH;
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 600;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let sx = crate::layout::RAIL_W;
+    let sw = crate::layout::SIDEBAR_W;
+
+    ctx.search.replace_focus = true;
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, sx + 24.0, 52.0, 0);
+    assert_eq!(crate::panels::mui_search_action_at_click(handle), 0);
+    assert!(!ctx.search.replace_focus);
+
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, sx + 24.0, 88.0, 0);
+    assert_eq!(crate::panels::mui_search_action_at_click(handle), 0);
+    assert!(ctx.search.replace_focus);
+
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, sx + sw - 26.0, 52.0, 0);
+    assert_eq!(crate::panels::mui_search_action_at_click(handle), 1);
+    assert!(!ctx.search.replace_focus);
+
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, sx + sw - 26.0, 88.0, 0);
+    assert_eq!(crate::panels::mui_search_action_at_click(handle), 2);
+    assert!(ctx.search.replace_focus);
+
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    assert_eq!(crate::panels::mui_search_action_at_click(handle), 0);
+}
+
+#[test]
 fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
     use crate::ffi::MuiEvent;
     use crate::mui_topbar_action_at_click;

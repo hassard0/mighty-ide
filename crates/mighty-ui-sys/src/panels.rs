@@ -1012,6 +1012,60 @@ fn search_rows_bottom(height: u32) -> f32 {
     height as f32 - layout::LINE_H() - 4.0
 }
 
+fn search_field_geometry() -> (f32, f32, f32) {
+    let head_h = 40.0;
+    let box_h = 30.0;
+    let qy = head_h + 6.0;
+    let ry = qy + box_h + 6.0;
+    (qy, ry, box_h)
+}
+
+fn search_field_button_x(sx: f32, sw: f32) -> (f32, f32) {
+    (sx + sw - 40.0, sx + sw - 14.0)
+}
+
+/// Search-panel mouse action for the last click:
+/// `0` = no action, `1` = run search, `2` = replace all.
+///
+/// Clicking either input also moves keyboard focus to that field, so the panel
+/// no longer depends on Tab-only field switching.
+#[no_mangle]
+pub extern "C" fn mui_search_action_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let sx = layout::RAIL_W;
+    let sw = layout::SIDEBAR_W;
+    if !ctx.sidebar_visible
+        || ctx.active_panel != crate::PANEL_SEARCH
+        || ctx.last_event.x < sx
+        || ctx.last_event.x > sx + sw
+    {
+        return 0;
+    }
+
+    let x = ctx.last_event.x;
+    let y = ctx.last_event.y;
+    let (qy, ry, box_h) = search_field_geometry();
+    let box_x0 = sx + 10.0;
+    let box_x1 = sx + sw - 10.0;
+    let (btn_x0, btn_x1) = search_field_button_x(sx, sw);
+    if (box_x0..=box_x1).contains(&x) && (qy..=qy + box_h).contains(&y) {
+        ctx.search.replace_focus = false;
+        if (btn_x0..=btn_x1).contains(&x) {
+            return 1;
+        }
+        return 0;
+    }
+    if (box_x0..=box_x1).contains(&x) && (ry..=ry + box_h).contains(&y) {
+        ctx.search.replace_focus = true;
+        if (btn_x0..=btn_x1).contains(&x) {
+            return 2;
+        }
+    }
+    0
+}
+
 /// Map the last click's pixel y to a flattened search-result match index, or
 /// `-1` for a file-header row / no row.
 #[no_mangle]
@@ -1101,8 +1155,7 @@ pub extern "C" fn mui_search_draw(handle: i64) {
     let replace = ctx.search.replace_string();
 
     // query box
-    let box_h = 30.0;
-    let qy = head_h + 6.0;
+    let (qy, ry, box_h) = search_field_geometry();
     let q_border = if !replace_focus { theme::ACCENT_LINE() } else { theme::BORDER_STRONG() };
     ctx.dl_round(sx + 10.0, qy, sw - 20.0, box_h, 7.0, theme::BG_1());
     ctx.dl_stroke(sx + 10.0, qy, sw - 20.0, box_h, 7.0, q_border, 1.0);
@@ -1112,12 +1165,14 @@ pub extern "C" fn mui_search_draw(handle: i64) {
     } else {
         (query.clone(), theme::TEXT())
     };
-    let qavail = ((sw - 56.0) / adv).floor() as usize;
+    let (btn_x0, btn_x1) = search_field_button_x(sx, sw);
+    let qavail = ((btn_x0 - (sx + 38.0)) / adv).floor() as usize;
     let qshown = tail(&q_text, qavail);
     ctx.text.queue_ui_sized(sx + 34.0, qy + (box_h - chrome) * 0.5 - 1.0, &qshown, q_col, chrome, clip);
+    ctx.dl_round(btn_x0, qy + 4.0, btn_x1 - btn_x0, box_h - 8.0, 5.0, theme::BG_4());
+    ctx.dl_icon(btn_x0 + 6.0, qy + 8.0, 14.0, 14.0, icons::REFRESH, theme::TEXT_1(), 1.4, false);
 
     // replace box
-    let ry = qy + box_h + 6.0;
     let r_border = if replace_focus { theme::ACCENT_LINE() } else { theme::BORDER_STRONG() };
     ctx.dl_round(sx + 10.0, ry, sw - 20.0, box_h, 7.0, theme::BG_1());
     ctx.dl_stroke(sx + 10.0, ry, sw - 20.0, box_h, 7.0, r_border, 1.0);
@@ -1129,6 +1184,8 @@ pub extern "C" fn mui_search_draw(handle: i64) {
     };
     let rshown = tail(&r_text, qavail);
     ctx.text.queue_ui_sized(sx + 34.0, ry + (box_h - chrome) * 0.5 - 1.0, &rshown, r_col, chrome, clip);
+    ctx.dl_round(btn_x0, ry + 4.0, btn_x1 - btn_x0, box_h - 8.0, 5.0, theme::BG_4());
+    ctx.dl_icon(btn_x0 + 6.0, ry + 8.0, 14.0, 14.0, icons::CHECK, theme::TEXT_1(), 1.7, false);
 
     // results
     let total = ctx.search.match_count();
