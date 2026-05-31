@@ -3787,10 +3787,10 @@ pub extern "C" fn mui_window_controls_draw(handle: i64) {
 
 /// Hit-test the top-right run / more-actions strip (drawn by
 /// `mui_window_controls_draw`). Returns 1 = run, 2 = more-actions, else 0.
-/// Geometry mirrors the draw: run at `controls_x-60`; the rest of the reserved
-/// action strip to the left of the window controls opens the command palette.
-/// This keeps the visible "..." affordance forgiving instead of leaving a dead
-/// gap between the glyph and the native minimize button.
+/// Geometry mirrors the reserved action strip from `titlebar`: the left slot is
+/// Run and the wider right slot opens More/command palette. The whole strip is
+/// actionable so DPI rounding and padding around the glyphs do not fall through
+/// into the editor.
 #[no_mangle]
 pub extern "C" fn mui_topbar_action_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -3805,11 +3805,12 @@ pub extern "C" fn mui_topbar_action_at_click(handle: i64) -> i32 {
         return 0;
     }
     let controls_x = crate::titlebar::controls_x(ctx.gpu.width as f32);
-    let ax = controls_x - 60.0;
-    if x >= ax && x < ax + 18.0 {
+    let strip_x = controls_x - crate::titlebar::ACTION_STRIP_W;
+    let run_right = strip_x + 30.0;
+    if x >= strip_x && x < run_right {
         return 1;
     }
-    if x >= ax + 24.0 && x < controls_x {
+    if x >= run_right && x < controls_x {
         return 2;
     }
     0

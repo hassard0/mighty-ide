@@ -377,9 +377,10 @@ Start-Sleep -Milliseconds 150
 # === SAVE-AS via top-right More -> command palette ===
 # The harness env above supplies the native SaveFileDialog result so this
 # exercises dialog-backed Save-As regardless of which tab is active. The action
-# strip sits just left of the native window buttons; click inside the dots/menu
-# band, not on the min-button boundary.
-ClickL ($logicalW - 202) 20
+# strip sits just left of the native window buttons; click the dots/menu center,
+# not the strip padding or the min-button boundary.
+$topbarMoreX = $logicalW - (3 * 46) - 24
+ClickL $topbarMoreX 20
 Start-Sleep -Milliseconds 400
 Capture $hwnd "40-palette-open"
 Type-Text $hwnd "save as"

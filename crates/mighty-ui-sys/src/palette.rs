@@ -185,6 +185,13 @@ fn score(label: &str, query_lc: &str) -> Option<Rank> {
         return Some(Rank::Prefix);
     }
     let label_lc = label.to_ascii_lowercase();
+    score_exact(&label_lc, query_lc).or_else(|| {
+        let compact = collapse_repeated_chars(query_lc);
+        (compact != query_lc).then(|| score_exact(&label_lc, &compact)).flatten()
+    })
+}
+
+fn score_exact(label_lc: &str, query_lc: &str) -> Option<Rank> {
     if label_lc.starts_with(query_lc) {
         return Some(Rank::Prefix);
     }
@@ -207,6 +214,18 @@ fn score(label: &str, query_lc: &str) -> Option<Rank> {
     } else {
         None
     }
+}
+
+fn collapse_repeated_chars(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut prev: Option<char> = None;
+    for ch in s.chars() {
+        if Some(ch) != prev {
+            out.push(ch);
+        }
+        prev = Some(ch);
+    }
+    out
 }
 
 /// Filter + rank `commands` against `query`. Returns the matching commands in
@@ -663,6 +682,12 @@ mod tests {
     fn no_match_returns_empty() {
         let got = filter_commands(COMMANDS, "zzqqxx");
         assert!(got.is_empty());
+    }
+
+    #[test]
+    fn duplicate_keystroke_still_finds_command() {
+        let got = filter_commands(COMMANDS, "savee as");
+        assert_eq!(got.first().map(|c| c.id), Some(CMD_SAVE_AS));
     }
 
     #[test]
