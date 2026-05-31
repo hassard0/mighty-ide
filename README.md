@@ -30,7 +30,7 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Split editor (Ctrl+\)** — side-by-side panes, focus a pane with Ctrl+1 / Ctrl+2
 - **Bracket-pair colorization + indent guides** — nesting-depth rainbow brackets, faint per-level guides with an active-block highlight
 - **Interactive minimap** — click to jump; tall files compress so the whole file maps across the strip
-- Tabs (Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W, click), file-tree sidebar (Ctrl+B), native Open File (Ctrl+O) with typed-path fallback
+- Tabs (Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W, click), file-tree sidebar (Ctrl+B), native Open File (Ctrl+O) with typed-path fallback when the picker is unavailable
 - Project-wide Search panel (Ctrl+Shift+F)
 
 ### Language Intelligence
@@ -61,7 +61,7 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Run in Browser (Alt+W)** — build the active file to `wasm32-web` and run it in the browser via `mty serve` (web-game packages) or a `mty build --target wasm32-web` + static-server fallback; streams build/serve output, scrapes the served URL, opens the default browser, stop affordance. Sample: `examples/webspin/`
 
 ### Workspace & UX
-- **Explicit Workspace + Open Folder (Ctrl+Shift+O)** — native folder picker (typed-path fallback) re-roots the file tree, Quick-Open, Search, git, and Agents; **New Folder** (Ctrl+Shift+N) creates workspace directories; **Recent Folders** (MRU) persist across restarts; explorer header shows the active workspace
+- **Explicit Workspace + Open Folder (Ctrl+Shift+O)** — native folder picker (typed-path fallback only when the picker is unavailable) re-roots the file tree, Quick-Open, Search, git, and Agents; **New Folder** (Ctrl+Shift+N) creates workspace directories; **Recent Folders** (MRU) persist across restarts; explorer header shows the active workspace
 - **Live Markdown preview (Ctrl+Shift+V)** — themed, live-updating split-pane render
 - **Keyboard Shortcuts overlay (Ctrl+Shift+/)** — searchable command/binding reference with router-command remapping (persists to `keybindings.toml`)
 - Welcome screen, toast notifications, **Zen / focus mode (Alt+Z)**

@@ -723,7 +723,7 @@ fn prompt_open() -> I32 { 3 }
 // prompt only styles known kinds, so reuse `prompt_find()`'s styling by opening
 // with that kind but tracking `prompt_ai()` Mighty-side for the Enter dispatch.
 fn prompt_ai() -> I32 { 4 }
-// Open Folder typed-path fallback (native dialog unavailable / cancelled).
+// Open Folder typed-path fallback (native dialog unavailable; cancel is no-op).
 fn prompt_open_folder() -> I32 { 5 }
 // New Project: the query is the project NAME (mui_newproj_create on Enter).
 fn prompt_new_project() -> I32 { 6 }
@@ -2770,7 +2770,7 @@ fn main() {
             mui_theme_picker_open(h)
             theme_picker_open = true
           } else if welcome_act == welcome_open_folder() {
-            // Open Folder quick action: native picker, prompt fallback.
+            // Open Folder quick action: native picker, prompt fallback only when unavailable.
             let wd = mui_ws_open_dialog(h)
             if wd == -1 {
               mui_prompt_open(h, prompt_open_folder())

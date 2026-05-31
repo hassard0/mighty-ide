@@ -39,7 +39,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 ### Workspace / Open Folder
 - The workspace root is now an explicit, settable concept. **File: Open Folder…**
   (`Ctrl+Shift+O`, command palette, or the Welcome screen) opens a native Windows
-  folder picker (with a typed-path prompt fallback) and re-roots the file tree,
+  folder picker (with a typed-path prompt fallback only if the picker is
+  unavailable) and re-roots the file tree,
   Quick-Open index, project Search, git, and Agents discovery to the chosen folder.
 - **Recent Folders** (MRU, cap 10) persist across restarts; reopen from the Welcome
   screen's "Recent Folders" column or **File: Open Recent**.

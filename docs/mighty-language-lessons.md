@@ -868,9 +868,10 @@ Two features landed with zero new Mighty-source friction:
   and Agents discovery all read through it, and `mui_ws_open` re-roots the tree +
   rebuilds the index + re-runs git status + re-scans Agents + records the recent in
   one call. The **native folder picker is a PowerShell `FolderBrowserDialog`** shelled
-  out of the shim (`-STA -Command`), reading the chosen path off stdout; when it's
-  cancelled/unavailable the IDE falls back to a typed-path prompt (new
-  `PromptKind::OpenFolder`). Re-rooting reuses the SAME byte-staging buffer
+  out of the shim (`-STA -Command`), reading the chosen path off stdout. If the
+  picker is unavailable the IDE falls back to a typed-path prompt (new
+  `PromptKind::OpenFolder`); explicit Cancel is a no-op, matching native editor
+  expectations. Re-rooting reuses the SAME byte-staging buffer
   (`mui_path_push`/`_clear`) the Open-File prompt uses — no new staging ABI. New ABI:
   `mui_ws_root_*`/`_name_*`/`_open`/`_open_dialog`/`_open_recent`/`_recent_*`/`_dispatch`
   + `mui_welcome_open_folder`. Welcome gained "RECENT FOLDERS" + "RECENT FILES"
@@ -1143,3 +1144,21 @@ on scalar booleans before calling `mui_agents_inspect` or `mui_agents_run`.
 - **Language note:** no new gap surfaced. This follows the same scalar-command
   pattern as the other panels; richer UI hit geometry remains easier and safer in
   the shim.
+
+### L58. Native dialog cancel needs explicit scalar result states **[finding, P3]**
+Open File, Save As, and Open Folder now distinguish three outcomes at the
+Rust/Mighty boundary: success, user cancel, and native-dialog unavailable. The
+old `-1`/failure-only shape collapsed Cancel together with unavailable, so
+Mighty opened a typed-path fallback prompt after a perfectly normal Cancel. The
+shim now returns a separate cancel code (`-2` for file/save pickers, `0` for
+folder picker cancel) and reserves `-1` for "native picker could not run", which
+is the only case that should open the fallback prompt.
+
+- **Why it matters for the IDE:** native dialogs must behave like desktop users
+  expect. Cancel should leave editor state untouched, not cascade into another
+  prompt that looks like a broken button.
+- **Language note:** no new Mighty feature is strictly required, but this is
+  another case where richer tagged result values would reduce brittle scalar
+  conventions in the event ladder. Until Mighty has ergonomic enum/result values
+  across `extern c`, the ABI should keep small result-code contracts documented
+  and covered by tests.
