@@ -156,7 +156,7 @@ pub extern "C" fn mui_outline_row_at_click(handle: i64) -> i32 {
         return -1;
     };
     let sx0 = layout::RAIL_W;
-    let sx1 = layout::RAIL_W + layout::SIDEBAR_W;
+    let sx1 = layout::sidebar_right();
     if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_OUTLINE {
         return -1;
     }
@@ -326,7 +326,7 @@ pub extern "C" fn mui_problems_row_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    let left = layout::RAIL_W + if ctx.sidebar_visible { layout::SIDEBAR_W } else { 0.0 };
+    let left = layout::body_left(ctx.sidebar_visible);
     let w = ctx.gpu.width as f32;
     let h = ctx.gpu.height as f32;
     ctx.problems.row_at(ctx.last_event.x, ctx.last_event.y, w, h, left)
@@ -369,7 +369,7 @@ pub extern "C" fn mui_problems_draw(handle: i64) {
     if !ctx.problems.is_open() {
         return;
     }
-    let left = layout::RAIL_W + if ctx.sidebar_visible { layout::SIDEBAR_W } else { 0.0 };
+    let left = layout::body_left(ctx.sidebar_visible);
     let panel = std::mem::take(&mut ctx.problems);
     ctx.overlay = true;
     ctx.text.set_overlay(true);
@@ -385,7 +385,7 @@ pub extern "C" fn mui_problems_draw(handle: i64) {
 
 /// Build the [`CrumbLayout`] that reproduces the breadcrumb's segment x-math.
 fn crumb_layout(ctx: &MuiContext) -> CrumbLayout {
-    let left = layout::RAIL_W + if ctx.sidebar_visible { layout::SIDEBAR_W } else { 0.0 };
+    let left = layout::body_left(ctx.sidebar_visible);
     let chrome = crate::theme::CHROME_FONT_SIZE;
     let folder = ctx
         .tree

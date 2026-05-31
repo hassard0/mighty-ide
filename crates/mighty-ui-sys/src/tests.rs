@@ -441,7 +441,7 @@ fn click_routing_tab_bar_sidebar_and_text() {
 
     // Click in the tab bar over tab 1. Tabs start right of the rail AND the
     // sidebar (when shown), matching `mui_tab_bar_draw`.
-    let body_left = layout::RAIL_W + layout::SIDEBAR_W;
+    let body_left = layout::sidebar_right();
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, body_left + layout::TAB_W + 5.0, 4.0, 0);
     assert_eq!(mui_tab_index_at_click(handle), 1);
     ctx.last_event = MuiEvent::mouse(
@@ -475,7 +475,7 @@ fn click_routing_tab_bar_sidebar_and_text() {
     );
     assert_eq!(mui_tree_row_at_click(handle), 0);
     // Click right of the sidebar (in text area) -> not a tree click.
-    ctx.last_event.x = layout::RAIL_W + layout::SIDEBAR_W + 100.0;
+    ctx.last_event.x = layout::sidebar_right() + 100.0;
     assert_eq!(mui_tree_row_at_click(handle), -1);
     // Click in the activity rail (left of the sidebar) -> not a tree click.
     ctx.last_event.x = 10.0;
@@ -566,7 +566,7 @@ fn search_panel_clicks_focus_fields_and_return_actions() {
     ctx.gpu.height = 600;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
     let sx = crate::layout::RAIL_W;
-    let sw = crate::layout::SIDEBAR_W;
+    let sw = crate::layout::sidebar_w();
 
     ctx.search.replace_focus = true;
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, sx + 24.0, 52.0, 0);
@@ -731,7 +731,7 @@ fn explorer_header_actions_hit_their_visible_buttons() {
     let mut ctx = ctx_or_skip!();
     ctx.sidebar_visible = true;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
-    let right = crate::layout::RAIL_W + crate::layout::SIDEBAR_W;
+    let right = crate::layout::sidebar_right();
 
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, right - 64.5, 20.0, 0);
     assert_eq!(mui_explorer_header_at_click(handle), 1);

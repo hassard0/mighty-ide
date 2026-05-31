@@ -43,6 +43,9 @@ pub const TAB_W: f32 = 160.0;
 /// `248 - 52 = 196`… but the mockup's body grid is `52px 248px 1fr`, meaning the
 /// sidebar panel itself is 248. Match that.
 pub const SIDEBAR_W: f32 = 248.0;
+/// Minimum compact sidebar width. Keeps rail panels usable while giving the
+/// editor enough room in small windows.
+pub const SIDEBAR_MIN_W: f32 = 184.0;
 /// Pixels of indentation per tree depth level (mockup `.indent` = 16px).
 pub const TREE_INDENT: f32 = 16.0;
 
@@ -82,6 +85,7 @@ pub const ZEN_MARGIN_TOP: f32 = 28.0;
 /// sidebar / tab bar / breadcrumb / status bar are hidden and the editor body
 /// fills the window with a comfortable margin.
 static ZEN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static WINDOW_W: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(900);
 
 /// Read the active Zen flag.
 #[inline]
@@ -93,6 +97,36 @@ pub fn zen_active() -> bool {
 #[inline]
 pub fn set_zen(on: bool) {
     ZEN.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Update the logical window width used by responsive layout helpers.
+#[inline]
+pub fn set_window_width(width: u32) {
+    WINDOW_W.store(width.max(1), std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Responsive sidebar width for a given logical window width.
+#[inline]
+pub fn sidebar_w_for(win_w: f32) -> f32 {
+    (win_w * 0.30).clamp(SIDEBAR_MIN_W, SIDEBAR_W)
+}
+
+/// Current responsive sidebar width.
+#[inline]
+pub fn sidebar_w() -> f32 {
+    sidebar_w_for(WINDOW_W.load(std::sync::atomic::Ordering::Relaxed) as f32)
+}
+
+/// Current right edge of the sidebar content band.
+#[inline]
+pub fn sidebar_right() -> f32 {
+    RAIL_W + sidebar_w()
+}
+
+/// Current editor body left edge.
+#[inline]
+pub fn body_left(sidebar_visible: bool) -> f32 {
+    RAIL_W + if sidebar_visible { sidebar_w() } else { 0.0 }
 }
 
 /// Pure region math for an explicit chrome state. In **Zen mode** the rail /
@@ -109,7 +143,7 @@ pub fn region_chrome(sidebar_visible: bool, zen: bool) -> Region {
     }
     Region {
         top: TAB_BAR_H + BREADCRUMB_H,
-        left: RAIL_W + if sidebar_visible { SIDEBAR_W } else { 0.0 },
+        left: body_left(sidebar_visible),
     }
 }
 
@@ -483,6 +517,13 @@ mod tests {
         let r2 = region(false);
         assert_eq!(r2.left, RAIL_W);
         assert_eq!(text_left_in(r2, 100), RAIL_W + text_left(100));
+    }
+
+    #[test]
+    fn sidebar_width_compacts_for_small_windows() {
+        assert_eq!(sidebar_w_for(1200.0), SIDEBAR_W);
+        assert_eq!(sidebar_w_for(640.0), 192.0);
+        assert_eq!(sidebar_w_for(320.0), SIDEBAR_MIN_W);
     }
 
     #[test]

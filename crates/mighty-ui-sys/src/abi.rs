@@ -1053,7 +1053,7 @@ filename src/main.mty
                     })
                     .collect();
                 ctx.crumb_files = files.into_iter().map(|(_, p)| p).collect();
-                let anchor = layout::RAIL_W + layout::SIDEBAR_W + 90.0;
+                let anchor = layout::sidebar_right() + 90.0;
                 let n = ctx.crumb_menu.open(MenuKind::Files, items, anchor);
                 println!("mui_init_s: MUI_BREADCRUMB_AUTOOPEN -> file menu ({n} files)");
             } else {
@@ -1070,7 +1070,7 @@ filename src/main.mty
                         target: i as i32,
                     })
                     .collect();
-                let anchor = layout::RAIL_W + layout::SIDEBAR_W + 220.0;
+                let anchor = layout::sidebar_right() + 220.0;
                 let n = ctx.crumb_menu.open(MenuKind::Symbols, items, anchor);
                 println!("mui_init_s: MUI_BREADCRUMB_AUTOOPEN -> symbol menu ({n} symbols)");
             }
@@ -2105,7 +2105,7 @@ pub extern "C" fn mui_zoom_reset(handle: i64) -> i32 {
 // ---------------------------------------------------------------------------
 
 fn titlebar_body_left(ctx: &MuiContext) -> f32 {
-    layout::RAIL_W + if ctx.sidebar_visible { layout::SIDEBAR_W } else { 0.0 }
+    layout::body_left(ctx.sidebar_visible)
 }
 
 /// Hit-test the last click against the title bar. Returns: 0 = none, 1 = drag
@@ -3226,7 +3226,7 @@ pub extern "C" fn mui_tab_index_at_click(handle: i64) -> i32 {
         return -1;
     }
     // Tabs start right of the sidebar (when shown).
-    let body_left = layout::RAIL_W + if ctx.sidebar_visible { layout::SIDEBAR_W } else { 0.0 };
+    let body_left = layout::body_left(ctx.sidebar_visible);
     let lx = ctx.last_event.x;
     if lx < body_left {
         return -1;
@@ -3255,7 +3255,7 @@ pub extern "C" fn mui_tab_close_index_at_click(handle: i64) -> i32 {
     if ctx.last_event.y > layout::TAB_BAR_H {
         return -1;
     }
-    let body_left = layout::RAIL_W + if ctx.sidebar_visible { layout::SIDEBAR_W } else { 0.0 };
+    let body_left = layout::body_left(ctx.sidebar_visible);
     let lx = ctx.last_event.x;
     if lx < body_left {
         return -1;
@@ -3543,7 +3543,7 @@ pub extern "C" fn mui_breadcrumb_draw(handle: i64) {
     let handle_ptr = handle as usize as *mut MuiContext;
     let clip = ctx.clip;
     let chrome = theme::CHROME_FONT_SIZE;
-    let left = layout::RAIL_W + if ctx.sidebar_visible { layout::SIDEBAR_W } else { 0.0 };
+    let left = layout::body_left(ctx.sidebar_visible);
     let top = layout::TAB_BAR_H;
     let bar_h = layout::BREADCRUMB_H;
 
@@ -3667,7 +3667,7 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
     let chrome = theme::CHROME_FONT_SIZE;
     // The tab bar lives over the editor column only — right of the rail AND the
     // sidebar (when shown), so it never overpaints the sidebar/header.
-    let body_left = layout::RAIL_W + if ctx.sidebar_visible { layout::SIDEBAR_W } else { 0.0 };
+    let body_left = layout::body_left(ctx.sidebar_visible);
     let tab_right = (crate::titlebar::controls_x(w) - crate::titlebar::ACTION_STRIP_W).max(body_left);
 
     use crate::icons;
@@ -3832,7 +3832,7 @@ pub extern "C" fn mui_explorer_header_at_click(handle: i64) -> i32 {
     if y < 0.0 || y >= 40.0 {
         return 0;
     }
-    let right = layout::RAIL_W + layout::SIDEBAR_W;
+    let right = layout::sidebar_right();
     // Each icon is 15px wide; give a forgiving ~20px hit slot centered on it.
     let nf = right - 72.0;
     let nfo = right - 50.0;
@@ -4021,7 +4021,7 @@ pub extern "C" fn mui_tree_row_at_click(handle: i64) -> i32 {
     };
     // Only count clicks within the sidebar's x band (right of the rail).
     let sx0 = layout::RAIL_W;
-    let sx1 = layout::RAIL_W + layout::SIDEBAR_W;
+    let sx1 = layout::sidebar_right();
     if !ctx.sidebar_visible || ctx.last_event.x < sx0 || ctx.last_event.x > sx1 {
         return -1;
     }
@@ -4070,7 +4070,7 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
     let clip = ctx.clip;
     let chrome = theme::CHROME_FONT_SIZE;
     let sx = layout::RAIL_W; // sidebar starts right of the rail
-    let sw = layout::SIDEBAR_W;
+    let sw = layout::sidebar_w();
     use crate::icons;
 
     // Panel background (panel color) + a right divider.

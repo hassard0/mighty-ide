@@ -267,7 +267,7 @@ pub extern "C" fn mui_test_row_at_click(handle: i64) -> i32 {
     }
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
     let sx0 = layout::RAIL_W;
-    let sx1 = layout::RAIL_W + layout::SIDEBAR_W;
+    let sx1 = layout::sidebar_right();
     if x < sx0 || x > sx1 {
         return -1;
     }
@@ -374,16 +374,22 @@ struct ToolbarGeom {
     y: f32,
     btn_w: f32,
     btn_h: f32,
+    compact: bool,
 }
 
 fn toolbar_geom() -> ToolbarGeom {
     let sx = layout::RAIL_W;
+    let sw = layout::sidebar_w();
+    let gap = 8.0;
+    let btn_w = ((sw - 24.0 - gap) / 2.0).clamp(72.0, 96.0);
+    let compact = btn_w < 90.0;
     ToolbarGeom {
         run_x: sx + 12.0,
-        stop_x: sx + 12.0 + 96.0 + 8.0,
+        stop_x: sx + 12.0 + btn_w + gap,
         y: HEAD_H + 8.0,
-        btn_w: 96.0,
+        btn_w,
         btn_h: 30.0,
+        compact,
     }
 }
 
@@ -430,7 +436,7 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     let chrome = theme::CHROME_FONT_SIZE;
     let adv = chrome * 0.55;
     let sx = layout::RAIL_W;
-    let sw = layout::SIDEBAR_W;
+    let sw = layout::sidebar_w();
     let row_h = layout::LINE_H();
 
     ctx.dl_rect(sx, 0.0, sw, h, theme::BG_2());
@@ -467,7 +473,12 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     ctx.dl_round(tb.run_x, tb.y, tb.btn_w, tb.btn_h, 7.0, theme::accent_a(0.22));
     ctx.dl_stroke(tb.run_x, tb.y, tb.btn_w, tb.btn_h, 7.0, theme::ACCENT(), 1.0);
     ctx.dl_icon(tb.run_x + 9.0, tb.y + (tb.btn_h - 13.0) * 0.5, 13.0, 13.0, icons::RUN, theme::ACCENT_BRIGHT(), 1.6, true);
-    ctx.text.queue_ui_sized(tb.run_x + 28.0, tb.y + (tb.btn_h - chrome) * 0.5 - 1.0, run_label, theme::TEXT(), chrome - 1.0, clip);
+    if !tb.compact {
+        ctx.text.queue_ui_sized(tb.run_x + 28.0, tb.y + (tb.btn_h - chrome) * 0.5 - 1.0, run_label, theme::TEXT(), chrome - 1.0, clip);
+    } else {
+        let label = if ran { "Re" } else { "Run" };
+        ctx.text.queue_ui_sized(tb.run_x + 29.0, tb.y + (tb.btn_h - chrome) * 0.5 - 1.0, label, theme::TEXT(), chrome - 2.0, clip);
+    }
     // Stop button (enabled only while running).
     let stop_on = ctx.tests_panel.is_running();
     let stop_bg = if stop_on { theme::BG_4() } else { theme::BG_1() };
@@ -475,7 +486,9 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     ctx.dl_round(tb.stop_x, tb.y, tb.btn_w, tb.btn_h, 7.0, stop_bg);
     ctx.dl_stroke(tb.stop_x, tb.y, tb.btn_w, tb.btn_h, 7.0, theme::BORDER_STRONG(), 1.0);
     ctx.dl_icon(tb.stop_x + 9.0, tb.y + (tb.btn_h - 12.0) * 0.5, 12.0, 12.0, icons::DBG_STOP, stop_col, 1.4, true);
-    ctx.text.queue_ui_sized(tb.stop_x + 28.0, tb.y + (tb.btn_h - chrome) * 0.5 - 1.0, "Stop", stop_col, chrome - 1.0, clip);
+    if !tb.compact {
+        ctx.text.queue_ui_sized(tb.stop_x + 28.0, tb.y + (tb.btn_h - chrome) * 0.5 - 1.0, "Stop", stop_col, chrome - 1.0, clip);
+    }
 
     // Summary line + a proportional pass/fail bar.
     let passed = ctx.tests_panel.passed();
@@ -502,16 +515,27 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     // Summary text + duration.
     let summary = if total == 0 && !ctx.tests_panel.is_running() {
         "No tests run yet".to_string()
+    } else if sw < 220.0 {
+        format!("{passed}p \u{00b7} {failed}f \u{00b7} {total}t")
     } else {
         format!("{passed} passed \u{00b7} {failed} failed \u{00b7} {total} total")
     };
     let sum_text_y = sum_y + bar_h + 4.0;
-    ctx.text.queue_ui_sized(bar_x, sum_text_y, &summary, theme::TEXT_1(), chrome - 1.0, clip);
-    if ctx.tests_panel.duration_ms() > 0 {
+    let duration = if ctx.tests_panel.duration_ms() > 0 {
         let dur = format!("{}ms", ctx.tests_panel.duration_ms());
         let dw = dur.chars().count() as f32 * (chrome * 0.5);
-        ctx.text.queue_ui_sized(sx + sw - dw - 14.0, sum_text_y, &dur, theme::TEXT_4(), chrome - 1.5, clip);
-    }
+        if sw >= 180.0 {
+            ctx.text.queue_ui_sized(sx + sw - dw - 14.0, sum_text_y, &dur, theme::TEXT_4(), chrome - 1.5, clip);
+            dw + 10.0
+        } else {
+            0.0
+        }
+    } else {
+        0.0
+    };
+    let avail = ((sw - 24.0 - duration) / (chrome * 0.52)).floor().max(1.0) as usize;
+    let shown_summary = ellipsize(&summary, avail);
+    ctx.text.queue_ui_sized(bar_x, sum_text_y, &shown_summary, theme::TEXT_1(), chrome - 1.0, clip);
 
     // Section label.
     let label_y = sum_text_y + 18.0;
@@ -594,5 +618,24 @@ pub extern "C" fn mui_test_draw(handle: i64) {
             ctx.text.queue_ui_sized(sx + 40.0, dy, &dm, theme::ERROR(), chrome - 1.5, clip);
             y += row_h;
         }
+    }
+}
+
+fn ellipsize(text: &str, chars: usize) -> String {
+    if text.chars().count() > chars && chars > 1 {
+        text.chars().take(chars - 1).collect::<String>() + "\u{2026}"
+    } else {
+        text.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ellipsize_keeps_short_text_and_trims_long_text() {
+        assert_eq!(ellipsize("short", 8), "short");
+        assert_eq!(ellipsize("abcdef", 4), "abc\u{2026}");
     }
 }

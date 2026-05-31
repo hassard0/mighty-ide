@@ -569,7 +569,7 @@ impl OutlineState {
         let chrome = theme::CHROME_FONT_SIZE;
         let adv = chrome * 0.55;
         let sx = layout::RAIL_W;
-        let sw = layout::SIDEBAR_W;
+        let sw = layout::sidebar_w();
 
         ctx.dl_rect(sx, 0.0, sw, h, theme::BG_2());
         ctx.dl_rect(sx + sw - 1.0, 0.0, 1.0, h, theme::BORDER());

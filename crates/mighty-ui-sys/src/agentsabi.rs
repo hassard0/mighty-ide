@@ -536,7 +536,7 @@ impl AgentTopology {
         let chrome = theme::CHROME_FONT_SIZE;
         let adv = chrome * 0.55;
         let sx = layout::RAIL_W;
-        let sw = layout::SIDEBAR_W;
+        let sw = layout::sidebar_w();
 
         ctx.dl_rect(sx, 0.0, sw, h, theme::BG_2());
         ctx.dl_rect(sx + sw - 1.0, 0.0, 1.0, h, theme::BORDER());
@@ -818,7 +818,7 @@ pub extern "C" fn mui_agents_row_at_click(handle: i64) -> i32 {
         return -1;
     };
     let sx0 = layout::RAIL_W;
-    let sx1 = layout::RAIL_W + layout::SIDEBAR_W;
+    let sx1 = layout::sidebar_right();
     if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_AGENTS_MTY {
         return -1;
     }
@@ -834,7 +834,7 @@ pub extern "C" fn mui_agents_click_is_run(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    let run_x0 = layout::RAIL_W + layout::SIDEBAR_W - 34.0;
+    let run_x0 = layout::sidebar_right() - 34.0;
     if ctx.last_event.y <= 40.0 && ctx.last_event.x >= run_x0 {
         1
     } else {

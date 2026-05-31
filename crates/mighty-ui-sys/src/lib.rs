@@ -740,6 +740,7 @@ pub(crate) fn build_context(
         (Some(host), Some(window), gpu)
     };
 
+    layout::set_window_width(gpu.width);
     let text = Text::new(&gpu.device, &gpu.queue, gpu.format);
 
     let file_name = file_path
@@ -982,6 +983,7 @@ pub unsafe extern "C" fn mui_text_measure(
 #[no_mangle]
 pub unsafe extern "C" fn mui_begin_frame(ctx: *mut MuiContext) {
     let Some(ctx) = ctx.as_mut() else { return };
+    layout::set_window_width(ctx.gpu.width);
     ctx.rects.clear();
     ctx.rects_overlay.clear();
     ctx.dl.clear();
@@ -1382,6 +1384,7 @@ pub unsafe extern "C" fn mui_poll_event(ctx: *mut MuiContext, out_ev: *mut MuiEv
     // Apply any pending resize (reconfigure the surface) before delivery.
     if let Some((w, h)) = ctx.queue.pending_resize.take() {
         ctx.gpu.resize(w, h);
+        layout::set_window_width(w);
     }
 
     match ctx.queue.pop() {

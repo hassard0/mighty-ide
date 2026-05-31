@@ -430,7 +430,7 @@ pub extern "C" fn mui_dbg_click(handle: i64) -> i32 {
     let x = ctx.last_event.x;
     let y = ctx.last_event.y;
     let sx0 = layout::RAIL_W;
-    let sx1 = layout::RAIL_W + layout::SIDEBAR_W;
+    let sx1 = layout::sidebar_right();
     if x < sx0 || x > sx1 {
         return -1;
     }
@@ -562,7 +562,7 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
     let chrome = theme::CHROME_FONT_SIZE;
     let adv = chrome * 0.55;
     let sx = layout::RAIL_W;
-    let sw = layout::SIDEBAR_W;
+    let sw = layout::sidebar_w();
 
     ctx.dl_rect(sx, 0.0, sw, h, theme::BG_2());
     ctx.dl_rect(sx + sw - 1.0, 0.0, 1.0, h, theme::BORDER());

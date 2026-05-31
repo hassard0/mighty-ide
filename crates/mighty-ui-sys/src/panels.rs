@@ -263,7 +263,7 @@ pub extern "C" fn mui_scm_row_at_click(handle: i64) -> i32 {
         return -1;
     };
     let sx0 = layout::RAIL_W;
-    let sx1 = layout::RAIL_W + layout::SIDEBAR_W;
+    let sx1 = layout::sidebar_right();
     if !ctx.sidebar_visible || ctx.last_event.x < sx0 || ctx.last_event.x > sx1 {
         return -1;
     }
@@ -288,7 +288,7 @@ pub extern "C" fn mui_scm_click_is_stage(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    let action_x0 = layout::RAIL_W + layout::SIDEBAR_W - 30.0;
+    let action_x0 = layout::sidebar_right() - 30.0;
     if ctx.last_event.x >= action_x0 {
         1
     } else {
@@ -313,7 +313,7 @@ pub extern "C" fn mui_scm_header_action_at_click(handle: i64) -> i32 {
         return 0;
     }
     let sx = layout::RAIL_W;
-    let sw = layout::SIDEBAR_W;
+    let sw = layout::sidebar_w();
     // Icon centers at sw-94 (commit), sw-72 (pull), sw-50 (push), sw-28 (fetch),
     // each ~15px wide — use 11px half-windows around each.
     let hit = |cx: f32| -> bool { (x - cx).abs() <= 11.0 };
@@ -364,7 +364,7 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
     let chrome = theme::CHROME_FONT_SIZE;
     let adv = chrome * 0.55;
     let sx = layout::RAIL_W;
-    let sw = layout::SIDEBAR_W;
+    let sw = layout::sidebar_w();
     use crate::icons;
 
     ctx.dl_rect(sx, 0.0, sw, h, theme::BG_2());
@@ -1041,7 +1041,7 @@ pub extern "C" fn mui_search_action_at_click(handle: i64) -> i32 {
         return 0;
     };
     let sx = layout::RAIL_W;
-    let sw = layout::SIDEBAR_W;
+    let sw = layout::sidebar_w();
     if !ctx.sidebar_visible
         || ctx.active_panel != crate::PANEL_SEARCH
         || ctx.last_event.x < sx
@@ -1080,7 +1080,7 @@ pub extern "C" fn mui_search_row_at_click(handle: i64) -> i32 {
         return -1;
     };
     let sx0 = layout::RAIL_W;
-    let sx1 = layout::RAIL_W + layout::SIDEBAR_W;
+    let sx1 = layout::sidebar_right();
     if !ctx.sidebar_visible || ctx.last_event.x < sx0 || ctx.last_event.x > sx1 {
         return -1;
     }
@@ -1141,7 +1141,7 @@ pub extern "C" fn mui_search_draw(handle: i64) {
     let chrome = theme::CHROME_FONT_SIZE;
     let adv = chrome * 0.55;
     let sx = layout::RAIL_W;
-    let sw = layout::SIDEBAR_W;
+    let sw = layout::sidebar_w();
     use crate::icons;
 
     ctx.dl_rect(sx, 0.0, sw, h, theme::BG_2());
