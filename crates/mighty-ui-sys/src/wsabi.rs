@@ -391,7 +391,17 @@ $d.Description = 'Open Folder as Workspace'
 $d.ShowNewFolderButton = $true
 $dir = $env:MUI_DIALOG_DIR
 if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) { $d.SelectedPath = $dir }
-if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($d.SelectedPath) }
+$owner = New-Object System.Windows.Forms.Form
+$owner.TopMost = $true
+$owner.ShowInTaskbar = $false
+$owner.StartPosition = 'CenterScreen'
+$owner.Width = 1
+$owner.Height = 1
+try {
+  if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($d.SelectedPath) }
+} finally {
+  $owner.Dispose()
+}
 "#;
     let out = std::process::Command::new("powershell")
         .args(["-NoProfile", "-STA", "-Command", script])
