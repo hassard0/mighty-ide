@@ -4669,6 +4669,17 @@ pub extern "C" fn mui_keys_move(handle: i64, delta: i32) {
     }
 }
 
+/// Select the shortcut row under the last click. Returns the selected row index,
+/// or `-1` if the click missed the visible rows.
+#[no_mangle]
+pub extern "C" fn mui_keys_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    ctx.shortcuts
+        .click_row(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height)
+}
+
 /// The selected row's command id (`< 0` for fixed rows / no selection).
 #[no_mangle]
 pub extern "C" fn mui_keys_sel(handle: i64) -> i32 {

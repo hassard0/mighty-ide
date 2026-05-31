@@ -288,6 +288,7 @@ extern c {
   fn mui_keys_push_char(handle: I64, cp: I32)
   fn mui_keys_backspace(handle: I64)
   fn mui_keys_move(handle: I64, delta: I32)
+  fn mui_keys_click(handle: I64) -> I32
   fn mui_keys_sel(handle: I64) -> I32
   fn mui_keys_count(handle: I64) -> I32
   fn mui_keys_begin_capture(handle: I64) -> I32
@@ -1149,15 +1150,17 @@ fn main() {
             if tag == ev_char() {
               let cp = mui_event_codepoint(h)
               let _r = mui_keys_capture_chord(h, cp, mods)
-            } else if tag == ev_key() {
-              let k = mui_event_key(h)
-              if k == key_escape() {
-                mui_keys_cancel(h)
-              }
+          } else if tag == ev_key() {
+            let k = mui_event_key(h)
+            if k == key_escape() {
+              mui_keys_cancel(h)
             }
-          } else if tag == ev_char() {
-            let cp = mui_event_codepoint(h)
-            let mods = mui_event_mods(h)
+          } else if tag == ev_mouse_down() {
+            mui_keys_cancel(h)
+          }
+        } else if tag == ev_char() {
+          let cp = mui_event_codepoint(h)
+          let mods = mui_event_mods(h)
             let ctrl = ctrl_held(mods)
             let shift = shift_held(mods)
             let alt = alt_held(mods)
@@ -1180,6 +1183,13 @@ fn main() {
             } else if k == key_enter() {
               let _c = mui_keys_begin_capture(h)
             } else if k == key_escape() {
+              mui_keys_cancel(h)
+            }
+          } else if tag == ev_mouse_down() {
+            let kh = mui_keys_click(h)
+            if kh >= 0 {
+              let _c = mui_keys_begin_capture(h)
+            } else {
               mui_keys_cancel(h)
             }
           }

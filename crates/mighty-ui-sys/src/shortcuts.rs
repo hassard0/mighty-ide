@@ -539,6 +539,15 @@ impl ShortcutsEngine {
         self.sel = s as usize;
     }
 
+    pub fn select(&mut self, idx: usize) -> bool {
+        if idx < self.rows.len() {
+            self.sel = idx;
+            true
+        } else {
+            false
+        }
+    }
+
     /// The selected row's command id (`< 0` for fixed / no selection).
     pub fn selected_id(&self) -> i32 {
         self.rows.get(self.sel).map(|r| r.cmd_id).unwrap_or(-1)
@@ -669,6 +678,45 @@ impl ShortcutsEngine {
         }
     }
 
+    fn geometry(&self, width: u32, height: u32) -> (f32, f32, f32, f32, f32, f32, usize, usize) {
+        let w = width as f32;
+        let h = height as f32;
+        let top = self.scroll_top();
+        let shown = self.rows.len().saturating_sub(top).min(VISIBLE);
+        let box_w = 640.0_f32.min(w - 80.0);
+        let search_h = 56.0;
+        let cat_h = 26.0;
+        let row_h = 44.0;
+        let foot_h = 38.0;
+        let box_h = search_h + cat_h + shown as f32 * row_h + 10.0 + foot_h;
+        let box_x = ((w - box_w) * 0.5).max(0.0);
+        let box_y = 80.0_f32.min((h - box_h).max(0.0));
+        let list_top = box_y + search_h + cat_h;
+        (box_x, box_y, box_w, list_top, row_h, box_h, top, shown)
+    }
+
+    /// Select the shortcut row under a click. Returns the selected filtered row
+    /// index, or -1 when the click missed the visible row list.
+    pub fn click_row(&mut self, x: f32, y: f32, width: u32, height: u32) -> i32 {
+        if !self.active || self.rows.is_empty() {
+            return -1;
+        }
+        let (box_x, _box_y, box_w, list_top, row_h, _box_h, top, shown) = self.geometry(width, height);
+        if x < box_x || x > box_x + box_w || y < list_top {
+            return -1;
+        }
+        let vis = ((y - list_top) / row_h).floor() as usize;
+        if vis >= shown {
+            return -1;
+        }
+        let idx = top + vis;
+        if self.select(idx) {
+            idx as i32
+        } else {
+            -1
+        }
+    }
+
     /// Draw the shortcuts overlay (Vivid-Modern card, kbd pills, remap affordance).
     /// No-op when inactive.
     pub fn draw(&self, ctx: &mut crate::MuiContext, width: u32, height: u32) {
@@ -681,17 +729,11 @@ impl ShortcutsEngine {
         let chrome = theme::CHROME_FONT_SIZE;
         let clip = ctx.clip;
 
-        let top = self.scroll_top();
-        let shown = self.rows.len().saturating_sub(top).min(VISIBLE);
-
-        let box_w = 640.0_f32.min(w - 80.0);
         let search_h = 56.0;
         let cat_h = 26.0;
         let row_h = 44.0;
         let foot_h = 38.0;
-        let box_h = search_h + cat_h + shown as f32 * row_h + 10.0 + foot_h;
-        let box_x = ((w - box_w) * 0.5).max(0.0);
-        let box_y = 80.0_f32.min((h - box_h).max(0.0));
+        let (box_x, box_y, box_w, _list_top, _row_h, box_h, top, shown) = self.geometry(width, height);
         let radius = 12.0_f32;
 
         // Scrim + indigo wash.
@@ -990,5 +1032,17 @@ mod tests {
         assert!(!e.selected_remappable());
         assert!(!e.begin_capture());
         assert!(!e.is_capturing());
+    }
+
+    #[test]
+    fn click_row_selects_shortcut_row() {
+        let mut e = ShortcutsEngine::new();
+        e.overrides = Overrides::new();
+        e.open();
+        let (box_x, _box_y, _box_w, list_top, row_h, _box_h, _top, _shown) = e.geometry(900, 700);
+        let idx = e.click_row(box_x + 24.0, list_top + row_h + 3.0, 900, 700);
+        assert_eq!(idx, 1);
+        assert_eq!(e.selection(), 1);
+        assert_eq!(e.click_row(box_x - 2.0, list_top + 3.0, 900, 700), -1);
     }
 }
