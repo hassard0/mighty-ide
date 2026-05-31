@@ -936,6 +936,24 @@ fn headless_frames_zero_without_env_positive_with_env() {
     assert_eq!(mui_headless_frames(), 0);
 }
 
+#[test]
+fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
+    let main = include_str!("../../../src/main.mty");
+    assert!(
+        main.contains("command_click_id = mui_palette_selected_id(h)"),
+        "palette Enter must queue the selected command id"
+    );
+    assert!(
+        main.contains("command_click_id = mui_qo_command_id(h, -1)"),
+        "Quick Open command mode must queue the selected command id"
+    );
+    assert_eq!(
+        main.matches("if id == cmd_open_file()").count(),
+        1,
+        "command execution ladder must stay centralized"
+    );
+}
+
 /// Shim-side window-chrome + zoom interception (the v0.36-parser-safe move of the
 /// title bar + zoom OUT of main.mty and INTO `mui_poll_event_s`). These drive
 /// REAL winit `WindowEvent`s through `translate_window_event` into the live event
