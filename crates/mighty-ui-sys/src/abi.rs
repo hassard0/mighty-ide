@@ -2985,6 +2985,37 @@ pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
     a as i32
 }
 
+/// Request application exit. If any tab has unsaved edits, the first request
+/// warns and returns `0`; a second request within five seconds returns `1` so
+/// Mighty can exit intentionally. Clean workspaces return `1` immediately.
+#[no_mangle]
+pub extern "C" fn mui_quit_request(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 1;
+    };
+    let dirty = ctx.tabs.dirty_count();
+    if dirty == 0 {
+        ctx.pending_quit = None;
+        return 1;
+    }
+    let now = std::time::Instant::now();
+    let confirmed = ctx
+        .pending_quit
+        .map(|at| now.duration_since(at).as_secs_f32() <= 5.0)
+        .unwrap_or(false);
+    if confirmed {
+        ctx.pending_quit = None;
+        return 1;
+    }
+    ctx.pending_quit = Some(now);
+    let noun = if dirty == 1 { "tab" } else { "tabs" };
+    ctx.push_toast(
+        crate::toast::Kind::Warn,
+        format!("{dirty} unsaved {noun}; quit again to discard"),
+    );
+    0
+}
+
 /// Map the tab bar pixel x of the last click to a tab index, or -1 if the click
 /// is past the last tab. Used to switch tabs by clicking.
 #[no_mangle]

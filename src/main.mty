@@ -153,6 +153,7 @@ extern c {
   fn mui_tab_close_index_at_click(handle: I64) -> I32
   fn mui_tab_set_dirty(handle: I64, idx: I32, dirty: I32)
   fn mui_tab_bar_draw(handle: I64)
+  fn mui_quit_request(handle: I64) -> I32
   fn mui_window_controls_draw(handle: I64)
   fn mui_topbar_action_at_click(handle: I64) -> I32
   fn mui_explorer_header_at_click(handle: I64) -> I32
@@ -1136,7 +1137,9 @@ fn main() {
     while tag != 0 && running {
       let mut command_click_id: I32 = -1
       if tag == ev_close() {
-        running = false
+        if mui_quit_request(h) == 1 {
+          running = false
+        }
       } else if mui_keys_active(h) == 1 || mui_crumb_menu_active(h) == 1 || mui_branch_active(h) == 1 {
         // THREE overlays share this ONE top-level arm (NESTED, not new sibling
         // arms — L37): the keyboard-shortcuts overlay, the breadcrumb dropdown,
@@ -3021,7 +3024,9 @@ fn main() {
             hovering = false
           }
         } else if id == cmd_quit() {
-          running = false
+          if mui_quit_request(h) == 1 {
+            running = false
+          }
         } else if id == cmd_color_theme() {
           mui_theme_picker_open(h)
           theme_picker_open = true

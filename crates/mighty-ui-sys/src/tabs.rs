@@ -277,6 +277,11 @@ impl TabStore {
         self.tabs.get(idx).map(Tab::is_dirty).unwrap_or(false)
     }
 
+    /// Number of tabs with unsaved edits.
+    pub fn dirty_count(&self) -> usize {
+        self.tabs.iter().filter(|t| t.is_dirty()).count()
+    }
+
     // ---- byte-swap: store the live Mighty buffer into a slot ----
 
     /// Begin storing into slot `idx`: clear its byte buffer so the caller can

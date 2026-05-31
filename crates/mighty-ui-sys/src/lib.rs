@@ -440,6 +440,8 @@ pub struct MuiContext {
     /// A dirty tab that was close-clicked once and is waiting for a second
     /// close-click confirmation to discard unsaved edits.
     pending_dirty_close: Option<(usize, std::time::Instant)>,
+    /// A pending app-exit confirmation after dirty tabs were detected.
+    pending_quit: Option<std::time::Instant>,
 
     // ---- snippets (prefix → template expansion with navigable tab-stops) ----
     /// The active tab-stop navigation session over an expanded snippet (inactive
@@ -863,6 +865,7 @@ pub(crate) fn build_context(
         welcome: welcome::WelcomeState::new(),
         toasts: toast::ToastQueue::new(),
         pending_dirty_close: None,
+        pending_quit: None,
         snippet_session: snippets::SnippetSession::new(),
         md_preview: mdpreview::MdPreview::new(),
         md_pane: None,
@@ -1524,6 +1527,7 @@ impl MuiContext {
             welcome: welcome::WelcomeState::new(),
             toasts: toast::ToastQueue::new(),
             pending_dirty_close: None,
+            pending_quit: None,
             snippet_session: snippets::SnippetSession::new(),
             md_preview: mdpreview::MdPreview::new(),
             md_pane: None,
