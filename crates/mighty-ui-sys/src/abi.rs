@@ -4103,11 +4103,18 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
         crate::vello_ui::FontStyle::Bold,
         clip,
     );
-    // Header actions (new file / new folder / collapse) right-aligned.
+    // Header actions (new file / new folder / collapse) right-aligned as real
+    // icon buttons so the clickable area is visually obvious.
     let act_y = (head_h - 15.0) * 0.5;
-    ctx.dl_icon(sx + sw - 72.0, act_y, 15.0, 15.0, icons::NEW_FILE, theme::TEXT_3(), 1.5, false);
-    ctx.dl_icon(sx + sw - 50.0, act_y, 15.0, 15.0, icons::NEW_FOLDER, theme::TEXT_3(), 1.5, false);
-    ctx.dl_icon(sx + sw - 28.0, act_y, 15.0, 15.0, icons::COLLAPSE, theme::TEXT_3(), 1.5, false);
+    for (x, icon) in [
+        (sx + sw - 75.5, icons::NEW_FILE),
+        (sx + sw - 53.5, icons::NEW_FOLDER),
+        (sx + sw - 31.5, icons::COLLAPSE),
+    ] {
+        ctx.dl_round(x - 2.0, 9.0, 22.0, 22.0, 5.0, theme::BG_4());
+        ctx.dl_stroke(x - 2.0, 9.0, 22.0, 22.0, 5.0, theme::BORDER_SOFT(), 1.0);
+        ctx.dl_icon(x + 1.5, act_y, 15.0, 15.0, icon, theme::TEXT_3(), 1.5, false);
+    }
 
     // File rows. Mockup row height is 28px; we keep LINE_H rhythm but draw a
     // 28px-tall hover/selection capsule centered on the row baseline.

@@ -682,6 +682,27 @@ fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
 }
 
 #[test]
+fn explorer_header_actions_hit_their_visible_buttons() {
+    use crate::ffi::MuiEvent;
+    use crate::mui_explorer_header_at_click;
+
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = true;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let right = crate::layout::RAIL_W + crate::layout::SIDEBAR_W;
+
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, right - 64.5, 20.0, 0);
+    assert_eq!(mui_explorer_header_at_click(handle), 1);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, right - 42.5, 20.0, 0);
+    assert_eq!(mui_explorer_header_at_click(handle), 2);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, right - 20.5, 20.0, 0);
+    assert_eq!(mui_explorer_header_at_click(handle), 3);
+
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, right - 64.5, 42.0, 0);
+    assert_eq!(mui_explorer_header_at_click(handle), 0);
+}
+
+#[test]
 fn status_problems_chip_hit_tracks_rendered_branch_width() {
     use crate::ffi::MuiEvent;
     use crate::{mui_status_problems_chip_at_click, mui_status_render};
