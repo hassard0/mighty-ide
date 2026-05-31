@@ -1255,6 +1255,17 @@ fn main() {
           } else if tag == ev_char() {
             // Any printed char dismisses the dropdown.
             mui_crumb_menu_cancel(h)
+          } else if tag == ev_mouse_down() {
+            let ch = mui_crumb_menu_row_at_click(h)
+            if ch >= 0 {
+              let _acc = mui_crumb_menu_accept(h, ch)
+              mui_ed_undo_reset(h)
+              find_nav = false
+              let _r = mui_diag_refresh(h)
+              let _o = mui_outline_refresh(h)
+            } else {
+              mui_crumb_menu_cancel(h)
+            }
           }
         }
       } else if palette_open {
