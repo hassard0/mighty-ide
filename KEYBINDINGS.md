@@ -1,4 +1,4 @@
-# Mighty IDE — Keybindings
+# Mighty IDE - Keybindings
 
 All shortcuts are routed Mighty-side in `src/main.mty` (the editor key ladder +
 the `mui_chord` router). This table is the authoritative list.
@@ -7,7 +7,9 @@ the `mui_chord` router). This table is the authoritative list.
 
 | Shortcut | Action |
 |---|---|
+| `Ctrl+N` | New untitled file |
 | `Ctrl+S` | Save file |
+| `Ctrl+Shift+S` | Save As (native file picker, typed-path fallback) |
 | `Ctrl+Z` | Undo |
 | `Ctrl+Y` / `Ctrl+Shift+Z` | Redo |
 | `Ctrl+/` | Toggle line comment |
@@ -32,13 +34,13 @@ the `mui_chord` router). This table is the authoritative list.
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+P` | Universal Quick-Open — files / `>` commands / `@` symbols / `:` line |
+| `Ctrl+P` | Universal Quick-Open: files / `>` commands / `@` symbols / `:` line |
 | `Ctrl+Shift+P` | Command palette |
 | `Ctrl+G` | Go to line |
 | `F12` | Go to definition (cross-file) |
 | `Alt+F12` | Peek definition (inline, framed preview) |
 | `Ctrl+-` | Jump back to previous location |
-| `Ctrl+O` | Open file by path |
+| `Ctrl+O` | Open file (native file picker, typed-path fallback) |
 | `Ctrl+B` | Toggle file-tree sidebar |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
 | `Ctrl+W` | Close active tab |
@@ -72,7 +74,7 @@ the `mui_chord` router). This table is the authoritative list.
 | `Ctrl+Shift+G` | Source Control panel (status, branches, push/pull/fetch, per-hunk stage, inline diff) |
 | `Alt+B` | Toggle the git blame gutter |
 
-## Run · Test · Debug
+## Run / Test / Debug
 
 | Shortcut | Action |
 |---|---|
@@ -86,15 +88,16 @@ the `mui_chord` router). This table is the authoritative list.
 
 | Shortcut | Action |
 |---|---|
-| `Alt+W` | Run in Browser — build the active file to `wasm32-web` and serve it |
+| `Alt+W` | Run in Browser: build the active file to `wasm32-web` and serve it |
 
 ## Workspace & UX
 
 | Shortcut | Action |
 |---|---|
 | `Ctrl+,` | Settings (font size / tab width / word wrap / minimap / theme / bracket colors / indent guides / save conveniences) |
-| `Ctrl+`` ` `` ` | Toggle integrated terminal (ConPTY) |
-| `Ctrl+Shift+O` | Open Folder — re-root the workspace (file tree / Quick-Open / Search / git / Agents) |
+| `` Ctrl+` `` | Toggle integrated terminal (ConPTY) |
+| `Ctrl+Shift+N` | New Folder |
+| `Ctrl+Shift+O` | Open Folder: re-root the workspace (file tree / Quick-Open / Search / git / Agents) |
 | `Ctrl+Shift+V` | Toggle live Markdown preview (themed split-pane render) |
 | `Alt+G` | Mighty Agents topology panel (rescan workspace) |
 | `Alt+Z` | Toggle Zen / focus mode |
@@ -103,15 +106,14 @@ the `mui_chord` router). This table is the authoritative list.
 
 ## Customizing shortcuts
 
-Open the **Keyboard Shortcuts** overlay (`Ctrl+Shift+/`, or the command palette →
+Open the **Keyboard Shortcuts** overlay (`Ctrl+Shift+/`, or the command palette ->
 "Help: Keyboard Shortcuts"). It lists every command with its current binding and
-a substring filter (by command name OR key). The router-routed commands (Zen,
-Agents, Toggle Blame, Run in Browser, Split Editor Right, Markdown Preview, Open
-Folder) are **remappable**: select one, press `Enter`, then press the new chord —
-which must be `Alt`+a letter. Conflicts with another command are detected and
-warned. `Ctrl+R` resets the selected command to its default; `Ctrl+Shift+R`
-resets all. Overrides persist to `%APPDATA%/mighty-ide/keybindings.toml` and load
-at startup. Ladder-fixed chords (Save, Undo, Find, …) are shown read-only as
+a substring filter (by command name OR key). Palette-backed commands are
+**remappable**: select one, press `Enter`, then press the new chord, which must be
+`Alt`+a letter. Conflicts with another command are detected and warned. `Ctrl+R`
+resets the selected command to its default; `Ctrl+Shift+R` resets all. Overrides
+persist to `%APPDATA%/mighty-ide/keybindings.toml` and load at startup.
+Ladder-only chords that are not palette commands are shown read-only as
 `(fixed)`.
 
 ## Snippets

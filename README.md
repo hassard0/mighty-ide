@@ -11,7 +11,7 @@ The entire UI is drawn each frame as a Vello scene — smooth gradients, true ro
 Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [CHANGELOG.md](CHANGELOG.md).
 
 ### Editing & Multi-cursor
-- Live edit / save (Ctrl+S) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
+- Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), and new untitled files (Ctrl+N) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
 - Undo / redo (Ctrl+Z / Ctrl+Y), typing-run coalescing
 - Toggle line comment (Ctrl+/), auto-indent on Enter (brace-aware), bracket/quote auto-close + skip-over + empty-pair backspace, bracket-match highlight
 - Duplicate line/selection (Ctrl+Shift+D), move line up/down (Alt+↑ / Alt+↓), word-wise motion (Ctrl+←/→), smart Home, Shift+motion selection
@@ -30,7 +30,7 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Split editor (Ctrl+\)** — side-by-side panes, focus a pane with Ctrl+1 / Ctrl+2
 - **Bracket-pair colorization + indent guides** — nesting-depth rainbow brackets, faint per-level guides with an active-block highlight
 - **Interactive minimap** — click to jump; tall files compress so the whole file maps across the strip
-- Tabs (Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W, click), file-tree sidebar (Ctrl+B), open-by-path (Ctrl+O)
+- Tabs (Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W, click), file-tree sidebar (Ctrl+B), native Open File (Ctrl+O) with typed-path fallback
 - Project-wide Search panel (Ctrl+Shift+F)
 
 ### Language Intelligence
@@ -61,7 +61,7 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Run in Browser (Alt+W)** — build the active file to `wasm32-web` and run it in the browser via `mty serve` (web-game packages) or a `mty build --target wasm32-web` + static-server fallback; streams build/serve output, scrapes the served URL, opens the default browser, stop affordance. Sample: `examples/webspin/`
 
 ### Workspace & UX
-- **Explicit Workspace + Open Folder (Ctrl+Shift+O)** — native folder picker (typed-path fallback) re-roots the file tree, Quick-Open, Search, git, and Agents; **Recent Folders** (MRU) persist across restarts; explorer header shows the active workspace
+- **Explicit Workspace + Open Folder (Ctrl+Shift+O)** — native folder picker (typed-path fallback) re-roots the file tree, Quick-Open, Search, git, and Agents; **New Folder** (Ctrl+Shift+N) creates workspace directories; **Recent Folders** (MRU) persist across restarts; explorer header shows the active workspace
 - **Live Markdown preview (Ctrl+Shift+V)** — themed, live-updating split-pane render
 - **Keyboard Shortcuts overlay (Ctrl+Shift+/)** — searchable command/binding reference with router-command remapping (persists to `keybindings.toml`)
 - Welcome screen, toast notifications, **Zen / focus mode (Alt+Z)**
