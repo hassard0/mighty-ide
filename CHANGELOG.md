@@ -113,7 +113,7 @@ A large feature pass — all shim-side, Vello-rendered, driven by `src/main.mty`
 ### Workspace & UX
 - Welcome screen, toast notifications, and Zen / focus mode (`Alt+Z`).
 - Mighty Agents panel (`Alt+G`): static agent-system topology, run, and
-  live `mty inspect`.
+  reachable live `mty inspect` when the Mighty runtime control socket is available.
 - Centralized `mui_chord` router so new chords add no new top-level key-ladder
   arms (works around the mty parse-stack ceiling — see L37/L38).
 
