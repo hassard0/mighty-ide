@@ -3468,8 +3468,8 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
     let icon_top = 52.0; // 12px pad + logo region
     let gap = 4.0;
     let cx = (rw - cell) * 0.5;
-    // The active rail icon reflects the live sidebar panel: 0 Explorer,
-    // 1 Search, 2 SourceControl (Run/Agents stay decorative).
+    // The active rail icon reflects the live sidebar panel where applicable.
+    // Run is a bottom panel and AI is right-docked, so they track their own state.
     let active_panel = ctx.active_panel;
     let ai_open = ctx.ai.open;
     for (i, path) in rail_icons.iter().enumerate() {

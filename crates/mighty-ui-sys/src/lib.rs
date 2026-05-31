@@ -325,9 +325,9 @@ pub struct MuiContext {
     /// a live LSP probe. `None` for normal runs.
     lightbulb_autoopen: Option<i32>,
 
-    // ---- activity-rail panels (Explorer / Search / Source Control) ----
-    /// The sidebar's active panel: 0 = Explorer, 1 = Search, 2 = Source Control.
-    /// Switched by clicking a rail icon (`mui_panel_set`).
+    // ---- activity-rail sidebar panels ----
+    /// The sidebar's active panel. Switched by clicking a rail icon
+    /// (`mui_panel_set`) for Explorer/Search/SCM/Outline/Debug/Test/Agents.
     active_panel: i32,
     /// Whether the window is currently maximized (mirrored from winit on the
     /// maximize/restore toggle), so the title bar draws the right glyph.

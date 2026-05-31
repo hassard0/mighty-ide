@@ -514,6 +514,31 @@ fn click_routing_tab_bar_sidebar_and_text() {
 }
 
 #[test]
+fn activity_rail_all_slots_are_click_targets() {
+    use crate::ffi::MuiEvent;
+    use crate::panels::mui_rail_panel_at_click;
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let cell = 38.0_f32;
+    let gap = 4.0_f32;
+    let icon_top = 52.0_f32;
+    for slot in 0..=8 {
+        let y = icon_top + slot as f32 * (cell + gap) + cell * 0.5;
+        ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 26.0, y, 0);
+        assert_eq!(mui_rail_panel_at_click(handle), slot);
+    }
+
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 26.0, icon_top - 1.0, 0);
+    assert_eq!(mui_rail_panel_at_click(handle), -1);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, crate::layout::RAIL_W + 1.0, icon_top, 0);
+    assert_eq!(mui_rail_panel_at_click(handle), -1);
+}
+
+#[test]
 fn search_panel_clicks_focus_fields_and_return_actions() {
     use crate::ffi::MuiEvent;
 

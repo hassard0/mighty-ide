@@ -22,10 +22,12 @@ unsafe fn ctx<'a>(handle: i64) -> Option<&'a mut MuiContext> {
 }
 
 // ===========================================================================
-// Activity-rail panel switching (Explorer / Search / Source Control)
+// Activity-rail panel switching (Explorer / Search / Source Control / Outline /
+// Debug / Test / Mighty Agents)
 // ===========================================================================
 
-/// The active sidebar panel: 0 = Explorer, 1 = Search, 2 = Source Control.
+/// The active sidebar panel: Explorer, Search, Source Control, Outline, Debug,
+/// Test, or Mighty Agents.
 #[no_mangle]
 pub extern "C" fn mui_panel_active(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(crate::PANEL_EXPLORER, |c| c.active_panel)
@@ -59,10 +61,8 @@ pub extern "C" fn mui_panel_set(handle: i64, panel: i32) -> i32 {
 
 /// Map the last click's pixel position to a rail icon slot, or `-1` if the click
 /// was not on a rail icon. The rail geometry mirrors `mui_rail_draw`: a column of
-/// 38px cells starting at y=52 with a 4px gap. Slots 0/1/2 are the switchable
-/// sidebar panels (Explorer / Search / SourceControl); slot 3 is Run
-/// (decorative); slot 4 is the AI copilot (Agents) — the IDE toggles the AI
-/// panel for slot 4 rather than calling `mui_panel_set`.
+/// 38px cells starting at y=52 with a 4px gap. Slots 0/1/2/5/6/7/8 are sidebar
+/// panels; slot 3 opens the Run panel; slot 4 toggles the AI copilot.
 #[no_mangle]
 pub extern "C" fn mui_rail_panel_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
