@@ -454,6 +454,39 @@ fn click_routing_tab_bar_sidebar_and_text() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+#[test]
+fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
+    use crate::ffi::MuiEvent;
+    use crate::mui_topbar_action_at_click;
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::layout::zen_active();
+    crate::layout::set_zen(false);
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 600;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let controls_x = crate::titlebar::controls_x(ctx.gpu.width as f32);
+    let run_x = controls_x - 60.0 + 8.0;
+    let menu_x = controls_x - 60.0 + 32.0;
+
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, run_x, 4.0, 0);
+    assert_eq!(mui_topbar_action_at_click(handle), 1);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, menu_x, 4.0, 0);
+    assert_eq!(mui_topbar_action_at_click(handle), 2);
+    ctx.last_event.y = crate::layout::TAB_BAR_H + 1.0;
+    assert_eq!(mui_topbar_action_at_click(handle), 0);
+
+    crate::layout::set_zen(true);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, run_x, 4.0, 0);
+    assert_eq!(mui_topbar_action_at_click(handle), 0);
+
+    crate::layout::set_zen(before);
+}
+
 // ---- offscreen screenshot mode (PNG written, non-empty, correct dims) ----
 
 #[test]

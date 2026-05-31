@@ -3523,6 +3523,9 @@ pub extern "C" fn mui_topbar_action_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if layout::zen_active() {
+        return 0;
+    }
     let x = ctx.last_event.x;
     let y = ctx.last_event.y;
     if y < 0.0 || y >= layout::TAB_BAR_H {
