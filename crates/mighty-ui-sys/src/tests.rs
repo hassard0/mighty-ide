@@ -539,6 +539,23 @@ fn activity_rail_all_slots_are_click_targets() {
 }
 
 #[test]
+fn account_utility_opens_settings_on_inline_ai_row() {
+    use crate::featureabi::{mui_settings_open_account, mui_settings_sel};
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    assert_eq!(mui_settings_open_account(handle), 1);
+    assert!(ctx.settings_panel.is_active());
+    assert_eq!(
+        mui_settings_sel(handle),
+        crate::settingspanel::RowId::ALL
+            .iter()
+            .position(|r| *r == crate::settingspanel::RowId::InlineAi)
+            .unwrap() as i32
+    );
+}
+
+#[test]
 fn search_panel_clicks_focus_fields_and_return_actions() {
     use crate::ffi::MuiEvent;
 

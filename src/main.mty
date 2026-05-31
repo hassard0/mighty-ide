@@ -525,6 +525,7 @@ extern c {
   fn mui_status_problems_chip_at_click(handle: I64) -> I32
   // ---- Settings panel (Preferences: Settings) ----
   fn mui_settings_open(handle: I64) -> I32
+  fn mui_settings_open_account(handle: I64) -> I32
   fn mui_settings_close(handle: I64)
   fn mui_settings_active(handle: I64) -> I32
   fn mui_settings_move(handle: I64, delta: I32)
@@ -1687,8 +1688,8 @@ fn main() {
           let topbar_act = mui_topbar_action_at_click(h)
           let tb_hit = mui_test_toolbar_at_click(h)
           if rail_util == 1 {
-            let opened = mui_ai_open(h)
-            if opened == 1 { ai_focus = true } else { ai_focus = false }
+            let _a = mui_settings_open_account(h)
+            settings_open = true
             test_focus = false
           } else if rail_util == 2 {
             let _s = mui_settings_open(h)
@@ -2729,8 +2730,8 @@ fn main() {
             let _o = mui_outline_refresh(h)
           }
         } else if rail_util == 1 {
-          let opened = mui_ai_open(h)
-          if opened == 1 { ai_focus = true } else { ai_focus = false }
+          let _a = mui_settings_open_account(h)
+          settings_open = true
         } else if rail_util == 2 {
           let _s = mui_settings_open(h)
           settings_open = true

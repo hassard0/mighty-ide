@@ -110,6 +110,11 @@ impl SettingsPanel {
         self.sel = 0;
     }
 
+    pub fn open_at(&mut self, row: RowId) {
+        self.active = true;
+        self.sel = RowId::ALL.iter().position(|r| *r == row).unwrap_or(0);
+    }
+
     pub fn close(&mut self) {
         self.active = false;
     }

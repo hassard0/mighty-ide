@@ -814,6 +814,19 @@ pub extern "C" fn mui_settings_open(handle: i64) -> i32 {
     }
 }
 
+/// Open Settings from the Account rail utility, landing on the account-adjacent
+/// Inline AI row rather than duplicating the dedicated AI chat rail action.
+#[no_mangle]
+pub extern "C" fn mui_settings_open_account(handle: i64) -> i32 {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.settings_panel
+            .open_at(crate::settingspanel::RowId::InlineAi);
+        1
+    } else {
+        0
+    }
+}
+
 /// Close the Settings panel.
 #[no_mangle]
 pub extern "C" fn mui_settings_close(handle: i64) {
