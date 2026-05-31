@@ -112,7 +112,8 @@ pub extern "C" fn mui_ws_open_dialog(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    match pick_folder_native() {
+    let root = effective_root(ctx);
+    match pick_folder_native(&root) {
         Some(path) if !path.trim().is_empty() => open_folder(ctx, &path),
         _ => {
             println!("ws: native folder dialog cancelled / unavailable");
@@ -374,7 +375,11 @@ pub extern "C" fn mui_ws_dispatch(handle: i64, cmd_id: i32) -> i32 {
 /// `None` if cancelled / unavailable (non-Windows, or PowerShell/WinForms
 /// missing). Runs a tiny PowerShell snippet that opens a `FolderBrowserDialog`
 /// and prints the selected path; we read it back off stdout.
-fn pick_folder_native() -> Option<String> {
+fn pick_folder_native(initial_dir: &std::path::Path) -> Option<String> {
+    if let Ok(path) = std::env::var("MUI_OPEN_FOLDER_PICK") {
+        let trimmed = path.trim();
+        return (!trimmed.is_empty()).then(|| trimmed.to_string());
+    }
     // A folder dialog only exists on Windows; elsewhere the IDE uses the prompt.
     if !cfg!(windows) {
         return None;
@@ -384,10 +389,13 @@ Add-Type -AssemblyName System.Windows.Forms | Out-Null
 $d = New-Object System.Windows.Forms.FolderBrowserDialog
 $d.Description = 'Open Folder as Workspace'
 $d.ShowNewFolderButton = $true
+$dir = $env:MUI_DIALOG_DIR
+if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) { $d.SelectedPath = $dir }
 if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($d.SelectedPath) }
 "#;
     let out = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-STA", "-Command", script])
+        .args(["-NoProfile", "-STA", "-Command", script])
+        .env("MUI_DIALOG_DIR", initial_dir)
         .stdin(std::process::Stdio::null())
         .output()
         .ok()?;

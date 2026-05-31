@@ -863,6 +863,40 @@ fn workspace_open_reroots_tree_and_index_and_records_recent() {
 }
 
 #[test]
+fn workspace_open_dialog_env_pick_reroots_tree_and_records_recent() {
+    use crate::wsabi::{
+        mui_ws_name_len, mui_ws_open_dialog, mui_ws_recent_count, mui_ws_root_len,
+    };
+    use crate::mui_quickopen_reindex;
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let root = std::env::temp_dir().join(format!("mui_ws_dialog_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(root.join("main.mty"), b"fn main() {}").unwrap();
+    std::fs::write(root.join("src").join("lib.mty"), b"fn lib() {}").unwrap();
+    let root_str = root.to_string_lossy().into_owned();
+
+    std::env::set_var("MUI_OPEN_FOLDER_PICK", &root_str);
+    let opened = mui_ws_open_dialog(h);
+    std::env::remove_var("MUI_OPEN_FOLDER_PICK");
+
+    assert_eq!(opened, 1, "dialog pick of a valid folder should succeed");
+    assert_eq!(ctx.tree.root(), crate::workspace::validate_folder(&root_str).unwrap());
+    assert!(mui_ws_root_len(h) > 0);
+    assert!(mui_ws_name_len(h) > 0);
+    assert_eq!(mui_quickopen_reindex(h), 2, "index should see both files");
+    assert_eq!(mui_ws_recent_count(h), 1);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn lightbulb_visibility_and_click_open_actions() {
     use crate::ffi::MuiEvent;
     use crate::wsabi::{
