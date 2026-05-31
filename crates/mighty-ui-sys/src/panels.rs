@@ -929,6 +929,12 @@ pub extern "C" fn mui_search_replace_all(handle: i64) -> i32 {
     let dir = workspace_dir(ctx);
     let n = ctx.search.replace_all(&dir);
     println!("search: replaced {n}");
+    if n > 0 {
+        let suffix = if n == 1 { "" } else { "s" };
+        ctx.push_toast(crate::toast::Kind::Success, format!("Replaced {n} occurrence{suffix}"));
+    } else {
+        ctx.push_toast(crate::toast::Kind::Warn, "No project replacements");
+    }
     n
 }
 

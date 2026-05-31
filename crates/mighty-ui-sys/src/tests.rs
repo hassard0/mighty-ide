@@ -546,6 +546,34 @@ fn search_panel_clicks_focus_fields_and_return_actions() {
 }
 
 #[test]
+fn search_replace_all_toasts_visible_result() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_search_replace_toast");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("a.mty"), "foo\nfoo\n").unwrap();
+    ctx.tree.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    for ch in "foo".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+    assert_eq!(crate::panels::mui_search_run(handle), 2);
+    ctx.search.replace_focus = true;
+    for ch in "bar".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+
+    assert_eq!(crate::panels::mui_search_replace_all(handle), 2);
+    assert_eq!(std::fs::read_to_string(root.join("a.mty")).unwrap(), "bar\nbar\n");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Replaced 2 occurrences");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
     use crate::ffi::MuiEvent;
     use crate::mui_topbar_action_at_click;
