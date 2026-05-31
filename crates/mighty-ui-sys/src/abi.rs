@@ -4111,6 +4111,87 @@ pub extern "C" fn mui_file_reveal_active_in_os(handle: i64) -> i32 {
     }
 }
 
+pub(crate) fn platform_clipboard_command() -> Option<(String, Vec<String>)> {
+    #[cfg(target_os = "windows")]
+    {
+        Some((
+            "powershell".to_string(),
+            vec![
+                "-NoProfile".to_string(),
+                "-Command".to_string(),
+                "Set-Clipboard -Value ([Console]::In.ReadToEnd())".to_string(),
+            ],
+        ))
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Some(("pbcopy".to_string(), Vec::new()))
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        if std::process::Command::new("wl-copy").arg("--version").output().is_ok() {
+            Some(("wl-copy".to_string(), Vec::new()))
+        } else {
+            Some(("xclip".to_string(), vec!["-selection".to_string(), "clipboard".to_string()]))
+        }
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos", unix)))]
+    {
+        None
+    }
+}
+
+fn write_clipboard_text(text: &str) -> std::io::Result<()> {
+    use std::io::Write;
+
+    let Some((program, args)) = platform_clipboard_command() else {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "clipboard command unavailable",
+        ));
+    };
+    let mut child = std::process::Command::new(program)
+        .args(args)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()?;
+    if let Some(stdin) = child.stdin.as_mut() {
+        stdin.write_all(text.as_bytes())?;
+    }
+    let status = child.wait()?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::new(std::io::ErrorKind::Other, "clipboard command failed"))
+    }
+}
+
+/// Copy the active file path to the operating-system clipboard. Returns 1 on
+/// success, else 0.
+#[no_mangle]
+pub extern "C" fn mui_file_copy_active_path(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let Some(path) = ctx.tabs.active_path() else {
+        ctx.push_toast(crate::toast::Kind::Warn, "No active file path to copy");
+        return 0;
+    };
+    let text = path.display().to_string();
+    match write_clipboard_text(&text) {
+        Ok(()) => {
+            ctx.push_toast(crate::toast::Kind::Success, format!("Copied path: {}", basename(&path)));
+            1
+        }
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, "Could not copy file path");
+            println!("file-copy-path: failed for {}: {e}", path.display());
+            0
+        }
+    }
+}
+
 /// Delete the active file after the prompt stages an exact basename confirmation.
 /// The active tab is closed on success and Explorer / Quick-Open are refreshed.
 #[no_mangle]

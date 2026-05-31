@@ -123,6 +123,8 @@ pub const CMD_REVEAL_ACTIVE_FILE: u32 = 47;
 pub const CMD_DELETE_ACTIVE_FILE: u32 = 48;
 /// Reveal the active file in the operating system file manager.
 pub const CMD_REVEAL_ACTIVE_FILE_IN_OS: u32 = 49;
+/// Copy the active file's absolute path to the system clipboard.
+pub const CMD_COPY_ACTIVE_FILE_PATH: u32 = 50;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -135,6 +137,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_RENAME_ACTIVE_FILE, label: "File: Rename Active File", keybinding: "" },
     Command { id: CMD_REVEAL_ACTIVE_FILE, label: "File: Reveal Active File in File Tree", keybinding: "" },
     Command { id: CMD_REVEAL_ACTIVE_FILE_IN_OS, label: "File: Show Active File in File Manager", keybinding: "" },
+    Command { id: CMD_COPY_ACTIVE_FILE_PATH, label: "File: Copy Active File Path", keybinding: "" },
     Command { id: CMD_DELETE_ACTIVE_FILE, label: "File: Delete Active File", keybinding: "" },
     Command { id: CMD_FIND,             label: "Find",               keybinding: "Ctrl+F" },
     Command { id: CMD_GOTO_LINE,        label: "Go to Line",         keybinding: "Ctrl+G" },
@@ -427,6 +430,7 @@ impl PaletteEngine {
             CMD_RENAME_ACTIVE_FILE => (icons::FILE_MTY, "Rename the active file on disk", false),
             CMD_REVEAL_ACTIVE_FILE => (icons::SEARCH, "Show the active file in the IDE file tree", false),
             CMD_REVEAL_ACTIVE_FILE_IN_OS => (icons::EXPLORER, "Show the active file in the OS file manager", false),
+            CMD_COPY_ACTIVE_FILE_PATH => (icons::FILE_MTY, "Copy the active file path to the clipboard", false),
             CMD_DELETE_ACTIVE_FILE => (icons::ERROR_CIRCLE, "Delete the active file after confirmation", false),
             CMD_FIND => (icons::SEARCH, "Search within the current document", false),
             CMD_GOTO_LINE => (icons::CHEVRON, "Jump to a specific line number", false),

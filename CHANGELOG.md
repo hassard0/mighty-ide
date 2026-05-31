@@ -48,6 +48,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **File reveal commands are explicit**: the command palette now separates
   **Reveal Active File in File Tree** from **Show Active File in File Manager**,
   which launches Explorer/Finder/xdg-open instead of only expanding the IDE tree.
+- **Copy Active File Path** copies the active file's full path to the system
+  clipboard from the command palette.
 
 ### Quick-fix lightbulb
 - A lightbulb appears in the editor gutter when the cursor's line has available

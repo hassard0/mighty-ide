@@ -799,6 +799,12 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_REVEAL_ACTIVE_FILE_IN_OS)
         .unwrap();
     assert_eq!(os.label, "File: Show Active File in File Manager");
+
+    let copy_path = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_COPY_ACTIVE_FILE_PATH)
+        .unwrap();
+    assert_eq!(copy_path.label, "File: Copy Active File Path");
 }
 
 #[test]
@@ -822,6 +828,28 @@ fn active_file_os_reveal_builds_platform_file_manager_command() {
     {
         assert_eq!(program, "xdg-open");
         assert!(!args.is_empty());
+    }
+}
+
+#[test]
+fn active_file_copy_path_builds_platform_clipboard_command() {
+    let Some((program, args)) = crate::abi::platform_clipboard_command() else {
+        return;
+    };
+
+    #[cfg(target_os = "windows")]
+    {
+        assert_eq!(program, "powershell");
+        assert!(args.iter().any(|arg| arg.contains("Set-Clipboard")));
+    }
+    #[cfg(target_os = "macos")]
+    {
+        assert_eq!(program, "pbcopy");
+        assert!(args.is_empty());
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        assert!(program == "wl-copy" || program == "xclip");
     }
 }
 
@@ -1792,6 +1820,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_REVEAL_ACTIVE_FILE, "cmd_reveal_active_file"),
         (CMD_DELETE_ACTIVE_FILE, "cmd_delete_active_file"),
         (CMD_REVEAL_ACTIVE_FILE_IN_OS, "cmd_reveal_active_file_in_os"),
+        (CMD_COPY_ACTIVE_FILE_PATH, "cmd_copy_active_file_path"),
         (CMD_OPEN_FILE, "cmd_open_file"),
         (CMD_SAVE, "cmd_save"),
         (CMD_SAVE_AS, "cmd_save_as"),
