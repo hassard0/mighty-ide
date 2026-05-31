@@ -666,6 +666,12 @@ pub struct CodeAction {
     pub fix_all_mty: bool,
 }
 
+impl CodeAction {
+    fn is_actionable(&self) -> bool {
+        self.edit.is_some() || self.fix_all_mty
+    }
+}
+
 /// Parse the `textDocument/codeAction` response: a `result` array of code
 /// actions / commands. Each entry is `{"title":"...","kind":"...","edit":{...}}`
 /// (a `CodeAction`) or `{"title":"...","command":"..."}` (a `Command`). We read
@@ -752,11 +758,22 @@ fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
     } else {
         None
     };
+    let fix_all_mty = read_json_field_string(obj, b"\"kind\"")
+        .map(|kind| kind == "source.fixAll.mighty")
+        .unwrap_or(false)
+        || read_json_field_string(obj, b"\"command\"")
+            .map(|cmd| cmd.contains("fixAll") || cmd.contains("fix_all"))
+            .unwrap_or(false);
     Some(CodeAction {
         title,
         edit,
-        fix_all_mty: false,
+        fix_all_mty,
     })
+}
+
+fn read_json_field_string(obj: &[u8], key: &[u8]) -> Option<String> {
+    let at = find_sub(obj, key)?;
+    read_json_string_at(obj, at + key.len()).map(|(s, _)| s)
 }
 
 // ===========================================================================
@@ -995,7 +1012,10 @@ impl CodeActionState {
     /// Install the action list (LSP actions + any synthetic ones already
     /// appended). Returns the count; a zero count leaves the menu closed.
     pub fn set(&mut self, actions: Vec<CodeAction>) -> usize {
-        self.actions = actions;
+        self.actions = actions
+            .into_iter()
+            .filter(CodeAction::is_actionable)
+            .collect();
         self.sel = 0;
         self.active = !self.actions.is_empty();
         self.actions.len()
@@ -1541,6 +1561,7 @@ mod tests {
         assert_eq!(e.files[0].1[0].new_text, "print");
         assert_eq!(actions[1].title, "Fix all in file");
         assert!(actions[1].edit.is_none());
+        assert!(actions[1].fix_all_mty);
     }
 
     #[test]
@@ -1550,6 +1571,7 @@ mod tests {
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].title, "Run fixer");
         assert!(actions[0].edit.is_none());
+        assert!(actions[0].fix_all_mty);
     }
 
     // ---- state types ----
@@ -1595,8 +1617,13 @@ mod tests {
         let mut c = CodeActionState::new();
         assert_eq!(c.set(vec![]), 0);
         assert!(!c.is_active());
+        assert_eq!(
+            c.set(vec![CodeAction { title: "Inert command".into(), edit: None, fix_all_mty: false }]),
+            0,
+            "non-actionable code actions are hidden instead of becoming inert menu rows"
+        );
         let actions = vec![
-            CodeAction { title: "A".into(), edit: None, fix_all_mty: false },
+            CodeAction { title: "A".into(), edit: Some(WorkspaceEdit::default()), fix_all_mty: false },
             CodeAction { title: "B".into(), edit: None, fix_all_mty: true },
         ];
         assert_eq!(c.set(actions), 2);
@@ -1620,7 +1647,7 @@ mod tests {
     fn code_action_click_row_selects_action() {
         let mut c = CodeActionState::new();
         let actions = vec![
-            CodeAction { title: "Replace typo".into(), edit: None, fix_all_mty: false },
+            CodeAction { title: "Replace typo".into(), edit: Some(WorkspaceEdit::default()), fix_all_mty: false },
             CodeAction { title: "Fix all".into(), edit: None, fix_all_mty: true },
         ];
         assert_eq!(c.set(actions), 2);
