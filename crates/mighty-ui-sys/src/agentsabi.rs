@@ -358,7 +358,7 @@ impl AgentTopology {
             return -1;
         }
         let mty = mty_path();
-        let out = Command::new(&mty).arg("inspect").arg("--json").output();
+        let out = inspect_command(&mty, sock.as_deref()).output();
         match out {
             Ok(o) => {
                 let stdout = String::from_utf8_lossy(&o.stdout);
@@ -821,6 +821,15 @@ pub extern "C" fn mui_agents_click_is_run(handle: i64) -> i32 {
     }
 }
 
+fn inspect_command(mty: &str, sock: Option<&str>) -> Command {
+    let mut cmd = Command::new(mty);
+    cmd.arg("inspect").arg("--json");
+    if let Some(sock) = sock.map(str::trim).filter(|s| !s.is_empty()) {
+        cmd.arg("--sock").arg(sock);
+    }
+    cmd
+}
+
 /// Run the active program (`mty run <active file>`) on a background thread,
 /// streaming output into the embedded run buffer. Returns `1` if a process
 /// spawned, `0` otherwise (no file / spawn failure).
@@ -1026,5 +1035,25 @@ mod tests {
         assert!(t.first <= t.node_count().saturating_sub(1));
         t.scroll(-1000);
         assert_eq!(t.first, 0);
+    }
+
+    #[test]
+    fn inspect_command_passes_configured_socket() {
+        let cmd = inspect_command("mty", Some("  /tmp/mty.sock  "));
+        let args: Vec<String> = cmd
+            .get_args()
+            .map(|a| a.to_string_lossy().to_string())
+            .collect();
+        assert_eq!(args, vec!["inspect", "--json", "--sock", "/tmp/mty.sock"]);
+    }
+
+    #[test]
+    fn inspect_command_without_socket_uses_env_default() {
+        let cmd = inspect_command("mty", None);
+        let args: Vec<String> = cmd
+            .get_args()
+            .map(|a| a.to_string_lossy().to_string())
+            .collect();
+        assert_eq!(args, vec!["inspect", "--json"]);
     }
 }
