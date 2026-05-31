@@ -3167,17 +3167,23 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
     ctx.dl_rect(0.0, 0.0, rw, h, theme::BG_RAIL());
     ctx.dl_rect(rw - 1.0, 0.0, 1.0, h, theme::BORDER());
 
-    // Brand mark: a small indigo logo glyph (the wordmark "M" path) near the top.
-    let logo_sz = 20.0;
-    let lx = (rw - logo_sz) * 0.5;
+    // Brand tile: compact enough for the rail, but rendered as a real mark
+    // instead of a thin open stroke so it survives small screenshots/taskbar
+    // comparisons.
+    let logo_tile = 30.0;
+    let lx = (rw - logo_tile) * 0.5;
+    let ly = 7.0;
+    ctx.dl_shadow(lx, ly + 2.0, logo_tile, logo_tile, 9.0, theme::ACCENT_GLOW(), 14.0);
+    ctx.dl_grad_v(lx, ly, logo_tile, logo_tile, 9.0, theme::ACCENT_BRIGHT(), theme::ACCENT());
+    ctx.dl_stroke(lx, ly, logo_tile, logo_tile, 9.0, theme::accent_a(0.45), 1.0);
     ctx.dl_icon(
-        lx,
-        11.0,
-        logo_sz,
-        logo_sz,
-        "M4 19V7.5a1 1 0 0 1 1.6-.8L12 12l6.4-5.3a1 1 0 0 1 1.6.8V19",
-        theme::ACCENT_BRIGHT(),
-        2.0,
+        lx + 6.0,
+        ly + 6.0,
+        logo_tile - 12.0,
+        logo_tile - 12.0,
+        icons::LANG_M,
+        theme::TEXT(),
+        2.35,
         false,
     );
 

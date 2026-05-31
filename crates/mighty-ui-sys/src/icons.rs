@@ -112,8 +112,9 @@ pub const ERROR_CIRCLE: &str = "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7v6M12 
 pub const WARN_TRI: &str = "M12 4 22 19H2z M12 10v3M12 16h.01";
 /// Line-ending (LF) glyph.
 pub const LF: &str = "M5 7l-3 5 3 5M19 7l3 5-3 5M14 4l-4 16";
-/// Language pill mark (an "M"-ish chevron).
-pub const LANG_M: &str = "M4 18V8l5 4 5-4v10";
+/// Mighty language / brand mark. Kept optically centered in the 24px viewBox so
+/// it reads cleanly in the rail logo, Welcome tile, status pill, and Windows ico.
+pub const LANG_M: &str = "M5 18V7l7 6 7-6v11";
 /// Bell / notifications.
 pub const BELL: &str = "M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7z M10 20a2 2 0 0 0 4 0";
 
