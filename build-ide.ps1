@@ -25,21 +25,21 @@ $outDir = if ($Release) { "target\release" } else { "target" }
 $cargoArgs = @("build", "-p", "mighty-ui-sys", "-p", "mty-rt-abi")
 if ($Release) { $cargoArgs += "--release" }
 
-Write-Host "[1/4] cargo $($cargoArgs -join ' ')"
+Write-Host "[1/5] cargo $($cargoArgs -join ' ')"
 & cargo @cargoArgs
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "[2/4] stage runtime archive -> vendor/mty_rt_abi.lib"
+Write-Host "[2/5] stage runtime archive -> vendor/mty_rt_abi.lib"
 New-Item -ItemType Directory -Force -Path @("vendor", $outDir) | Out-Null
 Copy-Item "target\$profile\mty_rt_abi.lib" "vendor\mty_rt_abi.lib" -Force
 
-Write-Host "[3/4] stage shim import lib + DLL"
+Write-Host "[3/5] stage shim import lib + DLL"
 Copy-Item "target\$profile\mighty_ui_sys.dll.lib" "vendor\mighty_ui_sys.dll.lib" -Force
 if (-not $Release) {
   Copy-Item "target\$profile\mighty_ui_sys.dll" "target\mighty_ui_sys.dll" -Force
 }
 
-Write-Host "[4/4] mty build src\main.mty -> $outDir\main.exe"
+Write-Host "[4/5] mty build src\main.mty -> $outDir\main.exe"
 Remove-Item "$outDir\main.exe", "$outDir\main.o" -ErrorAction SilentlyContinue
 $env:MTY_LINKER = $Clang
 try {
@@ -58,6 +58,20 @@ if (-not (Test-Path -LiteralPath $exe -PathType Leaf) -or (Get-Item $exe).Length
     throw "mty produced main.o but not main.exe; check linker discovery and MTY_LINKER."
   }
   throw "mty build did not produce $exe"
+}
+
+Write-Host "[5/5] stamp app icon"
+if (Get-Command python -ErrorAction SilentlyContinue) {
+  & python "tools\make-icon.py"
+  if ($LASTEXITCODE -ne 0) { Write-Warning "icon regeneration failed; using existing assets\mighty-ide.ico" }
+}
+$icon = "assets\mighty-ide.ico"
+$rcedit = "tools\rcedit-x64.exe"
+if ((Test-Path -LiteralPath $icon -PathType Leaf) -and (Test-Path -LiteralPath $rcedit -PathType Leaf)) {
+  & $rcedit $exe --set-icon $icon
+  if ($LASTEXITCODE -ne 0) { throw "rcedit failed to stamp the app icon" }
+} else {
+  Write-Warning "missing $icon or $rcedit; exe icon was not stamped"
 }
 
 Get-Item $exe
