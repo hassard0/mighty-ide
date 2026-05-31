@@ -148,6 +148,7 @@ pub fn default_chord(cmd_id: u32) -> Option<Chord> {
         x if x == CMD_OPEN_FOLDER => c('o' as i32, MOD_CTRL | MOD_SHIFT),
         x if x == CMD_OPEN_FILE => c('o' as i32, MOD_CTRL),
         x if x == CMD_SAVE => c('s' as i32, MOD_CTRL),
+        x if x == CMD_SAVE_AS => c('s' as i32, MOD_CTRL | MOD_SHIFT),
         x if x == CMD_FIND => c('f' as i32, MOD_CTRL),
         x if x == CMD_GOTO_LINE => c('g' as i32, MOD_CTRL),
         x if x == CMD_HOVER => c('k' as i32, MOD_CTRL),
@@ -941,6 +942,10 @@ mod tests {
     fn direct_default_chords_resolve_for_common_commands() {
         let ov = Overrides::new();
         assert_eq!(ov.resolve('s' as i32, MOD_CTRL), Some(CMD_SAVE));
+        assert_eq!(
+            ov.resolve('s' as i32, MOD_CTRL | MOD_SHIFT),
+            Some(CMD_SAVE_AS)
+        );
         assert_eq!(ov.resolve('f' as i32, MOD_CTRL), Some(CMD_FIND));
         assert_eq!(ov.resolve('z' as i32, MOD_CTRL), Some(CMD_UNDO));
         assert_eq!(ov.resolve('y' as i32, MOD_CTRL), Some(CMD_REDO));

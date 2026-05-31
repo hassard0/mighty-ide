@@ -595,6 +595,7 @@ extern c {
 // ---- command palette ids (mirror palette.rs COMMANDS) ----
 fn cmd_open_file() -> I32 { 1 }
 fn cmd_save() -> I32 { 2 }
+fn cmd_save_as() -> I32 { 43 }
 fn cmd_find() -> I32 { 3 }
 fn cmd_goto_line() -> I32 { 4 }
 fn cmd_goto_definition() -> I32 { 5 }
@@ -2918,6 +2919,19 @@ fn main() {
               let _o = mui_outline_refresh(h)
               let _pr = mui_problems_refresh(h)
             }
+          }
+        } else if id == cmd_save_as() {
+          let sr = mui_save_as_dialog(h)
+          if sr == 0 {
+            mui_tab_set_dirty(h, mui_tab_active(h), 0)
+            let _r = mui_diag_refresh(h)
+            let _g = mui_scm_refresh(h)
+            let _o = mui_outline_refresh(h)
+            let _pr = mui_problems_refresh(h)
+          } else {
+            mui_prompt_open(h, prompt_save_as())
+            prompt_kind = prompt_save_as()
+            find_nav = false
           }
         } else if id == cmd_find() {
           mui_prompt_open(h, prompt_find())

@@ -109,12 +109,15 @@ pub const CMD_FOLD_LAST: u32 = CMD_UNFOLD_ALL;
 /// Mighty side collects the name through the bottom prompt and dispatches to
 /// `mui_newproj_create`.
 pub const CMD_NEW_PROJECT: u32 = 42;
+/// Save the active document to a chosen path through the native Save As dialog.
+pub const CMD_SAVE_AS: u32 = 43;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
     Command { id: CMD_OPEN_FILE,        label: "Open File",          keybinding: "Ctrl+O" },
     Command { id: CMD_SAVE,             label: "Save",               keybinding: "Ctrl+S" },
+    Command { id: CMD_SAVE_AS,          label: "Save As",            keybinding: "Ctrl+Shift+S" },
     Command { id: CMD_FIND,             label: "Find",               keybinding: "Ctrl+F" },
     Command { id: CMD_GOTO_LINE,        label: "Go to Line",         keybinding: "Ctrl+G" },
     Command { id: CMD_GOTO_DEFINITION,  label: "Go to Definition",   keybinding: "F12" },
@@ -381,6 +384,7 @@ impl PaletteEngine {
         match id {
             CMD_OPEN_FILE => (icons::NEW_FILE, "Open a file from the workspace", false),
             CMD_SAVE => (icons::FILE_MTY, "Write the active file to disk", false),
+            CMD_SAVE_AS => (icons::FILE_MTY, "Save the active file under a new path", false),
             CMD_FIND => (icons::SEARCH, "Search within the current document", false),
             CMD_GOTO_LINE => (icons::CHEVRON, "Jump to a specific line number", false),
             CMD_GOTO_DEFINITION => (icons::FN_SYMBOL, "Navigate to the symbol definition", false),
@@ -606,6 +610,7 @@ mod tests {
         let up: Vec<u32> = upper.iter().map(|c| c.id).collect();
         assert_eq!(lo, up);
         assert_eq!(lo.first(), Some(&CMD_SAVE));
+        assert!(lo.contains(&CMD_SAVE_AS));
     }
 
     #[test]
@@ -658,11 +663,12 @@ mod tests {
         e.open();
         e.move_sel(3);
         assert_eq!(e.selection(), 3);
-        // Type "sa" -> matches "Save"; selection resets to 0.
+        // Type "sa" -> matches "Save" / "Save As"; selection resets to 0.
         e.push_char('s');
         e.push_char('a');
         assert_eq!(e.selection(), 0);
         assert_eq!(e.selected_id(), CMD_SAVE as i32);
+        assert!(e.count() >= 2);
         // Backspace back to "s".
         e.backspace();
         assert_eq!(e.query(), "s");

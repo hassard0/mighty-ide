@@ -521,13 +521,17 @@ fn status_problems_chip_hit_tracks_rendered_branch_width() {
 #[test]
 fn chord_command_id_resolves_palette_commands_for_mighty_dispatch() {
     use crate::mui_chord_command_id;
-    use crate::shortcuts::{Chord, MOD_ALT, MOD_CTRL};
+    use crate::shortcuts::{Chord, MOD_ALT, MOD_CTRL, MOD_SHIFT};
 
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
     assert_eq!(
         mui_chord_command_id(handle, 's' as i32, MOD_CTRL),
         crate::palette::CMD_SAVE as i32
+    );
+    assert_eq!(
+        mui_chord_command_id(handle, 's' as i32, MOD_CTRL | MOD_SHIFT),
+        crate::palette::CMD_SAVE_AS as i32
     );
     ctx.shortcuts
         .overrides_mut()
