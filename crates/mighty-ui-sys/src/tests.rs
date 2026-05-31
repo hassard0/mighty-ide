@@ -1460,6 +1460,19 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         main.contains("if shift_held(mods) {\n            let sr = mui_save_as_dialog(h)"),
         "Ctrl+Shift+S should force the native Save As dialog even for file-backed tabs"
     );
+    for needle in [
+        "id >= cmd_pane_first() && id <= cmd_pane_last()",
+        "id >= cmd_git_first() && id <= cmd_git_last()",
+        "id >= cmd_ws_first() && id <= cmd_ws_last()",
+        "id >= cmd_fold_first() && id <= cmd_fold_last()",
+        "id == cmd_keyboard_shortcuts()",
+        "id == cmd_new_project()",
+    ] {
+        assert!(
+            main.contains(needle),
+            "central command dispatcher must cover `{needle}` so palette/quick-open rows do not become inert"
+        );
+    }
 }
 
 /// Shim-side window-chrome + zoom interception (the v0.36-parser-safe move of the
