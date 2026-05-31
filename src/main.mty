@@ -3006,7 +3006,10 @@ fn main() {
             find_nav = false
           } else if wr == 3 {
             if mui_ws_recent_count(h) > 0 {
-              let _or = mui_ws_open_recent(h, 0)
+              // "Open Recent" should let the user choose, not silently open the
+              // newest folder. Reuse the Welcome recents surface, which already
+              // lists recent files and folders with click targets.
+              mui_welcome_open(h)
             } else {
               mui_prompt_open(h, prompt_open_folder())
               prompt_kind = prompt_open_folder()
