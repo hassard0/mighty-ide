@@ -205,6 +205,16 @@ impl ProblemSet {
         }
     }
 
+    /// Hit-test the header close affordance.
+    pub fn close_at(&self, click_x: f32, click_y: f32, w: f32, h: f32, left: f32) -> bool {
+        if !self.open || click_x < left || click_x > w {
+            return false;
+        }
+        let top = Self::panel_top(h);
+        let x = w - 34.0;
+        click_x >= x && click_x <= x + 24.0 && click_y >= top + 3.0 && click_y <= top + 27.0
+    }
+
     /// Draw the Problems panel as a bottom band: a header with error/warning
     /// totals, then file groups, then indented `severity message code Ln:Col`
     /// rows. No-op when closed.
@@ -248,6 +258,11 @@ impl ProblemSet {
         x += 17.0;
         let wc = self.warnings.to_string();
         ctx.text.queue_ui_sized(x, hy, &wc, if self.warnings > 0 { theme::WARNING() } else { theme::TEXT_3() }, chrome - 1.0, clip);
+
+        let close_x = w - 34.0;
+        let close_y = top + 4.0;
+        ctx.dl_round(close_x, close_y, 24.0, 22.0, 6.0, theme::BG_2());
+        ctx.dl_icon(close_x + 6.0, close_y + 5.0, 12.0, 12.0, icons::CLOSE, theme::TEXT_3(), 1.6, false);
 
         if self.items.is_empty() {
             ctx.dl_icon(left + 14.0, Self::body_top(h) + 2.0, 14.0, 14.0, icons::CHECK, theme::GREEN(), 1.7, false);
@@ -417,5 +432,14 @@ mod tests {
     fn row_at_when_closed_is_negative() {
         let ps = ProblemSet::new();
         assert_eq!(ps.row_at(100.0, 500.0, 1000.0, 800.0, 52.0), -1);
+    }
+
+    #[test]
+    fn close_hit_test_targets_header_button_only() {
+        let mut ps = ProblemSet::new();
+        ps.set_open(true);
+        assert!(ps.close_at(974.0, 510.0, 1000.0, 800.0, 52.0));
+        assert!(!ps.close_at(940.0, 510.0, 1000.0, 800.0, 52.0));
+        assert!(!ps.close_at(974.0, 540.0, 1000.0, 800.0, 52.0));
     }
 }

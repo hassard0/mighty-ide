@@ -506,6 +506,7 @@ extern c {
   fn mui_problems_row_col(handle: I64, i: I32) -> I32
   fn mui_problems_scroll(handle: I64, delta: I32)
   fn mui_problems_row_at_click(handle: I64) -> I32
+  fn mui_problems_close_at_click(handle: I64) -> I32
   fn mui_problems_open_row(handle: I64, i: I32) -> I32
   fn mui_problems_draw(handle: I64)
   // ---- interactive breadcrumb dropdown ----
@@ -2622,6 +2623,7 @@ fn main() {
         let md_btn = mui_md_button_at_click(h)
         let chip_hit = mui_status_problems_chip_at_click(h)
         let prob_on = mui_problems_is_open(h)
+        let prob_close = mui_problems_close_at_click(h)
         let prob_hit = mui_problems_row_at_click(h)
         // Git click targets (computed up-front so the dispatch ladder stays flat):
         // the status-bar branch segment opens the switcher; a click on an inline-
@@ -2733,6 +2735,8 @@ fn main() {
         } else if chip_hit == 1 {
           // Status-bar problems chip: open + refresh the Problems panel.
           let _po = mui_problems_open(h)
+        } else if prob_on == 1 && prob_close == 1 {
+          let _pc = mui_problems_toggle(h)
         } else if prob_on == 1 && prob_hit >= 0 {
           // Problems panel row: open the file + jump to the diagnostic.
           let newidx = mui_problems_open_row(h, prob_hit)

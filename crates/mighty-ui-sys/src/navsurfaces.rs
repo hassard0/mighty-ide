@@ -332,6 +332,18 @@ pub extern "C" fn mui_problems_row_at_click(handle: i64) -> i32 {
     ctx.problems.row_at(ctx.last_event.x, ctx.last_event.y, w, h, left)
 }
 
+/// `1` if the last click landed on the Problems panel close button.
+#[no_mangle]
+pub extern "C" fn mui_problems_close_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let left = layout::body_left(ctx.sidebar_visible);
+    let w = ctx.gpu.width as f32;
+    let h = ctx.gpu.height as f32;
+    i32::from(ctx.problems.close_at(ctx.last_event.x, ctx.last_event.y, w, h, left))
+}
+
 /// Open the file of problem `i` as a tab and jump to its line:col. Returns the
 /// resulting tab index, or `-1` out of range / missing file.
 #[no_mangle]
