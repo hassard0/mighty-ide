@@ -372,6 +372,8 @@ impl WelcomeState {
             right_x, files_top, "RECENT FILES", theme::TEXT_3(), 11.5, crate::vello_ui::FontStyle::Bold, clip,
         );
         let files_rows_top = files_top + 22.0;
+        let tips_y = rows_top + (QUICK_ACTIONS.len() as f32) * row_h + 18.0;
+        let file_rows_bottom = tips_y - 18.0;
         if recents.is_empty() {
             ctx.text.queue_ui_sized(
                 right_x,
@@ -382,7 +384,9 @@ impl WelcomeState {
                 clip,
             );
         } else {
-            let max_rows = QUICK_ACTIONS.len().saturating_sub(folder_rows).max(2);
+            let fit_rows = ((file_rows_bottom - files_rows_top) / row_h).floor().max(0.0) as usize;
+            let preferred_rows = QUICK_ACTIONS.len().saturating_sub(folder_rows).max(2);
+            let max_rows = preferred_rows.min(fit_rows);
             for (i, path) in recents.iter().take(max_rows).enumerate() {
                 let ry = files_rows_top + i as f32 * row_h;
                 let name = path
@@ -419,7 +423,6 @@ impl WelcomeState {
         }
 
         // ---- Tips / keybinding cheat list (centered footer band) ----
-        let tips_y = rows_top + (QUICK_ACTIONS.len() as f32) * row_h + 18.0;
         ctx.dl_rect(left_x, tips_y - 14.0, col_w, 1.0, theme::BORDER());
         ctx.text
             .queue_ui_sized(left_x, tips_y, "TIPS", theme::TEXT_3(), 11.5, clip);
@@ -428,7 +431,7 @@ impl WelcomeState {
         // window height while leaving each keybinding pill readable.
         const TIP_COLS: usize = 3;
         let tip_col_w = col_w / TIP_COLS as f32;
-        let tip_row_h = 29.0;
+        let tip_row_h = 38.0;
         for (i, tip) in TIPS.iter().enumerate() {
             let col = (i % TIP_COLS) as f32;
             let row = (i / TIP_COLS) as f32;
@@ -440,7 +443,7 @@ impl WelcomeState {
             // with labels in the compact footer grid.
             let kw = tip.key.chars().count() as f32 * 6.6 + 14.0;
             let px = txx;
-            let py = tyy + 12.0;
+            let py = tyy + 18.0;
             ctx.dl_round(px, py, kw, 14.0, 5.0, theme::BG_4());
             ctx.dl_stroke(px, py, kw, 14.0, 5.0, theme::BORDER(), 1.0);
             ctx.text
