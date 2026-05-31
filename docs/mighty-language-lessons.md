@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-05-29 (multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages — L35; verified live against rust-analyzer 1.95.0. Prior: developer-workflow features — Run panel + inline git diff + live Settings panel — L33/L34; LIVE EDITING via a shim-side authoritative text model — the L28 workaround; "Ember Graphite" visual redesign + bundled JetBrains Mono; command palette shim-side registry; L27.)_
+_Last updated: 2026-05-31 (Windows packaging/runtime ABI hardening — L50/L51. Prior: multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages — L35; verified live against rust-analyzer 1.95.0. Developer-workflow features — Run panel + inline git diff + live Settings panel — L33/L34; LIVE EDITING via a shim-side authoritative text model — the L28 workaround; "Ember Graphite" visual redesign + bundled JetBrains Mono; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
