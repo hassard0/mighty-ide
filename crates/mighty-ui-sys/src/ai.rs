@@ -41,6 +41,19 @@ pub const MAX_TOKENS: u32 = 1024;
 const ENDPOINT: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 
+fn model_badge(model: &str) -> String {
+    match model {
+        "claude-sonnet-4-6" => "Sonnet 4.6".to_string(),
+        "claude-3-5-sonnet-latest" => "Sonnet 3.5".to_string(),
+        m if m.starts_with("claude-") => m
+            .trim_start_matches("claude-")
+            .chars()
+            .map(|ch| if ch == '-' { ' ' } else { ch })
+            .collect(),
+        m => m.to_string(),
+    }
+}
+
 /// Read the API key from the environment (`ANTHROPIC_API_KEY`, then the legacy
 /// `CLAUDE_API_KEY` fallback). `None` when neither is set or both are blank.
 pub fn api_key() -> Option<String> {
@@ -647,21 +660,27 @@ impl AiPanel {
             chrome - 2.0,
             clip,
         );
-        // Model pill on the right.
-        let model_label = MODEL;
+        // Compact model pill on the right, kept out of the native titlebar
+        // action/control strip so it never collides with minimize/maximize/close.
+        let model_label = model_badge(MODEL);
         let pill_w = model_label.chars().count() as f32 * (chrome - 3.0) * 0.52 + 16.0;
-        let pill_x = px + pw - pill_w - 12.0;
-        let pill_y = (head_h - 18.0) * 0.5;
-        ctx.dl_round(pill_x, pill_y, pill_w, 18.0, 9.0, theme::accent_a(0.12));
-        ctx.dl_stroke(pill_x, pill_y, pill_w, 18.0, 9.0, theme::ACCENT_LINE(), 1.0);
-        ctx.text.queue_ui_sized(
-            pill_x + 8.0,
-            pill_y + 4.0,
-            model_label,
-            theme::ACCENT_BRIGHT(),
-            chrome - 3.0,
-            clip,
-        );
+        let reserved_x = crate::titlebar::controls_x(w) - crate::titlebar::ACTION_STRIP_W;
+        let header_right = reserved_x.min(px + pw) - 10.0;
+        let min_pill_x = px + 150.0;
+        if header_right - pill_w >= min_pill_x {
+            let pill_x = header_right - pill_w;
+            let pill_y = (head_h - 18.0) * 0.5;
+            ctx.dl_round(pill_x, pill_y, pill_w, 18.0, 9.0, theme::accent_a(0.12));
+            ctx.dl_stroke(pill_x, pill_y, pill_w, 18.0, 9.0, theme::ACCENT_LINE(), 1.0);
+            ctx.text.queue_ui_sized(
+                pill_x + 8.0,
+                pill_y + 4.0,
+                &model_label,
+                theme::ACCENT_BRIGHT(),
+                chrome - 3.0,
+                clip,
+            );
+        }
 
         // ---- input box at the bottom ----
         let (_gx, _gw, input_y, input_h) = input_geometry(&self.input, width, height);
@@ -983,6 +1002,13 @@ mod tests {
         assert_eq!(msgs.len(), 1, "empty assistant placeholder is skipped");
         assert_eq!(msgs[0]["role"], "user");
         assert_eq!(msgs[0]["content"], "hi");
+    }
+
+    #[test]
+    fn model_badge_compacts_known_long_model_ids() {
+        assert_eq!(model_badge("claude-sonnet-4-6"), "Sonnet 4.6");
+        assert_eq!(model_badge("claude-3-5-sonnet-latest"), "Sonnet 3.5");
+        assert_eq!(model_badge("other-model"), "other-model");
     }
 
     #[test]
