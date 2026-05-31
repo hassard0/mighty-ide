@@ -1106,6 +1106,14 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         1,
         "command execution ladder must stay centralized"
     );
+    assert!(
+        main.contains("let applied = mui_codeaction_apply(h)"),
+        "code action accept must inspect whether anything was actually applied"
+    );
+    assert!(
+        !main.contains("let _a = mui_codeaction_apply(h)"),
+        "code action accept must not blindly reload after a no-op action"
+    );
 }
 
 /// Shim-side window-chrome + zoom interception (the v0.36-parser-safe move of the

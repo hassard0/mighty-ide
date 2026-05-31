@@ -1958,12 +1958,14 @@ fn main() {
             mui_codeaction_move(h, 1)
           } else if k == key_enter() {
             mui_ed_undo_record(h)
-            let _a = mui_codeaction_apply(h)
+            let applied = mui_codeaction_apply(h)
             code_action_open = false
-            let _n = mui_ed_load(h)
-            mui_ed_undo_reset(h)
-            mui_tab_set_dirty(h, mui_tab_active(h), 0)
-            let _r = mui_diag_refresh(h)
+            if applied == 1 {
+              let _n = mui_ed_load(h)
+              mui_ed_undo_reset(h)
+              mui_tab_set_dirty(h, mui_tab_active(h), 0)
+              let _r = mui_diag_refresh(h)
+            }
           } else if k == key_escape() {
             mui_codeaction_cancel(h)
             code_action_open = false
@@ -1977,12 +1979,14 @@ fn main() {
           let ch = mui_codeaction_click(h, ca_line - first, ca_col, total_ca)
           if ch >= 0 {
             mui_ed_undo_record(h)
-            let _a = mui_codeaction_apply(h)
+            let applied = mui_codeaction_apply(h)
             code_action_open = false
-            let _n = mui_ed_load(h)
-            mui_ed_undo_reset(h)
-            mui_tab_set_dirty(h, mui_tab_active(h), 0)
-            let _r = mui_diag_refresh(h)
+            if applied == 1 {
+              let _n = mui_ed_load(h)
+              mui_ed_undo_reset(h)
+              mui_tab_set_dirty(h, mui_tab_active(h), 0)
+              let _r = mui_diag_refresh(h)
+            }
           } else {
             mui_codeaction_cancel(h)
             code_action_open = false
