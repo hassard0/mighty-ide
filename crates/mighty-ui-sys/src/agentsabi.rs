@@ -473,9 +473,7 @@ impl AgentTopology {
 /// The default live-inspect note (the honest platform reality on Windows).
 fn default_inspect_note() -> String {
     if cfg!(windows) {
-        "Live inspect: mty inspect's control socket is Unix-only in v0.36 \
-         (Windows named pipe not yet implemented). Static topology + run are live."
-            .to_string()
+        "Live inspect: static + run".to_string()
     } else {
         "Live inspect: launch a program with MTY_RUNTIME_CONTROL_SOCK set to attach.".to_string()
     }
@@ -1017,6 +1015,15 @@ mod tests {
         let t = seeded();
         assert_eq!(t.sidebar_summary_line(32), "2 agents \u{00b7} 2 protocols \u{00b7} 1 tool");
         assert_eq!(t.sidebar_summary_line(10), "2a \u{00b7} 2p \u{00b7} 1t \u{00b7} 1s");
+    }
+
+    #[test]
+    fn default_inspect_note_fits_compact_sidebar() {
+        let note = default_inspect_note();
+        assert!(
+            note.chars().count() <= 32,
+            "default live-inspect copy should not truncate into an unclear fragment: {note}"
+        );
     }
 
     #[test]
