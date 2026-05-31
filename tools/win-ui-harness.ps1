@@ -374,14 +374,15 @@ Log "after typing: responsive=$respT"
 Press-VK $hwnd 0x1B      # close autocomplete before using topbar commands
 Start-Sleep -Milliseconds 150
 
-# === SAVE-AS (untitled buffer) via top-right More -> command palette ===
+# === SAVE-AS via top-right More -> command palette ===
 # The harness env above supplies the native SaveFileDialog result so this
-# exercises dialog-backed Save-As. The action strip sits just left of the native
-# window buttons; click inside the dots/menu band, not on the min-button boundary.
+# exercises dialog-backed Save-As regardless of which tab is active. The action
+# strip sits just left of the native window buttons; click inside the dots/menu
+# band, not on the min-button boundary.
 ClickL ($logicalW - 202) 20
 Start-Sleep -Milliseconds 400
 Capture $hwnd "40-palette-open"
-Type-Text $hwnd "save"
+Type-Text $hwnd "save as"
 Start-Sleep -Milliseconds 300
 Press-VK $hwnd 0x0D
 Start-Sleep -Milliseconds 800

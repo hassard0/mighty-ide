@@ -29,6 +29,21 @@ This:
 3. copies the shim import lib + DLL next to the output exe
 4. `mty build src/main.mty --out-dir target` → `target/main.exe`
 
+On Windows without Bash/Git-Bash, use the native PowerShell wrapper:
+
+```powershell
+.\build-ide.ps1
+```
+
+For the release/package build:
+
+```powershell
+.\package-win.ps1
+```
+
+This assembles `dist\mighty-ide-win64\` and writes
+`dist\mighty-ide-v0.3.0-win64.zip`.
+
 ## Run
 
 ```sh
