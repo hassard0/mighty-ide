@@ -13,7 +13,8 @@
 param(
   [string]$Exe     = "C:\Users\ihass\mighty-ide\dist\mighty-ide-win64\mighty-ide.exe",
   [string]$WorkDir = "C:\Users\ihass\mighty-ide\dist\mighty-ide-win64",
-  [string]$OutDir  = "C:\Users\ihass\mighty-ide\dist\gallery"
+  [string]$OutDir  = "C:\Users\ihass\mighty-ide\dist\gallery",
+  [string[]]$Case
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
@@ -36,14 +37,19 @@ public static class G {
  [DllImport("user32.dll")]public static extern bool EnumWindows(EP cb,IntPtr l);
  public static void Dpi(){ try{ SetProcessDpiAwarenessContext((IntPtr)(-4)); }catch{} }
  public static IntPtr Best(uint pid){IntPtr b=IntPtr.Zero;int ba=0;EnumWindows((h,l)=>{uint wp;GetWindowThreadProcessId(h,out wp);if(wp==pid&&IsWindowVisible(h)){RECT r;GetWindowRect(h,out r);int a=(r.R-r.L)*(r.B-r.T);if(a>ba){ba=a;b=h;}}return true;},IntPtr.Zero);return b;}
+ // For STATIC overlay capture we don't need keyboard foreground (which Windows'
+ // foreground-lock refuses to background-launched procs) - we only need the window
+ // drawn ABOVE everything. SetWindowPos HWND_TOPMOST does that without activation;
+ // we LEAVE it topmost so CopyFromScreen grabs the real (unoccluded) window.
  public static bool Fg(IntPtr h){
+   ShowWindow(h,9); // SW_RESTORE
+   SetWindowPos(h,(IntPtr)(-1),0,0,0,0,0x3|0x40); // HWND_TOPMOST, keep
+   BringWindowToTop(h);
    IntPtr fg=GetForegroundWindow();uint d;uint ft=GetWindowThreadProcessId(fg,out d);uint mt=GetCurrentThreadId();
    bool at=(ft!=0&&ft!=mt&&AttachThreadInput(mt,ft,true));
-   if(GetForegroundWindow()!=h){ShowWindow(h,6);ShowWindow(h,9);}
-   SetWindowPos(h,(IntPtr)(-1),0,0,0,0,0x3|0x40);SetWindowPos(h,(IntPtr)(-2),0,0,0,0,0x3|0x40);
-   BringWindowToTop(h);SetForegroundWindow(h);
+   SetForegroundWindow(h);
    if(at)AttachThreadInput(mt,ft,false);
-   return GetForegroundWindow()==h;
+   return true; // topmost is sufficient for a screen capture
  }
 }
 "@
@@ -67,6 +73,7 @@ $cases = @(
   @{n='signature';    v='MUI_SIG_AUTOOPEN';        val='1'},
   @{n='complete';     v='MUI_COMPLETE_AUTOOPEN';   val='1'},
   @{n='replace';      v='MUI_REPLACE_AUTOOPEN';    val='1'},
+  @{n='dirty-confirm';v='MUI_DIRTY_CONFIRM_AUTOOPEN';val='1'},
   @{n='breadcrumb';   v='MUI_BREADCRUMB_AUTOOPEN'; val='1'},
   @{n='terminal';     v='MUI_TERM_AUTOOPEN';       val='1'},
   @{n='run';          v='MUI_RUN_AUTOOPEN';        val='1'},
@@ -94,38 +101,55 @@ $cases = @(
   @{n='panel-search'; v='MUI_PANEL_AUTOOPEN';      val='search'}
 )
 
+if ($Case -and $Case.Count -gt 0) {
+  $wanted = @{}
+  foreach ($name in $Case) { $wanted[$name.ToLowerInvariant()] = $true }
+  $cases = @($cases | Where-Object { $wanted.ContainsKey($_.n.ToLowerInvariant()) })
+  if ($cases.Count -eq 0) {
+    throw "No overlay-gallery cases matched: $($Case -join ', ')"
+  }
+}
+
 foreach ($c in $cases) {
-  Set-Item -Path "env:$($c.v)" -Value $c.val
-  $p = Start-Process -FilePath $Exe -WorkingDirectory $WorkDir -PassThru
-  $h = [IntPtr]::Zero
-  for ($i=0; $i -lt 40; $i++) {
-    $p.Refresh()
-    if ($p.HasExited) { break }
-    $cand = [G]::Best([uint32]$p.Id)
-    if ($cand -ne [IntPtr]::Zero) { $r = New-Object G+RECT; [void][G]::GetWindowRect($cand,[ref]$r); if (($r.R-$r.L) -ge 400) { $h=$cand; break } }
-    Start-Sleep -Milliseconds 120
-  }
-  $fg = $false
-  if ($h -ne [IntPtr]::Zero) { for ($k=0;$k -lt 5;$k++){ $fg=[G]::Fg($h); if($fg){break}; Start-Sleep -Milliseconds 120 } }
-  Start-Sleep -Milliseconds 250
-  if ($h -ne [IntPtr]::Zero -and $fg) {
-    try {
-      $r = New-Object G+RECT; [void][G]::GetWindowRect($h,[ref]$r)
-      $w=$r.R-$r.L; $ht=$r.B-$r.T
-      $bmp = New-Object System.Drawing.Bitmap $w,$ht
-      $g = [System.Drawing.Graphics]::FromImage($bmp)
-      $g.CopyFromScreen($r.L,$r.T,0,0,(New-Object System.Drawing.Size $w,$ht))
-      $g.Dispose()
-      $bmp.Save((Join-Path $OutDir "$($c.n).png"),[System.Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
-      Log "$($c.n): OK ($w x $ht)"
-    } catch {
-      Log "$($c.n): CAPTURE-ERROR $($_.Exception.Message)"
+  $p = $null
+  try {
+    Set-Item -Path "env:$($c.v)" -Value $c.val
+    $p = Start-Process -FilePath $Exe -WorkingDirectory $WorkDir -PassThru
+    $h = [IntPtr]::Zero
+    for ($i=0; $i -lt 40; $i++) {
+      $p.Refresh()
+      if ($p.HasExited) { break }
+      $cand = [G]::Best([uint32]$p.Id)
+      if ($cand -ne [IntPtr]::Zero) { $r = New-Object G+RECT; [void][G]::GetWindowRect($cand,[ref]$r); if (($r.R-$r.L) -ge 400) { $h=$cand; break } }
+      Start-Sleep -Milliseconds 120
     }
-  } else {
-    Log "$($c.n): FAILED (hwnd=$($h) fg=$fg exited=$($p.HasExited))"
+    $fg = $false
+    if ($h -ne [IntPtr]::Zero) { for ($k=0;$k -lt 5;$k++){ $fg=[G]::Fg($h); if($fg){break}; Start-Sleep -Milliseconds 120 } }
+    Start-Sleep -Milliseconds 250
+    if ($h -ne [IntPtr]::Zero -and $fg) {
+      $bmp = $null
+      $g = $null
+      try {
+        $r = New-Object G+RECT; [void][G]::GetWindowRect($h,[ref]$r)
+        $w=$r.R-$r.L; $ht=$r.B-$r.T
+        $bmp = New-Object System.Drawing.Bitmap $w,$ht
+        $g = [System.Drawing.Graphics]::FromImage($bmp)
+        $g.CopyFromScreen($r.L,$r.T,0,0,(New-Object System.Drawing.Size $w,$ht))
+        $bmp.Save((Join-Path $OutDir "$($c.n).png"),[System.Drawing.Imaging.ImageFormat]::Png)
+        Log "$($c.n): OK ($w x $ht)"
+      } catch {
+        Log "$($c.n): CAPTURE-ERROR $($_.Exception.Message)"
+      } finally {
+        if ($g) { $g.Dispose() }
+        if ($bmp) { $bmp.Dispose() }
+      }
+    } else {
+      Log "$($c.n): FAILED (hwnd=$($h) fg=$fg exited=$($p.HasExited))"
+    }
+  } finally {
+    if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+    Remove-Item -Path "env:$($c.v)" -ErrorAction SilentlyContinue
   }
-  if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
-  Remove-Item -Path "env:$($c.v)" -ErrorAction SilentlyContinue
   Start-Sleep -Milliseconds 200
 }
 $report | Set-Content (Join-Path $OutDir 'gallery-report.txt') -Encoding utf8
