@@ -771,6 +771,8 @@ pub(crate) fn build_context(
     let workspace = workspace::Workspace::new(tree_root);
     let mut recent_workspaces = workspace::RecentWorkspaces::new();
     recent_workspaces.set_all(config::load_recent_workspaces());
+    let mut quickopen = quickopen::QuickOpen::new();
+    quickopen.set_recent_paths(config::load_recent_files());
 
     let ctx = Box::new(MuiContext {
         gpu,
@@ -824,7 +826,7 @@ pub(crate) fn build_context(
         history: history::HistoryStore::new(),
         restored_cursor: (0, 0),
         palette: palette::PaletteEngine::new(),
-        quickopen: quickopen::QuickOpen::new(),
+        quickopen,
         theme_picker: themepicker::ThemePicker::new(),
         theme_picker_autoopen: false,
         shortcuts: shortcuts::ShortcutsEngine::new(),

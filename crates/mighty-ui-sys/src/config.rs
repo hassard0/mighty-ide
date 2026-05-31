@@ -48,10 +48,28 @@ pub fn recent_workspaces_path() -> Option<PathBuf> {
     config_dir().map(|d| d.join("recent-workspaces"))
 }
 
+/// Full path to the recent-files file (one opened file path per line, newest
+/// first). Kept separate from workspaces so Open Recent can restore both lists.
+pub fn recent_files_path() -> Option<PathBuf> {
+    config_dir().map(|d| d.join("recent-files"))
+}
+
 /// Load the persisted recent-workspaces list (newest first), or empty when
 /// unset/unreadable. Best-effort.
 pub fn load_recent_workspaces() -> Vec<PathBuf> {
     let Some(path) = recent_workspaces_path() else {
+        return Vec::new();
+    };
+    match std::fs::read_to_string(&path) {
+        Ok(text) => crate::workspace::parse_blob(&text),
+        Err(_) => Vec::new(),
+    }
+}
+
+/// Load the persisted recent-files list (newest first), or empty when
+/// unset/unreadable. Best-effort.
+pub fn load_recent_files() -> Vec<PathBuf> {
+    let Some(path) = recent_files_path() else {
         return Vec::new();
     };
     match std::fs::read_to_string(&path) {
@@ -65,6 +83,27 @@ pub fn load_recent_workspaces() -> Vec<PathBuf> {
 pub fn save_recent_workspaces(blob: &str) -> bool {
     let Some(path) = recent_workspaces_path() else {
         eprintln!("config: no config directory; recent workspaces not persisted");
+        return false;
+    };
+    if let Some(parent) = path.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            eprintln!("config: create_dir_all {}: {e}", parent.display());
+            return false;
+        }
+    }
+    match std::fs::write(&path, blob) {
+        Ok(()) => true,
+        Err(e) => {
+            eprintln!("config: write {}: {e}", path.display());
+            false
+        }
+    }
+}
+
+/// Persist the recent-files `blob` (one path per line). Best-effort.
+pub fn save_recent_files(blob: &str) -> bool {
+    let Some(path) = recent_files_path() else {
+        eprintln!("config: no config directory; recent files not persisted");
         return false;
     };
     if let Some(parent) = path.parent() {
@@ -238,6 +277,22 @@ mod tests {
         // Overwrite with warm.
         assert!(save_theme(ThemeId::Warm));
         assert_eq!(load_theme(), Some(ThemeId::Warm));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn recent_files_save_then_load_round_trip() {
+        let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!("mighty-ide-recentfiles-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::env::set_var("APPDATA", &tmp);
+
+        assert!(save_recent_files("C:\\proj\\src\\main.mty\nC:\\proj\\README.md\n"));
+        assert_eq!(
+            load_recent_files(),
+            vec![PathBuf::from("C:\\proj\\src\\main.mty"), PathBuf::from("C:\\proj\\README.md")]
+        );
+
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

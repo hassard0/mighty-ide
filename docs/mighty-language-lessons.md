@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-05-31 (snippet mirror placeholders — L53; Explorer file operations + prompt-string staging pressure — L52. Prior: Windows packaging/runtime ABI hardening — L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages — L35; verified live against rust-analyzer 1.95.0. Developer-workflow features — Run panel + inline git diff + live Settings panel — L33/L34; LIVE EDITING via a shim-side authoritative text model — the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-05-31 (persisted recent files — L54; snippet mirror placeholders — L53; Explorer file operations + prompt-string staging pressure — L52. Prior: Windows packaging/runtime ABI hardening — L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages — L35; verified live against rust-analyzer 1.95.0. Developer-workflow features — Run panel + inline git diff + live Settings panel — L33/L34; LIVE EDITING via a shim-side authoritative text model — the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -1084,3 +1084,15 @@ edit.
 - **Language note:** no new gap surfaced. This is the right current architecture
   for high-touch editor mechanics: keep mutable text/range state in Rust, expose
   small scalar hooks to Mighty, and avoid growing the already-deep event ladder.
+
+### L54. Persisted recent files follow the existing shim-owned config pattern **[finding, P3]**
+The recent-file MRU now persists across IDE restarts, matching the already
+persisted recent-workspace MRU. This did not require Mighty language work:
+Mighty already calls a scalar hook whenever a real file is opened, and the Rust
+shim owns the Quick-Open/Welcome MRU state plus the config-directory I/O.
+
+- **Why it matters for the IDE:** Welcome and Quick-Open no longer forget the
+  files a user worked on after relaunch, so Open Recent behaves like a real
+  daily editor instead of a per-process demo list.
+- **Language note:** no new gap surfaced. The same scalar-command boundary
+  remains sufficient for persistence features when the shim owns file paths.

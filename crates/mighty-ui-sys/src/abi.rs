@@ -35,6 +35,11 @@ use crate::layout;
 use crate::theme;
 use crate::MuiContext;
 
+fn record_recent_file(ctx: &mut MuiContext, path: PathBuf) {
+    ctx.quickopen.record_mru(path);
+    let _ = crate::config::save_recent_files(&ctx.quickopen.recent_blob());
+}
+
 /// Highlight one line for the active `lang`, preferring Markdown's tailored
 /// handling (headings/bullets/quotes) when the file is Markdown.
 pub(crate) fn highlight_for(line: &str, lang: Language) -> Vec<crate::syntax::Span> {
@@ -2922,7 +2927,7 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
     };
     let idx = ctx.tabs.open_path(path.clone());
     sync_active_path(ctx);
-    ctx.quickopen.record_mru(path);
+    record_recent_file(ctx, path);
     idx as i32
 }
 
@@ -3947,7 +3952,7 @@ pub extern "C" fn mui_newfile_create(handle: i64) -> i32 {
             ctx.tree.refresh();
             let root = crate::wsabi::effective_root(ctx);
             let _ = ctx.quickopen.ensure_index(&root, true);
-            ctx.quickopen.record_mru(target.clone());
+            record_recent_file(ctx, target.clone());
             ctx.welcome.dismiss();
             ctx.push_toast(crate::toast::Kind::Success, format!("Created file: {name}"));
             idx as i32
@@ -4002,7 +4007,7 @@ pub extern "C" fn mui_file_rename_active(handle: i64) -> i32 {
             ctx.tree.refresh();
             let root = crate::wsabi::effective_root(ctx);
             let _ = ctx.quickopen.ensure_index(&root, true);
-            ctx.quickopen.record_mru(new_path.clone());
+            record_recent_file(ctx, new_path.clone());
             ctx.push_toast(crate::toast::Kind::Success, format!("Renamed to {name}"));
             println!("file-rename: {} -> {}", old_path.display(), new_path.display());
             1
@@ -5755,7 +5760,7 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
                 Some(path) if path.exists() => {
                     let idx = ctx.tabs.open_path(path.clone());
                     sync_active_path(ctx);
-                    ctx.quickopen.record_mru(path);
+                    record_recent_file(ctx, path);
                     idx as i32
                 }
                 _ => -1,
@@ -5823,7 +5828,7 @@ pub extern "C" fn mui_qo_command_id(handle: i64, i: i32) -> i32 {
 pub extern "C" fn mui_qo_record_active(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         if let Some(p) = ctx.tabs.active_path() {
-            ctx.quickopen.record_mru(p);
+            record_recent_file(ctx, p);
         }
     }
 }
@@ -9756,7 +9761,7 @@ pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
     let idx = ctx.tabs.open_path(path.clone());
     ctx.welcome.dismiss();
     sync_active_path(ctx);
-    ctx.quickopen.record_mru(path);
+    record_recent_file(ctx, path);
     idx as i32
 }
 

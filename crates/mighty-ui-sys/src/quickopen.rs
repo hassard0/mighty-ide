@@ -329,6 +329,9 @@ impl Mru {
     /// Record `path` as just-opened: move it to the front (de-duplicated),
     /// trimming to [`MRU_CAP`].
     pub fn record(&mut self, path: PathBuf) {
+        if path.as_os_str().is_empty() {
+            return;
+        }
         self.paths.retain(|p| p != &path);
         self.paths.insert(0, path);
         self.paths.truncate(MRU_CAP);
@@ -345,6 +348,25 @@ impl Mru {
 
     pub fn is_empty(&self) -> bool {
         self.paths.is_empty()
+    }
+
+    /// Replace the list wholesale (used when loading from disk), honoring the
+    /// cap + de-dup while preserving newest-first order.
+    pub fn set_all(&mut self, paths: Vec<PathBuf>) {
+        self.paths.clear();
+        for p in paths.into_iter().rev() {
+            self.record(p);
+        }
+    }
+
+    /// Serialize to a newline-joined blob, newest first.
+    pub fn to_blob(&self) -> String {
+        let mut s = String::new();
+        for p in &self.paths {
+            s.push_str(&p.to_string_lossy());
+            s.push('\n');
+        }
+        s
     }
 }
 
@@ -473,6 +495,16 @@ impl QuickOpen {
     /// Record `path` as recently opened (called whenever any file opens).
     pub fn record_mru(&mut self, path: PathBuf) {
         self.mru.record(path);
+    }
+
+    /// Restore the recent-file MRU from persisted config.
+    pub fn set_recent_paths(&mut self, paths: Vec<PathBuf>) {
+        self.mru.set_all(paths);
+    }
+
+    /// Persistable recent-file MRU blob.
+    pub fn recent_blob(&self) -> String {
+        self.mru.to_blob()
     }
 
     #[allow(dead_code)]
@@ -1106,6 +1138,33 @@ mod tests {
         assert_eq!(mru.len(), MRU_CAP);
         // Newest is /f29.
         assert_eq!(mru.entries()[0], PathBuf::from("/f29"));
+    }
+
+    #[test]
+    fn mru_set_all_preserves_newest_first_and_serializes() {
+        let mut mru = Mru::new();
+        mru.set_all(vec![
+            PathBuf::from("/newest.mty"),
+            PathBuf::from("/older.mty"),
+            PathBuf::from("/newest.mty"),
+            PathBuf::new(),
+        ]);
+        assert_eq!(
+            mru.entries(),
+            &[PathBuf::from("/newest.mty"), PathBuf::from("/older.mty")]
+        );
+        assert_eq!(mru.to_blob(), "/newest.mty\n/older.mty\n");
+    }
+
+    #[test]
+    fn quickopen_restores_persisted_recent_paths() {
+        let mut qo = QuickOpen::new();
+        qo.set_recent_paths(vec![PathBuf::from("/a.mty"), PathBuf::from("/b.mty")]);
+        assert_eq!(
+            qo.recent_paths(),
+            vec![PathBuf::from("/a.mty"), PathBuf::from("/b.mty")]
+        );
+        assert_eq!(qo.recent_blob(), "/a.mty\n/b.mty\n");
     }
 
     #[test]
