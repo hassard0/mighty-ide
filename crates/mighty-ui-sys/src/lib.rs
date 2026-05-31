@@ -158,6 +158,10 @@ pub struct MuiContext {
     file_name: String,
     /// 1-based cursor (line, col) fed each frame for the status bar.
     status_cursor: (i32, i32),
+    /// Last rendered status-bar Problems chip rect `(x, y, w, h)` for click
+    /// hit-testing. The chip's x position depends on branch/ahead/behind text,
+    /// so it must come from layout, not a fixed guess.
+    status_problems_rect: Option<(f32, f32, f32, f32)>,
     /// Bottom one-line prompt buffer (goto / find), shim-owned (L17).
     prompt: prompt::PromptState,
     /// Find-search engine over the buffer streamed in from Mighty.
@@ -789,6 +793,7 @@ pub(crate) fn build_context(
         diags: Vec::new(),
         file_name,
         status_cursor: (1, 1),
+        status_problems_rect: None,
         prompt: prompt::PromptState::new(),
         find: prompt::FindState::new(),
         replace_bar: prompt::ReplaceBar::new(),
@@ -1448,6 +1453,7 @@ impl MuiContext {
             diags: Vec::new(),
             file_name: String::new(),
             status_cursor: (1, 1),
+            status_problems_rect: None,
             prompt: prompt::PromptState::new(),
             find: prompt::FindState::new(),
             replace_bar: prompt::ReplaceBar::new(),

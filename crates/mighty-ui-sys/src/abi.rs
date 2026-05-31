@@ -2541,6 +2541,7 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     // Errors (red circle + N) and warnings (warn triangle + N). Prefer the
     // aggregated Problems counts when the Problems panel has run; otherwise fall
     // back to the per-file `error_count` the caller passed (active-file diags).
+    let chip_x = x;
     let agg = ctx.problems.count() > 0 || ctx.problems.is_open();
     let n_err = if agg { ctx.problems.error_count() } else { error_count.max(0) };
     let n_warn = if agg { ctx.problems.warn_count() } else { 0 };
@@ -2551,6 +2552,8 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::WARN_TRI, theme::WARNING(), 1.5, false);
     x += 16.0;
     ctx.text.queue_sized(x, ty, &n_warn.to_string(), if n_warn > 0 { theme::WARNING() } else { theme::TEXT_1() }, chrome, clip);
+    x += text_w(&n_warn.to_string());
+    ctx.status_problems_rect = Some((chip_x - 4.0, y, (x - chip_x) + 8.0, bar_h));
 
     // ---- right cluster (laid out right-to-left) ----
     let mut rx = w - 12.0;
@@ -2594,22 +2597,22 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
 
 /// `1` if the last click landed on the status-bar problems chip (the
 /// error/warning counters in the left cluster), else `0`. Lets Mighty open the
-/// Problems panel when the chip is clicked. The chip spans the left band of the
-/// status bar after the branch label (~x 96..200) on the bottom 30px row.
+/// Problems panel when the chip is clicked. The chip's x position follows the
+/// rendered branch/ahead/behind text, so hit-test against the last drawn rect.
 #[no_mangle]
 pub extern "C" fn mui_status_problems_chip_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    let h = ctx.gpu.height as f32;
-    let y = ctx.last_event.y;
-    let x = ctx.last_event.x;
-    // Bottom status bar band.
-    if y < h - 30.0 {
+    let Some((x, y, w, h)) = ctx.status_problems_rect else {
+        return 0;
+    };
+    let px = ctx.last_event.x;
+    let py = ctx.last_event.y;
+    if py < y || py > y + h {
         return 0;
     }
-    // The problems cluster (errors + warnings) sits after "main ↑2 ↓0".
-    if (96.0..=210.0).contains(&x) {
+    if px >= x && px <= x + w {
         1
     } else {
         0

@@ -490,6 +490,35 @@ fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
 }
 
 #[test]
+fn status_problems_chip_hit_tracks_rendered_branch_width() {
+    use crate::ffi::MuiEvent;
+    use crate::{mui_status_problems_chip_at_click, mui_status_render};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 600;
+    ctx.scm.status.branch = "feature/very-long-branch-name".to_string();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_status_render(handle, 2);
+    let (x, y, w, h) = ctx
+        .status_problems_rect
+        .expect("status render should record the Problems chip rect");
+    assert!(x > 210.0, "long branch should push chip beyond the old fixed hit range");
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        x + w * 0.5,
+        y + h * 0.5,
+        0,
+    );
+    assert_eq!(mui_status_problems_chip_at_click(handle), 1);
+    ctx.last_event.x = x - 8.0;
+    assert_eq!(mui_status_problems_chip_at_click(handle), 0);
+}
+
+#[test]
 fn chord_command_id_resolves_palette_commands_for_mighty_dispatch() {
     use crate::mui_chord_command_id;
     use crate::shortcuts::{Chord, MOD_ALT, MOD_CTRL};
