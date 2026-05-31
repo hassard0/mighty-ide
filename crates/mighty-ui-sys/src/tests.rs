@@ -265,8 +265,8 @@ fn save_staging_writes_then_load_reads_back_round_trip() {
 fn tab_abi_open_switch_close_and_byte_round_trip() {
     use crate::langdetect::Language;
     use crate::{
-        mui_path_push, mui_quit_request, mui_tab_active, mui_tab_close, mui_tab_count,
-        mui_tab_cursor_col, mui_tab_cursor_line, mui_tab_load, mui_tab_load_byte,
+        mui_ed_set_dirty, mui_path_push, mui_quit_request, mui_tab_active, mui_tab_close,
+        mui_tab_count, mui_tab_cursor_col, mui_tab_cursor_line, mui_tab_load, mui_tab_load_byte,
         mui_tab_open_path, mui_tab_scroll, mui_tab_set_dirty, mui_tab_store_begin,
         mui_tab_store_byte, mui_tab_store_commit, mui_tab_switch,
     };
@@ -301,6 +301,10 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(mui_tab_count(handle), 2);
     assert_eq!(mui_tab_active(handle), 1);
     mui_tab_set_dirty(handle, 1, 0);
+    assert_eq!(mui_quit_request(handle), 1);
+    mui_ed_set_dirty(handle, 1);
+    assert_eq!(mui_quit_request(handle), 0);
+    mui_ed_set_dirty(handle, 0);
     assert_eq!(mui_quit_request(handle), 1);
 
     // Its bytes are readable via the tab-load ABI.

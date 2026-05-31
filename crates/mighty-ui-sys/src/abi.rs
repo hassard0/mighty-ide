@@ -3490,7 +3490,7 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
         ctx.dl_rect(x + tab_w - 1.0, 0.0, 1.0, bar_h, theme::BORDER_SOFT());
         if let Some(tab) = ctx.tabs.get(i) {
             let base = tab.basename();
-            let dirty = tab.dirty;
+            let dirty = tab.is_dirty();
             let (icon, icon_col) = file_icon_for(&base, is_active);
             let icon_y = (bar_h - 14.0) * 0.5;
             ctx.dl_icon(x + 14.0, icon_y, 14.0, 14.0, icon, icon_col, 1.4, false);
@@ -6028,7 +6028,7 @@ fn apply_workspace_edit(
             m.move_to(cl, cc);
             if let Some(p) = current.clone() {
                 let _ = std::fs::write(&p, m.to_bytes());
-                m.mark_clean();
+                mark_active_clean(ctx);
             }
             changed += 1;
         } else {
@@ -6252,7 +6252,7 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         if std::fs::write(&path, &bytes).is_err() {
             return 0;
         }
-        ctx.tabs.active_model_mut().mark_clean();
+        mark_active_clean(ctx);
         let mty = mty_default();
         let ok = std::process::Command::new(&mty)
             .arg("fix")
@@ -6952,14 +6952,21 @@ pub extern "C" fn mui_fold_dispatch(handle: i64, cmd_id: i32) -> i32 {
 /// `1` if the active model has unsaved edits, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_ed_dirty(handle: i64) -> i32 {
-    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.tabs.active_model().dirty()))
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.tabs.is_dirty(c.tabs.active())))
 }
 
 /// Mark the active model clean (after a load) or dirty.
 #[no_mangle]
 pub extern "C" fn mui_ed_set_dirty(handle: i64, dirty: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        m.set_dirty(dirty != 0);
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        let dirty = dirty != 0;
+        ctx.tabs.active_model_mut().set_dirty(dirty);
+        let active = ctx.tabs.active();
+        ctx.tabs.set_dirty(active, dirty);
+        if !dirty {
+            ctx.pending_dirty_close = None;
+            ctx.pending_quit = None;
+        }
     }
 }
 
@@ -6999,6 +7006,14 @@ pub extern "C" fn mui_ed_load(handle: i64) -> i64 {
 /// transforms (trim trailing whitespace / ensure final newline) and updating the
 /// in-memory model so the buffer matches disk (cursor preserved). Returns the
 /// exact bytes that should be written.
+fn mark_active_clean(ctx: &mut MuiContext) {
+    ctx.tabs.active_model_mut().mark_clean();
+    let active = ctx.tabs.active();
+    ctx.tabs.set_dirty(active, false);
+    ctx.pending_dirty_close = None;
+    ctx.pending_quit = None;
+}
+
 fn save_bytes_for_active(ctx: &mut MuiContext) -> Vec<u8> {
     let trim = crate::settings::trim_ws();
     let final_nl = crate::settings::final_newline();
@@ -7058,7 +7073,7 @@ pub extern "C" fn mui_autosave_tick(handle: i64) -> i32 {
         }
     }
     // Only auto-save a real, file-backed, dirty tab.
-    if !ctx.tabs.active_model().dirty() {
+    if !ctx.tabs.is_dirty(ctx.tabs.active()) {
         ctx.autosave.disarm();
         return 0;
     }
@@ -7072,7 +7087,7 @@ pub extern "C" fn mui_autosave_tick(handle: i64) -> i32 {
     let name = basename(&path);
     match std::fs::write(&path, &bytes) {
         Ok(()) => {
-            ctx.tabs.active_model_mut().mark_clean();
+            mark_active_clean(ctx);
             // Re-baseline the signature to the (possibly transformed) saved text
             // so the next tick doesn't see the transform as a fresh edit.
             ctx.autosave_sig = Some(autosave_signature(&ctx.tabs.active_model().as_text()));
@@ -7112,7 +7127,7 @@ pub extern "C" fn mui_ed_save(handle: i64) -> i32 {
     let name = basename(&path);
     match std::fs::write(&path, &bytes) {
         Ok(()) => {
-            ctx.tabs.active_model_mut().mark_clean();
+            mark_active_clean(ctx);
             ctx.autosave.disarm();
             println!("mui_ed_save: {} ({} bytes)", path.display(), bytes.len());
             ctx.push_toast(crate::toast::Kind::Success, format!("Saved {name}"));
@@ -7184,7 +7199,7 @@ fn save_active_to_path(ctx: &mut MuiContext, target: PathBuf) -> i32 {
             ctx.tabs.set_active_path(target.clone());
             ctx.language = crate::langdetect::detect_path(&target);
             ctx.file_path = Some(target);
-            ctx.tabs.active_model_mut().mark_clean();
+            mark_active_clean(ctx);
             ctx.autosave.disarm();
             ctx.tree.refresh();
             ctx.push_toast(crate::toast::Kind::Success, format!("Saved {name}"));
