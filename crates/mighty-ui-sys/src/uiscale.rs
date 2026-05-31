@@ -120,9 +120,41 @@ pub fn logical_to_phys(v: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::MutexGuard;
+
+    struct ScaleGlobals {
+        _guard: MutexGuard<'static, ()>,
+        os_scale: f32,
+        user_zoom: f32,
+    }
+
+    impl ScaleGlobals {
+        fn pin() -> Self {
+            let guard = crate::settings::TEST_LOCK
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let os_scale = os_scale();
+            let user_zoom = user_zoom();
+            set_os_scale(1.0);
+            set_user_zoom(1.0);
+            Self {
+                _guard: guard,
+                os_scale,
+                user_zoom,
+            }
+        }
+    }
+
+    impl Drop for ScaleGlobals {
+        fn drop(&mut self) {
+            set_os_scale(self.os_scale);
+            set_user_zoom(self.user_zoom);
+        }
+    }
 
     #[test]
     fn zoom_clamps_to_range() {
+        let _globals = ScaleGlobals::pin();
         assert_eq!(clamp_zoom(10.0), ZOOM_MAX);
         assert_eq!(clamp_zoom(0.0), ZOOM_MIN);
         assert_eq!(clamp_zoom(f32::NAN), 1.0);
@@ -133,6 +165,7 @@ mod tests {
 
     #[test]
     fn zoom_in_out_reset_round_trip() {
+        let _globals = ScaleGlobals::pin();
         set_user_zoom(1.0);
         let a = zoom_in();
         assert!((a - 1.1).abs() < 0.001);
@@ -142,34 +175,32 @@ mod tests {
         zoom_in();
         zoom_in();
         assert!((zoom_reset() - 1.0).abs() < 0.001);
-        set_user_zoom(1.0);
     }
 
     #[test]
     fn zoom_in_saturates_at_max() {
+        let _globals = ScaleGlobals::pin();
         set_user_zoom(ZOOM_MAX);
         assert_eq!(zoom_in(), ZOOM_MAX);
         set_user_zoom(ZOOM_MIN);
         assert_eq!(zoom_out(), ZOOM_MIN);
-        set_user_zoom(1.0);
     }
 
     #[test]
     fn ui_scale_is_product() {
+        let _globals = ScaleGlobals::pin();
         set_os_scale(1.5);
         set_user_zoom(2.0);
         assert!((ui_scale() - 3.0).abs() < 0.001);
         // logical<->physical invert
         assert!((phys_to_logical(300.0) - 100.0).abs() < 0.01);
         assert!((logical_to_phys(100.0) - 300.0).abs() < 0.01);
-        set_os_scale(1.0);
-        set_user_zoom(1.0);
     }
 
     #[test]
     fn os_scale_rejects_garbage() {
+        let _globals = ScaleGlobals::pin();
         set_os_scale(f32::INFINITY);
         assert_eq!(os_scale(), 1.0);
-        set_os_scale(1.0);
     }
 }

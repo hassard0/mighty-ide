@@ -515,6 +515,11 @@ mod tests {
 
     #[test]
     fn cursor_moved_converts_physical_to_logical() {
+        let _guard = crate::settings::TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let os_scale = crate::uiscale::os_scale();
+        let user_zoom = crate::uiscale::user_zoom();
         // At ui_scale 2.0 a physical (200,100) cursor maps to logical (100,50)
         // so clicks land in the same coordinate space the layout uses.
         crate::uiscale::set_os_scale(2.0);
@@ -527,7 +532,8 @@ mod tests {
         translate_window_event(&mut q, &ev);
         assert!((q.cursor.0 - 100.0).abs() < 0.01);
         assert!((q.cursor.1 - 50.0).abs() < 0.01);
-        crate::uiscale::set_os_scale(1.0);
+        crate::uiscale::set_os_scale(os_scale);
+        crate::uiscale::set_user_zoom(user_zoom);
     }
 
     #[test]

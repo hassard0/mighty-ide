@@ -1637,6 +1637,7 @@ mod shim_chrome {
     use crate::{
         mui_event_codepoint, mui_poll_event_s, mui_window_toggle_maximize, mui_zoom_reset,
     };
+    use std::sync::MutexGuard;
     use winit::dpi::PhysicalPosition;
     use winit::event::{DeviceId, ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 
@@ -1647,6 +1648,41 @@ mod shim_chrome {
 
     fn handle(ctx: &mut MuiContext) -> i64 {
         (ctx as *mut MuiContext) as usize as i64
+    }
+
+    struct ChromeGlobals {
+        _guard: MutexGuard<'static, ()>,
+        os_scale: f32,
+        user_zoom: f32,
+        zen: bool,
+    }
+
+    impl ChromeGlobals {
+        fn pin() -> Self {
+            let guard = crate::settings::TEST_LOCK
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let os_scale = crate::uiscale::os_scale();
+            let user_zoom = crate::uiscale::user_zoom();
+            let zen = crate::layout::zen_active();
+            crate::uiscale::set_os_scale(1.0);
+            crate::uiscale::set_user_zoom(1.0);
+            crate::layout::set_zen(false);
+            Self {
+                _guard: guard,
+                os_scale,
+                user_zoom,
+                zen,
+            }
+        }
+    }
+
+    impl Drop for ChromeGlobals {
+        fn drop(&mut self) {
+            crate::uiscale::set_os_scale(self.os_scale);
+            crate::uiscale::set_user_zoom(self.user_zoom);
+            crate::layout::set_zen(self.zen);
+        }
     }
 
     fn move_to(ctx: &mut MuiContext, x: f32, y: f32) {
@@ -1685,8 +1721,7 @@ mod shim_chrome {
 
     #[test]
     fn close_button_press_is_delivered_as_close_event() {
-        crate::uiscale::set_os_scale(1.0);
-        crate::uiscale::set_user_zoom(1.0);
+        let _globals = ChromeGlobals::pin();
         let mut ctx = match MuiContext::new_offscreen(WW, WH) {
             Some(c) => c,
             None => {
@@ -1708,8 +1743,7 @@ mod shim_chrome {
 
     #[test]
     fn min_max_drag_and_resize_presses_are_consumed_not_delivered() {
-        crate::uiscale::set_os_scale(1.0);
-        crate::uiscale::set_user_zoom(1.0);
+        let _globals = ChromeGlobals::pin();
         let mut ctx = match MuiContext::new_offscreen(WW, WH) {
             Some(c) => c,
             None => return,
@@ -1735,8 +1769,7 @@ mod shim_chrome {
 
     #[test]
     fn interior_press_passes_through_to_the_ide() {
-        crate::uiscale::set_os_scale(1.0);
-        crate::uiscale::set_user_zoom(1.0);
+        let _globals = ChromeGlobals::pin();
         let mut ctx = match MuiContext::new_offscreen(WW, WH) {
             Some(c) => c,
             None => return,
@@ -1754,8 +1787,7 @@ mod shim_chrome {
 
     #[test]
     fn ctrl_plus_minus_zero_chars_zoom_and_are_swallowed() {
-        crate::uiscale::set_os_scale(1.0);
-        crate::uiscale::set_user_zoom(1.0);
+        let _globals = ChromeGlobals::pin();
         let mut ctx = match MuiContext::new_offscreen(WW, WH) {
             Some(c) => c,
             None => return,
@@ -1783,13 +1815,11 @@ mod shim_chrome {
         assert_eq!(mui_poll_event_s(h), 0);
         assert!((crate::uiscale::user_zoom() - 1.0).abs() < 0.001);
         let _ = mui_event_codepoint(h); // no panic on the accessor
-        crate::uiscale::set_user_zoom(1.0);
     }
 
     #[test]
     fn ctrl_wheel_zooms_plain_wheel_scrolls() {
-        crate::uiscale::set_os_scale(1.0);
-        crate::uiscale::set_user_zoom(1.0);
+        let _globals = ChromeGlobals::pin();
         let mut ctx = match MuiContext::new_offscreen(WW, WH) {
             Some(c) => c,
             None => return,
@@ -1813,13 +1843,11 @@ mod shim_chrome {
             MUI_EVENT_SCROLL as i32,
             "a plain wheel must reach the IDE as a scroll"
         );
-        crate::uiscale::set_user_zoom(1.0);
     }
 
     #[test]
     fn typed_char_without_ctrl_reaches_the_ide() {
-        crate::uiscale::set_os_scale(1.0);
-        crate::uiscale::set_user_zoom(1.0);
+        let _globals = ChromeGlobals::pin();
         let mut ctx = match MuiContext::new_offscreen(WW, WH) {
             Some(c) => c,
             None => return,
