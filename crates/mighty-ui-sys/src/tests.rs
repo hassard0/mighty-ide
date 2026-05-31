@@ -266,6 +266,7 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     use crate::langdetect::Language;
     use crate::{
         mui_dirty_confirm_active, mui_dirty_confirm_cancel, mui_dirty_confirm_discard,
+        mui_dirty_confirm_save,
         mui_ed_set_dirty, mui_path_clear, mui_path_push, mui_quit_request, mui_tab_active,
         mui_tab_close, mui_tab_count, mui_tab_cursor_col, mui_tab_cursor_line, mui_tab_load,
         mui_tab_load_byte, mui_tab_open_path, mui_tab_scroll, mui_tab_set_dirty,
@@ -302,6 +303,20 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
         mui_path_push(handle, *b as u32);
     }
     assert_eq!(mui_tab_open_path(handle), -1);
+    assert_eq!(mui_tab_count(handle), 2);
+    assert_eq!(mui_tab_active(handle), 1);
+    mui_path_clear(handle);
+
+    // The confirmation overlay can save a dirty file-backed tab before closing.
+    let save_path = dir.join("mui_tababi_save_confirm.txt");
+    std::fs::write(&save_path, b"save me").unwrap();
+    for b in save_path.to_string_lossy().as_bytes() {
+        mui_path_push(handle, *b as u32);
+    }
+    assert_eq!(mui_tab_open_path(handle), 2);
+    mui_tab_set_dirty(handle, 2, 1);
+    assert_eq!(mui_tab_close(handle, 2), -1);
+    assert_eq!(mui_dirty_confirm_save(handle), 1);
     assert_eq!(mui_tab_count(handle), 2);
     assert_eq!(mui_tab_active(handle), 1);
     mui_path_clear(handle);
@@ -355,6 +370,7 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(mui_tab_count(handle), 1);
 
     let _ = std::fs::remove_file(&path);
+    let _ = std::fs::remove_file(&save_path);
 }
 
 #[test]

@@ -3047,7 +3047,13 @@ fn dirty_confirm_active(ctx: &MuiContext) -> bool {
     ctx.pending_dirty_close.is_some() || ctx.pending_quit.is_some()
 }
 
-fn dirty_confirm_rects(ctx: &MuiContext) -> ((f32, f32, f32, f32), (f32, f32, f32, f32)) {
+fn dirty_confirm_rects(
+    ctx: &MuiContext,
+) -> (
+    (f32, f32, f32, f32),
+    (f32, f32, f32, f32),
+    (f32, f32, f32, f32),
+) {
     let w = ctx.gpu.width as f32;
     let h = ctx.gpu.height as f32;
     let card_w = w.min(520.0).max(320.0).min((w - 32.0).max(280.0));
@@ -3058,8 +3064,9 @@ fn dirty_confirm_rects(ctx: &MuiContext) -> ((f32, f32, f32, f32), (f32, f32, f3
     let btn_h = 34.0;
     let by = card_y + card_h - 54.0;
     let discard = (card_x + card_w - btn_w - 24.0, by, btn_w, btn_h);
-    let cancel = (discard.0 - btn_w - 12.0, by, btn_w, btn_h);
-    (cancel, discard)
+    let save = (discard.0 - btn_w - 12.0, by, btn_w, btn_h);
+    let cancel = (save.0 - btn_w - 12.0, by, btn_w, btn_h);
+    (cancel, save, discard)
 }
 
 #[no_mangle]
@@ -3098,8 +3105,36 @@ pub extern "C" fn mui_dirty_confirm_discard(handle: i64) -> i32 {
     close_tab_unchecked(ctx, idx_u)
 }
 
+/// Save the dirty work referenced by the confirmation overlay, then close/quit.
+/// Returns -3 if save was cancelled/failed, -2 for confirmed app quit, -1 if no
+/// confirmation is active, or the active tab index after saving and closing.
+#[no_mangle]
+pub extern "C" fn mui_dirty_confirm_save(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    if ctx.pending_quit.is_some() {
+        let dirty: Vec<usize> = (0..ctx.tabs.count()).filter(|i| ctx.tabs.is_dirty(*i)).collect();
+        for idx in dirty {
+            if !save_confirm_tab(ctx, idx) {
+                return -3;
+            }
+        }
+        ctx.pending_quit = None;
+        ctx.pending_dirty_close = None;
+        return -2;
+    }
+    let Some((idx_u, _)) = ctx.pending_dirty_close else {
+        return -1;
+    };
+    if !save_confirm_tab(ctx, idx_u) {
+        return -3;
+    }
+    close_tab_unchecked(ctx, idx_u)
+}
+
 /// Hit-test the unsaved-work confirmation overlay. Returns 1 for Cancel, 2 for
-/// Discard, or 0 for a miss.
+/// Discard, 3 for Save, or 0 for a miss.
 #[no_mangle]
 pub extern "C" fn mui_dirty_confirm_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -3108,11 +3143,13 @@ pub extern "C" fn mui_dirty_confirm_click(handle: i64) -> i32 {
     if !dirty_confirm_active(ctx) {
         return 0;
     }
-    let (cancel, discard) = dirty_confirm_rects(ctx);
+    let (cancel, save, discard) = dirty_confirm_rects(ctx);
     let (px, py) = (ctx.last_event.x, ctx.last_event.y);
     let hit = |r: (f32, f32, f32, f32)| px >= r.0 && px <= r.0 + r.2 && py >= r.1 && py <= r.1 + r.3;
     if hit(cancel) {
         1
+    } else if hit(save) {
+        3
     } else if hit(discard) {
         2
     } else {
@@ -3153,7 +3190,7 @@ pub extern "C" fn mui_dirty_confirm_draw(handle: i64) {
             format!("{name} has unsaved edits. Discarding cannot be undone."),
         )
     };
-    let (cancel, discard) = dirty_confirm_rects(ctx);
+    let (cancel, save, discard) = dirty_confirm_rects(ctx);
 
     let was_overlay = ctx.overlay;
     ctx.overlay = true;
@@ -3166,11 +3203,15 @@ pub extern "C" fn mui_dirty_confirm_draw(handle: i64) {
 
     ctx.text.queue_ui_sized(card_x + 24.0, card_y + 24.0, title, theme::TEXT(), chrome + 2.0, clip);
     ctx.text.queue_ui_sized(card_x + 24.0, card_y + 58.0, &detail, theme::TEXT_1(), chrome, clip);
-    ctx.text.queue_ui_sized(card_x + 24.0, card_y + 86.0, "Choose Cancel to keep working, or Discard to close without saving.", theme::DIM(), chrome - 1.0, clip);
+    ctx.text.queue_ui_sized(card_x + 24.0, card_y + 86.0, "Choose Save, Discard, or Cancel.", theme::DIM(), chrome - 1.0, clip);
 
     ctx.dl_round(cancel.0, cancel.1, cancel.2, cancel.3, 6.0, theme::BG_4());
     ctx.dl_stroke(cancel.0, cancel.1, cancel.2, cancel.3, 6.0, theme::BORDER(), 1.0);
     ctx.text.queue_ui_sized(cancel.0 + 31.0, cancel.1 + 8.0, "Cancel", theme::TEXT(), chrome, clip);
+
+    ctx.dl_round(save.0, save.1, save.2, save.3, 6.0, theme::accent_a(0.18));
+    ctx.dl_stroke(save.0, save.1, save.2, save.3, 6.0, theme::ACCENT_LINE(), 1.0);
+    ctx.text.queue_ui_sized(save.0 + 39.0, save.1 + 8.0, "Save", theme::ACCENT_BRIGHT(), chrome, clip);
 
     ctx.dl_round(discard.0, discard.1, discard.2, discard.3, 6.0, theme::error_wash(0.22));
     ctx.dl_stroke(discard.0, discard.1, discard.2, discard.3, 6.0, theme::ERROR(), 1.0);
@@ -7276,13 +7317,7 @@ pub extern "C" fn mui_autosave_touch(handle: i64) {
     }
 }
 
-/// Write the active model to its tab's file path. Returns `0` on success, `-1`
-/// on error (no path / IO failure). Marks the model clean on success.
-#[no_mangle]
-pub extern "C" fn mui_ed_save(handle: i64) -> i32 {
-    let Some(ctx) = (unsafe { ctx(handle) }) else {
-        return -1;
-    };
+fn save_active_current_path(ctx: &mut MuiContext) -> i32 {
     let Some(path) = ctx.tabs.active_path() else {
         eprintln!("mui_ed_save: no file path for active tab");
         return -1;
@@ -7303,6 +7338,40 @@ pub extern "C" fn mui_ed_save(handle: i64) -> i32 {
             -1
         }
     }
+}
+
+fn save_confirm_tab(ctx: &mut MuiContext, idx: usize) -> bool {
+    if idx >= ctx.tabs.count() {
+        return false;
+    }
+    ctx.tabs.switch(idx);
+    sync_active_path(ctx);
+    if ctx.tabs.active_has_path() {
+        save_active_current_path(ctx) == 0
+    } else {
+        let root = crate::wsabi::effective_root(ctx);
+        let suggested = ctx
+            .tabs
+            .get(idx)
+            .and_then(|t| t.path.as_ref())
+            .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| "untitled.mty".to_string());
+        let Some(target) = pick_save_file_native(&root, &suggested) else {
+            return false;
+        };
+        save_active_to_path(ctx, target) == 0
+    }
+}
+
+/// Write the active model to its tab's file path. Returns `0` on success, `-1`
+/// on error (no path / IO failure). Marks the model clean on success.
+#[no_mangle]
+pub extern "C" fn mui_ed_save(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    save_active_current_path(ctx)
 }
 
 /// `1` when the active tab is backed by a file path; `0` for an untitled buffer.

@@ -157,6 +157,7 @@ extern c {
   fn mui_dirty_confirm_active(handle: I64) -> I32
   fn mui_dirty_confirm_click(handle: I64) -> I32
   fn mui_dirty_confirm_discard(handle: I64) -> I32
+  fn mui_dirty_confirm_save(handle: I64) -> I32
   fn mui_dirty_confirm_cancel(handle: I64)
   fn mui_dirty_confirm_draw(handle: I64)
   fn mui_window_controls_draw(handle: I64)
@@ -1157,7 +1158,7 @@ fn main() {
             if k == key_escape() {
               mui_dirty_confirm_cancel(h)
             } else if k == key_enter() {
-              let dr = mui_dirty_confirm_discard(h)
+              let dr = mui_dirty_confirm_save(h)
               if dr == -2 {
                 running = false
               } else if dr >= 0 {
@@ -1174,6 +1175,17 @@ fn main() {
               mui_dirty_confirm_cancel(h)
             } else if dc == 2 {
               let dr = mui_dirty_confirm_discard(h)
+              if dr == -2 {
+                running = false
+              } else if dr >= 0 {
+                let _b = mui_ed_tab_switch(h, dr)
+                mui_ed_undo_reset(h)
+                find_nav = false
+                let _r = mui_diag_refresh(h)
+                let _o = mui_outline_refresh(h)
+              }
+            } else if dc == 3 {
+              let dr = mui_dirty_confirm_save(h)
               if dr == -2 {
                 running = false
               } else if dr >= 0 {
