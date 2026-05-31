@@ -2944,7 +2944,8 @@ pub extern "C" fn mui_tab_prev(handle: i64) -> i32 {
 }
 
 /// Close tab `idx`, keeping at least one tab (last close -> empty scratch).
-/// Returns the new active index.
+/// Dirty buffers are refused so a close button cannot silently discard edits.
+/// Returns the active index after the request.
 #[no_mangle]
 pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -2953,9 +2954,22 @@ pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
     if idx < 0 {
         return ctx.tabs.active() as i32;
     }
-    let a = ctx.tabs.close(idx as usize);
+    let idx_u = idx as usize;
+    if ctx.tabs.is_dirty(idx_u) {
+        let name = ctx
+            .tabs
+            .get(idx_u)
+            .map(|t| t.basename())
+            .unwrap_or_else(|| "tab".to_string());
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Save before closing {name}"),
+        );
+        return ctx.tabs.active() as i32;
+    }
+    let a = ctx.tabs.close(idx_u);
     // Remap pane→tab indices so a pane never points past the end after a close.
-    ctx.panes.on_tab_closed(idx as usize, ctx.tabs.count());
+    ctx.panes.on_tab_closed(idx_u, ctx.tabs.count());
     sync_active_path(ctx);
     a as i32
 }

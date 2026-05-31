@@ -267,7 +267,8 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     use crate::{
         mui_path_push, mui_tab_active, mui_tab_close, mui_tab_count, mui_tab_cursor_col,
         mui_tab_cursor_line, mui_tab_load, mui_tab_load_byte, mui_tab_open_path, mui_tab_scroll,
-        mui_tab_store_begin, mui_tab_store_byte, mui_tab_store_commit, mui_tab_switch,
+        mui_tab_set_dirty, mui_tab_store_begin, mui_tab_store_byte, mui_tab_store_commit,
+        mui_tab_switch,
     };
 
     let mut ctx = ctx_or_skip!();
@@ -291,6 +292,13 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(idx, 1);
     assert_eq!(mui_tab_count(handle), 2);
     assert_eq!(mui_tab_active(handle), 1);
+
+    // Dirty tabs are protected from accidental close.
+    mui_tab_set_dirty(handle, 1, 1);
+    assert_eq!(mui_tab_close(handle, 1), 1);
+    assert_eq!(mui_tab_count(handle), 2);
+    assert_eq!(mui_tab_active(handle), 1);
+    mui_tab_set_dirty(handle, 1, 0);
 
     // Its bytes are readable via the tab-load ABI.
     assert_eq!(mui_tab_load(handle, 1), 11);

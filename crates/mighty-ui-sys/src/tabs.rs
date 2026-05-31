@@ -60,6 +60,12 @@ impl Tab {
             None => "(scratch)".to_string(),
         }
     }
+
+    /// True when either the tab chrome flag or the authoritative model says the
+    /// buffer has unsaved edits.
+    pub fn is_dirty(&self) -> bool {
+        self.dirty || self.model.dirty()
+    }
 }
 
 /// The ordered set of open tabs plus the active index. Always holds at least one
@@ -264,6 +270,11 @@ impl TabStore {
             self.active = self.tabs.len() - 1;
         }
         self.active
+    }
+
+    /// True when tab `idx` has unsaved edits.
+    pub fn is_dirty(&self, idx: usize) -> bool {
+        self.tabs.get(idx).map(Tab::is_dirty).unwrap_or(false)
     }
 
     // ---- byte-swap: store the live Mighty buffer into a slot ----
