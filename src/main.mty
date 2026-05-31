@@ -2273,9 +2273,10 @@ fn main() {
           if alt_held(kmods) {                               // Alt+F12 : peek definition
             let _p = peek_definition(h)
           } else {                                           // F12 : go to definition
-            go_to_definition(h)
             prev_line = mui_ed_cursor_line(h)
             prev_col = mui_ed_cursor_col(h)
+            go_to_definition(h)
+            have_prev = true
             find_nav = false
           }
         } else if k == key_f2() {                            // F2 : rename symbol
@@ -2901,9 +2902,10 @@ fn main() {
           prompt_kind = prompt_goto()
           find_nav = false
         } else if id == cmd_goto_definition() {
-          go_to_definition(h)
           prev_line = mui_ed_cursor_line(h)
           prev_col = mui_ed_cursor_col(h)
+          go_to_definition(h)
+          have_prev = true
           find_nav = false
         } else if id == cmd_hover() {
           let ok = do_hover(h)
