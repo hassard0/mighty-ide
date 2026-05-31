@@ -271,6 +271,20 @@ impl FindState {
     }
 }
 
+/// Parse a screenshot/demo replace seed. Accepts `find:replace` and
+/// `find|replace`; an empty value or `1` means the default demo.
+pub fn parse_replace_seed(raw: &str) -> (String, String) {
+    let raw = raw.trim();
+    if raw.is_empty() || raw == "1" {
+        return ("world".to_string(), "Mighty".to_string());
+    }
+    if let Some((find, repl)) = raw.split_once(':').or_else(|| raw.split_once('|')) {
+        (find.to_string(), repl.to_string())
+    } else {
+        (raw.to_string(), String::new())
+    }
+}
+
 /// In-buffer find/replace bar (Ctrl+H), shim-owned (L17). Holds a find field
 /// and a replace field plus which field has focus; the actual replacement runs
 /// against the active [`crate::editor::TextModel`] in the ABI. Pure + testable.
@@ -560,6 +574,15 @@ mod tests {
     }
 
     // ---- ReplaceBar ----
+
+    #[test]
+    fn replace_seed_accepts_default_colon_and_pipe() {
+        assert_eq!(parse_replace_seed(""), ("world".to_string(), "Mighty".to_string()));
+        assert_eq!(parse_replace_seed("1"), ("world".to_string(), "Mighty".to_string()));
+        assert_eq!(parse_replace_seed("foo:bar"), ("foo".to_string(), "bar".to_string()));
+        assert_eq!(parse_replace_seed("foo|bar"), ("foo".to_string(), "bar".to_string()));
+        assert_eq!(parse_replace_seed("needle"), ("needle".to_string(), String::new()));
+    }
 
     #[test]
     fn replace_bar_focus_and_fields() {

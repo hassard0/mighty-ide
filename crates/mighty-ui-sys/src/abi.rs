@@ -507,13 +507,8 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
     if std::env::var_os("MUI_REPLACE_AUTOOPEN").is_some() {
         if let Some(ctx) = unsafe { ctx(handle) } {
             let raw = std::env::var("MUI_REPLACE_AUTOOPEN").unwrap_or_default();
-            let raw = raw.trim();
-            let (find, repl) = if raw.is_empty() || raw == "1" {
-                ("world", "Mighty")
-            } else {
-                raw.split_once(':').unwrap_or((raw, ""))
-            };
-            ctx.replace_bar.open(find);
+            let (find, repl) = crate::prompt::parse_replace_seed(&raw);
+            ctx.replace_bar.open(&find);
             ctx.replace_bar.toggle_focus(); // focus the replace field
             for ch in repl.chars() {
                 ctx.replace_bar.push(ch as u32);
