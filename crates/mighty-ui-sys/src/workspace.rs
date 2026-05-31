@@ -153,6 +153,13 @@ impl RecentWorkspaces {
         self.paths.get(i)
     }
 
+    /// Remove `path` from the MRU. Returns `true` if an entry was removed.
+    pub fn remove(&mut self, path: &Path) -> bool {
+        let before = self.paths.len();
+        self.paths.retain(|p| p != path);
+        self.paths.len() != before
+    }
+
     /// Replace the list wholesale (used when loading from the persisted file),
     /// honoring the cap + de-dup.
     pub fn set_all(&mut self, paths: Vec<PathBuf>) {
@@ -259,6 +266,19 @@ mod tests {
         // Empty paths are ignored.
         r.record(PathBuf::new());
         assert_eq!(r.len(), RECENT_CAP);
+    }
+
+    #[test]
+    fn recents_remove_drops_matching_path() {
+        let mut r = RecentWorkspaces::new();
+        let one = PathBuf::from("/a/one");
+        let two = PathBuf::from("/b/two");
+        r.record(one.clone());
+        r.record(two.clone());
+
+        assert!(r.remove(&one));
+        assert_eq!(r.entries(), &[two]);
+        assert!(!r.remove(&one));
     }
 
     #[test]

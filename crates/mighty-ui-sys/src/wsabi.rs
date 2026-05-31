@@ -125,34 +125,55 @@ pub extern "C" fn mui_ws_open_dialog(handle: i64) -> i32 {
 /// Re-root to `path` from an already-borrowed context (the Welcome recent-folder
 /// click path). Mirrors [`mui_ws_open_recent`] but takes a `PathBuf` directly.
 pub(crate) fn mui_ws_open_recent_path(ctx: &mut MuiContext, path: &std::path::Path) -> i32 {
-    open_folder(ctx, &path.to_string_lossy())
+    open_recent_folder(ctx, path)
 }
 
 /// Shared re-root worker: validate `input` as a folder, set the workspace + tree
 /// root, refresh the dependent indexes, record + persist the recents, and toast.
 fn open_folder(ctx: &mut MuiContext, input: &str) -> i32 {
     match crate::workspace::validate_folder(input) {
-        Ok(root) => {
-            let changed = ctx.workspace.set_root(root.clone());
-            // Always re-root the tree (it mirrors the workspace) + refresh the
-            // dependent indexes; even an unchanged root benefits from a rescan.
-            ctx.tree.set_root(root.clone());
-            refresh_dependents(ctx, &root);
-            // Record + persist the recents MRU.
-            ctx.recent_workspaces.record(root.clone());
-            persist_recents(ctx);
-            let name = ctx.workspace.name().to_string();
-            ctx.push_toast(crate::toast::Kind::Success, format!("Opened folder: {name}"));
-            println!(
-                "ws: opened {} (name={name}, changed={changed}, recents={})",
-                root.display(),
-                ctx.recent_workspaces.len()
-            );
-            1
-        }
+        Ok(root) => apply_folder(ctx, root),
         Err(e) => {
             ctx.push_toast(crate::toast::Kind::Warn, e.clone());
             println!("ws: open failed: {e}");
+            0
+        }
+    }
+}
+
+fn apply_folder(ctx: &mut MuiContext, root: PathBuf) -> i32 {
+    let changed = ctx.workspace.set_root(root.clone());
+    // Always re-root the tree (it mirrors the workspace) + refresh the
+    // dependent indexes; even an unchanged root benefits from a rescan.
+    ctx.tree.set_root(root.clone());
+    refresh_dependents(ctx, &root);
+    // Record + persist the recents MRU.
+    ctx.recent_workspaces.record(root.clone());
+    persist_recents(ctx);
+    let name = ctx.workspace.name().to_string();
+    ctx.push_toast(crate::toast::Kind::Success, format!("Opened folder: {name}"));
+    println!(
+        "ws: opened {} (name={name}, changed={changed}, recents={})",
+        root.display(),
+        ctx.recent_workspaces.len()
+    );
+    1
+}
+
+fn open_recent_folder(ctx: &mut MuiContext, path: &std::path::Path) -> i32 {
+    match crate::workspace::validate_folder(&path.to_string_lossy()) {
+        Ok(root) => apply_folder(ctx, root),
+        Err(e) => {
+            if ctx.recent_workspaces.remove(path) {
+                persist_recents(ctx);
+            }
+            let name = path
+                .file_name()
+                .map(|s| s.to_string_lossy().into_owned())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| path.to_string_lossy().into_owned());
+            ctx.push_toast(crate::toast::Kind::Warn, format!("Recent folder missing: {name}"));
+            println!("ws: pruned stale recent folder {} ({e})", path.display());
             0
         }
     }
@@ -228,7 +249,7 @@ pub extern "C" fn mui_ws_open_recent(handle: i64, i: i32) -> i32 {
     let Some(path) = ctx.recent_workspaces.get(i as usize).cloned() else {
         return 0;
     };
-    open_folder(ctx, &path.to_string_lossy())
+    open_recent_folder(ctx, &path)
 }
 
 // ===========================================================================

@@ -1341,6 +1341,25 @@ fn workspace_open_dialog_env_pick_reroots_tree_and_records_recent() {
 }
 
 #[test]
+fn workspace_open_recent_prunes_missing_folder() {
+    use crate::wsabi::{mui_ws_open_recent, mui_ws_recent_count};
+
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let missing = std::env::temp_dir().join(format!(
+        "mui_ws_recent_missing_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&missing);
+    ctx.recent_workspaces.record(missing.clone());
+    assert_eq!(mui_ws_recent_count(h), 1);
+
+    assert_eq!(mui_ws_open_recent(h, 0), 0, "missing recent folder should fail");
+    assert_eq!(mui_ws_recent_count(h), 0, "stale recent folder should be pruned");
+}
+
+#[test]
 fn open_file_dialog_env_pick_opens_tab_and_records_recent() {
     use crate::{mui_open_file_dialog, mui_quickopen_reindex, mui_tab_active, mui_tab_count};
 
