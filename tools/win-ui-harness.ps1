@@ -156,6 +156,7 @@ if ($env:MUI_TRACE) { Remove-Item -LiteralPath $env:MUI_TRACE -Force -ErrorActio
 
 $report = [System.Collections.Generic.List[string]]::new()
 function Log($m) { $line = "[{0}] {1}" -f ((Get-Date).ToString('HH:mm:ss.fff')), $m; $report.Add($line); Write-Host $line }
+$script:HarnessFailed = $false
 
 # Keep harness artifacts out of the Explorer tree. A stale Save-As file shifts
 # row positions and makes the fixed RUN.txt click open the wrong file.
@@ -294,12 +295,16 @@ function ClickL($lx, $ly) { Click $hwnd ([int][math]::Round($lx * $scale)) ([int
 $logicalW = [double]$script:WinW / [double]$scale
 $logicalH = [double]$script:WinH / [double]$scale
 
-# Logical layout constants (mirror layout.rs): rail x=26; tree rows under the 40px
-# header; explorer header buttons at sidebar-right (300) -72/-50/-28, y=20.
+# Logical layout constants (mirror layout.rs): rail x=26; tree rows under the
+# 40px header; Explorer header buttons are right-aligned in the sidebar band:
+# rail 52px + sidebar 324px, then -72/-50/-28 for new file/folder/collapse.
 $treeX = 110
+$explorerNewFileX = 311
+$explorerNewFolderX = 333
+$explorerCollapseX = 355
 
 # === WELCOME NEW FILE: quick action must reveal a blank editor, not leave Welcome up. ===
-ClickL 455 472
+ClickL 455 589
 Start-Sleep -Milliseconds 350
 Capture $hwnd "02-welcome-new-file"
 Log "welcome new-file captured"
@@ -311,14 +316,14 @@ Capture $hwnd "10-open-file"
 Log "file-open (tree RUN.txt) captured"
 
 # === TOP-LEFT EXPLORER HEADER BUTTONS ===
-ClickL 228 20            # New File -> fresh untitled tab
+ClickL $explorerNewFileX 20  # New File -> fresh untitled tab
 Start-Sleep -Milliseconds 350
 Capture $hwnd "11-new-file"
 Log "new-file button captured"
-ClickL 272 20            # Collapse all folders
+ClickL $explorerCollapseX 20 # Collapse all folders
 Start-Sleep -Milliseconds 300
 Capture $hwnd "12-collapse"
-ClickL 250 20            # New Folder -> name prompt opens
+ClickL $explorerNewFolderX 20 # New Folder -> name prompt opens
 Start-Sleep -Milliseconds 300
 Capture $hwnd "13-newfolder-prompt"
 Press-VK $hwnd 0x1B      # cancel the prompt
@@ -342,7 +347,7 @@ foreach ($ic in $rail) {
   Log ("rail '{0}' (ly={1}) responsive={2}" -f $ic.n, $ic.y, $resp)
   if (-not $resp) { Log "!!! LOCKUP after rail '$($ic.n)'" }
 }
-ClickL 26 55             # back to Explorer
+ClickL 26 71             # back to Explorer
 Start-Sleep -Milliseconds 300
 
 # === AUTOCOMPLETE: open a real file, click into the editor, type an identifier ===
@@ -357,7 +362,7 @@ Press-VK $hwnd 0x1B
 Start-Sleep -Milliseconds 150
 
 # === TYPING into a fresh untitled buffer ===
-ClickL 228 20            # New File
+ClickL $explorerNewFileX 20  # New File
 Start-Sleep -Milliseconds 250
 ClickL 460 130           # editor body
 Start-Sleep -Milliseconds 100
@@ -383,7 +388,7 @@ Press-VK $hwnd 0x0D
 Start-Sleep -Milliseconds 800
 Capture $hwnd "42-saved"
 Start-Sleep -Milliseconds 200
-if (Test-Path $savePath) { Log "SAVE-AS: file written OK -> $savePath" } else { Log "SAVE-AS: FILE NOT FOUND ($savePath)" }
+if (Test-Path $savePath) { Log "SAVE-AS: file written OK -> $savePath" } else { Log "SAVE-AS: FILE NOT FOUND ($savePath)"; $script:HarnessFailed = $true }
 if (Test-Path $savePath) { Remove-Item $savePath -Force; Log "SAVE-AS: cleaned harness file" }
 
 # === RAIL UTILITY: bottom Settings icon should open Preferences, not be decorative. ===
@@ -404,3 +409,4 @@ Remove-Item Env:\MUI_SAVE_FILE_PICK -ErrorAction SilentlyContinue
 $reportPath = Join-Path $OutDir 'report.txt'
 $report | Set-Content $reportPath -Encoding utf8
 Log "report -> $reportPath"
+if ($script:HarnessFailed) { exit 1 }
