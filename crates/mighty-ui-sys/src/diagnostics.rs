@@ -6,9 +6,11 @@
 //!
 //! ## Discovered diagnostic format (mty v0.36)
 //!
-//! `mty check <file>` prints an ariadne-style report with ANSI color codes. A
-//! clean file prints a single line `ok: <path>` and exits 0. Each diagnostic is
-//! a block of the shape (ANSI stripped):
+//! `mty check <file>` prints an ariadne-style report. Modern Mighty honors
+//! `NO_COLOR` / `TERM=dumb`; the parser still strips ANSI defensively so older
+//! compiler builds and inherited terminal settings cannot break diagnostics.
+//! A clean file prints a single line `ok: <path>` and exits 0. Each diagnostic is
+//! a block of the shape:
 //!
 //! ```text
 //! [MT2001] Error: expected `I32`, found `Str`
@@ -61,9 +63,10 @@ pub struct Diag {
 
 /// Strip ANSI escape sequences (`ESC [ ... m` and friends) from `s`.
 ///
-/// The compiler does not honor `NO_COLOR`, so we always sanitize before
-/// parsing. Handles the CSI form `ESC[ ... <final-byte>` which covers the SGR
-/// color codes used by the report.
+/// The IDE asks `mty check` for plain output, but still sanitizes before parsing
+/// to tolerate older compiler builds and inherited terminal settings. Handles
+/// the CSI form `ESC[ ... <final-byte>` which covers the SGR color codes used by
+/// the report.
 fn strip_ansi(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let bytes = s.as_bytes();
@@ -218,7 +221,12 @@ fn mty_path() -> String {
 /// shows "no diagnostics" rather than crashing).
 pub fn run_check(path: &Path) -> Vec<Diag> {
     let mty = mty_path();
-    let output = Command::new(&mty).arg("check").arg(path).output();
+    let output = Command::new(&mty)
+        .arg("check")
+        .arg(path)
+        .env("NO_COLOR", "1")
+        .env("TERM", "dumb")
+        .output();
     match output {
         Ok(out) => {
             let mut combined = String::new();
