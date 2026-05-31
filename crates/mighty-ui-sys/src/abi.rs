@@ -4167,6 +4167,20 @@ fn write_clipboard_text(text: &str) -> std::io::Result<()> {
     }
 }
 
+pub(crate) fn active_relative_path_text(ctx: &MuiContext, path: &std::path::Path) -> String {
+    let root = if !ctx.workspace.is_empty() {
+        Some(ctx.workspace.root())
+    } else if !ctx.tree.root().as_os_str().is_empty() {
+        Some(ctx.tree.root())
+    } else {
+        None
+    };
+    root.and_then(|root| path.strip_prefix(root).ok())
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
 /// Copy the active file path to the operating-system clipboard. Returns 1 on
 /// success, else 0.
 #[no_mangle]
@@ -4187,6 +4201,31 @@ pub extern "C" fn mui_file_copy_active_path(handle: i64) -> i32 {
         Err(e) => {
             ctx.push_toast(crate::toast::Kind::Error, "Could not copy file path");
             println!("file-copy-path: failed for {}: {e}", path.display());
+            0
+        }
+    }
+}
+
+/// Copy the active file path relative to the workspace/tree root. Falls back to
+/// the absolute path when the file is outside the known root.
+#[no_mangle]
+pub extern "C" fn mui_file_copy_active_relative_path(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let Some(path) = ctx.tabs.active_path() else {
+        ctx.push_toast(crate::toast::Kind::Warn, "No active file path to copy");
+        return 0;
+    };
+    let text = active_relative_path_text(ctx, &path);
+    match write_clipboard_text(&text) {
+        Ok(()) => {
+            ctx.push_toast(crate::toast::Kind::Success, format!("Copied relative path: {text}"));
+            1
+        }
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, "Could not copy path");
+            println!("file-copy-relative-path: {e}");
             0
         }
     }

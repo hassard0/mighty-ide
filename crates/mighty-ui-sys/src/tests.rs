@@ -805,6 +805,12 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_COPY_ACTIVE_FILE_PATH)
         .unwrap();
     assert_eq!(copy_path.label, "File: Copy Active File Path");
+
+    let copy_relative = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_COPY_ACTIVE_FILE_RELATIVE_PATH)
+        .unwrap();
+    assert_eq!(copy_relative.label, "File: Copy Active File Relative Path");
 }
 
 #[test]
@@ -851,6 +857,26 @@ fn active_file_copy_path_builds_platform_clipboard_command() {
     {
         assert!(program == "wl-copy" || program == "xclip");
     }
+}
+
+#[test]
+fn active_file_relative_path_uses_workspace_root_and_slashes() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_relative_path_{}", std::process::id()));
+    let file = root.join("src").join("main.mty");
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+
+    assert_eq!(
+        crate::abi::active_relative_path_text(&ctx, &file),
+        "src/main.mty"
+    );
+
+    let outside = std::env::temp_dir().join("elsewhere.mty");
+    assert_eq!(
+        crate::abi::active_relative_path_text(&ctx, &outside),
+        outside.to_string_lossy().replace('\\', "/")
+    );
 }
 
 #[test]
@@ -1821,6 +1847,10 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_DELETE_ACTIVE_FILE, "cmd_delete_active_file"),
         (CMD_REVEAL_ACTIVE_FILE_IN_OS, "cmd_reveal_active_file_in_os"),
         (CMD_COPY_ACTIVE_FILE_PATH, "cmd_copy_active_file_path"),
+        (
+            CMD_COPY_ACTIVE_FILE_RELATIVE_PATH,
+            "cmd_copy_active_file_relative_path",
+        ),
         (CMD_OPEN_FILE, "cmd_open_file"),
         (CMD_SAVE, "cmd_save"),
         (CMD_SAVE_AS, "cmd_save_as"),
