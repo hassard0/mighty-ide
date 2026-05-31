@@ -1453,7 +1453,49 @@ fn main() {
         if tag == ev_char() {
           let cp = mui_event_codepoint(h)
           let mods = mui_event_mods(h)
-          if is_ai_panel_chord(cp, mods) {                  // Ctrl+Shift+A : close/unfocus
+          if ctrl_held(mods) && (cp == 115 || cp == 83) {   // Ctrl+S / Ctrl+Shift+S stay global
+            if shift_held(mods) {
+              let sr = mui_save_as_dialog(h)
+              if sr == 0 {
+                mui_tab_set_dirty(h, mui_tab_active(h), 0)
+                let _r = mui_diag_refresh(h)
+                let _g = mui_scm_refresh(h)
+                let _o = mui_outline_refresh(h)
+                let _pr = mui_problems_refresh(h)
+              } else {
+                mui_prompt_open(h, prompt_save_as())
+                prompt_kind = prompt_save_as()
+                find_nav = false
+              }
+            } else if mui_active_has_path(h) == 0 {
+              let sr = mui_save_as_dialog(h)
+              if sr == 0 {
+                mui_tab_set_dirty(h, mui_tab_active(h), 0)
+                let _r = mui_diag_refresh(h)
+                let _g = mui_scm_refresh(h)
+                let _o = mui_outline_refresh(h)
+                let _pr = mui_problems_refresh(h)
+              } else {
+                mui_prompt_open(h, prompt_save_as())
+                prompt_kind = prompt_save_as()
+                find_nav = false
+              }
+            } else {
+              let rc = mui_ed_save(h)
+              if rc == 0 {
+                mui_tab_set_dirty(h, mui_tab_active(h), 0)
+                let _r = mui_diag_refresh(h)
+                let _g = mui_scm_refresh(h)
+                let _o = mui_outline_refresh(h)
+                let _pr = mui_problems_refresh(h)
+              }
+            }
+            typing = false
+          } else if is_palette_chord(cp, mods) {            // Ctrl+Shift+P : palette
+            mui_palette_open(h)
+            palette_open = true
+            typing = false
+          } else if is_ai_panel_chord(cp, mods) {           // Ctrl+Shift+A : close/unfocus
             let _o = mui_ai_open(h)
             ai_focus = false
           } else if cp >= 32 && cp < 127 {
