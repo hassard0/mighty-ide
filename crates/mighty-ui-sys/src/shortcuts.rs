@@ -4,7 +4,7 @@
 //!
 //! 1. **Reference overlay** — a searchable, scrollable list of EVERY command the
 //!    IDE exposes with its current key binding. Opened by the palette command
-//!    "Help: Keyboard Shortcuts" and a chord (Ctrl+K Ctrl+S, routed through
+//!    "Help: Keyboard Shortcuts" and a chord (Ctrl+Shift+/, routed through
 //!    [`crate::abi::mui_chord`]). Styled exactly like the command palette
 //!    (Vivid-Modern card, kbd pills). The list is assembled from the palette
 //!    [`crate::palette::COMMANDS`] registry (the remappable subset) PLUS a static
@@ -189,7 +189,7 @@ const FIXED: &[(&str, &str)] = &[
     ("Debugger: Start / Continue", "F5"),
     ("Debugger: Step Over", "F10"),
     ("Force Ghost Completion", "Alt+\\"),
-    ("Help: Keyboard Shortcuts", "Ctrl+K Ctrl+S"),
+    ("Help: Keyboard Shortcuts", "Ctrl+Shift+/"),
 ];
 
 /// Persisted remapping overrides: command id → new chord. The chord router

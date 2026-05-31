@@ -9337,7 +9337,7 @@ pub extern "C" fn mui_zen_toggle(handle: i64) -> i32 {
     layout::set_zen(now);
     if let Some(ctx) = unsafe { ctx(handle) } {
         if now {
-            ctx.push_toast(crate::toast::Kind::Info, "Zen mode on \u{2014} Ctrl+K Z to exit");
+            ctx.push_toast(crate::toast::Kind::Info, "Zen mode on \u{2014} Alt+Z to exit");
         } else {
             ctx.push_toast(crate::toast::Kind::Info, "Zen mode off");
         }

@@ -63,7 +63,7 @@ const TIPS: &[Tip] = &[
     Tip { what: "Go to Definition", key: "F12" },
     Tip { what: "Find in File", key: "Ctrl+F" },
     Tip { what: "Format Document", key: "Ctrl+Shift+I" },
-    Tip { what: "Zen / Focus Mode", key: "Ctrl+K Z" },
+    Tip { what: "Zen / Focus Mode", key: "Alt+Z" },
     Tip { what: "Integrated Terminal", key: "Ctrl+`" },
 ];
 
