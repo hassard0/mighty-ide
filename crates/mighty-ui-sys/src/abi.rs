@@ -2944,7 +2944,9 @@ pub extern "C" fn mui_tab_prev(handle: i64) -> i32 {
 }
 
 /// Close tab `idx`, keeping at least one tab (last close -> empty scratch).
-/// Dirty buffers are refused so a close button cannot silently discard edits.
+/// Dirty buffers require a second close request on the same tab so a stray click
+/// cannot silently discard edits, while still letting the user intentionally
+/// close an unsaved scratch.
 /// Returns the active index after the request.
 #[no_mangle]
 pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
@@ -2956,17 +2958,26 @@ pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
     }
     let idx_u = idx as usize;
     if ctx.tabs.is_dirty(idx_u) {
-        let name = ctx
-            .tabs
-            .get(idx_u)
-            .map(|t| t.basename())
-            .unwrap_or_else(|| "tab".to_string());
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
-            format!("Save before closing {name}"),
-        );
-        return ctx.tabs.active() as i32;
+        let now = std::time::Instant::now();
+        let confirmed = ctx
+            .pending_dirty_close
+            .map(|(pending, at)| pending == idx_u && now.duration_since(at).as_secs_f32() <= 5.0)
+            .unwrap_or(false);
+        if !confirmed {
+            ctx.pending_dirty_close = Some((idx_u, now));
+            let name = ctx
+                .tabs
+                .get(idx_u)
+                .map(|t| t.basename())
+                .unwrap_or_else(|| "tab".to_string());
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                format!("Unsaved changes in {name}; close again to discard"),
+            );
+            return ctx.tabs.active() as i32;
+        }
     }
+    ctx.pending_dirty_close = None;
     let a = ctx.tabs.close(idx_u);
     // Remap pane→tab indices so a pane never points past the end after a close.
     ctx.panes.on_tab_closed(idx_u, ctx.tabs.count());

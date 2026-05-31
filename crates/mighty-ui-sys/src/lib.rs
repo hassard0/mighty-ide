@@ -437,6 +437,9 @@ pub struct MuiContext {
     /// The toast stack: shim-pushed transient cards (saved / committed / build
     /// result / errors / theme changed …) that auto-dismiss. Drawn over chrome.
     toasts: toast::ToastQueue,
+    /// A dirty tab that was close-clicked once and is waiting for a second
+    /// close-click confirmation to discard unsaved edits.
+    pending_dirty_close: Option<(usize, std::time::Instant)>,
 
     // ---- snippets (prefix → template expansion with navigable tab-stops) ----
     /// The active tab-stop navigation session over an expanded snippet (inactive
@@ -859,6 +862,7 @@ pub(crate) fn build_context(
         crumb_menu_autoopen: false,
         welcome: welcome::WelcomeState::new(),
         toasts: toast::ToastQueue::new(),
+        pending_dirty_close: None,
         snippet_session: snippets::SnippetSession::new(),
         md_preview: mdpreview::MdPreview::new(),
         md_pane: None,
@@ -1519,6 +1523,7 @@ impl MuiContext {
             crumb_menu_autoopen: false,
             welcome: welcome::WelcomeState::new(),
             toasts: toast::ToastQueue::new(),
+            pending_dirty_close: None,
             snippet_session: snippets::SnippetSession::new(),
             md_preview: mdpreview::MdPreview::new(),
             md_pane: None,

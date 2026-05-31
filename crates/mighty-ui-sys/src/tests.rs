@@ -293,7 +293,7 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(mui_tab_count(handle), 2);
     assert_eq!(mui_tab_active(handle), 1);
 
-    // Dirty tabs are protected from accidental close.
+    // Dirty tabs require a second close request before discarding edits.
     mui_tab_set_dirty(handle, 1, 1);
     assert_eq!(mui_tab_close(handle, 1), 1);
     assert_eq!(mui_tab_count(handle), 2);
@@ -319,8 +319,12 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(mui_tab_cursor_col(handle, 0), 0);
     assert_eq!(mui_tab_scroll(handle, 0), 0);
 
-    // Close tab 0 -> tab 1 remains, count 1.
+    // First close on a dirty tab warns; second close on the same tab discards.
+    mui_tab_set_dirty(handle, 0, 1);
     mui_tab_close(handle, 0);
+    assert_eq!(mui_tab_count(handle), 2);
+    mui_tab_close(handle, 0);
+    // Close tab 0 -> tab 1 remains, count 1.
     assert_eq!(mui_tab_count(handle), 1);
 
     let _ = std::fs::remove_file(&path);
