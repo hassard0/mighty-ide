@@ -11,6 +11,7 @@ The glyph mirrors the IDE's in-app `icons::LANG_M` path `M5 18 V7 l7 6 l7 -6 v11
 Run: python tools/make-icon.py  (writes assets/mighty-ide.ico)
 """
 import os
+import struct
 from PIL import Image, ImageDraw
 
 # Brand palette (Vivid-Modern, but with enough contrast for the taskbar).
@@ -71,21 +72,52 @@ def main() -> None:
     out = os.path.normpath(os.path.join(here, "..", "assets", "mighty-ide.ico"))
     preview = os.path.normpath(os.path.join(here, "..", "dist", "icon-preview.png"))
     sizes = [16, 32, 48, 256]
-    base = render(256)
-    # Pillow writes a multi-resolution .ico from one image + a `sizes` list,
-    # rendering each from the largest; supply our own per-size renders for
-    # crispness at small sizes by passing them via append_images-equivalent.
-    imgs = {sz: render(sz) for sz in sizes}
-    base = imgs[256]
-    base.save(
-        out,
-        format="ICO",
-        sizes=[(sz, sz) for sz in sizes],
-        append_images=[imgs[sz] for sz in sizes if sz != 256],
-    )
+    imgs = [render(sz) for sz in sizes]
+    # Write classic BGRA DIB icon entries rather than PNG-compressed entries.
+    # Windows accepts PNG ICOs, but some shell/taskbar/System.Drawing paths render
+    # them as noise. DIB entries are larger but boring and reliable.
+    entries = [_ico_dib(img) for img in imgs]
+    header_size = 6 + 16 * len(entries)
+    offset = header_size
+    with open(out, "wb") as f:
+        f.write(struct.pack("<HHH", 0, 1, len(entries)))
+        for img, data in zip(imgs, entries):
+            w, h = img.size
+            f.write(struct.pack("<BBBBHHII", 0 if w == 256 else w, 0 if h == 256 else h, 0, 0, 1, 32, len(data), offset))
+            offset += len(data)
+        for data in entries:
+            f.write(data)
     os.makedirs(os.path.dirname(preview), exist_ok=True)
-    base.save(preview, format="PNG")
+    imgs[-1].save(preview, format="PNG")
     print(f"wrote {out} ({os.path.getsize(out)} bytes; sizes={sizes})")
+
+
+def _ico_dib(img: Image.Image) -> bytes:
+    img = img.convert("RGBA")
+    w, h = img.size
+    pixels = img.load()
+    xor = bytearray()
+    for y in range(h - 1, -1, -1):
+        for x in range(w):
+            r, g, b, a = pixels[x, y]
+            xor.extend((b, g, r, a))
+    mask_stride = ((w + 31) // 32) * 4
+    and_mask = bytes(mask_stride * h)
+    header = struct.pack(
+        "<IIIHHIIIIII",
+        40,
+        w,
+        h * 2,
+        1,
+        32,
+        0,
+        len(xor),
+        0,
+        0,
+        0,
+        0,
+    )
+    return header + bytes(xor) + and_mask
 
 
 if __name__ == "__main__":
