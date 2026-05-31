@@ -3915,6 +3915,51 @@ pub extern "C" fn mui_newfolder_create(handle: i64) -> i32 {
     }
 }
 
+/// Create a new file from the staged path bytes (the Explorer New File prompt
+/// query), resolved under the workspace root. Opens the file as the active tab,
+/// refreshes Explorer and Quick-Open, and returns the resulting tab index.
+#[no_mangle]
+pub extern "C" fn mui_newfile_create(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let staged = std::mem::take(&mut ctx.path_stage);
+    let raw = String::from_utf8_lossy(&staged).into_owned();
+    let name = match crate::newproj::validate_name(&raw) {
+        Ok(n) => n,
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Warn, e.clone());
+            println!("newfile: invalid name: {e}");
+            return -1;
+        }
+    };
+    let base = crate::wsabi::effective_root(ctx);
+    let target = base.join(&name);
+    if target.exists() {
+        ctx.push_toast(crate::toast::Kind::Warn, format!("File already exists: {name}"));
+        println!("newfile: target already exists: {}", target.display());
+        return -1;
+    }
+    match std::fs::OpenOptions::new().write(true).create_new(true).open(&target) {
+        Ok(_) => {
+            let idx = ctx.tabs.open_path(target.clone());
+            sync_active_path(ctx);
+            ctx.tree.refresh();
+            let root = crate::wsabi::effective_root(ctx);
+            let _ = ctx.quickopen.ensure_index(&root, true);
+            ctx.quickopen.record_mru(target.clone());
+            ctx.welcome.dismiss();
+            ctx.push_toast(crate::toast::Kind::Success, format!("Created file: {name}"));
+            idx as i32
+        }
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, format!("File create failed: {name}"));
+            println!("newfile: failed to create {}: {e}", target.display());
+            -1
+        }
+    }
+}
+
 /// Rename the active file to the staged single-segment basename. Keeps the tab,
 /// active language, Explorer tree, and Quick-Open index aligned with the move.
 #[no_mangle]

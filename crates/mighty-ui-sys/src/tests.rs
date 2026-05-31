@@ -679,6 +679,48 @@ fn new_folder_validates_name_clears_stage_and_toasts() {
 }
 
 #[test]
+fn new_file_validates_name_clears_stage_opens_tab_and_toasts() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_new_file_guards");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("taken.mty"), b"existing").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.path_stage.extend_from_slice(b"bad/name.mty");
+    assert_eq!(crate::mui_newfile_create(handle), -1);
+    assert!(ctx.path_stage.is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Name must not contain path separators");
+
+    ctx.path_stage.extend_from_slice(b"taken.mty");
+    assert_eq!(crate::mui_newfile_create(handle), -1);
+    assert!(ctx.path_stage.is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "File already exists: taken.mty");
+
+    ctx.path_stage.extend_from_slice(b"fresh.mty");
+    let idx = crate::mui_newfile_create(handle);
+    assert!(idx >= 0);
+    assert!(ctx.path_stage.is_empty());
+    let fresh = root.join("fresh.mty");
+    assert!(fresh.is_file());
+    assert_eq!(std::fs::read_to_string(&fresh).unwrap(), "");
+    assert_eq!(ctx.tabs.active(), idx as usize);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(fresh.as_path()));
+    assert_eq!(ctx.file_path.as_deref(), Some(fresh.as_path()));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Created file: fresh.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn active_file_rename_updates_tab_path_tree_and_toasts() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_active_file_rename");

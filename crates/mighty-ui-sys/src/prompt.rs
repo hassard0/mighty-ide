@@ -38,6 +38,9 @@ pub enum PromptKind {
     RenameFile = 9,
     /// Delete the active file after collecting its exact basename as confirmation.
     DeleteFile = 10,
+    /// New File: the query is a single-segment file name created under the
+    /// workspace root; on Enter the IDE creates it, opens it, and refreshes the tree.
+    NewFile = 11,
 }
 
 impl PromptKind {
@@ -53,6 +56,7 @@ impl PromptKind {
             8 => Some(PromptKind::SaveAs),
             9 => Some(PromptKind::RenameFile),
             10 => Some(PromptKind::DeleteFile),
+            11 => Some(PromptKind::NewFile),
             _ => None,
         }
     }
@@ -70,6 +74,7 @@ impl PromptKind {
             PromptKind::SaveAs => "Save as: ",
             PromptKind::RenameFile => "Rename active file to: ",
             PromptKind::DeleteFile => "Delete active file, type name: ",
+            PromptKind::NewFile => "New file name: ",
         }
     }
 }

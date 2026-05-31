@@ -163,6 +163,9 @@ $script:HarnessFailed = $false
 $saveName = "harnesssaveas.mty"
 $savePath = Join-Path $WorkDir $saveName
 if (Test-Path $savePath) { Remove-Item $savePath -Force }
+$newFileName = "harnessnewfile.mty"
+$newFilePath = Join-Path $WorkDir $newFileName
+if (Test-Path $newFilePath) { Remove-Item $newFilePath -Force }
 $openName = "harnessopen.mty"
 $openPath = Join-Path $WorkDir $openName
 Set-Content -LiteralPath $openPath -Value "opened" -Encoding utf8
@@ -311,16 +314,16 @@ function Invoke-PaletteCommand($query, $captureName) {
   Start-Sleep -Milliseconds 800
 }
 
-# Logical layout constants (mirror layout.rs): rail x=26; tree rows under the
-# 40px header; Explorer header buttons are right-aligned in the sidebar band:
-# rail 52px + sidebar 324px, then -72/-50/-28 for new file/folder/collapse.
+# Logical layout constants (mirror layout.rs). The harness posts physical mouse
+# messages, and winit reports logical coordinates back to the IDE, so pass the
+# same logical positions the app hit-tests against.
 $treeX = 110
-$explorerNewFileX = 311
-$explorerNewFolderX = 333
-$explorerCollapseX = 355
+$explorerNewFileX = 233
+$explorerNewFolderX = 255
+$explorerCollapseX = 277
 
 # === WELCOME NEW FILE: quick action must reveal a blank editor, not leave Welcome up. ===
-ClickL 455 589
+ClickL 420 472
 Start-Sleep -Milliseconds 350
 Capture $hwnd "02-welcome-new-file"
 Log "welcome new-file captured"
@@ -332,10 +335,20 @@ Capture $hwnd "10-open-file"
 Log "file-open (tree RUN.txt) captured"
 
 # === TOP-LEFT EXPLORER HEADER BUTTONS ===
-ClickL $explorerNewFileX 20  # New File -> fresh untitled tab
+ClickL $explorerNewFileX 20  # New File -> workspace file prompt
 Start-Sleep -Milliseconds 350
-Capture $hwnd "11-new-file"
-Log "new-file button captured"
+Capture $hwnd "11-new-file-prompt"
+Type-Text $hwnd $newFileName
+Start-Sleep -Milliseconds 150
+Press-VK $hwnd 0x0D
+Start-Sleep -Milliseconds 500
+Capture $hwnd "11-new-file-created"
+if (Test-Path $newFilePath) {
+  Log "NEW-FILE: workspace file created OK -> $newFilePath"
+} else {
+  Log "NEW-FILE: FILE NOT FOUND ($newFilePath)"
+  $script:HarnessFailed = $true
+}
 ClickL $explorerCollapseX 20 # Collapse all folders
 Start-Sleep -Milliseconds 300
 Capture $hwnd "12-collapse"
@@ -378,7 +391,7 @@ Press-VK $hwnd 0x1B
 Start-Sleep -Milliseconds 150
 
 # === TYPING into a fresh untitled buffer ===
-ClickL $explorerNewFileX 20  # New File
+Invoke-PaletteCommand "new file" $null
 Start-Sleep -Milliseconds 250
 ClickL 460 130           # editor body
 Start-Sleep -Milliseconds 100
@@ -400,6 +413,7 @@ Capture $hwnd "42-saved"
 Start-Sleep -Milliseconds 200
 if (Test-Path $savePath) { Log "SAVE-AS: file written OK -> $savePath" } else { Log "SAVE-AS: FILE NOT FOUND ($savePath)"; $script:HarnessFailed = $true }
 if (Test-Path $savePath) { Remove-Item $savePath -Force; Log "SAVE-AS: cleaned harness file" }
+if (Test-Path $newFilePath) { Remove-Item $newFilePath -Force; Log "NEW-FILE: cleaned harness file" }
 
 # === OPEN FILE dialog via top-right More -> command palette, then Save ===
 Invoke-PaletteCommand "open file" "43-open-file-palette"

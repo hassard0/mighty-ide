@@ -165,6 +165,7 @@ extern c {
   fn mui_explorer_header_at_click(handle: I64) -> I32
   fn mui_tab_new_untitled(handle: I64) -> I32
   fn mui_tree_collapse_all(handle: I64)
+  fn mui_newfile_create(handle: I64) -> I32
   fn mui_newfolder_create(handle: I64) -> I32
   fn mui_file_rename_active(handle: I64) -> I32
   fn mui_file_reveal_active(handle: I64) -> I32
@@ -729,6 +730,7 @@ fn prompt_new_folder() -> I32 { 7 }
 fn prompt_save_as() -> I32 { 8 }
 fn prompt_rename_file() -> I32 { 9 }
 fn prompt_delete_file() -> I32 { 10 }
+fn prompt_new_file() -> I32 { 11 }
 
 // activity-rail panel ids (mirror PANEL_* in lib.rs)
 fn panel_explorer() -> I32 { 0 }
@@ -1888,6 +1890,30 @@ fn main() {
               find_nav = false
               mui_prompt_cancel(h)
               prompt_kind = 0
+            } else if prompt_kind == prompt_new_file() {
+              // Explorer New File: stage the typed name, create it under the
+              // workspace root, then open it as the active editor tab.
+              mui_path_clear(h)
+              let flen = mui_prompt_len(h)
+              let mut fi: I32 = 0
+              while fi < flen {
+                let fc = mui_prompt_char(h, fi)
+                if fc >= 0 { mui_path_push(h, fc) }
+                fi = fi + 1
+              }
+              let nf = mui_newfile_create(h)
+              if nf >= 0 {
+                let _b = mui_ed_tab_switch(h, nf)
+                mui_ed_undo_reset(h)
+                let _dr = mui_diag_refresh(h)
+                let _sg = mui_scm_refresh(h)
+                let _ro = mui_outline_refresh(h)
+                let _rp = mui_problems_refresh(h)
+                mui_qo_record_active(h)
+              }
+              find_nav = false
+              mui_prompt_cancel(h)
+              prompt_kind = 0
             } else if prompt_kind == prompt_save_as() {
               // Save As: stage the typed name, write the untitled buffer there,
               // bind the tab to the path, then refresh SCM/diagnostics/tree.
@@ -2806,10 +2832,9 @@ fn main() {
           let _s = mui_settings_open(h)
           settings_open = true
         } else if explorer_hit == 1 {
-          // Explorer header: New File -> a fresh untitled tab, focused for typing.
-          let ni = mui_tab_new_untitled(h)
-          let _b = mui_ed_tab_switch(h, ni)
-          mui_ed_undo_reset(h)
+          // Explorer header: New File -> prompt for a real workspace file.
+          mui_prompt_open(h, prompt_new_file())
+          prompt_kind = prompt_new_file()
           find_nav = false
         } else if explorer_hit == 2 {
           // Explorer header: New Folder -> prompt for the name (created under the
