@@ -246,11 +246,14 @@ fn web_geom(ctx: &MuiContext) -> WebGeom {
     let y0 = layout::term_panel_top(h);
     let header_h = layout::term_header_h();
     let x1 = w;
-    // Right-aligned header buttons: [Stop] then the URL pill.
+    // Right-aligned header buttons: [Stop] then the URL pill. Keep the action
+    // zone from invading the left label area in compact panes; the URL pill can
+    // shrink, and disappears if there is not enough room for a useful target.
     let chrome = theme::CHROME_FONT_SIZE;
     let btn_h = 18.0;
     let by = y0 + (header_h - btn_h) * 0.5;
     let mut cursor = x1 - 12.0;
+    let min_action_x = region.left + 220.0;
     let mut stop_btn = None;
     let mut open_btn = None;
     if ctx.web.is_running() {
@@ -261,9 +264,13 @@ fn web_geom(ctx: &MuiContext) -> WebGeom {
     }
     let url = ctx.web.url();
     if !url.is_empty() {
-        let pill_w = (url.chars().count() as f32 * (chrome * 0.5)).min(360.0) + 22.0;
-        cursor -= pill_w;
-        open_btn = Some((cursor, by, pill_w, btn_h));
+        let desired = (url.chars().count() as f32 * (chrome * 0.5)).min(360.0) + 22.0;
+        let available = cursor - min_action_x;
+        if available >= 96.0 {
+            let pill_w = desired.min(available);
+            cursor -= pill_w;
+            open_btn = Some((cursor, by, pill_w, btn_h));
+        }
     }
     WebGeom {
         x0: region.left,
@@ -322,14 +329,32 @@ pub extern "C" fn mui_web_draw(handle: i64) {
         .next()
         .unwrap_or("")
         .to_string();
-    ctx.text.queue_ui_sized(g.x0 + 66.0, hy, &base, theme::TEXT_1(), chrome - 1.0, clip);
     let mode = match ctx.web.mode() {
         Mode::Serve => "mty serve",
         Mode::Build => "wasm32-web + static",
         Mode::Idle => "",
     };
-    let mode_x = g.x0 + 66.0 + (base.chars().count() as f32 + 1.0) * (chrome * 0.55) + 8.0;
-    ctx.text.queue_ui_sized(mode_x, hy, mode, theme::TEXT_3(), chrome - 2.0, clip);
+    let text_right = [g.open_btn, g.stop_btn]
+        .into_iter()
+        .flatten()
+        .map(|r| r.0)
+        .fold(g.x1 - 12.0, f32::min)
+        - 10.0;
+    let base_x = g.x0 + 66.0;
+    let mode_gap = 8.0;
+    let base_adv = chrome * 0.55;
+    let mode_adv = chrome * 0.50;
+    let base_shown = fit_text(&base, text_right - base_x, base_adv);
+    if !base_shown.is_empty() {
+        ctx.text
+            .queue_ui_sized(base_x, hy, &base_shown, theme::TEXT_1(), chrome - 1.0, clip);
+    }
+    let mode_x = base_x + (base_shown.chars().count() as f32 * base_adv) + mode_gap;
+    if !mode.is_empty() && mode_x + mode_adv * 4.0 < text_right {
+        let mode_shown = fit_text(mode, text_right - mode_x, mode_adv);
+        ctx.text
+            .queue_ui_sized(mode_x, hy, &mode_shown, theme::TEXT_3(), chrome - 2.0, clip);
+    }
 
     // Open-in-browser pill (the URL), accent-tinted + clickable.
     if let Some((bx, by, bw, bh)) = g.open_btn {
@@ -378,6 +403,20 @@ pub extern "C" fn mui_web_draw(handle: i64) {
     }
 }
 
+fn fit_text(text: &str, width: f32, adv: f32) -> String {
+    if width <= adv {
+        return String::new();
+    }
+    let avail = (width / adv).floor().max(0.0) as usize;
+    if text.chars().count() > avail && avail > 1 {
+        text.chars().take(avail - 1).collect::<String>() + "\u{2026}"
+    } else if avail == 0 {
+        String::new()
+    } else {
+        text.to_string()
+    }
+}
+
 /// Clip `text` to the panel width (ellipsizing).
 fn clip_row(text: &str, x0: f32, x1: f32, adv: f32) -> String {
     let avail = (((x1 - 14.0) - (x0 + 12.0)) / adv).floor() as usize;
@@ -385,5 +424,22 @@ fn clip_row(text: &str, x0: f32, x1: f32, adv: f32) -> String {
         text.chars().take(avail - 1).collect::<String>() + "\u{2026}"
     } else {
         text.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fit_text_ellipsizes_inside_available_width() {
+        assert_eq!(fit_text("scratch.mty", 5.0 * 10.0, 10.0), "scra\u{2026}");
+        assert_eq!(fit_text("web", 6.0 * 10.0, 10.0), "web");
+        assert_eq!(fit_text("web", 10.0, 10.0), "");
+    }
+
+    #[test]
+    fn clip_row_ellipsizes_long_output() {
+        assert_eq!(clip_row("abcdef", 0.0, 56.0, 10.0), "ab\u{2026}");
     }
 }
