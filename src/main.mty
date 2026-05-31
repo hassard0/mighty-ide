@@ -2225,10 +2225,12 @@ fn main() {
         } else if ctrl_held(mods) && (cp == 119 || cp == 87) {   // Ctrl+W : close active tab
           let cur_active = mui_tab_active(h)
           let a = mui_tab_close(h, cur_active)
-          let _b = mui_ed_tab_switch(h, a)
-          mui_ed_undo_reset(h)
-          find_nav = false
-          let _r = mui_diag_refresh(h)
+          if a >= 0 {
+            let _b = mui_ed_tab_switch(h, a)
+            mui_ed_undo_reset(h)
+            find_nav = false
+            let _r = mui_diag_refresh(h)
+          }
         } else if find_nav && (cp == 110 || cp == 78) {     // 'n' / 'N' : next match
           let cnt = mui_find_count(h)
           if cnt > 0 {
@@ -2699,11 +2701,13 @@ fn main() {
           }
         } else if tab_close_hit >= 0 {
           let a = mui_tab_close(h, tab_close_hit)
-          let _b = mui_ed_tab_switch(h, a)
-          mui_ed_undo_reset(h)
-          find_nav = false
-          let _r = mui_diag_refresh(h)
-          let _o = mui_outline_refresh(h)
+          if a >= 0 {
+            let _b = mui_ed_tab_switch(h, a)
+            mui_ed_undo_reset(h)
+            find_nav = false
+            let _r = mui_diag_refresh(h)
+            let _o = mui_outline_refresh(h)
+          }
         } else if tab_hit >= 0 {
           let cur_active = mui_tab_active(h)
           if tab_hit != cur_active {
@@ -3000,11 +3004,13 @@ fn main() {
         } else if id == cmd_close_tab() {
           let cur_active = mui_tab_active(h)
           let a = mui_tab_close(h, cur_active)
-          let _b = mui_ed_tab_switch(h, a)
-          mui_ed_undo_reset(h)
-          find_nav = false
-          let _r = mui_diag_refresh(h)
-          let _o = mui_outline_refresh(h)
+          if a >= 0 {
+            let _b = mui_ed_tab_switch(h, a)
+            mui_ed_undo_reset(h)
+            find_nav = false
+            let _r = mui_diag_refresh(h)
+            let _o = mui_outline_refresh(h)
+          }
         } else if id == cmd_format_document() {
           do_format(h)
         } else if id == cmd_undo() {

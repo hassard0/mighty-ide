@@ -2952,7 +2952,8 @@ pub extern "C" fn mui_tab_prev(handle: i64) -> i32 {
 /// Dirty buffers require a second close request on the same tab so a stray click
 /// cannot silently discard edits, while still letting the user intentionally
 /// close an unsaved scratch.
-/// Returns the active index after the request.
+/// Returns the active index after a successful close, or `-1` when the close was
+/// blocked by unsaved edits.
 #[no_mangle]
 pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -2979,7 +2980,7 @@ pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
                 crate::toast::Kind::Warn,
                 format!("Unsaved changes in {name}; close again to discard"),
             );
-            return ctx.tabs.active() as i32;
+            return -1;
         }
     }
     ctx.pending_dirty_close = None;
