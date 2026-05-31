@@ -583,8 +583,8 @@ live inspector. Modules: `crate::agents` (pure scanner + snapshot parser) +
   runs `mty inspect --json`, and `agents::parse_snapshot` (the `RuntimeSnapshot`
   v1 parser) is implemented + unit-tested, so the panel lights up with live
   mailbox depths the moment it runs on Unix / once the Windows pipe lands. On
-  Windows the panel shows an honest note ("control socket is Unix-only in v0.36;
-  static topology + run are live") and never fakes data. **Suggested stardust
+  Windows the panel shows an honest compact note ("Live inspect: static + run")
+  and never fakes data. **Suggested stardust
   work:** implement the Windows named-pipe control-socket backend so `mty
   inspect` works cross-platform (the v0.16 "Tier-1 followup").
 
