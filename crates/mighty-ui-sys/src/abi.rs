@@ -2690,7 +2690,8 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
     let h = ctx.gpu.height as f32;
     let bar_h = layout::LINE_H();
     // Sit the prompt band one row above the status bar.
-    let y = (h - 2.0 * bar_h).max(0.0);
+    let status_h = 30.0_f32;
+    let y = (h - status_h - bar_h).max(0.0);
     let chrome = theme::CHROME_FONT_SIZE;
     let text = ctx.prompt.display_line();
     let text_y = y + (bar_h - chrome) * 0.5 - 1.0;
@@ -2841,6 +2842,9 @@ pub(crate) fn sync_active_path(ctx: &mut MuiContext) {
         .as_ref()
         .map(|p| crate::langdetect::detect_path(p))
         .unwrap_or(crate::langdetect::Language::PlainText);
+    if path.is_some() {
+        ctx.welcome.allow_empty_auto();
+    }
     ctx.file_path = path;
 }
 
@@ -2878,6 +2882,25 @@ pub extern "C" fn mui_tab_open_path(handle: i64) -> i32 {
     };
     let idx = ctx.tabs.open_path(resolved);
     sync_active_path(ctx);
+    idx as i32
+}
+
+/// Open a native Windows file picker and open the selected file in a tab.
+/// Returns the resulting tab index, or `-1` when the picker was cancelled or is
+/// unavailable. The Mighty side then falls back to the typed-path prompt.
+#[no_mangle]
+pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let root = crate::wsabi::effective_root(ctx);
+    let Some(path) = pick_open_file_native(&root) else {
+        println!("mui_open_file_dialog: native file dialog cancelled / unavailable");
+        return -1;
+    };
+    let idx = ctx.tabs.open_path(path.clone());
+    sync_active_path(ctx);
+    ctx.quickopen.record_mru(path);
     idx as i32
 }
 
@@ -2951,12 +2974,55 @@ pub extern "C" fn mui_tab_index_at_click(handle: i64) -> i32 {
     if lx < body_left {
         return -1;
     }
+    let tab_right =
+        (crate::titlebar::controls_x(ctx.gpu.width as f32) - crate::titlebar::ACTION_STRIP_W)
+            .max(body_left);
+    if lx >= tab_right {
+        return -1;
+    }
     let i = ((lx - body_left) / layout::TAB_W).floor() as usize;
     if i < ctx.tabs.count() {
         i as i32
     } else {
         -1
     }
+}
+
+/// Map the last click to a tab's trailing close affordance, or -1 if none.
+/// Checked before normal tab switching so the visible close icon actually works.
+#[no_mangle]
+pub extern "C" fn mui_tab_close_index_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    if ctx.last_event.y > layout::TAB_BAR_H {
+        return -1;
+    }
+    let body_left = layout::RAIL_W + if ctx.sidebar_visible { layout::SIDEBAR_W } else { 0.0 };
+    let lx = ctx.last_event.x;
+    if lx < body_left {
+        return -1;
+    }
+    let tab_right =
+        (crate::titlebar::controls_x(ctx.gpu.width as f32) - crate::titlebar::ACTION_STRIP_W)
+            .max(body_left);
+    if lx >= tab_right {
+        return -1;
+    }
+    for i in 0..ctx.tabs.count() {
+        let x = body_left + i as f32 * layout::TAB_W;
+        if x >= tab_right {
+            break;
+        }
+        let tab_w = layout::TAB_W.min(tab_right - x);
+        if tab_w < 48.0 {
+            break;
+        }
+        if lx >= x + tab_w - 34.0 && lx <= x + tab_w - 8.0 {
+            return i as i32;
+        }
+    }
+    -1
 }
 
 // ---- tab byte-swap: store the live Mighty buffer into a slot ----
@@ -3172,6 +3238,28 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
     ctx.dl_icon(sx, h - 42.0, icon_sz, icon_sz, icons::SETTINGS, theme::DIM(), 1.5, false);
 }
 
+/// Hit-test the bottom utility icons in the activity rail.
+/// Returns 1 = account/user, 2 = settings, -1 = none.
+#[no_mangle]
+pub extern "C" fn mui_rail_utility_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let x = ctx.last_event.x;
+    let y = ctx.last_event.y;
+    if !(0.0..=layout::RAIL_W).contains(&x) {
+        return -1;
+    }
+    let h = ctx.gpu.height as f32;
+    if y >= h - 84.0 && y <= h - 56.0 {
+        return 1;
+    }
+    if y >= h - 46.0 && y <= h - 18.0 {
+        return 2;
+    }
+    -1
+}
+
 /// Draw the breadcrumb bar at the top of the editor body (`path › file › symbol`,
 /// the file segment in ember). Sits between the tab bar and the editor field,
 /// spanning from the editor's left edge to the right of the window.
@@ -3309,24 +3397,32 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
     // The tab bar lives over the editor column only — right of the rail AND the
     // sidebar (when shown), so it never overpaints the sidebar/header.
     let body_left = layout::RAIL_W + if ctx.sidebar_visible { layout::SIDEBAR_W } else { 0.0 };
+    let tab_right = (crate::titlebar::controls_x(w) - crate::titlebar::ACTION_STRIP_W).max(body_left);
 
     use crate::icons;
     // Tab-bar background (panel) + a thin bottom divider.
-    ctx.dl_rect(body_left, 0.0, w - body_left, bar_h, theme::BG_2());
-    ctx.dl_rect(body_left, bar_h - 1.0, w - body_left, 1.0, theme::BORDER());
+    ctx.dl_rect(body_left, 0.0, tab_right - body_left, bar_h, theme::BG_2());
+    ctx.dl_rect(body_left, bar_h - 1.0, tab_right - body_left, 1.0, theme::BORDER());
 
     for i in 0..count {
         let x = body_left + i as f32 * layout::TAB_W;
+        if x >= tab_right {
+            break;
+        }
+        let tab_w = layout::TAB_W.min(tab_right - x);
+        if tab_w < 48.0 {
+            break;
+        }
         let is_active = i == active;
         // Active tab: editor-field bg + a top accent gradient bar (`.tab.active`).
         if is_active {
-            ctx.dl_rect(x, 0.0, layout::TAB_W, bar_h, theme::BG_1());
+            ctx.dl_rect(x, 0.0, tab_w, bar_h, theme::BG_1());
             // Top 2px accent gradient bar with glow.
-            ctx.dl_shadow(x, 0.0, layout::TAB_W, 2.0, 0.0, theme::ACCENT_GLOW(), 6.0);
-            ctx.dl_rect(x, 0.0, layout::TAB_W, 2.0, theme::ACCENT());
+            ctx.dl_shadow(x, 0.0, tab_w, 2.0, 0.0, theme::ACCENT_GLOW(), 6.0);
+            ctx.dl_rect(x, 0.0, tab_w, 2.0, theme::ACCENT());
         }
         // Right divider between tabs.
-        ctx.dl_rect(x + layout::TAB_W - 1.0, 0.0, 1.0, bar_h, theme::BORDER_SOFT());
+        ctx.dl_rect(x + tab_w - 1.0, 0.0, 1.0, bar_h, theme::BORDER_SOFT());
         if let Some(tab) = ctx.tabs.get(i) {
             let base = tab.basename();
             let dirty = tab.dirty;
@@ -3334,7 +3430,7 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
             let icon_y = (bar_h - 14.0) * 0.5;
             ctx.dl_icon(x + 14.0, icon_y, 14.0, 14.0, icon, icon_col, 1.4, false);
             let mut label = base;
-            let max_chars = ((layout::TAB_W - 64.0) / layout::CHAR_W()).floor() as usize;
+            let max_chars = ((tab_w - 64.0).max(0.0) / layout::CHAR_W()).floor() as usize;
             if label.chars().count() > max_chars && max_chars > 1 {
                 label = label.chars().take(max_chars - 1).collect::<String>() + "…";
             }
@@ -3348,13 +3444,13 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
                 crate::vello_ui::FontStyle::Regular
             };
             ctx.text.queue_ui_styled(x + 34.0, ty, &label, fg, chrome, style, clip);
-            // Trailing affordance: a dirty dot (active) or a close ×.
-            let tx = x + layout::TAB_W - 24.0;
-            if is_active || dirty {
-                ctx.dl_round(tx + 3.0, bar_h * 0.5 - 3.5, 7.0, 7.0, 3.5, theme::ACCENT_BRIGHT());
-            } else {
-                ctx.dl_icon(tx, (bar_h - 12.0) * 0.5, 12.0, 12.0, icons::CLOSE, theme::TEXT_3(), 1.6, false);
+            // Trailing affordance: always show close; dirty tabs keep a status dot.
+            let tx = x + tab_w - 24.0;
+            if dirty {
+                ctx.dl_round(tx - 8.0, bar_h * 0.5 - 2.5, 5.0, 5.0, 2.5, theme::ACCENT_BRIGHT());
             }
+            let close_col = if is_active { theme::TEXT_1() } else { theme::TEXT_3() };
+            ctx.dl_icon(tx, (bar_h - 12.0) * 0.5, 12.0, 12.0, icons::CLOSE, close_col, 1.6, false);
         }
     }
 
@@ -3371,6 +3467,8 @@ pub extern "C" fn mui_window_controls_draw(handle: i64) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
+    let was_overlay = ctx.overlay;
+    ctx.overlay = true;
     use crate::icons;
     let w = ctx.gpu.width as f32;
     let wh = ctx.gpu.height as f32;
@@ -3413,6 +3511,7 @@ pub extern "C" fn mui_window_controls_draw(handle: i64) {
         let cx = bx + (btn_w - icon_d) * 0.5;
         ctx.dl_icon(cx, iy, icon_d, icon_d, path, col, 1.5, false);
     }
+    ctx.overlay = was_overlay;
 }
 
 /// Hit-test the top-right run / more-actions icons (drawn by
@@ -3482,6 +3581,7 @@ pub extern "C" fn mui_tab_new_untitled(handle: i64) -> i32 {
     };
     let idx = ctx.tabs.new_untitled();
     sync_active_path(ctx);
+    ctx.welcome.dismiss_empty_auto();
     idx as i32
 }
 
@@ -6890,6 +6990,31 @@ pub extern "C" fn mui_save_as(handle: i64) -> i32 {
     let base = crate::wsabi::effective_root(ctx);
     let cand = std::path::Path::new(raw);
     let target = if cand.is_absolute() { cand.to_path_buf() } else { base.join(cand) };
+    save_active_to_path(ctx, target)
+}
+
+/// Save-As through a native Windows save-file picker. Returns `0` on success or
+/// `-1` when cancelled/unavailable/failed, letting Mighty keep a fallback prompt.
+#[no_mangle]
+pub extern "C" fn mui_save_as_dialog(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let root = crate::wsabi::effective_root(ctx);
+    let suggested = ctx
+        .tabs
+        .active_path()
+        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "untitled.mty".to_string());
+    let Some(target) = pick_save_file_native(&root, &suggested) else {
+        println!("mui_save_as_dialog: native save dialog cancelled / unavailable");
+        return -1;
+    };
+    save_active_to_path(ctx, target)
+}
+
+fn save_active_to_path(ctx: &mut MuiContext, target: PathBuf) -> i32 {
     if let Some(parent) = target.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
@@ -6911,6 +7036,75 @@ pub extern "C" fn mui_save_as(handle: i64) -> i32 {
             ctx.push_toast(crate::toast::Kind::Error, format!("Save failed: {name}"));
             -1
         }
+    }
+}
+
+fn pick_open_file_native(initial_dir: &std::path::Path) -> Option<PathBuf> {
+    if let Ok(path) = std::env::var("MUI_OPEN_FILE_PICK") {
+        let trimmed = path.trim();
+        return (!trimmed.is_empty()).then(|| PathBuf::from(trimmed));
+    }
+    if !cfg!(windows) {
+        return None;
+    }
+    let script = r#"
+Add-Type -AssemblyName System.Windows.Forms | Out-Null
+$d = New-Object System.Windows.Forms.OpenFileDialog
+$d.Title = 'Open File'
+$d.Filter = 'All files (*.*)|*.*'
+$dir = $env:MUI_DIALOG_DIR
+if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) { $d.InitialDirectory = $dir }
+if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($d.FileName) }
+"#;
+    run_file_dialog_script(script, initial_dir, None)
+}
+
+fn pick_save_file_native(initial_dir: &std::path::Path, suggested_name: &str) -> Option<PathBuf> {
+    if let Ok(path) = std::env::var("MUI_SAVE_FILE_PICK") {
+        let trimmed = path.trim();
+        return (!trimmed.is_empty()).then(|| PathBuf::from(trimmed));
+    }
+    if !cfg!(windows) {
+        return None;
+    }
+    let script = r#"
+Add-Type -AssemblyName System.Windows.Forms | Out-Null
+$d = New-Object System.Windows.Forms.SaveFileDialog
+$d.Title = 'Save As'
+$d.Filter = 'Mighty files (*.mty)|*.mty|All files (*.*)|*.*'
+$d.DefaultExt = 'mty'
+$d.AddExtension = $true
+$d.OverwritePrompt = $true
+$dir = $env:MUI_DIALOG_DIR
+if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) { $d.InitialDirectory = $dir }
+$name = $env:MUI_DIALOG_FILE
+if ($name) { $d.FileName = $name }
+if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($d.FileName) }
+"#;
+    run_file_dialog_script(script, initial_dir, Some(suggested_name))
+}
+
+fn run_file_dialog_script(
+    script: &str,
+    initial_dir: &std::path::Path,
+    suggested_name: Option<&str>,
+) -> Option<PathBuf> {
+    let mut cmd = std::process::Command::new("powershell");
+    cmd.args(["-NoProfile", "-STA", "-Command", script])
+        .env("MUI_DIALOG_DIR", initial_dir)
+        .stdin(std::process::Stdio::null());
+    if let Some(name) = suggested_name {
+        cmd.env("MUI_DIALOG_FILE", name);
+    }
+    let out = cmd.output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if path.is_empty() {
+        None
+    } else {
+        Some(PathBuf::from(path))
     }
 }
 
@@ -8875,7 +9069,7 @@ pub extern "C" fn mui_welcome_active(handle: i64) -> i32 {
     let no_path = ctx.tabs.active_path().is_none();
     let model = ctx.tabs.active_model();
     let empty = model.line_count() <= 1 && model.line_len(0) == 0;
-    if no_path && empty {
+    if no_path && empty && !ctx.welcome.hides_empty_auto() {
         1
     } else {
         0

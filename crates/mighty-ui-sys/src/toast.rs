@@ -190,8 +190,6 @@ impl ToastQueue {
         }
         let w = width as f32;
         let h = height as f32;
-        let clip = ctx.clip;
-
         let margin = 18.0_f32;
         let card_w = 320.0_f32.min(w - 2.0 * margin);
         let card_h = 56.0_f32;
@@ -214,6 +212,12 @@ impl ToastQueue {
             let slide = (1.0 - presence) * 16.0;
             let cy = cy_settled + slide;
             let cx = w - margin - card_w;
+            let card_clip = Some((
+                cx.max(0.0) as u32,
+                cy.max(0.0) as u32,
+                card_w.max(0.0) as u32,
+                card_h.max(0.0) as u32,
+            ));
             // Older toasts higher in the stack dim slightly so the newest reads.
             let depth_dim = 1.0 - (slot / (n as f32 + 1.0)) * 0.18;
             let alpha = presence * depth_dim;
@@ -271,7 +275,7 @@ impl ToastQueue {
                 title,
                 with_alpha(accent, alpha),
                 11.0,
-                clip,
+                card_clip,
             );
             let msg = truncate(&t.message, card_w - 64.0);
             ctx.text.queue_ui_sized(
@@ -280,7 +284,7 @@ impl ToastQueue {
                 &msg,
                 with_alpha(theme::TEXT(), alpha),
                 13.0,
-                clip,
+                card_clip,
             );
         }
     }

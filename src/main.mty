@@ -53,6 +53,7 @@ extern c {
   fn mui_ed_save(handle: I64) -> I32
   fn mui_active_has_path(handle: I64) -> I32
   fn mui_save_as(handle: I64) -> I32
+  fn mui_save_as_dialog(handle: I64) -> I32
   fn mui_autosave_tick(handle: I64) -> I32
   fn mui_autosave_touch(handle: I64)
   fn mui_ed_find_run(handle: I64) -> I32
@@ -144,10 +145,12 @@ extern c {
   fn mui_tab_count(handle: I64) -> I32
   fn mui_tab_active(handle: I64) -> I32
   fn mui_tab_open_path(handle: I64) -> I32
+  fn mui_open_file_dialog(handle: I64) -> I32
   fn mui_tab_next(handle: I64) -> I32
   fn mui_tab_prev(handle: I64) -> I32
   fn mui_tab_close(handle: I64, idx: I32) -> I32
   fn mui_tab_index_at_click(handle: I64) -> I32
+  fn mui_tab_close_index_at_click(handle: I64) -> I32
   fn mui_tab_set_dirty(handle: I64, idx: I32, dirty: I32)
   fn mui_tab_bar_draw(handle: I64)
   fn mui_window_controls_draw(handle: I64)
@@ -157,6 +160,7 @@ extern c {
   fn mui_tree_collapse_all(handle: I64)
   fn mui_newfolder_create(handle: I64) -> I32
   fn mui_rail_draw(handle: I64)
+  fn mui_rail_utility_at_click(handle: I64) -> I32
   fn mui_breadcrumb_draw(handle: I64)
   // file-tree sidebar
   fn mui_sidebar_visible(handle: I64) -> I32
@@ -1243,14 +1247,32 @@ fn main() {
             palette_open = false
             typing = false
             if id == cmd_open_file() {
-              mui_prompt_open(h, prompt_open())
-              prompt_kind = prompt_open()
-              find_nav = false
+              let oi = mui_open_file_dialog(h)
+              if oi >= 0 {
+                let _b = mui_ed_tab_switch(h, oi)
+                mui_ed_undo_reset(h)
+                find_nav = false
+                let _r = mui_diag_refresh(h)
+                let _o = mui_outline_refresh(h)
+                mui_qo_record_active(h)
+              } else {
+                mui_prompt_open(h, prompt_open())
+                prompt_kind = prompt_open()
+                find_nav = false
+              }
             } else if id == cmd_save() {
               if mui_active_has_path(h) == 0 {
-                mui_prompt_open(h, prompt_save_as())
-                prompt_kind = prompt_save_as()
-                find_nav = false
+                let sr = mui_save_as_dialog(h)
+                if sr == 0 {
+                  mui_tab_set_dirty(h, active0, 0)
+                  let _r = mui_diag_refresh(h)
+                  let _g = mui_scm_refresh(h)
+                  let _o = mui_outline_refresh(h)
+                } else {
+                  mui_prompt_open(h, prompt_save_as())
+                  prompt_kind = prompt_save_as()
+                  find_nav = false
+                }
               } else {
                 let rc = mui_ed_save(h)
                 if rc == 0 {
@@ -1427,14 +1449,32 @@ fn main() {
               mui_qo_cancel(h)
               quickopen_open = false
               if id == cmd_open_file() {
-                mui_prompt_open(h, prompt_open())
-                prompt_kind = prompt_open()
-                find_nav = false
+                let oi = mui_open_file_dialog(h)
+                if oi >= 0 {
+                  let _b = mui_ed_tab_switch(h, oi)
+                  mui_ed_undo_reset(h)
+                  find_nav = false
+                  let _r = mui_diag_refresh(h)
+                  let _o = mui_outline_refresh(h)
+                  mui_qo_record_active(h)
+                } else {
+                  mui_prompt_open(h, prompt_open())
+                  prompt_kind = prompt_open()
+                  find_nav = false
+                }
               } else if id == cmd_save() {
                 if mui_active_has_path(h) == 0 {
-                  mui_prompt_open(h, prompt_save_as())
-                  prompt_kind = prompt_save_as()
-                  find_nav = false
+                  let sr = mui_save_as_dialog(h)
+                  if sr == 0 {
+                    mui_tab_set_dirty(h, active0, 0)
+                    let _r = mui_diag_refresh(h)
+                    let _g = mui_scm_refresh(h)
+                    let _o = mui_outline_refresh(h)
+                  } else {
+                    mui_prompt_open(h, prompt_save_as())
+                    prompt_kind = prompt_save_as()
+                    find_nav = false
+                  }
                 } else {
                   let rc = mui_ed_save(h)
                   if rc == 0 {
@@ -1529,6 +1569,9 @@ fn main() {
                 mui_welcome_open(h)
               } else if id == cmd_zen_mode() {
                 let _z = mui_zen_toggle(h)
+              } else if id == cmd_agents() {
+                let _p = mui_panel_set(h, panel_agents_mty())
+                let _a = mui_agents_refresh(h)
               } else if id == cmd_run_in_browser() {
                 let _w = mui_web_run(h)
                 web_focus = true
@@ -1663,7 +1706,7 @@ fn main() {
             settings_open = false
           }
         }
-      } else if (run_focus || web_focus) && !(tag == ev_mouse_down() && mui_rail_panel_at_click(h) >= 0) {
+      } else if (run_focus || web_focus) && !(tag == ev_mouse_down() && (mui_rail_panel_at_click(h) >= 0 || mui_rail_utility_at_click(h) >= 0)) {
         // -------- Bottom-band panel focused: Run panel OR Web Playground -------
         // A rail-icon click escapes to the unified router (so the rail stays live
         // while this band has focus); the band still handles its own row/button
@@ -2230,9 +2273,18 @@ fn main() {
         } else if ctrl_held(mods) && (cp == 115 || cp == 83) {  // Ctrl+S : save
           // Untitled buffer (no path): open a Save-As prompt instead of failing.
           if mui_active_has_path(h) == 0 {
-            mui_prompt_open(h, prompt_save_as())
-            prompt_kind = prompt_save_as()
-            find_nav = false
+            let sr = mui_save_as_dialog(h)
+            if sr == 0 {
+              mui_tab_set_dirty(h, active0, 0)
+              let _r = mui_diag_refresh(h)
+              let _g = mui_scm_refresh(h)
+              let _o = mui_outline_refresh(h)
+              let _pr = mui_problems_refresh(h)
+            } else {
+              mui_prompt_open(h, prompt_save_as())
+              prompt_kind = prompt_save_as()
+              find_nav = false
+            }
           } else {
             let rc = mui_ed_save(h)
             if rc == 0 { log("mighty-ide: saved") } else { log("mighty-ide: save FAILED") }
@@ -2268,9 +2320,19 @@ fn main() {
           mui_prompt_open(h, prompt_find())
           prompt_kind = prompt_find()
         } else if ctrl_held(mods) && (cp == 111 || cp == 79) {   // Ctrl+O : open file
-          mui_prompt_open(h, prompt_open())
-          prompt_kind = prompt_open()
-          find_nav = false
+          let oi = mui_open_file_dialog(h)
+          if oi >= 0 {
+            let _b = mui_ed_tab_switch(h, oi)
+            mui_ed_undo_reset(h)
+            find_nav = false
+            let _r = mui_diag_refresh(h)
+            let _o = mui_outline_refresh(h)
+            mui_qo_record_active(h)
+          } else {
+            mui_prompt_open(h, prompt_open())
+            prompt_kind = prompt_open()
+            find_nav = false
+          }
         } else if is_d_chord(cp, mods) {                         // Ctrl+D add-caret / Ctrl+Shift+D duplicate
           find_nav = false
           typing = false
@@ -2567,7 +2629,9 @@ fn main() {
         // body), then rail icon, breadcrumb segments, the status problems chip,
         // tab bar, the active sidebar/bottom panel, or the text area.
         let rail_hit = mui_rail_panel_at_click(h)
+        let rail_util = mui_rail_utility_at_click(h)
         let tab_hit = mui_tab_index_at_click(h)
+        let tab_close_hit = mui_tab_close_index_at_click(h)
         let cur_panel = mui_panel_active(h)
         let crumb_on = mui_crumb_menu_active(h)
         let crumb_hit = mui_crumb_menu_row_at_click(h)
@@ -2610,9 +2674,19 @@ fn main() {
           if n >= 0 { branch_open = true }
         } else if welcome_act >= 0 {
           if welcome_act == welcome_open_file() {
-            mui_prompt_open(h, prompt_open())
-            prompt_kind = prompt_open()
-            find_nav = false
+            let oi = mui_open_file_dialog(h)
+            if oi >= 0 {
+              let _b = mui_ed_tab_switch(h, oi)
+              mui_ed_undo_reset(h)
+              find_nav = false
+              let _r = mui_diag_refresh(h)
+              let _o = mui_outline_refresh(h)
+              mui_qo_record_active(h)
+            } else {
+              mui_prompt_open(h, prompt_open())
+              prompt_kind = prompt_open()
+              find_nav = false
+            }
           } else if welcome_act == welcome_quick_open() {
             mui_quickopen_open(h)
             quickopen_open = true
@@ -2620,9 +2694,12 @@ fn main() {
             mui_palette_open(h)
             palette_open = true
           } else if welcome_act == welcome_new_file() {
-            // A fresh empty buffer IS the welcome state; just dismiss the forced
-            // landing so the (empty) editor shows and the user can type.
-            mui_welcome_dismiss(h)
+            // New File from Welcome should create an actual untitled tab, not
+            // merely reveal the startup scratch file underneath.
+            let ni = mui_tab_new_untitled(h)
+            let _b = mui_ed_tab_switch(h, ni)
+            mui_ed_undo_reset(h)
+            find_nav = false
           } else if welcome_act == welcome_toggle_theme() {
             mui_theme_picker_open(h)
             theme_picker_open = true
@@ -2681,6 +2758,12 @@ fn main() {
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
           }
+        } else if rail_util == 1 {
+          let opened = mui_ai_open(h)
+          if opened == 1 { ai_focus = true } else { ai_focus = false }
+        } else if rail_util == 2 {
+          let _s = mui_settings_open(h)
+          settings_open = true
         } else if explorer_hit == 1 {
           // Explorer header: New File -> a fresh untitled tab, focused for typing.
           let ni = mui_tab_new_untitled(h)
@@ -2732,6 +2815,22 @@ fn main() {
           } else if rail_hit == panel_search() {
             let _q = mui_search_query_len(h)
           } else if rail_hit == panel_outline() {
+            let _o = mui_outline_refresh(h)
+          }
+        } else if tab_close_hit >= 0 {
+          let a = mui_tab_close(h, tab_close_hit)
+          let _b = mui_ed_tab_switch(h, a)
+          mui_ed_undo_reset(h)
+          find_nav = false
+          let _r = mui_diag_refresh(h)
+          let _o = mui_outline_refresh(h)
+        } else if tab_hit >= 0 {
+          let cur_active = mui_tab_active(h)
+          if tab_hit != cur_active {
+            let _b = mui_ed_tab_switch(h, tab_hit)
+            mui_ed_undo_reset(h)
+            find_nav = false
+            let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
           }
         } else if cur_panel == panel_agents_mty() {
@@ -2839,15 +2938,6 @@ fn main() {
               find_nav = false
               let _r = mui_diag_refresh(h)
             }
-          }
-        } else if tab_hit >= 0 {
-          let cur_active = mui_tab_active(h)
-          if tab_hit != cur_active {
-            let _b = mui_ed_tab_switch(h, tab_hit)
-            mui_ed_undo_reset(h)
-            find_nav = false
-            let _r = mui_diag_refresh(h)
-            let _o = mui_outline_refresh(h)
           }
         } else if mui_tree_row_at_click(h) >= 0 {
           let tree_hit = mui_tree_row_at_click(h)

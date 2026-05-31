@@ -356,7 +356,10 @@ fn tree_abi_scan_toggle_and_open_row() {
 #[test]
 fn click_routing_tab_bar_sidebar_and_text() {
     use crate::ffi::MuiEvent;
-    use crate::{mui_tab_index_at_click, mui_tree_row_at_click};
+    use crate::{
+        mui_rail_utility_at_click, mui_tab_close_index_at_click, mui_tab_index_at_click,
+        mui_tree_row_at_click,
+    };
     use crate::layout;
 
     let mut ctx = ctx_or_skip!();
@@ -371,6 +374,7 @@ fn click_routing_tab_bar_sidebar_and_text() {
     std::fs::write(root.join("x.txt"), b"x").unwrap();
     ctx.tree.set_root(root.clone());
     ctx.sidebar_visible = true;
+    ctx.gpu.width = 900;
 
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -379,9 +383,26 @@ fn click_routing_tab_bar_sidebar_and_text() {
     let body_left = layout::RAIL_W + layout::SIDEBAR_W;
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, body_left + layout::TAB_W + 5.0, 4.0, 0);
     assert_eq!(mui_tab_index_at_click(handle), 1);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        body_left + layout::TAB_W + layout::TAB_W - 20.0,
+        4.0,
+        0,
+    );
+    assert_eq!(mui_tab_close_index_at_click(handle), 1);
+    // The top-right run/menu/window-control strip is not a tab, even though it
+    // shares the tab-bar row.
+    let reserved_x = crate::titlebar::controls_x(ctx.gpu.width as f32)
+        - crate::titlebar::ACTION_STRIP_W
+        + 4.0;
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, reserved_x, 4.0, 0);
+    assert_eq!(mui_tab_index_at_click(handle), -1);
+    assert_eq!(mui_tab_close_index_at_click(handle), -1);
     // Same x but below the tab bar -> not a tab click.
     ctx.last_event.y = layout::TAB_BAR_H + 50.0;
     assert_eq!(mui_tab_index_at_click(handle), -1);
+    assert_eq!(mui_tab_close_index_at_click(handle), -1);
 
     // Click in the sidebar over row 0 (sidebar content is right of the rail).
     ctx.last_event = MuiEvent::mouse(
@@ -398,6 +419,14 @@ fn click_routing_tab_bar_sidebar_and_text() {
     // Click in the activity rail (left of the sidebar) -> not a tree click.
     ctx.last_event.x = 10.0;
     assert_eq!(mui_tree_row_at_click(handle), -1);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        20.0,
+        ctx.gpu.height as f32 - 32.0,
+        0,
+    );
+    assert_eq!(mui_rail_utility_at_click(handle), 2);
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -658,7 +687,10 @@ fn editor_power_features_via_abi() {
 
 #[test]
 fn welcome_active_when_no_file_open_then_inactive_after_edit() {
-    use crate::{mui_ed_insert_char, mui_welcome_active, mui_welcome_dismiss, mui_welcome_open};
+    use crate::{
+        mui_ed_insert_char, mui_tab_new_untitled, mui_welcome_active, mui_welcome_dismiss,
+        mui_welcome_open,
+    };
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -674,6 +706,13 @@ fn welcome_active_when_no_file_open_then_inactive_after_edit() {
     mui_welcome_open(h);
     assert_eq!(mui_welcome_active(h), 1);
     mui_welcome_dismiss(h);
+    assert_eq!(mui_welcome_active(h), 0);
+
+    // Explicit New File is not the same as startup/no-file. It should reveal a
+    // blank editor immediately instead of letting the automatic Welcome state
+    // reclaim the body.
+    let ni = mui_tab_new_untitled(h);
+    assert!(ni >= 0);
     assert_eq!(mui_welcome_active(h), 0);
 }
 

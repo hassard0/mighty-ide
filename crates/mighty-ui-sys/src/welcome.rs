@@ -92,6 +92,10 @@ pub struct WelcomeState {
     /// When `true`, the Welcome screen is FORCED open (via the palette command)
     /// even though a file is loaded. Cleared when a file is opened.
     pub force_open: bool,
+    /// When `true`, an intentionally-created empty untitled tab is allowed to
+    /// show as a blank editor instead of being treated as the startup "no file"
+    /// state. Cleared as soon as a real file becomes active or Welcome is forced.
+    hide_empty_auto: bool,
     /// Hit rectangles from the last draw (action id per region).
     hits: Vec<Hit>,
     /// The recent file paths shown in the last draw (index = recents row).
@@ -108,11 +112,27 @@ impl WelcomeState {
     /// Force the Welcome screen open (palette "Welcome" command).
     pub fn open(&mut self) {
         self.force_open = true;
+        self.hide_empty_auto = false;
     }
 
     /// Dismiss the forced Welcome screen (e.g. a file was opened).
     pub fn dismiss(&mut self) {
         self.force_open = false;
+    }
+
+    /// Hide the automatic empty-buffer Welcome state for an explicit New File.
+    pub fn dismiss_empty_auto(&mut self) {
+        self.force_open = false;
+        self.hide_empty_auto = true;
+    }
+
+    /// Re-enable automatic Welcome when the active tab becomes file-backed.
+    pub fn allow_empty_auto(&mut self) {
+        self.hide_empty_auto = false;
+    }
+
+    pub fn hides_empty_auto(&self) -> bool {
+        self.hide_empty_auto
     }
 
     /// Resolve a recents row to its path (for an `ACTION_RECENT_BASE + i` click).

@@ -152,9 +152,19 @@ public static class Win {
 
 function New-Dir($p) { if (-not (Test-Path $p)) { New-Item -ItemType Directory -Force $p | Out-Null } }
 New-Dir $OutDir
+if ($env:MUI_TRACE) { Remove-Item -LiteralPath $env:MUI_TRACE -Force -ErrorAction SilentlyContinue }
 
 $report = [System.Collections.Generic.List[string]]::new()
 function Log($m) { $line = "[{0}] {1}" -f ((Get-Date).ToString('HH:mm:ss.fff')), $m; $report.Add($line); Write-Host $line }
+
+# Keep harness artifacts out of the Explorer tree. A stale Save-As file shifts
+# row positions and makes the fixed RUN.txt click open the wrong file.
+$saveName = "harnesssaveas.mty"
+$savePath = Join-Path $WorkDir $saveName
+if (Test-Path $savePath) { Remove-Item $savePath -Force }
+# The IDE now uses a native SaveFileDialog for untitled Save. Feed a deterministic
+# picker result so the harness does not block on an OS-modal dialog.
+$env:MUI_SAVE_FILE_PICK = $savePath
 
 function Get-WinRect($h) { $r = New-Object Win+RECT; [void][Win]::GetWindowRect($h, [ref]$r); return $r }
 
@@ -270,18 +280,26 @@ Log "responsive at startup: $resp0"
 $scale = 1.0
 $tf = $env:MUI_TRACE
 if ($tf -and (Test-Path $tf)) {
-  $gl = Select-String -Path $tf -Pattern 'STARTUP_GEOM.*scale=([0-9.]+)' | Select-Object -First 1
+  $gl = Select-String -Path $tf -Pattern 'STARTUP_GEOM.*scale=([0-9.]+)' | Select-Object -Last 1
   if ($gl) { $scale = [double]$gl.Matches[0].Groups[1].Value }
 }
 Log "ui scale = $scale"
 function ClickL($lx, $ly) { Click $hwnd ([int][math]::Round($lx * $scale)) ([int][math]::Round($ly * $scale)) }
+$logicalW = [double]$script:WinW / [double]$scale
+$logicalH = [double]$script:WinH / [double]$scale
 
 # Logical layout constants (mirror layout.rs): rail x=26; tree rows under the 40px
 # header; explorer header buttons at sidebar-right (300) -72/-50/-28, y=20.
 $treeX = 110
 
+# === WELCOME NEW FILE: quick action must reveal a blank editor, not leave Welcome up. ===
+ClickL 455 472
+Start-Sleep -Milliseconds 350
+Capture $hwnd "02-welcome-new-file"
+Log "welcome new-file captured"
+
 # === FILE OPEN: click RUN.txt in the tree; the editor must show its contents. ===
-ClickL $treeX 188
+ClickL $treeX 229
 Start-Sleep -Milliseconds 500
 Capture $hwnd "10-open-file"
 Log "file-open (tree RUN.txt) captured"
@@ -318,11 +336,11 @@ foreach ($ic in $rail) {
   Log ("rail '{0}' (ly={1}) responsive={2}" -f $ic.n, $ic.y, $resp)
   if (-not $resp) { Log "!!! LOCKUP after rail '$($ic.n)'" }
 }
-ClickL 26 71             # back to Explorer
+ClickL 26 55             # back to Explorer
 Start-Sleep -Milliseconds 300
 
 # === AUTOCOMPLETE: open a real file, click into the editor, type an identifier ===
-ClickL $treeX 188        # RUN.txt
+ClickL $treeX 229        # RUN.txt
 Start-Sleep -Milliseconds 300
 ClickL 460 130           # editor body (logical), place caret
 Start-Sleep -Milliseconds 150
@@ -342,28 +360,32 @@ Start-Sleep -Milliseconds 300
 Capture $hwnd "31-typing"
 $respT = Is-Responsive $hwnd
 Log "after typing: responsive=$respT"
+Press-VK $hwnd 0x1B      # close autocomplete before using topbar commands
+Start-Sleep -Milliseconds 150
 
-# === SAVE-AS (untitled buffer) via the command palette (plain keys only) ===
-# Open the palette with the top-right more-actions button, filter to Save, Enter
-# triggers cmd_save which (untitled) opens the Save-As prompt; name it + Enter.
-$saveName = "harnesssaveas.mty"   # no shifted chars (PostMessage can't hold Shift)
-$savePath = Join-Path $WorkDir $saveName
-if (Test-Path $savePath) { Remove-Item $savePath -Force }
-Click $hwnd ($script:WinW - 264) 33
+# === SAVE-AS (untitled buffer) via top-right More -> command palette ===
+# The harness env above supplies the native SaveFileDialog result so this
+# exercises dialog-backed Save-As. More is in the top-right action strip;
+# mirror titlebar.rs:
+# controls_x = width - 3*46, dots center ~= controls_x - 24 = width - 162.
+ClickL ($logicalW - 162) 20
 Start-Sleep -Milliseconds 400
 Capture $hwnd "40-palette-open"
 Type-Text $hwnd "save"
 Start-Sleep -Milliseconds 300
 Press-VK $hwnd 0x0D
-Start-Sleep -Milliseconds 350
-Capture $hwnd "41-saveas-prompt"
-Type-Text $hwnd $saveName
-Start-Sleep -Milliseconds 250
-Press-VK $hwnd 0x0D
-Start-Sleep -Milliseconds 600
+Start-Sleep -Milliseconds 800
 Capture $hwnd "42-saved"
 Start-Sleep -Milliseconds 200
 if (Test-Path $savePath) { Log "SAVE-AS: file written OK -> $savePath" } else { Log "SAVE-AS: FILE NOT FOUND ($savePath)" }
+if (Test-Path $savePath) { Remove-Item $savePath -Force; Log "SAVE-AS: cleaned harness file" }
+
+# === RAIL UTILITY: bottom Settings icon should open Preferences, not be decorative. ===
+ClickL 26 ($logicalH - 32)
+Start-Sleep -Milliseconds 350
+Capture $hwnd "50-settings-rail"
+Press-VK $hwnd 0x1B
+Start-Sleep -Milliseconds 150
 
 $respF = Is-Responsive $hwnd
 Log "final responsive: $respF"
@@ -371,6 +393,7 @@ $proc.Refresh()
 $exited = $proc.HasExited
 Log "process hasExited=$exited"
 if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; Log "killed pid $($proc.Id)" }
+Remove-Item Env:\MUI_SAVE_FILE_PICK -ErrorAction SilentlyContinue
 
 $reportPath = Join-Path $OutDir 'report.txt'
 $report | Set-Content $reportPath -Encoding utf8

@@ -18,6 +18,9 @@ pub fn bar_h() -> f32 {
 
 /// Width (px) of one window-control button (min / max / close).
 pub const BTN_W: f32 = 46.0;
+/// Width reserved immediately left of the window controls for Run / More actions
+/// plus padding. The tab bar must not draw or hit-test underneath this strip.
+pub const ACTION_STRIP_W: f32 = 68.0;
 /// Thickness (px) of the resize-grab band along each window edge. Widened from a
 /// too-thin 6px so the borderless window is actually easy to grab-resize.
 pub const EDGE: f32 = 9.0;
@@ -64,9 +67,9 @@ pub fn hit(x: f32, y: f32, win_w: f32, body_left: f32) -> Option<TitleHit> {
     // The caption strip is the tab-bar row right of the body, but NOT over a tab
     // (tabs handle their own clicks first in the IDE routing) — we report Drag
     // for the empty region to the right of the last tab and left of the controls.
-    // The run/more-actions icons live in [cx-60, cx); exclude that strip (+8px
-    // padding) so those clicks pass through to the IDE instead of starting a drag.
-    if x >= body_left && x < cx - 68.0 {
+    // The run/more-actions icons live immediately left of the controls; exclude
+    // that strip so those clicks pass through to the IDE instead of dragging.
+    if x >= body_left && x < cx - ACTION_STRIP_W {
         return Some(TitleHit::Drag);
     }
     // The rail header (above the first rail icon, the M-mark strip) is also a

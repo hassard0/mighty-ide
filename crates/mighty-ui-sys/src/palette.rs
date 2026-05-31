@@ -465,7 +465,8 @@ impl PaletteEngine {
             let txt_x = box_x + 60.0;
             ctx.text.queue_ui_sized(txt_x, ry + 11.0, cmd.label, theme::TEXT(), 13.5, clip);
             if !desc.is_empty() {
-                ctx.text.queue_ui_sized(txt_x, ry + 28.0, desc, theme::TEXT_3(), 11.5, clip);
+                let desc_col = if selected { theme::TEXT_1() } else { theme::TEXT_3() };
+                ctx.text.queue_ui_sized(txt_x, ry + 28.0, desc, desc_col, 11.5, clip);
             }
 
             // Right-aligned kbd pills (commands with no keybinding draw none).
