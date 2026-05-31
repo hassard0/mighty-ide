@@ -104,7 +104,7 @@ pub extern "C" fn mui_ws_open(handle: i64) -> i32 {
 
 /// Open the native Windows folder picker (a `FolderBrowserDialog` driven through
 /// PowerShell) and re-root to the chosen folder. Returns `1` on success, `0` if
-/// the user cancelled / the dialog is unavailable (the IDE then falls back to a
+/// the user cancelled, or `-1` if unavailable (the IDE then falls back to a
 /// typed-path prompt). The interactive dialog is the user's machine doing its
 /// thing — Mighty just launches it + reads the chosen path back.
 #[no_mangle]
@@ -114,10 +114,14 @@ pub extern "C" fn mui_ws_open_dialog(handle: i64) -> i32 {
     };
     let root = effective_root(ctx);
     match pick_folder_native(&root) {
-        Some(path) if !path.trim().is_empty() => open_folder(ctx, &path),
-        _ => {
-            println!("ws: native folder dialog cancelled / unavailable");
+        FolderDialogPick::Picked(path) => open_folder(ctx, &path),
+        FolderDialogPick::Cancelled => {
+            println!("ws: native folder dialog cancelled");
             0
+        }
+        FolderDialogPick::Unavailable => {
+            println!("ws: native folder dialog unavailable");
+            -1
         }
     }
 }
@@ -367,7 +371,7 @@ pub extern "C" fn mui_lightbulb_click(handle: i64) -> i32 {
 /// palette / quick-open dispatch ladders need only ONE new arm (calling this).
 /// `cmd_id` is a `palette::CMD_OPEN_*` id. Returns: `1` = Open Folder dialog was
 /// launched + applied; `2` = caller should open the typed-path prompt (the
-/// native dialog was cancelled/unavailable — the IDE falls back to a prompt);
+/// native dialog was unavailable — explicit cancel stays cancelled);
 /// `3` = Open Recent was requested (the caller opens the recents picker / first
 /// recent); `0` = not a workspace command (caller falls through).
 #[no_mangle]
@@ -375,11 +379,12 @@ pub extern "C" fn mui_ws_dispatch(handle: i64, cmd_id: i32) -> i32 {
     use crate::palette;
     let id = cmd_id as u32;
     if id == palette::CMD_OPEN_FOLDER {
-        // Prefer the native dialog; signal a prompt fallback when it didn't apply.
-        if mui_ws_open_dialog(handle) == 1 {
-            1
-        } else {
-            2
+        // Prefer the native dialog; signal a prompt fallback only when the
+        // native picker cannot run. Cancel remains a no-op.
+        match mui_ws_open_dialog(handle) {
+            1 => 1,
+            -1 => 2,
+            _ => 0,
         }
     } else if id == palette::CMD_OPEN_RECENT {
         3
@@ -393,17 +398,29 @@ pub extern "C" fn mui_ws_dispatch(handle: i64, cmd_id: i32) -> i32 {
 // ===========================================================================
 
 /// Show a native Windows folder picker and return the chosen absolute path, or
-/// `None` if cancelled / unavailable (non-Windows, or PowerShell/WinForms
-/// missing). Runs a tiny PowerShell snippet that opens a `FolderBrowserDialog`
-/// and prints the selected path; we read it back off stdout.
-fn pick_folder_native(initial_dir: &std::path::Path) -> Option<String> {
+/// Distinguishes cancel from unavailable so Cancel does not drop the user into
+/// the typed-path fallback.
+enum FolderDialogPick {
+    Picked(String),
+    Cancelled,
+    Unavailable,
+}
+
+/// Show a native Windows folder picker and return the chosen absolute path.
+/// Runs a tiny PowerShell snippet that opens a `FolderBrowserDialog` and prints
+/// the selected path; we read it back off stdout.
+fn pick_folder_native(initial_dir: &std::path::Path) -> FolderDialogPick {
     if let Ok(path) = std::env::var("MUI_OPEN_FOLDER_PICK") {
         let trimmed = path.trim();
-        return (!trimmed.is_empty()).then(|| trimmed.to_string());
+        return if trimmed.is_empty() {
+            FolderDialogPick::Cancelled
+        } else {
+            FolderDialogPick::Picked(trimmed.to_string())
+        };
     }
     // A folder dialog only exists on Windows; elsewhere the IDE uses the prompt.
     if !cfg!(windows) {
-        return None;
+        return FolderDialogPick::Unavailable;
     }
     let script = r#"
 Add-Type -AssemblyName System.Windows.Forms | Out-Null
@@ -428,16 +445,18 @@ try {
         .args(["-NoProfile", "-STA", "-Command", script])
         .env("MUI_DIALOG_DIR", initial_dir)
         .stdin(std::process::Stdio::null())
-        .output()
-        .ok()?;
+        .output();
+    let Ok(out) = out else {
+        return FolderDialogPick::Unavailable;
+    };
     if !out.status.success() {
-        return None;
+        return FolderDialogPick::Unavailable;
     }
     let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
     if path.is_empty() {
-        None
+        FolderDialogPick::Cancelled
     } else {
-        Some(path)
+        FolderDialogPick::Picked(path)
     }
 }
 

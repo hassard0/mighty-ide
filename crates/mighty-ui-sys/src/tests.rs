@@ -1343,6 +1343,26 @@ fn workspace_open_dialog_env_pick_reroots_tree_and_records_recent() {
 }
 
 #[test]
+fn workspace_open_dialog_cancel_does_not_fallback_or_mutate() {
+    use crate::wsabi::{mui_ws_open_dialog, mui_ws_recent_count};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let before_root = ctx.workspace.root().to_path_buf();
+
+    std::env::set_var("MUI_OPEN_FOLDER_PICK", "");
+    let opened = mui_ws_open_dialog(h);
+    std::env::remove_var("MUI_OPEN_FOLDER_PICK");
+
+    assert_eq!(opened, 0, "cancelled folder picker should be a no-op");
+    assert_eq!(ctx.workspace.root(), before_root.as_path());
+    assert_eq!(mui_ws_recent_count(h), 0);
+}
+
+#[test]
 fn workspace_open_recent_prunes_missing_folder() {
     use crate::wsabi::{mui_ws_open_recent, mui_ws_recent_count};
 
@@ -1431,6 +1451,26 @@ fn open_file_dialog_env_pick_opens_tab_and_records_recent() {
 }
 
 #[test]
+fn open_file_dialog_cancel_does_not_open_prompt_signal() {
+    use crate::{mui_open_file_dialog, mui_tab_active, mui_tab_count};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_OPEN_FILE_PICK", "");
+    let idx = mui_open_file_dialog(h);
+    std::env::remove_var("MUI_OPEN_FILE_PICK");
+
+    assert_eq!(idx, -2, "cancelled file picker should not request prompt fallback");
+    assert_eq!(mui_tab_count(h), 1);
+    assert_eq!(mui_tab_active(h), 0);
+}
+
+#[test]
 fn save_as_dialog_env_pick_writes_and_binds_untitled_tab() {
     use crate::{mui_active_has_path, mui_ed_dirty, mui_save_as_dialog};
 
@@ -1465,6 +1505,34 @@ fn save_as_dialog_env_pick_writes_and_binds_untitled_tab() {
 
     crate::settings::set_active(before);
     let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn save_as_dialog_cancel_leaves_untitled_dirty() {
+    use crate::{mui_active_has_path, mui_ed_dirty, mui_save_as_dialog};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    crate::settings::set_active(crate::settings::Settings::default());
+
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("fn main() {}");
+    ctx.tabs.set_dirty(ctx.tabs.active(), true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_SAVE_FILE_PICK", "");
+    let saved = mui_save_as_dialog(h);
+    std::env::remove_var("MUI_SAVE_FILE_PICK");
+
+    assert_eq!(saved, -2, "cancelled Save As should not request prompt fallback");
+    assert_eq!(mui_active_has_path(h), 0);
+    assert_eq!(mui_ed_dirty(h), 1);
+    assert!(ctx.tabs.active_path().is_none());
+
+    crate::settings::set_active(before);
 }
 
 #[test]

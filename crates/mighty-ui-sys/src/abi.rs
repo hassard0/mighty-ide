@@ -2917,17 +2917,24 @@ pub extern "C" fn mui_tab_open_path(handle: i64) -> i32 {
 }
 
 /// Open a native Windows file picker and open the selected file in a tab.
-/// Returns the resulting tab index, or `-1` when the picker was cancelled or is
-/// unavailable. The Mighty side then falls back to the typed-path prompt.
+/// Returns the resulting tab index, `-2` when cancelled, or `-1` when the picker
+/// is unavailable. Mighty only falls back to the typed-path prompt for `-1`.
 #[no_mangle]
 pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
     let root = crate::wsabi::effective_root(ctx);
-    let Some(path) = pick_open_file_native(&root) else {
-        println!("mui_open_file_dialog: native file dialog cancelled / unavailable");
-        return -1;
+    let path = match pick_open_file_native(&root) {
+        FileDialogPick::Picked(path) => path,
+        FileDialogPick::Cancelled => {
+            println!("mui_open_file_dialog: native file dialog cancelled");
+            return -2;
+        }
+        FileDialogPick::Unavailable => {
+            println!("mui_open_file_dialog: native file dialog unavailable");
+            return -1;
+        }
     };
     let idx = ctx.tabs.open_path(path.clone());
     sync_active_path(ctx);
@@ -7591,8 +7598,9 @@ fn save_confirm_tab(ctx: &mut MuiContext, idx: usize) -> bool {
             .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
             .filter(|s| !s.trim().is_empty())
             .unwrap_or_else(|| "untitled.mty".to_string());
-        let Some(target) = pick_save_file_native(&root, &suggested) else {
-            return false;
+        let target = match pick_save_file_native(&root, &suggested) {
+            FileDialogPick::Picked(path) => path,
+            FileDialogPick::Cancelled | FileDialogPick::Unavailable => return false,
         };
         save_active_to_path(ctx, target) == 0
     }
@@ -7635,8 +7643,9 @@ pub extern "C" fn mui_save_as(handle: i64) -> i32 {
     save_active_to_path(ctx, target)
 }
 
-/// Save-As through a native Windows save-file picker. Returns `0` on success or
-/// `-1` when cancelled/unavailable/failed, letting Mighty keep a fallback prompt.
+/// Save-As through a native Windows save-file picker. Returns `0` on success,
+/// `-2` when cancelled, or `-1` when unavailable/failed, letting Mighty keep a
+/// fallback prompt only when the native picker could not run.
 #[no_mangle]
 pub extern "C" fn mui_save_as_dialog(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -7649,9 +7658,16 @@ pub extern "C" fn mui_save_as_dialog(handle: i64) -> i32 {
         .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| "untitled.mty".to_string());
-    let Some(target) = pick_save_file_native(&root, &suggested) else {
-        println!("mui_save_as_dialog: native save dialog cancelled / unavailable");
-        return -1;
+    let target = match pick_save_file_native(&root, &suggested) {
+        FileDialogPick::Picked(path) => path,
+        FileDialogPick::Cancelled => {
+            println!("mui_save_as_dialog: native save dialog cancelled");
+            return -2;
+        }
+        FileDialogPick::Unavailable => {
+            println!("mui_save_as_dialog: native save dialog unavailable");
+            return -1;
+        }
     };
     save_active_to_path(ctx, target)
 }
@@ -7681,13 +7697,23 @@ fn save_active_to_path(ctx: &mut MuiContext, target: PathBuf) -> i32 {
     }
 }
 
-fn pick_open_file_native(initial_dir: &std::path::Path) -> Option<PathBuf> {
+enum FileDialogPick {
+    Picked(PathBuf),
+    Cancelled,
+    Unavailable,
+}
+
+fn pick_open_file_native(initial_dir: &std::path::Path) -> FileDialogPick {
     if let Ok(path) = std::env::var("MUI_OPEN_FILE_PICK") {
         let trimmed = path.trim();
-        return (!trimmed.is_empty()).then(|| PathBuf::from(trimmed));
+        return if trimmed.is_empty() {
+            FileDialogPick::Cancelled
+        } else {
+            FileDialogPick::Picked(PathBuf::from(trimmed))
+        };
     }
     if !cfg!(windows) {
-        return None;
+        return FileDialogPick::Unavailable;
     }
     let script = r#"
 Add-Type -AssemblyName System.Windows.Forms | Out-Null
@@ -7711,13 +7737,17 @@ try {
     run_file_dialog_script(script, initial_dir, None)
 }
 
-fn pick_save_file_native(initial_dir: &std::path::Path, suggested_name: &str) -> Option<PathBuf> {
+fn pick_save_file_native(initial_dir: &std::path::Path, suggested_name: &str) -> FileDialogPick {
     if let Ok(path) = std::env::var("MUI_SAVE_FILE_PICK") {
         let trimmed = path.trim();
-        return (!trimmed.is_empty()).then(|| PathBuf::from(trimmed));
+        return if trimmed.is_empty() {
+            FileDialogPick::Cancelled
+        } else {
+            FileDialogPick::Picked(PathBuf::from(trimmed))
+        };
     }
     if !cfg!(windows) {
-        return None;
+        return FileDialogPick::Unavailable;
     }
     let script = r#"
 Add-Type -AssemblyName System.Windows.Forms | Out-Null
@@ -7750,7 +7780,7 @@ fn run_file_dialog_script(
     script: &str,
     initial_dir: &std::path::Path,
     suggested_name: Option<&str>,
-) -> Option<PathBuf> {
+) -> FileDialogPick {
     let mut cmd = std::process::Command::new("powershell");
     cmd.args(["-NoProfile", "-STA", "-Command", script])
         .env("MUI_DIALOG_DIR", initial_dir)
@@ -7758,15 +7788,17 @@ fn run_file_dialog_script(
     if let Some(name) = suggested_name {
         cmd.env("MUI_DIALOG_FILE", name);
     }
-    let out = cmd.output().ok()?;
+    let Ok(out) = cmd.output() else {
+        return FileDialogPick::Unavailable;
+    };
     if !out.status.success() {
-        return None;
+        return FileDialogPick::Unavailable;
     }
     let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
     if path.is_empty() {
-        None
+        FileDialogPick::Cancelled
     } else {
-        Some(PathBuf::from(path))
+        FileDialogPick::Picked(PathBuf::from(path))
     }
 }
 
