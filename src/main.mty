@@ -2232,9 +2232,23 @@ fn main() {
             let ok = mui_term_open(h)
             if ok == 1 { term_focus = true; mui_log_terminal(h) }
           }
-        } else if ctrl_held(mods) && (cp == 115 || cp == 83) {  // Ctrl+S : save
-          // Untitled buffer (no path): open a Save-As prompt instead of failing.
-          if mui_active_has_path(h) == 0 {
+        } else if ctrl_held(mods) && (cp == 115 || cp == 83) {  // Ctrl+S save / Ctrl+Shift+S Save As
+          // Save As must always ask for a destination; plain Save only writes
+          // directly when the active tab is already file-backed.
+          if shift_held(mods) {
+            let sr = mui_save_as_dialog(h)
+            if sr == 0 {
+              mui_tab_set_dirty(h, mui_tab_active(h), 0)
+              let _r = mui_diag_refresh(h)
+              let _g = mui_scm_refresh(h)
+              let _o = mui_outline_refresh(h)
+              let _pr = mui_problems_refresh(h)
+            } else {
+              mui_prompt_open(h, prompt_save_as())
+              prompt_kind = prompt_save_as()
+              find_nav = false
+            }
+          } else if mui_active_has_path(h) == 0 {
             let sr = mui_save_as_dialog(h)
             if sr == 0 {
               mui_tab_set_dirty(h, mui_tab_active(h), 0)

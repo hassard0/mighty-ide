@@ -1452,6 +1452,14 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         !main.contains("let _a = mui_codeaction_apply(h)"),
         "code action accept must not blindly reload after a no-op action"
     );
+    assert!(
+        main.contains("Ctrl+S save / Ctrl+Shift+S Save As"),
+        "main editor key routing must keep Ctrl+Shift+S on the Save As path"
+    );
+    assert!(
+        main.contains("if shift_held(mods) {\n            let sr = mui_save_as_dialog(h)"),
+        "Ctrl+Shift+S should force the native Save As dialog even for file-backed tabs"
+    );
 }
 
 /// Shim-side window-chrome + zoom interception (the v0.36-parser-safe move of the
