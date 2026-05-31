@@ -296,6 +296,45 @@ impl AgentTopology {
         self.model.supervisors.len()
     }
 
+    fn summary_label(count: usize, singular: &str, plural: &str) -> String {
+        let label = if count == 1 { singular } else { plural };
+        format!("{count} {label}")
+    }
+
+    fn summary_line(&self) -> String {
+        [
+            Self::summary_label(self.agent_count(), "agent", "agents"),
+            Self::summary_label(self.protocol_count(), "protocol", "protocols"),
+            Self::summary_label(self.tool_count(), "tool", "tools"),
+            Self::summary_label(self.supervisor_count(), "supervisor", "supervisors"),
+        ]
+        .join(" \u{00b7} ")
+    }
+
+    fn sidebar_summary_line(&self, avail_chars: usize) -> String {
+        let full = self.summary_line();
+        if full.chars().count() <= avail_chars {
+            return full;
+        }
+        let compact = [
+            Self::summary_label(self.agent_count(), "agent", "agents"),
+            Self::summary_label(self.protocol_count(), "protocol", "protocols"),
+            Self::summary_label(self.tool_count(), "tool", "tools"),
+        ]
+        .join(" \u{00b7} ");
+        if compact.chars().count() <= avail_chars {
+            compact
+        } else {
+            format!(
+                "{}a \u{00b7} {}p \u{00b7} {}t \u{00b7} {}s",
+                self.agent_count(),
+                self.protocol_count(),
+                self.tool_count(),
+                self.supervisor_count()
+            )
+        }
+    }
+
     /// Total agent→protocol edges (one per agent that implements a protocol).
     pub fn edge_count(&self) -> usize {
         self.model
@@ -540,15 +579,8 @@ impl AgentTopology {
         );
 
         // Summary line: counts.
-        let summary = format!(
-            "{} agents \u{00b7} {} protocols \u{00b7} {} tools \u{00b7} {} supervisors",
-            self.agent_count(),
-            self.protocol_count(),
-            self.tool_count(),
-            self.supervisor_count()
-        );
-        let mut shown = summary;
         let avail = ((sw - 24.0) / (adv * 0.92)).floor() as usize;
+        let mut shown = self.sidebar_summary_line(avail);
         if shown.chars().count() > avail && avail > 1 {
             shown = shown.chars().take(avail - 1).collect::<String>() + "\u{2026}";
         }
@@ -969,6 +1001,22 @@ mod tests {
         assert_eq!(t.supervisor_count(), 1);
         // Both agents implement a protocol -> 2 edges.
         assert_eq!(t.edge_count(), 2);
+    }
+
+    #[test]
+    fn summary_line_pluralizes_counts() {
+        let t = seeded();
+        assert_eq!(
+            t.summary_line(),
+            "2 agents \u{00b7} 2 protocols \u{00b7} 1 tool \u{00b7} 1 supervisor"
+        );
+    }
+
+    #[test]
+    fn sidebar_summary_uses_clean_compact_form_when_narrow() {
+        let t = seeded();
+        assert_eq!(t.sidebar_summary_line(32), "2 agents \u{00b7} 2 protocols \u{00b7} 1 tool");
+        assert_eq!(t.sidebar_summary_line(10), "2a \u{00b7} 2p \u{00b7} 1t \u{00b7} 1s");
     }
 
     #[test]
