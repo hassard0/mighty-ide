@@ -36,6 +36,17 @@ cp target/debug/mighty_ui_sys.dll.lib vendor/mighty_ui_sys.dll.lib
 cp target/debug/mighty_ui_sys.dll     target/mighty_ui_sys.dll
 
 echo "[4/4] mty build src/main.mty -> target/main.exe"
+rm -f target/main.exe target/main.o
 MTY_LINKER="$CLANG" "$MTY" build src/main.mty --out-dir target
 
-echo "OK: $(ls -la target/main.exe)"
+if [[ ! -s target/main.exe ]]; then
+  echo "ERROR: mty build did not produce target/main.exe" >&2
+  if [[ -s target/main.o ]]; then
+    echo "       target/main.o exists, so the compiler stopped after object emission." >&2
+    echo "       Check linker discovery / MTY_LINKER handling." >&2
+  fi
+  exit 1
+fi
+
+ls -la target/main.exe
+echo "OK: target/main.exe"

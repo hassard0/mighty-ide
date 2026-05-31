@@ -2893,7 +2893,8 @@ pub extern "C" fn mui_tab_open_path(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    let raw = String::from_utf8_lossy(&ctx.path_stage).into_owned();
+    let staged = std::mem::take(&mut ctx.path_stage);
+    let raw = String::from_utf8_lossy(&staged).into_owned();
     let raw = raw.trim();
     if raw.is_empty() {
         return ctx.tabs.active() as i32;
@@ -7403,7 +7404,8 @@ pub extern "C" fn mui_save_as(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    let raw = String::from_utf8_lossy(&ctx.path_stage).into_owned();
+    let staged = std::mem::take(&mut ctx.path_stage);
+    let raw = String::from_utf8_lossy(&staged).into_owned();
     let raw = raw.trim();
     if raw.is_empty() {
         return -1;

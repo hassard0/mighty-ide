@@ -292,6 +292,7 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     }
     let idx = mui_tab_open_path(handle);
     assert_eq!(idx, 1);
+    assert!(ctx.path_stage.is_empty());
     assert_eq!(mui_tab_count(handle), 2);
     assert_eq!(mui_tab_active(handle), 1);
 
@@ -303,6 +304,7 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
         mui_path_push(handle, *b as u32);
     }
     assert_eq!(mui_tab_open_path(handle), -1);
+    assert!(ctx.path_stage.is_empty());
     assert_eq!(mui_tab_count(handle), 2);
     assert_eq!(mui_tab_active(handle), 1);
     mui_path_clear(handle);
@@ -1193,6 +1195,40 @@ fn save_as_dialog_env_pick_writes_and_binds_untitled_tab() {
     assert_eq!(mui_ed_dirty(h), 0);
     assert_eq!(ctx.tabs.active_path().as_deref(), Some(target.as_path()));
     assert_eq!(std::fs::read_to_string(&target).unwrap(), "fn main() {\n");
+
+    crate::settings::set_active(before);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn save_as_prompt_consumes_staged_path() {
+    use crate::{mui_active_has_path, mui_ed_dirty, mui_path_push, mui_save_as};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    crate::settings::set_active(crate::settings::Settings::default());
+
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("let x = 1");
+    ctx.tabs.set_dirty(ctx.tabs.active(), true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let root = std::env::temp_dir().join(format!("mui_save_as_prompt_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let target = root.join("typed.mty");
+    for b in target.to_string_lossy().as_bytes() {
+        mui_path_push(h, *b as u32);
+    }
+
+    assert_eq!(mui_save_as(h), 0);
+    assert!(ctx.path_stage.is_empty());
+    assert_eq!(mui_active_has_path(h), 1);
+    assert_eq!(mui_ed_dirty(h), 0);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(target.as_path()));
+    assert_eq!(std::fs::read_to_string(&target).unwrap(), "let x = 1\n");
 
     crate::settings::set_active(before);
     let _ = std::fs::remove_dir_all(&root);

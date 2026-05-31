@@ -1005,3 +1005,20 @@ comfortable with small tagged structs or enums.
   the shim expose `SearchClick { kind, row }` or similar instead of one function per
   action family. If structs are not ready, consider generated constants on the Mighty
   side so `search_click_replace_all()` replaces raw `2`.
+
+### L50. `mty build` can exit success after object-only output when linker discovery fails **[language/tooling gap, P1]**
+While re-verifying the IDE build on May 31, 2026, `mty build src/main.mty --out-dir target`
+printed `wrote object target\main.o (no linker found; set $MTY_LINKER)` and returned
+success even though `target/main.exe` was not produced. Setting `MTY_LINKER` to
+`C:\Program Files\LLVM\bin\clang.exe` and also trying `MTY_LINKER=clang` with LLVM
+on PATH still produced object-only output in this environment.
+
+- **Why it matters for the IDE:** `build-ide.sh` used to wrap `ls target/main.exe`
+  inside `echo "$( ... )"`, so `set -e` did not catch the missing executable. A
+  headless or CI build could look green while shipping no runnable app.
+- **IDE-side fix:** `build-ide.sh` now deletes stale `target/main.exe`/`main.o`
+  before the build and explicitly fails if `target/main.exe` is missing or empty.
+- **Mighty ask:** `mty build` should exit non-zero when the requested native
+  executable is not produced. It should also honor `MTY_LINKER` on Windows paths
+  with spaces, or emit the exact env/path it tried so linker discovery failures
+  are actionable.
