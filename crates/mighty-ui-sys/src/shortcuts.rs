@@ -272,6 +272,19 @@ impl Overrides {
             .filter(|&id| is_remappable(id))
     }
 
+    /// Return true when `chord` used to be a command's default chord, but that
+    /// command now has an override. The event loop consumes these freed defaults
+    /// so a remapped command does not continue firing from its old hard-coded
+    /// branch.
+    pub fn is_freed_default(&self, cp: i32, mods: i32) -> bool {
+        let chord = Chord::new(cp, mods);
+        COMMANDS.iter().any(|cmd| {
+            self.map.contains_key(&cmd.id)
+                && is_remappable(cmd.id)
+                && default_chord(cmd.id) == Some(chord)
+        })
+    }
+
     /// Serialize to the `keybindings.toml` blob. One `[overrides]` table with
     /// `cmd_<id> = "mods:cp"` lines. Human-readable comment header.
     pub fn render(&self) -> String {
@@ -460,6 +473,11 @@ impl ShortcutsEngine {
     /// Borrow the override map (so the chord router can resolve remaps).
     pub fn overrides(&self) -> &Overrides {
         &self.overrides
+    }
+
+    #[cfg(test)]
+    pub(crate) fn overrides_mut(&mut self) -> &mut Overrides {
+        &mut self.overrides
     }
 
     /// Open the overlay: clear the filter, rebuild rows, select the first.
@@ -961,6 +979,8 @@ mod tests {
         // New chord resolves; old default no longer fires.
         assert_eq!(ov.resolve('k' as i32, MOD_ALT), Some(CMD_ZEN_MODE));
         assert_eq!(ov.resolve('z' as i32, MOD_ALT), None);
+        assert!(ov.is_freed_default('z' as i32, MOD_ALT));
+        assert!(!ov.is_freed_default('k' as i32, MOD_ALT));
     }
 
     #[test]

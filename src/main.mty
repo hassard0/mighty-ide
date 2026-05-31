@@ -2008,7 +2008,18 @@ fn main() {
       } else if tag == ev_char() {
         let cp = mui_event_codepoint(h)
         let mods = mui_event_mods(h)
-        if is_palette_chord(cp, mods) {                     // Ctrl+Shift+P : palette
+        let routed_cmd = mui_chord_command_id(h, cp, mods)
+        if routed_cmd >= 0 {
+          // Any remappable default or override goes through the shared command
+          // dispatcher below. That keeps shortcut remaps, palette Enter, and
+          // Quick-Open command mode behavior identical.
+          command_click_id = routed_cmd
+          typing = false
+        } else if routed_cmd == -2 {
+          // A command was remapped away from this old default chord; consume it
+          // so the legacy hard-coded branch does not still fire.
+          typing = false
+        } else if is_palette_chord(cp, mods) {              // Ctrl+Shift+P : palette
           mui_palette_open(h)
           palette_open = true
           typing = false
