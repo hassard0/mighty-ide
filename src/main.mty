@@ -1040,7 +1040,6 @@ fn main() {
   }
   // The shim opened argv[1] as tab 0 with its model populated from disk; load
   // it into the active model (resets cursor to top) and seed undo history.
-  let active0 = mui_tab_active(h)
   let _n0 = mui_ed_load(h)
   mui_ed_undo_reset(h)
   log("mighty-ide: buffer ready")
@@ -1664,11 +1663,11 @@ fn main() {
             if rf == 1 {
               mui_ed_undo_record(h)
               let _n = mui_replace_all(h)
-              mui_tab_set_dirty(h, active0, 1)
+              mui_tab_set_dirty(h, mui_tab_active(h), 1)
             } else {
               mui_ed_undo_record(h)
               let _r = mui_replace_next(h)
-              mui_tab_set_dirty(h, active0, 1)
+              mui_tab_set_dirty(h, mui_tab_active(h), 1)
             }
           }
         }
@@ -1769,7 +1768,7 @@ fn main() {
               }
               let src = mui_save_as(h)
               if src == 0 {
-                mui_tab_set_dirty(h, active0, 0)
+                mui_tab_set_dirty(h, mui_tab_active(h), 0)
                 let _r = mui_diag_refresh(h)
                 let _g = mui_scm_refresh(h)
                 let _o = mui_outline_refresh(h)
@@ -1831,7 +1830,7 @@ fn main() {
           let is_ident = (cp >= 97 && cp <= 122) || (cp >= 65 && cp <= 90) || (cp >= 48 && cp <= 57) || cp == 95
           if is_ident {
             mui_ed_insert_char(h, cp)
-            mui_tab_set_dirty(h, active0, 1)
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
             let _c = mui_ed_complete_request(h)
             mui_snippet_inject_completions(h)
             let cnt = mui_complete_count(h)
@@ -1841,7 +1840,7 @@ fn main() {
             completing = false
             if cp >= 32 && cp < 127 {
               mui_ed_insert_char(h, cp)
-              mui_tab_set_dirty(h, active0, 1)
+              mui_tab_set_dirty(h, mui_tab_active(h), 1)
             }
           }
         } else if tag == ev_key() {
@@ -1859,7 +1858,7 @@ fn main() {
             } else {
               let _a = mui_ed_complete_accept(h)
             }
-            mui_tab_set_dirty(h, active0, 1)
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
             mui_complete_cancel(h)
             completing = false
             typing = false
@@ -1868,7 +1867,7 @@ fn main() {
             completing = false
           } else if k == key_backspace() {
             mui_ed_backspace(h)
-            mui_tab_set_dirty(h, active0, 1)
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
             let _c = mui_ed_complete_request(h)
             mui_snippet_inject_completions(h)
             let cnt = mui_complete_count(h)
@@ -1889,7 +1888,7 @@ fn main() {
             } else {
               let _a = mui_ed_complete_accept(h)
             }
-            mui_tab_set_dirty(h, active0, 1)
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
             mui_complete_cancel(h)
             completing = false
             typing = false
@@ -1917,7 +1916,7 @@ fn main() {
             let nfiles = mui_rename_commit(h, rename_line, rename_col)
             renaming = false
             if nfiles >= 1 {
-              mui_tab_set_dirty(h, active0, 0)
+              mui_tab_set_dirty(h, mui_tab_active(h), 0)
               let _r = mui_diag_refresh(h)
             }
           }
@@ -1936,7 +1935,7 @@ fn main() {
             code_action_open = false
             let _n = mui_ed_load(h)
             mui_ed_undo_reset(h)
-            mui_tab_set_dirty(h, active0, 0)
+            mui_tab_set_dirty(h, mui_tab_active(h), 0)
             let _r = mui_diag_refresh(h)
           } else if k == key_escape() {
             mui_codeaction_cancel(h)
@@ -1955,7 +1954,7 @@ fn main() {
             code_action_open = false
             let _n = mui_ed_load(h)
             mui_ed_undo_reset(h)
-            mui_tab_set_dirty(h, active0, 0)
+            mui_tab_set_dirty(h, mui_tab_active(h), 0)
             let _r = mui_diag_refresh(h)
           } else {
             mui_codeaction_cancel(h)
@@ -2109,7 +2108,7 @@ fn main() {
           if mui_active_has_path(h) == 0 {
             let sr = mui_save_as_dialog(h)
             if sr == 0 {
-              mui_tab_set_dirty(h, active0, 0)
+              mui_tab_set_dirty(h, mui_tab_active(h), 0)
               let _r = mui_diag_refresh(h)
               let _g = mui_scm_refresh(h)
               let _o = mui_outline_refresh(h)
@@ -2123,7 +2122,7 @@ fn main() {
             let rc = mui_ed_save(h)
             if rc == 0 { log("mighty-ide: saved") } else { log("mighty-ide: save FAILED") }
             if rc == 0 {
-              mui_tab_set_dirty(h, active0, 0)
+              mui_tab_set_dirty(h, mui_tab_active(h), 0)
               let _r = mui_diag_refresh(h)
               let _g = mui_scm_refresh(h)
               let _o = mui_outline_refresh(h)
@@ -2173,7 +2172,7 @@ fn main() {
           if shift_held(mods) {                                  // Ctrl+Shift+D : duplicate line/sel
             mui_ed_undo_record(h)
             mui_ed_duplicate(h)
-            mui_tab_set_dirty(h, active0, 1)
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
           } else {                                               // Ctrl+D : add caret at next occurrence
             let _d = mui_ed_add_caret_next(h)
           }
@@ -2187,7 +2186,7 @@ fn main() {
           mui_ed_undo_record(h)
           typing = false
           mui_ed_toggle_comment(h)
-          mui_tab_set_dirty(h, active0, 1)
+          mui_tab_set_dirty(h, mui_tab_active(h), 1)
         } else if ctrl_held(mods) && (cp == 98 || cp == 66) {    // Ctrl+B : toggle sidebar
           let _s = mui_sidebar_toggle(h)
         } else if ctrl_held(mods) && (cp == 119 || cp == 87) {   // Ctrl+W : close active tab
@@ -2218,7 +2217,7 @@ fn main() {
           // Bracket/quote auto-close + skip-over at EVERY caret (falls back to a
           // plain insert per-caret where the smart path declines).
           mui_ed_insert_smart_multi(h, cp)
-          mui_tab_set_dirty(h, active0, 1)
+          mui_tab_set_dirty(h, mui_tab_active(h), 1)
           // Inline AI: the current ghost (if any) is now stale — dismiss + re-arm
           // the debounced request so a fresh suggestion can follow the pause.
           mui_ghost_dismiss(h)
@@ -2336,19 +2335,19 @@ fn main() {
             mui_ed_undo_record(h)
             typing = false
             let _a = mui_ghost_accept(h)
-            mui_tab_set_dirty(h, active0, 1)
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
           } else if mui_snippet_try_expand(h) == 1 {
             // (4) The word before the cursor is a snippet prefix -> expand it,
             // begin the tab-stop session, select the first stop. (Step (3),
             // completion dropdown, is handled in the `completing` branch above.)
             typing = false
-            mui_tab_set_dirty(h, active0, 1)
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
             mui_ghost_dismiss(h)
           } else {
             // (5) Nothing took the Tab -> insert an indent.
             if !typing { mui_ed_undo_record(h); typing = true }
             mui_ed_insert_char_multi(h, 9)
-            mui_tab_set_dirty(h, active0, 1)
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
           }
         } else if k == key_left() {
           let kmods = mui_event_mods(h)
@@ -2368,7 +2367,7 @@ fn main() {
             // the suggestion stays as the ghost.
             mui_ed_undo_record(h)
             let _a = mui_ghost_accept_word(h)
-            mui_tab_set_dirty(h, active0, 1)
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
           } else if ctrl_held(kmods) {
             mui_ghost_dismiss(h)
             mui_ed_move_word_multi(h, 1, ext)                 // Ctrl+Right : word right
@@ -2387,7 +2386,7 @@ fn main() {
             find_nav = false
             mui_ed_undo_record(h)
             mui_ed_move_lines_up(h)
-            mui_tab_set_dirty(h, active0, 1)
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
           } else {
             mui_ed_move_ext_multi(h, dir_up(), ext_flag(shift_held(kmods)))
           }
@@ -2402,7 +2401,7 @@ fn main() {
             find_nav = false
             mui_ed_undo_record(h)
             mui_ed_move_lines_down(h)
-            mui_tab_set_dirty(h, active0, 1)
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
           } else {
             mui_ed_move_ext_multi(h, dir_down(), ext_flag(shift_held(kmods)))
           }
@@ -2423,7 +2422,7 @@ fn main() {
           typing = false
           // Backspace at EVERY caret (smart pair-delete where applicable).
           mui_ed_backspace_multi(h)
-          mui_tab_set_dirty(h, active0, 1)
+          mui_tab_set_dirty(h, mui_tab_active(h), 1)
           mui_ghost_dismiss(h)                                 // edit: ghost stale, re-arm
           mui_ghost_arm(h)
         } else if k == key_delete() {
@@ -2431,7 +2430,7 @@ fn main() {
           mui_ed_undo_record(h)
           typing = false
           mui_ed_delete_multi(h)
-          mui_tab_set_dirty(h, active0, 1)
+          mui_tab_set_dirty(h, mui_tab_active(h), 1)
           mui_ghost_dismiss(h)
           mui_ghost_arm(h)
         } else if k == key_enter() {
@@ -2446,7 +2445,7 @@ fn main() {
             mui_ed_undo_record(h)
             typing = false
             mui_ed_newline_indent_multi(h)
-            mui_tab_set_dirty(h, active0, 1)
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
             mui_ghost_dismiss(h)                               // edit: ghost stale, re-arm
             mui_ghost_arm(h)
           }
@@ -2878,7 +2877,7 @@ fn main() {
           if mui_active_has_path(h) == 0 {
             let sr = mui_save_as_dialog(h)
             if sr == 0 {
-              mui_tab_set_dirty(h, active0, 0)
+              mui_tab_set_dirty(h, mui_tab_active(h), 0)
               let _r = mui_diag_refresh(h)
               let _g = mui_scm_refresh(h)
               let _o = mui_outline_refresh(h)
@@ -2890,7 +2889,7 @@ fn main() {
           } else {
             let rc = mui_ed_save(h)
             if rc == 0 {
-              mui_tab_set_dirty(h, active0, 0)
+              mui_tab_set_dirty(h, mui_tab_active(h), 0)
               let _r = mui_diag_refresh(h)
             }
           }
