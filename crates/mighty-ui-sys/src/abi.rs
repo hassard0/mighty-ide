@@ -2841,7 +2841,7 @@ pub(crate) fn sync_active_path(ctx: &mut MuiContext) {
     ctx.language = path
         .as_ref()
         .map(|p| crate::langdetect::detect_path(p))
-        .unwrap_or(crate::langdetect::Language::PlainText);
+        .unwrap_or(crate::langdetect::Language::Mighty);
     if path.is_some() {
         ctx.welcome.allow_empty_auto();
     }

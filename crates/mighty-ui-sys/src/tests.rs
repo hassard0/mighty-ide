@@ -263,6 +263,7 @@ fn save_staging_writes_then_load_reads_back_round_trip() {
 
 #[test]
 fn tab_abi_open_switch_close_and_byte_round_trip() {
+    use crate::langdetect::Language;
     use crate::{
         mui_path_push, mui_tab_active, mui_tab_close, mui_tab_count, mui_tab_cursor_col,
         mui_tab_cursor_line, mui_tab_load, mui_tab_load_byte, mui_tab_open_path, mui_tab_scroll,
@@ -304,6 +305,7 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     mui_tab_store_commit(handle, 0, 1, 0, 0);
     mui_tab_switch(handle, 0);
     assert_eq!(mui_tab_active(handle), 0);
+    assert_eq!(ctx.language, Language::Mighty);
     assert_eq!(mui_tab_load(handle, 0), 4);
     assert_eq!(mui_tab_cursor_line(handle, 0), 1);
     assert_eq!(mui_tab_cursor_col(handle, 0), 0);
