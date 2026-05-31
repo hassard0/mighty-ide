@@ -817,6 +817,47 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_CLEAR_NOTIFICATIONS)
         .unwrap();
     assert_eq!(clear_notifications.label, "Notifications: Clear All Toasts");
+
+    let save_all = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_SAVE_ALL)
+        .unwrap();
+    assert_eq!(save_all.label, "Save All");
+}
+
+#[test]
+fn save_all_writes_dirty_file_backed_tabs_and_leaves_untitled_dirty() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_save_all_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let a = root.join("a.mty");
+    let b = root.join("b.mty");
+    std::fs::write(&a, "old a").unwrap();
+    std::fs::write(&b, "old b").unwrap();
+
+    let ia = ctx.tabs.open_path(a.clone());
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("new a");
+    ctx.tabs.set_dirty(ia, true);
+    let ib = ctx.tabs.open_path(b.clone());
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("new b");
+    ctx.tabs.set_dirty(ib, true);
+    let iu = ctx.tabs.new_untitled();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("untitled");
+    ctx.tabs.set_dirty(iu, true);
+
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    assert_eq!(crate::mui_save_all(handle), 2);
+    assert_eq!(std::fs::read_to_string(&a).unwrap(), "new a\n");
+    assert_eq!(std::fs::read_to_string(&b).unwrap(), "new b\n");
+    assert!(!ctx.tabs.is_dirty(ia));
+    assert!(!ctx.tabs.is_dirty(ib));
+    assert!(ctx.tabs.is_dirty(iu));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Saved 2; 1 untitled file need Save As");
+
+    let _ = std::fs::remove_dir_all(&root);
 }
 
 #[test]
@@ -1061,6 +1102,10 @@ fn chord_command_id_resolves_palette_commands_for_mighty_dispatch() {
     assert_eq!(
         mui_chord_command_id(handle, 's' as i32, MOD_CTRL | MOD_SHIFT),
         crate::palette::CMD_SAVE_AS as i32
+    );
+    assert_eq!(
+        mui_chord_command_id(handle, 's' as i32, MOD_CTRL | MOD_ALT),
+        crate::palette::CMD_SAVE_ALL as i32
     );
     ctx.shortcuts
         .overrides_mut()
@@ -1895,6 +1940,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_OPEN_FILE, "cmd_open_file"),
         (CMD_SAVE, "cmd_save"),
         (CMD_SAVE_AS, "cmd_save_as"),
+        (CMD_SAVE_ALL, "cmd_save_all"),
         (CMD_FIND, "cmd_find"),
         (CMD_GOTO_LINE, "cmd_goto_line"),
         (CMD_GOTO_DEFINITION, "cmd_goto_definition"),

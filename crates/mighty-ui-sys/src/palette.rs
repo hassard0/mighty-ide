@@ -129,6 +129,8 @@ pub const CMD_COPY_ACTIVE_FILE_PATH: u32 = 50;
 pub const CMD_COPY_ACTIVE_FILE_RELATIVE_PATH: u32 = 51;
 /// Clear every visible toast notification.
 pub const CMD_CLEAR_NOTIFICATIONS: u32 = 52;
+/// Save every dirty file-backed tab.
+pub const CMD_SAVE_ALL: u32 = 53;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -138,6 +140,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_OPEN_FILE,        label: "Open File",          keybinding: "Ctrl+O" },
     Command { id: CMD_SAVE,             label: "Save",               keybinding: "Ctrl+S" },
     Command { id: CMD_SAVE_AS,          label: "Save As",            keybinding: "Ctrl+Shift+S" },
+    Command { id: CMD_SAVE_ALL,         label: "Save All",           keybinding: "Ctrl+Alt+S" },
     Command { id: CMD_RENAME_ACTIVE_FILE, label: "File: Rename Active File", keybinding: "" },
     Command { id: CMD_REVEAL_ACTIVE_FILE, label: "File: Reveal Active File in File Tree", keybinding: "" },
     Command { id: CMD_REVEAL_ACTIVE_FILE_IN_OS, label: "File: Show Active File in File Manager", keybinding: "" },
@@ -433,6 +436,7 @@ impl PaletteEngine {
             CMD_OPEN_FILE => (icons::NEW_FILE, "Open a file from the workspace", false),
             CMD_SAVE => (icons::FILE_MTY, "Write the active file to disk", false),
             CMD_SAVE_AS => (icons::FILE_MTY, "Save the active file under a new path", false),
+            CMD_SAVE_ALL => (icons::FILE_MTY, "Write every dirty file-backed tab to disk", false),
             CMD_RENAME_ACTIVE_FILE => (icons::FILE_MTY, "Rename the active file on disk", false),
             CMD_REVEAL_ACTIVE_FILE => (icons::SEARCH, "Show the active file in the IDE file tree", false),
             CMD_REVEAL_ACTIVE_FILE_IN_OS => (icons::EXPLORER, "Show the active file in the OS file manager", false),

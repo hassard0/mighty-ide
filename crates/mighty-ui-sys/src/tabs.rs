@@ -96,6 +96,10 @@ impl TabStore {
         self.tabs.get(i)
     }
 
+    pub fn get_mut(&mut self, i: usize) -> Option<&mut Tab> {
+        self.tabs.get_mut(i)
+    }
+
     /// Find an already-open tab whose path matches `path` (canonicalized loosely
     /// via direct equality). Returns its index.
     pub fn find_by_path(&self, path: &Path) -> Option<usize> {

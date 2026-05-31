@@ -1172,3 +1172,18 @@ surfaces underneath.
 - **Language note:** no new gap surfaced. This is another case where shim-owned
   geometry is the right boundary: Mighty routes a scalar click result, while Rust
   computes the overlay card rectangles and removes the clicked item.
+
+### L60. Save All reinforces shim-owned tab state **[finding, P3]**
+Adding **Save All** did not require new Mighty language work because the shim
+already owns tab paths, dirty flags, and authoritative text models. Mighty adds
+one scalar command id and calls `mui_save_all`; Rust iterates dirty file-backed
+tabs, applies the same on-save transforms as normal Save, writes each path, and
+leaves untitled buffers dirty with an explanatory toast.
+
+- **Why it matters for the IDE:** multi-tab work must have a single reliable
+  command for persisting all open edits. Saving only the active tab is a daily
+  workflow footgun once the editor supports tabs, split panes, search, tests, and
+  background tooling.
+- **Language note:** no new gap surfaced. This feature fits the current boundary:
+  Mighty should dispatch the command, while Rust owns path I/O, dirty tab
+  iteration, save transforms, and user-facing summary text.

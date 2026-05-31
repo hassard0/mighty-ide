@@ -7647,6 +7647,17 @@ fn save_bytes_for_active(ctx: &mut MuiContext) -> Vec<u8> {
     out.into_bytes()
 }
 
+fn save_bytes_for_tab(tab: &mut crate::tabs::Tab) -> Vec<u8> {
+    let trim = crate::settings::trim_ws();
+    let final_nl = crate::settings::final_newline();
+    let text = tab.model.as_text();
+    let out = crate::savefmt::apply(&text, trim, final_nl);
+    if (trim || final_nl) && out != text {
+        tab.model.set_text_preserving_cursor(&out);
+    }
+    out.into_bytes()
+}
+
 /// A cheap content signature of the active buffer (FNV-1a over the bytes) used to
 /// detect edits between auto-save ticks without per-op instrumentation.
 fn autosave_signature(text: &str) -> u64 {
@@ -7786,6 +7797,76 @@ pub extern "C" fn mui_ed_save(handle: i64) -> i32 {
         return -1;
     };
     save_active_current_path(ctx)
+}
+
+/// Save every dirty file-backed tab. Untitled dirty tabs are left dirty because
+/// they still need a user-chosen path. Returns the number of tabs saved, or -1
+/// when nothing could be saved because every attempted write failed.
+#[no_mangle]
+pub extern "C" fn mui_save_all(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let dirty: Vec<usize> = (0..ctx.tabs.count()).filter(|i| ctx.tabs.is_dirty(*i)).collect();
+    if dirty.is_empty() {
+        ctx.push_toast(crate::toast::Kind::Info, "No unsaved files");
+        return 0;
+    }
+    let mut saved = 0_i32;
+    let mut failed = 0_i32;
+    let mut untitled = 0_i32;
+    for idx in dirty {
+        let Some(tab) = ctx.tabs.get_mut(idx) else {
+            continue;
+        };
+        let Some(path) = tab.path.clone() else {
+            untitled += 1;
+            continue;
+        };
+        let bytes = save_bytes_for_tab(tab);
+        match std::fs::write(&path, &bytes) {
+            Ok(()) => {
+                tab.dirty = false;
+                tab.model.mark_clean();
+                saved += 1;
+            }
+            Err(e) => {
+                failed += 1;
+                eprintln!("mui_save_all({}): {e}", path.display());
+            }
+        }
+    }
+    ctx.pending_dirty_close = None;
+    if ctx.tabs.dirty_count() == 0 {
+        ctx.pending_quit = None;
+    }
+    ctx.autosave.disarm();
+    ctx.tree.refresh();
+    match (saved, failed, untitled) {
+        (0, 0, u) if u > 0 => {
+            let noun = if u == 1 { "untitled file" } else { "untitled files" };
+            ctx.push_toast(crate::toast::Kind::Warn, format!("{u} {noun} need Save As"));
+            0
+        }
+        (0, f, _) if f > 0 => {
+            ctx.push_toast(crate::toast::Kind::Error, "Save All failed");
+            -1
+        }
+        (s, 0, 0) => {
+            let noun = if s == 1 { "file" } else { "files" };
+            ctx.push_toast(crate::toast::Kind::Success, format!("Saved {s} {noun}"));
+            s
+        }
+        (s, 0, u) => {
+            let noun = if u == 1 { "untitled file" } else { "untitled files" };
+            ctx.push_toast(crate::toast::Kind::Warn, format!("Saved {s}; {u} {noun} need Save As"));
+            s
+        }
+        (s, f, _) => {
+            ctx.push_toast(crate::toast::Kind::Warn, format!("Saved {s}; {f} failed"));
+            s
+        }
+    }
 }
 
 /// `1` when the active tab is backed by a file path; `0` for an untitled buffer.
