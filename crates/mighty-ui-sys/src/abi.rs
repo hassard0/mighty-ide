@@ -441,9 +441,6 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
                 .unwrap_or_else(|| "add".to_string());
             ctx.rename.open(&seed);
             // Type a fresh name so the field shows an edited value.
-            ctx.rename.backspace();
-            ctx.rename.backspace();
-            ctx.rename.backspace();
             for ch in "compute_sum".chars() {
                 ctx.rename.push(ch as u32);
             }

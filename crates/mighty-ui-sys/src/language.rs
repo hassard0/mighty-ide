@@ -890,6 +890,8 @@ pub struct RenameState {
     active: bool,
     /// The new-name buffer (prefilled with the original symbol on open).
     name: Vec<char>,
+    /// True immediately after open, matching the UX of a selected-all field.
+    selected_all: bool,
     /// The original symbol (drawn dim as context).
     original: String,
     /// The most recent rename result, set by `commit`.
@@ -907,6 +909,7 @@ impl RenameState {
         self.active = true;
         self.original = symbol.to_string();
         self.name = symbol.chars().collect();
+        self.selected_all = true;
         self.last_edit = None;
     }
 
@@ -917,6 +920,10 @@ impl RenameState {
     pub fn push(&mut self, codepoint: u32) {
         if self.active {
             if let Some(c) = char::from_u32(codepoint) {
+                if self.selected_all {
+                    self.name.clear();
+                    self.selected_all = false;
+                }
                 self.name.push(c);
             }
         }
@@ -924,7 +931,12 @@ impl RenameState {
 
     pub fn backspace(&mut self) {
         if self.active {
-            self.name.pop();
+            if self.selected_all {
+                self.name.clear();
+                self.selected_all = false;
+            } else {
+                self.name.pop();
+            }
         }
     }
 
@@ -939,6 +951,7 @@ impl RenameState {
     pub fn cancel(&mut self) {
         self.active = false;
         self.name.clear();
+        self.selected_all = false;
         self.original.clear();
         self.last_edit = None;
     }
@@ -1589,8 +1602,8 @@ mod tests {
         assert!(r.is_active());
         assert_eq!(r.name_string(), "add");
         assert_eq!(r.original(), "add");
-        r.backspace();
-        r.backspace();
+        r.push('p' as u32);
+        assert_eq!(r.name_string(), "p", "first typed char replaces the selected original");
         r.backspace();
         assert_eq!(r.name_string(), "");
         for c in "plus".chars() {
