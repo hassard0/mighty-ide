@@ -34,6 +34,10 @@ pub enum PromptKind {
     /// Save As: the query is a (relative) file name; on Enter the IDE writes the
     /// active untitled buffer there, binds the tab to it, and refreshes the tree.
     SaveAs = 8,
+    /// Rename the active file by collecting a new single-segment basename.
+    RenameFile = 9,
+    /// Delete the active file after collecting its exact basename as confirmation.
+    DeleteFile = 10,
 }
 
 impl PromptKind {
@@ -47,6 +51,8 @@ impl PromptKind {
             6 => Some(PromptKind::NewProject),
             7 => Some(PromptKind::NewFolder),
             8 => Some(PromptKind::SaveAs),
+            9 => Some(PromptKind::RenameFile),
+            10 => Some(PromptKind::DeleteFile),
             _ => None,
         }
     }
@@ -62,6 +68,8 @@ impl PromptKind {
             PromptKind::NewProject => "New project name: ",
             PromptKind::NewFolder => "New folder name: ",
             PromptKind::SaveAs => "Save as: ",
+            PromptKind::RenameFile => "Rename active file to: ",
+            PromptKind::DeleteFile => "Delete active file, type name: ",
         }
     }
 }

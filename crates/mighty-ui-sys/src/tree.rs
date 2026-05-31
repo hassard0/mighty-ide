@@ -78,6 +78,26 @@ impl FileTree {
         self.rebuild();
     }
 
+    /// Expand every ancestor under the root so `path` is visible, then rebuild.
+    /// Returns the visible row index for `path` when it is inside the tree.
+    pub fn reveal(&mut self, path: &Path) -> Option<usize> {
+        if self.root.as_os_str().is_empty() || !path.starts_with(&self.root) {
+            return None;
+        }
+        let mut cur = path.parent();
+        while let Some(dir) = cur {
+            if dir == self.root {
+                break;
+            }
+            if dir.starts_with(&self.root) {
+                self.expanded.insert(dir.to_path_buf());
+            }
+            cur = dir.parent();
+        }
+        self.rebuild();
+        self.rows.iter().position(|row| row.path == path)
+    }
+
     /// Toggle expand/collapse of the directory at row `i`. No-op for files or
     /// out-of-range rows. Returns true if it toggled a directory.
     /// Collapse every expanded directory (the "collapse all" header action).
@@ -253,5 +273,19 @@ mod tests {
         assert_eq!(t.count(), 0);
         t.set_root(PathBuf::new());
         assert_eq!(t.count(), 0);
+    }
+
+    #[test]
+    fn reveal_expands_ancestors_and_returns_row() {
+        let root = make_tree("reveal");
+        let target = root.join("sub").join("deep.txt");
+        let mut t = FileTree::new();
+        t.set_root(root);
+        assert_eq!(t.count(), 3);
+
+        let row = t.reveal(&target).unwrap();
+        assert_eq!(row, 1);
+        assert_eq!(t.count(), 4);
+        assert_eq!(t.get(row).unwrap().path, target);
     }
 }

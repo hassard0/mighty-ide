@@ -679,6 +679,72 @@ fn new_folder_validates_name_clears_stage_and_toasts() {
 }
 
 #[test]
+fn active_file_rename_updates_tab_path_tree_and_toasts() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_active_file_rename");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    let old = root.join("src").join("old.mty");
+    let new = root.join("src").join("new.mty");
+    std::fs::write(&old, "fn main() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tabs.open_path(old.clone());
+    crate::abi::sync_active_path(&mut ctx);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.path_stage.extend_from_slice(b"new.mty");
+    assert_eq!(crate::mui_file_rename_active(handle), 1);
+    assert!(ctx.path_stage.is_empty());
+    assert!(!old.exists());
+    assert!(new.exists());
+    assert_eq!(ctx.tabs.active_path().unwrap(), new);
+    assert_eq!(ctx.file_path.as_ref().unwrap().file_name().unwrap(), "new.mty");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Renamed to new.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn active_file_delete_requires_exact_basename_confirmation() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_active_file_delete");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let keep = root.join("keep.mty");
+    let doomed = root.join("doomed.mty");
+    std::fs::write(&keep, "fn keep() {}\n").unwrap();
+    std::fs::write(&doomed, "fn doomed() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tabs.open_path(keep.clone());
+    ctx.tabs.open_path(doomed.clone());
+    crate::abi::sync_active_path(&mut ctx);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.path_stage.extend_from_slice(b"wrong.mty");
+    assert_eq!(crate::mui_file_delete_active_confirm(handle), 0);
+    assert!(ctx.path_stage.is_empty());
+    assert!(doomed.exists());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Type doomed.mty to delete");
+
+    ctx.path_stage.extend_from_slice(b"doomed.mty");
+    assert_eq!(crate::mui_file_delete_active_confirm(handle), 1);
+    assert!(!doomed.exists());
+    assert_eq!(ctx.tabs.count(), 2);
+    assert_eq!(ctx.tabs.active_path().unwrap(), keep);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Deleted doomed.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
     use crate::ffi::MuiEvent;
     use crate::mui_topbar_action_at_click;

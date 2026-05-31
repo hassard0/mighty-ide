@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-05-31 (Windows packaging/runtime ABI hardening — L50/L51. Prior: multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages — L35; verified live against rust-analyzer 1.95.0. Developer-workflow features — Run panel + inline git diff + live Settings panel — L33/L34; LIVE EDITING via a shim-side authoritative text model — the L28 workaround; "Ember Graphite" visual redesign + bundled JetBrains Mono; command palette shim-side registry; L27.)_
+_Last updated: 2026-05-31 (Explorer file operations + prompt-string staging pressure — L52. Prior: Windows packaging/runtime ABI hardening — L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages — L35; verified live against rust-analyzer 1.95.0. Developer-workflow features — Run panel + inline git diff + live Settings panel — L33/L34; LIVE EDITING via a shim-side authoritative text model — the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -1037,3 +1037,34 @@ undefined symbols.
 - **Mighty ask:** publish the runtime ABI symbol list as a generated header,
   crate, or default static runtime artifact so native projects do not have to
   manually discover new `mty_runtime_*` imports after compiler changes.
+
+### L52. Prompt-driven commands still require duplicated char-by-char string staging **[language/FFI gap, P2]**
+Adding Explorer-grade file operations (rename active file, reveal active file, and
+delete active file with exact-name confirmation) reused the bottom prompt for user
+input. Each prompt Enter handler in `src/main.mty` must still copy the query into
+the Rust shim one character at a time:
+
+1. `mui_path_clear(handle)`
+2. loop `i < mui_prompt_len(handle)`
+3. read `mui_prompt_char(handle, i)`
+4. push each scalar with `mui_path_push(handle, cp)`
+5. call the real action (`mui_file_rename_active`, `mui_file_delete_active_confirm`, etc.)
+
+That loop now exists for Open, Open Folder, New Project, New Folder, Save As,
+Rename File, and Delete File. A helper would be the natural shape, but Mighty-side
+helpers still cannot reduce much of the ceremony because the current FFI boundary
+does not accept a prompt string/slice directly, and UI command handlers often need
+to mutate caller-local state (`prompt_kind`, `find_nav`, focus booleans).
+
+- **Why it matters for the IDE:** every new command that needs a typed path/name
+  adds another fragile copy loop in the event ladder. It is easy for one handler to
+  forget to clear the staging buffer, cancel the prompt, or refresh diagnostics /
+  SCM / outline after a path mutation.
+- **IDE-side workaround:** keep filesystem/path semantics in Rust and use one
+  shared staging buffer, with tests asserting that failed/successful operations
+  consume the staged bytes.
+- **Mighty ask:** add a safe way to pass the active prompt/query string to an
+  `extern c` function, such as `(ptr,len)` for immutable UTF-8 slices, a
+  compiler-owned temporary string view, or first-class bindings for common
+  shim-owned string buffers. Longer term, lightweight block helpers that can
+  mutate caller locals would also make command dispatch less repetitive.

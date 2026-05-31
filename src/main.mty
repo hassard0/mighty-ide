@@ -166,6 +166,9 @@ extern c {
   fn mui_tab_new_untitled(handle: I64) -> I32
   fn mui_tree_collapse_all(handle: I64)
   fn mui_newfolder_create(handle: I64) -> I32
+  fn mui_file_rename_active(handle: I64) -> I32
+  fn mui_file_reveal_active(handle: I64) -> I32
+  fn mui_file_delete_active_confirm(handle: I64) -> I32
   fn mui_rail_draw(handle: I64)
   fn mui_rail_utility_at_click(handle: I64) -> I32
   fn mui_breadcrumb_draw(handle: I64)
@@ -605,6 +608,9 @@ extern c {
 // ---- command palette ids (mirror palette.rs COMMANDS) ----
 fn cmd_new_file() -> I32 { 44 }
 fn cmd_new_folder() -> I32 { 45 }
+fn cmd_rename_active_file() -> I32 { 46 }
+fn cmd_reveal_active_file() -> I32 { 47 }
+fn cmd_delete_active_file() -> I32 { 48 }
 fn cmd_open_file() -> I32 { 1 }
 fn cmd_save() -> I32 { 2 }
 fn cmd_save_as() -> I32 { 43 }
@@ -721,6 +727,8 @@ fn prompt_open_folder() -> I32 { 5 }
 fn prompt_new_project() -> I32 { 6 }
 fn prompt_new_folder() -> I32 { 7 }
 fn prompt_save_as() -> I32 { 8 }
+fn prompt_rename_file() -> I32 { 9 }
+fn prompt_delete_file() -> I32 { 10 }
 
 // activity-rail panel ids (mirror PANEL_* in lib.rs)
 fn panel_explorer() -> I32 { 0 }
@@ -1902,6 +1910,50 @@ fn main() {
               find_nav = false
               mui_prompt_cancel(h)
               prompt_kind = 0
+            } else if prompt_kind == prompt_rename_file() {
+              // File rename: stage the typed basename, then let the shim move
+              // the file and keep tab/tree/Quick-Open state synchronized.
+              mui_path_clear(h)
+              let rlen = mui_prompt_len(h)
+              let mut ri: I32 = 0
+              while ri < rlen {
+                let rc = mui_prompt_char(h, ri)
+                if rc >= 0 { mui_path_push(h, rc) }
+                ri = ri + 1
+              }
+              let rr = mui_file_rename_active(h)
+              if rr == 1 {
+                let _dr = mui_diag_refresh(h)
+                let _sg = mui_scm_refresh(h)
+                let _ro = mui_outline_refresh(h)
+                let _rp = mui_problems_refresh(h)
+              }
+              find_nav = false
+              mui_prompt_cancel(h)
+              prompt_kind = 0
+            } else if prompt_kind == prompt_delete_file() {
+              // File delete: require the exact active basename in the prompt
+              // before the shim removes it and closes the tab.
+              mui_path_clear(h)
+              let xlen = mui_prompt_len(h)
+              let mut xi: I32 = 0
+              while xi < xlen {
+                let xc = mui_prompt_char(h, xi)
+                if xc >= 0 { mui_path_push(h, xc) }
+                xi = xi + 1
+              }
+              let xd = mui_file_delete_active_confirm(h)
+              if xd == 1 {
+                let _tb = mui_ed_tab_switch(h, mui_tab_active(h))
+                mui_ed_undo_reset(h)
+                let _dd = mui_diag_refresh(h)
+                let _ds = mui_scm_refresh(h)
+                let _do = mui_outline_refresh(h)
+                let _dp = mui_problems_refresh(h)
+              }
+              find_nav = false
+              mui_prompt_cancel(h)
+              prompt_kind = 0
             } else if prompt_kind == prompt_ai() {
               // Inline ask: copy the typed instruction into the AI input, then
               // send it (with the active file + selection as context). The answer
@@ -3031,6 +3083,17 @@ fn main() {
         } else if id == cmd_new_folder() {
           mui_prompt_open(h, prompt_new_folder())
           prompt_kind = prompt_new_folder()
+          find_nav = false
+        } else if id == cmd_rename_active_file() {
+          mui_prompt_open(h, prompt_rename_file())
+          prompt_kind = prompt_rename_file()
+          find_nav = false
+        } else if id == cmd_reveal_active_file() {
+          let _fr = mui_file_reveal_active(h)
+          find_nav = false
+        } else if id == cmd_delete_active_file() {
+          mui_prompt_open(h, prompt_delete_file())
+          prompt_kind = prompt_delete_file()
           find_nav = false
         } else if id == cmd_open_file() {
           let oi = mui_open_file_dialog(h)

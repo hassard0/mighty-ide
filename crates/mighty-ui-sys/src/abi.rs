@@ -3808,10 +3808,17 @@ pub extern "C" fn mui_topbar_action_at_click(handle: i64) -> i32 {
     let strip_x = controls_x - crate::titlebar::ACTION_STRIP_W;
     let run_right = strip_x + 30.0;
     if x >= strip_x && x < run_right {
+        trace(&format!("topbar_action x={x:.1} y={y:.1} -> run"));
         return 1;
     }
     if x >= run_right && x < controls_x {
+        trace(&format!("topbar_action x={x:.1} y={y:.1} -> more"));
         return 2;
+    }
+    if y >= 0.0 && y < layout::TAB_BAR_H && x >= strip_x - 12.0 && x < controls_x + 12.0 {
+        trace(&format!(
+            "topbar_action x={x:.1} y={y:.1} miss strip=[{strip_x:.1},{controls_x:.1})"
+        ));
     }
     0
 }
@@ -3903,6 +3910,123 @@ pub extern "C" fn mui_newfolder_create(handle: i64) -> i32 {
         Err(e) => {
             ctx.push_toast(crate::toast::Kind::Error, format!("Folder create failed: {name}"));
             println!("newfolder: failed to create {}: {e}", target.display());
+            0
+        }
+    }
+}
+
+/// Rename the active file to the staged single-segment basename. Keeps the tab,
+/// active language, Explorer tree, and Quick-Open index aligned with the move.
+#[no_mangle]
+pub extern "C" fn mui_file_rename_active(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let Some(old_path) = ctx.tabs.active_path() else {
+        ctx.path_stage.clear();
+        ctx.push_toast(crate::toast::Kind::Warn, "No active file to rename");
+        return 0;
+    };
+    let staged = std::mem::take(&mut ctx.path_stage);
+    let raw = String::from_utf8_lossy(&staged).into_owned();
+    let name = match crate::newproj::validate_name(&raw) {
+        Ok(n) => n,
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Warn, e.clone());
+            println!("file-rename: invalid name: {e}");
+            return 0;
+        }
+    };
+    let Some(parent) = old_path.parent().map(|p| p.to_path_buf()) else {
+        ctx.push_toast(crate::toast::Kind::Warn, "Cannot rename this path");
+        return 0;
+    };
+    let new_path = parent.join(&name);
+    if new_path == old_path {
+        ctx.push_toast(crate::toast::Kind::Info, format!("Already named {name}"));
+        return 1;
+    }
+    if new_path.exists() {
+        ctx.push_toast(crate::toast::Kind::Warn, format!("File already exists: {name}"));
+        return 0;
+    }
+    match std::fs::rename(&old_path, &new_path) {
+        Ok(()) => {
+            ctx.tabs.set_active_path(new_path.clone());
+            sync_active_path(ctx);
+            ctx.tree.refresh();
+            let root = crate::wsabi::effective_root(ctx);
+            let _ = ctx.quickopen.ensure_index(&root, true);
+            ctx.quickopen.record_mru(new_path.clone());
+            ctx.push_toast(crate::toast::Kind::Success, format!("Renamed to {name}"));
+            println!("file-rename: {} -> {}", old_path.display(), new_path.display());
+            1
+        }
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, format!("Rename failed: {name}"));
+            println!("file-rename: failed {} -> {}: {e}", old_path.display(), new_path.display());
+            0
+        }
+    }
+}
+
+/// Reveal the active file in Explorer by expanding parent folders. Returns the
+/// visible row index, or -1 if there is no active file / it is outside the root.
+#[no_mangle]
+pub extern "C" fn mui_file_reveal_active(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let Some(path) = ctx.tabs.active_path() else {
+        ctx.push_toast(crate::toast::Kind::Warn, "No active file to reveal");
+        return -1;
+    };
+    ctx.sidebar_visible = true;
+    match ctx.tree.reveal(&path) {
+        Some(i) => {
+            ctx.push_toast(crate::toast::Kind::Info, format!("Revealed {}", basename(&path)));
+            i as i32
+        }
+        None => {
+            ctx.push_toast(crate::toast::Kind::Warn, "Active file is outside Explorer root");
+            -1
+        }
+    }
+}
+
+/// Delete the active file after the prompt stages an exact basename confirmation.
+/// The active tab is closed on success and Explorer / Quick-Open are refreshed.
+#[no_mangle]
+pub extern "C" fn mui_file_delete_active_confirm(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let Some(path) = ctx.tabs.active_path() else {
+        ctx.path_stage.clear();
+        ctx.push_toast(crate::toast::Kind::Warn, "No active file to delete");
+        return 0;
+    };
+    let staged = std::mem::take(&mut ctx.path_stage);
+    let confirm = String::from_utf8_lossy(&staged).trim().to_string();
+    let name = basename(&path);
+    if confirm != name {
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Type {name} to delete"));
+        return 0;
+    }
+    match std::fs::remove_file(&path) {
+        Ok(()) => {
+            let idx = ctx.tabs.active();
+            let _ = close_tab_unchecked(ctx, idx);
+            ctx.tree.refresh();
+            let root = crate::wsabi::effective_root(ctx);
+            let _ = ctx.quickopen.ensure_index(&root, true);
+            ctx.push_toast(crate::toast::Kind::Success, format!("Deleted {name}"));
+            println!("file-delete: {}", path.display());
+            1
+        }
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, format!("Delete failed: {name}"));
+            println!("file-delete: failed {}: {e}", path.display());
             0
         }
     }
