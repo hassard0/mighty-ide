@@ -195,17 +195,25 @@ impl WelcomeState {
         // Vertical rhythm: start a bit above the optical center.
         let mut y = by + (bh * 0.16).max(40.0);
 
-        // ---- Brand: ember/indigo logo tile + wordmark ----
+        // ---- Brand: teal/indigo logo tile + wordmark ----
         let tile = 64.0_f32;
         let tx = cx;
-        // Rounded accent tile with a glow + the Mighty chevron mark.
-        ctx.dl_shadow(tx, y + 8.0, tile, tile, 16.0, theme::ACCENT_GLOW(), 40.0);
-        ctx.dl_grad_v(tx, y, tile, tile, 16.0, theme::ACCENT_BRIGHT(), theme::ACCENT());
-        ctx.dl_stroke(tx, y, tile, tile, 16.0, theme::accent_a(0.5), 1.0);
+        // Rounded brand tile with a focused glow + the Mighty mark.
+        ctx.dl_shadow(
+            tx,
+            y + 8.0,
+            tile,
+            tile,
+            16.0,
+            MuiColor::new(0.38, 0.85, 0.84, 0.25),
+            34.0,
+        );
+        ctx.dl_grad_v(tx, y, tile, tile, 16.0, theme::INFO(), theme::ACCENT());
+        ctx.dl_stroke(tx, y, tile, tile, 16.0, MuiColor::new(0.80, 0.95, 1.0, 0.65), 1.0);
         // The "M" mark, in on-accent ink (white reads on the saturated tile in
         // every theme).
         let mark_ink = MuiColor::new(1.0, 1.0, 1.0, 0.96);
-        ctx.dl_icon(tx + 14.0, y + 14.0, 36.0, 36.0, icons::LANG_M, mark_ink, 2.6, false);
+        ctx.dl_icon(tx + 12.0, y + 12.0, 40.0, 40.0, icons::LANG_M, mark_ink, 3.0, false);
 
         // Wordmark to the right of the tile.
         let word_x = tx + tile + 22.0;

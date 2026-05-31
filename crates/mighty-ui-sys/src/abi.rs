@@ -3432,20 +3432,28 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
     // Brand tile: compact enough for the rail, but rendered as a real mark
     // instead of a thin open stroke so it survives small screenshots/taskbar
     // comparisons.
-    let logo_tile = 30.0;
+    let logo_tile = 32.0;
     let lx = (rw - logo_tile) * 0.5;
-    let ly = 7.0;
-    ctx.dl_shadow(lx, ly + 2.0, logo_tile, logo_tile, 9.0, theme::ACCENT_GLOW(), 14.0);
-    ctx.dl_grad_v(lx, ly, logo_tile, logo_tile, 9.0, theme::ACCENT_BRIGHT(), theme::ACCENT());
-    ctx.dl_stroke(lx, ly, logo_tile, logo_tile, 9.0, theme::accent_a(0.45), 1.0);
+    let ly = 6.0;
+    ctx.dl_shadow(
+        lx,
+        ly + 2.0,
+        logo_tile,
+        logo_tile,
+        9.0,
+        MuiColor::new(0.38, 0.85, 0.84, 0.24),
+        12.0,
+    );
+    ctx.dl_grad_v(lx, ly, logo_tile, logo_tile, 9.0, theme::INFO(), theme::ACCENT());
+    ctx.dl_stroke(lx, ly, logo_tile, logo_tile, 9.0, MuiColor::new(0.80, 0.95, 1.0, 0.62), 1.0);
     ctx.dl_icon(
-        lx + 6.0,
-        ly + 6.0,
-        logo_tile - 12.0,
-        logo_tile - 12.0,
+        lx + 5.0,
+        ly + 5.0,
+        logo_tile - 10.0,
+        logo_tile - 10.0,
         icons::LANG_M,
         theme::TEXT(),
-        2.35,
+        2.75,
         false,
     );
 
