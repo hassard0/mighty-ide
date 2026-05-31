@@ -689,30 +689,36 @@ impl ShortcutsEngine {
     }
 
     /// First visible row index so the selection stays within the window.
-    fn scroll_top(&self) -> usize {
-        if self.rows.len() <= VISIBLE {
+    fn scroll_top_for(&self, visible: usize) -> usize {
+        let visible = visible.max(1);
+        if self.rows.len() <= visible {
             return 0;
         }
-        if self.sel < VISIBLE {
+        if self.sel < visible {
             0
         } else {
-            (self.sel + 1).saturating_sub(VISIBLE)
+            (self.sel + 1).saturating_sub(visible)
         }
     }
 
     fn geometry(&self, width: u32, height: u32) -> (f32, f32, f32, f32, f32, f32, usize, usize) {
         let w = width as f32;
         let h = height as f32;
-        let top = self.scroll_top();
-        let shown = self.rows.len().saturating_sub(top).min(VISIBLE);
-        let box_w = 640.0_f32.min(w - 80.0);
         let search_h = 56.0;
         let cat_h = 26.0;
         let row_h = 44.0;
         let foot_h = 38.0;
+        let fixed_h = search_h + cat_h + 10.0 + foot_h;
+        let max_box_h = (h - 32.0).max(fixed_h + row_h);
+        let capacity = ((max_box_h - fixed_h) / row_h).floor().max(1.0) as usize;
+        let visible = capacity.min(VISIBLE);
+        let top = self.scroll_top_for(visible);
+        let shown = self.rows.len().saturating_sub(top).min(visible);
+        let horizontal_margin = if w < 420.0 { 16.0 } else { 40.0 };
+        let box_w = 640.0_f32.min((w - horizontal_margin * 2.0).max(280.0));
         let box_h = search_h + cat_h + shown as f32 * row_h + 10.0 + foot_h;
         let box_x = ((w - box_w) * 0.5).max(0.0);
-        let box_y = 80.0_f32.min((h - box_h).max(0.0));
+        let box_y = 80.0_f32.min(((h - box_h) * 0.5).max(12.0));
         let list_top = box_y + search_h + cat_h;
         (box_x, box_y, box_w, list_top, row_h, box_h, top, shown)
     }
@@ -1097,5 +1103,23 @@ mod tests {
         assert_eq!(idx, 1);
         assert_eq!(e.selection(), 1);
         assert_eq!(e.click_row(box_x - 2.0, list_top + 3.0, 900, 700), -1);
+    }
+
+    #[test]
+    fn geometry_keeps_footer_inside_compact_windows() {
+        let mut e = ShortcutsEngine::new();
+        e.overrides = Overrides::new();
+        e.open();
+        let (box_x, box_y, box_w, _list_top, _row_h, box_h, _top, shown) = e.geometry(640, 480);
+        assert!(box_x >= 0.0);
+        assert!(box_y >= 12.0);
+        assert!(box_w <= 640.0);
+        assert!(box_y + box_h <= 480.0);
+        assert!(shown < VISIBLE);
+
+        e.sel = 12;
+        let (_box_x, _box_y, _box_w, _list_top, _row_h, _box_h, top, shown) = e.geometry(640, 480);
+        assert!(top <= e.sel);
+        assert!(e.sel < top + shown);
     }
 }
