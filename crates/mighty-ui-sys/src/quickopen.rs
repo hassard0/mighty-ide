@@ -956,9 +956,9 @@ impl QuickOpen {
         ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
     }
 
-    /// Draw `name` at (`x`,`y`), drawing the chars at `indices` in the accent
-    /// color (highlighted) and the rest in the normal text color. Monospaced
-    /// advance `adv` keeps the two passes aligned.
+    /// Draw `name` at (`x`,`y`) as one shaped run so proportional UI text stays
+    /// compact. The fuzzy match still drives ranking; the selected row provides
+    /// the visual emphasis without fragmenting the file name.
     #[allow(clippy::too_many_arguments)]
     fn draw_highlighted(
         &self,
@@ -966,21 +966,13 @@ impl QuickOpen {
         x: f32,
         y: f32,
         name: &str,
-        indices: &[usize],
-        adv: f32,
+        _indices: &[usize],
+        _adv: f32,
         selected: bool,
         clip: Option<(u32, u32, u32, u32)>,
     ) {
         let base_col = if selected { theme::TEXT() } else { theme::TEXT_1() };
-        let hi_col = theme::ACCENT_BRIGHT();
-        let mut cx = x;
-        for (i, ch) in name.chars().enumerate() {
-            let col = if indices.contains(&i) { hi_col } else { base_col };
-            let mut buf = [0u8; 4];
-            let s = ch.encode_utf8(&mut buf);
-            ctx.text.queue_ui_sized(cx, y, s, col, 13.5, clip);
-            cx += adv;
-        }
+        ctx.text.queue_ui_sized(x, y, name, base_col, 13.5, clip);
     }
 }
 
