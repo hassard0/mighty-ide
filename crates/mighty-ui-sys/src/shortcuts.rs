@@ -155,6 +155,8 @@ pub fn default_chord(cmd_id: u32) -> Option<Chord> {
         x if x == CMD_TOGGLE_SIDEBAR => c('b' as i32, MOD_CTRL),
         x if x == CMD_CLOSE_TAB => c('w' as i32, MOD_CTRL),
         x if x == CMD_FORMAT_DOCUMENT => c('i' as i32, MOD_CTRL | MOD_SHIFT),
+        x if x == CMD_UNDO => c('z' as i32, MOD_CTRL),
+        x if x == CMD_REDO => c('y' as i32, MOD_CTRL),
         x if x == CMD_AUTOCOMPLETE => c(' ' as i32, MOD_CTRL),
         x if x == CMD_JUMP_BACK => c('-' as i32, MOD_CTRL),
         x if x == CMD_RUN_FILE => c('r' as i32, MOD_CTRL | MOD_SHIFT),
@@ -169,8 +171,7 @@ pub fn default_chord(cmd_id: u32) -> Option<Chord> {
 /// Ladder-fixed chords handled directly in `src/main.mty` (NOT through the
 /// router) — shown read-only with a "(fixed)" affordance. Synthetic negative ids.
 const FIXED: &[(&str, &str)] = &[
-    ("Undo", "Ctrl+Z"),
-    ("Redo", "Ctrl+Y / Ctrl+Shift+Z"),
+    ("Redo Alternate", "Ctrl+Shift+Z"),
     ("Toggle Line Comment", "Ctrl+/"),
     ("Duplicate Line / Selection", "Ctrl+Shift+D"),
     ("Add Caret at Next Match", "Ctrl+D"),
@@ -185,10 +186,6 @@ const FIXED: &[(&str, &str)] = &[
     ("Inline Ask", "Ctrl+I"),
     ("Source Control Panel", "Ctrl+Shift+G"),
     ("Project Search Panel", "Ctrl+Shift+F"),
-    ("Toggle Terminal", "Ctrl+`"),
-    ("Run File", "Ctrl+Shift+R"),
-    ("Run Tests", "Ctrl+Shift+T"),
-    ("Settings", "Ctrl+,"),
     ("Debugger: Start / Continue", "F5"),
     ("Debugger: Step Over", "F10"),
     ("Force Ghost Completion", "Alt+\\"),
@@ -945,6 +942,8 @@ mod tests {
         let ov = Overrides::new();
         assert_eq!(ov.resolve('s' as i32, MOD_CTRL), Some(CMD_SAVE));
         assert_eq!(ov.resolve('f' as i32, MOD_CTRL), Some(CMD_FIND));
+        assert_eq!(ov.resolve('z' as i32, MOD_CTRL), Some(CMD_UNDO));
+        assert_eq!(ov.resolve('y' as i32, MOD_CTRL), Some(CMD_REDO));
         assert_eq!(ov.resolve('r' as i32, MOD_CTRL | MOD_SHIFT), Some(CMD_RUN_FILE));
         assert_eq!(
             ov.resolve('t' as i32, MOD_CTRL | MOD_SHIFT),
