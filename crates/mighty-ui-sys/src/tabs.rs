@@ -276,6 +276,40 @@ impl TabStore {
         self.active
     }
 
+    /// Close every clean tab, preserving all dirty tabs. Returns the number of
+    /// tabs removed. If every tab is clean, leaves a single empty scratch tab.
+    pub fn close_saved(&mut self) -> usize {
+        if self.tabs.is_empty() {
+            self.ensure_scratch();
+            return 0;
+        }
+        if self.tabs.len() == 1 && !self.tabs[0].is_dirty() && self.tabs[0].path.is_none() {
+            return 0;
+        }
+        let before = self.tabs.len();
+        let old_active = self.active.min(self.tabs.len().saturating_sub(1));
+        let mut kept: Vec<(usize, Tab)> = self
+            .tabs
+            .drain(..)
+            .enumerate()
+            .filter(|(_, tab)| tab.is_dirty())
+            .collect();
+        let removed = before.saturating_sub(kept.len());
+        if kept.is_empty() {
+            self.tabs.push(Tab::default());
+            self.active = 0;
+            return removed;
+        }
+        let new_active = kept
+            .iter()
+            .position(|(idx, _)| *idx == old_active)
+            .or_else(|| kept.iter().position(|(idx, _)| *idx > old_active))
+            .unwrap_or_else(|| kept.len().saturating_sub(1));
+        self.tabs = kept.drain(..).map(|(_, tab)| tab).collect();
+        self.active = new_active;
+        removed
+    }
+
     /// True when tab `idx` has unsaved edits.
     pub fn is_dirty(&self, idx: usize) -> bool {
         self.tabs.get(idx).map(Tab::is_dirty).unwrap_or(false)
@@ -462,5 +496,42 @@ mod tests {
         s.ensure_scratch();
         assert_eq!(s.close(9), 0);
         assert_eq!(s.count(), 1);
+    }
+
+    #[test]
+    fn close_saved_preserves_dirty_tabs_and_active_neighbor() {
+        let mut s = TabStore::new();
+        let a = write_tmp("tabs_close_saved_a.txt", b"a");
+        let b = write_tmp("tabs_close_saved_b.txt", b"b");
+        let c = write_tmp("tabs_close_saved_c.txt", b"c");
+        let ia = s.open_path(a);
+        let ib = s.open_path(b);
+        let ic = s.open_path(c);
+        s.set_dirty(ia, true);
+        s.set_dirty(ic, true);
+        s.switch(ib);
+
+        assert_eq!(s.close_saved(), 1);
+        assert_eq!(s.count(), 2);
+        assert_eq!(s.active(), 1);
+        assert!(s.get(0).unwrap().basename().contains("tabs_close_saved_a"));
+        assert!(s.get(1).unwrap().basename().contains("tabs_close_saved_c"));
+        assert!(s.get(0).unwrap().is_dirty());
+        assert!(s.get(1).unwrap().is_dirty());
+    }
+
+    #[test]
+    fn close_saved_all_clean_leaves_scratch() {
+        let mut s = TabStore::new();
+        let a = write_tmp("tabs_close_saved_all_a.txt", b"a");
+        let b = write_tmp("tabs_close_saved_all_b.txt", b"b");
+        s.open_path(a);
+        s.open_path(b);
+
+        assert_eq!(s.close_saved(), 2);
+        assert_eq!(s.count(), 1);
+        assert!(s.get(0).unwrap().path.is_none());
+        assert_eq!(s.active(), 0);
+        assert_eq!(s.close_saved(), 0);
     }
 }

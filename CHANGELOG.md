@@ -16,6 +16,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   `Ctrl+1` / `Ctrl+2`, click a pane to focus it.
 - **Save All** (`Ctrl+Alt+S`): writes every dirty file-backed tab at once and
   leaves untitled buffers dirty with a toast that says they still need Save As.
+- **Close Saved Tabs**: clears clean tab clutter while preserving every dirty
+  buffer.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,
   ensure a final newline, and timed auto-save.
 

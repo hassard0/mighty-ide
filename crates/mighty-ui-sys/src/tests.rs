@@ -823,6 +823,12 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_SAVE_ALL)
         .unwrap();
     assert_eq!(save_all.label, "Save All");
+
+    let close_saved = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_SAVED_TABS)
+        .unwrap();
+    assert_eq!(close_saved.label, "File: Close Saved Tabs");
 }
 
 #[test]
@@ -856,6 +862,36 @@ fn save_all_writes_dirty_file_backed_tabs_and_leaves_untitled_dirty() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Saved 2; 1 untitled file need Save As");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn close_saved_tabs_preserves_dirty_buffers_and_reports_count() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_close_saved_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let clean_a = root.join("clean_a.mty");
+    let dirty_b = root.join("dirty_b.mty");
+    let clean_c = root.join("clean_c.mty");
+    std::fs::write(&clean_a, "a").unwrap();
+    std::fs::write(&dirty_b, "b").unwrap();
+    std::fs::write(&clean_c, "c").unwrap();
+
+    ctx.tabs.open_path(clean_a);
+    let dirty = ctx.tabs.open_path(dirty_b);
+    ctx.tabs.set_dirty(dirty, true);
+    ctx.tabs.open_path(clean_c);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_tab_close_saved(handle), 0);
+    assert_eq!(ctx.tabs.count(), 1);
+    assert!(ctx.tabs.is_dirty(0));
+    assert_eq!(ctx.tabs.get(0).unwrap().basename(), "dirty_b.mty");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Closed 3 saved tabs");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -1950,6 +1986,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_NEXT_TAB, "cmd_next_tab"),
         (CMD_PREV_TAB, "cmd_prev_tab"),
         (CMD_CLOSE_TAB, "cmd_close_tab"),
+        (CMD_CLOSE_SAVED_TABS, "cmd_close_saved_tabs"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),
         (CMD_UNDO, "cmd_undo"),
         (CMD_REDO, "cmd_redo"),

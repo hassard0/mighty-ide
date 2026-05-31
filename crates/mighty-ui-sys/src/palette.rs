@@ -131,6 +131,8 @@ pub const CMD_COPY_ACTIVE_FILE_RELATIVE_PATH: u32 = 51;
 pub const CMD_CLEAR_NOTIFICATIONS: u32 = 52;
 /// Save every dirty file-backed tab.
 pub const CMD_SAVE_ALL: u32 = 53;
+/// Close every clean/saved tab, preserving dirty tabs.
+pub const CMD_CLOSE_SAVED_TABS: u32 = 54;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -157,6 +159,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_NEXT_TAB,         label: "Next Tab",           keybinding: "Ctrl+Tab" },
     Command { id: CMD_PREV_TAB,         label: "Previous Tab",       keybinding: "Ctrl+Shift+Tab" },
     Command { id: CMD_CLOSE_TAB,        label: "Close Tab",          keybinding: "Ctrl+W" },
+    Command { id: CMD_CLOSE_SAVED_TABS, label: "File: Close Saved Tabs", keybinding: "" },
     Command { id: CMD_FORMAT_DOCUMENT,  label: "Format Document",    keybinding: "Ctrl+Shift+I" },
     Command { id: CMD_UNDO,             label: "Undo",               keybinding: "Ctrl+Z" },
     Command { id: CMD_REDO,             label: "Redo",               keybinding: "Ctrl+Y" },
@@ -453,6 +456,7 @@ impl PaletteEngine {
             CMD_NEXT_TAB => (icons::CHEVRON, "Switch to the next open tab", false),
             CMD_PREV_TAB => (icons::CHEVRON, "Switch to the previous open tab", false),
             CMD_CLOSE_TAB => (icons::CLOSE, "Close the active editor tab", false),
+            CMD_CLOSE_SAVED_TABS => (icons::CLOSE, "Close clean tabs while preserving unsaved work", false),
             CMD_FORMAT_DOCUMENT => (icons::PLUS, "Apply mightyfmt to active file", false),
             CMD_UNDO => (icons::CHEVRON, "Undo the last edit", false),
             CMD_REDO => (icons::CHEVRON, "Redo the last undone edit", false),

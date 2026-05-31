@@ -1187,3 +1187,17 @@ leaves untitled buffers dirty with an explanatory toast.
 - **Language note:** no new gap surfaced. This feature fits the current boundary:
   Mighty should dispatch the command, while Rust owns path I/O, dirty tab
   iteration, save transforms, and user-facing summary text.
+
+### L61. Bulk tab cleanup should protect dirty buffers in the shim **[finding, P3]**
+Adding **Close Saved Tabs** did not require new Mighty language work. The Rust
+tab store owns the invariant: clean tabs may be removed in bulk, dirty tabs are
+kept, and an all-clean workspace collapses to the existing single scratch tab.
+Mighty only dispatches the command and refreshes the active editor surfaces from
+the returned active-tab index.
+
+- **Why it matters for the IDE:** once users have search, tests, split panes, and
+  multi-file editing, tab clutter grows quickly. A safe cleanup command must be
+  impossible to use as an accidental dirty-buffer discard path.
+- **Language note:** no new gap surfaced. The current scalar command boundary is
+  adequate because the safety-critical tab filtering and dirty checks are
+  shim-owned and unit-tested.
