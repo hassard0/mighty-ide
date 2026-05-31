@@ -209,12 +209,15 @@ impl WelcomeState {
             MuiColor::new(0.38, 0.85, 0.84, 0.25),
             34.0,
         );
-        ctx.dl_grad_v(tx, y, tile, tile, 16.0, theme::INFO(), theme::ACCENT());
-        ctx.dl_stroke(tx, y, tile, tile, 16.0, MuiColor::new(0.80, 0.95, 1.0, 0.65), 1.0);
+        let tile_r = if compact { 12.0 } else { 14.0 };
+        ctx.dl_grad_v(tx, y, tile, tile, tile_r, theme::INFO(), theme::ACCENT());
+        ctx.dl_stroke(tx, y, tile, tile, tile_r, MuiColor::new(0.80, 0.95, 1.0, 0.65), 1.0);
         // The "M" mark, in on-accent ink (white reads on the saturated tile in
         // every theme).
         let mark_ink = MuiColor::new(1.0, 1.0, 1.0, 0.96);
-        ctx.dl_icon(tx + 12.0, y + 12.0, 40.0, 40.0, icons::LANG_M_FILL, mark_ink, 0.0, true);
+        let mark = if compact { 31.0 } else { 36.0 };
+        let mark_pad = (tile - mark) * 0.5;
+        ctx.dl_icon(tx + mark_pad, y + mark_pad, mark, mark, icons::LANG_M_FILL, mark_ink, 0.0, true);
 
         // Wordmark to the right of the tile.
         let word_x = tx + tile + if compact { 16.0 } else { 22.0 };

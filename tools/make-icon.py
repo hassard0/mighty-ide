@@ -36,8 +36,9 @@ def render(size: int) -> Image.Image:
     d = ImageDraw.Draw(img)
 
     # Rounded brand tile. At 16px the tile itself must carry the silhouette, so
-    # use a strong fill and only subtle depth.
-    radius = int(s * 0.22)
+    # use a strong fill, modest radius, and no glossy stripe that can alias into
+    # taskbar noise.
+    radius = int(s * 0.16)
     inset = max(1, int(s * 0.02))
     for y in range(inset, s - inset + 1):
         t = (y - inset) / max(1, (s - 2 * inset))
@@ -55,10 +56,9 @@ def render(size: int) -> Image.Image:
     img = tile
     d = ImageDraw.Draw(img)
     d.rounded_rectangle([inset, inset, s - inset, s - inset], radius=radius, outline=ACCENT_EDGE, width=max(1, SS))
-    d.line([(s * 0.16, s * 0.18), (s * 0.62, s * 0.18)], fill=(255, 255, 255, 55), width=max(1, SS))
 
     # White Mighty monogram. Scale the 24-unit glyph into the tile's safe area.
-    pad = s * 0.125
+    pad = s * 0.17
     span = s - 2 * pad
     pts = [(pad + (x / 24.0) * span, pad + (y / 24.0) * span) for (x, y) in GLYPH]
     shadow_pts = [(x + max(1, s * 0.012), y + max(1, s * 0.018)) for x, y in pts]

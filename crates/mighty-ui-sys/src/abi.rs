@@ -3452,17 +3452,17 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
         ly + 2.0,
         logo_tile,
         logo_tile,
-        9.0,
+        7.0,
         MuiColor::new(0.38, 0.85, 0.84, 0.24),
         12.0,
     );
-    ctx.dl_grad_v(lx, ly, logo_tile, logo_tile, 9.0, theme::INFO(), theme::ACCENT());
-    ctx.dl_stroke(lx, ly, logo_tile, logo_tile, 9.0, MuiColor::new(0.80, 0.95, 1.0, 0.62), 1.0);
+    ctx.dl_grad_v(lx, ly, logo_tile, logo_tile, 7.0, theme::INFO(), theme::ACCENT());
+    ctx.dl_stroke(lx, ly, logo_tile, logo_tile, 7.0, MuiColor::new(0.80, 0.95, 1.0, 0.62), 1.0);
     ctx.dl_icon(
-        lx + 5.0,
-        ly + 5.0,
-        logo_tile - 10.0,
-        logo_tile - 10.0,
+        lx + 6.0,
+        ly + 6.0,
+        logo_tile - 12.0,
+        logo_tile - 12.0,
         icons::LANG_M_FILL,
         theme::TEXT(),
         0.0,
