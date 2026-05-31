@@ -761,11 +761,15 @@ pub extern "C" fn mui_branch_draw(handle: i64) {
     }
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let picker = std::mem::take(&mut ctx.branch_picker);
+    let old_clip = ctx.clip;
+    ctx.clip = None;
     ctx.overlay = true;
+    ctx.text.clear_overlay_runs();
     ctx.text.set_overlay(true);
     draw_branch_picker(&picker, ctx, w, h);
     ctx.overlay = false;
     ctx.text.set_overlay(false);
+    ctx.clip = old_clip;
     ctx.branch_picker = picker;
 }
 
@@ -792,7 +796,9 @@ fn draw_branch_picker(p: &crate::scm::BranchPicker, ctx: &mut MuiContext, width:
     ctx.dl_rect(0.0, 0.0, w, h, MuiColor::new(0.0, 0.0, 0.0, 0.55));
     ctx.dl_shadow(box_x, box_y + 14.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.85), 40.0);
     ctx.dl_shadow(box_x, box_y, box_w, box_h, radius, theme::ACCENT_GLOW(), 40.0);
-    ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED());
+    let mut card = theme::ELEVATED();
+    card.a = 1.0;
+    ctx.dl_round(box_x, box_y, box_w, box_h, radius, card);
     ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG(), 1.0);
 
     // Header: branch icon + title + the filter / new-name input.

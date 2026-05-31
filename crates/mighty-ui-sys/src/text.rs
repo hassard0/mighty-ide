@@ -145,6 +145,16 @@ impl Text {
         self.overlay = false;
     }
 
+    /// Drop overlay-layer text queued earlier in the frame.
+    ///
+    /// Modal overlays such as the command palette draw after hover/tool panels,
+    /// but text is folded into the display list at the end of the frame. Without
+    /// clearing earlier overlay text, those stale runs can render above the
+    /// modal's opaque card.
+    pub fn clear_overlay_runs(&mut self) {
+        self.cmds.retain(|cmd| !cmd.overlay);
+    }
+
     /// Push the queued text runs into a Vello [`DisplayList`] (Phase-2 render
     /// path). Each run carries its own layer (base/overlay), font family, size
     /// and color, so the Vello backend reproduces the glyphon output exactly.

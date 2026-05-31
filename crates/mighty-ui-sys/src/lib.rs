@@ -1202,11 +1202,15 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
     // (the autoopen flag), to avoid double-drawing interactively.
     if ctx.rename_autoopen && ctx.rename.is_active() {
         let rename = std::mem::take(&mut ctx.rename);
+        let old_clip = ctx.clip;
+        ctx.clip = None;
         ctx.overlay = true;
+        ctx.text.clear_overlay_runs();
         ctx.text.set_overlay(true);
         rename.draw(ctx, w, h);
         ctx.overlay = false;
         ctx.text.set_overlay(false);
+        ctx.clip = old_clip;
         ctx.rename = rename;
     }
 
@@ -1215,11 +1219,15 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
     // routes to it, which a non-interactive run can't enter).
     if ctx.theme_picker_autoopen && ctx.theme_picker.is_active() {
         let picker = std::mem::take(&mut ctx.theme_picker);
+        let old_clip = ctx.clip;
+        ctx.clip = None;
         ctx.overlay = true;
+        ctx.text.clear_overlay_runs();
         ctx.text.set_overlay(true);
         picker.draw(ctx, w, h);
         ctx.overlay = false;
         ctx.text.set_overlay(false);
+        ctx.clip = old_clip;
         ctx.theme_picker = picker;
     }
 
@@ -1228,11 +1236,15 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
     // routes to it, which a non-interactive run can't enter).
     if ctx.shortcuts_autoopen && ctx.shortcuts.is_active() {
         let engine = std::mem::take(&mut ctx.shortcuts);
+        let old_clip = ctx.clip;
+        ctx.clip = None;
         ctx.overlay = true;
+        ctx.text.clear_overlay_runs();
         ctx.text.set_overlay(true);
         engine.draw(ctx, w, h);
         ctx.overlay = false;
         ctx.text.set_overlay(false);
+        ctx.clip = old_clip;
         ctx.shortcuts = engine;
     }
 

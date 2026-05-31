@@ -502,7 +502,9 @@ impl PaletteEngine {
         // Drop shadow + indigo glow + card + border.
         ctx.dl_shadow(box_x, box_y + 14.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.85), 40.0);
         ctx.dl_shadow(box_x, box_y, box_w, box_h, radius, theme::ACCENT_GLOW(), 40.0);
-        ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED());
+        let mut card = theme::ELEVATED();
+        card.a = 1.0;
+        ctx.dl_round(box_x, box_y, box_w, box_h, radius, card);
         ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG(), 1.0);
 
         // ---- search field ----

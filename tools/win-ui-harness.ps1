@@ -302,7 +302,7 @@ Log "ui scale = $scale"
 function ClickL($lx, $ly) { Click $hwnd ([int][math]::Round($lx * $scale)) ([int][math]::Round($ly * $scale)) }
 $logicalW = [double]$script:WinW / [double]$scale
 $logicalH = [double]$script:WinH / [double]$scale
-$topbarMoreX = $logicalW - (3 * 46) - 24
+$topbarMoreX = $logicalW - (3 * 46) - 64
 
 function Invoke-PaletteCommand($query, $captureName) {
   ClickL $topbarMoreX 20
@@ -318,9 +318,9 @@ function Invoke-PaletteCommand($query, $captureName) {
 # messages, and winit reports logical coordinates back to the IDE, so pass the
 # same logical positions the app hit-tests against.
 $treeX = 110
-$explorerNewFileX = 233
-$explorerNewFolderX = 255
-$explorerCollapseX = 277
+$explorerNewFileX = 291
+$explorerNewFolderX = 319
+$explorerCollapseX = 348
 
 # === WELCOME NEW FILE: quick action must reveal a blank editor, not leave Welcome up. ===
 ClickL 420 472

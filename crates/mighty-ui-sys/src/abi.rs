@@ -3174,6 +3174,8 @@ pub extern "C" fn mui_dirty_confirm_draw(handle: i64) {
     let card_x = ((w - card_w) * 0.5).max(16.0);
     let card_y = ((h - card_h) * 0.5).max(48.0);
     let chrome = theme::CHROME_FONT_SIZE;
+    let old_clip = ctx.clip;
+    ctx.clip = None;
     let clip = ctx.clip;
     let dirty = ctx.tabs.dirty_count();
     let (title, detail) = if ctx.pending_quit.is_some() {
@@ -3196,6 +3198,7 @@ pub extern "C" fn mui_dirty_confirm_draw(handle: i64) {
 
     let was_overlay = ctx.overlay;
     ctx.overlay = true;
+    ctx.text.clear_overlay_runs();
     ctx.text.set_overlay(true);
     ctx.dl_rect(0.0, 0.0, w, h, MuiColor::new(0.0, 0.0, 0.0, 0.42));
     ctx.dl_shadow(card_x, card_y, card_w, card_h, 8.0, theme::SHADOW(), 24.0);
@@ -3221,6 +3224,7 @@ pub extern "C" fn mui_dirty_confirm_draw(handle: i64) {
 
     ctx.overlay = was_overlay;
     ctx.text.set_overlay(was_overlay);
+    ctx.clip = old_clip;
 }
 
 /// Map the tab bar pixel x of the last click to a tab index, or -1 if the click
@@ -5072,14 +5076,21 @@ pub extern "C" fn mui_palette_draw(handle: i64) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
+    if !ctx.palette.is_active() {
+        return;
+    }
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     // Split the borrow: `draw` needs `&mut ctx` for both rects + text.
     let engine = std::mem::take(&mut ctx.palette);
+    let old_clip = ctx.clip;
+    ctx.clip = None;
     ctx.overlay = true;
+    ctx.text.clear_overlay_runs();
     ctx.text.set_overlay(true);
     engine.draw(ctx, w, h);
     ctx.overlay = false;
     ctx.text.set_overlay(false);
+    ctx.clip = old_clip;
     ctx.palette = engine;
 }
 
@@ -5293,13 +5304,20 @@ pub extern "C" fn mui_keys_draw(handle: i64) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
+    if !ctx.shortcuts.is_active() {
+        return;
+    }
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let engine = std::mem::take(&mut ctx.shortcuts);
+    let old_clip = ctx.clip;
+    ctx.clip = None;
     ctx.overlay = true;
+    ctx.text.clear_overlay_runs();
     ctx.text.set_overlay(true);
     engine.draw(ctx, w, h);
     ctx.overlay = false;
     ctx.text.set_overlay(false);
+    ctx.clip = old_clip;
     ctx.shortcuts = engine;
 }
 
@@ -5420,13 +5438,20 @@ pub extern "C" fn mui_theme_picker_draw(handle: i64) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
+    if !ctx.theme_picker.is_active() {
+        return;
+    }
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let picker = std::mem::take(&mut ctx.theme_picker);
+    let old_clip = ctx.clip;
+    ctx.clip = None;
     ctx.overlay = true;
+    ctx.text.clear_overlay_runs();
     ctx.text.set_overlay(true);
     picker.draw(ctx, w, h);
     ctx.overlay = false;
     ctx.text.set_overlay(false);
+    ctx.clip = old_clip;
     ctx.theme_picker = picker;
 }
 
@@ -5851,13 +5876,20 @@ pub extern "C" fn mui_qo_draw(handle: i64) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
+    if !ctx.quickopen.is_active() {
+        return;
+    }
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let qo = std::mem::take(&mut ctx.quickopen);
+    let old_clip = ctx.clip;
+    ctx.clip = None;
     ctx.overlay = true;
+    ctx.text.clear_overlay_runs();
     ctx.text.set_overlay(true);
     qo.draw(ctx, w, h);
     ctx.overlay = false;
     ctx.text.set_overlay(false);
+    ctx.clip = old_clip;
     ctx.quickopen = qo;
 }
 
@@ -6480,11 +6512,15 @@ pub extern "C" fn mui_rename_draw(handle: i64) {
     }
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let rename = std::mem::take(&mut ctx.rename);
+    let old_clip = ctx.clip;
+    ctx.clip = None;
     ctx.overlay = true;
+    ctx.text.clear_overlay_runs();
     ctx.text.set_overlay(true);
     rename.draw(ctx, w, h);
     ctx.overlay = false;
     ctx.text.set_overlay(false);
+    ctx.clip = old_clip;
     ctx.rename = rename;
 }
 
