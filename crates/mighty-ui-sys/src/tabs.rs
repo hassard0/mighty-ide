@@ -146,6 +146,19 @@ impl TabStore {
         self.active
     }
 
+    /// Duplicate the active tab next to itself and make the duplicate active.
+    /// This intentionally clones the live model, cursor, fold, dirty, and path
+    /// state instead of re-reading from disk.
+    pub fn duplicate_active(&mut self) -> usize {
+        self.ensure_scratch();
+        let active = self.active.min(self.tabs.len().saturating_sub(1));
+        let tab = self.tabs[active].clone();
+        let insert_at = (active + 1).min(self.tabs.len());
+        self.tabs.insert(insert_at, tab);
+        self.active = insert_at;
+        self.active
+    }
+
     /// Set the active tab's file path (Save As on an untitled buffer binds it to a
     /// real path so subsequent saves write there).
     pub fn set_active_path(&mut self, path: PathBuf) {
@@ -632,6 +645,32 @@ mod tests {
         s.ensure_scratch();
         assert_eq!(s.close(9), 0);
         assert_eq!(s.count(), 1);
+    }
+
+    #[test]
+    fn duplicate_active_clones_live_tab_state_next_to_source() {
+        let mut s = TabStore::new();
+        let a = write_tmp("tabs_duplicate_a.txt", b"a");
+        let b = write_tmp("tabs_duplicate_b.txt", b"b");
+        s.open_path(a);
+        let b_idx = s.open_path(b);
+        s.store_commit(b_idx, 3, 2, 1);
+        s.set_dirty(b_idx, true);
+
+        let dup = s.duplicate_active();
+        assert_eq!(dup, 2);
+        assert_eq!(s.active(), 2);
+        assert_eq!(s.count(), 3);
+        assert!(s.get(2).unwrap().basename().contains("tabs_duplicate_b"));
+        assert!(s.get(2).unwrap().is_dirty());
+        assert_eq!(
+            (
+                s.get(2).unwrap().cursor_line,
+                s.get(2).unwrap().cursor_col,
+                s.get(2).unwrap().scroll_first
+            ),
+            (3, 2, 1)
+        );
     }
 
     #[test]

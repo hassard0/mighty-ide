@@ -1250,3 +1250,16 @@ tabs into the same history that `Ctrl+Alt+T` consumes.
   has file-backed content. Empty scratch tabs are still intentionally skipped.
 - **Language note:** no new gap surfaced. This again points to the same
   dispatcher ergonomics gap from L63/L64, but the runtime boundary is sound.
+
+### L66. Tab duplication needs live shim state, not disk reloads **[finding, P3]**
+Adding **Duplicate Active Tab** did not require new Mighty language work. The
+correct behavior is a shim-owned clone of the active tab record because the
+duplicate must preserve unsaved edits, cursor position, scroll, folds, dirty
+state, and the active file path without re-reading stale bytes from disk.
+
+- **IDE note:** commands that clone editor context should operate on the
+  authoritative tab model, then let Mighty reload its scalar editor view from the
+  selected tab index.
+- **Language note:** no new gap surfaced beyond the existing command-dispatch
+  ergonomics issue. Mighty can route the scalar command cleanly once the shim
+  owns the stateful operation.

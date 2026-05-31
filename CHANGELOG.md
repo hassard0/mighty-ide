@@ -24,6 +24,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   active file, still preserving dirty buffers.
 - **Reopen Closed Tab** (`Ctrl+Alt+T`): restores the most recently closed editor
   tab after an accidental close, including clean tabs removed by cleanup commands.
+- **Duplicate Active Tab**: clones the current editor tab next to itself from the
+  live buffer, preserving dirty state and cursor context.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,
   ensure a final newline, and timed auto-save.
 

@@ -3047,6 +3047,25 @@ pub extern "C" fn mui_tab_reopen_closed(handle: i64) -> i32 {
     tab_reopen_closed_unchecked(ctx)
 }
 
+/// Duplicate the active tab next to itself. Returns the duplicate's active
+/// index, or -1 on an invalid handle.
+#[no_mangle]
+pub extern "C" fn mui_tab_duplicate_active(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let active = ctx.tabs.duplicate_active();
+    sync_active_path(ctx);
+    ctx.panes = crate::panes::PaneLayout::new(active);
+    let name = ctx
+        .tabs
+        .get(active)
+        .map(|t| t.basename())
+        .unwrap_or_else(|| "tab".to_string());
+    ctx.push_toast(crate::toast::Kind::Info, format!("Duplicated {name}"));
+    active as i32
+}
+
 /// Close every clean tab while preserving dirty tabs. Returns the new active tab
 /// index, or -1 when nothing was closed.
 #[no_mangle]

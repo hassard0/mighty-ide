@@ -35,6 +35,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   close-right cleanup remove tab clutter while preserving dirty buffers
 - **Reopen Closed Tab** (Ctrl+Alt+T) restores the most recently closed editor tab,
   including tabs removed by cleanup commands
+- **Duplicate Active Tab** clones the current editor tab next to itself from the
+  live buffer, including dirty state and cursor context
 - Project-wide Search panel (Ctrl+Shift+F)
 
 ### Language Intelligence

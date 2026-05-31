@@ -141,6 +141,8 @@ pub const CMD_CLOSE_SAVED_TABS_TO_RIGHT: u32 = 56;
 pub const CMD_CLOSE_SAVED_TABS_TO_LEFT: u32 = 57;
 /// Reopen the most recently closed tab.
 pub const CMD_REOPEN_CLOSED_TAB: u32 = 58;
+/// Duplicate the active editor tab next to itself.
+pub const CMD_DUPLICATE_ACTIVE_TAB: u32 = 59;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -172,6 +174,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_CLOSE_SAVED_TABS_TO_RIGHT, label: "File: Close Saved Tabs to the Right", keybinding: "" },
     Command { id: CMD_CLOSE_SAVED_TABS_TO_LEFT, label: "File: Close Saved Tabs to the Left", keybinding: "" },
     Command { id: CMD_REOPEN_CLOSED_TAB, label: "File: Reopen Closed Tab", keybinding: "Ctrl+Alt+T" },
+    Command { id: CMD_DUPLICATE_ACTIVE_TAB, label: "File: Duplicate Active Tab", keybinding: "" },
     Command { id: CMD_FORMAT_DOCUMENT,  label: "Format Document",    keybinding: "Ctrl+Shift+I" },
     Command { id: CMD_UNDO,             label: "Undo",               keybinding: "Ctrl+Z" },
     Command { id: CMD_REDO,             label: "Redo",               keybinding: "Ctrl+Y" },
@@ -473,6 +476,7 @@ impl PaletteEngine {
             CMD_CLOSE_SAVED_TABS_TO_RIGHT => (icons::CLOSE, "Close clean tabs to the right and keep dirty tabs", false),
             CMD_CLOSE_SAVED_TABS_TO_LEFT => (icons::CLOSE, "Close clean tabs to the left and keep dirty tabs", false),
             CMD_REOPEN_CLOSED_TAB => (icons::PLUS, "Restore the last closed editor tab", false),
+            CMD_DUPLICATE_ACTIVE_TAB => (icons::PLUS, "Clone the active editor tab next to itself", false),
             CMD_FORMAT_DOCUMENT => (icons::PLUS, "Apply mightyfmt to active file", false),
             CMD_UNDO => (icons::CHEVRON, "Undo the last edit", false),
             CMD_REDO => (icons::CHEVRON, "Redo the last undone edit", false),

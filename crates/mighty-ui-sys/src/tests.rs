@@ -854,6 +854,12 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(reopen_closed.label, "File: Reopen Closed Tab");
     assert_eq!(reopen_closed.keybinding, "Ctrl+Alt+T");
+
+    let duplicate_tab = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_DUPLICATE_ACTIVE_TAB)
+        .unwrap();
+    assert_eq!(duplicate_tab.label, "File: Duplicate Active Tab");
 }
 
 #[test]
@@ -1053,6 +1059,34 @@ fn reopen_closed_tab_restores_last_closed_tab_and_toasts() {
 
     assert_eq!(crate::mui_tab_reopen_closed(handle), -1);
     assert_eq!(ctx.toasts.toasts().last().unwrap().message, "No closed tab to reopen");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn duplicate_active_tab_clones_live_state_and_toasts() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_duplicate_tab_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let a = root.join("a.mty");
+    let b = root.join("b.mty");
+    std::fs::write(&a, "a").unwrap();
+    std::fs::write(&b, "b").unwrap();
+    ctx.tabs.open_path(a);
+    let b_idx = ctx.tabs.open_path(b);
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("dirty b");
+    ctx.tabs.store_commit(b_idx, 4, 3, 2);
+    ctx.tabs.set_dirty(b_idx, true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_tab_duplicate_active(handle), 3);
+    assert_eq!(ctx.tabs.count(), 4);
+    assert_eq!(ctx.tabs.active(), 3);
+    assert_eq!(ctx.tabs.get(3).unwrap().basename(), "b.mty");
+    assert!(ctx.tabs.is_dirty(3));
+    assert_eq!(String::from_utf8(ctx.tabs.active_model().to_bytes()).unwrap(), "dirty b");
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Duplicated b.mty");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -2152,6 +2186,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_CLOSE_SAVED_TABS_TO_RIGHT, "cmd_close_saved_tabs_to_right"),
         (CMD_CLOSE_SAVED_TABS_TO_LEFT, "cmd_close_saved_tabs_to_left"),
         (CMD_REOPEN_CLOSED_TAB, "cmd_reopen_closed_tab"),
+        (CMD_DUPLICATE_ACTIVE_TAB, "cmd_duplicate_active_tab"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),
         (CMD_UNDO, "cmd_undo"),
         (CMD_REDO, "cmd_redo"),
