@@ -163,9 +163,14 @@ $script:HarnessFailed = $false
 $saveName = "harnesssaveas.mty"
 $savePath = Join-Path $WorkDir $saveName
 if (Test-Path $savePath) { Remove-Item $savePath -Force }
+$openName = "harnessopen.mty"
+$openPath = Join-Path $WorkDir $openName
+Set-Content -LiteralPath $openPath -Value "opened" -Encoding utf8
 # The IDE now uses a native SaveFileDialog for untitled Save. Feed a deterministic
 # picker result so the harness does not block on an OS-modal dialog.
 $env:MUI_SAVE_FILE_PICK = $savePath
+$env:MUI_OPEN_FILE_PICK = $openPath
+$env:MUI_OPEN_FOLDER_PICK = $WorkDir
 
 function Get-WinRect($h) { $r = New-Object Win+RECT; [void][Win]::GetWindowRect($h, [ref]$r); return $r }
 
@@ -294,6 +299,17 @@ Log "ui scale = $scale"
 function ClickL($lx, $ly) { Click $hwnd ([int][math]::Round($lx * $scale)) ([int][math]::Round($ly * $scale)) }
 $logicalW = [double]$script:WinW / [double]$scale
 $logicalH = [double]$script:WinH / [double]$scale
+$topbarMoreX = $logicalW - (3 * 46) - 24
+
+function Invoke-PaletteCommand($query, $captureName) {
+  ClickL $topbarMoreX 20
+  Start-Sleep -Milliseconds 400
+  if ($captureName) { Capture $hwnd $captureName }
+  Type-Text $hwnd $query
+  Start-Sleep -Milliseconds 300
+  Press-VK $hwnd 0x0D
+  Start-Sleep -Milliseconds 800
+}
 
 # Logical layout constants (mirror layout.rs): rail x=26; tree rows under the
 # 40px header; Explorer header buttons are right-aligned in the sidebar band:
@@ -379,18 +395,34 @@ Start-Sleep -Milliseconds 150
 # exercises dialog-backed Save-As regardless of which tab is active. The action
 # strip sits just left of the native window buttons; click the dots/menu center,
 # not the strip padding or the min-button boundary.
-$topbarMoreX = $logicalW - (3 * 46) - 24
-ClickL $topbarMoreX 20
-Start-Sleep -Milliseconds 400
-Capture $hwnd "40-palette-open"
-Type-Text $hwnd "save as"
-Start-Sleep -Milliseconds 300
-Press-VK $hwnd 0x0D
-Start-Sleep -Milliseconds 800
+Invoke-PaletteCommand "save as" "40-palette-open"
 Capture $hwnd "42-saved"
 Start-Sleep -Milliseconds 200
 if (Test-Path $savePath) { Log "SAVE-AS: file written OK -> $savePath" } else { Log "SAVE-AS: FILE NOT FOUND ($savePath)"; $script:HarnessFailed = $true }
 if (Test-Path $savePath) { Remove-Item $savePath -Force; Log "SAVE-AS: cleaned harness file" }
+
+# === OPEN FILE dialog via top-right More -> command palette, then Save ===
+Invoke-PaletteCommand "open file" "43-open-file-palette"
+Capture $hwnd "44-open-file-picked"
+ClickL 460 130
+Start-Sleep -Milliseconds 150
+Type-Text $hwnd "zz"
+Start-Sleep -Milliseconds 200
+Invoke-PaletteCommand "save" $null
+Start-Sleep -Milliseconds 300
+$openText = if (Test-Path $openPath) { Get-Content -LiteralPath $openPath -Raw } else { "" }
+if ($openText -like "*zz*") {
+  Log "OPEN-FILE/SAVE: picked file updated OK -> $openPath"
+} else {
+  Log "OPEN-FILE/SAVE: picked file did not receive edit ($openPath)"
+  $script:HarnessFailed = $true
+}
+
+# === OPEN FOLDER dialog via palette should apply or at least not hang. ===
+Invoke-PaletteCommand "open folder" "45-open-folder-palette"
+$respFolder = Is-Responsive $hwnd
+Log "OPEN-FOLDER: responsive after dialog command=$respFolder"
+if (-not $respFolder) { $script:HarnessFailed = $true }
 
 # === RAIL UTILITY: bottom Settings icon should open Preferences, not be decorative. ===
 ClickL 26 ($logicalH - 32)
@@ -406,6 +438,9 @@ $exited = $proc.HasExited
 Log "process hasExited=$exited"
 if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; Log "killed pid $($proc.Id)" }
 Remove-Item Env:\MUI_SAVE_FILE_PICK -ErrorAction SilentlyContinue
+Remove-Item Env:\MUI_OPEN_FILE_PICK -ErrorAction SilentlyContinue
+Remove-Item Env:\MUI_OPEN_FOLDER_PICK -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $openPath -Force -ErrorAction SilentlyContinue
 
 $reportPath = Join-Path $OutDir 'report.txt'
 $report | Set-Content $reportPath -Encoding utf8
