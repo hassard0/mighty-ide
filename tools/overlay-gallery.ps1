@@ -4,10 +4,10 @@
 
 .DESCRIPTION
   The IDE exposes MUI_*_AUTOOPEN env hooks that open a given overlay/panel at
-  startup. This launches the REAL windowed .exe once per hook (DPI-aware,
-  foreground-confirmed) and screen-captures each, so every modal, panel, and
-  affordance can be eyeballed for correctness + alignment without keyboard chords
-  (which PostMessage can't reliably synthesize for Ctrl/Shift combos).
+  startup. This launches the .exe once per hook with MUI_SCREENSHOT set, so the
+  app renders the same UI draw calls into an offscreen texture and writes a PNG.
+  That avoids Windows foreground/occlusion problems while still giving every
+  modal, panel, and affordance a deterministic visual artifact for alignment QA.
 #>
 [CmdletBinding()]
 param(
@@ -18,42 +18,6 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
-Add-Type @"
-using System;using System.Runtime.InteropServices;using System.Drawing;
-public static class G {
- [StructLayout(LayoutKind.Sequential)]public struct RECT{public int L,T,R,B;}
- [DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr h,out RECT r);
- [DllImport("user32.dll")]public static extern bool SetForegroundWindow(IntPtr h);
- [DllImport("user32.dll")]public static extern bool BringWindowToTop(IntPtr h);
- [DllImport("user32.dll")]public static extern bool ShowWindow(IntPtr h,int c);
- [DllImport("user32.dll")]public static extern IntPtr GetForegroundWindow();
- [DllImport("user32.dll")]public static extern bool SetProcessDpiAwarenessContext(IntPtr c);
- [DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);
- [DllImport("kernel32.dll")]public static extern uint GetCurrentThreadId();
- [DllImport("user32.dll")]public static extern bool AttachThreadInput(uint a,uint b,bool f);
- [DllImport("user32.dll")]public static extern bool SetWindowPos(IntPtr h,IntPtr a,int x,int y,int cx,int cy,uint f);
- [DllImport("user32.dll")]public static extern bool IsWindowVisible(IntPtr h);
- public delegate bool EP(IntPtr h,IntPtr l);
- [DllImport("user32.dll")]public static extern bool EnumWindows(EP cb,IntPtr l);
- public static void Dpi(){ try{ SetProcessDpiAwarenessContext((IntPtr)(-4)); }catch{} }
- public static IntPtr Best(uint pid){IntPtr b=IntPtr.Zero;int ba=0;EnumWindows((h,l)=>{uint wp;GetWindowThreadProcessId(h,out wp);if(wp==pid&&IsWindowVisible(h)){RECT r;GetWindowRect(h,out r);int a=(r.R-r.L)*(r.B-r.T);if(a>ba){ba=a;b=h;}}return true;},IntPtr.Zero);return b;}
- // For STATIC overlay capture we don't need keyboard foreground (which Windows'
- // foreground-lock refuses to background-launched procs) - we only need the window
- // drawn ABOVE everything. SetWindowPos HWND_TOPMOST does that without activation;
- // we LEAVE it topmost so CopyFromScreen grabs the real (unoccluded) window.
- public static bool Fg(IntPtr h){
-   ShowWindow(h,9); // SW_RESTORE
-   SetWindowPos(h,(IntPtr)(-1),0,0,0,0,0x3|0x40); // HWND_TOPMOST, keep
-   BringWindowToTop(h);
-   IntPtr fg=GetForegroundWindow();uint d;uint ft=GetWindowThreadProcessId(fg,out d);uint mt=GetCurrentThreadId();
-   bool at=(ft!=0&&ft!=mt&&AttachThreadInput(mt,ft,true));
-   SetForegroundWindow(h);
-   if(at)AttachThreadInput(mt,ft,false);
-   return true; // topmost is sufficient for a screen capture
- }
-}
-"@
-[G]::Dpi()
 if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Force $OutDir | Out-Null }
 $report = [System.Collections.Generic.List[string]]::new()
 function Log($m){ $l="[{0}] {1}" -f ((Get-Date).ToString('HH:mm:ss')),$m; $report.Add($l); Write-Host $l }
@@ -85,38 +49,6 @@ function Test-UsefulCapture($bmp) {
   $contrast = $max - $min
   return ($sameRatio -lt 0.985 -and $contrast -gt 8)
 }
-function Save-Capture($h, $path) {
-  $r = New-Object G+RECT
-  [void][G]::GetWindowRect($h, [ref]$r)
-  $w = $r.R - $r.L
-  $ht = $r.B - $r.T
-
-  $lastError = $null
-  for ($try = 1; $try -le 10; $try++) {
-    $bmp = $null
-    $g = $null
-    try {
-      $bmp = New-Object System.Drawing.Bitmap $w, $ht
-      $g = [System.Drawing.Graphics]::FromImage($bmp)
-      $g.CopyFromScreen($r.L, $r.T, 0, 0, (New-Object System.Drawing.Size $w, $ht))
-      if (Test-UsefulCapture $bmp) {
-        $bmp.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
-        return @{ ok = $true; width = $w; height = $ht; tries = $try }
-      }
-      $lastError = "blank-or-flat capture on try $try"
-    } catch {
-      $lastError = $_.Exception.Message
-    } finally {
-      if ($g) { $g.Dispose() }
-      if ($bmp) { $bmp.Dispose() }
-    }
-    Start-Sleep -Milliseconds 180
-    [void][G]::Fg($h)
-  }
-
-  return @{ ok = $false; width = $w; height = $ht; tries = 10; error = $lastError }
-}
-
 # name ; env var ; env value
 $cases = @(
   @{n='palette';      v='MUI_PALETTE_AUTOOPEN';    val='1'},
@@ -177,34 +109,43 @@ if ($Case -and $Case.Count -gt 0) {
 
 foreach ($c in $cases) {
   $p = $null
+  $outPath = Join-Path $OutDir "$($c.n).png"
   try {
+    Remove-Item -LiteralPath $outPath -Force -ErrorAction SilentlyContinue
     Set-Item -Path "env:$($c.v)" -Value $c.val
+    Set-Item -Path "env:MUI_SCREENSHOT" -Value $outPath
+    Set-Item -Path "env:MUI_SCREENSHOT_FRAME" -Value "5"
+    Set-Item -Path "env:MUI_WIDTH" -Value "1280"
+    Set-Item -Path "env:MUI_HEIGHT" -Value "832"
     $p = Start-Process -FilePath $Exe -WorkingDirectory $WorkDir -PassThru
-    $h = [IntPtr]::Zero
-    for ($i=0; $i -lt 40; $i++) {
-      $p.Refresh()
-      if ($p.HasExited) { break }
-      $cand = [G]::Best([uint32]$p.Id)
-      if ($cand -ne [IntPtr]::Zero) { $r = New-Object G+RECT; [void][G]::GetWindowRect($cand,[ref]$r); if (($r.R-$r.L) -ge 400) { $h=$cand; break } }
-      Start-Sleep -Milliseconds 120
-    }
-    $fg = $false
-    if ($h -ne [IntPtr]::Zero) { for ($k=0;$k -lt 5;$k++){ $fg=[G]::Fg($h); if($fg){break}; Start-Sleep -Milliseconds 120 } }
-    Start-Sleep -Milliseconds 250
-    if ($h -ne [IntPtr]::Zero -and $fg) {
-      $capture = Save-Capture $h (Join-Path $OutDir "$($c.n).png")
-      if ($capture.ok) {
-        $suffix = if ($capture.tries -gt 1) { ", tries=$($capture.tries)" } else { "" }
-        Log "$($c.n): OK ($($capture.width) x $($capture.height)$suffix)"
-      } else {
-        Log "$($c.n): CAPTURE-ERROR $($capture.error)"
-      }
+    $exited = $p.WaitForExit(20000)
+    $p.Refresh()
+    if (-not $exited) {
+      Log "$($c.n): TIMEOUT waiting for screenshot"
+    } elseif (-not (Test-Path $outPath)) {
+      Log "$($c.n): CAPTURE-ERROR missing screenshot (exit=$($p.ExitCode))"
     } else {
-      Log "$($c.n): FAILED (hwnd=$($h) fg=$fg exited=$($p.HasExited))"
+      $bmp = $null
+      try {
+        $bmp = [System.Drawing.Bitmap]::FromFile($outPath)
+        if (Test-UsefulCapture $bmp) {
+          Log "$($c.n): OK ($($bmp.Width) x $($bmp.Height), exit=$($p.ExitCode))"
+        } else {
+          Log "$($c.n): CAPTURE-ERROR blank-or-flat offscreen screenshot"
+        }
+      } catch {
+        Log "$($c.n): CAPTURE-ERROR unreadable screenshot - $($_.Exception.Message)"
+      } finally {
+        if ($bmp) { $bmp.Dispose() }
+      }
     }
   } finally {
     if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force }
     Remove-Item -Path "env:$($c.v)" -ErrorAction SilentlyContinue
+    Remove-Item -Path "env:MUI_SCREENSHOT" -ErrorAction SilentlyContinue
+    Remove-Item -Path "env:MUI_SCREENSHOT_FRAME" -ErrorAction SilentlyContinue
+    Remove-Item -Path "env:MUI_WIDTH" -ErrorAction SilentlyContinue
+    Remove-Item -Path "env:MUI_HEIGHT" -ErrorAction SilentlyContinue
   }
   Start-Sleep -Milliseconds 200
 }
