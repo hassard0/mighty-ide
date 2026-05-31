@@ -413,14 +413,25 @@ impl PaletteEngine {
             CMD_SETTINGS => (icons::SETTINGS, "Edit editor preferences", false),
             CMD_RUN_TESTS => (icons::BEAKER, "Run the package's tests (mty test)", false),
             CMD_PEEK_DEFINITION => (icons::FN_SYMBOL, "Preview the definition inline (Alt+F12)", false),
+            CMD_WELCOME => (icons::LANG_M, "Open the Welcome screen", false),
+            CMD_ZEN_MODE => (icons::INFO_I, "Toggle distraction-free focus mode", false),
+            CMD_AGENTS => (icons::AGENTS_NET, "Open the Mighty Agents topology panel", false),
             CMD_GIT_SWITCH_BRANCH => (icons::BRANCH, "Checkout or create a git branch", false),
             CMD_GIT_PUSH => (icons::GIT, "Push commits to the remote", false),
             CMD_GIT_PULL => (icons::GIT, "Pull (fast-forward only) from the remote", false),
             CMD_GIT_FETCH => (icons::GIT, "Fetch refs from the remote", false),
             CMD_GIT_TOGGLE_BLAME => (icons::GIT, "Show git blame in the gutter", false),
+            CMD_RUN_IN_BROWSER => (icons::GLOBE, "Build and serve the active Mighty file for the browser", false),
+            CMD_SPLIT_RIGHT => (icons::TEST_BOX, "Split the editor into side-by-side panes", false),
+            CMD_FOCUS_NEXT_PANE => (icons::CHEVRON, "Move focus between editor panes", false),
+            CMD_CLOSE_PANE => (icons::CLOSE, "Close the focused editor pane", false),
+            CMD_MARKDOWN_PREVIEW => (icons::FILE_MD, "Open or close the live Markdown preview", false),
             CMD_OPEN_FOLDER => (icons::FOLDER, "Open a folder as the workspace", false),
             CMD_OPEN_RECENT => (icons::FOLDER, "Reopen a recent workspace folder", false),
             CMD_KEYBOARD_SHORTCUTS => (icons::INFO_I, "List & remap all keyboard shortcuts", false),
+            CMD_FOLD_TOGGLE => (icons::CHEVRON, "Fold or unfold the block at the cursor", false),
+            CMD_FOLD_ALL => (icons::CHEVRON_DOWN, "Fold every foldable block in the document", false),
+            CMD_UNFOLD_ALL => (icons::CHEVRON_DOWN, "Unfold every block in the document", false),
             CMD_NEW_PROJECT => (icons::NEW_FOLDER, "Scaffold a new Mighty project (mty new)", false),
             _ => (icons::CHEVRON, "", false),
         }
@@ -716,6 +727,18 @@ mod tests {
         assert_eq!(e.count(), 0);
         assert_eq!(e.query(), "");
         assert_eq!(e.selected_id(), -1);
+    }
+
+    #[test]
+    fn every_command_has_rich_row_metadata() {
+        for cmd in COMMANDS {
+            let (_icon, desc, _fill) = PaletteEngine::meta(cmd.id);
+            assert!(
+                !desc.trim().is_empty(),
+                "{} should not render as a generic blank palette row",
+                cmd.label
+            );
+        }
     }
 
     #[test]
