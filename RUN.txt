@@ -57,8 +57,8 @@ These features shell out to external tools; install them and put them on PATH:
     Run, Test, Debug (DAP), the agents panel, and the web view
         -> need the Mighty compiler `mty` on PATH
         -> live Agents inspect also needs a running Mighty program with
-           MTY_RUNTIME_CONTROL_SOCK set; Windows currently shows the static
-           topology/run path until Mighty ships its named-pipe backend
+           MTY_RUNTIME_CONTROL_SOCK set; current Mighty supports Unix sockets
+           and Windows named pipes for that endpoint
   - Building / running Mighty PROGRAMS you write
         -> needs `mty` AND a C toolchain (clang) for the native linker
   - AI copilot (inline completions / chat)

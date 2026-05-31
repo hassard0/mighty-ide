@@ -50,6 +50,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   which launches Explorer/Finder/xdg-open instead of only expanding the IDE tree.
 - **Copy Active File Path** copies the active file's full path to the system
   clipboard from the command palette.
+- Agents live-inspect notes now reflect the Mighty runtime's Windows named-pipe
+  control endpoint work, so the IDE no longer documents Windows as static-only.
 
 ### Quick-fix lightbulb
 - A lightbulb appears in the editor gutter when the cursor's line has available

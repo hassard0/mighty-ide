@@ -9,8 +9,8 @@
 //! calls an LLM client). No other IDE understands this shape; the Agents panel
 //! renders the whole message-passing topology of the workspace as a clear tree
 //! and lets you jump to any agent / protocol / handler / tool definition, run a
-//! program, and (on platforms where the runtime control socket exists) attach a
-//! live inspector.
+//! program, and attach a live inspector when the Mighty runtime exposes a local
+//! control endpoint.
 //!
 //! ## Discovery is STATIC and reliable
 //!
@@ -27,16 +27,13 @@
 //!
 //! and the **agent→protocol** relationships.
 //!
-//! ## Live inspect is best-effort and platform-gated
+//! ## Live inspect is best-effort
 //!
 //! `mty inspect` connects to a runtime control socket (opt-in via
-//! `MTY_RUNTIME_CONTROL_SOCK`). On **Windows the named-pipe backend is NOT
-//! implemented** (v0.16 Unix-only) — the runtime binds no socket and `mty
-//! inspect --sock ...` returns the stub error
-//! *"the Windows named-pipe control socket is not yet implemented"*. So on this
-//! platform the panel ships static topology + run only; the [`parse_snapshot`]
-//! JSON parser is implemented + unit-tested so live inspect lights up for free
-//! on Unix / once the Windows backend lands. See `docs/mighty-language-lessons.md`.
+//! `MTY_RUNTIME_CONTROL_SOCK`). Unix runtimes expose a Unix-domain socket;
+//! current Windows runtimes expose a named pipe using the same env var. The
+//! [`parse_snapshot`] JSON parser is implemented + unit-tested so the panel can
+//! surface live mailbox depths whenever `mty inspect --json` can connect.
 
 #![allow(dead_code)]
 
@@ -564,9 +561,9 @@ pub struct RuntimeSnapshot {
 /// `{ ... }` object inside the `agents` array. Returns `None` on a clearly
 /// non-snapshot / error payload.
 ///
-/// This is implemented + tested even though the **Windows** runtime currently
-/// binds no control socket (so `mty inspect` can't attach here): on Unix / once
-/// the named-pipe backend lands, live inspect lights up with no further work.
+/// This is implemented + tested independently of the transport. Unix uses a
+/// Unix-domain socket; current Mighty on Windows maps the same configured path
+/// to a named pipe.
 pub fn parse_snapshot(json: &str) -> Option<RuntimeSnapshot> {
     let bytes = json.as_bytes();
     // Locate the agents array (also the presence gate for "is this a snapshot").

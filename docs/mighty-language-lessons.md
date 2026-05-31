@@ -570,23 +570,18 @@ live inspector. Modules: `crate::agents` (pure scanner + snapshot parser) +
   agents:[{agent_id, agent_type, supervisor_parent, mailbox_depth,
   mailbox_high_water, in_flight_handler, in_flight_elapsed_ms, budget{...},
   last_messages}]}`. The wire version is locked at 1 (additive only).
-- **⚠️ Windows blocker (verified empirically):** the runtime's control socket is
-  **Unix-domain-only**; the **Windows named-pipe backend is NOT implemented**
-  (v0.16, "Unix-only"). `mty run` with the env var set starts cleanly but binds
-  **no** socket; `mty inspect --sock <path>` returns the stub error *"the Windows
-  named-pipe control socket is not yet implemented (v0.16 Unix-only). Tracking:
-  dev/history/notes/INTROSPECT_V0_16_NOTES.md"*. With no env var at all it prints
-  *"no control-socket path"*. So **live inspect cannot attach on this Windows
-  box** — there is no socket to connect to, full stop.
-- **What we shipped given that reality:** discovery (static, reliable) + topology
-  + run are fully live. Live inspect is *wired but platform-gated*: `mui_agents_inspect`
-  runs `mty inspect --json`, and `agents::parse_snapshot` (the `RuntimeSnapshot`
-  v1 parser) is implemented + unit-tested, so the panel lights up with live
-  mailbox depths the moment it runs on Unix / once the Windows pipe lands. On
-  Windows the panel shows an honest compact note ("Live inspect: static + run")
-  and never fakes data. **Suggested stardust
-  work:** implement the Windows named-pipe control-socket backend so `mty
-  inspect` works cross-platform (the v0.16 "Tier-1 followup").
+- **Windows status update (2026-05-31):** the Mighty language work in
+  `hassard0/Mighty#16` adds a Tokio named-pipe backend for
+  `MTY_RUNTIME_CONTROL_SOCK`, plus Windows client support in `mty inspect` and
+  `mty reload`. The IDE does not need a custom transport: `mui_agents_inspect`
+  already shells out to `mty inspect --json`, so the Agents panel can attach on
+  Windows once that Mighty build is on PATH and the runtime is started with
+  the same socket value.
+- **What we shipped:** discovery (static, reliable) + topology + run are fully
+  live. Live inspect is wired through `mty inspect --json`, and
+  `agents::parse_snapshot` (the `RuntimeSnapshot` v1 parser) is implemented +
+  unit-tested, so the panel lights up with live mailbox depths whenever the
+  configured Mighty runtime exposes its local control endpoint.
 
 **Discovery findings (real v0.36 agent grammar, vs. the task's assumed shape):**
 - `@tool` is **not** a bare attribute — it requires args: `@tool("desc", cap:

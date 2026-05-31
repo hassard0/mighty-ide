@@ -383,11 +383,9 @@ impl AgentTopology {
     /// Try to attach a live inspector: run `mty inspect --json` against
     /// `MTY_RUNTIME_CONTROL_SOCK` (or an explicit `--sock` from the same env),
     /// parse a snapshot, and store it. Returns the agent count, or `-1` if no
-    /// socket is configured / the platform stub fires / parsing fails.
-    ///
-    /// On **Windows** the runtime binds no named-pipe socket (v0.16 Unix-only),
-    /// so this always reports the stub and stores an explanatory note; on Unix
-    /// it works when a program was launched with the env var set.
+    /// socket is configured / the command fails / parsing fails. Unix runtimes
+    /// use a Unix-domain socket; current Mighty on Windows maps the same
+    /// configured path to a local named pipe.
     pub fn inspect(&mut self) -> i32 {
         let sock = std::env::var("MTY_RUNTIME_CONTROL_SOCK").ok();
         if sock.as_deref().map(str::trim).unwrap_or("").is_empty() {
