@@ -992,6 +992,8 @@ fn editor_abi_drives_live_model_and_undo() {
         mui_ed_undo_record,
     };
     let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
     // Type "hi", newline, "x". The model must reflect each edit LIVE.
@@ -1357,6 +1359,44 @@ fn workspace_open_recent_prunes_missing_folder() {
 
     assert_eq!(mui_ws_open_recent(h, 0), 0, "missing recent folder should fail");
     assert_eq!(mui_ws_recent_count(h), 0, "stale recent folder should be pruned");
+}
+
+#[test]
+fn welcome_missing_recent_folder_stays_open_and_prunes() {
+    use crate::wsabi::mui_ws_recent_count;
+    use crate::{mui_welcome_active, mui_welcome_draw, mui_welcome_open_folder};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let root = std::env::temp_dir().join(format!("mui_welcome_folder_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("main.mty");
+    std::fs::write(&file, b"fn main() {}").unwrap();
+    ctx.tabs.open_path(file);
+
+    let missing = root.join("missing-folder");
+    let _ = std::fs::remove_dir_all(&missing);
+    ctx.recent_workspaces.set_all(vec![missing]);
+    ctx.welcome.open();
+
+    mui_welcome_draw(h);
+    assert_eq!(
+        mui_welcome_open_folder(h, 0),
+        0,
+        "missing Welcome recent folder should fail"
+    );
+    assert_eq!(mui_ws_recent_count(h), 0, "stale Welcome folder should be pruned");
+    assert_eq!(
+        mui_welcome_active(h),
+        1,
+        "failed Welcome recent-folder open should not dismiss the forced Welcome screen"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
 }
 
 #[test]

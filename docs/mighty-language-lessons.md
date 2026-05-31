@@ -1117,3 +1117,17 @@ temporarily owns the full viewport clip.
 - **Language note:** no new gap surfaced. Mighty can keep issuing scalar draw
   calls; the shim should continue owning retained UI layers, clipping, and modal
   z-order invariants.
+
+### L56. Welcome stale-recents recovery is shim-state hygiene **[finding, P3]**
+Fixing a stale recent-folder click from the Welcome screen did not surface a new
+Mighty limitation. The bug was purely in Rust shim state ordering: the Welcome
+screen dismissed itself before the selected recent folder was validated, so a
+missing folder could close a forced Welcome screen even though no workspace
+opened. The fix keeps the validation/prune/toast path in `wsabi`, then dismisses
+Welcome only after a successful re-root.
+
+- **Why it matters for the IDE:** Open Recent should recover gracefully from
+  renamed/deleted folders without kicking the user out of the selection surface.
+- **Language note:** no new gap surfaced. Recent-file/folder recovery should stay
+  with the shim-owned MRU and workspace model; Mighty only needs scalar action ids
+  and does not need to own path validation or MRU mutation.

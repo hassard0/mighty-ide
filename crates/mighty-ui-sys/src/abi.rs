@@ -9835,8 +9835,11 @@ pub extern "C" fn mui_welcome_open_folder(handle: i64, i: i32) -> i32 {
     let Some(path) = ctx.welcome.recent_folder(i as usize).cloned() else {
         return 0;
     };
-    ctx.welcome.dismiss();
-    crate::wsabi::mui_ws_open_recent_path(ctx, &path)
+    let opened = crate::wsabi::mui_ws_open_recent_path(ctx, &path);
+    if opened == 1 {
+        ctx.welcome.dismiss();
+    }
+    opened
 }
 
 // ===========================================================================
