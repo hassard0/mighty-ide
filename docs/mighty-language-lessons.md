@@ -1213,3 +1213,16 @@ tabs, and returns the new active index for Mighty to reload the editor surfaces.
 - **Language note:** no new gap surfaced. A future Mighty enum/result ABI would
   make these command outcomes clearer, but the current scalar return plus
   shim-owned tab filtering remains adequate and testable.
+
+### L63. Directional tab cleanup should share the same dirty-safety rule **[finding, P3]**
+Adding **Close Saved Tabs to the Left/Right** did not require new Mighty
+language work. Directional filtering is another tab-store invariant: tabs on the
+selected side close only when clean, dirty tabs survive, and Mighty receives the
+active index to refresh the editor.
+
+- **Why it matters for the IDE:** mature tab workflows need broad cleanup,
+  active-context cleanup, and directional cleanup. All three should behave
+  consistently so cleanup commands never become hidden discard commands.
+- **Language note:** no new gap surfaced. The command-id ladder is growing, so a
+  future table-driven Mighty dispatch form would reduce boilerplate, but the
+  current explicit scalar arms remain reliable.

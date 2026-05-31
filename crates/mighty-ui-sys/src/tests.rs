@@ -835,6 +835,18 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_OTHER_SAVED_TABS)
         .unwrap();
     assert_eq!(close_other_saved.label, "File: Close Other Saved Tabs");
+
+    let close_right = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_SAVED_TABS_TO_RIGHT)
+        .unwrap();
+    assert_eq!(close_right.label, "File: Close Saved Tabs to the Right");
+
+    let close_left = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_SAVED_TABS_TO_LEFT)
+        .unwrap();
+    assert_eq!(close_left.label, "File: Close Saved Tabs to the Left");
 }
 
 #[test]
@@ -931,6 +943,55 @@ fn close_other_saved_tabs_keeps_active_and_dirty_buffers() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Closed 2 other saved tabs");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn close_saved_tabs_to_side_preserves_dirty_buffers() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_close_saved_side_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let dirty_left = root.join("dirty_left.mty");
+    let clean_left = root.join("clean_left.mty");
+    let active_mid = root.join("active_mid.mty");
+    let clean_right = root.join("clean_right.mty");
+    let dirty_right = root.join("dirty_right.mty");
+    for path in [&dirty_left, &clean_left, &active_mid, &clean_right, &dirty_right] {
+        std::fs::write(path, "x").unwrap();
+    }
+
+    let left_dirty_idx = ctx.tabs.open_path(dirty_left);
+    ctx.tabs.set_dirty(left_dirty_idx, true);
+    ctx.tabs.open_path(clean_left);
+    let active_idx = ctx.tabs.open_path(active_mid);
+    ctx.tabs.open_path(clean_right);
+    let right_dirty_idx = ctx.tabs.open_path(dirty_right);
+    ctx.tabs.set_dirty(right_dirty_idx, true);
+    ctx.tabs.switch(active_idx);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_tab_close_saved_to_right(handle), 3);
+    assert_eq!(ctx.tabs.count(), 5);
+    assert_eq!(ctx.tabs.get(0).unwrap().basename(), "(scratch)");
+    assert_eq!(ctx.tabs.get(1).unwrap().basename(), "dirty_left.mty");
+    assert_eq!(ctx.tabs.get(2).unwrap().basename(), "clean_left.mty");
+    assert_eq!(ctx.tabs.get(3).unwrap().basename(), "active_mid.mty");
+    assert_eq!(ctx.tabs.get(4).unwrap().basename(), "dirty_right.mty");
+    let right_toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(right_toast.message, "Closed 1 saved tab to the right");
+
+    assert_eq!(crate::mui_tab_close_saved_to_left(handle), 1);
+    assert_eq!(ctx.tabs.count(), 3);
+    assert_eq!(ctx.tabs.active(), 1);
+    assert_eq!(ctx.tabs.get(0).unwrap().basename(), "dirty_left.mty");
+    assert_eq!(ctx.tabs.get(1).unwrap().basename(), "active_mid.mty");
+    assert_eq!(ctx.tabs.get(2).unwrap().basename(), "dirty_right.mty");
+    assert!(ctx.tabs.is_dirty(0));
+    assert!(ctx.tabs.is_dirty(2));
+    let left_toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(left_toast.message, "Closed 2 saved tabs to the left");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -2027,6 +2088,8 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_CLOSE_TAB, "cmd_close_tab"),
         (CMD_CLOSE_SAVED_TABS, "cmd_close_saved_tabs"),
         (CMD_CLOSE_OTHER_SAVED_TABS, "cmd_close_other_saved_tabs"),
+        (CMD_CLOSE_SAVED_TABS_TO_RIGHT, "cmd_close_saved_tabs_to_right"),
+        (CMD_CLOSE_SAVED_TABS_TO_LEFT, "cmd_close_saved_tabs_to_left"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),
         (CMD_UNDO, "cmd_undo"),
         (CMD_REDO, "cmd_redo"),

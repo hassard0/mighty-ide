@@ -336,6 +336,51 @@ impl TabStore {
         removed
     }
 
+    /// Close clean tabs to the right of the active tab, preserving dirty tabs.
+    /// Returns the number of tabs removed.
+    pub fn close_saved_to_right(&mut self) -> usize {
+        if self.tabs.is_empty() {
+            self.ensure_scratch();
+            return 0;
+        }
+        let active = self.active.min(self.tabs.len().saturating_sub(1));
+        let before = self.tabs.len();
+        self.tabs = self
+            .tabs
+            .drain(..)
+            .enumerate()
+            .filter(|(idx, tab)| *idx <= active || tab.is_dirty())
+            .map(|(_, tab)| tab)
+            .collect();
+        self.active = active.min(self.tabs.len().saturating_sub(1));
+        before.saturating_sub(self.tabs.len())
+    }
+
+    /// Close clean tabs to the left of the active tab, preserving dirty tabs.
+    /// Returns the number of tabs removed.
+    pub fn close_saved_to_left(&mut self) -> usize {
+        if self.tabs.is_empty() {
+            self.ensure_scratch();
+            return 0;
+        }
+        let old_active = self.active.min(self.tabs.len().saturating_sub(1));
+        let before = self.tabs.len();
+        let mut kept: Vec<(usize, Tab)> = self
+            .tabs
+            .drain(..)
+            .enumerate()
+            .filter(|(idx, tab)| *idx >= old_active || tab.is_dirty())
+            .collect();
+        let removed = before.saturating_sub(kept.len());
+        let new_active = kept
+            .iter()
+            .position(|(idx, _)| *idx == old_active)
+            .unwrap_or(0);
+        self.tabs = kept.drain(..).map(|(_, tab)| tab).collect();
+        self.active = new_active;
+        removed
+    }
+
     /// True when tab `idx` has unsaved edits.
     pub fn is_dirty(&self, idx: usize) -> bool {
         self.tabs.get(idx).map(Tab::is_dirty).unwrap_or(false)
@@ -581,5 +626,45 @@ mod tests {
         assert!(!s.get(0).unwrap().is_dirty());
         assert!(s.get(1).unwrap().is_dirty());
         assert_eq!(s.close_other_saved(), 0);
+    }
+
+    #[test]
+    fn close_saved_to_right_preserves_dirty_right_tabs() {
+        let mut s = TabStore::new();
+        let active = write_tmp("tabs_close_right_active.txt", b"a");
+        let clean = write_tmp("tabs_close_right_clean.txt", b"b");
+        let dirty = write_tmp("tabs_close_right_dirty.txt", b"c");
+        let ia = s.open_path(active);
+        s.open_path(clean);
+        let id = s.open_path(dirty);
+        s.set_dirty(id, true);
+        s.switch(ia);
+
+        assert_eq!(s.close_saved_to_right(), 1);
+        assert_eq!(s.count(), 2);
+        assert_eq!(s.active(), 0);
+        assert!(s.get(0).unwrap().basename().contains("tabs_close_right_active"));
+        assert!(s.get(1).unwrap().basename().contains("tabs_close_right_dirty"));
+        assert!(s.get(1).unwrap().is_dirty());
+    }
+
+    #[test]
+    fn close_saved_to_left_preserves_dirty_left_tabs() {
+        let mut s = TabStore::new();
+        let dirty = write_tmp("tabs_close_left_dirty.txt", b"a");
+        let clean = write_tmp("tabs_close_left_clean.txt", b"b");
+        let active = write_tmp("tabs_close_left_active.txt", b"c");
+        let id = s.open_path(dirty);
+        s.open_path(clean);
+        let ia = s.open_path(active);
+        s.set_dirty(id, true);
+        s.switch(ia);
+
+        assert_eq!(s.close_saved_to_left(), 1);
+        assert_eq!(s.count(), 2);
+        assert_eq!(s.active(), 1);
+        assert!(s.get(0).unwrap().basename().contains("tabs_close_left_dirty"));
+        assert!(s.get(1).unwrap().basename().contains("tabs_close_left_active"));
+        assert!(s.get(0).unwrap().is_dirty());
     }
 }

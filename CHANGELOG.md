@@ -20,6 +20,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   buffer.
 - **Close Other Saved Tabs**: keeps the active tab plus dirty tabs and removes
   the rest of the clean tab clutter.
+- **Close Saved Tabs to the Left/Right**: directional tab cleanup around the
+  active file, still preserving dirty buffers.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,
   ensure a final newline, and timed auto-save.
 
