@@ -2342,6 +2342,7 @@ fn main() {
             mui_ed_undo_reset(h)
             find_nav = false
             let _r = mui_diag_refresh(h)
+            let _o = mui_outline_refresh(h)
           } else if mui_snippet_active(h) == 1 {
             // (1) A tab-stop session is in progress: Shift+Tab -> previous stop,
             // Tab -> next stop. The final Tab jumps to $0 and ends the session.
@@ -2949,12 +2950,14 @@ fn main() {
           mui_ed_undo_reset(h)
           find_nav = false
           let _r = mui_diag_refresh(h)
+          let _o = mui_outline_refresh(h)
         } else if id == cmd_prev_tab() {
           let a = mui_tab_prev(h)
           let _b = mui_ed_tab_switch(h, a)
           mui_ed_undo_reset(h)
           find_nav = false
           let _r = mui_diag_refresh(h)
+          let _o = mui_outline_refresh(h)
         } else if id == cmd_close_tab() {
           let cur_active = mui_tab_active(h)
           let a = mui_tab_close(h, cur_active)
@@ -2962,6 +2965,7 @@ fn main() {
           mui_ed_undo_reset(h)
           find_nav = false
           let _r = mui_diag_refresh(h)
+          let _o = mui_outline_refresh(h)
         } else if id == cmd_format_document() {
           do_format(h)
         } else if id == cmd_undo() {
