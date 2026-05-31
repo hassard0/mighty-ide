@@ -1226,3 +1226,16 @@ active index to refresh the editor.
 - **Language note:** no new gap surfaced. The command-id ladder is growing, so a
   future table-driven Mighty dispatch form would reduce boilerplate, but the
   current explicit scalar arms remain reliable.
+
+### L64. Reopen-closed-tab history belongs with the tab store **[finding, P3]**
+Adding **Reopen Closed Tab** did not require new Mighty language work. The Rust
+tab store keeps a bounded stack of recoverable closed tabs, skips empty scratch
+tabs, restores the most recent tab, and returns the active index for Mighty to
+reload the editor.
+
+- **Why it matters for the IDE:** once tab-close and cleanup commands are fast,
+  accidental closes need an immediate recovery path that does not depend on the
+  file tree or recent-file list.
+- **Language note:** no new gap surfaced. The feature does reinforce the broader
+  L63 note: command dispatch would be cleaner if Mighty had an ergonomic
+  table-driven or enum-driven dispatcher instead of one scalar arm per command.

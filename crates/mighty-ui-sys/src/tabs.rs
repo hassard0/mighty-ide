@@ -14,6 +14,8 @@ use std::path::{Path, PathBuf};
 use crate::editor::TextModel;
 use crate::fold::FoldState;
 
+const CLOSED_CAP: usize = 20;
+
 /// Snapshot a model's lines into owned strings (for the fold scanner, which is
 /// pure over `&[String]`). The model stores newlines as line boundaries, so this
 /// is one `String` per buffer line.
@@ -74,6 +76,7 @@ impl Tab {
 pub struct TabStore {
     tabs: Vec<Tab>,
     active: usize,
+    closed: Vec<Tab>,
 }
 
 impl TabStore {
@@ -81,6 +84,7 @@ impl TabStore {
         TabStore {
             tabs: Vec::new(),
             active: 0,
+            closed: Vec::new(),
         }
     }
 
@@ -261,7 +265,8 @@ impl TabStore {
         if idx >= self.tabs.len() {
             return self.active;
         }
-        self.tabs.remove(idx);
+        let closed = self.tabs.remove(idx);
+        self.remember_closed(closed);
         if self.tabs.is_empty() {
             self.tabs.push(Tab::default());
             self.active = 0;
@@ -274,6 +279,44 @@ impl TabStore {
             self.active = self.tabs.len() - 1;
         }
         self.active
+    }
+
+    /// Reopen the most recently closed tab. Returns the new active index, or
+    /// `None` if there is no recoverable closed tab.
+    pub fn reopen_closed(&mut self) -> Option<usize> {
+        while let Some(tab) = self.closed.pop() {
+            if let Some(path) = tab.path.as_deref() {
+                if let Some(existing) = self.find_by_path(path) {
+                    self.active = existing;
+                    return Some(existing);
+                }
+            }
+            self.tabs.push(tab);
+            self.active = self.tabs.len() - 1;
+            return Some(self.active);
+        }
+        None
+    }
+
+    /// Number of tabs currently recoverable through reopen-closed-tab.
+    #[cfg(test)]
+    pub fn closed_count(&self) -> usize {
+        self.closed.len()
+    }
+
+    fn remember_closed(&mut self, tab: Tab) {
+        if !Self::is_reopenable(&tab) {
+            return;
+        }
+        self.closed.push(tab);
+        if self.closed.len() > CLOSED_CAP {
+            let overflow = self.closed.len() - CLOSED_CAP;
+            self.closed.drain(0..overflow);
+        }
+    }
+
+    fn is_reopenable(tab: &Tab) -> bool {
+        tab.path.is_some() || tab.is_dirty() || !tab.model.to_bytes().is_empty() || !tab.bytes.is_empty()
     }
 
     /// Close every clean tab, preserving all dirty tabs. Returns the number of
@@ -666,5 +709,24 @@ mod tests {
         assert!(s.get(0).unwrap().basename().contains("tabs_close_left_dirty"));
         assert!(s.get(1).unwrap().basename().contains("tabs_close_left_active"));
         assert!(s.get(0).unwrap().is_dirty());
+    }
+
+    #[test]
+    fn reopen_closed_restores_last_closed_tab() {
+        let mut s = TabStore::new();
+        let a = write_tmp("tabs_reopen_a.txt", b"a");
+        let b = write_tmp("tabs_reopen_b.txt", b"b");
+        s.open_path(a);
+        let ib = s.open_path(b);
+        assert_eq!(s.close(ib), 0);
+        assert_eq!(s.closed_count(), 1);
+
+        let reopened = s.reopen_closed().unwrap();
+        assert_eq!(reopened, 1);
+        assert_eq!(s.active(), 1);
+        assert_eq!(s.count(), 2);
+        assert!(s.get(1).unwrap().basename().contains("tabs_reopen_b"));
+        assert_eq!(s.closed_count(), 0);
+        assert!(s.reopen_closed().is_none());
     }
 }

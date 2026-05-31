@@ -33,6 +33,7 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Tabs (Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W, click), file-tree sidebar (Ctrl+B), native Open File (Ctrl+O) with typed-path fallback when the picker is unavailable
 - **Close Saved Tabs**, **Close Other Saved Tabs**, and directional close-left /
   close-right cleanup remove tab clutter while preserving dirty buffers
+- **Reopen Closed Tab** restores the most recently closed editor tab
 - Project-wide Search panel (Ctrl+Shift+F)
 
 ### Language Intelligence

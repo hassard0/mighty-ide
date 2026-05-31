@@ -2873,6 +2873,22 @@ fn close_tab_unchecked(ctx: &mut MuiContext, idx_u: usize) -> i32 {
     a as i32
 }
 
+fn tab_reopen_closed_unchecked(ctx: &mut MuiContext) -> i32 {
+    match ctx.tabs.reopen_closed() {
+        Some(active) => {
+            sync_active_path(ctx);
+            ctx.panes = crate::panes::PaneLayout::new(active);
+            let name = ctx.tabs.get(active).map(|t| t.basename()).unwrap_or_else(|| "tab".to_string());
+            ctx.push_toast(crate::toast::Kind::Info, format!("Reopened {name}"));
+            active as i32
+        }
+        None => {
+            ctx.push_toast(crate::toast::Kind::Info, "No closed tab to reopen");
+            -1
+        }
+    }
+}
+
 /// Number of open tabs (always >= 1).
 #[no_mangle]
 pub extern "C" fn mui_tab_count(handle: i64) -> i32 {
@@ -3019,6 +3035,16 @@ pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
     ctx.panes.on_tab_closed(idx_u, ctx.tabs.count());
     sync_active_path(ctx);
     a as i32
+}
+
+/// Reopen the most recently closed tab. Returns the reopened active tab index,
+/// or -1 when there is no recoverable tab.
+#[no_mangle]
+pub extern "C" fn mui_tab_reopen_closed(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    tab_reopen_closed_unchecked(ctx)
 }
 
 /// Close every clean tab while preserving dirty tabs. Returns the new active tab

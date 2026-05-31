@@ -847,6 +847,12 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_SAVED_TABS_TO_LEFT)
         .unwrap();
     assert_eq!(close_left.label, "File: Close Saved Tabs to the Left");
+
+    let reopen_closed = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_REOPEN_CLOSED_TAB)
+        .unwrap();
+    assert_eq!(reopen_closed.label, "File: Reopen Closed Tab");
 }
 
 #[test]
@@ -992,6 +998,35 @@ fn close_saved_tabs_to_side_preserves_dirty_buffers() {
     assert!(ctx.tabs.is_dirty(2));
     let left_toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(left_toast.message, "Closed 2 saved tabs to the left");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn reopen_closed_tab_restores_last_closed_tab_and_toasts() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_reopen_closed_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let a = root.join("a.mty");
+    let b = root.join("b.mty");
+    std::fs::write(&a, "a").unwrap();
+    std::fs::write(&b, "b").unwrap();
+    ctx.tabs.open_path(a);
+    let b_idx = ctx.tabs.open_path(b);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_tab_close(handle, b_idx as i32), 1);
+    assert_eq!(ctx.tabs.count(), 2);
+    assert_eq!(crate::mui_tab_reopen_closed(handle), 2);
+    assert_eq!(ctx.tabs.active(), 2);
+    assert_eq!(ctx.tabs.get(2).unwrap().basename(), "b.mty");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Reopened b.mty");
+
+    assert_eq!(crate::mui_tab_reopen_closed(handle), -1);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "No closed tab to reopen");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -2090,6 +2125,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_CLOSE_OTHER_SAVED_TABS, "cmd_close_other_saved_tabs"),
         (CMD_CLOSE_SAVED_TABS_TO_RIGHT, "cmd_close_saved_tabs_to_right"),
         (CMD_CLOSE_SAVED_TABS_TO_LEFT, "cmd_close_saved_tabs_to_left"),
+        (CMD_REOPEN_CLOSED_TAB, "cmd_reopen_closed_tab"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),
         (CMD_UNDO, "cmd_undo"),
         (CMD_REDO, "cmd_redo"),
