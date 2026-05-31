@@ -1228,10 +1228,10 @@ active index to refresh the editor.
   current explicit scalar arms remain reliable.
 
 ### L64. Reopen-closed-tab history belongs with the tab store **[finding, P3]**
-Adding **Reopen Closed Tab** did not require new Mighty language work. The Rust
-tab store keeps a bounded stack of recoverable closed tabs, skips empty scratch
-tabs, restores the most recent tab, and returns the active index for Mighty to
-reload the editor.
+Adding **Reopen Closed Tab** (`Ctrl+Alt+T`) did not require new Mighty language
+work. The Rust tab store keeps a bounded stack of recoverable closed tabs, skips
+empty scratch tabs, restores the most recent tab, and returns the active index
+for Mighty to reload the editor.
 
 - **Why it matters for the IDE:** once tab-close and cleanup commands are fast,
   accidental closes need an immediate recovery path that does not depend on the

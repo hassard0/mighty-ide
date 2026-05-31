@@ -166,6 +166,7 @@ pub fn default_chord(cmd_id: u32) -> Option<Chord> {
         x if x == CMD_RUN_FILE => c('r' as i32, MOD_CTRL | MOD_SHIFT),
         x if x == CMD_SETTINGS => c(',' as i32, MOD_CTRL),
         x if x == CMD_RUN_TESTS => c('t' as i32, MOD_CTRL | MOD_SHIFT),
+        x if x == CMD_REOPEN_CLOSED_TAB => c('t' as i32, MOD_CTRL | MOD_ALT),
         x if x == CMD_KEYBOARD_SHORTCUTS => c('/' as i32, MOD_CTRL | MOD_SHIFT),
         x if x == CMD_FOLD_TOGGLE => c('[' as i32, MOD_CTRL | MOD_SHIFT),
         _ => None,
@@ -971,6 +972,10 @@ mod tests {
         assert_eq!(
             ov.resolve('t' as i32, MOD_CTRL | MOD_SHIFT),
             Some(CMD_RUN_TESTS)
+        );
+        assert_eq!(
+            ov.resolve('t' as i32, MOD_CTRL | MOD_ALT),
+            Some(CMD_REOPEN_CLOSED_TAB)
         );
     }
 

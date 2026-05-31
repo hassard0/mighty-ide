@@ -171,7 +171,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_CLOSE_OTHER_SAVED_TABS, label: "File: Close Other Saved Tabs", keybinding: "" },
     Command { id: CMD_CLOSE_SAVED_TABS_TO_RIGHT, label: "File: Close Saved Tabs to the Right", keybinding: "" },
     Command { id: CMD_CLOSE_SAVED_TABS_TO_LEFT, label: "File: Close Saved Tabs to the Left", keybinding: "" },
-    Command { id: CMD_REOPEN_CLOSED_TAB, label: "File: Reopen Closed Tab", keybinding: "" },
+    Command { id: CMD_REOPEN_CLOSED_TAB, label: "File: Reopen Closed Tab", keybinding: "Ctrl+Alt+T" },
     Command { id: CMD_FORMAT_DOCUMENT,  label: "Format Document",    keybinding: "Ctrl+Shift+I" },
     Command { id: CMD_UNDO,             label: "Undo",               keybinding: "Ctrl+Z" },
     Command { id: CMD_REDO,             label: "Redo",               keybinding: "Ctrl+Y" },

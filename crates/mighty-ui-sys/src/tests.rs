@@ -853,6 +853,7 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_REOPEN_CLOSED_TAB)
         .unwrap();
     assert_eq!(reopen_closed.label, "File: Reopen Closed Tab");
+    assert_eq!(reopen_closed.keybinding, "Ctrl+Alt+T");
 }
 
 #[test]
