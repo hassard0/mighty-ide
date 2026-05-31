@@ -157,7 +157,8 @@ $cases = @(
   @{n='fold';         v='MUI_FOLD_AUTOOPEN';       val='1'},
   @{n='brackets';     v='MUI_BRACKETS_AUTOOPEN';   val='1'},
   @{n='panel-scm';    v='MUI_PANEL_AUTOOPEN';      val='scm'},
-  @{n='panel-search'; v='MUI_PANEL_AUTOOPEN';      val='search'}
+  @{n='panel-search'; v='MUI_PANEL_AUTOOPEN';      val='search'},
+  @{n='welcome';      v='MUI_WELCOME_AUTOOPEN';    val='1'}
 )
 
 if ($Case -and $Case.Count -gt 0) {

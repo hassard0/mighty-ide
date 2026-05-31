@@ -376,27 +376,32 @@ impl WelcomeState {
         }
 
         // ---- Tips / keybinding cheat list (centered footer band) ----
-        let tips_y = rows_top + (QUICK_ACTIONS.len() as f32) * row_h + 28.0;
+        let tips_y = rows_top + (QUICK_ACTIONS.len() as f32) * row_h + 18.0;
         ctx.dl_rect(left_x, tips_y - 14.0, col_w, 1.0, theme::BORDER());
         ctx.text
             .queue_ui_sized(left_x, tips_y, "TIPS", theme::TEXT_3(), 11.5, clip);
         let tip_top = tips_y + 22.0;
-        // Two tips per row to keep the footer compact.
-        let tip_col_w = col_w * 0.5;
+        // Three columns keep all tips above the status bar at the default
+        // window height while leaving each keybinding pill readable.
+        const TIP_COLS: usize = 3;
+        let tip_col_w = col_w / TIP_COLS as f32;
+        let tip_row_h = 29.0;
         for (i, tip) in TIPS.iter().enumerate() {
-            let col = (i % 2) as f32;
-            let row = (i / 2) as f32;
+            let col = (i % TIP_COLS) as f32;
+            let row = (i / TIP_COLS) as f32;
             let txx = left_x + col * tip_col_w;
-            let tyy = tip_top + row * 26.0;
+            let tyy = tip_top + row * tip_row_h;
             ctx.text
                 .queue_ui_sized(txx, tyy, tip.what, theme::DIM(), 12.5, clip);
-            // Keybinding pill, right-aligned in its half.
+            // Stack the keybinding under the label so long chords never collide
+            // with labels in the compact footer grid.
             let kw = tip.key.chars().count() as f32 * 6.6 + 14.0;
-            let px = txx + tip_col_w - kw - 18.0;
-            ctx.dl_round(px, tyy - 2.0, kw, 18.0, 5.0, theme::BG_4());
-            ctx.dl_stroke(px, tyy - 2.0, kw, 18.0, 5.0, theme::BORDER(), 1.0);
+            let px = txx;
+            let py = tyy + 12.0;
+            ctx.dl_round(px, py, kw, 14.0, 5.0, theme::BG_4());
+            ctx.dl_stroke(px, py, kw, 14.0, 5.0, theme::BORDER(), 1.0);
             ctx.text
-                .queue_ui_sized(px + 7.0, tyy + 1.0, tip.key, theme::TEXT_3(), 10.5, clip);
+                .queue_ui_sized(px + 7.0, py + 0.5, tip.key, theme::TEXT_3(), 9.5, clip);
         }
     }
 }
