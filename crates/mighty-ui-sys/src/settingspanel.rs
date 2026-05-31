@@ -130,17 +130,18 @@ impl SettingsPanel {
         if !self.active {
             return 0;
         }
-        let (box_x, box_y, box_w, _box_h, list_top, row_h) = Self::geometry(width, height);
+        let (box_x, box_y, box_w, _box_h, list_top, row_h, top, shown) = self.geometry(width, height);
         if x < box_x || x > box_x + box_w || y < box_y {
             return 0;
         }
-        let row = ((y - list_top) / row_h).floor() as i32;
-        if row < 0 || row as usize >= RowId::ALL.len() {
+        let vis = ((y - list_top) / row_h).floor() as i32;
+        if vis < 0 || vis as usize >= shown {
             return 0;
         }
+        let row = top as i32 + vis;
         self.sel = row as usize;
         let row_id = self.selected();
-        let ry = list_top + row as f32 * row_h;
+        let ry = list_top + vis as f32 * row_h;
         let ctrl_right = box_x + box_w - 22.0;
         if row_id.is_numeric() {
             let step = 22.0;
@@ -171,23 +172,42 @@ impl SettingsPanel {
         RowId::ALL[self.sel.min(RowId::ALL.len() - 1)]
     }
 
-    fn geometry(width: u32, height: u32) -> (f32, f32, f32, f32, f32, f32) {
+    fn scroll_top_for(sel: usize, visible: usize) -> usize {
+        let visible = visible.max(1);
+        if RowId::ALL.len() <= visible {
+            return 0;
+        }
+        if sel < visible {
+            0
+        } else {
+            (sel + 1).saturating_sub(visible)
+        }
+    }
+
+    fn geometry(&self, width: u32, height: u32) -> (f32, f32, f32, f32, f32, f32, usize, usize) {
         let w = width as f32;
         let h = height as f32;
         let rows = RowId::ALL.len();
         let head_h = 50.0_f32;
         let preferred_row_h = 56.0_f32;
+        let min_row_h = 42.0_f32;
         let foot_h = 34.0_f32;
-        let box_w = 500.0_f32.min(w - 80.0);
-        let max_box_h = (h - 80.0).max(head_h + foot_h + rows as f32 * 38.0 + 12.0);
-        let row_h = ((max_box_h - head_h - foot_h - 12.0) / rows as f32)
+        let fixed_h = head_h + foot_h + 12.0;
+        let max_box_h = (h - 32.0).max(fixed_h + min_row_h);
+        let capacity = ((max_box_h - fixed_h) / min_row_h).floor().max(1.0) as usize;
+        let visible = rows.min(capacity);
+        let top = Self::scroll_top_for(self.sel, visible);
+        let shown = rows.saturating_sub(top).min(visible);
+        let row_h = ((max_box_h - fixed_h) / shown.max(1) as f32)
             .min(preferred_row_h)
-            .max(38.0);
-        let box_h = head_h + rows as f32 * row_h + foot_h + 12.0;
+            .max(min_row_h);
+        let horizontal_margin = if w < 420.0 { 16.0 } else { 40.0 };
+        let box_w = 500.0_f32.min((w - horizontal_margin * 2.0).max(280.0));
+        let box_h = head_h + shown as f32 * row_h + foot_h + 12.0;
         let box_x = ((w - box_w) * 0.5).max(0.0);
-        let box_y = ((h - box_h) * 0.5).max(40.0);
+        let box_y = ((h - box_h) * 0.5).max(12.0);
         let list_top = box_y + head_h;
-        (box_x, box_y, box_w, box_h, list_top, row_h)
+        (box_x, box_y, box_w, box_h, list_top, row_h, top, shown)
     }
 
     /// Move the highlight by `delta`, wrapping.
@@ -309,7 +329,7 @@ impl SettingsPanel {
 
         let head_h = 50.0_f32;
         let foot_h = 34.0_f32;
-        let (box_x, box_y, box_w, box_h, _list_top, row_h) = Self::geometry(width, height);
+        let (box_x, box_y, box_w, box_h, _list_top, row_h, top, shown) = self.geometry(width, height);
         let radius = 12.0_f32;
 
         // Scrim (lighter on a light theme).
@@ -329,8 +349,10 @@ impl SettingsPanel {
 
         // ---- rows ----
         let list_top = box_y + head_h;
-        for (i, &row) in RowId::ALL.iter().enumerate() {
-            let ry = list_top + i as f32 * row_h;
+        for vis in 0..shown {
+            let i = top + vis;
+            let row = RowId::ALL[i];
+            let ry = list_top + vis as f32 * row_h;
             let selected = i == self.sel;
             if selected {
                 ctx.dl_grad_h(box_x + 8.0, ry + 4.0, box_w - 16.0, row_h - 8.0, 8.0, theme::accent_a(0.18), 0.9);
@@ -461,9 +483,21 @@ mod tests {
 
     #[test]
     fn geometry_compacts_rows_for_short_logical_windows() {
-        let (_box_x, box_y, _box_w, box_h, _list_top, row_h) = SettingsPanel::geometry(1280, 666);
+        let mut p = SettingsPanel::new();
+        p.open();
+        let (_box_x, box_y, _box_w, box_h, _list_top, row_h, _top, shown) = p.geometry(1280, 666);
         assert!(row_h < 56.0);
-        assert!(box_y + box_h <= 666.0 - 36.0);
+        assert_eq!(shown, RowId::ALL.len());
+        assert!(box_y + box_h <= 666.0);
+
+        let (_box_x, box_y, _box_w, box_h, _list_top, _row_h, _top, shown) = p.geometry(640, 480);
+        assert!(shown < RowId::ALL.len());
+        assert!(box_y + box_h <= 480.0);
+
+        p.sel = RowId::ALL.len() - 1;
+        let (_box_x, _box_y, _box_w, _box_h, _list_top, _row_h, top, shown) = p.geometry(640, 480);
+        assert!(top <= p.sel);
+        assert!(p.sel < top + shown);
     }
 
     #[test]
@@ -471,7 +505,7 @@ mod tests {
         let _g = guard();
         let mut p = SettingsPanel::new();
         p.open();
-        let (box_x, _box_y, box_w, _box_h, list_top, row_h) = SettingsPanel::geometry(900, 760);
+        let (box_x, _box_y, box_w, _box_h, list_top, row_h, _top, _shown) = p.geometry(900, 760);
         // Row 2 is Word Wrap; a row click selects it and reports toggle/cycle.
         assert_eq!(p.click(box_x + 24.0, list_top + row_h * 2.0 + 10.0, 900, 760), 4);
         assert_eq!(p.selection(), 2);
