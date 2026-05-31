@@ -171,9 +171,13 @@ impl SettingsPanel {
         let h = height as f32;
         let rows = RowId::ALL.len();
         let head_h = 50.0_f32;
-        let row_h = 56.0_f32;
+        let preferred_row_h = 56.0_f32;
         let foot_h = 34.0_f32;
         let box_w = 500.0_f32.min(w - 80.0);
+        let max_box_h = (h - 80.0).max(head_h + foot_h + rows as f32 * 38.0 + 12.0);
+        let row_h = ((max_box_h - head_h - foot_h - 12.0) / rows as f32)
+            .min(preferred_row_h)
+            .max(38.0);
         let box_h = head_h + rows as f32 * row_h + foot_h + 12.0;
         let box_x = ((w - box_w) * 0.5).max(0.0);
         let box_y = ((h - box_h) * 0.5).max(40.0);
@@ -299,9 +303,8 @@ impl SettingsPanel {
         let cur = settings::active();
 
         let head_h = 50.0_f32;
-        let row_h = 56.0_f32;
         let foot_h = 34.0_f32;
-        let (box_x, box_y, box_w, box_h, _list_top, _row_h) = Self::geometry(width, height);
+        let (box_x, box_y, box_w, box_h, _list_top, row_h) = Self::geometry(width, height);
         let radius = 12.0_f32;
 
         // Scrim (lighter on a light theme).
@@ -449,6 +452,13 @@ mod tests {
         assert_eq!(p.selection(), 10);
         p.move_sel(1);
         assert_eq!(p.selection(), 0);
+    }
+
+    #[test]
+    fn geometry_compacts_rows_for_short_logical_windows() {
+        let (_box_x, box_y, _box_w, box_h, _list_top, row_h) = SettingsPanel::geometry(1280, 666);
+        assert!(row_h < 56.0);
+        assert!(box_y + box_h <= 666.0 - 36.0);
     }
 
     #[test]
