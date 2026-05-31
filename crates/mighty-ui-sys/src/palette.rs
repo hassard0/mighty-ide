@@ -278,6 +278,15 @@ impl PaletteEngine {
         self.sel
     }
 
+    pub fn select(&mut self, idx: usize) -> bool {
+        if idx < self.filtered.len() {
+            self.sel = idx;
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn query(&self) -> &str {
         &self.query
     }
@@ -322,6 +331,45 @@ impl PaletteEngine {
             0
         } else {
             (self.sel + 1).saturating_sub(VISIBLE)
+        }
+    }
+
+    fn geometry(&self, width: u32, height: u32) -> (f32, f32, f32, f32, f32, usize) {
+        let w = width as f32;
+        let h = height as f32;
+        let top = self.scroll_top();
+        let shown = self.filtered.len().saturating_sub(top).min(VISIBLE).min(6);
+        let box_w = 600.0_f32.min(w - 80.0);
+        let search_h = 56.0;
+        let cat_h = 25.0;
+        let row_h = 50.0;
+        let foot_h = 37.0;
+        let box_h = search_h + cat_h + shown as f32 * row_h + 10.0 + foot_h;
+        let box_x = ((w - box_w) * 0.5).max(0.0);
+        let box_y = 96.0_f32.min((h - box_h).max(0.0));
+        let list_top = box_y + search_h + cat_h;
+        (box_x, box_w, list_top, row_h, box_h, shown)
+    }
+
+    /// Select the visible row under a click. Returns the selected filtered index,
+    /// or -1 for a click outside the visible result rows.
+    pub fn click_row(&mut self, x: f32, y: f32, width: u32, height: u32) -> i32 {
+        if !self.active {
+            return -1;
+        }
+        let (box_x, box_w, list_top, row_h, _box_h, shown) = self.geometry(width, height);
+        if x < box_x || x > box_x + box_w || y < list_top {
+            return -1;
+        }
+        let vis = ((y - list_top) / row_h).floor() as usize;
+        if vis >= shown {
+            return -1;
+        }
+        let idx = self.scroll_top() + vis;
+        if self.select(idx) {
+            idx as i32
+        } else {
+            -1
         }
     }
 
@@ -386,13 +434,11 @@ impl PaletteEngine {
 
         // Card geometry (mockup: 600px wide, search 56px, cat 25px, rows 50px,
         // footer ~37px).
-        let box_w = 600.0_f32.min(w - 80.0);
         let search_h = 56.0;
         let cat_h = 25.0;
         let row_h = 50.0;
         let foot_h = 37.0;
-        let box_h = search_h + cat_h + shown as f32 * row_h + 10.0 + foot_h;
-        let box_x = ((w - box_w) * 0.5).max(0.0);
+        let (box_x, box_w, _list_top, _row_h, box_h, _shown) = self.geometry(width, height);
         let box_y = 96.0_f32.min((h - box_h).max(0.0));
         let radius = 12.0_f32;
 
@@ -672,5 +718,16 @@ mod tests {
         }
         let expected = (e.selection() + 1).saturating_sub(VISIBLE);
         assert_eq!(e.scroll_top(), expected);
+    }
+
+    #[test]
+    fn click_row_selects_visible_result() {
+        let mut e = PaletteEngine::new();
+        e.open();
+        let (box_x, _box_w, list_top, row_h, _box_h, _shown) = e.geometry(900, 700);
+        let idx = e.click_row(box_x + 30.0, list_top + row_h + 4.0, 900, 700);
+        assert_eq!(idx, 1);
+        assert_eq!(e.selection(), 1);
+        assert_eq!(e.click_row(box_x - 2.0, list_top + 4.0, 900, 700), -1);
     }
 }

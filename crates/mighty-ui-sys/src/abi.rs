@@ -4314,6 +4314,30 @@ pub extern "C" fn mui_complete_move(handle: i64, delta: i32) {
     }
 }
 
+/// Select the completion row under the last click. `row` is the screen row used
+/// to draw the dropdown, matching [`mui_complete_draw_at`]. Returns the selected
+/// candidate index, or `-1` when the click missed the visible rows.
+#[no_mangle]
+pub extern "C" fn mui_complete_click_at(handle: i64, row: i32, col: i32, total_lines: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    if !ctx.complete.is_active() {
+        return -1;
+    }
+    let region = layout::region(ctx.sidebar_visible);
+    let cx = layout::text_x_in(region, total_lines.max(1) as u64, col);
+    let cy = layout::row_y_in(region, row);
+    ctx.complete.click_row(
+        ctx.last_event.x,
+        ctx.last_event.y,
+        cx,
+        cy,
+        ctx.gpu.width,
+        ctx.gpu.height,
+    )
+}
+
 /// Number of chars before the cursor to delete when accepting (the prefix len).
 #[no_mangle]
 pub extern "C" fn mui_complete_prefix_len(handle: i64) -> i32 {
@@ -4531,6 +4555,17 @@ pub extern "C" fn mui_palette_move(handle: i64, delta: i32) {
 #[no_mangle]
 pub extern "C" fn mui_palette_sel(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.palette.selection() as i32)
+}
+
+/// Select the command-palette row under the last click. Returns the selected
+/// row index, or `-1` if the click missed the visible results.
+#[no_mangle]
+pub extern "C" fn mui_palette_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    ctx.palette
+        .click_row(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height)
 }
 
 /// The command id of the current selection, or `-1` when nothing matches. Mighty
@@ -4859,6 +4894,16 @@ pub extern "C" fn mui_theme_picker_sel(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.theme_picker.selection() as i32)
 }
 
+/// Preview the theme row under the last click. Returns 1 on a row hit, 0 miss.
+#[no_mangle]
+pub extern "C" fn mui_theme_picker_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.theme_picker
+        .click(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height)
+}
+
 /// Commit the highlighted theme (keep + persist), close the picker; returns the
 /// committed theme index.
 #[no_mangle]
@@ -5103,6 +5148,17 @@ pub extern "C" fn mui_qo_move(handle: i64, delta: i32) {
 #[no_mangle]
 pub extern "C" fn mui_qo_sel(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.quickopen.selection() as i32)
+}
+
+/// Select the quick-open row under the last click. Returns the selected row
+/// index, or `-1` if the click missed the visible results.
+#[no_mangle]
+pub extern "C" fn mui_qo_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    ctx.quickopen
+        .click_row(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height)
 }
 
 /// `1` if the finder overlay is open, else `0`.
@@ -6059,6 +6115,30 @@ pub extern "C" fn mui_codeaction_move(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         ctx.codeaction.move_sel(delta);
     }
+}
+
+/// Select the code-action row under the last click. `row` is the screen row
+/// used to draw the popup, matching [`mui_codeaction_draw`]. Returns the
+/// selected action index, or `-1` for a miss.
+#[no_mangle]
+pub extern "C" fn mui_codeaction_click(handle: i64, row: i32, col: i32, total_lines: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    if !ctx.codeaction.is_active() {
+        return -1;
+    }
+    let region = layout::region(ctx.sidebar_visible);
+    let cx = layout::text_x_in(region, total_lines.max(1) as u64, col);
+    let cy = layout::row_y_in(region, row);
+    ctx.codeaction.click_row(
+        ctx.last_event.x,
+        ctx.last_event.y,
+        cx,
+        cy,
+        ctx.gpu.width,
+        ctx.gpu.height,
+    )
 }
 
 /// Cancel/close the code-action menu.

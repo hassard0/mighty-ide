@@ -51,6 +51,40 @@ impl ThemePicker {
         ThemeId::ALL[self.sel.min(ThemeId::ALL.len() - 1)]
     }
 
+    fn geometry(width: u32, height: u32) -> (f32, f32, f32, f32, f32, f32) {
+        let w = width as f32;
+        let h = height as f32;
+        let rows = ThemeId::ALL.len();
+        let head_h = 50.0_f32;
+        let row_h = 64.0_f32;
+        let foot_h = 34.0_f32;
+        let box_w = 460.0_f32.min(w - 80.0);
+        let box_h = head_h + rows as f32 * row_h + foot_h + 12.0;
+        let box_x = ((w - box_w) * 0.5).max(0.0);
+        let box_y = ((h - box_h) * 0.5).max(40.0);
+        let list_top = box_y + head_h;
+        (box_x, box_y, box_w, box_h, list_top, row_h)
+    }
+
+    /// Preview the row under a click. Returns 1 when a theme row was selected,
+    /// 0 for a miss.
+    pub fn click(&mut self, x: f32, y: f32, width: u32, height: u32) -> i32 {
+        if !self.active {
+            return 0;
+        }
+        let (box_x, _box_y, box_w, _box_h, list_top, row_h) = Self::geometry(width, height);
+        if x < box_x || x > box_x + box_w || y < list_top {
+            return 0;
+        }
+        let row = ((y - list_top) / row_h).floor() as i32;
+        if row < 0 || row as usize >= ThemeId::ALL.len() {
+            return 0;
+        }
+        self.sel = row as usize;
+        theme::set_active(self.selected_id());
+        1
+    }
+
     /// Move the highlight by `delta` (wrapping) AND preview that theme live.
     pub fn move_sel(&mut self, delta: i32) {
         let n = ThemeId::ALL.len() as i32;
@@ -96,14 +130,10 @@ impl ThemePicker {
         let h = height as f32;
         let clip = ctx.clip;
 
-        let rows = ThemeId::ALL.len();
         let head_h = 50.0_f32;
         let row_h = 64.0_f32;
         let foot_h = 34.0_f32;
-        let box_w = 460.0_f32.min(w - 80.0);
-        let box_h = head_h + rows as f32 * row_h + foot_h + 12.0;
-        let box_x = ((w - box_w) * 0.5).max(0.0);
-        let box_y = ((h - box_h) * 0.5).max(40.0);
+        let (box_x, box_y, box_w, box_h, _list_top, _row_h) = Self::geometry(width, height);
         let radius = 12.0_f32;
 
         // Scrim (lighter on a light theme so it doesn't go muddy).
@@ -247,6 +277,20 @@ mod tests {
         assert_eq!(p.selection(), 2); // wrap to last
         p.move_sel(1);
         assert_eq!(p.selection(), 0);
+        reset();
+    }
+
+    #[test]
+    fn mouse_click_previews_theme_row() {
+        reset();
+        let mut p = ThemePicker::new();
+        p.open();
+        let (box_x, _box_y, _box_w, _box_h, list_top, row_h) = ThemePicker::geometry(900, 700);
+        assert_eq!(p.click(box_x + 24.0, list_top + row_h + 8.0, 900, 700), 1);
+        assert_eq!(p.selection(), 1);
+        assert_eq!(theme::active_id(), ThemeId::Aurora);
+        assert_eq!(p.click(box_x - 2.0, list_top + 8.0, 900, 700), 0);
+        p.cancel();
         reset();
     }
 }

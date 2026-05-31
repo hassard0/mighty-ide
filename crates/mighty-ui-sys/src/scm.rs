@@ -770,6 +770,15 @@ impl BranchPicker {
         self.sel = s as usize;
     }
 
+    pub fn select(&mut self, idx: usize) -> bool {
+        if idx < self.count() {
+            self.sel = idx;
+            true
+        } else {
+            false
+        }
+    }
+
     /// Switch into "Create branch…" mode (clears the query for the new name).
     pub fn enter_create_mode(&mut self) {
         self.creating = true;
@@ -992,6 +1001,8 @@ mod tests {
         assert_eq!(p.count(), 2);
         assert_eq!(p.name_at(0), Some("feature/login"));
         assert!(p.is_create_row(1));
+        assert!(p.select(1));
+        assert!(p.selection_is_create());
     }
 
     #[test]

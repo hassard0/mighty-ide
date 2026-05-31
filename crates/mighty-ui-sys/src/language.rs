@@ -1027,6 +1027,15 @@ impl CodeActionState {
         self.sel = s as usize;
     }
 
+    pub fn select(&mut self, idx: usize) -> bool {
+        if idx < self.actions.len() {
+            self.sel = idx;
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn selected(&self) -> Option<&CodeAction> {
         if !self.active {
             return None;
@@ -1044,12 +1053,7 @@ impl CodeActionState {
         self.sel = 0;
     }
 
-    /// Draw the code-action menu near the cursor pixel `(cx, cy)` (reuses the
-    /// completion-dropdown / palette card styling). No-op when inactive.
-    pub fn draw(&self, ctx: &mut crate::MuiContext, cx: f32, cy: f32, width: u32, height: u32) {
-        if !self.active || self.actions.is_empty() {
-            return;
-        }
+    fn geometry(&self, cx: f32, cy: f32, width: u32, height: u32) -> (f32, f32, f32, f32, f32, f32) {
         let row_h = layout::LINE_H();
         let chrome = theme::CHROME_FONT_SIZE;
         let pad = 5.0;
@@ -1072,6 +1076,45 @@ impl CodeActionState {
         if box_y + box_h > h {
             box_y = (cy - box_h).max(0.0);
         }
+
+        (box_x, box_y, box_w, box_h, pad, row_h)
+    }
+
+    /// Select the action row under a click. Returns the selected index, or -1
+    /// when the click missed the active popup.
+    pub fn click_row(&mut self, x: f32, y: f32, cx: f32, cy: f32, width: u32, height: u32) -> i32 {
+        if !self.active || self.actions.is_empty() {
+            return -1;
+        }
+        let (box_x, box_y, box_w, _box_h, pad, row_h) = self.geometry(cx, cy, width, height);
+        if x < box_x || x > box_x + box_w {
+            return -1;
+        }
+        let row_top = box_y + pad;
+        if y < row_top {
+            return -1;
+        }
+        let idx = ((y - row_top) / row_h).floor() as usize;
+        if idx >= self.actions.len() {
+            return -1;
+        }
+        if self.select(idx) {
+            idx as i32
+        } else {
+            -1
+        }
+    }
+
+    /// Draw the code-action menu near the cursor pixel `(cx, cy)` (reuses the
+    /// completion-dropdown / palette card styling). No-op when inactive.
+    pub fn draw(&self, ctx: &mut crate::MuiContext, cx: f32, cy: f32, width: u32, height: u32) {
+        if !self.active || self.actions.is_empty() {
+            return;
+        }
+        let row_h = layout::LINE_H();
+        let chrome = theme::CHROME_FONT_SIZE;
+        let pad = 5.0;
+        let (box_x, box_y, box_w, box_h, _pad, _row_h) = self.geometry(cx, cy, width, height);
 
         let clip = ctx.clip;
         let radius = 8.0_f32;
@@ -1567,9 +1610,25 @@ mod tests {
         assert_eq!(c.selection(), 0);
         c.move_sel(-1); // wrap to last
         assert_eq!(c.selection(), 1);
+        assert!(c.select(0));
         assert_eq!(c.title(0), Some("A"));
         c.cancel();
         assert!(!c.is_active());
+    }
+
+    #[test]
+    fn code_action_click_row_selects_action() {
+        let mut c = CodeActionState::new();
+        let actions = vec![
+            CodeAction { title: "Replace typo".into(), edit: None, fix_all_mty: false },
+            CodeAction { title: "Fix all".into(), edit: None, fix_all_mty: true },
+        ];
+        assert_eq!(c.set(actions), 2);
+        let (box_x, box_y, _box_w, _box_h, pad, row_h) = c.geometry(300.0, 120.0, 900, 700);
+        let idx = c.click_row(box_x + 24.0, box_y + pad + row_h + 3.0, 300.0, 120.0, 900, 700);
+        assert_eq!(idx, 1);
+        assert_eq!(c.selection(), 1);
+        assert_eq!(c.click_row(box_x - 2.0, box_y + pad + 3.0, 300.0, 120.0, 900, 700), -1);
     }
 
     // ---- guarded end-to-end LSP integration ----

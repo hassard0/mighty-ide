@@ -506,6 +506,15 @@ impl QuickOpen {
         self.sel
     }
 
+    pub fn select(&mut self, idx: usize) -> bool {
+        if idx < self.rows.len() {
+            self.sel = idx;
+            true
+        } else {
+            false
+        }
+    }
+
     #[allow(dead_code)]
     pub fn rows(&self) -> &[Row] {
         &self.rows
@@ -762,6 +771,45 @@ impl QuickOpen {
         }
     }
 
+    fn geometry(&self, width: u32, height: u32) -> (f32, f32, f32, f32, f32, usize) {
+        let w = width as f32;
+        let h = height as f32;
+        let top = self.scroll_top();
+        let shown = self.rows.len().saturating_sub(top).min(VISIBLE).clamp(1, 8);
+        let box_w = 620.0_f32.min(w - 80.0);
+        let search_h = 56.0;
+        let cat_h = 25.0;
+        let row_h = 46.0;
+        let foot_h = 37.0;
+        let box_h = search_h + cat_h + shown as f32 * row_h + 10.0 + foot_h;
+        let box_x = ((w - box_w) * 0.5).max(0.0);
+        let box_y = 96.0_f32.min((h - box_h).max(0.0));
+        let list_top = box_y + search_h + cat_h;
+        (box_x, box_w, list_top, row_h, box_h, shown)
+    }
+
+    /// Select the visible result row under a click. Returns the selected row
+    /// index, or -1 when the click is outside the visible rows.
+    pub fn click_row(&mut self, x: f32, y: f32, width: u32, height: u32) -> i32 {
+        if !self.active {
+            return -1;
+        }
+        let (box_x, box_w, list_top, row_h, _box_h, shown) = self.geometry(width, height);
+        if x < box_x || x > box_x + box_w || y < list_top {
+            return -1;
+        }
+        let vis = ((y - list_top) / row_h).floor() as usize;
+        if vis >= shown {
+            return -1;
+        }
+        let idx = self.scroll_top() + vis;
+        if self.select(idx) {
+            idx as i32
+        } else {
+            -1
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Draw — mirrors the command palette's Vivid-Modern card.
     // -----------------------------------------------------------------------
@@ -783,13 +831,11 @@ impl QuickOpen {
         let top = self.scroll_top();
         let shown = self.rows.len().saturating_sub(top).min(VISIBLE).clamp(1, 8);
 
-        let box_w = 620.0_f32.min(w - 80.0);
         let search_h = 56.0;
         let cat_h = 25.0;
         let row_h = 46.0;
         let foot_h = 37.0;
-        let box_h = search_h + cat_h + shown as f32 * row_h + 10.0 + foot_h;
-        let box_x = ((w - box_w) * 0.5).max(0.0);
+        let (box_x, box_w, _list_top, _row_h, box_h, _shown) = self.geometry(width, height);
         let box_y = 96.0_f32.min((h - box_h).max(0.0));
         let radius = 12.0_f32;
 
@@ -1210,6 +1256,19 @@ mod tests {
         assert_eq!(qo.selection(), n - 1);
         qo.move_sel(1);
         assert_eq!(qo.selection(), 0);
+    }
+
+    #[test]
+    fn click_row_selects_visible_result() {
+        let mut qo = QuickOpen::new();
+        qo.record_mru(PathBuf::from("/a"));
+        qo.record_mru(PathBuf::from("/b"));
+        qo.open();
+        let (box_x, _box_w, list_top, row_h, _box_h, _shown) = qo.geometry(900, 700);
+        let idx = qo.click_row(box_x + 30.0, list_top + row_h + 4.0, 900, 700);
+        assert_eq!(idx, 1);
+        assert_eq!(qo.selection(), 1);
+        assert_eq!(qo.click_row(box_x - 2.0, list_top + 4.0, 900, 700), -1);
     }
 
     #[test]

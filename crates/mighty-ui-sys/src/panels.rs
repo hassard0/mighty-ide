@@ -595,6 +595,42 @@ pub extern "C" fn mui_branch_move(handle: i64, delta: i32) {
     }
 }
 
+/// Select the branch-picker row under the last click. Returns the selected row
+/// index, or `-1` if the click missed the visible picker rows.
+#[no_mangle]
+pub extern "C" fn mui_branch_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    if !ctx.branch_picker.is_active() || ctx.branch_picker.is_creating() {
+        return -1;
+    }
+    let w = ctx.gpu.width as f32;
+    let h = ctx.gpu.height as f32;
+    let row_h = 34.0_f32;
+    let head_h = 50.0_f32;
+    let rows = ctx.branch_picker.count().min(10);
+    let box_w = 460.0_f32.min(w - 80.0);
+    let box_h = head_h + rows as f32 * row_h + 16.0;
+    let box_x = ((w - box_w) * 0.5).max(0.0);
+    let box_y = 100.0_f32.min((h - box_h).max(0.0));
+    let list_top = box_y + head_h + 6.0;
+    let x = ctx.last_event.x;
+    let y = ctx.last_event.y;
+    if x < box_x || x > box_x + box_w || y < list_top {
+        return -1;
+    }
+    let idx = ((y - list_top) / row_h).floor() as usize;
+    if idx >= rows {
+        return -1;
+    }
+    if ctx.branch_picker.select(idx) {
+        idx as i32
+    } else {
+        -1
+    }
+}
+
 /// `1` if the picker is in "Create branch…" (typing a new name) mode, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_branch_is_creating(handle: i64) -> i32 {

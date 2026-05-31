@@ -237,6 +237,15 @@ impl CompletionEngine {
         self.sel = s as usize;
     }
 
+    pub fn select(&mut self, idx: usize) -> bool {
+        if idx < self.candidates.len() {
+            self.sel = idx;
+            true
+        } else {
+            false
+        }
+    }
+
     /// Number of chars before the cursor to delete when accepting.
     pub fn prefix_len(&self) -> usize {
         self.prefix_len
@@ -274,6 +283,63 @@ impl CompletionEngine {
         }
     }
 
+    fn geometry(&self, cx: f32, cy: f32, width: u32, height: u32) -> (f32, f32, f32, f32, f32, f32, usize, usize) {
+        let top = self.scroll_top();
+        let shown = self.candidates.len().saturating_sub(top).min(VISIBLE);
+        let row_h = layout::LINE_H();
+        let pad = 5.0;
+        let longest = self
+            .candidates
+            .iter()
+            .skip(top)
+            .take(shown)
+            .map(|c| c.text.chars().count())
+            .max()
+            .unwrap_or(0) as f32;
+        let hint_h = 30.0_f32;
+        let box_w = (longest * layout::CHAR_W() + 22.0 * layout::CHAR_W()).max(280.0);
+        let box_h = shown as f32 * row_h + 2.0 * pad + hint_h;
+
+        let mut box_x = cx;
+        let mut box_y = cy + row_h;
+        let w = width as f32;
+        let h = height as f32;
+        if box_x + box_w > w {
+            box_x = (w - box_w).max(0.0);
+        }
+        if box_y + box_h > h {
+            box_y = (cy - box_h).max(0.0);
+        }
+
+        (box_x, box_y, box_w, box_h, pad, row_h, top, shown)
+    }
+
+    /// Select the completion row under a click. Returns the selected candidate
+    /// index, or -1 when the click missed the visible rows.
+    pub fn click_row(&mut self, x: f32, y: f32, cx: f32, cy: f32, width: u32, height: u32) -> i32 {
+        if !self.active || self.candidates.is_empty() {
+            return -1;
+        }
+        let (box_x, box_y, box_w, _box_h, pad, row_h, top, shown) = self.geometry(cx, cy, width, height);
+        if x < box_x || x > box_x + box_w {
+            return -1;
+        }
+        let row_top = box_y + pad;
+        if y < row_top {
+            return -1;
+        }
+        let vis = ((y - row_top) / row_h).floor() as usize;
+        if vis >= shown {
+            return -1;
+        }
+        let idx = top + vis;
+        if self.select(idx) {
+            idx as i32
+        } else {
+            -1
+        }
+    }
+
     /// Draw the dropdown near the cursor pixel `(cx, cy)`. Up to [`VISIBLE`]
     /// items are shown, the selected one highlighted; semantic items get a small
     /// left accent bar. No-op when inactive. `width`/`height` size the panel so
@@ -293,30 +359,8 @@ impl CompletionEngine {
         let row_h = layout::LINE_H();
         let pad = 5.0;
         let chrome = theme::CHROME_FONT_SIZE;
-        let longest = self
-            .candidates
-            .iter()
-            .skip(top)
-            .take(shown)
-            .map(|c| c.text.chars().count())
-            .max()
-            .unwrap_or(0) as f32;
-        // Room for a type badge + label + signature + a right-side kind hint.
         let hint_h = 30.0_f32;
-        let box_w = (longest * layout::CHAR_W() + 22.0 * layout::CHAR_W()).max(280.0);
-        let box_h = shown as f32 * row_h + 2.0 * pad + hint_h;
-
-        // Position below the cursor; flip above if it would overflow the bottom.
-        let mut box_x = cx;
-        let mut box_y = cy + row_h;
-        let w = width as f32;
-        let h = height as f32;
-        if box_x + box_w > w {
-            box_x = (w - box_w).max(0.0);
-        }
-        if box_y + box_h > h {
-            box_y = (cy - box_h).max(0.0);
-        }
+        let (box_x, box_y, box_w, box_h, _pad, _row_h, _top, _shown) = self.geometry(cx, cy, width, height);
 
         let clip = ctx.clip;
         let radius = 8.0_f32;
@@ -922,6 +966,18 @@ mod tests {
         }
         assert_eq!(e.selection(), 9);
         assert_eq!(e.scroll_top(), 9 + 1 - VISIBLE); // 2
+    }
+
+    #[test]
+    fn click_row_selects_visible_completion() {
+        let mut e = CompletionEngine::new();
+        e.request(b"alpha alpine a", 14, &[]);
+        assert!(e.count() >= 2);
+        let (box_x, box_y, _box_w, _box_h, pad, row_h, _top, _shown) = e.geometry(250.0, 120.0, 900, 700);
+        let idx = e.click_row(box_x + 24.0, box_y + pad + row_h + 2.0, 250.0, 120.0, 900, 700);
+        assert_eq!(idx, 1);
+        assert_eq!(e.selection(), 1);
+        assert_eq!(e.click_row(box_x - 2.0, box_y + pad + 2.0, 250.0, 120.0, 900, 700), -1);
     }
 
     #[test]
