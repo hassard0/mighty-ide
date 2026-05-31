@@ -1772,6 +1772,7 @@ fn main() {
                 let _r = mui_diag_refresh(h)
                 let _g = mui_scm_refresh(h)
                 let _o = mui_outline_refresh(h)
+                let _pr = mui_problems_refresh(h)
               }
               find_nav = false
               mui_prompt_cancel(h)
@@ -2882,6 +2883,7 @@ fn main() {
               let _r = mui_diag_refresh(h)
               let _g = mui_scm_refresh(h)
               let _o = mui_outline_refresh(h)
+              let _pr = mui_problems_refresh(h)
             } else {
               mui_prompt_open(h, prompt_save_as())
               prompt_kind = prompt_save_as()
@@ -2892,6 +2894,9 @@ fn main() {
             if rc == 0 {
               mui_tab_set_dirty(h, mui_tab_active(h), 0)
               let _r = mui_diag_refresh(h)
+              let _g = mui_scm_refresh(h)
+              let _o = mui_outline_refresh(h)
+              let _pr = mui_problems_refresh(h)
             }
           }
         } else if id == cmd_find() {
