@@ -5,7 +5,7 @@
 //! branded landing: the big **Mighty wordmark** with the ember/indigo accent, a
 //! tagline, a **Recently Opened** column (from the Quick-Open MRU — click to
 //! open), a **Quick actions** column (Open File / Quick Open / Command Palette /
-//! New File / Toggle Theme), and a small **tips / keybinding** cheat list, all
+//! New File / New Folder), and a small **tips / keybinding** cheat list, all
 //! centered over the theme's atmospheric background.
 //!
 //! Per L21 the layout + hit-testing live here; Mighty asks `mui_welcome_active`
@@ -29,6 +29,7 @@ pub const ACTION_NEW_FILE: i32 = 4;
 #[allow(dead_code)]
 pub const ACTION_TOGGLE_THEME: i32 = 5;
 pub const ACTION_OPEN_FOLDER: i32 = 6;
+pub const ACTION_NEW_FOLDER: i32 = 7;
 /// MRU recents: returned id is `ACTION_RECENT_BASE + i` (i = row in the recents
 /// list). The Mighty side reads the path back via [`WelcomeState::recent_path`].
 pub const ACTION_RECENT_BASE: i32 = 1000;
@@ -50,7 +51,8 @@ const QUICK_ACTIONS: &[QuickAction] = &[
     QuickAction { icon: icons::FOLDER, label: "Open Folder\u{2026}", key: "Ctrl+Shift+O", action: ACTION_OPEN_FOLDER },
     QuickAction { icon: icons::SEARCH, label: "Quick Open", key: "Ctrl+P", action: ACTION_QUICK_OPEN },
     QuickAction { icon: icons::TEST_BOX, label: "Command Palette", key: "Ctrl+Shift+P", action: ACTION_COMMAND_PALETTE },
-    QuickAction { icon: icons::NEW_FILE, label: "New File", key: "", action: ACTION_NEW_FILE },
+    QuickAction { icon: icons::NEW_FILE, label: "New File", key: "Ctrl+N", action: ACTION_NEW_FILE },
+    QuickAction { icon: icons::NEW_FOLDER, label: "New Folder", key: "Ctrl+Shift+N", action: ACTION_NEW_FOLDER },
 ];
 
 /// A small keybinding cheat row (label + chord).
