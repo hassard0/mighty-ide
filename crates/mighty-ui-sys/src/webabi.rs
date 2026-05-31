@@ -125,6 +125,14 @@ pub extern "C" fn mui_web_open_browser(handle: i64) -> i32 {
         return 0;
     };
     let url = c.web.url().to_string();
+    if crate::abi::headless_mode_active() {
+        if !url.is_empty() {
+            println!("web: headless mode skipped opening {url}");
+            c.push_toast(crate::toast::Kind::Success, format!("Opened {url}"));
+            return 1;
+        }
+        return 0;
+    }
     if crate::web::open_in_browser(&url) {
         println!("web: opened {url} in the default browser");
         c.push_toast(crate::toast::Kind::Success, format!("Opened {url}"));
