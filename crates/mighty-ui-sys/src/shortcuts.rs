@@ -147,6 +147,7 @@ pub fn default_chord(cmd_id: u32) -> Option<Chord> {
         x if x == CMD_MARKDOWN_PREVIEW => c('v' as i32, MOD_CTRL | MOD_SHIFT),
         x if x == CMD_OPEN_FOLDER => c('o' as i32, MOD_CTRL | MOD_SHIFT),
         x if x == CMD_NEW_FILE => c('n' as i32, MOD_CTRL),
+        x if x == CMD_NEW_FOLDER => c('n' as i32, MOD_CTRL | MOD_SHIFT),
         x if x == CMD_OPEN_FILE => c('o' as i32, MOD_CTRL),
         x if x == CMD_SAVE => c('s' as i32, MOD_CTRL),
         x if x == CMD_SAVE_AS => c('s' as i32, MOD_CTRL | MOD_SHIFT),
@@ -943,6 +944,10 @@ mod tests {
     fn direct_default_chords_resolve_for_common_commands() {
         let ov = Overrides::new();
         assert_eq!(ov.resolve('n' as i32, MOD_CTRL), Some(CMD_NEW_FILE));
+        assert_eq!(
+            ov.resolve('n' as i32, MOD_CTRL | MOD_SHIFT),
+            Some(CMD_NEW_FOLDER)
+        );
         assert_eq!(ov.resolve('s' as i32, MOD_CTRL), Some(CMD_SAVE));
         assert_eq!(
             ov.resolve('s' as i32, MOD_CTRL | MOD_SHIFT),

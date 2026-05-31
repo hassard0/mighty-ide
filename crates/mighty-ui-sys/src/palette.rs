@@ -113,11 +113,14 @@ pub const CMD_NEW_PROJECT: u32 = 42;
 pub const CMD_SAVE_AS: u32 = 43;
 /// Open a fresh untitled editor tab.
 pub const CMD_NEW_FILE: u32 = 44;
+/// Prompt for a folder name and create it under the current workspace root.
+pub const CMD_NEW_FOLDER: u32 = 45;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
     Command { id: CMD_NEW_FILE,         label: "New File",           keybinding: "Ctrl+N" },
+    Command { id: CMD_NEW_FOLDER,       label: "File: New Folder",   keybinding: "Ctrl+Shift+N" },
     Command { id: CMD_OPEN_FILE,        label: "Open File",          keybinding: "Ctrl+O" },
     Command { id: CMD_SAVE,             label: "Save",               keybinding: "Ctrl+S" },
     Command { id: CMD_SAVE_AS,          label: "Save As",            keybinding: "Ctrl+Shift+S" },
@@ -386,6 +389,7 @@ impl PaletteEngine {
         // (icon path, description, fill?)
         match id {
             CMD_NEW_FILE => (icons::NEW_FILE, "Create a new untitled editor tab", false),
+            CMD_NEW_FOLDER => (icons::NEW_FOLDER, "Create a folder in the current workspace", false),
             CMD_OPEN_FILE => (icons::NEW_FILE, "Open a file from the workspace", false),
             CMD_SAVE => (icons::FILE_MTY, "Write the active file to disk", false),
             CMD_SAVE_AS => (icons::FILE_MTY, "Save the active file under a new path", false),

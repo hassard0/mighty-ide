@@ -530,6 +530,10 @@ fn chord_command_id_resolves_palette_commands_for_mighty_dispatch() {
         crate::palette::CMD_NEW_FILE as i32
     );
     assert_eq!(
+        mui_chord_command_id(handle, 'n' as i32, MOD_CTRL | MOD_SHIFT),
+        crate::palette::CMD_NEW_FOLDER as i32
+    );
+    assert_eq!(
         mui_chord_command_id(handle, 's' as i32, MOD_CTRL),
         crate::palette::CMD_SAVE as i32
     );

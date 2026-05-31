@@ -594,6 +594,7 @@ extern c {
 
 // ---- command palette ids (mirror palette.rs COMMANDS) ----
 fn cmd_new_file() -> I32 { 44 }
+fn cmd_new_folder() -> I32 { 45 }
 fn cmd_open_file() -> I32 { 1 }
 fn cmd_save() -> I32 { 2 }
 fn cmd_save_as() -> I32 { 43 }
@@ -2887,6 +2888,10 @@ fn main() {
           let ni = mui_tab_new_untitled(h)
           let _b = mui_ed_tab_switch(h, ni)
           mui_ed_undo_reset(h)
+          find_nav = false
+        } else if id == cmd_new_folder() {
+          mui_prompt_open(h, prompt_new_folder())
+          prompt_kind = prompt_new_folder()
           find_nav = false
         } else if id == cmd_open_file() {
           let oi = mui_open_file_dialog(h)
