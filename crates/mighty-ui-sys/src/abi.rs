@@ -2883,6 +2883,11 @@ pub extern "C" fn mui_tab_open_path(handle: i64) -> i32 {
     } else {
         ctx.tree.root().join(&candidate)
     };
+    if !resolved.is_file() {
+        let name = basename(&resolved);
+        ctx.push_toast(crate::toast::Kind::Error, format!("Open failed: {name}"));
+        return -1;
+    }
     let idx = ctx.tabs.open_path(resolved);
     sync_active_path(ctx);
     idx as i32

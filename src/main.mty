@@ -1725,11 +1725,13 @@ fn main() {
                 pi = pi + 1
               }
               let newidx = mui_tab_open_path(h)
-              let _b = mui_ed_tab_switch(h, newidx)
-              mui_ed_undo_reset(h)
               find_nav = false
-              let _r = mui_diag_refresh(h)
-              mui_qo_record_active(h)
+              if newidx >= 0 {
+                let _b = mui_ed_tab_switch(h, newidx)
+                mui_ed_undo_reset(h)
+                let _r = mui_diag_refresh(h)
+                mui_qo_record_active(h)
+              }
               mui_prompt_cancel(h)
               prompt_kind = 0
             } else if prompt_kind == prompt_open_folder() {

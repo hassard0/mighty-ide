@@ -265,10 +265,10 @@ fn save_staging_writes_then_load_reads_back_round_trip() {
 fn tab_abi_open_switch_close_and_byte_round_trip() {
     use crate::langdetect::Language;
     use crate::{
-        mui_ed_set_dirty, mui_path_push, mui_quit_request, mui_tab_active, mui_tab_close,
-        mui_tab_count, mui_tab_cursor_col, mui_tab_cursor_line, mui_tab_load, mui_tab_load_byte,
-        mui_tab_open_path, mui_tab_scroll, mui_tab_set_dirty, mui_tab_store_begin,
-        mui_tab_store_byte, mui_tab_store_commit, mui_tab_switch,
+        mui_ed_set_dirty, mui_path_clear, mui_path_push, mui_quit_request, mui_tab_active,
+        mui_tab_close, mui_tab_count, mui_tab_cursor_col, mui_tab_cursor_line, mui_tab_load,
+        mui_tab_load_byte, mui_tab_open_path, mui_tab_scroll, mui_tab_set_dirty,
+        mui_tab_store_begin, mui_tab_store_byte, mui_tab_store_commit, mui_tab_switch,
     };
 
     let mut ctx = ctx_or_skip!();
@@ -292,6 +292,18 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(idx, 1);
     assert_eq!(mui_tab_count(handle), 2);
     assert_eq!(mui_tab_active(handle), 1);
+
+    // Open File should not silently create a file-backed empty tab for a typo.
+    mui_path_clear(handle);
+    let missing = dir.join("mui_tababi_missing.txt");
+    let _ = std::fs::remove_file(&missing);
+    for b in missing.to_string_lossy().as_bytes() {
+        mui_path_push(handle, *b as u32);
+    }
+    assert_eq!(mui_tab_open_path(handle), -1);
+    assert_eq!(mui_tab_count(handle), 2);
+    assert_eq!(mui_tab_active(handle), 1);
+    mui_path_clear(handle);
 
     // Dirty tabs require a second close request before discarding edits.
     mui_tab_set_dirty(handle, 1, 1);
