@@ -4059,6 +4059,58 @@ pub extern "C" fn mui_file_reveal_active(handle: i64) -> i32 {
     }
 }
 
+pub(crate) fn platform_reveal_command(path: &std::path::Path) -> Option<(String, Vec<String>)> {
+    #[cfg(target_os = "windows")]
+    {
+        Some(("explorer.exe".to_string(), vec![format!("/select,{}", path.display())]))
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Some(("open".to_string(), vec!["-R".to_string(), path.display().to_string()]))
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let dir = if path.is_dir() { path } else { path.parent().unwrap_or(path) };
+        Some(("xdg-open".to_string(), vec![dir.display().to_string()]))
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos", unix)))]
+    {
+        let _ = path;
+        None
+    }
+}
+
+/// Reveal the active file in the operating system's file manager. Returns 1
+/// when the reveal command was launched, else 0.
+#[no_mangle]
+pub extern "C" fn mui_file_reveal_active_in_os(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let Some(path) = ctx.tabs.active_path() else {
+        ctx.push_toast(crate::toast::Kind::Warn, "No active file to reveal");
+        return 0;
+    };
+    let Some((program, args)) = platform_reveal_command(&path) else {
+        ctx.push_toast(crate::toast::Kind::Warn, "Reveal in file manager is unavailable");
+        return 0;
+    };
+    match std::process::Command::new(&program).args(&args).spawn() {
+        Ok(_) => {
+            ctx.push_toast(
+                crate::toast::Kind::Info,
+                format!("Showing {} in file manager", basename(&path)),
+            );
+            1
+        }
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, "Could not open file manager");
+            println!("file-reveal-os: failed to launch {program} {:?} for {}: {e}", args, path.display());
+            0
+        }
+    }
+}
+
 /// Delete the active file after the prompt stages an exact basename confirmation.
 /// The active tab is closed on success and Explorer / Quick-Open are refreshed.
 #[no_mangle]

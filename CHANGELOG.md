@@ -45,6 +45,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Recent Folders** (MRU, cap 10) persist across restarts; reopen from the Welcome
   screen's "Recent Folders" column or **File: Open Recent**.
 - The explorer header shows the active workspace name.
+- **File reveal commands are explicit**: the command palette now separates
+  **Reveal Active File in File Tree** from **Show Active File in File Manager**,
+  which launches Explorer/Finder/xdg-open instead of only expanding the IDE tree.
 
 ### Quick-fix lightbulb
 - A lightbulb appears in the editor gutter when the cursor's line has available

@@ -169,6 +169,7 @@ extern c {
   fn mui_newfolder_create(handle: I64) -> I32
   fn mui_file_rename_active(handle: I64) -> I32
   fn mui_file_reveal_active(handle: I64) -> I32
+  fn mui_file_reveal_active_in_os(handle: I64) -> I32
   fn mui_file_delete_active_confirm(handle: I64) -> I32
   fn mui_rail_draw(handle: I64)
   fn mui_rail_utility_at_click(handle: I64) -> I32
@@ -613,6 +614,7 @@ fn cmd_new_folder() -> I32 { 45 }
 fn cmd_rename_active_file() -> I32 { 46 }
 fn cmd_reveal_active_file() -> I32 { 47 }
 fn cmd_delete_active_file() -> I32 { 48 }
+fn cmd_reveal_active_file_in_os() -> I32 { 49 }
 fn cmd_open_file() -> I32 { 1 }
 fn cmd_save() -> I32 { 2 }
 fn cmd_save_as() -> I32 { 43 }
@@ -3119,6 +3121,9 @@ fn main() {
           find_nav = false
         } else if id == cmd_reveal_active_file() {
           let _fr = mui_file_reveal_active(h)
+          find_nav = false
+        } else if id == cmd_reveal_active_file_in_os() {
+          let _fr_os = mui_file_reveal_active_in_os(h)
           find_nav = false
         } else if id == cmd_delete_active_file() {
           mui_prompt_open(h, prompt_delete_file())

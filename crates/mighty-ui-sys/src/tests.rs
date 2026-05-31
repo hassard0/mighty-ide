@@ -787,6 +787,45 @@ fn active_file_delete_requires_exact_basename_confirmation() {
 }
 
 #[test]
+fn active_file_reveal_commands_are_named_for_their_scope() {
+    let tree = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_REVEAL_ACTIVE_FILE)
+        .unwrap();
+    assert_eq!(tree.label, "File: Reveal Active File in File Tree");
+
+    let os = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_REVEAL_ACTIVE_FILE_IN_OS)
+        .unwrap();
+    assert_eq!(os.label, "File: Show Active File in File Manager");
+}
+
+#[test]
+fn active_file_os_reveal_builds_platform_file_manager_command() {
+    let path = std::path::Path::new("C:\\workspace\\src\\main.mty");
+    let Some((program, args)) = crate::abi::platform_reveal_command(path) else {
+        return;
+    };
+
+    #[cfg(target_os = "windows")]
+    {
+        assert_eq!(program, "explorer.exe");
+        assert_eq!(args, vec!["/select,C:\\workspace\\src\\main.mty"]);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        assert_eq!(program, "open");
+        assert_eq!(args, vec!["-R", "C:\\workspace\\src\\main.mty"]);
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        assert_eq!(program, "xdg-open");
+        assert!(!args.is_empty());
+    }
+}
+
+#[test]
 fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
     use crate::ffi::MuiEvent;
     use crate::mui_topbar_action_at_click;
@@ -1752,6 +1791,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_RENAME_ACTIVE_FILE, "cmd_rename_active_file"),
         (CMD_REVEAL_ACTIVE_FILE, "cmd_reveal_active_file"),
         (CMD_DELETE_ACTIVE_FILE, "cmd_delete_active_file"),
+        (CMD_REVEAL_ACTIVE_FILE_IN_OS, "cmd_reveal_active_file_in_os"),
         (CMD_OPEN_FILE, "cmd_open_file"),
         (CMD_SAVE, "cmd_save"),
         (CMD_SAVE_AS, "cmd_save_as"),
