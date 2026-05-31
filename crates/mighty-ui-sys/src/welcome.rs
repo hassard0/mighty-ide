@@ -190,13 +190,14 @@ impl WelcomeState {
         ctx.dl_rect(bx, by, bw, bh, theme::BG_EDIT());
 
         // Center column. Generous max width so it breathes on wide windows.
-        let col_w = 720.0_f32.min(bw - 96.0).max(360.0);
+        let col_w = 720.0_f32.min(bw - 48.0).max(280.0);
+        let compact = col_w < 520.0;
         let cx = bx + (bw - col_w) * 0.5;
         // Vertical rhythm: start a bit above the optical center.
         let mut y = by + (bh * 0.16).max(40.0);
 
         // ---- Brand: teal/indigo logo tile + wordmark ----
-        let tile = 64.0_f32;
+        let tile = if compact { 52.0_f32 } else { 64.0_f32 };
         let tx = cx;
         // Rounded brand tile with a focused glow + the Mighty mark.
         ctx.dl_shadow(
@@ -216,26 +217,60 @@ impl WelcomeState {
         ctx.dl_icon(tx + 12.0, y + 12.0, 40.0, 40.0, icons::LANG_M, mark_ink, 3.0, false);
 
         // Wordmark to the right of the tile.
-        let word_x = tx + tile + 22.0;
+        let word_x = tx + tile + if compact { 16.0 } else { 22.0 };
         ctx.text.queue_ui_styled(
             word_x,
-            y + 8.0,
+            y + if compact { 5.0 } else { 8.0 },
             "Mighty",
             theme::TEXT(),
-            40.0,
+            if compact { 36.0 } else { 40.0 },
             crate::vello_ui::FontStyle::Bold,
             clip,
         );
         ctx.text.queue_ui_sized(
             word_x + 2.0,
-            y + 50.0,
+            y + if compact { 44.0 } else { 50.0 },
             "The agent-first language IDE",
             theme::DIM(),
-            14.5,
+            if compact { 13.5 } else { 14.5 },
             clip,
         );
 
-        y += tile + 44.0;
+        y += tile + if compact { 26.0 } else { 44.0 };
+
+        // ---- Compact editor column: keep the welcome actions usable, without
+        // forcing recent columns into the status bar.
+        if compact {
+            let left_x = cx;
+            let row_h = 32.0_f32;
+            ctx.text.queue_ui_styled(
+                left_x, y, "START", theme::TEXT_3(), 11.5, crate::vello_ui::FontStyle::Bold, clip,
+            );
+            let rows_top = y + 20.0;
+            for (i, qa) in QUICK_ACTIONS.iter().enumerate() {
+                let ry = rows_top + i as f32 * row_h;
+                ctx.dl_round(left_x, ry + 3.0, 24.0, 24.0, 7.0, theme::BG_4());
+                ctx.dl_icon(left_x + 4.0, ry + 7.0, 16.0, 16.0, qa.icon, theme::ACCENT_BRIGHT(), 1.7, false);
+                ctx.text
+                    .queue_ui_sized(left_x + 36.0, ry + 6.0, qa.label, theme::TEXT_1(), 13.5, clip);
+                if !qa.key.is_empty() {
+                    let kw = qa.key.chars().count() as f32 * 6.4;
+                    let key_x = left_x + col_w - kw - 4.0;
+                    let label_w = qa.label.chars().count() as f32 * 7.8;
+                    if key_x > left_x + 36.0 + label_w + 12.0 {
+                        ctx.text.queue_ui_sized(key_x, ry + 8.0, qa.key, theme::TEXT_3(), 10.5, clip);
+                    }
+                }
+                self.hits.push(Hit {
+                    x: left_x,
+                    y: ry,
+                    w: col_w,
+                    h: row_h,
+                    action: qa.action,
+                });
+            }
+            return;
+        }
 
         // ---- Two columns: Quick actions (left) | Recently Opened (right) ----
         let gutter = 40.0_f32;
