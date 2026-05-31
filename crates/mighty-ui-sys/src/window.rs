@@ -14,7 +14,7 @@ use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::keyboard::{Key, NamedKey};
 use winit::platform::pump_events::EventLoopExtPumpEvents;
-use winit::window::{Window, WindowId};
+use winit::window::{Icon, Window, WindowId};
 
 use crate::ffi::*;
 
@@ -215,6 +215,11 @@ impl ApplicationHandler for App {
             .with_decorations(false)
             .with_resizable(true)
             .with_inner_size(winit::dpi::PhysicalSize::new(self.width, self.height));
+        let attrs = if let Some(icon) = app_icon() {
+            attrs.with_window_icon(Some(icon))
+        } else {
+            attrs
+        };
         match event_loop.create_window(attrs) {
             Ok(w) => {
                 self.window = Some(Arc::new(w));
@@ -226,12 +231,7 @@ impl ApplicationHandler for App {
         }
     }
 
-    fn window_event(
-        &mut self,
-        _event_loop: &ActiveEventLoop,
-        _id: WindowId,
-        event: WindowEvent,
-    ) {
+    fn window_event(&mut self, _event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         // The OS DPI scale changed (e.g. the window moved to a monitor at a
         // different scaling). Update the global factor and push a resize carrying
         // the NEW physical inner size so the surface + projection reflow. Handled
@@ -252,6 +252,105 @@ impl ApplicationHandler for App {
     }
 }
 
+fn app_icon() -> Option<Icon> {
+    const ICON_BYTES: &[u8] = include_bytes!("../../../assets/mighty-ide.ico");
+    let (rgba, width, height) = decode_ico_largest_bgra_dib(ICON_BYTES)?;
+    Icon::from_rgba(rgba, width, height).ok()
+}
+
+fn decode_ico_largest_bgra_dib(bytes: &[u8]) -> Option<(Vec<u8>, u32, u32)> {
+    if bytes.len() < 6 || u16_le(bytes, 0)? != 0 || u16_le(bytes, 2)? != 1 {
+        return None;
+    }
+    let count = u16_le(bytes, 4)? as usize;
+    let mut best: Option<(u32, usize, usize)> = None;
+    for i in 0..count {
+        let off = 6 + i * 16;
+        if off + 16 > bytes.len() {
+            return None;
+        }
+        let w = if bytes[off] == 0 {
+            256
+        } else {
+            bytes[off] as u32
+        };
+        let h = if bytes[off + 1] == 0 {
+            256
+        } else {
+            bytes[off + 1] as u32
+        };
+        let bits = u16_le(bytes, off + 6)?;
+        let len = u32_le(bytes, off + 8)? as usize;
+        let data_off = u32_le(bytes, off + 12)? as usize;
+        if bits == 32 && data_off.checked_add(len)? <= bytes.len() {
+            let area = w.saturating_mul(h);
+            if best.map_or(true, |(best_area, _, _)| area > best_area) {
+                best = Some((area, data_off, len));
+            }
+        }
+    }
+    let (_, data_off, len) = best?;
+    decode_bgra_dib(&bytes[data_off..data_off + len])
+}
+
+fn decode_bgra_dib(dib: &[u8]) -> Option<(Vec<u8>, u32, u32)> {
+    if dib.len() < 40 || u32_le(dib, 0)? != 40 {
+        return None;
+    }
+    let width = i32_le(dib, 4)?;
+    let stored_height = i32_le(dib, 8)?;
+    let planes = u16_le(dib, 12)?;
+    let bits = u16_le(dib, 14)?;
+    let compression = u32_le(dib, 16)?;
+    if width <= 0 || stored_height <= 0 || planes != 1 || bits != 32 || compression != 0 {
+        return None;
+    }
+    let width = width as u32;
+    let height = (stored_height as u32) / 2;
+    if height == 0 {
+        return None;
+    }
+    let pixel_count = width.checked_mul(height)? as usize;
+    let pixel_bytes = pixel_count.checked_mul(4)?;
+    if 40 + pixel_bytes > dib.len() {
+        return None;
+    }
+    let mut rgba = vec![0_u8; pixel_bytes];
+    let src = &dib[40..40 + pixel_bytes];
+    let row_bytes = width as usize * 4;
+    for y in 0..height as usize {
+        let src_y = height as usize - 1 - y;
+        let src_row = &src[src_y * row_bytes..(src_y + 1) * row_bytes];
+        let dst_row = &mut rgba[y * row_bytes..(y + 1) * row_bytes];
+        for x in 0..width as usize {
+            let s = x * 4;
+            dst_row[s] = src_row[s + 2];
+            dst_row[s + 1] = src_row[s + 1];
+            dst_row[s + 2] = src_row[s];
+            dst_row[s + 3] = src_row[s + 3];
+        }
+    }
+    Some((rgba, width, height))
+}
+
+fn u16_le(bytes: &[u8], off: usize) -> Option<u16> {
+    Some(u16::from_le_bytes(
+        bytes.get(off..off + 2)?.try_into().ok()?,
+    ))
+}
+
+fn u32_le(bytes: &[u8], off: usize) -> Option<u32> {
+    Some(u32::from_le_bytes(
+        bytes.get(off..off + 4)?.try_into().ok()?,
+    ))
+}
+
+fn i32_le(bytes: &[u8], off: usize) -> Option<i32> {
+    Some(i32::from_le_bytes(
+        bytes.get(off..off + 4)?.try_into().ok()?,
+    ))
+}
+
 /// Owns the winit event loop + app; created lazily by the windowed context.
 pub struct WindowHost {
     event_loop: EventLoop<()>,
@@ -267,8 +366,7 @@ impl WindowHost {
         title: String,
         queue: *mut EventQueue,
     ) -> Result<(Self, Arc<Window>), String> {
-        let mut event_loop =
-            EventLoop::new().map_err(|e| format!("EventLoop::new failed: {e}"))?;
+        let mut event_loop = EventLoop::new().map_err(|e| format!("EventLoop::new failed: {e}"))?;
         let mut app = App::new(width, height, title, queue);
 
         // Pump until the window is created (resumed fires on the first pump).
@@ -430,5 +528,15 @@ mod tests {
         assert!((q.cursor.0 - 100.0).abs() < 0.01);
         assert!((q.cursor.1 - 50.0).abs() < 0.01);
         crate::uiscale::set_os_scale(1.0);
+    }
+
+    #[test]
+    fn bundled_icon_decodes_to_rgba() {
+        let (rgba, width, height) =
+            decode_ico_largest_bgra_dib(include_bytes!("../../../assets/mighty-ide.ico"))
+                .expect("decode bundled icon");
+        assert_eq!((width, height), (256, 256));
+        assert_eq!(rgba.len(), (width * height * 4) as usize);
+        assert!(rgba.chunks_exact(4).any(|px| px[3] > 0));
     }
 }
