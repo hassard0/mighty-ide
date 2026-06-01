@@ -2223,3 +2223,15 @@ covers the editor and reads like overlapping UI.
 - **Language note:** no compiler gap surfaced. Mighty needs a first-class
   notification primitive with a stable `group`/`replace_key`, rather than
   relying on Rust-side string prefix classification.
+
+### L143. Taskbar icons need small-size visual QA **[finding, P2]**
+The 256px brand mark can look polished while the Windows taskbar version still
+reads as lopsided or noisy. The previous large cyan rail and corner wedge carried
+the brand at full size, but became heavy once Windows shrank it.
+
+- **IDE note:** The generated Windows icon now uses a centered Mighty monogram,
+  a thin accent frame, a bottom cyan rule, and a small violet command dot. The
+  icon generator also remains the source of truth for the packaged `.ico`.
+- **Language note:** no compiler gap surfaced. Mighty would benefit from a
+  repo-native visual fixture runner for generated assets so 16/32/48px previews
+  can be reviewed alongside UI screenshots.

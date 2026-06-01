@@ -2,8 +2,8 @@
 """Generate assets/mighty-ide.ico — the Mighty brand mark.
 
 The taskbar icon has to work at 16px, so this is deliberately simpler than the
-large Welcome art: a high-contrast Mighty "M" stroke on a saturated tile,
-rendered separately at 16/32/48/256 and assembled into one multi-resolution ico.
+large Welcome art: a high-contrast Mighty "M" on a quiet editor tile, rendered
+separately at 16/32/48/256 and assembled into one multi-resolution ico.
 
 The glyph mirrors the IDE's in-app `icons::LANG_M_FILL` path, so the
 desktop/Explorer icon matches the UI mark.
@@ -14,14 +14,14 @@ import os
 import struct
 from PIL import Image, ImageDraw
 
-# Brand palette. The dark tile reads like an IDE in the taskbar; the cyan rail
-# and violet corner carry the Mighty accent without turning into a generic app
-# gradient at 16px.
-TILE_TOP = (21, 24, 38, 255)
-TILE_BOTTOM = (8, 10, 20, 255)
-ACCENT_TEAL = (90, 232, 222, 255)
-ACCENT_VIOLET = (116, 82, 255, 255)
-ACCENT_EDGE = (142, 245, 239, 245)
+# Brand palette. The dark tile reads like an IDE in the taskbar; cyan/violet are
+# accents instead of large shapes so the small icon stays balanced.
+TILE_TOP = (23, 27, 43, 255)
+TILE_BOTTOM = (7, 10, 21, 255)
+ACCENT_TEAL = (76, 229, 218, 255)
+ACCENT_VIOLET = (126, 95, 255, 255)
+ACCENT_EDGE = (110, 241, 233, 235)
+ACCENT_SOFT = (126, 95, 255, 92)
 INK = (255, 255, 255, 255)
 INK_SHADOW = (19, 16, 52, 145)
 
@@ -53,16 +53,33 @@ def render(size: int) -> Image.Image:
     img = tile
     d = ImageDraw.Draw(img)
 
-    # IDE-like rail accent and a compact violet command corner. Both are clipped
-    # by the rounded tile mask.
-    bar_w = max(SS, int(s * 0.11))
-    d.rounded_rectangle([inset, inset, inset + bar_w, s - inset], radius=radius, fill=ACCENT_TEAL)
-    corner = max(2 * SS, int(s * 0.20))
-    d.polygon([(s - inset - corner, inset), (s - inset, inset), (s - inset, inset + corner)], fill=ACCENT_VIOLET)
-    d.rounded_rectangle([inset, inset, s - inset, s - inset], radius=radius, outline=ACCENT_EDGE, width=max(1, SS))
+    # Accent frame: visible at 16px without making the mark lopsided.
+    edge_w = max(1, int(s * 0.018))
+    d.rounded_rectangle(
+        [inset, inset, s - inset, s - inset],
+        radius=radius,
+        outline=ACCENT_EDGE,
+        width=edge_w,
+    )
+    d.line(
+        [
+            (inset + radius * 0.70, s - inset - edge_w),
+            (s - inset - radius * 0.70, s - inset - edge_w),
+        ],
+        fill=ACCENT_TEAL,
+        width=max(edge_w, int(s * 0.026)),
+    )
+    dot = max(2 * SS, int(s * 0.105))
+    dot_x = s - inset - int(s * 0.18)
+    dot_y = inset + int(s * 0.18)
+    d.ellipse([dot_x - dot, dot_y - dot, dot_x + dot, dot_y + dot], fill=ACCENT_SOFT)
+    d.ellipse(
+        [dot_x - dot * 0.58, dot_y - dot * 0.58, dot_x + dot * 0.58, dot_y + dot * 0.58],
+        fill=ACCENT_VIOLET,
+    )
 
     # White Mighty monogram. Scale the 24-unit glyph into the tile's safe area.
-    pad = s * 0.18
+    pad = s * 0.17
     span = s - 2 * pad
     pts = [(pad + (x / 24.0) * span, pad + (y / 24.0) * span) for (x, y) in GLYPH]
     shadow_pts = [(x + max(1, s * 0.012), y + max(1, s * 0.018)) for x, y in pts]
