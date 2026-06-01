@@ -89,6 +89,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Bottom dock resize is visible and draggable**: Terminal, Run, Web, and
   Problems share a top-edge grab handle, and mouse dragging resizes the lower
   dock while the editor row budget updates with it.
+- **Sidebar drawers have size commands**: Search, Source Control, Outline,
+  Debug, Testing, Agents, and Explorer can now switch between compact, default,
+  and wide widths from the command palette without resizing the whole window.
 - **Bottom docks have a shared close button**: the lower Terminal/Run/Web/
   Problems drawer now exposes the same visible header close affordance instead
   of relying on rail toggles or Escape.

@@ -2283,3 +2283,15 @@ height. A best-in-class IDE should expose layout state through commands too.
 - **Language note:** no compiler gap surfaced. Mighty still benefits from the
   shim-range dispatch pattern for feature clusters because the current parser
   stack makes long command ladders fragile.
+
+### L148. Drawer sizing needs command-level control **[finding, P2]**
+The sidebar width was responsive to the window, but not directly controllable.
+That forced users to resize the entire app just to give Search, Debug, Testing,
+or Explorer more room, which makes drawer-heavy workflows feel clunky.
+
+- **IDE note:** Sidebar compact/default/wide are now command-palette actions.
+  The commands open the Explorer when the sidebar is hidden, resize every sidebar
+  drawer through one shared preset, and are covered by the real-window harness.
+- **Language note:** no compiler gap surfaced. Mighty still needs a cleaner
+  command-group declaration/dispatch form so related actions can be registered
+  and routed without manually mirroring numeric ranges in Mighty source.

@@ -137,6 +137,10 @@ pub const CHEVRON_DOWN: &str = "M6 9l6 6 6-6";
 pub const ARROW_UP: &str = "M12 20V4M5 11l7-7 7 7";
 /// Down arrow (git pull — incoming commits).
 pub const ARROW_DOWN: &str = "M12 4v16M5 13l7 7 7-7";
+/// Left arrow (compact horizontal layout).
+pub const ARROW_LEFT: &str = "M20 12H4M11 5l-7 7 7 7";
+/// Right arrow (expanded horizontal layout).
+pub const ARROW_RIGHT: &str = "M4 12h16M13 5l7 7-7 7";
 /// Replace (swap arrows) — the replace field marker.
 pub const REPLACE: &str = "M4 7h11l-3-3M20 17H9l3 3";
 

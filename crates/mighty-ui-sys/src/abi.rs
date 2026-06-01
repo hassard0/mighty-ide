@@ -5166,6 +5166,33 @@ pub extern "C" fn mui_sidebar_toggle(handle: i64) -> i32 {
     }
 }
 
+/// Apply a sidebar width preset from the palette.
+/// `94` = compact, `95` = default/auto, `96` = wide. Returns the preset number
+/// (`1..=3`) or `0` for an unrelated command id.
+#[no_mangle]
+pub extern "C" fn mui_sidebar_layout_dispatch(handle: i64, id: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let (preset, label, code) = match id as u32 {
+        crate::palette::CMD_SIDEBAR_COMPACT => (1_u8, "Sidebar compact", 1),
+        crate::palette::CMD_SIDEBAR_DEFAULT => (0_u8, "Sidebar default width", 2),
+        crate::palette::CMD_SIDEBAR_WIDE => (2_u8, "Sidebar wide", 3),
+        _ => return 0,
+    };
+    layout::set_sidebar_preset(preset);
+    if !ctx.sidebar_visible {
+        ctx.sidebar_visible = true;
+        ctx.active_panel = crate::PANEL_EXPLORER;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, label);
+    trace(&format!(
+        "sidebar_layout_dispatch id={id} preset={preset} width={:.1} {label}",
+        layout::sidebar_w()
+    ));
+    code
+}
+
 /// Re-scan the tree from its root (honoring the current expand state).
 #[no_mangle]
 pub extern "C" fn mui_tree_refresh(handle: i64) -> i32 {

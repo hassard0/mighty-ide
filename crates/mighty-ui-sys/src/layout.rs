@@ -100,6 +100,8 @@ pub const ZEN_MARGIN_TOP: f32 = 28.0;
 /// fills the window with a comfortable margin.
 static ZEN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 static WINDOW_W: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(900);
+/// Sidebar width preset: 0 = auto/default, 1 = compact, 2 = wide.
+static SIDEBAR_PRESET: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
 static DOCK_FRACTION_BITS: std::sync::atomic::AtomicU32 =
     std::sync::atomic::AtomicU32::new(TERM_FRACTION.to_bits());
 
@@ -152,10 +154,42 @@ pub fn sidebar_w_for(win_w: f32) -> f32 {
     (win_w * 0.30).clamp(SIDEBAR_MIN_W, SIDEBAR_W)
 }
 
+/// Sidebar width for an explicit preset.
+#[inline]
+pub fn sidebar_w_for_preset(win_w: f32, preset: u8) -> f32 {
+    match preset.min(2) {
+        1 => SIDEBAR_MIN_W,
+        2 => (win_w * 0.36).clamp(SIDEBAR_W, 360.0),
+        _ => sidebar_w_for(win_w),
+    }
+}
+
+/// Select a sidebar width preset: 0 = auto/default, 1 = compact, 2 = wide.
+#[inline]
+pub fn set_sidebar_preset(preset: u8) {
+    SIDEBAR_PRESET.store(preset.min(2), std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Current sidebar width preset: 0 = auto/default, 1 = compact, 2 = wide.
+#[inline]
+pub fn sidebar_preset() -> u8 {
+    SIDEBAR_PRESET.load(std::sync::atomic::Ordering::Relaxed).min(2)
+}
+
+/// Reset the sidebar width preset to the responsive default.
+#[inline]
+#[allow(dead_code)]
+pub fn reset_sidebar_preset() {
+    set_sidebar_preset(0);
+}
+
 /// Current responsive sidebar width.
 #[inline]
 pub fn sidebar_w() -> f32 {
-    sidebar_w_for(WINDOW_W.load(std::sync::atomic::Ordering::Relaxed) as f32)
+    sidebar_w_for_preset(
+        WINDOW_W.load(std::sync::atomic::Ordering::Relaxed) as f32,
+        sidebar_preset(),
+    )
 }
 
 /// Current right edge of the sidebar content band.
@@ -644,9 +678,19 @@ mod tests {
 
     #[test]
     fn sidebar_width_compacts_for_small_windows() {
+        reset_sidebar_preset();
         assert_eq!(sidebar_w_for(1200.0), SIDEBAR_W);
         assert_eq!(sidebar_w_for(640.0), 192.0);
         assert_eq!(sidebar_w_for(320.0), SIDEBAR_MIN_W);
+    }
+
+    #[test]
+    fn sidebar_width_presets_offer_compact_auto_and_wide() {
+        assert_eq!(sidebar_w_for_preset(1200.0, 0), SIDEBAR_W);
+        assert_eq!(sidebar_w_for_preset(1200.0, 1), SIDEBAR_MIN_W);
+        assert_eq!(sidebar_w_for_preset(1200.0, 2), 360.0);
+        assert!((sidebar_w_for_preset(860.0, 2) - 309.6).abs() < 0.01);
+        assert_eq!(sidebar_w_for_preset(1200.0, 99), 360.0);
     }
 
     #[test]

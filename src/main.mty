@@ -203,6 +203,7 @@ extern c {
   // file-tree sidebar
   fn mui_sidebar_visible(handle: I64) -> I32
   fn mui_sidebar_toggle(handle: I64) -> I32
+  fn mui_sidebar_layout_dispatch(handle: I64, id: I32) -> I32
   fn mui_sidebar_draw(handle: I64)
   fn mui_tree_refresh(handle: I64) -> I32
   fn mui_tree_count(handle: I64) -> I32
@@ -742,6 +743,8 @@ fn cmd_fold_last() -> I32 { 41 }  // Fold: Unfold All (highest fold id)
 fn cmd_new_project() -> I32 { 42 }
 fn cmd_dock_first() -> I32 { 91 } // View: Bottom Dock Compact
 fn cmd_dock_last() -> I32 { 93 }  // View: Bottom Dock Expanded
+fn cmd_sidebar_layout_first() -> I32 { 94 } // View: Sidebar Compact
+fn cmd_sidebar_layout_last() -> I32 { 96 }  // View: Sidebar Wide
 
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
@@ -3669,6 +3672,12 @@ fn main() {
         } else if id >= cmd_dock_first() && id <= cmd_dock_last() {
           let _d = mui_dock_dispatch(h, id)
           run_focus = true
+          web_focus = false
+          test_focus = false
+          term_focus = false
+        } else if id >= cmd_sidebar_layout_first() && id <= cmd_sidebar_layout_last() {
+          let _sl = mui_sidebar_layout_dispatch(h, id)
+          run_focus = false
           web_focus = false
           test_focus = false
           term_focus = false

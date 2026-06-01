@@ -578,6 +578,28 @@ foreach ($ic in $rail) {
   if (-not $resp) { Log "!!! LOCKUP after rail '$($ic.n)'" }
 }
 
+# === SIDEBAR LAYOUT: palette commands should resize drawers without window drag. ===
+Invoke-PaletteCommand "sidebar compact" $null
+Start-Sleep -Milliseconds 250
+Invoke-PaletteCommand "sidebar wide" $null
+Start-Sleep -Milliseconds 250
+Invoke-PaletteCommand "sidebar default" $null
+Start-Sleep -Milliseconds 250
+if ($env:MUI_TRACE) {
+  Start-Sleep -Milliseconds 150
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  if (
+    $traceText -match "sidebar_layout_dispatch id=94" -and
+    $traceText -match "sidebar_layout_dispatch id=95" -and
+    $traceText -match "sidebar_layout_dispatch id=96"
+  ) {
+    Log "SIDEBAR-LAYOUT-COMMANDS: compact/default/wide palette traces observed"
+  } else {
+    Log "SIDEBAR-LAYOUT-COMMANDS: missing one or more palette sidebar command traces"
+    $script:HarnessFailed = $true
+  }
+}
+
 # === BOTTOM DOCK RESIZE: drag the visible handle up and back down. ===
 Invoke-PaletteCommand "view problems" $null
 Start-Sleep -Milliseconds 300

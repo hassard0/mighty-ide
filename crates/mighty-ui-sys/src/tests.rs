@@ -690,6 +690,41 @@ fn view_commands_open_non_sidebar_surfaces_without_toggling() {
 }
 
 #[test]
+fn sidebar_layout_commands_open_and_resize_sidebar() {
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 1200;
+    ctx.sidebar_visible = false;
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(1200);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::layout::sidebar_w(), crate::layout::SIDEBAR_W);
+    assert_eq!(
+        crate::abi::mui_sidebar_layout_dispatch(handle, crate::palette::CMD_SIDEBAR_COMPACT as i32),
+        1
+    );
+    assert!(ctx.sidebar_visible);
+    assert_eq!(ctx.active_panel, crate::PANEL_EXPLORER);
+    assert_eq!(crate::layout::sidebar_preset(), 1);
+    assert_eq!(crate::layout::sidebar_w(), crate::layout::SIDEBAR_MIN_W);
+
+    assert_eq!(
+        crate::abi::mui_sidebar_layout_dispatch(handle, crate::palette::CMD_SIDEBAR_WIDE as i32),
+        3
+    );
+    assert_eq!(crate::layout::sidebar_preset(), 2);
+    assert_eq!(crate::layout::sidebar_w(), 360.0);
+
+    assert_eq!(
+        crate::abi::mui_sidebar_layout_dispatch(handle, crate::palette::CMD_SIDEBAR_DEFAULT as i32),
+        2
+    );
+    assert_eq!(crate::layout::sidebar_preset(), 0);
+    assert_eq!(crate::layout::sidebar_w(), crate::layout::SIDEBAR_W);
+    crate::layout::reset_sidebar_preset();
+}
+
+#[test]
 fn visible_rows_reserve_space_for_every_bottom_dock_owner() {
     let _g = crate::settings::TEST_LOCK
         .lock()
@@ -1417,6 +1452,12 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
             crate::palette::CMD_DOCK_EXPANDED,
             "View: Bottom Dock Expanded",
         ),
+        (crate::palette::CMD_SIDEBAR_COMPACT, "View: Sidebar Compact"),
+        (
+            crate::palette::CMD_SIDEBAR_DEFAULT,
+            "View: Sidebar Default Width",
+        ),
+        (crate::palette::CMD_SIDEBAR_WIDE, "View: Sidebar Wide"),
     ];
     for (id, label) in view_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
@@ -3279,6 +3320,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "id >= cmd_git_first() && id <= cmd_git_last()",
         "id >= cmd_ws_first() && id <= cmd_ws_last()",
         "id >= cmd_fold_first() && id <= cmd_fold_last()",
+        "id >= cmd_sidebar_layout_first() && id <= cmd_sidebar_layout_last()",
         "id == cmd_keyboard_shortcuts()",
         "id == cmd_new_project()",
         "id == cmd_new_workspace_file()",
@@ -3302,6 +3344,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_WS_FIRST, CMD_WS_LAST),
         (CMD_FOLD_FIRST, CMD_FOLD_LAST),
         (CMD_DOCK_FIRST, CMD_DOCK_LAST),
+        (CMD_SIDEBAR_FIRST, CMD_SIDEBAR_LAST),
     ];
     let direct = [
         (CMD_NEW_FILE, "cmd_new_file"),
