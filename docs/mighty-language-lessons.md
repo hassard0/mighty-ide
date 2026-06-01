@@ -2816,3 +2816,14 @@ split consumed the remaining body width.
 - **Language note:** no compiler gap surfaced. Mighty needs a way to express
   responsive chrome ownership across features, so a view can request temporary
   space from surrounding UI without adding ad hoc flags per component.
+
+### L187. Footer helper text needs an affordance budget **[finding, P3]**
+The compact Keyboard Shortcuts modal showed its static footer legend fighting
+the modal tag. The text was useful on wide cards, but on narrow cards it created
+visual noise without improving the active remap flow.
+
+- **IDE note:** Keyboard Shortcuts now hides the default helper legend below the
+  clean-fit width while still showing capture and status feedback.
+- **Language note:** no compiler gap surfaced. Mighty should expose a shared
+  responsive footer/status primitive so optional helper copy can collapse by
+  measured space instead of feature-specific thresholds.

@@ -732,6 +732,14 @@ impl ShortcutsEngine {
         (box_x + box_w - 38.0, box_y + 16.0, 24.0, 24.0)
     }
 
+    fn default_footer_hint(box_w: f32) -> Option<&'static str> {
+        if box_w >= 580.0 {
+            Some("Enter remap   Ctrl+R reset   Ctrl+Shift+R reset all   Esc close")
+        } else {
+            None
+        }
+    }
+
     /// Select the shortcut row under a click. Returns the selected filtered row
     /// index, or -1 when the click missed the visible row list.
     pub fn click_row(&mut self, x: f32, y: f32, width: u32, height: u32) -> i32 {
@@ -903,8 +911,7 @@ impl ShortcutsEngine {
             ctx.text.queue_ui_sized(box_x + 18.0, fty, &self.status, theme::ACCENT_BRIGHT(), 11.5, clip);
         } else if !self.status.is_empty() {
             ctx.text.queue_ui_sized(box_x + 18.0, fty, &self.status, theme::TEXT_1(), 11.5, clip);
-        } else {
-            let hint = "Enter remap   Ctrl+R reset   Ctrl+Shift+R reset all   Esc close";
+        } else if let Some(hint) = Self::default_footer_hint(box_w) {
             ctx.text.queue_ui_sized(box_x + 18.0, fty, hint, theme::TEXT_3(), 11.0, clip);
         }
         let tag = "Mighty Shortcuts";
@@ -1196,5 +1203,11 @@ mod tests {
         let (_box_x, _box_y, _box_w, _list_top, _row_h, _box_h, top, shown) = e.geometry(640, 480);
         assert!(top <= e.sel);
         assert!(e.sel < top + shown);
+    }
+
+    #[test]
+    fn footer_hint_hides_when_card_is_compact() {
+        assert_eq!(ShortcutsEngine::default_footer_hint(520.0), None);
+        assert!(ShortcutsEngine::default_footer_hint(640.0).is_some());
     }
 }

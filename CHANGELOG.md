@@ -57,6 +57,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Settings footer is cleaner in compact windows**: the modal no longer crams
   shortcut helper text into the footer, avoiding tiny overlapping copy at narrow
   widths.
+- **Keyboard Shortcuts footer is responsive**: the modal keeps capture/status
+  feedback visible, but hides the static helper legend when the card is too
+  narrow to fit it cleanly.
 - **Explorer header title no longer overlaps actions**: compact sidebar headers
   now measure and ellipsize the workspace title before the New File/New Folder
   buttons.
