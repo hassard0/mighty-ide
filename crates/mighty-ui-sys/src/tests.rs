@@ -718,6 +718,22 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
     let rows_after_shorter = crate::abi::mui_visible_rows(handle);
     assert!(rows_after_shorter > rows_after_taller);
 
+    let (rx, ry, rw, rh) = crate::layout::dock_preset_rect(ctx.gpu.width, ctx.gpu.height, 1);
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        rx + rw * 0.5,
+        ry + rh * 0.5,
+        0,
+    );
+    assert_eq!(crate::abi::mui_bottom_dock_preset_at_click(handle), 2);
+    assert_eq!(
+        crate::layout::dock_fraction(),
+        crate::layout::TERM_FRACTION,
+        "default preset should reset the shared dock fraction"
+    );
+    assert!(!ctx.bottom_dock_resizing);
+
     let (cx, cy, cw, ch) = crate::layout::dock_close_rect(ctx.gpu.width, ctx.gpu.height);
     ctx.last_event = MuiEvent::mouse(
         MUI_EVENT_MOUSE_DOWN,

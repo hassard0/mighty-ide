@@ -1655,6 +1655,36 @@ pub extern "C" fn mui_bottom_dock_close_at_click(handle: i64) -> i32 {
     1
 }
 
+/// Apply a shared lower-dock size preset from the latest mouse-down.
+/// Returns 1 compact, 2 default, 3 expanded, or 0 when no preset was hit.
+#[no_mangle]
+pub extern "C" fn mui_bottom_dock_preset_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.bottom_dock_open() || ctx.last_event.button != crate::ffi::MUI_MOUSE_LEFT {
+        return 0;
+    }
+    let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let px = ctx.last_event.x;
+    let py = ctx.last_event.y;
+    for idx in 0..3 {
+        let (x, y, w, h) = layout::dock_preset_rect(visible_w, ctx.gpu.height, idx);
+        if px >= x && px <= x + w && py >= y && py <= y + h {
+            let (frac, label) = match idx {
+                0 => (layout::TERM_FRACTION_MIN, "Dock compact"),
+                1 => (layout::TERM_FRACTION, "Dock reset"),
+                _ => (layout::TERM_FRACTION_MAX, "Dock expanded"),
+            };
+            layout::set_dock_fraction(frac);
+            ctx.bottom_dock_resizing = false;
+            trace(&format!("dock_preset idx={idx} frac={frac:.2} {label}"));
+            return idx as i32 + 1;
+        }
+    }
+    0
+}
+
 /// Draw the visible grab target for the shared bottom dock. Every lower panel
 /// uses the same layout, so drawing it once late keeps Terminal/Run/Web/Problems
 /// consistent and prevents the handle from being hidden by panel contents.
@@ -1701,6 +1731,26 @@ pub extern "C" fn mui_bottom_dock_resize_draw(handle: i64) {
         theme::TEXT_3(),
     );
     let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let preset_icons = [
+        crate::icons::ARROW_DOWN,
+        crate::icons::WIN_MIN,
+        crate::icons::ARROW_UP,
+    ];
+    for (idx, icon) in preset_icons.iter().enumerate() {
+        let (px, py, pw, ph) = layout::dock_preset_rect(visible_w, ctx.gpu.height, idx);
+        ctx.dl_round(px, py, pw, ph, 6.0, theme::BG_2());
+        ctx.dl_stroke(px, py, pw, ph, 6.0, theme::BORDER(), 1.0);
+        ctx.dl_icon(
+            px + (pw - 12.0) * 0.5,
+            py + (ph - 12.0) * 0.5,
+            12.0,
+            12.0,
+            *icon,
+            theme::TEXT_1(),
+            1.5,
+            false,
+        );
+    }
     let (cx, cy, cw, ch) = layout::dock_close_rect(visible_w, ctx.gpu.height);
     ctx.dl_round(cx, cy, cw, ch, 6.0, theme::accent_a(0.18));
     ctx.dl_stroke(cx, cy, cw, ch, 6.0, theme::ACCENT(), 1.0);

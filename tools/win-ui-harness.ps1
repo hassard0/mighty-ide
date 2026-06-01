@@ -537,6 +537,20 @@ if ($env:MUI_TRACE) {
     $script:HarnessFailed = $true
   }
 }
+$dockResetX = $logicalW - 124
+$dockButtonY = $dockHandleY - 90
+ClickL $dockResetX $dockButtonY
+Start-Sleep -Milliseconds 250
+if ($env:MUI_TRACE) {
+  Start-Sleep -Milliseconds 150
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  if ($traceText -match "dock_preset idx=1") {
+    Log "BOTTOM-DOCK-PRESET: reset button trace observed"
+  } else {
+    Log "BOTTOM-DOCK-PRESET: no reset button trace observed"
+    $script:HarnessFailed = $true
+  }
+}
 ClickL 26 71             # back to Explorer
 Start-Sleep -Milliseconds 300
 

@@ -1987,3 +1987,28 @@ broken button because the next typed key could be interpreted as a remap attempt
 - **Language note:** no compiler gap surfaced. The issue was interaction-state
   modeling: click handlers often need action codes beyond hit/miss when a row
   can both select and activate.
+
+### L123. Resize affordances need precise presets, not only drag targets **[finding, P2]**
+The shared lower dock had a visible drag handle and cursor feedback, but resizing
+still depended on a manual drag. That is clunky for users who just want a
+predictable compact/default/expanded panel height.
+
+- **IDE note:** Terminal/Run/Web/Problems now share compact, reset, and expanded
+  dock buttons beside the close affordance. These presets are handled before the
+  drag path, so a click is exact and cannot accidentally start a resize gesture.
+- **Language note:** no compiler gap surfaced. The UI glue still shows why Mighty
+  needs better first-class action-result modeling: scalar hit-test functions are
+  doing the work of a richer command/event object.
+
+### L124. Drawer hit tests must not preempt active overlays **[finding, P1]**
+The dirty-tab confirmation could overlap the bottom dock divider. A human click
+on the confirmation button was being intercepted as a dock resize start when it
+landed on the same y band.
+
+- **IDE note:** bottom-dock close, preset, and resize hits now stay inactive
+  while modal/overlay surfaces own input. Dirty-confirm, keyboard shortcuts,
+  breadcrumb menus, and branch switching can no longer lose clicks to the drawer
+  underneath.
+- **Language note:** no compiler gap surfaced. This is another case where Mighty
+  would benefit from a central z-ordered event router instead of repeated scalar
+  hit tests in source order.

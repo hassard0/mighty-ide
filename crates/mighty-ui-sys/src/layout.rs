@@ -60,6 +60,10 @@ pub const TERM_FRACTION_MAX: f32 = 0.68;
 pub const DOCK_RESIZE_H: f32 = 14.0;
 /// Square hit target for the shared bottom-dock close button.
 pub const DOCK_CLOSE_SIZE: f32 = 24.0;
+/// Square hit target for bottom-dock size preset buttons.
+pub const DOCK_PRESET_SIZE: f32 = 24.0;
+/// Gap between bottom-dock header action buttons.
+pub const DOCK_ACTION_GAP: f32 = 6.0;
 /// Keep the dock close affordance away from scaled/window-control gutters.
 pub const DOCK_CLOSE_TRAILING: f32 = 40.0;
 /// Minimum terminal panel height (px) so it stays usable in small windows.
@@ -388,10 +392,20 @@ pub fn dock_close_rect(width: u32, height: u32) -> (f32, f32, f32, f32) {
     (x, y, size, size)
 }
 
+/// Size-preset button hit target in the shared bottom-dock header.
+/// `idx`: 0 = compact, 1 = default, 2 = expanded.
+pub fn dock_preset_rect(width: u32, height: u32, idx: usize) -> (f32, f32, f32, f32) {
+    let (close_x, close_y, _, _) = dock_close_rect(width, height);
+    let size = DOCK_PRESET_SIZE;
+    let i = idx.min(2) as f32;
+    let x = close_x - DOCK_ACTION_GAP - (3.0 - i) * size - (2.0 - i) * DOCK_ACTION_GAP;
+    (x, close_y, size, size)
+}
+
 /// Right edge available for bottom-dock header labels/actions, before the
-/// shared close button.
+/// shared size controls and close button.
 pub fn dock_header_content_right(width: u32, height: u32) -> f32 {
-    let (x, _, _, _) = dock_close_rect(width, height);
+    let (x, _, _, _) = dock_preset_rect(width, height, 0);
     x - 10.0
 }
 
@@ -812,6 +826,34 @@ mod tests {
         assert!(dock_fraction() <= TERM_FRACTION_MAX);
         resize_dock_to_y(600, 5000.0);
         assert!(dock_fraction() >= TERM_FRACTION_MIN);
+        reset_dock_fraction();
+    }
+
+    #[test]
+    fn bottom_dock_header_actions_reserve_label_space() {
+        let _g = crate::settings::TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        reset_dock_fraction();
+        let (close_x, close_y, close_w, close_h) = dock_close_rect(900, 700);
+        let mut last_right = 0.0;
+        for idx in 0..3 {
+            let (x, y, w, h) = dock_preset_rect(900, 700, idx);
+            assert_eq!(y, close_y);
+            assert_eq!(w, DOCK_PRESET_SIZE);
+            assert_eq!(h, DOCK_PRESET_SIZE);
+            assert!(
+                x + w < close_x,
+                "preset button {idx} should stay left of the close button"
+            );
+            if idx > 0 {
+                assert!(x > last_right, "preset buttons should be ordered left to right");
+            }
+            last_right = x + w;
+        }
+        assert_eq!(close_w, DOCK_CLOSE_SIZE);
+        assert_eq!(close_h, DOCK_CLOSE_SIZE);
+        assert!(dock_header_content_right(900, 700) < dock_preset_rect(900, 700, 0).0);
         reset_dock_fraction();
     }
 }
