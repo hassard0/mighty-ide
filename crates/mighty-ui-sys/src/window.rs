@@ -14,7 +14,7 @@ use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::keyboard::{Key, NamedKey};
 use winit::platform::pump_events::EventLoopExtPumpEvents;
-use winit::window::{Icon, Window, WindowId};
+use winit::window::{CursorIcon, Icon, Window, WindowId};
 
 use crate::ffi::*;
 
@@ -147,9 +147,7 @@ pub fn translate_window_event(q: &mut EventQueue, event: &WindowEvent) {
                 crate::uiscale::phys_to_logical(position.x as f32),
                 crate::uiscale::phys_to_logical(position.y as f32),
             );
-            if q.left_down {
-                q.push(MuiEvent::mouse_move(q.cursor.0, q.cursor.1, q.mods));
-            }
+            q.push(MuiEvent::mouse_move(q.cursor.0, q.cursor.1, q.mods));
         }
         WindowEvent::MouseInput { state, button, .. } => {
             let tag = if *state == ElementState::Pressed {
@@ -456,6 +454,30 @@ impl WindowHost {
         };
         if let Some(w) = self.window() {
             let _ = w.drag_resize_window(rd);
+        }
+    }
+
+    pub fn set_cursor_default(&self) {
+        self.set_cursor(CursorIcon::Default);
+    }
+
+    pub fn set_cursor_row_resize(&self) {
+        self.set_cursor(CursorIcon::NsResize);
+    }
+
+    pub fn set_cursor_resize(&self, dir: ResizeDir) {
+        let icon = match dir {
+            ResizeDir::West | ResizeDir::East => CursorIcon::EwResize,
+            ResizeDir::North | ResizeDir::South => CursorIcon::NsResize,
+            ResizeDir::NorthWest | ResizeDir::SouthEast => CursorIcon::NwseResize,
+            ResizeDir::NorthEast | ResizeDir::SouthWest => CursorIcon::NeswResize,
+        };
+        self.set_cursor(icon);
+    }
+
+    fn set_cursor(&self, icon: CursorIcon) {
+        if let Some(w) = self.window() {
+            w.set_cursor(icon);
         }
     }
 

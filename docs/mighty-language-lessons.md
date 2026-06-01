@@ -1884,3 +1884,16 @@ itself fit. Notifications should feel temporary but not accidental.
 - **Language note:** no compiler gap surfaced. The lesson is ergonomic: Mighty
   UI helpers should expose reusable geometry primitives so drawn shapes and
   hit-tests cannot drift.
+
+### L115. Resize targets need hover feedback, not just bigger hit zones **[finding, P2]**
+Wide resize hit bands help, but users still need cursor feedback before they
+press. Without hover feedback, borderless edges and dock dividers feel like
+guesswork even when the eventual drag works.
+
+- **IDE note:** the window event path now emits hover mouse moves to the shim.
+  Mighty still does not see those ordinary moves; the shim consumes them after
+  setting the native cursor for window edges, diagonal corners, dock dividers,
+  or default pointer state.
+- **Language note:** no compiler gap surfaced. Mighty currently relies on the
+  Rust shell for native cursor affordances; a future UI layer should make hover
+  cursor intent a first-class control property.

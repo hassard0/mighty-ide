@@ -2037,7 +2037,10 @@ fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
         // Drag-move events are only meaningful after Mighty captures a visible
         // drag target. Ordinary hover movement and unrelated OS/titlebar drags
         // are consumed here so click-focused routing stays deterministic.
-        MUI_EVENT_MOUSE_MOVE if !ctx.bottom_dock_resizing => ShimAction::Consume,
+        MUI_EVENT_MOUSE_MOVE if !ctx.bottom_dock_resizing => {
+            update_hover_cursor(ctx, ev);
+            ShimAction::Consume
+        }
         MUI_EVENT_MOUSE_UP if ctx.bottom_dock_resizing => {
             ctx.bottom_dock_resizing = false;
             ShimAction::PassThrough
@@ -2132,6 +2135,22 @@ fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
             }
         }
         _ => ShimAction::PassThrough,
+    }
+}
+
+fn update_hover_cursor(ctx: &mut MuiContext, ev: &MuiEvent) {
+    let Some(host) = ctx.host.as_ref() else {
+        return;
+    };
+    let w = ctx.gpu.width as f32;
+    let h = ctx.gpu.height as f32;
+    let rc = crate::titlebar::resize_code(ev.x, ev.y, w, h);
+    if let Some(dir) = crate::window::ResizeDir::from_code(rc) {
+        host.set_cursor_resize(dir);
+    } else if ctx.bottom_dock_open() && layout::dock_resize_hit(ctx.gpu.height, ev.y) {
+        host.set_cursor_row_resize();
+    } else {
+        host.set_cursor_default();
     }
 }
 
