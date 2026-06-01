@@ -3079,3 +3079,18 @@ visual result looked like stale notification text was stuck inside the overlay.
   coordinator with priority, modality, and transient-feedback policy so command
   surfaces can declare "no toast chrome over me" instead of each surface relying
   on ad hoc draw order.
+
+### L207. Compact chrome needs minimum usable widths, not proportional math only **[finding, P1]**
+The 520px compact gallery showed rail drawers that were technically responsive
+but not usable: agents/test labels were clipped too aggressively and panel
+controls crowded the editor boundary, even though the main editor still had
+room to yield a little width.
+
+- **IDE note:** the responsive sidebar now keeps a larger compact floor and uses
+  a more generous auto fraction before clamping to the full-size width. This
+  keeps drawer controls, status chips, and file/action labels inside the panel
+  at compact sizes while preserving a readable editor body.
+- **Language note:** no compiler gap surfaced. Mighty UI needs declarative
+  layout constraints for minimum usable widths per surface, so drawers can
+  express "I need 176px for controls" instead of relying on one global
+  proportional sidebar formula.

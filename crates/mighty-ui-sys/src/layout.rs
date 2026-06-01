@@ -45,7 +45,7 @@ pub const TAB_W: f32 = 160.0;
 pub const SIDEBAR_W: f32 = 248.0;
 /// Minimum compact sidebar width. Keeps rail panels usable while giving the
 /// editor enough room in small windows and dock-heavy workflows.
-pub const SIDEBAR_MIN_W: f32 = 160.0;
+pub const SIDEBAR_MIN_W: f32 = 176.0;
 /// Pixels of indentation per tree depth level (mockup `.indent` = 16px).
 pub const TREE_INDENT: f32 = 16.0;
 
@@ -151,7 +151,7 @@ pub fn reset_dock_fraction() {
 /// Responsive sidebar width for a given logical window width.
 #[inline]
 pub fn sidebar_w_for(win_w: f32) -> f32 {
-    (win_w * 0.30).clamp(SIDEBAR_MIN_W, SIDEBAR_W)
+    (win_w * 0.36).clamp(SIDEBAR_MIN_W, SIDEBAR_W)
 }
 
 /// Sidebar width for an explicit preset.
@@ -680,12 +680,12 @@ mod tests {
     fn sidebar_width_compacts_for_small_windows() {
         reset_sidebar_preset();
         assert_eq!(sidebar_w_for(1200.0), SIDEBAR_W);
-        assert_eq!(sidebar_w_for(640.0), 192.0);
+        assert!((sidebar_w_for(640.0) - 230.4).abs() < 0.01);
         assert_eq!(sidebar_w_for(320.0), SIDEBAR_MIN_W);
         assert_eq!(body_left(true), RAIL_W + SIDEBAR_W);
         set_window_width(520);
-        assert_eq!(sidebar_w(), 160.0);
-        assert_eq!(body_left(true), RAIL_W + 160.0);
+        assert!((sidebar_w() - 187.2).abs() < 0.01);
+        assert!((body_left(true) - (RAIL_W + 187.2)).abs() < 0.01);
         reset_sidebar_preset();
         set_window_width(900);
     }
