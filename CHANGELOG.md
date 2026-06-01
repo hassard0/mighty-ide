@@ -64,6 +64,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Welcome shortcut hints** now use shaped UI-font measurements and hide when
   a compact column cannot fit the label plus shortcut, preventing first-screen
   overlap.
+- **Toast messages** now truncate from shaped UI-font measurements instead of a
+  fixed character guess, reducing clipped or stale-looking notification text.
 
 ### Markdown
 - **Live Markdown preview** (`Ctrl+Shift+V`): a themed, live-updating split-pane

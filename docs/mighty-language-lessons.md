@@ -1451,3 +1451,37 @@ could either collide or push the chord out of its column.
   overlap would be unavoidable.
 - **Language note:** no new Mighty gap surfaced. This remains a shim layout
   concern; Mighty only routes the resulting quick-action click id.
+
+### L83. UX debt: file flows, overlays, and resizing need a hard manual pass **[backlog, P1]**
+Manual feedback on May 31, 2026: the UX still feels poor around "New File",
+"Open File/Open Folder", drawer/test-panel overlap, and manual window resizing.
+Treat this as a named backlog track, not a collection of incidental polish bugs.
+
+- **IDE note:** audit the complete first-run and file lifecycle path: Welcome
+  quick actions, native dialog cancel/success states, typed-path fallback,
+  New File/New Folder prompts, Save/Save As, and all resulting toasts. The goal
+  is obvious state transitions with no surprise fallback prompts and no hidden
+  dirty-buffer risk.
+- **IDE note:** audit overlay/drawer layering with Testing, Run, Problems,
+  Source Control, Search, command palette, Quick Open, branch picker, keyboard
+  shortcuts, code actions, and toasts. Shared regions need one owner at a time,
+  modal overlays must dim or clip underlying text, and status/drawer text must
+  not bleed through.
+- **IDE note:** resizing needs an explicit interaction design pass: discoverable
+  resize affordances, less fragile hit targets, no text collision while dragging,
+  and stable responsive breakpoints for compact sidebars, welcome layout, docks,
+  and bottom panels.
+- **Language note:** no new Mighty compiler gap is implied yet. This is mostly
+  shim-owned geometry/state/layering, but it will continue to stress the current
+  scalar event routing and command-dispatch ergonomics.
+
+### L84. Toast truncation should use measured UI text **[finding, P3]**
+Toast messages are sanitized to one line, but the final truncation still used a
+fixed character-width estimate. That can leave proportional-font text clipped at
+the close icon or over-trim short narrow-glyph messages.
+
+- **IDE note:** toast drawing now truncates with `measure_ui_sized` and a binary
+  search for the longest prefix plus ellipsis that fits the card's message
+  width.
+- **Language note:** no new Mighty gap surfaced. Toast contents and layout stay
+  shim-owned; Mighty only ticks/draws/click-routes the overlay.

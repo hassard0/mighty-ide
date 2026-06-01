@@ -324,7 +324,7 @@ impl ToastQueue {
                 11.0,
                 card_clip,
             );
-            let msg = truncate(&t.message, card_w - 88.0);
+            let msg = truncate_measured(&mut ctx.text, &t.message, card_w - 88.0, 13.0);
             ctx.text.queue_ui_sized(
                 tx,
                 cy + 28.0,
@@ -382,17 +382,34 @@ fn sanitize_message(raw: String) -> String {
     }
 }
 
-/// Truncate `s` to roughly `max_px` wide at the UI font, appending an ellipsis.
-/// Uses a coarse per-char advance estimate (the proportional UI font); good
-/// enough for a one-line toast message (the renderer clips anyway).
-fn truncate(s: &str, max_px: f32) -> String {
-    let approx_char = 7.0_f32;
-    let max_chars = (max_px / approx_char).floor().max(4.0) as usize;
-    if s.chars().count() <= max_chars {
+/// Truncate `s` to fit `max_px` at the UI font, appending an ellipsis.
+fn truncate_measured(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    let max_px = max_px.max(0.0);
+    if text.measure_ui_sized(s, size).0 <= max_px {
         return s.to_string();
     }
-    let mut out: String = s.chars().take(max_chars.saturating_sub(1)).collect();
-    out.push('\u{2026}');
+    let ellipsis = "\u{2026}";
+    let ellipsis_w = text.measure_ui_sized(ellipsis, size).0;
+    if ellipsis_w >= max_px {
+        return ellipsis.to_string();
+    }
+
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi + 1) / 2;
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+
+    let mut out: String = chars.iter().take(lo).collect();
+    out.push_str(ellipsis);
     out
 }
 
