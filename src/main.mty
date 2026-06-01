@@ -749,6 +749,7 @@ fn cmd_sidebar_layout_first() -> I32 { 94 } // View: Sidebar Compact
 fn cmd_sidebar_layout_last() -> I32 { 96 }  // View: Sidebar Wide
 fn cmd_window_toggle_maximize() -> I32 { 97 }
 fn cmd_window_minimize() -> I32 { 98 }
+fn cmd_dock_close() -> I32 { 99 }
 
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
@@ -3676,6 +3677,12 @@ fn main() {
         } else if id >= cmd_dock_first() && id <= cmd_dock_last() {
           let _d = mui_dock_dispatch(h, id)
           run_focus = true
+          web_focus = false
+          test_focus = false
+          term_focus = false
+        } else if id == cmd_dock_close() {
+          let _dc = mui_dock_dispatch(h, id)
+          run_focus = false
           web_focus = false
           test_focus = false
           term_focus = false

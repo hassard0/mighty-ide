@@ -125,6 +125,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **New File rejects invisible out-of-workspace picks**: the workspace New File
   picker now refuses paths outside the current workspace, avoiding a tab that
   opens successfully while Explorer and Quick Open cannot show the file.
+- **Bottom dock has a command close path**: **View: Close Bottom Dock** now
+  closes whichever lower Run/Web/Problems/Terminal dock is active, so layout
+  recovery does not depend on hitting the small header close button.
 - **Testing header avoids status-pill collisions**: the Testing sidebar title now
   measures the right-side `idle`/`running`/`failed`/`passed` pill first and fits
   the header label into the remaining space.

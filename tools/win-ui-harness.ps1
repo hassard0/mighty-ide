@@ -655,6 +655,18 @@ if ($env:MUI_TRACE) {
     $script:HarnessFailed = $true
   }
 }
+Invoke-PaletteCommand "close bottom dock" $null
+Start-Sleep -Milliseconds 250
+if ($env:MUI_TRACE) {
+  Start-Sleep -Milliseconds 150
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  if ($traceText -match "dock_dispatch id=99 close") {
+    Log "BOTTOM-DOCK-CLOSE-COMMAND: close palette trace observed"
+  } else {
+    Log "BOTTOM-DOCK-CLOSE-COMMAND: missing close palette trace"
+    $script:HarnessFailed = $true
+  }
+}
 ClickL 26 71             # back to Explorer
 Start-Sleep -Milliseconds 300
 

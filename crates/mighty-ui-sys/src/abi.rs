@@ -1663,6 +1663,14 @@ pub extern "C" fn mui_bottom_dock_close_at_click(handle: i64) -> i32 {
     if px < x || px > x + w || py < y || py > y + h {
         return 0;
     }
+    close_bottom_dock(ctx);
+    1
+}
+
+fn close_bottom_dock(ctx: &mut MuiContext) -> bool {
+    if !ctx.bottom_dock_open() {
+        return false;
+    }
     if ctx.term_open {
         ctx.term_open = false;
         ctx.terminal = None;
@@ -1677,7 +1685,7 @@ pub extern "C" fn mui_bottom_dock_close_at_click(handle: i64) -> i32 {
         ctx.problems.set_open(false);
     }
     ctx.bottom_dock_resizing = false;
-    1
+    true
 }
 
 /// Apply a shared lower-dock size preset from the latest mouse-down.
@@ -1710,14 +1718,24 @@ pub extern "C" fn mui_bottom_dock_preset_at_click(handle: i64) -> i32 {
     0
 }
 
-/// Apply a shared lower-dock size command from the palette.
-/// `91` = compact, `92` = default, `93` = expanded. Returns the preset number
-/// (`1..=3`) or `0` for an unrelated command id.
+/// Apply a shared lower-dock command from the palette.
+/// `91` = compact, `92` = default, `93` = expanded, `99` = close. Returns the
+/// preset number (`1..=3`), `4` for close, or `0` for no-op/unrelated command id.
 #[no_mangle]
 pub extern "C" fn mui_dock_dispatch(handle: i64, id: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if id as u32 == crate::palette::CMD_DOCK_CLOSE {
+        if close_bottom_dock(ctx) {
+            ctx.push_toast(crate::toast::Kind::Info, "Bottom dock closed");
+            trace(&format!("dock_dispatch id={id} close"));
+            return 4;
+        }
+        ctx.push_toast(crate::toast::Kind::Info, "No bottom dock open");
+        trace(&format!("dock_dispatch id={id} close noop"));
+        return 0;
+    }
     let (frac, label, code) = match id as u32 {
         crate::palette::CMD_DOCK_COMPACT => (layout::TERM_FRACTION_MIN, "Dock compact", 1),
         crate::palette::CMD_DOCK_RESET => (layout::TERM_FRACTION, "Dock default", 2),

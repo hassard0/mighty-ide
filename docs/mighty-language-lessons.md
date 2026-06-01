@@ -2345,3 +2345,15 @@ feel inconsistent with its label.
 - **Language note:** no compiler gap surfaced. This is another case where a
   structured picker result would reduce Mighty-side sentinel handling and keep
   command labels, scopes, and outcomes aligned.
+
+### L153. Layout recovery needs command paths, not only small chrome **[finding, P2]**
+The shared lower dock had a visible close button, but no command-palette action
+for closing it. Users who open Problems, Run, Web, or Terminal should have a
+predictable keyboard/searchable way to restore editor space without aiming at a
+small header affordance or remembering which panel toggle opened it.
+
+- **IDE note:** `View: Close Bottom Dock` now routes through the shared dock
+  dispatcher and closes whichever lower dock owner is active.
+- **Language note:** no compiler gap surfaced. The separate close id reinforces
+  the need for generated command metadata with semantic groups, because related
+  layout actions are no longer always contiguous numeric ranges.

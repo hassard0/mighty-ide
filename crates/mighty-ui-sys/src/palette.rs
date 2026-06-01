@@ -211,6 +211,8 @@ pub const CMD_DOCK_COMPACT: u32 = 91;
 pub const CMD_DOCK_RESET: u32 = 92;
 /// Set the shared bottom dock to its expanded height.
 pub const CMD_DOCK_EXPANDED: u32 = 93;
+/// Close whichever shared bottom dock is currently open.
+pub const CMD_DOCK_CLOSE: u32 = 99;
 /// First/last bottom-dock layout command id.
 #[allow(dead_code)]
 pub const CMD_DOCK_FIRST: u32 = CMD_DOCK_COMPACT;
@@ -309,6 +311,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_DOCK_COMPACT,     label: "View: Bottom Dock Compact", keybinding: "" },
     Command { id: CMD_DOCK_RESET,       label: "View: Bottom Dock Default Size", keybinding: "" },
     Command { id: CMD_DOCK_EXPANDED,    label: "View: Bottom Dock Expanded", keybinding: "" },
+    Command { id: CMD_DOCK_CLOSE,       label: "View: Close Bottom Dock", keybinding: "" },
     Command { id: CMD_SIDEBAR_COMPACT,  label: "View: Sidebar Compact", keybinding: "" },
     Command { id: CMD_SIDEBAR_DEFAULT,  label: "View: Sidebar Default Width", keybinding: "" },
     Command { id: CMD_SIDEBAR_WIDE,     label: "View: Sidebar Wide", keybinding: "" },
@@ -650,6 +653,7 @@ impl PaletteEngine {
             CMD_DOCK_COMPACT => (icons::ARROW_DOWN, "Use a smaller shared bottom dock", false),
             CMD_DOCK_RESET => (icons::WIN_MIN, "Restore the shared bottom dock to its default height", false),
             CMD_DOCK_EXPANDED => (icons::ARROW_UP, "Use a taller shared bottom dock", false),
+            CMD_DOCK_CLOSE => (icons::CLOSE, "Close the active shared bottom dock", false),
             CMD_SIDEBAR_COMPACT => (icons::ARROW_LEFT, "Use a smaller sidebar drawer", false),
             CMD_SIDEBAR_DEFAULT => (icons::EXPLORER, "Restore responsive sidebar width", false),
             CMD_SIDEBAR_WIDE => (icons::ARROW_RIGHT, "Use a wider sidebar drawer", false),

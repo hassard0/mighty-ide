@@ -826,6 +826,16 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
     );
     assert_eq!(crate::layout::dock_fraction(), crate::layout::TERM_FRACTION_MAX);
     assert_eq!(crate::layout::dock_preset_index(), 2);
+    assert_eq!(
+        crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_CLOSE as i32),
+        4
+    );
+    assert!(!ctx.bottom_dock_open());
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Bottom dock closed"
+    );
+    assert_eq!(crate::featureabi::mui_run_open(handle), 1);
 
     let (cx, cy, cw, ch) = crate::layout::dock_close_rect(visible_w, visible_h);
     ctx.last_event = MuiEvent::mouse(
@@ -1483,6 +1493,7 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
             crate::palette::CMD_DOCK_EXPANDED,
             "View: Bottom Dock Expanded",
         ),
+        (crate::palette::CMD_DOCK_CLOSE, "View: Close Bottom Dock"),
         (crate::palette::CMD_SIDEBAR_COMPACT, "View: Sidebar Compact"),
         (
             crate::palette::CMD_SIDEBAR_DEFAULT,
@@ -3467,6 +3478,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_NEW_PROJECT, "cmd_new_project"),
         (CMD_WINDOW_TOGGLE_MAXIMIZE, "cmd_window_toggle_maximize"),
         (CMD_WINDOW_MINIMIZE, "cmd_window_minimize"),
+        (CMD_DOCK_CLOSE, "cmd_dock_close"),
     ];
 
     for cmd in COMMANDS {
