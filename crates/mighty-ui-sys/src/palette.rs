@@ -205,6 +205,17 @@ pub const CMD_DEBUG_RESTART: u32 = 88;
 pub const CMD_NEW_WORKSPACE_FILE: u32 = 89;
 /// Open a fresh untitled editor tab.
 pub const CMD_NEW_UNTITLED_FILE: u32 = 90;
+/// Set the shared bottom dock to its compact height.
+pub const CMD_DOCK_COMPACT: u32 = 91;
+/// Reset the shared bottom dock to its default height.
+pub const CMD_DOCK_RESET: u32 = 92;
+/// Set the shared bottom dock to its expanded height.
+pub const CMD_DOCK_EXPANDED: u32 = 93;
+/// First/last bottom-dock layout command id.
+#[allow(dead_code)]
+pub const CMD_DOCK_FIRST: u32 = CMD_DOCK_COMPACT;
+#[allow(dead_code)]
+pub const CMD_DOCK_LAST: u32 = CMD_DOCK_EXPANDED;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -280,6 +291,9 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_VIEW_AI_COPILOT,  label: "View: AI Copilot",    keybinding: "Ctrl+Shift+A" },
     Command { id: CMD_VIEW_TERMINAL,    label: "View: Terminal",      keybinding: "Ctrl+`" },
     Command { id: CMD_VIEW_WEB_PLAYGROUND, label: "View: Web Playground", keybinding: "" },
+    Command { id: CMD_DOCK_COMPACT,     label: "View: Bottom Dock Compact", keybinding: "" },
+    Command { id: CMD_DOCK_RESET,       label: "View: Bottom Dock Default Size", keybinding: "" },
+    Command { id: CMD_DOCK_EXPANDED,    label: "View: Bottom Dock Expanded", keybinding: "" },
     Command { id: CMD_DEBUG_START_CONTINUE, label: "Debug: Start / Continue", keybinding: "F5" },
     Command { id: CMD_DEBUG_STOP,       label: "Debug: Stop",         keybinding: "Shift+F5" },
     Command { id: CMD_DEBUG_STEP_OVER,  label: "Debug: Step Over",    keybinding: "F10" },
@@ -613,6 +627,9 @@ impl PaletteEngine {
             CMD_VIEW_AI_COPILOT => (icons::AGENTS, "Open the AI copilot panel", false),
             CMD_VIEW_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
             CMD_VIEW_WEB_PLAYGROUND => (icons::GLOBE, "Open the Web Playground output panel", false),
+            CMD_DOCK_COMPACT => (icons::ARROW_DOWN, "Use a smaller shared bottom dock", false),
+            CMD_DOCK_RESET => (icons::WIN_MIN, "Restore the shared bottom dock to its default height", false),
+            CMD_DOCK_EXPANDED => (icons::ARROW_UP, "Use a taller shared bottom dock", false),
             CMD_DEBUG_START_CONTINUE => (icons::DBG_CONTINUE, "Start debugging or continue the paused session", true),
             CMD_DEBUG_STOP => (icons::DBG_STOP, "Stop the active debug session", false),
             CMD_DEBUG_STEP_OVER => (icons::DBG_STEP_OVER, "Run the next line without entering calls", false),

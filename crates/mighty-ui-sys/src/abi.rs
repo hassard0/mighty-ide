@@ -1710,6 +1710,33 @@ pub extern "C" fn mui_bottom_dock_preset_at_click(handle: i64) -> i32 {
     0
 }
 
+/// Apply a shared lower-dock size command from the palette.
+/// `91` = compact, `92` = default, `93` = expanded. Returns the preset number
+/// (`1..=3`) or `0` for an unrelated command id.
+#[no_mangle]
+pub extern "C" fn mui_dock_dispatch(handle: i64, id: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let (frac, label, code) = match id as u32 {
+        crate::palette::CMD_DOCK_COMPACT => (layout::TERM_FRACTION_MIN, "Dock compact", 1),
+        crate::palette::CMD_DOCK_RESET => (layout::TERM_FRACTION, "Dock default", 2),
+        crate::palette::CMD_DOCK_EXPANDED => (layout::TERM_FRACTION_MAX, "Dock expanded", 3),
+        _ => return 0,
+    };
+    layout::set_dock_fraction(frac);
+    ctx.bottom_dock_resizing = false;
+    if !ctx.bottom_dock_open() {
+        ctx.run.open();
+        ctx.term_open = false;
+        ctx.web.close();
+        ctx.problems.set_open(false);
+    }
+    ctx.push_toast(crate::toast::Kind::Info, label);
+    trace(&format!("dock_dispatch id={id} frac={frac:.2} {label}"));
+    code
+}
+
 /// Draw the visible grab target for the shared bottom dock. Every lower panel
 /// uses the same layout, so drawing it once late keeps Terminal/Run/Web/Problems
 /// consistent and prevents the handle from being hidden by panel contents.
@@ -1760,17 +1787,22 @@ pub extern "C" fn mui_bottom_dock_resize_draw(handle: i64) {
         crate::icons::WIN_MIN,
         crate::icons::ARROW_UP,
     ];
+    let active_preset = layout::dock_preset_index();
     for (idx, icon) in preset_icons.iter().enumerate() {
         let (px, py, pw, ph) = layout::dock_preset_rect(visible_w, visible_h, idx);
-        ctx.dl_round(px, py, pw, ph, 6.0, theme::BG_2());
-        ctx.dl_stroke(px, py, pw, ph, 6.0, theme::BORDER(), 1.0);
+        let is_active = idx == active_preset;
+        let bg = if is_active { theme::accent_a(0.22) } else { theme::BG_2() };
+        let border = if is_active { theme::ACCENT() } else { theme::BORDER() };
+        let icon_col = if is_active { theme::TEXT() } else { theme::TEXT_1() };
+        ctx.dl_round(px, py, pw, ph, 6.0, bg);
+        ctx.dl_stroke(px, py, pw, ph, 6.0, border, if is_active { 1.5 } else { 1.0 });
         ctx.dl_icon(
             px + (pw - 12.0) * 0.5,
             py + (ph - 12.0) * 0.5,
             12.0,
             12.0,
             *icon,
-            theme::TEXT_1(),
+            icon_col,
             1.5,
             false,
         );

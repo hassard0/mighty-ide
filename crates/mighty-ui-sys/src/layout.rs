@@ -415,6 +415,21 @@ pub fn dock_preset_rect(width: u32, height: u32, idx: usize) -> (f32, f32, f32, 
     (x, close_y, size, size)
 }
 
+/// Current bottom-dock preset bucket: 0 compact, 1 default, 2 expanded.
+pub fn dock_preset_index() -> usize {
+    let f = dock_fraction();
+    let compact_d = (f - TERM_FRACTION_MIN).abs();
+    let default_d = (f - TERM_FRACTION).abs();
+    let expanded_d = (f - TERM_FRACTION_MAX).abs();
+    if compact_d <= default_d && compact_d <= expanded_d {
+        0
+    } else if expanded_d <= compact_d && expanded_d <= default_d {
+        2
+    } else {
+        1
+    }
+}
+
 /// Right edge available for bottom-dock header labels/actions, before the
 /// shared size controls and close button.
 pub fn dock_header_content_right(width: u32, height: u32) -> f32 {

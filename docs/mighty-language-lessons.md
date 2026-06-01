@@ -2271,3 +2271,15 @@ conflict signaling instead of silent overwrite.
 - **Language note:** no compiler gap surfaced. Mighty needs a first-class file
   event / buffer invalidation channel so disk-changing commands can refresh or
   conflict-mark open documents without bespoke shim plumbing.
+
+### L147. Precision layout actions should not depend on mouse dragging **[finding, P2]**
+The shared bottom dock had visible drag and preset buttons, but users still had
+to discover and operate a small mouse target to recover from an awkward dock
+height. A best-in-class IDE should expose layout state through commands too.
+
+- **IDE note:** Bottom dock compact/default/expanded are now command-palette
+  actions, routed through one shim dispatch range, and the visible preset button
+  matching the current dock size is highlighted.
+- **Language note:** no compiler gap surfaced. Mighty still benefits from the
+  shim-range dispatch pattern for feature clusters because the current parser
+  stack makes long command ladders fragile.

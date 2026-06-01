@@ -31,6 +31,7 @@ extern c {
   fn mui_bottom_dock_resize_to_event_y(handle: I64) -> I32
   fn mui_bottom_dock_close_at_click(handle: I64) -> I32
   fn mui_bottom_dock_preset_at_click(handle: I64) -> I32
+  fn mui_dock_dispatch(handle: I64, id: I32) -> I32
   fn mui_bottom_dock_resize_draw(handle: I64)
   // Frame cap for non-interactive (headless / screenshot / probe) runs: returns
   // a positive cap when a headless env is set, else 0 (= run until window Close).
@@ -739,6 +740,8 @@ fn cmd_fold_last() -> I32 { 41 }  // Fold: Unfold All (highest fold id)
 // Mighty: New Project — prompts for a name, then `mui_newproj_create` runs
 // `mty new <name>` and opens the result as the workspace.
 fn cmd_new_project() -> I32 { 42 }
+fn cmd_dock_first() -> I32 { 91 } // View: Bottom Dock Compact
+fn cmd_dock_last() -> I32 { 93 }  // View: Bottom Dock Expanded
 
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
@@ -3663,6 +3666,12 @@ fn main() {
           }
         } else if id >= cmd_fold_first() && id <= cmd_fold_last() {
           let _f = mui_fold_dispatch(h, id)
+        } else if id >= cmd_dock_first() && id <= cmd_dock_last() {
+          let _d = mui_dock_dispatch(h, id)
+          run_focus = true
+          web_focus = false
+          test_focus = false
+          term_focus = false
         } else if id == cmd_keyboard_shortcuts() {
           mui_keys_open(h)
         } else if id == cmd_new_project() {

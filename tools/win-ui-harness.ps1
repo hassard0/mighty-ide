@@ -613,6 +613,26 @@ if ($env:MUI_TRACE) {
     $script:HarnessFailed = $true
   }
 }
+Invoke-PaletteCommand "bottom dock compact" $null
+Start-Sleep -Milliseconds 250
+Invoke-PaletteCommand "bottom dock expanded" $null
+Start-Sleep -Milliseconds 250
+Invoke-PaletteCommand "bottom dock default" $null
+Start-Sleep -Milliseconds 250
+if ($env:MUI_TRACE) {
+  Start-Sleep -Milliseconds 150
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  if (
+    $traceText -match "dock_dispatch id=91" -and
+    $traceText -match "dock_dispatch id=92" -and
+    $traceText -match "dock_dispatch id=93"
+  ) {
+    Log "BOTTOM-DOCK-COMMANDS: compact/default/expanded palette traces observed"
+  } else {
+    Log "BOTTOM-DOCK-COMMANDS: missing one or more palette dock command traces"
+    $script:HarnessFailed = $true
+  }
+}
 ClickL 26 71             # back to Explorer
 Start-Sleep -Milliseconds 300
 

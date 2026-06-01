@@ -776,7 +776,21 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
         crate::layout::TERM_FRACTION,
         "default preset should reset the shared dock fraction"
     );
+    assert_eq!(crate::layout::dock_preset_index(), 1);
     assert!(!ctx.bottom_dock_resizing);
+
+    assert_eq!(
+        crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_COMPACT as i32),
+        1
+    );
+    assert_eq!(crate::layout::dock_fraction(), crate::layout::TERM_FRACTION_MIN);
+    assert_eq!(crate::layout::dock_preset_index(), 0);
+    assert_eq!(
+        crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_EXPANDED as i32),
+        3
+    );
+    assert_eq!(crate::layout::dock_fraction(), crate::layout::TERM_FRACTION_MAX);
+    assert_eq!(crate::layout::dock_preset_index(), 2);
 
     let (cx, cy, cw, ch) = crate::layout::dock_close_rect(visible_w, visible_h);
     ctx.last_event = MuiEvent::mouse(
@@ -1394,6 +1408,15 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_VIEW_AI_COPILOT, "View: AI Copilot"),
         (crate::palette::CMD_VIEW_TERMINAL, "View: Terminal"),
         (crate::palette::CMD_VIEW_WEB_PLAYGROUND, "View: Web Playground"),
+        (crate::palette::CMD_DOCK_COMPACT, "View: Bottom Dock Compact"),
+        (
+            crate::palette::CMD_DOCK_RESET,
+            "View: Bottom Dock Default Size",
+        ),
+        (
+            crate::palette::CMD_DOCK_EXPANDED,
+            "View: Bottom Dock Expanded",
+        ),
     ];
     for (id, label) in view_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
@@ -3278,6 +3301,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_PANE_FIRST, CMD_PANE_LAST),
         (CMD_WS_FIRST, CMD_WS_LAST),
         (CMD_FOLD_FIRST, CMD_FOLD_LAST),
+        (CMD_DOCK_FIRST, CMD_DOCK_LAST),
     ];
     let direct = [
         (CMD_NEW_FILE, "cmd_new_file"),
