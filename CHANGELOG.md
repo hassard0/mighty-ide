@@ -77,6 +77,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **File-operation toasts clear stale state**: newer save/open/create/rename/delete
   results now replace older same-operation notifications instead of stacking
   contradictory text.
+- **Prompt fallback clicks are less modal**: clicking outside the visible bottom
+  prompt now dismisses it, so typed-path fallbacks do not leave the IDE feeling
+  stuck after a native-dialog fallback.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

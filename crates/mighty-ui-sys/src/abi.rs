@@ -2745,6 +2745,26 @@ pub extern "C" fn mui_prompt_active(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| if c.prompt.is_active() { 1 } else { 0 })
 }
 
+/// `1` when the last mouse position is inside the visible bottom prompt band.
+/// Mighty uses this to let outside clicks dismiss prompt fallbacks cleanly.
+#[no_mangle]
+pub extern "C" fn mui_prompt_hit_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.prompt.is_active() {
+        return 0;
+    }
+    let (_x, y, w, h) = prompt_band_rect(ctx);
+    let px = ctx.last_event.x;
+    let py = ctx.last_event.y;
+    if px >= 0.0 && px <= w && py >= y && py <= y + h {
+        1
+    } else {
+        0
+    }
+}
+
 /// Length (chars) of the current query.
 #[no_mangle]
 pub extern "C" fn mui_prompt_len(handle: i64) -> i32 {
@@ -2801,12 +2821,7 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
     if !ctx.prompt.is_active() {
         return;
     }
-    let w = ctx.gpu.width as f32;
-    let h = ctx.gpu.height as f32;
-    let bar_h = layout::LINE_H();
-    // Sit the prompt band one row above the status bar.
-    let status_h = 30.0_f32;
-    let y = (h - status_h - bar_h).max(0.0);
+    let (_x, y, w, bar_h) = prompt_band_rect(ctx);
     let chrome = theme::CHROME_FONT_SIZE;
     let label = ctx.prompt.label();
     let query = ctx.prompt.query_string();
@@ -2839,6 +2854,15 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
     if !query.is_empty() {
         ctx.text.queue_sized(qx, text_y, &query, theme::TEXT(), chrome, clip);
     }
+}
+
+fn prompt_band_rect(ctx: &MuiContext) -> (f32, f32, f32, f32) {
+    let w = ctx.gpu.width as f32;
+    let h = ctx.gpu.height as f32;
+    let bar_h = layout::LINE_H();
+    // Sit the prompt band one row above the status bar.
+    let status_h = 30.0_f32;
+    (0.0, (h - status_h - bar_h).max(0.0), w, bar_h)
 }
 
 // ---------------------------------------------------------------------------

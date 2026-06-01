@@ -514,6 +514,29 @@ fn click_routing_tab_bar_sidebar_and_text() {
 }
 
 #[test]
+fn prompt_hit_test_tracks_visible_bottom_band() {
+    use crate::ffi::MuiEvent;
+    use crate::{mui_prompt_hit_at_click, prompt::PromptKind};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 600;
+    ctx.prompt.open(PromptKind::Open as i32);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let band_y = ctx.gpu.height as f32 - 30.0 - crate::layout::LINE_H();
+
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 450.0, band_y + 4.0, 0);
+    assert_eq!(mui_prompt_hit_at_click(handle), 1);
+
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 450.0, band_y - 4.0, 0);
+    assert_eq!(mui_prompt_hit_at_click(handle), 0);
+
+    ctx.prompt.cancel();
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 450.0, band_y + 4.0, 0);
+    assert_eq!(mui_prompt_hit_at_click(handle), 0);
+}
+
+#[test]
 fn tab_bar_long_dirty_label_keeps_close_affordance_clickable() {
     use crate::{mui_tab_bar_draw, mui_tab_close_index_at_click};
 
@@ -2659,6 +2682,11 @@ fn lightbulb_visibility_and_click_open_actions() {
         mui_lightbulb_click, mui_lightbulb_line, mui_lightbulb_reset, mui_lightbulb_visible,
     };
 
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let zen_before = crate::layout::zen_active();
+    crate::layout::set_zen(false);
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -2696,6 +2724,7 @@ fn lightbulb_visibility_and_click_open_actions() {
     ctx.lightbulb.set_result(cursor, true);
     mui_lightbulb_reset(h);
     assert_eq!(mui_lightbulb_visible(h), 0);
+    crate::layout::set_zen(zen_before);
 }
 
 #[test]

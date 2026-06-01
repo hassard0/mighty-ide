@@ -1683,3 +1683,30 @@ would eventually expire.
 - **Language note:** no new Mighty gap surfaced. This is shim-side state hygiene,
   but a richer event/result model in Mighty would make these command families
   explicit instead of inferred from user-visible strings.
+
+### L100. UX fixes need human-visible hit-test evidence **[backlog, P1]**
+Core IDE interactions must be judged by what a person can see and click, not by
+whether a command enum happens to be wired. File/folder open/save flows,
+tab-close and tab-switch behavior, drawer resizing, prompt fallbacks, and window
+resizing all need tests that emulate mouse clicks against visible geometry.
+
+- **IDE note:** add or expand regression coverage around native dialog results,
+  visible hit rectangles, outside-click cancellation, tab close/switch targets,
+  drawer resize handles, and compact-window overlap. The next UX slices should
+  include manual/emulated click checks before claiming a workflow is fixed.
+- **Language note:** Mighty still delegates most geometry and native-dialog state
+  to Rust. A future Mighty UI layer needs first-class hit-test/layout results so
+  tests can assert user-visible behavior without duplicating shim geometry.
+
+### L101. Bottom prompt fallbacks should dismiss on outside click **[finding, P2]**
+Typed-path prompt fallbacks were keyboard-modal: when a prompt was open, mouse
+clicks outside it did not dismiss the prompt or clearly route to the intended UI.
+That made native dialog fallbacks feel stuck and inconsistent with normal IDE
+click behavior.
+
+- **IDE note:** the shim now exposes a prompt-band hit-test tied to the actual
+  rendered bottom prompt geometry, and Mighty cancels the prompt when a mouse
+  down lands outside that band.
+- **Language note:** no compiler blocker surfaced, but this again shows the need
+  for a structured Mighty-side event model that can express "overlay consumed" vs
+  "dismiss and continue routing" without local scalar flags.
