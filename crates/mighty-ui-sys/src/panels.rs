@@ -191,6 +191,44 @@ pub extern "C" fn mui_scm_toggle_stage(handle: i64, i: i32) -> i32 {
     }
 }
 
+/// Stage every changed path, including untracked files. Returns `1` on success.
+#[no_mangle]
+pub extern "C" fn mui_scm_stage_all(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let dir = workspace_dir(ctx);
+    if ctx.scm.root.is_none() {
+        ctx.scm.refresh(&dir);
+    }
+    if ctx.scm.stage_all(&dir) {
+        ctx.push_toast(crate::toast::Kind::Success, "Staged all changes");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Warn, "Nothing to stage");
+        0
+    }
+}
+
+/// Unstage every staged path. Returns `1` on success.
+#[no_mangle]
+pub extern "C" fn mui_scm_unstage_all(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let dir = workspace_dir(ctx);
+    if ctx.scm.root.is_none() {
+        ctx.scm.refresh(&dir);
+    }
+    if ctx.scm.unstage_all(&dir) {
+        ctx.push_toast(crate::toast::Kind::Success, "Unstaged all changes");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Warn, "Nothing to unstage");
+        0
+    }
+}
+
 /// Current branch name length (chars), for sizing. `0` if none.
 #[no_mangle]
 pub extern "C" fn mui_scm_branch_len(handle: i64) -> i32 {
@@ -742,6 +780,12 @@ pub extern "C" fn mui_git_dispatch(handle: i64, cmd_id: i32) -> i32 {
         1
     } else if id == palette::CMD_GIT_TOGGLE_BLAME {
         let _ = crate::featureabi::mui_blame_toggle(handle);
+        1
+    } else if id == palette::CMD_GIT_STAGE_ALL {
+        let _ = mui_scm_stage_all(handle);
+        1
+    } else if id == palette::CMD_GIT_UNSTAGE_ALL {
+        let _ = mui_scm_unstage_all(handle);
         1
     } else {
         0

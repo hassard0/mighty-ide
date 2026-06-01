@@ -241,12 +241,36 @@ pub fn stage(root: &Path, path: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Stage all tracked and untracked changes (`git add --all`). Returns true on
+/// success.
+pub fn stage_all(root: &Path) -> bool {
+    Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["add", "--all"])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
 /// Unstage one path (`git restore --staged -- <path>`). Returns true on success.
 pub fn unstage(root: &Path, path: &str) -> bool {
     Command::new("git")
         .arg("-C")
         .arg(root)
         .args(["restore", "--staged", "--", path])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+/// Unstage all staged changes (`git restore --staged -- .`). Returns true on
+/// success.
+pub fn unstage_all(root: &Path) -> bool {
+    Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["restore", "--staged", "--", "."])
         .status()
         .map(|s| s.success())
         .unwrap_or(false)
@@ -542,6 +566,30 @@ impl ScmState {
         } else {
             stage(&root, &path)
         };
+        if ok {
+            self.refresh(dir);
+        }
+        ok
+    }
+
+    /// Stage every changed path and refresh. Returns true if git succeeded.
+    pub fn stage_all(&mut self, dir: &Path) -> bool {
+        let Some(root) = self.root.clone() else {
+            return false;
+        };
+        let ok = stage_all(&root);
+        if ok {
+            self.refresh(dir);
+        }
+        ok
+    }
+
+    /// Unstage every staged path and refresh. Returns true if git succeeded.
+    pub fn unstage_all(&mut self, dir: &Path) -> bool {
+        let Some(root) = self.root.clone() else {
+            return false;
+        };
+        let ok = unstage_all(&root);
         if ok {
             self.refresh(dir);
         }
@@ -979,6 +1027,42 @@ mod tests {
     fn summarize_empty_is_done() {
         assert_eq!(summarize("   \n\n"), "done");
         assert_eq!(summarize(""), "done");
+    }
+
+    #[test]
+    fn stage_all_and_unstage_all_round_trip_or_skip() {
+        use std::process::Command;
+        if Command::new("git").arg("--version").output().is_err() {
+            eprintln!("stage_all_and_unstage_all_round_trip_or_skip: git not found - skipping");
+            return;
+        }
+        let tmp = std::env::temp_dir().join(format!("mui_scm_stage_all_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let git = |args: &[&str]| {
+            Command::new("git").arg("-C").arg(&tmp).args(args).output().unwrap()
+        };
+        assert!(git(&["init", "-q"]).status.success());
+        let _ = git(&["config", "user.email", "t@e.st"]);
+        let _ = git(&["config", "user.name", "Test"]);
+        std::fs::write(tmp.join("tracked.txt"), "old\n").unwrap();
+        assert!(git(&["add", "tracked.txt"]).status.success());
+        assert!(git(&["commit", "-q", "-m", "init"]).status.success());
+        std::fs::write(tmp.join("tracked.txt"), "new\n").unwrap();
+        std::fs::write(tmp.join("fresh.txt"), "fresh\n").unwrap();
+
+        let mut state = ScmState::new();
+        assert_eq!(state.refresh(&tmp), 2);
+        assert_eq!(state.status.staged_count(), 0);
+        assert_eq!(state.status.unstaged_count(), 2);
+        assert!(state.stage_all(&tmp));
+        assert_eq!(state.status.staged_count(), 2);
+        assert_eq!(state.status.unstaged_count(), 0);
+        assert!(state.unstage_all(&tmp));
+        assert_eq!(state.status.staged_count(), 0);
+        assert_eq!(state.status.unstaged_count(), 2);
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     // ---- branch picker ----

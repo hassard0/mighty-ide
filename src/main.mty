@@ -212,6 +212,8 @@ extern c {
   fn mui_scm_row_status(handle: I64, i: I32) -> I32
   fn mui_scm_open_row(handle: I64, i: I32) -> I32
   fn mui_scm_toggle_stage(handle: I64, i: I32) -> I32
+  fn mui_scm_stage_all(handle: I64) -> I32
+  fn mui_scm_unstage_all(handle: I64) -> I32
   fn mui_scm_row_at_click(handle: I64) -> I32
   fn mui_scm_click_is_stage(handle: I64) -> I32
   fn mui_scm_msg_push(handle: I64, codepoint: I32)
@@ -665,6 +667,8 @@ fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
 fn cmd_close_duplicate_tabs() -> I32 { 67 }
+fn cmd_git_stage_all() -> I32 { 68 }
+fn cmd_git_unstage_all() -> I32 { 69 }
 fn cmd_format_document() -> I32 { 12 }
 fn cmd_undo() -> I32 { 13 }
 fn cmd_redo() -> I32 { 14 }
@@ -3469,6 +3473,12 @@ fn main() {
         } else if id >= cmd_git_first() && id <= cmd_git_last() {
           let _g = mui_git_dispatch(h, id)
           if mui_branch_active(h) == 1 { branch_open = true }
+        } else if id == cmd_git_stage_all() {
+          let _gsa = mui_scm_stage_all(h)
+          let _r = mui_scm_refresh(h)
+        } else if id == cmd_git_unstage_all() {
+          let _gua = mui_scm_unstage_all(h)
+          let _r = mui_scm_refresh(h)
         } else if id >= cmd_ws_first() && id <= cmd_ws_last() {
           let wr = mui_ws_dispatch(h, id)
           if wr == 2 {

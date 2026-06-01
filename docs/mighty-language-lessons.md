@@ -1339,3 +1339,13 @@ panes that pointed at removed tabs fall back to a valid neighbor.
   keeping dirty duplicates and untitled buffers so cleanup never discards work.
 - **Language note:** no new Mighty gap surfaced. The optional remap and duplicate
   detection are collection-heavy invariants that still belong shim-side.
+
+### L74. Bulk git index actions are another scalar-command win **[finding, P3]**
+Adding **Git: Stage All** and **Git: Unstage All** reused the existing
+Source-Control split: Mighty routes command ids and the shim owns git process
+execution, status refresh, and toasts.
+
+- **IDE note:** per-file stage/unstage is not enough for daily commits; bulk
+  index cleanup belongs in the command palette beside push, pull, and fetch.
+- **Language note:** no new gap surfaced. The operation needs platform process
+  spawning and status parsing, both already intentionally shim-side.

@@ -159,6 +159,10 @@ pub const CMD_MOVE_ACTIVE_TAB_RIGHT: u32 = 65;
 pub const CMD_SORT_TABS_BY_NAME: u32 = 66;
 /// Close clean duplicate file-backed tabs, preserving dirty duplicates.
 pub const CMD_CLOSE_DUPLICATE_TABS: u32 = 67;
+/// Stage all changed paths in the current git repository.
+pub const CMD_GIT_STAGE_ALL: u32 = 68;
+/// Unstage all staged paths in the current git repository.
+pub const CMD_GIT_UNSTAGE_ALL: u32 = 69;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -218,6 +222,8 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_GIT_PULL,         label: "Git: Pull",          keybinding: "" },
     Command { id: CMD_GIT_FETCH,        label: "Git: Fetch",         keybinding: "" },
     Command { id: CMD_GIT_TOGGLE_BLAME, label: "Git: Toggle Blame",  keybinding: "Alt+B" },
+    Command { id: CMD_GIT_STAGE_ALL,    label: "Git: Stage All",     keybinding: "" },
+    Command { id: CMD_GIT_UNSTAGE_ALL,  label: "Git: Unstage All",   keybinding: "" },
     Command { id: CMD_RUN_IN_BROWSER,   label: "Mighty: Run in Browser", keybinding: "Alt+W" },
     Command { id: CMD_SPLIT_RIGHT,      label: "Split Editor Right", keybinding: "Ctrl+\\" },
     Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
@@ -528,6 +534,8 @@ impl PaletteEngine {
             CMD_GIT_PULL => (icons::GIT, "Pull (fast-forward only) from the remote", false),
             CMD_GIT_FETCH => (icons::GIT, "Fetch refs from the remote", false),
             CMD_GIT_TOGGLE_BLAME => (icons::GIT, "Show git blame in the gutter", false),
+            CMD_GIT_STAGE_ALL => (icons::STAGE_PLUS, "Stage every changed path", false),
+            CMD_GIT_UNSTAGE_ALL => (icons::UNSTAGE_MINUS, "Unstage every staged path", false),
             CMD_RUN_IN_BROWSER => (icons::GLOBE, "Build and serve the active Mighty file for the browser", false),
             CMD_SPLIT_RIGHT => (icons::TEST_BOX, "Split the editor into side-by-side panes", false),
             CMD_FOCUS_NEXT_PANE => (icons::CHEVRON, "Move focus between editor panes", false),

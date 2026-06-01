@@ -64,6 +64,7 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 
 ### Source Control
 - Source Control panel (Ctrl+Shift+G) — git status + inline diff view
+- **Stage All / Unstage All** command-palette actions for bulk index cleanup
 - **Branch switcher + push / pull / fetch**
 - **Per-hunk stage / unstage** (reconstructed unified patches)
 - **Blame gutter (Alt+B)** — porcelain-parsed, per-file cached

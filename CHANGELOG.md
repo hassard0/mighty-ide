@@ -135,6 +135,8 @@ A large feature pass — all shim-side, Vello-rendered, driven by `src/main.mty`
 - Full git client wired into the IDE: branch switcher, push / pull / fetch,
   per-hunk stage/unstage (reconstructed unified patches), and a blame gutter
   (`Alt+B`), on top of the existing status panel + inline diff (`Ctrl+Shift+G`).
+- **Git: Stage All / Unstage All**: command-palette bulk index actions for
+  preparing or clearing a commit without clicking each changed file.
 
 ### Run · Test · Debug
 - Debugger (DAP): a shim-side DAP client driving `mty dap`, breakpoints, run

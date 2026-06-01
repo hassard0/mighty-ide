@@ -910,6 +910,18 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_REVERT_ACTIVE_FILE)
         .unwrap();
     assert_eq!(revert_file.label, "File: Revert Active File from Disk");
+
+    let stage_all = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_GIT_STAGE_ALL)
+        .unwrap();
+    assert_eq!(stage_all.label, "Git: Stage All");
+
+    let unstage_all = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_GIT_UNSTAGE_ALL)
+        .unwrap();
+    assert_eq!(unstage_all.label, "Git: Unstage All");
 }
 
 #[test]
@@ -943,6 +955,44 @@ fn save_all_writes_dirty_file_backed_tabs_and_leaves_untitled_dirty() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Saved 2; 1 untitled file need Save As");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn scm_stage_all_and_unstage_all_via_abi_or_skip() {
+    use std::process::Command;
+    if Command::new("git").arg("--version").output().is_err() {
+        eprintln!("scm_stage_all_and_unstage_all_via_abi_or_skip: git not found - skipping");
+        return;
+    }
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_scm_abi_stage_all_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let git = |args: &[&str]| {
+        Command::new("git").arg("-C").arg(&root).args(args).output().unwrap()
+    };
+    assert!(git(&["init", "-q"]).status.success());
+    let _ = git(&["config", "user.email", "t@e.st"]);
+    let _ = git(&["config", "user.name", "Test"]);
+    std::fs::write(root.join("tracked.mty"), "old\n").unwrap();
+    assert!(git(&["add", "tracked.mty"]).status.success());
+    assert!(git(&["commit", "-q", "-m", "init"]).status.success());
+    std::fs::write(root.join("tracked.mty"), "new\n").unwrap();
+    std::fs::write(root.join("fresh.mty"), "fresh\n").unwrap();
+    ctx.scm.root = Some(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_scm_refresh(handle), 2);
+    assert_eq!(ctx.scm.status.staged_count(), 0);
+    assert_eq!(crate::panels::mui_scm_stage_all(handle), 1);
+    assert_eq!(ctx.scm.status.staged_count(), 2);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Staged all changes");
+    assert_eq!(crate::panels::mui_scm_unstage_all(handle), 1);
+    assert_eq!(ctx.scm.status.staged_count(), 0);
+    assert_eq!(ctx.scm.status.unstaged_count(), 2);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Unstaged all changes");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -2458,6 +2508,8 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_MOVE_ACTIVE_TAB_RIGHT, "cmd_move_active_tab_right"),
         (CMD_SORT_TABS_BY_NAME, "cmd_sort_tabs_by_name"),
         (CMD_CLOSE_DUPLICATE_TABS, "cmd_close_duplicate_tabs"),
+        (CMD_GIT_STAGE_ALL, "cmd_git_stage_all"),
+        (CMD_GIT_UNSTAGE_ALL, "cmd_git_unstage_all"),
         (CMD_RELOAD_ACTIVE_FILE, "cmd_reload_active_file"),
         (CMD_REVERT_ACTIVE_FILE, "cmd_revert_active_file"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),
