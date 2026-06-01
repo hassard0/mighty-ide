@@ -3066,6 +3066,38 @@ pub extern "C" fn mui_tab_duplicate_active(handle: i64) -> i32 {
     active as i32
 }
 
+/// Reload the active file-backed tab from disk. Dirty tabs are protected and
+/// require the user to save or close/discard explicitly first. Returns the
+/// active tab index after reload, or -1 when reload was refused/failed.
+#[no_mangle]
+pub extern "C" fn mui_tab_reload_active(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let active = ctx.tabs.active();
+    if ctx.tabs.is_dirty(active) {
+        ctx.push_toast(crate::toast::Kind::Warn, "Save or discard changes before reloading");
+        return -1;
+    }
+    let Some(path) = ctx.tabs.active_path() else {
+        ctx.push_toast(crate::toast::Kind::Info, "No file-backed tab to reload");
+        return -1;
+    };
+    let bytes = match std::fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(_) => {
+            let name = basename(&path);
+            ctx.push_toast(crate::toast::Kind::Error, format!("Reload failed: {name}"));
+            return -1;
+        }
+    };
+    ctx.tabs.reload_active(&bytes);
+    sync_active_path(ctx);
+    let name = basename(&path);
+    ctx.push_toast(crate::toast::Kind::Info, format!("Reloaded {name}"));
+    active as i32
+}
+
 /// Close every clean tab while preserving dirty tabs. Returns the new active tab
 /// index, or -1 when nothing was closed.
 #[no_mangle]

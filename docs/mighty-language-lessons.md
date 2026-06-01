@@ -1263,3 +1263,14 @@ state, and the active file path without re-reading stale bytes from disk.
 - **Language note:** no new gap surfaced beyond the existing command-dispatch
   ergonomics issue. Mighty can route the scalar command cleanly once the shim
   owns the stateful operation.
+
+### L67. Reload-from-disk must be dirty-aware in the shim **[finding, P3]**
+Adding **Reload Active File from Disk** did not require new Mighty language work.
+The shim already knows the active path, dirty flag, and authoritative text model,
+so it can refresh clean file-backed tabs from disk while refusing to overwrite
+unsaved local edits.
+
+- **IDE note:** external tool and git workflows need a direct reload command, but
+  it must never silently discard dirty buffers.
+- **Language note:** no new gap surfaced. The same scalar command routing remains
+  enough; the safety invariant belongs with the tab store and ABI guard.

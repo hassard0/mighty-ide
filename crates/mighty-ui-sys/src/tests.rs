@@ -860,6 +860,12 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_DUPLICATE_ACTIVE_TAB)
         .unwrap();
     assert_eq!(duplicate_tab.label, "File: Duplicate Active Tab");
+
+    let reload_file = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_RELOAD_ACTIVE_FILE)
+        .unwrap();
+    assert_eq!(reload_file.label, "File: Reload Active File from Disk");
 }
 
 #[test]
@@ -1087,6 +1093,38 @@ fn duplicate_active_tab_clones_live_state_and_toasts() {
     assert!(ctx.tabs.is_dirty(3));
     assert_eq!(String::from_utf8(ctx.tabs.active_model().to_bytes()).unwrap(), "dirty b");
     assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Duplicated b.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn reload_active_file_refreshes_clean_file_and_protects_dirty_tab() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_reload_file_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("reload_me.mty");
+    std::fs::write(&path, "old").unwrap();
+    let idx = ctx.tabs.open_path(path.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::fs::write(&path, "new").unwrap();
+    assert_eq!(crate::mui_tab_reload_active(handle), idx as i32);
+    assert_eq!(String::from_utf8(ctx.tabs.active_model().to_bytes()).unwrap(), "new");
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reloaded reload_me.mty");
+
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("dirty local");
+    ctx.tabs.set_dirty(idx, true);
+    std::fs::write(&path, "external").unwrap();
+    assert_eq!(crate::mui_tab_reload_active(handle), -1);
+    assert_eq!(
+        String::from_utf8(ctx.tabs.active_model().to_bytes()).unwrap(),
+        "dirty local"
+    );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Save or discard changes before reloading"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -2187,6 +2225,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_CLOSE_SAVED_TABS_TO_LEFT, "cmd_close_saved_tabs_to_left"),
         (CMD_REOPEN_CLOSED_TAB, "cmd_reopen_closed_tab"),
         (CMD_DUPLICATE_ACTIVE_TAB, "cmd_duplicate_active_tab"),
+        (CMD_RELOAD_ACTIVE_FILE, "cmd_reload_active_file"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),
         (CMD_UNDO, "cmd_undo"),
         (CMD_REDO, "cmd_redo"),

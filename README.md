@@ -37,6 +37,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   including tabs removed by cleanup commands
 - **Duplicate Active Tab** clones the current editor tab next to itself from the
   live buffer, including dirty state and cursor context
+- **Reload Active File from Disk** refreshes clean file-backed tabs after
+  external edits while protecting dirty buffers
 - Project-wide Search panel (Ctrl+Shift+F)
 
 ### Language Intelligence
