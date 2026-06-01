@@ -2988,6 +2988,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
     let direct = [
         (CMD_NEW_FILE, "cmd_new_file"),
         (CMD_NEW_WORKSPACE_FILE, "cmd_new_workspace_file"),
+        (CMD_NEW_UNTITLED_FILE, "cmd_new_untitled_file"),
         (CMD_NEW_FOLDER, "cmd_new_folder"),
         (CMD_RENAME_ACTIVE_FILE, "cmd_rename_active_file"),
         (CMD_REVEAL_ACTIVE_FILE, "cmd_reveal_active_file"),

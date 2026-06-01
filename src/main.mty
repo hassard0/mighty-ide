@@ -700,6 +700,7 @@ fn cmd_debug_step_out() -> I32 { 86 }
 fn cmd_debug_pause() -> I32 { 87 }
 fn cmd_debug_restart() -> I32 { 88 }
 fn cmd_new_workspace_file() -> I32 { 89 }
+fn cmd_new_untitled_file() -> I32 { 90 }
 fn cmd_format_document() -> I32 { 12 }
 fn cmd_undo() -> I32 { 13 }
 fn cmd_redo() -> I32 { 14 }
@@ -2884,11 +2885,16 @@ fn main() {
             mui_palette_open(h)
             palette_open = true
           } else if welcome_act == welcome_new_file() {
-            // New File from Welcome should create an actual untitled tab, not
-            // merely reveal the startup scratch file underneath.
-            let ni = mui_tab_new_untitled(h)
-            let _b = mui_ed_tab_switch(h, ni)
-            mui_ed_undo_reset(h)
+            // Welcome New File follows File > New: choose the path up front,
+            // with typed-name fallback only when native dialogs are unavailable.
+            let nf = mui_newfile_dialog(h)
+            if nf >= 0 {
+              let _b = mui_ed_tab_switch(h, nf)
+              mui_ed_undo_reset(h)
+            } else if nf == -1 {
+              mui_prompt_open(h, prompt_new_file())
+              prompt_kind = prompt_new_file()
+            }
             find_nav = false
           } else if welcome_act == welcome_new_folder() {
             mui_prompt_open(h, prompt_new_folder())
@@ -3239,9 +3245,14 @@ fn main() {
       if command_click_id >= 0 {
         let id = command_click_id
         if id == cmd_new_file() {
-          let ni = mui_tab_new_untitled(h)
-          let _b = mui_ed_tab_switch(h, ni)
-          mui_ed_undo_reset(h)
+          let nf = mui_newfile_dialog(h)
+          if nf >= 0 {
+            let _b = mui_ed_tab_switch(h, nf)
+            mui_ed_undo_reset(h)
+          } else if nf == -1 {
+            mui_prompt_open(h, prompt_new_file())
+            prompt_kind = prompt_new_file()
+          }
           find_nav = false
         } else if id == cmd_new_workspace_file() {
           let nf = mui_newfile_dialog(h)
@@ -3252,6 +3263,11 @@ fn main() {
             mui_prompt_open(h, prompt_new_file())
             prompt_kind = prompt_new_file()
           }
+          find_nav = false
+        } else if id == cmd_new_untitled_file() {
+          let ni = mui_tab_new_untitled(h)
+          let _b = mui_ed_tab_switch(h, ni)
+          mui_ed_undo_reset(h)
           find_nav = false
         } else if id == cmd_new_folder() {
           mui_prompt_open(h, prompt_new_folder())

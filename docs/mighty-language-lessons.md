@@ -1776,3 +1776,16 @@ beside it.
   exists, falling back to the effective workspace root for untitled tabs.
 - **Language note:** no compiler gap surfaced. This is shim-side UX policy;
   Mighty still calls the same scalar dialog functions.
+
+### L107. Primary file commands must match visible labels **[finding, P2]**
+The Welcome screen and Ctrl+N both read like "create a file", but the old route
+created an untitled scratch tab. That is technically useful but surprises users
+who expect to choose a path and filename.
+
+- **IDE note:** the primary New File route now opens the native file picker and
+  falls back to the typed filename prompt only when native dialogs are
+  unavailable. Scratch tabs moved to an explicit New Untitled File command, and
+  compact Welcome layouts hide shortcut hints rather than clipping them at the
+  viewport edge.
+- **Language note:** no compiler gap surfaced. The change is a command-routing
+  policy fix in Mighty plus existing shim ABI calls.

@@ -279,14 +279,6 @@ impl WelcomeState {
                 ctx.dl_icon(left_x + 4.0, ry + 7.0, 16.0, 16.0, qa.icon, theme::ACCENT_BRIGHT(), 1.7, false);
                 ctx.text
                     .queue_ui_sized(left_x + 36.0, ry + 6.0, qa.label, theme::TEXT_1(), 13.5, clip);
-                if !qa.key.is_empty() {
-                    let label_x = left_x + 36.0;
-                    let (label_w, _) = ctx.text.measure_ui_sized(qa.label, 13.5);
-                    let (key_w, _) = ctx.text.measure_ui_sized(qa.key, 10.5);
-                    if let Some(key_x) = quick_action_key_x(left_x, col_w, label_x, label_w, key_w, 12.0, 4.0) {
-                        ctx.text.queue_ui_sized(key_x, ry + 8.0, qa.key, theme::TEXT_3(), 10.5, clip);
-                    }
-                }
                 self.hits.push(Hit {
                     x: left_x,
                     y: ry,

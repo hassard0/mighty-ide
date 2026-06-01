@@ -98,6 +98,12 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Native file dialogs open in context**: Open File, New File, and Save As now
   start in the active file's folder when available, falling back to the
   workspace root for untitled tabs.
+- **New File is no longer ambiguous**: Ctrl+N and the Welcome New File action
+  now open the native file picker to create a named file; scratch buffers remain
+  available through the explicit New Untitled File command.
+- **Welcome compact layout is cleaner**: narrow editor bodies no longer draw
+  shortcut hints at the far edge of the start actions, avoiding clipped text
+  when the Explorer sidebar is open.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

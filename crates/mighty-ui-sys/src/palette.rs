@@ -111,7 +111,7 @@ pub const CMD_FOLD_LAST: u32 = CMD_UNFOLD_ALL;
 pub const CMD_NEW_PROJECT: u32 = 42;
 /// Save the active document to a chosen path through the native Save As dialog.
 pub const CMD_SAVE_AS: u32 = 43;
-/// Open a fresh untitled editor tab.
+/// Create a named file through the native file picker.
 pub const CMD_NEW_FILE: u32 = 44;
 /// Prompt for a folder name and create it under the current workspace root.
 pub const CMD_NEW_FOLDER: u32 = 45;
@@ -203,11 +203,14 @@ pub const CMD_DEBUG_PAUSE: u32 = 87;
 pub const CMD_DEBUG_RESTART: u32 = 88;
 /// Prompt for a file name and create it under the current workspace root.
 pub const CMD_NEW_WORKSPACE_FILE: u32 = 89;
+/// Open a fresh untitled editor tab.
+pub const CMD_NEW_UNTITLED_FILE: u32 = 90;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
-    Command { id: CMD_NEW_FILE,         label: "File: New Untitled File", keybinding: "Ctrl+N" },
+    Command { id: CMD_NEW_FILE,         label: "File: New File...", keybinding: "Ctrl+N" },
+    Command { id: CMD_NEW_UNTITLED_FILE, label: "File: New Untitled File", keybinding: "" },
     Command { id: CMD_NEW_WORKSPACE_FILE, label: "File: New File in Workspace", keybinding: "" },
     Command { id: CMD_NEW_FOLDER,       label: "File: New Folder",   keybinding: "Ctrl+Shift+N" },
     Command { id: CMD_OPEN_FILE,        label: "Open File",          keybinding: "Ctrl+O" },
@@ -539,7 +542,8 @@ impl PaletteEngine {
         use crate::icons;
         // (icon path, description, fill?)
         match id {
-            CMD_NEW_FILE => (icons::NEW_FILE, "Create a new untitled editor tab", false),
+            CMD_NEW_FILE => (icons::NEW_FILE, "Create a named file with the native file picker", false),
+            CMD_NEW_UNTITLED_FILE => (icons::NEW_FILE, "Create a new untitled editor tab", false),
             CMD_NEW_WORKSPACE_FILE => (icons::NEW_FILE, "Create a named file in the current workspace", false),
             CMD_NEW_FOLDER => (icons::NEW_FOLDER, "Create a folder in the current workspace", false),
             CMD_OPEN_FILE => (icons::NEW_FILE, "Open a file from the workspace", false),
@@ -804,18 +808,24 @@ mod tests {
     }
 
     #[test]
-    fn registry_distinguishes_untitled_from_workspace_file_creation() {
-        let untitled = COMMANDS
+    fn registry_distinguishes_dialog_workspace_and_untitled_file_creation() {
+        let file_dialog = COMMANDS
             .iter()
             .find(|c| c.id == CMD_NEW_FILE)
+            .expect("dialog new-file command should exist");
+        let untitled = COMMANDS
+            .iter()
+            .find(|c| c.id == CMD_NEW_UNTITLED_FILE)
             .expect("untitled new-file command should exist");
         let workspace = COMMANDS
             .iter()
             .find(|c| c.id == CMD_NEW_WORKSPACE_FILE)
             .expect("workspace new-file command should exist");
 
+        assert_eq!(file_dialog.label, "File: New File...");
+        assert_eq!(file_dialog.keybinding, "Ctrl+N");
         assert_eq!(untitled.label, "File: New Untitled File");
-        assert_eq!(untitled.keybinding, "Ctrl+N");
+        assert_eq!(untitled.keybinding, "");
         assert_eq!(workspace.label, "File: New File in Workspace");
         assert_eq!(workspace.keybinding, "");
     }
