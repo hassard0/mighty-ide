@@ -392,6 +392,44 @@ function DirtyConfirmButtonCenter($which) {
   return [pscustomobject]@{ X = ($discardX + ($btnW * 0.5)); Y = ($by + ($btnH * 0.5)) }
 }
 
+function SettingsCloseCenter() {
+  # Mirrors settingspanel.rs geometry() + close_rect().
+  $rows = 11.0
+  $headH = 50.0
+  $footH = 30.0
+  $fixedH = $headH + $footH + 12.0
+  $verticalMargin = $(if ($logicalH -lt 640.0) { 120.0 } else { 96.0 })
+  $maxBoxH = [math]::Max($logicalH - $verticalMargin, $fixedH + 38.0)
+  $capacity = [math]::Max([math]::Floor(($maxBoxH - $fixedH) / 38.0), 1.0)
+  $shown = [math]::Min($rows, $capacity)
+  $rowH = [math]::Max([math]::Min(($maxBoxH - $fixedH) / $shown, 48.0), 38.0)
+  $horizontalMargin = $(if ($logicalW -lt 420.0) { 16.0 } else { 40.0 })
+  $boxW = [math]::Min(500.0, [math]::Max($logicalW - ($horizontalMargin * 2.0), 280.0))
+  $boxH = $headH + ($shown * $rowH) + $footH + 12.0
+  $boxX = [math]::Max(($logicalW - $boxW) * 0.5, 0.0)
+  $boxY = [math]::Max(($logicalH - $boxH) * 0.5, 24.0)
+  return [pscustomobject]@{ X = ($boxX + $boxW - 26.0); Y = ($boxY + 25.0) }
+}
+
+function ShortcutsCloseCenter() {
+  # Mirrors shortcuts.rs geometry() + close_rect().
+  $searchH = 56.0
+  $catH = 26.0
+  $rowH = 44.0
+  $footH = 38.0
+  $fixedH = $searchH + $catH + 10.0 + $footH
+  $verticalMargin = $(if ($logicalH -lt 640.0) { 72.0 } else { 32.0 })
+  $maxBoxH = [math]::Max($logicalH - $verticalMargin, $fixedH + $rowH)
+  $capacity = [math]::Max([math]::Floor(($maxBoxH - $fixedH) / $rowH), 1.0)
+  $shown = [math]::Min($capacity, 9.0)
+  $horizontalMargin = $(if ($logicalW -lt 420.0) { 16.0 } else { 40.0 })
+  $boxW = [math]::Min(640.0, [math]::Max($logicalW - ($horizontalMargin * 2.0), 280.0))
+  $boxH = $searchH + $catH + ($shown * $rowH) + 10.0 + $footH
+  $boxX = [math]::Max(($logicalW - $boxW) * 0.5, 0.0)
+  $boxY = [math]::Min(80.0, [math]::Max(($logicalH - $boxH) * 0.5, 12.0))
+  return [pscustomobject]@{ X = ($boxX + $boxW - 26.0); Y = ($boxY + 28.0) }
+}
+
 # titlebar.rs: controls_x = w - 3*46, action strip = 68, run target is the
 # first 30px of the strip. Click the center of the remaining "more" range.
 $topbarMoreX = $logicalW - (3 * 46) - 19
@@ -860,8 +898,27 @@ if ($env:MUI_TRACE) {
 ClickL 26 ($logicalH - 32)
 Start-Sleep -Milliseconds 350
 Capture $hwnd "50-settings-rail"
-Press-VK $hwnd 0x1B
-Start-Sleep -Milliseconds 150
+$settingsCloseCount = Trace-MatchCount "(?m)^settings_close$"
+$settingsClosePt = SettingsCloseCenter
+ClickL $settingsClosePt.X $settingsClosePt.Y
+if (Wait-TraceCountGreaterThan "(?m)^settings_close$" $settingsCloseCount 1200) {
+  Log "SETTINGS-CLOSE-MOUSE: visible modal close trace observed"
+} else {
+  Log "SETTINGS-CLOSE-MOUSE: missing visible modal close trace"
+  $script:HarnessFailed = $true
+}
+
+# === SHORTCUTS MODAL: visible close affordance should work by mouse. ===
+Invoke-PaletteCommand "keyboard shortcuts" "51-keyboard-shortcuts"
+$shortcutsCloseCount = Trace-MatchCount "(?m)^shortcuts_close$"
+$shortcutsClosePt = ShortcutsCloseCenter
+ClickL $shortcutsClosePt.X $shortcutsClosePt.Y
+if (Wait-TraceCountGreaterThan "(?m)^shortcuts_close$" $shortcutsCloseCount 1200) {
+  Log "SHORTCUTS-CLOSE-MOUSE: visible modal close trace observed"
+} else {
+  Log "SHORTCUTS-CLOSE-MOUSE: missing visible modal close trace"
+  $script:HarnessFailed = $true
+}
 
 # === WINDOW COMMANDS: minimize must be command-palette reachable. ===
 Invoke-PaletteCommand "window minimize" $null

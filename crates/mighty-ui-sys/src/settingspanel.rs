@@ -123,9 +123,15 @@ impl SettingsPanel {
         self.sel
     }
 
+    fn close_rect(&self, width: u32, height: u32) -> (f32, f32, f32, f32) {
+        let (box_x, box_y, box_w, _box_h, _list_top, _row_h, _top, _shown) =
+            self.geometry(width, height);
+        (box_x + box_w - 38.0, box_y + 13.0, 24.0, 24.0)
+    }
+
     /// Classify a mouse click against the drawn Settings card and update the
     /// selected row on row hits. Returns: 0 miss, 1 select, 2 decrement,
-    /// 3 increment, 4 toggle/cycle.
+    /// 3 increment, 4 toggle/cycle, 5 close button.
     pub fn click(&mut self, x: f32, y: f32, width: u32, height: u32) -> i32 {
         if !self.active {
             return 0;
@@ -133,6 +139,10 @@ impl SettingsPanel {
         let (box_x, box_y, box_w, _box_h, list_top, row_h, top, shown) = self.geometry(width, height);
         if x < box_x || x > box_x + box_w || y < box_y {
             return 0;
+        }
+        let (cx, cy, cw, ch) = self.close_rect(width, height);
+        if (cx..=cx + cw).contains(&x) && (cy..=cy + ch).contains(&y) {
+            return 5;
         }
         let vis = ((y - list_top) / row_h).floor() as i32;
         if vis < 0 || vis as usize >= shown {
@@ -346,6 +356,10 @@ impl SettingsPanel {
         // ---- header ----
         ctx.dl_icon(box_x + 18.0, box_y + (head_h - 18.0) * 0.5, 18.0, 18.0, icons::SETTINGS, theme::ACCENT_BRIGHT(), 1.7, false);
         ctx.text.queue_ui_sized(box_x + 46.0, box_y + (head_h - 16.0) * 0.5 - 1.0, "Settings", theme::TEXT(), 16.0, clip);
+        let (cx, cy, cw, ch) = self.close_rect(width, height);
+        ctx.dl_round(cx, cy, cw, ch, 6.0, theme::BG_2());
+        ctx.dl_stroke(cx, cy, cw, ch, 6.0, theme::BORDER_STRONG(), 1.0);
+        ctx.dl_icon(cx + 5.0, cy + 5.0, 14.0, 14.0, icons::CLOSE, theme::TEXT_1(), 1.6, false);
         ctx.dl_rect(box_x + 1.0, box_y + head_h - 1.0, box_w - 2.0, 1.0, theme::BORDER());
 
         // ---- rows ----
@@ -538,6 +552,16 @@ mod tests {
 
         // A miss outside the card is reported as a miss so Mighty can dismiss it.
         assert_eq!(p.click(box_x - 2.0, list_top + 20.0, 900, 760), 0);
+    }
+
+    #[test]
+    fn close_button_has_explicit_click_code() {
+        let _g = guard();
+        let mut p = SettingsPanel::new();
+        p.open();
+        let (x, y, w, h) = p.close_rect(900, 760);
+        assert_eq!(p.click(x + w * 0.5, y + h * 0.5, 900, 760), 5);
+        assert!(p.is_active(), "hit testing reports close; Mighty owns dismissal");
     }
 
     #[test]

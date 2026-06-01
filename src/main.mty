@@ -1392,7 +1392,9 @@ fn main() {
             }
           } else if tag == ev_mouse_down() {
             let kh = mui_keys_click(h)
-            if kh == 2 {
+            if kh == 3 {
+              mui_keys_cancel(h)
+            } else if kh == 2 {
               let _c = mui_keys_begin_capture(h)
             } else if kh == 1 {
               let _keep = kh
@@ -1725,7 +1727,10 @@ fn main() {
           }
         } else if tag == ev_mouse_down() {
           let sc = mui_settings_click(h)
-          if sc == 0 {
+          if sc == 5 {
+            mui_settings_close(h)
+            settings_open = false
+          } else if sc == 0 {
             mui_settings_close(h)
             settings_open = false
           } else if sc == 2 {

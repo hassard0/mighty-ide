@@ -166,6 +166,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   header close button with matching mouse hit-test routing, instead of relying
   on only rail toggles or the command palette close command. The borderless
   titlebar drag strip now passes that button through to Mighty when AI is open.
+- **Modal overlays are visibly closable**: Settings and Keyboard Shortcuts now
+  draw header close buttons with explicit mouse routing and harness traces, so
+  dismissing them does not depend on `Esc` or clicking outside the card.
 - **Visual gallery paths are reliable**: the overlay-gallery QA tool now
   normalizes relative executable, workdir, and output paths before launching the
   packaged IDE, avoiding false missing-screenshot failures.

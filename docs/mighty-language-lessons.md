@@ -2534,3 +2534,18 @@ nearby header affordance.
   pattern as bottom docks and prompts; Mighty would benefit from declarative
   widget actions so every visible button automatically owns both paint and event
   routing.
+
+### L167. Modal close affordances need paired paint and hit-test ownership **[finding, P2]**
+Settings and Keyboard Shortcuts showed `Esc close` in footer copy, but compact
+visual review still left users without a familiar visible close target. Adding a
+drawn button alone would have been another dead affordance unless the same
+geometry also powered the mouse route and live harness proof.
+
+- **IDE note:** Settings and Keyboard Shortcuts now draw close buttons in their
+  modal headers, return distinct click codes from their shim hit tests, and emit
+  `settings_close` / `shortcuts_close` traces when dismissed. The Windows harness
+  clicks the visible button centers, rather than relying on keyboard Escape.
+- **Language note:** no new compiler gap surfaced, but this repeats the UI
+  architecture problem from L166. Mighty needs a widget/action primitive that
+  binds the visual rect, action id, accessibility label, and traceable event in
+  one place so modal controls cannot drift from their hit tests.

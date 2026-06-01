@@ -918,6 +918,7 @@ pub extern "C" fn mui_settings_open_account(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_settings_close(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        crate::abi::trace("settings_close");
         ctx.settings_panel.close();
     }
 }
@@ -943,7 +944,7 @@ pub extern "C" fn mui_settings_sel(handle: i64) -> i32 {
 }
 
 /// Click the Settings overlay. Returns: 0 miss/outside, 1 select,
-/// 2 decrement, 3 increment, 4 toggle/cycle. Row selection is updated on hits.
+/// 2 decrement, 3 increment, 4 toggle/cycle, 5 close. Row selection is updated on hits.
 #[no_mangle]
 pub extern "C" fn mui_settings_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {

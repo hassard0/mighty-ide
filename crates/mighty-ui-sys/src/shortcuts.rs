@@ -726,6 +726,12 @@ impl ShortcutsEngine {
         (box_x, box_y, box_w, list_top, row_h, box_h, top, shown)
     }
 
+    fn close_rect(&self, width: u32, height: u32) -> (f32, f32, f32, f32) {
+        let (box_x, box_y, box_w, _list_top, _row_h, _box_h, _top, _shown) =
+            self.geometry(width, height);
+        (box_x + box_w - 38.0, box_y + 16.0, 24.0, 24.0)
+    }
+
     /// Select the shortcut row under a click. Returns the selected filtered row
     /// index, or -1 when the click missed the visible row list.
     pub fn click_row(&mut self, x: f32, y: f32, width: u32, height: u32) -> i32 {
@@ -750,9 +756,16 @@ impl ShortcutsEngine {
 
     /// Handle a visible-row click without surprising the user:
     /// `-1` miss, `1` selected a row, `2` clicked the already-selected remappable
-    /// row and should begin capture. This keeps exploratory clicks from
+    /// row and should begin capture, `3` clicked the close button. This keeps exploratory clicks from
     /// immediately entering shortcut capture mode.
     pub fn click_action(&mut self, x: f32, y: f32, width: u32, height: u32) -> i32 {
+        if !self.active {
+            return -1;
+        }
+        let (cx, cy, cw, ch) = self.close_rect(width, height);
+        if (cx..=cx + cw).contains(&x) && (cy..=cy + ch).contains(&y) {
+            return 3;
+        }
         let before = self.sel;
         let idx = self.click_row(x, y, width, height);
         if idx < 0 {
@@ -798,7 +811,7 @@ impl ShortcutsEngine {
         let q_text_x = box_x + 50.0;
         let qy = box_y + (search_h - 16.0) * 0.5 - 1.0;
         let (q_str, q_color): (&str, _) = if self.query.is_empty() {
-            ("Search keyboard shortcuts\u{2026}", theme::TEXT_3())
+            (if box_w < 360.0 { "Search\u{2026}" } else { "Search keyboard shortcuts\u{2026}" }, theme::TEXT_3())
         } else {
             (self.query.as_str(), theme::TEXT())
         };
@@ -806,6 +819,10 @@ impl ShortcutsEngine {
         let qadv = 16.0 * 0.52;
         let caret_x = q_text_x + self.query.chars().count() as f32 * qadv + 1.0;
         ctx.dl_round(caret_x, box_y + (search_h - 18.0) * 0.5, 2.0, 18.0, 1.0, theme::ACCENT_BRIGHT());
+        let (cx, cy, cw, ch) = self.close_rect(width, height);
+        ctx.dl_round(cx, cy, cw, ch, 6.0, theme::BG_2());
+        ctx.dl_stroke(cx, cy, cw, ch, 6.0, theme::BORDER_STRONG(), 1.0);
+        ctx.dl_icon(cx + 5.0, cy + 5.0, 14.0, 14.0, icons::CLOSE, theme::TEXT_1(), 1.6, false);
 
         // ---- category / title ----
         let cat_y = box_y + search_h + 8.0;
@@ -1146,6 +1163,16 @@ mod tests {
         assert_eq!(e.status(), "Selected. Press Enter or click again to remap");
         assert_eq!(e.click_action(x, y, 900, 700), 2);
         assert_eq!(e.click_action(box_x - 2.0, list_top + 3.0, 900, 700), -1);
+    }
+
+    #[test]
+    fn close_button_has_explicit_click_code() {
+        let mut e = ShortcutsEngine::new();
+        e.overrides = Overrides::new();
+        e.open();
+        let (x, y, w, h) = e.close_rect(900, 700);
+        assert_eq!(e.click_action(x + w * 0.5, y + h * 0.5, 900, 700), 3);
+        assert!(e.is_active(), "hit testing reports close; Mighty owns dismissal");
     }
 
     #[test]
