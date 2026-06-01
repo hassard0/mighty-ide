@@ -687,6 +687,14 @@ fn view_commands_open_non_sidebar_surfaces_without_toggling() {
     assert_eq!(crate::panels::mui_ai_is_open(handle), 1);
     assert_eq!(crate::panels::mui_ai_show(handle), 1);
     assert_eq!(crate::panels::mui_ai_is_open(handle), 1);
+    assert_eq!(crate::panels::mui_ai_close(handle), 1);
+    assert_eq!(crate::panels::mui_ai_is_open(handle), 0);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "AI Copilot closed");
+    assert_eq!(crate::panels::mui_ai_close(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "AI Copilot is already closed"
+    );
 }
 
 #[test]
@@ -1482,6 +1490,7 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_VIEW_RUN_OUTPUT, "View: Run Output"),
         (crate::palette::CMD_VIEW_PROBLEMS, "View: Problems"),
         (crate::palette::CMD_VIEW_AI_COPILOT, "View: AI Copilot"),
+        (crate::palette::CMD_AI_CLOSE, "View: Close AI Copilot"),
         (crate::palette::CMD_VIEW_TERMINAL, "View: Terminal"),
         (crate::palette::CMD_VIEW_WEB_PLAYGROUND, "View: Web Playground"),
         (crate::palette::CMD_DOCK_COMPACT, "View: Bottom Dock Compact"),
@@ -3479,6 +3488,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_WINDOW_TOGGLE_MAXIMIZE, "cmd_window_toggle_maximize"),
         (CMD_WINDOW_MINIMIZE, "cmd_window_minimize"),
         (CMD_DOCK_CLOSE, "cmd_dock_close"),
+        (CMD_AI_CLOSE, "cmd_ai_close"),
     ];
 
     for cmd in COMMANDS {

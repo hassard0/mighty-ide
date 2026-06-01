@@ -213,6 +213,8 @@ pub const CMD_DOCK_RESET: u32 = 92;
 pub const CMD_DOCK_EXPANDED: u32 = 93;
 /// Close whichever shared bottom dock is currently open.
 pub const CMD_DOCK_CLOSE: u32 = 99;
+/// Close the right-docked AI copilot panel.
+pub const CMD_AI_CLOSE: u32 = 100;
 /// First/last bottom-dock layout command id.
 #[allow(dead_code)]
 pub const CMD_DOCK_FIRST: u32 = CMD_DOCK_COMPACT;
@@ -306,6 +308,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_VIEW_RUN_OUTPUT,  label: "View: Run Output",    keybinding: "" },
     Command { id: CMD_VIEW_PROBLEMS,    label: "View: Problems",      keybinding: "" },
     Command { id: CMD_VIEW_AI_COPILOT,  label: "View: AI Copilot",    keybinding: "Ctrl+Shift+A" },
+    Command { id: CMD_AI_CLOSE,         label: "View: Close AI Copilot", keybinding: "" },
     Command { id: CMD_VIEW_TERMINAL,    label: "View: Terminal",      keybinding: "Ctrl+`" },
     Command { id: CMD_VIEW_WEB_PLAYGROUND, label: "View: Web Playground", keybinding: "" },
     Command { id: CMD_DOCK_COMPACT,     label: "View: Bottom Dock Compact", keybinding: "" },
@@ -648,6 +651,7 @@ impl PaletteEngine {
             CMD_VIEW_RUN_OUTPUT => (icons::RUN, "Open the Run output panel", false),
             CMD_VIEW_PROBLEMS => (icons::ERROR_CIRCLE, "Open diagnostics and build problems", false),
             CMD_VIEW_AI_COPILOT => (icons::AGENTS, "Open the AI copilot panel", false),
+            CMD_AI_CLOSE => (icons::CLOSE, "Close the AI copilot panel", false),
             CMD_VIEW_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
             CMD_VIEW_WEB_PLAYGROUND => (icons::GLOBE, "Open the Web Playground output panel", false),
             CMD_DOCK_COMPACT => (icons::ARROW_DOWN, "Use a smaller shared bottom dock", false),

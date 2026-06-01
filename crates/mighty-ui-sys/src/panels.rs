@@ -1453,6 +1453,24 @@ pub extern "C" fn mui_ai_show(handle: i64) -> i32 {
     1
 }
 
+/// Close the AI copilot without clearing its transcript/input. Returns `1` when
+/// a visible panel was closed, or `0` when it was already hidden.
+#[no_mangle]
+pub extern "C" fn mui_ai_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.ai.open {
+        ctx.push_toast(crate::toast::Kind::Info, "AI Copilot is already closed");
+        crate::abi::trace("ai_close noop");
+        return 0;
+    }
+    ctx.ai.open = false;
+    ctx.push_toast(crate::toast::Kind::Info, "AI Copilot closed");
+    crate::abi::trace("ai_close");
+    1
+}
+
 /// `1` if the AI panel is currently open, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_ai_is_open(handle: i64) -> i32 {

@@ -2357,3 +2357,15 @@ small header affordance or remembering which panel toggle opened it.
 - **Language note:** no compiler gap surfaced. The separate close id reinforces
   the need for generated command metadata with semantic groups, because related
   layout actions are no longer always contiguous numeric ranges.
+
+### L154. Right-docked panels need explicit close commands **[finding, P2]**
+The AI copilot could be opened from the command palette, but closing it still
+depended on the rail toggle behavior. That makes editor-space recovery harder
+to discover and less predictable than other docked surfaces.
+
+- **IDE note:** `View: Close AI Copilot` now closes the right-docked AI panel
+  without clearing transcript or input state, and no-ops with a clear toast when
+  it is already hidden.
+- **Language note:** no compiler gap surfaced. The command surface is now large
+  enough that Mighty should generate command ids, labels, and dispatcher stubs
+  from one source instead of mirroring them manually.

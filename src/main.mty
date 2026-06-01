@@ -357,6 +357,7 @@ extern c {
   // ---- AI copilot (Agents rail icon → right-docked chat panel) ----
   fn mui_ai_open(handle: I64) -> I32
   fn mui_ai_show(handle: I64) -> I32
+  fn mui_ai_close(handle: I64) -> I32
   fn mui_ai_is_open(handle: I64) -> I32
   fn mui_ai_click(handle: I64) -> I32
   fn mui_ai_has_key(handle: I64) -> I32
@@ -750,6 +751,7 @@ fn cmd_sidebar_layout_last() -> I32 { 96 }  // View: Sidebar Wide
 fn cmd_window_toggle_maximize() -> I32 { 97 }
 fn cmd_window_minimize() -> I32 { 98 }
 fn cmd_dock_close() -> I32 { 99 }
+fn cmd_ai_close() -> I32 { 100 }
 
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
@@ -3625,6 +3627,9 @@ fn main() {
         } else if id == cmd_view_ai_copilot() {
           let _ai = mui_ai_show(h)
           ai_focus = true
+        } else if id == cmd_ai_close() {
+          let _aic = mui_ai_close(h)
+          ai_focus = false
         } else if id == cmd_view_terminal() {
           let ok = mui_term_open(h)
           if ok == 1 { term_focus = true; mui_log_terminal(h) }

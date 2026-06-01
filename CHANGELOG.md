@@ -128,6 +128,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Bottom dock has a command close path**: **View: Close Bottom Dock** now
   closes whichever lower Run/Web/Problems/Terminal dock is active, so layout
   recovery does not depend on hitting the small header close button.
+- **AI copilot has a command close path**: **View: Close AI Copilot** closes the
+  right-docked chat panel without clearing its transcript or requiring rail
+  toggle behavior.
 - **Testing header avoids status-pill collisions**: the Testing sidebar title now
   measures the right-side `idle`/`running`/`failed`/`passed` pill first and fits
   the header label into the remaining space.
