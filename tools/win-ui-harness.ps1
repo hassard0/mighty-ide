@@ -28,7 +28,8 @@ param(
   [string]$Exe     = "C:\Users\ihass\mighty-ide\dist\mighty-ide-win64\mighty-ide.exe",
   [string]$WorkDir = "C:\Users\ihass\mighty-ide\dist\mighty-ide-win64",
   [string]$OutDir  = "C:\Users\ihass\mighty-ide\dist\harness",
-  [int]$LaunchWaitMs = 2500
+  [int]$LaunchWaitMs = 2500,
+  [switch]$NoCapture
 )
 
 $ErrorActionPreference = 'Stop'
@@ -152,6 +153,8 @@ public static class Win {
 
 function New-Dir($p) { if (-not (Test-Path $p)) { New-Item -ItemType Directory -Force $p | Out-Null } }
 New-Dir $OutDir
+$traceWasSet = [bool]$env:MUI_TRACE
+if (-not $traceWasSet) { $env:MUI_TRACE = Join-Path $OutDir "trace.txt" }
 if ($env:MUI_TRACE) { Remove-Item -LiteralPath $env:MUI_TRACE -Force -ErrorAction SilentlyContinue }
 
 $report = [System.Collections.Generic.List[string]]::new()
@@ -166,18 +169,26 @@ if (Test-Path $savePath) { Remove-Item $savePath -Force }
 $newFileName = "harnessnewfile.mty"
 $newFilePath = Join-Path $WorkDir $newFileName
 if (Test-Path $newFilePath) { Remove-Item $newFilePath -Force }
+$welcomeFileName = "harnesswelcome.mty"
+$welcomeFilePath = Join-Path $WorkDir $welcomeFileName
+if (Test-Path $welcomeFilePath) { Remove-Item $welcomeFilePath -Force }
 $openName = "harnessopen.mty"
 $openPath = Join-Path $WorkDir $openName
 Set-Content -LiteralPath $openPath -Value "opened" -Encoding utf8
 # The IDE now uses a native SaveFileDialog for untitled Save. Feed a deterministic
 # picker result so the harness does not block on an OS-modal dialog.
 $env:MUI_SAVE_FILE_PICK = $savePath
+$env:MUI_NEW_FILE_PICK = $welcomeFilePath
 $env:MUI_OPEN_FILE_PICK = $openPath
 $env:MUI_OPEN_FOLDER_PICK = $WorkDir
 
 function Get-WinRect($h) { $r = New-Object Win+RECT; [void][Win]::GetWindowRect($h, [ref]$r); return $r }
 
 function Capture($h, $name) {
+  if ($NoCapture) {
+    Log "capture '$name': skipped (-NoCapture)"
+    return $null
+  }
   # Bring the window truly foreground and CONFIRM it - a GPU window captured via
   # CopyFromScreen while occluded yields the desktop/other windows, not the IDE.
   $fg = $false
@@ -327,6 +338,12 @@ ClickL 420 472
 Start-Sleep -Milliseconds 350
 Capture $hwnd "02-welcome-new-file"
 Log "welcome new-file captured"
+if (Test-Path $welcomeFilePath) {
+  Log "WELCOME NEW-FILE: file created OK -> $welcomeFilePath"
+} else {
+  Log "WELCOME NEW-FILE: FILE NOT FOUND ($welcomeFilePath)"
+  $script:HarnessFailed = $true
+}
 
 # === FILE OPEN: click RUN.txt in the tree; the editor must show its contents. ===
 ClickL $treeX 229
@@ -335,13 +352,9 @@ Capture $hwnd "10-open-file"
 Log "file-open (tree RUN.txt) captured"
 
 # === TOP-LEFT EXPLORER HEADER BUTTONS ===
+$env:MUI_NEW_FILE_PICK = $newFilePath
 ClickL $explorerNewFileX 20  # New File -> workspace file prompt
 Start-Sleep -Milliseconds 350
-Capture $hwnd "11-new-file-prompt"
-Type-Text $hwnd $newFileName
-Start-Sleep -Milliseconds 150
-Press-VK $hwnd 0x0D
-Start-Sleep -Milliseconds 500
 Capture $hwnd "11-new-file-created"
 if (Test-Path $newFilePath) {
   Log "NEW-FILE: workspace file created OK -> $newFilePath"
@@ -414,6 +427,7 @@ Start-Sleep -Milliseconds 200
 if (Test-Path $savePath) { Log "SAVE-AS: file written OK -> $savePath" } else { Log "SAVE-AS: FILE NOT FOUND ($savePath)"; $script:HarnessFailed = $true }
 if (Test-Path $savePath) { Remove-Item $savePath -Force; Log "SAVE-AS: cleaned harness file" }
 if (Test-Path $newFilePath) { Remove-Item $newFilePath -Force; Log "NEW-FILE: cleaned harness file" }
+if (Test-Path $welcomeFilePath) { Remove-Item $welcomeFilePath -Force; Log "WELCOME NEW-FILE: cleaned harness file" }
 
 # === OPEN FILE dialog via top-right More -> command palette, then Save ===
 Invoke-PaletteCommand "open file" "43-open-file-palette"
@@ -452,8 +466,10 @@ $exited = $proc.HasExited
 Log "process hasExited=$exited"
 if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; Log "killed pid $($proc.Id)" }
 Remove-Item Env:\MUI_SAVE_FILE_PICK -ErrorAction SilentlyContinue
+Remove-Item Env:\MUI_NEW_FILE_PICK -ErrorAction SilentlyContinue
 Remove-Item Env:\MUI_OPEN_FILE_PICK -ErrorAction SilentlyContinue
 Remove-Item Env:\MUI_OPEN_FOLDER_PICK -ErrorAction SilentlyContinue
+if (-not $traceWasSet) { Remove-Item Env:\MUI_TRACE -ErrorAction SilentlyContinue }
 Remove-Item -LiteralPath $openPath -Force -ErrorAction SilentlyContinue
 
 $reportPath = Join-Path $OutDir 'report.txt'
