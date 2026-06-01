@@ -42,6 +42,14 @@ const MARGIN_X: f32 = 28.0;
 /// Top margin (px) below the pane's top edge.
 const MARGIN_TOP: f32 = 20.0;
 
+pub fn close_rect(region: Region, x_right: f32, win_w: f32) -> (f32, f32, f32, f32) {
+    let left = region.left;
+    let top = region.top;
+    let visible_right = x_right.min(win_w);
+    let col_w = (visible_right - left).max(0.0);
+    (left + col_w - 30.0, top + 4.0, 22.0, 20.0)
+}
+
 impl MdPreview {
     pub fn new() -> Self {
         MdPreview::default()
@@ -107,7 +115,12 @@ impl MdPreview {
         let chrome = theme::CHROME_FONT_SIZE;
         let hy = top + (head_h - chrome) * 0.5 - 1.0;
         ctx.dl_icon(left + 12.0, top + (head_h - 14.0) * 0.5, 14.0, 14.0, crate::icons::FILE_MD, theme::ACCENT_BRIGHT(), 1.5, false);
-        ctx.text.queue_ui_sized(left + 34.0, hy, "Markdown Preview", theme::TEXT(), chrome, ctx.clip);
+        let title = if col_w < 210.0 { "Preview" } else { "Markdown Preview" };
+        ctx.text.queue_ui_sized(left + 34.0, hy, title, theme::TEXT(), chrome, ctx.clip);
+        let (cx, cy, cw, ch) = close_rect(region, x_right, win_w);
+        ctx.dl_round(cx, cy, cw, ch, 5.0, theme::ACCENT());
+        ctx.dl_stroke(cx, cy, cw, ch, 5.0, theme::ACCENT_BRIGHT(), 1.0);
+        ctx.dl_icon(cx + 4.5, cy + 3.5, 13.0, 13.0, crate::icons::CLOSE, theme::BG_1(), 1.7, false);
 
         // Clip rect for the scrolling body (below the header, above the status bar).
         let body_top = top + head_h;
@@ -661,5 +674,15 @@ mod tests {
         assert_eq!(p.scroll, 0.0);
         p.close();
         assert!(!p.is_open());
+    }
+
+    #[test]
+    fn close_rect_stays_inside_preview_header() {
+        let region = Region { left: 430.0, top: 72.0 };
+        let (x, y, w, h) = close_rect(region, 860.0, 860.0);
+        assert!(x >= region.left);
+        assert!(x + w <= 860.0);
+        assert!(y >= region.top);
+        assert!(y + h <= region.top + 28.0);
     }
 }

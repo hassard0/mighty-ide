@@ -2770,6 +2770,38 @@ fn pane_split_focus_close_via_abi() {
 }
 
 #[test]
+fn markdown_preview_header_close_hit_collapses_preview() {
+    use crate::ffi::MuiEvent;
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::abi::mui_md_open(h), 1);
+    assert_eq!(crate::abi::mui_md_active(h), 1);
+
+    let visible_w = crate::layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
+    let region = crate::layout::region(ctx.sidebar_visible);
+    let preview_i = ctx.md_pane.expect("preview pane");
+    let count = ctx.panes.count();
+    let pr = crate::layout::pane_region(region, visible_w, count, preview_i);
+    let (_left, x_right) = crate::layout::pane_bounds(region, visible_w, count, preview_i);
+    let (x, y, w, hrect) = crate::mdpreview::close_rect(pr, x_right, visible_w);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect * 0.5,
+        0,
+    );
+
+    assert_eq!(crate::abi::mui_md_close_at_click(h), 1);
+    assert_eq!(crate::abi::mui_md_active(h), 0);
+    assert_eq!(crate::abi::mui_pane_count(h), 1);
+}
+
+#[test]
 fn minimap_hides_in_narrow_split_panes() {
     assert!(crate::abi::should_show_minimap(
         true,

@@ -169,6 +169,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Modal overlays are visibly closable**: Settings and Keyboard Shortcuts now
   draw header close buttons with explicit mouse routing and harness traces, so
   dismissing them does not depend on `Esc` or clicking outside the card.
+- **Markdown Preview is visibly closable**: the rendered preview pane now has a
+  header close button that collapses the split preview through the same pane
+  machinery as the command route.
 - **Visual gallery paths are reliable**: the overlay-gallery QA tool now
   normalizes relative executable, workdir, and output paths before launching the
   packaged IDE, avoiding false missing-screenshot failures.

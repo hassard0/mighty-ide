@@ -2549,3 +2549,15 @@ geometry also powered the mouse route and live harness proof.
   architecture problem from L166. Mighty needs a widget/action primitive that
   binds the visual rect, action id, accessibility label, and traceable event in
   one place so modal controls cannot drift from their hit tests.
+
+### L168. Secondary editor panes need local close affordances **[finding, P2]**
+The Markdown Preview pane visually reads as a split editor surface, but before
+this pass there was no obvious local way to close it. Users should not have to
+infer that pane commands or the palette are the escape path for a rendered view.
+
+- **IDE note:** Markdown Preview now draws a close button in its pane header,
+  hit-tests that exact rect through `mui_md_close_at_click`, and collapses the
+  preview split through the existing `mui_md_close` pane-close path.
+- **Language note:** no compiler gap surfaced. The recurring language-side need
+  is still a typed action/widget registry so render, hit-test, command routing,
+  and test harness coordinates do not need parallel hand-maintained geometry.

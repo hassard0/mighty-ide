@@ -920,6 +920,17 @@ if (Wait-TraceCountGreaterThan "(?m)^shortcuts_close$" $shortcutsCloseCount 1200
   $script:HarnessFailed = $true
 }
 
+# === MARKDOWN PREVIEW: visible pane close affordance should collapse the split. ===
+Invoke-PaletteCommand "markdown preview" "52-markdown-preview"
+$mdCloseCount = Trace-MatchCount "(?m)^md_close$"
+ClickL ($logicalW - 19) 84
+if (Wait-TraceCountGreaterThan "(?m)^md_close$" $mdCloseCount 1200) {
+  Log "MARKDOWN-PREVIEW-CLOSE-MOUSE: visible pane close trace observed"
+} else {
+  Log "MARKDOWN-PREVIEW-CLOSE-MOUSE: missing visible pane close trace"
+  $script:HarnessFailed = $true
+}
+
 # === WINDOW COMMANDS: minimize must be command-palette reachable. ===
 Invoke-PaletteCommand "window minimize" $null
 Start-Sleep -Milliseconds 500

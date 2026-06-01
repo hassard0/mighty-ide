@@ -9617,7 +9617,7 @@ pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
     ctx.tabs.recompute_active_fold();
     let count = ctx.panes.count();
     let region = layout::region(ctx.sidebar_visible);
-    let win_w = ctx.gpu.width as f32;
+    let win_w = visible_surface_size(ctx).0 as f32;
     if count <= 1 {
         // Unsplit: the full body span, the active tab, focused, no split chrome —
         // identical to the historical draw.
@@ -10335,7 +10335,7 @@ pub extern "C" fn mui_pane_focus_at_click(handle: i64) -> i32 {
         return 0;
     }
     let region = layout::region(ctx.sidebar_visible);
-    let win_w = ctx.gpu.width as f32;
+    let win_w = visible_surface_size(ctx).0 as f32;
     let target = layout::pane_at_x(region, win_w, count, ctx.last_event.x);
     if target != ctx.panes.focused() {
         let s = active_scroll(ctx);
@@ -10466,8 +10466,9 @@ fn draw_md_preview_pane(
         .model_at(src_tab)
         .map(|m| m.as_text())
         .unwrap_or_default();
-    let win_h = ctx.gpu.height as f32;
-    let win_w = ctx.gpu.width as f32;
+    let (visible_w, visible_h) = visible_surface_size(ctx);
+    let win_w = visible_w as f32;
+    let win_h = visible_h as f32;
     // Move the preview state out so we can borrow `ctx` mutably for drawing.
     let mut preview = std::mem::take(&mut ctx.md_preview);
     preview.draw(ctx, &source, region, x_right, win_w, win_h);
@@ -10541,6 +10542,35 @@ pub extern "C" fn mui_md_scroll(handle: i64, delta: i32) {
     }
 }
 
+/// Hit-test the visible Markdown preview header close button. Returns `1` and
+/// closes the preview when hit, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_md_close_at_click(handle: i64) -> i32 {
+    let hit = {
+        let Some(ctx) = (unsafe { ctx(handle) }) else {
+            return 0;
+        };
+        let Some(i) = ctx.md_pane else { return 0 };
+        if !ctx.md_preview.is_open() || i >= ctx.panes.count() {
+            return 0;
+        }
+        let region = layout::region(ctx.sidebar_visible);
+        let win_w = visible_surface_size(ctx).0 as f32;
+        let count = ctx.panes.count();
+        let pr = layout::pane_region(region, win_w, count, i);
+        let (_l, x_right) = layout::pane_bounds(region, win_w, count, i);
+        let (x, y, w, h) = crate::mdpreview::close_rect(pr, x_right, win_w);
+        let (px, py) = (ctx.last_event.x, ctx.last_event.y);
+        px >= x && px <= x + w && py >= y && py <= y + h
+    };
+    if hit {
+        mui_md_close(handle);
+        1
+    } else {
+        0
+    }
+}
+
 /// Draw the markdown preview into its pane column (the split render entry point,
 /// mirroring `mui_pane_draw`). No-op when the preview is closed or not split.
 /// `mui_ed_draw` already renders the preview inline in its pane loop, so this is
@@ -10568,6 +10598,7 @@ pub extern "C" fn mui_md_close(handle: i64) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
+    trace("md_close");
     ctx.md_preview.close();
     // If the preview occupies the right pane, close that pane back to single.
     if let Some(i) = ctx.md_pane.take() {

@@ -562,6 +562,7 @@ extern c {
   fn mui_md_button_at_click(handle: I64) -> I32
   fn mui_md_active(handle: I64) -> I32
   fn mui_md_scroll(handle: I64, delta: I32)
+  fn mui_md_close_at_click(handle: I64) -> I32
   fn mui_crumb_menu_active(handle: I64) -> I32
   fn mui_crumb_menu_move(handle: I64, delta: I32)
   fn mui_crumb_menu_cancel(handle: I64)
@@ -2871,6 +2872,7 @@ fn main() {
         // opens the live split-pane Markdown preview. Returns 1 when it handled
         // the click. Computed up-front so the dispatch ladder stays flat (L27).
         let md_btn = mui_md_button_at_click(h)
+        let md_close = mui_md_close_at_click(h)
         let chip_hit = mui_status_problems_chip_at_click(h)
         let prob_on = mui_problems_is_open(h)
         let prob_close = mui_problems_close_at_click(h)
@@ -2983,6 +2985,9 @@ fn main() {
           } else {
             mui_crumb_menu_cancel(h)
           }
+        } else if md_close == 1 {
+          // Preview pane header close: the shim already collapsed the preview.
+          find_nav = false
         } else if md_btn == 1 {
           // Breadcrumb "Preview" pill: the shim already opened the split preview.
           find_nav = false
