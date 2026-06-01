@@ -1861,6 +1861,23 @@ fn workspace_open_recent_prunes_missing_folder() {
 }
 
 #[test]
+fn open_recent_available_when_only_recent_files_exist() {
+    use crate::mui_recent_any;
+
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_recent_any(h), 0);
+
+    ctx.quickopen.set_recent_paths(vec![std::path::PathBuf::from("main.mty")]);
+    assert_eq!(
+        mui_recent_any(h),
+        1,
+        "Open Recent should use the recents picker when only recent files exist"
+    );
+}
+
+#[test]
 fn welcome_missing_recent_folder_stays_open_and_prunes() {
     use crate::wsabi::mui_ws_recent_count;
     use crate::{mui_welcome_active, mui_welcome_draw, mui_welcome_open_folder};
@@ -2198,6 +2215,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         main.contains("if shift_held(mods) {\n            let sr = mui_save_as_dialog(h)"),
         "Ctrl+Shift+S should force the native Save As dialog even for file-backed tabs"
+    );
+    assert!(
+        main.contains("if mui_recent_any(h) == 1"),
+        "File: Open Recent must open the recents picker when either recent files or folders exist"
     );
     for needle in [
         "id >= cmd_pane_first() && id <= cmd_pane_last()",

@@ -1285,3 +1285,15 @@ the dirty flag.
   both a safe refresh path and a deliberate discard path.
 - **Language note:** no new gap surfaced. The Mighty side only needs one more
   scalar command id; the destructive state transition stays in the shim.
+
+### L69. Recents predicates belong beside the MRU stores **[finding, P3]**
+Fixing **File: Open Recent** exposed a small cross-store state smell: recent files
+live in Quick Open while recent folders live in the workspace MRU. Mighty should
+not infer availability from only one store, so the shim now exports one predicate
+covering both.
+
+- **IDE note:** Open Recent should show the chooser whenever either recent files
+  or folders exist; otherwise it can fall back to the open-folder prompt.
+- **Language note:** no new gap surfaced. A single ABI predicate is enough, but
+  this reinforces that Mighty should ask the shim for UI state summaries instead
+  of duplicating state rules in control code.

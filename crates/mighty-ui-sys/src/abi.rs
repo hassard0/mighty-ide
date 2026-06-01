@@ -6007,6 +6007,14 @@ pub extern "C" fn mui_qo_count(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.quickopen.count() as i32)
 }
 
+/// `1` when either recent files or recent workspace folders exist.
+#[no_mangle]
+pub extern "C" fn mui_recent_any(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| {
+        i32::from(!c.quickopen.recent_paths().is_empty() || c.recent_workspaces.len() > 0)
+    })
+}
+
 /// Move the selection by `delta` (positive = down), wrapping.
 #[no_mangle]
 pub extern "C" fn mui_qo_move(handle: i64, delta: i32) {

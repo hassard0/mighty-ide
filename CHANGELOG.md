@@ -30,6 +30,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   external edits while refusing to overwrite dirty buffers.
 - **Revert Active File from Disk**: intentionally discards local edits and
   reloads the file-backed tab from disk.
+- **Open Recent** now opens the recent picker when either recent files or recent
+  folders exist, instead of falling back to an open-folder prompt for file-only
+  history.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,
   ensure a final newline, and timed auto-save.
 

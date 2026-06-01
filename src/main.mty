@@ -609,6 +609,7 @@ extern c {
   fn mui_ws_open_dialog(handle: I64) -> I32
   fn mui_ws_open_recent(handle: I64, i: I32) -> I32
   fn mui_ws_recent_count(handle: I64) -> I32
+  fn mui_recent_any(handle: I64) -> I32
   fn mui_ws_dispatch(handle: I64, cmd_id: I32) -> I32
   // ---- New Project (Mighty: New Project) — runs `mty new <name>` ----
   fn mui_newproj_create(handle: I64) -> I32
@@ -3407,9 +3408,9 @@ fn main() {
             prompt_kind = prompt_open_folder()
             find_nav = false
           } else if wr == 3 {
-            if mui_ws_recent_count(h) > 0 {
+            if mui_recent_any(h) == 1 {
               // "Open Recent" should let the user choose, not silently open the
-              // newest folder. Reuse the Welcome recents surface, which already
+              // newest entry. Reuse the Welcome recents surface, which already
               // lists recent files and folders with click targets.
               mui_welcome_open(h)
             } else {
