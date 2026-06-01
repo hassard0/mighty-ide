@@ -3065,3 +3065,17 @@ weird or non-functional.
   declarative chrome regions that can specify drag, command, resize, and visual
   affordance roles together instead of splitting those decisions across shim and
   Mighty event ladders.
+
+### L206. Command surfaces are blocking overlays for transient feedback **[finding, P1]**
+The command palette could stay open while a recent Save/Open toast painted over
+its lower-right footer. Functionally the command surface still worked, but the
+visual result looked like stale notification text was stuck inside the overlay.
+
+- **IDE note:** toast drawing and toast click hit-testing now suppress while
+  Command Palette, Quick Open, breadcrumb dropdowns, branch picker, settings,
+  shortcuts, theme picker, and dirty confirmation are active. The real-mouse
+  harness still captures these surfaces, so future overlap shows up in evidence.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a single overlay
+  coordinator with priority, modality, and transient-feedback policy so command
+  surfaces can declare "no toast chrome over me" instead of each surface relying
+  on ad hoc draw order.

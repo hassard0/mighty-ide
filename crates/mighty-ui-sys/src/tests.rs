@@ -2372,6 +2372,54 @@ fn modal_overlays_suppress_toast_draw_and_click_targets() {
 }
 
 #[test]
+fn command_overlays_suppress_toast_draw_and_click_targets() {
+    use crate::ffi::MuiEvent;
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 1280;
+    ctx.gpu.height = 832;
+    ctx.gpu.phys_width = 1280;
+    ctx.gpu.phys_height = 832;
+    crate::uiscale::set_os_scale(1.0);
+    crate::uiscale::set_user_zoom(1.0);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.push_toast(crate::toast::Kind::Success, "Command overlay toast");
+    crate::mui_palette_open(handle);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        1000.0,
+        720.0,
+        0,
+    );
+    assert_eq!(crate::mui_toast_click(handle), 0);
+    assert_eq!(ctx.toasts.len(), 1);
+
+    crate::mui_toast_draw(handle);
+    assert!(
+        ctx.rects_overlay.is_empty(),
+        "toast draw should not paint cards over active command palette overlays"
+    );
+    crate::mui_palette_cancel(handle);
+
+    crate::mui_quickopen_open(handle);
+    crate::mui_toast_draw(handle);
+    assert!(
+        ctx.rects_overlay.is_empty(),
+        "toast draw should not paint cards over active Quick Open overlays"
+    );
+    assert_eq!(crate::mui_toast_click(handle), 0);
+    assert_eq!(ctx.toasts.len(), 1);
+
+    crate::uiscale::set_os_scale(1.0);
+    crate::uiscale::set_user_zoom(1.0);
+}
+
+#[test]
 fn active_file_os_reveal_builds_platform_file_manager_command() {
     let path = std::path::Path::new("C:\\workspace\\src\\main.mty");
     let Some((program, args)) = crate::abi::platform_reveal_command(path) else {

@@ -84,6 +84,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **The empty titlebar gap is now a command center**: when tabs leave enough
   room, the top bar shows a Quick Open pill instead of a blank drag-only block,
   and clicking it opens Quick Open without breaking normal window dragging.
+- **Toasts stay out of command overlays**: Command Palette, Quick Open,
+  breadcrumb dropdowns, and branch picker now suppress toast drawing and toast
+  clicks while active, avoiding stale-looking text over overlay footers.
 - **Language popups fit compact work areas**: signature help and code-action
   menus now clamp to the editor safe area and ellipsize measured text instead of
   clipping against the right edge.

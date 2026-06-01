@@ -11973,7 +11973,7 @@ pub extern "C" fn mui_toast_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    if toast_suppressed_by_modal(ctx) {
+    if toast_suppressed_by_overlay(ctx) {
         return 0;
     }
     if ctx.last_event.tag != crate::ffi::MUI_EVENT_MOUSE_DOWN
@@ -12006,7 +12006,7 @@ pub extern "C" fn mui_toast_draw(handle: i64) {
     if ctx.toasts.is_empty() {
         return;
     }
-    if toast_suppressed_by_modal(ctx) {
+    if toast_suppressed_by_overlay(ctx) {
         return;
     }
     let (w, h) = visible_surface_size(ctx);
@@ -12029,11 +12029,15 @@ fn toast_bottom_reserve(ctx: &MuiContext, visible_h: u32) -> f32 {
     (visible_h as f32 - theme::LINE_HEIGHT() - layout::term_panel_top(visible_h)).max(0.0)
 }
 
-fn toast_suppressed_by_modal(ctx: &MuiContext) -> bool {
+fn toast_suppressed_by_overlay(ctx: &MuiContext) -> bool {
     dirty_confirm_active(ctx)
         || ctx.settings_panel.is_active()
         || ctx.shortcuts.is_active()
         || ctx.theme_picker.is_active()
+        || ctx.palette.is_active()
+        || ctx.quickopen.is_active()
+        || ctx.branch_picker.is_active()
+        || ctx.crumb_menu.is_active()
 }
 
 fn toast_left_reserve(ctx: &MuiContext) -> f32 {
