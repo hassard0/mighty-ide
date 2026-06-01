@@ -2235,3 +2235,15 @@ the brand at full size, but became heavy once Windows shrank it.
 - **Language note:** no compiler gap surfaced. Mighty would benefit from a
   repo-native visual fixture runner for generated assets so 16/32/48px previews
   can be reviewed alongside UI screenshots.
+
+### L144. Overlay anchors must respect active work surfaces **[finding, P1]**
+Toasts were technically on the overlay layer, but while the Web/Run/Problems
+bottom dock was open they anchored to the window bottom and covered console text.
+That is visually equivalent to overlap even when z-order is intentional.
+
+- **IDE note:** Toast layout and click hit-testing now reserve the shared bottom
+  dock height when any lower work panel is active, so notifications float above
+  the dock instead of covering output.
+- **Language note:** no compiler gap surfaced. Mighty UI needs an overlay
+  placement service where surfaces can publish occupied regions and transient
+  layers can anchor against those regions automatically.

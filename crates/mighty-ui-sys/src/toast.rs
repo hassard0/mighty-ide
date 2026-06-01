@@ -190,22 +190,44 @@ impl ToastQueue {
     /// Dismiss the toast under a window-space point. Returns `true` when a toast
     /// was removed. Hit-testing mirrors the draw stack so the newest/lower toast
     /// wins when cards overlap during animation.
+    #[allow(dead_code)]
     pub fn dismiss_at(&mut self, width: u32, height: u32, x: f32, y: f32, now: Instant) -> bool {
-        let Some(idx) = self.hit_index_at(width, height, x, y, now) else {
+        self.dismiss_at_reserved(width, height, 0.0, x, y, now)
+    }
+
+    /// Dismiss with extra bottom-reserved space, used while a lower dock is open.
+    pub fn dismiss_at_reserved(
+        &mut self,
+        width: u32,
+        height: u32,
+        reserve_bottom: f32,
+        x: f32,
+        y: f32,
+        now: Instant,
+    ) -> bool {
+        let Some(idx) = self.hit_index_at(width, height, reserve_bottom, x, y, now) else {
             return false;
         };
         self.toasts.remove(idx);
         true
     }
 
-    fn hit_index_at(&self, width: u32, height: u32, x: f32, y: f32, now: Instant) -> Option<usize> {
+    fn hit_index_at(
+        &self,
+        width: u32,
+        height: u32,
+        reserve_bottom: f32,
+        x: f32,
+        y: f32,
+        now: Instant,
+    ) -> Option<usize> {
         if self.toasts.is_empty() {
             return None;
         }
         let w = width as f32;
         let h = height as f32;
         let card_w = toast_card_width(w);
-        let bottom = h - MARGIN - theme::LINE_HEIGHT();
+        let bottom = toast_stack_bottom(h, reserve_bottom);
         for (rev, t) in self.toasts.iter().rev().enumerate() {
             let presence = t.presence(now);
             let slot = rev as f32;
@@ -241,11 +263,25 @@ impl ToastQueue {
     /// Draw the bottom-right toast stack on the OVERLAY layer (over everything).
     /// No-op when empty. `now` is threaded so the render uses the same clock the
     /// tick does.
+    #[allow(dead_code)]
     pub fn draw(&self, ctx: &mut crate::MuiContext, width: u32, height: u32) {
-        self.draw_at(ctx, width, height, Instant::now());
+        self.draw_reserved(ctx, width, height, 0.0, Instant::now());
     }
 
+    #[allow(dead_code)]
     pub fn draw_at(&self, ctx: &mut crate::MuiContext, width: u32, height: u32, now: Instant) {
+        self.draw_reserved(ctx, width, height, 0.0, now);
+    }
+
+    /// Draw with extra bottom-reserved space, used while a lower dock is open.
+    pub fn draw_reserved(
+        &self,
+        ctx: &mut crate::MuiContext,
+        width: u32,
+        height: u32,
+        reserve_bottom: f32,
+        now: Instant,
+    ) {
         if self.toasts.is_empty() {
             return;
         }
@@ -258,7 +294,7 @@ impl ToastQueue {
 
         // Stack upward from the bottom-right, NEWEST at the bottom (last drawn).
         // Reserve a little headroom above the status bar.
-        let bottom = h - MARGIN - theme::LINE_HEIGHT();
+        let bottom = toast_stack_bottom(h, reserve_bottom);
         let n = self.toasts.len();
         for (rev, t) in self.toasts.iter().rev().enumerate() {
             let presence = t.presence(now);
@@ -358,6 +394,10 @@ impl ToastQueue {
             );
         }
     }
+}
+
+fn toast_stack_bottom(window_h: f32, reserve_bottom: f32) -> f32 {
+    window_h - MARGIN - theme::LINE_HEIGHT() - reserve_bottom.max(0.0)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -760,5 +800,38 @@ mod tests {
         ));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "top");
+    }
+
+    #[test]
+    fn reserved_bottom_moves_toast_hit_target_above_lower_dock() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+        q.push_at(Kind::Success, "Saved", t0);
+
+        let w = 900.0;
+        let h = 600.0;
+        let reserve = 180.0;
+        let cw = toast_card_width(w);
+        let cx = toast_card_x(w, cw);
+        let cy = toast_stack_bottom(h, reserve) - CARD_H;
+
+        assert!(!q.dismiss_at_reserved(
+            900,
+            600,
+            reserve,
+            cx + cw - 20.0,
+            h - MARGIN - theme::LINE_HEIGHT() - 20.0,
+            t0 + Duration::from_millis(500)
+        ));
+        assert_eq!(q.len(), 1);
+        assert!(q.dismiss_at_reserved(
+            900,
+            600,
+            reserve,
+            cx + cw - 20.0,
+            cy + 24.0,
+            t0 + Duration::from_millis(500)
+        ));
+        assert!(q.is_empty());
     }
 }

@@ -11145,7 +11145,11 @@ pub extern "C" fn mui_toast_click(handle: i64) -> i32 {
     }
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
     let (w, h) = visible_surface_size(ctx);
-    i32::from(ctx.toasts.dismiss_at(w, h, x, y, std::time::Instant::now()))
+    let reserve_bottom = toast_bottom_reserve(ctx, h);
+    i32::from(
+        ctx.toasts
+            .dismiss_at_reserved(w, h, reserve_bottom, x, y, std::time::Instant::now()),
+    )
 }
 
 /// Draw the bottom-right toast stack over everything (overlay layer). No-op when
@@ -11163,10 +11167,18 @@ pub extern "C" fn mui_toast_draw(handle: i64) {
     ctx.overlay = true;
     ctx.text.set_overlay(true);
     let toasts = std::mem::take(&mut ctx.toasts);
-    toasts.draw(ctx, w, h);
+    let reserve_bottom = toast_bottom_reserve(ctx, h);
+    toasts.draw_reserved(ctx, w, h, reserve_bottom, std::time::Instant::now());
     ctx.toasts = toasts;
     ctx.overlay = was_overlay;
     ctx.text.set_overlay(was_overlay);
+}
+
+fn toast_bottom_reserve(ctx: &MuiContext, visible_h: u32) -> f32 {
+    if !ctx.bottom_dock_open() {
+        return 0.0;
+    }
+    (visible_h as f32 - theme::LINE_HEIGHT() - layout::term_panel_top(visible_h)).max(0.0)
 }
 
 // ===========================================================================
