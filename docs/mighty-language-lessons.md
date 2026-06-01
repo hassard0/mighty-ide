@@ -2150,3 +2150,14 @@ changes waiting for review.
 - **Language note:** no compiler gap surfaced. A future Mighty package/workspace
   convention should distinguish generated scratch files from first-class
   developer tools so IDE status panels can explain them cleanly.
+
+### L137. Screenshot close events need test-safe semantics **[finding, P2]**
+The snippet gallery rendered correctly, but the process could loop until the
+gallery harness killed it because the synthetic post-capture Close event reused
+the same dirty-file confirmation path as a real user quit.
+
+- **IDE note:** headless/screenshot/probe runs now exit directly on Close, while
+  normal interactive closes still route through the unsaved-work confirmation.
+- **Language note:** Mighty would benefit from a first-class event/source flag so
+  app code can distinguish user window closes from synthetic harness closes
+  without threading host-mode checks through the main loop.

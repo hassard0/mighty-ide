@@ -1268,7 +1268,9 @@ fn main() {
         // the underlying editor/panel sees the same mouse-down.
         let _toast_hit = 1
       } else if tag == ev_close() {
-        if mui_quit_request(h) == 1 {
+        if headless_limit > 0 {
+          running = false
+        } else if mui_quit_request(h) == 1 {
           running = false
         }
       } else if mui_dirty_confirm_active(h) == 1 || mui_keys_active(h) == 1 || mui_crumb_menu_active(h) == 1 || mui_branch_active(h) == 1 {
