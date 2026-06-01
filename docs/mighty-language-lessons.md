@@ -2991,3 +2991,19 @@ side margins at narrow widths, which made split-pane reading worse.
 - **Language note:** no compiler gap surfaced. Mighty UI needs document-preview
   primitives with responsive spacing and type tokens, so rendered prose panes do
   not depend on hand-tuned constants copied across tools.
+
+### L201. Real-mouse UX tests must wait for UI evidence **[finding, P1]**
+The strict Windows harness initially reported many false feature failures:
+relative trace paths hid evidence, high-DPI scaling shifted clicks, synthetic
+button events only moved the cursor, and command text could be typed before the
+topbar click had opened the palette.
+
+- **IDE note:** The harness now normalizes its artifact paths, reads the app's
+  startup scale trace, uses reliable real mouse button events, targets the
+  visible Welcome and tab controls, and waits for the topbar palette trace before
+  typing queries. The strict mouse run now covers file dialogs, tab switching and
+  closing, drawer resizing, modal closes, Markdown preview close, and workspace
+  folder selection.
+- **Language note:** no compiler gap surfaced. Mighty UI and its harnesses need
+  first-class observable interaction checkpoints so black-box tests wait for the
+  UI state a human sees, not just a fixed sleep after input.

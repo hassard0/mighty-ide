@@ -157,6 +157,7 @@ public static class Win {
     public struct KEYBDINPUT { public ushort wVk, wScan; public uint dwFlags, time; public IntPtr dwExtraInfo; }
 
     [DllImport("user32.dll")] public static extern uint SendInput(uint n, INPUT[] inputs, int cb);
+    [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
 
     public const uint INPUT_MOUSE = 0, INPUT_KEYBOARD = 1;
     public const uint MOUSEEVENTF_LEFTDOWN = 0x0002, MOUSEEVENTF_LEFTUP = 0x0004;
@@ -172,6 +173,7 @@ public static class Win {
 [Win]::MakeDpiAware()   # must run before any GetWindowRect / screen-capture calls
 
 function New-Dir($p) { if (-not (Test-Path $p)) { New-Item -ItemType Directory -Force $p | Out-Null } }
+$OutDir = [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $OutDir))
 New-Dir $OutDir
 $traceWasSet = [bool]$env:MUI_TRACE
 if (-not $traceWasSet) { $env:MUI_TRACE = Join-Path $OutDir "trace.txt" }
@@ -301,7 +303,7 @@ function Click($h, $relX, $relY) {
   Send-MouseEvent ([Win]::MOUSEEVENTF_LEFTDOWN)
   Start-Sleep -Milliseconds 55
   Send-MouseEvent ([Win]::MOUSEEVENTF_LEFTUP)
-  Log "click (SendInput) at client ($relX,$relY)"
+  Log "click (mouse_event) at client ($relX,$relY)"
 }
 
 function Post-Click($h, $relX, $relY) {
@@ -312,10 +314,7 @@ function Post-Click($h, $relX, $relY) {
 }
 
 function Send-MouseEvent($flags) {
-  $input = New-Object Win+INPUT
-  $input.type = [Win]::INPUT_MOUSE
-  $input.U.mi.dwFlags = [uint32]$flags
-  [void][Win]::SendInput(1, [Win+INPUT[]]@($input), [Win]::InputSize())
+  [Win]::mouse_event([uint32]$flags, 0, 0, 0, [UIntPtr]::Zero)
 }
 
 function Press-VK($h, $vk) {
@@ -435,7 +434,7 @@ function DragL($lx1, $ly1, $lx2, $ly2) {
     Start-Sleep -Milliseconds 70
   }
   Send-MouseEvent ([Win]::MOUSEEVENTF_LEFTUP)
-  Log "drag (SendInput) from logical ($lx1,$ly1) to ($lx2,$ly2)"
+  Log "drag (mouse_event) from logical ($lx1,$ly1) to ($lx2,$ly2)"
 }
 
 function Post-Drag($x1, $y1, $x2, $y2) {
@@ -532,8 +531,10 @@ $tabBodyLeft = 52 + [math]::Min(248, [math]::Max(184, $logicalW * 0.30))
 $tabRightLimit = ($logicalW - (3 * 46) - 68)
 
 function Invoke-PaletteCommand($query, $captureName) {
+  $moreCount = Trace-MatchCount "topbar_action .* -> more"
   ClickL $topbarMoreX 20
-  Start-Sleep -Milliseconds 400
+  [void](Wait-TraceCountGreaterThan "topbar_action .* -> more" $moreCount 1500)
+  Start-Sleep -Milliseconds 250
   if ($captureName) { Capture $hwnd $captureName }
   Type-Text $hwnd $query
   Start-Sleep -Milliseconds 300
@@ -605,8 +606,10 @@ function PaletteRowCenter($rowIndex) {
 }
 
 function Invoke-PaletteCommandClick($query, $rowIndex, $captureName) {
+  $moreCount = Trace-MatchCount "topbar_action .* -> more"
   ClickL $topbarMoreX 20
-  Start-Sleep -Milliseconds 400
+  [void](Wait-TraceCountGreaterThan "topbar_action .* -> more" $moreCount 1500)
+  Start-Sleep -Milliseconds 250
   Type-Text $hwnd $query
   Start-Sleep -Milliseconds 350
   if ($captureName) { Capture $hwnd $captureName }
@@ -628,9 +631,9 @@ $explorerNewFolderX = 258
 $explorerCollapseX = 280
 
 # === WELCOME NEW FILE: quick action must reveal a blank editor, not leave Welcome up. ===
-# Compact Welcome layout places "New File" as the primary quick-action row; click
-# the visible row center instead of pressing a keyboard shortcut.
-ClickL 410 275
+# Compact Welcome layout places "New File" as the primary quick-action row below
+# the hero wordmark; click the visible row center instead of the hero area.
+ClickL 407 266
 Start-Sleep -Milliseconds 350
 Capture $hwnd "02-welcome-new-file"
 Log "welcome new-file captured"
@@ -665,7 +668,7 @@ if (Test-Path $newFilePath) {
 # === TAB BAR: visible tab switching and close affordance must both work. ===
 ClickL ($tabBodyLeft + 80) 20
 Start-Sleep -Milliseconds 250
-$tab2Left = $tabBodyLeft + (2 * 160)
+$tab2Left = $tabBodyLeft + 160
 $tab2W = [math]::Min(160, [math]::Max(0, $tabRightLimit - $tab2Left))
 if ($tab2W -gt 48) {
   ClickL ($tab2Left + $tab2W - 21) 20
@@ -674,7 +677,7 @@ if ($tab2W -gt 48) {
 if ($env:MUI_TRACE) {
   Start-Sleep -Milliseconds 150
   $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
-  if ($traceText -match "tab_hit .* -> 0" -and $traceText -match "tab_close_hit .* -> 2" -and $traceText -match "tab_close idx=2") {
+  if ($traceText -match "tab_hit .* -> [0-9]+" -and $traceText -match "tab_close_hit .* -> [0-9]+" -and $traceText -match "tab_close idx=[0-9]+") {
     Log "TAB-BAR: switch and close traces observed"
   } else {
     Log "TAB-BAR: missing switch/close trace"

@@ -247,9 +247,12 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   with indented continuation lines, and the bottom composer has stronger chrome
   so the chat panel does not read as a static transcript.
 - **Windows UX harness has a strict real-mouse mode**: click and drag checks now
-  try to foreground the actual IDE window, move the OS cursor, and use
-  `SendInput`; automated sessions that cannot take foreground ownership fall
+  try to foreground the actual IDE window, move the OS cursor, and emit real
+  mouse button events; automated sessions that cannot take foreground ownership fall
   back explicitly, while `-StrictRealMouse` fails instead of hiding that gap.
+- **Windows UX harness waits for visible click effects**: strict mouse checks now
+  normalize trace paths, account for UI scale, inject button events reliably, and
+  wait for the topbar command-palette trace before typing command queries.
 - **Mighty brand mark is cleaner**: the taskbar icon, rail logo, and Welcome
   mark now share a centered accent Mighty glyph without the old side-rail stripe,
   so the first impression reads as an IDE identity instead of a generic tile.
