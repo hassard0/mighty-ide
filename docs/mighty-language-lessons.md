@@ -1532,3 +1532,15 @@ text on compact windows.
   measured and ellipsized into the remaining gap.
 - **Language note:** no Mighty gap surfaced. This is another shim-owned text
   measurement/layout case.
+
+### L89. Problems drawer rows need shaped text budgets **[finding, P2]**
+The Problems drawer still used fixed character estimates for empty-state text,
+file group headers, and diagnostic messages. In compact widths a negative or
+tiny message budget could leave the full diagnostic message visible under the
+right-side code/line cluster.
+
+- **IDE note:** Problems drawer text now uses UI-font measurement with binary
+  search ellipsizing before drawing those fields.
+- **Language note:** no Mighty compiler issue surfaced. This remains shim-owned
+  layout, but it reinforces that all proportional chrome text needs measured
+  budgets rather than scalar character guesses.

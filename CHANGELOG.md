@@ -51,6 +51,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   are drawn into the custom frame.
 - **Run drawer header text is measured**: long active filenames now ellipsize
   before the status pill instead of colliding with it.
+- **Problems drawer text is measured**: empty-state text, file group headers,
+  and diagnostic messages now ellipsize by shaped UI-font width instead of
+  fixed character estimates.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

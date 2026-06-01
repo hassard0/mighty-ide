@@ -19,6 +19,40 @@ use crate::diagnostics::{self, Severity};
 use crate::layout;
 use crate::theme;
 
+fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    let max_px = max_px.max(0.0);
+    if max_px <= 1.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    let ellipsis_w = text.measure_ui_sized(ellipsis, size).0;
+    if ellipsis_w >= max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        return ellipsis.to_string();
+    }
+    let mut out: String = chars.iter().take(lo).collect();
+    out.push_str(ellipsis);
+    out
+}
+
 /// One aggregated problem: an owning file plus the underlying diagnostic fields.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Problem {
@@ -266,7 +300,16 @@ impl ProblemSet {
 
         if self.items.is_empty() {
             ctx.dl_icon(left + 14.0, Self::body_top(h) + 2.0, 14.0, 14.0, icons::CHECK, theme::GREEN(), 1.7, false);
-            ctx.text.queue_ui_sized(left + 36.0, Self::body_top(h) + 2.0, "No problems detected in the workspace.", theme::TEXT_3(), chrome, clip);
+            let msg_x = left + 36.0;
+            let msg = fit_ui_text(
+                &mut ctx.text,
+                "No problems detected in the workspace.",
+                w - msg_x - 14.0,
+                chrome,
+            );
+            if !msg.is_empty() {
+                ctx.text.queue_ui_sized(msg_x, Self::body_top(h) + 2.0, &msg, theme::TEXT_3(), chrome, clip);
+            }
             return;
         }
 
@@ -289,7 +332,11 @@ impl ProblemSet {
                     let (icon, icol) = crate::abi::file_icon_for(&p.file, false);
                     ctx.dl_icon(left + 12.0, y + (row_h - 13.0) * 0.5, 12.0, 12.0, icons::CHEVRON_DOWN, theme::TEXT_3(), 2.0, false);
                     ctx.dl_icon(left + 28.0, y + (row_h - 14.0) * 0.5, 14.0, 14.0, icon, icol, 1.4, false);
-                    ctx.text.queue_ui_sized(left + 46.0, y + (row_h - chrome) * 0.5 - 1.0, &p.file, theme::TEXT_1(), chrome, clip);
+                    let file_x = left + 46.0;
+                    let file = fit_ui_text(&mut ctx.text, &p.file, w - file_x - 14.0, chrome);
+                    if !file.is_empty() {
+                        ctx.text.queue_ui_sized(file_x, y + (row_h - chrome) * 0.5 - 1.0, &file, theme::TEXT_1(), chrome, clip);
+                    }
                 }
                 VisRow::Problem(pi) => {
                     let p = &self.items[pi];
@@ -310,13 +357,11 @@ impl ProblemSet {
                     if !p.code.is_empty() {
                         ctx.text.queue_ui_sized(rx_code, y + (row_h - (chrome - 1.0)) * 0.5 - 1.0, &p.code, theme::TEXT_3(), chrome - 1.0, clip);
                     }
-                    // Message, clipped before the right cluster.
-                    let avail = ((rx_code - 8.0 - msg_x) / adv).floor() as usize;
-                    let mut msg = p.message.clone();
-                    if msg.chars().count() > avail && avail > 1 {
-                        msg = msg.chars().take(avail - 1).collect::<String>() + "\u{2026}";
+                    // Message, measured and clipped before the right cluster.
+                    let msg = fit_ui_text(&mut ctx.text, &p.message, rx_code - 8.0 - msg_x, chrome);
+                    if !msg.is_empty() {
+                        ctx.text.queue_ui_sized(msg_x, y + (row_h - chrome) * 0.5 - 1.0, &msg, theme::TEXT(), chrome, clip);
                     }
-                    ctx.text.queue_ui_sized(msg_x, y + (row_h - chrome) * 0.5 - 1.0, &msg, theme::TEXT(), chrome, clip);
                 }
             }
         }
