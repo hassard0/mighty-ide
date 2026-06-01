@@ -7,7 +7,7 @@ the `mui_chord` router). This table is the authoritative list.
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+N` | New untitled file |
+| `Ctrl+N` | New file at location (native file picker) |
 | `Ctrl+S` | Save file |
 | `Ctrl+Shift+S` | Save As (native file picker, typed-path fallback) |
 | `Ctrl+Z` | Undo |

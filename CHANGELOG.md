@@ -39,10 +39,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Open Recent** now opens the recent picker when either recent files or recent
   folders exist, instead of falling back to an open-folder prompt for file-only
   history.
-- **New File commands are explicit**: `Ctrl+N` is now labeled
-  **File: New Untitled File**, while the palette also exposes
-  **File: New File in Workspace** for creating a named file under the current
-  workspace.
+- **New File commands are explicit**: `Ctrl+N` is labeled
+  **File: New File at Location** and opens the native picker, while the palette
+  also exposes **File: New Untitled Tab** for a scratch buffer and
+  **Explorer: New File in Workspace** for creating under the current workspace.
 - **Bottom docks reserve editor space consistently**: Run, Web, Problems, and
   Terminal now share one lower-dock owner model, so editor/ghost rows no longer
   keep flowing underneath testing or output drawers.
@@ -188,6 +188,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Mighty brand mark is cleaner**: the taskbar icon, rail logo, and Welcome
   mark now share a centered accent Mighty glyph without the old side-rail stripe,
   so the first impression reads as an IDE identity instead of a generic tile.
+- **New/Open/Save command labels match behavior**: the palette and keybinding
+  docs now distinguish picker-backed file creation from untitled scratch tabs,
+  removing the contradictory `Ctrl+N` wording.
 - **Markdown Preview is visibly closable**: the rendered preview pane now has a
   header close button that collapses the split preview through the same pane
   machinery as the command route.

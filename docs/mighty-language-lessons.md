@@ -2668,3 +2668,17 @@ became a strange colored stripe in compact rail and taskbar contexts.
 - **Language note:** no compiler gap surfaced. Mighty UI needs a reusable brand
   mark primitive or asset pipeline so app icon, rail chrome, and Welcome art do
   not have to be hand-kept in sync across Rust draw calls and Python icon code.
+
+### L176. File command labels must match picker-backed behavior **[finding, P1]**
+The file workflow had become functionally better than its wording: `Ctrl+N`
+opened the native picker for a disk-backed file, but docs and palette labels
+still implied an untitled scratch buffer in some places. That mismatch makes
+New/Open/Save feel unreliable even when the underlying command dispatch works.
+
+- **IDE note:** command labels now distinguish **File: New File at Location**,
+  **File: New Untitled Tab**, and **Explorer: New File in Workspace**. README,
+  keybinding docs, changelog, and palette tests were updated to match the actual
+  native-dialog workflow.
+- **Language note:** no compiler gap surfaced. Mighty needs command metadata
+  generated from one source of truth so palette labels, keybinding docs, welcome
+  actions, and tests do not drift apart as UX semantics change.
