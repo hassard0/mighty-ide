@@ -1056,6 +1056,20 @@ fn new_folder_dialog_env_pick_creates_or_accepts_folder() {
         "Folder ready: existing"
     );
 
+    let outside = std::env::temp_dir().join(format!(
+        "mui_new_folder_dialog_outside_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&outside);
+    std::fs::create_dir_all(&outside).unwrap();
+    std::env::set_var("MUI_NEW_FOLDER_PICK", outside.to_string_lossy().as_ref());
+    assert_eq!(crate::mui_newfolder_dialog(handle), 0);
+    std::env::remove_var("MUI_NEW_FOLDER_PICK");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Choose a folder inside the workspace");
+    let _ = std::fs::remove_dir_all(&outside);
+
     let _ = std::fs::remove_dir_all(&root);
 }
 

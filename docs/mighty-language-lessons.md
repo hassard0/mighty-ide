@@ -2319,3 +2319,16 @@ through the same command surface as other layout and window operations.
   real-window harness coverage at the end of the interaction suite.
 - **Language note:** no compiler gap surfaced. The repeated command-id mirroring
   reinforces the need for generated command bindings shared by Rust and Mighty.
+
+### L151. Native picker success must map to visible workspace change **[finding, P1]**
+The New Folder command used a native folder picker, but accepting an arbitrary
+folder outside the current workspace could produce a success toast while the
+Explorer tree did not change. To a user, that reads as a broken button even
+though the dialog returned a valid path.
+
+- **IDE note:** New Folder now validates that the selected or newly created
+  folder is inside the current workspace before accepting it. Outside selections
+  produce a clear warning and no fake success state.
+- **Language note:** no compiler gap surfaced. Mighty still needs a richer
+  command-result type so native picker outcomes can carry success, cancelled,
+  unavailable, and invalid-for-current-context without integer sentinels.

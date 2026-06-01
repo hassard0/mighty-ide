@@ -4681,10 +4681,39 @@ pub extern "C" fn mui_newfolder_dialog(handle: i64) -> i32 {
         }
     };
     let name = basename(&target);
-    create_or_accept_folder_at(ctx, target, &name)
+    create_or_accept_folder_at(ctx, target, &initial_dir, &name)
 }
 
-fn create_or_accept_folder_at(ctx: &mut MuiContext, target: PathBuf, name: &str) -> i32 {
+fn path_is_inside_workspace(root: &std::path::Path, target: &std::path::Path) -> bool {
+    let root = std::fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
+    if let Ok(target) = std::fs::canonicalize(target) {
+        return target.starts_with(&root);
+    }
+    target
+        .parent()
+        .map(|parent| {
+            std::fs::canonicalize(parent)
+                .unwrap_or_else(|_| parent.to_path_buf())
+                .starts_with(&root)
+        })
+        .unwrap_or(false)
+}
+
+fn create_or_accept_folder_at(
+    ctx: &mut MuiContext,
+    target: PathBuf,
+    workspace_root: &std::path::Path,
+    name: &str,
+) -> i32 {
+    if !path_is_inside_workspace(workspace_root, &target) {
+        ctx.push_toast(crate::toast::Kind::Warn, "Choose a folder inside the workspace");
+        println!(
+            "newfolder: selected folder is outside workspace: {} (root {})",
+            target.display(),
+            workspace_root.display()
+        );
+        return 0;
+    }
     if target.is_dir() {
         ctx.tree.refresh();
         ctx.push_toast(crate::toast::Kind::Success, format!("Folder ready: {name}"));
