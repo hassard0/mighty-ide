@@ -2682,3 +2682,32 @@ New/Open/Save feel unreliable even when the underlying command dispatch works.
 - **Language note:** no compiler gap surfaced. Mighty needs command metadata
   generated from one source of truth so palette labels, keybinding docs, welcome
   actions, and tests do not drift apart as UX semantics change.
+
+### L177. Empty side panels need actionable copy **[finding, P2]**
+The Source Control panel showed a commit box and header icons, then only
+`No changes` in the body. That was technically correct for a clean repo, but it
+made the panel feel inert and gave no clue whether the user should fetch, pull,
+edit a file, or open a different folder.
+
+- **IDE note:** Source Control now distinguishes clean repos from non-git
+  folders with short, actionable empty states: clean repos say the working tree
+  is clean and suggest pull/fetch/edit, while non-git folders explain that a
+  Git-backed folder is needed.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a reusable empty
+  state pattern for side panels so "nothing here" surfaces can consistently
+  provide a state label, short reason, and next action without bespoke copy in
+  each drawer.
+
+### L178. Startup must not mutate the workspace **[finding, P1]**
+While testing the Source Control empty state against a temporary clean Git repo,
+the IDE immediately showed an untracked `scratch.mty`. The no-arg startup path
+was creating a path-backed scratch file in the current directory, so merely
+opening the IDE dirtied a clean workspace.
+
+- **IDE note:** no-arg startup now passes `None` into the initial context so the
+  first tab is a virtual scratch tab. The Welcome screen still opens normally,
+  typing still starts editing, and explicit Save/New File flows continue to use
+  native pickers, but startup no longer writes `scratch.mty`.
+- **Language note:** no compiler gap surfaced. Mighty needs clearer lifecycle
+  semantics around virtual buffers versus workspace files, ideally encoded in
+  the command/file APIs so "open app" cannot accidentally become "create file."

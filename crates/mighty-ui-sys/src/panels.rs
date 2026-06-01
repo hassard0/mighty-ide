@@ -510,11 +510,17 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
     }
 
     if ctx.scm.root.is_none() {
-        ctx.text.queue_ui_sized(sx + 14.0, scm_rows_top() + 4.0, "Not a git repository", theme::TEXT_3(), chrome, clip);
+        let top = scm_rows_top();
+        ctx.text.queue_ui_sized(sx + 14.0, top + 4.0, "Not a git repository", theme::TEXT_1(), chrome, clip);
+        let hint = fit_tail_px(&mut ctx.text, "Open a folder with Git history to enable source control.", sw - 28.0, chrome - 1.0);
+        ctx.text.queue_ui_sized(sx + 14.0, top + 25.0, &hint, theme::TEXT_3(), chrome - 1.0, clip);
         return;
     }
     if count == 0 {
-        ctx.text.queue_ui_sized(sx + 14.0, scm_rows_top() + 4.0, "No changes", theme::TEXT_3(), chrome, clip);
+        let top = scm_rows_top();
+        ctx.text.queue_ui_sized(sx + 14.0, top + 4.0, "Working tree clean", theme::TEXT_1(), chrome, clip);
+        let hint = fit_tail_px(&mut ctx.text, "Pull, fetch, or edit a file to start a change.", sw - 28.0, chrome - 1.0);
+        ctx.text.queue_ui_sized(sx + 14.0, top + 25.0, &hint, theme::TEXT_3(), chrome - 1.0, clip);
         return;
     }
 

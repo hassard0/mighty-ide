@@ -191,6 +191,12 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **New/Open/Save command labels match behavior**: the palette and keybinding
   docs now distinguish picker-backed file creation from untitled scratch tabs,
   removing the contradictory `Ctrl+N` wording.
+- **Source Control empty states are actionable**: clean repos now say
+  "Working tree clean" with a next-action hint, and non-git folders explain how
+  to enable source control instead of showing a dead panel.
+- **Startup scratch tabs are virtual**: no-arg launches no longer create
+  `scratch.mty` in the working folder, so opening a clean Git workspace does not
+  immediately produce an untracked file in Source Control.
 - **Markdown Preview is visibly closable**: the rendered preview pane now has a
   header close button that collapses the split preview through the same pane
   machinery as the command route.

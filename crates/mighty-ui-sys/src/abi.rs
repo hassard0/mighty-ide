@@ -139,26 +139,19 @@ pub(crate) fn lsp_def_raw(lang: Language, path: &std::path::Path, source: &str, 
     )
 }
 
-/// Resolve the file to edit: `argv[1]` if given, else a scratch file in the
-/// current directory. The scratch file is created empty if it does not exist
-/// (so the editor never defaults to its own source — see deliverable 1).
+/// Resolve the file to edit: `argv[1]` if given, else a virtual scratch tab.
+/// The scratch tab is not file-backed, so startup does not create `scratch.mty`
+/// in the workspace or make a clean Git repo dirty.
 ///
 /// The `bool` return is `true` when a file argument WAS supplied. On a no-arg
 /// launch (`false`) the IDE forces the branded Welcome screen open so a
 /// double-click lands on the landing page instead of an anonymous scratch
-/// buffer (the path-backed scratch tab still exists underneath, so "New File" /
-/// typing dismisses Welcome straight into an editable buffer).
-fn resolve_target_path() -> (PathBuf, bool) {
+/// buffer. Typing dismisses Welcome straight into the virtual scratch tab.
+fn resolve_target_path() -> (Option<PathBuf>, bool) {
     if let Some(arg) = std::env::args().nth(1) {
-        return (PathBuf::from(arg), true);
+        return (Some(PathBuf::from(arg)), true);
     }
-    let scratch = PathBuf::from("scratch.mty");
-    if !scratch.exists() {
-        if let Err(e) = std::fs::write(&scratch, b"") {
-            eprintln!("mui_init_s: could not create scratch file: {e}");
-        }
-    }
-    (scratch, false)
+    (None, false)
 }
 
 /// First-run onboarding: if the recent-folders MRU is empty AND a bundled
@@ -242,15 +235,21 @@ fn visible_surface_size(ctx: &MuiContext) -> (u32, u32) {
 
 /// Open a window `width`x`height` and return an opaque `i64` handle, or `0` on
 /// failure. Scalar mirror of [`crate::mui_init`] that additionally:
-///   * resolves the target file from `argv[1]` (or a scratch file — never the
-///     editor's own source);
-///   * titles the window with the file's basename;
-///   * eagerly loads the file so [`mui_load`] can report its length.
+///   * resolves the target file from `argv[1]` or creates a virtual scratch tab;
+///   * titles the window with the file basename or scratch label;
+///   * eagerly loads the file when a file-backed tab exists.
 #[no_mangle]
 pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
     let (path, had_file_arg) = resolve_target_path();
-    let title = format!("{} — Mighty IDE", basename(&path));
-    println!("mui_init_s: editing {}", path.display());
+    let title_name = path
+        .as_ref()
+        .map(|p| basename(p))
+        .unwrap_or_else(|| "(scratch)".to_string());
+    let title = format!("{title_name} — Mighty IDE");
+    match path.as_ref() {
+        Some(path) => println!("mui_init_s: editing {}", path.display()),
+        None => println!("mui_init_s: no file arg -> virtual scratch tab"),
+    }
 
     // Optional window-size override (used by screenshot capture to hit an exact
     // size, e.g. 1320x860). Falls back to the size Mighty passed.
@@ -264,7 +263,7 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
     let width = env_dim("MUI_WIDTH", width);
     let height = env_dim("MUI_HEIGHT", height);
 
-    let handle = crate::build_context(width, height, title, Some(path)) as usize as i64;
+    let handle = crate::build_context(width, height, title, path) as usize as i64;
 
     // First-run onboarding: when there are no recent folders yet (a fresh
     // install) and a bundled `samples/` dir sits next to the exe, seed it into
@@ -274,7 +273,7 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
     seed_first_run_samples(handle);
 
     // No-arg launch (double-click): force the branded Welcome screen so the IDE
-    // opens to its landing page, not an anonymous scratch buffer. The path-backed
+    // opens to its landing page, not an anonymous scratch buffer. The virtual
     // scratch tab is still active underneath; "New File" / typing dismisses
     // Welcome straight into it. A file-argument launch skips this and goes
     // directly to the file. Suppressed under any headless/screenshot/probe env so
