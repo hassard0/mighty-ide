@@ -361,6 +361,23 @@ impl TabStore {
     /// Replace the active tab's model from raw bytes (load / reload from disk).
     pub fn reload_active(&mut self, bytes: &[u8]) {
         let i = self.active.min(self.tabs.len().saturating_sub(1));
+        self.reload_index(i, bytes);
+    }
+
+    /// Replace a clean open file-backed tab from disk. Returns:
+    /// * `Some(true)` when the tab was refreshed,
+    /// * `Some(false)` when the file is open but dirty and was left untouched,
+    /// * `None` when no open tab points at `path`.
+    pub fn reload_clean_path(&mut self, path: &Path, bytes: &[u8]) -> Option<bool> {
+        let i = self.find_by_path(path)?;
+        if self.is_dirty(i) {
+            return Some(false);
+        }
+        self.reload_index(i, bytes);
+        Some(true)
+    }
+
+    fn reload_index(&mut self, i: usize, bytes: &[u8]) {
         self.tabs[i].model = TextModel::from_bytes(bytes);
         self.tabs[i].bytes = bytes.to_vec();
         self.tabs[i].dirty = false;

@@ -200,14 +200,22 @@ impl SearchState {
     /// only rewrites files already in `results.files`, re-reads each to confirm
     /// it still matches, and does a plain case-insensitive substitution that
     /// preserves the rest of the file. Skips if the query is empty.
+    #[allow(dead_code)]
     pub fn replace_all(&mut self, root: &Path) -> i32 {
+        self.replace_all_with_changed_paths(root).0
+    }
+
+    /// Like [`Self::replace_all`], but also returns the paths that were written.
+    /// The UI uses this to refresh clean open tabs after project-wide replaces.
+    pub fn replace_all_with_changed_paths(&mut self, root: &Path) -> (i32, Vec<PathBuf>) {
         let needle = self.query_string();
         if needle.trim().is_empty() {
-            return 0;
+            return (0, Vec::new());
         }
         let replacement = self.replace_string();
         let needle_lower = needle.to_lowercase();
         let mut total = 0;
+        let mut changed = Vec::new();
         let files: Vec<PathBuf> = self.results.files.iter().map(|f| f.path.clone()).collect();
         for path in files {
             let bytes = match std::fs::read(&path) {
@@ -221,11 +229,12 @@ impl SearchState {
             let (rewritten, n) = replace_in_text(&text, &needle_lower, &replacement);
             if n > 0 && std::fs::write(&path, rewritten.as_bytes()).is_ok() {
                 total += n;
+                changed.push(path);
             }
         }
         // Re-run so the panel reflects the post-replace state.
         self.run(root);
-        total
+        (total, changed)
     }
 
     // ---- scalar getters ----

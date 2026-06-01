@@ -1013,15 +1013,52 @@ pub extern "C" fn mui_search_replace_all(handle: i64) -> i32 {
         return 0;
     };
     let dir = workspace_dir(ctx);
-    let n = ctx.search.replace_all(&dir);
+    let (n, changed_paths) = ctx.search.replace_all_with_changed_paths(&dir);
+    let (refreshed, dirty_skipped) = refresh_replaced_open_tabs(ctx, &changed_paths);
     println!("search: replaced {n}");
     if n > 0 {
         let suffix = if n == 1 { "" } else { "s" };
-        ctx.push_toast(crate::toast::Kind::Success, format!("Replaced {n} occurrence{suffix}"));
+        if dirty_skipped > 0 {
+            let tab_suffix = if dirty_skipped == 1 { "" } else { "s" };
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                format!(
+                    "Replaced {n} occurrence{suffix}; {dirty_skipped} dirty open tab{tab_suffix} not refreshed"
+                ),
+            );
+        } else {
+            ctx.push_toast(
+                crate::toast::Kind::Success,
+                format!("Replaced {n} occurrence{suffix}"),
+            );
+        }
+        if refreshed > 0 {
+            crate::abi::sync_active_path(ctx);
+        }
     } else {
         ctx.push_toast(crate::toast::Kind::Warn, "No project replacements");
     }
     n
+}
+
+fn refresh_replaced_open_tabs(
+    ctx: &mut MuiContext,
+    changed_paths: &[std::path::PathBuf],
+) -> (usize, usize) {
+    let mut refreshed = 0usize;
+    let mut dirty_skipped = 0usize;
+    for path in changed_paths {
+        let bytes = match std::fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(_) => continue,
+        };
+        match ctx.tabs.reload_clean_path(path, &bytes) {
+            Some(true) => refreshed += 1,
+            Some(false) => dirty_skipped += 1,
+            None => {}
+        }
+    }
+    (refreshed, dirty_skipped)
 }
 
 /// Number of files with matches.

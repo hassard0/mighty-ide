@@ -2259,3 +2259,15 @@ inconsistent: users had to remember two different creation flows.
 - **Language note:** no compiler gap surfaced. Mighty would benefit from a
   standard command-result convention for cancelled vs unavailable native UI so
   fallback routing stays compact on the Mighty side.
+
+### L146. Disk mutations must reconcile with open buffers **[finding, P1]**
+Project Replace wrote matching files on disk, but clean tabs already showing
+those files could keep stale text in the editor. That makes a successful replace
+look like it failed until the user manually reloads, and dirty tabs need explicit
+conflict signaling instead of silent overwrite.
+
+- **IDE note:** Project Replace now returns changed paths, refreshes any clean
+  open tab from disk, and leaves dirty open tabs untouched with a warning toast.
+- **Language note:** no compiler gap surfaced. Mighty needs a first-class file
+  event / buffer invalidation channel so disk-changing commands can refresh or
+  conflict-mark open documents without bespoke shim plumbing.

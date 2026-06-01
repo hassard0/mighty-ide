@@ -698,6 +698,10 @@ fn visible_rows_reserve_space_for_every_bottom_dock_owner() {
     let mut ctx = ctx_or_skip!();
     ctx.gpu.width = 900;
     ctx.gpu.height = 700;
+    ctx.gpu.phys_width = 0;
+    ctx.gpu.phys_height = 0;
+    crate::uiscale::set_os_scale(1.0);
+    crate::uiscale::set_user_zoom(1.0);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     let base_rows = crate::abi::mui_visible_rows(handle);
@@ -846,8 +850,10 @@ fn search_replace_all_toasts_visible_result() {
     let root = std::env::temp_dir().join("mui_search_replace_toast");
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
-    std::fs::write(root.join("a.mty"), "foo\nfoo\n").unwrap();
+    let path = root.join("a.mty");
+    std::fs::write(&path, "foo\nfoo\n").unwrap();
     ctx.tree.set_root(root.clone());
+    ctx.tabs.open_path(path.clone());
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     for ch in "foo".chars() {
@@ -860,10 +866,49 @@ fn search_replace_all_toasts_visible_result() {
     }
 
     assert_eq!(crate::panels::mui_search_replace_all(handle), 2);
-    assert_eq!(std::fs::read_to_string(root.join("a.mty")).unwrap(), "bar\nbar\n");
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "bar\nbar\n");
+    assert_eq!(ctx.tabs.active_model().as_text(), "bar\nbar\n");
+    assert!(!ctx.tabs.is_dirty(ctx.tabs.active()));
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Success);
     assert_eq!(toast.message, "Replaced 2 occurrences");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn search_replace_all_preserves_dirty_open_tab() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_search_replace_dirty_tab");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("a.mty");
+    std::fs::write(&path, "foo\n").unwrap();
+    ctx.tree.set_root(root.clone());
+    let idx = ctx.tabs.open_path(path.clone());
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("local unsaved foo\n");
+    ctx.tabs.set_dirty(idx, true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    for ch in "foo".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+    assert_eq!(crate::panels::mui_search_run(handle), 1);
+    ctx.search.replace_focus = true;
+    for ch in "bar".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+
+    assert_eq!(crate::panels::mui_search_replace_all(handle), 1);
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "bar\n");
+    assert_eq!(ctx.tabs.active_model().as_text(), "local unsaved foo\n");
+    assert!(ctx.tabs.is_dirty(idx));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Replaced 1 occurrence; 1 dirty open tab not refreshed"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
