@@ -2295,3 +2295,16 @@ or Explorer more room, which makes drawer-heavy workflows feel clunky.
 - **Language note:** no compiler gap surfaced. Mighty still needs a cleaner
   command-group declaration/dispatch form so related actions can be registered
   and routed without manually mirroring numeric ranges in Mighty source.
+
+### L149. Window chrome actions need command equivalents **[finding, P2]**
+The borderless titlebar had visible maximize/restore chrome, but the same action
+was not reachable from the command system. Users who miss the small frame button
+or prefer keyboard-driven layout control should not need to aim at custom window
+chrome.
+
+- **IDE note:** `Window: Toggle Maximize` is now a palette command routed through
+  the shared command dispatcher to the native window maximize/restore hook, with
+  trace coverage in the real-window harness.
+- **Language note:** no compiler gap surfaced. Mighty still needs command
+  metadata generation so Rust command ids, Mighty mirror functions, labels, and
+  harness coverage do not drift as the command surface grows.

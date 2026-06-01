@@ -227,6 +227,8 @@ pub const CMD_SIDEBAR_WIDE: u32 = 96;
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_LAST: u32 = CMD_SIDEBAR_WIDE;
+/// Toggle the native window between restored and maximized states.
+pub const CMD_WINDOW_TOGGLE_MAXIMIZE: u32 = 97;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -308,6 +310,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_SIDEBAR_COMPACT,  label: "View: Sidebar Compact", keybinding: "" },
     Command { id: CMD_SIDEBAR_DEFAULT,  label: "View: Sidebar Default Width", keybinding: "" },
     Command { id: CMD_SIDEBAR_WIDE,     label: "View: Sidebar Wide", keybinding: "" },
+    Command { id: CMD_WINDOW_TOGGLE_MAXIMIZE, label: "Window: Toggle Maximize", keybinding: "" },
     Command { id: CMD_DEBUG_START_CONTINUE, label: "Debug: Start / Continue", keybinding: "F5" },
     Command { id: CMD_DEBUG_STOP,       label: "Debug: Stop",         keybinding: "Shift+F5" },
     Command { id: CMD_DEBUG_STEP_OVER,  label: "Debug: Step Over",    keybinding: "F10" },
@@ -647,6 +650,7 @@ impl PaletteEngine {
             CMD_SIDEBAR_COMPACT => (icons::ARROW_LEFT, "Use a smaller sidebar drawer", false),
             CMD_SIDEBAR_DEFAULT => (icons::EXPLORER, "Restore responsive sidebar width", false),
             CMD_SIDEBAR_WIDE => (icons::ARROW_RIGHT, "Use a wider sidebar drawer", false),
+            CMD_WINDOW_TOGGLE_MAXIMIZE => (icons::WIN_MAX, "Maximize or restore the IDE window", false),
             CMD_DEBUG_START_CONTINUE => (icons::DBG_CONTINUE, "Start debugging or continue the paused session", true),
             CMD_DEBUG_STOP => (icons::DBG_STOP, "Stop the active debug session", false),
             CMD_DEBUG_STEP_OVER => (icons::DBG_STEP_OVER, "Run the next line without entering calls", false),

@@ -113,6 +113,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Window resizing stops before broken chrome**: the borderless desktop window
   now has a minimum inner size so the custom title bar, rail, tabs, and status
   bands cannot be squeezed into clipped controls.
+- **Window maximize is command reachable**: the command palette now exposes
+  **Window: Toggle Maximize**, so borderless-window layout control does not
+  depend on hitting the custom titlebar button.
 - **Testing header avoids status-pill collisions**: the Testing sidebar title now
   measures the right-side `idle`/`running`/`failed`/`passed` pill first and fits
   the header label into the remaining space.

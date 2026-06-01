@@ -1458,6 +1458,10 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
             "View: Sidebar Default Width",
         ),
         (crate::palette::CMD_SIDEBAR_WIDE, "View: Sidebar Wide"),
+        (
+            crate::palette::CMD_WINDOW_TOGGLE_MAXIMIZE,
+            "Window: Toggle Maximize",
+        ),
     ];
     for (id, label) in view_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
@@ -3429,6 +3433,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_RUN_IN_BROWSER, "cmd_run_in_browser"),
         (CMD_KEYBOARD_SHORTCUTS, "cmd_keyboard_shortcuts"),
         (CMD_NEW_PROJECT, "cmd_new_project"),
+        (CMD_WINDOW_TOGGLE_MAXIMIZE, "cmd_window_toggle_maximize"),
     ];
 
     for cmd in COMMANDS {

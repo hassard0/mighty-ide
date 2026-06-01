@@ -2478,6 +2478,9 @@ pub extern "C" fn mui_window_toggle_maximize(handle: i64) -> i32 {
         None => false,
     };
     ctx.window_maximized = now;
+    let label = if now { "Window maximized" } else { "Window restored" };
+    ctx.push_toast(crate::toast::Kind::Info, label);
+    trace(&format!("window_toggle_maximize now={}", if now { 1 } else { 0 }));
     if now {
         1
     } else {
