@@ -64,8 +64,11 @@ impl Kind {
     }
 }
 
-/// How long a toast stays before it begins dismissing.
-const LIFETIME: Duration = Duration::from_millis(3000);
+/// How long each toast severity stays before it begins dismissing.
+const INFO_LIFETIME: Duration = Duration::from_millis(2400);
+const SUCCESS_LIFETIME: Duration = Duration::from_millis(1800);
+const WARN_LIFETIME: Duration = Duration::from_millis(3600);
+const ERROR_LIFETIME: Duration = Duration::from_millis(4500);
 /// The fade/slide in + out animation window (each end).
 const ANIM: Duration = Duration::from_millis(220);
 /// Max simultaneously-visible toasts (older ones drop).
@@ -114,20 +117,30 @@ impl Toast {
     /// elapsed time, so the render is smooth without per-toast animation state.
     pub fn presence(&self, now: Instant) -> f32 {
         let age = now.saturating_duration_since(self.born);
-        if age >= LIFETIME {
+        let lifetime = self.lifetime();
+        if age >= lifetime {
             return 0.0;
         }
         let anim = ANIM.as_secs_f32();
         let a = age.as_secs_f32();
-        let life = LIFETIME.as_secs_f32();
+        let life = lifetime.as_secs_f32();
         let fade_in = (a / anim).clamp(0.0, 1.0);
         let fade_out = ((life - a) / anim).clamp(0.0, 1.0);
         fade_in.min(fade_out)
     }
 
-    /// True once the toast has outlived [`LIFETIME`] and should be removed.
+    /// True once the toast has outlived its severity-specific lifetime.
     fn is_expired(&self, now: Instant) -> bool {
-        now.saturating_duration_since(self.born) >= LIFETIME
+        now.saturating_duration_since(self.born) >= self.lifetime()
+    }
+
+    fn lifetime(&self) -> Duration {
+        match self.kind {
+            Kind::Info => INFO_LIFETIME,
+            Kind::Success => SUCCESS_LIFETIME,
+            Kind::Warn => WARN_LIFETIME,
+            Kind::Error => ERROR_LIFETIME,
+        }
     }
 }
 
@@ -709,11 +722,27 @@ mod tests {
         let t0 = Instant::now();
         q.push_at(Kind::Success, "saved", t0);
         // Just before lifetime: still present.
-        assert!(!q.tick_at(t0 + LIFETIME - Duration::from_millis(1)));
+        assert!(!q.tick_at(t0 + SUCCESS_LIFETIME - Duration::from_millis(1)));
         assert_eq!(q.len(), 1);
         // After lifetime: expired + dropped, tick reports a change.
-        assert!(q.tick_at(t0 + LIFETIME + Duration::from_millis(1)));
+        assert!(q.tick_at(t0 + SUCCESS_LIFETIME + Duration::from_millis(1)));
         assert_eq!(q.len(), 0);
+    }
+
+    #[test]
+    fn success_toasts_clear_faster_than_errors() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+        q.push_at(Kind::Success, "Created folder: sample", t0);
+        q.push_at(Kind::Error, "Save failed: main.mty", t0);
+
+        assert!(q.tick_at(t0 + SUCCESS_LIFETIME + Duration::from_millis(20)));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].kind, Kind::Error);
+        assert_eq!(q.toasts()[0].message, "Save failed: main.mty");
+
+        assert!(q.tick_at(t0 + ERROR_LIFETIME + Duration::from_millis(20)));
+        assert!(q.is_empty());
     }
 
     #[test]
@@ -727,9 +756,9 @@ mod tests {
         // Mid-life: fully present.
         assert!((t.presence(t0 + Duration::from_millis(1500)) - 1.0).abs() < 0.05);
         // Near expiry: dismissing (< 1).
-        assert!(t.presence(t0 + LIFETIME - Duration::from_millis(50)) < 0.8);
+        assert!(t.presence(t0 + INFO_LIFETIME - Duration::from_millis(50)) < 0.8);
         // Past expiry: gone.
-        assert_eq!(t.presence(t0 + LIFETIME + Duration::from_millis(1)), 0.0);
+        assert_eq!(t.presence(t0 + INFO_LIFETIME + Duration::from_millis(1)), 0.0);
     }
 
     #[test]
@@ -747,9 +776,9 @@ mod tests {
         let t0 = Instant::now();
         q.push_at(Kind::Success, "Saved", t0);
         q.push_at(Kind::Success, "Saved", t0 + Duration::from_millis(500));
-        // Still one toast, but its clock was refreshed (won't expire at t0+LIFETIME).
+        // Still one toast, but its clock was refreshed (won't expire at t0+success lifetime).
         assert_eq!(q.len(), 1);
-        assert!(!q.tick_at(t0 + LIFETIME + Duration::from_millis(1)));
+        assert!(!q.tick_at(t0 + SUCCESS_LIFETIME + Duration::from_millis(1)));
         assert_eq!(q.len(), 1);
     }
 

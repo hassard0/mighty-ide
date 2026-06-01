@@ -128,6 +128,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Command surfaces read cleaner**: file-dialog commands no longer bake fake
   `...` truncation into their names, and Command Palette / Keyboard Shortcuts
   rows now measure titles and descriptions against right-side shortcut chrome.
+- **Toast timing feels less stale**: success/info notifications now clear faster
+  while warning/error messages remain visible longer, so completion messages do
+  not follow users into unrelated panels.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now

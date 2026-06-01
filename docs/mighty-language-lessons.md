@@ -3165,3 +3165,17 @@ pills before drawing.
   that distinguishes action name, menu/dialog convention, short label,
   description, and measured row layout policy instead of overloading one string
   for every surface.
+
+### L213. Toast lifetime should match message severity **[finding, P2]**
+Real-mouse screenshots still showed a success toast after the user had already
+navigated into another panel. The message was technically transient, but it read
+as stale feedback because quick completion notices lived as long as more
+important warnings.
+
+- **IDE note:** toast lifetime is now severity-aware: success feedback clears
+  quickly, info toasts stay modestly longer, and warnings/errors remain visible
+  long enough to read. The toast tests cover the faster success expiry and the
+  longer error lifetime.
+- **Language note:** no compiler gap surfaced. Mighty UI needs transient
+  feedback policies that can encode severity, user action, and surface context
+  instead of relying on one global toast timeout.
