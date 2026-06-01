@@ -21,12 +21,17 @@ pub const BTN_W: f32 = 46.0;
 /// Width reserved immediately left of the window controls for Run / More actions
 /// plus padding. The tab bar must not draw or hit-test underneath this strip.
 pub const ACTION_STRIP_W: f32 = 68.0;
-/// Thickness (px) of the resize-grab band along each window edge. Widened from a
-/// too-thin 6px so the borderless window is actually easy to grab-resize.
-pub const EDGE: f32 = 9.0;
+/// Thickness (px) of the resize-grab band along the side edges. Wider than the
+/// old 6px target so the borderless window is practical to resize.
+pub const EDGE_SIDE: f32 = 12.0;
+/// Bottom resize target. Also wider because the bottom edge has no tab controls.
+pub const EDGE_BOTTOM: f32 = 12.0;
+/// Top resize target. Kept conservative so the top tab row does not feel stolen
+/// by resize hit-testing.
+pub const EDGE_TOP: f32 = 6.0;
 /// Corners get a larger square grab zone (diagonal resize is the common case and
 /// the hardest to hit), so a corner wins within this distance of two edges.
-pub const CORNER: f32 = 18.0;
+pub const CORNER: f32 = 28.0;
 
 /// A title-bar hit result (what a press at a point landed on).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -82,7 +87,7 @@ pub fn hit(x: f32, y: f32, win_w: f32, body_left: f32) -> Option<TitleHit> {
 
 /// Map a point near a window edge to a resize-direction code (mirrors
 /// [`crate::window::ResizeDir::from_code`]), or `0` when not on an edge. The grab
-/// band is [`EDGE`] px thick; corners (within `EDGE` of two edges) win.
+/// band is edge-specific; corners use a larger square and win.
 pub fn resize_code(x: f32, y: f32, win_w: f32, win_h: f32) -> i32 {
     // Corners first, with a larger grab square (diagonal resize is hardest to hit).
     let cw = x <= CORNER;
@@ -102,10 +107,10 @@ pub fn resize_code(x: f32, y: f32, win_w: f32, win_h: f32) -> i32 {
         return 8; // SouthEast
     }
     // Edges (thinner band).
-    let on_w = x <= EDGE;
-    let on_e = x >= win_w - EDGE;
-    let on_n = y <= EDGE;
-    let on_s = y >= win_h - EDGE;
+    let on_w = x <= EDGE_SIDE;
+    let on_e = x >= win_w - EDGE_SIDE;
+    let on_n = y <= EDGE_TOP;
+    let on_s = y >= win_h - EDGE_BOTTOM;
     if on_n {
         return 3; // North
     }
@@ -163,6 +168,10 @@ mod tests {
         assert_eq!(resize_code(w - 1.0, 300.0, w, h), 2); // E
         assert_eq!(resize_code(400.0, 1.0, w, h), 3); // N
         assert_eq!(resize_code(400.0, h - 1.0, w, h), 4); // S
+        assert_eq!(resize_code(10.0, 300.0, w, h), 1); // forgiving W
+        assert_eq!(resize_code(w - 10.0, 300.0, w, h), 2); // forgiving E
+        assert_eq!(resize_code(400.0, h - 10.0, w, h), 4); // forgiving S
+        assert_eq!(resize_code(400.0, 8.0, w, h), 0); // top tab row not stolen
         // Interior: no resize.
         assert_eq!(resize_code(400.0, 300.0, w, h), 0);
     }

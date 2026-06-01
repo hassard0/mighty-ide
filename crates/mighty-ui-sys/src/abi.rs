@@ -4032,6 +4032,16 @@ pub extern "C" fn mui_window_controls_draw(handle: i64) {
     ctx.dl_rect(0.0, wh - 1.0, w, 1.0, theme::BORDER());
     ctx.dl_rect(0.0, 0.0, 1.0, wh, theme::BORDER());
     ctx.dl_rect(w - 1.0, 0.0, 1.0, wh, theme::BORDER());
+    // Visible corner grips for the borderless resize affordance. These stay
+    // subtle but give users a target instead of a hidden one-pixel frame.
+    let grip = theme::BORDER_STRONG();
+    for offset in [6.0_f32, 12.0] {
+        let len = 16.0 - (offset - 6.0);
+        ctx.dl_rect(w - offset - len, wh - offset, len, 1.0, grip);
+        ctx.dl_rect(w - offset, wh - offset - len, 1.0, len, grip);
+        ctx.dl_rect(offset, wh - offset, len, 1.0, grip);
+        ctx.dl_rect(offset, wh - offset - len, 1.0, len, grip);
+    }
     let bar_h = layout::TAB_BAR_H;
     let btn_w = crate::titlebar::BTN_W;
     let controls_x = crate::titlebar::controls_x(w);

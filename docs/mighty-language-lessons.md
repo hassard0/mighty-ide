@@ -1511,3 +1511,14 @@ ghost text believing rows behind the dock were still visible.
 - **Language note:** no new Mighty compiler issue surfaced. The bug came from
   split UI ownership across shim modules and the scalar ABI exposing too little
   shared layout state by default.
+
+### L87. Borderless resize needs visible affordances **[finding, P2]**
+The custom borderless window had resize hit regions, but the affordance was
+mostly invisible and the top-edge region competed with the tab row. That made
+manual resizing feel like guessing at an unmarked target.
+
+- **IDE note:** side and bottom resize hit targets are wider, the top edge stays
+  conservative to protect tab clicks, and the frame now draws subtle bottom
+  corner grips.
+- **Language note:** no Mighty gap surfaced. This is native-window chrome and
+  shim hit-testing work.
