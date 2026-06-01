@@ -1377,13 +1377,16 @@ fn new_file_dialog_cancel_and_existing_are_noops() {
     std::fs::create_dir_all(&outside_dir).unwrap();
     let outside = outside_dir.join("outside.mty");
     std::env::set_var("MUI_NEW_FILE_PICK", outside.to_string_lossy().as_ref());
-    assert_eq!(mui_newfile_dialog(handle), -2);
+    let outside_idx = mui_newfile_dialog(handle);
     std::env::remove_var("MUI_NEW_FILE_PICK");
-    assert!(!outside.exists());
-    assert_eq!(mui_tab_count(handle), 1);
+    assert_eq!(outside_idx, 1);
+    assert!(outside.exists());
+    assert_eq!(mui_tab_count(handle), 2);
+    assert_eq!(mui_tab_active(handle), outside_idx);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(outside.as_path()));
     let toast = ctx.toasts.toasts().last().unwrap();
-    assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Choose a file inside the workspace");
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Created file: outside.mty");
     let _ = std::fs::remove_dir_all(&outside_dir);
 
     let _ = std::fs::remove_dir_all(&root);
@@ -3277,6 +3280,40 @@ fn save_as_dialog_env_pick_writes_and_binds_untitled_tab() {
     std::env::remove_var("MUI_SAVE_FILE_PICK");
 
     assert_eq!(saved, 0, "dialog-picked Save As should succeed");
+    assert_eq!(mui_active_has_path(h), 1);
+    assert_eq!(mui_ed_dirty(h), 0);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(target.as_path()));
+    assert_eq!(std::fs::read_to_string(&target).unwrap(), "fn main() {\n");
+
+    crate::settings::set_active(before);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn plain_save_on_untitled_uses_native_save_picker() {
+    use crate::{mui_active_has_path, mui_ed_dirty, mui_ed_save};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    crate::settings::set_active(crate::settings::Settings::default());
+
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("fn main() {   ");
+    ctx.tabs.set_dirty(ctx.tabs.active(), true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let root = std::env::temp_dir().join(format!("mui_plain_save_untitled_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let target = root.join("saved.mty");
+
+    std::env::set_var("MUI_SAVE_FILE_PICK", target.to_string_lossy().as_ref());
+    let saved = mui_ed_save(h);
+    std::env::remove_var("MUI_SAVE_FILE_PICK");
+
+    assert_eq!(saved, 0);
     assert_eq!(mui_active_has_path(h), 1);
     assert_eq!(mui_ed_dirty(h), 0);
     assert_eq!(ctx.tabs.active_path().as_deref(), Some(target.as_path()));

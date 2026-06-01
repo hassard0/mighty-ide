@@ -4849,7 +4849,7 @@ pub extern "C" fn mui_newfile_create(handle: i64) -> i32 {
     };
     let base = crate::wsabi::effective_root(ctx);
     let target = base.join(&name);
-    create_new_file_at(ctx, target, &base, &name)
+    create_new_file_at(ctx, target, &base, &name, true)
 }
 
 /// Create a new workspace file through the native SaveFileDialog path picker.
@@ -4875,7 +4875,7 @@ pub extern "C" fn mui_newfile_dialog(handle: i64) -> i32 {
         }
     };
     let name = basename(&target);
-    create_new_file_at(ctx, target, &workspace_root, &name)
+    create_new_file_at(ctx, target, &workspace_root, &name, false)
 }
 
 fn create_new_file_at(
@@ -4883,8 +4883,9 @@ fn create_new_file_at(
     target: PathBuf,
     workspace_root: &std::path::Path,
     name: &str,
+    require_workspace: bool,
 ) -> i32 {
-    if !path_is_inside_workspace(workspace_root, &target) {
+    if require_workspace && !path_is_inside_workspace(workspace_root, &target) {
         ctx.push_toast(crate::toast::Kind::Warn, "Choose a file inside the workspace");
         println!(
             "newfile: selected file is outside workspace: {} (root {})",
@@ -8835,8 +8836,20 @@ pub extern "C" fn mui_autosave_touch(handle: i64) {
 
 fn save_active_current_path(ctx: &mut MuiContext) -> i32 {
     let Some(path) = ctx.tabs.active_path() else {
-        eprintln!("mui_ed_save: no file path for active tab");
-        return -1;
+        let root = file_dialog_initial_dir(ctx);
+        let target = match pick_save_file_native(&root, "untitled.mty", dialog_owner_hwnd(ctx)) {
+            FileDialogPick::Picked(path) => path,
+            FileDialogPick::Cancelled => {
+                println!("mui_ed_save: native save dialog cancelled for untitled tab");
+                return -2;
+            }
+            FileDialogPick::Unavailable => {
+                eprintln!("mui_ed_save: no file path and native save dialog unavailable");
+                ctx.push_toast(crate::toast::Kind::Warn, "Use Save As to choose a file path");
+                return -1;
+            }
+        };
+        return save_active_to_path(ctx, target);
     };
     let bytes = save_bytes_for_active(ctx);
     let name = basename(&path);

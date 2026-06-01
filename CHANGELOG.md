@@ -43,6 +43,11 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   **File: New File at Location** and opens the native picker, while the palette
   also exposes **File: New Untitled Tab** for a scratch buffer and
   **Explorer: New File in Workspace** for creating under the current workspace.
+- **New File at Location now honors the chosen location**: the native picker can
+  create and open a file outside the current workspace, while the Explorer
+  workspace command remains scoped to the open folder.
+- **Save on untitled buffers opens Save As**: direct Save now routes through the
+  native Save As picker for pathless tabs instead of failing silently.
 - **Bottom docks reserve editor space consistently**: Run, Web, Problems, and
   Terminal now share one lower-dock owner model, so editor/ghost rows no longer
   keep flowing underneath testing or output drawers.

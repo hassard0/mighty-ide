@@ -2711,3 +2711,19 @@ opening the IDE dirtied a clean workspace.
 - **Language note:** no compiler gap surfaced. Mighty needs clearer lifecycle
   semantics around virtual buffers versus workspace files, ideally encoded in
   the command/file APIs so "open app" cannot accidentally become "create file."
+
+### L179. Native file commands need command-specific path semantics **[finding, P1]**
+The UI had separate labels for "New File at Location" and "Explorer: New File
+in Workspace", but both paths still flowed through the same workspace guard.
+That made the native Save dialog feel broken when a user deliberately chose a
+file outside the current project. Direct Save on an untitled tab also depended
+on the Mighty command layer to route to Save As correctly.
+
+- **IDE note:** `File: New File at Location` now creates/opens the exact path
+  selected in the native picker, while the Explorer workspace prompt remains
+  workspace-scoped. Plain Save on an untitled tab now opens the native Save As
+  picker directly.
+- **Language note:** no compiler gap surfaced. Mighty needs first-class command
+  intent metadata for file workflows: workspace-relative creation, arbitrary
+  path creation, and save-as are different contracts and should not be inferred
+  from generic string-path plumbing.
