@@ -175,6 +175,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Branch Switcher is visibly closable**: the Git branch overlay now has a
   header close button that works in both filter and create-branch modes instead
   of relying on outside-click or Escape.
+- **Agents panel avoids clipped rows**: the Mighty Agents topology now draws
+  only complete visible rows and shows a slim scrollbar thumb when more agents,
+  tools, or supervisors continue below the sidebar.
 - **Markdown Preview is visibly closable**: the rendered preview pane now has a
   header close button that collapses the split preview through the same pane
   machinery as the command route.

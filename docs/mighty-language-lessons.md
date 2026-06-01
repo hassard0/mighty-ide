@@ -2606,3 +2606,16 @@ produced another dead control.
 - **Language note:** no compiler gap surfaced. The language-side pain is still
   lifecycle/routing duplication: modal submodes should not be able to bypass
   parent header actions because each overlay arm manually orders scalar checks.
+
+### L172. Scrollable topology panels must not draw clipped rows **[finding, P2]**
+The compact Agents gallery showed the Supervisors section cut off at the bottom
+of the sidebar. The data was scrollable, but the paint loop drew until `y > h`,
+which allowed a partial final row and gave no visual hint that more topology
+continued below.
+
+- **IDE note:** Agents now computes a complete visible-row budget from the
+  sidebar height, draws only full rows, and paints a slim scrollbar thumb when
+  additional topology rows are above or below the viewport.
+- **Language note:** no compiler gap surfaced. Mighty-authored panels need a
+  reusable scroll container primitive so row budgeting, clipping, scroll thumbs,
+  and hit-test offsets stay synchronized across drawers.

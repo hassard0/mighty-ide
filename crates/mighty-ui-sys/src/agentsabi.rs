@@ -608,11 +608,10 @@ impl AgentTopology {
 
         let row_h = layout::LINE_H();
         let top = Self::rows_top();
-        for (row, n) in self.nodes[self.first..].iter().enumerate() {
+        let bottom_pad = 56.0_f32;
+        let visible_rows = ((h - top - bottom_pad) / row_h).floor().max(0.0) as usize;
+        for (row, n) in self.nodes[self.first..].iter().take(visible_rows).enumerate() {
             let y = top + (row as f32) * row_h;
-            if y > h {
-                break;
-            }
 
             if n.kind == NodeKind::Section {
                 // Dim uppercase section header with a hairline above (except first).
@@ -672,6 +671,19 @@ impl AgentTopology {
                 ctx.dl_stroke(bx, by, 30.0, 14.0, 7.0, theme::ACCENT_LINE(), 1.0);
                 ctx.text.queue_ui_sized(bx + 6.0, by + 1.5, "LLM", theme::ACCENT_BRIGHT(), chrome - 4.0, clip);
             }
+        }
+        if self.nodes.len() > visible_rows && visible_rows > 0 {
+            let track_x = sx + sw - 6.0;
+            let track_y = top + 2.0;
+            let track_h = (h - top - bottom_pad - 4.0).max(row_h);
+            let total = self.nodes.len().max(1) as f32;
+            let frac = (visible_rows as f32 / total).clamp(0.12, 1.0);
+            let thumb_h = (track_h * frac).max(18.0).min(track_h);
+            let max_first = self.nodes.len().saturating_sub(visible_rows).max(1) as f32;
+            let scroll_t = (self.first as f32 / max_first).clamp(0.0, 1.0);
+            let thumb_y = track_y + (track_h - thumb_h) * scroll_t;
+            ctx.dl_round(track_x, track_y, 2.0, track_h, 1.0, theme::BORDER_SOFT());
+            ctx.dl_round(track_x - 1.0, thumb_y, 4.0, thumb_h, 2.0, theme::ACCENT_LINE());
         }
     }
 }
