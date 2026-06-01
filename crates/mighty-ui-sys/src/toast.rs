@@ -70,6 +70,20 @@ const LIFETIME: Duration = Duration::from_millis(3000);
 const ANIM: Duration = Duration::from_millis(220);
 /// Max simultaneously-visible toasts (older ones drop).
 pub const MAX_VISIBLE: usize = 4;
+const MARGIN: f32 = 18.0;
+const RIGHT_SAFE_INSET: f32 = 96.0;
+const CARD_H: f32 = 56.0;
+const GAP: f32 = 12.0;
+
+fn toast_card_width(window_w: f32) -> f32 {
+    320.0_f32
+        .min(window_w - 2.0 * MARGIN - RIGHT_SAFE_INSET)
+        .max(180.0)
+}
+
+fn toast_card_x(window_w: f32, card_w: f32) -> f32 {
+    (window_w - MARGIN - RIGHT_SAFE_INSET - card_w).max(MARGIN)
+}
 
 /// A single live toast.
 #[derive(Debug, Clone)]
@@ -190,22 +204,19 @@ impl ToastQueue {
         }
         let w = width as f32;
         let h = height as f32;
-        let margin = 18.0_f32;
-        let card_w = 320.0_f32.min(w - 2.0 * margin);
-        let card_h = 56.0_f32;
-        let gap = 12.0_f32;
-        let bottom = h - margin - theme::LINE_HEIGHT();
+        let card_w = toast_card_width(w);
+        let bottom = h - MARGIN - theme::LINE_HEIGHT();
         for (rev, t) in self.toasts.iter().rev().enumerate() {
             let presence = t.presence(now);
             let slot = rev as f32;
-            let cy_settled = bottom - card_h - slot * (card_h + gap);
+            let cy_settled = bottom - CARD_H - slot * (CARD_H + GAP);
             let cy = if presence > 0.001 {
                 cy_settled + (1.0 - presence) * 16.0
             } else {
                 cy_settled
             };
-            let cx = w - margin - card_w;
-            if x >= cx && x <= cx + card_w && y >= cy && y <= cy + card_h {
+            let cx = toast_card_x(w, card_w);
+            if x >= cx && x <= cx + card_w && y >= cy && y <= cy + CARD_H {
                 return Some(self.toasts.len() - 1 - rev);
             }
         }
@@ -240,15 +251,14 @@ impl ToastQueue {
         }
         let w = width as f32;
         let h = height as f32;
-        let margin = 18.0_f32;
-        let card_w = 320.0_f32.min(w - 2.0 * margin);
-        let card_h = 56.0_f32;
-        let gap = 12.0_f32;
+        let card_w = toast_card_width(w);
+        let card_h = CARD_H;
+        let gap = GAP;
         let radius = 12.0_f32;
 
         // Stack upward from the bottom-right, NEWEST at the bottom (last drawn).
         // Reserve a little headroom above the status bar.
-        let bottom = h - margin - theme::LINE_HEIGHT();
+        let bottom = h - MARGIN - theme::LINE_HEIGHT();
         let n = self.toasts.len();
         for (rev, t) in self.toasts.iter().rev().enumerate() {
             let presence = t.presence(now);
@@ -261,7 +271,7 @@ impl ToastQueue {
             // Slide in from below by a few px as it appears/dismisses.
             let slide = (1.0 - presence) * 16.0;
             let cy = cy_settled + slide;
-            let cx = w - margin - card_w;
+            let cx = toast_card_x(w, card_w);
             let card_clip = Some((
                 cx.max(0.0) as u32,
                 cy.max(0.0) as u32,
@@ -700,8 +710,20 @@ mod tests {
         q.push_at(Kind::Warn, "bottom", t0);
         assert!(!q.dismiss_at(900, 600, 10.0, 10.0, t0 + Duration::from_millis(500)));
 
-        // Newest toast is bottom-most, right-aligned.
-        assert!(q.dismiss_at(900, 600, 860.0, 530.0, t0 + Duration::from_millis(500)));
+        // Newest toast is bottom-most and inset from the right edge.
+        let w = 900.0;
+        let h = 600.0;
+        let cw = toast_card_width(w);
+        let cx = toast_card_x(w, cw);
+        let bottom = h - MARGIN - theme::LINE_HEIGHT();
+        let cy = bottom - CARD_H;
+        assert!(q.dismiss_at(
+            900,
+            600,
+            cx + cw - 20.0,
+            cy + 24.0,
+            t0 + Duration::from_millis(500)
+        ));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "top");
     }

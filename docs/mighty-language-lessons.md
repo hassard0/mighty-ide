@@ -1871,3 +1871,16 @@ text, or the wrong active tab would show up.
 - **Language note:** no new compiler gap surfaced. The useful gap is tooling:
   Mighty needs this style of cross-layer scenario harness because scalar unit
   tests cannot prove post-modal focus and active-tab intent.
+
+### L114. Toasts must leave visible edge space in compact frames **[finding, P2]**
+Offscreen compact screenshots showed the toast stack too close to the right
+edge; the card, text, and close affordance read as clipped even when the message
+itself fit. Notifications should feel temporary but not accidental.
+
+- **IDE note:** toast layout now uses one shared geometry model for drawing and
+  hit-testing, with a right-side safety inset and width clamp so cards remain
+  fully inside compact viewports. The dismissal test now derives its click
+  target from that geometry instead of assuming flush-right cards.
+- **Language note:** no compiler gap surfaced. The lesson is ergonomic: Mighty
+  UI helpers should expose reusable geometry primitives so drawn shapes and
+  hit-tests cannot drift.

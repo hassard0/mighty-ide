@@ -1775,7 +1775,7 @@ fn toast_click_abi_dismisses_hit_toast_and_consumes_only_hits() {
     assert_eq!(crate::mui_toast_click(handle), 0);
     assert_eq!(ctx.toasts.len(), 2);
 
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 860.0, 530.0, 0);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 760.0, 530.0, 0);
     assert_eq!(crate::mui_toast_click(handle), 1);
     assert_eq!(ctx.toasts.len(), 1);
     assert_eq!(ctx.toasts.toasts()[0].message, "Old");
