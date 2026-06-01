@@ -1816,3 +1816,16 @@ Windows can group or display the borderless app under a transient identity.
   fails.
 - **Language note:** no Mighty compiler gap surfaced. This belongs in the Rust
   native-window shim, not in Mighty source.
+
+### L110. Result toasts should model current state, not history **[finding, P2]**
+Toast stacks are easy to mistake for current IDE state. If a failed test run,
+browser build, or format action remains visible after a later successful retry,
+the UI reads as contradictory even when the underlying action worked.
+
+- **IDE note:** the toast queue now groups test results, Web Playground run
+  results, format results, and repeated navigation misses the same way it already
+  grouped file operations. A newer result replaces the older same-operation
+  notification instead of stacking stale text.
+- **Language note:** no new Mighty compiler gap surfaced. This remains a
+  shim-side state model, but a future Mighty UI toolkit should make stateful
+  notification channels explicit instead of relying on message-pattern grouping.

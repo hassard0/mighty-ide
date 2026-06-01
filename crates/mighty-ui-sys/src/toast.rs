@@ -360,6 +360,10 @@ enum OperationKey {
     Delete,
     Reveal,
     Copy,
+    Test,
+    WebRun,
+    Format,
+    Navigation,
 }
 
 fn operation_key(message: &str) -> Option<OperationKey> {
@@ -415,9 +419,49 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Could not copy")
     {
         Some(OperationKey::Copy)
+    } else if is_test_result_message(m) {
+        Some(OperationKey::Test)
+    } else if m.starts_with("Run in Browser:")
+        || m.starts_with("Web ")
+        || m.starts_with("Opened http://")
+        || m.starts_with("Opened https://")
+        || m.starts_with("Run finished")
+        || m.starts_with("Run failed")
+        || m.starts_with("Run stopped")
+    {
+        Some(OperationKey::WebRun)
+    } else if m == "Formatted document" || m == "Format failed" {
+        Some(OperationKey::Format)
+    } else if m == "No definition found" {
+        Some(OperationKey::Navigation)
     } else {
         None
     }
+}
+
+fn is_test_result_message(message: &str) -> bool {
+    if message.ends_with(" tests passed") {
+        return message
+            .split_whitespace()
+            .next()
+            .is_some_and(|count| count.chars().all(|ch| ch.is_ascii_digit()));
+    }
+    if !message.ends_with(" tests failed") {
+        return false;
+    }
+    let mut words = message.split_whitespace();
+    let Some(failed) = words.next() else {
+        return false;
+    };
+    let Some(of) = words.next() else {
+        return false;
+    };
+    let Some(total) = words.next() else {
+        return false;
+    };
+    failed.chars().all(|ch| ch.is_ascii_digit())
+        && of == "of"
+        && total.chars().all(|ch| ch.is_ascii_digit())
 }
 
 /// Re-alpha a color (multiplying the existing alpha by `a`).
@@ -583,6 +627,37 @@ mod tests {
             .toasts()
             .iter()
             .any(|t| t.message == "File already exists: main.mty"));
+    }
+
+    #[test]
+    fn newer_result_operation_replaces_stale_family_toast() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Error, "2 of 8 tests failed", t0);
+        q.push_at(Kind::Success, "8 tests passed", t0 + Duration::from_millis(100));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "8 tests passed");
+        assert_eq!(q.toasts()[0].kind, Kind::Success);
+
+        q.push_at(Kind::Info, "Run in Browser: mty serve...", t0 + Duration::from_millis(200));
+        q.push_at(
+            Kind::Error,
+            "Run in Browser: build failed (see panel)",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[1].message, "Run in Browser: build failed (see panel)");
+        assert!(!q
+            .toasts()
+            .iter()
+            .any(|t| t.message == "Run in Browser: mty serve..."));
+
+        q.push_at(Kind::Error, "Format failed", t0 + Duration::from_millis(400));
+        q.push_at(Kind::Success, "Formatted document", t0 + Duration::from_millis(500));
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Formatted document");
+        assert!(!q.toasts().iter().any(|t| t.message == "Format failed"));
     }
 
     #[test]

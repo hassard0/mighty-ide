@@ -77,6 +77,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **File-operation toasts clear stale state**: newer save/open/create/rename/delete
   results now replace older same-operation notifications instead of stacking
   contradictory text.
+- **Result toasts clear stale state**: newer test, web-run, format, and
+  navigation-result notifications now replace older same-operation messages, so
+  a later success does not leave an old failure visible in the toast stack.
 - **Prompt fallback clicks are less modal**: clicking outside the visible bottom
   prompt now dismisses it, so typed-path fallbacks do not leave the IDE feeling
   stuck after a native-dialog fallback.
