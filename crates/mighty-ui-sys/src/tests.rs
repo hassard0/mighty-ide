@@ -3265,8 +3265,9 @@ mod shim_chrome {
         let min_x = crate::titlebar::controls_x(WW as f32) + crate::titlebar::BTN_W * 0.5;
         move_to(&mut ctx, min_x, 8.0);
         press_left(&mut ctx);
-        // Caption-strip drag region (between body_left and controls), still in bar.
-        move_to(&mut ctx, WW as f32 * 0.5, 8.0);
+        // Caption-strip drag region after the visible tabs but before run/more controls.
+        let drag_x = crate::titlebar::controls_x(WW as f32) - crate::titlebar::ACTION_STRIP_W - 10.0;
+        move_to(&mut ctx, drag_x, 8.0);
         press_left(&mut ctx);
         // A resize edge (far right column, mid-height).
         move_to(&mut ctx, WW as f32 - 1.0, WH as f32 * 0.5);
@@ -3276,6 +3277,25 @@ mod shim_chrome {
             mui_poll_event_s(h),
             0,
             "title-bar/resize presses must not reach the IDE"
+        );
+    }
+
+    #[test]
+    fn tab_bar_press_passes_through_to_the_ide() {
+        let _globals = ChromeGlobals::pin();
+        let mut ctx = match MuiContext::new_offscreen(WW, WH) {
+            Some(c) => c,
+            None => return,
+        };
+        ctx.tabs.ensure_scratch();
+        let h = handle(&mut ctx);
+        let x = crate::layout::body_left(ctx.sidebar_visible) + 24.0;
+        move_to(&mut ctx, x, 8.0);
+        press_left(&mut ctx);
+        assert_eq!(
+            mui_poll_event_s(h),
+            MUI_EVENT_MOUSE_DOWN as i32,
+            "visible tab-bar clicks must reach Mighty instead of starting window drag"
         );
     }
 

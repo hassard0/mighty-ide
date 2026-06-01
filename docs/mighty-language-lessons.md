@@ -1843,3 +1843,17 @@ one session need a deterministic in-process sequence.
 - **Language note:** no new Mighty compiler gap surfaced. The work reinforces
   the current boundary: Mighty dispatches scalar UI intents, while the Rust shim
   owns native dialogs, physical input geometry, and drag-state details.
+
+### L112. Borderless chrome must leave real tabs to the IDE **[finding, P1]**
+The custom titlebar drag strip shared the same top row as tabs. In the live
+mouse harness, clicks on visible tabs and their close buttons were consumed by
+the Rust window-chrome interceptor before Mighty could route them, making tab
+switching/closing feel broken even though the pure hit-test math was correct.
+
+- **IDE note:** the shim now lets mouse presses inside the occupied tab range
+  pass through to Mighty; only the empty caption strip after the visible tabs
+  starts a window drag. The harness verifies both tab switching and tab close
+  via actual posted mouse events.
+- **Language note:** no new Mighty compiler gap surfaced. This is a cross-layer
+  ownership problem: Mighty owns semantic tab routing, while the Rust shim owns
+  native window movement and must avoid preempting Mighty-owned pixels.

@@ -336,6 +336,8 @@ $logicalH = [double]$script:WinH / [double]$scale
 # titlebar.rs: controls_x = w - 3*46, action strip = 68, run target is the
 # first 30px of the strip. Click the center of the remaining "more" range.
 $topbarMoreX = $logicalW - (3 * 46) - 19
+$tabBodyLeft = 52 + [math]::Min(248, [math]::Max(184, $logicalW * 0.30))
+$tabRightLimit = ($logicalW - (3 * 46) - 68)
 
 function Invoke-PaletteCommand($query, $captureName) {
   ClickL $topbarMoreX 20
@@ -391,6 +393,26 @@ if (Test-Path $newFilePath) {
 } else {
   Log "NEW-FILE: FILE NOT FOUND ($newFilePath)"
   $script:HarnessFailed = $true
+}
+
+# === TAB BAR: visible tab switching and close affordance must both work. ===
+ClickL ($tabBodyLeft + 80) 20
+Start-Sleep -Milliseconds 250
+$tab2Left = $tabBodyLeft + (2 * 160)
+$tab2W = [math]::Min(160, [math]::Max(0, $tabRightLimit - $tab2Left))
+if ($tab2W -gt 48) {
+  ClickL ($tab2Left + $tab2W - 21) 20
+  Start-Sleep -Milliseconds 300
+}
+if ($env:MUI_TRACE) {
+  Start-Sleep -Milliseconds 150
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  if ($traceText -match "tab_hit .* -> 0" -and $traceText -match "tab_close_hit .* -> 2" -and $traceText -match "tab_close idx=2") {
+    Log "TAB-BAR: switch and close traces observed"
+  } else {
+    Log "TAB-BAR: missing switch/close trace"
+    $script:HarnessFailed = $true
+  }
 }
 ClickL $explorerCollapseX 20 # Collapse all folders
 Start-Sleep -Milliseconds 300

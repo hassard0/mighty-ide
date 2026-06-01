@@ -2083,6 +2083,11 @@ fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
             }
             // Drag strip last (caption row / rail header, not over a tab).
             if hit == Some(crate::titlebar::TitleHit::Drag) {
+                let tab_end = (body_left + ctx.tabs.count() as f32 * layout::TAB_W)
+                    .min(crate::titlebar::controls_x(w) - crate::titlebar::ACTION_STRIP_W);
+                if ev.x >= body_left && ev.x < tab_end {
+                    return ShimAction::PassThrough;
+                }
                 if let Some(host) = ctx.host.as_ref() {
                     host.drag();
                 }
@@ -3311,6 +3316,7 @@ pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
     if ctx.tabs.is_dirty(idx_u) {
         ctx.pending_dirty_close = Some((idx_u, std::time::Instant::now()));
         ctx.pending_quit = None;
+        trace(&format!("tab_close idx={idx_u} -> dirty-confirm"));
         return -1;
     }
     ctx.pending_dirty_close = None;
@@ -3318,6 +3324,7 @@ pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
     // Remap pane→tab indices so a pane never points past the end after a close.
     ctx.panes.on_tab_closed(idx_u, ctx.tabs.count());
     sync_active_path(ctx);
+    trace(&format!("tab_close idx={idx_u} -> active={a} count={}", ctx.tabs.count()));
     a as i32
 }
 
@@ -3794,6 +3801,7 @@ pub extern "C" fn mui_tab_index_at_click(handle: i64) -> i32 {
     }
     let i = ((lx - body_left) / layout::TAB_W).floor() as usize;
     if i < ctx.tabs.count() {
+        trace(&format!("tab_hit x={lx:.1} y={:.1} -> {i}", ctx.last_event.y));
         i as i32
     } else {
         -1
@@ -3831,6 +3839,7 @@ pub extern "C" fn mui_tab_close_index_at_click(handle: i64) -> i32 {
             break;
         }
         if lx >= x + tab_w - 34.0 && lx <= x + tab_w - 8.0 {
+            trace(&format!("tab_close_hit x={lx:.1} y={:.1} -> {i}", ctx.last_event.y));
             return i as i32;
         }
     }
@@ -8900,6 +8909,7 @@ pub extern "C" fn mui_ed_tab_switch(handle: i64, idx: i32) -> i32 {
         // re-probes against the new active buffer rather than lingering.
         ctx.lightbulb.reset();
     }
+    trace(&format!("tab_switch idx={idx} -> active={}", ctx.tabs.active()));
     ctx.tabs.active() as i32
 }
 
