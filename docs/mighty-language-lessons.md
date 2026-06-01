@@ -2902,3 +2902,15 @@ misaligned hit targets.
 - **Language note:** no compiler gap surfaced. Mighty UI needs first-class
   responsive toolbar layout so controls can shrink, wrap, or overflow-menu from
   one geometry contract instead of hard-coded per-panel coordinates.
+
+### L194. Bottom input bands are overlays, not ordinary editor text **[finding, P1]**
+The compact Replace capture showed Welcome/start-action text rendering over the
+two-row replace bar. The bar filled an opaque band, but its text was queued on
+the normal text layer while other body text was still present in the frame.
+
+- **IDE note:** Prompt and Replace bands now switch the draw list and text queue
+  into overlay mode while painting the band, close affordance, hints, and input
+  text, then restore the previous overlay flag.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a declarative
+  overlay owner/surface concept so transient input bands automatically paint and
+  queue text above normal editor/welcome content.

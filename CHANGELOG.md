@@ -82,6 +82,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   measures against the state pill, and its toolbar buttons shrink inside the
   sidebar instead of spilling into the editor. Call-stack rows also measure the
   source location first so function names no longer draw underneath it.
+- **Bottom prompts own their overlay layer**: find/replace and prompt fallback
+  bands now draw text on the overlay layer so editor or Welcome text cannot
+  bleed over the active input.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now

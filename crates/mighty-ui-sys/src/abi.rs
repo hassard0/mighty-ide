@@ -3241,6 +3241,9 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
     let show_hint = hint_x > text_x + 180.0;
     let max_right = if show_hint { hint_x - 14.0 } else { close_x - 10.0 };
     let max_w = (max_right - text_x).max(0.0);
+    let was_overlay = ctx.overlay;
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
     unsafe {
         // Elevated band + top divider + an ember accent bar on the left edge.
         crate::mui_fill_rect(handle_ptr, 0.0, y, w, bar_h, theme::ELEVATED());
@@ -3262,6 +3265,8 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
         false,
     );
     if max_w <= 1.0 {
+        ctx.text.set_overlay(false);
+        ctx.overlay = was_overlay;
         return;
     }
     let (label_w, _) = ctx.text.measure_ui_sized(label, chrome);
@@ -3270,6 +3275,8 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
         if !label.is_empty() {
             ctx.text.queue_sized(text_x, text_y, &label, theme::TEXT_3(), chrome, clip);
         }
+        ctx.text.set_overlay(false);
+        ctx.overlay = was_overlay;
         return;
     }
     ctx.text.queue_sized(text_x, text_y, label, theme::TEXT_3(), chrome, clip);
@@ -3278,6 +3285,8 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
     if !query.is_empty() {
         ctx.text.queue_sized(qx, text_y, &query, theme::TEXT(), chrome, clip);
     }
+    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
 }
 
 fn prompt_band_rect(ctx: &MuiContext) -> (f32, f32, f32, f32) {
@@ -11448,6 +11457,9 @@ pub extern "C" fn mui_replace_draw(handle: i64) {
     repl_line = fit_prompt_tail(&mut ctx.text, &repl_line, max_line_w, chrome);
 
     let handle_ptr = handle as usize as *mut MuiContext;
+    let was_overlay = ctx.overlay;
+    ctx.overlay = true;
+    ctx.text.set_overlay(true);
     unsafe {
         // Elevated two-row band + top divider + ember accent edge.
         crate::mui_fill_rect(handle_ptr, 0.0, top, w, 2.0 * bar_h, theme::ELEVATED());
@@ -11476,6 +11488,8 @@ pub extern "C" fn mui_replace_draw(handle: i64) {
     );
     ctx.text.queue_sized(text_x, fy, &find_line, theme::TEXT(), chrome, clip);
     ctx.text.queue_sized(text_x, ry, &repl_line, theme::TEXT(), chrome, clip);
+    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
 }
 
 fn replace_close_rect(w: f32, top: f32, bar_h: f32) -> (f32, f32, f32, f32) {
