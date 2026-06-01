@@ -26,6 +26,9 @@ pub struct EventQueue {
     mods: u32,
     /// Last known cursor position (mouse button events carry no coords).
     cursor: (f32, f32),
+    /// True while the left mouse button is held. We only surface cursor moves
+    /// during a drag so ordinary hover movement does not flood the Mighty loop.
+    left_down: bool,
     /// Set when a resize occurred; the main loop reads & reconfigures.
     pub pending_resize: Option<(u32, u32)>,
 }
@@ -115,6 +118,9 @@ pub fn translate_window_event(q: &mut EventQueue, event: &WindowEvent) {
                 crate::uiscale::phys_to_logical(position.x as f32),
                 crate::uiscale::phys_to_logical(position.y as f32),
             );
+            if q.left_down {
+                q.push(MuiEvent::mouse_move(q.cursor.0, q.cursor.1, q.mods));
+            }
         }
         WindowEvent::MouseInput { state, button, .. } => {
             let tag = if *state == ElementState::Pressed {
@@ -122,6 +128,9 @@ pub fn translate_window_event(q: &mut EventQueue, event: &WindowEvent) {
             } else {
                 MUI_EVENT_MOUSE_UP
             };
+            if *button == MouseButton::Left {
+                q.left_down = *state == ElementState::Pressed;
+            }
             q.push(MuiEvent::mouse(
                 tag,
                 mouse_button_code(*button),

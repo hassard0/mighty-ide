@@ -27,6 +27,9 @@ extern c {
   fn mui_end_frame_s(handle: I64)
   fn mui_visible_rows(handle: I64) -> I32
   fn mui_poll_event_s(handle: I64) -> I32
+  fn mui_bottom_dock_resize_at_click(handle: I64) -> I32
+  fn mui_bottom_dock_resize_to_event_y(handle: I64) -> I32
+  fn mui_bottom_dock_resize_draw(handle: I64)
   // Frame cap for non-interactive (headless / screenshot / probe) runs: returns
   // a positive cap when a headless env is set, else 0 (= run until window Close).
   fn mui_headless_frames() -> I32
@@ -759,8 +762,10 @@ fn welcome_click_action(h: I64, owns: I32) -> I32 {
 fn ev_char() -> I32 { 1 }
 fn ev_key() -> I32 { 2 }
 fn ev_mouse_down() -> I32 { 3 }
+fn ev_mouse_up() -> I32 { 4 }
 fn ev_scroll() -> I32 { 5 }
 fn ev_close() -> I32 { 7 }
+fn ev_mouse_move() -> I32 { 8 }
 fn key_left() -> I32 { 1 }
 fn key_right() -> I32 { 2 }
 fn key_up() -> I32 { 3 }
@@ -1222,6 +1227,9 @@ fn main() {
   // True while a contiguous typing run is in progress (so one Ctrl+Z undoes a
   // run, not one char). An undo checkpoint is recorded at the START of a run.
   let mut typing = false
+  // True while the user is dragging the visible top edge of the shared lower
+  // dock (Terminal / Run / Web / Problems).
+  let mut dock_resizing = false
 
   while running {
     let rows_i = mui_visible_rows(h)
@@ -1229,7 +1237,18 @@ fn main() {
     let mut tag = mui_poll_event_s(h)
     while tag != 0 && running {
       let mut command_click_id: I32 = -1
-      if tag == ev_mouse_down() && mui_toast_click(h) == 1 {
+      if dock_resizing && tag == ev_mouse_move() {
+        let _dh = mui_bottom_dock_resize_to_event_y(h)
+      } else if dock_resizing && tag == ev_mouse_up() {
+        dock_resizing = false
+      } else if tag == ev_mouse_down() && mui_bottom_dock_resize_at_click(h) == 1 {
+        dock_resizing = true
+        let _dh = mui_bottom_dock_resize_to_event_y(h)
+        run_focus = false
+        web_focus = false
+        test_focus = false
+        term_focus = false
+      } else if tag == ev_mouse_down() && mui_toast_click(h) == 1 {
         // Toasts draw on the overlay layer, so a toast click dismisses it before
         // the underlying editor/panel sees the same mouse-down.
         let _toast_hit = 1
@@ -3813,6 +3832,7 @@ fn main() {
     // rows). No-op unless open, so calling it unconditionally also lets the
     // MUI_PROBLEMS_AUTOOPEN screenshot hook render it.
     mui_problems_draw(h)
+    mui_bottom_dock_resize_draw(h)
     // Window controls (min/max/close + run/⋯) drawn as a LATE pass — after every
     // docked panel — so a right-docked panel (AI copilot) can never occlude them.
     // Hidden in Zen mode (which hides all chrome). Clicks: min/max/close are

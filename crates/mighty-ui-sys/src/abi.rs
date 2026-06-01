@@ -1569,6 +1569,70 @@ pub extern "C" fn mui_visible_rows(handle: i64) -> i32 {
     })
 }
 
+/// Hit-test the visible resize band at the top of the shared lower dock.
+#[no_mangle]
+pub extern "C" fn mui_bottom_dock_resize_at_click(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| {
+        if c.bottom_dock_open()
+            && c.last_event.button == crate::ffi::MUI_MOUSE_LEFT
+            && layout::dock_resize_hit(c.gpu.height, c.last_event.y)
+        {
+            c.bottom_dock_resizing = true;
+            1
+        } else {
+            0
+        }
+    })
+}
+
+/// Resize the shared lower dock so its top edge follows the latest mouse event.
+/// Returns the resulting panel height in pixels for deterministic tests.
+#[no_mangle]
+pub extern "C" fn mui_bottom_dock_resize_to_event_y(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| {
+        if !c.bottom_dock_open() {
+            return 0;
+        }
+        layout::resize_dock_to_y(c.gpu.height, c.last_event.y).round() as i32
+    })
+}
+
+/// Draw the visible grab target for the shared bottom dock. Every lower panel
+/// uses the same layout, so drawing it once late keeps Terminal/Run/Web/Problems
+/// consistent and prevents the handle from being hidden by panel contents.
+#[no_mangle]
+pub extern "C" fn mui_bottom_dock_resize_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if !ctx.bottom_dock_open() {
+        return;
+    }
+    let region = layout::region(ctx.sidebar_visible);
+    let x0 = layout::term_panel_left(region);
+    let w = (ctx.gpu.width as f32 - x0).max(0.0);
+    if w < 80.0 {
+        return;
+    }
+    let top = layout::term_panel_top(ctx.gpu.height);
+    let band_y = top - layout::DOCK_RESIZE_H * 0.5;
+    let was_overlay = ctx.overlay;
+    ctx.overlay = true;
+    ctx.dl_rect(x0, band_y, w, layout::DOCK_RESIZE_H, theme::BG_1());
+    ctx.dl_rect(x0, top, w, 1.0, theme::BORDER_STRONG());
+    let grip_w = 64.0_f32.min((w - 32.0).max(0.0));
+    let grip_x = x0 + (w - grip_w) * 0.5;
+    ctx.dl_round(
+        grip_x,
+        band_y + 2.0,
+        grip_w,
+        3.0,
+        1.5,
+        theme::TEXT_3(),
+    );
+    ctx.overlay = was_overlay;
+}
+
 /// Number of lines in the shim's current `load_buf` (>= 1). Mighty uses this to
 /// size the gutter when it draws the buffer via [`mui_draw_buffer_self`].
 #[no_mangle]
@@ -1885,6 +1949,14 @@ static FRAME_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU6
 /// context `ctx`; performs the OS window action / zoom side effects inline.
 fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
     match ev.tag {
+        // Drag-move events are only meaningful after Mighty captures a visible
+        // drag target. Ordinary hover movement and unrelated OS/titlebar drags
+        // are consumed here so click-focused routing stays deterministic.
+        MUI_EVENT_MOUSE_MOVE if !ctx.bottom_dock_resizing => ShimAction::Consume,
+        MUI_EVENT_MOUSE_UP if ctx.bottom_dock_resizing => {
+            ctx.bottom_dock_resizing = false;
+            ShimAction::PassThrough
+        }
         // --- Mouse press: title-bar controls / drag strip / resize edges win
         // over the IDE's normal click routing on a borderless window. Coords are
         // already LOGICAL px (CursorMoved applied `phys_to_logical`). ---

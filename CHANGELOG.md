@@ -83,6 +83,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Welcome layout respects the Explorer**: the first-run welcome surface now
   switches to a single-column layout when the editor body is narrowed by the
   sidebar, avoiding clipped recent-file columns.
+- **Bottom dock resize is visible and draggable**: Terminal, Run, Web, and
+  Problems share a top-edge grab handle, and mouse dragging resizes the lower
+  dock while the editor row budget updates with it.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

@@ -357,6 +357,9 @@ pub struct MuiContext {
     /// The Run panel: a background `mty run <path>` whose stdout/stderr streams
     /// into a scrollable output view with clickable diagnostics. Shim-owned.
     run: run::RunPanel,
+    /// True while Mighty has captured the visible top edge of the shared bottom
+    /// dock for drag-resizing.
+    bottom_dock_resizing: bool,
 
     // ---- Web Playground (Run in Browser → wasm32-web + browser) ----
     /// The Web Playground: builds the active file to `wasm32-web` and runs it in
@@ -859,6 +862,7 @@ pub(crate) fn build_context(
         ai: ai::AiPanel::new(),
         ghost: ghost::GhostState::new(),
         run: run::RunPanel::new(),
+        bottom_dock_resizing: false,
         web: web::WebPlayground::new(),
         tests_panel: tests_panel::TestPanel::new(),
         dbg: dap::DebugModel::new(),
@@ -1535,6 +1539,7 @@ impl MuiContext {
             ai: ai::AiPanel::new(),
             ghost: ghost::GhostState::new(),
             run: run::RunPanel::new(),
+            bottom_dock_resizing: false,
             web: web::WebPlayground::new(),
             tests_panel: tests_panel::TestPanel::new(),
             dbg: dap::DebugModel::new(),

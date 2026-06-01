@@ -1722,3 +1722,17 @@ narrow, clipping the recent folders/files column at the right edge.
 - **Language note:** no new Mighty compiler gap surfaced. This is another layout
   primitive gap: the shim owns responsive breakpoints because Mighty does not yet
   express body-relative adaptive layout declaratively.
+
+### L103. Drag UX needs mouse-move events, not click-only hit tests **[finding, P1]**
+The bottom output drawers had fixed lower-third geometry and no visible resize
+handle, so users had no reliable target and no way to resize Terminal/Run/Web/
+Problems by dragging the surface they could see.
+
+- **IDE note:** the shim now emits `MOUSE_MOVE`, Mighty tracks an active bottom-
+  dock drag from mouse-down through mouse-up, and the shared dock layout follows
+  the live pointer y with min/max clamps. The visible handle is drawn once over
+  all bottom-dock owners so Terminal, Run, Web, and Problems behave identically.
+- **Language note:** Mighty can route the new scalar event, but real pointer UX
+  still requires shim-owned geometry and stateful flags in `main.mty`. A stronger
+  Mighty UI layer should expose pointer capture / drag gestures and reusable
+  layout constraints directly.

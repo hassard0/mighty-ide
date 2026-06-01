@@ -36,6 +36,7 @@ typedef struct MuiColor {
 #define MUI_EVENT_SCROLL      5u
 #define MUI_EVENT_RESIZE      6u
 #define MUI_EVENT_CLOSE       7u
+#define MUI_EVENT_MOUSE_MOVE  8u
 
 /* ---- named key codes (MuiEvent.key, when tag == MUI_EVENT_KEY) ----------- */
 
@@ -75,6 +76,7 @@ typedef struct MuiColor {
  *   MOUSE_UP    -> button, x, y, mods
  *   SCROLL      -> scroll_x, scroll_y, mods
  *   RESIZE      -> width, height
+ *   MOUSE_MOVE  -> x, y, mods
  *   CLOSE/NONE  -> (none)
  */
 typedef struct MuiEvent {

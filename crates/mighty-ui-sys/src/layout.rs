@@ -49,9 +49,15 @@ pub const SIDEBAR_MIN_W: f32 = 184.0;
 /// Pixels of indentation per tree depth level (mockup `.indent` = 16px).
 pub const TREE_INDENT: f32 = 16.0;
 
-/// Fraction of the window height the integrated terminal panel occupies when
+/// Default fraction of the window height the shared bottom dock occupies when
 /// open (a "lower third").
 pub const TERM_FRACTION: f32 = 0.33;
+/// Smallest user-resized bottom dock fraction. Below this it feels collapsed.
+pub const TERM_FRACTION_MIN: f32 = 0.18;
+/// Largest user-resized bottom dock fraction. Above this the editor is cramped.
+pub const TERM_FRACTION_MAX: f32 = 0.68;
+/// Visible/hit-tested band around the top edge of the shared bottom dock.
+pub const DOCK_RESIZE_H: f32 = 8.0;
 /// Minimum terminal panel height (px) so it stays usable in small windows.
 /// A function (depends on the live line height).
 #[inline]
@@ -86,6 +92,8 @@ pub const ZEN_MARGIN_TOP: f32 = 28.0;
 /// fills the window with a comfortable margin.
 static ZEN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 static WINDOW_W: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(900);
+static DOCK_FRACTION_BITS: std::sync::atomic::AtomicU32 =
+    std::sync::atomic::AtomicU32::new(TERM_FRACTION.to_bits());
 
 /// Read the active Zen flag.
 #[inline]
@@ -103,6 +111,31 @@ pub fn set_zen(on: bool) {
 #[inline]
 pub fn set_window_width(width: u32) {
     WINDOW_W.store(width.max(1), std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Current shared bottom-dock height fraction.
+#[inline]
+pub fn dock_fraction() -> f32 {
+    let bits = DOCK_FRACTION_BITS.load(std::sync::atomic::Ordering::Relaxed);
+    f32::from_bits(bits).clamp(TERM_FRACTION_MIN, TERM_FRACTION_MAX)
+}
+
+/// Set the shared bottom-dock height fraction.
+#[inline]
+pub fn set_dock_fraction(frac: f32) {
+    let frac = if frac.is_finite() {
+        frac.clamp(TERM_FRACTION_MIN, TERM_FRACTION_MAX)
+    } else {
+        TERM_FRACTION
+    };
+    DOCK_FRACTION_BITS.store(frac.to_bits(), std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Restore the default bottom-dock height.
+#[inline]
+#[allow(dead_code)]
+pub fn reset_dock_fraction() {
+    set_dock_fraction(TERM_FRACTION);
 }
 
 /// Responsive sidebar width for a given logical window width.
@@ -302,7 +335,7 @@ pub fn visible_rows_in(region: Region, height: u32, bottom_dock_open: bool) -> u
 /// clamped to a usable minimum and to not exceed the window.
 pub fn term_panel_height(height: u32) -> f32 {
     let h = height as f32;
-    let frac = (h * TERM_FRACTION).floor();
+    let frac = (h * dock_fraction()).floor();
     frac.max(term_min_h()).min((h - 2.0 * LINE_H()).max(0.0))
 }
 
@@ -312,6 +345,23 @@ pub fn term_panel_top(height: u32) -> f32 {
     let h = height as f32;
     let reserved_bottom = 2.0 * LINE_H(); // prompt + status bands
     (h - reserved_bottom - term_panel_height(height)).max(0.0)
+}
+
+/// Top-edge resize target for the shared bottom dock.
+pub fn dock_resize_hit(height: u32, y: f32) -> bool {
+    let top = term_panel_top(height);
+    y >= top - DOCK_RESIZE_H * 0.5 && y <= top + DOCK_RESIZE_H * 1.5
+}
+
+/// Resize the shared bottom dock so its top edge follows the given y pixel.
+pub fn resize_dock_to_y(height: u32, y: f32) -> f32 {
+    let h = height as f32;
+    let reserved_bottom = 2.0 * LINE_H();
+    let usable = (h - reserved_bottom).max(1.0);
+    let panel_h = (h - reserved_bottom - y).max(0.0);
+    let frac = (panel_h / usable).clamp(TERM_FRACTION_MIN, TERM_FRACTION_MAX);
+    set_dock_fraction(frac);
+    term_panel_height(height)
 }
 
 /// Left x (px) of the terminal panel: right of the sidebar (so it lines up with
@@ -683,6 +733,10 @@ mod tests {
 
     #[test]
     fn terminal_panel_geometry() {
+        let _g = crate::settings::TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        reset_dock_fraction();
         // Lower third of a 600px window, clamped to >= term_min_h().
         let h = term_panel_height(600);
         assert!(h >= term_min_h());
@@ -695,5 +749,35 @@ mod tests {
         assert!(term_grid_cols(900, r) >= 1);
         // Cols shrink when the sidebar pushes the panel right.
         assert!(term_grid_cols(900, region(false)) > term_grid_cols(900, r));
+    }
+
+    #[test]
+    fn bottom_dock_resize_tracks_top_edge_and_clamps() {
+        let _g = crate::settings::TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        reset_dock_fraction();
+        let default_h = term_panel_height(600);
+        let default_top = term_panel_top(600);
+        assert!(dock_resize_hit(600, default_top + 2.0));
+        assert!(!dock_resize_hit(600, default_top - 30.0));
+
+        let taller = resize_dock_to_y(600, 210.0);
+        assert!(taller > default_h, "taller={taller} default={default_h}");
+        let rows_after_taller = visible_rows_in(region(true), 600, true);
+
+        let shorter = resize_dock_to_y(600, 520.0);
+        assert!(shorter < taller, "shorter={shorter} taller={taller}");
+        let rows_after_shorter = visible_rows_in(region(true), 600, true);
+        assert!(
+            rows_after_shorter > rows_after_taller,
+            "shorter dock should give the editor more rows"
+        );
+
+        resize_dock_to_y(600, -1000.0);
+        assert!(dock_fraction() <= TERM_FRACTION_MAX);
+        resize_dock_to_y(600, 5000.0);
+        assert!(dock_fraction() >= TERM_FRACTION_MIN);
+        reset_dock_fraction();
     }
 }

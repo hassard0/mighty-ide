@@ -41,6 +41,8 @@ pub const MUI_EVENT_SCROLL: u32 = 5;
 pub const MUI_EVENT_RESIZE: u32 = 6;
 /// The window was asked to close.
 pub const MUI_EVENT_CLOSE: u32 = 7;
+/// The cursor moved to (`x`, `y`). Used by visible drag affordances.
+pub const MUI_EVENT_MOUSE_MOVE: u32 = 8;
 
 // ---------------------------------------------------------------------------
 // Named key codes (only used when tag == MUI_EVENT_KEY)
@@ -99,6 +101,7 @@ pub const MUI_MOD_SUPER: u32 = 1 << 3;
 /// | `MOUSE_UP`    | `button`, `x`, `y`, `mods`         |
 /// | `SCROLL`      | `scroll_x`, `scroll_y`, `mods`     |
 /// | `RESIZE`      | `width`, `height`                  |
+/// | `MOUSE_MOVE`  | `x`, `y`, `mods`                   |
 /// | `CLOSE`/`NONE`| (none)                             |
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -167,6 +170,16 @@ impl MuiEvent {
         Self {
             tag,
             button,
+            x,
+            y,
+            mods,
+            ..Self::none()
+        }
+    }
+
+    pub fn mouse_move(x: f32, y: f32, mods: u32) -> Self {
+        Self {
+            tag: MUI_EVENT_MOUSE_MOVE,
             x,
             y,
             mods,

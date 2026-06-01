@@ -626,6 +626,10 @@ fn view_commands_open_non_sidebar_surfaces_without_toggling() {
 
 #[test]
 fn visible_rows_reserve_space_for_every_bottom_dock_owner() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    crate::layout::reset_dock_fraction();
     let mut ctx = ctx_or_skip!();
     ctx.gpu.width = 900;
     ctx.gpu.height = 700;
@@ -652,6 +656,37 @@ fn visible_rows_reserve_space_for_every_bottom_dock_owner() {
         "problems dock should reserve the same lower band"
     );
     assert!(ctx.bottom_dock_open());
+    crate::layout::reset_dock_fraction();
+}
+
+#[test]
+fn bottom_dock_resize_uses_visible_mouse_geometry() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    crate::layout::reset_dock_fraction();
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 1000;
+    ctx.gpu.height = 700;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_run_open(handle), 1);
+    let default_h = crate::layout::term_panel_height(ctx.gpu.height).round() as i32;
+    let edge_y = crate::layout::term_panel_top(ctx.gpu.height) + 2.0;
+    ctx.last_event = MuiEvent::mouse(MUI_EVENT_MOUSE_DOWN, MUI_MOUSE_LEFT, 500.0, edge_y, 0);
+    assert_eq!(crate::abi::mui_bottom_dock_resize_at_click(handle), 1);
+
+    ctx.last_event = MuiEvent::mouse_move(500.0, 260.0, 0);
+    let resized_h = crate::abi::mui_bottom_dock_resize_to_event_y(handle);
+    assert!(resized_h > default_h, "resized_h={resized_h} default_h={default_h}");
+    let rows_after_taller = crate::abi::mui_visible_rows(handle);
+
+    ctx.last_event = MuiEvent::mouse_move(500.0, 610.0, 0);
+    let shorter_h = crate::abi::mui_bottom_dock_resize_to_event_y(handle);
+    assert!(shorter_h < resized_h, "shorter_h={shorter_h} resized_h={resized_h}");
+    let rows_after_shorter = crate::abi::mui_visible_rows(handle);
+    assert!(rows_after_shorter > rows_after_taller);
+    crate::layout::reset_dock_fraction();
 }
 
 #[test]
@@ -2741,6 +2776,40 @@ fn translate_close_and_resize_events() {
     assert_eq!(r.width, 800);
     assert_eq!(r.height, 600);
     assert_eq!(q.pending_resize, Some((800, 600)));
+}
+
+#[test]
+fn cursor_move_translates_to_mouse_move_event() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let os_scale = crate::uiscale::os_scale();
+    let user_zoom = crate::uiscale::user_zoom();
+    crate::uiscale::set_os_scale(1.0);
+    crate::uiscale::set_user_zoom(1.0);
+    let mut q = EventQueue::default();
+    translate_window_event(
+        &mut q,
+        &winit::event::WindowEvent::MouseInput {
+            device_id: winit::event::DeviceId::dummy(),
+            state: winit::event::ElementState::Pressed,
+            button: winit::event::MouseButton::Left,
+        },
+    );
+    translate_window_event(
+        &mut q,
+        &winit::event::WindowEvent::CursorMoved {
+            device_id: winit::event::DeviceId::dummy(),
+            position: winit::dpi::PhysicalPosition::new(123.0, 456.0),
+        },
+    );
+    assert_eq!(q.pop().unwrap().tag, MUI_EVENT_MOUSE_DOWN);
+    let ev = q.pop().unwrap();
+    assert_eq!(ev.tag, MUI_EVENT_MOUSE_MOVE);
+    assert_eq!(ev.x, 123.0);
+    assert_eq!(ev.y, 456.0);
+    crate::uiscale::set_os_scale(os_scale);
+    crate::uiscale::set_user_zoom(user_zoom);
 }
 
 /// `mui_headless_frames` returns 0 for a normal interactive run (no headless
