@@ -1897,3 +1897,16 @@ guesswork even when the eventual drag works.
 - **Language note:** no compiler gap surfaced. Mighty currently relies on the
   Rust shell for native cursor affordances; a future UI layer should make hover
   cursor intent a first-class control property.
+
+### L116. Mouse QA needs to click visible command rows, not just press Enter **[finding, P2]**
+The command palette can pass keyboard tests while still failing the human path:
+open the palette, read a filtered row, click it, and expect the command to run.
+
+- **IDE note:** the Windows live harness now mirrors the command-palette result-row
+  geometry and clicks the visible `Open File` command row before exercising the
+  native file picker and save path. The shim traces both `palette_click` row hits
+  and the picked `open_file_dialog` path so a future regression identifies
+  whether the miss was geometry, dispatch, or dialog handling.
+- **Language note:** no compiler gap surfaced. The lesson is toolchain-level:
+  Mighty UI tests need exported or shared layout geometry so black-box click
+  tests do not duplicate fragile constants by hand.

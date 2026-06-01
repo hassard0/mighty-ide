@@ -3275,6 +3275,7 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
             return -1;
         }
     };
+    trace(&format!("open_file_dialog path={}", path.display()));
     let idx = ctx.tabs.open_path(path.clone());
     sync_active_path(ctx);
     record_recent_file(ctx, path);
@@ -5921,8 +5922,15 @@ pub extern "C" fn mui_palette_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    ctx.palette
-        .click_row(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height)
+    let row = ctx
+        .palette
+        .click_row(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height);
+    let id = if row >= 0 { ctx.palette.selected_id() } else { -1 };
+    trace(&format!(
+        "palette_click row={} id={} x={:.1} y={:.1}",
+        row, id, ctx.last_event.x, ctx.last_event.y
+    ));
+    row
 }
 
 /// The command id of the current selection, or `-1` when nothing matches. Mighty
@@ -6554,8 +6562,17 @@ pub extern "C" fn mui_qo_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    ctx.quickopen
-        .click_row(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height)
+    let row = ctx
+        .quickopen
+        .click_row(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height);
+    trace(&format!(
+        "quickopen_click mode={} row={} x={:.1} y={:.1}",
+        ctx.quickopen.mode().scalar(),
+        row,
+        ctx.last_event.x,
+        ctx.last_event.y
+    ));
+    row
 }
 
 /// `1` if the finder overlay is open, else `0`.

@@ -369,6 +369,31 @@ function Invoke-PaletteCommand($query, $captureName) {
   Start-Sleep -Milliseconds 800
 }
 
+function PaletteRowCenter($rowIndex) {
+  # Mirrors palette.rs::geometry(): centered card, 56px search field,
+  # 25px category strip, then 50px result rows.
+  $shown = 6.0
+  $boxH = 56.0 + 25.0 + ($shown * 50.0) + 10.0 + 37.0
+  $boxY = [math]::Min(96.0, [math]::Max($logicalH - $boxH, 0.0))
+  $listTop = $boxY + 56.0 + 25.0
+  return [pscustomobject]@{
+    X = ($logicalW * 0.5)
+    Y = ($listTop + ($rowIndex * 50.0) + 25.0)
+  }
+}
+
+function Invoke-PaletteCommandClick($query, $rowIndex, $captureName) {
+  ClickL $topbarMoreX 20
+  Start-Sleep -Milliseconds 400
+  Type-Text $hwnd $query
+  Start-Sleep -Milliseconds 350
+  if ($captureName) { Capture $hwnd $captureName }
+  $pt = PaletteRowCenter $rowIndex
+  ClickL $pt.X $pt.Y
+  Log ("palette mouse command query='{0}' row={1} at logical ({2:n1},{3:n1})" -f $query, $rowIndex, $pt.X, $pt.Y)
+  Start-Sleep -Milliseconds 800
+}
+
 # Logical layout constants (mirror layout.rs). The harness posts physical mouse
 # messages, and winit reports logical coordinates back to the IDE, so pass the
 # same logical positions the app hit-tests against.
@@ -566,8 +591,21 @@ if (Test-Path $newFilePath) { Remove-Item $newFilePath -Force; Log "NEW-FILE: cl
 if (Test-Path $welcomeFilePath) { Remove-Item $welcomeFilePath -Force; Log "WELCOME NEW-FILE: cleaned harness file" }
 
 # === OPEN FILE dialog via top-right More -> command palette, then Save ===
-Invoke-PaletteCommand "open file" "43-open-file-palette"
+# Use a real mouse click on the visible command row. This guards the human path
+# where a result looks selectable but hit-testing or command dispatch drifts.
+Invoke-PaletteCommandClick "open file" 0 "43-open-file-palette"
 Capture $hwnd "44-open-file-picked"
+if ($env:MUI_TRACE) {
+  Start-Sleep -Milliseconds 150
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  $openPathPattern = [regex]::Escape($openPath)
+  if ($traceText -match "palette_click row=0 id=" -and $traceText -match "open_file_dialog path=$openPathPattern") {
+    Log "PALETTE-MOUSE: command row click and native open dialog traces observed"
+  } else {
+    Log "PALETTE-MOUSE: missing command row click or native open dialog trace"
+    $script:HarnessFailed = $true
+  }
+}
 ClickL 460 130
 Start-Sleep -Milliseconds 150
 Type-Text $hwnd "zz"
