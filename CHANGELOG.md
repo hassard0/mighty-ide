@@ -69,6 +69,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Markdown Preview typography adapts to split panes**: compact preview columns
   now use smaller margins and responsive heading sizes so rendered prose remains
   readable instead of wrapping into awkward one- or two-word lines.
+- **Binary files open safely**: image, icon, font, and other non-text files now
+  open as read-only previews instead of corrupt editable text, and Save, Save
+  As, Save All, and autosave refuse to overwrite them from the text editor.
 - **Toast notifications avoid compact sidebars**: toasts now shrink and align
   inside the work area when the activity rail/sidebar are visible, so feedback
   no longer looks like stale text over the Explorer.

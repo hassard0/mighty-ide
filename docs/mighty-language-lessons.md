@@ -3007,3 +3007,16 @@ topbar click had opened the palette.
 - **Language note:** no compiler gap surfaced. Mighty UI and its harnesses need
   first-class observable interaction checkpoints so black-box tests wait for the
   UI state a human sees, not just a fixed sleep after input.
+
+### L202. Text editors need binary/read-only file contracts **[finding, P1]**
+The IDE could open icons, fonts, and other binary assets as corrupt editable
+text. That was visually broken and risked saving a text preview over real binary
+bytes if a user hit Save after experimenting.
+
+- **IDE note:** Tabs now detect likely binary content, preserve the original raw
+  bytes, render a clear read-only preview, suppress dirty state for those tabs,
+  and reject Save, Save As, Save All, and autosave from the text editor path.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a first-class
+  document capability model so file-backed views can advertise editability,
+  saveability, and preview-only state to commands and chrome from one source of
+  truth.

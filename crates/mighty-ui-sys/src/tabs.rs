@@ -15,6 +15,7 @@ use crate::editor::TextModel;
 use crate::fold::FoldState;
 
 const CLOSED_CAP: usize = 20;
+const BINARY_SCAN_LIMIT: usize = 8192;
 
 /// Snapshot a model's lines into owned strings (for the fold scanner, which is
 /// pure over `&[String]`). The model stores newlines as line boundaries, so this
@@ -23,6 +24,42 @@ fn model_lines(model: &TextModel) -> Vec<String> {
     (0..model.line_count())
         .map(|i| model.line(i).to_string())
         .collect()
+}
+
+/// Conservative binary-file detection for the text editor path. NUL bytes are
+/// the strongest signal; invalid UTF-8 covers most image/font/archive payloads
+/// while still allowing normal UTF-8 source files through.
+pub fn is_probably_binary(bytes: &[u8]) -> bool {
+    if bytes.is_empty() {
+        return false;
+    }
+    let sample_len = bytes.len().min(BINARY_SCAN_LIMIT);
+    let sample = &bytes[..sample_len];
+    sample.iter().any(|b| *b == 0) || std::str::from_utf8(sample).is_err()
+}
+
+fn binary_placeholder(path: Option<&Path>, bytes_len: usize) -> String {
+    let name = path
+        .and_then(|p| p.file_name())
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "This file".to_string());
+    format!(
+        "Binary file preview\n\n{name} appears to be a binary file ({bytes_len} bytes).\nMighty IDE opened a read-only text preview instead of corrupting the editor buffer.\nUse an external asset or binary editor to modify this file.\n"
+    )
+}
+
+fn model_for_bytes(path: Option<&Path>, bytes: &[u8]) -> (TextModel, FoldState, bool) {
+    let read_only = is_probably_binary(bytes);
+    let model_bytes;
+    let model = if read_only {
+        model_bytes = binary_placeholder(path, bytes.len()).into_bytes();
+        TextModel::from_bytes(&model_bytes)
+    } else {
+        TextModel::from_bytes(bytes)
+    };
+    let mut fold = FoldState::new();
+    fold.recompute_owned(&model_lines(&model));
+    (model, fold, read_only)
 }
 
 /// One open file tab. Since the L28 codegen bug forced the editable buffer
@@ -49,6 +86,9 @@ pub struct Tab {
     pub scroll_first: i32,
     /// True if the buffer has unsaved edits relative to disk.
     pub dirty: bool,
+    /// True when the tab represents non-text bytes and must never be saved from
+    /// the text editor model.
+    pub read_only: bool,
 }
 
 impl Tab {
@@ -66,6 +106,9 @@ impl Tab {
     /// True when either the tab chrome flag or the authoritative model says the
     /// buffer has unsaved edits.
     pub fn is_dirty(&self) -> bool {
+        if self.read_only {
+            return false;
+        }
         self.dirty || self.model.dirty()
     }
 }
@@ -129,9 +172,7 @@ impl TabStore {
             return i;
         }
         let bytes = std::fs::read(&path).unwrap_or_default();
-        let model = TextModel::from_bytes(&bytes);
-        let mut fold = FoldState::new();
-        fold.recompute_owned(&model_lines(&model));
+        let (model, fold, read_only) = model_for_bytes(Some(&path), &bytes);
         self.tabs.push(Tab {
             path: Some(path),
             bytes,
@@ -141,6 +182,7 @@ impl TabStore {
             cursor_col: 0,
             scroll_first: 0,
             dirty: false,
+            read_only,
         });
         self.active = self.tabs.len() - 1;
         self.active
@@ -299,6 +341,7 @@ impl TabStore {
     pub fn set_active_path(&mut self, path: PathBuf) {
         let i = self.active.min(self.tabs.len().saturating_sub(1));
         self.tabs[i].path = Some(path);
+        self.tabs[i].read_only = false;
     }
 
     /// `true` when the active tab is backed by a file path (vs an untitled buffer).
@@ -306,6 +349,14 @@ impl TabStore {
         self.tabs
             .get(self.active.min(self.tabs.len().saturating_sub(1)))
             .map(|t| t.path.is_some())
+            .unwrap_or(false)
+    }
+
+    /// `true` when the active tab is a read-only binary preview.
+    pub fn active_read_only(&self) -> bool {
+        self.tabs
+            .get(self.active.min(self.tabs.len().saturating_sub(1)))
+            .map(|t| t.read_only)
             .unwrap_or(false)
     }
 
@@ -378,13 +429,13 @@ impl TabStore {
     }
 
     fn reload_index(&mut self, i: usize, bytes: &[u8]) {
-        self.tabs[i].model = TextModel::from_bytes(bytes);
+        let (model, fold, read_only) = model_for_bytes(self.tabs[i].path.as_deref(), bytes);
+        self.tabs[i].model = model;
         self.tabs[i].bytes = bytes.to_vec();
         self.tabs[i].dirty = false;
+        self.tabs[i].read_only = read_only;
         // A fresh buffer: recompute folds and drop any stale folded state.
-        let lines = model_lines(&self.tabs[i].model);
-        self.tabs[i].fold = FoldState::new();
-        self.tabs[i].fold.recompute_owned(&lines);
+        self.tabs[i].fold = fold;
     }
 
     /// Ensure at least one tab exists. Used at startup if no file opened and on
@@ -627,6 +678,9 @@ impl TabStore {
     /// stream fresh bytes. No-op if out of range.
     pub fn store_begin(&mut self, idx: usize) {
         if let Some(t) = self.tabs.get_mut(idx) {
+            if t.read_only {
+                return;
+            }
             t.bytes.clear();
         }
     }
@@ -634,6 +688,9 @@ impl TabStore {
     /// Append one byte to slot `idx`'s buffer (during a store).
     pub fn store_byte(&mut self, idx: usize, byte: u8) {
         if let Some(t) = self.tabs.get_mut(idx) {
+            if t.read_only {
+                return;
+            }
             t.bytes.push(byte);
         }
     }
@@ -650,7 +707,7 @@ impl TabStore {
     /// Mark slot `idx` dirty/clean (Mighty sets dirty on edit, clean on save).
     pub fn set_dirty(&mut self, idx: usize, dirty: bool) {
         if let Some(t) = self.tabs.get_mut(idx) {
-            t.dirty = dirty;
+            t.dirty = dirty && !t.read_only;
         }
     }
 
@@ -759,6 +816,44 @@ mod tests {
         assert_eq!(t.cursor_col, 1);
         assert_eq!(t.scroll_first, 0);
         assert!(t.dirty);
+    }
+
+    #[test]
+    fn binary_files_open_as_read_only_previews() {
+        let original = b"\0\x01\x02PNG-ish bytes";
+        let p = write_tmp("tabs_binary_asset.ico", original);
+
+        let mut s = TabStore::new();
+        let idx = s.open_path(p.clone());
+        let tab = s.get(idx).unwrap();
+
+        assert!(is_probably_binary(original));
+        assert!(tab.read_only);
+        assert_eq!(tab.bytes, original);
+        assert!(tab.model.as_text().contains("Binary file preview"));
+        assert!(tab.model.as_text().contains("tabs_binary_asset.ico"));
+        assert!(!tab.is_dirty());
+        assert!(s.active_read_only());
+    }
+
+    #[test]
+    fn read_only_binary_tabs_preserve_original_bytes_across_store_and_dirty() {
+        let original = b"\0\x03\x04font bytes";
+        let p = write_tmp("tabs_binary_store.ttf", original);
+
+        let mut s = TabStore::new();
+        let idx = s.open_path(p);
+        s.store_begin(idx);
+        for b in b"not the original" {
+            s.store_byte(idx, *b);
+        }
+        s.set_dirty(idx, true);
+
+        let tab = s.get(idx).unwrap();
+        assert_eq!(tab.bytes, original);
+        assert!(!tab.dirty);
+        assert!(!tab.is_dirty());
+        assert_eq!(s.load_len(idx), original.len() as i64);
     }
 
     #[test]

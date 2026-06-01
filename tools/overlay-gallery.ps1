@@ -133,6 +133,7 @@ $cases = @(
   @{n='signature';    v='MUI_SIG_AUTOOPEN';        val='1'},
   @{n='complete';     v='MUI_COMPLETE_AUTOOPEN';   val='1'},
   @{n='replace';      v='MUI_REPLACE_AUTOOPEN';    val='1'},
+  @{n='binary';       v='MUI_BINARY_AUTOOPEN';     val='1'},
   @{n='dirty-confirm';v='MUI_DIRTY_CONFIRM_AUTOOPEN';val='1'},
   @{n='breadcrumb';   v='MUI_BREADCRUMB_AUTOOPEN'; val='1'},
   @{n='terminal';     v='MUI_TERM_AUTOOPEN';       val='1'},

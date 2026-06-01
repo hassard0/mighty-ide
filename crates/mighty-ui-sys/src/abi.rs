@@ -347,6 +347,33 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
         }
     }
 
+    // Screenshot/render hook for binary-file previews. This opens the packaged
+    // icon by default so gallery runs prove binary assets cannot become corrupt
+    // editable text. Set MUI_BINARY_AUTOOPEN to a path to override the sample.
+    if let Some(seed) = std::env::var_os("MUI_BINARY_AUTOOPEN") {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let raw = seed.to_string_lossy();
+            let mut path = if !raw.trim().is_empty() && raw != "1" {
+                std::path::PathBuf::from(raw.as_ref())
+            } else {
+                std::env::current_exe()
+                    .ok()
+                    .and_then(|p| p.parent().map(|d| d.join("mighty-ide.ico")))
+                    .unwrap_or_else(|| std::env::temp_dir().join("mighty-ide-binary-preview.bin"))
+            };
+            if !path.exists() {
+                path = std::env::temp_dir().join("mighty-ide-binary-preview.bin");
+                let _ = std::fs::write(&path, b"\0Mighty IDE binary preview sample");
+            }
+            let idx = ctx.tabs.open_path(path.clone());
+            sync_active_path(ctx);
+            ctx.panes = crate::panes::PaneLayout::new(idx);
+            ensure_tab_visible(ctx, idx);
+            ctx.welcome.dismiss();
+            println!("mui_init_s: MUI_BINARY_AUTOOPEN -> {}", path.display());
+        }
+    }
+
     // Screenshot/render hook for the command palette: with MUI_PALETTE_AUTOOPEN
     // set, open the palette and LEAVE it open so it renders into the frame
     // (`mui_palette_draw` is a no-op unless the palette is active). Unlike
@@ -8579,7 +8606,13 @@ use crate::editor::TextModel;
 /// The active tab's editable model (mutable). `None` on a null handle.
 #[inline]
 unsafe fn model_mut<'a>(handle: i64) -> Option<&'a mut TextModel> {
-    ctx(handle).map(|c| c.tabs.active_model_mut())
+    ctx(handle).and_then(|c| {
+        if c.tabs.active_read_only() {
+            None
+        } else {
+            Some(c.tabs.active_model_mut())
+        }
+    })
 }
 
 /// Owned snapshot of the model fields [`mui_ed_draw`] needs, taken so the borrow
@@ -8884,6 +8917,9 @@ pub extern "C" fn mui_ed_dirty(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_ed_set_dirty(handle: i64, dirty: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if ctx.tabs.active_read_only() {
+            return;
+        }
         let dirty = dirty != 0;
         ctx.tabs.active_model_mut().set_dirty(dirty);
         let active = ctx.tabs.active();
@@ -8939,6 +8975,21 @@ fn mark_active_clean(ctx: &mut MuiContext) {
     ctx.pending_quit = None;
 }
 
+fn reject_read_only_save(ctx: &mut MuiContext) -> i32 {
+    let name = ctx
+        .tabs
+        .active_path()
+        .as_deref()
+        .map(basename)
+        .unwrap_or_else(|| "binary file".to_string());
+    ctx.autosave.disarm();
+    ctx.push_toast(
+        crate::toast::Kind::Warn,
+        format!("{name} is read-only in the text editor"),
+    );
+    -1
+}
+
 fn save_bytes_for_active(ctx: &mut MuiContext) -> Vec<u8> {
     let trim = crate::settings::trim_ws();
     let final_nl = crate::settings::final_newline();
@@ -8986,6 +9037,11 @@ pub extern "C" fn mui_autosave_tick(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        ctx.autosave.disarm();
+        ctx.autosave_sig = None;
+        return 0;
+    }
     if !crate::settings::autosave() {
         // Keep the clock disarmed so toggling autosave on doesn't immediately
         // fire on a stale timestamp. Forget the signature so the next enabled
@@ -9050,6 +9106,9 @@ pub extern "C" fn mui_autosave_touch(handle: i64) {
 }
 
 fn save_active_current_path(ctx: &mut MuiContext) -> i32 {
+    if ctx.tabs.active_read_only() {
+        return reject_read_only_save(ctx);
+    }
     let Some(path) = ctx.tabs.active_path() else {
         let root = file_dialog_initial_dir(ctx);
         let target = match pick_save_file_native(&root, "untitled.mty", dialog_owner_hwnd(ctx)) {
@@ -9135,11 +9194,16 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
     let mut saved = 0_i32;
     let mut failed = 0_i32;
     let mut untitled = 0_i32;
+    let mut read_only = 0_i32;
     let original_active = ctx.tabs.active();
     for idx in dirty {
         let Some(tab) = ctx.tabs.get_mut(idx) else {
             continue;
         };
+        if tab.read_only {
+            read_only += 1;
+            continue;
+        }
         if let Some(path) = tab.path.clone() {
             let bytes = save_bytes_for_tab(tab);
             match std::fs::write(&path, &bytes) {
@@ -9181,28 +9245,50 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
     }
     ctx.autosave.disarm();
     ctx.tree.refresh();
-    match (saved, failed, untitled) {
-        (0, 0, u) if u > 0 => {
+    match (saved, failed, untitled, read_only) {
+        (0, 0, 0, r) if r > 0 => {
+            let noun = if r == 1 { "binary file" } else { "binary files" };
+            ctx.push_toast(crate::toast::Kind::Warn, format!("{r} {noun} skipped"));
+            0
+        }
+        (0, 0, u, 0) if u > 0 => {
             let noun = if u == 1 { "untitled file" } else { "untitled files" };
             ctx.push_toast(crate::toast::Kind::Warn, format!("{u} {noun} need Save As"));
             0
         }
-        (0, f, _) if f > 0 => {
+        (0, f, _, _) if f > 0 => {
             ctx.push_toast(crate::toast::Kind::Error, "Save All failed");
             -1
         }
-        (s, 0, 0) => {
+        (s, 0, 0, 0) => {
             let noun = if s == 1 { "file" } else { "files" };
             ctx.push_toast(crate::toast::Kind::Success, format!("Saved {s} {noun}"));
             s
         }
-        (s, 0, u) => {
+        (s, 0, u, 0) => {
             let noun = if u == 1 { "untitled file" } else { "untitled files" };
             ctx.push_toast(crate::toast::Kind::Warn, format!("Saved {s}; {u} {noun} need Save As"));
             s
         }
-        (s, f, _) => {
-            ctx.push_toast(crate::toast::Kind::Warn, format!("Saved {s}; {f} failed"));
+        (s, 0, u, r) => {
+            let noun = if u == 1 { "untitled file" } else { "untitled files" };
+            let bin = if r == 1 { "binary file" } else { "binary files" };
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                format!("Saved {s}; {u} {noun} need Save As; {r} {bin} skipped"),
+            );
+            s
+        }
+        (s, f, _, r) => {
+            if r > 0 {
+                let bin = if r == 1 { "binary file" } else { "binary files" };
+                ctx.push_toast(
+                    crate::toast::Kind::Warn,
+                    format!("Saved {s}; {f} failed; {r} {bin} skipped"),
+                );
+            } else {
+                ctx.push_toast(crate::toast::Kind::Warn, format!("Saved {s}; {f} failed"));
+            }
             s
         }
     }
@@ -9265,6 +9351,9 @@ pub extern "C" fn mui_save_as_dialog(handle: i64) -> i32 {
 }
 
 fn save_active_to_path(ctx: &mut MuiContext, target: PathBuf) -> i32 {
+    if ctx.tabs.active_read_only() {
+        return reject_read_only_save(ctx);
+    }
     if let Some(parent) = target.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
@@ -9598,6 +9687,9 @@ pub extern "C" fn mui_ed_complete_accept(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        return 0;
+    }
     let prefix = ctx.complete.prefix_len();
     let accepted = ctx.complete.accepted_text().to_string();
     let m = ctx.tabs.active_model_mut();
@@ -11033,6 +11125,9 @@ pub extern "C" fn mui_ed_undo(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        return 0;
+    }
     match ctx.ed_undo.pop() {
         Some(prev) => {
             let current = ctx.tabs.active_model().clone();
@@ -11051,6 +11146,9 @@ pub extern "C" fn mui_ed_redo(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        return 0;
+    }
     match ctx.ed_redo.pop() {
         Some(next) => {
             let current = ctx.tabs.active_model().clone();
@@ -11369,6 +11467,9 @@ pub extern "C" fn mui_ed_insert_char_multi(handle: i64, cp: i32) {
 pub extern "C" fn mui_ed_insert_smart_multi(handle: i64, cp: i32) {
     trace(&format!("ed_insert_smart_multi cp={cp}"));
     if let Some(c) = unsafe { ctx(handle) } {
+        if c.tabs.active_read_only() {
+            return;
+        }
         if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
             c.tabs.active_model_mut().insert_char_smart_multi(ch);
             if c.snippet_session.is_active() {
@@ -11522,6 +11623,9 @@ pub extern "C" fn mui_replace_next(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        return 0;
+    }
     let needle = ctx.replace_bar.find_string();
     let repl = ctx.replace_bar.repl_string();
     i32::from(ctx.tabs.active_model_mut().replace_next(&needle, &repl))
@@ -11534,6 +11638,9 @@ pub extern "C" fn mui_replace_all(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        return 0;
+    }
     let needle = ctx.replace_bar.find_string();
     let repl = ctx.replace_bar.repl_string();
     ctx.tabs.active_model_mut().replace_all(&needle, &repl) as i32
