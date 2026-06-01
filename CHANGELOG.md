@@ -107,6 +107,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Window resizing stops before broken chrome**: the borderless desktop window
   now has a minimum inner size so the custom title bar, rail, tabs, and status
   bands cannot be squeezed into clipped controls.
+- **Testing header avoids status-pill collisions**: the Testing sidebar title now
+  measures the right-side `idle`/`running`/`failed`/`passed` pill first and fits
+  the header label into the remaining space.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

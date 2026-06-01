@@ -1498,6 +1498,9 @@ lifecycle feel arbitrary even though the underlying operations were both useful.
 - **IDE note:** the palette now labels `Ctrl+N` as **File: New Untitled File**
   and adds **File: New File in Workspace**, which routes to the existing
   filename prompt and workspace creation path.
+- **Superseded by L107:** the primary `Ctrl+N` and Welcome New File route now
+  opens the native file picker; scratch buffers live behind the explicit
+  **File: New Untitled File** command.
 - **Language note:** no new Mighty compiler gap surfaced, but every new command
   still requires manually mirrored numeric ids between Rust and `src/main.mty`.
   This remains a product-friction point for command evolution.
@@ -1790,3 +1793,14 @@ who expect to choose a path and filename.
   resize cannot crush the borderless chrome into unreadable controls.
 - **Language note:** no compiler gap surfaced. The change is a command-routing
   policy fix in Mighty plus existing shim ABI calls.
+
+### L108. Testing headers need pill-aware budgets too **[finding, P2]**
+The Testing sidebar rows were already measured, but the header title still drew
+before budgeting for the right-side state pill. In compact sidebars, `TESTING`
+could visually crowd `running...`, `failed`, or `passed`.
+
+- **IDE note:** Testing header rendering now measures the state pill first and
+  fits/ellipsizes the tracked title into the remaining gap before painting it.
+- **Language note:** no new Mighty gap surfaced. This is another shim-side
+  proportional text layout fix; Mighty still only asks the Testing panel to
+  draw.

@@ -401,6 +401,12 @@ fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) ->
     out
 }
 
+fn testing_header_title_budget(sw: f32, state_pill_w: f32) -> f32 {
+    // Sidebar-local pixels between the title start (rail + icon + 34) and the
+    // right-side state pill. Keep an 8px breathing gap before the pill.
+    (sw - 34.0 - 12.0 - state_pill_w - 8.0).max(0.0)
+}
+
 /// Geometry of the toolbar Run/Re-run + Stop buttons (under the header).
 struct ToolbarGeom {
     run_x: f32,
@@ -478,11 +484,6 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     // Header: beaker icon + "TESTING" + a state pill.
     ctx.dl_rect(sx, 0.0, sw, HEAD_H, theme::BG_2());
     ctx.dl_rect(sx, HEAD_H - 1.0, sw, 1.0, theme::BORDER_SOFT());
-    ctx.dl_icon(sx + 12.0, (HEAD_H - 15.0) * 0.5, 15.0, 15.0, icons::BEAKER, theme::ACCENT_BRIGHT(), 1.5, false);
-    let title = "TESTING";
-    let tracked: String = title.chars().flat_map(|c| [c, '\u{2009}']).collect();
-    ctx.text.queue_ui_sized(sx + 34.0, (HEAD_H - (chrome - 2.0)) * 0.5 - 1.0, &tracked, theme::DIM(), chrome - 2.0, clip);
-
     let (state_label, state_col) = if ctx.tests_panel.is_running() {
         ("running\u{2026}", theme::WARNING())
     } else if ctx.tests_panel.total() == 0 {
@@ -496,6 +497,14 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     let pill_w = state_w + 18.0;
     let pill_x = sx + sw - pill_w - 12.0;
     let pill_y = (HEAD_H - 17.0) * 0.5;
+
+    ctx.dl_icon(sx + 12.0, (HEAD_H - 15.0) * 0.5, 15.0, 15.0, icons::BEAKER, theme::ACCENT_BRIGHT(), 1.5, false);
+    let title = "TESTING";
+    let tracked: String = title.chars().flat_map(|c| [c, '\u{2009}']).collect();
+    let title_fit = fit_ui_text(&mut ctx.text, &tracked, testing_header_title_budget(sw, pill_w), chrome - 2.0);
+    if !title_fit.is_empty() {
+        ctx.text.queue_ui_sized(sx + 34.0, (HEAD_H - (chrome - 2.0)) * 0.5 - 1.0, &title_fit, theme::DIM(), chrome - 2.0, clip);
+    }
     ctx.dl_round(pill_x, pill_y, pill_w, 17.0, 6.0, theme::BG_4());
     ctx.text.queue_ui_sized(pill_x + 9.0, pill_y + 2.5, state_label, state_col, chrome - 2.0, clip);
 
@@ -653,5 +662,16 @@ pub extern "C" fn mui_test_draw(handle: i64) {
             }
             y += row_h;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn testing_header_title_reserves_state_pill_gap() {
+        assert_eq!(testing_header_title_budget(220.0, 62.0), 104.0);
+        assert_eq!(testing_header_title_budget(96.0, 62.0), 0.0);
     }
 }
