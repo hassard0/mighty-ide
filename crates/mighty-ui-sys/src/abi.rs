@@ -2692,6 +2692,37 @@ pub extern "C" fn mui_prompt_char(handle: i64, i: i32) -> i32 {
     unsafe { ctx(handle) }.map_or(-1, |c| c.prompt.char_at(i as usize))
 }
 
+fn fit_prompt_tail(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    let max_px = max_px.max(0.0);
+    if max_px <= 1.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    let ellipsis_w = text.measure_ui_sized(ellipsis, size).0;
+    if ellipsis_w >= max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let tail = crate::prompt::tail_ellipsize_chars(s, mid + 1);
+        if text.measure_ui_sized(&tail, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        return ellipsis.to_string();
+    }
+    crate::prompt::tail_ellipsize_chars(s, lo + 1)
+}
+
 /// Draw the prompt (label + current query) as a band across the bottom of the
 /// window, just above the status bar. No-op when no prompt is active.
 #[no_mangle]
@@ -2709,18 +2740,37 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
     let status_h = 30.0_f32;
     let y = (h - status_h - bar_h).max(0.0);
     let chrome = theme::CHROME_FONT_SIZE;
-    let text = ctx.prompt.display_line();
+    let label = ctx.prompt.label();
+    let query = ctx.prompt.query_string();
     let text_y = y + (bar_h - chrome) * 0.5 - 1.0;
     let clip = ctx.clip;
     let handle_ptr = handle as usize as *mut MuiContext;
     let text_x = layout::region(ctx.sidebar_visible).left + layout::PAD + 12.0;
+    let max_right = w - 18.0;
+    let max_w = (max_right - text_x).max(0.0);
     unsafe {
         // Elevated band + top divider + an ember accent bar on the left edge.
         crate::mui_fill_rect(handle_ptr, 0.0, y, w, bar_h, theme::ELEVATED());
         crate::mui_fill_rect(handle_ptr, 0.0, y, w, 1.0, theme::BORDER());
         crate::mui_fill_rect(handle_ptr, layout::region(ctx.sidebar_visible).left, y, 3.0, bar_h, theme::EMBER());
     }
-    ctx.text.queue_sized(text_x, text_y, &text, theme::TEXT(), chrome, clip);
+    if max_w <= 1.0 {
+        return;
+    }
+    let (label_w, _) = ctx.text.measure_ui_sized(label, chrome);
+    if label_w >= max_w {
+        let label = fit_prompt_tail(&mut ctx.text, label, max_w, chrome);
+        if !label.is_empty() {
+            ctx.text.queue_sized(text_x, text_y, &label, theme::TEXT_3(), chrome, clip);
+        }
+        return;
+    }
+    ctx.text.queue_sized(text_x, text_y, label, theme::TEXT_3(), chrome, clip);
+    let qx = text_x + label_w;
+    let query = fit_prompt_tail(&mut ctx.text, &query, max_right - qx, chrome);
+    if !query.is_empty() {
+        ctx.text.queue_sized(qx, text_y, &query, theme::TEXT(), chrome, clip);
+    }
 }
 
 // ---------------------------------------------------------------------------

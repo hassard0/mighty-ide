@@ -60,6 +60,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Workspace New File uses a native picker**: Explorer's New File button and
   "File: New File in Workspace" now open a SaveFileDialog-style file picker,
   falling back to the typed prompt only when native dialogs are unavailable.
+- **Prompt text is measured**: long typed paths, rename targets, and delete
+  confirmations now keep their useful tail and fit within the bottom prompt
+  band instead of running under neighboring chrome.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

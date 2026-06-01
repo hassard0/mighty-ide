@@ -165,10 +165,20 @@ impl PromptState {
     }
 
     /// The full line to draw at the bottom: label + current query.
+    #[cfg(test)]
     pub fn display_line(&self) -> String {
         match self.kind {
             Some(k) => format!("{}{}", k.label(), self.query_string()),
             None => self.query_string(),
+        }
+    }
+
+    /// Label for the active prompt without the query. Used by the renderer to
+    /// measure label/query independently so a long query cannot overlap chrome.
+    pub fn label(&self) -> &'static str {
+        match self.kind {
+            Some(k) => k.label(),
+            None => "",
         }
     }
 
@@ -189,6 +199,24 @@ impl PromptState {
             _ => -1,
         }
     }
+}
+
+/// Character fallback for compact prompt rendering. The draw path does final
+/// pixel measurement, but this keeps the useful filename/path tail visible.
+pub fn tail_ellipsize_chars(s: &str, max_chars: usize) -> String {
+    let count = s.chars().count();
+    if count <= max_chars {
+        return s.to_string();
+    }
+    if max_chars == 0 {
+        return String::new();
+    }
+    if max_chars == 1 {
+        return "\u{2026}".to_string();
+    }
+    let keep = max_chars - 1;
+    let tail: String = s.chars().skip(count - keep).collect();
+    format!("\u{2026}{tail}")
 }
 
 /// One find match, located in the streamed buffer.
@@ -496,6 +524,25 @@ mod tests {
             p.push(c as u32);
         }
         assert_eq!(p.display_line(), "Find: foo");
+    }
+
+    #[test]
+    fn prompt_label_is_separate_from_query() {
+        let mut p = PromptState::new();
+        p.open(PromptKind::RenameFile as i32);
+        for c in "main.mty".bytes() {
+            p.push(c as u32);
+        }
+        assert_eq!(p.label(), "Rename active file to: ");
+        assert_eq!(p.query_string(), "main.mty");
+    }
+
+    #[test]
+    fn tail_ellipsize_keeps_useful_suffix() {
+        assert_eq!(tail_ellipsize_chars("short.mty", 20), "short.mty");
+        assert_eq!(tail_ellipsize_chars("C:/very/long/path/main.mty", 9), "\u{2026}main.mty");
+        assert_eq!(tail_ellipsize_chars("abc", 1), "\u{2026}");
+        assert_eq!(tail_ellipsize_chars("abc", 0), "");
     }
 
     // ---- FindState ----

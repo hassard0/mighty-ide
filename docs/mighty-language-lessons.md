@@ -1571,3 +1571,15 @@ prompt. That made creating a file in a nested folder feel unlike a desktop IDE.
   added another scalar dialog ABI (`mui_newfile_dialog`), reinforcing the need
   for future enum/result ABI shapes so cancel, unavailable, and success do not
   require magic integer codes at every call site.
+
+### L92. Bottom prompt text needs measured query budgets **[finding, P2]**
+The bottom prompt still queued one full `label + query` string. Long typed paths,
+rename targets, or delete-confirmation names could run across the prompt band and
+under adjacent chrome, especially in compact windows or with a visible sidebar.
+
+- **IDE note:** prompt rendering now measures the label separately from the query,
+  draws the label in muted chrome, and ellipsizes the query by shaped UI width.
+  Query truncation preserves the tail so filenames and path endings remain useful.
+- **Language note:** no new Mighty gap surfaced. The pattern matches the other
+  recent layout fixes: text fitting belongs shim-side until Mighty has richer UI
+  text measurement and string/result ABI support.
