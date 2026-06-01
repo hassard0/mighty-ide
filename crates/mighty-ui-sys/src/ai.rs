@@ -500,6 +500,16 @@ pub fn input_geometry(input: &str, width: u32, height: u32) -> (f32, f32, f32, f
     (px, pw, input_y, input_h)
 }
 
+/// Geometry for the header close affordance, shared by draw and click hit-tests.
+pub fn close_geometry(width: u32) -> (f32, f32, f32, f32) {
+    let w = width as f32;
+    let pw = AI_PANEL_W;
+    let px = w - pw;
+    let reserved_x = crate::titlebar::controls_x(w) - crate::titlebar::ACTION_STRIP_W;
+    let right = reserved_x.min(px + pw) - 10.0;
+    (right - 28.0, 8.0, 24.0, 24.0)
+}
+
 /// A simple line of rendered transcript content (already wrapped/segmented).
 enum Seg {
     /// A normal text line for `role`.
@@ -660,12 +670,24 @@ impl AiPanel {
             chrome - 2.0,
             clip,
         );
+        let (close_x, close_y, close_w, close_h) = close_geometry(width);
+        ctx.dl_round(close_x, close_y, close_w, close_h, 6.0, theme::BG_4());
+        ctx.dl_stroke(close_x, close_y, close_w, close_h, 6.0, theme::BORDER(), 1.0);
+        ctx.dl_icon(
+            close_x + 5.0,
+            close_y + 5.0,
+            14.0,
+            14.0,
+            icons::CLOSE,
+            theme::TEXT_3(),
+            1.6,
+            false,
+        );
         // Compact model pill on the right, kept out of the native titlebar
         // action/control strip so it never collides with minimize/maximize/close.
         let model_label = model_badge(MODEL);
         let pill_w = model_label.chars().count() as f32 * (chrome - 3.0) * 0.52 + 16.0;
-        let reserved_x = crate::titlebar::controls_x(w) - crate::titlebar::ACTION_STRIP_W;
-        let header_right = reserved_x.min(px + pw) - 10.0;
+        let header_right = close_x - 10.0;
         let min_pill_x = px + 150.0;
         if header_right - pill_w >= min_pill_x {
             let pill_x = header_right - pill_w;

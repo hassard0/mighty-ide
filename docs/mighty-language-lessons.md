@@ -2517,3 +2517,18 @@ toolbar and shortcut story.
 - **Language note:** no compiler gap surfaced. The friction is command metadata:
   Mighty still benefits from a single command/action registry that can drive
   Welcome, palette, shortcuts, toolbar order, and harness targets together.
+
+### L166. Docked panels need visible close affordances, not just command exits **[finding, P2]**
+The AI Copilot right dock had a command-palette close path, but the compact
+visual pass still showed no visible close button in the panel header. Users do
+not discover command exits while scanning a docked surface; they look for a
+nearby header affordance.
+
+- **IDE note:** AI Copilot now draws a header close button inside its own visible
+  panel band and `mui_ai_click` returns a distinct close code. Mighty routes that
+  click to `mui_ai_close`, matching the existing close command without clearing
+  transcript state.
+- **Language note:** no compiler gap surfaced. This is the same scalar hit-test
+  pattern as bottom docks and prompts; Mighty would benefit from declarative
+  widget actions so every visible button automatically owns both paint and event
+  routing.

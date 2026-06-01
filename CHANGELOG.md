@@ -162,6 +162,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Welcome starts with New File**: the first-run Start list now puts the native
   New File picker first, followed by Open File/Open Folder, so creation is not
   buried behind navigation commands.
+- **AI Copilot is visibly closable**: the right-docked AI panel now draws a
+  header close button with matching mouse hit-test routing, instead of relying
+  on only rail toggles or the command palette close command.
 - **Visual gallery paths are reliable**: the overlay-gallery QA tool now
   normalizes relative executable, workdir, and output paths before launching the
   packaged IDE, avoiding false missing-screenshot failures.

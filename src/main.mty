@@ -3031,6 +3031,10 @@ fn main() {
           // Top-right more-actions (⋯) button: open the command palette.
           mui_palette_open(h)
           palette_open = true
+        } else if ai_click == 3 {
+          let _aic = mui_ai_close(h)
+          ai_focus = false
+          typing = false
         } else if ai_click == 2 {
           let _s = mui_ai_send(h)
           ai_focus = true

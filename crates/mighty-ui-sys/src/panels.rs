@@ -1478,7 +1478,7 @@ pub extern "C" fn mui_ai_is_open(handle: i64) -> i32 {
 }
 
 /// Map the last click to the right-docked AI panel:
-/// `0` = miss, `1` = input/body focus, `2` = send button.
+/// `0` = miss, `1` = input/body focus, `2` = send button, `3` = close button.
 #[no_mangle]
 pub extern "C" fn mui_ai_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -1499,6 +1499,10 @@ pub extern "C" fn mui_ai_click(handle: i64) -> i32 {
     let controls_x = crate::titlebar::controls_x(ctx.gpu.width as f32);
     if y <= layout::TAB_BAR_H && x >= controls_x - crate::titlebar::ACTION_STRIP_W {
         return 0;
+    }
+    let (close_x, close_y, close_w, close_h) = crate::ai::close_geometry(visible_w);
+    if x >= close_x && x <= close_x + close_w && y >= close_y && y <= close_y + close_h {
+        return 3;
     }
     let send_x0 = px + pw - 44.0;
     let send_x1 = px + pw - 12.0;

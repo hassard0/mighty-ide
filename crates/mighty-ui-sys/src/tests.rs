@@ -561,7 +561,17 @@ fn click_routing_tab_bar_sidebar_and_text() {
         0,
     );
     assert_eq!(mui_ai_click(handle), 2);
+    let (close_x, close_y, close_w, close_h) = crate::ai::close_geometry(ai_visible_w);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        close_x + close_w * 0.5,
+        close_y + close_h * 0.5,
+        0,
+    );
+    assert_eq!(mui_ai_click(handle), 3);
     ctx.last_event.x = px + 24.0;
+    ctx.last_event.y = input_y + 12.0;
     assert_eq!(mui_ai_click(handle), 1);
     ctx.last_event.x = px - 2.0;
     assert_eq!(mui_ai_click(handle), 0);
