@@ -920,6 +920,44 @@ fn new_file_dialog_env_pick_creates_opens_and_records_recent() {
 }
 
 #[test]
+fn new_file_dialog_env_sequence_supports_multiple_dialog_picks() {
+    use crate::{mui_newfile_dialog, mui_tab_active, mui_tab_count};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!(
+        "mui_new_file_dialog_sequence_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.tree.set_root(root.clone());
+
+    let first = root.join("welcome.mty");
+    let second = root.join("explorer.mty");
+    let seq = format!("{}|{}", first.display(), second.display());
+
+    std::env::remove_var("MUI_NEW_FILE_PICK");
+    std::env::set_var("MUI_NEW_FILE_PICK_SEQUENCE", seq);
+    let first_idx = mui_newfile_dialog(handle);
+    let second_idx = mui_newfile_dialog(handle);
+    std::env::remove_var("MUI_NEW_FILE_PICK_SEQUENCE");
+
+    assert_eq!(first_idx, 1);
+    assert_eq!(second_idx, 2);
+    assert!(first.is_file());
+    assert!(second.is_file());
+    assert_eq!(mui_tab_count(handle), 3);
+    assert_eq!(mui_tab_active(handle), second_idx);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(second.as_path()));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn new_file_dialog_cancel_and_existing_are_noops() {
     use crate::{mui_newfile_dialog, mui_tab_active, mui_tab_count};
 

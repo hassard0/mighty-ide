@@ -179,6 +179,7 @@ Set-Content -LiteralPath $openPath -Value "opened" -Encoding utf8
 # picker result so the harness does not block on an OS-modal dialog.
 $env:MUI_SAVE_FILE_PICK = $savePath
 $env:MUI_NEW_FILE_PICK = $welcomeFilePath
+$env:MUI_NEW_FILE_PICK_SEQUENCE = "$welcomeFilePath|$newFilePath"
 $env:MUI_OPEN_FILE_PICK = $openPath
 $env:MUI_OPEN_FOLDER_PICK = $WorkDir
 
@@ -313,7 +314,9 @@ Log "ui scale = $scale"
 function ClickL($lx, $ly) { Click $hwnd ([int][math]::Round($lx * $scale)) ([int][math]::Round($ly * $scale)) }
 $logicalW = [double]$script:WinW / [double]$scale
 $logicalH = [double]$script:WinH / [double]$scale
-$topbarMoreX = $logicalW - (3 * 46) - 64
+# titlebar.rs: controls_x = w - 3*46, action strip = 68, run target is the
+# first 30px of the strip. Click the center of the remaining "more" range.
+$topbarMoreX = $logicalW - (3 * 46) - 19
 
 function Invoke-PaletteCommand($query, $captureName) {
   ClickL $topbarMoreX 20
@@ -329,12 +332,17 @@ function Invoke-PaletteCommand($query, $captureName) {
 # messages, and winit reports logical coordinates back to the IDE, so pass the
 # same logical positions the app hit-tests against.
 $treeX = 110
-$explorerNewFileX = 291
-$explorerNewFolderX = 319
-$explorerCollapseX = 348
+# abi.rs hit-tests the Explorer header actions against sidebar_right()-72/-50/-28.
+# At the harness window's compact sidebar width, the button centers are in the
+# 236/258/280px range; farther right enters titlebar drag/chrome.
+$explorerNewFileX = 236
+$explorerNewFolderX = 258
+$explorerCollapseX = 280
 
 # === WELCOME NEW FILE: quick action must reveal a blank editor, not leave Welcome up. ===
-ClickL 420 472
+# Compact Welcome layout places "New File" on the fifth quick-action row and
+# "New Folder" immediately below it; click the New File row center.
+ClickL 410 403
 Start-Sleep -Milliseconds 350
 Capture $hwnd "02-welcome-new-file"
 Log "welcome new-file captured"
@@ -352,7 +360,10 @@ Capture $hwnd "10-open-file"
 Log "file-open (tree RUN.txt) captured"
 
 # === TOP-LEFT EXPLORER HEADER BUTTONS ===
-$env:MUI_NEW_FILE_PICK = $newFilePath
+# Ensure the Explorer sidebar is the active rail panel before testing its header
+# actions; previous Welcome/file flows may leave another panel selected.
+ClickL 26 71
+Start-Sleep -Milliseconds 250
 ClickL $explorerNewFileX 20  # New File -> workspace file prompt
 Start-Sleep -Milliseconds 350
 Capture $hwnd "11-new-file-created"
@@ -404,7 +415,7 @@ Press-VK $hwnd 0x1B
 Start-Sleep -Milliseconds 150
 
 # === TYPING into a fresh untitled buffer ===
-Invoke-PaletteCommand "new file" $null
+Invoke-PaletteCommand "untitled" $null
 Start-Sleep -Milliseconds 250
 ClickL 460 130           # editor body
 Start-Sleep -Milliseconds 100
@@ -467,6 +478,7 @@ Log "process hasExited=$exited"
 if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; Log "killed pid $($proc.Id)" }
 Remove-Item Env:\MUI_SAVE_FILE_PICK -ErrorAction SilentlyContinue
 Remove-Item Env:\MUI_NEW_FILE_PICK -ErrorAction SilentlyContinue
+Remove-Item Env:\MUI_NEW_FILE_PICK_SEQUENCE -ErrorAction SilentlyContinue
 Remove-Item Env:\MUI_OPEN_FILE_PICK -ErrorAction SilentlyContinue
 Remove-Item Env:\MUI_OPEN_FOLDER_PICK -ErrorAction SilentlyContinue
 if (-not $traceWasSet) { Remove-Item Env:\MUI_TRACE -ErrorAction SilentlyContinue }

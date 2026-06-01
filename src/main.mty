@@ -2852,8 +2852,7 @@ fn main() {
         let ai_click = mui_ai_click(h)
         // Explorer header buttons (new file / new folder / collapse). 0 = none.
         // Only meaningful when the Explorer panel is the active sidebar panel.
-        let mut explorer_hit: I32 = 0
-        if cur_panel == panel_explorer() { explorer_hit = mui_explorer_header_at_click(h) }
+        let explorer_hit = mui_explorer_header_at_click(h)
         if diff_on == 1 && diff_hunk >= 0 {
           // Inline-diff hunk header clicked: stage (working-tree) / unstage
           // (staged) that hunk. The shim picks the verb by the diff's side and

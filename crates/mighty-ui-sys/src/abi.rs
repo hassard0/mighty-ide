@@ -27,6 +27,7 @@
 //! a thin scalar veneer over the same `MuiContext`.
 
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostics::{self, Severity};
 use crate::ffi::*;
@@ -4384,6 +4385,9 @@ pub extern "C" fn mui_explorer_header_at_click(handle: i64) -> i32 {
     if !ctx.sidebar_visible {
         return 0;
     }
+    if ctx.active_panel != crate::PANEL_EXPLORER {
+        return 0;
+    }
     let x = ctx.last_event.x;
     let y = ctx.last_event.y;
     if y < 0.0 || y >= 40.0 {
@@ -4395,13 +4399,19 @@ pub extern "C" fn mui_explorer_header_at_click(handle: i64) -> i32 {
     let nfo = right - 50.0;
     let col = right - 28.0;
     if x >= nf - 3.0 && x < nf + 18.0 {
+        trace(&format!("explorer_header x={x:.1} y={y:.1} -> new-file"));
         return 1;
     }
     if x >= nfo - 3.0 && x < nfo + 18.0 {
+        trace(&format!("explorer_header x={x:.1} y={y:.1} -> new-folder"));
         return 2;
     }
     if x >= col - 3.0 && x < col + 18.0 {
+        trace(&format!("explorer_header x={x:.1} y={y:.1} -> collapse"));
         return 3;
+    }
+    if x >= nf - 12.0 && x < col + 24.0 {
+        trace(&format!("explorer_header x={x:.1} y={y:.1} -> miss"));
     }
     0
 }
@@ -8690,6 +8700,12 @@ try {
 }
 
 fn pick_new_file_native(initial_dir: &std::path::Path) -> FileDialogPick {
+    if let Ok(seq) = std::env::var("MUI_NEW_FILE_PICK_SEQUENCE") {
+        let trimmed = seq.trim();
+        if !trimmed.is_empty() {
+            return next_new_file_pick_from_sequence(trimmed);
+        }
+    }
     if let Ok(path) = std::env::var("MUI_NEW_FILE_PICK") {
         let trimmed = path.trim();
         return if trimmed.is_empty() {
@@ -8727,6 +8743,26 @@ try {
 }
 "#;
     run_file_dialog_script(script, initial_dir, None)
+}
+
+fn next_new_file_pick_from_sequence(sequence: &str) -> FileDialogPick {
+    static NEXT_PICK: OnceLock<Mutex<(String, usize)>> = OnceLock::new();
+    let mut state = NEXT_PICK
+        .get_or_init(|| Mutex::new((String::new(), 0)))
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if state.0 != sequence {
+        state.0 = sequence.to_string();
+        state.1 = 0;
+    }
+    let idx = state.1;
+    state.1 = state.1.saturating_add(1);
+    let picked = sequence.split('|').nth(idx).unwrap_or("").trim();
+    if picked.is_empty() {
+        FileDialogPick::Cancelled
+    } else {
+        FileDialogPick::Picked(PathBuf::from(picked))
+    }
 }
 
 fn run_file_dialog_script(
