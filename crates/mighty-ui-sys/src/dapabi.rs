@@ -412,26 +412,136 @@ pub const TB_STEP_OUT: i32 = 3;
 pub const TB_STOP: i32 = 4;
 
 /// Geometry of the debug toolbar (a row of 5 icon buttons under the header).
-struct ToolbarGeom {
-    x0: f32,
-    y: f32,
-    btn: f32,
-    gap: f32,
+pub(crate) struct ToolbarGeom {
+    pub(crate) x0: f32,
+    pub(crate) y: f32,
+    pub(crate) btn: f32,
+    pub(crate) gap: f32,
 }
 
-fn toolbar_geom() -> ToolbarGeom {
+pub(crate) fn toolbar_geom() -> ToolbarGeom {
     let sx = layout::RAIL_W;
+    let sw = layout::sidebar_w();
+    let gap = if sw <= layout::SIDEBAR_MIN_W + 2.0 { 4.0 } else { 6.0 };
+    let available = (sw - 24.0 - gap * 4.0).max(0.0);
+    let btn = (available / 5.0).clamp(22.0, 30.0);
     ToolbarGeom {
         x0: sx + 12.0,
         y: 40.0 + 8.0,
-        btn: 30.0,
-        gap: 6.0,
+        btn,
+        gap,
     }
 }
 
 /// Y pixel (top) of the first Call-Stack row.
 fn stack_rows_top() -> f32 {
-    40.0 + 8.0 + 30.0 + 10.0 + 20.0 // header + toolbar + gap + section label
+    let tb = toolbar_geom();
+    tb.y + tb.btn + 10.0 + 20.0 // toolbar + gap + section label
+}
+
+pub(crate) fn debug_state_pill_width(
+    text: &mut crate::text::Text,
+    state_label: &str,
+    size: f32,
+) -> f32 {
+    text.measure_ui_sized(state_label, size).0 + 18.0
+}
+
+pub(crate) fn fit_debug_header_title(
+    text: &mut crate::text::Text,
+    title: &str,
+    title_x: f32,
+    pill_x: f32,
+    size: f32,
+) -> String {
+    let tracked: String = title.chars().flat_map(|c| [c, '\u{2009}']).collect();
+    fit_head_px(text, &tracked, (pill_x - 8.0 - title_x).max(0.0), size)
+}
+
+fn fit_head_px(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    if max_px <= 0.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    if text.measure_ui_sized(ellipsis, size).0 > max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        ellipsis.to_string()
+    } else {
+        let mut out: String = chars.iter().take(lo).collect();
+        out.push_str(ellipsis);
+        out
+    }
+}
+
+pub(crate) fn fit_debug_stack_name(
+    text: &mut crate::text::Text,
+    name: &str,
+    name_x: f32,
+    loc_x: f32,
+    size: f32,
+) -> String {
+    fit_head_px(text, name, (loc_x - 8.0 - name_x).max(0.0), size)
+}
+
+pub(crate) fn fit_debug_stack_location(
+    text: &mut crate::text::Text,
+    loc: &str,
+    max_px: f32,
+    size: f32,
+) -> String {
+    fit_tail_px(text, loc, max_px, size)
+}
+
+fn fit_tail_px(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    if max_px <= 0.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    if text.measure_ui_sized(ellipsis, size).0 > max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let candidate: String = std::iter::once('\u{2026}')
+            .chain(chars[chars.len().saturating_sub(mid)..].iter().copied())
+            .collect();
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        ellipsis.to_string()
+    } else {
+        std::iter::once('\u{2026}')
+            .chain(chars[chars.len().saturating_sub(lo)..].iter().copied())
+            .collect()
+    }
 }
 
 /// Map the last click in the debug view: a toolbar button (`TOOLBAR_BASE + code`)
@@ -590,18 +700,25 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
     ctx.dl_rect(sx, 0.0, sw, head_h, theme::BG_2());
     ctx.dl_rect(sx, head_h - 1.0, sw, 1.0, theme::BORDER_SOFT());
     ctx.dl_icon(sx + 12.0, (head_h - 15.0) * 0.5, 15.0, 15.0, icons::DEBUG, theme::ACCENT_BRIGHT(), 1.5, false);
-    let title = "RUN AND DEBUG";
-    let tracked: String = title.chars().flat_map(|c| [c, '\u{2009}']).collect();
-    ctx.text.queue_ui_sized(sx + 34.0, (head_h - (chrome - 2.0)) * 0.5 - 1.0, &tracked, theme::DIM(), chrome - 2.0, clip);
-
     let (state_label, state_col) = match ctx.dbg.state() {
         DebugState::Idle => ("idle", theme::TEXT_3()),
         DebugState::Running => ("running\u{2026}", theme::WARNING()),
         DebugState::Stopped => ("paused", theme::GREEN()),
         DebugState::Terminated => ("exited", theme::TEXT_3()),
     };
-    let pill_w = state_label.chars().count() as f32 * (chrome * 0.5) + 18.0;
+    let pill_w = debug_state_pill_width(&mut ctx.text, state_label, chrome - 2.0);
     let pill_x = sx + sw - pill_w - 12.0;
+    let title = "RUN AND DEBUG";
+    let title_x = sx + 34.0;
+    let tracked = fit_debug_header_title(&mut ctx.text, title, title_x, pill_x, chrome - 2.0);
+    ctx.text.queue_ui_sized(
+        title_x,
+        (head_h - (chrome - 2.0)) * 0.5 - 1.0,
+        &tracked,
+        theme::DIM(),
+        chrome - 2.0,
+        clip,
+    );
     let pill_y = (head_h - 17.0) * 0.5;
     ctx.dl_round(pill_x, pill_y, pill_w, 17.0, 6.0, theme::BG_4());
     ctx.text.queue_ui_sized(pill_x + 9.0, pill_y + 2.5, state_label, state_col, chrome - 2.0, clip);
@@ -668,23 +785,18 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
             // Frame icon (arrow on top frame, dot otherwise).
             let fcol = if selected { theme::ACCENT_BRIGHT() } else { theme::SYN_FUNCTION() };
             ctx.dl_icon(sx + 12.0, y + (row_h - 12.0) * 0.5, 12.0, 12.0, icons::FN_SYMBOL, fcol, 1.6, false);
-            // Function name.
-            let name_col = if selected { theme::TEXT() } else { theme::TEXT_1() };
-            let mut nm = name;
-            let navail = ((sw - 90.0) / adv).floor() as usize;
-            if nm.chars().count() > navail && navail > 1 {
-                nm = nm.chars().take(navail - 1).collect::<String>() + "\u{2026}";
-            }
-            ctx.text.queue_ui_sized(sx + 30.0, ty, &nm, name_col, chrome, clip);
             // file:line on the right (dim).
             let loc = format!("{file}:{line}");
-            let mut lc = loc;
-            let lavail = 16usize;
-            if lc.chars().count() > lavail {
-                lc = lc.chars().rev().take(lavail - 1).collect::<Vec<_>>().into_iter().rev().collect::<String>();
-            }
-            let lw = lc.chars().count() as f32 * (chrome * 0.5);
-            ctx.text.queue_ui_sized(sx + sw - lw - 14.0, ty, &lc, theme::TEXT_4(), chrome - 1.5, clip);
+            let loc_max = (sw * 0.42).clamp(48.0, 86.0);
+            let lc = fit_debug_stack_location(&mut ctx.text, &loc, loc_max, chrome - 1.5);
+            let lw = ctx.text.measure_ui_sized(&lc, chrome - 1.5).0;
+            let loc_x = sx + sw - lw - 14.0;
+            // Function name.
+            let name_col = if selected { theme::TEXT() } else { theme::TEXT_1() };
+            let name_x = sx + 30.0;
+            let nm = fit_debug_stack_name(&mut ctx.text, &name, name_x, loc_x, chrome);
+            ctx.text.queue_ui_sized(name_x, ty, &nm, name_col, chrome, clip);
+            ctx.text.queue_ui_sized(loc_x, ty, &lc, theme::TEXT_4(), chrome - 1.5, clip);
             next_y = y + row_h;
         }
     }

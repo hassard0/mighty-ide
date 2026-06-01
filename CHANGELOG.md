@@ -78,6 +78,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   measure and ellipsize the title before the commit/pull/push/fetch icons.
 - **Source Control section metadata is responsive**: the branch label now yields
   to the `CHANGES` count in cramped sidebars instead of drawing over it.
+- **Debug sidebar fits compact widths**: the Run and Debug header title now
+  measures against the state pill, and its toolbar buttons shrink inside the
+  sidebar instead of spilling into the editor. Call-stack rows also measure the
+  source location first so function names no longer draw underneath it.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now

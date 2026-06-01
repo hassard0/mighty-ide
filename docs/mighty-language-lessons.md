@@ -2887,3 +2887,18 @@ when the count itself needed the same horizontal lane.
 - **Language note:** no compiler gap surfaced. Mighty UI needs priority-aware
   inline layout, where secondary metadata can collapse or move after primary
   task state claims its measured space.
+
+### L193. Toolbars need responsive geometry shared by paint and hit testing **[finding, P2]**
+The compact Debug gallery showed a header/title collision and the five-button
+debug toolbar was wider than the compact sidebar. The click path used the same
+fixed toolbar geometry, so simply clipping paint would have left invisible or
+misaligned hit targets.
+
+- **IDE note:** Run and Debug now measures the state pill before fitting the
+  header title, and the toolbar geometry derives button/gap sizes from the
+  current sidebar width. Drawing and click routing both read that geometry.
+  Call-stack rows now measure the right-side `file:line` location first and fit
+  the frame name against it.
+- **Language note:** no compiler gap surfaced. Mighty UI needs first-class
+  responsive toolbar layout so controls can shrink, wrap, or overflow-menu from
+  one geometry contract instead of hard-coded per-panel coordinates.

@@ -2601,6 +2601,81 @@ fn scm_section_branch_budget_yields_to_changes_count() {
 }
 
 #[test]
+fn debug_header_title_fits_before_state_pill() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(520);
+
+    let sx = crate::layout::RAIL_W;
+    let sw = crate::layout::sidebar_w();
+    let chrome = crate::theme::CHROME_FONT_SIZE - 2.0;
+    let pill_w = crate::dapabi::debug_state_pill_width(&mut ctx.text, "running\u{2026}", chrome);
+    let pill_x = sx + sw - pill_w - 12.0;
+    let title_x = sx + 34.0;
+    let shown =
+        crate::dapabi::fit_debug_header_title(&mut ctx.text, "RUN AND DEBUG", title_x, pill_x, chrome);
+    let (shown_w, _) = ctx.text.measure_ui_sized(&shown, chrome);
+    assert!(
+        title_x + shown_w <= pill_x - 8.0,
+        "debug header should leave a visible gap before the state pill: {shown}"
+    );
+    assert!(shown.ends_with('\u{2026}'));
+
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+}
+
+#[test]
+fn debug_toolbar_fits_compact_sidebar() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(520);
+
+    let tb = crate::dapabi::toolbar_geom();
+    let toolbar_right = tb.x0 + 5.0 * tb.btn + 4.0 * tb.gap;
+    assert!(
+        toolbar_right <= crate::layout::sidebar_right() - 12.0,
+        "debug toolbar should stay inside compact sidebar: right={toolbar_right}"
+    );
+
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+}
+
+#[test]
+fn debug_stack_name_fits_before_location() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(520);
+
+    let sx = crate::layout::RAIL_W;
+    let sw = crate::layout::sidebar_w();
+    let chrome = crate::theme::CHROME_FONT_SIZE;
+    let loc = crate::dapabi::fit_debug_stack_location(&mut ctx.text, "demo.mty:300", sw * 0.42, chrome - 1.5);
+    let loc_w = ctx.text.measure_ui_sized(&loc, chrome - 1.5).0;
+    let loc_x = sx + sw - loc_w - 14.0;
+    let name_x = sx + 30.0;
+    let name = crate::dapabi::fit_debug_stack_name(
+        &mut ctx.text,
+        "compute_sum_with_a_long_debug_frame_name",
+        name_x,
+        loc_x,
+        chrome,
+    );
+    let (name_w, _) = ctx.text.measure_ui_sized(&name, chrome);
+    assert!(
+        name_x + name_w <= loc_x - 8.0,
+        "debug stack frame name should leave a gap before location: {name}"
+    );
+    assert!(name.ends_with('\u{2026}'));
+
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+}
+
+#[test]
 fn status_problems_chip_hit_tracks_rendered_branch_width() {
     use crate::ffi::MuiEvent;
     use crate::{mui_status_problems_chip_at_click, mui_status_render};
