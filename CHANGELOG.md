@@ -92,6 +92,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Bottom dock chrome respects zoom/DPI**: shared dock actions and right-aligned
   header content use the physical viewport converted back to logical pixels, so
   drawer buttons and labels do not drift off-screen under UI zoom.
+- **Unsaved tab close uses the confirmation modal**: closing a dirty tab or
+  quitting with dirty work now requires the explicit Save/Discard/Cancel overlay
+  instead of a fragile repeat-close/repeat-quit shortcut.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

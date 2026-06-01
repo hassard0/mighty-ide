@@ -323,15 +323,17 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(mui_tab_active(handle), 1);
     mui_path_clear(handle);
 
-    // Dirty tabs require a second close request before discarding edits.
+    // Dirty tabs require an explicit confirmation choice before closing.
     mui_tab_set_dirty(handle, 1, 1);
     assert_eq!(mui_quit_request(handle), 0);
     assert_eq!(mui_dirty_confirm_active(handle), 1);
     mui_dirty_confirm_cancel(handle);
     assert_eq!(mui_dirty_confirm_active(handle), 0);
     assert_eq!(mui_quit_request(handle), 0);
-    assert_eq!(mui_quit_request(handle), 1);
+    assert_eq!(mui_quit_request(handle), 0, "repeat quit should keep the modal active");
+    mui_dirty_confirm_cancel(handle);
     assert_eq!(mui_tab_close(handle, 1), -1);
+    assert_eq!(mui_tab_close(handle, 1), -1, "repeat close should not discard");
     assert_eq!(mui_dirty_confirm_active(handle), 1);
     assert_eq!(mui_tab_count(handle), 2);
     assert_eq!(mui_tab_active(handle), 1);
@@ -363,7 +365,7 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(mui_tab_cursor_col(handle, 0), 0);
     assert_eq!(mui_tab_scroll(handle, 0), 0);
 
-    // First close on a dirty tab warns; second close on the same tab discards.
+    // Dirty close opens the modal; only explicit Discard closes the tab.
     mui_tab_set_dirty(handle, 0, 1);
     assert_eq!(mui_tab_close(handle, 0), -1);
     assert_eq!(mui_tab_count(handle), 2);

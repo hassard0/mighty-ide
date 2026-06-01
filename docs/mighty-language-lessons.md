@@ -1751,3 +1751,17 @@ when users look for a normal header close button.
 - **Language note:** no compiler issue surfaced, but the same scalar-pattern
   friction remains: Mighty can call one `*_at_click` function, while the shim
   must own the cross-panel geometry and state transition.
+
+### L105. Destructive close paths should not be timed shortcuts **[finding, P2]**
+Dirty tab close and dirty app quit already had a real Save/Discard/Cancel overlay,
+but the lower-level ABI still allowed a repeated close/quit within a time window
+to discard changes. That is surprising UX and too easy to trigger while testing
+broken close buttons.
+
+- **IDE note:** `mui_tab_close` and `mui_quit_request` now only arm the
+  confirmation overlay for dirty work. The destructive operation happens through
+  `mui_dirty_confirm_discard`, or through `mui_dirty_confirm_save` after a
+  successful save.
+- **Language note:** no compiler gap surfaced. This is another scalar-state
+  coordination issue: Mighty routes the modal interaction, while the shim owns
+  the dirty-tab/quit pending state and the actual destructive transition.

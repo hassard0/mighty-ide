@@ -3261,11 +3261,11 @@ pub extern "C" fn mui_tab_prev(handle: i64) -> i32 {
 }
 
 /// Close tab `idx`, keeping at least one tab (last close -> empty scratch).
-/// Dirty buffers require a second close request on the same tab so a stray click
-/// cannot silently discard edits, while still letting the user intentionally
-/// close an unsaved scratch.
-/// Returns the active index after a successful close, or `-1` when the close was
-/// blocked by unsaved edits.
+/// Dirty buffers open the unsaved-work confirmation overlay. The tab is only
+/// closed after an explicit Save or Discard choice, never from a repeated close
+/// click/key press.
+/// Returns the active index after a successful close, or `-1` when confirmation
+/// is required.
 #[no_mangle]
 pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -3276,24 +3276,9 @@ pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
     }
     let idx_u = idx as usize;
     if ctx.tabs.is_dirty(idx_u) {
-        let now = std::time::Instant::now();
-        let confirmed = ctx
-            .pending_dirty_close
-            .map(|(pending, at)| pending == idx_u && now.duration_since(at).as_secs_f32() <= 5.0)
-            .unwrap_or(false);
-        if !confirmed {
-            ctx.pending_dirty_close = Some((idx_u, now));
-            let name = ctx
-                .tabs
-                .get(idx_u)
-                .map(|t| t.basename())
-                .unwrap_or_else(|| "tab".to_string());
-            ctx.push_toast(
-                crate::toast::Kind::Warn,
-                format!("Unsaved changes in {name}; close again to discard"),
-            );
-            return -1;
-        }
+        ctx.pending_dirty_close = Some((idx_u, std::time::Instant::now()));
+        ctx.pending_quit = None;
+        return -1;
     }
     ctx.pending_dirty_close = None;
     let a = ctx.tabs.close(idx_u);
@@ -3550,9 +3535,10 @@ pub extern "C" fn mui_tab_close_saved_to_left(handle: i64) -> i32 {
     active as i32
 }
 
-/// Request application exit. If any tab has unsaved edits, the first request
-/// warns and returns `0`; a second request within five seconds returns `1` so
-/// Mighty can exit intentionally. Clean workspaces return `1` immediately.
+/// Request application exit. If any tab has unsaved edits, opens the
+/// unsaved-work confirmation overlay and returns `0`; only the overlay's
+/// explicit Save/Discard paths can complete the quit. Clean workspaces return
+/// `1` immediately.
 #[no_mangle]
 pub extern "C" fn mui_quit_request(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -3563,21 +3549,8 @@ pub extern "C" fn mui_quit_request(handle: i64) -> i32 {
         ctx.pending_quit = None;
         return 1;
     }
-    let now = std::time::Instant::now();
-    let confirmed = ctx
-        .pending_quit
-        .map(|at| now.duration_since(at).as_secs_f32() <= 5.0)
-        .unwrap_or(false);
-    if confirmed {
-        ctx.pending_quit = None;
-        return 1;
-    }
-    ctx.pending_quit = Some(now);
-    let noun = if dirty == 1 { "tab" } else { "tabs" };
-    ctx.push_toast(
-        crate::toast::Kind::Warn,
-        format!("{dirty} unsaved {noun}; quit again to discard"),
-    );
+    ctx.pending_dirty_close = None;
+    ctx.pending_quit = Some(std::time::Instant::now());
     0
 }
 
