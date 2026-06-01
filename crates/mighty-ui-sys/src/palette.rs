@@ -177,6 +177,12 @@ pub const CMD_VIEW_OUTLINE: u32 = 74;
 pub const CMD_VIEW_RUN_DEBUG: u32 = 75;
 /// Open the Testing view.
 pub const CMD_VIEW_TESTING: u32 = 76;
+/// Open the Run output panel.
+pub const CMD_VIEW_RUN_OUTPUT: u32 = 77;
+/// Open the Problems panel.
+pub const CMD_VIEW_PROBLEMS: u32 = 78;
+/// Open the AI copilot panel.
+pub const CMD_VIEW_AI_COPILOT: u32 = 79;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -245,6 +251,9 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_VIEW_OUTLINE,     label: "View: Outline",       keybinding: "" },
     Command { id: CMD_VIEW_RUN_DEBUG,   label: "View: Run and Debug", keybinding: "" },
     Command { id: CMD_VIEW_TESTING,     label: "View: Testing",       keybinding: "" },
+    Command { id: CMD_VIEW_RUN_OUTPUT,  label: "View: Run Output",    keybinding: "" },
+    Command { id: CMD_VIEW_PROBLEMS,    label: "View: Problems",      keybinding: "" },
+    Command { id: CMD_VIEW_AI_COPILOT,  label: "View: AI Copilot",    keybinding: "Ctrl+Shift+A" },
     Command { id: CMD_RUN_IN_BROWSER,   label: "Mighty: Run in Browser", keybinding: "Alt+W" },
     Command { id: CMD_SPLIT_RIGHT,      label: "Split Editor Right", keybinding: "Ctrl+\\" },
     Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
@@ -564,6 +573,9 @@ impl PaletteEngine {
             CMD_VIEW_OUTLINE => (icons::FN_SYMBOL, "Open the symbol outline", false),
             CMD_VIEW_RUN_DEBUG => (icons::DEBUG, "Open Run and Debug", false),
             CMD_VIEW_TESTING => (icons::BEAKER, "Open the testing view", false),
+            CMD_VIEW_RUN_OUTPUT => (icons::RUN, "Open the Run output panel", false),
+            CMD_VIEW_PROBLEMS => (icons::ERROR_CIRCLE, "Open diagnostics and build problems", false),
+            CMD_VIEW_AI_COPILOT => (icons::AGENTS, "Open the AI copilot panel", false),
             CMD_RUN_IN_BROWSER => (icons::GLOBE, "Build and serve the active Mighty file for the browser", false),
             CMD_SPLIT_RIGHT => (icons::TEST_BOX, "Split the editor into side-by-side panes", false),
             CMD_FOCUS_NEXT_PANE => (icons::CHEVRON, "Move focus between editor panes", false),

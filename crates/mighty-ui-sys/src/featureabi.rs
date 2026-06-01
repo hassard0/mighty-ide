@@ -66,6 +66,17 @@ pub extern "C" fn mui_run_toggle(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.run.toggle()))
 }
 
+/// Open the Run panel without starting or toggling a process. Returns `1` when
+/// the panel is visible.
+#[no_mangle]
+pub extern "C" fn mui_run_open(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.run.open();
+    1
+}
+
 /// `1` if the Run panel is open, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_run_active(handle: i64) -> i32 {

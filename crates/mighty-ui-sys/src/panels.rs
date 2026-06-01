@@ -1338,6 +1338,16 @@ pub extern "C" fn mui_ai_open(handle: i64) -> i32 {
     }
 }
 
+/// Open the AI copilot without toggling it closed. Returns `1` when visible.
+#[no_mangle]
+pub extern "C" fn mui_ai_show(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.ai.open = true;
+    1
+}
+
 /// `1` if the AI panel is currently open, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_ai_is_open(handle: i64) -> i32 {

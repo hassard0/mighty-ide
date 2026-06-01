@@ -539,6 +539,22 @@ fn activity_rail_all_slots_are_click_targets() {
 }
 
 #[test]
+fn view_commands_open_non_sidebar_surfaces_without_toggling() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_run_open(handle), 1);
+    assert_eq!(crate::featureabi::mui_run_active(handle), 1);
+    assert_eq!(crate::featureabi::mui_run_open(handle), 1);
+    assert_eq!(crate::featureabi::mui_run_active(handle), 1);
+
+    assert_eq!(crate::panels::mui_ai_show(handle), 1);
+    assert_eq!(crate::panels::mui_ai_is_open(handle), 1);
+    assert_eq!(crate::panels::mui_ai_show(handle), 1);
+    assert_eq!(crate::panels::mui_ai_is_open(handle), 1);
+}
+
+#[test]
 fn account_utility_opens_settings_on_inline_ai_row() {
     use crate::featureabi::{mui_settings_open_account, mui_settings_sel};
 
@@ -936,6 +952,9 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_VIEW_OUTLINE, "View: Outline"),
         (crate::palette::CMD_VIEW_RUN_DEBUG, "View: Run and Debug"),
         (crate::palette::CMD_VIEW_TESTING, "View: Testing"),
+        (crate::palette::CMD_VIEW_RUN_OUTPUT, "View: Run Output"),
+        (crate::palette::CMD_VIEW_PROBLEMS, "View: Problems"),
+        (crate::palette::CMD_VIEW_AI_COPILOT, "View: AI Copilot"),
     ];
     for (id, label) in view_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
@@ -2576,6 +2595,9 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_VIEW_OUTLINE, "cmd_view_outline"),
         (CMD_VIEW_RUN_DEBUG, "cmd_view_run_debug"),
         (CMD_VIEW_TESTING, "cmd_view_testing"),
+        (CMD_VIEW_RUN_OUTPUT, "cmd_view_run_output"),
+        (CMD_VIEW_PROBLEMS, "cmd_view_problems"),
+        (CMD_VIEW_AI_COPILOT, "cmd_view_ai_copilot"),
         (CMD_RELOAD_ACTIVE_FILE, "cmd_reload_active_file"),
         (CMD_REVERT_ACTIVE_FILE, "cmd_revert_active_file"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),

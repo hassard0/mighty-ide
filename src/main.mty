@@ -344,6 +344,7 @@ extern c {
   fn mui_qo_draw(handle: I64)
   // ---- AI copilot (Agents rail icon → right-docked chat panel) ----
   fn mui_ai_open(handle: I64) -> I32
+  fn mui_ai_show(handle: I64) -> I32
   fn mui_ai_is_open(handle: I64) -> I32
   fn mui_ai_click(handle: I64) -> I32
   fn mui_ai_has_key(handle: I64) -> I32
@@ -390,6 +391,7 @@ extern c {
   // ---- Run panel (Run rail icon / Ctrl+Shift+R) ----
   fn mui_run_start(handle: I64) -> I32
   fn mui_run_stop(handle: I64)
+  fn mui_run_open(handle: I64) -> I32
   fn mui_run_toggle(handle: I64) -> I32
   fn mui_run_active(handle: I64) -> I32
   fn mui_run_running(handle: I64) -> I32
@@ -676,6 +678,9 @@ fn cmd_view_source_control() -> I32 { 73 }
 fn cmd_view_outline() -> I32 { 74 }
 fn cmd_view_run_debug() -> I32 { 75 }
 fn cmd_view_testing() -> I32 { 76 }
+fn cmd_view_run_output() -> I32 { 77 }
+fn cmd_view_problems() -> I32 { 78 }
+fn cmd_view_ai_copilot() -> I32 { 79 }
 fn cmd_format_document() -> I32 { 12 }
 fn cmd_undo() -> I32 { 13 }
 fn cmd_redo() -> I32 { 14 }
@@ -3502,6 +3507,17 @@ fn main() {
           let _vp = mui_panel_set(h, panel_debug())
         } else if id == cmd_view_testing() {
           let _vp = mui_panel_set(h, panel_test())
+        } else if id == cmd_view_run_output() {
+          let _vo = mui_run_open(h)
+          run_focus = true
+          web_focus = false
+          test_focus = false
+        } else if id == cmd_view_problems() {
+          let _pr = mui_problems_refresh(h)
+          let _po = mui_problems_open(h)
+        } else if id == cmd_view_ai_copilot() {
+          let _ai = mui_ai_show(h)
+          ai_focus = true
         } else if id >= cmd_ws_first() && id <= cmd_ws_last() {
           let wr = mui_ws_dispatch(h, id)
           if wr == 2 {

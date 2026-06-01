@@ -1372,3 +1372,17 @@ open-side effects stay shim-side.
   reachable by activity-rail clicks or a few hardcoded chords.
 - **Language note:** no new gap surfaced. The command registry remains the right
   place to expose view-switching affordances while Mighty only routes ids.
+
+### L77. Docked/non-sidebar views need idempotent open ABIs **[finding, P3]**
+Adding command-palette entries for Run Output, Problems, and AI Copilot exposed a
+small UI contract difference: a "View:" command should open the surface, not
+toggle it closed. The Run and AI rail actions are intentionally toggles, so the
+shim now exposes explicit `mui_run_open` and `mui_ai_show` entry points for
+command routing.
+
+- **IDE note:** command-palette view commands should be idempotent so search
+  results are safe to execute repeatedly and never hide the surface the user just
+  asked for.
+- **Language note:** no new language gap surfaced, but the growing command
+  ladder again reinforces L63/L64: Mighty wants generated command-id mirrors or
+  enum-style dispatch once the registry keeps expanding.
