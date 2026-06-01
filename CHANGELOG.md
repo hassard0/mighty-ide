@@ -54,6 +54,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Problems drawer text is measured**: empty-state text, file group headers,
   and diagnostic messages now ellipsize by shaped UI-font width instead of
   fixed character estimates.
+- **Testing sidebar text is measured**: summaries, durations, test names, suite
+  badges, and failure details now budget against shaped UI text instead of
+  fixed character estimates.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

@@ -1544,3 +1544,14 @@ right-side code/line cluster.
 - **Language note:** no Mighty compiler issue surfaced. This remains shim-owned
   layout, but it reinforces that all proportional chrome text needs measured
   budgets rather than scalar character guesses.
+
+### L90. Testing sidebar result text needs measured budgets **[finding, P2]**
+The Testing panel used fixed character counts for summary text, duration, test
+names, suite badges, and failure details. That made compact-sidebar rows
+dependent on rough glyph guesses and could leave labels crowding each other.
+
+- **IDE note:** Testing sidebar text now measures the UI font before drawing and
+  ellipsizes summaries, empty-state copy, result names, suite badges, and failure
+  details into their real available pixel widths.
+- **Language note:** no Mighty compiler issue surfaced. The scalar ABI keeps
+  this draw/layout work in the shim.

@@ -367,6 +367,40 @@ fn rows_top() -> f32 {
     HEAD_H + 8.0 + 30.0 + 8.0 + 22.0 + 20.0
 }
 
+fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    let max_px = max_px.max(0.0);
+    if max_px <= 1.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    let ellipsis_w = text.measure_ui_sized(ellipsis, size).0;
+    if ellipsis_w >= max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        return ellipsis.to_string();
+    }
+    let mut out: String = chars.iter().take(lo).collect();
+    out.push_str(ellipsis);
+    out
+}
+
 /// Geometry of the toolbar Run/Re-run + Stop buttons (under the header).
 struct ToolbarGeom {
     run_x: f32,
@@ -434,7 +468,6 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     let h = ctx.gpu.height as f32;
     let clip = ctx.clip;
     let chrome = theme::CHROME_FONT_SIZE;
-    let adv = chrome * 0.55;
     let sx = layout::RAIL_W;
     let sw = layout::sidebar_w();
     let row_h = layout::LINE_H();
@@ -459,7 +492,8 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     } else {
         ("passed", theme::GREEN())
     };
-    let pill_w = state_label.chars().count() as f32 * (chrome * 0.5) + 18.0;
+    let (state_w, _) = ctx.text.measure_ui_sized(state_label, chrome - 2.0);
+    let pill_w = state_w + 18.0;
     let pill_x = sx + sw - pill_w - 12.0;
     let pill_y = (HEAD_H - 17.0) * 0.5;
     ctx.dl_round(pill_x, pill_y, pill_w, 17.0, 6.0, theme::BG_4());
@@ -523,7 +557,7 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     let sum_text_y = sum_y + bar_h + 4.0;
     let duration = if ctx.tests_panel.duration_ms() > 0 {
         let dur = format!("{}ms", ctx.tests_panel.duration_ms());
-        let dw = dur.chars().count() as f32 * (chrome * 0.5);
+        let (dw, _) = ctx.text.measure_ui_sized(&dur, chrome - 1.5);
         if sw >= 180.0 {
             ctx.text.queue_ui_sized(sx + sw - dw - 14.0, sum_text_y, &dur, theme::TEXT_4(), chrome - 1.5, clip);
             dw + 10.0
@@ -533,9 +567,10 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     } else {
         0.0
     };
-    let avail = ((sw - 24.0 - duration) / (chrome * 0.52)).floor().max(1.0) as usize;
-    let shown_summary = ellipsize(&summary, avail);
-    ctx.text.queue_ui_sized(bar_x, sum_text_y, &shown_summary, theme::TEXT_1(), chrome - 1.0, clip);
+    let shown_summary = fit_ui_text(&mut ctx.text, &summary, sw - 24.0 - duration, chrome - 1.0);
+    if !shown_summary.is_empty() {
+        ctx.text.queue_ui_sized(bar_x, sum_text_y, &shown_summary, theme::TEXT_1(), chrome - 1.0, clip);
+    }
 
     // Section label.
     let label_y = sum_text_y + 18.0;
@@ -551,7 +586,10 @@ pub extern "C" fn mui_test_draw(handle: i64) {
         } else {
             "Run the package's tests to see results."
         };
-        ctx.text.queue_ui_sized(sx + 14.0, top + 2.0, msg, theme::TEXT_3(), chrome, clip);
+        let msg = fit_ui_text(&mut ctx.text, msg, sw - 28.0, chrome);
+        if !msg.is_empty() {
+            ctx.text.queue_ui_sized(sx + 14.0, top + 2.0, &msg, theme::TEXT_3(), chrome, clip);
+        }
         return;
     }
 
@@ -588,21 +626,20 @@ pub extern "C" fn mui_test_draw(handle: i64) {
         } else {
             theme::TEXT_1()
         };
-        let mut nm = name;
-        let navail = ((sw - 100.0) / adv).floor() as usize;
-        if nm.chars().count() > navail && navail > 1 {
-            nm = nm.chars().take(navail - 1).collect::<String>() + "\u{2026}";
-        }
-        ctx.text.queue_ui_sized(sx + 32.0, ty, &nm, name_col, chrome, clip);
         // Suite badge on the right (dim).
+        let mut suite_x = sx + sw - 14.0;
         if !suite.is_empty() {
-            let mut sb = suite;
-            let savail = 12usize;
-            if sb.chars().count() > savail {
-                sb = sb.chars().rev().take(savail - 1).collect::<Vec<_>>().into_iter().rev().collect::<String>();
+            let sb = fit_ui_text(&mut ctx.text, &suite, (sw * 0.34).max(34.0), chrome - 2.0);
+            if !sb.is_empty() {
+                let (sbw, _) = ctx.text.measure_ui_sized(&sb, chrome - 2.0);
+                suite_x = sx + sw - sbw - 14.0;
+                ctx.text.queue_ui_sized(suite_x, ty, &sb, theme::TEXT_4(), chrome - 2.0, clip);
             }
-            let sbw = sb.chars().count() as f32 * (chrome * 0.45);
-            ctx.text.queue_ui_sized(sx + sw - sbw - 14.0, ty, &sb, theme::TEXT_4(), chrome - 2.0, clip);
+        }
+        let name_x = sx + 32.0;
+        let nm = fit_ui_text(&mut ctx.text, &name, suite_x - name_x - 8.0, chrome);
+        if !nm.is_empty() {
+            ctx.text.queue_ui_sized(name_x, ty, &nm, name_col, chrome, clip);
         }
         y += row_h;
         // Failure message on a wrapped detail row beneath the failed test.
@@ -610,32 +647,11 @@ pub extern "C" fn mui_test_draw(handle: i64) {
             let dy = y + (row_h - (chrome - 1.0)) * 0.5 - 1.0;
             // A thin red rail to the left of the detail.
             ctx.dl_rect(sx + 32.0, y + 2.0, 2.0, row_h - 4.0, theme::error_wash(0.7));
-            let mut dm = message;
-            let davail = ((sw - 44.0) / (adv * 0.92)).floor() as usize;
-            if dm.chars().count() > davail && davail > 1 {
-                dm = dm.chars().take(davail - 1).collect::<String>() + "\u{2026}";
+            let dm = fit_ui_text(&mut ctx.text, &message, sw - 54.0, chrome - 1.5);
+            if !dm.is_empty() {
+                ctx.text.queue_ui_sized(sx + 40.0, dy, &dm, theme::ERROR(), chrome - 1.5, clip);
             }
-            ctx.text.queue_ui_sized(sx + 40.0, dy, &dm, theme::ERROR(), chrome - 1.5, clip);
             y += row_h;
         }
-    }
-}
-
-fn ellipsize(text: &str, chars: usize) -> String {
-    if text.chars().count() > chars && chars > 1 {
-        text.chars().take(chars - 1).collect::<String>() + "\u{2026}"
-    } else {
-        text.to_string()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn ellipsize_keeps_short_text_and_trims_long_text() {
-        assert_eq!(ellipsize("short", 8), "short");
-        assert_eq!(ellipsize("abcdef", 4), "abc\u{2026}");
     }
 }
