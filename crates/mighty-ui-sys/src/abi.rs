@@ -2302,6 +2302,9 @@ fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
                 if ev.x >= body_left && ev.x < tab_end {
                     return ShimAction::PassThrough;
                 }
+                if topbar_command_center_hit(ctx, ev.x, ev.y) {
+                    return ShimAction::PassThrough;
+                }
                 if let Some(host) = ctx.host.as_ref() {
                     host.drag();
                 }
@@ -4169,6 +4172,13 @@ fn tab_bar_right(ctx: &MuiContext) -> f32 {
         .max(body_left)
 }
 
+fn tab_visible_end(ctx: &MuiContext) -> f32 {
+    let body_left = tab_bar_body_left(ctx);
+    let tab_right = tab_bar_right(ctx);
+    let visible = ctx.tabs.count().saturating_sub(ctx.tab_scroll).min(tab_bar_capacity(ctx));
+    (body_left + visible as f32 * layout::TAB_W).min(tab_right)
+}
+
 fn tab_bar_capacity(ctx: &MuiContext) -> usize {
     let width = (tab_bar_right(ctx) - tab_bar_body_left(ctx)).max(0.0);
     (width / layout::TAB_W).floor().max(1.0) as usize
@@ -4247,6 +4257,30 @@ fn tab_scroll_by(ctx: &mut MuiContext, dir: i32) -> bool {
         ctx.tab_scroll = ctx.tab_scroll.saturating_sub(1);
     }
     before != ctx.tab_scroll
+}
+
+fn topbar_command_center_rect(ctx: &MuiContext) -> Option<(f32, f32, f32, f32)> {
+    if layout::zen_active() {
+        return None;
+    }
+    let left = tab_visible_end(ctx) + 14.0;
+    let right = tab_bar_right(ctx) - 14.0;
+    let avail = right - left;
+    if avail < 210.0 {
+        return None;
+    }
+    let w = avail.min(340.0);
+    let x = left + (avail - w) * 0.5;
+    let h = 24.0;
+    let y = (layout::TAB_BAR_H - h) * 0.5;
+    Some((x, y, w, h))
+}
+
+fn topbar_command_center_hit(ctx: &MuiContext, x: f32, y: f32) -> bool {
+    let Some((cx, cy, cw, ch)) = topbar_command_center_rect(ctx) else {
+        return false;
+    };
+    x >= cx && x <= cx + cw && y >= cy && y <= cy + ch
 }
 
 /// Scroll the overflowing tab strip. `dir > 0` shows later tabs; `dir < 0`
@@ -4742,6 +4776,22 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
     if ctx.tab_scroll < tab_max_scroll(ctx) {
         ctx.dl_rect(tab_right - 3.0, 7.0, 3.0, bar_h - 14.0, theme::ACCENT());
     }
+
+    if let Some((x, y, w, h)) = topbar_command_center_rect(ctx) {
+        let bg = theme::accent_a(0.08);
+        ctx.dl_round(x, y, w, h, 7.0, bg);
+        ctx.dl_stroke(x, y, w, h, 7.0, theme::BORDER_SOFT(), 1.0);
+        ctx.dl_icon(x + 10.0, y + 5.0, 14.0, 14.0, icons::SEARCH, theme::TEXT_3(), 1.4, false);
+        let label = if w < 250.0 {
+            "Quick Open"
+        } else {
+            "Quick Open files and commands"
+        };
+        let label_max = w - 42.0;
+        let label = fit_status_tail(&mut ctx.text, label, label_max, chrome - 1.0);
+        ctx.text
+            .queue_ui_sized(x + 30.0, y + 5.0, &label, theme::TEXT_1(), chrome - 1.0, clip);
+    }
 }
 
 /// Draw the borderless title-bar controls (minimize / maximize / close) at the
@@ -4812,8 +4862,8 @@ pub extern "C" fn mui_window_controls_draw(handle: i64) {
     ctx.overlay = was_overlay;
 }
 
-/// Hit-test the top-right run / more-actions strip (drawn by
-/// `mui_window_controls_draw`). Returns 1 = run, 2 = more-actions, else 0.
+/// Hit-test the top command/action strip. Returns 1 = run, 2 = more-actions,
+/// 3 = command center / Quick Open, else 0.
 /// Geometry mirrors the reserved action strip from `titlebar`: the left slot is
 /// Run and the wider right slot opens More/command palette. The whole strip is
 /// actionable so DPI rounding and padding around the glyphs do not fall through
@@ -4830,6 +4880,10 @@ pub extern "C" fn mui_topbar_action_at_click(handle: i64) -> i32 {
     let y = ctx.last_event.y;
     if y < 0.0 || y >= layout::TAB_BAR_H {
         return 0;
+    }
+    if topbar_command_center_hit(ctx, x, y) {
+        trace(&format!("topbar_action x={x:.1} y={y:.1} -> command-center"));
+        return 3;
     }
     let controls_x = crate::titlebar::controls_x(ctx.gpu.width as f32);
     let strip_x = controls_x - crate::titlebar::ACTION_STRIP_W;

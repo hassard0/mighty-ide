@@ -329,6 +329,14 @@ function Type-Text($h, $text) {
   $VK_SHIFT = 0x10
   foreach ($ch in $text.ToCharArray()) {
     $code = [int][char]$ch
+    if ($code -eq 32) {
+      # Posting VK_SPACE can be translated by the target loop in addition to our
+      # explicit WM_CHAR on some slow frames. Send a single character message for
+      # spaces so command queries and editor assertions stay deterministic.
+      [void][Win]::PostMessage($h, [Win]::WM_CHAR, [IntPtr]$code, [IntPtr]0)
+      Start-Sleep -Milliseconds 10
+      continue
+    }
     $vks = [Win]::VkKeyScan($ch)
     $vk = $vks -band 0xFF                       # low byte = virtual-key code
     $needShift = ((($vks -shr 8) -band 1) -eq 1)  # high byte bit0 = shift required
@@ -580,6 +588,21 @@ function Wait-TraceContainsAll($patterns, $timeoutMs) {
   }
   return $false
 }
+
+# === TITLEBAR COMMAND CENTER: click the visible Quick Open pill in the empty tab strip. ===
+$commandCenterX = [math]::Min(($logicalW - 3 * 46 - 68 - 24), [math]::Max(520, $logicalW * 0.64))
+$commandCenterBefore = Trace-MatchCount "topbar_action .* -> command-center"
+ClickL $commandCenterX 20
+if (Wait-TraceCountGreaterThan "topbar_action .* -> command-center" $commandCenterBefore 1500) {
+  Start-Sleep -Milliseconds 250
+  Capture $hwnd "01-command-center-quickopen"
+  Log "COMMAND-CENTER: Quick Open trace observed"
+} else {
+  Log "COMMAND-CENTER: missing Quick Open trace"
+  $script:HarnessFailed = $true
+}
+Press-VK $hwnd 0x1B
+Start-Sleep -Milliseconds 200
 
 function Invoke-DirtyCloseCommand() {
   $before = Trace-MatchCount "tab_close idx=.* -> dirty-confirm"
@@ -918,7 +941,7 @@ Invoke-PaletteCommand "untitled" $null
 Start-Sleep -Milliseconds 250
 ClickL 460 130
 Start-Sleep -Milliseconds 100
-Type-Text $hwnd "save check"
+Type-Text $hwnd "savecheck"
 Start-Sleep -Milliseconds 250
 
 # === SAVE-AS via top-right More -> command palette ===
@@ -931,7 +954,7 @@ Capture $hwnd "42-saved"
 Start-Sleep -Milliseconds 500
 if (Test-Path $savePath) {
   $savedText = Get-Content -LiteralPath $savePath -Raw
-  if ($savedText -like "*save check*") {
+  if ($savedText -like "*savecheck*") {
     Log "SAVE-AS: file written OK -> $savePath"
   } else {
     Log "SAVE-AS: file content mismatch ($savePath)"

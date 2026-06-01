@@ -1861,6 +1861,10 @@ fn main() {
             mui_palette_open(h)
             palette_open = true
             test_focus = false
+          } else if topbar_act == 3 {
+            mui_quickopen_open(h)
+            quickopen_open = true
+            test_focus = false
           } else if rail_hit == rail_test() {
             // Re-clicking the beaker toggles the panel off.
             let _o = mui_test_toggle(h)
@@ -3048,6 +3052,11 @@ fn main() {
           // Top-right more-actions (⋯) button: open the command palette.
           mui_palette_open(h)
           palette_open = true
+        } else if topbar_act == 3 {
+          // Titlebar command-center pill: open Quick Open without stealing the
+          // whole empty titlebar drag strip.
+          mui_quickopen_open(h)
+          quickopen_open = true
         } else if ai_click == 3 {
           let _aic = mui_ai_close(h)
           ai_focus = false

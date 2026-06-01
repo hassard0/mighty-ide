@@ -3050,3 +3050,18 @@ preview both rendered it as visible document content.
 - **Language note:** no compiler gap surfaced. Mighty's standard/file APIs should
   eventually make text-vs-byte reads explicit and provide a BOM-normalizing text
   read helper so tools do not re-learn Windows encoding edge cases.
+
+### L205. Empty custom chrome should be purposeful or visibly inert **[finding, P1]**
+The top titlebar had a wide blank region after the tabs. It was technically a
+drag strip, but visually it looked like an empty broken control beside the Run
+and More buttons, which matches the user's complaint that some chrome feels
+weird or non-functional.
+
+- **IDE note:** the tab bar now draws a command-center Quick Open pill in that
+  empty region when there is enough room. The same geometry controls drawing and
+  hit-testing, and the shim lets clicks on the pill pass through before starting
+  a window drag.
+- **Language note:** no compiler gap surfaced. Mighty UI would benefit from
+  declarative chrome regions that can specify drag, command, resize, and visual
+  affordance roles together instead of splitting those decisions across shim and
+  Mighty event ladders.

@@ -2464,13 +2464,16 @@ fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
     crate::layout::set_zen(false);
 
     let mut ctx = ctx_or_skip!();
-    ctx.gpu.width = 900;
+    ctx.gpu.width = 1200;
     ctx.gpu.height = 600;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
     let controls_x = crate::titlebar::controls_x(ctx.gpu.width as f32);
     let strip_x = controls_x - crate::titlebar::ACTION_STRIP_W;
     let run_x = controls_x - 60.0 + 8.0;
     let menu_x = controls_x - 60.0 + 32.0;
+    let body_left = crate::layout::body_left(ctx.sidebar_visible);
+    let tab_right = strip_x;
+    let command_x = (body_left + crate::layout::TAB_W + 14.0 + tab_right - 14.0) * 0.5;
 
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, run_x, 4.0, 0);
     assert_eq!(mui_topbar_action_at_click(handle), 1);
@@ -2488,6 +2491,12 @@ fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
     );
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, menu_x, 4.0, 0);
     assert_eq!(mui_topbar_action_at_click(handle), 2);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, command_x, 14.0, 0);
+    assert_eq!(
+        mui_topbar_action_at_click(handle),
+        3,
+        "the visible command-center pill should open Quick Open"
+    );
     ctx.last_event = MuiEvent::mouse(
         crate::ffi::MUI_EVENT_MOUSE_DOWN,
         0,
@@ -3872,6 +3881,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         main.contains("command_click_id = mui_qo_command_id(h, -1)"),
         "Quick Open command mode must queue the selected command id"
+    );
+    assert!(
+        main.contains("topbar_act == 3") && main.contains("mui_quickopen_open(h)"),
+        "titlebar command center must route to Quick Open"
     );
     assert_eq!(
         main.matches("if id == cmd_open_file()").count(),

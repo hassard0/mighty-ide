@@ -81,6 +81,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **UTF-8 BOMs no longer render as stray editor glyphs**: files opened from
   Windows tools strip the leading BOM at the text-model boundary, which keeps the
   editor and live Markdown preview from showing an odd first character.
+- **The empty titlebar gap is now a command center**: when tabs leave enough
+  room, the top bar shows a Quick Open pill instead of a blank drag-only block,
+  and clicking it opens Quick Open without breaking normal window dragging.
 - **Language popups fit compact work areas**: signature help and code-action
   menus now clamp to the editor safe area and ellipsize measured text instead of
   clipping against the right edge.
