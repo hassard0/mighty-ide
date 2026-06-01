@@ -116,6 +116,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Window maximize is command reachable**: the command palette now exposes
   **Window: Toggle Maximize**, so borderless-window layout control does not
   depend on hitting the custom titlebar button.
+- **Window minimize is command reachable**: **Window: Minimize** gives the
+  borderless app a command-palette path for minimizing without targeting the
+  custom titlebar button.
 - **Testing header avoids status-pill collisions**: the Testing sidebar title now
   measures the right-side `idle`/`running`/`failed`/`passed` pill first and fits
   the header label into the remaining space.

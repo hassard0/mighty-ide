@@ -1462,6 +1462,7 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
             crate::palette::CMD_WINDOW_TOGGLE_MAXIMIZE,
             "Window: Toggle Maximize",
         ),
+        (crate::palette::CMD_WINDOW_MINIMIZE, "Window: Minimize"),
     ];
     for (id, label) in view_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
@@ -3434,6 +3435,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_KEYBOARD_SHORTCUTS, "cmd_keyboard_shortcuts"),
         (CMD_NEW_PROJECT, "cmd_new_project"),
         (CMD_WINDOW_TOGGLE_MAXIMIZE, "cmd_window_toggle_maximize"),
+        (CMD_WINDOW_MINIMIZE, "cmd_window_minimize"),
     ];
 
     for cmd in COMMANDS {

@@ -2464,6 +2464,8 @@ pub extern "C" fn mui_window_minimize(handle: i64) {
         if let Some(host) = ctx.host.as_ref() {
             host.minimize();
         }
+        ctx.push_toast(crate::toast::Kind::Info, "Window minimized");
+        trace("window_minimize");
     }
 }
 

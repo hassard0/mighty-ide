@@ -2308,3 +2308,14 @@ chrome.
 - **Language note:** no compiler gap surfaced. Mighty still needs command
   metadata generation so Rust command ids, Mighty mirror functions, labels, and
   harness coverage do not drift as the command surface grows.
+
+### L150. Minimize is a workflow command, not only chrome **[finding, P2]**
+Minimizing a borderless app through a small custom titlebar button is easy to
+miss, especially during keyboard-driven work. The action should be available
+through the same command surface as other layout and window operations.
+
+- **IDE note:** `Window: Minimize` is now a command-palette action that routes
+  through the shared Mighty dispatcher to the native window minimize hook, with
+  real-window harness coverage at the end of the interaction suite.
+- **Language note:** no compiler gap surfaced. The repeated command-id mirroring
+  reinforces the need for generated command bindings shared by Rust and Mighty.

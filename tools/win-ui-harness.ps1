@@ -800,16 +800,16 @@ Capture $hwnd "50-settings-rail"
 Press-VK $hwnd 0x1B
 Start-Sleep -Milliseconds 150
 
-# === WINDOW COMMANDS: maximize/restore must be command-palette reachable. ===
-Invoke-PaletteCommand "window toggle maximize" $null
+# === WINDOW COMMANDS: minimize must be command-palette reachable. ===
+Invoke-PaletteCommand "window minimize" $null
 Start-Sleep -Milliseconds 500
 if ($env:MUI_TRACE) {
   Start-Sleep -Milliseconds 150
   $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
-  if ($traceText -match "window_toggle_maximize now=") {
-    Log "WINDOW-COMMANDS: maximize/restore palette trace observed"
+  if ($traceText -match "window_minimize") {
+    Log "WINDOW-COMMANDS: minimize palette trace observed"
   } else {
-    Log "WINDOW-COMMANDS: missing maximize/restore palette trace"
+    Log "WINDOW-COMMANDS: missing minimize palette trace"
     $script:HarnessFailed = $true
   }
 }
