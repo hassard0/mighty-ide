@@ -1910,3 +1910,18 @@ open the palette, read a filtered row, click it, and expect the command to run.
 - **Language note:** no compiler gap surfaced. The lesson is toolchain-level:
   Mighty UI tests need exported or shared layout geometry so black-box click
   tests do not duplicate fragile constants by hand.
+
+### L117. Visual QA must reject untrustworthy screenshots **[finding, P1]**
+The live harness can successfully drive the IDE by posting window messages even
+when Windows refuses to make the IDE foreground. In that state `CopyFromScreen`
+captures whatever is actually on top, which can produce polished but irrelevant
+desktop screenshots.
+
+- **IDE note:** capture mode now refuses to save PNGs when the IDE window is not
+  foreground or has invalid dimensions, and marks the harness failed instead of
+  logging a soft warning. `-CaptureSmokeOnly` verifies screenshot trust quickly;
+  `-NoCapture` remains the reliable functional smoke path for noninteractive
+  runs.
+- **Language note:** no compiler gap surfaced. The testing lesson is that
+  Mighty needs first-class visual QA metadata: screenshots should carry a
+  provenance check, not just bytes on disk.

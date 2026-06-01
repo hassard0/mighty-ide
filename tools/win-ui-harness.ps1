@@ -29,7 +29,8 @@ param(
   [string]$WorkDir = "C:\Users\ihass\mighty-ide\dist\mighty-ide-win64",
   [string]$OutDir  = "C:\Users\ihass\mighty-ide\dist\harness",
   [int]$LaunchWaitMs = 2500,
-  [switch]$NoCapture
+  [switch]$NoCapture,
+  [switch]$CaptureSmokeOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -161,6 +162,20 @@ $report = [System.Collections.Generic.List[string]]::new()
 function Log($m) { $line = "[{0}] {1}" -f ((Get-Date).ToString('HH:mm:ss.fff')), $m; $report.Add($line); Write-Host $line }
 $script:HarnessFailed = $false
 
+function Finish-Harness($proc) {
+  if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; Log "killed pid $($proc.Id)" }
+  Remove-Item Env:\MUI_SAVE_FILE_PICK -ErrorAction SilentlyContinue
+  Remove-Item Env:\MUI_NEW_FILE_PICK -ErrorAction SilentlyContinue
+  Remove-Item Env:\MUI_NEW_FILE_PICK_SEQUENCE -ErrorAction SilentlyContinue
+  Remove-Item Env:\MUI_OPEN_FILE_PICK -ErrorAction SilentlyContinue
+  Remove-Item Env:\MUI_OPEN_FOLDER_PICK -ErrorAction SilentlyContinue
+  if (-not $traceWasSet) { Remove-Item Env:\MUI_TRACE -ErrorAction SilentlyContinue }
+  Remove-Item -LiteralPath $openPath -Force -ErrorAction SilentlyContinue
+  $reportPath = Join-Path $OutDir 'report.txt'
+  $report | Set-Content $reportPath -Encoding utf8
+  Log "report -> $reportPath"
+}
+
 # Keep harness artifacts out of the Explorer tree. A stale Save-As file shifts
 # row positions and makes the fixed RUN.txt click open the wrong file.
 $saveName = "harnesssaveas.mty"
@@ -197,8 +212,16 @@ function Capture($h, $name) {
   Start-Sleep -Milliseconds 120
   $r = Get-WinRect $h
   $w = $r.Right - $r.Left; $hh = $r.Bottom - $r.Top
-  if ($w -le 0 -or $hh -le 0) { Log "capture '$name': window has zero size ($w x $hh)"; return $null }
-  if (-not $fg) { Log "capture '$name': !!! WINDOW NOT FOREGROUND - capture is UNTRUSTWORTHY" }
+  if ($w -le 0 -or $hh -le 0) {
+    Log "capture '$name': FAILED - window has zero size ($w x $hh)"
+    $script:HarnessFailed = $true
+    return $null
+  }
+  if (-not $fg) {
+    Log "capture '$name': FAILED - window is not foreground; refusing untrustworthy desktop capture"
+    $script:HarnessFailed = $true
+    return $null
+  }
   $bmp = New-Object System.Drawing.Bitmap $w, $hh
   $g = [System.Drawing.Graphics]::FromImage($bmp)
   try {
@@ -209,6 +232,7 @@ function Capture($h, $name) {
     return $path
   } catch {
     Log "capture '$name': FAILED - $($_.Exception.Message)"
+    $script:HarnessFailed = $true
     return $null
   } finally {
     $g.Dispose()
@@ -301,6 +325,11 @@ Log ("window rect = {0},{1} {2}x{3}  foreground={4}" -f $r.Left, $r.Top, $script
 Capture $hwnd "01-initial"
 $resp0 = Is-Responsive $hwnd
 Log "responsive at startup: $resp0"
+if ($CaptureSmokeOnly) {
+  Finish-Harness $proc
+  if ($script:HarnessFailed) { exit 1 }
+  exit 0
+}
 
 # Derive the exact logical<->physical scale from the IDE's STARTUP_GEOM trace line,
 # so clicks hit LOGICAL targets precisely on any-DPI monitor (no more guessing).
@@ -638,16 +667,5 @@ Log "final responsive: $respF"
 $proc.Refresh()
 $exited = $proc.HasExited
 Log "process hasExited=$exited"
-if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; Log "killed pid $($proc.Id)" }
-Remove-Item Env:\MUI_SAVE_FILE_PICK -ErrorAction SilentlyContinue
-Remove-Item Env:\MUI_NEW_FILE_PICK -ErrorAction SilentlyContinue
-Remove-Item Env:\MUI_NEW_FILE_PICK_SEQUENCE -ErrorAction SilentlyContinue
-Remove-Item Env:\MUI_OPEN_FILE_PICK -ErrorAction SilentlyContinue
-Remove-Item Env:\MUI_OPEN_FOLDER_PICK -ErrorAction SilentlyContinue
-if (-not $traceWasSet) { Remove-Item Env:\MUI_TRACE -ErrorAction SilentlyContinue }
-Remove-Item -LiteralPath $openPath -Force -ErrorAction SilentlyContinue
-
-$reportPath = Join-Path $OutDir 'report.txt'
-$report | Set-Content $reportPath -Encoding utf8
-Log "report -> $reportPath"
+Finish-Harness $proc
 if ($script:HarnessFailed) { exit 1 }
