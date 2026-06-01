@@ -492,7 +492,7 @@ pub fn input_geometry(input: &str, width: u32, height: u32) -> (f32, f32, f32, f
     let pw = AI_PANEL_W;
     let px = w - pw;
     let chrome = theme::CHROME_FONT_SIZE;
-    let input_pad = 10.0;
+    let input_pad = 56.0;
     let input_lines = wrap(input, ((pw - 56.0) / (chrome * 0.55)) as usize);
     let n_in = input_lines.len().max(1) as f32;
     let input_h = (n_in * layout::LINE_H()).min(120.0) + 16.0;
@@ -567,6 +567,48 @@ fn wrap(text: &str, max_chars: usize) -> Vec<String> {
     out
 }
 
+fn wrap_code_line(line: &str, max_chars: usize) -> Vec<String> {
+    let max = max_chars.max(12);
+    if line.chars().count() <= max {
+        return vec![line.to_string()];
+    }
+    let indent: String = line.chars().take_while(|c| c.is_whitespace()).collect();
+    let cont_prefix = format!("{}  ", indent);
+    let cont_budget = max.saturating_sub(cont_prefix.chars().count()).max(8);
+    let mut out = Vec::new();
+    let mut rest = line.trim_start_matches(char::is_whitespace).to_string();
+    let mut first = true;
+    while !rest.is_empty() {
+        let prefix = if first { indent.as_str() } else { cont_prefix.as_str() };
+        let budget = if first {
+            max.saturating_sub(prefix.chars().count()).max(8)
+        } else {
+            cont_budget
+        };
+        let take = code_break_index(&rest, budget);
+        let chunk: String = rest.chars().take(take).collect();
+        out.push(format!("{prefix}{}", chunk.trim_end()));
+        rest = rest.chars().skip(take).collect::<String>();
+        rest = rest.trim_start().to_string();
+        first = false;
+    }
+    out
+}
+
+fn code_break_index(s: &str, max_chars: usize) -> usize {
+    let len = s.chars().count();
+    if len <= max_chars {
+        return len;
+    }
+    let mut best = None;
+    for (i, ch) in s.chars().take(max_chars).enumerate() {
+        if matches!(ch, ' ' | ',' | ';' | '+' | '-' | '*' | '/' | '=' | '{' | '}') && i > 0 {
+            best = Some(i + 1);
+        }
+    }
+    best.unwrap_or(max_chars)
+}
+
 /// Flatten the transcript into wrapped segments, splitting fenced ``` code
 /// blocks out so they can render in a monospace card (markdown-ish).
 fn segments(transcript: &[Turn], prose_cols: usize, code_cols: usize) -> Vec<Seg> {
@@ -598,7 +640,7 @@ fn segments(transcript: &[Turn], prose_cols: usize, code_cols: usize) -> Vec<Seg
                 continue;
             }
             if in_code {
-                for w in wrap(line, code_cols) {
+                for w in wrap_code_line(line, code_cols) {
                     code_run.push(w);
                 }
             } else {
@@ -748,13 +790,14 @@ impl AiPanel {
         }
 
         // Input box surface.
+        ctx.dl_rect(px, input_y - 10.0, pw, 1.0, theme::BORDER_SOFT());
         ctx.dl_round(
             px + 10.0,
             input_y,
             pw - 20.0,
             input_h,
             8.0,
-            theme::BG_1(),
+            theme::BG_4(),
         );
         ctx.dl_stroke(
             px + 10.0,
@@ -762,15 +805,15 @@ impl AiPanel {
             pw - 20.0,
             input_h,
             8.0,
-            theme::ACCENT_LINE(),
-            1.0,
+            theme::ACCENT(),
+            1.2,
         );
         if self.input.is_empty() {
             ctx.text.queue_ui_sized(
                 px + 20.0,
                 input_y + 9.0,
                 "Ask about your code…  (Enter to send)",
-                theme::TEXT_3(),
+                theme::TEXT_1(),
                 chrome,
                 clip,
             );
@@ -1154,5 +1197,14 @@ mod tests {
         assert!(lines.len() >= 2);
         // Explicit newlines are preserved as separate lines.
         assert_eq!(wrap("a\nb", 80), vec!["a".to_string(), "b".to_string()]);
+    }
+
+    #[test]
+    fn code_wrap_uses_indented_continuations() {
+        let lines = wrap_code_line("  for b in bytes { if b == 10 { n = n + 1 } }", 24);
+        assert!(lines.len() > 1);
+        assert!(lines.iter().all(|l| l.chars().count() <= 24));
+        assert!(lines[1].starts_with("    "));
+        assert!(!lines[1].trim_start().starts_with("1 }"));
     }
 }

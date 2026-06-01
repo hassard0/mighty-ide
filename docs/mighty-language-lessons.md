@@ -2619,3 +2619,18 @@ continued below.
 - **Language note:** no compiler gap surfaced. Mighty-authored panels need a
   reusable scroll container primitive so row budgeting, clipping, scroll thumbs,
   and hit-test offsets stay synchronized across drawers.
+
+### L173. Generated code in narrow chat panes needs continuation-aware wrapping **[finding, P2]**
+The AI Copilot gallery showed a fenced code block wrapping at a bare `+`, then
+continuing with a lone `n` at the left edge. That was technically wrapped, but
+it read like broken code and made the right dock feel unfinished. The bottom
+composer was also too subtle in the compact capture, so the panel read as a
+static answer instead of an interactive chat surface.
+
+- **IDE note:** AI code blocks now use a code-specific wrapper that prefers
+  punctuation/operator breakpoints and indents continuation lines. The composer
+  gets a stronger background, accent border, and top separator so the input area
+  remains visible in compact captures.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a reusable rich
+  text/code layout primitive for chat, markdown, and diagnostics so line wrapping
+  can preserve semantic indentation instead of relying on plain word wrapping.
