@@ -4101,13 +4101,13 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
             let (icon, icon_col) = file_icon_for(&base, is_active);
             let icon_y = (bar_h - 14.0) * 0.5;
             ctx.dl_icon(x + 14.0, icon_y, 14.0, 14.0, icon, icon_col, 1.4, false);
-            let mut label = base;
-            let max_chars = ((tab_w - 64.0).max(0.0) / layout::CHAR_W()).floor() as usize;
-            if label.chars().count() > max_chars && max_chars > 1 {
-                label = label.chars().take(max_chars - 1).collect::<String>() + "…";
-            }
             let fg = if is_active { theme::TEXT() } else { theme::DIM() };
             let ty = (bar_h - chrome) * 0.5 - 1.0;
+            let label_x = x + 34.0;
+            let close_x = x + tab_w - 24.0;
+            let label_right = if dirty { close_x - 12.0 } else { close_x - 6.0 };
+            let label_max = (label_right - label_x).max(0.0);
+            let label = fit_status_tail(&mut ctx.text, &base, label_max, chrome);
             // The ACTIVE tab's label reads in the bold UI face so the current
             // file stands out among the tabs.
             let style = if is_active {
@@ -4115,14 +4115,15 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
             } else {
                 crate::vello_ui::FontStyle::Regular
             };
-            ctx.text.queue_ui_styled(x + 34.0, ty, &label, fg, chrome, style, clip);
+            if !label.is_empty() {
+                ctx.text.queue_ui_styled(label_x, ty, &label, fg, chrome, style, clip);
+            }
             // Trailing affordance: always show close; dirty tabs keep a status dot.
-            let tx = x + tab_w - 24.0;
             if dirty {
-                ctx.dl_round(tx - 8.0, bar_h * 0.5 - 2.5, 5.0, 5.0, 2.5, theme::ACCENT_BRIGHT());
+                ctx.dl_round(close_x - 8.0, bar_h * 0.5 - 2.5, 5.0, 5.0, 2.5, theme::ACCENT_BRIGHT());
             }
             let close_col = if is_active { theme::TEXT_1() } else { theme::TEXT_3() };
-            ctx.dl_icon(tx, (bar_h - 12.0) * 0.5, 12.0, 12.0, icons::CLOSE, close_col, 1.6, false);
+            ctx.dl_icon(close_x, (bar_h - 12.0) * 0.5, 12.0, 12.0, icons::CLOSE, close_col, 1.6, false);
         }
     }
 

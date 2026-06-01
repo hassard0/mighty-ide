@@ -514,6 +514,35 @@ fn click_routing_tab_bar_sidebar_and_text() {
 }
 
 #[test]
+fn tab_bar_long_dirty_label_keeps_close_affordance_clickable() {
+    use crate::{mui_tab_bar_draw, mui_tab_close_index_at_click};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 720;
+    ctx.gpu.height = 480;
+    ctx.sidebar_visible = false;
+    let path = std::env::temp_dir().join(
+        "mighty_tab_label_with_a_very_long_filename_that_must_not_overlap_close_icon.mty",
+    );
+    let _ = std::fs::write(&path, b"fn main() -> I32 { 1 }\n");
+    let tab = ctx.tabs.open_path(path);
+    ctx.tabs.get_mut(tab).unwrap().dirty = true;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_tab_bar_draw(handle);
+
+    let body_left = crate::layout::body_left(false);
+    ctx.last_event = crate::ffi::MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        body_left + tab as f32 * crate::layout::TAB_W + crate::layout::TAB_W - 18.0,
+        crate::layout::TAB_BAR_H * 0.5,
+        0,
+    );
+    assert_eq!(mui_tab_close_index_at_click(handle), tab as i32);
+}
+
+#[test]
 fn activity_rail_all_slots_are_click_targets() {
     use crate::ffi::MuiEvent;
     use crate::panels::mui_rail_panel_at_click;

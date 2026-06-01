@@ -1601,3 +1601,15 @@ push the left status cluster into the right cluster on compact windows.
   same product pressure as L89-L92: Mighty can route scalar draw calls today, but
   rich UI text measurement and structured layout/state values still have to live
   in the Rust shim.
+
+### L94. Tab labels need measured close-button budgets **[finding, P2]**
+The tab bar still shortened basenames by character count before drawing the
+label. Long proportional-font filenames, especially dirty tabs, could visually
+crowd the dirty dot and close icon even though the click target remained fixed.
+
+- **IDE note:** tab labels now measure the available pixel gap between the file
+  icon and the trailing dirty/close affordances, then tail-ellipsize by shaped UI
+  width. Long dirty filenames keep the close icon readable and clickable.
+- **Language note:** no new Mighty gap surfaced. This is another case where the
+  Rust shim owns text measurement because Mighty currently passes only scalar
+  draw commands and does not expose measured chrome text layout primitives.

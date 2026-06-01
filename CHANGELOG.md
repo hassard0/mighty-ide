@@ -67,6 +67,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   counters, cursor position, encoding, indentation, and language pill layout now
   use shaped UI-font widths so compact windows do not let left and right status
   clusters collide.
+- **Tab labels are measured**: long basenames now fit to the real space before
+  the dirty indicator and close icon, keeping tab controls visually clear and
+  clickable.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,
