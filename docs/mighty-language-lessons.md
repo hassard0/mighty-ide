@@ -1627,3 +1627,14 @@ buffers should go.
   highlights the scalar dialog-result friction: cancellation, picker
   unavailability, IO failure, and success are still encoded as integer paths
   through the Mighty/Rust ABI instead of a structured result.
+
+### L96. Explorer tree filenames need badge-aware measured budgets **[finding, P2]**
+Explorer rows still truncated filenames by character count while synthetic git
+status badges were drawn at the right edge. Long proportional-font filenames
+could crowd the `M`/`A`/`U` badge area in compact sidebars.
+
+- **IDE note:** Explorer row labels now measure the UI font and fit into the
+  real pixel gap before the git badge. Long names tail-ellipsize, preserving the
+  useful file ending while keeping badges readable.
+- **Language note:** no new Mighty gap surfaced. This remains shim-owned layout
+  work caused by scalar draw calls and no Mighty-side measured text primitive.

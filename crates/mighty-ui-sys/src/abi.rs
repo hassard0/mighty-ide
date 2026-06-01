@@ -5008,18 +5008,30 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
             content_x += 17.0;
         }
         let name_x = content_x;
-        let avail = (((sx + sw - 28.0) - name_x) / layout::CHAR_W()).floor() as usize;
-        let mut shown = name.clone();
-        if shown.chars().count() > avail && avail > 1 {
-            shown = shown.chars().take(avail - 1).collect::<String>() + "…";
-        }
+        let git = git_status_for(&name);
+        let shown = fit_explorer_name(&mut ctx.text, &name, name_x, sx, sw, chrome, git.is_some());
         let fg = if selected { theme::TEXT() } else { theme::TEXT_1() };
-        ctx.text.queue_ui_sized(name_x, txt_y, &shown, fg, chrome, clip);
+        if !shown.is_empty() {
+            ctx.text.queue_ui_sized(name_x, txt_y, &shown, fg, chrome, clip);
+        }
         // Git status letter, right-aligned (mockup `.row .git`): M/A/U.
-        if let Some((gl, gc)) = git_status_for(&name) {
+        if let Some((gl, gc)) = git {
             ctx.text.queue_ui_sized(sx + sw - 22.0, txt_y, gl, gc, chrome - 2.0, clip);
         }
     }
+}
+
+pub(crate) fn fit_explorer_name(
+    text: &mut crate::text::Text,
+    name: &str,
+    name_x: f32,
+    sx: f32,
+    sw: f32,
+    chrome: f32,
+    has_git_badge: bool,
+) -> String {
+    let right = if has_git_badge { sx + sw - 30.0 } else { sx + sw - 14.0 };
+    fit_status_tail(text, name, (right - name_x).max(0.0), chrome)
 }
 
 /// A small synthetic git-status badge for a few demo filenames so the tree

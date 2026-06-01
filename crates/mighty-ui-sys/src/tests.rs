@@ -1843,6 +1843,44 @@ fn explorer_header_actions_hit_their_visible_buttons() {
 }
 
 #[test]
+fn explorer_row_name_fits_before_git_badge() {
+    let mut ctx = ctx_or_skip!();
+    let sx = crate::layout::RAIL_W;
+    let sw = crate::layout::sidebar_w();
+    let chrome = crate::theme::CHROME_FONT_SIZE - 1.0;
+    let name_x = sx + 12.0 + 14.0 + 17.0;
+    let shown = crate::abi::fit_explorer_name(
+        &mut ctx.text,
+        "README.md",
+        name_x,
+        sx,
+        sw,
+        chrome,
+        true,
+    );
+    let (shown_w, _) = ctx.text.measure_ui_sized(&shown, chrome);
+    let (badge_w, _) = ctx.text.measure_ui_sized("U", chrome - 2.0);
+    assert!(
+        name_x + shown_w + 8.0 <= sx + sw - 22.0,
+        "explorer name should leave a gap before the git badge: {shown}"
+    );
+    assert!(sx + sw - 22.0 + badge_w <= sx + sw - 8.0);
+
+    let long = crate::abi::fit_explorer_name(
+        &mut ctx.text,
+        "a-very-long-readable-file-name-that-should-tail-ellipsize-before-the-badge.mty",
+        name_x,
+        sx,
+        sw,
+        chrome,
+        true,
+    );
+    let (long_w, _) = ctx.text.measure_ui_sized(&long, chrome);
+    assert!(name_x + long_w + 8.0 <= sx + sw - 22.0);
+    assert!(long.starts_with('\u{2026}'));
+}
+
+#[test]
 fn status_problems_chip_hit_tracks_rendered_branch_width() {
     use crate::ffi::MuiEvent;
     use crate::{mui_status_problems_chip_at_click, mui_status_render};

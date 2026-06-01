@@ -70,6 +70,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Tab labels are measured**: long basenames now fit to the real space before
   the dirty indicator and close icon, keeping tab controls visually clear and
   clickable.
+- **Explorer filenames are measured**: long tree row names now fit before git
+  status badges instead of relying on fixed character counts.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,
