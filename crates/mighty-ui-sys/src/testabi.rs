@@ -276,17 +276,19 @@ pub extern "C" fn mui_test_row_at_click(handle: i64) -> i32 {
         return -1;
     }
     let row_h = layout::LINE_H();
-    // Walk the visual rows, accounting for detail lines, to find the hit row.
+    let chrome = theme::CHROME_FONT_SIZE;
+    // Walk the visual rows, accounting for wrapped detail lines, to find the hit row.
     let first = ctx.tests_panel.first();
     let count = ctx.tests_panel.row_count();
     let mut yy = top;
     for idx in first..count {
-        let has_detail = ctx
+        let message = ctx
             .tests_panel
             .row(idx)
-            .map(|r| !r.message.is_empty())
-            .unwrap_or(false);
-        let span = if has_detail { row_h * 2.0 } else { row_h };
+            .map(|r| r.message.clone())
+            .unwrap_or_default();
+        let detail_rows = detail_visual_rows(&mut ctx.text, &message, sx1 - sx0, chrome - 1.5);
+        let span = row_h * (1 + detail_rows) as f32;
         if y >= yy && y < yy + span {
             return idx as i32;
         }
@@ -399,6 +401,70 @@ fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) ->
     let mut out: String = chars.iter().take(lo).collect();
     out.push_str(ellipsis);
     out
+}
+
+fn wrap_detail_lines(
+    text: &mut crate::text::Text,
+    s: &str,
+    max_px: f32,
+    size: f32,
+    max_lines: usize,
+) -> Vec<String> {
+    let max_lines = max_lines.max(1);
+    if s.trim().is_empty() || max_px <= 1.0 {
+        return Vec::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return vec![s.to_string()];
+    }
+    if max_lines == 1 {
+        return vec![fit_ui_text(text, s, max_px, size)];
+    }
+
+    let words: Vec<&str> = s.split_whitespace().collect();
+    if words.len() <= 1 {
+        return vec![fit_ui_text(text, s, max_px, size)];
+    }
+
+    let mut first = String::new();
+    let mut consumed = 0usize;
+    for word in &words {
+        let candidate = if first.is_empty() {
+            (*word).to_string()
+        } else {
+            format!("{first} {word}")
+        };
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            first = candidate;
+            consumed += 1;
+        } else {
+            break;
+        }
+    }
+    if first.is_empty() {
+        return vec![fit_ui_text(text, s, max_px, size)];
+    }
+    let rest = words[consumed..].join(" ");
+    if rest.is_empty() {
+        vec![first]
+    } else {
+        vec![first, fit_ui_text(text, &rest, max_px, size)]
+    }
+}
+
+fn detail_visual_rows(
+    text: &mut crate::text::Text,
+    message: &str,
+    sidebar_w: f32,
+    size: f32,
+) -> usize {
+    if message.is_empty() {
+        0
+    } else {
+        wrap_detail_lines(text, message, sidebar_w - 54.0, size, 2)
+            .len()
+            .max(1)
+    }
 }
 
 fn testing_header_title_budget(sw: f32, state_pill_w: f32) -> f32 {
@@ -663,16 +729,25 @@ pub extern "C" fn mui_test_draw(handle: i64) {
             ctx.text.queue_ui_sized(name_x, ty, &nm, name_col, chrome, clip);
         }
         y += row_h;
-        // Failure message on a wrapped detail row beneath the failed test.
+        // Failure message on measured detail rows beneath the failed test.
         if !message.is_empty() {
-            let dy = y + (row_h - (chrome - 1.0)) * 0.5 - 1.0;
-            // A thin red rail to the left of the detail.
-            ctx.dl_rect(sx + 32.0, y + 2.0, 2.0, row_h - 4.0, theme::error_wash(0.7));
-            let dm = fit_ui_text(&mut ctx.text, &message, sw - 54.0, chrome - 1.5);
-            if !dm.is_empty() {
-                ctx.text.queue_ui_sized(sx + 40.0, dy, &dm, theme::ERROR(), chrome - 1.5, clip);
+            let lines = wrap_detail_lines(&mut ctx.text, &message, sw - 54.0, chrome - 1.5, 2);
+            let detail_rows = lines.len().max(1);
+            ctx.dl_rect(
+                sx + 32.0,
+                y + 2.0,
+                2.0,
+                row_h * detail_rows as f32 - 4.0,
+                theme::error_wash(0.7),
+            );
+            for (line_idx, line) in lines.iter().enumerate() {
+                let ly = y + line_idx as f32 * row_h;
+                let dy = ly + (row_h - (chrome - 1.0)) * 0.5 - 1.0;
+                if !line.is_empty() {
+                    ctx.text.queue_ui_sized(sx + 40.0, dy, line, theme::ERROR(), chrome - 1.5, clip);
+                }
             }
-            y += row_h;
+            y += row_h * detail_rows as f32;
         }
     }
 }
@@ -692,5 +767,31 @@ mod tests {
         assert_eq!(testing_suite_budget(184.0), 0.0);
         assert_eq!(testing_suite_budget(220.0), 66.0);
         assert_eq!(testing_suite_budget(320.0), 76.0);
+    }
+
+    #[test]
+    fn failed_test_detail_wraps_to_two_measured_rows() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(320, 600) else {
+            return;
+        };
+        let msg = "trap MT5001: assertion failed: tokens.len() > 0";
+        let lines = wrap_detail_lines(&mut ctx.text, msg, 180.0, theme::CHROME_FONT_SIZE - 1.5, 2);
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains("MT5001"));
+        assert!(lines[1].ends_with('\u{2026}') || lines[1].contains("tokens"));
+    }
+
+    #[test]
+    fn short_test_detail_uses_one_row() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(320, 600) else {
+            return;
+        };
+        let rows = detail_visual_rows(
+            &mut ctx.text,
+            "trap MT5001: boom",
+            260.0,
+            theme::CHROME_FONT_SIZE - 1.5,
+        );
+        assert_eq!(rows, 1);
     }
 }

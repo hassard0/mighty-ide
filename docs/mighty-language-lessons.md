@@ -2093,3 +2093,14 @@ feel broken even when the dispatch path worked.
 - **Language note:** no compiler gap surfaced. Longer term, Mighty needs a
   typed command descriptor record shared by menus, palette, shortcuts, welcome,
   telemetry, and tests so labels/descriptions cannot drift between surfaces.
+
+### L132. Sidebar rows need measured wrapping, not fixed one-line slots **[finding, P2]**
+The Testing panel treated every failed test detail as exactly one row. Long trap
+messages were technically present but visually chopped, making the drawer feel
+overlapped and unreliable.
+
+- **IDE note:** failed test details now reserve up to two measured lines, and row
+  click hit-testing uses the same measured visual height.
+- **Language note:** no compiler gap surfaced. Mighty would benefit from a
+  reusable text-layout primitive that returns wrapped line boxes for a string,
+  width, font size, and maximum line count so panels do not reimplement wrapping.
