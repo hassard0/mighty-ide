@@ -1133,7 +1133,7 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_SAVE_ALL)
         .unwrap();
-    assert_eq!(save_all.label, "Save All");
+    assert_eq!(save_all.label, "File: Save All");
 
     let close_saved = crate::palette::COMMANDS
         .iter()

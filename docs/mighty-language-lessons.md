@@ -1953,3 +1953,15 @@ physical surface under Windows scaling; other bottom docks already clamp through
   `visible_width` primitive at the language-side layout boundary so future
   drawers do not rediscover physical/logical width mismatches one panel at a
   time.
+
+### L120. File commands must read like one command family **[finding, P2]**
+The command palette exposed some file operations as `File: ...` and others as
+bare verbs like `Open File`, `Save As`, and `Save All`. The behavior was mostly
+right, but the human-facing labels made the file flow feel inconsistent.
+
+- **IDE note:** Open, Save, Save As, Save All, and Open Folder now use consistent
+  `File:` labels, and dialog-backed operations say so in their palette
+  descriptions. Command IDs and shortcuts did not change.
+- **Language note:** no compiler gap surfaced. A future Mighty UI command API
+  should let command groups own labels and dialog intent centrally instead of
+  repeating prose in each registry row.
