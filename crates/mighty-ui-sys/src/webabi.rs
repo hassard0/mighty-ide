@@ -276,7 +276,7 @@ struct WebGeom {
 
 fn web_geom(ctx: &MuiContext) -> WebGeom {
     let region = layout::region(ctx.sidebar_visible);
-    let w = ctx.gpu.width as f32;
+    let w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
     let h = ctx.gpu.height;
     let panel_h = layout::term_panel_height(h);
     let y0 = layout::term_panel_top(h);
@@ -288,7 +288,8 @@ fn web_geom(ctx: &MuiContext) -> WebGeom {
     let chrome = theme::CHROME_FONT_SIZE;
     let btn_h = 18.0;
     let by = y0 + (header_h - btn_h) * 0.5;
-    let mut cursor = x1 - 12.0;
+    let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let mut cursor = layout::dock_header_content_right(visible_w, ctx.gpu.height);
     let min_action_x = region.left + 220.0;
     let mut stop_btn = None;
     let mut open_btn = None;

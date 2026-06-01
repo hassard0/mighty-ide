@@ -257,7 +257,7 @@ struct RunGeom {
 
 fn run_geom(ctx: &MuiContext) -> RunGeom {
     let region = layout::region(ctx.sidebar_visible);
-    let w = ctx.gpu.width as f32;
+    let w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
     let h = ctx.gpu.height;
     let panel_h = layout::term_panel_height(h);
     let y0 = layout::term_panel_top(h);
@@ -350,7 +350,8 @@ pub extern "C" fn mui_run_draw(handle: i64) {
     };
     let (status_text_w, _) = ctx.text.measure_ui_sized(&status, chrome - 2.0);
     let sw = status_text_w + 22.0;
-    let sx = g.x1 - sw - 12.0;
+    let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let sx = layout::dock_header_content_right(visible_w, ctx.gpu.height) - sw;
     let sy = g.y0 + (header_h - 18.0) * 0.5;
 
     let base = ctx

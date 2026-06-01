@@ -29,6 +29,7 @@ extern c {
   fn mui_poll_event_s(handle: I64) -> I32
   fn mui_bottom_dock_resize_at_click(handle: I64) -> I32
   fn mui_bottom_dock_resize_to_event_y(handle: I64) -> I32
+  fn mui_bottom_dock_close_at_click(handle: I64) -> I32
   fn mui_bottom_dock_resize_draw(handle: I64)
   // Frame cap for non-interactive (headless / screenshot / probe) runs: returns
   // a positive cap when a headless env is set, else 0 (= run until window Close).
@@ -1241,6 +1242,12 @@ fn main() {
         let _dh = mui_bottom_dock_resize_to_event_y(h)
       } else if dock_resizing && tag == ev_mouse_up() {
         dock_resizing = false
+      } else if tag == ev_mouse_down() && mui_bottom_dock_close_at_click(h) == 1 {
+        dock_resizing = false
+        run_focus = false
+        web_focus = false
+        test_focus = false
+        term_focus = false
       } else if tag == ev_mouse_down() && mui_bottom_dock_resize_at_click(h) == 1 {
         dock_resizing = true
         let _dh = mui_bottom_dock_resize_to_event_y(h)

@@ -1597,6 +1597,40 @@ pub extern "C" fn mui_bottom_dock_resize_to_event_y(handle: i64) -> i32 {
     })
 }
 
+/// Close whichever shared lower dock is currently open when the latest mouse
+/// down lands on the visible close affordance. Returns 1 when it handled.
+#[no_mangle]
+pub extern "C" fn mui_bottom_dock_close_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.bottom_dock_open() {
+        return 0;
+    }
+    let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let (x, y, w, h) = layout::dock_close_rect(visible_w, ctx.gpu.height);
+    let px = ctx.last_event.x;
+    let py = ctx.last_event.y;
+    if px < x || px > x + w || py < y || py > y + h {
+        return 0;
+    }
+    if ctx.term_open {
+        ctx.term_open = false;
+        ctx.terminal = None;
+    }
+    if ctx.run.is_active() {
+        ctx.run.close();
+    }
+    if ctx.web.is_active() {
+        ctx.web.close();
+    }
+    if ctx.problems.is_open() {
+        ctx.problems.set_open(false);
+    }
+    ctx.bottom_dock_resizing = false;
+    1
+}
+
 /// Draw the visible grab target for the shared bottom dock. Every lower panel
 /// uses the same layout, so drawing it once late keeps Terminal/Run/Web/Problems
 /// consistent and prevents the handle from being hidden by panel contents.
@@ -1610,14 +1644,17 @@ pub extern "C" fn mui_bottom_dock_resize_draw(handle: i64) {
     }
     let region = layout::region(ctx.sidebar_visible);
     let x0 = layout::term_panel_left(region);
-    let w = (ctx.gpu.width as f32 - x0).max(0.0);
+    let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let w = (visible_w as f32 - x0).max(0.0);
     if w < 80.0 {
         return;
     }
     let top = layout::term_panel_top(ctx.gpu.height);
     let band_y = top - layout::DOCK_RESIZE_H * 0.5;
+    let was_clip = ctx.clip;
     let was_overlay = ctx.overlay;
     ctx.overlay = true;
+    ctx.clip = None;
     ctx.dl_rect(x0, band_y, w, layout::DOCK_RESIZE_H, theme::BG_1());
     ctx.dl_rect(x0, top, w, 1.0, theme::BORDER_STRONG());
     let grip_w = 64.0_f32.min((w - 32.0).max(0.0));
@@ -1630,7 +1667,22 @@ pub extern "C" fn mui_bottom_dock_resize_draw(handle: i64) {
         1.5,
         theme::TEXT_3(),
     );
+    let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let (cx, cy, cw, ch) = layout::dock_close_rect(visible_w, ctx.gpu.height);
+    ctx.dl_round(cx, cy, cw, ch, 6.0, theme::accent_a(0.18));
+    ctx.dl_stroke(cx, cy, cw, ch, 6.0, theme::ACCENT(), 1.0);
+    ctx.dl_icon(
+        cx + (cw - 12.0) * 0.5,
+        cy + (ch - 12.0) * 0.5,
+        12.0,
+        12.0,
+        crate::icons::CLOSE,
+        theme::TEXT(),
+        1.6,
+        false,
+    );
     ctx.overlay = was_overlay;
+    ctx.clip = was_clip;
 }
 
 /// Number of lines in the shim's current `load_buf` (>= 1). Mighty uses this to
@@ -5189,7 +5241,8 @@ type TermRun = (f32, f32, String, (f32, f32, f32, f32));
 fn term_dims(ctx: &MuiContext) -> (usize, usize) {
     let region = layout::region(ctx.sidebar_visible);
     let rows = layout::term_grid_rows(ctx.gpu.height);
-    let cols = layout::term_grid_cols(ctx.gpu.width, region);
+    let width = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let cols = layout::term_grid_cols(width, region);
     (rows, cols)
 }
 
@@ -5342,7 +5395,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
     }
     let region = layout::region(ctx.sidebar_visible);
     let (panel_rows, panel_cols) = term_dims(ctx);
-    let width = ctx.gpu.width;
+    let width = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
     let height = ctx.gpu.height;
     let handle_ptr = handle as usize as *mut MuiContext;
     let clip = ctx.clip;

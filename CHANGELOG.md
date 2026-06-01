@@ -86,6 +86,12 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Bottom dock resize is visible and draggable**: Terminal, Run, Web, and
   Problems share a top-edge grab handle, and mouse dragging resizes the lower
   dock while the editor row budget updates with it.
+- **Bottom docks have a shared close button**: the lower Terminal/Run/Web/
+  Problems drawer now exposes the same visible header close affordance instead
+  of relying on rail toggles or Escape.
+- **Bottom dock chrome respects zoom/DPI**: shared dock actions and right-aligned
+  header content use the physical viewport converted back to logical pixels, so
+  drawer buttons and labels do not drift off-screen under UI zoom.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

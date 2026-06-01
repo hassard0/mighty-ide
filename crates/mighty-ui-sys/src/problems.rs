@@ -205,13 +205,14 @@ impl ProblemSet {
 
     /// The problem-row band's top y (just under the header).
     fn body_top(h: f32) -> f32 {
-        Self::panel_top(h) + 32.0
+        Self::panel_top(h) + layout::term_header_h()
     }
 
-    /// The panel's top y (a bottom band ~38% of the window, min 180px).
+    /// The panel's top y. Problems shares the same lower-dock geometry as
+    /// Terminal/Run/Web so editor row reservation, resize handle, and click
+    /// targets agree.
     fn panel_top(h: f32) -> f32 {
-        let panel_h = (h * 0.34).max(180.0).min(h - 120.0);
-        (h - 30.0 - panel_h).max(0.0)
+        layout::term_panel_top(h.max(1.0) as u32)
     }
 
     /// Map a click y (window coords) + the editor left edge to a problem index,
@@ -244,9 +245,8 @@ impl ProblemSet {
         if !self.open || click_x < left || click_x > w {
             return false;
         }
-        let top = Self::panel_top(h);
-        let x = w - 34.0;
-        click_x >= x && click_x <= x + 24.0 && click_y >= top + 3.0 && click_y <= top + 27.0
+        let (x, y, cw, ch) = layout::dock_close_rect(w.max(1.0) as u32, h.max(1.0) as u32);
+        click_x >= x && click_x <= x + cw && click_y >= y && click_y <= y + ch
     }
 
     /// Draw the Problems panel as a bottom band: a header with error/warning
@@ -256,13 +256,13 @@ impl ProblemSet {
         if !self.open {
             return;
         }
-        let w = ctx.gpu.width as f32;
+        let w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
         let h = ctx.gpu.height as f32;
         let clip = ctx.clip;
         let chrome = theme::CHROME_FONT_SIZE;
         let adv = chrome * 0.55;
         let top = Self::panel_top(h);
-        let panel_h = h - 30.0 - top;
+        let panel_h = layout::term_panel_height(ctx.gpu.height);
 
         // Panel surface (elevated) + a top divider with a faint glow line.
         ctx.dl_rect(left, top, w - left, panel_h, theme::BG_1());
@@ -270,7 +270,7 @@ impl ProblemSet {
         ctx.dl_shadow(left, top, w - left, 2.0, 0.0, theme::ACCENT_GLOW(), 6.0);
 
         // Header band.
-        let head_h = 30.0;
+        let head_h = layout::term_header_h();
         ctx.dl_grad_v(left, top, w - left, head_h, 0.0, theme::BG_2(), theme::BG_1());
         ctx.dl_rect(left, top + head_h - 1.0, w - left, 1.0, theme::BORDER_SOFT());
 
@@ -292,11 +292,6 @@ impl ProblemSet {
         x += 17.0;
         let wc = self.warnings.to_string();
         ctx.text.queue_ui_sized(x, hy, &wc, if self.warnings > 0 { theme::WARNING() } else { theme::TEXT_3() }, chrome - 1.0, clip);
-
-        let close_x = w - 34.0;
-        let close_y = top + 4.0;
-        ctx.dl_round(close_x, close_y, 24.0, 22.0, 6.0, theme::BG_2());
-        ctx.dl_icon(close_x + 6.0, close_y + 5.0, 12.0, 12.0, icons::CLOSE, theme::TEXT_3(), 1.6, false);
 
         if self.items.is_empty() {
             ctx.dl_icon(left + 14.0, Self::body_top(h) + 2.0, 14.0, 14.0, icons::CHECK, theme::GREEN(), 1.7, false);
@@ -483,8 +478,9 @@ mod tests {
     fn close_hit_test_targets_header_button_only() {
         let mut ps = ProblemSet::new();
         ps.set_open(true);
-        assert!(ps.close_at(974.0, 510.0, 1000.0, 800.0, 52.0));
-        assert!(!ps.close_at(940.0, 510.0, 1000.0, 800.0, 52.0));
-        assert!(!ps.close_at(974.0, 540.0, 1000.0, 800.0, 52.0));
+        let (x, y, w, h) = layout::dock_close_rect(1000, 800);
+        assert!(ps.close_at(x + w * 0.5, y + h * 0.5, 1000.0, 800.0, 52.0));
+        assert!(!ps.close_at(x - 8.0, y + h * 0.5, 1000.0, 800.0, 52.0));
+        assert!(!ps.close_at(x + w * 0.5, y + h + 8.0, 1000.0, 800.0, 52.0));
     }
 }

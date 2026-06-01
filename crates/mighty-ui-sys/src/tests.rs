@@ -667,7 +667,9 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
     crate::layout::reset_dock_fraction();
     let mut ctx = ctx_or_skip!();
     ctx.gpu.width = 1000;
+    ctx.gpu.phys_width = 1000;
     ctx.gpu.height = 700;
+    ctx.gpu.phys_height = 700;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(crate::featureabi::mui_run_open(handle), 1);
@@ -686,6 +688,17 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
     assert!(shorter_h < resized_h, "shorter_h={shorter_h} resized_h={resized_h}");
     let rows_after_shorter = crate::abi::mui_visible_rows(handle);
     assert!(rows_after_shorter > rows_after_taller);
+
+    let (cx, cy, cw, ch) = crate::layout::dock_close_rect(ctx.gpu.width, ctx.gpu.height);
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        cx + cw * 0.5,
+        cy + ch * 0.5,
+        0,
+    );
+    assert_eq!(crate::abi::mui_bottom_dock_close_at_click(handle), 1);
+    assert!(!ctx.bottom_dock_open());
     crate::layout::reset_dock_fraction();
 }
 

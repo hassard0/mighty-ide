@@ -1736,3 +1736,18 @@ Problems by dragging the surface they could see.
   still requires shim-owned geometry and stateful flags in `main.mty`. A stronger
   Mighty UI layer should expose pointer capture / drag gestures and reusable
   layout constraints directly.
+
+### L104. Drawer actions need one shared visible contract **[finding, P2]**
+Bottom drawers had inconsistent exit affordances: Problems had a close path, but
+Terminal/Run/Web leaned on rail toggles or Escape, which makes the UI feel broken
+when users look for a normal header close button.
+
+- **IDE note:** the shared bottom-dock overlay now owns one close hit target and
+  draws one close icon after all lower panels, while Run/Web header content
+  reserves space so the icon does not collide with status pills or URL actions.
+  The shared geometry must use the physical viewport converted into logical
+  pixels, otherwise user zoom/DPI can push right-aligned controls off-screen even
+  when the normal `gpu.width` value looks correct.
+- **Language note:** no compiler issue surfaced, but the same scalar-pattern
+  friction remains: Mighty can call one `*_at_click` function, while the shim
+  must own the cross-panel geometry and state transition.

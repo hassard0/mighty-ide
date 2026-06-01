@@ -331,7 +331,7 @@ pub extern "C" fn mui_problems_row_at_click(handle: i64) -> i32 {
         return -1;
     };
     let left = layout::body_left(ctx.sidebar_visible);
-    let w = ctx.gpu.width as f32;
+    let w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
     let h = ctx.gpu.height as f32;
     ctx.problems.row_at(ctx.last_event.x, ctx.last_event.y, w, h, left)
 }
@@ -343,7 +343,7 @@ pub extern "C" fn mui_problems_close_at_click(handle: i64) -> i32 {
         return 0;
     };
     let left = layout::body_left(ctx.sidebar_visible);
-    let w = ctx.gpu.width as f32;
+    let w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
     let h = ctx.gpu.height as f32;
     i32::from(ctx.problems.close_at(ctx.last_event.x, ctx.last_event.y, w, h, left))
 }

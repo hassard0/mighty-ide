@@ -58,6 +58,10 @@ pub const TERM_FRACTION_MIN: f32 = 0.18;
 pub const TERM_FRACTION_MAX: f32 = 0.68;
 /// Visible/hit-tested band around the top edge of the shared bottom dock.
 pub const DOCK_RESIZE_H: f32 = 8.0;
+/// Square hit target for the shared bottom-dock close button.
+pub const DOCK_CLOSE_SIZE: f32 = 24.0;
+/// Keep the dock close affordance away from scaled/window-control gutters.
+pub const DOCK_CLOSE_TRAILING: f32 = 40.0;
 /// Minimum terminal panel height (px) so it stays usable in small windows.
 /// A function (depends on the live line height).
 #[inline]
@@ -362,6 +366,33 @@ pub fn resize_dock_to_y(height: u32, y: f32) -> f32 {
     let frac = (panel_h / usable).clamp(TERM_FRACTION_MIN, TERM_FRACTION_MAX);
     set_dock_fraction(frac);
     term_panel_height(height)
+}
+
+/// Logical width available for shared bottom-dock affordances.
+pub fn dock_visible_width(width: u32, phys_width: u32) -> u32 {
+    if phys_width == 0 {
+        width.max(1)
+    } else {
+        let phys_logical = crate::uiscale::phys_to_logical(phys_width as f32)
+            .round()
+            .max(1.0) as u32;
+        width.min(phys_logical).max(1)
+    }
+}
+
+/// Close-button hit target in the shared bottom-dock header.
+pub fn dock_close_rect(width: u32, height: u32) -> (f32, f32, f32, f32) {
+    let size = DOCK_CLOSE_SIZE;
+    let x = width as f32 - size - DOCK_CLOSE_TRAILING;
+    let y = term_panel_top(height) + (term_header_h() - size) * 0.5;
+    (x, y, size, size)
+}
+
+/// Right edge available for bottom-dock header labels/actions, before the
+/// shared close button.
+pub fn dock_header_content_right(width: u32, height: u32) -> f32 {
+    let (x, _, _, _) = dock_close_rect(width, height);
+    x - 10.0
 }
 
 /// Left x (px) of the terminal panel: right of the sidebar (so it lines up with
