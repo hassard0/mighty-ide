@@ -24,6 +24,8 @@ use crate::ffi::MuiColor;
 use crate::layout;
 use crate::theme;
 
+const POPUP_MARGIN: f32 = 20.0;
+
 // ===========================================================================
 // Pure parsers + edit model (no GPU/context; exhaustively unit-tested)
 // ===========================================================================
@@ -808,7 +810,22 @@ impl SigState {
     /// Draw the signature popup ABOVE the cursor pixel `(cx, cy)` (flips below if
     /// there's no room). The active parameter is highlighted in indigo. No-op
     /// when inactive.
+    #[allow(dead_code)]
     pub fn draw(&self, ctx: &mut crate::MuiContext, cx: f32, cy: f32, width: u32, height: u32) {
+        self.draw_inset(ctx, cx, cy, width, height, 0.0);
+    }
+
+    /// Draw within a left-safe work area so compact windows do not clamp the
+    /// popup back over the sidebar.
+    pub fn draw_inset(
+        &self,
+        ctx: &mut crate::MuiContext,
+        cx: f32,
+        cy: f32,
+        width: u32,
+        height: u32,
+        min_x: f32,
+    ) {
         let Some(sig) = &self.sig else {
             return;
         };
@@ -830,27 +847,32 @@ impl SigState {
         let has_doc = !sig.doc.is_empty();
         let (label_w, _) = ctx.text.measure_sized(label, chrome);
         let (doc_w, _) = ctx.text.measure_sized(&sig.doc, chrome - 1.0);
-        let box_w = (label_w.max(doc_w) + 2.0 * pad + 8.0).max(120.0);
+        let w = width as f32;
+        let h = height as f32;
+        let min_x = min_x.max(POPUP_MARGIN).min((w - POPUP_MARGIN).max(POPUP_MARGIN));
+        let max_box_w = (w - min_x - POPUP_MARGIN).max(120.0);
+        let wanted_w = (label_w.max(doc_w) + 2.0 * pad + 8.0).max(120.0);
+        let box_w = wanted_w.min(max_box_w);
         let line_h = layout::LINE_H();
         let lines = if has_doc { 2 } else { 1 };
         let box_h = lines as f32 * line_h + 2.0 * pad;
 
-        let w = width as f32;
-        let h = height as f32;
-        let mut box_x = cx;
+        let box_x = clamp_popup_x(cx, box_w, w, min_x);
         // Prefer ABOVE the cursor.
         let mut box_y = cy - box_h - 4.0;
         if box_y < layout::TAB_BAR_H + layout::BREADCRUMB_H {
             box_y = cy + line_h; // flip below
         }
-        if box_x + box_w > w {
-            box_x = (w - box_w).max(0.0);
-        }
         if box_y + box_h > h {
             box_y = (h - box_h).max(0.0);
         }
 
-        let clip = ctx.clip;
+        let clip = Some((
+            box_x.max(0.0) as u32,
+            box_y.max(0.0) as u32,
+            box_w.max(0.0) as u32,
+            box_h.max(0.0) as u32,
+        ));
         let radius = 9.0_f32;
         ctx.dl_shadow(box_x, box_y + 5.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.6), 18.0);
         ctx.dl_grad_v(box_x, box_y, box_w, box_h, radius, theme::ELEVATED_2(), theme::ELEVATED());
@@ -858,9 +880,12 @@ impl SigState {
 
         let text_x = box_x + pad;
         let label_y = box_y + pad - 0.5;
+        let text_w = (box_w - 2.0 * pad).max(0.0);
+        let shown_label = fit_sized(&mut ctx.text, label, text_w - 8.0, chrome);
+        let label_is_full = shown_label == *label;
         // Active-parameter highlight pill behind the param text.
         if let Some((prefix_w, param_w)) = hi_span {
-            if param_w > 0.0 {
+            if label_is_full && param_w > 0.0 && prefix_w + param_w + 3.0 <= text_w {
                 let hx = text_x + prefix_w - 3.0;
                 let hw = param_w + 6.0;
                 ctx.dl_round(hx, label_y - 1.0, hw, chrome + 4.0, 4.0, theme::accent_a(0.26));
@@ -868,9 +893,9 @@ impl SigState {
             }
         }
         // The signature label, with the active param drawn in accent on top.
-        ctx.text.queue_sized(text_x, label_y, label, theme::TEXT(), chrome, clip);
+        ctx.text.queue_sized(text_x, label_y, &shown_label, theme::TEXT(), chrome, clip);
         if let Some((prefix_w, param_w)) = hi_span {
-            if param_w > 0.0 {
+            if label_is_full && param_w > 0.0 && prefix_w + param_w + 3.0 <= text_w {
                 if let Some(p) = active_param {
                     let px = text_x + prefix_w;
                     ctx.text.queue_sized(px, label_y, p, theme::ACCENT_BRIGHT(), chrome, clip);
@@ -880,7 +905,8 @@ impl SigState {
         // Optional doc line, dim, below the signature.
         if has_doc {
             let dy = label_y + line_h;
-            ctx.text.queue_sized(text_x, dy, &sig.doc, theme::TEXT_3(), chrome - 1.0, clip);
+            let shown_doc = fit_sized(&mut ctx.text, &sig.doc, text_w - 8.0, chrome - 1.0);
+            ctx.text.queue_sized(text_x, dy, &shown_doc, theme::TEXT_3(), chrome - 1.0, clip);
         }
     }
 }
@@ -1088,7 +1114,19 @@ impl CodeActionState {
         self.sel = 0;
     }
 
+    #[allow(dead_code)]
     fn geometry(&self, cx: f32, cy: f32, width: u32, height: u32) -> (f32, f32, f32, f32, f32, f32) {
+        self.geometry_inset(cx, cy, width, height, 0.0)
+    }
+
+    fn geometry_inset(
+        &self,
+        cx: f32,
+        cy: f32,
+        width: u32,
+        height: u32,
+        min_x: f32,
+    ) -> (f32, f32, f32, f32, f32, f32) {
         let row_h = layout::LINE_H();
         let chrome = theme::CHROME_FONT_SIZE;
         let pad = 5.0;
@@ -1098,16 +1136,16 @@ impl CodeActionState {
             .map(|a| a.title.chars().count())
             .max()
             .unwrap_or(0) as f32;
-        let box_w = (longest * (chrome * 0.56) + 56.0).max(240.0);
-        let box_h = self.actions.len() as f32 * row_h + 2.0 * pad;
-
         let w = width as f32;
         let h = height as f32;
-        let mut box_x = cx;
+        let min_x = min_x.max(POPUP_MARGIN).min((w - POPUP_MARGIN).max(POPUP_MARGIN));
+        let max_box_w = (w - min_x - POPUP_MARGIN).max(180.0);
+        let wanted_w = (longest * (chrome * 0.56) + 56.0).max(240.0);
+        let box_w = wanted_w.min(max_box_w);
+        let box_h = self.actions.len() as f32 * row_h + 2.0 * pad;
+
+        let box_x = clamp_popup_x(cx, box_w, w, min_x);
         let mut box_y = cy + row_h;
-        if box_x + box_w > w {
-            box_x = (w - box_w).max(0.0);
-        }
         if box_y + box_h > h {
             box_y = (cy - box_h).max(0.0);
         }
@@ -1117,11 +1155,26 @@ impl CodeActionState {
 
     /// Select the action row under a click. Returns the selected index, or -1
     /// when the click missed the active popup.
+    #[allow(dead_code)]
     pub fn click_row(&mut self, x: f32, y: f32, cx: f32, cy: f32, width: u32, height: u32) -> i32 {
+        self.click_row_inset(x, y, cx, cy, width, height, 0.0)
+    }
+
+    /// Select a row using the same left-safe geometry as [`draw_inset`].
+    pub fn click_row_inset(
+        &mut self,
+        x: f32,
+        y: f32,
+        cx: f32,
+        cy: f32,
+        width: u32,
+        height: u32,
+        min_x: f32,
+    ) -> i32 {
         if !self.active || self.actions.is_empty() {
             return -1;
         }
-        let (box_x, box_y, box_w, _box_h, pad, row_h) = self.geometry(cx, cy, width, height);
+        let (box_x, box_y, box_w, _box_h, pad, row_h) = self.geometry_inset(cx, cy, width, height, min_x);
         if x < box_x || x > box_x + box_w {
             return -1;
         }
@@ -1142,16 +1195,36 @@ impl CodeActionState {
 
     /// Draw the code-action menu near the cursor pixel `(cx, cy)` (reuses the
     /// completion-dropdown / palette card styling). No-op when inactive.
+    #[allow(dead_code)]
     pub fn draw(&self, ctx: &mut crate::MuiContext, cx: f32, cy: f32, width: u32, height: u32) {
+        self.draw_inset(ctx, cx, cy, width, height, 0.0);
+    }
+
+    /// Draw within a left-safe work area so compact windows keep the menu out of
+    /// the sidebar and inside the right edge.
+    pub fn draw_inset(
+        &self,
+        ctx: &mut crate::MuiContext,
+        cx: f32,
+        cy: f32,
+        width: u32,
+        height: u32,
+        min_x: f32,
+    ) {
         if !self.active || self.actions.is_empty() {
             return;
         }
         let row_h = layout::LINE_H();
         let chrome = theme::CHROME_FONT_SIZE;
         let pad = 5.0;
-        let (box_x, box_y, box_w, box_h, _pad, _row_h) = self.geometry(cx, cy, width, height);
+        let (box_x, box_y, box_w, box_h, _pad, _row_h) = self.geometry_inset(cx, cy, width, height, min_x);
 
-        let clip = ctx.clip;
+        let clip = Some((
+            box_x.max(0.0) as u32,
+            box_y.max(0.0) as u32,
+            box_w.max(0.0) as u32,
+            box_h.max(0.0) as u32,
+        ));
         let radius = 8.0_f32;
         ctx.dl_shadow(box_x, box_y + 8.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.8), 24.0);
         ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED());
@@ -1181,7 +1254,8 @@ impl CodeActionState {
 
             let ty = row_y + (row_h - chrome) * 0.5 - 0.5;
             let fg = if selected { theme::TEXT() } else { theme::TEXT_1() };
-            ctx.text.queue_ui_sized(box_x + 36.0, ty, &a.title, fg, chrome, clip);
+            let title = fit_ui_sized(&mut ctx.text, &a.title, box_w - 52.0, chrome);
+            ctx.text.queue_ui_sized(box_x + 36.0, ty, &title, fg, chrome, clip);
         }
     }
 }
@@ -1189,6 +1263,54 @@ impl CodeActionState {
 // ===========================================================================
 // LSP client — spawn `mty lsp`, stage the handshake, fire one request.
 // ===========================================================================
+
+fn clamp_popup_x(cx: f32, box_w: f32, window_w: f32, min_x: f32) -> f32 {
+    let left = min_x.max(POPUP_MARGIN);
+    let right = (window_w - POPUP_MARGIN - box_w).max(left);
+    cx.clamp(left, right)
+}
+
+fn fit_sized(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    fit_measured(s, max_px, |candidate| text.measure_sized(candidate, size).0)
+}
+
+fn fit_ui_sized(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    fit_measured(s, max_px, |candidate| text.measure_ui_sized(candidate, size).0)
+}
+
+fn fit_measured<F>(s: &str, max_px: f32, mut measure: F) -> String
+where
+    F: FnMut(&str) -> f32,
+{
+    let max_px = max_px.max(0.0);
+    if measure(s) <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    if measure(ellipsis) >= max_px {
+        return ellipsis.to_string();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if measure(&candidate) <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        ellipsis.to_string()
+    } else {
+        let mut out: String = chars.iter().take(lo).collect();
+        out.push_str(ellipsis);
+        out
+    }
+}
 
 pub mod lsp {
     //! Generic `mty lsp` request for the language-intelligence features.
@@ -1662,6 +1784,39 @@ mod tests {
         assert_eq!(idx, 1);
         assert_eq!(c.selection(), 1);
         assert_eq!(c.click_row(box_x - 2.0, box_y + pad + 3.0, 300.0, 120.0, 900, 700), -1);
+    }
+
+    #[test]
+    fn compact_popup_x_respects_work_area_and_right_edge() {
+        let x = clamp_popup_x(470.0, 240.0, 520.0, 220.0);
+        assert!(x >= 220.0);
+        assert!(x + 240.0 <= 500.0);
+    }
+
+    #[test]
+    fn code_action_inset_geometry_and_hit_testing_match() {
+        let mut c = CodeActionState::new();
+        let actions = vec![
+            CodeAction {
+                title: "Replace extremely long unresolved symbol with imported candidate".into(),
+                edit: Some(WorkspaceEdit::default()),
+                fix_all_mty: false,
+            },
+            CodeAction { title: "Fix all".into(), edit: None, fix_all_mty: true },
+        ];
+        assert_eq!(c.set(actions), 2);
+        let min_x = 220.0;
+        let (box_x, box_y, box_w, _box_h, pad, row_h) = c.geometry_inset(470.0, 120.0, 520, 360, min_x);
+        assert!(box_x >= min_x);
+        assert!(box_x + box_w <= 500.0);
+        assert_eq!(
+            c.click_row_inset(box_x + 24.0, box_y + pad + row_h + 3.0, 470.0, 120.0, 520, 360, min_x),
+            1
+        );
+        assert_eq!(
+            c.click_row_inset(min_x - 4.0, box_y + pad + 3.0, 470.0, 120.0, 520, 360, min_x),
+            -1
+        );
     }
 
     // ---- guarded end-to-end LSP integration ----

@@ -462,6 +462,11 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
     // optionally seeds the request position / new name. No effect on launches.
     if std::env::var_os("MUI_SIG_AUTOOPEN").is_some() {
         if let Some(ctx) = unsafe { ctx(handle) } {
+            let demo = b"fn add(a: I32, b: I32) -> I32 {\n  a + b\n}\n\nfn main() {\n  let total = add(40, 2)\n  print(total)\n}\n";
+            *ctx.tabs.active_model_mut() = crate::editor::TextModel::from_bytes(demo);
+            ctx.tabs.active_model_mut().move_to(5, 22);
+            ctx.welcome.dismiss();
+            ctx.edit_probe_lock = true;
             // Seed a signature directly (so the capture is deterministic even if
             // the LSP is slow): a representative `fn add` signature, active param 1.
             let ok = ctx.sig.set(Some(crate::language::ParsedSignature {
@@ -470,7 +475,7 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
                 active: 1,
                 doc: "Adds two integers and returns the sum.".to_string(),
             }));
-            ctx.sig_autoopen = Some((9, 16));
+            ctx.sig_autoopen = Some((5, 22));
             println!("mui_init_s: MUI_SIG_AUTOOPEN -> signature active={ok}");
         }
     }
@@ -492,6 +497,11 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
     }
     if std::env::var_os("MUI_CODEACTION_AUTOOPEN").is_some() {
         if let Some(ctx) = unsafe { ctx(handle) } {
+            let demo = b"fn main() {\n  prnt(\"hello\")\n}\n";
+            *ctx.tabs.active_model_mut() = crate::editor::TextModel::from_bytes(demo);
+            ctx.tabs.active_model_mut().move_to(1, 4);
+            ctx.welcome.dismiss();
+            ctx.edit_probe_lock = true;
             let actions = vec![
                 crate::language::CodeAction {
                     title: "Replace 'prnt' with 'print'".to_string(),
@@ -510,7 +520,7 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
                 },
             ];
             let n = ctx.codeaction.set(actions);
-            ctx.codeaction_autoopen = Some((9, 6));
+            ctx.codeaction_autoopen = Some((1, 4));
             println!("mui_init_s: MUI_CODEACTION_AUTOOPEN -> {n} actions");
         }
     }
@@ -6180,7 +6190,7 @@ pub extern "C" fn mui_complete_draw(handle: i64, cursor_px_x: f32, cursor_px_y: 
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
-    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let (w, h) = visible_surface_size(ctx);
     // Split the borrow: `draw` needs `&mut ctx` for both rects + text.
     let engine = std::mem::take(&mut ctx.complete);
     ctx.overlay = true;
@@ -7580,7 +7590,7 @@ pub extern "C" fn mui_sig_draw(handle: i64, row: i32, col: i32, total_lines: i32
     let sig = std::mem::take(&mut ctx.sig);
     ctx.overlay = true;
     ctx.text.set_overlay(true);
-    sig.draw(ctx, x, y, w, h);
+    sig.draw_inset(ctx, x, y, w, h, region.left + 8.0);
     ctx.overlay = false;
     ctx.text.set_overlay(false);
     ctx.sig = sig;
@@ -7999,13 +8009,14 @@ pub extern "C" fn mui_codeaction_click(handle: i64, row: i32, col: i32, total_li
     let region = layout::region(ctx.sidebar_visible);
     let cx = layout::text_x_in(region, total_lines.max(1) as u64, col);
     let cy = layout::row_y_in(region, row);
-    ctx.codeaction.click_row(
+    ctx.codeaction.click_row_inset(
         ctx.last_event.x,
         ctx.last_event.y,
         cx,
         cy,
-        ctx.gpu.width,
-        ctx.gpu.height,
+        visible_surface_size(ctx).0,
+        visible_surface_size(ctx).1,
+        region.left + 8.0,
     )
 }
 
@@ -8120,11 +8131,11 @@ pub extern "C" fn mui_codeaction_draw(handle: i64, row: i32, col: i32, total_lin
     let region = layout::region(ctx.sidebar_visible);
     let x = layout::text_x_in(region, total_lines.max(1) as u64, col);
     let y = layout::row_y_in(region, row);
-    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let (w, h) = visible_surface_size(ctx);
     let menu = std::mem::take(&mut ctx.codeaction);
     ctx.overlay = true;
     ctx.text.set_overlay(true);
-    menu.draw(ctx, x, y, w, h);
+    menu.draw_inset(ctx, x, y, w, h, region.left + 8.0);
     ctx.overlay = false;
     ctx.text.set_overlay(false);
     ctx.codeaction = menu;

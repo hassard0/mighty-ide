@@ -1193,7 +1193,7 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         let sig = std::mem::take(&mut ctx.sig);
         ctx.overlay = true;
         ctx.text.set_overlay(true);
-        sig.draw(ctx, cx, cy, w, h);
+        sig.draw_inset(ctx, cx, cy, w, h, region.left + 8.0);
         ctx.overlay = false;
         ctx.text.set_overlay(false);
         ctx.sig = sig;
@@ -1206,7 +1206,7 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         let menu = std::mem::take(&mut ctx.codeaction);
         ctx.overlay = true;
         ctx.text.set_overlay(true);
-        menu.draw(ctx, cx, cy, w, h);
+        menu.draw_inset(ctx, cx, cy, w, h, region.left + 8.0);
         ctx.overlay = false;
         ctx.text.set_overlay(false);
         ctx.codeaction = menu;

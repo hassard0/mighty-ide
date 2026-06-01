@@ -186,6 +186,8 @@ foreach ($c in $cases) {
     Set-Item -Path "env:MUI_SCREENSHOT_FRAME" -Value "5"
     Set-Item -Path "env:MUI_WIDTH" -Value $Width
     Set-Item -Path "env:MUI_HEIGHT" -Value $Height
+    Set-Item -Path "env:MUI_SCREENSHOT_W" -Value $Width
+    Set-Item -Path "env:MUI_SCREENSHOT_H" -Value $Height
     $p = Start-Process -FilePath $Exe -WorkingDirectory $WorkDir -PassThru
     $exited = $p.WaitForExit(20000)
     $p.Refresh()
@@ -205,6 +207,8 @@ foreach ($c in $cases) {
     Remove-Item -Path "env:MUI_SCREENSHOT_FRAME" -ErrorAction SilentlyContinue
     Remove-Item -Path "env:MUI_WIDTH" -ErrorAction SilentlyContinue
     Remove-Item -Path "env:MUI_HEIGHT" -ErrorAction SilentlyContinue
+    Remove-Item -Path "env:MUI_SCREENSHOT_W" -ErrorAction SilentlyContinue
+    Remove-Item -Path "env:MUI_SCREENSHOT_H" -ErrorAction SilentlyContinue
   }
   Start-Sleep -Milliseconds 200
 }

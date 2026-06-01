@@ -2838,3 +2838,15 @@ bottom docks but not the left activity rail/sidebar.
 - **Language note:** no compiler gap surfaced. Mighty should provide a common
   safe-area model for overlays so toasts, menus, and transient panels can avoid
   rail/sidebar/dock chrome from the same layout contract.
+
+### L189. Cursor popups must clamp before drawing text **[finding, P2]**
+The 520px language overlay captures showed signature help and code actions
+anchored correctly but clipped at the right edge. The popup box was clamped only
+after content chose its full width, so text still exceeded the visible work area.
+
+- **IDE note:** Signature help and code-action menus now receive the editor
+  safe-left inset, cap their box width before drawing, and ellipsize text by
+  measured width. Code-action hit testing uses the same inset geometry.
+- **Language note:** no compiler gap surfaced. Mighty needs a reusable overlay
+  geometry primitive that combines anchor, safe area, width budget, and hit-test
+  rect so every cursor popup follows the same contract.
