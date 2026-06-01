@@ -98,8 +98,8 @@ fn quick_action_key_x(
     Some((right_edge - key_w).max(after_label))
 }
 
-fn use_compact_layout(body_w: f32, col_w: f32) -> bool {
-    body_w < 760.0 || col_w < 640.0
+fn use_compact_layout(body_w: f32, body_h: f32, col_w: f32) -> bool {
+    body_w < 760.0 || body_h < 420.0 || col_w < 640.0
 }
 
 impl Hit {
@@ -214,13 +214,25 @@ impl WelcomeState {
 
         // Center column. Generous max width so it breathes on wide windows.
         let col_w = 720.0_f32.min(bw - 48.0).max(280.0);
-        let compact = use_compact_layout(bw, col_w);
+        let compact = use_compact_layout(bw, bh, col_w);
+        let tight_height = bh < 340.0;
         let cx = bx + (bw - col_w) * 0.5;
         // Vertical rhythm: start a bit above the optical center.
-        let mut y = by + (bh * 0.16).max(40.0);
+        let mut y = by
+            + if tight_height {
+                18.0
+            } else {
+                (bh * 0.16).max(40.0)
+            };
 
         // ---- Brand: teal/indigo logo tile + wordmark ----
-        let tile = if compact { 52.0_f32 } else { 64.0_f32 };
+        let tile = if tight_height {
+            40.0_f32
+        } else if compact {
+            52.0_f32
+        } else {
+            64.0_f32
+        };
         let tx = cx;
         // Rounded brand tile with a focused glow + the Mighty mark.
         ctx.dl_shadow(tx, y + 8.0, tile, tile, 9.0, MuiColor::new(0.35, 0.95, 0.90, 0.24), 34.0);
@@ -247,34 +259,58 @@ impl WelcomeState {
         let word_x = tx + tile + if compact { 16.0 } else { 22.0 };
         ctx.text.queue_ui_styled(
             word_x,
-            y + if compact { 5.0 } else { 8.0 },
+            y + if tight_height {
+                2.0
+            } else if compact {
+                5.0
+            } else {
+                8.0
+            },
             "Mighty",
             theme::TEXT(),
-            if compact { 36.0 } else { 40.0 },
+            if tight_height {
+                28.0
+            } else if compact {
+                36.0
+            } else {
+                40.0
+            },
             crate::vello_ui::FontStyle::Bold,
             clip,
         );
-        ctx.text.queue_ui_sized(
-            word_x + 2.0,
-            y + if compact { 44.0 } else { 50.0 },
-            "The agent-first language IDE",
-            theme::DIM(),
-            if compact { 13.5 } else { 14.5 },
-            clip,
-        );
+        if !tight_height {
+            ctx.text.queue_ui_sized(
+                word_x + 2.0,
+                y + if compact { 44.0 } else { 50.0 },
+                "The agent-first language IDE",
+                theme::DIM(),
+                if compact { 13.5 } else { 14.5 },
+                clip,
+            );
+        }
 
-        y += tile + if compact { 26.0 } else { 44.0 };
+        y += tile
+            + if tight_height {
+                18.0
+            } else if compact {
+                26.0
+            } else {
+                44.0
+            };
 
         // ---- Compact editor column: keep the welcome actions usable, without
         // forcing recent columns into the status bar.
         if compact {
             let left_x = cx;
-            let row_h = 32.0_f32;
+            let row_h = if tight_height { 28.0_f32 } else { 32.0_f32 };
             ctx.text.queue_ui_styled(
                 left_x, y, "START", theme::TEXT_3(), 11.5, crate::vello_ui::FontStyle::Bold, clip,
             );
             let rows_top = y + 20.0;
-            for (i, qa) in QUICK_ACTIONS.iter().enumerate() {
+            let bottom_limit = by + bh - 34.0;
+            let max_actions = (((bottom_limit - rows_top) / row_h).floor().max(0.0) as usize)
+                .min(QUICK_ACTIONS.len());
+            for (i, qa) in QUICK_ACTIONS.iter().take(max_actions).enumerate() {
                 let ry = rows_top + i as f32 * row_h;
                 ctx.dl_round(left_x, ry + 3.0, 24.0, 24.0, 7.0, theme::BG_4());
                 ctx.dl_icon(left_x + 4.0, ry + 7.0, 16.0, 16.0, qa.icon, theme::ACCENT_BRIGHT(), 1.7, false);
@@ -288,8 +324,7 @@ impl WelcomeState {
                     action: qa.action,
                 });
             }
-            let mut ry = rows_top + QUICK_ACTIONS.len() as f32 * row_h + 18.0;
-            let bottom_limit = by + bh - 34.0;
+            let mut ry = rows_top + max_actions as f32 * row_h + 18.0;
             if ry + 58.0 < bottom_limit {
                 ctx.dl_rect(left_x, ry - 10.0, col_w, 1.0, theme::BORDER());
                 ctx.text.queue_ui_styled(
@@ -681,8 +716,9 @@ mod tests {
 
     #[test]
     fn explorer_narrowed_welcome_uses_single_column_layout() {
-        assert!(use_compact_layout(612.0, 564.0));
-        assert!(use_compact_layout(740.0, 692.0));
-        assert!(!use_compact_layout(954.0, 720.0));
+        assert!(use_compact_layout(612.0, 600.0, 564.0));
+        assert!(use_compact_layout(740.0, 600.0, 692.0));
+        assert!(use_compact_layout(954.0, 320.0, 720.0));
+        assert!(!use_compact_layout(954.0, 600.0, 720.0));
     }
 }

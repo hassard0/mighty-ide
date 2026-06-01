@@ -11433,12 +11433,18 @@ pub extern "C" fn mui_welcome_draw(handle: i64) {
     prune_missing_recent_workspaces(ctx);
     let region = layout::region(ctx.sidebar_visible);
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let visible_h = visible_surface_size(ctx).1;
+    let welcome_h = if ctx.bottom_dock_open() {
+        layout::term_panel_top(visible_h).floor().max(region.top + 1.0) as u32
+    } else {
+        h
+    };
     // Take the recents snapshot out so we can borrow `ctx` mutably for the draw
     // (the MRU lives in the Quick-Open engine).
     let recents: Vec<std::path::PathBuf> = ctx.quickopen.recent_paths();
     let folders: Vec<std::path::PathBuf> = ctx.recent_workspaces.entries().to_vec();
     let mut welcome = std::mem::take(&mut ctx.welcome);
-    welcome.draw(ctx, region.left, region.top, w, h, &recents, &folders);
+    welcome.draw(ctx, region.left, region.top, w, welcome_h, &recents, &folders);
     ctx.welcome = welcome;
 }
 

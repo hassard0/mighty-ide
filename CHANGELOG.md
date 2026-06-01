@@ -48,6 +48,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   workspace command remains scoped to the open folder.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
+- **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now
+  gives the Welcome screen a reduced layout budget so quick actions do not draw
+  underneath the dock.
 - **Bottom docks reserve editor space consistently**: Run, Web, Problems, and
   Terminal now share one lower-dock owner model, so editor/ghost rows no longer
   keep flowing underneath testing or output drawers.

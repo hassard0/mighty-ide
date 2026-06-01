@@ -2727,3 +2727,17 @@ on the Mighty command layer to route to Save As correctly.
   intent metadata for file workflows: workspace-relative creation, arbitrary
   path creation, and save-as are different contracts and should not be inferred
   from generic string-path plumbing.
+
+### L180. Overlays need a shared visible-area contract **[finding, P1]**
+The editor row math already reserved space for bottom docks, but the Welcome
+surface was still given the full window height. With Terminal open, Welcome
+quick actions rendered underneath the terminal panel, exactly the kind of
+overlap a human sees immediately in a small window.
+
+- **IDE note:** Welcome now receives the dock-adjusted height from the ABI and
+  switches to a tighter, height-aware compact layout when the remaining editor
+  area is short.
+- **Language note:** no compiler gap surfaced. Mighty needs a shared layout
+  primitive for "visible editor area after chrome and overlays" so every
+  surface consumes the same bounds instead of each feature recomputing or
+  forgetting bottom-dock reservations.
