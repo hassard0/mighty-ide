@@ -1573,8 +1573,10 @@ pub extern "C" fn mui_ai_open(handle: i64) -> i32 {
     };
     ctx.ai.open = !ctx.ai.open;
     if ctx.ai.open {
+        crate::abi::trace("ai_open");
         1
     } else {
+        crate::abi::trace("ai_close");
         0
     }
 }
@@ -1586,6 +1588,7 @@ pub extern "C" fn mui_ai_show(handle: i64) -> i32 {
         return 0;
     };
     ctx.ai.open = true;
+    crate::abi::trace("ai_open");
     1
 }
 
@@ -1627,7 +1630,7 @@ pub extern "C" fn mui_ai_click(handle: i64) -> i32 {
     let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
     let (px, pw, input_y, input_h) =
         crate::ai::input_geometry(&ctx.ai.input, visible_w, ctx.gpu.height);
-    if x < px || x > px + pw || y < 0.0 || y > ctx.gpu.height as f32 {
+    if x < px || x > px + pw || y < layout::TAB_BAR_H || y > ctx.gpu.height as f32 {
         return 0;
     }
     // Preserve the title-bar run/more/window-control strip: it is drawn above

@@ -507,7 +507,7 @@ pub fn close_geometry(width: u32) -> (f32, f32, f32, f32) {
     let px = w - pw;
     let reserved_x = crate::titlebar::controls_x(w) - crate::titlebar::ACTION_STRIP_W;
     let right = reserved_x.min(px + pw) - 10.0;
-    (right - 28.0, 8.0, 24.0, 24.0)
+    (right - 28.0, layout::TAB_BAR_H + 8.0, 24.0, 24.0)
 }
 
 /// A simple line of rendered transcript content (already wrapped/segmented).
@@ -671,21 +671,22 @@ impl AiPanel {
         let h = height as f32;
         let pw = AI_PANEL_W;
         let px = w - pw;
-        let clip = Some((px as u32, 0, pw as u32, height));
+        let top = layout::TAB_BAR_H;
+        let clip = Some((px as u32, top as u32, pw as u32, height.saturating_sub(top as u32)));
         let chrome = theme::CHROME_FONT_SIZE;
         use crate::icons;
 
         // Panel surface + left divider.
-        ctx.dl_rect(px, 0.0, pw, h, theme::BG_2());
-        ctx.dl_rect(px, 0.0, 1.0, h, theme::BORDER());
+        ctx.dl_rect(px, top, pw, h - top, theme::BG_2());
+        ctx.dl_rect(px, top, 1.0, h - top, theme::BORDER());
 
         // ---- header band: sparkles icon + "AI COPILOT" + model pill ----
         let head_h = 40.0;
-        ctx.dl_rect(px, 0.0, pw, head_h, theme::BG_2());
-        ctx.dl_rect(px, head_h - 1.0, pw, 1.0, theme::BORDER_SOFT());
+        ctx.dl_rect(px, top, pw, head_h, theme::BG_2());
+        ctx.dl_rect(px, top + head_h - 1.0, pw, 1.0, theme::BORDER_SOFT());
         ctx.dl_icon(
             px + 14.0,
-            (head_h - 16.0) * 0.5,
+            top + (head_h - 16.0) * 0.5,
             16.0,
             16.0,
             icons::AGENTS,
@@ -695,7 +696,7 @@ impl AiPanel {
         );
         ctx.dl_icon(
             px + 14.0,
-            (head_h - 16.0) * 0.5,
+            top + (head_h - 16.0) * 0.5,
             16.0,
             16.0,
             icons::AGENTS_DOT,
@@ -706,7 +707,7 @@ impl AiPanel {
         let title: String = "AI COPILOT".chars().flat_map(|c| [c, '\u{2009}']).collect();
         ctx.text.queue_ui_sized(
             px + 38.0,
-            (head_h - (chrome - 2.0)) * 0.5 - 1.0,
+            top + (head_h - (chrome - 2.0)) * 0.5 - 1.0,
             &title,
             theme::TEXT_1(),
             chrome - 2.0,
@@ -733,7 +734,7 @@ impl AiPanel {
         let min_pill_x = px + 150.0;
         if header_right - pill_w >= min_pill_x {
             let pill_x = header_right - pill_w;
-            let pill_y = (head_h - 18.0) * 0.5;
+            let pill_y = top + (head_h - 18.0) * 0.5;
             ctx.dl_round(pill_x, pill_y, pill_w, 18.0, 9.0, theme::accent_a(0.12));
             ctx.dl_stroke(pill_x, pill_y, pill_w, 18.0, 9.0, theme::ACCENT_LINE(), 1.0);
             ctx.text.queue_ui_sized(
@@ -749,7 +750,7 @@ impl AiPanel {
         // ---- input box at the bottom ----
         let (_gx, _gw, input_y, input_h) = input_geometry(&self.input, width, height);
         let input_lines = wrap(&self.input, ((pw - 56.0) / (chrome * 0.55)) as usize);
-        let body_top = head_h + 6.0;
+        let body_top = top + head_h + 6.0;
         let body_bottom = input_y - 8.0;
 
         // No-key state: a clear message instead of a transcript / live call.

@@ -23,6 +23,52 @@ fn is_clearish(c: (u8, u8, u8, u8)) -> bool {
     c.0 < 60 && c.1 < 60 && c.2 < 70
 }
 
+#[test]
+fn initial_tree_root_uses_file_parent_when_file_is_provided() {
+    let root = std::env::temp_dir().join(format!("mui_initial_tree_file_{}", std::process::id()));
+    let src = root.join("src");
+    std::fs::create_dir_all(&src).unwrap();
+    let file = src.join("main.mty");
+    let cwd = root.join("elsewhere");
+    std::fs::create_dir_all(&cwd).unwrap();
+
+    let got = crate::initial_tree_root_for(Some(&file), Some(cwd), None);
+    assert_eq!(got, src);
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn initial_tree_root_prefers_packaged_samples_for_no_arg_launch() {
+    let root = std::env::temp_dir().join(format!("mui_initial_tree_samples_{}", std::process::id()));
+    let exe_dir = root.join("dist");
+    let samples = exe_dir.join("samples");
+    let cwd = root.join("cwd");
+    std::fs::create_dir_all(&samples).unwrap();
+    std::fs::create_dir_all(&cwd).unwrap();
+    std::fs::write(exe_dir.join("mighty-ide.exe"), b"").unwrap();
+
+    let got = crate::initial_tree_root_for(None, Some(cwd), Some(exe_dir));
+    assert_eq!(got, samples);
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn initial_tree_root_keeps_cwd_for_dev_no_arg_launch() {
+    let root = std::env::temp_dir().join(format!("mui_initial_tree_cwd_{}", std::process::id()));
+    let exe_dir = root.join("target").join("release");
+    let samples = exe_dir.join("samples");
+    let cwd = root.join("repo");
+    std::fs::create_dir_all(&samples).unwrap();
+    std::fs::create_dir_all(&cwd).unwrap();
+
+    let got = crate::initial_tree_root_for(None, Some(cwd.clone()), Some(exe_dir));
+    assert_eq!(got, cwd);
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
 macro_rules! ctx_or_skip {
     () => {
         match MuiContext::new_offscreen(W, H) {

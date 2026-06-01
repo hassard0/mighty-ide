@@ -162,20 +162,21 @@ fn seed_first_run_samples(handle: i64) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
-    if !ctx.recent_workspaces.is_empty() {
-        return;
-    }
     let Ok(exe) = std::env::current_exe() else {
         return;
     };
     let Some(dir) = exe.parent() else {
         return;
     };
+    let mut changed = ctx.recent_workspaces.remove(dir);
     let samples = dir.join("samples");
-    if samples.is_dir() {
+    if ctx.recent_workspaces.is_empty() && samples.is_dir() {
         ctx.recent_workspaces.record(samples.clone());
-        let _ = crate::config::save_recent_workspaces(&ctx.recent_workspaces.to_blob());
         println!("mui_init_s: first-run -> seeded samples folder {}", samples.display());
+        changed = true;
+    }
+    if changed {
+        let _ = crate::config::save_recent_workspaces(&ctx.recent_workspaces.to_blob());
     }
 }
 
@@ -1334,12 +1335,15 @@ filename src/main.mty
             // fake paths that users cannot open.
             if let Ok(exe) = std::env::current_exe() {
                 if let Some(exe_dir) = exe.parent() {
-                    for folder in [exe_dir.join("examples"), exe_dir.join("samples"), exe_dir.to_path_buf()] {
+                    let samples = exe_dir.join("samples");
+                    for folder in [exe_dir.join("examples"), samples.clone()] {
                         if folder.is_dir() {
                             ctx.recent_workspaces.record(folder);
                         }
                     }
-                    ctx.workspace = crate::workspace::Workspace::new(exe_dir.to_path_buf());
+                    if samples.is_dir() {
+                        ctx.workspace = crate::workspace::Workspace::new(samples);
+                    }
                 }
             }
             println!(

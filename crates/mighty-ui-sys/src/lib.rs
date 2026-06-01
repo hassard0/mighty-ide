@@ -90,7 +90,7 @@ mod window;
 pub use abi::*;
 pub use ffi::*;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use std::sync::Arc;
 
@@ -472,6 +472,26 @@ pub struct MuiContext {
     md_preview_hid_sidebar: bool,
 }
 
+fn initial_tree_root_for(
+    file_path: Option<&Path>,
+    cwd: Option<PathBuf>,
+    exe_dir: Option<PathBuf>,
+) -> PathBuf {
+    if let Some(dir) = file_path
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+        .filter(|d| !d.as_os_str().is_empty())
+    {
+        return dir;
+    }
+    if let Some(dir) = exe_dir {
+        let samples = dir.join("samples");
+        if samples.is_dir() && dir.join("mighty-ide.exe").is_file() {
+            return samples;
+        }
+    }
+    cwd.unwrap_or_default()
+}
+
 impl MuiContext {
     /// Push a toast from inside the shim (the common case — file saved, git
     /// committed, build/run finished, errors, theme changed, …). Used across the
@@ -772,12 +792,13 @@ pub(crate) fn build_context(
     } else {
         tab_store.ensure_scratch();
     }
-    let tree_root = file_path
-        .as_ref()
-        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
-        .filter(|d| !d.as_os_str().is_empty())
-        .or_else(|| std::env::current_dir().ok())
-        .unwrap_or_default();
+    let tree_root = initial_tree_root_for(
+        file_path.as_deref(),
+        std::env::current_dir().ok(),
+        std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|d| d.to_path_buf())),
+    );
     let mut file_tree = tree::FileTree::new();
     file_tree.set_root(tree_root.clone());
 

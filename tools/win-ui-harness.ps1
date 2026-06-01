@@ -206,13 +206,15 @@ $saveName = "harnesssaveas.mty"
 $savePath = Join-Path $WorkDir $saveName
 if (Test-Path $savePath) { Remove-Item $savePath -Force }
 $newFileName = "harnessnewfile.mty"
-$newFilePath = Join-Path $WorkDir $newFileName
+$workspaceRoot = Join-Path $WorkDir "samples"
+if (-not (Test-Path -LiteralPath $workspaceRoot -PathType Container)) { $workspaceRoot = $WorkDir }
+$newFilePath = Join-Path $workspaceRoot $newFileName
 if (Test-Path $newFilePath) { Remove-Item $newFilePath -Force }
 $welcomeFileName = "harnesswelcome.mty"
 $welcomeFilePath = Join-Path $WorkDir $welcomeFileName
 if (Test-Path $welcomeFilePath) { Remove-Item $welcomeFilePath -Force }
 $newFolderName = "harnessnewfolder"
-$newFolderPath = Join-Path $WorkDir $newFolderName
+$newFolderPath = Join-Path $workspaceRoot $newFolderName
 if (Test-Path $newFolderPath) { Remove-Item $newFolderPath -Recurse -Force }
 $openName = "harnessopen.mty"
 $openPath = Join-Path $WorkDir $openName
@@ -843,9 +845,12 @@ if ($env:MUI_TRACE) {
   }
 }
 Invoke-PaletteCommand "view ai copilot" $null
+if ($env:MUI_TRACE) {
+  [void](Wait-TraceContainsAll @("(?m)^ai_open$") 1800)
+}
 Start-Sleep -Milliseconds 250
 $aiCloseMouseCount = Trace-MatchCount "(?m)^ai_close$"
-ClickL 700 20
+ClickL 700 60
 if (Wait-TraceCountGreaterThan "(?m)^ai_close$" $aiCloseMouseCount 1200) {
   Log "AI-CLOSE-MOUSE: visible header close trace observed"
 } else {

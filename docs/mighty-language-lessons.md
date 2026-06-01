@@ -3094,3 +3094,31 @@ room to yield a little width.
   layout constraints for minimum usable widths per surface, so drawers can
   express "I need 176px for controls" instead of relying on one global
   proportional sidebar formula.
+
+### L208. Packaged app startup must not inherit installer-directory workspace **[finding, P1]**
+A no-argument packaged launch opened the Explorer tree on the distribution
+folder, exposing `mighty-ide.exe`, DLLs, shortcut scripts, and package support
+files as if they were the user's project. The Welcome screen had useful actions,
+but the adjacent Explorer made the IDE look like it had opened its own install
+directory.
+
+- **IDE note:** startup root selection is now explicit and tested: an argument
+  file still roots Explorer at that file's parent; packaged no-arg launches with
+  bundled `samples/` root Explorer at `samples/`; development no-arg launches
+  still use the current directory.
+- **Language note:** no compiler gap surfaced. Mighty apps need an application
+  context API that distinguishes executable directory, current directory,
+  bundled sample/resources directory, and user workspace root as separate roles.
+
+### L209. Docked panels must not put controls inside titlebar hit zones **[finding, P1]**
+The AI Copilot panel drew its visible close button inside the custom titlebar
+band. The titlebar command-center hit-test correctly owned that band, so a human
+click on the AI close button opened Quick Open instead of closing the panel.
+
+- **IDE note:** the AI panel now docks below the titlebar, its close geometry
+  moved with the visible header, and the strict real-mouse harness waits for
+  `ai_open` before clicking the close affordance. The mouse-close and
+  command-close paths are both covered.
+- **Language note:** no compiler gap surfaced. Mighty UI needs declared hit-test
+  ownership for titlebar, docked panels, overlays, and command surfaces so
+  visible controls cannot be drawn inside another surface's interaction zone.
