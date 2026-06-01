@@ -265,7 +265,7 @@ fn save_staging_writes_then_load_reads_back_round_trip() {
 fn tab_abi_open_switch_close_and_byte_round_trip() {
     use crate::langdetect::Language;
     use crate::{
-        mui_dirty_confirm_active, mui_dirty_confirm_cancel, mui_dirty_confirm_discard,
+        mui_dirty_confirm_active, mui_dirty_confirm_cancel, mui_dirty_confirm_click, mui_dirty_confirm_discard,
         mui_dirty_confirm_save,
         mui_ed_set_dirty, mui_path_clear, mui_path_push, mui_quit_request, mui_tab_active,
         mui_tab_close, mui_tab_count, mui_tab_cursor_col, mui_tab_cursor_line, mui_tab_load,
@@ -273,6 +273,9 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
         mui_tab_store_begin, mui_tab_store_byte, mui_tab_store_commit, mui_tab_switch,
     };
 
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
     // The offscreen context starts with an empty store; seed a scratch tab as
     // the real init path (build_context) does.
@@ -335,6 +338,39 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(mui_tab_close(handle, 1), -1);
     assert_eq!(mui_tab_close(handle, 1), -1, "repeat close should not discard");
     assert_eq!(mui_dirty_confirm_active(handle), 1);
+
+    // Scaled-window paths can have raw GPU dimensions wider/taller than the
+    // logical event space. The modal hit boxes must use the same visible logical
+    // dimensions as mouse events, or the buttons drift and miss.
+    ctx.gpu.width = 1280;
+    ctx.gpu.height = 832;
+    ctx.gpu.phys_width = 1280;
+    ctx.gpu.phys_height = 832;
+    crate::uiscale::set_os_scale(1.375);
+    crate::uiscale::set_user_zoom(1.0);
+    let visible_w = crate::layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
+    let visible_h = crate::layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height) as f32;
+    let card_w = visible_w.min(520.0).max(320.0).min((visible_w - 32.0).max(280.0));
+    let card_h = 184.0;
+    let card_x = ((visible_w - card_w) * 0.5).max(16.0);
+    let card_y = ((visible_h - card_h) * 0.5).max(48.0);
+    let btn_w = 112.0;
+    let btn_h = 34.0;
+    let by = card_y + card_h - 54.0;
+    let discard_x = card_x + card_w - btn_w - 24.0;
+    let save_x = discard_x - btn_w - 12.0;
+    let cancel_x = save_x - btn_w - 12.0;
+    ctx.last_event = crate::ffi::MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        cancel_x + btn_w * 0.5,
+        by + btn_h * 0.5,
+        0,
+    );
+    assert_eq!(mui_dirty_confirm_click(handle), 1);
+    crate::uiscale::set_os_scale(1.0);
+    crate::uiscale::set_user_zoom(1.0);
+
     assert_eq!(mui_tab_count(handle), 2);
     assert_eq!(mui_tab_active(handle), 1);
     mui_dirty_confirm_cancel(handle);

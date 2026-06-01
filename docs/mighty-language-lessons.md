@@ -2024,3 +2024,26 @@ brand surface.
   first-run UI.
 - **Language note:** no compiler gap surfaced. The gap is asset workflow: native
   apps need reproducible icon generation and visual QA alongside code tests.
+
+### L126. Result drawers need column budgets that can disappear **[finding, P2]**
+The Testing drawer measured text, but its right-side suite column still reserved
+space in narrow sidebars. That could make long test names and suite labels fight
+for the same row instead of prioritizing the actionable test name.
+
+- **IDE note:** Testing now gives the suite column a smaller measured budget and
+  hides it entirely when the sidebar is too narrow or the test-name column would
+  fall below a readable width.
+- **Language note:** no compiler gap surfaced. The broader design need is a
+  reusable responsive row-layout primitive so every drawer can express optional
+  columns declaratively.
+
+### L127. Modal hit boxes must use logical visible dimensions **[finding, P1]**
+The dirty-tab confirmation dialog was drawn and hit-tested from raw GPU
+dimensions while mouse events were DPI-scaled logical coordinates. Under scaling,
+button clicks could miss or land on the underlying dock.
+
+- **IDE note:** dirty-confirm geometry now uses the visible logical width and
+  height derived from physical window size, matching the coordinate space used by
+  mouse events.
+- **Language note:** no compiler gap surfaced. Mighty-side code needs fewer raw
+  geometry scalars and a shared `visible_surface` abstraction from the host.

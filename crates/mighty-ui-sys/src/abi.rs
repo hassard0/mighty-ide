@@ -3668,6 +3668,13 @@ fn dirty_confirm_active(ctx: &MuiContext) -> bool {
     ctx.pending_dirty_close.is_some() || ctx.pending_quit.is_some()
 }
 
+fn dirty_confirm_surface_size(ctx: &MuiContext) -> (f32, f32) {
+    (
+        layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32,
+        layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height) as f32,
+    )
+}
+
 fn dirty_confirm_rects(
     ctx: &MuiContext,
 ) -> (
@@ -3675,8 +3682,7 @@ fn dirty_confirm_rects(
     (f32, f32, f32, f32),
     (f32, f32, f32, f32),
 ) {
-    let w = ctx.gpu.width as f32;
-    let h = ctx.gpu.height as f32;
+    let (w, h) = dirty_confirm_surface_size(ctx);
     let card_w = w.min(520.0).max(320.0).min((w - 32.0).max(280.0));
     let card_h = 184.0;
     let card_x = ((w - card_w) * 0.5).max(16.0);
@@ -3798,7 +3804,7 @@ pub extern "C" fn mui_dirty_confirm_draw(handle: i64) {
         return;
     }
 
-    let (w, h) = (ctx.gpu.width as f32, ctx.gpu.height as f32);
+    let (w, h) = dirty_confirm_surface_size(ctx);
     let card_w = w.min(520.0).max(320.0).min((w - 32.0).max(280.0));
     let card_h = 184.0;
     let card_x = ((w - card_w) * 0.5).max(16.0);

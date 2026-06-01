@@ -407,6 +407,14 @@ fn testing_header_title_budget(sw: f32, state_pill_w: f32) -> f32 {
     (sw - 34.0 - 12.0 - state_pill_w - 8.0).max(0.0)
 }
 
+fn testing_suite_budget(sw: f32) -> f32 {
+    if sw < 220.0 {
+        0.0
+    } else {
+        (sw * 0.30).clamp(42.0, 76.0)
+    }
+}
+
 /// Geometry of the toolbar Run/Re-run + Stop buttons (under the header).
 struct ToolbarGeom {
     run_x: f32,
@@ -637,12 +645,16 @@ pub extern "C" fn mui_test_draw(handle: i64) {
         };
         // Suite badge on the right (dim).
         let mut suite_x = sx + sw - 14.0;
-        if !suite.is_empty() {
-            let sb = fit_ui_text(&mut ctx.text, &suite, (sw * 0.34).max(34.0), chrome - 2.0);
+        let suite_budget = testing_suite_budget(sw);
+        if !suite.is_empty() && suite_budget > 0.0 {
+            let sb = fit_ui_text(&mut ctx.text, &suite, suite_budget, chrome - 2.0);
             if !sb.is_empty() {
                 let (sbw, _) = ctx.text.measure_ui_sized(&sb, chrome - 2.0);
-                suite_x = sx + sw - sbw - 14.0;
-                ctx.text.queue_ui_sized(suite_x, ty, &sb, theme::TEXT_4(), chrome - 2.0, clip);
+                let candidate_x = sx + sw - sbw - 14.0;
+                if candidate_x - (sx + 32.0) >= 92.0 {
+                    suite_x = candidate_x;
+                    ctx.text.queue_ui_sized(suite_x, ty, &sb, theme::TEXT_4(), chrome - 2.0, clip);
+                }
             }
         }
         let name_x = sx + 32.0;
@@ -673,5 +685,12 @@ mod tests {
     fn testing_header_title_reserves_state_pill_gap() {
         assert_eq!(testing_header_title_budget(220.0, 62.0), 104.0);
         assert_eq!(testing_header_title_budget(96.0, 62.0), 0.0);
+    }
+
+    #[test]
+    fn testing_suite_budget_hides_when_sidebar_is_too_narrow() {
+        assert_eq!(testing_suite_budget(184.0), 0.0);
+        assert_eq!(testing_suite_budget(220.0), 66.0);
+        assert_eq!(testing_suite_budget(320.0), 76.0);
     }
 }

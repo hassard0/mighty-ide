@@ -384,6 +384,19 @@ pub fn dock_visible_width(width: u32, phys_width: u32) -> u32 {
     }
 }
 
+/// Logical height available for overlay/layout affordances when DPI-scaled
+/// windows can report a raw GPU height wider than the cursor event space.
+pub fn visible_height(height: u32, phys_height: u32) -> u32 {
+    if phys_height == 0 {
+        height.max(1)
+    } else {
+        let phys_logical = crate::uiscale::phys_to_logical(phys_height as f32)
+            .round()
+            .max(1.0) as u32;
+        height.min(phys_logical).max(1)
+    }
+}
+
 /// Close-button hit target in the shared bottom-dock header.
 pub fn dock_close_rect(width: u32, height: u32) -> (f32, f32, f32, f32) {
     let size = DOCK_CLOSE_SIZE;

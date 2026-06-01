@@ -398,6 +398,39 @@ function Invoke-PaletteCommand($query, $captureName) {
   Start-Sleep -Milliseconds 800
 }
 
+function Get-TraceText() {
+  if ($env:MUI_TRACE -and (Test-Path $env:MUI_TRACE)) {
+    return Get-Content -LiteralPath $env:MUI_TRACE -Raw
+  }
+  return ""
+}
+
+function Trace-MatchCount($pattern) {
+  $text = Get-TraceText
+  return ([regex]::Matches($text, $pattern)).Count
+}
+
+function Wait-TraceCountGreaterThan($pattern, $previousCount, $timeoutMs) {
+  $deadline = (Get-Date).AddMilliseconds($timeoutMs)
+  while ((Get-Date) -lt $deadline) {
+    $count = Trace-MatchCount $pattern
+    if ($count -gt $previousCount) { return $true }
+    Start-Sleep -Milliseconds 100
+  }
+  return $false
+}
+
+function Invoke-DirtyCloseCommand() {
+  $before = Trace-MatchCount "tab_close idx=.* -> dirty-confirm"
+  for ($attempt = 0; $attempt -lt 2; $attempt++) {
+    Invoke-PaletteCommand "close tab" $null
+    if (Wait-TraceCountGreaterThan "tab_close idx=.* -> dirty-confirm" $before 1800) {
+      return $true
+    }
+  }
+  return $false
+}
+
 function PaletteRowCenter($rowIndex) {
   # Mirrors palette.rs::geometry(): centered card, 56px search field,
   # 25px category strip, then 50px result rows.
@@ -574,24 +607,39 @@ Type-Text $hwnd "fn main"
 Start-Sleep -Milliseconds 300
 Capture $hwnd "31-typing"
 $respT = Is-Responsive $hwnd
+if (-not $respT) {
+  Start-Sleep -Milliseconds 800
+  $respT = Is-Responsive $hwnd
+}
 Log "after typing: responsive=$respT"
+if (-not $respT) { $script:HarnessFailed = $true }
 Press-VK $hwnd 0x1B      # close autocomplete before using topbar commands
 Start-Sleep -Milliseconds 150
 
 # === DIRTY TAB CLOSE CONFIRMATION: Cancel preserves the tab, Discard closes it. ===
-Invoke-PaletteCommand "close tab" $null
-Start-Sleep -Milliseconds 250
-$cancelPt = DirtyConfirmButtonCenter 'cancel'
-ClickL $cancelPt.X $cancelPt.Y
-Start-Sleep -Milliseconds 250
-Invoke-PaletteCommand "close tab" $null
-Start-Sleep -Milliseconds 250
-$discardPt = DirtyConfirmButtonCenter 'discard'
-ClickL $discardPt.X $discardPt.Y
-Start-Sleep -Milliseconds 400
+if (Invoke-DirtyCloseCommand) {
+  $cancelCount = Trace-MatchCount "dirty_confirm_hit .* -> cancel"
+  $cancelPt = DirtyConfirmButtonCenter 'cancel'
+  ClickL $cancelPt.X $cancelPt.Y
+  [void](Wait-TraceCountGreaterThan "dirty_confirm_hit .* -> cancel" $cancelCount 1200)
+  Start-Sleep -Milliseconds 250
+} else {
+  Log "DIRTY-CLOSE: close command did not open confirmation for cancel"
+  $script:HarnessFailed = $true
+}
+if (Invoke-DirtyCloseCommand) {
+  $discardCount = Trace-MatchCount "dirty_confirm_hit .* -> discard"
+  $discardPt = DirtyConfirmButtonCenter 'discard'
+  ClickL $discardPt.X $discardPt.Y
+  [void](Wait-TraceCountGreaterThan "dirty_confirm_hit .* -> discard" $discardCount 1200)
+  Start-Sleep -Milliseconds 400
+} else {
+  Log "DIRTY-CLOSE: close command did not open confirmation for discard"
+  $script:HarnessFailed = $true
+}
 if ($env:MUI_TRACE) {
   Start-Sleep -Milliseconds 150
-  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  $traceText = Get-TraceText
   if ($traceText -match "tab_close idx=.* -> dirty-confirm" -and $traceText -match "dirty_confirm_hit .* -> cancel" -and $traceText -match "dirty_confirm cancel" -and $traceText -match "dirty_confirm_hit .* -> discard" -and $traceText -match "dirty_confirm discard tab=") {
     Log "DIRTY-CLOSE: cancel and discard traces observed"
   } else {
