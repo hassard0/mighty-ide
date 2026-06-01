@@ -2564,6 +2564,8 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "id >= cmd_fold_first() && id <= cmd_fold_last()",
         "id == cmd_keyboard_shortcuts()",
         "id == cmd_new_project()",
+        "id == cmd_new_workspace_file()",
+        "mui_prompt_open(h, prompt_new_file())",
     ] {
         assert!(
             main.contains(needle),
@@ -2585,6 +2587,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
     ];
     let direct = [
         (CMD_NEW_FILE, "cmd_new_file"),
+        (CMD_NEW_WORKSPACE_FILE, "cmd_new_workspace_file"),
         (CMD_NEW_FOLDER, "cmd_new_folder"),
         (CMD_RENAME_ACTIVE_FILE, "cmd_rename_active_file"),
         (CMD_REVEAL_ACTIVE_FILE, "cmd_reveal_active_file"),

@@ -39,6 +39,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Open Recent** now opens the recent picker when either recent files or recent
   folders exist, instead of falling back to an open-folder prompt for file-only
   history.
+- **New File commands are explicit**: `Ctrl+N` is now labeled
+  **File: New Untitled File**, while the palette also exposes
+  **File: New File in Workspace** for creating a named file under the current
+  workspace.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

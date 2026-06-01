@@ -201,11 +201,14 @@ pub const CMD_DEBUG_STEP_OUT: u32 = 86;
 pub const CMD_DEBUG_PAUSE: u32 = 87;
 /// Restart the last debug target.
 pub const CMD_DEBUG_RESTART: u32 = 88;
+/// Prompt for a file name and create it under the current workspace root.
+pub const CMD_NEW_WORKSPACE_FILE: u32 = 89;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
-    Command { id: CMD_NEW_FILE,         label: "New File",           keybinding: "Ctrl+N" },
+    Command { id: CMD_NEW_FILE,         label: "File: New Untitled File", keybinding: "Ctrl+N" },
+    Command { id: CMD_NEW_WORKSPACE_FILE, label: "File: New File in Workspace", keybinding: "" },
     Command { id: CMD_NEW_FOLDER,       label: "File: New Folder",   keybinding: "Ctrl+Shift+N" },
     Command { id: CMD_OPEN_FILE,        label: "Open File",          keybinding: "Ctrl+O" },
     Command { id: CMD_SAVE,             label: "Save",               keybinding: "Ctrl+S" },
@@ -537,6 +540,7 @@ impl PaletteEngine {
         // (icon path, description, fill?)
         match id {
             CMD_NEW_FILE => (icons::NEW_FILE, "Create a new untitled editor tab", false),
+            CMD_NEW_WORKSPACE_FILE => (icons::NEW_FILE, "Create a named file in the current workspace", false),
             CMD_NEW_FOLDER => (icons::NEW_FOLDER, "Create a folder in the current workspace", false),
             CMD_OPEN_FILE => (icons::NEW_FILE, "Open a file from the workspace", false),
             CMD_SAVE => (icons::FILE_MTY, "Write the active file to disk", false),
@@ -797,6 +801,23 @@ mod tests {
         let len = ids.len();
         ids.dedup();
         assert_eq!(ids.len(), len, "command ids must be unique");
+    }
+
+    #[test]
+    fn registry_distinguishes_untitled_from_workspace_file_creation() {
+        let untitled = COMMANDS
+            .iter()
+            .find(|c| c.id == CMD_NEW_FILE)
+            .expect("untitled new-file command should exist");
+        let workspace = COMMANDS
+            .iter()
+            .find(|c| c.id == CMD_NEW_WORKSPACE_FILE)
+            .expect("workspace new-file command should exist");
+
+        assert_eq!(untitled.label, "File: New Untitled File");
+        assert_eq!(untitled.keybinding, "Ctrl+N");
+        assert_eq!(workspace.label, "File: New File in Workspace");
+        assert_eq!(workspace.keybinding, "");
     }
 
     #[test]

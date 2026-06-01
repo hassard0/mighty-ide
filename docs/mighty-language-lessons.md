@@ -1485,3 +1485,16 @@ the close icon or over-trim short narrow-glyph messages.
   width.
 - **Language note:** no new Mighty gap surfaced. Toast contents and layout stay
   shim-owned; Mighty only ticks/draws/click-routes the overlay.
+
+### L85. New File needs separate untitled and workspace flows **[finding, P2]**
+The same "New File" wording previously meant two different actions depending on
+where the user clicked it: Welcome/palette created an untitled scratch tab, while
+Explorer New File prompted for a named workspace file. That made the file
+lifecycle feel arbitrary even though the underlying operations were both useful.
+
+- **IDE note:** the palette now labels `Ctrl+N` as **File: New Untitled File**
+  and adds **File: New File in Workspace**, which routes to the existing
+  filename prompt and workspace creation path.
+- **Language note:** no new Mighty compiler gap surfaced, but every new command
+  still requires manually mirrored numeric ids between Rust and `src/main.mty`.
+  This remains a product-friction point for command evolution.
