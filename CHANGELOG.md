@@ -125,6 +125,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **New File rejects invisible out-of-workspace picks**: the workspace New File
   picker now refuses paths outside the current workspace, avoiding a tab that
   opens successfully while Explorer and Quick Open cannot show the file.
+- **Open Folder proves the workspace changed**: the live Windows harness now
+  drives the command-palette Open Folder flow to a separate picked folder and
+  fails unless the IDE records that folder as the active workspace.
 - **Bottom dock has a command close path**: **View: Close Bottom Dock** now
   closes whichever lower Run/Web/Problems/Terminal dock is active, so layout
   recovery does not depend on hitting the small header close button.

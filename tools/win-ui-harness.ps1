@@ -172,6 +172,7 @@ function Finish-Harness($proc) {
   Remove-Item Env:\MUI_OPEN_FOLDER_PICK -ErrorAction SilentlyContinue
   if (-not $traceWasSet) { Remove-Item Env:\MUI_TRACE -ErrorAction SilentlyContinue }
   Remove-Item -LiteralPath $openPath -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $openFolderPath -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $newFolderPath -Recurse -Force -ErrorAction SilentlyContinue
   $reportPath = Join-Path $OutDir 'report.txt'
   $report | Set-Content $reportPath -Encoding utf8
@@ -195,6 +196,9 @@ if (Test-Path $newFolderPath) { Remove-Item $newFolderPath -Recurse -Force }
 $openName = "harnessopen.mty"
 $openPath = Join-Path $WorkDir $openName
 Set-Content -LiteralPath $openPath -Value "opened" -Encoding utf8
+$openFolderPath = Join-Path ([System.IO.Path]::GetTempPath()) ("mighty-ide-harnessworkspace-{0}" -f $PID)
+New-Item -ItemType Directory -Path $openFolderPath -Force | Out-Null
+Set-Content -LiteralPath (Join-Path $openFolderPath "ROOT.mty") -Value "workspace-root" -Encoding utf8
 # The IDE now uses a native SaveFileDialog for untitled Save. Feed a deterministic
 # picker result so the harness does not block on an OS-modal dialog.
 $env:MUI_SAVE_FILE_PICK = $savePath
@@ -202,7 +206,7 @@ $env:MUI_NEW_FILE_PICK = $welcomeFilePath
 $env:MUI_NEW_FILE_PICK_SEQUENCE = "$welcomeFilePath|$newFilePath"
 $env:MUI_NEW_FOLDER_PICK = $newFolderPath
 $env:MUI_OPEN_FILE_PICK = $openPath
-$env:MUI_OPEN_FOLDER_PICK = $WorkDir
+$env:MUI_OPEN_FOLDER_PICK = $openFolderPath
 
 function Get-WinRect($h) { $r = New-Object Win+RECT; [void][Win]::GetWindowRect($h, [ref]$r); return $r }
 
@@ -825,11 +829,22 @@ if ($openText -like "*zz*") {
   $script:HarnessFailed = $true
 }
 
-# === OPEN FOLDER dialog via palette should apply or at least not hang. ===
+# === OPEN FOLDER dialog via palette should apply the selected workspace. ===
 Invoke-PaletteCommand "open folder" "45-open-folder-palette"
 $respFolder = Is-Responsive $hwnd
 Log "OPEN-FOLDER: responsive after dialog command=$respFolder"
 if (-not $respFolder) { $script:HarnessFailed = $true }
+if ($env:MUI_TRACE) {
+  Start-Sleep -Milliseconds 150
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  $openFolderPattern = [regex]::Escape($openFolderPath)
+  if ($traceText -match "workspace_open_folder path=$openFolderPattern changed=1") {
+    Log "OPEN-FOLDER: selected folder became workspace -> $openFolderPath"
+  } else {
+    Log "OPEN-FOLDER: selected folder was not applied as workspace ($openFolderPath)"
+    $script:HarnessFailed = $true
+  }
+}
 
 # === RAIL UTILITY: bottom Settings icon should open Preferences, not be decorative. ===
 ClickL 26 ($logicalH - 32)

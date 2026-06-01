@@ -2420,3 +2420,16 @@ or future CI.
 - **Language note:** no compiler gap surfaced. Mighty tooling should prefer
   repo-relative defaults and only resolve to absolute paths at process-launch
   boundaries.
+
+### L159. Dialog smoke tests must prove state, not responsiveness **[finding, P1]**
+The Open Folder live-harness step only checked that the IDE was responsive after
+the native picker returned. That would miss the exact failure users experience:
+the dialog appears to work, but the Explorer and workspace state do not change.
+
+- **IDE note:** workspace re-rooting now emits a `workspace_open_folder` trace
+  when `MUI_TRACE` is active, and the Windows harness picks a separate temporary
+  folder for Open Folder. The run now fails unless the selected folder becomes
+  the active workspace.
+- **Language note:** no compiler gap surfaced. Mighty needs richer black-box UX
+  assertions around command effects, because scalar command success and app
+  liveness are not enough to prove visible human workflows.

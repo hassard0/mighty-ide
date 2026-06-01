@@ -161,6 +161,11 @@ fn apply_folder(ctx: &mut MuiContext, root: PathBuf) -> i32 {
         root.display(),
         ctx.recent_workspaces.len()
     );
+    crate::abi::trace(&format!(
+        "workspace_open_folder path={} changed={}",
+        root.display(),
+        if changed { 1 } else { 0 }
+    ));
     1
 }
 
