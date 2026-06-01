@@ -98,6 +98,10 @@ fn quick_action_key_x(
     Some((right_edge - key_w).max(after_label))
 }
 
+fn use_compact_layout(body_w: f32, col_w: f32) -> bool {
+    body_w < 760.0 || col_w < 640.0
+}
+
 impl Hit {
     fn contains(&self, px: f32, py: f32) -> bool {
         px >= self.x && px <= self.x + self.w && py >= self.y && py <= self.y + self.h
@@ -210,7 +214,7 @@ impl WelcomeState {
 
         // Center column. Generous max width so it breathes on wide windows.
         let col_w = 720.0_f32.min(bw - 48.0).max(280.0);
-        let compact = col_w < 520.0;
+        let compact = use_compact_layout(bw, col_w);
         let cx = bx + (bw - col_w) * 0.5;
         // Vertical rhythm: start a bit above the optical center.
         let mut y = by + (bh * 0.16).max(40.0);
@@ -290,6 +294,89 @@ impl WelcomeState {
                     h: row_h,
                     action: qa.action,
                 });
+            }
+            let mut ry = rows_top + QUICK_ACTIONS.len() as f32 * row_h + 18.0;
+            let bottom_limit = by + bh - 34.0;
+            if ry + 58.0 < bottom_limit {
+                ctx.dl_rect(left_x, ry - 10.0, col_w, 1.0, theme::BORDER());
+                ctx.text.queue_ui_styled(
+                    left_x,
+                    ry,
+                    "RECENT FOLDERS",
+                    theme::TEXT_3(),
+                    11.5,
+                    crate::vello_ui::FontStyle::Bold,
+                    clip,
+                );
+                ry += 20.0;
+                if folders.is_empty() {
+                    ctx.text.queue_ui_sized(left_x, ry + 7.0, "No recent folders yet", theme::TEXT_3(), 13.0, clip);
+                    ry += 34.0;
+                } else {
+                    let max_folder_rows = (((bottom_limit - ry) / 34.0).floor().max(0.0) as usize).min(2);
+                    for (i, path) in folders.iter().take(max_folder_rows).enumerate() {
+                        let name = path
+                            .file_name()
+                            .map(|s| s.to_string_lossy().into_owned())
+                            .unwrap_or_else(|| path.to_string_lossy().into_owned());
+                        let dir = path.to_string_lossy().into_owned();
+                        ctx.dl_icon(left_x, ry + 8.0, 15.0, 15.0, icons::FOLDER, theme::ACCENT_BRIGHT(), 1.6, false);
+                        ctx.text.queue_ui_sized(left_x + 25.0, ry + 3.0, &name, theme::TEXT_1(), 13.0, clip);
+                        let dir_short = shorten_dir(&dir, col_w - 30.0);
+                        ctx.text.queue_ui_sized(left_x + 25.0, ry + 19.0, &dir_short, theme::TEXT_3(), 10.5, clip);
+                        self.hits.push(Hit {
+                            x: left_x,
+                            y: ry,
+                            w: col_w,
+                            h: 34.0,
+                            action: ACTION_RECENT_FOLDER_BASE + i as i32,
+                        });
+                        self.recent_folders.push(path.clone());
+                        ry += 34.0;
+                    }
+                }
+            }
+            if ry + 58.0 < bottom_limit {
+                ctx.text.queue_ui_styled(
+                    left_x,
+                    ry + 8.0,
+                    "RECENT FILES",
+                    theme::TEXT_3(),
+                    11.5,
+                    crate::vello_ui::FontStyle::Bold,
+                    clip,
+                );
+                ry += 28.0;
+                if recents.is_empty() {
+                    ctx.text.queue_ui_sized(left_x, ry + 7.0, "No recent files yet", theme::TEXT_3(), 13.0, clip);
+                } else {
+                    let max_file_rows = (((bottom_limit - ry) / 34.0).floor().max(0.0) as usize).min(2);
+                    for (i, path) in recents.iter().take(max_file_rows).enumerate() {
+                        let name = path
+                            .file_name()
+                            .map(|s| s.to_string_lossy().into_owned())
+                            .unwrap_or_else(|| path.to_string_lossy().into_owned());
+                        let dir = path
+                            .parent()
+                            .map(|d| d.to_string_lossy().into_owned())
+                            .unwrap_or_default();
+                        ctx.dl_icon(left_x, ry + 8.0, 15.0, 15.0, file_icon(&name), theme::ACCENT_BRIGHT(), 1.6, false);
+                        ctx.text.queue_ui_sized(left_x + 25.0, ry + 3.0, &name, theme::TEXT_1(), 13.0, clip);
+                        if !dir.is_empty() {
+                            let dir_short = shorten_dir(&dir, col_w - 30.0);
+                            ctx.text.queue_ui_sized(left_x + 25.0, ry + 19.0, &dir_short, theme::TEXT_3(), 10.5, clip);
+                        }
+                        self.hits.push(Hit {
+                            x: left_x,
+                            y: ry,
+                            w: col_w,
+                            h: 34.0,
+                            action: ACTION_RECENT_BASE + i as i32,
+                        });
+                        self.recents.push(path.clone());
+                        ry += 34.0;
+                    }
+                }
             }
             return;
         }
@@ -590,5 +677,12 @@ mod tests {
     #[test]
     fn quick_action_shortcut_hides_instead_of_overlapping() {
         assert!(quick_action_key_x(100.0, 180.0, 140.0, 112.0, 60.0, 16.0, 4.0).is_none());
+    }
+
+    #[test]
+    fn explorer_narrowed_welcome_uses_single_column_layout() {
+        assert!(use_compact_layout(612.0, 564.0));
+        assert!(use_compact_layout(740.0, 692.0));
+        assert!(!use_compact_layout(954.0, 720.0));
     }
 }

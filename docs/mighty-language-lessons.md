@@ -1710,3 +1710,15 @@ click behavior.
 - **Language note:** no compiler blocker surfaced, but this again shows the need
   for a structured Mighty-side event model that can express "overlay consumed" vs
   "dismiss and continue routing" without local scalar flags.
+
+### L102. Welcome must respond to the editor body's real width **[finding, P2]**
+Visual capture of the default IDE window with the Explorer open showed the
+Welcome screen still using a two-column layout while the editor body was too
+narrow, clipping the recent folders/files column at the right edge.
+
+- **IDE note:** Welcome now chooses compact single-column layout from the actual
+  editor body width, not just the centered content column width. The breakpoint
+  keeps the first-run surface readable when the sidebar is visible.
+- **Language note:** no new Mighty compiler gap surfaced. This is another layout
+  primitive gap: the shim owns responsive breakpoints because Mighty does not yet
+  express body-relative adaptive layout declaratively.
