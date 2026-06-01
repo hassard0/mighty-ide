@@ -187,6 +187,16 @@ pub const CMD_VIEW_AI_COPILOT: u32 = 79;
 pub const CMD_VIEW_TERMINAL: u32 = 80;
 /// Open the Web Playground output panel.
 pub const CMD_VIEW_WEB_PLAYGROUND: u32 = 81;
+/// Start a debug session or continue the paused one.
+pub const CMD_DEBUG_START_CONTINUE: u32 = 82;
+/// Stop the active debug session.
+pub const CMD_DEBUG_STOP: u32 = 83;
+/// Step over the current debug line.
+pub const CMD_DEBUG_STEP_OVER: u32 = 84;
+/// Step into the current debug call.
+pub const CMD_DEBUG_STEP_INTO: u32 = 85;
+/// Step out of the current debug frame.
+pub const CMD_DEBUG_STEP_OUT: u32 = 86;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -260,6 +270,11 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_VIEW_AI_COPILOT,  label: "View: AI Copilot",    keybinding: "Ctrl+Shift+A" },
     Command { id: CMD_VIEW_TERMINAL,    label: "View: Terminal",      keybinding: "Ctrl+`" },
     Command { id: CMD_VIEW_WEB_PLAYGROUND, label: "View: Web Playground", keybinding: "" },
+    Command { id: CMD_DEBUG_START_CONTINUE, label: "Debug: Start / Continue", keybinding: "F5" },
+    Command { id: CMD_DEBUG_STOP,       label: "Debug: Stop",         keybinding: "Shift+F5" },
+    Command { id: CMD_DEBUG_STEP_OVER,  label: "Debug: Step Over",    keybinding: "F10" },
+    Command { id: CMD_DEBUG_STEP_INTO,  label: "Debug: Step Into",    keybinding: "F11" },
+    Command { id: CMD_DEBUG_STEP_OUT,   label: "Debug: Step Out",     keybinding: "Shift+F11" },
     Command { id: CMD_RUN_IN_BROWSER,   label: "Mighty: Run in Browser", keybinding: "Alt+W" },
     Command { id: CMD_SPLIT_RIGHT,      label: "Split Editor Right", keybinding: "Ctrl+\\" },
     Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
@@ -584,6 +599,11 @@ impl PaletteEngine {
             CMD_VIEW_AI_COPILOT => (icons::AGENTS, "Open the AI copilot panel", false),
             CMD_VIEW_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
             CMD_VIEW_WEB_PLAYGROUND => (icons::GLOBE, "Open the Web Playground output panel", false),
+            CMD_DEBUG_START_CONTINUE => (icons::DBG_CONTINUE, "Start debugging or continue the paused session", true),
+            CMD_DEBUG_STOP => (icons::DBG_STOP, "Stop the active debug session", false),
+            CMD_DEBUG_STEP_OVER => (icons::DBG_STEP_OVER, "Run the next line without entering calls", false),
+            CMD_DEBUG_STEP_INTO => (icons::DBG_STEP_INTO, "Enter the next function call", false),
+            CMD_DEBUG_STEP_OUT => (icons::DBG_STEP_OUT, "Run until the current frame returns", false),
             CMD_RUN_IN_BROWSER => (icons::GLOBE, "Build and serve the active Mighty file for the browser", false),
             CMD_SPLIT_RIGHT => (icons::TEST_BOX, "Split the editor into side-by-side panes", false),
             CMD_FOCUS_NEXT_PANE => (icons::CHEVRON, "Move focus between editor panes", false),

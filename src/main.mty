@@ -684,6 +684,11 @@ fn cmd_view_problems() -> I32 { 78 }
 fn cmd_view_ai_copilot() -> I32 { 79 }
 fn cmd_view_terminal() -> I32 { 80 }
 fn cmd_view_web_playground() -> I32 { 81 }
+fn cmd_debug_start_continue() -> I32 { 82 }
+fn cmd_debug_stop() -> I32 { 83 }
+fn cmd_debug_step_over() -> I32 { 84 }
+fn cmd_debug_step_into() -> I32 { 85 }
+fn cmd_debug_step_out() -> I32 { 86 }
 fn cmd_format_document() -> I32 { 12 }
 fn cmd_undo() -> I32 { 13 }
 fn cmd_redo() -> I32 { 14 }
@@ -3528,6 +3533,21 @@ fn main() {
           web_focus = true
           run_focus = false
           test_focus = false
+        } else if id == cmd_debug_start_continue() {
+          let _vp = mui_panel_set(h, panel_debug())
+          let _st = mui_dbg_start(h)
+        } else if id == cmd_debug_stop() {
+          let _vp = mui_panel_set(h, panel_debug())
+          mui_dbg_stop(h)
+        } else if id == cmd_debug_step_over() {
+          let _vp = mui_panel_set(h, panel_debug())
+          mui_dbg_step_over(h)
+        } else if id == cmd_debug_step_into() {
+          let _vp = mui_panel_set(h, panel_debug())
+          mui_dbg_step_into(h)
+        } else if id == cmd_debug_step_out() {
+          let _vp = mui_panel_set(h, panel_debug())
+          mui_dbg_step_out(h)
         } else if id >= cmd_ws_first() && id <= cmd_ws_last() {
           let wr = mui_ws_dispatch(h, id)
           if wr == 2 {
