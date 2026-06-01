@@ -11064,7 +11064,9 @@ pub extern "C" fn mui_toast_click(handle: i64) -> i32 {
         return 0;
     }
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
-    i32::from(ctx.toasts.dismiss_at(ctx.gpu.width, ctx.gpu.height, x, y, std::time::Instant::now()))
+    let w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let h = layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height);
+    i32::from(ctx.toasts.dismiss_at(w, h, x, y, std::time::Instant::now()))
 }
 
 /// Draw the bottom-right toast stack over everything (overlay layer). No-op when
@@ -11077,7 +11079,8 @@ pub extern "C" fn mui_toast_draw(handle: i64) {
     if ctx.toasts.is_empty() {
         return;
     }
-    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let h = layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height);
     let was_overlay = ctx.overlay;
     ctx.overlay = true;
     ctx.text.set_overlay(true);

@@ -1843,21 +1843,66 @@ fn toast_clear_abi_dismisses_visible_notifications() {
 fn toast_click_abi_dismisses_hit_toast_and_consumes_only_hits() {
     use crate::ffi::MuiEvent;
 
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
     ctx.gpu.width = 900;
     ctx.gpu.height = 600;
+    ctx.gpu.phys_width = 0;
+    ctx.gpu.phys_height = 0;
+    crate::uiscale::set_os_scale(1.0);
+    crate::uiscale::set_user_zoom(1.0);
     ctx.push_toast(crate::toast::Kind::Info, "Old");
     ctx.push_toast(crate::toast::Kind::Warn, "New");
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 10.0, 10.0, 0);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        10.0,
+        10.0,
+        0,
+    );
     assert_eq!(crate::mui_toast_click(handle), 0);
     assert_eq!(ctx.toasts.len(), 2);
 
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 760.0, 530.0, 0);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        760.0,
+        530.0,
+        0,
+    );
     assert_eq!(crate::mui_toast_click(handle), 1);
     assert_eq!(ctx.toasts.len(), 1);
     assert_eq!(ctx.toasts.toasts()[0].message, "Old");
+
+    ctx.gpu.width = 1280;
+    ctx.gpu.height = 832;
+    ctx.gpu.phys_width = 1280;
+    ctx.gpu.phys_height = 832;
+    crate::uiscale::set_os_scale(1.375);
+    crate::uiscale::set_user_zoom(1.0);
+    ctx.push_toast(crate::toast::Kind::Info, "Scaled");
+    let visible_w = crate::layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
+    let visible_h = crate::layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height) as f32;
+    let card_w = 320.0_f32.min(visible_w - 36.0 - 96.0).max(180.0);
+    let card_x = (visible_w - 18.0 - 96.0 - card_w).max(18.0);
+    let bottom = visible_h - 18.0 - crate::theme::LINE_HEIGHT();
+    let card_y = bottom - 56.0;
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        card_x + card_w - 20.0,
+        card_y + 24.0,
+        0,
+    );
+    assert_eq!(crate::mui_toast_click(handle), 1);
+    assert_eq!(ctx.toasts.len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].message, "Old");
+    crate::uiscale::set_os_scale(1.0);
+    crate::uiscale::set_user_zoom(1.0);
 }
 
 #[test]

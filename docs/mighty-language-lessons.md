@@ -2047,3 +2047,14 @@ button clicks could miss or land on the underlying dock.
   mouse events.
 - **Language note:** no compiler gap surfaced. Mighty-side code needs fewer raw
   geometry scalars and a shared `visible_surface` abstraction from the host.
+
+### L128. Overlay stacks need one visible-surface contract **[finding, P1]**
+The toast overlay used raw GPU dimensions while mouse events and scaled UI chrome
+used logical visible dimensions. On DPI-scaled windows, the newest toast could be
+drawn partly off-screen and its click target could drift from what the user saw.
+
+- **IDE note:** toast draw and dismissal now use the same visible logical width
+  and height helpers as modal overlays.
+- **Language note:** no compiler gap surfaced. This reinforces the need for a
+  host-provided `visible_surface` value instead of repeated width/height scalar
+  plumbing in Mighty-facing UI calls.
