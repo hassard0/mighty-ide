@@ -20,7 +20,18 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
-if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Force $OutDir | Out-Null }
+
+function Resolve-InputPath([string]$Path) {
+  if ([System.IO.Path]::IsPathRooted($Path)) {
+    return [System.IO.Path]::GetFullPath($Path)
+  }
+  return [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $Path))
+}
+
+$Exe = Resolve-InputPath $Exe
+$WorkDir = Resolve-InputPath $WorkDir
+$OutDir = Resolve-InputPath $OutDir
+if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Force $OutDir | Out-Null }
 $report = [System.Collections.Generic.List[string]]::new()
 $script:Failures = 0
 function Log($m){ $l="[{0}] {1}" -f ((Get-Date).ToString('HH:mm:ss')),$m; $report.Add($l); Write-Host $l }

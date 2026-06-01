@@ -2394,3 +2394,16 @@ pane, but visually it covered source text, which users experience as overlap.
 - **Language note:** no compiler gap surfaced. Mighty UI needs responsive
   feature gates attached to layout primitives, so optional affordances can yield
   space to primary content without bespoke host-side width checks.
+
+### L157. Visual QA tools must normalize artifact paths **[finding, P2]**
+The overlay gallery accepted a repo-relative `-OutDir`, but launched the IDE
+from the packaged app directory. That made `MUI_SCREENSHOT` point at a different
+relative path than the report verifier checked, so the tool could falsely report
+missing screenshots even when the app exited normally.
+
+- **IDE note:** `tools/overlay-gallery.ps1` now resolves `-Exe`, `-WorkDir`, and
+  `-OutDir` to absolute paths before launching any capture case, so normal
+  repo-relative usage and CI-style invocations write and verify the same files.
+- **Language note:** no compiler gap surfaced. The broader Mighty tooling need
+  is a standard artifact-path convention for screenshot/test harnesses so app
+  workdirs do not leak into verifier paths.

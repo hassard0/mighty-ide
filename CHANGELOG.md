@@ -137,6 +137,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Minimap hides in narrow split panes**: compact split-editor and Markdown
   preview layouts now preserve source readability instead of drawing the minimap
   over code text.
+- **Visual gallery paths are reliable**: the overlay-gallery QA tool now
+  normalizes relative executable, workdir, and output paths before launching the
+  packaged IDE, avoiding false missing-screenshot failures.
 - **Testing header avoids status-pill collisions**: the Testing sidebar title now
   measures the right-side `idle`/`running`/`failed`/`passed` pill first and fits
   the header label into the remaining space.
