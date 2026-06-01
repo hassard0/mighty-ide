@@ -2827,3 +2827,14 @@ visual noise without improving the active remap flow.
 - **Language note:** no compiler gap surfaced. Mighty should expose a shared
   responsive footer/status primitive so optional helper copy can collapse by
   measured space instead of feature-specific thresholds.
+
+### L188. Overlay notifications need chrome-aware safe areas **[finding, P2]**
+The compact toast gallery showed notification cards over the Explorer/sidebar,
+making underlying labels look like stale toast text. The toast stack knew about
+bottom docks but not the left activity rail/sidebar.
+
+- **IDE note:** Toast drawing and hit testing now accept a left reserve, shrink
+  to fit the work area, and keep dismissal clicks aligned with the visible card.
+- **Language note:** no compiler gap surfaced. Mighty should provide a common
+  safe-area model for overlays so toasts, menus, and transient panels can avoid
+  rail/sidebar/dock chrome from the same layout contract.

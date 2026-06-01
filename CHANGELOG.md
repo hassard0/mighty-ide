@@ -66,6 +66,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Markdown Preview is readable in compact windows**: opening the live preview
   now temporarily hides the sidebar when a split preview would leave cramped
   columns, then restores the sidebar when the preview closes.
+- **Toast notifications avoid compact sidebars**: toasts now shrink and align
+  inside the work area when the activity rail/sidebar are visible, so feedback
+  no longer looks like stale text over the Explorer.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now
