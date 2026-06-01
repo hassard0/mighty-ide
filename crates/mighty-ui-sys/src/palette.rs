@@ -518,7 +518,7 @@ impl PaletteEngine {
             CMD_CLOSE_PANE => (icons::CLOSE, "Close the focused editor pane", false),
             CMD_MARKDOWN_PREVIEW => (icons::FILE_MD, "Open or close the live Markdown preview", false),
             CMD_OPEN_FOLDER => (icons::FOLDER, "Open a folder as the workspace", false),
-            CMD_OPEN_RECENT => (icons::FOLDER, "Reopen a recent workspace folder", false),
+            CMD_OPEN_RECENT => (icons::FOLDER, "Open a recent file or workspace folder", false),
             CMD_KEYBOARD_SHORTCUTS => (icons::INFO_I, "List & remap all keyboard shortcuts", false),
             CMD_FOLD_TOGGLE => (icons::CHEVRON, "Fold or unfold the block at the cursor", false),
             CMD_FOLD_ALL => (icons::CHEVRON_DOWN, "Fold every foldable block in the document", false),
