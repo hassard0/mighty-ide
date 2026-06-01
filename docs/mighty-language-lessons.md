@@ -2474,3 +2474,17 @@ sync.
 - **Language note:** no compiler gap surfaced. Mighty would benefit from a
   declarative/vector asset story that can emit both runtime drawing commands and
   packaged native assets from the same source.
+
+### L163. Visible prompt controls must have matching event routes **[finding, P1]**
+The bottom prompt looked like a raw text band at compact size and gave users no
+obvious mouse affordance for closing it. Adding a close icon alone would have
+been worse unless the Mighty event loop could route clicks to it.
+
+- **IDE note:** bottom prompts now reserve right-side space for `Enter / Esc`
+  help plus a real close button. The dedicated find/replace bar now does the
+  same for its two-row surface. The shim hit-tests those buttons and Mighty
+  cancels the active prompt/bar from the same event arm before generic band
+  click handling.
+- **Language note:** no new compiler gap surfaced, but this repeats a recurring
+  Mighty UI pattern: every visible control needs a scalar hit-test ABI because
+  Mighty cannot hold rich widget state directly yet.

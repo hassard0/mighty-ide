@@ -115,6 +115,7 @@ extern c {
   fn mui_replace_toggle_focus(handle: I64) -> I32
   fn mui_replace_focus(handle: I64) -> I32
   fn mui_replace_cancel(handle: I64)
+  fn mui_replace_close_at_click(handle: I64) -> I32
   fn mui_replace_next(handle: I64) -> I32
   fn mui_replace_all(handle: I64) -> I32
   fn mui_replace_draw(handle: I64)
@@ -136,6 +137,7 @@ extern c {
   fn mui_prompt_backspace(handle: I64)
   fn mui_prompt_cancel(handle: I64)
   fn mui_prompt_hit_at_click(handle: I64) -> I32
+  fn mui_prompt_close_at_click(handle: I64) -> I32
   fn mui_prompt_len(handle: I64) -> I32
   fn mui_prompt_char(handle: I64, i: I32) -> I32
   fn mui_prompt_draw(handle: I64)
@@ -1935,6 +1937,11 @@ fn main() {
               mui_tab_set_dirty(h, mui_tab_active(h), 1)
             }
           }
+        } else if tag == ev_mouse_down() {
+          if mui_replace_close_at_click(h) == 1 {
+            mui_replace_cancel(h)
+            replacing = false
+          }
         }
       } else if prompt_kind != 0 {
         // -------- a prompt is open: route keystrokes to the prompt buffer ----
@@ -2142,7 +2149,10 @@ fn main() {
             }
           }
         } else if tag == ev_mouse_down() {
-          if mui_prompt_hit_at_click(h) == 0 {
+          if mui_prompt_close_at_click(h) == 1 {
+            mui_prompt_cancel(h)
+            prompt_kind = 0
+          } else if mui_prompt_hit_at_click(h) == 0 {
             mui_prompt_cancel(h)
             prompt_kind = 0
           }

@@ -149,6 +149,12 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Brand mark is cleaner at taskbar scale**: the app icon and in-app rail /
   Welcome logo now use a simpler teal-rail + violet-baseline monogram instead
   of a corner dot that read like a notification badge at small sizes.
+- **Bottom prompts have real chrome**: find/goto/path fallback prompts now show
+  a right-side `Enter / Esc` hint and a clickable close button, with text clipped
+  before those controls instead of running underneath them.
+- **Find/replace bar is mouse-closable**: the dedicated two-row replace surface
+  now gets the same right-side affordances, clips long fields before the controls,
+  and routes the close icon through Mighty instead of leaving mouse clicks inert.
 - **Visual gallery paths are reliable**: the overlay-gallery QA tool now
   normalizes relative executable, workdir, and output paths before launching the
   packaged IDE, avoiding false missing-screenshot failures.

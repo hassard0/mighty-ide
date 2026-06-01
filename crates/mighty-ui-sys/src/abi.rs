@@ -3082,6 +3082,27 @@ pub extern "C" fn mui_prompt_hit_at_click(handle: i64) -> i32 {
     }
 }
 
+/// `1` when the latest mouse-down hit the visible close button on the bottom
+/// prompt. Mighty uses this before the generic prompt-band hit-test so the X
+/// affordance is not just decorative.
+#[no_mangle]
+pub extern "C" fn mui_prompt_close_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.prompt.is_active()
+        || ctx.last_event.tag != crate::ffi::MUI_EVENT_MOUSE_DOWN
+        || ctx.last_event.button != crate::ffi::MUI_MOUSE_LEFT
+    {
+        return 0;
+    }
+    let (_x, y, w, h) = prompt_band_rect(ctx);
+    let (cx, cy, cw, ch) = prompt_close_rect(w, y, h);
+    let px = ctx.last_event.x;
+    let py = ctx.last_event.y;
+    i32::from(px >= cx && px <= cx + cw && py >= cy && py <= cy + ch)
+}
+
 /// Length (chars) of the current query.
 #[no_mangle]
 pub extern "C" fn mui_prompt_len(handle: i64) -> i32 {
@@ -3146,7 +3167,12 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
     let clip = ctx.clip;
     let handle_ptr = handle as usize as *mut MuiContext;
     let text_x = layout::region(ctx.sidebar_visible).left + layout::PAD + 12.0;
-    let max_right = w - 18.0;
+    let (close_x, close_y, close_w, close_h) = prompt_close_rect(w, y, bar_h);
+    let hint = "Enter / Esc";
+    let (hint_w, _) = ctx.text.measure_ui_sized(hint, 11.0);
+    let hint_x = close_x - hint_w - 12.0;
+    let show_hint = hint_x > text_x + 180.0;
+    let max_right = if show_hint { hint_x - 14.0 } else { close_x - 10.0 };
     let max_w = (max_right - text_x).max(0.0);
     unsafe {
         // Elevated band + top divider + an ember accent bar on the left edge.
@@ -3154,6 +3180,20 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
         crate::mui_fill_rect(handle_ptr, 0.0, y, w, 1.0, theme::BORDER());
         crate::mui_fill_rect(handle_ptr, layout::region(ctx.sidebar_visible).left, y, 3.0, bar_h, theme::EMBER());
     }
+    if show_hint {
+        ctx.text.queue_ui_sized(hint_x, text_y + 1.0, hint, theme::TEXT_3(), 11.0, clip);
+    }
+    ctx.dl_round(close_x, close_y, close_w, close_h, 6.0, theme::BG_4());
+    ctx.dl_icon(
+        close_x + 5.0,
+        close_y + 5.0,
+        close_w - 10.0,
+        close_h - 10.0,
+        crate::icons::CLOSE,
+        theme::TEXT_1(),
+        1.6,
+        false,
+    );
     if max_w <= 1.0 {
         return;
     }
@@ -3174,12 +3214,20 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
 }
 
 fn prompt_band_rect(ctx: &MuiContext) -> (f32, f32, f32, f32) {
-    let w = ctx.gpu.width as f32;
-    let h = ctx.gpu.height as f32;
+    let (visible_w, visible_h) = visible_surface_size(ctx);
+    let w = visible_w as f32;
+    let h = visible_h as f32;
     let bar_h = layout::LINE_H();
     // Sit the prompt band one row above the status bar.
     let status_h = 30.0_f32;
     (0.0, (h - status_h - bar_h).max(0.0), w, bar_h)
+}
+
+fn prompt_close_rect(w: f32, y: f32, bar_h: f32) -> (f32, f32, f32, f32) {
+    let size = (bar_h - 6.0).clamp(18.0, 24.0);
+    let x = (w - size - 8.0).max(0.0);
+    let cy = y + (bar_h - size) * 0.5;
+    (x, cy, size, size)
 }
 
 // ---------------------------------------------------------------------------
@@ -11143,6 +11191,29 @@ pub extern "C" fn mui_replace_cancel(handle: i64) {
     }
 }
 
+/// `1` when the latest mouse-down hit the replace bar's close button.
+#[no_mangle]
+pub extern "C" fn mui_replace_close_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.replace_bar.is_active()
+        || ctx.last_event.tag != crate::ffi::MUI_EVENT_MOUSE_DOWN
+        || ctx.last_event.button != crate::ffi::MUI_MOUSE_LEFT
+    {
+        return 0;
+    }
+    let (visible_w, visible_h) = visible_surface_size(ctx);
+    let w = visible_w as f32;
+    let h = visible_h as f32;
+    let bar_h = layout::LINE_H();
+    let top = (h - 30.0 - 2.0 * bar_h).max(0.0);
+    let (cx, cy, cw, ch) = replace_close_rect(w, top, bar_h);
+    let px = ctx.last_event.x;
+    let py = ctx.last_event.y;
+    i32::from(px >= cx && px <= cx + cw && py >= cy && py <= cy + ch)
+}
+
 /// Replace the next occurrence (at/after the cursor, wrapping) of the find
 /// field with the replace field, in the active model. Returns `1` if a
 /// replacement was made, else `0`.
@@ -11178,8 +11249,9 @@ pub extern "C" fn mui_replace_draw(handle: i64) {
     if !ctx.replace_bar.is_active() {
         return;
     }
-    let w = ctx.gpu.width as f32;
-    let h = ctx.gpu.height as f32;
+    let (visible_w, visible_h) = visible_surface_size(ctx);
+    let w = visible_w as f32;
+    let h = visible_h as f32;
     let bar_h = layout::LINE_H();
     // Two rows above the 30px status bar.
     let top = (h - 30.0 - 2.0 * bar_h).max(0.0);
@@ -11187,9 +11259,18 @@ pub extern "C" fn mui_replace_draw(handle: i64) {
     let clip = ctx.clip;
     let left = layout::region(ctx.sidebar_visible).left;
     let text_x = left + layout::PAD + 12.0;
-    let find_line = ctx.replace_bar.display_find();
-    let repl_line = ctx.replace_bar.display_replace();
+    let mut find_line = ctx.replace_bar.display_find();
+    let mut repl_line = ctx.replace_bar.display_replace();
     let repl_focus = ctx.replace_bar.replace_focus() == 1;
+    let (close_x, close_y, close_w, close_h) = replace_close_rect(w, top, bar_h);
+    let hint = "Tab fields / Enter";
+    let (hint_w, _) = ctx.text.measure_ui_sized(hint, 11.0);
+    let hint_x = close_x - hint_w - 12.0;
+    let show_hint = hint_x > text_x + 220.0;
+    let max_right = if show_hint { hint_x - 14.0 } else { close_x - 10.0 };
+    let max_line_w = (max_right - text_x).max(0.0);
+    find_line = fit_prompt_tail(&mut ctx.text, &find_line, max_line_w, chrome);
+    repl_line = fit_prompt_tail(&mut ctx.text, &repl_line, max_line_w, chrome);
 
     let handle_ptr = handle as usize as *mut MuiContext;
     unsafe {
@@ -11204,8 +11285,28 @@ pub extern "C" fn mui_replace_draw(handle: i64) {
 
     let fy = top + (bar_h - chrome) * 0.5 - 1.0;
     let ry = top + bar_h + (bar_h - chrome) * 0.5 - 1.0;
+    if show_hint {
+        ctx.text.queue_sized(hint_x, fy + 1.0, hint, theme::TEXT_3(), 11.0, clip);
+    }
+    ctx.dl_round(close_x, close_y, close_w, close_h, 6.0, theme::BG_4());
+    ctx.dl_icon(
+        close_x + 5.0,
+        close_y + 5.0,
+        close_w - 10.0,
+        close_h - 10.0,
+        crate::icons::CLOSE,
+        theme::TEXT_1(),
+        1.6,
+        false,
+    );
     ctx.text.queue_sized(text_x, fy, &find_line, theme::TEXT(), chrome, clip);
     ctx.text.queue_sized(text_x, ry, &repl_line, theme::TEXT(), chrome, clip);
+}
+
+fn replace_close_rect(w: f32, top: f32, bar_h: f32) -> (f32, f32, f32, f32) {
+    let size = (bar_h - 6.0).clamp(18.0, 24.0);
+    let x = (w - size - 8.0).max(0.0);
+    (x, top + 4.0, size, size)
 }
 
 // ===========================================================================

@@ -581,17 +581,40 @@ fn click_routing_tab_bar_sidebar_and_text() {
 #[test]
 fn prompt_hit_test_tracks_visible_bottom_band() {
     use crate::ffi::MuiEvent;
-    use crate::{mui_prompt_hit_at_click, prompt::PromptKind};
+    use crate::{mui_prompt_close_at_click, mui_prompt_hit_at_click, prompt::PromptKind};
 
     let mut ctx = ctx_or_skip!();
     ctx.gpu.width = 900;
     ctx.gpu.height = 600;
+    ctx.gpu.phys_width = 0;
+    ctx.gpu.phys_height = 0;
     ctx.prompt.open(PromptKind::Open as i32);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
     let band_y = ctx.gpu.height as f32 - 30.0 - crate::layout::LINE_H();
+    let close_size = (crate::layout::LINE_H() - 6.0).clamp(18.0, 24.0);
+    let close_x = ctx.gpu.width as f32 - close_size - 8.0;
+    let close_y = band_y + (crate::layout::LINE_H() - close_size) * 0.5;
 
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 450.0, band_y + 4.0, 0);
     assert_eq!(mui_prompt_hit_at_click(handle), 1);
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        close_x + close_size * 0.5,
+        close_y + close_size * 0.5,
+        0,
+    );
+    assert_eq!(mui_prompt_close_at_click(handle), 1);
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        close_x - 8.0,
+        close_y + close_size * 0.5,
+        0,
+    );
+    assert_eq!(mui_prompt_close_at_click(handle), 0);
 
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 450.0, band_y - 4.0, 0);
     assert_eq!(mui_prompt_hit_at_click(handle), 0);
@@ -599,6 +622,53 @@ fn prompt_hit_test_tracks_visible_bottom_band() {
     ctx.prompt.cancel();
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 450.0, band_y + 4.0, 0);
     assert_eq!(mui_prompt_hit_at_click(handle), 0);
+}
+
+#[test]
+fn replace_bar_close_hit_tracks_visible_button() {
+    use crate::ffi::MuiEvent;
+    use crate::mui_replace_close_at_click;
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 600;
+    ctx.gpu.phys_width = 0;
+    ctx.gpu.phys_height = 0;
+    ctx.replace_bar.open("needle");
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let bar_h = crate::layout::LINE_H();
+    let top = ctx.gpu.height as f32 - 30.0 - 2.0 * bar_h;
+    let close_size = (bar_h - 6.0).clamp(18.0, 24.0);
+    let close_x = ctx.gpu.width as f32 - close_size - 8.0;
+    let close_y = top + 4.0;
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        close_x + close_size * 0.5,
+        close_y + close_size * 0.5,
+        0,
+    );
+    assert_eq!(mui_replace_close_at_click(handle), 1);
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        close_x - 10.0,
+        close_y + close_size * 0.5,
+        0,
+    );
+    assert_eq!(mui_replace_close_at_click(handle), 0);
+
+    ctx.replace_bar.cancel();
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        close_x + close_size * 0.5,
+        close_y + close_size * 0.5,
+        0,
+    );
+    assert_eq!(mui_replace_close_at_click(handle), 0);
 }
 
 #[test]
