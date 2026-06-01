@@ -3123,6 +3123,67 @@ fn fit_status_head(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32
     }
 }
 
+pub(crate) fn fit_tab_label(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    if max_px <= 0.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    let ellipsis_w = text.measure_ui_sized(ellipsis, size).0;
+    if ellipsis_w > max_px {
+        return String::new();
+    }
+
+    let chars: Vec<char> = s.chars().collect();
+    let dot_idx = chars
+        .iter()
+        .enumerate()
+        .skip(1)
+        .filter_map(|(i, ch)| (*ch == '.').then_some(i))
+        .last();
+    let Some(dot_idx) = dot_idx else {
+        return fit_status_head(text, s, max_px, size);
+    };
+
+    let suffix_start = dot_idx + 1;
+    let suffix: String = chars[suffix_start..].iter().collect();
+    let suffix_w = text.measure_ui_sized(&suffix, size).0;
+    if suffix_w + ellipsis_w >= max_px * 0.72 {
+        return fit_status_head(text, s, max_px, size);
+    }
+
+    let stem_len = dot_idx;
+    let mut lo = 0usize;
+    let mut hi = stem_len;
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let candidate: String = chars[..mid]
+            .iter()
+            .copied()
+            .chain(std::iter::once('\u{2026}'))
+            .chain(chars[suffix_start..].iter().copied())
+            .collect();
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+
+    if lo == 0 {
+        fit_status_head(text, s, max_px, size)
+    } else {
+        chars[..lo]
+            .iter()
+            .copied()
+            .chain(std::iter::once('\u{2026}'))
+            .chain(chars[suffix_start..].iter().copied())
+            .collect()
+    }
+}
+
 /// `1` if the last click landed on the status-bar problems chip (the
 /// error/warning counters in the left cluster), else `0`. Lets Mighty open the
 /// Problems panel when the chip is clicked. The chip's x position follows the
@@ -4755,7 +4816,7 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
             let close_x = x + tab_w - 24.0;
             let label_right = if dirty { close_x - 12.0 } else { close_x - 6.0 };
             let label_max = (label_right - label_x).max(0.0);
-            let label = fit_status_tail(&mut ctx.text, &base, label_max, chrome);
+            let label = fit_tab_label(&mut ctx.text, &base, label_max, chrome);
             // The ACTIVE tab's label reads in the bold UI face so the current
             // file stands out among the tabs.
             let style = if is_active {

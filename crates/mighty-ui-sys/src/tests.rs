@@ -776,6 +776,32 @@ fn tab_bar_long_dirty_label_keeps_close_affordance_clickable() {
 }
 
 #[test]
+fn tab_label_truncation_keeps_filename_start_and_extension() {
+    let mut ctx = ctx_or_skip!();
+    let label = crate::abi::fit_tab_label(&mut ctx.text, "harnesswelcome.mty", 104.0, 14.0);
+    assert!(
+        label.starts_with("harness"),
+        "tab labels should preserve the basename start, got `{label}`"
+    );
+    assert!(
+        label.ends_with("mty"),
+        "tab labels should preserve the language extension, got `{label}`"
+    );
+    assert!(
+        !label.contains("\u{2026}."),
+        "truncated tab labels should avoid ellipsis-plus-dot visual stutter, got `{label}`"
+    );
+    assert!(
+        label.contains('\u{2026}'),
+        "narrow labels should truncate with an ellipsis, got `{label}`"
+    );
+    assert!(
+        !label.starts_with('\u{2026}'),
+        "tab labels should not lead with an ellipsis when the basename start fits"
+    );
+}
+
+#[test]
 fn tab_bar_overflow_scroll_maps_visible_slots_to_real_tabs() {
     use crate::ffi::MuiEvent;
     use crate::{mui_tab_bar_draw, mui_tab_close_index_at_click, mui_tab_index_at_click};

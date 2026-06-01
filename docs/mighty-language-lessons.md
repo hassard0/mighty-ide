@@ -3137,3 +3137,16 @@ the IDE feel less complete than the command registry actually is.
   command/action declaration model so a command can define palette metadata,
   Welcome placement, click routing, prompt kind, and tests in one place instead
   of duplicating numeric action ids across Rust and Mighty.
+
+### L211. File tabs need filename-aware truncation, not path-style tail fitting **[finding, P2]**
+The real-mouse screenshots showed active tab labels like `...swelcome.mty`.
+That tail-preserving truncation is useful for long paths, but it makes file tabs
+feel broken because the meaningful start of the basename disappears.
+
+- **IDE note:** tab labels now use filename-aware middle truncation: when a
+  basename is too wide, the tab keeps the beginning of the name and the file
+  extension visible while preserving the close affordance hit target.
+- **Language note:** no compiler gap surfaced. Mighty UI needs reusable text
+  fitting policies such as path-tail, filename-middle, and command-head so each
+  surface can declare what part of the string is semantically important instead
+  of sharing one generic ellipsis helper.

@@ -122,6 +122,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   **New Mighty Project...** beside New File/Open File/Open Folder, routing the
   click into the existing `mty new` project prompt instead of hiding project
   creation behind the command palette.
+- **Tab titles preserve the useful filename**: narrow tabs now truncate
+  file-backed labels in the middle, keeping the basename start and extension
+  visible instead of showing leading ellipses like `...swelcome.mty`.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now
