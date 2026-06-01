@@ -2139,3 +2139,14 @@ laid out.
 - **Language note:** no compiler gap surfaced. Mighty UI would benefit from a
   layout primitive that constrains cards by header, body rows, footer, and safe
   viewport margins in one reusable calculation.
+
+### L136. UX probes should be tracked tools, not stray worktree noise **[finding, P3]**
+The Source Control panel exposed local capture/input helper scripts as untracked
+changes. That made the repo look dirty and hid whether there were real product
+changes waiting for review.
+
+- **IDE note:** the Windows capture/input probes are now documented as tracked
+  tools alongside the gallery and full UI harness.
+- **Language note:** no compiler gap surfaced. A future Mighty package/workspace
+  convention should distinguish generated scratch files from first-class
+  developer tools so IDE status panels can explain them cleanly.
