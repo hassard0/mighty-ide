@@ -425,6 +425,53 @@ pub(crate) fn fit_tail_px(
     }
 }
 
+pub(crate) fn fit_scm_header(
+    text: &mut crate::text::Text,
+    title: &str,
+    sx: f32,
+    sw: f32,
+    size: f32,
+) -> String {
+    let label_x = sx + 14.0;
+    let first_action_x = sx + sw - 94.0;
+    let max_px = (first_action_x - 8.0 - label_x).max(0.0);
+    let tracked: String = title.chars().flat_map(|c| [c, '\u{2009}']).collect();
+    fit_head_px(text, &tracked, max_px, size)
+}
+
+fn fit_head_px(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    if max_px <= 0.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    if text.measure_ui_sized(ellipsis, size).0 > max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        ellipsis.to_string()
+    } else {
+        let mut out: String = chars.iter().take(lo).collect();
+        out.push_str(ellipsis);
+        out
+    }
+}
+
 /// Draw the Source Control panel (header + branch/ahead-behind, commit-message
 /// box + Commit affordance, changes list with colored status badges + file
 /// icons). No-op when the sidebar is hidden or this panel isn't active.
@@ -451,7 +498,7 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
     ctx.dl_rect(sx, 0.0, sw, head_h, theme::BG_2());
     ctx.dl_rect(sx, head_h - 1.0, sw, 1.0, theme::BORDER_SOFT());
     let title = "SOURCE CONTROL";
-    let tracked: String = title.chars().flat_map(|c| [c, '\u{2009}']).collect();
+    let tracked = fit_scm_header(&mut ctx.text, title, sx, sw, chrome - 2.0);
     ctx.text.queue_ui_sized(
         sx + 14.0,
         (head_h - (chrome - 2.0)) * 0.5 - 1.0,

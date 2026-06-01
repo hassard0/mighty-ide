@@ -2554,6 +2554,26 @@ fn scm_row_name_and_dir_fit_before_stage_action() {
 }
 
 #[test]
+fn scm_header_fits_before_action_buttons() {
+    let mut ctx = ctx_or_skip!();
+    let sx = crate::layout::RAIL_W;
+    let sw = crate::layout::SIDEBAR_MIN_W;
+    let chrome = crate::theme::CHROME_FONT_SIZE - 2.0;
+    let shown = crate::panels::fit_scm_header(&mut ctx.text, "SOURCE CONTROL", sx, sw, chrome);
+    let (shown_w, _) = ctx.text.measure_ui_sized(&shown, chrome);
+    let label_x = sx + 14.0;
+    let first_button_x = sx + sw - 94.0;
+    assert!(
+        label_x + shown_w <= first_button_x - 8.0,
+        "SCM header should leave a visible gap before actions: {shown}"
+    );
+    assert!(shown.ends_with('\u{2026}'));
+
+    let wide = crate::panels::fit_scm_header(&mut ctx.text, "SCM", sx, 248.0, chrome);
+    assert!(!wide.ends_with('\u{2026}'));
+}
+
+#[test]
 fn status_problems_chip_hit_tracks_rendered_branch_width() {
     use crate::ffi::MuiEvent;
     use crate::{mui_status_problems_chip_at_click, mui_status_render};

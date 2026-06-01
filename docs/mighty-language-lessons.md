@@ -2861,3 +2861,16 @@ label looked broken.
 - **Language note:** no compiler gap surfaced. Mighty UI would benefit from a
   semantic command-label helper that chooses alternate labels per width instead
   of slicing display strings by hand.
+
+### L191. Repeated header/action rows need a shared fit contract **[finding, P2]**
+The Source Control compact gallery still showed **SOURCE CONTROL** crowding the
+commit/pull/push/fetch icons after the Explorer header had already been fixed.
+The underlying issue was the same pattern implemented twice: a tracked uppercase
+label and a trailing action strip, but only one renderer measured the title
+against the icon reserve.
+
+- **IDE note:** SCM headers now use measured head ellipsizing with the first
+  action icon as the right boundary, covered by a compact-sidebar regression.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a reusable
+  header primitive for `label + trailing actions`, with shared measurement,
+  clipping, and hit-test geometry so panels do not drift apart.
