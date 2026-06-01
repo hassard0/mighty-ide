@@ -85,8 +85,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   the command palette, matching the activity rail, status chip, and docked panels.
 - **Live Markdown preview (Ctrl+Shift+V)** — themed, live-updating split-pane render
 - **Keyboard Shortcuts overlay (Ctrl+Shift+/)** — searchable command/binding reference with router-command remapping (persists to `keybindings.toml`)
-- Welcome screen, clickable toast notifications with a command-palette clear-all
-  action, **Zen / focus mode (Alt+Z)**
+- Welcome screen with first-run New File, New Mighty Project, Open File, Open
+  Folder, Quick Open, and Command Palette actions; clickable toast notifications
+  with a command-palette clear-all action, **Zen / focus mode (Alt+Z)**
 - **Mighty Agents panel (Alt+G)** — static agent-system topology, run, and live `mty inspect` when the Mighty runtime control socket is available
 - Settings panel (Ctrl+,) — live font size / tab width / word wrap / minimap / theme / bracket colors / indent guides / save conveniences
 - Integrated terminal (Ctrl+`) — a real ConPTY shell with a VT parser

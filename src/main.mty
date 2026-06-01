@@ -767,6 +767,7 @@ fn welcome_new_file() -> I32 { 4 }
 fn welcome_toggle_theme() -> I32 { 5 }
 fn welcome_open_folder() -> I32 { 6 }
 fn welcome_new_folder() -> I32 { 7 }
+fn welcome_new_project() -> I32 { 8 }
 fn welcome_recent_base() -> I32 { 1000 }
 fn welcome_recent_folder_base() -> I32 { 2000 }
 
@@ -2956,6 +2957,10 @@ fn main() {
               mui_prompt_open(h, prompt_new_folder())
               prompt_kind = prompt_new_folder()
             }
+            find_nav = false
+          } else if welcome_act == welcome_new_project() {
+            mui_prompt_open(h, prompt_new_project())
+            prompt_kind = prompt_new_project()
             find_nav = false
           } else if welcome_act == welcome_toggle_theme() {
             mui_theme_picker_open(h)

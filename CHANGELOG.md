@@ -118,6 +118,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   first-visible tab offset, scrolls with the mouse wheel over the top tab row,
   keeps the active tab visible after tab commands, and includes a screenshot
   gallery case for many-tab layouts.
+- **Welcome starts real projects**: the first-run Welcome surface now exposes
+  **New Mighty Project...** beside New File/Open File/Open Folder, routing the
+  click into the existing `mty new` project prompt instead of hiding project
+  creation behind the command palette.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now

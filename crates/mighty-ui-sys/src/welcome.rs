@@ -5,7 +5,7 @@
 //! branded landing: the big **Mighty wordmark** with the ember/indigo accent, a
 //! tagline, a **Recently Opened** column (from the Quick-Open MRU — click to
 //! open), a **Quick actions** column (Open File / Quick Open / Command Palette /
-//! New File / New Folder prompts), and a small **tips / keybinding** cheat list, all
+//! New File / New Project prompts), and a small **tips / keybinding** cheat list, all
 //! centered over the theme's atmospheric background.
 //!
 //! Per L21 the layout + hit-testing live here; Mighty asks `mui_welcome_active`
@@ -29,7 +29,9 @@ pub const ACTION_NEW_FILE: i32 = 4;
 #[allow(dead_code)]
 pub const ACTION_TOGGLE_THEME: i32 = 5;
 pub const ACTION_OPEN_FOLDER: i32 = 6;
+#[allow(dead_code)]
 pub const ACTION_NEW_FOLDER: i32 = 7;
+pub const ACTION_NEW_PROJECT: i32 = 8;
 /// MRU recents: returned id is `ACTION_RECENT_BASE + i` (i = row in the recents
 /// list). The Mighty side reads the path back via [`WelcomeState::recent_path`].
 pub const ACTION_RECENT_BASE: i32 = 1000;
@@ -48,11 +50,11 @@ struct QuickAction {
 
 const QUICK_ACTIONS: &[QuickAction] = &[
     QuickAction { icon: icons::NEW_FILE, label: "New File at Location\u{2026}", key: "Ctrl+N", action: ACTION_NEW_FILE },
+    QuickAction { icon: icons::NEW_FOLDER, label: "New Mighty Project\u{2026}", key: "", action: ACTION_NEW_PROJECT },
     QuickAction { icon: icons::EXPLORER, label: "Open File\u{2026}", key: "Ctrl+O", action: ACTION_OPEN_FILE },
     QuickAction { icon: icons::FOLDER, label: "Open Folder\u{2026}", key: "Ctrl+Shift+O", action: ACTION_OPEN_FOLDER },
     QuickAction { icon: icons::SEARCH, label: "Quick Open", key: "Ctrl+P", action: ACTION_QUICK_OPEN },
     QuickAction { icon: icons::TEST_BOX, label: "Command Palette", key: "Ctrl+Shift+P", action: ACTION_COMMAND_PALETTE },
-    QuickAction { icon: icons::NEW_FOLDER, label: "New Folder\u{2026}", key: "Ctrl+Shift+N", action: ACTION_NEW_FOLDER },
 ];
 
 /// A small keybinding cheat row (label + chord).
@@ -220,7 +222,9 @@ impl WelcomeState {
         // Vertical rhythm: start a bit above the optical center.
         let mut y = by
             + if tight_height {
-                18.0
+                12.0
+            } else if compact {
+                8.0
             } else {
                 (bh * 0.16).max(40.0)
             };
@@ -293,7 +297,7 @@ impl WelcomeState {
             + if tight_height {
                 18.0
             } else if compact {
-                26.0
+                18.0
             } else {
                 44.0
             };
@@ -694,6 +698,16 @@ mod tests {
     fn new_file_is_the_primary_welcome_action() {
         assert_eq!(QUICK_ACTIONS.first().unwrap().action, ACTION_NEW_FILE);
         assert_eq!(QUICK_ACTIONS.first().unwrap().label, "New File at Location\u{2026}");
+    }
+
+    #[test]
+    fn new_project_is_exposed_from_welcome_start_actions() {
+        let row = QUICK_ACTIONS
+            .iter()
+            .position(|qa| qa.action == ACTION_NEW_PROJECT)
+            .expect("New Mighty Project should be discoverable from Welcome");
+        assert_eq!(row, 1);
+        assert_eq!(QUICK_ACTIONS[row].label, "New Mighty Project\u{2026}");
     }
 
     #[test]

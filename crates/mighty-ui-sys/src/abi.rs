@@ -3157,6 +3157,7 @@ pub extern "C" fn mui_status_problems_chip_at_click(handle: i64) -> i32 {
 pub extern "C" fn mui_prompt_open(handle: i64, kind: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         ctx.prompt.open(kind);
+        trace(&format!("prompt_open kind={kind}"));
     }
 }
 

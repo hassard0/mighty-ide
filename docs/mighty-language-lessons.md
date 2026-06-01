@@ -3122,3 +3122,18 @@ click on the AI close button opened Quick Open instead of closing the panel.
 - **Language note:** no compiler gap surfaced. Mighty UI needs declared hit-test
   ownership for titlebar, docked panels, overlays, and command surfaces so
   visible controls cannot be drawn inside another surface's interaction zone.
+
+### L210. First-run language IDEs need project creation on the primary surface **[finding, P1]**
+The IDE already had a `Mighty: New Project` command, but it lived behind the
+command palette. On first launch, the Welcome screen exposed file and folder
+flows while leaving the language-specific project workflow hidden, which makes
+the IDE feel less complete than the command registry actually is.
+
+- **IDE note:** Welcome now includes **New Mighty Project...** as a Start action
+  and routes the click through the existing Mighty prompt path that calls
+  `mty new`, opens the created project as the workspace, and reports the result
+  through toasts.
+- **Language note:** no compiler gap surfaced. Mighty needs a higher-level
+  command/action declaration model so a command can define palette metadata,
+  Welcome placement, click routing, prompt kind, and tests in one place instead
+  of duplicating numeric action ids across Rust and Mighty.

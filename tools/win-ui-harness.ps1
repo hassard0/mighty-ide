@@ -606,6 +606,22 @@ if (Wait-TraceCountGreaterThan "topbar_action .* -> command-center" $commandCent
 Press-VK $hwnd 0x1B
 Start-Sleep -Milliseconds 200
 
+# === WELCOME NEW PROJECT: visible row should open the Mighty project prompt. ===
+$welcomeProjectBefore = Trace-MatchCount "welcome_click .* -> 8"
+$promptProjectBefore = Trace-MatchCount "prompt_open kind=6"
+ClickL 407 214
+Start-Sleep -Milliseconds 250
+Capture $hwnd "01-welcome-new-project"
+if ((Wait-TraceCountGreaterThan "welcome_click .* -> 8" $welcomeProjectBefore 1200) -and
+    (Wait-TraceCountGreaterThan "prompt_open kind=6" $promptProjectBefore 1200)) {
+  Log "WELCOME NEW-PROJECT: click routed to project-name prompt"
+} else {
+  Log "WELCOME NEW-PROJECT: missing click or project prompt trace"
+  $script:HarnessFailed = $true
+}
+Press-VK $hwnd 0x1B
+Start-Sleep -Milliseconds 200
+
 function Invoke-DirtyCloseCommand() {
   $before = Trace-MatchCount "tab_close idx=.* -> dirty-confirm"
   for ($attempt = 0; $attempt -lt 2; $attempt++) {
@@ -658,7 +674,7 @@ $explorerCollapseX = 280
 # === WELCOME NEW FILE: quick action must reveal a blank editor, not leave Welcome up. ===
 # Compact Welcome layout places "New File" as the primary quick-action row below
 # the hero wordmark; click the visible row center instead of the hero area.
-ClickL 407 266
+ClickL 407 182
 Start-Sleep -Milliseconds 350
 Capture $hwnd "02-welcome-new-file"
 Log "welcome new-file captured"
