@@ -2561,3 +2561,19 @@ infer that pane commands or the palette are the escape path for a rendered view.
 - **Language note:** no compiler gap surfaced. The recurring language-side need
   is still a typed action/widget registry so render, hit-test, command routing,
   and test harness coordinates do not need parallel hand-maintained geometry.
+
+### L169. Visual hooks must survive Mighty startup file loading **[finding, P2]**
+The breadcrumb compact-gallery case opened a blank editor because the hook seeded
+state too early: the later Mighty-side `mui_ed_load` startup path replaced the
+demo model with `scratch.mty`, then the outline refresh found zero symbols. That
+made the capture look like a layout problem while the real issue was lifecycle
+ordering between test hooks and normal editor initialization.
+
+- **IDE note:** `MUI_BREADCRUMB_AUTOOPEN=symbol` now seeds a representative
+  Mighty file, moves the cursor onto a function symbol, and uses the existing
+  edit-probe lock so `mui_ed_load` preserves the seeded model. The resulting
+  gallery screenshot now verifies the actual breadcrumb symbol dropdown.
+- **Language note:** no compiler gap surfaced. Mighty still needs a cleaner
+  startup/test-hook lifecycle, ideally a post-load UI initialization phase or
+  declarative scenario fixture API, so visual QA state is not hidden behind
+  ad hoc ordering locks.

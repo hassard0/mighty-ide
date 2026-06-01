@@ -1070,9 +1070,18 @@ filename src/main.mty
     // and open the corresponding breadcrumb dropdown so a headless capture shows
     // the palette-styled menu under the breadcrumb.
     if let Some(which) = std::env::var_os("MUI_BREADCRUMB_AUTOOPEN") {
+        let which = which.to_string_lossy().to_lowercase();
+        if !which.contains("file") {
+            if let Some(ctx) = unsafe { ctx(handle) } {
+                use crate::editor::TextModel;
+                let demo = b"agent BreadcrumbAgent {\n  state root: Str\n\n  fn open_workspace(self, path: Str) -> I32 {\n    1\n  }\n\n  fn run_checks(self) -> I32 {\n    0\n  }\n}\n\nstruct BreadcrumbFile {\n  path: Str\n}\n\nfn main() {\n  let agent = BreadcrumbAgent { root: \"samples\" }\n  agent.run_checks()\n}\n";
+                *ctx.tabs.active_model_mut() = TextModel::from_bytes(demo);
+                ctx.tabs.active_model_mut().move_to(7, 4);
+                ctx.edit_probe_lock = true;
+            }
+        }
         let _ = crate::navsurfaces::mui_outline_refresh(handle);
         if let Some(ctx) = unsafe { ctx(handle) } {
-            let which = which.to_string_lossy().to_lowercase();
             ctx.crumb_menu_autoopen = true;
             use crate::crumbmenu::{MenuItem, MenuKind};
             if which.contains("file") {

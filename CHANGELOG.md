@@ -172,6 +172,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Markdown Preview is visibly closable**: the rendered preview pane now has a
   header close button that collapses the split preview through the same pane
   machinery as the command route.
+- **Breadcrumb visual QA shows the real menu**: the breadcrumb gallery hook now
+  seeds a representative Mighty file before file-load startup can overwrite the
+  capture state, so screenshot review exercises the actual symbol dropdown
+  layout instead of a blank editor.
 - **Visual gallery paths are reliable**: the overlay-gallery QA tool now
   normalizes relative executable, workdir, and output paths before launching the
   packaged IDE, avoiding false missing-screenshot failures.
