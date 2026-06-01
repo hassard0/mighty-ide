@@ -2335,6 +2335,43 @@ fn toast_click_abi_dismisses_hit_toast_and_consumes_only_hits() {
 }
 
 #[test]
+fn modal_overlays_suppress_toast_draw_and_click_targets() {
+    use crate::ffi::MuiEvent;
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 600;
+    ctx.gpu.phys_width = 0;
+    ctx.gpu.phys_height = 0;
+    crate::uiscale::set_os_scale(1.0);
+    crate::uiscale::set_user_zoom(1.0);
+    ctx.push_toast(crate::toast::Kind::Success, "Opened folder: project");
+    ctx.settings_panel.open();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        760.0,
+        530.0,
+        0,
+    );
+    assert_eq!(crate::mui_toast_click(handle), 0);
+    assert_eq!(ctx.toasts.len(), 1);
+
+    crate::mui_toast_draw(handle);
+    assert!(
+        ctx.rects_overlay.is_empty(),
+        "toast draw should not paint cards over active modal overlays"
+    );
+    crate::uiscale::set_os_scale(1.0);
+    crate::uiscale::set_user_zoom(1.0);
+}
+
+#[test]
 fn active_file_os_reveal_builds_platform_file_manager_command() {
     let path = std::path::Path::new("C:\\workspace\\src\\main.mty");
     let Some((program, args)) = crate::abi::platform_reveal_command(path) else {

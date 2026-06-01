@@ -3020,3 +3020,19 @@ bytes if a user hit Save after experimenting.
   document capability model so file-backed views can advertise editability,
   saveability, and preview-only state to commands and chrome from one source of
   truth.
+
+### L203. Overlay layers need declared exclusivity, not just z-order **[finding, P1]**
+The Settings modal could open while a recent operation toast was still visible,
+leaving the toast card painted over the modal footer. The command succeeded, but
+the user-visible result looked like stale notification text was stuck on top of
+the active dialog.
+
+- **IDE note:** Toast drawing and toast click hit-testing now suppress while
+  blocking modal overlays are active: Settings, Keyboard Shortcuts, Theme Picker,
+  and dirty-work confirmation. The real-mouse harness also waits for modal-open
+  traces before taking screenshots, so named modal captures show the actual
+  surface rather than the command palette that launched it.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a first-class
+  overlay manager with priority/exclusivity semantics so transient feedback,
+  modals, panels, and popovers do not each hand-roll draw order and hit-test
+  suppression.

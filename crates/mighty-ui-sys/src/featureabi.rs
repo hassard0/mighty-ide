@@ -903,6 +903,7 @@ pub extern "C" fn mui_blame_draw(handle: i64, rows: i32) {
 pub extern "C" fn mui_settings_open(handle: i64) -> i32 {
     if let Some(ctx) = unsafe { ctx(handle) } {
         ctx.settings_panel.open();
+        crate::abi::trace("settings_open");
         1
     } else {
         0
@@ -916,6 +917,7 @@ pub extern "C" fn mui_settings_open_account(handle: i64) -> i32 {
     if let Some(ctx) = unsafe { ctx(handle) } {
         ctx.settings_panel
             .open_at(crate::settingspanel::RowId::InlineAi);
+        crate::abi::trace("settings_open");
         1
     } else {
         0

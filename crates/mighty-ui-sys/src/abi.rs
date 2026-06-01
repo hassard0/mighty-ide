@@ -6595,6 +6595,7 @@ pub extern "C" fn mui_palette_draw(handle: i64) {
 pub extern "C" fn mui_keys_open(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         ctx.shortcuts.open();
+        trace("shortcuts_open");
     }
 }
 
@@ -6865,6 +6866,7 @@ pub extern "C" fn mui_theme_name_char(_handle: i64, idx: i32, i: i32) -> i32 {
 pub extern "C" fn mui_theme_picker_open(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         ctx.theme_picker.open();
+        trace("theme_picker_open");
     }
 }
 
@@ -10846,6 +10848,7 @@ pub extern "C" fn mui_md_open(handle: i64) -> i32 {
     let s = active_scroll(ctx);
     ctx.panes.focus(0, s);
     pane_rebind_focus(ctx);
+    trace("md_open");
     1
 }
 
@@ -11916,6 +11919,9 @@ pub extern "C" fn mui_toast_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if toast_suppressed_by_modal(ctx) {
+        return 0;
+    }
     if ctx.last_event.tag != crate::ffi::MUI_EVENT_MOUSE_DOWN
         || ctx.last_event.button != crate::ffi::MUI_MOUSE_LEFT
     {
@@ -11946,6 +11952,9 @@ pub extern "C" fn mui_toast_draw(handle: i64) {
     if ctx.toasts.is_empty() {
         return;
     }
+    if toast_suppressed_by_modal(ctx) {
+        return;
+    }
     let (w, h) = visible_surface_size(ctx);
     let was_overlay = ctx.overlay;
     ctx.overlay = true;
@@ -11964,6 +11973,13 @@ fn toast_bottom_reserve(ctx: &MuiContext, visible_h: u32) -> f32 {
         return 0.0;
     }
     (visible_h as f32 - theme::LINE_HEIGHT() - layout::term_panel_top(visible_h)).max(0.0)
+}
+
+fn toast_suppressed_by_modal(ctx: &MuiContext) -> bool {
+    dirty_confirm_active(ctx)
+        || ctx.settings_panel.is_active()
+        || ctx.shortcuts.is_active()
+        || ctx.theme_picker.is_active()
 }
 
 fn toast_left_reserve(ctx: &MuiContext) -> f32 {

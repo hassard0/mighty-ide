@@ -75,6 +75,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Toast notifications avoid compact sidebars**: toasts now shrink and align
   inside the work area when the activity rail/sidebar are visible, so feedback
   no longer looks like stale text over the Explorer.
+- **Toast notifications stay out of modal dialogs**: active Settings, Keyboard
+  Shortcuts, Theme Picker, and dirty-work confirmation overlays suppress toast
+  drawing and toast hit targets so transient feedback cannot cover modal content.
 - **Language popups fit compact work areas**: signature help and code-action
   menus now clamp to the editor safe area and ellipsize measured text instead of
   clipping against the right edge.

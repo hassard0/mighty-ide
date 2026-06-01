@@ -993,9 +993,16 @@ if ($env:MUI_TRACE) {
 }
 
 # === RAIL UTILITY: bottom Settings icon should open Preferences, not be decorative. ===
+$settingsOpenCount = Trace-MatchCount "(?m)^settings_open$"
 ClickL 26 ($logicalH - 32)
-Start-Sleep -Milliseconds 350
-Capture $hwnd "50-settings-rail"
+if (Wait-TraceCountGreaterThan "(?m)^settings_open$" $settingsOpenCount 1200) {
+  Start-Sleep -Milliseconds 250
+  Capture $hwnd "50-settings-rail"
+} else {
+  Log "SETTINGS-OPEN-MOUSE: missing visible modal open trace"
+  $script:HarnessFailed = $true
+  Capture $hwnd "50-settings-rail"
+}
 $settingsCloseCount = Trace-MatchCount "(?m)^settings_close$"
 $settingsClosePt = SettingsCloseCenter
 ClickL $settingsClosePt.X $settingsClosePt.Y
@@ -1007,7 +1014,16 @@ if (Wait-TraceCountGreaterThan "(?m)^settings_close$" $settingsCloseCount 1200) 
 }
 
 # === SHORTCUTS MODAL: visible close affordance should work by mouse. ===
-Invoke-PaletteCommand "keyboard shortcuts" "51-keyboard-shortcuts"
+$shortcutsOpenCount = Trace-MatchCount "(?m)^shortcuts_open$"
+Invoke-PaletteCommand "keyboard shortcuts" $null
+if (Wait-TraceCountGreaterThan "(?m)^shortcuts_open$" $shortcutsOpenCount 1200) {
+  Start-Sleep -Milliseconds 250
+  Capture $hwnd "51-keyboard-shortcuts"
+} else {
+  Log "SHORTCUTS-OPEN-COMMAND: missing visible modal open trace"
+  $script:HarnessFailed = $true
+  Capture $hwnd "51-keyboard-shortcuts"
+}
 $shortcutsCloseCount = Trace-MatchCount "(?m)^shortcuts_close$"
 $shortcutsClosePt = ShortcutsCloseCenter
 ClickL $shortcutsClosePt.X $shortcutsClosePt.Y
@@ -1019,7 +1035,16 @@ if (Wait-TraceCountGreaterThan "(?m)^shortcuts_close$" $shortcutsCloseCount 1200
 }
 
 # === THEME PICKER: visible close affordance should cancel the preview by mouse. ===
-Invoke-PaletteCommand "color theme" "52-theme-picker"
+$themeOpenCount = Trace-MatchCount "(?m)^theme_picker_open$"
+Invoke-PaletteCommand "color theme" $null
+if (Wait-TraceCountGreaterThan "(?m)^theme_picker_open$" $themeOpenCount 1200) {
+  Start-Sleep -Milliseconds 250
+  Capture $hwnd "52-theme-picker"
+} else {
+  Log "THEME-PICKER-OPEN-COMMAND: missing visible modal open trace"
+  $script:HarnessFailed = $true
+  Capture $hwnd "52-theme-picker"
+}
 $themeCloseCount = Trace-MatchCount "(?m)^theme_picker_close$"
 $themeClosePt = ThemePickerCloseCenter
 ClickL $themeClosePt.X $themeClosePt.Y
@@ -1031,7 +1056,16 @@ if (Wait-TraceCountGreaterThan "(?m)^theme_picker_close$" $themeCloseCount 1200)
 }
 
 # === MARKDOWN PREVIEW: visible pane close affordance should collapse the split. ===
-Invoke-PaletteCommand "markdown preview" "53-markdown-preview"
+$mdOpenCount = Trace-MatchCount "(?m)^md_open$"
+Invoke-PaletteCommand "markdown preview" $null
+if (Wait-TraceCountGreaterThan "(?m)^md_open$" $mdOpenCount 1200) {
+  Start-Sleep -Milliseconds 250
+  Capture $hwnd "53-markdown-preview"
+} else {
+  Log "MARKDOWN-PREVIEW-OPEN-COMMAND: missing visible pane open trace"
+  $script:HarnessFailed = $true
+  Capture $hwnd "53-markdown-preview"
+}
 $mdCloseCount = Trace-MatchCount "(?m)^md_close$"
 ClickL ($logicalW - 19) 84
 if (Wait-TraceCountGreaterThan "(?m)^md_close$" $mdCloseCount 1200) {
