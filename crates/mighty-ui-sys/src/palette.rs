@@ -241,13 +241,13 @@ pub const CMD_WINDOW_MINIMIZE: u32 = 98;
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
-    Command { id: CMD_NEW_FILE,         label: "File: New File at Location...", keybinding: "Ctrl+N" },
+    Command { id: CMD_NEW_FILE,         label: "File: New File at Location", keybinding: "Ctrl+N" },
     Command { id: CMD_NEW_UNTITLED_FILE, label: "File: New Untitled Tab", keybinding: "" },
-    Command { id: CMD_NEW_WORKSPACE_FILE, label: "Explorer: New File in Workspace...", keybinding: "" },
-    Command { id: CMD_NEW_FOLDER,       label: "Explorer: New Folder...",   keybinding: "Ctrl+Shift+N" },
-    Command { id: CMD_OPEN_FILE,        label: "File: Open File...", keybinding: "Ctrl+O" },
+    Command { id: CMD_NEW_WORKSPACE_FILE, label: "Explorer: New Workspace File", keybinding: "" },
+    Command { id: CMD_NEW_FOLDER,       label: "Explorer: New Folder",   keybinding: "Ctrl+Shift+N" },
+    Command { id: CMD_OPEN_FILE,        label: "File: Open File", keybinding: "Ctrl+O" },
     Command { id: CMD_SAVE,             label: "File: Save",         keybinding: "Ctrl+S" },
-    Command { id: CMD_SAVE_AS,          label: "File: Save As...",   keybinding: "Ctrl+Shift+S" },
+    Command { id: CMD_SAVE_AS,          label: "File: Save As",   keybinding: "Ctrl+Shift+S" },
     Command { id: CMD_SAVE_ALL,         label: "File: Save All",     keybinding: "Ctrl+Alt+S" },
     Command { id: CMD_RENAME_ACTIVE_FILE, label: "File: Rename Active File", keybinding: "" },
     Command { id: CMD_REVEAL_ACTIVE_FILE, label: "File: Reveal Active File in File Tree", keybinding: "" },
@@ -335,7 +335,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
     Command { id: CMD_CLOSE_PANE,       label: "Close Editor Pane",  keybinding: "" },
     Command { id: CMD_MARKDOWN_PREVIEW, label: "Markdown: Open Preview", keybinding: "Ctrl+Shift+V" },
-    Command { id: CMD_OPEN_FOLDER,      label: "File: Open Folder...", keybinding: "Ctrl+Shift+O" },
+    Command { id: CMD_OPEN_FOLDER,      label: "File: Open Folder", keybinding: "Ctrl+Shift+O" },
     Command { id: CMD_OPEN_RECENT,      label: "File: Open Recent",   keybinding: "" },
     Command { id: CMD_KEYBOARD_SHORTCUTS, label: "Help: Keyboard Shortcuts", keybinding: "Ctrl+Shift+/" },
     Command { id: CMD_FOLD_TOGGLE,      label: "Fold: Toggle at Cursor",  keybinding: "Ctrl+Shift+[" },
@@ -404,6 +404,49 @@ fn collapse_repeated_chars(s: &str) -> String {
         prev = Some(ch);
     }
     out
+}
+
+pub(crate) fn fit_palette_text(
+    text: &mut crate::text::Text,
+    s: &str,
+    max_px: f32,
+    size: f32,
+) -> String {
+    if max_px <= 0.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    if text.measure_ui_sized(ellipsis, size).0 > max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let candidate: String = chars[..mid]
+            .iter()
+            .copied()
+            .chain(std::iter::once('\u{2026}'))
+            .collect();
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        ellipsis.to_string()
+    } else {
+        chars[..lo]
+            .iter()
+            .copied()
+            .chain(std::iter::once('\u{2026}'))
+            .collect()
+    }
 }
 
 /// Filter + rank `commands` against `query`. Returns the matching commands in
@@ -785,14 +828,6 @@ impl PaletteEngine {
             let icon_col = if selected { theme::ACCENT_BRIGHT() } else { theme::TEXT_1() };
             ctx.dl_icon(tile_x + 6.5, tile_y + 6.5, 17.0, 17.0, icon, icon_col, 1.6, fill);
 
-            // Title + dim description (two lines).
-            let txt_x = box_x + 60.0;
-            ctx.text.queue_ui_sized(txt_x, ry + 11.0, cmd.label, theme::TEXT(), 13.5, clip);
-            if !desc.is_empty() {
-                let desc_col = if selected { theme::TEXT_1() } else { theme::TEXT_3() };
-                ctx.text.queue_ui_sized(txt_x, ry + 28.0, desc, desc_col, 11.5, clip);
-            }
-
             // Right-aligned kbd pills (commands with no keybinding draw none).
             let parts: Vec<&str> = if cmd.keybinding.is_empty() {
                 Vec::new()
@@ -808,6 +843,19 @@ impl PaletteEngine {
                 .collect();
             let total_w: f32 = widths.iter().sum::<f32>() + gap * (parts.len().saturating_sub(1)) as f32;
             let mut px = box_x + box_w - 20.0 - total_w;
+
+            // Title + dim description (two lines), fitted before right chrome.
+            let txt_x = box_x + 60.0;
+            let text_right = if parts.is_empty() { box_x + box_w - 24.0 } else { px - 16.0 };
+            let text_max = (text_right - txt_x).max(0.0);
+            let title = fit_palette_text(&mut ctx.text, cmd.label, text_max, 13.5);
+            ctx.text.queue_ui_sized(txt_x, ry + 11.0, &title, theme::TEXT(), 13.5, clip);
+            if !desc.is_empty() {
+                let desc_col = if selected { theme::TEXT_1() } else { theme::TEXT_3() };
+                let desc = fit_palette_text(&mut ctx.text, desc, text_max, 11.5);
+                ctx.text.queue_ui_sized(txt_x, ry + 28.0, &desc, desc_col, 11.5, clip);
+            }
+
             let pill_h = 21.0;
             let py = ry + (row_h - pill_h) * 0.5;
             for (k, part) in parts.iter().enumerate() {
@@ -875,11 +923,11 @@ mod tests {
             .find(|c| c.id == CMD_NEW_WORKSPACE_FILE)
             .expect("workspace new-file command should exist");
 
-        assert_eq!(file_dialog.label, "File: New File at Location...");
+        assert_eq!(file_dialog.label, "File: New File at Location");
         assert_eq!(file_dialog.keybinding, "Ctrl+N");
         assert_eq!(untitled.label, "File: New Untitled Tab");
         assert_eq!(untitled.keybinding, "");
-        assert_eq!(workspace.label, "Explorer: New File in Workspace...");
+        assert_eq!(workspace.label, "Explorer: New Workspace File");
         assert_eq!(workspace.keybinding, "");
     }
 

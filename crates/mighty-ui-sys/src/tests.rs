@@ -802,6 +802,25 @@ fn tab_label_truncation_keeps_filename_start_and_extension() {
 }
 
 #[test]
+fn command_surface_text_fits_before_shortcut_chrome() {
+    let mut ctx = ctx_or_skip!();
+    let long = "File: Close Saved Tabs to the Right";
+    let fitted = crate::palette::fit_palette_text(&mut ctx.text, long, 136.0, 13.5);
+    assert!(
+        fitted.ends_with('\u{2026}'),
+        "long command labels should visibly truncate at the row text boundary, got `{fitted}`"
+    );
+    assert!(
+        fitted.starts_with("File:"),
+        "command label fitting should preserve the command family prefix, got `{fitted}`"
+    );
+    assert!(
+        ctx.text.measure_ui_sized(&fitted, 13.5).0 <= 136.0,
+        "fitted command label must not draw under shortcut chrome"
+    );
+}
+
+#[test]
 fn tab_bar_overflow_scroll_maps_visible_slots_to_real_tabs() {
     use crate::ffi::MuiEvent;
     use crate::{mui_tab_bar_draw, mui_tab_close_index_at_click, mui_tab_index_at_click};

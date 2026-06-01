@@ -849,10 +849,6 @@ impl ShortcutsEngine {
                 ctx.dl_shadow(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::ACCENT_GLOW(), 16.0);
             }
 
-            // Title (left).
-            let txt_x = box_x + 22.0;
-            ctx.text.queue_ui_sized(txt_x, ry + (row_h - 14.0) * 0.5, &row.name, theme::TEXT(), 13.5, clip);
-
             // Right-aligned kbd pills.
             let right_edge = box_x + box_w - 20.0;
             let parts: Vec<&str> = if row.keys.is_empty() {
@@ -871,6 +867,26 @@ impl ShortcutsEngine {
             let px = right_edge - total_w;
             let pill_h = 21.0;
             let py = ry + (row_h - pill_h) * 0.5;
+
+            // Title (left), fitted before remap text and shortcut pills.
+            let txt_x = box_x + 22.0;
+            let tag = if !row.remappable {
+                "fixed"
+            } else if selected {
+                "Enter to remap"
+            } else {
+                ""
+            };
+            let tag_w = if tag.is_empty() { 0.0 } else { tag.chars().count() as f32 * 5.6 + 12.0 };
+            let title_right = if parts.is_empty() {
+                box_x + box_w - 24.0 - tag_w
+            } else {
+                px - 12.0 - tag_w
+            };
+            let title_max = (title_right - txt_x).max(0.0);
+            let name = crate::palette::fit_palette_text(&mut ctx.text, &row.name, title_max, 13.5);
+            ctx.text.queue_ui_sized(txt_x, ry + (row_h - 14.0) * 0.5, &name, theme::TEXT(), 13.5, clip);
+
             let mut draw_x = px;
             for (k, part) in parts.iter().enumerate() {
                 let pw = widths[k];
@@ -887,13 +903,6 @@ impl ShortcutsEngine {
             }
 
             // Remappable affordance: a small "remap" / "fixed" label left of pills.
-            let tag = if !row.remappable {
-                "fixed"
-            } else if selected {
-                "Enter to remap"
-            } else {
-                ""
-            };
             if !tag.is_empty() {
                 let tag_w = tag.chars().count() as f32 * 5.6;
                 let tag_x = px - 12.0 - tag_w;

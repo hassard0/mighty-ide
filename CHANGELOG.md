@@ -125,6 +125,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Tab titles preserve the useful filename**: narrow tabs now truncate
   file-backed labels in the middle, keeping the basename start and extension
   visible instead of showing leading ellipses like `...swelcome.mty`.
+- **Command surfaces read cleaner**: file-dialog commands no longer bake fake
+  `...` truncation into their names, and Command Palette / Keyboard Shortcuts
+  rows now measure titles and descriptions against right-side shortcut chrome.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now

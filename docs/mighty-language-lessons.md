@@ -3150,3 +3150,18 @@ feel broken because the meaningful start of the basename disappears.
   fitting policies such as path-tail, filename-middle, and command-head so each
   surface can declare what part of the string is semantically important instead
   of sharing one generic ellipsis helper.
+
+### L212. Command registries should separate action names from UI fitting **[finding, P2]**
+The Command Palette and Keyboard Shortcuts overlays showed file commands with
+baked `...` suffixes, which looked like accidental truncation even when the row
+had enough space. Long labels also did not reserve space for right-side shortcut
+pills before drawing.
+
+- **IDE note:** dialog-style file commands now use clean action names while
+  descriptions explain the native picker behavior. Palette and shortcuts rows
+  fit command names and descriptions against the actual shortcut/remap chrome so
+  text cannot run underneath controls.
+- **Language note:** no compiler gap surfaced. Mighty UI needs command metadata
+  that distinguishes action name, menu/dialog convention, short label,
+  description, and measured row layout policy instead of overloading one string
+  for every surface.
