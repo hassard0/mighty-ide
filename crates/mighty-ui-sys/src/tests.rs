@@ -928,6 +928,19 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_GIT_COMMIT_STAGED)
         .unwrap();
     assert_eq!(commit_staged.label, "Git: Commit Staged");
+
+    let view_commands = [
+        (crate::palette::CMD_VIEW_EXPLORER, "View: Explorer"),
+        (crate::palette::CMD_VIEW_SEARCH, "View: Search"),
+        (crate::palette::CMD_VIEW_SOURCE_CONTROL, "View: Source Control"),
+        (crate::palette::CMD_VIEW_OUTLINE, "View: Outline"),
+        (crate::palette::CMD_VIEW_RUN_DEBUG, "View: Run and Debug"),
+        (crate::palette::CMD_VIEW_TESTING, "View: Testing"),
+    ];
+    for (id, label) in view_commands {
+        let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
+        assert_eq!(cmd.label, label);
+    }
 }
 
 #[test]
@@ -2557,6 +2570,12 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_GIT_STAGE_ALL, "cmd_git_stage_all"),
         (CMD_GIT_UNSTAGE_ALL, "cmd_git_unstage_all"),
         (CMD_GIT_COMMIT_STAGED, "cmd_git_commit_staged"),
+        (CMD_VIEW_EXPLORER, "cmd_view_explorer"),
+        (CMD_VIEW_SEARCH, "cmd_view_search"),
+        (CMD_VIEW_SOURCE_CONTROL, "cmd_view_source_control"),
+        (CMD_VIEW_OUTLINE, "cmd_view_outline"),
+        (CMD_VIEW_RUN_DEBUG, "cmd_view_run_debug"),
+        (CMD_VIEW_TESTING, "cmd_view_testing"),
         (CMD_RELOAD_ACTIVE_FILE, "cmd_reload_active_file"),
         (CMD_REVERT_ACTIVE_FILE, "cmd_revert_active_file"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),

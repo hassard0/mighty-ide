@@ -81,6 +81,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Notifications: Clear All Toasts** dismisses the visible toast stack on demand,
   and clicking any toast dismisses that card immediately so stale save/build/error
   messages can be cleared without waiting for expiry.
+- **View commands**: Explorer, Search, Source Control, Outline, Run and Debug,
+  and Testing are now command-palette reachable, not only rail-click reachable.
 - Agents live-inspect notes now reflect the Mighty runtime's Windows named-pipe
   control endpoint work, so the IDE no longer documents Windows as static-only.
 

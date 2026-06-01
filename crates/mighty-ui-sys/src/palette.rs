@@ -165,6 +165,18 @@ pub const CMD_GIT_STAGE_ALL: u32 = 68;
 pub const CMD_GIT_UNSTAGE_ALL: u32 = 69;
 /// Commit staged changes with the current Source Control message.
 pub const CMD_GIT_COMMIT_STAGED: u32 = 70;
+/// Open the Explorer view.
+pub const CMD_VIEW_EXPLORER: u32 = 71;
+/// Open the project Search view.
+pub const CMD_VIEW_SEARCH: u32 = 72;
+/// Open the Source Control view.
+pub const CMD_VIEW_SOURCE_CONTROL: u32 = 73;
+/// Open the Outline view.
+pub const CMD_VIEW_OUTLINE: u32 = 74;
+/// Open the Run and Debug view.
+pub const CMD_VIEW_RUN_DEBUG: u32 = 75;
+/// Open the Testing view.
+pub const CMD_VIEW_TESTING: u32 = 76;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -227,6 +239,12 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_GIT_STAGE_ALL,    label: "Git: Stage All",     keybinding: "" },
     Command { id: CMD_GIT_UNSTAGE_ALL,  label: "Git: Unstage All",   keybinding: "" },
     Command { id: CMD_GIT_COMMIT_STAGED, label: "Git: Commit Staged", keybinding: "" },
+    Command { id: CMD_VIEW_EXPLORER,    label: "View: Explorer",      keybinding: "" },
+    Command { id: CMD_VIEW_SEARCH,      label: "View: Search",        keybinding: "Ctrl+Shift+F" },
+    Command { id: CMD_VIEW_SOURCE_CONTROL, label: "View: Source Control", keybinding: "Ctrl+Shift+G" },
+    Command { id: CMD_VIEW_OUTLINE,     label: "View: Outline",       keybinding: "" },
+    Command { id: CMD_VIEW_RUN_DEBUG,   label: "View: Run and Debug", keybinding: "" },
+    Command { id: CMD_VIEW_TESTING,     label: "View: Testing",       keybinding: "" },
     Command { id: CMD_RUN_IN_BROWSER,   label: "Mighty: Run in Browser", keybinding: "Alt+W" },
     Command { id: CMD_SPLIT_RIGHT,      label: "Split Editor Right", keybinding: "Ctrl+\\" },
     Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
@@ -540,6 +558,12 @@ impl PaletteEngine {
             CMD_GIT_STAGE_ALL => (icons::STAGE_PLUS, "Stage every changed path", false),
             CMD_GIT_UNSTAGE_ALL => (icons::UNSTAGE_MINUS, "Unstage every staged path", false),
             CMD_GIT_COMMIT_STAGED => (icons::GIT, "Commit staged changes with the SCM message", false),
+            CMD_VIEW_EXPLORER => (icons::EXPLORER, "Open the file explorer view", false),
+            CMD_VIEW_SEARCH => (icons::SEARCH, "Open project-wide search", false),
+            CMD_VIEW_SOURCE_CONTROL => (icons::GIT, "Open source control", false),
+            CMD_VIEW_OUTLINE => (icons::FN_SYMBOL, "Open the symbol outline", false),
+            CMD_VIEW_RUN_DEBUG => (icons::DEBUG, "Open Run and Debug", false),
+            CMD_VIEW_TESTING => (icons::BEAKER, "Open the testing view", false),
             CMD_RUN_IN_BROWSER => (icons::GLOBE, "Build and serve the active Mighty file for the browser", false),
             CMD_SPLIT_RIGHT => (icons::TEST_BOX, "Split the editor into side-by-side panes", false),
             CMD_FOCUS_NEXT_PANE => (icons::CHEVRON, "Move focus between editor panes", false),

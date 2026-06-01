@@ -670,6 +670,12 @@ fn cmd_close_duplicate_tabs() -> I32 { 67 }
 fn cmd_git_stage_all() -> I32 { 68 }
 fn cmd_git_unstage_all() -> I32 { 69 }
 fn cmd_git_commit_staged() -> I32 { 70 }
+fn cmd_view_explorer() -> I32 { 71 }
+fn cmd_view_search() -> I32 { 72 }
+fn cmd_view_source_control() -> I32 { 73 }
+fn cmd_view_outline() -> I32 { 74 }
+fn cmd_view_run_debug() -> I32 { 75 }
+fn cmd_view_testing() -> I32 { 76 }
 fn cmd_format_document() -> I32 { 12 }
 fn cmd_undo() -> I32 { 13 }
 fn cmd_redo() -> I32 { 14 }
@@ -3483,6 +3489,19 @@ fn main() {
         } else if id == cmd_git_commit_staged() {
           let _gc = mui_scm_commit(h)
           let _r = mui_scm_refresh(h)
+        } else if id == cmd_view_explorer() {
+          let _vp = mui_panel_set(h, panel_explorer())
+        } else if id == cmd_view_search() {
+          let _vp = mui_panel_set(h, panel_search())
+        } else if id == cmd_view_source_control() {
+          let _vp = mui_panel_set(h, panel_scm())
+          let _r = mui_scm_refresh(h)
+        } else if id == cmd_view_outline() {
+          let _vp = mui_panel_set(h, panel_outline())
+        } else if id == cmd_view_run_debug() {
+          let _vp = mui_panel_set(h, panel_debug())
+        } else if id == cmd_view_testing() {
+          let _vp = mui_panel_set(h, panel_test())
         } else if id >= cmd_ws_first() && id <= cmd_ws_last() {
           let wr = mui_ws_dispatch(h, id)
           if wr == 2 {

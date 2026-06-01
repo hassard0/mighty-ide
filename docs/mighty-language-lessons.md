@@ -1361,3 +1361,14 @@ with the existing buffer.
 - **Language note:** no new gap surfaced. This confirms the current pattern:
   Mighty routes the command; the shim owns text-buffer, process, and refresh
   details until richer FFI strings are available.
+
+### L76. Primary view switching belongs in the command registry **[finding, P3]**
+Adding command-palette entries for Explorer, Search, Source Control, Outline,
+Run and Debug, and Testing reused the existing `mui_panel_set` scalar ABI. The
+view ids stay mirrored as tiny Mighty helper functions, while panel state and
+open-side effects stay shim-side.
+
+- **IDE note:** primary views must be keyboard-first and searchable, not only
+  reachable by activity-rail clicks or a few hardcoded chords.
+- **Language note:** no new gap surfaced. The command registry remains the right
+  place to expose view-switching affordances while Mighty only routes ids.
