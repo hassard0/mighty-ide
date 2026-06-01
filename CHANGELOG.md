@@ -49,6 +49,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Explorer new-file routing is workspace-scoped**: the Explorer header and
   **Explorer: New File in Workspace** command now use a dedicated workspace
   picker, instead of sharing the arbitrary-location File > New flow.
+- **Welcome now names the file picker intent**: the first quick action is
+  labeled **New File at Location** so it matches the native path picker behavior.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now

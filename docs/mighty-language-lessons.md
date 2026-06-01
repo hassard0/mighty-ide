@@ -2757,3 +2757,15 @@ from an Explorer action.
   that can be encoded and checked at dispatch boundaries, not just comments and
   labels, so visually similar commands cannot accidentally share the wrong
   filesystem semantics.
+
+### L182. First-screen labels must preserve command intent **[finding, P2]**
+The command palette had explicit file-action names, but Welcome still showed a
+generic `New File...` row for the arbitrary-location picker. That made the first
+screen less clear than the palette and weakened the distinction from Explorer's
+workspace-scoped file creation.
+
+- **IDE note:** Welcome now labels the primary action `New File at Location...`
+  to match the native path picker it opens.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a shared command
+  label source so Welcome, palette, shortcuts, and toolbar surfaces do not drift
+  when command semantics are clarified.
