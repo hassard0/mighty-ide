@@ -1857,3 +1857,17 @@ switching/closing feel broken even though the pure hit-test math was correct.
 - **Language note:** no new Mighty compiler gap surfaced. This is a cross-layer
   ownership problem: Mighty owns semantic tab routing, while the Rust shim owns
   native window movement and must avoid preempting Mighty-owned pixels.
+
+### L113. Destructive modal flows need live post-action coverage **[finding, P1]**
+Dirty-tab confirmation looked covered by unit tests, but the real UX risk is the
+sequence around it: open the modal, cancel, reopen it, discard, then keep using
+dialogs and commands afterward. That is where stale focus, leftover overlay
+text, or the wrong active tab would show up.
+
+- **IDE note:** the Windows harness now drives the dirty-close modal with real
+  mouse clicks, verifies Cancel and Discard traces, then creates a known visible
+  untitled buffer before Save As so later dialog tests are anchored to what the
+  user sees. Save paths now trace byte counts while `MUI_TRACE` is active.
+- **Language note:** no new compiler gap surfaced. The useful gap is tooling:
+  Mighty needs this style of cross-layer scenario harness because scalar unit
+  tests cannot prove post-modal focus and active-tab intent.

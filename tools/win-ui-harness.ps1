@@ -333,6 +333,26 @@ function DragL($lx1, $ly1, $lx2, $ly2) {
 }
 $logicalW = [double]$script:WinW / [double]$scale
 $logicalH = [double]$script:WinH / [double]$scale
+
+function DirtyConfirmButtonCenter($which) {
+  # Mirrors abi.rs dirty_confirm_rects() in logical coordinates.
+  $cardW = [math]::Min($logicalW, 520.0)
+  $cardW = [math]::Max($cardW, 320.0)
+  $cardW = [math]::Min($cardW, [math]::Max($logicalW - 32.0, 280.0))
+  $cardH = 184.0
+  $cardX = [math]::Max((($logicalW - $cardW) * 0.5), 16.0)
+  $cardY = [math]::Max((($logicalH - $cardH) * 0.5), 48.0)
+  $btnW = 112.0
+  $btnH = 34.0
+  $by = $cardY + $cardH - 54.0
+  $discardX = $cardX + $cardW - $btnW - 24.0
+  $saveX = $discardX - $btnW - 12.0
+  $cancelX = $saveX - $btnW - 12.0
+  if ($which -eq 'cancel') { return [pscustomobject]@{ X = ($cancelX + ($btnW * 0.5)); Y = ($by + ($btnH * 0.5)) } }
+  if ($which -eq 'save') { return [pscustomobject]@{ X = ($saveX + ($btnW * 0.5)); Y = ($by + ($btnH * 0.5)) } }
+  return [pscustomobject]@{ X = ($discardX + ($btnW * 0.5)); Y = ($by + ($btnH * 0.5)) }
+}
+
 # titlebar.rs: controls_x = w - 3*46, action strip = 68, run target is the
 # first 30px of the strip. Click the center of the remaining "more" range.
 $topbarMoreX = $logicalW - (3 * 46) - 19
@@ -490,6 +510,37 @@ Log "after typing: responsive=$respT"
 Press-VK $hwnd 0x1B      # close autocomplete before using topbar commands
 Start-Sleep -Milliseconds 150
 
+# === DIRTY TAB CLOSE CONFIRMATION: Cancel preserves the tab, Discard closes it. ===
+Invoke-PaletteCommand "close tab" $null
+Start-Sleep -Milliseconds 250
+$cancelPt = DirtyConfirmButtonCenter 'cancel'
+ClickL $cancelPt.X $cancelPt.Y
+Start-Sleep -Milliseconds 250
+Invoke-PaletteCommand "close tab" $null
+Start-Sleep -Milliseconds 250
+$discardPt = DirtyConfirmButtonCenter 'discard'
+ClickL $discardPt.X $discardPt.Y
+Start-Sleep -Milliseconds 400
+if ($env:MUI_TRACE) {
+  Start-Sleep -Milliseconds 150
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  if ($traceText -match "tab_close idx=.* -> dirty-confirm" -and $traceText -match "dirty_confirm_hit .* -> cancel" -and $traceText -match "dirty_confirm cancel" -and $traceText -match "dirty_confirm_hit .* -> discard" -and $traceText -match "dirty_confirm discard tab=") {
+    Log "DIRTY-CLOSE: cancel and discard traces observed"
+  } else {
+    Log "DIRTY-CLOSE: missing dirty confirmation trace"
+    $script:HarnessFailed = $true
+  }
+}
+
+# Put Save-As on a known visible buffer after the destructive-close flow. This
+# avoids accidentally saving whichever file/tab was active before the modal.
+Invoke-PaletteCommand "untitled" $null
+Start-Sleep -Milliseconds 250
+ClickL 460 130
+Start-Sleep -Milliseconds 100
+Type-Text $hwnd "save check"
+Start-Sleep -Milliseconds 250
+
 # === SAVE-AS via top-right More -> command palette ===
 # The harness env above supplies the native SaveFileDialog result so this
 # exercises dialog-backed Save-As regardless of which tab is active. The action
@@ -497,8 +548,19 @@ Start-Sleep -Milliseconds 150
 # not the strip padding or the min-button boundary.
 Invoke-PaletteCommand "save as" "40-palette-open"
 Capture $hwnd "42-saved"
-Start-Sleep -Milliseconds 200
-if (Test-Path $savePath) { Log "SAVE-AS: file written OK -> $savePath" } else { Log "SAVE-AS: FILE NOT FOUND ($savePath)"; $script:HarnessFailed = $true }
+Start-Sleep -Milliseconds 500
+if (Test-Path $savePath) {
+  $savedText = Get-Content -LiteralPath $savePath -Raw
+  if ($savedText -like "*save check*") {
+    Log "SAVE-AS: file written OK -> $savePath"
+  } else {
+    Log "SAVE-AS: file content mismatch ($savePath)"
+    $script:HarnessFailed = $true
+  }
+} else {
+  Log "SAVE-AS: FILE NOT FOUND ($savePath)"
+  $script:HarnessFailed = $true
+}
 if (Test-Path $savePath) { Remove-Item $savePath -Force; Log "SAVE-AS: cleaned harness file" }
 if (Test-Path $newFilePath) { Remove-Item $newFilePath -Force; Log "NEW-FILE: cleaned harness file" }
 if (Test-Path $welcomeFilePath) { Remove-Item $welcomeFilePath -Force; Log "WELCOME NEW-FILE: cleaned harness file" }

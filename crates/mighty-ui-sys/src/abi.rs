@@ -3633,6 +3633,7 @@ pub extern "C" fn mui_dirty_confirm_cancel(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         ctx.pending_dirty_close = None;
         ctx.pending_quit = None;
+        trace("dirty_confirm cancel");
     }
 }
 
@@ -3647,11 +3648,13 @@ pub extern "C" fn mui_dirty_confirm_discard(handle: i64) -> i32 {
     if ctx.pending_quit.is_some() {
         ctx.pending_quit = None;
         ctx.pending_dirty_close = None;
+        trace("dirty_confirm discard -> quit");
         return -2;
     }
     let Some((idx_u, _)) = ctx.pending_dirty_close else {
         return -1;
     };
+    trace(&format!("dirty_confirm discard tab={idx_u}"));
     ctx.tabs.mark_clean(idx_u);
     close_tab_unchecked(ctx, idx_u)
 }
@@ -3668,19 +3671,23 @@ pub extern "C" fn mui_dirty_confirm_save(handle: i64) -> i32 {
         let dirty: Vec<usize> = (0..ctx.tabs.count()).filter(|i| ctx.tabs.is_dirty(*i)).collect();
         for idx in dirty {
             if !save_confirm_tab(ctx, idx) {
+                trace(&format!("dirty_confirm save tab={idx} -> cancelled"));
                 return -3;
             }
         }
         ctx.pending_quit = None;
         ctx.pending_dirty_close = None;
+        trace("dirty_confirm save -> quit");
         return -2;
     }
     let Some((idx_u, _)) = ctx.pending_dirty_close else {
         return -1;
     };
     if !save_confirm_tab(ctx, idx_u) {
+        trace(&format!("dirty_confirm save tab={idx_u} -> cancelled"));
         return -3;
     }
+    trace(&format!("dirty_confirm save tab={idx_u}"));
     close_tab_unchecked(ctx, idx_u)
 }
 
@@ -3698,12 +3705,16 @@ pub extern "C" fn mui_dirty_confirm_click(handle: i64) -> i32 {
     let (px, py) = (ctx.last_event.x, ctx.last_event.y);
     let hit = |r: (f32, f32, f32, f32)| px >= r.0 && px <= r.0 + r.2 && py >= r.1 && py <= r.1 + r.3;
     if hit(cancel) {
+        trace(&format!("dirty_confirm_hit x={px:.1} y={py:.1} -> cancel"));
         1
     } else if hit(save) {
+        trace(&format!("dirty_confirm_hit x={px:.1} y={py:.1} -> save"));
         3
     } else if hit(discard) {
+        trace(&format!("dirty_confirm_hit x={px:.1} y={py:.1} -> discard"));
         2
     } else {
+        trace(&format!("dirty_confirm_hit x={px:.1} y={py:.1} -> miss"));
         0
     }
 }
@@ -8390,6 +8401,7 @@ pub extern "C" fn mui_autosave_tick(handle: i64) -> i32 {
     }
     let bytes = save_bytes_for_active(ctx);
     let name = basename(&path);
+    trace(&format!("save path={} bytes={}", path.display(), bytes.len()));
     match std::fs::write(&path, &bytes) {
         Ok(()) => {
             mark_active_clean(ctx);
@@ -8626,6 +8638,7 @@ fn save_active_to_path(ctx: &mut MuiContext, target: PathBuf) -> i32 {
     }
     let bytes = save_bytes_for_active(ctx);
     let name = basename(&target);
+    trace(&format!("save_as path={} bytes={}", target.display(), bytes.len()));
     match std::fs::write(&target, &bytes) {
         Ok(()) => {
             ctx.tabs.set_active_path(target.clone());
