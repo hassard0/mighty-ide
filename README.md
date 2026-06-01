@@ -41,6 +41,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   the keyboard or command palette while preserving split-pane document bindings
 - **Sort Open Tabs by Name** alphabetizes tab clutter without losing the active
   document or split-pane document bindings
+- **Close Duplicate Tabs** collapses clean duplicate file tabs while preserving
+  dirty duplicate buffers and split-pane bindings
 - **Reload Active File from Disk** refreshes clean file-backed tabs after
   external edits while protecting dirty buffers
 - **Revert Active File from Disk** intentionally discards local edits and reloads

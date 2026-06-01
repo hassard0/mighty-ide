@@ -893,6 +893,12 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(sort_tabs.label, "File: Sort Open Tabs by Name");
 
+    let close_duplicates = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_DUPLICATE_TABS)
+        .unwrap();
+    assert_eq!(close_duplicates.label, "File: Close Duplicate Tabs");
+
     let reload_file = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_RELOAD_ACTIVE_FILE)
@@ -1201,6 +1207,46 @@ fn sort_tabs_by_name_preserves_active_and_split_pane_documents() {
     assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Sorted tabs by name");
 
     assert_eq!(crate::mui_tab_sort_by_name(handle), -1);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn close_duplicate_tabs_preserves_active_dirty_and_valid_panes() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_close_duplicate_tabs_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let a = root.join("a.mty");
+    let b = root.join("b.mty");
+    std::fs::write(&a, "a").unwrap();
+    std::fs::write(&b, "b").unwrap();
+    ctx.tabs.open_path(a.clone());
+    let b_idx = ctx.tabs.open_path(b);
+    let duplicate_b = ctx.tabs.duplicate_active();
+    let dirty_duplicate_b = ctx.tabs.duplicate_active();
+    ctx.tabs.set_dirty(dirty_duplicate_b, true);
+    ctx.tabs.open_path(a);
+    let duplicate_a = ctx.tabs.duplicate_active();
+    ctx.panes = crate::panes::PaneLayout::new(duplicate_a);
+    ctx.panes.split_right(dirty_duplicate_b, 0);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_tab_close_duplicate_files(handle), 1);
+    assert_eq!(ctx.tabs.count(), 4);
+    assert_eq!(ctx.tabs.active(), 1);
+    assert_eq!(ctx.panes.tab_at(0), Some(1));
+    assert_eq!(ctx.panes.tab_at(1), Some(3));
+    assert!(ctx.tabs.get(3).unwrap().is_dirty());
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Closed 2 duplicate tabs"
+    );
+
+    assert_eq!(crate::mui_tab_close_duplicate_files(handle), -1);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "No duplicate file tabs");
+    assert_eq!(ctx.tabs.get(2).unwrap().basename(), "b.mty");
+    assert_ne!(b_idx, duplicate_b);
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -2411,6 +2457,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_MOVE_ACTIVE_TAB_LEFT, "cmd_move_active_tab_left"),
         (CMD_MOVE_ACTIVE_TAB_RIGHT, "cmd_move_active_tab_right"),
         (CMD_SORT_TABS_BY_NAME, "cmd_sort_tabs_by_name"),
+        (CMD_CLOSE_DUPLICATE_TABS, "cmd_close_duplicate_tabs"),
         (CMD_RELOAD_ACTIVE_FILE, "cmd_reload_active_file"),
         (CMD_REVERT_ACTIVE_FILE, "cmd_revert_active_file"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),

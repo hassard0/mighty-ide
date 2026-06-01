@@ -3123,6 +3123,32 @@ pub extern "C" fn mui_tab_sort_by_name(handle: i64) -> i32 {
     }
 }
 
+/// Close clean duplicate file-backed tabs. Dirty duplicates are preserved.
+/// Returns the active index after compaction, or -1 when nothing was closed.
+#[no_mangle]
+pub extern "C" fn mui_tab_close_duplicate_files(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    match ctx.tabs.close_duplicate_file_tabs() {
+        Some(compaction) => {
+            ctx.panes.on_tabs_compacted(&compaction.old_to_new, ctx.tabs.count());
+            sync_active_path(ctx);
+            let active = ctx.tabs.active();
+            let noun = if compaction.removed == 1 { "tab" } else { "tabs" };
+            ctx.push_toast(
+                crate::toast::Kind::Info,
+                format!("Closed {} duplicate {noun}", compaction.removed),
+            );
+            active as i32
+        }
+        None => {
+            ctx.push_toast(crate::toast::Kind::Info, "No duplicate file tabs");
+            -1
+        }
+    }
+}
+
 /// Reload the active file-backed tab from disk. Dirty tabs are protected and
 /// require the user to save or close/discard explicitly first. Returns the
 /// active tab index after reload, or -1 when reload was refused/failed.

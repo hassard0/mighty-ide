@@ -159,6 +159,7 @@ extern c {
   fn mui_tab_move_active_left(handle: I64) -> I32
   fn mui_tab_move_active_right(handle: I64) -> I32
   fn mui_tab_sort_by_name(handle: I64) -> I32
+  fn mui_tab_close_duplicate_files(handle: I64) -> I32
   fn mui_tab_reload_active(handle: I64) -> I32
   fn mui_tab_revert_active(handle: I64) -> I32
   fn mui_tab_index_at_click(handle: I64) -> I32
@@ -663,6 +664,7 @@ fn cmd_copy_active_file_directory() -> I32 { 63 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
+fn cmd_close_duplicate_tabs() -> I32 { 67 }
 fn cmd_format_document() -> I32 { 12 }
 fn cmd_undo() -> I32 { 13 }
 fn cmd_redo() -> I32 { 14 }
@@ -3380,6 +3382,13 @@ fn main() {
           }
         } else if id == cmd_sort_tabs_by_name() {
           let a = mui_tab_sort_by_name(h)
+          if a >= 0 {
+            let _b = mui_ed_tab_switch(h, a)
+            mui_ed_undo_reset(h)
+            find_nav = false
+          }
+        } else if id == cmd_close_duplicate_tabs() {
+          let a = mui_tab_close_duplicate_files(h)
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)

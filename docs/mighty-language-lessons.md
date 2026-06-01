@@ -1329,3 +1329,13 @@ map so split panes can keep following the same documents.
   and every split-pane binding, not just the visible order.
 - **Language note:** no new gap surfaced. Mighty should continue routing one
   scalar command while the shim owns collection reordering and remap invariants.
+
+### L73. Bulk tab compaction needs an old-to-optional-new index map **[finding, P3]**
+Adding **Close Duplicate Tabs** is different from sorting: some old tabs vanish,
+so panes need an old-index to optional-new-index map. Kept tabs remap directly;
+panes that pointed at removed tabs fall back to a valid neighbor.
+
+- **IDE note:** duplicate cleanup should close only clean file-backed duplicates,
+  keeping dirty duplicates and untitled buffers so cleanup never discards work.
+- **Language note:** no new Mighty gap surfaced. The optional remap and duplicate
+  detection are collection-heavy invariants that still belong shim-side.

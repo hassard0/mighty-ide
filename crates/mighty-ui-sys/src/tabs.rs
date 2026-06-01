@@ -79,6 +79,14 @@ pub struct TabStore {
     closed: Vec<Tab>,
 }
 
+/// Result of a bulk tab close that compacts the tab list.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TabCompaction {
+    pub removed: usize,
+    /// Old-index -> new-index for kept tabs; `None` for tabs that were closed.
+    pub old_to_new: Vec<Option<usize>>,
+}
+
 impl TabStore {
     pub fn new() -> Self {
         TabStore {
@@ -220,6 +228,70 @@ impl TabStore {
         self.tabs = indexed.into_iter().map(|(_, tab)| tab).collect();
         self.active = old_to_new[old_active];
         if changed { Some(old_to_new) } else { None }
+    }
+
+    /// Close clean duplicate file-backed tabs, preserving dirty duplicates and
+    /// preferring the active tab when it is one of the duplicates.
+    pub fn close_duplicate_file_tabs(&mut self) -> Option<TabCompaction> {
+        if self.tabs.len() <= 1 {
+            self.ensure_scratch();
+            return None;
+        }
+        let old_active = self.active.min(self.tabs.len().saturating_sub(1));
+        let mut keep_for_path: Vec<(PathBuf, usize)> = Vec::new();
+        for (idx, tab) in self.tabs.iter().enumerate() {
+            let Some(path) = tab.path.clone() else {
+                continue;
+            };
+            if tab.is_dirty() {
+                continue;
+            }
+            if let Some((_, keep_idx)) = keep_for_path.iter_mut().find(|(p, _)| *p == path) {
+                if idx == old_active {
+                    *keep_idx = idx;
+                }
+            } else {
+                keep_for_path.push((path, idx));
+            }
+        }
+
+        let len = self.tabs.len();
+        let mut old_to_new = vec![None; len];
+        let mut kept: Vec<Tab> = Vec::new();
+        let mut removed_tabs: Vec<Tab> = Vec::new();
+        for (idx, tab) in self.tabs.drain(..).enumerate() {
+            let keep = if tab.is_dirty() {
+                true
+            } else if let Some(path) = tab.path.as_ref() {
+                keep_for_path
+                    .iter()
+                    .find(|(p, _)| p == path)
+                    .map(|(_, keep_idx)| *keep_idx == idx)
+                    .unwrap_or(true)
+            } else {
+                true
+            };
+            if keep {
+                old_to_new[idx] = Some(kept.len());
+                kept.push(tab);
+            } else {
+                removed_tabs.push(tab);
+            }
+        }
+
+        let removed = removed_tabs.len();
+        if removed == 0 {
+            self.tabs = kept;
+            return None;
+        }
+        self.tabs = kept;
+        self.active = old_to_new
+            .get(old_active)
+            .and_then(|v| *v)
+            .unwrap_or_else(|| old_to_new.iter().flatten().copied().next().unwrap_or(0));
+        self.ensure_scratch();
+        self.remember_closed_many(removed_tabs);
+        Some(TabCompaction { removed, old_to_new })
     }
 
     /// Set the active tab's file path (Save As on an untitled buffer binds it to a
@@ -786,6 +858,34 @@ mod tests {
         assert!(s.get(1).unwrap().basename().contains("tabs_sort_m"));
         assert!(s.get(2).unwrap().basename().contains("tabs_sort_z"));
         assert_eq!(s.sort_by_name(), None);
+    }
+
+    #[test]
+    fn close_duplicate_file_tabs_preserves_active_and_dirty_duplicates() {
+        let mut s = TabStore::new();
+        let a = write_tmp("tabs_duplicate_clean_a.txt", b"a");
+        let b = write_tmp("tabs_duplicate_clean_b.txt", b"b");
+        assert_eq!(s.open_path(a.clone()), 0);
+        let b_idx = s.open_path(b);
+
+        let duplicate_b = s.duplicate_active();
+        assert_eq!(duplicate_b, 2);
+        let dirty_duplicate_b = s.duplicate_active();
+        s.set_dirty(dirty_duplicate_b, true);
+        assert_eq!(s.open_path(a), 0);
+        let duplicate_a = s.duplicate_active();
+
+        let compaction = s.close_duplicate_file_tabs().unwrap();
+        assert_eq!(compaction.removed, 2);
+        assert_eq!(s.count(), 3);
+        assert_eq!(s.active(), 0, "active duplicate of a.txt should be preserved");
+        assert!(s.get(0).unwrap().basename().contains("tabs_duplicate_clean_a"));
+        assert!(s.get(1).unwrap().basename().contains("tabs_duplicate_clean_b"));
+        assert!(s.get(2).unwrap().is_dirty());
+        assert_eq!(s.closed_count(), 2);
+        assert_eq!(compaction.old_to_new[duplicate_a], Some(0));
+        assert_eq!(compaction.old_to_new[b_idx + 1], Some(1));
+        assert_eq!(compaction.old_to_new[duplicate_b + 1], None);
     }
 
     #[test]

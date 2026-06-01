@@ -30,6 +30,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   active tab while preserving split-pane document bindings.
 - **Sort Open Tabs by Name**: alphabetizes open tabs while preserving the active
   logical document and split-pane document bindings.
+- **Close Duplicate Tabs**: collapses clean duplicate file tabs while preserving
+  dirty duplicate buffers and split-pane bindings.
 - **Reload Active File from Disk**: refreshes clean file-backed tabs after
   external edits while refusing to overwrite dirty buffers.
 - **Revert Active File from Disk**: intentionally discards local edits and

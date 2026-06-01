@@ -217,6 +217,18 @@ impl PaneLayout {
             }
         }
     }
+
+    /// Remap pane->tab indices after a compaction that removed some tabs.
+    /// Panes pointing at removed tabs fall back to the nearest valid neighbor.
+    pub fn on_tabs_compacted(&mut self, old_to_new: &[Option<usize>], tab_count: usize) {
+        let last = tab_count.saturating_sub(1);
+        for p in &mut self.panes {
+            match old_to_new.get(p.tab).and_then(|v| *v) {
+                Some(new_idx) => p.tab = new_idx.min(last),
+                None => p.tab = p.tab.min(last),
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -376,6 +388,15 @@ mod tests {
         l.split_right(2, 0); // panes show tabs 0 and 2
         l.on_tabs_reordered(&[2, 0, 1]);
         assert_eq!(l.tab_at(0), Some(2));
+        assert_eq!(l.tab_at(1), Some(1));
+    }
+
+    #[test]
+    fn on_tabs_compacted_keeps_panes_valid() {
+        let mut l = PaneLayout::new(0);
+        l.split_right(2, 0); // panes show tabs 0 and 2
+        l.on_tabs_compacted(&[Some(0), None, Some(1)], 2);
+        assert_eq!(l.tab_at(0), Some(0));
         assert_eq!(l.tab_at(1), Some(1));
     }
 }
