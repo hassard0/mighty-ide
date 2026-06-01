@@ -219,6 +219,13 @@ unsafe fn ctx<'a>(handle: i64) -> Option<&'a mut MuiContext> {
     (handle as usize as *mut MuiContext).as_mut()
 }
 
+fn visible_surface_size(ctx: &MuiContext) -> (u32, u32) {
+    (
+        layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width),
+        layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height),
+    )
+}
+
 // ---------------------------------------------------------------------------
 // init / shutdown
 // ---------------------------------------------------------------------------
@@ -1582,7 +1589,8 @@ pub extern "C" fn mui_text_draw_line(handle: i64, line: i32, r: f32, g: f32, b: 
 pub extern "C" fn mui_visible_rows(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(1, |c| {
         let region = layout::region(c.sidebar_visible);
-        layout::visible_rows_in(region, c.gpu.height, c.bottom_dock_open()) as i32
+        let (_, visible_h) = visible_surface_size(c);
+        layout::visible_rows_in(region, visible_h, c.bottom_dock_open()) as i32
     })
 }
 
@@ -1590,15 +1598,16 @@ pub extern "C" fn mui_visible_rows(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_bottom_dock_resize_at_click(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| {
+        let (_, visible_h) = visible_surface_size(c);
         if c.bottom_dock_open()
             && c.last_event.button == crate::ffi::MUI_MOUSE_LEFT
-            && layout::dock_resize_hit(c.gpu.height, c.last_event.y)
+            && layout::dock_resize_hit(visible_h, c.last_event.y)
         {
             c.bottom_dock_resizing = true;
             trace(&format!(
                 "dock_resize start y={:.1} h={:.1}",
                 c.last_event.y,
-                layout::term_panel_height(c.gpu.height)
+                layout::term_panel_height(visible_h)
             ));
             1
         } else {
@@ -1615,7 +1624,8 @@ pub extern "C" fn mui_bottom_dock_resize_to_event_y(handle: i64) -> i32 {
         if !c.bottom_dock_open() {
             return 0;
         }
-        let h = layout::resize_dock_to_y(c.gpu.height, c.last_event.y).round() as i32;
+        let (_, visible_h) = visible_surface_size(c);
+        let h = layout::resize_dock_to_y(visible_h, c.last_event.y).round() as i32;
         trace(&format!("dock_resize drag y={:.1} h={h}", c.last_event.y));
         h
     })
@@ -1631,8 +1641,8 @@ pub extern "C" fn mui_bottom_dock_close_at_click(handle: i64) -> i32 {
     if !ctx.bottom_dock_open() {
         return 0;
     }
-    let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
-    let (x, y, w, h) = layout::dock_close_rect(visible_w, ctx.gpu.height);
+    let (visible_w, visible_h) = visible_surface_size(ctx);
+    let (x, y, w, h) = layout::dock_close_rect(visible_w, visible_h);
     let px = ctx.last_event.x;
     let py = ctx.last_event.y;
     if px < x || px > x + w || py < y || py > y + h {
@@ -1665,11 +1675,11 @@ pub extern "C" fn mui_bottom_dock_preset_at_click(handle: i64) -> i32 {
     if !ctx.bottom_dock_open() || ctx.last_event.button != crate::ffi::MUI_MOUSE_LEFT {
         return 0;
     }
-    let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let (visible_w, visible_h) = visible_surface_size(ctx);
     let px = ctx.last_event.x;
     let py = ctx.last_event.y;
     for idx in 0..3 {
-        let (x, y, w, h) = layout::dock_preset_rect(visible_w, ctx.gpu.height, idx);
+        let (x, y, w, h) = layout::dock_preset_rect(visible_w, visible_h, idx);
         if px >= x && px <= x + w && py >= y && py <= y + h {
             let (frac, label) = match idx {
                 0 => (layout::TERM_FRACTION_MIN, "Dock compact"),
@@ -1698,12 +1708,12 @@ pub extern "C" fn mui_bottom_dock_resize_draw(handle: i64) {
     }
     let region = layout::region(ctx.sidebar_visible);
     let x0 = layout::term_panel_left(region);
-    let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let (visible_w, visible_h) = visible_surface_size(ctx);
     let w = (visible_w as f32 - x0).max(0.0);
     if w < 80.0 {
         return;
     }
-    let top = layout::term_panel_top(ctx.gpu.height);
+    let top = layout::term_panel_top(visible_h);
     let band_y = top - layout::DOCK_RESIZE_H * 0.5;
     let was_clip = ctx.clip;
     let was_overlay = ctx.overlay;
@@ -1730,14 +1740,13 @@ pub extern "C" fn mui_bottom_dock_resize_draw(handle: i64) {
         1.0,
         theme::TEXT_3(),
     );
-    let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
     let preset_icons = [
         crate::icons::ARROW_DOWN,
         crate::icons::WIN_MIN,
         crate::icons::ARROW_UP,
     ];
     for (idx, icon) in preset_icons.iter().enumerate() {
-        let (px, py, pw, ph) = layout::dock_preset_rect(visible_w, ctx.gpu.height, idx);
+        let (px, py, pw, ph) = layout::dock_preset_rect(visible_w, visible_h, idx);
         ctx.dl_round(px, py, pw, ph, 6.0, theme::BG_2());
         ctx.dl_stroke(px, py, pw, ph, 6.0, theme::BORDER(), 1.0);
         ctx.dl_icon(
@@ -1751,7 +1760,7 @@ pub extern "C" fn mui_bottom_dock_resize_draw(handle: i64) {
             false,
         );
     }
-    let (cx, cy, cw, ch) = layout::dock_close_rect(visible_w, ctx.gpu.height);
+    let (cx, cy, cw, ch) = layout::dock_close_rect(visible_w, visible_h);
     ctx.dl_round(cx, cy, cw, ch, 6.0, theme::accent_a(0.18));
     ctx.dl_stroke(cx, cy, cw, ch, 6.0, theme::ACCENT(), 1.0);
     ctx.dl_icon(
@@ -2197,7 +2206,7 @@ fn update_hover_cursor(ctx: &mut MuiContext, ev: &MuiEvent) {
     let rc = crate::titlebar::resize_code(ev.x, ev.y, w, h);
     if let Some(dir) = crate::window::ResizeDir::from_code(rc) {
         host.set_cursor_resize(dir);
-    } else if ctx.bottom_dock_open() && layout::dock_resize_hit(ctx.gpu.height, ev.y) {
+    } else if ctx.bottom_dock_open() && layout::dock_resize_hit(visible_surface_size(ctx).1, ev.y) {
         host.set_cursor_row_resize();
     } else {
         host.set_cursor_default();
@@ -3669,10 +3678,8 @@ fn dirty_confirm_active(ctx: &MuiContext) -> bool {
 }
 
 fn dirty_confirm_surface_size(ctx: &MuiContext) -> (f32, f32) {
-    (
-        layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32,
-        layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height) as f32,
-    )
+    let (w, h) = visible_surface_size(ctx);
+    (w as f32, h as f32)
 }
 
 fn dirty_confirm_rects(
@@ -5353,8 +5360,8 @@ type TermRun = (f32, f32, String, (f32, f32, f32, f32));
 /// Grid dimensions for the terminal panel given the current window + sidebar.
 fn term_dims(ctx: &MuiContext) -> (usize, usize) {
     let region = layout::region(ctx.sidebar_visible);
-    let rows = layout::term_grid_rows(ctx.gpu.height);
-    let width = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let (width, height) = visible_surface_size(ctx);
+    let rows = layout::term_grid_rows(height);
     let cols = layout::term_grid_cols(width, region);
     (rows, cols)
 }
@@ -5508,8 +5515,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
     }
     let region = layout::region(ctx.sidebar_visible);
     let (panel_rows, panel_cols) = term_dims(ctx);
-    let width = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
-    let height = ctx.gpu.height;
+    let (width, height) = visible_surface_size(ctx);
     let handle_ptr = handle as usize as *mut MuiContext;
     let clip = ctx.clip;
 
@@ -11064,8 +11070,7 @@ pub extern "C" fn mui_toast_click(handle: i64) -> i32 {
         return 0;
     }
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
-    let w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
-    let h = layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height);
+    let (w, h) = visible_surface_size(ctx);
     i32::from(ctx.toasts.dismiss_at(w, h, x, y, std::time::Instant::now()))
 }
 
@@ -11079,8 +11084,7 @@ pub extern "C" fn mui_toast_draw(handle: i64) {
     if ctx.toasts.is_empty() {
         return;
     }
-    let w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
-    let h = layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height);
+    let (w, h) = visible_surface_size(ctx);
     let was_overlay = ctx.overlay;
     ctx.overlay = true;
     ctx.text.set_overlay(true);

@@ -196,6 +196,11 @@ impl Grid {
         self.cur_col = 0;
     }
 
+    fn move_cursor_1_based(&mut self, row: usize, col: usize) {
+        self.cur_row = row.saturating_sub(1).min(self.rows - 1);
+        self.cur_col = col.saturating_sub(1).min(self.cols - 1);
+    }
+
     fn tab(&mut self) {
         // Advance to the next multiple-of-8 column (classic tab stops).
         let next = ((self.cur_col / 8) + 1) * 8;
@@ -399,8 +404,10 @@ impl VtParser {
                     self.handle_dsr(grid);
                 } else if b == b'J' {
                     self.erase_display(grid);
+                } else if b == b'H' || b == b'f' {
+                    self.cursor_position(grid);
                 }
-                // All other finals (K/H/A..D/etc.) are intentionally skipped.
+                // All other finals (K/A..D/etc.) are intentionally skipped.
                 self.csi.clear();
                 self.state = State::Ground;
             }
@@ -463,6 +470,25 @@ impl VtParser {
             2 | 3 => grid.clear(),
             _ => {}
         }
+    }
+
+    fn cursor_position(&mut self, grid: &mut Grid) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        if params.starts_with('?') {
+            return;
+        }
+        let mut parts = params.split(';');
+        let row = parts
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(1);
+        let col = parts
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(1);
+        grid.move_cursor_1_based(row, col);
     }
 
     /// Answer a Device Status Report (`ESC [ Ps n`). `5n` -> "OK" (`ESC[0n`);
@@ -899,12 +925,20 @@ mod tests {
     }
 
     #[test]
-    fn cursor_position_csi_is_skipped() {
-        // ESC[5;10H (cursor move) skipped; text continues at the prior cursor.
+    fn cursor_position_csi_moves_and_clamps() {
+        // ESC[5;10H moves to a 1-based row/col and clamps to the visible grid.
         let g = grid_feed(2, 20, b"A\x1b[5;10HB");
         assert_eq!(g.cell(0, 0).ch, 'A');
-        assert_eq!(g.cell(0, 1).ch, 'B');
+        assert_eq!(g.cell(1, 9).ch, 'B');
         assert!(!g.contains("5;10H"));
+
+        // Bare H homes the cursor; empty row defaults to 1.
+        let g2 = grid_feed(2, 20, b"abc\x1b[HXY");
+        assert_eq!(g2.cell(0, 0).ch, 'X');
+        assert_eq!(g2.cell(0, 1).ch, 'Y');
+
+        let g3 = grid_feed(3, 20, b"\x1b[;4fZ");
+        assert_eq!(g3.cell(0, 3).ch, 'Z');
     }
 
     #[test]

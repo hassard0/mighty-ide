@@ -731,15 +731,19 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
         .unwrap_or_else(|e| e.into_inner());
     crate::layout::reset_dock_fraction();
     let mut ctx = ctx_or_skip!();
-    ctx.gpu.width = 1000;
-    ctx.gpu.phys_width = 1000;
-    ctx.gpu.height = 700;
-    ctx.gpu.phys_height = 700;
+    ctx.gpu.width = 1280;
+    ctx.gpu.phys_width = 1280;
+    ctx.gpu.height = 832;
+    ctx.gpu.phys_height = 832;
+    crate::uiscale::set_os_scale(1.375);
+    crate::uiscale::set_user_zoom(1.0);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(crate::featureabi::mui_run_open(handle), 1);
-    let default_h = crate::layout::term_panel_height(ctx.gpu.height).round() as i32;
-    let edge_y = crate::layout::term_panel_top(ctx.gpu.height) + 2.0;
+    let visible_w = crate::layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let visible_h = crate::layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height);
+    let default_h = crate::layout::term_panel_height(visible_h).round() as i32;
+    let edge_y = crate::layout::term_panel_top(visible_h) + 2.0;
     ctx.last_event = MuiEvent::mouse(MUI_EVENT_MOUSE_DOWN, MUI_MOUSE_LEFT, 500.0, edge_y, 0);
     assert_eq!(crate::abi::mui_bottom_dock_resize_at_click(handle), 1);
 
@@ -754,7 +758,7 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
     let rows_after_shorter = crate::abi::mui_visible_rows(handle);
     assert!(rows_after_shorter > rows_after_taller);
 
-    let (rx, ry, rw, rh) = crate::layout::dock_preset_rect(ctx.gpu.width, ctx.gpu.height, 1);
+    let (rx, ry, rw, rh) = crate::layout::dock_preset_rect(visible_w, visible_h, 1);
     ctx.last_event = MuiEvent::mouse(
         MUI_EVENT_MOUSE_DOWN,
         MUI_MOUSE_LEFT,
@@ -770,7 +774,7 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
     );
     assert!(!ctx.bottom_dock_resizing);
 
-    let (cx, cy, cw, ch) = crate::layout::dock_close_rect(ctx.gpu.width, ctx.gpu.height);
+    let (cx, cy, cw, ch) = crate::layout::dock_close_rect(visible_w, visible_h);
     ctx.last_event = MuiEvent::mouse(
         MUI_EVENT_MOUSE_DOWN,
         MUI_MOUSE_LEFT,
@@ -780,6 +784,8 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
     );
     assert_eq!(crate::abi::mui_bottom_dock_close_at_click(handle), 1);
     assert!(!ctx.bottom_dock_open());
+    crate::uiscale::set_os_scale(1.0);
+    crate::uiscale::set_user_zoom(1.0);
     crate::layout::reset_dock_fraction();
 }
 

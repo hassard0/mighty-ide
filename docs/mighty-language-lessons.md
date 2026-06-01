@@ -2058,3 +2058,26 @@ drawn partly off-screen and its click target could drift from what the user saw.
 - **Language note:** no compiler gap surfaced. This reinforces the need for a
   host-provided `visible_surface` value instead of repeated width/height scalar
   plumbing in Mighty-facing UI calls.
+
+### L129. Lower docks must share the same scaled geometry as overlays **[finding, P1]**
+The lower dock had DPI-aware width but still used raw GPU height for its resize
+band, preset/close buttons, visible editor rows, and terminal grid. Under Windows
+scaling that made the dock feel clunky: controls could render or hit-test below
+the logical mouse space.
+
+- **IDE note:** shared lower-dock and Terminal geometry now use the same visible
+  logical surface as modals and toasts.
+- **Language note:** no compiler gap surfaced. The host should expose a single
+  surface descriptor to Mighty instead of separate raw width/height and physical
+  width/height values that every feature must reconcile manually.
+
+### L130. Integrated terminals need basic cursor-addressing CSI support **[finding, P1]**
+The VT parser skipped cursor-position CSI sequences. Windows ConPTY uses those
+while painting `cmd.exe` startup output, so the prompt could appear appended to a
+previous line instead of where the terminal intended it.
+
+- **IDE note:** the Terminal parser now handles `CSI row;col H` and `CSI row;col f`
+  with 1-based coordinates and visible-grid clamping.
+- **Language note:** no compiler gap surfaced. Terminal behavior belongs in a
+  host-side subsystem until Mighty can own long-lived byte streams, parser state,
+  and structured grids comfortably across FFI.

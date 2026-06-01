@@ -385,7 +385,7 @@ pub fn dock_visible_width(width: u32, phys_width: u32) -> u32 {
 }
 
 /// Logical height available for overlay/layout affordances when DPI-scaled
-/// windows can report a raw GPU height wider than the cursor event space.
+/// windows can report a raw GPU height taller than the cursor event space.
 pub fn visible_height(height: u32, phys_height: u32) -> u32 {
     if phys_height == 0 {
         height.max(1)
