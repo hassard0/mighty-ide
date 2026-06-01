@@ -11,15 +11,26 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$Exe     = "C:\Users\ihass\mighty-ide\dist\mighty-ide-win64\mighty-ide.exe",
-  [string]$WorkDir = "C:\Users\ihass\mighty-ide\dist\mighty-ide-win64",
-  [string]$OutDir  = "C:\Users\ihass\mighty-ide\dist\gallery",
+  [string]$Exe,
+  [string]$WorkDir,
+  [string]$OutDir,
   [int]$Width = 1280,
   [int]$Height = 832,
   [string[]]$Case
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
+
+$RepoRoot = Split-Path -Parent $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($Exe)) {
+  $Exe = Join-Path $RepoRoot "dist\mighty-ide-win64\mighty-ide.exe"
+}
+if ([string]::IsNullOrWhiteSpace($WorkDir)) {
+  $WorkDir = Join-Path $RepoRoot "dist\mighty-ide-win64"
+}
+if ([string]::IsNullOrWhiteSpace($OutDir)) {
+  $OutDir = Join-Path $RepoRoot "dist\gallery"
+}
 
 function Resolve-InputPath([string]$Path) {
   if ([System.IO.Path]::IsPathRooted($Path)) {

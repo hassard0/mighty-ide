@@ -2407,3 +2407,16 @@ missing screenshots even when the app exited normally.
 - **Language note:** no compiler gap surfaced. The broader Mighty tooling need
   is a standard artifact-path convention for screenshot/test harnesses so app
   workdirs do not leak into verifier paths.
+
+### L158. Visual QA defaults should follow the repo, not one workstation **[finding, P2]**
+The overlay gallery's default executable, workdir, and output directory were
+absolute paths under the current developer profile. That worked locally, but it
+made the visual audit tool fragile for another checkout, another Windows user,
+or future CI.
+
+- **IDE note:** `tools/overlay-gallery.ps1` now derives default paths from the
+  script's repo root while preserving explicit `-Exe`, `-WorkDir`, and `-OutDir`
+  overrides. A fresh clone can run the same gallery command after packaging.
+- **Language note:** no compiler gap surfaced. Mighty tooling should prefer
+  repo-relative defaults and only resolve to absolute paths at process-launch
+  boundaries.
