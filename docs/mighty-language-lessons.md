@@ -1965,3 +1965,13 @@ right, but the human-facing labels made the file flow feel inconsistent.
 - **Language note:** no compiler gap surfaced. A future Mighty UI command API
   should let command groups own labels and dialog intent centrally instead of
   repeating prose in each registry row.
+
+### L121. Welcome quick actions should signal when a picker or prompt follows **[finding, P2]**
+Welcome already used ellipses for Open File/Open Folder, but New File/New Folder
+looked like immediate actions even though they require a destination or name.
+
+- **IDE note:** Welcome now labels New File and New Folder with ellipses, matching
+  the command palette and native-dialog/prompt behavior.
+- **Language note:** no compiler gap surfaced. This is a design-system rule:
+  action labels should encode whether the command completes immediately or asks
+  for more user input.
