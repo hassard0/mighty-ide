@@ -87,6 +87,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Debug commands**: start/continue, pause, restart, stop, step-over, step-into,
   and step-out are now command-palette and Quick-Open command-mode reachable,
   matching the function-key and toolbar controls.
+- **Search polish**: project-search preview highlights now use shaped UI-text
+  measurements instead of fixed character estimates, so highlighted matches stay
+  aligned with proportional glyphs.
 - Agents live-inspect notes now reflect the Mighty runtime's Windows named-pipe
   control endpoint work, so the IDE no longer documents Windows as static-only.
 

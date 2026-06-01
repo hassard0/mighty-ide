@@ -1175,6 +1175,32 @@ fn tail(s: &str, avail: usize) -> String {
         .collect()
 }
 
+fn truncate_head(s: &str, avail: usize) -> String {
+    if s.chars().count() <= avail || avail <= 1 {
+        return s.to_string();
+    }
+    s.chars().take(avail - 1).collect::<String>() + "\u{2026}"
+}
+
+#[cfg(test)]
+mod search_panel_tests {
+    use super::{tail, truncate_head};
+
+    #[test]
+    fn search_preview_truncates_from_head_so_match_columns_stay_stable() {
+        assert_eq!(truncate_head("abcdef", 4), "abc\u{2026}");
+        assert_eq!(truncate_head("abcdef", 1), "abcdef");
+        assert_eq!(truncate_head("abc", 4), "abc");
+    }
+
+    #[test]
+    fn search_inputs_keep_tail_when_fields_overflow() {
+        assert_eq!(tail("abcdef", 4), "def");
+        assert_eq!(tail("abcdef", 1), "abcdef");
+        assert_eq!(tail("abc", 4), "abc");
+    }
+}
+
 /// Draw the Search panel (query + replace inputs, then results grouped by file
 /// with per-match `line: preview` rows and the matched span highlighted in
 /// indigo). No-op when the sidebar is hidden or this panel isn't active.
@@ -1299,17 +1325,23 @@ pub extern "C" fn mui_search_draw(handle: i64) {
             ctx.text.queue_ui_sized(sx + 30.0, y + (row_h - chrome) * 0.5 - 1.0, &ln, theme::TEXT_4(), chrome - 1.0, clip);
             let preview_x = sx + 30.0 + (ln.chars().count() as f32) * adv + 8.0;
             let rel_col = col - trimmed_off;
-            if rel_col >= 0 && needle_len > 0 {
-                let hx = preview_x + (rel_col as f32) * adv;
-                let hw = (needle_len as f32) * adv;
-                if hx < sx + sw - 12.0 {
-                    ctx.dl_round(hx - 1.0, y + 2.0, hw + 2.0, row_h - 5.0, 3.0, theme::SELECTION());
-                }
-            }
             let pavail = (((sx + sw - 14.0) - preview_x) / adv).floor() as usize;
-            let mut pv = trimmed.to_string();
-            if pv.chars().count() > pavail && pavail > 1 {
-                pv = pv.chars().take(pavail - 1).collect::<String>() + "\u{2026}";
+            let pv = truncate_head(trimmed, pavail);
+            if rel_col >= 0 && needle_len > 0 {
+                let start = rel_col as usize;
+                let pv_chars = pv.chars().count();
+                if start < pv_chars {
+                    let take = (needle_len as usize).min(pv_chars.saturating_sub(start));
+                    let prefix = pv.chars().take(start).collect::<String>();
+                    let matched = pv.chars().skip(start).take(take).collect::<String>();
+                    let (prefix_w, _) = ctx.text.measure_ui_sized(&prefix, chrome);
+                    let (match_w, _) = ctx.text.measure_ui_sized(&matched, chrome);
+                    let hx = preview_x + prefix_w;
+                    if hx < sx + sw - 12.0 {
+                        let hw = match_w.max(2.0);
+                        ctx.dl_round(hx - 1.0, y + 2.0, hw + 2.0, row_h - 5.0, 3.0, theme::SELECTION());
+                    }
+                }
             }
             ctx.text.queue_ui_sized(preview_x, y + (row_h - chrome) * 0.5 - 1.0, &pv, theme::TEXT_1(), chrome, clip);
             visual += 1;
