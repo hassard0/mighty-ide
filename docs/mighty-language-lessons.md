@@ -2194,3 +2194,18 @@ count in a short window.
 - **Language note:** no compiler gap surfaced. Mighty needs a shared list-modal
   layout helper that computes visible rows, scroll top, and footer-safe card
   bounds consistently across Palette, Quick Open, Shortcuts, and Settings.
+
+### L141. Rendered preview wrapping must be conservative **[finding, P2]**
+The Markdown preview looked fine at desktop size, but at 860x560 the split pane
+was narrow enough for a large H1 to clip horizontally. The wrapper estimated text
+too optimistically for large shaped UI glyphs.
+
+- **IDE note:** Markdown preview now uses a more conservative proportional-width
+  estimate, includes inline-code chip padding in wrap width, and clamps preview
+  layout to the visible window width before wrapping. Narrow preview panes also
+  use a tighter content column so body text wraps before it reaches the surface
+  edge, and italic inline spans now advance with the same font path used to draw
+  them so adjacent words do not collide.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a measured text
+  layout API usable from pure layout code so wrapping can use real glyph metrics
+  instead of host-side approximations.

@@ -10148,9 +10148,10 @@ fn draw_md_preview_pane(
         .map(|m| m.as_text())
         .unwrap_or_default();
     let win_h = ctx.gpu.height as f32;
+    let win_w = ctx.gpu.width as f32;
     // Move the preview state out so we can borrow `ctx` mutably for drawing.
     let mut preview = std::mem::take(&mut ctx.md_preview);
-    preview.draw(ctx, &source, region, x_right, win_h);
+    preview.draw(ctx, &source, region, x_right, win_w, win_h);
     ctx.md_preview = preview;
 }
 

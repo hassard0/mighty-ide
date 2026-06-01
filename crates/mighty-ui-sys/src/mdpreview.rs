@@ -85,9 +85,10 @@ impl MdPreview {
 
     /// Render the markdown of `source` into the pane column `region`..`x_right`
     /// (clipped to the window), styled to the active theme. Sets `content_h` so a
-    /// later scroll can clamp. `win_h` is the window height (the column runs from
-    /// the pane top to just above the status bar).
-    pub fn draw(&mut self, ctx: &mut MuiContext, source: &str, region: Region, x_right: f32, win_h: f32) {
+    /// later scroll can clamp. `win_w`/`win_h` are the visible window dimensions;
+    /// the pane column is clamped to `win_w` before wrapping so text layout never
+    /// targets pixels that the OS surface will clip away.
+    pub fn draw(&mut self, ctx: &mut MuiContext, source: &str, region: Region, x_right: f32, win_w: f32, win_h: f32) {
         let blocks = markdown::parse(source);
         let left = region.left;
         let top = region.top;
@@ -96,7 +97,8 @@ impl MdPreview {
 
         // Opaque field background covering the column (so editor text never shows
         // through), then a header band labeling the preview.
-        let col_w = (x_right - left).max(0.0);
+        let visible_right = x_right.min(win_w);
+        let col_w = (visible_right - left).max(0.0);
         ctx.dl_rect(left, top, col_w, field_h, theme::BG_1());
 
         let head_h = 28.0_f32;
@@ -118,8 +120,9 @@ impl MdPreview {
 
         // Content column geometry. We lay blocks out at a running y that starts
         // below the header minus the scroll offset; the clip hides off-screen rows.
-        let content_left = left + MARGIN_X;
-        let content_w = (col_w - 2.0 * MARGIN_X).max(40.0);
+        let margin_x = if col_w < 280.0 { 40.0 } else { MARGIN_X };
+        let content_left = left + margin_x;
+        let content_w = (col_w - 2.0 * margin_x).max(40.0);
         let mut painter = Painter {
             ctx,
             clip,
@@ -152,10 +155,12 @@ struct Painter<'a> {
 const BODY_SIZE: f32 = 14.5;
 /// Body line height (px) — comfortable leading.
 const BODY_LH: f32 = 22.0;
-/// Approximate proportional advance per char for the UI font at a given size,
-/// used for word-wrap width estimation (Bricolage is ~0.52em average).
+/// Conservative proportional advance per char for the UI font at a given size,
+/// used for word-wrap width estimation. Headings use the same estimator, so it
+/// intentionally overestimates a little to avoid narrow preview panes clipping
+/// real shaped glyphs.
 fn ui_advance(size: f32) -> f32 {
-    size * 0.52
+    size * 0.62
 }
 
 impl Painter<'_> {
@@ -432,8 +437,8 @@ impl Painter<'_> {
             // the code family's TRUE italic face (a genuine slant, never faux).
             let bold = base_bold || matches!(piece.kind, PieceKind::Bold);
             let italic = matches!(piece.kind, PieceKind::Italic);
-            let adv = ui_draw_advance(self.ctx, &piece.text, size);
             if italic && !bold {
+                let adv = code_draw_advance(&piece.text, size);
                 self.ctx.text.queue_styled(
                     px,
                     y,
@@ -443,16 +448,21 @@ impl Painter<'_> {
                     crate::vello_ui::FontStyle::Italic,
                     self.clip,
                 );
+                if matches!(piece.kind, PieceKind::Strike) {
+                    self.ctx.dl_rect(px, y + size * 0.5, adv, 1.0, theme::DIM());
+                }
+                px += adv;
             } else {
+                let adv = ui_draw_advance(self.ctx, &piece.text, size);
                 let style = crate::vello_ui::FontStyle::default().with(bold, italic);
                 self.ctx
                     .text
                     .queue_ui_styled(px, y, &piece.text, color, size, style, self.clip);
+                if matches!(piece.kind, PieceKind::Strike) {
+                    self.ctx.dl_rect(px, y + size * 0.5, adv, 1.0, theme::DIM());
+                }
+                px += adv;
             }
-            if matches!(piece.kind, PieceKind::Strike) {
-                self.ctx.dl_rect(px, y + size * 0.5, adv, 1.0, theme::DIM());
-            }
-            px += adv;
         }
     }
 }
@@ -462,12 +472,27 @@ fn ui_draw_advance(ctx: &mut MuiContext, text: &str, size: f32) -> f32 {
     ctx.text.measure_ui_sized(text, size).0 + trailing_spaces as f32 * size * 0.34
 }
 
+fn code_draw_advance(text: &str, size: f32) -> f32 {
+    text.chars().count() as f32 * crate::layout::CHAR_W() * (size / crate::theme::FONT_SIZE())
+}
+
 /// Per-char advance estimate for a piece at `size` (mono for code, proportional
 /// otherwise).
 fn piece_advance(piece: &Piece, size: f32) -> f32 {
     match piece.kind {
         PieceKind::Code => crate::layout::CHAR_W() * (size / crate::theme::FONT_SIZE()),
         _ => ui_advance(size),
+    }
+}
+
+/// Full estimated width for a piece. Inline code draws as a padded chip, so its
+/// wrap width must include the chip padding rather than only the text advance.
+fn piece_width(piece: &Piece, size: f32) -> f32 {
+    let text_w = piece.text.chars().count() as f32 * piece_advance(piece, size);
+    if matches!(piece.kind, PieceKind::Code) {
+        text_w + 10.0
+    } else {
+        text_w
     }
 }
 
@@ -538,14 +563,15 @@ fn wrap_spans(spans: &[Span], width: f32, size: f32, bold: bool) -> Vec<Vec<Piec
     let mut cur: Vec<Piece> = Vec::new();
     let mut cur_w = 0.0f32;
     for p in pieces {
-        let w = p.text.chars().count() as f32 * piece_advance(&p, size);
+        let w = piece_width(&p, size);
         if cur_w + w > width && !cur.is_empty() {
             lines.push(std::mem::take(&mut cur));
             cur_w = 0.0;
             // Drop a leading space on the wrapped line.
             let trimmed = p.text.trim_start().to_string();
-            let w2 = trimmed.chars().count() as f32 * piece_advance(&p, size);
-            cur.push(Piece { text: trimmed, kind: p.kind });
+            let trimmed_piece = Piece { text: trimmed, kind: p.kind };
+            let w2 = piece_width(&trimmed_piece, size);
+            cur.push(trimmed_piece);
             cur_w += w2;
         } else {
             cur_w += w;
@@ -585,6 +611,26 @@ mod tests {
         // A very wide column fits everything on one line.
         let wide = wrap_spans(&spans, 10_000.0, BODY_SIZE, false);
         assert_eq!(wide.len(), 1);
+    }
+
+    #[test]
+    fn heading_wrap_is_conservative_for_narrow_preview_panes() {
+        let spans = markdown::parse_inline("Markdown Preview");
+        let lines = wrap_spans(&spans, 230.0, 26.0, true);
+        assert!(
+            lines.len() > 1,
+            "large headings should wrap before they clip in narrow split panes"
+        );
+    }
+
+    #[test]
+    fn inline_code_wrap_includes_chip_padding() {
+        let spans = markdown::parse_inline("It supports `inline code` chips");
+        let lines = wrap_spans(&spans, 185.0, BODY_SIZE, false);
+        assert!(
+            lines.len() > 1,
+            "inline code chips should wrap before their padded background clips"
+        );
     }
 
     #[test]
