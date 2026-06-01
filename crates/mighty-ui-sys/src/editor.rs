@@ -124,10 +124,12 @@ impl TextModel {
         TextModel::default()
     }
 
-    /// Build a model from raw file bytes (UTF-8 lossy), splitting on `\n` and
-    /// stripping a trailing `\r` per line (so CRLF files load cleanly). The
-    /// cursor/scroll reset to the top and the model is marked clean.
+    /// Build a model from raw file bytes (UTF-8 lossy), stripping a leading
+    /// UTF-8 BOM when present, splitting on `\n`, and stripping a trailing `\r`
+    /// per line (so CRLF files load cleanly). The cursor/scroll reset to the top
+    /// and the model is marked clean.
     pub fn from_bytes(bytes: &[u8]) -> Self {
+        let bytes = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes);
         let text = String::from_utf8_lossy(bytes);
         let mut lines: Vec<String> = text
             .split('\n')
@@ -1828,6 +1830,14 @@ mod tests {
         // from_bytes on "a\n" yields ["a",""] -> to_bytes "a\n". So a trailing
         // newline survives as an empty final line.
         assert_eq!(String::from_utf8(m.to_bytes()).unwrap(), src);
+    }
+
+    #[test]
+    fn strips_utf8_bom_on_load() {
+        let m = TextModel::from_bytes(b"\xEF\xBB\xBFopened\nzz");
+        assert_eq!(m.line(0), "opened");
+        assert_eq!(m.line(1), "zz");
+        assert_eq!(String::from_utf8(m.to_bytes()).unwrap(), "opened\nzz");
     }
 
     #[test]

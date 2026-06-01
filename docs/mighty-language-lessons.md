@@ -3036,3 +3036,17 @@ the active dialog.
   overlay manager with priority/exclusivity semantics so transient feedback,
   modals, panels, and popovers do not each hand-roll draw order and hit-test
   suppression.
+
+### L204. Text file decoding must normalize UTF-8 BOMs at load boundaries **[finding, P1]**
+The real-mouse Markdown preview capture showed a stray first glyph before the
+opened file's text. The repro was a normal Windows-created UTF-8 file with a BOM;
+the editor loaded the BOM into the first line, so the source pane and Markdown
+preview both rendered it as visible document content.
+
+- **IDE note:** `TextModel::from_bytes` now strips a leading UTF-8 BOM before
+  splitting lines. This fixes opened tabs, reloads, code-action reloads, and live
+  Markdown preview source because they all flow through the same text-model
+  boundary.
+- **Language note:** no compiler gap surfaced. Mighty's standard/file APIs should
+  eventually make text-vs-byte reads explicit and provide a BOM-normalizing text
+  read helper so tools do not re-learn Windows encoding edge cases.
