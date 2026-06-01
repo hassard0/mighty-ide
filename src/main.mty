@@ -3514,7 +3514,6 @@ fn main() {
           web_focus = false
           test_focus = false
         } else if id == cmd_view_problems() {
-          let _pr = mui_problems_refresh(h)
           let _po = mui_problems_open(h)
         } else if id == cmd_view_ai_copilot() {
           let _ai = mui_ai_show(h)
