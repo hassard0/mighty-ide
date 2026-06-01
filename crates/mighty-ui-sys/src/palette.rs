@@ -185,6 +185,8 @@ pub const CMD_VIEW_PROBLEMS: u32 = 78;
 pub const CMD_VIEW_AI_COPILOT: u32 = 79;
 /// Open the integrated terminal.
 pub const CMD_VIEW_TERMINAL: u32 = 80;
+/// Open the Web Playground output panel.
+pub const CMD_VIEW_WEB_PLAYGROUND: u32 = 81;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -257,6 +259,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_VIEW_PROBLEMS,    label: "View: Problems",      keybinding: "" },
     Command { id: CMD_VIEW_AI_COPILOT,  label: "View: AI Copilot",    keybinding: "Ctrl+Shift+A" },
     Command { id: CMD_VIEW_TERMINAL,    label: "View: Terminal",      keybinding: "Ctrl+`" },
+    Command { id: CMD_VIEW_WEB_PLAYGROUND, label: "View: Web Playground", keybinding: "" },
     Command { id: CMD_RUN_IN_BROWSER,   label: "Mighty: Run in Browser", keybinding: "Alt+W" },
     Command { id: CMD_SPLIT_RIGHT,      label: "Split Editor Right", keybinding: "Ctrl+\\" },
     Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
@@ -580,6 +583,7 @@ impl PaletteEngine {
             CMD_VIEW_PROBLEMS => (icons::ERROR_CIRCLE, "Open diagnostics and build problems", false),
             CMD_VIEW_AI_COPILOT => (icons::AGENTS, "Open the AI copilot panel", false),
             CMD_VIEW_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
+            CMD_VIEW_WEB_PLAYGROUND => (icons::GLOBE, "Open the Web Playground output panel", false),
             CMD_RUN_IN_BROWSER => (icons::GLOBE, "Build and serve the active Mighty file for the browser", false),
             CMD_SPLIT_RIGHT => (icons::TEST_BOX, "Split the editor into side-by-side panes", false),
             CMD_FOCUS_NEXT_PANE => (icons::CHEVRON, "Move focus between editor panes", false),

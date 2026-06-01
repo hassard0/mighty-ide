@@ -1397,3 +1397,15 @@ toggle.
   target surface; "Toggle" is reserved for controls that may close it.
 - **Language note:** no new language gap surfaced. This reuses the existing
   scalar terminal ABI and only adds a Mighty command-id mirror.
+
+### L79. Shared bottom docks must be mutually exclusive **[finding, P2]**
+Run Output, Web Playground, and Problems all draw in the same lower band. Adding
+`View: Web Playground` exposed that some open paths only closed Run, leaving
+room for overlapping bottom docks. The open/toggle ABIs now make the dock
+contract explicit: opening Run closes Web and Problems, opening Web closes Run
+and Problems, and opening Problems closes Run and Web.
+
+- **IDE note:** every command-palette "View:" command should recover a coherent
+  layout, not just flip one flag. Shared regions need one owner at a time.
+- **Language note:** no new Mighty gap surfaced. The exclusivity policy belongs
+  shim-side because the shim owns the dock states and draw order.

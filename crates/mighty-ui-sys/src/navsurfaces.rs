@@ -230,7 +230,8 @@ pub extern "C" fn mui_problems_refresh(handle: i64) -> i32 {
 }
 
 /// Toggle the Problems panel open/closed. Opening it also closes the Run panel
-/// (they share the bottom band). Returns `1` if now open, else `0`.
+/// and Web Playground (they share the bottom band). Returns `1` if now open,
+/// else `0`.
 #[no_mangle]
 pub extern "C" fn mui_problems_toggle(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -239,6 +240,7 @@ pub extern "C" fn mui_problems_toggle(handle: i64) -> i32 {
     let open = ctx.problems.toggle();
     if open {
         ctx.run.close();
+        ctx.web.close();
     }
     if open {
         1
@@ -258,6 +260,7 @@ pub extern "C" fn mui_problems_open(handle: i64) -> i32 {
     let _ = ctx.problems.refresh(&paths);
     ctx.problems.set_open(true);
     ctx.run.close();
+    ctx.web.close();
     1
 }
 

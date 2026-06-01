@@ -41,8 +41,12 @@ pub extern "C" fn mui_run_start(handle: i64) -> i32 {
     };
     let Some(path) = active_path(ctx) else {
         ctx.run.open();
+        ctx.web.close();
+        ctx.problems.set_open(false);
         return 0;
     };
+    ctx.web.close();
+    ctx.problems.set_open(false);
     if ctx.run.start(&path) {
         println!("run: started `mty run {}`", path.display());
         1
@@ -74,6 +78,8 @@ pub extern "C" fn mui_run_open(handle: i64) -> i32 {
         return 0;
     };
     ctx.run.open();
+    ctx.web.close();
+    ctx.problems.set_open(false);
     1
 }
 

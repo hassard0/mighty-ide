@@ -47,11 +47,14 @@ pub extern "C" fn mui_web_run(handle: i64) -> i32 {
     };
     let Some(path) = active_path(ctx) else {
         ctx.web.open();
+        ctx.run.close();
+        ctx.problems.set_open(false);
         ctx.push_toast(crate::toast::Kind::Warn, "Run in Browser: no active file");
         return 0;
     };
     // Only one bottom-band panel visible at a time.
     ctx.run.close();
+    ctx.problems.set_open(false);
     let ok = ctx.web.start(&path, web_port());
     let mode = match ctx.web.mode() {
         Mode::Serve => "mty serve",
@@ -81,7 +84,28 @@ pub extern "C" fn mui_web_stop(handle: i64) {
 /// Toggle the Web panel open/closed. Returns `1` if now open, `0` if closed.
 #[no_mangle]
 pub extern "C" fn mui_web_toggle(handle: i64) -> i32 {
-    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.web.toggle()))
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let open = ctx.web.toggle();
+    if open {
+        ctx.run.close();
+        ctx.problems.set_open(false);
+    }
+    i32::from(open)
+}
+
+/// Open the Web Playground output panel without starting a build/server.
+/// Returns `1` when the panel is visible.
+#[no_mangle]
+pub extern "C" fn mui_web_open(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.web.open();
+    ctx.run.close();
+    ctx.problems.set_open(false);
+    1
 }
 
 /// `1` if the Web panel is open, else `0`.

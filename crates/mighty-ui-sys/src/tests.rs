@@ -548,6 +548,19 @@ fn view_commands_open_non_sidebar_surfaces_without_toggling() {
     assert_eq!(crate::featureabi::mui_run_open(handle), 1);
     assert_eq!(crate::featureabi::mui_run_active(handle), 1);
 
+    assert_eq!(crate::webabi::mui_web_open(handle), 1);
+    assert_eq!(crate::webabi::mui_web_active(handle), 1);
+    assert_eq!(crate::featureabi::mui_run_active(handle), 0);
+    assert_eq!(crate::webabi::mui_web_open(handle), 1);
+    assert_eq!(crate::webabi::mui_web_active(handle), 1);
+
+    assert_eq!(crate::navsurfaces::mui_problems_open(handle), 1);
+    assert_eq!(crate::navsurfaces::mui_problems_is_open(handle), 1);
+    assert_eq!(crate::webabi::mui_web_active(handle), 0);
+    assert_eq!(crate::featureabi::mui_run_open(handle), 1);
+    assert_eq!(crate::featureabi::mui_run_active(handle), 1);
+    assert_eq!(crate::navsurfaces::mui_problems_is_open(handle), 0);
+
     assert_eq!(crate::panels::mui_ai_show(handle), 1);
     assert_eq!(crate::panels::mui_ai_is_open(handle), 1);
     assert_eq!(crate::panels::mui_ai_show(handle), 1);
@@ -956,6 +969,7 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_VIEW_PROBLEMS, "View: Problems"),
         (crate::palette::CMD_VIEW_AI_COPILOT, "View: AI Copilot"),
         (crate::palette::CMD_VIEW_TERMINAL, "View: Terminal"),
+        (crate::palette::CMD_VIEW_WEB_PLAYGROUND, "View: Web Playground"),
     ];
     for (id, label) in view_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
@@ -2600,6 +2614,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_VIEW_PROBLEMS, "cmd_view_problems"),
         (CMD_VIEW_AI_COPILOT, "cmd_view_ai_copilot"),
         (CMD_VIEW_TERMINAL, "cmd_view_terminal"),
+        (CMD_VIEW_WEB_PLAYGROUND, "cmd_view_web_playground"),
         (CMD_RELOAD_ACTIVE_FILE, "cmd_reload_active_file"),
         (CMD_REVERT_ACTIVE_FILE, "cmd_revert_active_file"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),
