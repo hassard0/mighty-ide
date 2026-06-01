@@ -181,6 +181,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **AI Copilot code and composer are clearer**: generated code blocks now wrap
   with indented continuation lines, and the bottom composer has stronger chrome
   so the chat panel does not read as a static transcript.
+- **Windows UX harness has a strict real-mouse mode**: click and drag checks now
+  try to foreground the actual IDE window, move the OS cursor, and use
+  `SendInput`; automated sessions that cannot take foreground ownership fall
+  back explicitly, while `-StrictRealMouse` fails instead of hiding that gap.
 - **Markdown Preview is visibly closable**: the rendered preview pane now has a
   header close button that collapses the split preview through the same pane
   machinery as the command route.

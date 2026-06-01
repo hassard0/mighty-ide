@@ -2634,3 +2634,23 @@ static answer instead of an interactive chat surface.
 - **Language note:** no compiler gap surfaced. Mighty UI needs a reusable rich
   text/code layout primitive for chat, markdown, and diagnostics so line wrapping
   can preserve semantic indentation instead of relying on plain word wrapping.
+
+### L174. Mouse-driven QA must use the same input path as humans **[finding, P1]**
+The Windows harness described itself as human-style testing, but its click and
+drag helper posted mouse messages directly to the IDE window. That is useful for
+isolating app event handlers, but it can bypass foreground focus, real cursor
+position, DPI conversion, modal ownership, and OS chrome behaviour. Those are
+exactly the classes of bugs that make an IDE feel broken even when unit tests
+and offscreen captures pass.
+
+- **IDE note:** the harness click and drag paths now try to foreground the real
+  IDE window, move the OS cursor, and use `SendInput` for mouse down/up.
+  Automated sessions that cannot take foreground ownership fall back explicitly,
+  while `-StrictRealMouse` fails instead of hiding the gap. File buttons,
+  command-palette row clicks, tab close targets, visible modal close buttons,
+  and bottom-dock resizing can now be run in a true human-input mode from an
+  interactive desktop.
+- **Language note:** no compiler gap surfaced. Mighty needs a first-class
+  interaction test fixture API so scenario tests can ask for semantic targets
+  like `new-file-button` or `bottom-dock-resize-handle` instead of duplicating
+  pixel geometry in PowerShell.

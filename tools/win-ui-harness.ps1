@@ -30,7 +30,8 @@ param(
   [string]$OutDir  = "C:\Users\ihass\mighty-ide\dist\harness",
   [int]$LaunchWaitMs = 2500,
   [switch]$NoCapture,
-  [switch]$CaptureSmokeOnly
+  [switch]$CaptureSmokeOnly,
+  [switch]$StrictRealMouse
 )
 
 $ErrorActionPreference = 'Stop'
@@ -61,6 +62,8 @@ public static class Win {
     [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
     [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr ctx);
+    [DllImport("user32.dll")] public static extern void SwitchToThisWindow(IntPtr h, bool altTab);
+    [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
     // Make THIS process per-monitor-DPI-aware (V2) so GetWindowRect + screen capture
     // use true physical pixels that match the DPI-aware IDE's surface. Without this,
@@ -80,10 +83,13 @@ public static class Win {
         // (defeats the foreground lock without synthetic Alt/Alt-Tab, which were
         // disruptive). Combined with AttachThreadInput + a TOPMOST bounce.
         IntPtr fg = GetForegroundWindow();
-        uint dummy;
+        uint dummy, targetPid;
         uint fgTid = GetWindowThreadProcessId(fg, out dummy);
+        uint targetTid = GetWindowThreadProcessId(h, out targetPid);
         uint myTid = GetCurrentThreadId();
         bool attached = (fgTid != 0 && fgTid != myTid && AttachThreadInput(myTid, fgTid, true));
+        bool targetAttached = (targetTid != 0 && targetTid != myTid && AttachThreadInput(myTid, targetTid, true));
+        bool fgTargetAttached = (fgTid != 0 && targetTid != 0 && fgTid != targetTid && AttachThreadInput(fgTid, targetTid, true));
         if (GetForegroundWindow() != h) {
             ShowWindow(h, 6); // SW_MINIMIZE
             ShowWindow(h, 9); // SW_RESTORE  (re-activates)
@@ -92,6 +98,19 @@ public static class Win {
         SetWindowPos(h, (IntPtr)(-2), 0, 0, 0, 0, 0x1 | 0x2 | 0x40); // HWND_NOTOPMOST
         BringWindowToTop(h);
         SetForegroundWindow(h);
+        if (GetForegroundWindow() != h) {
+            // Brief Alt tap is the standard foreground-lock escape hatch for
+            // automation in an interactive desktop session.
+            keybd_event(0x12, 0, 0, UIntPtr.Zero);      // VK_MENU down
+            keybd_event(0x12, 0, 0x0002, UIntPtr.Zero); // KEYEVENTF_KEYUP
+            SetForegroundWindow(h);
+        }
+        if (GetForegroundWindow() != h) {
+            SwitchToThisWindow(h, true);
+            SetForegroundWindow(h);
+        }
+        if (fgTargetAttached) AttachThreadInput(fgTid, targetTid, false);
+        if (targetAttached) AttachThreadInput(myTid, targetTid, false);
         if (attached) AttachThreadInput(myTid, fgTid, false);
         return GetForegroundWindow() == h;
     }
@@ -257,14 +276,46 @@ function Is-Responsive($h, $timeoutMs = 1200) {
 }
 
 function Click($h, $relX, $relY) {
-  # relX/relY are CLIENT (window-relative) pixels. We PostMessage directly to the
-  # window so input is delivered regardless of OS foreground/focus (the previous
-  # SendInput approach silently lost every event to the foreground-locked terminal).
+  # relX/relY are CLIENT (window-relative) physical pixels. Use the real OS
+  # cursor and SendInput so this catches the same foreground, DPI, and chrome
+  # problems a person would hit with a mouse.
+  $fg = $false
+  for ($i = 0; $i -lt 3; $i++) {
+    $fg = [Win]::ForceForeground($h)
+    if ($fg) { break }
+    Start-Sleep -Milliseconds 80
+  }
+  if (-not $fg) {
+    if ($StrictRealMouse) {
+      Log "click: FAILED to foreground window before mouse input"
+      $script:HarnessFailed = $true
+    } else {
+      Log "click: foreground unavailable; falling back to PostMessage at client ($relX,$relY)"
+      Post-Click $h $relX $relY
+      return
+    }
+  }
+  $r = Get-WinRect $h
+  [void][Win]::SetCursorPos($r.Left + $relX, $r.Top + $relY)
+  Start-Sleep -Milliseconds 35
+  Send-MouseEvent ([Win]::MOUSEEVENTF_LEFTDOWN)
+  Start-Sleep -Milliseconds 55
+  Send-MouseEvent ([Win]::MOUSEEVENTF_LEFTUP)
+  Log "click (SendInput) at client ($relX,$relY)"
+}
+
+function Post-Click($h, $relX, $relY) {
   $lp = [Win]::MouseLParam($relX, $relY)
   [void][Win]::PostMessage($h, [Win]::WM_MOUSEMOVE,   [IntPtr][Win]::MK_LBUTTON, $lp); Start-Sleep -Milliseconds 20
   [void][Win]::PostMessage($h, [Win]::WM_LBUTTONDOWN, [IntPtr][Win]::MK_LBUTTON, $lp); Start-Sleep -Milliseconds 40
   [void][Win]::PostMessage($h, [Win]::WM_LBUTTONUP,   [IntPtr]0,                 $lp)
-  Log "click (PostMessage) at client ($relX,$relY)"
+}
+
+function Send-MouseEvent($flags) {
+  $input = New-Object Win+INPUT
+  $input.type = [Win]::INPUT_MOUSE
+  $input.U.mi.dwFlags = [uint32]$flags
+  [void][Win]::SendInput(1, [Win+INPUT[]]@($input), [Win]::InputSize())
 }
 
 function Press-VK($h, $vk) {
@@ -356,6 +407,38 @@ function DragL($lx1, $ly1, $lx2, $ly2) {
   $y1 = [int][math]::Round($ly1 * $scale)
   $x2 = [int][math]::Round($lx2 * $scale)
   $y2 = [int][math]::Round($ly2 * $scale)
+  $fg = $false
+  for ($attempt = 0; $attempt -lt 3; $attempt++) {
+    $fg = [Win]::ForceForeground($hwnd)
+    if ($fg) { break }
+    Start-Sleep -Milliseconds 80
+  }
+  if (-not $fg) {
+    if ($StrictRealMouse) {
+      Log "drag: FAILED to foreground window before mouse input"
+      $script:HarnessFailed = $true
+    } else {
+      Log "drag: foreground unavailable; falling back to PostMessage from logical ($lx1,$ly1) to ($lx2,$ly2)"
+      Post-Drag $x1 $y1 $x2 $y2
+      return
+    }
+  }
+  $r = Get-WinRect $hwnd
+  [void][Win]::SetCursorPos($r.Left + $x1, $r.Top + $y1)
+  Start-Sleep -Milliseconds 45
+  Send-MouseEvent ([Win]::MOUSEEVENTF_LEFTDOWN)
+  Start-Sleep -Milliseconds 80
+  for ($i = 1; $i -le 5; $i++) {
+    $x = [int][math]::Round($x1 + (($x2 - $x1) * $i / 5.0))
+    $y = [int][math]::Round($y1 + (($y2 - $y1) * $i / 5.0))
+    [void][Win]::SetCursorPos($r.Left + $x, $r.Top + $y)
+    Start-Sleep -Milliseconds 70
+  }
+  Send-MouseEvent ([Win]::MOUSEEVENTF_LEFTUP)
+  Log "drag (SendInput) from logical ($lx1,$ly1) to ($lx2,$ly2)"
+}
+
+function Post-Drag($x1, $y1, $x2, $y2) {
   $lp1 = [Win]::MouseLParam($x1, $y1)
   [void][Win]::PostMessage($hwnd, [Win]::WM_MOUSEMOVE,   [IntPtr]0,                 $lp1); Start-Sleep -Milliseconds 30
   [void][Win]::PostMessage($hwnd, [Win]::WM_LBUTTONDOWN, [IntPtr][Win]::MK_LBUTTON, $lp1); Start-Sleep -Milliseconds 60
@@ -368,7 +451,6 @@ function DragL($lx1, $ly1, $lx2, $ly2) {
   }
   $lp2 = [Win]::MouseLParam($x2, $y2)
   [void][Win]::PostMessage($hwnd, [Win]::WM_LBUTTONUP, [IntPtr]0, $lp2)
-  Log "drag (PostMessage) from logical ($lx1,$ly1) to ($lx2,$ly2)"
 }
 $logicalW = [double]$script:WinW / [double]$scale
 $logicalH = [double]$script:WinH / [double]$scale
