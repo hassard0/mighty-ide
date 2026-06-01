@@ -58,6 +58,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 ### Typography
 - **Real bold/italic font faces**, used semantically — italic comments, bold
   headings and chrome — rather than synthesized slants.
+- **Measured breadcrumb text**: folder, file, and symbol segments now advance
+  from shaped UI-font widths, keeping separators and dropdown hit-targets aligned
+  on long or mixed-width names.
 
 ### Markdown
 - **Live Markdown preview** (`Ctrl+Shift+V`): a themed, live-updating split-pane

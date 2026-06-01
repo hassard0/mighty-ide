@@ -399,7 +399,7 @@ pub extern "C" fn mui_problems_draw(handle: i64) {
 // ===========================================================================
 
 /// Build the [`CrumbLayout`] that reproduces the breadcrumb's segment x-math.
-fn crumb_layout(ctx: &MuiContext) -> CrumbLayout {
+fn crumb_layout(ctx: &mut MuiContext) -> CrumbLayout {
     let left = layout::body_left(ctx.sidebar_visible);
     let chrome = crate::theme::CHROME_FONT_SIZE;
     let folder = ctx
@@ -414,12 +414,14 @@ fn crumb_layout(ctx: &MuiContext) -> CrumbLayout {
         ctx.file_name.clone()
     };
     let symbol = current_symbol_name(ctx);
+    let (folder_w, _) = ctx.text.measure_ui_sized(&folder, chrome);
+    let (file_w, _) = ctx.text.measure_ui_sized(&file, chrome);
+    let (symbol_w, _) = ctx.text.measure_ui_sized(&symbol, chrome);
     CrumbLayout {
         left,
-        advance: chrome * 0.54,
-        folder_chars: folder.chars().count(),
-        file_chars: file.chars().count(),
-        symbol_chars: symbol.chars().count(),
+        folder_w,
+        file_w,
+        symbol_w,
     }
 }
 

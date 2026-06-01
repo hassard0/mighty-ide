@@ -3850,11 +3850,11 @@ pub extern "C" fn mui_breadcrumb_draw(handle: i64) {
 
     let ty = top + (bar_h - chrome) * 0.5 - 1.0;
     let icon_y = top + (bar_h - 12.0) * 0.5;
-    let advance = chrome * 0.54; // UI-font proportional estimate
     let mut x = left + 16.0;
     let put = |ctx: &mut MuiContext, x: &mut f32, s: &str, color| {
         ctx.text.queue_ui_sized(*x, ty, s, color, chrome, clip);
-        *x += s.chars().count() as f32 * advance;
+        let (w, _) = ctx.text.measure_ui_sized(s, chrome);
+        *x += w;
     };
     let sep = |ctx: &mut MuiContext, x: &mut f32| {
         *x += 4.0;

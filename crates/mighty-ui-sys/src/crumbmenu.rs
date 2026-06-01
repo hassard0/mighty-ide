@@ -22,16 +22,14 @@ pub enum Segment {
     None,
 }
 
-/// The widths (in chars) of the three breadcrumb segments, so hit-testing can be
+/// The pixel widths of the three breadcrumb labels, so hit-testing can be
 /// reproduced identically to the draw. All x in window pixels.
 #[derive(Debug, Clone, Copy)]
 pub struct CrumbLayout {
     pub left: f32,
-    pub advance: f32,
-    /// folder segment: icon + name.
-    pub folder_chars: usize,
-    pub file_chars: usize,
-    pub symbol_chars: usize,
+    pub folder_w: f32,
+    pub file_w: f32,
+    pub symbol_w: f32,
 }
 
 impl CrumbLayout {
@@ -45,20 +43,20 @@ impl CrumbLayout {
         // Folder: icon (13 + 6) + name.
         let folder_start = x;
         x += 13.0 + 6.0;
-        x += self.folder_chars as f32 * self.advance;
+        x += self.folder_w;
         let folder_end = x;
         // separator: 4 + 12 + 4
         x += 4.0 + 12.0 + 4.0;
         // File: name.
         let file_start = x;
-        x += self.file_chars as f32 * self.advance;
+        x += self.file_w;
         let file_end = x;
         // separator
         x += 4.0 + 12.0 + 4.0;
         // Symbol: icon (13 + 5) + name.
         let sym_start = x;
         x += 13.0 + 5.0;
-        x += self.symbol_chars as f32 * self.advance;
+        x += self.symbol_w;
         let sym_end = x;
         [
             (Segment::Folder, folder_start, folder_end),
@@ -306,10 +304,9 @@ mod tests {
     fn layout_fixture() -> CrumbLayout {
         CrumbLayout {
             left: 300.0, // rail + sidebar
-            advance: 7.0,
-            folder_chars: 9, // "workspace"
-            file_chars: 8,   // "main.mty"
-            symbol_chars: 4, // "main"
+            folder_w: 63.0, // "workspace" at 7px avg in this pure fixture
+            file_w: 56.0,   // "main.mty"
+            symbol_w: 28.0, // "main"
         }
     }
 

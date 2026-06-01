@@ -1425,3 +1425,16 @@ added DAP pause plus clean restart of the last target (`Debug: Pause`,
 gap surfaced; the important pattern is keeping all command surfaces (toolbar,
 keys, palette, Quick-Open command mode, remapping) routed through the same small
 set of scalar calls.
+
+### L81. Breadcrumb geometry must use shaped UI widths **[finding, P2]**
+The breadcrumb bar draws with the proportional UI font, but it still advanced
+folder/file/symbol labels with a fixed `chars * 0.54em` estimate. That could
+misplace separators and make the visible segment disagree with the dropdown
+hit-target on long names or glyph-varied paths.
+
+- **IDE note:** `mui_breadcrumb_draw` now advances labels with
+  `measure_ui_sized`, and the interactive `CrumbLayout` stores the same measured
+  pixel widths before hit-testing and anchoring dropdowns.
+- **Language note:** no new Mighty gap surfaced. The right split remains:
+  Mighty forwards scalar click events, while the shim owns shaped text metrics
+  and geometric hit-testing.
