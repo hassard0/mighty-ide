@@ -3012,6 +3012,44 @@ fn fit_status_tail(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32
     }
 }
 
+fn fit_status_head(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    if max_px <= 0.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    if text.measure_ui_sized(ellipsis, size).0 > max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let candidate: String = chars[..mid]
+            .iter()
+            .copied()
+            .chain(std::iter::once('\u{2026}'))
+            .collect();
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        ellipsis.to_string()
+    } else {
+        chars[..lo]
+            .iter()
+            .copied()
+            .chain(std::iter::once('\u{2026}'))
+            .collect()
+    }
+}
+
 /// `1` if the last click landed on the status-bar problems chip (the
 /// error/warning counters in the left cluster), else `0`. Lets Mighty open the
 /// Problems panel when the chip is clicked. The chip's x position follows the
@@ -5524,8 +5562,9 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
             .map(|s| s.to_string_lossy().to_uppercase())
             .unwrap_or_else(|| "EXPLORER".to_string())
     };
-    // Letter-spaced uppercase header (insert thin spaces), UI family.
-    let tracked: String = header.chars().flat_map(|c| [c, '\u{2009}']).collect();
+    // Letter-spaced uppercase header (insert thin spaces), measured so it never
+    // runs under the right-aligned header action buttons in compact sidebars.
+    let tracked = fit_explorer_header(&mut ctx.text, &header, sx, sw, chrome - 2.0);
     ctx.text.queue_ui_styled(
         sx + 14.0,
         (head_h - (chrome - 2.0)) * 0.5 - 1.0,
@@ -5622,6 +5661,20 @@ pub(crate) fn fit_explorer_name(
 ) -> String {
     let right = if has_git_badge { sx + sw - 30.0 } else { sx + sw - 14.0 };
     fit_status_tail(text, name, (right - name_x).max(0.0), chrome)
+}
+
+pub(crate) fn fit_explorer_header(
+    text: &mut crate::text::Text,
+    header: &str,
+    sx: f32,
+    sw: f32,
+    chrome: f32,
+) -> String {
+    let label_x = sx + 14.0;
+    let first_action_x = sx + sw - 77.5;
+    let max_px = (first_action_x - 8.0 - label_x).max(0.0);
+    let tracked: String = header.chars().flat_map(|c| [c, '\u{2009}']).collect();
+    fit_status_head(text, &tracked, max_px, chrome)
 }
 
 /// A small synthetic git-status badge for a few demo filenames so the tree

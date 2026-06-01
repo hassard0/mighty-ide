@@ -2793,3 +2793,14 @@ feel less polished on small windows.
 - **Language note:** no compiler gap surfaced. Mighty UI needs reusable
   responsive footer patterns so helper copy can be omitted, moved, or collapsed
   consistently instead of being hard-coded per modal.
+
+### L185. Header labels must reserve action-button space **[finding, P2]**
+After compacting the sidebar, the Explorer header title could still run under
+the New File/New Folder/Collapse buttons. The header was drawn as letter-spaced
+text without measuring the right-side action strip.
+
+- **IDE note:** Explorer headers now use measured head ellipsizing against the
+  first action button, with a compact-sidebar regression test.
+- **Language note:** no compiler gap surfaced. Mighty should eventually expose a
+  reusable text-fit helper for common "label plus trailing actions" headers so
+  these budgets are not hand-recreated in the renderer.

@@ -57,6 +57,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Settings footer is cleaner in compact windows**: the modal no longer crams
   shortcut helper text into the footer, avoiding tiny overlapping copy at narrow
   widths.
+- **Explorer header title no longer overlaps actions**: compact sidebar headers
+  now measure and ellipsize the workspace title before the New File/New Folder
+  buttons.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now

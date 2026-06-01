@@ -2503,6 +2503,27 @@ fn explorer_row_name_fits_before_git_badge() {
 }
 
 #[test]
+fn explorer_header_fits_before_action_buttons() {
+    let mut ctx = ctx_or_skip!();
+    let sx = crate::layout::RAIL_W;
+    let sw = crate::layout::SIDEBAR_MIN_W;
+    let chrome = crate::theme::CHROME_FONT_SIZE - 2.0;
+    let shown =
+        crate::abi::fit_explorer_header(&mut ctx.text, "MIGHTY-IDE-WIN64", sx, sw, chrome);
+    let (shown_w, _) = ctx.text.measure_ui_sized(&shown, chrome);
+    let label_x = sx + 14.0;
+    let first_button_x = sx + sw - 77.5;
+    assert!(
+        label_x + shown_w <= first_button_x - 8.0,
+        "header should leave a visible gap before actions: {shown}"
+    );
+    assert!(shown.ends_with('\u{2026}'));
+
+    let wide = crate::abi::fit_explorer_header(&mut ctx.text, "MIGHTY", sx, 248.0, chrome);
+    assert!(!wide.ends_with('\u{2026}'));
+}
+
+#[test]
 fn scm_row_name_and_dir_fit_before_stage_action() {
     let mut ctx = ctx_or_skip!();
     let sx = crate::layout::RAIL_W;
