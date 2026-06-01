@@ -192,6 +192,22 @@ fn basename(path: &std::path::Path) -> String {
         .unwrap_or_else(|| path.to_string_lossy().into_owned())
 }
 
+/// Initial directory for native file dialogs. Prefer the folder of the active
+/// file so Open/New/Save As land where the user is already working; fall back to
+/// the workspace root when the active tab is untitled or its parent is missing.
+pub(crate) fn file_dialog_initial_dir(ctx: &MuiContext) -> PathBuf {
+    if let Some(parent) = ctx
+        .tabs
+        .active_path()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .filter(|p| p.is_dir())
+    {
+        parent
+    } else {
+        crate::wsabi::effective_root(ctx)
+    }
+}
+
 /// Cast an opaque `i64` handle back to a context reference. Returns `None` for
 /// null/zero handles.
 #[inline]
@@ -3206,8 +3222,8 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    let root = crate::wsabi::effective_root(ctx);
-    let path = match pick_open_file_native(&root) {
+    let initial_dir = file_dialog_initial_dir(ctx);
+    let path = match pick_open_file_native(&initial_dir) {
         FileDialogPick::Picked(path) => path,
         FileDialogPick::Cancelled => {
             println!("mui_open_file_dialog: native file dialog cancelled");
@@ -4479,8 +4495,8 @@ pub extern "C" fn mui_newfile_dialog(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    let root = crate::wsabi::effective_root(ctx);
-    let target = match pick_new_file_native(&root) {
+    let initial_dir = file_dialog_initial_dir(ctx);
+    let target = match pick_new_file_native(&initial_dir) {
         FileDialogPick::Picked(path) => path,
         FileDialogPick::Cancelled => {
             println!("mui_newfile_dialog: native new-file dialog cancelled");
@@ -8398,7 +8414,7 @@ fn save_confirm_tab(ctx: &mut MuiContext, idx: usize) -> bool {
     if ctx.tabs.active_has_path() {
         save_active_current_path(ctx) == 0
     } else {
-        let root = crate::wsabi::effective_root(ctx);
+        let root = file_dialog_initial_dir(ctx);
         let suggested = ctx
             .tabs
             .get(idx)
@@ -8461,7 +8477,7 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
         } else {
             ctx.tabs.switch(idx);
             sync_active_path(ctx);
-            let root = crate::wsabi::effective_root(ctx);
+            let root = file_dialog_initial_dir(ctx);
             let target = match pick_save_file_native(&root, "untitled.mty") {
                 FileDialogPick::Picked(path) => path,
                 FileDialogPick::Cancelled | FileDialogPick::Unavailable => {
@@ -8548,7 +8564,7 @@ pub extern "C" fn mui_save_as_dialog(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    let root = crate::wsabi::effective_root(ctx);
+    let root = file_dialog_initial_dir(ctx);
     let suggested = ctx
         .tabs
         .active_path()
@@ -8616,7 +8632,7 @@ fn pick_open_file_native(initial_dir: &std::path::Path) -> FileDialogPick {
 Add-Type -AssemblyName System.Windows.Forms | Out-Null
 $d = New-Object System.Windows.Forms.OpenFileDialog
 $d.Title = 'Open File'
-$d.Filter = 'All files (*.*)|*.*'
+$d.Filter = 'Mighty/code files (*.mty;*.rs;*.js;*.ts;*.tsx;*.jsx;*.py;*.go;*.md;*.toml;*.json)|*.mty;*.rs;*.js;*.ts;*.tsx;*.jsx;*.py;*.go;*.md;*.toml;*.json|All files (*.*)|*.*'
 $dir = $env:MUI_DIALOG_DIR
 if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) { $d.InitialDirectory = $dir }
 $owner = New-Object System.Windows.Forms.Form

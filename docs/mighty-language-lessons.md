@@ -1765,3 +1765,14 @@ broken close buttons.
 - **Language note:** no compiler gap surfaced. This is another scalar-state
   coordination issue: Mighty routes the modal interaction, while the shim owns
   the dirty-tab/quit pending state and the actual destructive transition.
+
+### L106. Native dialogs need context, not just a workspace root **[finding, P2]**
+Opening a file dialog at the workspace root is technically correct but feels
+clunky when the user is editing inside a nested folder and wants the next file
+beside it.
+
+- **IDE note:** Open File, New File, Save As, and unsaved-tab Save confirmation
+  now seed native file dialogs with the active file's parent directory when it
+  exists, falling back to the effective workspace root for untitled tabs.
+- **Language note:** no compiler gap surfaced. This is shim-side UX policy;
+  Mighty still calls the same scalar dialog functions.

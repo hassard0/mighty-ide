@@ -2627,6 +2627,35 @@ fn open_file_dialog_cancel_does_not_open_prompt_signal() {
 }
 
 #[test]
+fn native_file_dialogs_start_in_active_file_folder() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+
+    let root = std::env::temp_dir().join(format!("mui_dialog_initial_dir_{}", std::process::id()));
+    let nested = root.join("src").join("feature");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&nested).unwrap();
+    ctx.tree.set_root(root.clone());
+
+    assert_eq!(
+        crate::abi::file_dialog_initial_dir(&ctx),
+        root,
+        "untitled tabs should fall back to the workspace root"
+    );
+
+    let active = nested.join("main.mty");
+    std::fs::write(&active, b"fn main() {}").unwrap();
+    ctx.tabs.open_path(active);
+    assert_eq!(
+        crate::abi::file_dialog_initial_dir(&ctx),
+        nested,
+        "file dialogs should open beside the active file"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn save_as_dialog_env_pick_writes_and_binds_untitled_tab() {
     use crate::{mui_active_has_path, mui_ed_dirty, mui_save_as_dialog};
 

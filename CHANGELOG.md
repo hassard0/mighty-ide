@@ -95,6 +95,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Unsaved tab close uses the confirmation modal**: closing a dirty tab or
   quitting with dirty work now requires the explicit Save/Discard/Cancel overlay
   instead of a fragile repeat-close/repeat-quit shortcut.
+- **Native file dialogs open in context**: Open File, New File, and Save As now
+  start in the active file's folder when available, falling back to the
+  workspace root for untitled tabs.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,
