@@ -79,6 +79,25 @@ struct Hit {
     action: i32,
 }
 
+/// Return the x position for a quick-action shortcut hint, or `None` when the
+/// label + minimum gap + shortcut cannot fit in the action column.
+fn quick_action_key_x(
+    col_x: f32,
+    col_w: f32,
+    label_x: f32,
+    label_w: f32,
+    key_w: f32,
+    gap: f32,
+    right_pad: f32,
+) -> Option<f32> {
+    let right_edge = col_x + col_w - right_pad;
+    let after_label = label_x + label_w + gap;
+    if after_label + key_w > right_edge {
+        return None;
+    }
+    Some((right_edge - key_w).max(after_label))
+}
+
 impl Hit {
     fn contains(&self, px: f32, py: f32) -> bool {
         px >= self.x && px <= self.x + self.w && py >= self.y && py <= self.y + self.h
@@ -257,10 +276,10 @@ impl WelcomeState {
                 ctx.text
                     .queue_ui_sized(left_x + 36.0, ry + 6.0, qa.label, theme::TEXT_1(), 13.5, clip);
                 if !qa.key.is_empty() {
-                    let kw = qa.key.chars().count() as f32 * 6.4;
-                    let key_x = left_x + col_w - kw - 4.0;
-                    let label_w = qa.label.chars().count() as f32 * 7.8;
-                    if key_x > left_x + 36.0 + label_w + 12.0 {
+                    let label_x = left_x + 36.0;
+                    let (label_w, _) = ctx.text.measure_ui_sized(qa.label, 13.5);
+                    let (key_w, _) = ctx.text.measure_ui_sized(qa.key, 10.5);
+                    if let Some(key_x) = quick_action_key_x(left_x, col_w, label_x, label_w, key_w, 12.0, 4.0) {
                         ctx.text.queue_ui_sized(key_x, ry + 8.0, qa.key, theme::TEXT_3(), 10.5, clip);
                     }
                 }
@@ -309,12 +328,12 @@ impl WelcomeState {
             // "Command Palette" used to collide with their chord). Push the hint
             // right past the label end when needed.
             if !qa.key.is_empty() {
-                let kw = qa.key.chars().count() as f32 * 6.4;
-                let label_w = qa.label.chars().count() as f32 * 7.8; // 14px UI advance (over-estimate)
-                let right_aligned = left_x + left_w - kw - 4.0;
-                let after_label = left_x + 40.0 + label_w + 16.0;
-                let key_x = right_aligned.max(after_label);
-                ctx.text.queue_ui_sized(key_x, ry + 11.0, qa.key, theme::TEXT_3(), 11.5, clip);
+                let label_x = left_x + 40.0;
+                let (label_w, _) = ctx.text.measure_ui_sized(qa.label, 14.0);
+                let (key_w, _) = ctx.text.measure_ui_sized(qa.key, 11.5);
+                if let Some(key_x) = quick_action_key_x(left_x, left_w, label_x, label_w, key_w, 16.0, 4.0) {
+                    ctx.text.queue_ui_sized(key_x, ry + 11.0, qa.key, theme::TEXT_3(), 11.5, clip);
+                }
             }
             self.hits.push(Hit {
                 x: left_x,
@@ -553,5 +572,23 @@ mod tests {
         assert_eq!(file_icon("Cargo.toml"), icons::FILE_TOML);
         assert_eq!(file_icon("README.md"), icons::FILE_MD);
         assert_eq!(file_icon("notes.txt"), icons::FILE_TXT);
+    }
+
+    #[test]
+    fn quick_action_shortcut_is_right_aligned_when_it_fits() {
+        let x = quick_action_key_x(100.0, 240.0, 140.0, 74.0, 52.0, 16.0, 4.0).unwrap();
+        assert_eq!(x, 284.0);
+    }
+
+    #[test]
+    fn quick_action_shortcut_moves_after_long_label_when_space_remains() {
+        let x = quick_action_key_x(100.0, 240.0, 140.0, 145.0, 35.0, 16.0, 4.0).unwrap();
+        assert_eq!(x, 301.0);
+        assert!(x + 35.0 <= 336.0);
+    }
+
+    #[test]
+    fn quick_action_shortcut_hides_instead_of_overlapping() {
+        assert!(quick_action_key_x(100.0, 180.0, 140.0, 112.0, 60.0, 16.0, 4.0).is_none());
     }
 }

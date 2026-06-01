@@ -1438,3 +1438,16 @@ hit-target on long names or glyph-varied paths.
 - **Language note:** no new Mighty gap surfaced. The right split remains:
   Mighty forwards scalar click events, while the shim owns shaped text metrics
   and geometric hit-testing.
+
+### L82. Welcome-screen shortcut hints need a measured fit rule **[finding, P3]**
+The Welcome quick actions had the same proportional-text smell in a smaller
+place: shortcut hints were positioned with fixed character-width guesses while
+the labels render with the UI font. On narrow columns, a long label plus chord
+could either collide or push the chord out of its column.
+
+- **IDE note:** both compact and two-column Welcome layouts now measure the
+  label and shortcut with `measure_ui_sized`, right-align the shortcut when it
+  fits, move it after a long label when there is still room, and hide it when
+  overlap would be unavoidable.
+- **Language note:** no new Mighty gap surfaced. This remains a shim layout
+  concern; Mighty only routes the resulting quick-action click id.

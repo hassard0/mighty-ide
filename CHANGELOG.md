@@ -61,6 +61,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Measured breadcrumb text**: folder, file, and symbol segments now advance
   from shaped UI-font widths, keeping separators and dropdown hit-targets aligned
   on long or mixed-width names.
+- **Welcome shortcut hints** now use shaped UI-font measurements and hide when
+  a compact column cannot fit the label plus shortcut, preventing first-screen
+  overlap.
 
 ### Markdown
 - **Live Markdown preview** (`Ctrl+Shift+V`): a themed, live-updating split-pane
