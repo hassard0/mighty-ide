@@ -2671,6 +2671,35 @@ fn pane_split_focus_close_via_abi() {
 }
 
 #[test]
+fn minimap_hides_in_narrow_split_panes() {
+    assert!(crate::abi::should_show_minimap(
+        true,
+        false,
+        true,
+        crate::abi::MINIMAP_MIN_PANE_W
+    ));
+    assert!(!crate::abi::should_show_minimap(
+        true,
+        true,
+        true,
+        crate::abi::MINIMAP_SPLIT_MIN_PANE_W - 1.0
+    ));
+    assert!(crate::abi::should_show_minimap(
+        true,
+        true,
+        true,
+        crate::abi::MINIMAP_SPLIT_MIN_PANE_W
+    ));
+    assert!(!crate::abi::should_show_minimap(
+        true,
+        true,
+        false,
+        crate::abi::MINIMAP_SPLIT_MIN_PANE_W
+    ));
+    assert!(!crate::abi::should_show_minimap(false, false, true, 800.0));
+}
+
+#[test]
 fn editor_power_features_via_abi() {
     use crate::{
         mui_ed_backspace_smart, mui_ed_bracket_match, mui_ed_duplicate, mui_ed_insert_char,

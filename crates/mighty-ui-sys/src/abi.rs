@@ -9514,6 +9514,22 @@ pub extern "C" fn mui_minimap_width(handle: i64) -> f32 {
 /// editor (the full body region, the active tab, no divider / focus chrome). With
 /// a split it draws every pane into its column via [`draw_editor_pane`], plus the
 /// 1px dividers between them. See `crate::panes`.
+pub(crate) const MINIMAP_W: f32 = 70.0;
+pub(crate) const MINIMAP_MIN_PANE_W: f32 = 260.0;
+pub(crate) const MINIMAP_SPLIT_MIN_PANE_W: f32 = 420.0;
+
+pub(crate) fn should_show_minimap(pref_on: bool, split_chrome: bool, focused: bool, pane_w: f32) -> bool {
+    if !pref_on || (split_chrome && !focused) {
+        return false;
+    }
+    let min_w = if split_chrome {
+        MINIMAP_SPLIT_MIN_PANE_W
+    } else {
+        MINIMAP_MIN_PANE_W
+    };
+    pane_w >= min_w
+}
+
 #[no_mangle]
 pub extern "C" fn mui_ed_draw(handle: i64, rows: i32) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -9703,13 +9719,11 @@ fn draw_editor_pane(
     // Minimap strip width (reserved on the right). Mockup `.minimap` ~76px. When
     // the minimap is disabled in Settings, reserve no strip (mm_w = 0) so the
     // current-line band + text run to the right edge. In a split, the minimap is
-    // suppressed on UNFOCUSED panes (focused-only is fine for v1) and on every
-    // pane that is too narrow to host it.
+    // suppressed on UNFOCUSED panes and on narrow split columns where it would
+    // cover source text instead of helping navigation.
     let pane_w = (x_right - region.left).max(0.0);
-    let minimap_on = crate::settings::minimap()
-        && (!split_chrome || focused)
-        && pane_w > 200.0;
-    let mm_w = if minimap_on { 70.0_f32 } else { 0.0_f32 };
+    let minimap_on = should_show_minimap(crate::settings::minimap(), split_chrome, focused, pane_w);
+    let mm_w = if minimap_on { MINIMAP_W } else { 0.0_f32 };
     let mm_x = win_w - mm_w;
 
     // 1) Current-line highlight band (only when the cursor row is visible), with

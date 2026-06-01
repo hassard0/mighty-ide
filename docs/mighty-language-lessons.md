@@ -2382,3 +2382,15 @@ Testing, Source Control, or Explorer has expanded the layout.
 - **Language note:** no new compiler gap surfaced. This reinforces L154: Mighty
   needs generated command metadata and dispatcher stubs so command families can
   expose open/close/resize semantics without manual Rust/Mighty id mirroring.
+
+### L156. Split panes need feature-aware minimum widths **[finding, P2]**
+The minimum-window Markdown preview gallery showed the editor minimap still
+rendering inside a narrow left split pane. It was technically clipped to the
+pane, but visually it covered source text, which users experience as overlap.
+
+- **IDE note:** the editor minimap now has a stricter width gate in split panes:
+  it still appears in the focused pane when the column is wide enough, but hides
+  in compact split/preview layouts so code remains readable.
+- **Language note:** no compiler gap surfaced. Mighty UI needs responsive
+  feature gates attached to layout primitives, so optional affordances can yield
+  space to primary content without bespoke host-side width checks.

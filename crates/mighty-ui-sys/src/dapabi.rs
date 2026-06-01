@@ -517,8 +517,9 @@ pub extern "C" fn mui_dbg_draw(handle: i64, first: i32, rows: i32, total_lines: 
     let text_x = layout::text_left_in(region, total_u64);
     let win_w = ctx.gpu.width as f32;
     let line_h = layout::LINE_H();
-    let minimap_on = crate::settings::minimap();
-    let mm_w = if minimap_on { 70.0_f32 } else { 0.0_f32 };
+    let pane_w = (win_w - region.left).max(0.0);
+    let minimap_on = crate::abi::should_show_minimap(crate::settings::minimap(), false, true, pane_w);
+    let mm_w = if minimap_on { crate::abi::MINIMAP_W } else { 0.0_f32 };
     let band_w = (win_w - mm_w) - region.left;
 
     let file = active_path_str(ctx);

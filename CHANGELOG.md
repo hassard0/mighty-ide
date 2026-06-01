@@ -134,6 +134,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Sidebar has a command close path**: **View: Close Sidebar** deterministically
   hides the left drawer without depending on toggle state or changing the active
   Explorer/Search/SCM/Testing panel.
+- **Minimap hides in narrow split panes**: compact split-editor and Markdown
+  preview layouts now preserve source readability instead of drawing the minimap
+  over code text.
 - **Testing header avoids status-pill collisions**: the Testing sidebar title now
   measures the right-side `idle`/`running`/`failed`/`passed` pill first and fits
   the header label into the remaining space.
