@@ -356,9 +356,10 @@ impl ToastQueue {
                 card_h.max(0.0) as u32,
             ));
             // Older toasts higher in the stack dim slightly so the newest reads.
-            let depth_dim = 1.0 - (slot / (n as f32 + 1.0)) * 0.18;
-            let alpha = presence * depth_dim;
-            let fill_alpha = presence * 0.98;
+            // Keep visible cards opaque enough that underlying editor/welcome
+            // text cannot read through the toast during the slide animation.
+            let alpha = toast_visual_alpha(presence, slot, n);
+            let fill_alpha = toast_fill_alpha(presence);
 
             let accent = t.kind.color();
 
@@ -447,6 +448,18 @@ impl ToastQueue {
 
 fn toast_stack_bottom(window_h: f32, reserve_bottom: f32) -> f32 {
     window_h - MARGIN - theme::LINE_HEIGHT() - reserve_bottom.max(0.0)
+}
+
+fn toast_visual_alpha(presence: f32, slot: f32, count: usize) -> f32 {
+    if presence <= 0.001 {
+        return 0.0;
+    }
+    let depth_dim = 1.0 - (slot / (count as f32 + 1.0)) * 0.18;
+    depth_dim.clamp(0.76, 1.0)
+}
+
+fn toast_fill_alpha(presence: f32) -> f32 {
+    if presence <= 0.001 { 0.0 } else { 0.99 }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -717,6 +730,15 @@ mod tests {
         assert!(t.presence(t0 + LIFETIME - Duration::from_millis(50)) < 0.8);
         // Past expiry: gone.
         assert_eq!(t.presence(t0 + LIFETIME + Duration::from_millis(1)), 0.0);
+    }
+
+    #[test]
+    fn visible_toast_cards_stay_opaque_over_busy_content() {
+        assert_eq!(toast_visual_alpha(0.0, 0.0, 3), 0.0);
+        assert_eq!(toast_fill_alpha(0.0), 0.0);
+        assert!(toast_visual_alpha(0.05, 0.0, 3) >= 0.98);
+        assert!(toast_visual_alpha(0.05, 2.0, 3) >= 0.76);
+        assert!(toast_fill_alpha(0.05) >= 0.98);
     }
 
     #[test]

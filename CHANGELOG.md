@@ -93,6 +93,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Compact Run/Web headers degrade cleanly**: Run status chips use short ASCII
   labels that fit the chip, and Web uses compact header geometry so action controls do
   not collide with the `WEB` title lane.
+- **Toast cards stay readable over busy screens**: toast surfaces now remain
+  effectively opaque during their slide animation so Welcome/editor text cannot
+  bleed through and look like stale toast copy.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now

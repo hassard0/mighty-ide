@@ -2952,3 +2952,15 @@ forced into every width.
 - **Language note:** no compiler gap surfaced. Mighty UI should treat compact
   status/action chips as measured components with glyph-safe fallback labels or
   icon-only states, not arbitrary strings painted into fixed rectangles.
+
+### L198. Toast animation must not trade away readability **[finding, P1]**
+The compact Toast capture showed Welcome action text reading through stacked
+toast cards, making toast copy look stale or uncleared even though the queue was
+deduplicating messages correctly.
+
+- **IDE note:** Toasts keep the slide animation but no longer fade visible cards
+  down to translucent alpha; the card fill and text stay effectively opaque until
+  expiration so underlying editor/welcome text cannot bleed through.
+- **Language note:** no compiler gap surfaced. Mighty UI needs overlay/card
+  primitives with readability floors for transient feedback, especially when
+  animations run above busy content.
