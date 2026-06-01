@@ -711,7 +711,8 @@ impl ShortcutsEngine {
         let row_h = 44.0;
         let foot_h = 38.0;
         let fixed_h = search_h + cat_h + 10.0 + foot_h;
-        let max_box_h = (h - 32.0).max(fixed_h + row_h);
+        let vertical_margin = if h < 640.0 { 72.0 } else { 32.0 };
+        let max_box_h = (h - vertical_margin).max(fixed_h + row_h);
         let capacity = ((max_box_h - fixed_h) / row_h).floor().max(1.0) as usize;
         let visible = capacity.min(VISIBLE);
         let top = self.scroll_top_for(visible);
@@ -779,9 +780,8 @@ impl ShortcutsEngine {
 
         let search_h = 56.0;
         let cat_h = 26.0;
-        let row_h = 44.0;
         let foot_h = 38.0;
-        let (box_x, box_y, box_w, _list_top, _row_h, box_h, top, shown) = self.geometry(width, height);
+        let (box_x, box_y, box_w, _list_top, row_h, box_h, top, shown) = self.geometry(width, height);
         let radius = 12.0_f32;
 
         // Scrim + indigo wash.
@@ -1158,6 +1158,11 @@ mod tests {
         assert!(box_y >= 12.0);
         assert!(box_w <= 640.0);
         assert!(box_y + box_h <= 480.0);
+        assert!(shown < VISIBLE);
+
+        let (_box_x, box_y, _box_w, _list_top, _row_h, box_h, _top, shown) = e.geometry(860, 560);
+        assert!(box_y >= 12.0);
+        assert!(box_y + box_h <= 536.0);
         assert!(shown < VISIBLE);
 
         e.sel = 12;

@@ -2183,3 +2183,14 @@ real resize/overlap defect.
   clipping.
 - **Language note:** no compiler gap surfaced. Mighty needs a reusable
   constraint/layout primitive for modal sizing across viewport breakpoints.
+
+### L140. Dense overlays need breakpoint-specific visible-row counts **[finding, P2]**
+The full 860x560 gallery exposed that Keyboard Shortcuts was technically inside
+the viewport but visually jammed at the bottom because it kept the desktop row
+count in a short window.
+
+- **IDE note:** Keyboard Shortcuts now reduces visible rows on short windows and
+  keeps the footer comfortably inside the card at the minimum supported size.
+- **Language note:** no compiler gap surfaced. Mighty needs a shared list-modal
+  layout helper that computes visible rows, scroll top, and footer-safe card
+  bounds consistently across Palette, Quick Open, Shortcuts, and Settings.
