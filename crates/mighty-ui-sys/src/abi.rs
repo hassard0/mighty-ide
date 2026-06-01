@@ -4758,7 +4758,7 @@ pub extern "C" fn mui_newfile_create(handle: i64) -> i32 {
     };
     let base = crate::wsabi::effective_root(ctx);
     let target = base.join(&name);
-    create_new_file_at(ctx, target, &name)
+    create_new_file_at(ctx, target, &base, &name)
 }
 
 /// Create a new workspace file through the native SaveFileDialog path picker.
@@ -4769,6 +4769,7 @@ pub extern "C" fn mui_newfile_dialog(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    let workspace_root = crate::wsabi::effective_root(ctx);
     let initial_dir = file_dialog_initial_dir(ctx);
     let owner_hwnd = dialog_owner_hwnd(ctx);
     let target = match pick_new_file_native(&initial_dir, owner_hwnd) {
@@ -4783,10 +4784,24 @@ pub extern "C" fn mui_newfile_dialog(handle: i64) -> i32 {
         }
     };
     let name = basename(&target);
-    create_new_file_at(ctx, target, &name)
+    create_new_file_at(ctx, target, &workspace_root, &name)
 }
 
-fn create_new_file_at(ctx: &mut MuiContext, target: PathBuf, name: &str) -> i32 {
+fn create_new_file_at(
+    ctx: &mut MuiContext,
+    target: PathBuf,
+    workspace_root: &std::path::Path,
+    name: &str,
+) -> i32 {
+    if !path_is_inside_workspace(workspace_root, &target) {
+        ctx.push_toast(crate::toast::Kind::Warn, "Choose a file inside the workspace");
+        println!(
+            "newfile: selected file is outside workspace: {} (root {})",
+            target.display(),
+            workspace_root.display()
+        );
+        return -2;
+    }
     if target.exists() {
         ctx.push_toast(crate::toast::Kind::Warn, format!("File already exists: {name}"));
         println!("newfile: target already exists: {}", target.display());

@@ -1233,6 +1233,23 @@ fn new_file_dialog_cancel_and_existing_are_noops() {
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "File already exists: taken.mty");
 
+    let outside_dir = std::env::temp_dir().join(format!(
+        "mui_new_file_dialog_outside_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&outside_dir);
+    std::fs::create_dir_all(&outside_dir).unwrap();
+    let outside = outside_dir.join("outside.mty");
+    std::env::set_var("MUI_NEW_FILE_PICK", outside.to_string_lossy().as_ref());
+    assert_eq!(mui_newfile_dialog(handle), -2);
+    std::env::remove_var("MUI_NEW_FILE_PICK");
+    assert!(!outside.exists());
+    assert_eq!(mui_tab_count(handle), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Choose a file inside the workspace");
+    let _ = std::fs::remove_dir_all(&outside_dir);
+
     let _ = std::fs::remove_dir_all(&root);
 }
 

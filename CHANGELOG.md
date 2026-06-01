@@ -122,6 +122,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **New Folder rejects invisible out-of-workspace picks**: the native New Folder
   flow now warns when the selected folder is outside the current workspace
   instead of reporting success without changing Explorer.
+- **New File rejects invisible out-of-workspace picks**: the workspace New File
+  picker now refuses paths outside the current workspace, avoiding a tab that
+  opens successfully while Explorer and Quick Open cannot show the file.
 - **Testing header avoids status-pill collisions**: the Testing sidebar title now
   measures the right-side `idle`/`running`/`failed`/`passed` pill first and fits
   the header label into the remaining space.

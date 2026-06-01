@@ -2332,3 +2332,16 @@ though the dialog returned a valid path.
 - **Language note:** no compiler gap surfaced. Mighty still needs a richer
   command-result type so native picker outcomes can carry success, cancelled,
   unavailable, and invalid-for-current-context without integer sentinels.
+
+### L152. Workspace file creation must not create invisible tabs **[finding, P1]**
+New File in Workspace used a native save-file picker, but it accepted any path
+the picker returned. Picking outside the workspace created and opened a real
+file while Explorer and Quick Open stayed rooted elsewhere, making the action
+feel inconsistent with its label.
+
+- **IDE note:** Workspace New File now validates the selected path against the
+  current workspace root before creating it. Outside picks are rejected with a
+  warning and do not create a file or open a tab.
+- **Language note:** no compiler gap surfaced. This is another case where a
+  structured picker result would reduce Mighty-side sentinel handling and keep
+  command labels, scopes, and outcomes aligned.
