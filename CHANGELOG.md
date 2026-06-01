@@ -51,6 +51,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   picker, instead of sharing the arbitrary-location File > New flow.
 - **Welcome now names the file picker intent**: the first quick action is
   labeled **New File at Location** so it matches the native path picker behavior.
+- **Compact sidebar leaves more room for work**: narrow windows now reduce the
+  sidebar to 160px, giving terminal, debug, palette, and welcome views more
+  usable width instead of crowding dock/header content.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now

@@ -2769,3 +2769,16 @@ workspace-scoped file creation.
 - **Language note:** no compiler gap surfaced. Mighty UI needs a shared command
   label source so Welcome, palette, shortcuts, and toolbar surfaces do not drift
   when command semantics are clarified.
+
+### L183. Compact chrome must budget for the working surface **[finding, P2]**
+The 520px stress gallery showed sidebar chrome taking too much fixed width from
+the editor and lower docks. The UI was technically fitting, but human-visible
+workflows like Terminal, Debug, Palette, and Welcome felt cramped because the
+responsive sidebar floor was still too wide.
+
+- **IDE note:** the compact sidebar floor is now 160px, with a regression test
+  pinning the 520px body-left budget so small windows preserve more working
+  surface.
+- **Language note:** no compiler gap surfaced. Mighty would benefit from a
+  first-class responsive layout primitive so width budgets can be stated near
+  component intent rather than mirrored through shim-side constants.
