@@ -1365,8 +1365,10 @@ fn main() {
             }
           } else if tag == ev_mouse_down() {
             let kh = mui_keys_click(h)
-            if kh >= 0 {
+            if kh == 2 {
               let _c = mui_keys_begin_capture(h)
+            } else if kh == 1 {
+              let _keep = kh
             } else {
               mui_keys_cancel(h)
             }

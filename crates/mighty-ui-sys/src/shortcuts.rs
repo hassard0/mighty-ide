@@ -747,6 +747,24 @@ impl ShortcutsEngine {
         }
     }
 
+    /// Handle a visible-row click without surprising the user:
+    /// `-1` miss, `1` selected a row, `2` clicked the already-selected remappable
+    /// row and should begin capture. This keeps exploratory clicks from
+    /// immediately entering shortcut capture mode.
+    pub fn click_action(&mut self, x: f32, y: f32, width: u32, height: u32) -> i32 {
+        let before = self.sel;
+        let idx = self.click_row(x, y, width, height);
+        if idx < 0 {
+            return -1;
+        }
+        if idx as usize == before && self.selected_remappable() {
+            2
+        } else {
+            self.status = "Selected. Press Enter or click again to remap".to_string();
+            1
+        }
+    }
+
     /// Draw the shortcuts overlay (Vivid-Modern card, kbd pills, remap affordance).
     /// No-op when inactive.
     pub fn draw(&self, ctx: &mut crate::MuiContext, width: u32, height: u32) {
@@ -1113,6 +1131,21 @@ mod tests {
         assert_eq!(idx, 1);
         assert_eq!(e.selection(), 1);
         assert_eq!(e.click_row(box_x - 2.0, list_top + 3.0, 900, 700), -1);
+    }
+
+    #[test]
+    fn click_action_selects_first_then_remaps_selected_row() {
+        let mut e = ShortcutsEngine::new();
+        e.overrides = Overrides::new();
+        e.open();
+        let (box_x, _box_y, _box_w, list_top, row_h, _box_h, _top, _shown) = e.geometry(900, 700);
+        let x = box_x + 24.0;
+        let y = list_top + row_h + 3.0;
+        assert_eq!(e.click_action(x, y, 900, 700), 1);
+        assert_eq!(e.selection(), 1);
+        assert_eq!(e.status(), "Selected. Press Enter or click again to remap");
+        assert_eq!(e.click_action(x, y, 900, 700), 2);
+        assert_eq!(e.click_action(box_x - 2.0, list_top + 3.0, 900, 700), -1);
     }
 
     #[test]

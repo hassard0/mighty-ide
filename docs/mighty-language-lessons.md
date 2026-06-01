@@ -1975,3 +1975,15 @@ looked like immediate actions even though they require a destination or name.
 - **Language note:** no compiler gap surfaced. This is a design-system rule:
   action labels should encode whether the command completes immediately or asks
   for more user input.
+
+### L122. Shortcut remapping clicks should select before capturing **[finding, P2]**
+The Keyboard Shortcuts overlay said `Enter to remap`, but a mouse click on any
+row immediately entered capture mode. That made exploratory clicking feel like a
+broken button because the next typed key could be interpreted as a remap attempt.
+
+- **IDE note:** shortcut rows now use a two-step mouse interaction: first click
+  selects and updates the footer, clicking the selected remappable row again
+  starts capture. Keyboard users still press Enter to remap.
+- **Language note:** no compiler gap surfaced. The issue was interaction-state
+  modeling: click handlers often need action codes beyond hit/miss when a row
+  can both select and activate.
