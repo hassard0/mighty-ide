@@ -104,6 +104,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Welcome compact layout is cleaner**: narrow editor bodies no longer draw
   shortcut hints at the far edge of the start actions, avoiding clipped text
   when the Explorer sidebar is open.
+- **Window resizing stops before broken chrome**: the borderless desktop window
+  now has a minimum inner size so the custom title bar, rail, tabs, and status
+  bands cannot be squeezed into clipped controls.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

@@ -1786,6 +1786,7 @@ who expect to choose a path and filename.
   falls back to the typed filename prompt only when native dialogs are
   unavailable. Scratch tabs moved to an explicit New Untitled File command, and
   compact Welcome layouts hide shortcut hints rather than clipping them at the
-  viewport edge.
+  viewport edge. The desktop window also has a minimum inner size now, so manual
+  resize cannot crush the borderless chrome into unreadable controls.
 - **Language note:** no compiler gap surfaced. The change is a command-routing
   policy fix in Mighty plus existing shim ABI calls.

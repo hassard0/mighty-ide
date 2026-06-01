@@ -18,6 +18,11 @@ use winit::window::{Icon, Window, WindowId};
 
 use crate::ffi::*;
 
+/// Minimum live window size that still leaves room for the custom titlebar,
+/// rail/sidebar chrome, editor body, and bottom status bands.
+pub const MIN_WINDOW_W: u32 = 860;
+pub const MIN_WINDOW_H: u32 = 560;
+
 /// A FIFO of translated input events plus resize bookkeeping.
 #[derive(Default)]
 pub struct EventQueue {
@@ -223,6 +228,7 @@ impl ApplicationHandler for App {
             .with_title(self.title.clone())
             .with_decorations(false)
             .with_resizable(true)
+            .with_min_inner_size(winit::dpi::PhysicalSize::new(MIN_WINDOW_W, MIN_WINDOW_H))
             .with_inner_size(winit::dpi::PhysicalSize::new(self.width, self.height));
         let attrs = if let Some(icon) = app_icon() {
             attrs.with_window_icon(Some(icon))
@@ -520,6 +526,12 @@ mod tests {
         assert_eq!(ResizeDir::from_code(0), None);
         assert_eq!(ResizeDir::from_code(9), None);
         assert_eq!(ResizeDir::from_code(-1), None);
+    }
+
+    #[test]
+    fn minimum_window_size_keeps_chrome_usable() {
+        assert!(MIN_WINDOW_W >= 860);
+        assert!(MIN_WINDOW_H >= 560);
     }
 
     #[test]
