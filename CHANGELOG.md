@@ -57,6 +57,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Testing sidebar text is measured**: summaries, durations, test names, suite
   badges, and failure details now budget against shaped UI text instead of
   fixed character estimates.
+- **Workspace New File uses a native picker**: Explorer's New File button and
+  "File: New File in Workspace" now open a SaveFileDialog-style file picker,
+  falling back to the typed prompt only when native dialogs are unavailable.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

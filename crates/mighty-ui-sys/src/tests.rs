@@ -761,7 +761,7 @@ fn new_file_validates_name_clears_stage_opens_tab_and_toasts() {
     assert_eq!(toast.message, "Name must not contain path separators");
 
     ctx.path_stage.extend_from_slice(b"taken.mty");
-    assert_eq!(crate::mui_newfile_create(handle), -1);
+    assert_eq!(crate::mui_newfile_create(handle), -2);
     assert!(ctx.path_stage.is_empty());
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
@@ -780,6 +780,74 @@ fn new_file_validates_name_clears_stage_opens_tab_and_toasts() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Success);
     assert_eq!(toast.message, "Created file: fresh.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn new_file_dialog_env_pick_creates_opens_and_records_recent() {
+    use crate::{mui_newfile_dialog, mui_quickopen_reindex, mui_tab_active, mui_tab_count};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!("mui_new_file_dialog_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let picked = root.join("picked.mty");
+
+    std::env::set_var("MUI_NEW_FILE_PICK", picked.to_string_lossy().as_ref());
+    let idx = mui_newfile_dialog(handle);
+    std::env::remove_var("MUI_NEW_FILE_PICK");
+
+    assert_eq!(idx, 1, "dialog-picked new file should open as a new tab");
+    assert!(picked.is_file());
+    assert_eq!(std::fs::read_to_string(&picked).unwrap(), "");
+    assert_eq!(mui_tab_count(handle), 2);
+    assert_eq!(mui_tab_active(handle), idx);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(picked.as_path()));
+    assert_eq!(ctx.file_path.as_deref(), Some(picked.as_path()));
+    assert_eq!(mui_quickopen_reindex(handle), 1, "new file should be in the file index");
+    assert_eq!(ctx.quickopen.recent_paths(), vec![picked.clone()]);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn new_file_dialog_cancel_and_existing_are_noops() {
+    use crate::{mui_newfile_dialog, mui_tab_active, mui_tab_count};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!("mui_new_file_dialog_noop_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+
+    std::env::set_var("MUI_NEW_FILE_PICK", "");
+    assert_eq!(mui_newfile_dialog(handle), -2);
+    std::env::remove_var("MUI_NEW_FILE_PICK");
+    assert_eq!(mui_tab_count(handle), 1);
+    assert_eq!(mui_tab_active(handle), 0);
+
+    let existing = root.join("taken.mty");
+    std::fs::write(&existing, b"existing").unwrap();
+    std::env::set_var("MUI_NEW_FILE_PICK", existing.to_string_lossy().as_ref());
+    assert_eq!(mui_newfile_dialog(handle), -2);
+    std::env::remove_var("MUI_NEW_FILE_PICK");
+    assert_eq!(std::fs::read_to_string(&existing).unwrap(), "existing");
+    assert_eq!(mui_tab_count(handle), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "File already exists: taken.mty");
 
     let _ = std::fs::remove_dir_all(&root);
 }

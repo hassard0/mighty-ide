@@ -1555,3 +1555,19 @@ dependent on rough glyph guesses and could leave labels crowding each other.
   details into their real available pixel widths.
 - **Language note:** no Mighty compiler issue surfaced. The scalar ABI keeps
   this draw/layout work in the shim.
+
+### L91. Workspace New File should use a native file picker **[finding, P1]**
+The backlog file-flow pass found one remaining mismatch after Open File/Open
+Folder/Save As were moved to native dialogs: Explorer's New File button and the
+"File: New File in Workspace" command still forced an in-app typed basename
+prompt. That made creating a file in a nested folder feel unlike a desktop IDE.
+
+- **IDE note:** workspace new-file flows now call a native SaveFileDialog-style
+  picker first. A selected path creates an empty file, opens it as the active tab,
+  refreshes Explorer and Quick-Open, and records it in recent files. Cancel and
+  existing-file selections are no-ops with explicit state/toasts; the old typed
+  prompt is only the fallback when the native picker is unavailable.
+- **Language note:** no new Mighty compiler issue surfaced. The implementation
+  added another scalar dialog ABI (`mui_newfile_dialog`), reinforcing the need
+  for future enum/result ABI shapes so cancel, unavailable, and success do not
+  require magic integer codes at every call site.

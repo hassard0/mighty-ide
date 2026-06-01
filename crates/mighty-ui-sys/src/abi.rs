@@ -4228,10 +4228,38 @@ pub extern "C" fn mui_newfile_create(handle: i64) -> i32 {
     };
     let base = crate::wsabi::effective_root(ctx);
     let target = base.join(&name);
+    create_new_file_at(ctx, target, &name)
+}
+
+/// Create a new workspace file through the native SaveFileDialog path picker.
+/// Returns the new tab index, `-2` on cancel/user no-op, or `-1` when the native
+/// picker is unavailable so Mighty can fall back to the typed name prompt.
+#[no_mangle]
+pub extern "C" fn mui_newfile_dialog(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let root = crate::wsabi::effective_root(ctx);
+    let target = match pick_new_file_native(&root) {
+        FileDialogPick::Picked(path) => path,
+        FileDialogPick::Cancelled => {
+            println!("mui_newfile_dialog: native new-file dialog cancelled");
+            return -2;
+        }
+        FileDialogPick::Unavailable => {
+            println!("mui_newfile_dialog: native new-file dialog unavailable");
+            return -1;
+        }
+    };
+    let name = basename(&target);
+    create_new_file_at(ctx, target, &name)
+}
+
+fn create_new_file_at(ctx: &mut MuiContext, target: PathBuf, name: &str) -> i32 {
     if target.exists() {
         ctx.push_toast(crate::toast::Kind::Warn, format!("File already exists: {name}"));
         println!("newfile: target already exists: {}", target.display());
-        return -1;
+        return -2;
     }
     match std::fs::OpenOptions::new().write(true).create_new(true).open(&target) {
         Ok(_) => {
@@ -4248,7 +4276,7 @@ pub extern "C" fn mui_newfile_create(handle: i64) -> i32 {
         Err(e) => {
             ctx.push_toast(crate::toast::Kind::Error, format!("File create failed: {name}"));
             println!("newfile: failed to create {}: {e}", target.display());
-            -1
+            -2
         }
     }
 }
@@ -8371,6 +8399,46 @@ try {
 }
 "#;
     run_file_dialog_script(script, initial_dir, Some(suggested_name))
+}
+
+fn pick_new_file_native(initial_dir: &std::path::Path) -> FileDialogPick {
+    if let Ok(path) = std::env::var("MUI_NEW_FILE_PICK") {
+        let trimmed = path.trim();
+        return if trimmed.is_empty() {
+            FileDialogPick::Cancelled
+        } else {
+            FileDialogPick::Picked(PathBuf::from(trimmed))
+        };
+    }
+    if !cfg!(windows) {
+        return FileDialogPick::Unavailable;
+    }
+    let script = r#"
+Add-Type -AssemblyName System.Windows.Forms | Out-Null
+$d = New-Object System.Windows.Forms.SaveFileDialog
+$d.Title = 'New File'
+$d.Filter = 'Mighty files (*.mty)|*.mty|All files (*.*)|*.*'
+$d.DefaultExt = 'mty'
+$d.AddExtension = $true
+$d.OverwritePrompt = $false
+$d.CheckFileExists = $false
+$d.CheckPathExists = $true
+$dir = $env:MUI_DIALOG_DIR
+if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) { $d.InitialDirectory = $dir }
+$d.FileName = 'untitled.mty'
+$owner = New-Object System.Windows.Forms.Form
+$owner.TopMost = $true
+$owner.ShowInTaskbar = $false
+$owner.StartPosition = 'CenterScreen'
+$owner.Width = 1
+$owner.Height = 1
+try {
+  if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($d.FileName) }
+} finally {
+  $owner.Dispose()
+}
+"#;
+    run_file_dialog_script(script, initial_dir, None)
 }
 
 fn run_file_dialog_script(

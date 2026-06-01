@@ -179,6 +179,7 @@ extern c {
   fn mui_tab_new_untitled(handle: I64) -> I32
   fn mui_tree_collapse_all(handle: I64)
   fn mui_newfile_create(handle: I64) -> I32
+  fn mui_newfile_dialog(handle: I64) -> I32
   fn mui_newfolder_create(handle: I64) -> I32
   fn mui_file_rename_active(handle: I64) -> I32
   fn mui_file_reveal_active(handle: I64) -> I32
@@ -2928,9 +2929,15 @@ fn main() {
           let _s = mui_settings_open(h)
           settings_open = true
         } else if explorer_hit == 1 {
-          // Explorer header: New File -> prompt for a real workspace file.
-          mui_prompt_open(h, prompt_new_file())
-          prompt_kind = prompt_new_file()
+          // Explorer header: New File -> native path picker, typed-name fallback only if unavailable.
+          let nf = mui_newfile_dialog(h)
+          if nf >= 0 {
+            let _b = mui_ed_tab_switch(h, nf)
+            mui_ed_undo_reset(h)
+          } else if nf == -1 {
+            mui_prompt_open(h, prompt_new_file())
+            prompt_kind = prompt_new_file()
+          }
           find_nav = false
         } else if explorer_hit == 2 {
           // Explorer header: New Folder -> prompt for the name (created under the
@@ -3205,8 +3212,14 @@ fn main() {
           mui_ed_undo_reset(h)
           find_nav = false
         } else if id == cmd_new_workspace_file() {
-          mui_prompt_open(h, prompt_new_file())
-          prompt_kind = prompt_new_file()
+          let nf = mui_newfile_dialog(h)
+          if nf >= 0 {
+            let _b = mui_ed_tab_switch(h, nf)
+            mui_ed_undo_reset(h)
+          } else if nf == -1 {
+            mui_prompt_open(h, prompt_new_file())
+            prompt_kind = prompt_new_file()
+          }
           find_nav = false
         } else if id == cmd_new_folder() {
           mui_prompt_open(h, prompt_new_folder())
