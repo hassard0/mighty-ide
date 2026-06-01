@@ -955,6 +955,7 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_VIEW_RUN_OUTPUT, "View: Run Output"),
         (crate::palette::CMD_VIEW_PROBLEMS, "View: Problems"),
         (crate::palette::CMD_VIEW_AI_COPILOT, "View: AI Copilot"),
+        (crate::palette::CMD_VIEW_TERMINAL, "View: Terminal"),
     ];
     for (id, label) in view_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
@@ -2598,6 +2599,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_VIEW_RUN_OUTPUT, "cmd_view_run_output"),
         (CMD_VIEW_PROBLEMS, "cmd_view_problems"),
         (CMD_VIEW_AI_COPILOT, "cmd_view_ai_copilot"),
+        (CMD_VIEW_TERMINAL, "cmd_view_terminal"),
         (CMD_RELOAD_ACTIVE_FILE, "cmd_reload_active_file"),
         (CMD_REVERT_ACTIVE_FILE, "cmd_revert_active_file"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),

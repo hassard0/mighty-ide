@@ -681,6 +681,7 @@ fn cmd_view_testing() -> I32 { 76 }
 fn cmd_view_run_output() -> I32 { 77 }
 fn cmd_view_problems() -> I32 { 78 }
 fn cmd_view_ai_copilot() -> I32 { 79 }
+fn cmd_view_terminal() -> I32 { 80 }
 fn cmd_format_document() -> I32 { 12 }
 fn cmd_undo() -> I32 { 13 }
 fn cmd_redo() -> I32 { 14 }
@@ -3518,6 +3519,9 @@ fn main() {
         } else if id == cmd_view_ai_copilot() {
           let _ai = mui_ai_show(h)
           ai_focus = true
+        } else if id == cmd_view_terminal() {
+          let ok = mui_term_open(h)
+          if ok == 1 { term_focus = true; mui_log_terminal(h) }
         } else if id >= cmd_ws_first() && id <= cmd_ws_last() {
           let wr = mui_ws_dispatch(h, id)
           if wr == 2 {

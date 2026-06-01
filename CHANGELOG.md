@@ -82,7 +82,7 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   and clicking any toast dismisses that card immediately so stale save/build/error
   messages can be cleared without waiting for expiry.
 - **View commands**: Explorer, Search, Source Control, Outline, Run and Debug,
-  Testing, Run Output, Problems, and AI Copilot are now command-palette
+  Testing, Run Output, Problems, AI Copilot, and Terminal are now command-palette
   reachable, not only rail/status-chip/dock-click reachable.
 - Agents live-inspect notes now reflect the Mighty runtime's Windows named-pipe
   control endpoint work, so the IDE no longer documents Windows as static-only.

@@ -1386,3 +1386,14 @@ command routing.
 - **Language note:** no new language gap surfaced, but the growing command
   ladder again reinforces L63/L64: Mighty wants generated command-id mirrors or
   enum-style dispatch once the registry keeps expanding.
+
+### L78. Terminal needs an explicit open command separate from toggle **[finding, P3]**
+The integrated terminal already had `mui_term_open`, but the command registry
+only exposed `Toggle Terminal`. Adding `View: Terminal` lets command-palette
+execution be idempotent while leaving Ctrl+` / rail-style interactions free to
+toggle.
+
+- **IDE note:** command names should match their behavior. "View:" opens the
+  target surface; "Toggle" is reserved for controls that may close it.
+- **Language note:** no new language gap surfaced. This reuses the existing
+  scalar terminal ABI and only adds a Mighty command-id mirror.

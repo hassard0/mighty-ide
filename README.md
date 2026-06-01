@@ -81,8 +81,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 ### Workspace & UX
 - **Explicit Workspace + Open Folder (Ctrl+Shift+O)** — native folder picker (typed-path fallback only when the picker is unavailable) re-roots the file tree, Quick-Open, Search, git, and Agents; **New Folder** (Ctrl+Shift+N) creates workspace directories; active files can be revealed in the IDE file tree, shown in the OS file manager, or copied as absolute, relative, basename, or directory text from the command palette; **Open Recent** shows recent files or folders from the shared recents picker; explorer header shows the active workspace
 - **View commands** open Explorer, Search, Source Control, Outline, Run and Debug,
-  Testing, Run Output, Problems, and AI Copilot from the command palette,
-  matching the activity rail, status chip, and docked panels.
+  Testing, Run Output, Problems, AI Copilot, and Terminal from the command
+  palette, matching the activity rail, status chip, and docked panels.
 - **Live Markdown preview (Ctrl+Shift+V)** — themed, live-updating split-pane render
 - **Keyboard Shortcuts overlay (Ctrl+Shift+/)** — searchable command/binding reference with router-command remapping (persists to `keybindings.toml`)
 - Welcome screen, clickable toast notifications with a command-palette clear-all
