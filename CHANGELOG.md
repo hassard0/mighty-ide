@@ -74,6 +74,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   status badges instead of relying on fixed character counts.
 - **Source Control rows are measured**: commit text, branch labels, changed-file
   names, and directory tails now fit against real stage/action space.
+- **File-operation toasts clear stale state**: newer save/open/create/rename/delete
+  results now replace older same-operation notifications instead of stacking
+  contradictory text.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

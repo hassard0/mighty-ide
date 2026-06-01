@@ -138,6 +138,9 @@ impl ToastQueue {
             t.expired = false;
             return;
         }
+        if let Some(key) = operation_key(&message) {
+            self.toasts.retain(|t| operation_key(&t.message) != Some(key));
+        }
         if self.toasts.len() >= MAX_VISIBLE {
             self.toasts.remove(0);
         }
@@ -347,6 +350,76 @@ impl ToastQueue {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OperationKey {
+    Save,
+    Open,
+    CreateFile,
+    CreateFolder,
+    Rename,
+    Delete,
+    Reveal,
+    Copy,
+}
+
+fn operation_key(message: &str) -> Option<OperationKey> {
+    let m = message.trim();
+    if m == "No unsaved files"
+        || m == "Save All failed"
+        || m.starts_with("Saved ")
+        || m.starts_with("Save failed")
+        || m.starts_with("Auto-saved ")
+        || m.contains(" need Save As")
+    {
+        Some(OperationKey::Save)
+    } else if m.starts_with("Opened folder")
+        || m.starts_with("Open failed")
+        || m.starts_with("Recent file missing")
+        || m.starts_with("Recent folder missing")
+    {
+        Some(OperationKey::Open)
+    } else if m.starts_with("Created file")
+        || m.starts_with("File already exists")
+        || m.starts_with("File create failed")
+    {
+        Some(OperationKey::CreateFile)
+    } else if m.starts_with("Created folder")
+        || m.starts_with("Folder already exists")
+        || m.starts_with("Folder create failed")
+    {
+        Some(OperationKey::CreateFolder)
+    } else if m.starts_with("Renamed to")
+        || m.starts_with("Rename failed")
+        || m.starts_with("Already named")
+        || m == "No active file to rename"
+        || m == "Cannot rename this path"
+    {
+        Some(OperationKey::Rename)
+    } else if m.starts_with("Deleted ")
+        || m.starts_with("Delete failed")
+        || m.starts_with("Type ")
+        || m == "No active file to delete"
+    {
+        Some(OperationKey::Delete)
+    } else if m.starts_with("Revealed ")
+        || m == "No active file to reveal"
+        || m == "Active file is outside Explorer root"
+        || m == "Reveal in file manager is unavailable"
+        || m == "Could not open file manager"
+    {
+        Some(OperationKey::Reveal)
+    } else if m.starts_with("Copied ")
+        || m == "No active file path to copy"
+        || m == "No active file name to copy"
+        || m == "No active file directory to copy"
+        || m.starts_with("Could not copy")
+    {
+        Some(OperationKey::Copy)
+    } else {
+        None
+    }
+}
+
 /// Re-alpha a color (multiplying the existing alpha by `a`).
 fn with_alpha(c: MuiColor, a: f32) -> MuiColor {
     MuiColor::new(c.r, c.g, c.b, (c.a * a).clamp(0.0, 1.0))
@@ -490,6 +563,26 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert!(!q.tick_at(t0 + LIFETIME + Duration::from_millis(1)));
         assert_eq!(q.len(), 1);
+    }
+
+    #[test]
+    fn newer_file_operation_replaces_stale_family_toast() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+        q.push_at(Kind::Error, "Save failed: main.mty", t0);
+        q.push_at(Kind::Success, "Saved main.mty", t0 + Duration::from_millis(500));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Saved main.mty");
+        assert_eq!(q.toasts()[0].kind, Kind::Success);
+
+        q.push_at(Kind::Warn, "File already exists: main.mty", t0 + Duration::from_millis(600));
+        q.push_at(Kind::Success, "Created file: lib.mty", t0 + Duration::from_millis(700));
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[1].message, "Created file: lib.mty");
+        assert!(!q
+            .toasts()
+            .iter()
+            .any(|t| t.message == "File already exists: main.mty"));
     }
 
     #[test]

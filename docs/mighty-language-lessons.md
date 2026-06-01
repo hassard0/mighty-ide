@@ -1669,3 +1669,17 @@ and the logo/taskbar icon presentation needs a cleaner branded pass.
   product pressure point for Mighty: structured UI command results, measured
   layout primitives, and clearer native-dialog abstractions would reduce the
   amount of fragile state plumbing currently living in the Rust shim.
+
+### L99. File-operation toasts should replace stale same-operation state **[finding, P2]**
+The toast stack could show contradictory operation state at the same time, such
+as an older save failure sitting above a newer save success. In manual use that
+reads like notification text failed to clear, even though each individual toast
+would eventually expire.
+
+- **IDE note:** toast pushes now classify common file/workspace operations
+  (save, open, create file/folder, rename, delete, reveal, copy) and replace any
+  older toast from the same operation family before showing the new result.
+  Identical messages still refresh in place.
+- **Language note:** no new Mighty gap surfaced. This is shim-side state hygiene,
+  but a richer event/result model in Mighty would make these command families
+  explicit instead of inferred from user-visible strings.
