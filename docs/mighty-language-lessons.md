@@ -2782,3 +2782,14 @@ responsive sidebar floor was still too wide.
 - **Language note:** no compiler gap surfaced. Mighty would benefit from a
   first-class responsive layout primitive so width budgets can be stated near
   component intent rather than mirrored through shim-side constants.
+
+### L184. Modal footers should not carry cramped instructions **[finding, P3]**
+The compact Settings screenshot showed the footer shortcut hint turning into
+tiny edge copy. The text did not improve the core workflow and made the modal
+feel less polished on small windows.
+
+- **IDE note:** Settings now uses a quiet footer with only the panel tag, keeping
+  the preference rows and controls as the visual focus.
+- **Language note:** no compiler gap surfaced. Mighty UI needs reusable
+  responsive footer patterns so helper copy can be omitted, moved, or collapsed
+  consistently instead of being hard-coded per modal.

@@ -54,6 +54,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Compact sidebar leaves more room for work**: narrow windows now reduce the
   sidebar to 160px, giving terminal, debug, palette, and welcome views more
   usable width instead of crowding dock/header content.
+- **Settings footer is cleaner in compact windows**: the modal no longer crams
+  shortcut helper text into the footer, avoiding tiny overlapping copy at narrow
+  widths.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now

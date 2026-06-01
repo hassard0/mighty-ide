@@ -326,7 +326,7 @@ impl SettingsPanel {
     /// Draw the centered Settings card: a dim scrim, a rounded elevated card
     /// titled "Settings", one row per preference with its label + description on
     /// the left and a value + control (± stepper or on/off pill) on the right
-    /// (the highlighted row tinted with the accent), and a footer hint. No-op
+    /// (the highlighted row tinted with the accent), and a quiet footer. No-op
     /// when inactive.
     pub fn draw(&self, ctx: &mut crate::MuiContext, width: u32, height: u32) {
         if !self.active {
@@ -438,18 +438,10 @@ impl SettingsPanel {
             }
         }
 
-        // ---- footer hint ----
+        // ---- footer ----
         let foot_y = box_y + box_h - foot_h;
         ctx.dl_rect(box_x + 1.0, foot_y, box_w - 2.0, 1.0, theme::BORDER());
         let fty = foot_y + (foot_h - 11.0) * 0.5;
-        ctx.text.queue_ui_sized(
-            box_x + 18.0,
-            fty,
-            "\u{2191}\u{2193} move   \u{2212}/+ adjust   Space toggle   Esc close",
-            theme::TEXT_3(),
-            11.0,
-            clip,
-        );
         let tag = "Mighty Settings";
         ctx.text.queue_ui_sized(
             box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3,
