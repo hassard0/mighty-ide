@@ -998,6 +998,13 @@ filename src/main.mty
     // symbols so a headless capture shows the populated tree. Reports the path
     // used (scanner / LSP). No effect on normal launches.
     if std::env::var_os("MUI_OUTLINE_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            use crate::editor::TextModel;
+            let demo = b"agent EditorAgent {\n  state root: Str\n\n  fn open_workspace(self, path: Str) -> I32 {\n    1\n  }\n\n  fn run_checks(self) -> I32 {\n    0\n  }\n}\n\nstruct WorkspaceFile {\n  path: Str\n}\n\nfn main() {\n  let agent = EditorAgent { root: \"samples\" }\n  agent.run_checks()\n}\n";
+            *ctx.tabs.active_model_mut() = TextModel::from_bytes(demo);
+            ctx.tabs.active_model_mut().move_to(7, 4);
+            ctx.edit_probe_lock = true;
+        }
         let _ = crate::navsurfaces::mui_outline_refresh(handle);
         if let Some(ctx) = unsafe { ctx(handle) } {
             ctx.active_panel = crate::PANEL_OUTLINE;

@@ -143,6 +143,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Peek stays inside compact windows**: the inline Peek Definition card now
   uses visible-surface bounds and clipped header budgets, so minimum-size
   captures do not cut off the card's right edge or command hint.
+- **Outline visual QA shows real symbols**: the Outline gallery case now seeds a
+  representative Mighty file before refreshing symbols, so alignment reviews see
+  nested functions, agents, and structs instead of an empty scratch-state panel.
 - **Visual gallery paths are reliable**: the overlay-gallery QA tool now
   normalizes relative executable, workdir, and output paths before launching the
   packaged IDE, avoiding false missing-screenshot failures.

@@ -2446,3 +2446,17 @@ off-screen, which makes the inline navigation surface feel unfinished.
 - **Language note:** no compiler gap surfaced. This reinforces the broader
   Mighty UI need for a single host-provided visible-surface/layout primitive
   rather than each feature rediscovering raw GPU vs visible window bounds.
+
+### L161. Visual fixtures must demonstrate the feature, not just open the surface **[finding, P2]**
+The compact Outline gallery opened the Outline panel, but it was scanning the
+default scratch buffer and therefore showed "No symbols." That verifies panel
+chrome, but it does not verify the symbol rows, nesting, current-row highlight,
+or text budgets a user actually cares about.
+
+- **IDE note:** the Outline screenshot hook now seeds a representative Mighty
+  source file before refreshing the outline, then parks the cursor inside a
+  nested method so the captured panel contains real agent, function, and struct
+  rows.
+- **Language note:** no compiler gap surfaced. Mighty tooling still needs
+  first-class UI stories/fixtures so visual QA states are declared as product
+  scenarios instead of one-off host-side environment hooks.
