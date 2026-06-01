@@ -74,6 +74,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,
   ensure a final newline, and timed auto-save.
+- **Save All asks for untitled destinations**: dirty untitled buffers now open
+  the native Save As picker during Save All instead of being skipped with only a
+  follow-up warning.
 
 ### Code-reading visual polish
 - **Bracket-pair colorization**: matched `()[]{}` colored by nesting depth with a

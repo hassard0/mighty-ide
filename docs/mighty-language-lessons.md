@@ -1613,3 +1613,17 @@ crowd the dirty dot and close icon even though the click target remained fixed.
 - **Language note:** no new Mighty gap surfaced. This is another case where the
   Rust shim owns text measurement because Mighty currently passes only scalar
   draw commands and does not expose measured chrome text layout primitives.
+
+### L95. Save All should not skip untitled buffers **[finding, P1]**
+Save All wrote dirty file-backed tabs but left dirty untitled tabs untouched and
+only reported that they needed Save As. That made the save flow feel incomplete:
+the user asked to save everything, but the IDE did not ask where the unsaved
+buffers should go.
+
+- **IDE note:** Save All now opens the native Save As picker for each dirty
+  untitled buffer, writes the selected destination, binds the tab to that path,
+  and leaves the buffer dirty only when the picker is cancelled or unavailable.
+- **Language note:** no new compiler gap surfaced, but the implementation again
+  highlights the scalar dialog-result friction: cancellation, picker
+  unavailability, IO failure, and success are still encoded as integer paths
+  through the Mighty/Rust ABI instead of a structured result.

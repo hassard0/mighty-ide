@@ -8306,26 +8306,45 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
     let mut saved = 0_i32;
     let mut failed = 0_i32;
     let mut untitled = 0_i32;
+    let original_active = ctx.tabs.active();
     for idx in dirty {
         let Some(tab) = ctx.tabs.get_mut(idx) else {
             continue;
         };
-        let Some(path) = tab.path.clone() else {
-            untitled += 1;
-            continue;
-        };
-        let bytes = save_bytes_for_tab(tab);
-        match std::fs::write(&path, &bytes) {
-            Ok(()) => {
-                tab.dirty = false;
-                tab.model.mark_clean();
-                saved += 1;
+        if let Some(path) = tab.path.clone() {
+            let bytes = save_bytes_for_tab(tab);
+            match std::fs::write(&path, &bytes) {
+                Ok(()) => {
+                    tab.dirty = false;
+                    tab.model.mark_clean();
+                    saved += 1;
+                }
+                Err(e) => {
+                    failed += 1;
+                    eprintln!("mui_save_all({}): {e}", path.display());
+                }
             }
-            Err(e) => {
+        } else {
+            ctx.tabs.switch(idx);
+            sync_active_path(ctx);
+            let root = crate::wsabi::effective_root(ctx);
+            let target = match pick_save_file_native(&root, "untitled.mty") {
+                FileDialogPick::Picked(path) => path,
+                FileDialogPick::Cancelled | FileDialogPick::Unavailable => {
+                    untitled += 1;
+                    continue;
+                }
+            };
+            if save_active_to_path(ctx, target) == 0 {
+                saved += 1;
+            } else {
                 failed += 1;
-                eprintln!("mui_save_all({}): {e}", path.display());
             }
         }
+    }
+    if original_active < ctx.tabs.count() {
+        ctx.tabs.switch(original_active);
+        sync_active_path(ctx);
     }
     ctx.pending_dirty_close = None;
     if ctx.tabs.dirty_count() == 0 {

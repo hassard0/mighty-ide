@@ -1133,13 +1133,17 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
 }
 
 #[test]
-fn save_all_writes_dirty_file_backed_tabs_and_leaves_untitled_dirty() {
+fn save_all_prompts_for_dirty_untitled_tabs() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_save_all_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
     let a = root.join("a.mty");
     let b = root.join("b.mty");
+    let u = root.join("untitled_saved.mty");
     std::fs::write(&a, "old a").unwrap();
     std::fs::write(&b, "old b").unwrap();
 
@@ -1154,17 +1158,42 @@ fn save_all_writes_dirty_file_backed_tabs_and_leaves_untitled_dirty() {
     ctx.tabs.set_dirty(iu, true);
 
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
-    assert_eq!(crate::mui_save_all(handle), 2);
+    std::env::set_var("MUI_SAVE_FILE_PICK", u.to_string_lossy().as_ref());
+    assert_eq!(crate::mui_save_all(handle), 3);
+    std::env::remove_var("MUI_SAVE_FILE_PICK");
     assert_eq!(std::fs::read_to_string(&a).unwrap(), "new a\n");
     assert_eq!(std::fs::read_to_string(&b).unwrap(), "new b\n");
+    assert_eq!(std::fs::read_to_string(&u).unwrap(), "untitled\n");
     assert!(!ctx.tabs.is_dirty(ia));
     assert!(!ctx.tabs.is_dirty(ib));
-    assert!(ctx.tabs.is_dirty(iu));
+    assert!(!ctx.tabs.is_dirty(iu));
+    assert_eq!(ctx.tabs.get(iu).unwrap().path.as_deref(), Some(u.as_path()));
     let toast = ctx.toasts.toasts().last().unwrap();
-    assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Saved 2; 1 untitled file need Save As");
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Saved 3 files");
 
     let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn save_all_cancelled_untitled_picker_preserves_dirty_tab() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let iu = ctx.tabs.new_untitled();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("untitled");
+    ctx.tabs.set_dirty(iu, true);
+
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    std::env::set_var("MUI_SAVE_FILE_PICK", "");
+    assert_eq!(crate::mui_save_all(handle), 0);
+    std::env::remove_var("MUI_SAVE_FILE_PICK");
+    assert!(ctx.tabs.is_dirty(iu));
+    assert!(ctx.tabs.get(iu).unwrap().path.is_none());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "1 untitled file need Save As");
 }
 
 #[test]
