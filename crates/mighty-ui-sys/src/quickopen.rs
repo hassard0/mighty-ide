@@ -6,7 +6,8 @@
 //! * (no prefix) = **files** — fuzzy-find across all workspace files. The shim
 //!   walks the workspace root once + caches the result; binaries and the usual
 //!   noise dirs (`.git` / `target` / `node_modules`) are skipped. An empty query
-//!   shows the **Recently Opened (MRU)** list.
+//!   shows the **Recently Opened (MRU)** list, falling back to workspace files
+//!   when there are no recents.
 //! * `>` = **commands** — routes to the existing command palette ([`crate::palette`]).
 //! * `@` = **symbols in the current file** — uses the Outline symbol provider
 //!   ([`crate::outline`]).
@@ -33,7 +34,7 @@ use crate::theme;
 /// Which finder mode the current query selects (by its first char).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
-    /// No prefix: fuzzy file search (empty query → MRU recents).
+    /// No prefix: fuzzy file search (empty query -> MRU recents or workspace files).
     Files = 0,
     /// `>` prefix: command palette.
     Commands = 1,
@@ -344,6 +345,14 @@ impl Mru {
         self.paths.len() != before
     }
 
+    /// Drop recent files that no longer exist. Returns true when anything was
+    /// removed so callers can persist the cleaned list.
+    pub fn prune_missing_files(&mut self) -> bool {
+        let before = self.paths.len();
+        self.paths.retain(|p| p.is_file());
+        self.paths.len() != before
+    }
+
     /// The recents, newest first.
     pub fn entries(&self) -> &[PathBuf] {
         &self.paths
@@ -509,6 +518,16 @@ impl QuickOpen {
         self.mru.remove(path)
     }
 
+    /// Remove stale recent-file paths before presenting recents to users.
+    pub fn prune_missing_recents(&mut self) -> bool {
+        let changed = self.mru.prune_missing_files();
+        if changed && self.active && self.mode() == Mode::Files && Mode::strip(Mode::Files, &self.query).is_empty() {
+            self.rebuild_files();
+            self.clamp_sel();
+        }
+        changed
+    }
+
     /// Restore the recent-file MRU from persisted config.
     pub fn set_recent_paths(&mut self, paths: Vec<PathBuf>) {
         self.mru.set_all(paths);
@@ -578,7 +597,7 @@ impl QuickOpen {
         n.parse::<i32>().ok().filter(|v| *v >= 1).unwrap_or(-1)
     }
 
-    /// Open the finder: clear the query, build the file rows (MRU when empty).
+    /// Open the finder: clear the query, build file rows (MRU, then workspace files).
     /// The caller seeds the symbol provider via [`set_symbol_rows`] when needed.
     pub fn open(&mut self) {
         self.active = true;
@@ -623,15 +642,21 @@ impl QuickOpen {
         }
     }
 
-    /// Build the Files-mode rows: when the query (sans prefix) is empty, the MRU
-    /// recents; otherwise the fuzzy-ranked workspace files.
+    /// Build the Files-mode rows: empty query shows MRU recents when present,
+    /// otherwise workspace files; typed query shows fuzzy-ranked workspace files.
     fn rebuild_files(&mut self) {
         let q = Mode::strip(Mode::Files, &self.query);
         if q.is_empty() {
-            self.rows = self.mru_rows();
+            let rows = self.mru_rows();
+            self.rows = if rows.is_empty() { self.workspace_rows(q) } else { rows };
             self.clamp_sel();
             return;
         }
+        self.rows = self.workspace_rows(q);
+        self.clamp_sel();
+    }
+
+    fn workspace_rows(&self, q: &str) -> Vec<Row> {
         let mut scored: Vec<(i32, usize, Row)> = Vec::new();
         for (i, f) in self.index.iter().enumerate() {
             if let Some(m) = score_path(&f.rel, q) {
@@ -665,8 +690,7 @@ impl QuickOpen {
         // Higher score first; ties broken by index order (stable, deterministic).
         scored.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
         scored.truncate(200);
-        self.rows = scored.into_iter().map(|(_, _, r)| r).collect();
-        self.clamp_sel();
+        scored.into_iter().map(|(_, _, r)| r).collect()
     }
 
     /// MRU rows (newest first), resolving each path's basename/dir against the
@@ -925,7 +949,7 @@ impl QuickOpen {
         let cat_y = box_y + search_h + 9.0;
         let cat_str = match self.mode() {
             Mode::Files => {
-                if Mode::strip(Mode::Files, &self.query).is_empty() {
+                if Mode::strip(Mode::Files, &self.query).is_empty() && !self.mru.entries().is_empty() {
                     "RECENTLY OPENED"
                 } else {
                     "WORKSPACE FILES"
@@ -1190,6 +1214,23 @@ mod tests {
     }
 
     #[test]
+    fn quickopen_prunes_missing_recent_files() {
+        let root = std::env::temp_dir().join(format!("mui_qo_mru_prune_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let keep = root.join("keep.mty");
+        let missing = root.join("missing.mty");
+        std::fs::write(&keep, b"fn main() {}\n").unwrap();
+
+        let mut qo = QuickOpen::new();
+        qo.set_recent_paths(vec![missing.clone(), keep.clone()]);
+        assert!(qo.prune_missing_recents());
+        assert_eq!(qo.recent_paths(), vec![keep]);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn walk_finds_files_and_skips_ignored_dirs() {
         let root = std::env::temp_dir().join(format!("mui_qo_walk_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
@@ -1262,6 +1303,26 @@ mod tests {
         assert!(qo.row(0).unwrap().target < 0);
         // accept resolves back to the path.
         assert_eq!(qo.accept_file_path(-1), Some(PathBuf::from("/ws/b.mty")));
+    }
+
+    #[test]
+    fn empty_query_without_recents_shows_workspace_files() {
+        let root = std::env::temp_dir().join(format!("mui_qo_empty_workspace_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("src/main.mty"), b"x").unwrap();
+        std::fs::write(root.join("notes.txt"), b"x").unwrap();
+
+        let mut qo = QuickOpen::new();
+        qo.ensure_index(&root, true);
+        qo.open();
+
+        assert_eq!(qo.mode(), Mode::Files);
+        assert!(qo.count() >= 2);
+        assert!(qo.row(0).unwrap().target >= 0);
+        assert!(qo.accept_file_path(-1).is_some());
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

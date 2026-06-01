@@ -2104,3 +2104,15 @@ overlapped and unreliable.
 - **Language note:** no compiler gap surfaced. Mighty would benefit from a
   reusable text-layout primitive that returns wrapped line boxes for a string,
   width, font size, and maximum line count so panels do not reimplement wrapping.
+
+### L133. Recents lists must self-heal before users see them **[finding, P2]**
+Quick Open could show files that were deleted after a test harness run or a
+temporary workflow. The stale row was only removed after the user selected it,
+which made the picker look broken.
+
+- **IDE note:** Quick Open and Welcome now prune missing recent files before
+  rendering recents, persist the cleaned list, and fall back to workspace files
+  when pruning leaves the picker with no usable recents.
+- **Language note:** no compiler gap surfaced. A future Mighty standard library
+  should make filesystem predicates and MRU persistence ergonomic enough to keep
+  this logic in app code instead of host shims.

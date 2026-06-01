@@ -2706,6 +2706,31 @@ fn open_recent_available_when_only_recent_files_exist() {
 }
 
 #[test]
+fn quickopen_open_prunes_missing_recent_files_before_rendering() {
+    use crate::mui_quickopen_open;
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let root = std::env::temp_dir().join(format!("mui_qo_prune_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let keep = root.join("keep.mty");
+    let missing = root.join("missing.mty");
+    std::fs::write(&keep, b"fn main() {}").unwrap();
+    ctx.quickopen.set_recent_paths(vec![missing, keep.clone()]);
+
+    mui_quickopen_open(h);
+    assert_eq!(ctx.quickopen.recent_paths(), vec![keep]);
+    assert_eq!(ctx.quickopen.count(), 1, "stale recent should not render");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn welcome_missing_recent_folder_stays_open_and_prunes() {
     use crate::wsabi::mui_ws_recent_count;
     use crate::{mui_welcome_active, mui_welcome_draw, mui_welcome_open_folder};

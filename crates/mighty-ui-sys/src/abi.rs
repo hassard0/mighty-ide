@@ -3246,6 +3246,12 @@ pub(crate) fn sync_active_path(ctx: &mut MuiContext) {
     ctx.file_path = path;
 }
 
+fn prune_missing_recent_files(ctx: &mut MuiContext) {
+    if ctx.quickopen.prune_missing_recents() {
+        persist_recent_files(ctx);
+    }
+}
+
 fn close_tab_unchecked(ctx: &mut MuiContext, idx_u: usize) -> i32 {
     // Remap pane->tab indices so a pane never points past the end after a close.
     ctx.pending_dirty_close = None;
@@ -6554,6 +6560,7 @@ pub extern "C" fn mui_quickopen_open(handle: i64) {
     };
     let root = quickopen_root(ctx);
     let n = ctx.quickopen.ensure_index(&root, false);
+    prune_missing_recent_files(ctx);
     ctx.quickopen.open();
     println!("quickopen: opened ({n} files indexed under {})", root.display());
 }
@@ -10929,6 +10936,7 @@ pub extern "C" fn mui_welcome_draw(handle: i64) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
+    prune_missing_recent_files(ctx);
     let region = layout::region(ctx.sidebar_visible);
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     // Take the recents snapshot out so we can borrow `ctx` mutably for the draw
