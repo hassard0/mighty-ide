@@ -172,6 +172,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Theme Picker is visibly closable**: the Color Theme modal now has the same
   header close affordance and mouse trace as the other overlays, with close
   cancelling any live preview and restoring the original theme.
+- **Branch Switcher is visibly closable**: the Git branch overlay now has a
+  header close button that works in both filter and create-branch modes instead
+  of relying on outside-click or Escape.
 - **Markdown Preview is visibly closable**: the rendered preview pane now has a
   header close button that collapses the split preview through the same pane
   machinery as the command route.

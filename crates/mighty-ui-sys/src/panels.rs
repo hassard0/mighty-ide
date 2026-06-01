@@ -669,29 +669,53 @@ pub extern "C" fn mui_branch_move(handle: i64, delta: i32) {
     }
 }
 
-/// Select the branch-picker row under the last click. Returns the selected row
-/// index, or `-1` if the click missed the visible picker rows.
-#[no_mangle]
-pub extern "C" fn mui_branch_click(handle: i64) -> i32 {
-    let Some(ctx) = (unsafe { ctx(handle) }) else {
-        return -1;
-    };
-    if !ctx.branch_picker.is_active() || ctx.branch_picker.is_creating() {
-        return -1;
-    }
-    let w = ctx.gpu.width as f32;
-    let h = ctx.gpu.height as f32;
+fn branch_picker_geometry(width: u32, height: u32, rows: usize) -> (f32, f32, f32, f32, f32, f32) {
+    let w = width as f32;
+    let h = height as f32;
     let row_h = 34.0_f32;
     let head_h = 50.0_f32;
-    let rows = ctx.branch_picker.count().min(10);
     let box_w = 460.0_f32.min(w - 80.0);
     let box_h = head_h + rows as f32 * row_h + 16.0;
     let box_x = ((w - box_w) * 0.5).max(0.0);
     let box_y = 100.0_f32.min((h - box_h).max(0.0));
     let list_top = box_y + head_h + 6.0;
+    (box_x, box_y, box_w, box_h, list_top, row_h)
+}
+
+fn branch_picker_close_rect(width: u32, height: u32, rows: usize) -> (f32, f32, f32, f32) {
+    let (box_x, box_y, box_w, _box_h, _list_top, _row_h) =
+        branch_picker_geometry(width, height, rows);
+    (box_x + box_w - 38.0, box_y + 13.0, 24.0, 24.0)
+}
+
+/// Select the branch-picker row under the last click. Returns the selected row
+/// index, `-2` for the close button, or `-1` if the click missed the picker rows.
+#[no_mangle]
+pub extern "C" fn mui_branch_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    if !ctx.branch_picker.is_active() {
+        return -1;
+    }
+    let rows = if ctx.branch_picker.is_creating() {
+        1
+    } else {
+        ctx.branch_picker.count().min(10)
+    };
+    let (box_x, box_y, box_w, _box_h, list_top, row_h) =
+        branch_picker_geometry(ctx.gpu.width, ctx.gpu.height, rows);
     let x = ctx.last_event.x;
     let y = ctx.last_event.y;
-    if x < box_x || x > box_x + box_w || y < list_top {
+    if x < box_x || x > box_x + box_w || y < box_y {
+        return -1;
+    }
+    let (cx, cy, cw, ch) = branch_picker_close_rect(ctx.gpu.width, ctx.gpu.height, rows);
+    if (cx..=cx + cw).contains(&x) && (cy..=cy + ch).contains(&y) {
+        crate::abi::trace("branch_close");
+        return -2;
+    }
+    if ctx.branch_picker.is_creating() || y < list_top {
         return -1;
     }
     let idx = ((y - list_top) / row_h).floor() as usize;
@@ -862,14 +886,11 @@ fn draw_branch_picker(p: &crate::scm::BranchPicker, ctx: &mut MuiContext, width:
     let chrome = theme::CHROME_FONT_SIZE;
     let clip = ctx.clip;
 
-    let row_h = 34.0_f32;
-    let head_h = 50.0_f32;
     let creating = p.is_creating();
     let rows = if creating { 1 } else { p.count().min(10) };
-    let box_w = 460.0_f32.min(w - 80.0);
-    let box_h = head_h + rows as f32 * row_h + 16.0;
-    let box_x = ((w - box_w) * 0.5).max(0.0);
-    let box_y = 100.0_f32.min((h - box_h).max(0.0));
+    let (box_x, box_y, box_w, box_h, list_top, row_h) =
+        branch_picker_geometry(width, height, rows);
+    let head_h = 50.0_f32;
     let radius = 12.0_f32;
 
     // Scrim + glow + card.
@@ -896,9 +917,12 @@ fn draw_branch_picker(p: &crate::scm::BranchPicker, ctx: &mut MuiContext, width:
     let qadv = chrome * 0.52;
     let caret_x = box_x + 40.0 + q.chars().count() as f32 * qadv + 1.0;
     ctx.dl_round(caret_x, box_y + 25.0, 2.0, 15.0, 1.0, theme::ACCENT_BRIGHT());
+    let (cx, cy, cw, ch) = branch_picker_close_rect(width, height, rows);
+    ctx.dl_round(cx, cy, cw, ch, 6.0, theme::BG_2());
+    ctx.dl_stroke(cx, cy, cw, ch, 6.0, theme::BORDER_STRONG(), 1.0);
+    ctx.dl_icon(cx + 5.0, cy + 5.0, 14.0, 14.0, icons::CLOSE, theme::TEXT_1(), 1.6, false);
     ctx.dl_rect(box_x + 1.0, box_y + head_h - 1.0, box_w - 2.0, 1.0, theme::BORDER());
 
-    let list_top = box_y + head_h + 6.0;
     if creating {
         ctx.text.queue_ui_sized(box_x + 18.0, list_top + 8.0, "Press Enter to create & switch \u{00b7} Esc to cancel", theme::TEXT_3(), chrome - 1.0, clip);
         return;
@@ -1271,6 +1295,23 @@ mod search_panel_tests {
         assert_eq!(tail("abcdef", 4), "def");
         assert_eq!(tail("abcdef", 1), "abcdef");
         assert_eq!(tail("abc", 4), "abc");
+    }
+}
+
+#[cfg(test)]
+mod branch_picker_surface_tests {
+    use super::{branch_picker_close_rect, branch_picker_geometry};
+
+    #[test]
+    fn branch_close_rect_stays_inside_header() {
+        let rows = 6;
+        let (box_x, box_y, box_w, _box_h, list_top, _row_h) =
+            branch_picker_geometry(860, 560, rows);
+        let (cx, cy, cw, ch) = branch_picker_close_rect(860, 560, rows);
+        assert!(cx >= box_x);
+        assert!(cx + cw <= box_x + box_w);
+        assert!(cy >= box_y);
+        assert!(cy + ch < list_top);
     }
 }
 

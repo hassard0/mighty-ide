@@ -1432,7 +1432,10 @@ fn main() {
             }
           } else if tag == ev_mouse_down() {
             let bh = mui_branch_click(h)
-            if bh >= 0 {
+            if bh == -2 {
+              mui_branch_cancel(h)
+              branch_open = false
+            } else if bh >= 0 {
               let acc = mui_branch_accept(h)
               if acc == 1 {
                 branch_open = false

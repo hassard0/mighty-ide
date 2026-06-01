@@ -2592,3 +2592,17 @@ whole IDE changes color.
   declarative widget/action model from L166-L168: modal headers, close buttons,
   traces, and cancel/apply semantics should be generated from one action source
   instead of hand-wired in parallel.
+
+### L171. Picker header controls must remain active in submodes **[finding, P2]**
+The Git branch switcher had a filter mode and a create-branch submode, but no
+visible close button. Worse, the click path returned early while create mode was
+active, so adding a header button without reworking that ordering would have
+produced another dead control.
+
+- **IDE note:** Branch Switcher now shares one geometry helper for draw and
+  hit-test, draws a header close button, and returns a distinct close code before
+  row/create-mode handling. Mighty routes that code to `mui_branch_cancel`, so
+  filter mode and create mode both close from the same visible target.
+- **Language note:** no compiler gap surfaced. The language-side pain is still
+  lifecycle/routing duplication: modal submodes should not be able to bypass
+  parent header actions because each overlay arm manually orders scalar checks.
