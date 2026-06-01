@@ -4072,17 +4072,19 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
     let logo_tile = 32.0;
     let lx = (rw - logo_tile) * 0.5;
     let ly = 6.0;
-    ctx.dl_shadow(
+    ctx.dl_shadow(lx, ly + 2.0, logo_tile, logo_tile, 4.0, MuiColor::new(0.35, 0.95, 0.90, 0.22), 12.0);
+    ctx.dl_grad_v(
         lx,
-        ly + 2.0,
+        ly,
         logo_tile,
         logo_tile,
-        7.0,
-        MuiColor::new(0.38, 0.85, 0.84, 0.24),
-        12.0,
+        4.0,
+        MuiColor::new(0.08, 0.09, 0.15, 1.0),
+        MuiColor::new(0.03, 0.04, 0.09, 1.0),
     );
-    ctx.dl_grad_v(lx, ly, logo_tile, logo_tile, 7.0, theme::INFO(), theme::ACCENT());
-    ctx.dl_stroke(lx, ly, logo_tile, logo_tile, 7.0, MuiColor::new(0.80, 0.95, 1.0, 0.62), 1.0);
+    ctx.dl_round(lx + 1.0, ly + 1.0, 4.0, logo_tile - 2.0, 2.0, MuiColor::new(0.35, 0.95, 0.90, 0.95));
+    ctx.dl_round(lx + logo_tile - 9.0, ly + 1.0, 8.0, 8.0, 2.0, theme::ACCENT());
+    ctx.dl_stroke(lx, ly, logo_tile, logo_tile, 4.0, MuiColor::new(0.56, 0.96, 0.94, 0.68), 1.0);
     ctx.dl_icon(
         lx + 6.0,
         ly + 6.0,

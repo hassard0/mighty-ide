@@ -2012,3 +2012,15 @@ landed on the same y band.
 - **Language note:** no compiler gap surfaced. This is another case where Mighty
   would benefit from a central z-ordered event router instead of repeated scalar
   hit tests in source order.
+
+### L125. App identity must survive taskbar scale **[finding, P2]**
+The previous rounded gradient taskbar icon was readable but generic. It did not
+clearly connect the Windows shell icon, the in-app rail logo, and the Welcome
+brand surface.
+
+- **IDE note:** the ICO generator now emits a darker IDE tile with a cyan rail
+  accent and compact violet command corner. The rail logo and Welcome tile use
+  the same structure so the mark is consistent across taskbar, window chrome, and
+  first-run UI.
+- **Language note:** no compiler gap surfaced. The gap is asset workflow: native
+  apps need reproducible icon generation and visual QA alongside code tests.

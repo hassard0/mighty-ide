@@ -223,18 +223,21 @@ impl WelcomeState {
         let tile = if compact { 52.0_f32 } else { 64.0_f32 };
         let tx = cx;
         // Rounded brand tile with a focused glow + the Mighty mark.
-        ctx.dl_shadow(
+        ctx.dl_shadow(tx, y + 8.0, tile, tile, 9.0, MuiColor::new(0.35, 0.95, 0.90, 0.24), 34.0);
+        let tile_r = if compact { 8.0 } else { 10.0 };
+        ctx.dl_grad_v(
             tx,
-            y + 8.0,
+            y,
             tile,
             tile,
-            16.0,
-            MuiColor::new(0.38, 0.85, 0.84, 0.25),
-            34.0,
+            tile_r,
+            MuiColor::new(0.08, 0.09, 0.15, 1.0),
+            MuiColor::new(0.03, 0.04, 0.09, 1.0),
         );
-        let tile_r = if compact { 12.0 } else { 14.0 };
-        ctx.dl_grad_v(tx, y, tile, tile, tile_r, theme::INFO(), theme::ACCENT());
-        ctx.dl_stroke(tx, y, tile, tile, tile_r, MuiColor::new(0.80, 0.95, 1.0, 0.65), 1.0);
+        let rail_w = if compact { 7.0 } else { 8.0 };
+        ctx.dl_round(tx + 2.0, y + 2.0, rail_w, tile - 4.0, 3.0, MuiColor::new(0.35, 0.95, 0.90, 0.95));
+        ctx.dl_round(tx + tile - 16.0, y + 2.0, 14.0, 14.0, 4.0, theme::ACCENT());
+        ctx.dl_stroke(tx, y, tile, tile, tile_r, MuiColor::new(0.56, 0.96, 0.94, 0.68), 1.0);
         // The "M" mark, in on-accent ink (white reads on the saturated tile in
         // every theme).
         let mark_ink = MuiColor::new(1.0, 1.0, 1.0, 0.96);

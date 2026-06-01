@@ -14,12 +14,14 @@ import os
 import struct
 from PIL import Image, ImageDraw
 
-# Brand palette. The cool corner keeps the mark from reading as a flat purple
-# square while preserving enough contrast for the 16px taskbar entry.
-ACCENT_TOP = (96, 218, 214, 255)       # electric teal
-ACCENT_MID = (124, 91, 238, 255)       # saturated indigo
-ACCENT_BOTTOM = (55, 40, 141, 255)     # deep violet
-ACCENT_EDGE = (201, 244, 255, 255)
+# Brand palette. The dark tile reads like an IDE in the taskbar; the cyan rail
+# and violet corner carry the Mighty accent without turning into a generic app
+# gradient at 16px.
+TILE_TOP = (21, 24, 38, 255)
+TILE_BOTTOM = (8, 10, 20, 255)
+ACCENT_TEAL = (90, 232, 222, 255)
+ACCENT_VIOLET = (116, 82, 255, 255)
+ACCENT_EDGE = (142, 245, 239, 245)
 INK = (255, 255, 255, 255)
 INK_SHADOW = (19, 16, 52, 145)
 
@@ -38,16 +40,11 @@ def render(size: int) -> Image.Image:
     # Rounded brand tile. At 16px the tile itself must carry the silhouette, so
     # use a strong fill, modest radius, and no glossy stripe that can alias into
     # taskbar noise.
-    radius = int(s * 0.16)
+    radius = int(s * 0.11)
     inset = max(1, int(s * 0.02))
     for y in range(inset, s - inset + 1):
         t = (y - inset) / max(1, (s - 2 * inset))
-        if t < 0.38:
-            u = t / 0.38
-            col = tuple(int(ACCENT_TOP[i] * (1 - u) + ACCENT_MID[i] * u) for i in range(4))
-        else:
-            u = (t - 0.38) / 0.62
-            col = tuple(int(ACCENT_MID[i] * (1 - u) + ACCENT_BOTTOM[i] * u) for i in range(4))
+        col = tuple(int(TILE_TOP[i] * (1 - t) + TILE_BOTTOM[i] * t) for i in range(4))
         d.line([(inset, y), (s - inset, y)], fill=col, width=1)
     mask = Image.new("L", (s, s), 0)
     ImageDraw.Draw(mask).rounded_rectangle([inset, inset, s - inset, s - inset], radius=radius, fill=255)
@@ -55,10 +52,17 @@ def render(size: int) -> Image.Image:
     tile.paste(img, (0, 0), mask)
     img = tile
     d = ImageDraw.Draw(img)
+
+    # IDE-like rail accent and a compact violet command corner. Both are clipped
+    # by the rounded tile mask.
+    bar_w = max(SS, int(s * 0.11))
+    d.rounded_rectangle([inset, inset, inset + bar_w, s - inset], radius=radius, fill=ACCENT_TEAL)
+    corner = max(2 * SS, int(s * 0.20))
+    d.polygon([(s - inset - corner, inset), (s - inset, inset), (s - inset, inset + corner)], fill=ACCENT_VIOLET)
     d.rounded_rectangle([inset, inset, s - inset, s - inset], radius=radius, outline=ACCENT_EDGE, width=max(1, SS))
 
     # White Mighty monogram. Scale the 24-unit glyph into the tile's safe area.
-    pad = s * 0.17
+    pad = s * 0.18
     span = s - 2 * pad
     pts = [(pad + (x / 24.0) * span, pad + (y / 24.0) * span) for (x, y) in GLYPH]
     shadow_pts = [(x + max(1, s * 0.012), y + max(1, s * 0.018)) for x, y in pts]
