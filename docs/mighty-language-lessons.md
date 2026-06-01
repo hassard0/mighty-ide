@@ -2369,3 +2369,16 @@ to discover and less predictable than other docked surfaces.
 - **Language note:** no compiler gap surfaced. The command surface is now large
   enough that Mighty should generate command ids, labels, and dispatcher stubs
   from one source instead of mirroring them manually.
+
+### L155. Left drawers need deterministic close commands too **[finding, P2]**
+The sidebar had a toggle and explicit width presets, but no command that meant
+"make the drawer closed." Toggle commands are ambiguous in a command palette:
+they are fine for shortcuts, but weaker for recovering space after Search,
+Testing, Source Control, or Explorer has expanded the layout.
+
+- **IDE note:** `View: Close Sidebar` now hides the left drawer without changing
+  the active sidebar panel, no-ops with a clear toast when already closed, and is
+  covered by both unit tests and the live Windows input harness.
+- **Language note:** no new compiler gap surfaced. This reinforces L154: Mighty
+  needs generated command metadata and dispatcher stubs so command families can
+  expose open/close/resize semantics without manual Rust/Mighty id mirroring.

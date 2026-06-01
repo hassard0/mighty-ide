@@ -599,6 +599,18 @@ if ($env:MUI_TRACE) {
     $script:HarnessFailed = $true
   }
 }
+Invoke-PaletteCommand "close sidebar" $null
+Start-Sleep -Milliseconds 250
+if ($env:MUI_TRACE) {
+  Start-Sleep -Milliseconds 150
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  if ($traceText -match "(?m)^sidebar_close$") {
+    Log "SIDEBAR-CLOSE-COMMAND: close palette trace observed"
+  } else {
+    Log "SIDEBAR-CLOSE-COMMAND: missing close palette trace"
+    $script:HarnessFailed = $true
+  }
+}
 
 # === BOTTOM DOCK RESIZE: drag the visible handle up and back down. ===
 Invoke-PaletteCommand "view problems" $null

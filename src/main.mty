@@ -205,6 +205,7 @@ extern c {
   // file-tree sidebar
   fn mui_sidebar_visible(handle: I64) -> I32
   fn mui_sidebar_toggle(handle: I64) -> I32
+  fn mui_sidebar_close(handle: I64) -> I32
   fn mui_sidebar_layout_dispatch(handle: I64, id: I32) -> I32
   fn mui_sidebar_draw(handle: I64)
   fn mui_tree_refresh(handle: I64) -> I32
@@ -752,6 +753,7 @@ fn cmd_window_toggle_maximize() -> I32 { 97 }
 fn cmd_window_minimize() -> I32 { 98 }
 fn cmd_dock_close() -> I32 { 99 }
 fn cmd_ai_close() -> I32 { 100 }
+fn cmd_sidebar_close() -> I32 { 101 }
 
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
@@ -3630,6 +3632,8 @@ fn main() {
         } else if id == cmd_ai_close() {
           let _aic = mui_ai_close(h)
           ai_focus = false
+        } else if id == cmd_sidebar_close() {
+          let _sc = mui_sidebar_close(h)
         } else if id == cmd_view_terminal() {
           let ok = mui_term_open(h)
           if ok == 1 { term_focus = true; mui_log_terminal(h) }

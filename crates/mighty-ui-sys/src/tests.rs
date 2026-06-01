@@ -733,6 +733,25 @@ fn sidebar_layout_commands_open_and_resize_sidebar() {
 }
 
 #[test]
+fn sidebar_close_command_is_deterministic() {
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_SEARCH;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::abi::mui_sidebar_close(handle), 1);
+    assert!(!ctx.sidebar_visible);
+    assert_eq!(ctx.active_panel, crate::PANEL_SEARCH);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Sidebar closed");
+
+    assert_eq!(crate::abi::mui_sidebar_close(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Sidebar is already closed"
+    );
+}
+
+#[test]
 fn visible_rows_reserve_space_for_every_bottom_dock_owner() {
     let _g = crate::settings::TEST_LOCK
         .lock()
@@ -1491,6 +1510,7 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_VIEW_PROBLEMS, "View: Problems"),
         (crate::palette::CMD_VIEW_AI_COPILOT, "View: AI Copilot"),
         (crate::palette::CMD_AI_CLOSE, "View: Close AI Copilot"),
+        (crate::palette::CMD_SIDEBAR_CLOSE, "View: Close Sidebar"),
         (crate::palette::CMD_VIEW_TERMINAL, "View: Terminal"),
         (crate::palette::CMD_VIEW_WEB_PLAYGROUND, "View: Web Playground"),
         (crate::palette::CMD_DOCK_COMPACT, "View: Bottom Dock Compact"),
@@ -3489,6 +3509,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_WINDOW_MINIMIZE, "cmd_window_minimize"),
         (CMD_DOCK_CLOSE, "cmd_dock_close"),
         (CMD_AI_CLOSE, "cmd_ai_close"),
+        (CMD_SIDEBAR_CLOSE, "cmd_sidebar_close"),
     ];
 
     for cmd in COMMANDS {

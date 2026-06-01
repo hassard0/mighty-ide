@@ -5233,6 +5233,24 @@ pub extern "C" fn mui_sidebar_toggle(handle: i64) -> i32 {
     }
 }
 
+/// Close the left sidebar drawer without changing its active panel. Returns `1`
+/// when a visible sidebar was closed, or `0` when it was already hidden.
+#[no_mangle]
+pub extern "C" fn mui_sidebar_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.sidebar_visible {
+        ctx.push_toast(crate::toast::Kind::Info, "Sidebar is already closed");
+        trace("sidebar_close noop");
+        return 0;
+    }
+    ctx.sidebar_visible = false;
+    ctx.push_toast(crate::toast::Kind::Info, "Sidebar closed");
+    trace("sidebar_close");
+    1
+}
+
 /// Apply a sidebar width preset from the palette.
 /// `94` = compact, `95` = default/auto, `96` = wide. Returns the preset number
 /// (`1..=3`) or `0` for an unrelated command id.

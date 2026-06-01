@@ -131,6 +131,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **AI copilot has a command close path**: **View: Close AI Copilot** closes the
   right-docked chat panel without clearing its transcript or requiring rail
   toggle behavior.
+- **Sidebar has a command close path**: **View: Close Sidebar** deterministically
+  hides the left drawer without depending on toggle state or changing the active
+  Explorer/Search/SCM/Testing panel.
 - **Testing header avoids status-pill collisions**: the Testing sidebar title now
   measures the right-side `idle`/`running`/`failed`/`passed` pill first and fits
   the header label into the remaining space.
