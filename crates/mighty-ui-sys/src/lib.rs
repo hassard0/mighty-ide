@@ -464,6 +464,9 @@ pub struct MuiContext {
     /// markdown of the other pane's `.md` buffer instead of the editor body), or
     /// `None` when no preview is open. The preview pane is the RIGHT split pane.
     md_pane: Option<usize>,
+    /// True when opening Markdown Preview temporarily hid the sidebar so compact
+    /// windows have enough width for readable source + preview panes.
+    md_preview_hid_sidebar: bool,
 }
 
 impl MuiContext {
@@ -883,6 +886,7 @@ pub(crate) fn build_context(
         snippet_session: snippets::SnippetSession::new(),
         md_preview: mdpreview::MdPreview::new(),
         md_pane: None,
+        md_preview_hid_sidebar: false,
     });
     Box::into_raw(ctx)
 }
@@ -1560,6 +1564,7 @@ impl MuiContext {
             snippet_session: snippets::SnippetSession::new(),
             md_preview: mdpreview::MdPreview::new(),
             md_pane: None,
+            md_preview_hid_sidebar: false,
         })
     }
 

@@ -2869,6 +2869,36 @@ fn markdown_preview_header_close_hit_collapses_preview() {
 }
 
 #[test]
+fn markdown_preview_hides_sidebar_when_compact_and_restores_on_close() {
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 520;
+    ctx.gpu.phys_width = 520;
+    ctx.gpu.height = 360;
+    ctx.gpu.phys_height = 360;
+    ctx.sidebar_visible = true;
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(520);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::abi::mui_md_open(h), 1);
+    assert_eq!(crate::abi::mui_md_active(h), 1);
+    assert!(!ctx.sidebar_visible, "compact preview should give width back to the panes");
+    let visible_w = crate::layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
+    let region = crate::layout::region(ctx.sidebar_visible);
+    let (left, right) = crate::layout::pane_bounds(region, visible_w, ctx.panes.count(), 1);
+    assert!(
+        right - left >= 220.0,
+        "preview pane should be readable after hiding sidebar"
+    );
+
+    crate::abi::mui_md_close(h);
+    assert_eq!(crate::abi::mui_md_active(h), 0);
+    assert!(ctx.sidebar_visible, "closing preview restores the user's sidebar");
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+}
+
+#[test]
 fn minimap_hides_in_narrow_split_panes() {
     assert!(crate::abi::should_show_minimap(
         true,

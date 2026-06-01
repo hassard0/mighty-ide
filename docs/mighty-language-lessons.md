@@ -2804,3 +2804,15 @@ text without measuring the right-side action strip.
 - **Language note:** no compiler gap surfaced. Mighty should eventually expose a
   reusable text-fit helper for common "label plus trailing actions" headers so
   these budgets are not hand-recreated in the renderer.
+
+### L186. Split views need responsive ownership of chrome **[finding, P2]**
+The 520px Markdown Preview gallery showed source and preview panes squeezed into
+columns too narrow to read because the sidebar stayed open while the preview
+split consumed the remaining body width.
+
+- **IDE note:** Markdown Preview now temporarily hides the sidebar only when a
+  compact split would fall below the readable pane width, and restores it when
+  the preview closes.
+- **Language note:** no compiler gap surfaced. Mighty needs a way to express
+  responsive chrome ownership across features, so a view can request temporary
+  space from surrounding UI without adding ad hoc flags per component.

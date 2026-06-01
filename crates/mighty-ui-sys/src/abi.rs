@@ -10545,6 +10545,8 @@ pub extern "C" fn mui_pane_dispatch(handle: i64, cmd: i32) -> i32 {
 // Live Markdown preview (split-pane rendered view of the active `.md` buffer)
 // ===========================================================================
 
+const MD_PREVIEW_MIN_READABLE_PANE_W: f32 = 220.0;
+
 /// The tab index of the EDITOR pane that backs the preview pane `preview_i` (the
 /// other pane in the split). Returns the source tab whose `.md` buffer is rendered.
 fn md_source_tab(ctx: &MuiContext, preview_i: usize) -> usize {
@@ -10588,6 +10590,16 @@ pub extern "C" fn mui_md_open(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    let (visible_w, _) = visible_surface_size(ctx);
+    let body_w_with_sidebar = visible_w as f32 - layout::body_left(ctx.sidebar_visible);
+    if ctx.sidebar_visible
+        && body_w_with_sidebar / 2.0 < MD_PREVIEW_MIN_READABLE_PANE_W
+        && !ctx.md_preview.is_open()
+    {
+        ctx.sidebar_visible = false;
+        ctx.md_preview_hid_sidebar = true;
+        trace("md_open compact: hide sidebar");
+    }
     // Ensure a 2-pane split. The right pane becomes the preview; the left keeps
     // the editor on the source buffer. Reuse the existing pane machinery.
     if ctx.panes.count() < 2 {
@@ -10704,6 +10716,8 @@ pub extern "C" fn mui_md_close(handle: i64) {
     };
     trace("md_close");
     ctx.md_preview.close();
+    let restore_sidebar = ctx.md_preview_hid_sidebar;
+    ctx.md_preview_hid_sidebar = false;
     // If the preview occupies the right pane, close that pane back to single.
     if let Some(i) = ctx.md_pane.take() {
         if ctx.panes.count() > 1 {
@@ -10714,6 +10728,9 @@ pub extern "C" fn mui_md_close(handle: i64) {
             ctx.panes.close_focused();
             pane_rebind_focus(ctx);
         }
+    }
+    if restore_sidebar {
+        ctx.sidebar_visible = true;
     }
 }
 

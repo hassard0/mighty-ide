@@ -60,6 +60,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Explorer header title no longer overlaps actions**: compact sidebar headers
   now measure and ellipsize the workspace title before the New File/New Folder
   buttons.
+- **Markdown Preview is readable in compact windows**: opening the live preview
+  now temporarily hides the sidebar when a split preview would leave cramped
+  columns, then restores the sidebar when the preview closes.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now
