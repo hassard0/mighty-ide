@@ -155,6 +155,8 @@ pub const CMD_COPY_ACTIVE_FILE_DIRECTORY: u32 = 63;
 pub const CMD_MOVE_ACTIVE_TAB_LEFT: u32 = 64;
 /// Move the active tab one slot to the right.
 pub const CMD_MOVE_ACTIVE_TAB_RIGHT: u32 = 65;
+/// Sort open tabs alphabetically by display name.
+pub const CMD_SORT_TABS_BY_NAME: u32 = 66;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -191,6 +193,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_DUPLICATE_ACTIVE_TAB, label: "File: Duplicate Active Tab", keybinding: "" },
     Command { id: CMD_MOVE_ACTIVE_TAB_LEFT, label: "File: Move Active Tab Left", keybinding: "Ctrl+Shift+PageUp" },
     Command { id: CMD_MOVE_ACTIVE_TAB_RIGHT, label: "File: Move Active Tab Right", keybinding: "Ctrl+Shift+PageDown" },
+    Command { id: CMD_SORT_TABS_BY_NAME, label: "File: Sort Open Tabs by Name", keybinding: "" },
     Command { id: CMD_RELOAD_ACTIVE_FILE, label: "File: Reload Active File from Disk", keybinding: "" },
     Command { id: CMD_REVERT_ACTIVE_FILE, label: "File: Revert Active File from Disk", keybinding: "" },
     Command { id: CMD_FORMAT_DOCUMENT,  label: "Format Document",    keybinding: "Ctrl+Shift+I" },
@@ -499,6 +502,7 @@ impl PaletteEngine {
             CMD_DUPLICATE_ACTIVE_TAB => (icons::PLUS, "Clone the active editor tab next to itself", false),
             CMD_MOVE_ACTIVE_TAB_LEFT => (icons::CHEVRON, "Move the active tab one slot left", false),
             CMD_MOVE_ACTIVE_TAB_RIGHT => (icons::CHEVRON, "Move the active tab one slot right", false),
+            CMD_SORT_TABS_BY_NAME => (icons::CHEVRON, "Sort open tabs alphabetically by name", false),
             CMD_RELOAD_ACTIVE_FILE => (icons::REFRESH, "Reload the active file from disk", false),
             CMD_REVERT_ACTIVE_FILE => (icons::REFRESH, "Discard local edits and reload from disk", false),
             CMD_FORMAT_DOCUMENT => (icons::PLUS, "Apply mightyfmt to active file", false),

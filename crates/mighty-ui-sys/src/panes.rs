@@ -208,6 +208,15 @@ impl PaneLayout {
             }
         }
     }
+
+    /// Remap pane->tab indices after a full tab reorder. `old_to_new[old] = new`.
+    pub fn on_tabs_reordered(&mut self, old_to_new: &[usize]) {
+        for p in &mut self.panes {
+            if let Some(new_idx) = old_to_new.get(p.tab) {
+                p.tab = *new_idx;
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -358,6 +367,15 @@ mod tests {
         l.split_right(2, 0); // panes show tabs 0 and 2
         l.on_tabs_swapped(1, 2);
         assert_eq!(l.tab_at(0), Some(0));
+        assert_eq!(l.tab_at(1), Some(1));
+    }
+
+    #[test]
+    fn on_tabs_reordered_keeps_panes_on_same_documents() {
+        let mut l = PaneLayout::new(0);
+        l.split_right(2, 0); // panes show tabs 0 and 2
+        l.on_tabs_reordered(&[2, 0, 1]);
+        assert_eq!(l.tab_at(0), Some(2));
         assert_eq!(l.tab_at(1), Some(1));
     }
 }

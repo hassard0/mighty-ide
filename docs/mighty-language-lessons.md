@@ -1319,3 +1319,13 @@ must remap pane indices to keep each pane on the same logical document.
 - **Language note:** no new gap surfaced. Mighty routes the scalar command and
   resets transient editor state; the tab-order and pane-index invariants belong
   in the shim.
+
+### L72. Full tab reorders need an old-to-new index map **[finding, P3]**
+Adding **Sort Open Tabs by Name** generalized L71: adjacent swaps can remap two
+indices, but a full sort needs the tab store to return an old-index to new-index
+map so split panes can keep following the same documents.
+
+- **IDE note:** bulk tab organization must preserve the active logical document
+  and every split-pane binding, not just the visible order.
+- **Language note:** no new gap surfaced. Mighty should continue routing one
+  scalar command while the shim owns collection reordering and remap invariants.

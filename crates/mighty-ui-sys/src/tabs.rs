@@ -193,6 +193,35 @@ impl TabStore {
         Some(self.active)
     }
 
+    /// Sort open tabs by display name, preserving the active logical document.
+    /// Returns an old-index -> new-index remap when order changed.
+    pub fn sort_by_name(&mut self) -> Option<Vec<usize>> {
+        if self.tabs.len() <= 1 {
+            self.ensure_scratch();
+            return None;
+        }
+        let old_active = self.active.min(self.tabs.len().saturating_sub(1));
+        let len = self.tabs.len();
+        let mut indexed: Vec<(usize, Tab)> = self.tabs.drain(..).enumerate().collect();
+        indexed.sort_by(|(ia, a), (ib, b)| {
+            a.basename()
+                .to_ascii_lowercase()
+                .cmp(&b.basename().to_ascii_lowercase())
+                .then_with(|| ia.cmp(ib))
+        });
+        let mut old_to_new = vec![0; len];
+        let mut changed = false;
+        for (new_idx, (old_idx, _)) in indexed.iter().enumerate() {
+            old_to_new[*old_idx] = new_idx;
+            if *old_idx != new_idx {
+                changed = true;
+            }
+        }
+        self.tabs = indexed.into_iter().map(|(_, tab)| tab).collect();
+        self.active = old_to_new[old_active];
+        if changed { Some(old_to_new) } else { None }
+    }
+
     /// Set the active tab's file path (Save As on an untitled buffer binds it to a
     /// real path so subsequent saves write there).
     pub fn set_active_path(&mut self, path: PathBuf) {
@@ -737,6 +766,26 @@ mod tests {
         assert_eq!(s.move_active_right(), Some(1));
         assert_eq!(s.active(), 1);
         assert!(s.get(1).unwrap().basename().contains("tabs_move_b"));
+    }
+
+    #[test]
+    fn sort_by_name_preserves_active_logical_tab_and_returns_remap() {
+        let mut s = TabStore::new();
+        let z = write_tmp("tabs_sort_z.txt", b"z");
+        let a = write_tmp("tabs_sort_a.txt", b"a");
+        let m = write_tmp("tabs_sort_m.txt", b"m");
+        s.open_path(z);
+        let active = s.open_path(a);
+        s.open_path(m);
+        s.switch(active);
+
+        let remap = s.sort_by_name().unwrap();
+        assert_eq!(remap, vec![2, 0, 1]);
+        assert_eq!(s.active(), 0);
+        assert!(s.get(0).unwrap().basename().contains("tabs_sort_a"));
+        assert!(s.get(1).unwrap().basename().contains("tabs_sort_m"));
+        assert!(s.get(2).unwrap().basename().contains("tabs_sort_z"));
+        assert_eq!(s.sort_by_name(), None);
     }
 
     #[test]

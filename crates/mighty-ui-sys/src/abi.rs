@@ -3104,6 +3104,25 @@ pub extern "C" fn mui_tab_move_active_right(handle: i64) -> i32 {
     }
 }
 
+/// Sort open tabs by display name. Returns the new active index, or -1 when the
+/// order was already sorted / no move was possible.
+#[no_mangle]
+pub extern "C" fn mui_tab_sort_by_name(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    match ctx.tabs.sort_by_name() {
+        Some(old_to_new) => {
+            ctx.panes.on_tabs_reordered(&old_to_new);
+            sync_active_path(ctx);
+            let active = ctx.tabs.active();
+            ctx.push_toast(crate::toast::Kind::Info, "Sorted tabs by name");
+            active as i32
+        }
+        None => -1,
+    }
+}
+
 /// Reload the active file-backed tab from disk. Dirty tabs are protected and
 /// require the user to save or close/discard explicitly first. Returns the
 /// active tab index after reload, or -1 when reload was refused/failed.

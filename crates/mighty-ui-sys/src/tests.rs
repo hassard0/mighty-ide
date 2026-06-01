@@ -887,6 +887,12 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(move_right.label, "File: Move Active Tab Right");
     assert_eq!(move_right.keybinding, "Ctrl+Shift+PageDown");
 
+    let sort_tabs = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_SORT_TABS_BY_NAME)
+        .unwrap();
+    assert_eq!(sort_tabs.label, "File: Sort Open Tabs by Name");
+
     let reload_file = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_RELOAD_ACTIVE_FILE)
@@ -1163,6 +1169,38 @@ fn move_active_tab_left_right_preserves_split_pane_documents() {
     assert_eq!(ctx.panes.tab_at(0), Some(a_idx), "left pane should follow a.mty back");
     assert_eq!(ctx.panes.tab_at(1), Some(b_idx), "right pane should follow b.mty back");
     assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Moved tab right");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn sort_tabs_by_name_preserves_active_and_split_pane_documents() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_sort_tabs_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let z = root.join("zeta.mty");
+    let a = root.join("alpha.mty");
+    let m = root.join("middle.mty");
+    std::fs::write(&z, "z").unwrap();
+    std::fs::write(&a, "a").unwrap();
+    std::fs::write(&m, "m").unwrap();
+    let z_idx = ctx.tabs.open_path(z);
+    let a_idx = ctx.tabs.open_path(a);
+    ctx.tabs.open_path(m);
+    ctx.tabs.switch(a_idx);
+    ctx.panes = crate::panes::PaneLayout::new(z_idx);
+    ctx.panes.split_right(a_idx, 0);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_tab_sort_by_name(handle), 1);
+    assert_eq!(ctx.tabs.active(), 1);
+    assert_eq!(ctx.tabs.get(1).unwrap().basename(), "alpha.mty");
+    assert_eq!(ctx.panes.tab_at(0), Some(3), "left pane should still show zeta.mty");
+    assert_eq!(ctx.panes.tab_at(1), Some(1), "right pane should still show alpha.mty");
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Sorted tabs by name");
+
+    assert_eq!(crate::mui_tab_sort_by_name(handle), -1);
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -2372,6 +2410,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_DUPLICATE_ACTIVE_TAB, "cmd_duplicate_active_tab"),
         (CMD_MOVE_ACTIVE_TAB_LEFT, "cmd_move_active_tab_left"),
         (CMD_MOVE_ACTIVE_TAB_RIGHT, "cmd_move_active_tab_right"),
+        (CMD_SORT_TABS_BY_NAME, "cmd_sort_tabs_by_name"),
         (CMD_RELOAD_ACTIVE_FILE, "cmd_reload_active_file"),
         (CMD_REVERT_ACTIVE_FILE, "cmd_revert_active_file"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),
