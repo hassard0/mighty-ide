@@ -470,6 +470,12 @@ impl MuiContext {
     pub(crate) fn push_toast(&mut self, kind: toast::Kind, message: impl Into<String>) {
         self.toasts.push(kind, message);
     }
+
+    /// Any lower dock that consumes editor vertical space. Keep this centralized
+    /// so editor row math, ghost text, and dock drawing agree.
+    pub(crate) fn bottom_dock_open(&self) -> bool {
+        self.term_open || self.run.is_active() || self.web.is_active() || self.problems.is_open()
+    }
 }
 
 /// Panel ids (mirror the Mighty side + rail icon order).

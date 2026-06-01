@@ -551,6 +551,11 @@ fn view_commands_open_non_sidebar_surfaces_without_toggling() {
     assert_eq!(crate::webabi::mui_web_open(handle), 1);
     assert_eq!(crate::webabi::mui_web_active(handle), 1);
     assert_eq!(crate::featureabi::mui_run_active(handle), 0);
+    assert_eq!(crate::featureabi::mui_run_toggle(handle), 1);
+    assert_eq!(crate::featureabi::mui_run_active(handle), 1);
+    assert_eq!(crate::webabi::mui_web_active(handle), 0);
+    assert_eq!(crate::featureabi::mui_run_toggle(handle), 0);
+    assert_eq!(crate::featureabi::mui_run_active(handle), 0);
     assert_eq!(crate::webabi::mui_web_open(handle), 1);
     assert_eq!(crate::webabi::mui_web_active(handle), 1);
 
@@ -565,6 +570,36 @@ fn view_commands_open_non_sidebar_surfaces_without_toggling() {
     assert_eq!(crate::panels::mui_ai_is_open(handle), 1);
     assert_eq!(crate::panels::mui_ai_show(handle), 1);
     assert_eq!(crate::panels::mui_ai_is_open(handle), 1);
+}
+
+#[test]
+fn visible_rows_reserve_space_for_every_bottom_dock_owner() {
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let base_rows = crate::abi::mui_visible_rows(handle);
+    assert!(base_rows > 1);
+    assert!(!ctx.bottom_dock_open());
+
+    assert_eq!(crate::featureabi::mui_run_open(handle), 1);
+    let run_rows = crate::abi::mui_visible_rows(handle);
+    assert!(run_rows < base_rows, "run_rows={run_rows} base_rows={base_rows}");
+    assert!(ctx.bottom_dock_open());
+
+    assert_eq!(crate::webabi::mui_web_open(handle), 1);
+    let web_rows = crate::abi::mui_visible_rows(handle);
+    assert_eq!(web_rows, run_rows, "web dock should reserve the same lower band");
+    assert!(ctx.bottom_dock_open());
+
+    assert_eq!(crate::navsurfaces::mui_problems_open(handle), 1);
+    let problems_rows = crate::abi::mui_visible_rows(handle);
+    assert_eq!(
+        problems_rows, run_rows,
+        "problems dock should reserve the same lower band"
+    );
+    assert!(ctx.bottom_dock_open());
 }
 
 #[test]

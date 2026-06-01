@@ -278,16 +278,16 @@ pub fn visible_rows(height: u32) -> u32 {
 }
 
 /// Region-aware visible-row count: the usable height is reduced by the tab bar
-/// at the top and two bands at the bottom (prompt + status), plus the terminal
-/// panel when it is open.
-pub fn visible_rows_in(region: Region, height: u32, term_open: bool) -> u32 {
+/// at the top and two bands at the bottom (prompt + status), plus the shared
+/// lower dock when Terminal / Run / Web / Problems is open.
+pub fn visible_rows_in(region: Region, height: u32, bottom_dock_open: bool) -> u32 {
     let reserved_bottom = 2.0 * LINE_H(); // prompt band + status band
-    let term = if term_open {
+    let lower_dock = if bottom_dock_open {
         term_panel_height(height)
     } else {
         0.0
     };
-    let usable = height as f32 - region.top - PAD - reserved_bottom - term;
+    let usable = height as f32 - region.top - PAD - reserved_bottom - lower_dock;
     if usable <= 0.0 {
         return 1;
     }

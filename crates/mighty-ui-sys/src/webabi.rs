@@ -47,12 +47,14 @@ pub extern "C" fn mui_web_run(handle: i64) -> i32 {
     };
     let Some(path) = active_path(ctx) else {
         ctx.web.open();
+        ctx.term_open = false;
         ctx.run.close();
         ctx.problems.set_open(false);
         ctx.push_toast(crate::toast::Kind::Warn, "Run in Browser: no active file");
         return 0;
     };
     // Only one bottom-band panel visible at a time.
+    ctx.term_open = false;
     ctx.run.close();
     ctx.problems.set_open(false);
     let ok = ctx.web.start(&path, web_port());
@@ -89,6 +91,7 @@ pub extern "C" fn mui_web_toggle(handle: i64) -> i32 {
     };
     let open = ctx.web.toggle();
     if open {
+        ctx.term_open = false;
         ctx.run.close();
         ctx.problems.set_open(false);
     }
@@ -103,6 +106,7 @@ pub extern "C" fn mui_web_open(handle: i64) -> i32 {
         return 0;
     };
     ctx.web.open();
+    ctx.term_open = false;
     ctx.run.close();
     ctx.problems.set_open(false);
     1

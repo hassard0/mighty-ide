@@ -1565,7 +1565,7 @@ pub extern "C" fn mui_text_draw_line(handle: i64, line: i32, r: f32, g: f32, b: 
 pub extern "C" fn mui_visible_rows(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(1, |c| {
         let region = layout::region(c.sidebar_visible);
-        layout::visible_rows_in(region, c.gpu.height, c.term_open) as i32
+        layout::visible_rows_in(region, c.gpu.height, c.bottom_dock_open()) as i32
     })
 }
 
@@ -4952,6 +4952,9 @@ pub extern "C" fn mui_term_open(handle: i64) -> i32 {
         // Re-size to the current panel in case the window changed while closed.
         t.resize(rows, cols);
     }
+    ctx.run.close();
+    ctx.web.close();
+    ctx.problems.set_open(false);
     ctx.term_open = true;
     1
 }
@@ -8510,7 +8513,7 @@ pub extern "C" fn mui_ed_click(handle: i64) -> i32 {
             let rows = layout::visible_rows_in(
                 layout::region(ctx.sidebar_visible),
                 ctx.gpu.height,
-                false,
+                ctx.bottom_dock_open(),
             ) as usize;
             let first = g.scroll_to_center(line, rows);
             let m = ctx.tabs.active_model_mut();

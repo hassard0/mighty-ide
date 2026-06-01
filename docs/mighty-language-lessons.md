@@ -1498,3 +1498,16 @@ lifecycle feel arbitrary even though the underlying operations were both useful.
 - **Language note:** no new Mighty compiler gap surfaced, but every new command
   still requires manually mirrored numeric ids between Rust and `src/main.mty`.
   This remains a product-friction point for command evolution.
+
+### L86. Bottom dock ownership must feed editor row math **[finding, P1]**
+Run, Web, Problems, and Terminal all occupy the same lower-dock band, but the
+editor's visible-row calculation only reserved that space for Terminal. Opening
+Testing/Run/Problems-style surfaces could therefore leave editor and inline
+ghost text believing rows behind the dock were still visible.
+
+- **IDE note:** `MuiContext::bottom_dock_open()` now centralizes the lower-dock
+  ownership state, `mui_visible_rows` and ghost text use it, and opening one
+  lower dock hides the other lower dock owners.
+- **Language note:** no new Mighty compiler issue surfaced. The bug came from
+  split UI ownership across shim modules and the scalar ABI exposing too little
+  shared layout state by default.

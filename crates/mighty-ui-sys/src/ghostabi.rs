@@ -172,7 +172,7 @@ pub extern "C" fn mui_ghost_draw(handle: i64) {
     let clip = c.clip;
     let total = c.tabs.active_model().line_count().max(1) as u64;
     let first = c.tabs.active_model().first_visible();
-    let rows = layout::visible_rows_in(region, c.gpu.height, c.term_open) as usize;
+    let rows = layout::visible_rows_in(region, c.gpu.height, c.bottom_dock_open()) as usize;
 
     // The anchor row must be on-screen for the (first) ghost line to show.
     if anchor_line < first || anchor_line >= first + rows {

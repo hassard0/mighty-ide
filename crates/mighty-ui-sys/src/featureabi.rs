@@ -41,10 +41,12 @@ pub extern "C" fn mui_run_start(handle: i64) -> i32 {
     };
     let Some(path) = active_path(ctx) else {
         ctx.run.open();
+        ctx.term_open = false;
         ctx.web.close();
         ctx.problems.set_open(false);
         return 0;
     };
+    ctx.term_open = false;
     ctx.web.close();
     ctx.problems.set_open(false);
     if ctx.run.start(&path) {
@@ -67,7 +69,16 @@ pub extern "C" fn mui_run_stop(handle: i64) {
 /// `1` if now open, `0` if closed.
 #[no_mangle]
 pub extern "C" fn mui_run_toggle(handle: i64) -> i32 {
-    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.run.toggle()))
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let open = ctx.run.toggle();
+    if open {
+        ctx.term_open = false;
+        ctx.web.close();
+        ctx.problems.set_open(false);
+    }
+    i32::from(open)
 }
 
 /// Open the Run panel without starting or toggling a process. Returns `1` when
@@ -78,6 +89,7 @@ pub extern "C" fn mui_run_open(handle: i64) -> i32 {
         return 0;
     };
     ctx.run.open();
+    ctx.term_open = false;
     ctx.web.close();
     ctx.problems.set_open(false);
     1

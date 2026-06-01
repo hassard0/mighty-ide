@@ -43,6 +43,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   **File: New Untitled File**, while the palette also exposes
   **File: New File in Workspace** for creating a named file under the current
   workspace.
+- **Bottom docks reserve editor space consistently**: Run, Web, Problems, and
+  Terminal now share one lower-dock owner model, so editor/ghost rows no longer
+  keep flowing underneath testing or output drawers.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

@@ -259,6 +259,7 @@ pub extern "C" fn mui_problems_open(handle: i64) -> i32 {
     let paths = problem_paths(ctx);
     let _ = ctx.problems.refresh(&paths);
     ctx.problems.set_open(true);
+    ctx.term_open = false;
     ctx.run.close();
     ctx.web.close();
     1
