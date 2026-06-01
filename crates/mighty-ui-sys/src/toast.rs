@@ -69,7 +69,7 @@ const LIFETIME: Duration = Duration::from_millis(3000);
 /// The fade/slide in + out animation window (each end).
 const ANIM: Duration = Duration::from_millis(220);
 /// Max simultaneously-visible toasts (older ones drop).
-pub const MAX_VISIBLE: usize = 4;
+pub const MAX_VISIBLE: usize = 3;
 const MARGIN: f32 = 18.0;
 const RIGHT_SAFE_INSET: f32 = 96.0;
 const CARD_H: f32 = 56.0;
@@ -372,6 +372,8 @@ enum OperationKey {
     Copy,
     Test,
     WebRun,
+    Theme,
+    Diagnostic,
     Format,
     Navigation,
 }
@@ -440,6 +442,10 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Run stopped")
     {
         Some(OperationKey::WebRun)
+    } else if m.starts_with("Theme:") {
+        Some(OperationKey::Theme)
+    } else if is_mighty_diagnostic_message(m) {
+        Some(OperationKey::Diagnostic)
     } else if m == "Formatted document" || m == "Format failed" {
         Some(OperationKey::Format)
     } else if m == "No definition found" {
@@ -472,6 +478,17 @@ fn is_test_result_message(message: &str) -> bool {
     failed.chars().all(|ch| ch.is_ascii_digit())
         && of == "of"
         && total.chars().all(|ch| ch.is_ascii_digit())
+}
+
+fn is_mighty_diagnostic_message(message: &str) -> bool {
+    let Some(rest) = message.strip_prefix("MT") else {
+        return false;
+    };
+    let mut chars = rest.chars();
+    let code: String = chars.by_ref().take(4).collect();
+    code.len() == 4
+        && code.chars().all(|ch| ch.is_ascii_digit())
+        && chars.next() == Some(':')
 }
 
 /// Re-alpha a color (multiplying the existing alpha by `a`).
@@ -668,6 +685,23 @@ mod tests {
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Formatted document");
         assert!(!q.toasts().iter().any(|t| t.message == "Format failed"));
+    }
+
+    #[test]
+    fn newer_visual_and_diagnostic_feedback_replaces_stale_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "Theme: Aurora Glass", t0);
+        q.push_at(Kind::Info, "Theme: Vivid Modern", t0 + Duration::from_millis(100));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Theme: Vivid Modern");
+
+        q.push_at(Kind::Error, "MT1001: expected I32", t0 + Duration::from_millis(200));
+        q.push_at(Kind::Error, "MT2001: expected I32, found Str", t0 + Duration::from_millis(300));
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[1].message, "MT2001: expected I32, found Str");
+        assert!(!q.toasts().iter().any(|t| t.message == "MT1001: expected I32"));
     }
 
     #[test]

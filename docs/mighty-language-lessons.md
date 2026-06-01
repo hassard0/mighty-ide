@@ -2209,3 +2209,17 @@ too optimistically for large shaped UI glyphs.
 - **Language note:** no compiler gap surfaced. Mighty UI needs a measured text
   layout API usable from pure layout code so wrapping can use real glyph metrics
   instead of host-side approximations.
+
+### L142. Notification stacks must collapse by user task **[finding, P2]**
+The toast stack can become stale even when each card is individually valid:
+theme changes, run/build diagnostics, save feedback, and file operations are all
+task-level status, not a permanent log. At minimum size, too many live cards also
+covers the editor and reads like overlapping UI.
+
+- **IDE note:** Toasts now show at most three cards and replace stale theme and
+  Mighty diagnostic feedback within their own families, the same way save/run
+  result toasts already replace earlier results. This keeps transient feedback
+  useful without turning the editor into a notification pile.
+- **Language note:** no compiler gap surfaced. Mighty needs a first-class
+  notification primitive with a stable `group`/`replace_key`, rather than
+  relying on Rust-side string prefix classification.
