@@ -147,6 +147,10 @@ pub const CMD_DUPLICATE_ACTIVE_TAB: u32 = 59;
 pub const CMD_RELOAD_ACTIVE_FILE: u32 = 60;
 /// Discard local edits and reload the active file-backed tab from disk.
 pub const CMD_REVERT_ACTIVE_FILE: u32 = 61;
+/// Copy only the active file's basename to the system clipboard.
+pub const CMD_COPY_ACTIVE_FILE_NAME: u32 = 62;
+/// Copy the active file's containing directory to the system clipboard.
+pub const CMD_COPY_ACTIVE_FILE_DIRECTORY: u32 = 63;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -162,6 +166,8 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_REVEAL_ACTIVE_FILE_IN_OS, label: "File: Show Active File in File Manager", keybinding: "" },
     Command { id: CMD_COPY_ACTIVE_FILE_PATH, label: "File: Copy Active File Path", keybinding: "" },
     Command { id: CMD_COPY_ACTIVE_FILE_RELATIVE_PATH, label: "File: Copy Active File Relative Path", keybinding: "" },
+    Command { id: CMD_COPY_ACTIVE_FILE_NAME, label: "File: Copy Active File Name", keybinding: "" },
+    Command { id: CMD_COPY_ACTIVE_FILE_DIRECTORY, label: "File: Copy Active File Directory", keybinding: "" },
     Command { id: CMD_DELETE_ACTIVE_FILE, label: "File: Delete Active File", keybinding: "" },
     Command { id: CMD_CLEAR_NOTIFICATIONS, label: "Notifications: Clear All Toasts", keybinding: "" },
     Command { id: CMD_FIND,             label: "Find",               keybinding: "Ctrl+F" },
@@ -466,6 +472,8 @@ impl PaletteEngine {
             CMD_REVEAL_ACTIVE_FILE_IN_OS => (icons::EXPLORER, "Show the active file in the OS file manager", false),
             CMD_COPY_ACTIVE_FILE_PATH => (icons::FILE_MTY, "Copy the active file path to the clipboard", false),
             CMD_COPY_ACTIVE_FILE_RELATIVE_PATH => (icons::FILE_MTY, "Copy the workspace-relative path", false),
+            CMD_COPY_ACTIVE_FILE_NAME => (icons::FILE_MTY, "Copy just the active file name", false),
+            CMD_COPY_ACTIVE_FILE_DIRECTORY => (icons::FOLDER, "Copy the active file's containing folder", false),
             CMD_DELETE_ACTIVE_FILE => (icons::ERROR_CIRCLE, "Delete the active file after confirmation", false),
             CMD_CLEAR_NOTIFICATIONS => (icons::CLOSE, "Dismiss every visible toast notification", false),
             CMD_FIND => (icons::SEARCH, "Search within the current document", false),

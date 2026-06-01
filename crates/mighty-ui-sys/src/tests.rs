@@ -812,6 +812,18 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(copy_relative.label, "File: Copy Active File Relative Path");
 
+    let copy_name = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_COPY_ACTIVE_FILE_NAME)
+        .unwrap();
+    assert_eq!(copy_name.label, "File: Copy Active File Name");
+
+    let copy_directory = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_COPY_ACTIVE_FILE_DIRECTORY)
+        .unwrap();
+    assert_eq!(copy_directory.label, "File: Copy Active File Directory");
+
     let clear_notifications = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_CLEAR_NOTIFICATIONS)
@@ -1258,6 +1270,21 @@ fn active_file_relative_path_uses_workspace_root_and_slashes() {
     assert_eq!(
         crate::abi::active_relative_path_text(&ctx, &outside),
         outside.to_string_lossy().replace('\\', "/")
+    );
+}
+
+#[test]
+fn active_file_name_and_directory_text_are_clipboard_ready() {
+    let path = std::path::Path::new("C:\\workspace\\src\\main.mty");
+
+    assert_eq!(crate::abi::active_file_name_text(path), "main.mty");
+    assert_eq!(
+        crate::abi::active_directory_text(path),
+        "C:/workspace/src"
+    );
+    assert_eq!(
+        crate::abi::active_directory_text(std::path::Path::new("scratch.mty")),
+        "."
     );
 }
 
@@ -2257,6 +2284,11 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (
             CMD_COPY_ACTIVE_FILE_RELATIVE_PATH,
             "cmd_copy_active_file_relative_path",
+        ),
+        (CMD_COPY_ACTIVE_FILE_NAME, "cmd_copy_active_file_name"),
+        (
+            CMD_COPY_ACTIVE_FILE_DIRECTORY,
+            "cmd_copy_active_file_directory",
         ),
         (CMD_CLEAR_NOTIFICATIONS, "cmd_clear_notifications"),
         (CMD_OPEN_FILE, "cmd_open_file"),

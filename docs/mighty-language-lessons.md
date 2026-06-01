@@ -1297,3 +1297,14 @@ covering both.
 - **Language note:** no new gap surfaced. A single ABI predicate is enough, but
   this reinforces that Mighty should ask the shim for UI state summaries instead
   of duplicating state rules in control code.
+
+### L70. File-context clipboard variants are scalar commands **[finding, P3]**
+Adding **Copy Active File Name** and **Copy Active File Directory** stayed within
+the existing scalar command pattern. Mighty only routes the command id; the shim
+derives the path text and performs the platform clipboard write.
+
+- **IDE note:** basename and containing-folder copies remove a small but constant
+  manual-editing tax from command-palette file workflows.
+- **Language note:** no new gap surfaced. This is another case where string work
+  and platform integration should remain shim-side until Mighty can pass richer
+  values across the ABI.

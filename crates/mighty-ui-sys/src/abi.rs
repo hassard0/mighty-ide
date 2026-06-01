@@ -4361,6 +4361,18 @@ pub(crate) fn active_relative_path_text(ctx: &MuiContext, path: &std::path::Path
         .replace('\\', "/")
 }
 
+pub(crate) fn active_file_name_text(path: &std::path::Path) -> String {
+    basename(path)
+}
+
+pub(crate) fn active_directory_text(path: &std::path::Path) -> String {
+    path.parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| std::path::Path::new("."))
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
 /// Copy the active file path to the operating-system clipboard. Returns 1 on
 /// success, else 0.
 #[no_mangle]
@@ -4406,6 +4418,54 @@ pub extern "C" fn mui_file_copy_active_relative_path(handle: i64) -> i32 {
         Err(e) => {
             ctx.push_toast(crate::toast::Kind::Error, "Could not copy path");
             println!("file-copy-relative-path: {e}");
+            0
+        }
+    }
+}
+
+/// Copy only the active file name to the operating-system clipboard.
+#[no_mangle]
+pub extern "C" fn mui_file_copy_active_name(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let Some(path) = ctx.tabs.active_path() else {
+        ctx.push_toast(crate::toast::Kind::Warn, "No active file name to copy");
+        return 0;
+    };
+    let text = active_file_name_text(&path);
+    match write_clipboard_text(&text) {
+        Ok(()) => {
+            ctx.push_toast(crate::toast::Kind::Success, format!("Copied file name: {text}"));
+            1
+        }
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, "Could not copy file name");
+            println!("file-copy-name: {e}");
+            0
+        }
+    }
+}
+
+/// Copy the active file's containing directory to the operating-system clipboard.
+#[no_mangle]
+pub extern "C" fn mui_file_copy_active_directory(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let Some(path) = ctx.tabs.active_path() else {
+        ctx.push_toast(crate::toast::Kind::Warn, "No active file directory to copy");
+        return 0;
+    };
+    let text = active_directory_text(&path);
+    match write_clipboard_text(&text) {
+        Ok(()) => {
+            ctx.push_toast(crate::toast::Kind::Success, format!("Copied directory: {text}"));
+            1
+        }
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, "Could not copy directory");
+            println!("file-copy-directory: {e}");
             0
         }
     }
