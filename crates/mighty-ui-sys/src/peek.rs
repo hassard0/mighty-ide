@@ -66,6 +66,28 @@ pub fn extract_window_from_file(path: &Path, def_line: u32) -> (u32, Vec<String>
     }
 }
 
+fn card_rect(
+    region: layout::Region,
+    visible_w: f32,
+    visible_h: f32,
+    anchor_row: i32,
+    row_h: f32,
+    card_h: f32,
+) -> (f32, f32, f32, f32) {
+    let card_x = region.left + 12.0;
+    let mut card_y = layout::row_y_in(region, anchor_row) + row_h + 2.0;
+    let card_w = (visible_w - card_x - 12.0).max(120.0);
+
+    if card_y + card_h > visible_h - 30.0 {
+        let above = layout::row_y_in(region, anchor_row) - card_h - 2.0;
+        if above > region.top {
+            card_y = above;
+        }
+    }
+
+    (card_x, card_y, card_w, card_h)
+}
+
 /// One previewed line: its 0-based source line number + the text.
 #[derive(Debug, Clone)]
 struct PeekLine {
@@ -220,29 +242,18 @@ impl PeekState {
             return;
         }
         let region = layout::region(ctx.sidebar_visible);
-        let win_w = ctx.gpu.width as f32;
-        let win_h = ctx.gpu.height as f32;
+        let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
+        let visible_h = layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height) as f32;
         let row_h = layout::LINE_H();
         let chrome = theme::CHROME_FONT_SIZE;
 
         let anchor_row = (self.anchor_line - first_visible) as i32;
-        // The card sits in the row just below the anchored line.
-        let card_x = region.left + 12.0;
-        let mut card_y = layout::row_y_in(region, anchor_row) + row_h + 2.0;
-        let card_w = (win_w - card_x - 24.0).max(120.0);
-
         let header_h = row_h + 4.0;
         let visible_rows = self.lines.len().min(PEEK_MAX_LINES);
         let body_h = visible_rows as f32 * row_h + 6.0;
         let card_h = header_h + body_h;
-
-        // Flip the card ABOVE the anchored line if it would overflow the bottom.
-        if card_y + card_h > win_h - 30.0 {
-            let above = layout::row_y_in(region, anchor_row) - card_h - 2.0;
-            if above > region.top {
-                card_y = above;
-            }
-        }
+        let (card_x, card_y, card_w, card_h) =
+            card_rect(region, visible_w, visible_h, anchor_row, row_h, card_h);
 
         let radius = 10.0_f32;
         // Shadow + elevated card + border (matches the hover/completion chrome).
@@ -271,17 +282,41 @@ impl PeekState {
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_else(|| "definition".to_string());
         let header = format!("{}:{}", fname, self.def_line + 1);
-        ctx.text.queue_ui_sized(card_x + 32.0, card_y + 6.0, &header, theme::TEXT(), chrome, ctx.clip);
-        // Right-aligned hint.
-        let hint = "Enter: go  ·  Esc: close";
-        let hint_w = hint.chars().count() as f32 * chrome * 0.5;
+        let hint = if card_w >= 460.0 {
+            "Enter: go / Esc: close"
+        } else {
+            "Enter / Esc"
+        };
+        let hint_size = chrome - 1.5;
+        let (hint_w, _) = ctx.text.measure_ui_sized(hint, hint_size);
+        let hint_x = (card_x + card_w - hint_w - 12.0).max(card_x + 90.0);
+        let header_clip_w = (hint_x - (card_x + 40.0)).max(48.0);
+        let header_clip = Some((
+            (card_x + 32.0) as u32,
+            card_y as u32,
+            header_clip_w as u32,
+            header_h as u32,
+        ));
         ctx.text.queue_ui_sized(
-            (card_x + card_w - hint_w - 12.0).max(card_x + 32.0),
+            card_x + 32.0,
+            card_y + 6.0,
+            &header,
+            theme::TEXT(),
+            chrome,
+            header_clip,
+        );
+        ctx.text.queue_ui_sized(
+            hint_x,
             card_y + 6.0,
             hint,
             theme::TEXT_3(),
-            chrome - 1.5,
-            ctx.clip,
+            hint_size,
+            Some((
+                hint_x as u32,
+                card_y as u32,
+                (card_x + card_w - hint_x - 8.0).max(40.0) as u32,
+                header_h as u32,
+            )),
         );
 
         // Body: syntax-highlighted preview lines, clipped to the card body.
@@ -404,6 +439,23 @@ mod tests {
     fn window_from_missing_file_is_empty() {
         let (_first, lines) = extract_window_from_file(Path::new("/no/such/file.mty"), 0);
         assert!(lines.is_empty());
+    }
+
+    #[test]
+    fn card_rect_clamps_to_visible_surface() {
+        let region = layout::Region {
+            top: 84.0,
+            left: 330.0,
+        };
+        let row_h = 24.0;
+        let card_h = 310.0;
+        let (x, _y, w, _h) = card_rect(region, 860.0, 560.0, 6, row_h, card_h);
+        assert_eq!(x, 342.0);
+        assert!(
+            x + w <= 848.0,
+            "peek card should stay inside the 12px right margin, right={}",
+            x + w
+        );
     }
 
     #[test]

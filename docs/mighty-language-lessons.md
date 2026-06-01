@@ -2433,3 +2433,16 @@ the dialog appears to work, but the Explorer and workspace state do not change.
 - **Language note:** no compiler gap surfaced. Mighty needs richer black-box UX
   assertions around command effects, because scalar command success and app
   liveness are not enough to prove visible human workflows.
+
+### L160. Inline overlays must use visible-surface bounds too **[finding, P2]**
+The minimum-window Peek Definition gallery showed the card extending past the
+right edge. The body was mostly readable, but the header hint was clipped
+off-screen, which makes the inline navigation surface feel unfinished.
+
+- **IDE note:** Peek now computes its card from `dock_visible_width` and
+  `visible_height`, matching the DPI/scaled-window contract used by docks and
+  other overlays. The header label and shortcut hint also get separate clipped
+  budgets so they cannot overlap in compact frames.
+- **Language note:** no compiler gap surfaced. This reinforces the broader
+  Mighty UI need for a single host-provided visible-surface/layout primitive
+  rather than each feature rediscovering raw GPU vs visible window bounds.

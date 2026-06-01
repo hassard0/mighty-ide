@@ -140,6 +140,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Minimap hides in narrow split panes**: compact split-editor and Markdown
   preview layouts now preserve source readability instead of drawing the minimap
   over code text.
+- **Peek stays inside compact windows**: the inline Peek Definition card now
+  uses visible-surface bounds and clipped header budgets, so minimum-size
+  captures do not cut off the card's right edge or command hint.
 - **Visual gallery paths are reliable**: the overlay-gallery QA tool now
   normalizes relative executable, workdir, and output paths before launching the
   packaged IDE, avoiding false missing-screenshot failures.
