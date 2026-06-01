@@ -2754,6 +2754,11 @@ fn welcome_missing_recent_folder_stays_open_and_prunes() {
 
     mui_welcome_draw(h);
     assert_eq!(
+        mui_ws_recent_count(h),
+        0,
+        "stale Welcome folder should be pruned before rendering"
+    );
+    assert_eq!(
         mui_welcome_open_folder(h, 0),
         0,
         "missing Welcome recent folder should fail"

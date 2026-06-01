@@ -160,6 +160,14 @@ impl RecentWorkspaces {
         self.paths.len() != before
     }
 
+    /// Drop recent workspace folders that no longer exist. Returns `true` when
+    /// the list changed so callers can persist the cleaned MRU.
+    pub fn prune_missing_dirs(&mut self) -> bool {
+        let before = self.paths.len();
+        self.paths.retain(|p| p.is_dir());
+        self.paths.len() != before
+    }
+
     /// Replace the list wholesale (used when loading from the persisted file),
     /// honoring the cap + de-dup.
     pub fn set_all(&mut self, paths: Vec<PathBuf>) {
@@ -279,6 +287,23 @@ mod tests {
         assert!(r.remove(&one));
         assert_eq!(r.entries(), &[two]);
         assert!(!r.remove(&one));
+    }
+
+    #[test]
+    fn recents_prune_missing_dirs() {
+        let root = std::env::temp_dir().join(format!("mui_ws_prune_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let keep = root.join("keep");
+        let missing = root.join("missing");
+        std::fs::create_dir_all(&keep).unwrap();
+
+        let mut r = RecentWorkspaces::new();
+        r.set_all(vec![missing, keep.clone()]);
+        assert!(r.prune_missing_dirs());
+        assert_eq!(r.entries(), &[keep]);
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

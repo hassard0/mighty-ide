@@ -1268,13 +1268,18 @@ filename src/main.mty
             for name in ["main.mty", "lexer.mty", "Cargo.toml", "README.md"] {
                 ctx.quickopen.record_mru(base.join(name));
             }
-            // Seed representative RECENT FOLDERS (newest first) so the Welcome
-            // screen's "Recent Folders" column is populated for the capture, and
-            // set an explicit workspace so the explorer header shows its name.
-            for folder in ["C:\\Users\\you\\old-project", "C:\\Users\\you\\toy-lang", "C:\\Users\\you\\mighty-ide"] {
-                ctx.recent_workspaces.record(std::path::PathBuf::from(folder));
+            // Seed real bundled folders for the capture so Welcome never shows
+            // fake paths that users cannot open.
+            if let Ok(exe) = std::env::current_exe() {
+                if let Some(exe_dir) = exe.parent() {
+                    for folder in [exe_dir.join("examples"), exe_dir.join("samples"), exe_dir.to_path_buf()] {
+                        if folder.is_dir() {
+                            ctx.recent_workspaces.record(folder);
+                        }
+                    }
+                    ctx.workspace = crate::workspace::Workspace::new(exe_dir.to_path_buf());
+                }
             }
-            ctx.workspace = crate::workspace::Workspace::new(std::path::PathBuf::from("C:\\Users\\you\\mighty-ide"));
             println!(
                 "mui_init_s: MUI_WELCOME_AUTOOPEN -> welcome open, {} recents, {} folders",
                 ctx.quickopen.mru_len(),
@@ -3249,6 +3254,12 @@ pub(crate) fn sync_active_path(ctx: &mut MuiContext) {
 fn prune_missing_recent_files(ctx: &mut MuiContext) {
     if ctx.quickopen.prune_missing_recents() {
         persist_recent_files(ctx);
+    }
+}
+
+fn prune_missing_recent_workspaces(ctx: &mut MuiContext) {
+    if ctx.recent_workspaces.prune_missing_dirs() {
+        let _ = crate::config::save_recent_workspaces(&ctx.recent_workspaces.to_blob());
     }
 }
 
@@ -10937,6 +10948,7 @@ pub extern "C" fn mui_welcome_draw(handle: i64) {
         return;
     };
     prune_missing_recent_files(ctx);
+    prune_missing_recent_workspaces(ctx);
     let region = layout::region(ctx.sidebar_visible);
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     // Take the recents snapshot out so we can borrow `ctx` mutably for the draw

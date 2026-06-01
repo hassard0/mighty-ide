@@ -2116,3 +2116,14 @@ which made the picker look broken.
 - **Language note:** no compiler gap surfaced. A future Mighty standard library
   should make filesystem predicates and MRU persistence ergonomic enough to keep
   this logic in app code instead of host shims.
+
+### L134. Demo data in screenshots must be real actions, not fake paths **[finding, P2]**
+The Welcome gallery used representative recent-folder paths under
+`C:\Users\you\...`. That made the screen look populated, but it trained the UI
+to tolerate rows that could never open.
+
+- **IDE note:** Welcome now prunes missing recent folders before drawing, persists
+  the cleaned MRU, and seeds gallery captures with real bundled folders.
+- **Language note:** no compiler gap surfaced. Mighty should eventually have a
+  typed fixture/story system for UI states so screenshots can use real resources
+  without ad hoc host-side environment hooks.
