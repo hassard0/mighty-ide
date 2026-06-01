@@ -545,7 +545,8 @@ impl WelcomeState {
                 .queue_ui_sized(txx, tyy, tip.what, theme::DIM(), 12.5, clip);
             // Stack the keybinding under the label so long chords never collide
             // with labels in the compact footer grid.
-            let kw = tip.key.chars().count() as f32 * 6.6 + 14.0;
+            let (key_w, _) = ctx.text.measure_ui_sized(tip.key, 9.5);
+            let kw = key_w + 18.0;
             let px = txx;
             let py = tyy + 18.0;
             ctx.dl_round(px, py, kw, 14.0, 5.0, theme::BG_4());

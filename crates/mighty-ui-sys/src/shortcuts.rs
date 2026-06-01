@@ -887,7 +887,7 @@ impl ShortcutsEngine {
         } else if !self.status.is_empty() {
             ctx.text.queue_ui_sized(box_x + 18.0, fty, &self.status, theme::TEXT_1(), 11.5, clip);
         } else {
-            let hint = "\u{2191}\u{2193} navigate   Enter remap   Ctrl+R reset   Ctrl+Shift+R reset all   esc close";
+            let hint = "Enter remap   Ctrl+R reset   Ctrl+Shift+R reset all   Esc close";
             ctx.text.queue_ui_sized(box_x + 18.0, fty, hint, theme::TEXT_3(), 11.0, clip);
         }
         let tag = "Mighty Shortcuts";

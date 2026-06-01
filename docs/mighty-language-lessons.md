@@ -2081,3 +2081,15 @@ previous line instead of where the terminal intended it.
 - **Language note:** no compiler gap surfaced. Terminal behavior belongs in a
   host-side subsystem until Mighty can own long-lived byte streams, parser state,
   and structured grids comfortably across FFI.
+
+### L131. Human-facing command names need one source of truth **[finding, P2]**
+File commands were functionally routed to native dialogs, but the command palette
+still presented multiple near-identical "New File" variants. That made the UX
+feel broken even when the dispatch path worked.
+
+- **IDE note:** the palette now distinguishes file creation with a chosen disk
+  location, blank untitled tabs, and Explorer-scoped file/folder actions. Overlay
+  footers also use fewer instructional hints so shortcut text has room to breathe.
+- **Language note:** no compiler gap surfaced. Longer term, Mighty needs a
+  typed command descriptor record shared by menus, palette, shortcuts, welcome,
+  telemetry, and tests so labels/descriptions cannot drift between surfaces.

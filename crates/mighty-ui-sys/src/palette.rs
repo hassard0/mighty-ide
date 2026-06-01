@@ -210,9 +210,9 @@ pub const CMD_NEW_UNTITLED_FILE: u32 = 90;
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
     Command { id: CMD_NEW_FILE,         label: "File: New File...", keybinding: "Ctrl+N" },
-    Command { id: CMD_NEW_UNTITLED_FILE, label: "File: New Untitled File", keybinding: "" },
-    Command { id: CMD_NEW_WORKSPACE_FILE, label: "File: New File in Workspace", keybinding: "" },
-    Command { id: CMD_NEW_FOLDER,       label: "File: New Folder",   keybinding: "Ctrl+Shift+N" },
+    Command { id: CMD_NEW_UNTITLED_FILE, label: "File: New Blank Tab", keybinding: "" },
+    Command { id: CMD_NEW_WORKSPACE_FILE, label: "Explorer: New File...", keybinding: "" },
+    Command { id: CMD_NEW_FOLDER,       label: "Explorer: New Folder...",   keybinding: "Ctrl+Shift+N" },
     Command { id: CMD_OPEN_FILE,        label: "File: Open File...", keybinding: "Ctrl+O" },
     Command { id: CMD_SAVE,             label: "File: Save",         keybinding: "Ctrl+S" },
     Command { id: CMD_SAVE_AS,          label: "File: Save As...",   keybinding: "Ctrl+Shift+S" },
@@ -542,11 +542,11 @@ impl PaletteEngine {
         use crate::icons;
         // (icon path, description, fill?)
         match id {
-            CMD_NEW_FILE => (icons::NEW_FILE, "Create a named file with the native file picker", false),
-            CMD_NEW_UNTITLED_FILE => (icons::NEW_FILE, "Create a new untitled editor tab", false),
-            CMD_NEW_WORKSPACE_FILE => (icons::NEW_FILE, "Create a named file in the current workspace", false),
-            CMD_NEW_FOLDER => (icons::NEW_FOLDER, "Create a folder in the current workspace", false),
-            CMD_OPEN_FILE => (icons::NEW_FILE, "Open a file with the native file picker", false),
+            CMD_NEW_FILE => (icons::NEW_FILE, "Choose a folder and filename before creating the tab", false),
+            CMD_NEW_UNTITLED_FILE => (icons::NEW_FILE, "Start a temporary editor tab with no disk path", false),
+            CMD_NEW_WORKSPACE_FILE => (icons::NEW_FILE, "Use the native picker, starting near the workspace", false),
+            CMD_NEW_FOLDER => (icons::NEW_FOLDER, "Create a folder under the open workspace", false),
+            CMD_OPEN_FILE => (icons::NEW_FILE, "Choose an existing file with the native picker", false),
             CMD_SAVE => (icons::FILE_MTY, "Write the active file to disk", false),
             CMD_SAVE_AS => (icons::FILE_MTY, "Save the active file with the native Save As dialog", false),
             CMD_SAVE_ALL => (icons::FILE_MTY, "Write every dirty file-backed tab to disk", false),
@@ -786,7 +786,6 @@ impl PaletteEngine {
             ctx.text.queue_ui_sized(*fx, fty, label, theme::TEXT_3(), 11.0, clip);
             *fx += label.chars().count() as f32 * 6.0 + 16.0;
         };
-        foot_seg(ctx, "\u{2191}\u{2193}", "navigate", &mut fx);
         foot_seg(ctx, "Enter", "select", &mut fx);
         foot_seg(ctx, "esc", "dismiss", &mut fx);
         let tag = "Mighty Command Palette";
@@ -824,9 +823,9 @@ mod tests {
 
         assert_eq!(file_dialog.label, "File: New File...");
         assert_eq!(file_dialog.keybinding, "Ctrl+N");
-        assert_eq!(untitled.label, "File: New Untitled File");
+        assert_eq!(untitled.label, "File: New Blank Tab");
         assert_eq!(untitled.keybinding, "");
-        assert_eq!(workspace.label, "File: New File in Workspace");
+        assert_eq!(workspace.label, "Explorer: New File...");
         assert_eq!(workspace.keybinding, "");
     }
 
