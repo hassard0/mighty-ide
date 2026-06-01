@@ -105,6 +105,25 @@ fn text_measure_returns_positive_extents() {
 }
 
 #[test]
+fn text_measure_sized_tracks_requested_size() {
+    let mut ctx = ctx_or_skip!();
+    let sig = "fn add(a: I32, b: I32) -> I32";
+    let (small_w, small_h) = ctx.text.measure_sized(sig, 12.0);
+    let (large_w, large_h) = ctx.text.measure_sized(sig, 18.0);
+
+    assert!(small_w > 0.0, "small width should be > 0, got {small_w}");
+    assert!(small_h > 0.0, "small height should be > 0, got {small_h}");
+    assert!(
+        large_w > small_w,
+        "larger text should measure wider: small={small_w}, large={large_w}"
+    );
+    assert!(
+        large_h > small_h,
+        "larger text should measure taller: small={small_h}, large={large_h}"
+    );
+}
+
+#[test]
 fn rendering_a_glyph_yields_non_clear_texels_in_its_box() {
     let mut ctx = ctx_or_skip!();
     let p: *mut MuiContext = &mut ctx;

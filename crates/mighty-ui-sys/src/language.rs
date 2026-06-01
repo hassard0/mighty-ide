@@ -813,21 +813,23 @@ impl SigState {
             return;
         };
         let chrome = theme::CHROME_FONT_SIZE;
-        let advance = layout::CHAR_W();
         let pad = 7.0;
         let label = &sig.label;
         // Compute the active-parameter highlight span by locating the param label
         // text inside the signature label.
         let active_param = sig.params.get(sig.active as usize);
-        let hi_span = active_param.and_then(|p| label.find(p.as_str()).map(|b| {
-            // Convert byte index -> char index for monospace x math.
-            let cstart = label[..b].chars().count();
-            (cstart, p.chars().count())
-        }));
+        let hi_span = active_param.and_then(|p| {
+            label.find(p.as_str()).map(|b| {
+                let prefix = &label[..b];
+                let (prefix_w, _) = ctx.text.measure_sized(prefix, chrome);
+                let (param_w, _) = ctx.text.measure_sized(p, chrome);
+                (prefix_w, param_w)
+            })
+        });
 
         let has_doc = !sig.doc.is_empty();
-        let label_w = label.chars().count() as f32 * advance;
-        let doc_w = sig.doc.chars().count() as f32 * (chrome - 1.0) * 0.55;
+        let (label_w, _) = ctx.text.measure_sized(label, chrome);
+        let (doc_w, _) = ctx.text.measure_sized(&sig.doc, chrome - 1.0);
         let box_w = (label_w.max(doc_w) + 2.0 * pad + 8.0).max(120.0);
         let line_h = layout::LINE_H();
         let lines = if has_doc { 2 } else { 1 };
@@ -857,20 +859,20 @@ impl SigState {
         let text_x = box_x + pad;
         let label_y = box_y + pad - 0.5;
         // Active-parameter highlight pill behind the param text.
-        if let Some((cstart, clen)) = hi_span {
-            if clen > 0 {
-                let hx = text_x + cstart as f32 * advance - 2.0;
-                let hw = clen as f32 * advance + 4.0;
+        if let Some((prefix_w, param_w)) = hi_span {
+            if param_w > 0.0 {
+                let hx = text_x + prefix_w - 3.0;
+                let hw = param_w + 6.0;
                 ctx.dl_round(hx, label_y - 1.0, hw, chrome + 4.0, 4.0, theme::accent_a(0.26));
                 ctx.dl_stroke(hx, label_y - 1.0, hw, chrome + 4.0, 4.0, theme::ACCENT_LINE(), 1.0);
             }
         }
         // The signature label, with the active param drawn in accent on top.
         ctx.text.queue_sized(text_x, label_y, label, theme::TEXT(), chrome, clip);
-        if let Some((cstart, clen)) = hi_span {
-            if clen > 0 {
+        if let Some((prefix_w, param_w)) = hi_span {
+            if param_w > 0.0 {
                 if let Some(p) = active_param {
-                    let px = text_x + cstart as f32 * advance;
+                    let px = text_x + prefix_w;
                     ctx.text.queue_sized(px, label_y, p, theme::ACCENT_BRIGHT(), chrome, clip);
                 }
             }

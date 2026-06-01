@@ -2488,3 +2488,18 @@ been worse unless the Mighty event loop could route clicks to it.
 - **Language note:** no new compiler gap surfaced, but this repeats a recurring
   Mighty UI pattern: every visible control needs a scalar hit-test ABI because
   Mighty cannot hold rich widget state directly yet.
+
+### L164. Overlay highlight geometry must use shaped text, not character math **[finding, P2]**
+The Signature Help compact gallery showed the active parameter highlight drifting
+over `b: I32`. The popup was rendered with JetBrains Mono, but the highlight was
+positioned by counting characters and multiplying by a nominal cell width. That
+is close enough for raw editor columns, but it is not reliable for chrome-sized
+overlay text shaped by glyphon.
+
+- **IDE note:** `Text::measure_sized` now exposes shaped code-font extents for a
+  caller-specified size. Signature Help uses it for the signature label, active
+  parameter prefix, and active parameter width, so the bubble and accent redraw
+  align with what users actually see.
+- **Language note:** no compiler gap surfaced. Mighty still needs a first-class
+  text measurement/layout primitive so Mighty-authored UI can ask the renderer
+  for shaped extents instead of duplicating approximate geometry in scalar code.

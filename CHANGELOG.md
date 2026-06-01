@@ -155,6 +155,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Find/replace bar is mouse-closable**: the dedicated two-row replace surface
   now gets the same right-side affordances, clips long fields before the controls,
   and routes the close icon through Mighty instead of leaving mouse clicks inert.
+- **Signature Help highlight is measured**: the active parameter bubble now uses
+  shaped code-font extents for the prefix and parameter instead of fixed character
+  math, so compact popups do not draw the highlight or accent text off by a few
+  pixels.
 - **Visual gallery paths are reliable**: the overlay-gallery QA tool now
   normalizes relative executable, workdir, and output paths before launching the
   packaged IDE, avoiding false missing-screenshot failures.
