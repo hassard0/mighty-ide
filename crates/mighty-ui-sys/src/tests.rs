@@ -990,6 +990,8 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
             "Debug: Step Out",
             "Shift+F11",
         ),
+        (crate::palette::CMD_DEBUG_PAUSE, "Debug: Pause", ""),
+        (crate::palette::CMD_DEBUG_RESTART, "Debug: Restart", ""),
     ];
     for (id, label, keybinding) in debug_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
@@ -2641,6 +2643,8 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_DEBUG_STEP_OVER, "cmd_debug_step_over"),
         (CMD_DEBUG_STEP_INTO, "cmd_debug_step_into"),
         (CMD_DEBUG_STEP_OUT, "cmd_debug_step_out"),
+        (CMD_DEBUG_PAUSE, "cmd_debug_pause"),
+        (CMD_DEBUG_RESTART, "cmd_debug_restart"),
         (CMD_RELOAD_ACTIVE_FILE, "cmd_reload_active_file"),
         (CMD_REVERT_ACTIVE_FILE, "cmd_revert_active_file"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),

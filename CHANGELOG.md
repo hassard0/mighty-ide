@@ -84,9 +84,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **View commands**: Explorer, Search, Source Control, Outline, Run and Debug,
   Testing, Run Output, Problems, AI Copilot, Terminal, and Web Playground are now
   command-palette reachable, not only rail/status-chip/dock-click reachable.
-- **Debug commands**: start/continue, stop, step-over, step-into, and step-out
-  are now command-palette and Quick-Open command-mode reachable, matching the
-  function-key and toolbar controls.
+- **Debug commands**: start/continue, pause, restart, stop, step-over, step-into,
+  and step-out are now command-palette and Quick-Open command-mode reachable,
+  matching the function-key and toolbar controls.
 - Agents live-inspect notes now reflect the Mighty runtime's Windows named-pipe
   control endpoint work, so the IDE no longer documents Windows as static-only.
 

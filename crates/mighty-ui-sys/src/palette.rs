@@ -197,6 +197,10 @@ pub const CMD_DEBUG_STEP_OVER: u32 = 84;
 pub const CMD_DEBUG_STEP_INTO: u32 = 85;
 /// Step out of the current debug frame.
 pub const CMD_DEBUG_STEP_OUT: u32 = 86;
+/// Pause the active running debuggee.
+pub const CMD_DEBUG_PAUSE: u32 = 87;
+/// Restart the last debug target.
+pub const CMD_DEBUG_RESTART: u32 = 88;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -275,6 +279,8 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_DEBUG_STEP_OVER,  label: "Debug: Step Over",    keybinding: "F10" },
     Command { id: CMD_DEBUG_STEP_INTO,  label: "Debug: Step Into",    keybinding: "F11" },
     Command { id: CMD_DEBUG_STEP_OUT,   label: "Debug: Step Out",     keybinding: "Shift+F11" },
+    Command { id: CMD_DEBUG_PAUSE,      label: "Debug: Pause",        keybinding: "" },
+    Command { id: CMD_DEBUG_RESTART,    label: "Debug: Restart",      keybinding: "" },
     Command { id: CMD_RUN_IN_BROWSER,   label: "Mighty: Run in Browser", keybinding: "Alt+W" },
     Command { id: CMD_SPLIT_RIGHT,      label: "Split Editor Right", keybinding: "Ctrl+\\" },
     Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
@@ -604,6 +610,8 @@ impl PaletteEngine {
             CMD_DEBUG_STEP_OVER => (icons::DBG_STEP_OVER, "Run the next line without entering calls", false),
             CMD_DEBUG_STEP_INTO => (icons::DBG_STEP_INTO, "Enter the next function call", false),
             CMD_DEBUG_STEP_OUT => (icons::DBG_STEP_OUT, "Run until the current frame returns", false),
+            CMD_DEBUG_PAUSE => (icons::DBG_PAUSE, "Pause the running debuggee", true),
+            CMD_DEBUG_RESTART => (icons::REFRESH, "Restart the last debug target", false),
             CMD_RUN_IN_BROWSER => (icons::GLOBE, "Build and serve the active Mighty file for the browser", false),
             CMD_SPLIT_RIGHT => (icons::TEST_BOX, "Split the editor into side-by-side panes", false),
             CMD_FOCUS_NEXT_PANE => (icons::CHEVRON, "Move focus between editor panes", false),

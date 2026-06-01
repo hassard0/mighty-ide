@@ -33,6 +33,7 @@ pub const DEBUG: &str = "M9 8a3 3 0 0 1 6 0 M8.5 8h7a1 1 0 0 1 1 1v3a4.5 4.5 0 0
 /// Debug controls (filled / stroked) used by the debug toolbar.
 pub const DBG_CONTINUE: &str = "M7 5.5 18 12 7 18.5z";
 pub const DBG_STOP: &str = "M6.5 6.5h11v11h-11z";
+pub const DBG_PAUSE: &str = "M7.5 5.5h3v13h-3z M13.5 5.5h3v13h-3z";
 pub const DBG_STEP_OVER: &str = "M5 10a7 7 0 0 1 13 1.5 M18 6.5V12h-5.5 M12 16.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z";
 pub const DBG_STEP_INTO: &str = "M12 4v9 M8.5 9.5 12 13l3.5-3.5 M12 17.5a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z";
 pub const DBG_STEP_OUT: &str = "M12 13V4 M8.5 7.5 12 4l3.5 3.5 M12 17.5a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z";

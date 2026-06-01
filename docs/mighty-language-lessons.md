@@ -1414,7 +1414,9 @@ and Problems, and opening Problems closes Run and Web.
 The DAP toolbar and function-key routes already existed, but hidden controls make
 the IDE feel unfinished. Adding `Debug: Start / Continue`, `Debug: Stop`,
 `Debug: Step Over`, `Debug: Step Into`, and `Debug: Step Out` reused the same
-scalar `mui_dbg_*` ABI and the central Mighty command dispatcher. No new Mighty
-language gap surfaced; the important pattern is keeping all command surfaces
-(toolbar, keys, palette, Quick-Open command mode, remapping) routed through the
-same small set of scalar calls.
+scalar `mui_dbg_*` ABI and the central Mighty command dispatcher. A follow-up
+added DAP pause plus clean restart of the last target (`Debug: Pause`,
+`Debug: Restart`) without growing the Mighty key ladder. No new Mighty language
+gap surfaced; the important pattern is keeping all command surfaces (toolbar,
+keys, palette, Quick-Open command mode, remapping) routed through the same small
+set of scalar calls.

@@ -447,6 +447,8 @@ extern c {
   fn mui_dbg_start(handle: I64) -> I32
   fn mui_dbg_continue(handle: I64) -> I32
   fn mui_dbg_stop(handle: I64)
+  fn mui_dbg_pause(handle: I64)
+  fn mui_dbg_restart(handle: I64) -> I32
   fn mui_dbg_step_over(handle: I64)
   fn mui_dbg_step_into(handle: I64)
   fn mui_dbg_step_out(handle: I64)
@@ -689,6 +691,8 @@ fn cmd_debug_stop() -> I32 { 83 }
 fn cmd_debug_step_over() -> I32 { 84 }
 fn cmd_debug_step_into() -> I32 { 85 }
 fn cmd_debug_step_out() -> I32 { 86 }
+fn cmd_debug_pause() -> I32 { 87 }
+fn cmd_debug_restart() -> I32 { 88 }
 fn cmd_format_document() -> I32 { 12 }
 fn cmd_undo() -> I32 { 13 }
 fn cmd_redo() -> I32 { 14 }
@@ -3548,6 +3552,12 @@ fn main() {
         } else if id == cmd_debug_step_out() {
           let _vp = mui_panel_set(h, panel_debug())
           mui_dbg_step_out(h)
+        } else if id == cmd_debug_pause() {
+          let _vp = mui_panel_set(h, panel_debug())
+          mui_dbg_pause(h)
+        } else if id == cmd_debug_restart() {
+          let _vp = mui_panel_set(h, panel_debug())
+          let _dr = mui_dbg_restart(h)
         } else if id >= cmd_ws_first() && id <= cmd_ws_last() {
           let wr = mui_ws_dispatch(h, id)
           if wr == 2 {

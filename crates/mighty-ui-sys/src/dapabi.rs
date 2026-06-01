@@ -86,6 +86,23 @@ pub extern "C" fn mui_dbg_stop(handle: i64) {
     }
 }
 
+/// Pause a running debuggee.
+#[no_mangle]
+pub extern "C" fn mui_dbg_pause(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.dbg.pause();
+    }
+}
+
+/// Restart the last debug target.
+#[no_mangle]
+pub extern "C" fn mui_dbg_restart(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    i32::from(ctx.dbg.restart())
+}
+
 /// F10 / step over (`next`).
 #[no_mangle]
 pub extern "C" fn mui_dbg_step_over(handle: i64) {

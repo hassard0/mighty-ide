@@ -641,6 +641,23 @@ impl DebugModel {
             self.clear_stop();
         }
     }
+    /// Pause a running program.
+    pub fn pause(&mut self) {
+        if self.require_running() && self.state == DebugState::Running {
+            if let Some(s) = &self.session {
+                s.send_pause();
+            }
+            self.log("Pausing debuggee...", false);
+        }
+    }
+    /// Restart the last debug target.
+    pub fn restart(&mut self) -> bool {
+        let Some(program) = self.program.clone() else {
+            self.log("No debug target to restart", true);
+            return false;
+        };
+        self.start(&program)
+    }
     /// F10 / step over (`next`).
     pub fn step_over(&mut self) {
         self.step("next");
@@ -831,6 +848,7 @@ pub enum SessionEvent {
 /// A command the main thread asks the worker to send to the adapter.
 enum Outbound {
     Continue,
+    Pause,
     Step(String),
     Stack(i64),
     Variables(i64),
@@ -901,6 +919,9 @@ impl DapSession {
 
     pub fn send_continue(&self) {
         let _ = self.cmds.send(Outbound::Continue);
+    }
+    pub fn send_pause(&self) {
+        let _ = self.cmds.send(Outbound::Pause);
     }
     pub fn send_step(&self, cmd: &str) {
         let _ = self.cmds.send(Outbound::Step(cmd.to_string()));
@@ -1085,6 +1106,10 @@ fn worker_loop(
                 let json = match cmd {
                     Outbound::Continue => format!(
                         r#"{{"seq":{},"type":"request","command":"continue","arguments":{{"threadId":1}}}}"#,
+                        next()
+                    ),
+                    Outbound::Pause => format!(
+                        r#"{{"seq":{},"type":"request","command":"pause","arguments":{{"threadId":1}}}}"#,
                         next()
                     ),
                     Outbound::Step(c) => format!(
