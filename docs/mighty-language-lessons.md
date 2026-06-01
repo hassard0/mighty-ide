@@ -2925,3 +2925,30 @@ so the placeholder had no right boundary.
 - **Language note:** no compiler gap surfaced. Mighty UI needs an input primitive
   with prefix icons and trailing adornments so placeholder/query text budgets are
   derived from the same geometry as the visual pill.
+
+### L196. Shared dock chrome needs a reserved header contract **[finding, P2]**
+The compact Run and Terminal captures showed the shared bottom-dock resize strip
+painting across the panel header, while the preset/close controls leaked into
+the first content row because the header was only one text line tall.
+
+- **IDE note:** Bottom-dock headers now reserve enough height for the shared
+  24px preset/close controls, and the resize strip paints above the dock top
+  instead of straddling the header text.
+- **Language note:** no compiler gap surfaced. Mighty UI needs reusable dock
+  primitives with explicit resize-handle, header-action, and content slots so
+  z-order and hit-test contracts are declared once rather than rediscovered by
+  every panel.
+
+### L197. Compact status controls should avoid fragile glyphs **[finding, P2]**
+The compact Run panel rendered its `exit 1 · 142ms` chip poorly: the decorative
+separator glyph crowded the narrow pill and looked corrupted in the packaged
+capture. The compact Web header also proved that text action buttons cannot be
+forced into every width.
+
+- **IDE note:** Run status chips now use short ASCII labels such as `exit 1`
+  and measured fitting inside the chip. Web header geometry can fall back to a
+  compact action control instead of allowing action text to collide with the
+  `WEB` title lane.
+- **Language note:** no compiler gap surfaced. Mighty UI should treat compact
+  status/action chips as measured components with glyph-safe fallback labels or
+  icon-only states, not arbitrary strings painted into fixed rectangles.

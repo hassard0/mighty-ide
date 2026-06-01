@@ -2686,6 +2686,19 @@ fn quickopen_search_placeholder_fits_before_mode_pill() {
 }
 
 #[test]
+fn run_status_label_stays_ascii_for_compact_chip() {
+    assert_eq!(crate::featureabi::run_status_label(true, None, 0), "running");
+    assert_eq!(
+        crate::featureabi::run_status_label(false, Some(1), 142),
+        "exit 1"
+    );
+    assert!(
+        crate::featureabi::run_status_label(false, Some(0), 7).is_ascii(),
+        "compact run status should avoid missing glyphs"
+    );
+}
+
+#[test]
 fn status_problems_chip_hit_tracks_rendered_branch_width() {
     use crate::ffi::MuiEvent;
     use crate::{mui_status_problems_chip_at_click, mui_status_render};

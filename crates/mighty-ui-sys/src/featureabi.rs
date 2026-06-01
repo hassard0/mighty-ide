@@ -306,6 +306,16 @@ fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) ->
     out
 }
 
+pub(crate) fn run_status_label(running: bool, exit_code: Option<i32>, _duration_ms: u128) -> String {
+    if running {
+        "running".to_string()
+    } else if let Some(code) = exit_code {
+        format!("exit {code}")
+    } else {
+        "ready".to_string()
+    }
+}
+
 /// Draw the Run panel as a lower band (header + status line + scrollable output
 /// with clickable diagnostics tinted). No-op when closed.
 #[no_mangle]
@@ -337,16 +347,13 @@ pub extern "C" fn mui_run_draw(handle: i64) {
 
     // Status pill (right): running / exit code + duration. Compute this before
     // the filename so the filename can be measured into the remaining gap.
-    let (status, scol) = if ctx.run.is_running() {
-        ("running\u{2026}".to_string(), theme::WARNING())
+    let status = run_status_label(ctx.run.is_running(), ctx.run.exit_code(), ctx.run.duration_ms());
+    let scol = if ctx.run.is_running() {
+        theme::WARNING()
     } else if let Some(code) = ctx.run.exit_code() {
-        if code == 0 {
-            (format!("exit 0 \u{00b7} {}ms", ctx.run.duration_ms()), theme::GREEN())
-        } else {
-            (format!("exit {code} \u{00b7} {}ms", ctx.run.duration_ms()), theme::ERROR())
-        }
+        if code == 0 { theme::GREEN() } else { theme::ERROR() }
     } else {
-        ("ready".to_string(), theme::TEXT_3())
+        theme::TEXT_3()
     };
     let (status_text_w, _) = ctx.text.measure_ui_sized(&status, chrome - 2.0);
     let sw = status_text_w + 22.0;
@@ -369,7 +376,8 @@ pub extern "C" fn mui_run_draw(handle: i64) {
     }
     ctx.dl_round(sx, sy, sw, 18.0, 6.0, theme::BG_4());
     ctx.dl_stroke(sx, sy, sw, 18.0, 6.0, theme::BORDER_STRONG(), 1.0);
-    ctx.text.queue_ui_sized(sx + 10.0, sy + 3.0, &status, scol, chrome - 2.0, clip);
+    let status_shown = fit_ui_text(&mut ctx.text, &status, sw - 20.0, chrome - 2.0);
+    ctx.text.queue_ui_sized(sx + 10.0, sy + 3.0, &status_shown, scol, chrome - 2.0, clip);
 
     // Output rows.
     let first = ctx.run.first();

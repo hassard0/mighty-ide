@@ -480,7 +480,7 @@ pub fn term_panel_left(region: Region) -> f32 {
 /// Height (px) of the terminal panel's "TERMINAL" header band (above the grid).
 #[inline]
 pub fn term_header_h() -> f32 {
-    LINE_H()
+    LINE_H().max(DOCK_CLOSE_SIZE + 4.0)
 }
 
 /// Number of whole terminal rows that fit in the panel below the header (`>= 1`).
@@ -931,6 +931,12 @@ mod tests {
         }
         assert_eq!(close_w, DOCK_CLOSE_SIZE);
         assert_eq!(close_h, DOCK_CLOSE_SIZE);
+        let top = term_panel_top(700);
+        assert!(
+            close_y >= top && close_y + close_h <= top + term_header_h(),
+            "dock close button should fit inside the header: y={close_y} top={top} header={}",
+            term_header_h()
+        );
         assert!(dock_header_content_right(900, 700) < dock_preset_rect(900, 700, 0).0);
         reset_dock_fraction();
     }

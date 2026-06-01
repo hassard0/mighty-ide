@@ -270,8 +270,30 @@ struct WebGeom {
     header_h: f32,
     /// (x, y, w, h) of the Stop button, when running.
     stop_btn: Option<(f32, f32, f32, f32)>,
+    /// True when compact width uses an icon-only stop button.
+    stop_icon_only: bool,
     /// (x, y, w, h) of the Open-in-browser pill, when a URL exists.
     open_btn: Option<(f32, f32, f32, f32)>,
+}
+
+fn web_stop_button(
+    mut cursor: f32,
+    min_stop_x: f32,
+    by: f32,
+    btn_h: f32,
+    chrome: f32,
+) -> (Option<(f32, f32, f32, f32)>, bool, f32) {
+    let label_w = 4.0 * (chrome * 0.55) + 22.0; // "Stop"
+    let compact_w = 28.0;
+    if cursor - label_w >= min_stop_x {
+        cursor -= label_w;
+        (Some((cursor, by, label_w, btn_h)), false, cursor - 8.0)
+    } else if cursor - compact_w >= min_stop_x {
+        cursor -= compact_w;
+        (Some((cursor, by, compact_w, btn_h)), true, cursor - 8.0)
+    } else {
+        (None, false, cursor)
+    }
 }
 
 fn web_geom(ctx: &MuiContext) -> WebGeom {
@@ -292,12 +314,14 @@ fn web_geom(ctx: &MuiContext) -> WebGeom {
     let mut cursor = layout::dock_header_content_right(visible_w, ctx.gpu.height);
     let min_action_x = region.left + 220.0;
     let mut stop_btn = None;
+    let mut stop_icon_only = false;
     let mut open_btn = None;
     if ctx.web.is_running() {
-        let label_w = 4.0 * (chrome * 0.55) + 22.0; // "Stop"
-        cursor -= label_w;
-        stop_btn = Some((cursor, by, label_w, btn_h));
-        cursor -= 8.0;
+        let min_stop_x = region.left + 96.0;
+        let (btn, icon_only, next_cursor) = web_stop_button(cursor, min_stop_x, by, btn_h, chrome);
+        stop_btn = btn;
+        stop_icon_only = icon_only;
+        cursor = next_cursor;
     }
     let url = ctx.web.url();
     if !url.is_empty() {
@@ -317,6 +341,7 @@ fn web_geom(ctx: &MuiContext) -> WebGeom {
         panel_h,
         header_h,
         stop_btn,
+        stop_icon_only,
         open_btn,
     }
 }
@@ -411,7 +436,20 @@ pub extern "C" fn mui_web_draw(handle: i64) {
     if let Some((bx, by, bw, bh)) = g.stop_btn {
         ctx.dl_round(bx, by, bw, bh, 6.0, theme::BG_4());
         ctx.dl_stroke(bx, by, bw, bh, 6.0, theme::ERROR(), 1.0);
-        ctx.text.queue_ui_sized(bx + 10.0, by + 3.0, "Stop", theme::ERROR(), chrome - 2.0, clip);
+        if g.stop_icon_only {
+            ctx.dl_icon(
+                bx + (bw - 11.0) * 0.5,
+                by + (bh - 11.0) * 0.5,
+                11.0,
+                11.0,
+                icons::DBG_STOP,
+                theme::ERROR(),
+                1.4,
+                false,
+            );
+        } else {
+            ctx.text.queue_ui_sized(bx + 10.0, by + 3.0, "Stop", theme::ERROR(), chrome - 2.0, clip);
+        }
     }
 
     // Output rows.
@@ -478,5 +516,15 @@ mod tests {
     #[test]
     fn clip_row_ellipsizes_long_output() {
         assert_eq!(clip_row("abcdef", 0.0, 56.0, 10.0), "ab\u{2026}");
+    }
+
+    #[test]
+    fn compact_web_stop_button_falls_back_to_icon_only() {
+        let (btn, icon_only, next_cursor) = web_stop_button(356.0, 328.0, 194.0, 18.0, 12.0);
+        let (x, _, w, _) = btn.expect("compact icon stop button should fit");
+        assert!(icon_only);
+        assert_eq!(w, 28.0);
+        assert!(x >= 328.0);
+        assert!(next_cursor < x);
     }
 }

@@ -1799,7 +1799,7 @@ pub extern "C" fn mui_bottom_dock_resize_draw(handle: i64) {
         return;
     }
     let top = layout::term_panel_top(visible_h);
-    let band_y = top - layout::DOCK_RESIZE_H * 0.5;
+    let band_y = top - layout::DOCK_RESIZE_H;
     let was_clip = ctx.clip;
     let was_overlay = ctx.overlay;
     ctx.overlay = true;

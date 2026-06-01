@@ -87,6 +87,12 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   bleed over the active input.
 - **Quick Open input text respects the mode pill**: compact Quick Open now
   ellipsizes the search placeholder/query before the `FILES`/`CMDS`/`SYMS` pill.
+- **Bottom dock resize chrome no longer paints over panel headers**: the shared
+  resize strip sits above the dock and the header reserves enough height for
+  compact/default/expanded/close actions.
+- **Compact Run/Web headers degrade cleanly**: Run status chips use short ASCII
+  labels that fit the chip, and Web uses compact header geometry so action controls do
+  not collide with the `WEB` title lane.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now
