@@ -386,6 +386,45 @@ fn git_status_color(status: char) -> MuiColor {
     }
 }
 
+pub(crate) fn fit_tail_px(
+    text: &mut crate::text::Text,
+    s: &str,
+    max_px: f32,
+    size: f32,
+) -> String {
+    if max_px <= 0.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    if text.measure_ui_sized(ellipsis, size).0 > max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let candidate: String = std::iter::once('\u{2026}')
+            .chain(chars[chars.len().saturating_sub(mid)..].iter().copied())
+            .collect();
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        ellipsis.to_string()
+    } else {
+        std::iter::once('\u{2026}')
+            .chain(chars[chars.len().saturating_sub(lo)..].iter().copied())
+            .collect()
+    }
+}
+
 /// Draw the Source Control panel (header + branch/ahead-behind, commit-message
 /// box + Commit affordance, changes list with colored status badges + file
 /// icons). No-op when the sidebar is hidden or this panel isn't active.
@@ -400,7 +439,6 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
     let h = ctx.gpu.height as f32;
     let clip = ctx.clip;
     let chrome = theme::CHROME_FONT_SIZE;
-    let adv = chrome * 0.55;
     let sx = layout::RAIL_W;
     let sw = layout::sidebar_w();
     use crate::icons;
@@ -441,11 +479,7 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
     } else {
         (msg, theme::TEXT())
     };
-    let mut shown = msg_text;
-    let avail = ((sw - 36.0) / adv).floor() as usize;
-    if shown.chars().count() > avail && avail > 1 {
-        shown = shown.chars().take(avail - 1).collect::<String>() + "\u{2026}";
-    }
+    let shown = fit_tail_px(&mut ctx.text, &msg_text, sw - 36.0, chrome);
     ctx.text.queue_ui_sized(sx + 18.0, box_y + (box_h - chrome) * 0.5 - 1.0, &shown, msg_col, chrome, clip);
 
     // section header + branch pill
@@ -459,13 +493,18 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
     ctx.text.queue_ui_sized(sx + 70.0, sec_y + 3.0, &cnt_str, theme::TEXT_3(), chrome - 2.0, clip);
     if !branch.is_empty() {
         ctx.dl_icon(sx + sw - 96.0, sec_y + 1.0, 12.0, 12.0, icons::BRANCH, theme::ACCENT_BRIGHT(), 1.5, false);
-        let mut bp = branch.clone();
-        if bp.chars().count() > 8 {
-            bp = bp.chars().take(7).collect::<String>() + "\u{2026}";
-        }
+        let ab = if ahead > 0 || behind > 0 {
+            Some(format!("\u{2191}{ahead} \u{2193}{behind}"))
+        } else {
+            None
+        };
+        let ab_w = ab
+            .as_ref()
+            .map(|s| ctx.text.measure_ui_sized(s, chrome - 3.0).0 + 8.0)
+            .unwrap_or(0.0);
+        let bp = fit_tail_px(&mut ctx.text, &branch, 50.0 - ab_w.min(34.0), chrome - 2.0);
         ctx.text.queue_ui_sized(sx + sw - 80.0, sec_y + 3.0, &bp, theme::TEXT_1(), chrome - 2.0, clip);
-        if ahead > 0 || behind > 0 {
-            let ab = format!("\u{2191}{ahead} \u{2193}{behind}");
+        if let Some(ab) = ab {
             ctx.text.queue_ui_sized(sx + sw - 30.0, sec_y + 3.0, &ab, theme::TEXT_3(), chrome - 3.0, clip);
         }
     }
@@ -501,20 +540,17 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
         ctx.dl_icon(sx + 28.0, icon_y, 15.0, 15.0, icon, scol, 1.4, false);
 
         let name_x = sx + 47.0;
-        let avail = (((sx + sw - 34.0) - name_x) / adv).floor() as usize;
-        let mut shown_name = name.clone();
-        if shown_name.chars().count() > avail && avail > 1 {
-            shown_name = shown_name.chars().take(avail - 1).collect::<String>() + "\u{2026}";
+        let action_left = sx + sw - 30.0;
+        let dir_reserve = if dir.is_empty() { 8.0 } else { 72.0 };
+        let shown_name = fit_tail_px(&mut ctx.text, &name, (action_left - name_x - dir_reserve).max(0.0), chrome);
+        if !shown_name.is_empty() {
+            ctx.text.queue_ui_sized(name_x, txt_y, &shown_name, theme::TEXT_1(), chrome, clip);
         }
-        ctx.text.queue_ui_sized(name_x, txt_y, &shown_name, theme::TEXT_1(), chrome, clip);
         if !dir.is_empty() {
-            let dx = name_x + (shown_name.chars().count() as f32) * adv + 6.0;
-            if dx < sx + sw - 40.0 {
-                let mut shown_dir = dir.clone();
-                let davail = (((sx + sw - 34.0) - dx) / (chrome * 0.5)).floor() as usize;
-                if shown_dir.chars().count() > davail && davail > 1 {
-                    shown_dir = shown_dir.chars().take(davail - 1).collect::<String>() + "\u{2026}";
-                }
+            let (name_w, _) = ctx.text.measure_ui_sized(&shown_name, chrome);
+            let dx = name_x + name_w + 6.0;
+            if dx < action_left - 8.0 {
+                let shown_dir = fit_tail_px(&mut ctx.text, &dir, (action_left - dx - 8.0).max(0.0), chrome - 1.5);
                 ctx.text.queue_ui_sized(dx, txt_y, &shown_dir, theme::TEXT_4(), chrome - 1.5, clip);
             }
         }

@@ -1638,3 +1638,34 @@ could crowd the `M`/`A`/`U` badge area in compact sidebars.
   useful file ending while keeping badges readable.
 - **Language note:** no new Mighty gap surfaced. This remains shim-owned layout
   work caused by scalar draw calls and no Mighty-side measured text primitive.
+
+### L97. Source Control rows need action-aware measured budgets **[finding, P2]**
+The Source Control panel still truncated commit text, branch labels, changed-file
+names, and directory tails using fixed character estimates. Long filenames or
+branches could crowd the ahead/behind counters or the stage/unstage action at
+the right edge.
+
+- **IDE note:** Source Control now uses measured UI text fitting for the commit
+  box, branch label, changed-file name, and directory tail. File rows reserve the
+  stage/unstage action zone before drawing text.
+- **Language note:** no new Mighty gap surfaced. This reinforces the same
+  shim-side layout requirement as L89-L96: proportional chrome text needs
+  measured pixel budgets until Mighty exposes richer UI layout primitives.
+
+### L98. File-command UX and chrome polish still need a full audit **[backlog, P1]**
+Manual use still exposes rough UX around core IDE chrome: New File/Open/Save
+flows can feel inconsistent, drawer and test text can still overlap or leave
+stale toast copy behind, borderless resizing is discoverable but still clunky,
+and the logo/taskbar icon presentation needs a cleaner branded pass.
+
+- **IDE note:** audit the whole File menu/palette/toolbar command path against
+  native dialog expectations: New Untitled File should be instant, New File in
+  Workspace should pick a destination, Open File/Open Folder should always use
+  native pickers when available, Save/Save As/Save All should share predictable
+  dirty-buffer behavior, and cancel states should clear transient prompts/toasts.
+  Continue measuring every drawer row/header/toast before paint, and replace any
+  drag-only resize affordance that lacks visible handles or cursor feedback.
+- **Language note:** no new compiler blocker is proven yet, but this is the next
+  product pressure point for Mighty: structured UI command results, measured
+  layout primitives, and clearer native-dialog abstractions would reduce the
+  amount of fragile state plumbing currently living in the Rust shim.

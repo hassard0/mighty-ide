@@ -1881,6 +1881,36 @@ fn explorer_row_name_fits_before_git_badge() {
 }
 
 #[test]
+fn scm_row_name_and_dir_fit_before_stage_action() {
+    let mut ctx = ctx_or_skip!();
+    let sx = crate::layout::RAIL_W;
+    let sw = crate::layout::sidebar_w();
+    let chrome = crate::theme::CHROME_FONT_SIZE;
+    let name_x = sx + 47.0;
+    let action_left = sx + sw - 30.0;
+
+    let name = crate::panels::fit_tail_px(
+        &mut ctx.text,
+        "very-long-source-file-name-that-should-not-run-under-stage-action.mty",
+        action_left - name_x - 72.0,
+        chrome,
+    );
+    let (name_w, _) = ctx.text.measure_ui_sized(&name, chrome);
+    assert!(name_x + name_w + 8.0 <= action_left);
+    assert!(name.starts_with('\u{2026}'));
+
+    let dir_x = name_x + name_w + 6.0;
+    let dir = crate::panels::fit_tail_px(
+        &mut ctx.text,
+        "src/deeply/nested/module/path",
+        action_left - dir_x - 8.0,
+        chrome - 1.5,
+    );
+    let (dir_w, _) = ctx.text.measure_ui_sized(&dir, chrome - 1.5);
+    assert!(dir_x + dir_w + 8.0 <= action_left);
+}
+
+#[test]
 fn status_problems_chip_hit_tracks_rendered_branch_width() {
     use crate::ffi::MuiEvent;
     use crate::{mui_status_problems_chip_at_click, mui_status_render};

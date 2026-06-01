@@ -72,6 +72,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   clickable.
 - **Explorer filenames are measured**: long tree row names now fit before git
   status badges instead of relying on fixed character counts.
+- **Source Control rows are measured**: commit text, branch labels, changed-file
+  names, and directory tails now fit against real stage/action space.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,
