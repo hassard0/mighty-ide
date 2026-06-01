@@ -71,6 +71,29 @@ function Test-IdeChrome($bmp) {
 
   return ($railSamples -gt 0 -and ($railDark / [double]$railSamples) -gt 0.70)
 }
+function Test-CaptureFile($caseName, $path, $exitCode, $timedOut) {
+  if (-not (Test-Path $path)) {
+    Fail "${caseName}: CAPTURE-ERROR missing screenshot (exit=$exitCode)"
+    return
+  }
+
+  $bmp = $null
+  try {
+    $bmp = [System.Drawing.Bitmap]::FromFile($path)
+    if ((Test-UsefulCapture $bmp) -and (Test-IdeChrome $bmp)) {
+      $suffix = if ($timedOut) { "process timed out after capture; killed" } else { "exit=$exitCode" }
+      Log "${caseName}: OK ($($bmp.Width) x $($bmp.Height), $suffix)"
+    } elseif (-not (Test-UsefulCapture $bmp)) {
+      Fail "${caseName}: CAPTURE-ERROR blank-or-flat offscreen screenshot"
+    } else {
+      Fail "${caseName}: CAPTURE-ERROR missing IDE chrome signature"
+    }
+  } catch {
+    Fail "${caseName}: CAPTURE-ERROR unreadable screenshot - $($_.Exception.Message)"
+  } finally {
+    if ($bmp) { $bmp.Dispose() }
+  }
+}
 # name ; env var ; env value
 $cases = @(
   @{n='palette';      v='MUI_PALETTE_AUTOOPEN';    val='1'},
@@ -143,25 +166,13 @@ foreach ($c in $cases) {
     $exited = $p.WaitForExit(20000)
     $p.Refresh()
     if (-not $exited) {
-      Fail "$($c.n): TIMEOUT waiting for screenshot"
-    } elseif (-not (Test-Path $outPath)) {
-      Fail "$($c.n): CAPTURE-ERROR missing screenshot (exit=$($p.ExitCode))"
-    } else {
-      $bmp = $null
-      try {
-        $bmp = [System.Drawing.Bitmap]::FromFile($outPath)
-        if ((Test-UsefulCapture $bmp) -and (Test-IdeChrome $bmp)) {
-          Log "$($c.n): OK ($($bmp.Width) x $($bmp.Height), exit=$($p.ExitCode))"
-        } elseif (-not (Test-UsefulCapture $bmp)) {
-          Fail "$($c.n): CAPTURE-ERROR blank-or-flat offscreen screenshot"
-        } else {
-          Fail "$($c.n): CAPTURE-ERROR missing IDE chrome signature"
-        }
-      } catch {
-        Fail "$($c.n): CAPTURE-ERROR unreadable screenshot - $($_.Exception.Message)"
-      } finally {
-        if ($bmp) { $bmp.Dispose() }
+      if (Test-Path $outPath) {
+        Test-CaptureFile $c.n $outPath $p.ExitCode $true
+      } else {
+        Fail "$($c.n): TIMEOUT waiting for screenshot"
       }
+    } else {
+      Test-CaptureFile $c.n $outPath $p.ExitCode $false
     }
   } finally {
     if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force }

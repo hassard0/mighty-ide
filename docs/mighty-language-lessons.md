@@ -1925,3 +1925,17 @@ desktop screenshots.
 - **Language note:** no compiler gap surfaced. The testing lesson is that
   Mighty needs first-class visual QA metadata: screenshots should carry a
   provenance check, not just bytes on disk.
+
+### L118. Screenshot galleries should validate artifacts before process liveness **[finding, P2]**
+The snippet auto-open path can write a valid offscreen screenshot while the
+headless process keeps running long enough for the gallery timeout. Treating
+process exit as the only success signal made one good visual artifact fail the
+entire UX audit.
+
+- **IDE note:** the overlay gallery now validates the PNG first when a process
+  times out; if the artifact is useful and has the IDE chrome signature, the case
+  passes and the harness kills the lingering process. Missing or invalid PNGs
+  still fail.
+- **Language note:** no compiler gap surfaced. This is another testing
+  contract: visual evidence should be artifact-first, with process liveness as
+  cleanup telemetry rather than the primary success condition.
