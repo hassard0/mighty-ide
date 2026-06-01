@@ -411,6 +411,19 @@ function SettingsCloseCenter() {
   return [pscustomobject]@{ X = ($boxX + $boxW - 26.0); Y = ($boxY + 25.0) }
 }
 
+function ThemePickerCloseCenter() {
+  # Mirrors themepicker.rs geometry() + close_rect().
+  $headH = 50.0
+  $rowH = 64.0
+  $rows = 3.0
+  $footH = 34.0
+  $boxW = [math]::Min(460.0, $logicalW - 80.0)
+  $boxH = $headH + ($rows * $rowH) + $footH + 12.0
+  $boxX = [math]::Max(($logicalW - $boxW) * 0.5, 0.0)
+  $boxY = [math]::Max(($logicalH - $boxH) * 0.5, 40.0)
+  return [pscustomobject]@{ X = ($boxX + $boxW - 26.0); Y = ($boxY + 25.0) }
+}
+
 function ShortcutsCloseCenter() {
   # Mirrors shortcuts.rs geometry() + close_rect().
   $searchH = 56.0
@@ -920,8 +933,20 @@ if (Wait-TraceCountGreaterThan "(?m)^shortcuts_close$" $shortcutsCloseCount 1200
   $script:HarnessFailed = $true
 }
 
+# === THEME PICKER: visible close affordance should cancel the preview by mouse. ===
+Invoke-PaletteCommand "color theme" "52-theme-picker"
+$themeCloseCount = Trace-MatchCount "(?m)^theme_picker_close$"
+$themeClosePt = ThemePickerCloseCenter
+ClickL $themeClosePt.X $themeClosePt.Y
+if (Wait-TraceCountGreaterThan "(?m)^theme_picker_close$" $themeCloseCount 1200) {
+  Log "THEME-PICKER-CLOSE-MOUSE: visible modal close trace observed"
+} else {
+  Log "THEME-PICKER-CLOSE-MOUSE: missing visible modal close trace"
+  $script:HarnessFailed = $true
+}
+
 # === MARKDOWN PREVIEW: visible pane close affordance should collapse the split. ===
-Invoke-PaletteCommand "markdown preview" "52-markdown-preview"
+Invoke-PaletteCommand "markdown preview" "53-markdown-preview"
 $mdCloseCount = Trace-MatchCount "(?m)^md_close$"
 ClickL ($logicalW - 19) 84
 if (Wait-TraceCountGreaterThan "(?m)^md_close$" $mdCloseCount 1200) {

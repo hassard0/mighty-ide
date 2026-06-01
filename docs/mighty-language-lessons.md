@@ -2577,3 +2577,18 @@ ordering between test hooks and normal editor initialization.
   startup/test-hook lifecycle, ideally a post-load UI initialization phase or
   declarative scenario fixture API, so visual QA state is not hidden behind
   ad hoc ordering locks.
+
+### L170. Live-preview modals still need explicit close actions **[finding, P2]**
+The Color Theme picker previewed themes live while the user moved through rows,
+but it still relied on Escape or an outside click to cancel. That is especially
+awkward for a preview modal because users need a clear way to back out after the
+whole IDE changes color.
+
+- **IDE note:** Theme Picker now draws a header close button, hit-tests that
+  exact rect with a distinct return code, traces `theme_picker_close`, and routes
+  the click through `mui_theme_picker_cancel` so the original theme is restored.
+  The Windows harness now opens the picker and clicks the visible close button.
+- **Language note:** no compiler gap surfaced. The recurring need is the same
+  declarative widget/action model from L166-L168: modal headers, close buttons,
+  traces, and cancel/apply semantics should be generated from one action source
+  instead of hand-wired in parallel.

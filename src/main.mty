@@ -1690,7 +1690,10 @@ fn main() {
           }
         } else if tag == ev_mouse_down() {
           let th = mui_theme_picker_click(h)
-          if th == 0 {
+          if th == 2 {
+            mui_theme_picker_cancel(h)
+            theme_picker_open = false
+          } else if th == 0 {
             mui_theme_picker_cancel(h)
             theme_picker_open = false
           } else {

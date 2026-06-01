@@ -6654,8 +6654,13 @@ pub extern "C" fn mui_theme_picker_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    ctx.theme_picker
-        .click(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height)
+    let out = ctx
+        .theme_picker
+        .click(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height);
+    if out == 2 {
+        trace("theme_picker_close");
+    }
+    out
 }
 
 /// Commit the highlighted theme (keep + persist), close the picker; returns the

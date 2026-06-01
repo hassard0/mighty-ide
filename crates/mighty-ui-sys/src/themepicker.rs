@@ -66,14 +66,26 @@ impl ThemePicker {
         (box_x, box_y, box_w, box_h, list_top, row_h)
     }
 
+    fn close_rect(width: u32, height: u32) -> (f32, f32, f32, f32) {
+        let (box_x, box_y, box_w, _box_h, _list_top, _row_h) = Self::geometry(width, height);
+        (box_x + box_w - 38.0, box_y + 13.0, 24.0, 24.0)
+    }
+
     /// Preview the row under a click. Returns 1 when a theme row was selected,
-    /// 0 for a miss.
+    /// 2 when the close button was hit, and 0 for a miss.
     pub fn click(&mut self, x: f32, y: f32, width: u32, height: u32) -> i32 {
         if !self.active {
             return 0;
         }
-        let (box_x, _box_y, box_w, _box_h, list_top, row_h) = Self::geometry(width, height);
-        if x < box_x || x > box_x + box_w || y < list_top {
+        let (box_x, box_y, box_w, _box_h, list_top, row_h) = Self::geometry(width, height);
+        if x < box_x || x > box_x + box_w || y < box_y {
+            return 0;
+        }
+        let (cx, cy, cw, ch) = Self::close_rect(width, height);
+        if (cx..=cx + cw).contains(&x) && (cy..=cy + ch).contains(&y) {
+            return 2;
+        }
+        if y < list_top {
             return 0;
         }
         let row = ((y - list_top) / row_h).floor() as i32;
@@ -149,6 +161,10 @@ impl ThemePicker {
         // ---- header ----
         ctx.dl_icon(box_x + 18.0, box_y + (head_h - 18.0) * 0.5, 18.0, 18.0, icons::SETTINGS, theme::ACCENT_BRIGHT(), 1.7, false);
         ctx.text.queue_ui_sized(box_x + 46.0, box_y + (head_h - 16.0) * 0.5 - 1.0, "Color Theme", theme::TEXT(), 16.0, clip);
+        let (cx, cy, cw, ch) = Self::close_rect(width, height);
+        ctx.dl_round(cx, cy, cw, ch, 6.0, theme::BG_2());
+        ctx.dl_stroke(cx, cy, cw, ch, 6.0, theme::BORDER_STRONG(), 1.0);
+        ctx.dl_icon(cx + 5.0, cy + 5.0, 14.0, 14.0, icons::CLOSE, theme::TEXT_1(), 1.6, false);
         ctx.dl_rect(box_x + 1.0, box_y + head_h - 1.0, box_w - 2.0, 1.0, theme::BORDER());
 
         // ---- rows ----
@@ -210,6 +226,7 @@ mod tests {
 
     #[test]
     fn open_selects_active_theme_row() {
+        let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         reset();
         theme::set_active(ThemeId::Aurora);
         let mut p = ThemePicker::new();
@@ -221,6 +238,7 @@ mod tests {
 
     #[test]
     fn move_previews_live() {
+        let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         reset();
         let mut p = ThemePicker::new();
         p.open(); // active vivid -> row 0
@@ -234,6 +252,7 @@ mod tests {
 
     #[test]
     fn cancel_reverts_preview() {
+        let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         reset(); // vivid active
         let mut p = ThemePicker::new();
         p.open();
@@ -270,6 +289,7 @@ mod tests {
 
     #[test]
     fn move_wraps() {
+        let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         reset();
         let mut p = ThemePicker::new();
         p.open(); // row 0
@@ -282,6 +302,7 @@ mod tests {
 
     #[test]
     fn mouse_click_previews_theme_row() {
+        let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         reset();
         let mut p = ThemePicker::new();
         p.open();
@@ -291,6 +312,18 @@ mod tests {
         assert_eq!(theme::active_id(), ThemeId::Aurora);
         assert_eq!(p.click(box_x - 2.0, list_top + 8.0, 900, 700), 0);
         p.cancel();
+        reset();
+    }
+
+    #[test]
+    fn close_rect_is_distinct_from_rows() {
+        let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        reset();
+        let mut p = ThemePicker::new();
+        p.open();
+        let (cx, cy, cw, ch) = ThemePicker::close_rect(900, 700);
+        assert_eq!(p.click(cx + cw * 0.5, cy + ch * 0.5, 900, 700), 2);
+        assert!(p.is_active());
         reset();
     }
 }
