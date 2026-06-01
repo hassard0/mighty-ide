@@ -3832,6 +3832,25 @@ mod shim_chrome {
     }
 
     #[test]
+    fn ai_header_close_press_passes_through_to_the_ide() {
+        let _globals = ChromeGlobals::pin();
+        let mut ctx = match MuiContext::new_offscreen(WW, WH) {
+            Some(c) => c,
+            None => return,
+        };
+        ctx.ai.open = true;
+        let h = handle(&mut ctx);
+        let (x, y, w, hgt) = crate::ai::close_geometry(WW);
+        move_to(&mut ctx, x + w * 0.5, y + hgt * 0.5);
+        press_left(&mut ctx);
+        assert_eq!(
+            mui_poll_event_s(h),
+            MUI_EVENT_MOUSE_DOWN as i32,
+            "AI header close must reach Mighty instead of starting window drag"
+        );
+    }
+
+    #[test]
     fn interior_press_passes_through_to_the_ide() {
         let _globals = ChromeGlobals::pin();
         let mut ctx = match MuiContext::new_offscreen(WW, WH) {

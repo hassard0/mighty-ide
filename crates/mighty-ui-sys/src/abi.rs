@@ -2188,6 +2188,17 @@ fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
             // swallows the close button. Resize edges then win over the drag strip
             // (so you can grab the top edge to resize); drag is last.
             let hit = crate::titlebar::hit(ev.x, ev.y, w, body_left);
+            if ctx.ai.open {
+                let visible_w = visible_surface_size(ctx).0;
+                let (close_x, close_y, close_w, close_h) = crate::ai::close_geometry(visible_w);
+                if ev.x >= close_x
+                    && ev.x <= close_x + close_w
+                    && ev.y >= close_y
+                    && ev.y <= close_y + close_h
+                {
+                    return ShimAction::PassThrough;
+                }
+            }
             match hit {
                 Some(crate::titlebar::TitleHit::Minimize) => {
                     if let Some(host) = ctx.host.as_ref() {

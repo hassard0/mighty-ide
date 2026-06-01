@@ -164,7 +164,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   buried behind navigation commands.
 - **AI Copilot is visibly closable**: the right-docked AI panel now draws a
   header close button with matching mouse hit-test routing, instead of relying
-  on only rail toggles or the command palette close command.
+  on only rail toggles or the command palette close command. The borderless
+  titlebar drag strip now passes that button through to Mighty when AI is open.
 - **Visual gallery paths are reliable**: the overlay-gallery QA tool now
   normalizes relative executable, workdir, and output paths before launching the
   packaged IDE, avoiding false missing-screenshot failures.

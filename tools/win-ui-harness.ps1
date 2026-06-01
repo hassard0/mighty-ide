@@ -685,6 +685,16 @@ if ($env:MUI_TRACE) {
 }
 Invoke-PaletteCommand "view ai copilot" $null
 Start-Sleep -Milliseconds 250
+$aiCloseMouseCount = Trace-MatchCount "(?m)^ai_close$"
+ClickL 700 20
+if (Wait-TraceCountGreaterThan "(?m)^ai_close$" $aiCloseMouseCount 1200) {
+  Log "AI-CLOSE-MOUSE: visible header close trace observed"
+} else {
+  Log "AI-CLOSE-MOUSE: missing visible header close trace"
+  $script:HarnessFailed = $true
+}
+Invoke-PaletteCommand "view ai copilot" $null
+Start-Sleep -Milliseconds 250
 Invoke-PaletteCommand "close ai copilot" $null
 Start-Sleep -Milliseconds 250
 if ($env:MUI_TRACE) {

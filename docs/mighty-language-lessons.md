@@ -2527,7 +2527,9 @@ nearby header affordance.
 - **IDE note:** AI Copilot now draws a header close button inside its own visible
   panel band and `mui_ai_click` returns a distinct close code. Mighty routes that
   click to `mui_ai_close`, matching the existing close command without clearing
-  transcript state.
+  transcript state. The live mouse harness caught one extra cross-layer bug: the
+  close button sat inside the borderless titlebar's drag strip, so the shim now
+  passes that rect through to Mighty before starting a native window drag.
 - **Language note:** no compiler gap surfaced. This is the same scalar hit-test
   pattern as bottom docks and prompts; Mighty would benefit from declarative
   widget actions so every visible button automatically owns both paint and event
