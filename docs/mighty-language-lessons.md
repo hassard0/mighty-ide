@@ -2172,3 +2172,14 @@ place focus or centering in surprising places.
 - **Language note:** no compiler gap surfaced. Mighty would benefit from a small
   platform-dialog ABI wrapper so app code can request modal file/folder pickers
   without embedding PowerShell snippets in host code.
+
+### L139. Alignment QA must include the minimum window size **[finding, P2]**
+The default gallery passed at 1280x832, but Settings clipped at the bottom when
+captured at the supported 860x560 floor. Desktop-only screenshots were hiding a
+real resize/overlap defect.
+
+- **IDE note:** the gallery runner now accepts `-Width` / `-Height`, and Settings
+  reserves extra small-window vertical margin so the card fits instead of
+  clipping.
+- **Language note:** no compiler gap surfaced. Mighty needs a reusable
+  constraint/layout primitive for modal sizing across viewport breakpoints.

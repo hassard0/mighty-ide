@@ -14,6 +14,8 @@ param(
   [string]$Exe     = "C:\Users\ihass\mighty-ide\dist\mighty-ide-win64\mighty-ide.exe",
   [string]$WorkDir = "C:\Users\ihass\mighty-ide\dist\mighty-ide-win64",
   [string]$OutDir  = "C:\Users\ihass\mighty-ide\dist\gallery",
+  [int]$Width = 1280,
+  [int]$Height = 832,
   [string[]]$Case
 )
 $ErrorActionPreference = 'Stop'
@@ -160,8 +162,8 @@ foreach ($c in $cases) {
     Set-Item -Path "env:$($c.v)" -Value $c.val
     Set-Item -Path "env:MUI_SCREENSHOT" -Value $outPath
     Set-Item -Path "env:MUI_SCREENSHOT_FRAME" -Value "5"
-    Set-Item -Path "env:MUI_WIDTH" -Value "1280"
-    Set-Item -Path "env:MUI_HEIGHT" -Value "832"
+    Set-Item -Path "env:MUI_WIDTH" -Value $Width
+    Set-Item -Path "env:MUI_HEIGHT" -Value $Height
     $p = Start-Process -FilePath $Exe -WorkingDirectory $WorkDir -PassThru
     $exited = $p.WaitForExit(20000)
     $p.Refresh()

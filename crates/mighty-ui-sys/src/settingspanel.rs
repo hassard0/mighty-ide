@@ -193,7 +193,8 @@ impl SettingsPanel {
         let min_row_h = 38.0_f32;
         let foot_h = 30.0_f32;
         let fixed_h = head_h + foot_h + 12.0;
-        let max_box_h = (h - 96.0).max(fixed_h + min_row_h);
+        let vertical_margin = if h < 640.0 { 120.0 } else { 96.0 };
+        let max_box_h = (h - vertical_margin).max(fixed_h + min_row_h);
         let capacity = ((max_box_h - fixed_h) / min_row_h).floor().max(1.0) as usize;
         let visible = rows.min(capacity);
         let top = Self::scroll_top_for(self.sel, visible);
@@ -328,7 +329,7 @@ impl SettingsPanel {
         let cur = settings::active();
 
         let head_h = 50.0_f32;
-        let foot_h = 34.0_f32;
+        let foot_h = 30.0_f32;
         let (box_x, box_y, box_w, box_h, _list_top, row_h, top, shown) = self.geometry(width, height);
         let radius = 12.0_f32;
 
@@ -361,8 +362,16 @@ impl SettingsPanel {
 
             // Label + description (left).
             let txt_x = box_x + 22.0;
-            ctx.text.queue_ui_sized(txt_x, ry + 9.0, row.label(), theme::TEXT(), 14.0, clip);
-            ctx.text.queue_ui_sized(txt_x, ry + 27.0, row.desc(), theme::TEXT_3(), 11.5, clip);
+            let compact_row = row_h < 42.0;
+            let label_y = if compact_row {
+                ry + (row_h - 14.0) * 0.5 - 1.0
+            } else {
+                ry + 9.0
+            };
+            ctx.text.queue_ui_sized(txt_x, label_y, row.label(), theme::TEXT(), 14.0, clip);
+            if !compact_row {
+                ctx.text.queue_ui_sized(txt_x, ry + 27.0, row.desc(), theme::TEXT_3(), 11.5, clip);
+            }
 
             // Control (right): a stepper for numeric rows, an on/off pill for
             // toggles, a value chip + cycle hint for the theme.
@@ -499,6 +508,11 @@ mod tests {
         let (_box_x, box_y, _box_w, box_h, _list_top, _row_h, _top, shown) = p.geometry(640, 480);
         assert!(shown < RowId::ALL.len());
         assert!(box_y + box_h <= 480.0);
+
+        let (_box_x, box_y, _box_w, box_h, _list_top, _row_h, _top, shown) = p.geometry(860, 560);
+        assert!(shown < RowId::ALL.len());
+        assert!(box_y >= 24.0);
+        assert!(box_y + box_h <= 536.0);
 
         p.sel = RowId::ALL.len() - 1;
         let (_box_x, _box_y, _box_w, _box_h, _list_top, _row_h, top, shown) = p.geometry(640, 480);
