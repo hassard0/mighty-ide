@@ -28,6 +28,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   live buffer, preserving dirty state and cursor context.
 - **Reload Active File from Disk**: refreshes clean file-backed tabs after
   external edits while refusing to overwrite dirty buffers.
+- **Revert Active File from Disk**: intentionally discards local edits and
+  reloads the file-backed tab from disk.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,
   ensure a final newline, and timed auto-save.
 

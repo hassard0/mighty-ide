@@ -1274,3 +1274,14 @@ unsaved local edits.
   it must never silently discard dirty buffers.
 - **Language note:** no new gap surfaced. The same scalar command routing remains
   enough; the safety invariant belongs with the tab store and ABI guard.
+
+### L68. Revert-from-disk is the explicit destructive twin of reload **[finding, P3]**
+Adding **Revert Active File from Disk** did not require new Mighty language work.
+The key distinction is command intent: reload refuses dirty buffers, while revert
+is an explicit destructive command that reloads the file-backed tab and clears
+the dirty flag.
+
+- **IDE note:** keeping reload and revert separate gives external-tool workflows
+  both a safe refresh path and a deliberate discard path.
+- **Language note:** no new gap surfaced. The Mighty side only needs one more
+  scalar command id; the destructive state transition stays in the shim.

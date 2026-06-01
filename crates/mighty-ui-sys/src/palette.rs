@@ -145,6 +145,8 @@ pub const CMD_REOPEN_CLOSED_TAB: u32 = 58;
 pub const CMD_DUPLICATE_ACTIVE_TAB: u32 = 59;
 /// Reload the active file-backed tab from disk.
 pub const CMD_RELOAD_ACTIVE_FILE: u32 = 60;
+/// Discard local edits and reload the active file-backed tab from disk.
+pub const CMD_REVERT_ACTIVE_FILE: u32 = 61;
 
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
@@ -178,6 +180,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_REOPEN_CLOSED_TAB, label: "File: Reopen Closed Tab", keybinding: "Ctrl+Alt+T" },
     Command { id: CMD_DUPLICATE_ACTIVE_TAB, label: "File: Duplicate Active Tab", keybinding: "" },
     Command { id: CMD_RELOAD_ACTIVE_FILE, label: "File: Reload Active File from Disk", keybinding: "" },
+    Command { id: CMD_REVERT_ACTIVE_FILE, label: "File: Revert Active File from Disk", keybinding: "" },
     Command { id: CMD_FORMAT_DOCUMENT,  label: "Format Document",    keybinding: "Ctrl+Shift+I" },
     Command { id: CMD_UNDO,             label: "Undo",               keybinding: "Ctrl+Z" },
     Command { id: CMD_REDO,             label: "Redo",               keybinding: "Ctrl+Y" },
@@ -481,6 +484,7 @@ impl PaletteEngine {
             CMD_REOPEN_CLOSED_TAB => (icons::PLUS, "Restore the last closed editor tab", false),
             CMD_DUPLICATE_ACTIVE_TAB => (icons::PLUS, "Clone the active editor tab next to itself", false),
             CMD_RELOAD_ACTIVE_FILE => (icons::REFRESH, "Reload the active file from disk", false),
+            CMD_REVERT_ACTIVE_FILE => (icons::REFRESH, "Discard local edits and reload from disk", false),
             CMD_FORMAT_DOCUMENT => (icons::PLUS, "Apply mightyfmt to active file", false),
             CMD_UNDO => (icons::CHEVRON, "Undo the last edit", false),
             CMD_REDO => (icons::CHEVRON, "Redo the last undone edit", false),

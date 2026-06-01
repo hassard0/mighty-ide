@@ -3074,27 +3074,50 @@ pub extern "C" fn mui_tab_reload_active(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    reload_active_from_disk(ctx, false)
+}
+
+/// Discard local edits in the active file-backed tab and reload it from disk.
+/// Returns the active tab index after revert, or -1 when the active tab cannot
+/// be reloaded from disk.
+#[no_mangle]
+pub extern "C" fn mui_tab_revert_active(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    reload_active_from_disk(ctx, true)
+}
+
+fn reload_active_from_disk(ctx: &mut MuiContext, allow_dirty: bool) -> i32 {
     let active = ctx.tabs.active();
-    if ctx.tabs.is_dirty(active) {
+    let was_dirty = ctx.tabs.is_dirty(active);
+    if was_dirty && !allow_dirty {
         ctx.push_toast(crate::toast::Kind::Warn, "Save or discard changes before reloading");
         return -1;
     }
     let Some(path) = ctx.tabs.active_path() else {
-        ctx.push_toast(crate::toast::Kind::Info, "No file-backed tab to reload");
+        let action = if allow_dirty { "revert" } else { "reload" };
+        ctx.push_toast(crate::toast::Kind::Info, format!("No file-backed tab to {action}"));
         return -1;
     };
     let bytes = match std::fs::read(&path) {
         Ok(bytes) => bytes,
         Err(_) => {
             let name = basename(&path);
-            ctx.push_toast(crate::toast::Kind::Error, format!("Reload failed: {name}"));
+            let action = if allow_dirty { "Revert" } else { "Reload" };
+            ctx.push_toast(crate::toast::Kind::Error, format!("{action} failed: {name}"));
             return -1;
         }
     };
     ctx.tabs.reload_active(&bytes);
     sync_active_path(ctx);
     let name = basename(&path);
-    ctx.push_toast(crate::toast::Kind::Info, format!("Reloaded {name}"));
+    let message = if allow_dirty && was_dirty {
+        format!("Reverted {name}")
+    } else {
+        format!("Reloaded {name}")
+    };
+    ctx.push_toast(crate::toast::Kind::Info, message);
     active as i32
 }
 

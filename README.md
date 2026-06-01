@@ -39,6 +39,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   live buffer, including dirty state and cursor context
 - **Reload Active File from Disk** refreshes clean file-backed tabs after
   external edits while protecting dirty buffers
+- **Revert Active File from Disk** intentionally discards local edits and reloads
+  the file-backed tab from disk
 - Project-wide Search panel (Ctrl+Shift+F)
 
 ### Language Intelligence
