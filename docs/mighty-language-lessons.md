@@ -2654,3 +2654,17 @@ and offscreen captures pass.
   interaction test fixture API so scenario tests can ask for semantic targets
   like `new-file-button` or `bottom-dock-resize-handle` instead of duplicating
   pixel geometry in PowerShell.
+
+### L175. Brand marks should come from one reusable primitive **[finding, P2]**
+The taskbar icon, rail logo, and Welcome logo had drifted into similar but not
+identical treatments. The side-rail accent looked acceptable at large sizes but
+became a strange colored stripe in compact rail and taskbar contexts.
+
+- **IDE note:** the icon generator, activity rail, and Welcome screen now use the
+  same centered Mighty mark direction: dark editor tile, nested accent frame,
+  and a clear accent `M` without the old side stripe. The packaged executable was
+  restamped and visually checked through the compact Welcome capture and icon
+  extraction.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a reusable brand
+  mark primitive or asset pipeline so app icon, rail chrome, and Welcome art do
+  not have to be hand-kept in sync across Rust draw calls and Python icon code.

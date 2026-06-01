@@ -21,8 +21,9 @@ TILE_BOTTOM = (7, 10, 21, 255)
 ACCENT_TEAL = (76, 229, 218, 255)
 ACCENT_VIOLET = (126, 95, 255, 255)
 ACCENT_EDGE = (110, 241, 233, 235)
-INK = (255, 255, 255, 255)
-INK_SHADOW = (19, 16, 52, 145)
+INK = (155, 255, 246, 255)
+INK_HIGHLIGHT = (255, 255, 255, 245)
+INK_SHADOW = (43, 24, 109, 170)
 
 # Filled Mighty monogram on a 24-unit viewBox.
 GLYPH = [(4.5, 18.5), (4.5, 5.5), (8.3, 5.5), (12, 11.1), (15.7, 5.5), (19.5, 5.5), (19.5, 18.5), (15.8, 18.5), (15.8, 11.6), (12, 17), (8.2, 11.6), (8.2, 18.5)]
@@ -60,28 +61,22 @@ def render(size: int) -> Image.Image:
         outline=ACCENT_EDGE,
         width=edge_w,
     )
-    rail_w = max(edge_w, int(s * 0.075))
     d.rounded_rectangle(
-        [inset + edge_w, inset + edge_w, inset + edge_w + rail_w, s - inset - edge_w],
-        radius=max(1, int(s * 0.035)),
-        fill=ACCENT_TEAL,
-    )
-    d.line(
-        [
-            (inset + radius * 0.78, s - inset - edge_w),
-            (s - inset - radius * 0.70, s - inset - edge_w),
-        ],
-        fill=ACCENT_VIOLET,
-        width=max(edge_w, int(s * 0.026)),
+        [inset + edge_w * 2, inset + edge_w * 2, s - inset - edge_w * 2, s - inset - edge_w * 2],
+        radius=max(1, radius - edge_w * 2),
+        outline=ACCENT_VIOLET,
+        width=max(edge_w, int(s * 0.014)),
     )
 
-    # White Mighty monogram. Scale the 24-unit glyph into the tile's safe area.
-    pad = s * 0.15
+    # Mighty monogram. Scale the 24-unit glyph into the tile's safe area.
+    pad = s * 0.13
     span = s - 2 * pad
     pts = [(pad + (x / 24.0) * span, pad + (y / 24.0) * span) for (x, y) in GLYPH]
     shadow_pts = [(x + max(1, s * 0.012), y + max(1, s * 0.018)) for x, y in pts]
     d.polygon(shadow_pts, fill=INK_SHADOW)
     d.polygon(pts, fill=INK)
+    shine = [(x, y - max(1, s * 0.006)) for x, y in pts]
+    d.line(shine[:4], fill=INK_HIGHLIGHT, width=max(1, int(s * 0.01)))
 
     return img.resize((size, size), Image.LANCZOS)
 

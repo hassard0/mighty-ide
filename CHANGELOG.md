@@ -185,6 +185,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   try to foreground the actual IDE window, move the OS cursor, and use
   `SendInput`; automated sessions that cannot take foreground ownership fall
   back explicitly, while `-StrictRealMouse` fails instead of hiding that gap.
+- **Mighty brand mark is cleaner**: the taskbar icon, rail logo, and Welcome
+  mark now share a centered accent Mighty glyph without the old side-rail stripe,
+  so the first impression reads as an IDE identity instead of a generic tile.
 - **Markdown Preview is visibly closable**: the rendered preview pane now has a
   header close button that collapses the split preview through the same pane
   machinery as the command route.
