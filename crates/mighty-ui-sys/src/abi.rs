@@ -3066,6 +3066,44 @@ pub extern "C" fn mui_tab_duplicate_active(handle: i64) -> i32 {
     active as i32
 }
 
+/// Move the active tab one slot left. Returns the new active index, or -1 when
+/// the tab is already first / no move is possible.
+#[no_mangle]
+pub extern "C" fn mui_tab_move_active_left(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let before = ctx.tabs.active();
+    match ctx.tabs.move_active_left() {
+        Some(active) => {
+            ctx.panes.on_tabs_swapped(active, before);
+            sync_active_path(ctx);
+            ctx.push_toast(crate::toast::Kind::Info, "Moved tab left");
+            active as i32
+        }
+        None => -1,
+    }
+}
+
+/// Move the active tab one slot right. Returns the new active index, or -1 when
+/// the tab is already last / no move is possible.
+#[no_mangle]
+pub extern "C" fn mui_tab_move_active_right(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let before = ctx.tabs.active();
+    match ctx.tabs.move_active_right() {
+        Some(active) => {
+            ctx.panes.on_tabs_swapped(before, active);
+            sync_active_path(ctx);
+            ctx.push_toast(crate::toast::Kind::Info, "Moved tab right");
+            active as i32
+        }
+        None => -1,
+    }
+}
+
 /// Reload the active file-backed tab from disk. Dirty tabs are protected and
 /// require the user to save or close/discard explicitly first. Returns the
 /// active tab index after reload, or -1 when reload was refused/failed.

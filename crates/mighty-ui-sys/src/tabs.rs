@@ -159,6 +159,40 @@ impl TabStore {
         self.active
     }
 
+    /// Move the active tab one slot to the left. Returns the new active index,
+    /// or `None` when the active tab is already first / no move is possible.
+    pub fn move_active_left(&mut self) -> Option<usize> {
+        if self.tabs.len() <= 1 {
+            self.ensure_scratch();
+            return None;
+        }
+        let active = self.active.min(self.tabs.len().saturating_sub(1));
+        if active == 0 {
+            self.active = active;
+            return None;
+        }
+        self.tabs.swap(active - 1, active);
+        self.active = active - 1;
+        Some(self.active)
+    }
+
+    /// Move the active tab one slot to the right. Returns the new active index,
+    /// or `None` when the active tab is already last / no move is possible.
+    pub fn move_active_right(&mut self) -> Option<usize> {
+        if self.tabs.len() <= 1 {
+            self.ensure_scratch();
+            return None;
+        }
+        let active = self.active.min(self.tabs.len().saturating_sub(1));
+        if active + 1 >= self.tabs.len() {
+            self.active = active;
+            return None;
+        }
+        self.tabs.swap(active, active + 1);
+        self.active = active + 1;
+        Some(self.active)
+    }
+
     /// Set the active tab's file path (Save As on an untitled buffer binds it to a
     /// real path so subsequent saves write there).
     pub fn set_active_path(&mut self, path: PathBuf) {
@@ -671,6 +705,38 @@ mod tests {
             ),
             (3, 2, 1)
         );
+    }
+
+    #[test]
+    fn move_active_tab_left_and_right_preserves_tab_state() {
+        let mut s = TabStore::new();
+        let a = write_tmp("tabs_move_a.txt", b"a");
+        let b = write_tmp("tabs_move_b.txt", b"b");
+        let c = write_tmp("tabs_move_c.txt", b"c");
+        s.open_path(a);
+        let b_idx = s.open_path(b);
+        s.open_path(c);
+        s.switch(b_idx);
+        s.store_commit(b_idx, 7, 3, 2);
+        s.set_dirty(b_idx, true);
+
+        assert_eq!(s.move_active_left(), Some(0));
+        assert_eq!(s.active(), 0);
+        assert!(s.get(0).unwrap().basename().contains("tabs_move_b"));
+        assert!(s.get(0).unwrap().is_dirty());
+        assert_eq!(
+            (
+                s.get(0).unwrap().cursor_line,
+                s.get(0).unwrap().cursor_col,
+                s.get(0).unwrap().scroll_first
+            ),
+            (7, 3, 2)
+        );
+        assert_eq!(s.move_active_left(), None);
+
+        assert_eq!(s.move_active_right(), Some(1));
+        assert_eq!(s.active(), 1);
+        assert!(s.get(1).unwrap().basename().contains("tabs_move_b"));
     }
 
     #[test]

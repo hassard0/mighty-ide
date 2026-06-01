@@ -1308,3 +1308,14 @@ derives the path text and performs the platform clipboard write.
 - **Language note:** no new gap surfaced. This is another case where string work
   and platform integration should remain shim-side until Mighty can pass richer
   values across the ABI.
+
+### L71. Tab reordering must remap split-pane tab indices **[finding, P3]**
+Adding **Move Active Tab Left/Right** was mostly a tab-store operation, but split
+panes made the invariant explicit: panes store tab indices, so adjacent tab swaps
+must remap pane indices to keep each pane on the same logical document.
+
+- **IDE note:** tab reordering is a high-frequency organization command; it must
+  work from both shortcuts and the command palette without scrambling split views.
+- **Language note:** no new gap surfaced. Mighty routes the scalar command and
+  resets transient editor state; the tab-order and pane-index invariants belong
+  in the shim.

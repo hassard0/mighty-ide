@@ -44,6 +44,7 @@ the `mui_chord` router). This table is the authoritative list.
 | `Ctrl+B` | Toggle file-tree sidebar |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
 | `Ctrl+W` | Close active tab |
+| `Ctrl+Shift+PageUp` / `Ctrl+Shift+PageDown` | Move active tab left / right |
 | `Ctrl+Shift+F` | Project-wide Search panel |
 | `Ctrl+\` | Split editor right (side-by-side panes) |
 | `Ctrl+1` / `Ctrl+2` | Focus the first / second editor pane |

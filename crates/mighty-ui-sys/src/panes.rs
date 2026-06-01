@@ -196,6 +196,18 @@ impl PaneLayout {
             p.tab = p.tab.min(last);
         }
     }
+
+    /// Remap pane->tab indices after two adjacent tabs swap places. This keeps
+    /// split panes bound to the same logical documents while the tab order moves.
+    pub fn on_tabs_swapped(&mut self, a: usize, b: usize) {
+        for p in &mut self.panes {
+            if p.tab == a {
+                p.tab = b;
+            } else if p.tab == b {
+                p.tab = a;
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -336,6 +348,15 @@ mod tests {
         l.split_right(2, 0); // panes show tabs 0 and 2
         // Tab 2 itself closed; post count = 2 (tabs 0,1). The right pane clamps.
         l.on_tab_closed(2, 2);
+        assert_eq!(l.tab_at(0), Some(0));
+        assert_eq!(l.tab_at(1), Some(1));
+    }
+
+    #[test]
+    fn on_tabs_swapped_keeps_panes_on_same_documents() {
+        let mut l = PaneLayout::new(0);
+        l.split_right(2, 0); // panes show tabs 0 and 2
+        l.on_tabs_swapped(1, 2);
         assert_eq!(l.tab_at(0), Some(0));
         assert_eq!(l.tab_at(1), Some(1));
     }

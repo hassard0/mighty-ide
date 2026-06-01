@@ -873,6 +873,20 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(duplicate_tab.label, "File: Duplicate Active Tab");
 
+    let move_left = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_MOVE_ACTIVE_TAB_LEFT)
+        .unwrap();
+    assert_eq!(move_left.label, "File: Move Active Tab Left");
+    assert_eq!(move_left.keybinding, "Ctrl+Shift+PageUp");
+
+    let move_right = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_MOVE_ACTIVE_TAB_RIGHT)
+        .unwrap();
+    assert_eq!(move_right.label, "File: Move Active Tab Right");
+    assert_eq!(move_right.keybinding, "Ctrl+Shift+PageDown");
+
     let reload_file = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_RELOAD_ACTIVE_FILE)
@@ -1111,6 +1125,44 @@ fn duplicate_active_tab_clones_live_state_and_toasts() {
     assert!(ctx.tabs.is_dirty(3));
     assert_eq!(String::from_utf8(ctx.tabs.active_model().to_bytes()).unwrap(), "dirty b");
     assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Duplicated b.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn move_active_tab_left_right_preserves_split_pane_documents() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_move_tab_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let a = root.join("a.mty");
+    let b = root.join("b.mty");
+    let c = root.join("c.mty");
+    std::fs::write(&a, "a").unwrap();
+    std::fs::write(&b, "b").unwrap();
+    std::fs::write(&c, "c").unwrap();
+    let a_idx = ctx.tabs.open_path(a);
+    let b_idx = ctx.tabs.open_path(b);
+    ctx.tabs.open_path(c);
+    ctx.tabs.switch(b_idx);
+    ctx.panes = crate::panes::PaneLayout::new(a_idx);
+    ctx.panes.split_right(b_idx, 0);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let moved_left = b_idx - 1;
+    assert_eq!(crate::mui_tab_move_active_left(handle), moved_left as i32);
+    assert_eq!(ctx.tabs.active(), moved_left);
+    assert_eq!(ctx.tabs.get(moved_left).unwrap().basename(), "b.mty");
+    assert_eq!(ctx.panes.tab_at(0), Some(b_idx), "left pane should still show a.mty");
+    assert_eq!(ctx.panes.tab_at(1), Some(moved_left), "right pane should follow b.mty");
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Moved tab left");
+
+    assert_eq!(crate::mui_tab_move_active_right(handle), b_idx as i32);
+    assert_eq!(ctx.tabs.active(), b_idx);
+    assert_eq!(ctx.tabs.get(b_idx).unwrap().basename(), "b.mty");
+    assert_eq!(ctx.panes.tab_at(0), Some(a_idx), "left pane should follow a.mty back");
+    assert_eq!(ctx.panes.tab_at(1), Some(b_idx), "right pane should follow b.mty back");
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Moved tab right");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -2247,6 +2299,14 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         main.contains("if mui_recent_any(h) == 1"),
         "File: Open Recent must open the recents picker when either recent files or folders exist"
     );
+    assert!(
+        main.contains("key_page_up()") && main.contains("mui_tab_move_active_left(h)"),
+        "Ctrl+Shift+PageUp should route to Move Active Tab Left"
+    );
+    assert!(
+        main.contains("key_page_down()") && main.contains("mui_tab_move_active_right(h)"),
+        "Ctrl+Shift+PageDown should route to Move Active Tab Right"
+    );
     for needle in [
         "id >= cmd_pane_first() && id <= cmd_pane_last()",
         "id >= cmd_git_first() && id <= cmd_git_last()",
@@ -2310,6 +2370,8 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_CLOSE_SAVED_TABS_TO_LEFT, "cmd_close_saved_tabs_to_left"),
         (CMD_REOPEN_CLOSED_TAB, "cmd_reopen_closed_tab"),
         (CMD_DUPLICATE_ACTIVE_TAB, "cmd_duplicate_active_tab"),
+        (CMD_MOVE_ACTIVE_TAB_LEFT, "cmd_move_active_tab_left"),
+        (CMD_MOVE_ACTIVE_TAB_RIGHT, "cmd_move_active_tab_right"),
         (CMD_RELOAD_ACTIVE_FILE, "cmd_reload_active_file"),
         (CMD_REVERT_ACTIVE_FILE, "cmd_revert_active_file"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),

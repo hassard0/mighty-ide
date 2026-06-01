@@ -156,6 +156,8 @@ extern c {
   fn mui_tab_close_saved_to_left(handle: I64) -> I32
   fn mui_tab_reopen_closed(handle: I64) -> I32
   fn mui_tab_duplicate_active(handle: I64) -> I32
+  fn mui_tab_move_active_left(handle: I64) -> I32
+  fn mui_tab_move_active_right(handle: I64) -> I32
   fn mui_tab_reload_active(handle: I64) -> I32
   fn mui_tab_revert_active(handle: I64) -> I32
   fn mui_tab_index_at_click(handle: I64) -> I32
@@ -657,6 +659,8 @@ fn cmd_reload_active_file() -> I32 { 60 }
 fn cmd_revert_active_file() -> I32 { 61 }
 fn cmd_copy_active_file_name() -> I32 { 62 }
 fn cmd_copy_active_file_directory() -> I32 { 63 }
+fn cmd_move_active_tab_left() -> I32 { 64 }
+fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_format_document() -> I32 { 12 }
 fn cmd_undo() -> I32 { 13 }
 fn cmd_redo() -> I32 { 14 }
@@ -733,6 +737,8 @@ fn key_escape() -> I32 { 8 }
 fn key_delete() -> I32 { 9 }
 fn key_home() -> I32 { 10 }
 fn key_end() -> I32 { 11 }
+fn key_page_up() -> I32 { 12 }
+fn key_page_down() -> I32 { 13 }
 fn key_f12() -> I32 { 14 }
 fn key_f2() -> I32 { 15 }
 fn key_f5() -> I32 { 16 }
@@ -2563,6 +2569,26 @@ fn main() {
         } else if k == key_f11() {                           // F11 / Shift+F11 : step into / out
           let kmods = mui_event_mods(h)
           if shift_held(kmods) { mui_dbg_step_out(h) } else { mui_dbg_step_into(h) }
+        } else if k == key_page_up() {
+          let kmods = mui_event_mods(h)
+          if ctrl_held(kmods) && shift_held(kmods) {
+            let a = mui_tab_move_active_left(h)
+            if a >= 0 {
+              let _b = mui_ed_tab_switch(h, a)
+              mui_ed_undo_reset(h)
+              find_nav = false
+            }
+          }
+        } else if k == key_page_down() {
+          let kmods = mui_event_mods(h)
+          if ctrl_held(kmods) && shift_held(kmods) {
+            let a = mui_tab_move_active_right(h)
+            if a >= 0 {
+              let _b = mui_ed_tab_switch(h, a)
+              mui_ed_undo_reset(h)
+              find_nav = false
+            }
+          }
         } else if k == key_escape() {
           find_nav = false
           mui_hover_clear(h)
@@ -3335,6 +3361,20 @@ fn main() {
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
+          }
+        } else if id == cmd_move_active_tab_left() {
+          let a = mui_tab_move_active_left(h)
+          if a >= 0 {
+            let _b = mui_ed_tab_switch(h, a)
+            mui_ed_undo_reset(h)
+            find_nav = false
+          }
+        } else if id == cmd_move_active_tab_right() {
+          let a = mui_tab_move_active_right(h)
+          if a >= 0 {
+            let _b = mui_ed_tab_switch(h, a)
+            mui_ed_undo_reset(h)
+            find_nav = false
           }
         } else if id == cmd_reload_active_file() {
           let a = mui_tab_reload_active(h)

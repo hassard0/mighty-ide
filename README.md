@@ -37,6 +37,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   including tabs removed by cleanup commands
 - **Duplicate Active Tab** clones the current editor tab next to itself from the
   live buffer, including dirty state and cursor context
+- **Move Active Tab Left/Right** (Ctrl+Shift+PageUp/PageDown) reorders tabs from
+  the keyboard or command palette while preserving split-pane document bindings
 - **Reload Active File from Disk** refreshes clean file-backed tabs after
   external edits while protecting dirty buffers
 - **Revert Active File from Disk** intentionally discards local edits and reloads
