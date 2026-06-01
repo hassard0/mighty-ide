@@ -481,6 +481,16 @@ fn testing_suite_budget(sw: f32) -> f32 {
     }
 }
 
+fn testing_run_label(ran: bool, compact: bool) -> &'static str {
+    if compact {
+        "Run"
+    } else if ran {
+        "Re-run"
+    } else {
+        "Run Tests"
+    }
+}
+
 /// Geometry of the toolbar Run/Re-run + Stop buttons (under the header).
 struct ToolbarGeom {
     run_x: f32,
@@ -585,17 +595,14 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     // Toolbar: Run/Re-run + Stop buttons.
     let tb = toolbar_geom();
     let ran = ctx.tests_panel.total() > 0 || ctx.tests_panel.row_count() > 0;
-    let run_label = if ran { "Re-run" } else { "Run Tests" };
+    let run_label = testing_run_label(ran, tb.compact);
     // Run button (accent, with a play/beaker icon).
     ctx.dl_round(tb.run_x, tb.y, tb.btn_w, tb.btn_h, 7.0, theme::accent_a(0.22));
     ctx.dl_stroke(tb.run_x, tb.y, tb.btn_w, tb.btn_h, 7.0, theme::ACCENT(), 1.0);
     ctx.dl_icon(tb.run_x + 9.0, tb.y + (tb.btn_h - 13.0) * 0.5, 13.0, 13.0, icons::RUN, theme::ACCENT_BRIGHT(), 1.6, true);
-    if !tb.compact {
-        ctx.text.queue_ui_sized(tb.run_x + 28.0, tb.y + (tb.btn_h - chrome) * 0.5 - 1.0, run_label, theme::TEXT(), chrome - 1.0, clip);
-    } else {
-        let label = if ran { "Re" } else { "Run" };
-        ctx.text.queue_ui_sized(tb.run_x + 29.0, tb.y + (tb.btn_h - chrome) * 0.5 - 1.0, label, theme::TEXT(), chrome - 2.0, clip);
-    }
+    let label_x = if tb.compact { tb.run_x + 29.0 } else { tb.run_x + 28.0 };
+    let label_size = if tb.compact { chrome - 2.0 } else { chrome - 1.0 };
+    ctx.text.queue_ui_sized(label_x, tb.y + (tb.btn_h - chrome) * 0.5 - 1.0, run_label, theme::TEXT(), label_size, clip);
     // Stop button (enabled only while running).
     let stop_on = ctx.tests_panel.is_running();
     let stop_bg = if stop_on { theme::BG_4() } else { theme::BG_1() };
@@ -767,6 +774,14 @@ mod tests {
         assert_eq!(testing_suite_budget(184.0), 0.0);
         assert_eq!(testing_suite_budget(220.0), 66.0);
         assert_eq!(testing_suite_budget(320.0), 76.0);
+    }
+
+    #[test]
+    fn compact_testing_run_button_keeps_action_verb() {
+        assert_eq!(testing_run_label(false, false), "Run Tests");
+        assert_eq!(testing_run_label(true, false), "Re-run");
+        assert_eq!(testing_run_label(false, true), "Run");
+        assert_eq!(testing_run_label(true, true), "Run");
     }
 
     #[test]

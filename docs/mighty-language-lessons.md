@@ -2850,3 +2850,14 @@ after content chose its full width, so text still exceeded the visible work area
 - **Language note:** no compiler gap surfaced. Mighty needs a reusable overlay
   geometry primitive that combines anchor, safe area, width budget, and hit-test
   rect so every cursor popup follows the same contract.
+
+### L190. Compact command labels should preserve intent **[finding, P3]**
+The compact Testing toolbar shortened **Re-run** to **Re**, leaving a visible
+button with an unclear command. The control still worked, but the human-visible
+label looked broken.
+
+- **IDE note:** Testing now maps compact run/re-run states to the action verb
+  **Run**, while wide panels keep **Run Tests** and **Re-run**.
+- **Language note:** no compiler gap surfaced. Mighty UI would benefit from a
+  semantic command-label helper that chooses alternate labels per width instead
+  of slicing display strings by hand.

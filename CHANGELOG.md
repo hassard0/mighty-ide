@@ -72,6 +72,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Language popups fit compact work areas**: signature help and code-action
   menus now clamp to the editor safe area and ellipsize measured text instead of
   clipping against the right edge.
+- **Testing toolbar labels stay readable**: compact Testing panels now show
+  **Run** instead of the ambiguous clipped **Re** label after previous runs.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now
