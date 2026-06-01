@@ -2503,3 +2503,17 @@ overlay text shaped by glyphon.
 - **Language note:** no compiler gap surfaced. Mighty still needs a first-class
   text measurement/layout primitive so Mighty-authored UI can ask the renderer
   for shaped extents instead of duplicating approximate geometry in scalar code.
+
+### L165. First-run file actions should prioritize creation **[finding, P2]**
+The Welcome Start list still placed `New File...` below Open File, Open Folder,
+Quick Open, and Command Palette. After the primary New File flow moved to a
+native picker, burying it made the first-run path feel inconsistent with the
+toolbar and shortcut story.
+
+- **IDE note:** Welcome now puts `New File...` first, then Open File/Open Folder,
+  Quick Open, Command Palette, and New Folder. The live Windows harness was
+  updated to click the visible first-row New File target so the test follows the
+  human path instead of a stale coordinate.
+- **Language note:** no compiler gap surfaced. The friction is command metadata:
+  Mighty still benefits from a single command/action registry that can drive
+  Welcome, palette, shortcuts, toolbar order, and harness targets together.

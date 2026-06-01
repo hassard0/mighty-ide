@@ -495,9 +495,9 @@ $explorerNewFolderX = 258
 $explorerCollapseX = 280
 
 # === WELCOME NEW FILE: quick action must reveal a blank editor, not leave Welcome up. ===
-# Compact Welcome layout places "New File" on the fifth quick-action row and
-# "New Folder" immediately below it; click the New File row center.
-ClickL 410 403
+# Compact Welcome layout places "New File" as the primary quick-action row; click
+# the visible row center instead of pressing a keyboard shortcut.
+ClickL 410 275
 Start-Sleep -Milliseconds 350
 Capture $hwnd "02-welcome-new-file"
 Log "welcome new-file captured"

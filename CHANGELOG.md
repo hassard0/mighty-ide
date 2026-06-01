@@ -159,6 +159,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   shaped code-font extents for the prefix and parameter instead of fixed character
   math, so compact popups do not draw the highlight or accent text off by a few
   pixels.
+- **Welcome starts with New File**: the first-run Start list now puts the native
+  New File picker first, followed by Open File/Open Folder, so creation is not
+  buried behind navigation commands.
 - **Visual gallery paths are reliable**: the overlay-gallery QA tool now
   normalizes relative executable, workdir, and output paths before launching the
   packaged IDE, avoiding false missing-screenshot failures.

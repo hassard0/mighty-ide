@@ -47,11 +47,11 @@ struct QuickAction {
 }
 
 const QUICK_ACTIONS: &[QuickAction] = &[
+    QuickAction { icon: icons::NEW_FILE, label: "New File\u{2026}", key: "Ctrl+N", action: ACTION_NEW_FILE },
     QuickAction { icon: icons::EXPLORER, label: "Open File\u{2026}", key: "Ctrl+O", action: ACTION_OPEN_FILE },
     QuickAction { icon: icons::FOLDER, label: "Open Folder\u{2026}", key: "Ctrl+Shift+O", action: ACTION_OPEN_FOLDER },
     QuickAction { icon: icons::SEARCH, label: "Quick Open", key: "Ctrl+P", action: ACTION_QUICK_OPEN },
     QuickAction { icon: icons::TEST_BOX, label: "Command Palette", key: "Ctrl+Shift+P", action: ACTION_COMMAND_PALETTE },
-    QuickAction { icon: icons::NEW_FILE, label: "New File\u{2026}", key: "Ctrl+N", action: ACTION_NEW_FILE },
     QuickAction { icon: icons::NEW_FOLDER, label: "New Folder\u{2026}", key: "Ctrl+Shift+N", action: ACTION_NEW_FOLDER },
 ];
 
@@ -655,6 +655,12 @@ mod tests {
         assert_eq!(file_icon("Cargo.toml"), icons::FILE_TOML);
         assert_eq!(file_icon("README.md"), icons::FILE_MD);
         assert_eq!(file_icon("notes.txt"), icons::FILE_TXT);
+    }
+
+    #[test]
+    fn new_file_is_the_primary_welcome_action() {
+        assert_eq!(QUICK_ACTIONS.first().unwrap().action, ACTION_NEW_FILE);
+        assert_eq!(QUICK_ACTIONS.first().unwrap().label, "New File\u{2026}");
     }
 
     #[test]
