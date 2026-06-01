@@ -236,12 +236,12 @@ impl WelcomeState {
         );
         let rail_w = if compact { 7.0 } else { 8.0 };
         ctx.dl_round(tx + 2.0, y + 2.0, rail_w, tile - 4.0, 3.0, MuiColor::new(0.35, 0.95, 0.90, 0.95));
-        ctx.dl_round(tx + tile - 16.0, y + 2.0, 14.0, 14.0, 4.0, theme::ACCENT());
+        ctx.dl_round(tx + 14.0, y + tile - 5.0, tile - 28.0, 3.0, 1.5, theme::ACCENT());
         ctx.dl_stroke(tx, y, tile, tile, tile_r, MuiColor::new(0.56, 0.96, 0.94, 0.68), 1.0);
         // The "M" mark, in on-accent ink (white reads on the saturated tile in
         // every theme).
         let mark_ink = MuiColor::new(1.0, 1.0, 1.0, 0.96);
-        let mark = if compact { 31.0 } else { 36.0 };
+        let mark = if compact { 34.0 } else { 40.0 };
         let mark_pad = (tile - mark) * 0.5;
         ctx.dl_icon(tx + mark_pad, y + mark_pad, mark, mark, icons::LANG_M_FILL, mark_ink, 0.0, true);
 

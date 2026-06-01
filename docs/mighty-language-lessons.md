@@ -2460,3 +2460,17 @@ or text budgets a user actually cares about.
 - **Language note:** no compiler gap surfaced. Mighty tooling still needs
   first-class UI stories/fixtures so visual QA states are declared as product
   scenarios instead of one-off host-side environment hooks.
+
+### L162. Brand assets need one source of truth across native shell and in-app UI **[finding, P2]**
+The rail logo, Welcome logo, generated `.ico`, and Windows executable stamp can
+drift because the in-app mark is hand-drawn in Rust while the taskbar icon is
+drawn by `tools/make-icon.py`. The latest cleanup simplified both copies to the
+same teal-rail / violet-baseline monogram, but they are still manually kept in
+sync.
+
+- **IDE note:** the corner accent dot was removed because at rail and taskbar
+  sizes it looked like an unread notification or stray badge rather than part of
+  the Mighty identity.
+- **Language note:** no compiler gap surfaced. Mighty would benefit from a
+  declarative/vector asset story that can emit both runtime drawing commands and
+  packaged native assets from the same source.

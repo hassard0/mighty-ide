@@ -21,7 +21,6 @@ TILE_BOTTOM = (7, 10, 21, 255)
 ACCENT_TEAL = (76, 229, 218, 255)
 ACCENT_VIOLET = (126, 95, 255, 255)
 ACCENT_EDGE = (110, 241, 233, 235)
-ACCENT_SOFT = (126, 95, 255, 92)
 INK = (255, 255, 255, 255)
 INK_SHADOW = (19, 16, 52, 145)
 
@@ -53,7 +52,7 @@ def render(size: int) -> Image.Image:
     img = tile
     d = ImageDraw.Draw(img)
 
-    # Accent frame: visible at 16px without making the mark lopsided.
+    # Accent frame: visible at 16px without looking like a notification badge.
     edge_w = max(1, int(s * 0.018))
     d.rounded_rectangle(
         [inset, inset, s - inset, s - inset],
@@ -61,25 +60,23 @@ def render(size: int) -> Image.Image:
         outline=ACCENT_EDGE,
         width=edge_w,
     )
+    rail_w = max(edge_w, int(s * 0.075))
+    d.rounded_rectangle(
+        [inset + edge_w, inset + edge_w, inset + edge_w + rail_w, s - inset - edge_w],
+        radius=max(1, int(s * 0.035)),
+        fill=ACCENT_TEAL,
+    )
     d.line(
         [
-            (inset + radius * 0.70, s - inset - edge_w),
+            (inset + radius * 0.78, s - inset - edge_w),
             (s - inset - radius * 0.70, s - inset - edge_w),
         ],
-        fill=ACCENT_TEAL,
-        width=max(edge_w, int(s * 0.026)),
-    )
-    dot = max(2 * SS, int(s * 0.105))
-    dot_x = s - inset - int(s * 0.18)
-    dot_y = inset + int(s * 0.18)
-    d.ellipse([dot_x - dot, dot_y - dot, dot_x + dot, dot_y + dot], fill=ACCENT_SOFT)
-    d.ellipse(
-        [dot_x - dot * 0.58, dot_y - dot * 0.58, dot_x + dot * 0.58, dot_y + dot * 0.58],
         fill=ACCENT_VIOLET,
+        width=max(edge_w, int(s * 0.026)),
     )
 
     # White Mighty monogram. Scale the 24-unit glyph into the tile's safe area.
-    pad = s * 0.17
+    pad = s * 0.15
     span = s - 2 * pad
     pts = [(pad + (x / 24.0) * span, pad + (y / 24.0) * span) for (x, y) in GLYPH]
     shadow_pts = [(x + max(1, s * 0.012), y + max(1, s * 0.018)) for x, y in pts]

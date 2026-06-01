@@ -4186,13 +4186,13 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
         MuiColor::new(0.03, 0.04, 0.09, 1.0),
     );
     ctx.dl_round(lx + 1.0, ly + 1.0, 4.0, logo_tile - 2.0, 2.0, MuiColor::new(0.35, 0.95, 0.90, 0.95));
-    ctx.dl_round(lx + logo_tile - 9.0, ly + 1.0, 8.0, 8.0, 2.0, theme::ACCENT());
+    ctx.dl_round(lx + 7.0, ly + logo_tile - 3.0, logo_tile - 14.0, 2.0, 1.0, theme::ACCENT());
     ctx.dl_stroke(lx, ly, logo_tile, logo_tile, 4.0, MuiColor::new(0.56, 0.96, 0.94, 0.68), 1.0);
     ctx.dl_icon(
-        lx + 6.0,
-        ly + 6.0,
-        logo_tile - 12.0,
-        logo_tile - 12.0,
+        lx + 5.0,
+        ly + 5.0,
+        logo_tile - 10.0,
+        logo_tile - 10.0,
         icons::LANG_M_FILL,
         theme::TEXT(),
         0.0,

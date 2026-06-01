@@ -146,6 +146,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Outline visual QA shows real symbols**: the Outline gallery case now seeds a
   representative Mighty file before refreshing symbols, so alignment reviews see
   nested functions, agents, and structs instead of an empty scratch-state panel.
+- **Brand mark is cleaner at taskbar scale**: the app icon and in-app rail /
+  Welcome logo now use a simpler teal-rail + violet-baseline monogram instead
+  of a corner dot that read like a notification badge at small sizes.
 - **Visual gallery paths are reliable**: the overlay-gallery QA tool now
   normalizes relative executable, workdir, and output paths before launching the
   packaged IDE, avoiding false missing-screenshot failures.
