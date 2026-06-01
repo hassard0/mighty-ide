@@ -2979,3 +2979,15 @@ no mouse-reachable target once many files were open.
   strip instead of the editor. Mighty UI should model scrollable tab/list
   surfaces as first-class widgets with shared paint, hit-test, and wheel-routing
   state.
+
+### L200. Rendered document panes need responsive type and spacing **[finding, P2]**
+The compact Markdown preview screenshot showed the rendered heading and body
+copy squeezed into a tiny prose column. The preview layout had even increased
+side margins at narrow widths, which made split-pane reading worse.
+
+- **IDE note:** Markdown preview now reduces side margins in compact columns and
+  scales heading typography down before wrapping, preserving a useful reading
+  measure in split panes.
+- **Language note:** no compiler gap surfaced. Mighty UI needs document-preview
+  primitives with responsive spacing and type tokens, so rendered prose panes do
+  not depend on hand-tuned constants copied across tools.

@@ -42,6 +42,16 @@ const MARGIN_X: f32 = 28.0;
 /// Top margin (px) below the pane's top edge.
 const MARGIN_TOP: f32 = 20.0;
 
+fn content_margin_x(col_w: f32) -> f32 {
+    if col_w < 220.0 {
+        14.0
+    } else if col_w < 300.0 {
+        18.0
+    } else {
+        MARGIN_X
+    }
+}
+
 pub fn close_rect(region: Region, x_right: f32, win_w: f32) -> (f32, f32, f32, f32) {
     let left = region.left;
     let top = region.top;
@@ -133,7 +143,7 @@ impl MdPreview {
 
         // Content column geometry. We lay blocks out at a running y that starts
         // below the header minus the scroll offset; the clip hides off-screen rows.
-        let margin_x = if col_w < 280.0 { 40.0 } else { MARGIN_X };
+        let margin_x = content_margin_x(col_w);
         let content_left = left + margin_x;
         let content_w = (col_w - 2.0 * margin_x).max(40.0);
         let mut painter = Painter {
@@ -176,6 +186,27 @@ fn ui_advance(size: f32) -> f32 {
     size * 0.62
 }
 
+fn heading_size(level: u8, width: f32) -> f32 {
+    let base: f32 = match level {
+        1 => 26.0,
+        2 => 21.0,
+        3 => 18.0,
+        4 => 16.0,
+        5 => 14.5,
+        _ => 13.0,
+    };
+    let compact_scale: f32 = if width < 170.0 {
+        0.78
+    } else if width < 230.0 {
+        0.86
+    } else if width < 300.0 {
+        0.94
+    } else {
+        1.0
+    };
+    (base * compact_scale).max(12.5)
+}
+
 impl Painter<'_> {
     /// Emit a list of blocks at the given `indent` (px added to the left edge,
     /// used for blockquote / nested content).
@@ -200,19 +231,13 @@ impl Painter<'_> {
     // ---- headings ----
 
     fn heading(&mut self, level: u8, spans: &[Span], indent: f32) {
-        // Scale by level: h1 biggest down to h6 ~ body.
-        let size = match level {
-            1 => 26.0,
-            2 => 21.0,
-            3 => 18.0,
-            4 => 16.0,
-            5 => 14.5,
-            _ => 13.0,
-        };
+        // Scale by level and available width: h1 stays prominent, but compact
+        // split panes should not turn rendered prose into a two-word column.
+        let avail = self.width - indent;
+        let size = heading_size(level, avail);
         let lh = size * 1.45;
         self.y += if level <= 2 { 14.0 } else { 10.0 }; // space above
         let x = self.x0 + indent;
-        let avail = self.width - indent;
         let lines = wrap_spans(spans, avail, size, true);
         for line in &lines {
             self.draw_span_line(line, x, self.y, size, theme::TEXT(), true);
@@ -634,6 +659,22 @@ mod tests {
             lines.len() > 1,
             "large headings should wrap before they clip in narrow split panes"
         );
+    }
+
+    #[test]
+    fn compact_preview_margins_preserve_reading_width() {
+        assert!(content_margin_x(200.0) < MARGIN_X);
+        assert!(content_margin_x(260.0) < MARGIN_X);
+        assert_eq!(content_margin_x(360.0), MARGIN_X);
+    }
+
+    #[test]
+    fn compact_heading_size_scales_down_before_wrapping() {
+        let compact = heading_size(1, 160.0);
+        let wide = heading_size(1, 360.0);
+        assert!(compact < wide);
+        assert!(compact <= 21.0, "compact h1 should fit narrow preview panes");
+        assert_eq!(wide, 26.0);
     }
 
     #[test]

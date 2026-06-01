@@ -66,6 +66,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Markdown Preview is readable in compact windows**: opening the live preview
   now temporarily hides the sidebar when a split preview would leave cramped
   columns, then restores the sidebar when the preview closes.
+- **Markdown Preview typography adapts to split panes**: compact preview columns
+  now use smaller margins and responsive heading sizes so rendered prose remains
+  readable instead of wrapping into awkward one- or two-word lines.
 - **Toast notifications avoid compact sidebars**: toasts now shrink and align
   inside the work area when the activity rail/sidebar are visible, so feedback
   no longer looks like stale text over the Explorer.
