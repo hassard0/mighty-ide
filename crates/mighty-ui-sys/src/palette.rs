@@ -545,7 +545,7 @@ impl PaletteEngine {
             CMD_NEW_FILE => (icons::NEW_FILE, "Choose a folder and filename before creating the tab", false),
             CMD_NEW_UNTITLED_FILE => (icons::NEW_FILE, "Start a temporary editor tab with no disk path", false),
             CMD_NEW_WORKSPACE_FILE => (icons::NEW_FILE, "Use the native picker, starting near the workspace", false),
-            CMD_NEW_FOLDER => (icons::NEW_FOLDER, "Create a folder under the open workspace", false),
+            CMD_NEW_FOLDER => (icons::NEW_FOLDER, "Choose or create a folder with the native picker", false),
             CMD_OPEN_FILE => (icons::NEW_FILE, "Choose an existing file with the native picker", false),
             CMD_SAVE => (icons::FILE_MTY, "Write the active file to disk", false),
             CMD_SAVE_AS => (icons::FILE_MTY, "Save the active file with the native Save As dialog", false),

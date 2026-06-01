@@ -930,6 +930,57 @@ fn new_folder_validates_name_clears_stage_and_toasts() {
 }
 
 #[test]
+fn new_folder_dialog_env_pick_creates_or_accepts_folder() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_new_folder_dialog_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let fresh = root.join("fresh");
+    std::env::set_var("MUI_NEW_FOLDER_PICK", fresh.to_string_lossy().as_ref());
+    assert_eq!(crate::mui_newfolder_dialog(handle), 1);
+    std::env::remove_var("MUI_NEW_FOLDER_PICK");
+    assert!(fresh.is_dir());
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Created folder: fresh"
+    );
+
+    let existing = root.join("existing");
+    std::fs::create_dir_all(&existing).unwrap();
+    std::env::set_var("MUI_NEW_FOLDER_PICK", existing.to_string_lossy().as_ref());
+    assert_eq!(crate::mui_newfolder_dialog(handle), 1);
+    std::env::remove_var("MUI_NEW_FOLDER_PICK");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Folder ready: existing"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn new_folder_dialog_cancel_is_noop() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let before = ctx.toasts.len();
+
+    std::env::set_var("MUI_NEW_FOLDER_PICK", "");
+    assert_eq!(crate::mui_newfolder_dialog(handle), 0);
+    std::env::remove_var("MUI_NEW_FOLDER_PICK");
+    assert_eq!(ctx.toasts.len(), before);
+}
+
+#[test]
 fn new_file_validates_name_clears_stage_opens_tab_and_toasts() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_new_file_guards");

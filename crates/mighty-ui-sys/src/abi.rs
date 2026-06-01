@@ -4623,6 +4623,55 @@ pub extern "C" fn mui_newfolder_create(handle: i64) -> i32 {
     }
 }
 
+/// Create/select a folder through the native Windows folder picker. Returns `1`
+/// when a folder is ready, `0` on cancel, or `-1` when unavailable so Mighty can
+/// fall back to the typed-name prompt.
+#[no_mangle]
+pub extern "C" fn mui_newfolder_dialog(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let initial_dir = crate::wsabi::effective_root(ctx);
+    let target = match pick_new_folder_native(&initial_dir, dialog_owner_hwnd(ctx)) {
+        FileDialogPick::Picked(path) => path,
+        FileDialogPick::Cancelled => {
+            println!("mui_newfolder_dialog: native folder dialog cancelled");
+            return 0;
+        }
+        FileDialogPick::Unavailable => {
+            println!("mui_newfolder_dialog: native folder dialog unavailable");
+            return -1;
+        }
+    };
+    let name = basename(&target);
+    create_or_accept_folder_at(ctx, target, &name)
+}
+
+fn create_or_accept_folder_at(ctx: &mut MuiContext, target: PathBuf, name: &str) -> i32 {
+    if target.is_dir() {
+        ctx.tree.refresh();
+        ctx.push_toast(crate::toast::Kind::Success, format!("Folder ready: {name}"));
+        return 1;
+    }
+    if target.exists() {
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Folder already exists: {name}"));
+        println!("newfolder: target exists but is not a folder: {}", target.display());
+        return 0;
+    }
+    match std::fs::create_dir_all(&target) {
+        Ok(_) => {
+            ctx.tree.refresh();
+            ctx.push_toast(crate::toast::Kind::Success, format!("Created folder: {name}"));
+            1
+        }
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, format!("Folder create failed: {name}"));
+            println!("newfolder: failed to create {}: {e}", target.display());
+            0
+        }
+    }
+}
+
 /// Create a new file from the staged path bytes (the Explorer New File prompt
 /// query), resolved under the workspace root. Opens the file as the active tab,
 /// refreshes Explorer and Quick-Open, and returns the resulting tab index.
@@ -8944,6 +8993,51 @@ if ($ownerText -and [Int64]::TryParse($ownerText, [ref]$ownerHwnd) -and $ownerHw
 }
 try {
   if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($d.FileName) }
+} finally {
+  if ($owner -is [System.Windows.Forms.NativeWindow]) { $owner.ReleaseHandle() }
+  if ($ownerForm) { $ownerForm.Dispose() }
+}
+"#;
+    run_file_dialog_script(script, initial_dir, None, owner_hwnd)
+}
+
+fn pick_new_folder_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FileDialogPick {
+    if let Ok(path) = std::env::var("MUI_NEW_FOLDER_PICK") {
+        let trimmed = path.trim();
+        return if trimmed.is_empty() {
+            FileDialogPick::Cancelled
+        } else {
+            FileDialogPick::Picked(PathBuf::from(trimmed))
+        };
+    }
+    if !cfg!(windows) {
+        return FileDialogPick::Unavailable;
+    }
+    let script = r#"
+Add-Type -AssemblyName System.Windows.Forms | Out-Null
+$d = New-Object System.Windows.Forms.FolderBrowserDialog
+$d.Description = 'Choose or create a folder'
+$d.ShowNewFolderButton = $true
+$dir = $env:MUI_DIALOG_DIR
+if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) { $d.SelectedPath = $dir }
+$owner = $null
+$ownerForm = $null
+$ownerHwnd = 0L
+$ownerText = $env:MUI_DIALOG_OWNER
+if ($ownerText -and [Int64]::TryParse($ownerText, [ref]$ownerHwnd) -and $ownerHwnd -ne 0) {
+  $owner = New-Object System.Windows.Forms.NativeWindow
+  $owner.AssignHandle([IntPtr]$ownerHwnd)
+} else {
+  $ownerForm = New-Object System.Windows.Forms.Form
+  $ownerForm.TopMost = $true
+  $ownerForm.ShowInTaskbar = $false
+  $ownerForm.StartPosition = 'CenterScreen'
+  $ownerForm.Width = 1
+  $ownerForm.Height = 1
+  $owner = $ownerForm
+}
+try {
+  if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($d.SelectedPath) }
 } finally {
   if ($owner -is [System.Windows.Forms.NativeWindow]) { $owner.ReleaseHandle() }
   if ($ownerForm) { $ownerForm.Dispose() }

@@ -167,10 +167,12 @@ function Finish-Harness($proc) {
   Remove-Item Env:\MUI_SAVE_FILE_PICK -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_NEW_FILE_PICK -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_NEW_FILE_PICK_SEQUENCE -ErrorAction SilentlyContinue
+  Remove-Item Env:\MUI_NEW_FOLDER_PICK -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_OPEN_FILE_PICK -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_OPEN_FOLDER_PICK -ErrorAction SilentlyContinue
   if (-not $traceWasSet) { Remove-Item Env:\MUI_TRACE -ErrorAction SilentlyContinue }
   Remove-Item -LiteralPath $openPath -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $newFolderPath -Recurse -Force -ErrorAction SilentlyContinue
   $reportPath = Join-Path $OutDir 'report.txt'
   $report | Set-Content $reportPath -Encoding utf8
   Log "report -> $reportPath"
@@ -187,6 +189,9 @@ if (Test-Path $newFilePath) { Remove-Item $newFilePath -Force }
 $welcomeFileName = "harnesswelcome.mty"
 $welcomeFilePath = Join-Path $WorkDir $welcomeFileName
 if (Test-Path $welcomeFilePath) { Remove-Item $welcomeFilePath -Force }
+$newFolderName = "harnessnewfolder"
+$newFolderPath = Join-Path $WorkDir $newFolderName
+if (Test-Path $newFolderPath) { Remove-Item $newFolderPath -Recurse -Force }
 $openName = "harnessopen.mty"
 $openPath = Join-Path $WorkDir $openName
 Set-Content -LiteralPath $openPath -Value "opened" -Encoding utf8
@@ -195,6 +200,7 @@ Set-Content -LiteralPath $openPath -Value "opened" -Encoding utf8
 $env:MUI_SAVE_FILE_PICK = $savePath
 $env:MUI_NEW_FILE_PICK = $welcomeFilePath
 $env:MUI_NEW_FILE_PICK_SEQUENCE = "$welcomeFilePath|$newFilePath"
+$env:MUI_NEW_FOLDER_PICK = $newFolderPath
 $env:MUI_OPEN_FILE_PICK = $openPath
 $env:MUI_OPEN_FOLDER_PICK = $WorkDir
 
@@ -541,10 +547,16 @@ if ($env:MUI_TRACE) {
 ClickL $explorerCollapseX 20 # Collapse all folders
 Start-Sleep -Milliseconds 300
 Capture $hwnd "12-collapse"
-ClickL $explorerNewFolderX 20 # New Folder -> name prompt opens
+ClickL $explorerNewFolderX 20 # New Folder -> native folder picker creates folder
 Start-Sleep -Milliseconds 300
-Capture $hwnd "13-newfolder-prompt"
-Press-VK $hwnd 0x1B      # cancel the prompt
+Capture $hwnd "13-newfolder-created"
+if (Test-Path $newFolderPath -PathType Container) {
+  Log "NEW-FOLDER: workspace folder created OK -> $newFolderPath"
+} else {
+  Log "NEW-FOLDER: expected folder missing -> $newFolderPath"
+  $script:HarnessFailed = $true
+}
+Press-VK $hwnd 0x1B      # harmless if no prompt is open; cancels any unexpected overlay
 Start-Sleep -Milliseconds 150
 
 # === RAIL NAVIGATION (logical x=26; slot center = 52 + slot*42 + 19) ===

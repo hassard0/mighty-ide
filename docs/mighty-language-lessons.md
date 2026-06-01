@@ -2247,3 +2247,15 @@ That is visually equivalent to overlap even when z-order is intentional.
 - **Language note:** no compiler gap surfaced. Mighty UI needs an overlay
   placement service where surfaces can publish occupied regions and transient
   layers can anchor against those regions automatically.
+
+### L145. File and folder creation should use one mental model **[finding, P2]**
+New File had moved to a native picker, but New Folder still opened the in-app
+bottom prompt. That made the Explorer header and Welcome actions feel
+inconsistent: users had to remember two different creation flows.
+
+- **IDE note:** New Folder now opens a native folder picker with the system "New
+  Folder" affordance, with the typed prompt retained only as an unavailable-dialog
+  fallback. The palette metadata now describes the native-picker behavior.
+- **Language note:** no compiler gap surfaced. Mighty would benefit from a
+  standard command-result convention for cancelled vs unavailable native UI so
+  fallback routing stays compact on the Mighty side.

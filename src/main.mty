@@ -187,6 +187,7 @@ extern c {
   fn mui_newfile_create(handle: I64) -> I32
   fn mui_newfile_dialog(handle: I64) -> I32
   fn mui_newfolder_create(handle: I64) -> I32
+  fn mui_newfolder_dialog(handle: I64) -> I32
   fn mui_file_rename_active(handle: I64) -> I32
   fn mui_file_reveal_active(handle: I64) -> I32
   fn mui_file_reveal_active_in_os(handle: I64) -> I32
@@ -2907,8 +2908,11 @@ fn main() {
             }
             find_nav = false
           } else if welcome_act == welcome_new_folder() {
-            mui_prompt_open(h, prompt_new_folder())
-            prompt_kind = prompt_new_folder()
+            let nd = mui_newfolder_dialog(h)
+            if nd == -1 {
+              mui_prompt_open(h, prompt_new_folder())
+              prompt_kind = prompt_new_folder()
+            }
             find_nav = false
           } else if welcome_act == welcome_toggle_theme() {
             mui_theme_picker_open(h)
@@ -2988,10 +2992,12 @@ fn main() {
           }
           find_nav = false
         } else if explorer_hit == 2 {
-          // Explorer header: New Folder -> prompt for the name (created under the
-          // workspace root, then the tree refreshes).
-          mui_prompt_open(h, prompt_new_folder())
-          prompt_kind = prompt_new_folder()
+          // Explorer header: New Folder -> native folder picker, typed-name fallback only if unavailable.
+          let nd = mui_newfolder_dialog(h)
+          if nd == -1 {
+            mui_prompt_open(h, prompt_new_folder())
+            prompt_kind = prompt_new_folder()
+          }
           find_nav = false
         } else if explorer_hit == 3 {
           // Explorer header: Collapse all expanded folders in the tree.
@@ -3280,8 +3286,11 @@ fn main() {
           mui_ed_undo_reset(h)
           find_nav = false
         } else if id == cmd_new_folder() {
-          mui_prompt_open(h, prompt_new_folder())
-          prompt_kind = prompt_new_folder()
+          let nd = mui_newfolder_dialog(h)
+          if nd == -1 {
+            mui_prompt_open(h, prompt_new_folder())
+            prompt_kind = prompt_new_folder()
+          }
           find_nav = false
         } else if id == cmd_rename_active_file() {
           mui_prompt_open(h, prompt_rename_file())
