@@ -2574,6 +2574,33 @@ fn scm_header_fits_before_action_buttons() {
 }
 
 #[test]
+fn scm_section_branch_budget_yields_to_changes_count() {
+    let mut ctx = ctx_or_skip!();
+    let sx = crate::layout::RAIL_W;
+    let chrome = crate::theme::CHROME_FONT_SIZE - 2.0;
+    let compact_budget = crate::panels::scm_section_branch_budget(
+        &mut ctx.text,
+        sx,
+        crate::layout::SIDEBAR_MIN_W,
+        123,
+        123,
+        45,
+        chrome,
+    );
+    assert!(
+        compact_budget < 24.0,
+        "compact SCM section should hide branch instead of crossing count: {compact_budget}"
+    );
+
+    let wide_budget =
+        crate::panels::scm_section_branch_budget(&mut ctx.text, sx, 248.0, 3, 0, 0, chrome);
+    assert!(
+        wide_budget >= 24.0,
+        "wide SCM section should still have room for branch context: {wide_budget}"
+    );
+}
+
+#[test]
 fn status_problems_chip_hit_tracks_rendered_branch_width() {
     use crate::ffi::MuiEvent;
     use crate::{mui_status_problems_chip_at_click, mui_status_render};

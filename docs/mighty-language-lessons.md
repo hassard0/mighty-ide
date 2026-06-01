@@ -2874,3 +2874,16 @@ against the icon reserve.
 - **Language note:** no compiler gap surfaced. Mighty UI needs a reusable
   header primitive for `label + trailing actions`, with shared measurement,
   clipping, and hit-test geometry so panels do not drift apart.
+
+### L192. Secondary metadata must yield by priority, not just shrink **[finding, P2]**
+After the SCM header fit, the section row still let branch metadata crowd the
+`CHANGES` label/count in compact sidebars. Ellipsizing the branch was not enough
+when the count itself needed the same horizontal lane.
+
+- **IDE note:** Source Control now measures the `CHANGES` label and count first.
+  Branch metadata draws only when the remaining budget can fit a useful branch
+  cluster; otherwise it yields because branch state is already visible in the
+  status bar.
+- **Language note:** no compiler gap surfaced. Mighty UI needs priority-aware
+  inline layout, where secondary metadata can collapse or move after primary
+  task state claims its measured space.

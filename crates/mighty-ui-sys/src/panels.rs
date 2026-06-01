@@ -472,6 +472,30 @@ fn fit_head_px(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) ->
     }
 }
 
+pub(crate) fn scm_section_branch_budget(
+    text: &mut crate::text::Text,
+    sx: f32,
+    sw: f32,
+    count: usize,
+    ahead: i32,
+    behind: i32,
+    size: f32,
+) -> f32 {
+    let changes_x = sx + 14.0;
+    let changes_w = text.measure_ui_sized("CHANGES", size).0;
+    let cnt_str = count.to_string();
+    let count_x = changes_x + changes_w + 8.0;
+    let count_w = text.measure_ui_sized(&cnt_str, size).0;
+    let branch_left = count_x + count_w + 12.0;
+    let branch_right = sx + sw - 12.0;
+    let ab_w = if ahead > 0 || behind > 0 {
+        text.measure_ui_sized(&format!("\u{2191}{ahead} \u{2193}{behind}"), size - 1.0).0 + 8.0
+    } else {
+        0.0
+    };
+    branch_right - branch_left - 16.0 - ab_w
+}
+
 /// Draw the Source Control panel (header + branch/ahead-behind, commit-message
 /// box + Commit affordance, changes list with colored status badges + file
 /// icons). No-op when the sidebar is hidden or this panel isn't active.
@@ -535,11 +559,16 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
     let behind = ctx.scm.status.behind;
     let count = ctx.scm.count();
     let sec_y = box_y + box_h + 6.0;
-    ctx.text.queue_ui_sized(sx + 14.0, sec_y + 3.0, "CHANGES", theme::DIM(), chrome - 2.0, clip);
+    let changes_x = sx + 14.0;
+    ctx.text.queue_ui_sized(changes_x, sec_y + 3.0, "CHANGES", theme::DIM(), chrome - 2.0, clip);
     let cnt_str = count.to_string();
-    ctx.text.queue_ui_sized(sx + 70.0, sec_y + 3.0, &cnt_str, theme::TEXT_3(), chrome - 2.0, clip);
+    let changes_w = ctx.text.measure_ui_sized("CHANGES", chrome - 2.0).0;
+    let count_x = changes_x + changes_w + 8.0;
+    ctx.text.queue_ui_sized(count_x, sec_y + 3.0, &cnt_str, theme::TEXT_3(), chrome - 2.0, clip);
     if !branch.is_empty() {
-        ctx.dl_icon(sx + sw - 96.0, sec_y + 1.0, 12.0, 12.0, icons::BRANCH, theme::ACCENT_BRIGHT(), 1.5, false);
+        let count_w = ctx.text.measure_ui_sized(&cnt_str, chrome - 2.0).0;
+        let branch_left = count_x + count_w + 12.0;
+        let branch_right = sx + sw - 12.0;
         let ab = if ahead > 0 || behind > 0 {
             Some(format!("\u{2191}{ahead} \u{2193}{behind}"))
         } else {
@@ -549,10 +578,23 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
             .as_ref()
             .map(|s| ctx.text.measure_ui_sized(s, chrome - 3.0).0 + 8.0)
             .unwrap_or(0.0);
-        let bp = fit_tail_px(&mut ctx.text, &branch, 50.0 - ab_w.min(34.0), chrome - 2.0);
-        ctx.text.queue_ui_sized(sx + sw - 80.0, sec_y + 3.0, &bp, theme::TEXT_1(), chrome - 2.0, clip);
-        if let Some(ab) = ab {
-            ctx.text.queue_ui_sized(sx + sw - 30.0, sec_y + 3.0, &ab, theme::TEXT_3(), chrome - 3.0, clip);
+        let branch_budget = scm_section_branch_budget(
+            &mut ctx.text,
+            sx,
+            sw,
+            count.max(0) as usize,
+            ahead,
+            behind,
+            chrome - 2.0,
+        );
+        if branch_budget >= 24.0 {
+            ctx.dl_icon(branch_left, sec_y + 1.0, 12.0, 12.0, icons::BRANCH, theme::ACCENT_BRIGHT(), 1.5, false);
+            let bp = fit_tail_px(&mut ctx.text, &branch, branch_budget, chrome - 2.0);
+            let bp_x = branch_left + 16.0;
+            ctx.text.queue_ui_sized(bp_x, sec_y + 3.0, &bp, theme::TEXT_1(), chrome - 2.0, clip);
+            if let Some(ab) = ab {
+                ctx.text.queue_ui_sized(branch_right - ab_w + 8.0, sec_y + 3.0, &ab, theme::TEXT_3(), chrome - 3.0, clip);
+            }
         }
     }
 

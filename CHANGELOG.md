@@ -76,6 +76,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   **Run** instead of the ambiguous clipped **Re** label after previous runs.
 - **Source Control header no longer overlaps actions**: compact SCM panels now
   measure and ellipsize the title before the commit/pull/push/fetch icons.
+- **Source Control section metadata is responsive**: the branch label now yields
+  to the `CHANGES` count in cramped sidebars instead of drawing over it.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now
