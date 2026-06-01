@@ -46,6 +46,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **New File at Location now honors the chosen location**: the native picker can
   create and open a file outside the current workspace, while the Explorer
   workspace command remains scoped to the open folder.
+- **Explorer new-file routing is workspace-scoped**: the Explorer header and
+  **Explorer: New File in Workspace** command now use a dedicated workspace
+  picker, instead of sharing the arbitrary-location File > New flow.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now

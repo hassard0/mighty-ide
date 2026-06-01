@@ -2741,3 +2741,19 @@ overlap a human sees immediately in a small window.
   primitive for "visible editor area after chrome and overlays" so every
   surface consumes the same bounds instead of each feature recomputing or
   forgetting bottom-dock reservations.
+
+### L181. Similar commands need separate ABI contracts **[finding, P1]**
+After separating "New File at Location" from "Explorer: New File in Workspace",
+the Mighty event router still sent both the Explorer header action and the
+workspace command through the arbitrary-location native picker. The labels were
+right, but the command plumbing could still create a file outside the workspace
+from an Explorer action.
+
+- **IDE note:** Explorer/header new-file and the workspace palette command now
+  call `mui_newfile_workspace_dialog`, a dedicated native picker path that
+  starts at and enforces the workspace root. File > New keeps using the
+  arbitrary-location picker.
+- **Language note:** no compiler gap surfaced. Mighty needs command contracts
+  that can be encoded and checked at dispatch boundaries, not just comments and
+  labels, so visually similar commands cannot accidentally share the wrong
+  filesystem semantics.

@@ -1339,7 +1339,7 @@ fn new_file_dialog_env_sequence_supports_multiple_dialog_picks() {
 
 #[test]
 fn new_file_dialog_cancel_and_existing_are_noops() {
-    use crate::{mui_newfile_dialog, mui_tab_active, mui_tab_count};
+    use crate::{mui_newfile_dialog, mui_newfile_workspace_dialog, mui_tab_active, mui_tab_count};
 
     let _g = crate::settings::TEST_LOCK
         .lock()
@@ -1387,7 +1387,50 @@ fn new_file_dialog_cancel_and_existing_are_noops() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Success);
     assert_eq!(toast.message, "Created file: outside.mty");
+
+    let outside_workspace = outside_dir.join("outside-workspace.mty");
+    std::env::set_var("MUI_NEW_FILE_PICK", outside_workspace.to_string_lossy().as_ref());
+    assert_eq!(mui_newfile_workspace_dialog(handle), -2);
+    std::env::remove_var("MUI_NEW_FILE_PICK");
+    assert!(!outside_workspace.exists());
+    assert_eq!(mui_tab_count(handle), 2);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Choose a file inside the workspace");
+
     let _ = std::fs::remove_dir_all(&outside_dir);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn new_workspace_file_dialog_creates_inside_workspace() {
+    use crate::{mui_newfile_workspace_dialog, mui_tab_active, mui_tab_count};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!(
+        "mui_new_workspace_file_dialog_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+
+    let picked = root.join("inside.mty");
+    std::env::set_var("MUI_NEW_FILE_PICK", picked.to_string_lossy().as_ref());
+    let idx = mui_newfile_workspace_dialog(handle);
+    std::env::remove_var("MUI_NEW_FILE_PICK");
+
+    assert_eq!(idx, 1);
+    assert!(picked.exists());
+    assert_eq!(mui_tab_count(handle), 2);
+    assert_eq!(mui_tab_active(handle), idx);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(picked.as_path()));
 
     let _ = std::fs::remove_dir_all(&root);
 }

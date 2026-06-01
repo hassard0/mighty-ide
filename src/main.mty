@@ -191,6 +191,7 @@ extern c {
   fn mui_tree_collapse_all(handle: I64)
   fn mui_newfile_create(handle: I64) -> I32
   fn mui_newfile_dialog(handle: I64) -> I32
+  fn mui_newfile_workspace_dialog(handle: I64) -> I32
   fn mui_newfolder_create(handle: I64) -> I32
   fn mui_newfolder_dialog(handle: I64) -> I32
   fn mui_file_rename_active(handle: I64) -> I32
@@ -3022,8 +3023,8 @@ fn main() {
           let _s = mui_settings_open(h)
           settings_open = true
         } else if explorer_hit == 1 {
-          // Explorer header: New File -> native path picker, typed-name fallback only if unavailable.
-          let nf = mui_newfile_dialog(h)
+          // Explorer header: New File -> native workspace picker, typed-name fallback only if unavailable.
+          let nf = mui_newfile_workspace_dialog(h)
           if nf >= 0 {
             let _b = mui_ed_tab_switch(h, nf)
             mui_ed_undo_reset(h)
@@ -3316,7 +3317,7 @@ fn main() {
           }
           find_nav = false
         } else if id == cmd_new_workspace_file() {
-          let nf = mui_newfile_dialog(h)
+          let nf = mui_newfile_workspace_dialog(h)
           if nf >= 0 {
             let _b = mui_ed_tab_switch(h, nf)
             mui_ed_undo_reset(h)

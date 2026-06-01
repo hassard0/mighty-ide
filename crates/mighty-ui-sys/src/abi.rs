@@ -4878,6 +4878,32 @@ pub extern "C" fn mui_newfile_dialog(handle: i64) -> i32 {
     create_new_file_at(ctx, target, &workspace_root, &name, false)
 }
 
+/// Create a new workspace file through the native SaveFileDialog path picker.
+/// Unlike [`mui_newfile_dialog`], this command is constrained to the current
+/// workspace root so Explorer's "new file" action cannot accidentally create a
+/// file elsewhere on disk.
+#[no_mangle]
+pub extern "C" fn mui_newfile_workspace_dialog(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let workspace_root = crate::wsabi::effective_root(ctx);
+    let owner_hwnd = dialog_owner_hwnd(ctx);
+    let target = match pick_new_file_native(&workspace_root, owner_hwnd) {
+        FileDialogPick::Picked(path) => path,
+        FileDialogPick::Cancelled => {
+            println!("mui_newfile_workspace_dialog: native new-file dialog cancelled");
+            return -2;
+        }
+        FileDialogPick::Unavailable => {
+            println!("mui_newfile_workspace_dialog: native new-file dialog unavailable");
+            return -1;
+        }
+    };
+    let name = basename(&target);
+    create_new_file_at(ctx, target, &workspace_root, &name, true)
+}
+
 fn create_new_file_at(
     ctx: &mut MuiContext,
     target: PathBuf,
