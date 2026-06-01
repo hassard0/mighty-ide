@@ -1373,6 +1373,30 @@ filename src/main.mty
         }
     }
 
+    // Screenshot/render hook for tab overflow: with MUI_TABS_AUTOOPEN set, seed
+    // enough files that the tab strip overflows and the scroll affordances are
+    // visible in compact captures. No effect on normal launches.
+    if std::env::var_os("MUI_TABS_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            let dir = std::env::temp_dir().join("mighty_tabs_overflow_demo");
+            let _ = std::fs::create_dir_all(&dir);
+            for i in 0..8 {
+                let p = dir.join(format!("tab-{i}.mty"));
+                let src = format!("// tab {i}\n\nfn tab_{i}() -> I32 {{\n  {i}\n}}\n");
+                let _ = std::fs::write(&p, src.as_bytes());
+                ctx.tabs.open_path(p);
+            }
+            let active = ctx.tabs.active();
+            ensure_tab_visible(ctx, active);
+            ctx.welcome.dismiss();
+            println!(
+                "mui_init_s: MUI_TABS_AUTOOPEN -> {} tabs, first visible {}",
+                ctx.tabs.count(),
+                ctx.tab_scroll
+            );
+        }
+    }
+
     // Screenshot/render hook for the SPLIT EDITOR: with MUI_SPLIT_AUTOOPEN set,
     // seed two files as tabs and split the editor side-by-side (left = first file,
     // right = second), focusing the right pane — so a headless capture shows the
@@ -2270,6 +2294,11 @@ fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
             } else {
                 ShimAction::PassThrough
             }
+        }
+        MUI_EVENT_SCROLL if tab_bar_contains_point(ctx, ev.x, ev.y) => {
+            let dir = if ev.scroll_y < 0.0 { 1 } else if ev.scroll_y > 0.0 { -1 } else { 0 };
+            let _ = tab_scroll_by(ctx, dir);
+            ShimAction::Consume
         }
         // --- Ctrl+= / Ctrl++ / Ctrl+- / Ctrl+0 zoom (and are NOT emitted as text
         // into the editor). ---
@@ -3465,6 +3494,7 @@ fn close_tab_unchecked(ctx: &mut MuiContext, idx_u: usize) -> i32 {
     let a = ctx.tabs.close(idx_u);
     ctx.panes.on_tab_closed(idx_u, ctx.tabs.count());
     sync_active_path(ctx);
+    ensure_tab_visible(ctx, a);
     a as i32
 }
 
@@ -3473,6 +3503,7 @@ fn tab_reopen_closed_unchecked(ctx: &mut MuiContext) -> i32 {
         Some(active) => {
             sync_active_path(ctx);
             ctx.panes = crate::panes::PaneLayout::new(active);
+            ensure_tab_visible(ctx, active);
             let name = ctx.tabs.get(active).map(|t| t.basename()).unwrap_or_else(|| "tab".to_string());
             ctx.push_toast(crate::toast::Kind::Info, format!("Reopened {name}"));
             active as i32
@@ -3552,6 +3583,7 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
     let idx = ctx.tabs.open_path(path.clone());
     sync_active_path(ctx);
     record_recent_file(ctx, path);
+    ensure_tab_visible(ctx, idx);
     idx as i32
 }
 
@@ -3566,6 +3598,7 @@ pub extern "C" fn mui_tab_switch(handle: i64, idx: i32) -> i32 {
     }
     let a = ctx.tabs.switch(idx as usize);
     sync_active_path(ctx);
+    ensure_tab_visible(ctx, a);
     a as i32
 }
 
@@ -3577,6 +3610,7 @@ pub extern "C" fn mui_tab_next(handle: i64) -> i32 {
     };
     let a = ctx.tabs.next();
     sync_active_path(ctx);
+    ensure_tab_visible(ctx, a);
     a as i32
 }
 
@@ -3588,6 +3622,7 @@ pub extern "C" fn mui_tab_prev(handle: i64) -> i32 {
     };
     let a = ctx.tabs.prev();
     sync_active_path(ctx);
+    ensure_tab_visible(ctx, a);
     a as i32
 }
 
@@ -3617,6 +3652,7 @@ pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
     // Remap pane→tab indices so a pane never points past the end after a close.
     ctx.panes.on_tab_closed(idx_u, ctx.tabs.count());
     sync_active_path(ctx);
+    ensure_tab_visible(ctx, a);
     trace(&format!("tab_close idx={idx_u} -> active={a} count={}", ctx.tabs.count()));
     a as i32
 }
@@ -3641,6 +3677,7 @@ pub extern "C" fn mui_tab_duplicate_active(handle: i64) -> i32 {
     let active = ctx.tabs.duplicate_active();
     sync_active_path(ctx);
     ctx.panes = crate::panes::PaneLayout::new(active);
+    ensure_tab_visible(ctx, active);
     let name = ctx
         .tabs
         .get(active)
@@ -3662,6 +3699,7 @@ pub extern "C" fn mui_tab_move_active_left(handle: i64) -> i32 {
         Some(active) => {
             ctx.panes.on_tabs_swapped(active, before);
             sync_active_path(ctx);
+            ensure_tab_visible(ctx, active);
             ctx.push_toast(crate::toast::Kind::Info, "Moved tab left");
             active as i32
         }
@@ -3681,6 +3719,7 @@ pub extern "C" fn mui_tab_move_active_right(handle: i64) -> i32 {
         Some(active) => {
             ctx.panes.on_tabs_swapped(before, active);
             sync_active_path(ctx);
+            ensure_tab_visible(ctx, active);
             ctx.push_toast(crate::toast::Kind::Info, "Moved tab right");
             active as i32
         }
@@ -3700,6 +3739,7 @@ pub extern "C" fn mui_tab_sort_by_name(handle: i64) -> i32 {
             ctx.panes.on_tabs_reordered(&old_to_new);
             sync_active_path(ctx);
             let active = ctx.tabs.active();
+            ensure_tab_visible(ctx, active);
             ctx.push_toast(crate::toast::Kind::Info, "Sorted tabs by name");
             active as i32
         }
@@ -3719,6 +3759,7 @@ pub extern "C" fn mui_tab_close_duplicate_files(handle: i64) -> i32 {
             ctx.panes.on_tabs_compacted(&compaction.old_to_new, ctx.tabs.count());
             sync_active_path(ctx);
             let active = ctx.tabs.active();
+            ensure_tab_visible(ctx, active);
             let noun = if compaction.removed == 1 { "tab" } else { "tabs" };
             ctx.push_toast(
                 crate::toast::Kind::Info,
@@ -3778,6 +3819,7 @@ fn reload_active_from_disk(ctx: &mut MuiContext, allow_dirty: bool) -> i32 {
     };
     ctx.tabs.reload_active(&bytes);
     sync_active_path(ctx);
+    ensure_tab_visible(ctx, active);
     let name = basename(&path);
     let message = if allow_dirty && was_dirty {
         format!("Reverted {name}")
@@ -3803,6 +3845,7 @@ pub extern "C" fn mui_tab_close_saved(handle: i64) -> i32 {
     let active = ctx.tabs.active();
     sync_active_path(ctx);
     ctx.panes = crate::panes::PaneLayout::new(active);
+    ensure_tab_visible(ctx, active);
     let noun = if removed == 1 { "tab" } else { "tabs" };
     ctx.push_toast(crate::toast::Kind::Info, format!("Closed {removed} saved {noun}"));
     active as i32
@@ -3823,6 +3866,7 @@ pub extern "C" fn mui_tab_close_other_saved(handle: i64) -> i32 {
     let active = ctx.tabs.active();
     sync_active_path(ctx);
     ctx.panes = crate::panes::PaneLayout::new(active);
+    ensure_tab_visible(ctx, active);
     let noun = if removed == 1 { "tab" } else { "tabs" };
     ctx.push_toast(crate::toast::Kind::Info, format!("Closed {removed} other saved {noun}"));
     active as i32
@@ -3843,6 +3887,7 @@ pub extern "C" fn mui_tab_close_saved_to_right(handle: i64) -> i32 {
     let active = ctx.tabs.active();
     sync_active_path(ctx);
     ctx.panes = crate::panes::PaneLayout::new(active);
+    ensure_tab_visible(ctx, active);
     let noun = if removed == 1 { "tab" } else { "tabs" };
     ctx.push_toast(crate::toast::Kind::Info, format!("Closed {removed} saved {noun} to the right"));
     active as i32
@@ -3863,6 +3908,7 @@ pub extern "C" fn mui_tab_close_saved_to_left(handle: i64) -> i32 {
     let active = ctx.tabs.active();
     sync_active_path(ctx);
     ctx.panes = crate::panes::PaneLayout::new(active);
+    ensure_tab_visible(ctx, active);
     let noun = if removed == 1 { "tab" } else { "tabs" };
     ctx.push_toast(crate::toast::Kind::Info, format!("Closed {removed} saved {noun} to the left"));
     active as i32
@@ -4086,29 +4132,114 @@ pub extern "C" fn mui_dirty_confirm_draw(handle: i64) {
 
 /// Map the tab bar pixel x of the last click to a tab index, or -1 if the click
 /// is past the last tab. Used to switch tabs by clicking.
+fn tab_bar_body_left(ctx: &MuiContext) -> f32 {
+    layout::body_left(ctx.sidebar_visible)
+}
+
+fn tab_bar_right(ctx: &MuiContext) -> f32 {
+    let body_left = tab_bar_body_left(ctx);
+    (crate::titlebar::controls_x(ctx.gpu.width as f32) - crate::titlebar::ACTION_STRIP_W)
+        .max(body_left)
+}
+
+fn tab_bar_capacity(ctx: &MuiContext) -> usize {
+    let width = (tab_bar_right(ctx) - tab_bar_body_left(ctx)).max(0.0);
+    (width / layout::TAB_W).floor().max(1.0) as usize
+}
+
+fn tab_max_scroll(ctx: &MuiContext) -> usize {
+    ctx.tabs.count().saturating_sub(tab_bar_capacity(ctx))
+}
+
+fn clamp_tab_scroll(ctx: &mut MuiContext) {
+    ctx.tab_scroll = ctx.tab_scroll.min(tab_max_scroll(ctx));
+}
+
+fn ensure_tab_visible(ctx: &mut MuiContext, idx: usize) {
+    let count = ctx.tabs.count();
+    if count == 0 {
+        ctx.tab_scroll = 0;
+        return;
+    }
+    let idx = idx.min(count - 1);
+    let cap = tab_bar_capacity(ctx).max(1);
+    if idx < ctx.tab_scroll {
+        ctx.tab_scroll = idx;
+    } else if idx >= ctx.tab_scroll + cap {
+        ctx.tab_scroll = idx + 1 - cap;
+    }
+    clamp_tab_scroll(ctx);
+}
+
+fn tab_slot_rect(ctx: &MuiContext, idx: usize) -> Option<(f32, f32)> {
+    if idx < ctx.tab_scroll {
+        return None;
+    }
+    let body_left = tab_bar_body_left(ctx);
+    let tab_right = tab_bar_right(ctx);
+    let slot = idx - ctx.tab_scroll;
+    let x = body_left + slot as f32 * layout::TAB_W;
+    if x >= tab_right {
+        return None;
+    }
+    let tab_w = layout::TAB_W.min(tab_right - x);
+    if tab_w < 48.0 {
+        return None;
+    }
+    Some((x, tab_w))
+}
+
+fn tab_index_at_point(ctx: &MuiContext, x: f32, y: f32) -> Option<usize> {
+    if !tab_bar_contains_point(ctx, x, y) {
+        return None;
+    }
+    let body_left = tab_bar_body_left(ctx);
+    let slot = ((x - body_left) / layout::TAB_W).floor().max(0.0) as usize;
+    let idx = ctx.tab_scroll + slot;
+    (idx < ctx.tabs.count()).then_some(idx)
+}
+
+fn tab_bar_contains_point(ctx: &MuiContext, x: f32, y: f32) -> bool {
+    if y > layout::TAB_BAR_H {
+        return false;
+    }
+    let body_left = tab_bar_body_left(ctx);
+    let tab_right = tab_bar_right(ctx);
+    if x < body_left || x >= tab_right {
+        return false;
+    }
+    true
+}
+
+fn tab_scroll_by(ctx: &mut MuiContext, dir: i32) -> bool {
+    let before = ctx.tab_scroll;
+    let max = tab_max_scroll(ctx);
+    if dir > 0 {
+        ctx.tab_scroll = (ctx.tab_scroll + 1).min(max);
+    } else if dir < 0 {
+        ctx.tab_scroll = ctx.tab_scroll.saturating_sub(1);
+    }
+    before != ctx.tab_scroll
+}
+
+/// Scroll the overflowing tab strip. `dir > 0` shows later tabs; `dir < 0`
+/// shows earlier tabs. Returns the new first visible tab index.
+#[no_mangle]
+pub extern "C" fn mui_tab_strip_scroll(handle: i64, dir: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    tab_scroll_by(ctx, dir);
+    ctx.tab_scroll as i32
+}
+
 #[no_mangle]
 pub extern "C" fn mui_tab_index_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    // Only clicks within the tab-bar band (top) count.
-    if ctx.last_event.y > layout::TAB_BAR_H {
-        return -1;
-    }
-    // Tabs start right of the sidebar (when shown).
-    let body_left = layout::body_left(ctx.sidebar_visible);
     let lx = ctx.last_event.x;
-    if lx < body_left {
-        return -1;
-    }
-    let tab_right =
-        (crate::titlebar::controls_x(ctx.gpu.width as f32) - crate::titlebar::ACTION_STRIP_W)
-            .max(body_left);
-    if lx >= tab_right {
-        return -1;
-    }
-    let i = ((lx - body_left) / layout::TAB_W).floor() as usize;
-    if i < ctx.tabs.count() {
+    if let Some(i) = tab_index_at_point(ctx, lx, ctx.last_event.y) {
         trace(&format!("tab_hit x={lx:.1} y={:.1} -> {i}", ctx.last_event.y));
         i as i32
     } else {
@@ -4123,32 +4254,18 @@ pub extern "C" fn mui_tab_close_index_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    if ctx.last_event.y > layout::TAB_BAR_H {
-        return -1;
-    }
-    let body_left = layout::body_left(ctx.sidebar_visible);
     let lx = ctx.last_event.x;
-    if lx < body_left {
+    let Some(hit_idx) = tab_index_at_point(ctx, lx, ctx.last_event.y) else {
         return -1;
-    }
-    let tab_right =
-        (crate::titlebar::controls_x(ctx.gpu.width as f32) - crate::titlebar::ACTION_STRIP_W)
-            .max(body_left);
-    if lx >= tab_right {
-        return -1;
-    }
-    for i in 0..ctx.tabs.count() {
-        let x = body_left + i as f32 * layout::TAB_W;
-        if x >= tab_right {
-            break;
-        }
-        let tab_w = layout::TAB_W.min(tab_right - x);
-        if tab_w < 48.0 {
-            break;
-        }
+    };
+    for i in ctx.tab_scroll..ctx.tabs.count() {
+        let Some((x, tab_w)) = tab_slot_rect(ctx, i) else { break };
         if lx >= x + tab_w - 34.0 && lx <= x + tab_w - 8.0 {
             trace(&format!("tab_close_hit x={lx:.1} y={:.1} -> {i}", ctx.last_event.y));
             return i as i32;
+        }
+        if i >= hit_idx {
+            break;
         }
     }
     -1
@@ -4532,31 +4649,24 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
-    let w = ctx.gpu.width as f32;
     let active = ctx.tabs.active();
+    ensure_tab_visible(ctx, active);
     let count = ctx.tabs.count();
     let clip = ctx.clip;
     let bar_h = layout::TAB_BAR_H;
     let chrome = theme::CHROME_FONT_SIZE;
     // The tab bar lives over the editor column only — right of the rail AND the
     // sidebar (when shown), so it never overpaints the sidebar/header.
-    let body_left = layout::body_left(ctx.sidebar_visible);
-    let tab_right = (crate::titlebar::controls_x(w) - crate::titlebar::ACTION_STRIP_W).max(body_left);
+    let body_left = tab_bar_body_left(ctx);
+    let tab_right = tab_bar_right(ctx);
 
     use crate::icons;
     // Tab-bar background (panel) + a thin bottom divider.
     ctx.dl_rect(body_left, 0.0, tab_right - body_left, bar_h, theme::BG_2());
     ctx.dl_rect(body_left, bar_h - 1.0, tab_right - body_left, 1.0, theme::BORDER());
 
-    for i in 0..count {
-        let x = body_left + i as f32 * layout::TAB_W;
-        if x >= tab_right {
-            break;
-        }
-        let tab_w = layout::TAB_W.min(tab_right - x);
-        if tab_w < 48.0 {
-            break;
-        }
+    for i in ctx.tab_scroll..count {
+        let Some((x, tab_w)) = tab_slot_rect(ctx, i) else { break };
         let is_active = i == active;
         // Active tab: editor-field bg + a top accent gradient bar (`.tab.active`).
         if is_active {
@@ -4599,6 +4709,12 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
         }
     }
 
+    if ctx.tab_scroll > 0 {
+        ctx.dl_rect(body_left, 7.0, 3.0, bar_h - 14.0, theme::ACCENT());
+    }
+    if ctx.tab_scroll < tab_max_scroll(ctx) {
+        ctx.dl_rect(tab_right - 3.0, 7.0, 3.0, bar_h - 14.0, theme::ACCENT());
+    }
 }
 
 /// Draw the borderless title-bar controls (minimize / maximize / close) at the

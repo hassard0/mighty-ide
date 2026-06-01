@@ -730,6 +730,48 @@ fn tab_bar_long_dirty_label_keeps_close_affordance_clickable() {
 }
 
 #[test]
+fn tab_bar_overflow_scroll_maps_visible_slots_to_real_tabs() {
+    use crate::ffi::MuiEvent;
+    use crate::{mui_tab_bar_draw, mui_tab_close_index_at_click, mui_tab_index_at_click};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = false;
+    ctx.gpu.width = 640;
+    ctx.gpu.phys_width = 640;
+    crate::layout::set_window_width(640);
+    ctx.tabs.ensure_scratch();
+    let root = std::env::temp_dir().join(format!("mui_tab_overflow_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    for i in 0..6 {
+        let p = root.join(format!("tab-{i}.mty"));
+        std::fs::write(&p, format!("fn tab_{i}() {{}}\n")).unwrap();
+        ctx.tabs.open_path(p);
+    }
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_tab_bar_draw(handle);
+    assert!(ctx.tab_scroll > 0, "active overflow tab should be scrolled into view");
+    let first_visible = ctx.tab_scroll;
+    let body_left = crate::layout::body_left(ctx.sidebar_visible);
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        body_left + 8.0,
+        crate::layout::TAB_BAR_H * 0.5,
+        0,
+    );
+    assert_eq!(mui_tab_index_at_click(handle), first_visible as i32);
+
+    ctx.last_event.x = body_left + crate::layout::TAB_W - 20.0;
+    assert_eq!(mui_tab_close_index_at_click(handle), first_visible as i32);
+
+    crate::layout::set_window_width(900);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn activity_rail_all_slots_are_click_targets() {
     use crate::ffi::MuiEvent;
     use crate::panels::mui_rail_panel_at_click;
@@ -4234,6 +4276,39 @@ mod shim_chrome {
             MUI_EVENT_SCROLL as i32,
             "a plain wheel must reach the IDE as a scroll"
         );
+    }
+
+    #[test]
+    fn plain_wheel_over_tab_strip_scrolls_overflow_tabs() {
+        let _globals = ChromeGlobals::pin();
+        let mut ctx = match MuiContext::new_offscreen(WW, WH) {
+            Some(c) => c,
+            None => return,
+        };
+        ctx.sidebar_visible = false;
+        ctx.tabs.ensure_scratch();
+        let root = std::env::temp_dir().join(format!("mui_tab_wheel_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        for i in 0..8 {
+            let p = root.join(format!("wheel-{i}.mty"));
+            std::fs::write(&p, format!("fn wheel_{i}() {{}}\n")).unwrap();
+            ctx.tabs.open_path(p);
+        }
+        ctx.tab_scroll = 0;
+        let h = handle(&mut ctx);
+        let mods = winit::keyboard::ModifiersState::empty();
+        translate_window_event(&mut ctx.queue, &WindowEvent::ModifiersChanged(mods.into()));
+        let x = crate::layout::body_left(ctx.sidebar_visible) + 24.0;
+        move_to(&mut ctx, x, 8.0);
+        wheel(&mut ctx, -1.0);
+        assert_eq!(
+            mui_poll_event_s(h),
+            0,
+            "wheel over tab strip should be consumed by tab overflow navigation"
+        );
+        assert_eq!(ctx.tab_scroll, 1);
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

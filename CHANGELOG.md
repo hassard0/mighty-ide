@@ -96,6 +96,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Toast cards stay readable over busy screens**: toast surfaces now remain
   effectively opaque during their slide animation so Welcome/editor text cannot
   bleed through and look like stale toast copy.
+- **Overflowing tabs are reachable with the mouse**: the tab strip now keeps a
+  first-visible tab offset, scrolls with the mouse wheel over the top tab row,
+  keeps the active tab visible after tab commands, and includes a screenshot
+  gallery case for many-tab layouts.
 - **Save on untitled buffers opens Save As**: direct Save now routes through the
   native Save As picker for pathless tabs instead of failing silently.
 - **Welcome respects bottom docks**: opening Terminal/Run-style lower panels now

@@ -171,7 +171,10 @@ pub fn translate_window_event(q: &mut EventQueue, event: &WindowEvent) {
                 MouseScrollDelta::LineDelta(x, y) => (*x, *y),
                 MouseScrollDelta::PixelDelta(p) => (p.x as f32, p.y as f32),
             };
-            q.push(MuiEvent::scroll(dx, dy, q.mods));
+            let mut ev = MuiEvent::scroll(dx, dy, q.mods);
+            ev.x = q.cursor.0;
+            ev.y = q.cursor.1;
+            q.push(ev);
         }
         WindowEvent::KeyboardInput { event, .. } => {
             if event.state != ElementState::Pressed {

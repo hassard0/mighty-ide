@@ -173,6 +173,9 @@ pub struct MuiContext {
     // ---- multi-file workspace state (tabs + file tree) ----
     /// Open tabs + per-tab cursor/scroll/dirty state (shim-owned, L17).
     tabs: tabs::TabStore,
+    /// First tab index shown in the visible tab strip when many tabs overflow
+    /// the available top-bar width.
+    tab_scroll: usize,
     /// The editor **pane layout** (side-by-side split). Starts with ONE pane, so
     /// it is inert (the unsplit path is byte-identical to before); a split adds a
     /// second pane and `mui_pane_*` rebinds the active tab + per-pane scroll. See
@@ -820,6 +823,7 @@ pub(crate) fn build_context(
         replace_bar: prompt::ReplaceBar::new(),
         panes: panes::PaneLayout::new(tab_store.active()),
         tabs: tab_store,
+        tab_scroll: 0,
         tree: file_tree,
         sidebar_visible: true,
         workspace,
@@ -1498,6 +1502,7 @@ impl MuiContext {
             replace_bar: prompt::ReplaceBar::new(),
             panes: panes::PaneLayout::new(tabs.active()),
             tabs,
+            tab_scroll: 0,
             tree: tree::FileTree::new(),
             sidebar_visible: true,
             workspace: workspace::Workspace::default(),

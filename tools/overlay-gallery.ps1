@@ -145,6 +145,7 @@ $cases = @(
   @{n='blame';        v='MUI_BLAME_AUTOOPEN';      val='1'},
   @{n='zen';          v='MUI_ZEN_AUTOOPEN';        val='1'},
   @{n='agents';       v='MUI_AGENTS_AUTOOPEN';     val='1'},
+  @{n='tabs';         v='MUI_TABS_AUTOOPEN';       val='1'},
   @{n='split';        v='MUI_SPLIT_AUTOOPEN';      val='1'},
   @{n='minimap';      v='MUI_MINIMAP_AUTOOPEN';    val='1'},
   @{n='sticky';       v='MUI_STICKY_AUTOOPEN';     val='1'},

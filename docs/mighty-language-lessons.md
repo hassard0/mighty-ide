@@ -2964,3 +2964,18 @@ deduplicating messages correctly.
 - **Language note:** no compiler gap surfaced. Mighty UI needs overlay/card
   primitives with readability floors for transient feedback, especially when
   animations run above busy content.
+
+### L199. Overflowing tab strips need shared scroll geometry **[finding, P1]**
+The tab bar used fixed-width tabs and mapped clicks with
+`(x - body_left) / TAB_W`, which meant tabs beyond the visible top-row width had
+no mouse-reachable target once many files were open.
+
+- **IDE note:** The tab strip now owns a first-visible tab offset. Drawing,
+  click-to-switch, close hit-testing, and wheel-over-tabs all read the same
+  geometry, and tab commands clamp the active tab back into the visible strip.
+  The screenshot gallery now includes a many-tab overflow case.
+- **Language note:** no compiler gap surfaced, but the event ABI had to carry
+  cursor coordinates on wheel events before a scroll could be routed to the tab
+  strip instead of the editor. Mighty UI should model scrollable tab/list
+  surfaces as first-class widgets with shared paint, hit-test, and wheel-routing
+  state.
