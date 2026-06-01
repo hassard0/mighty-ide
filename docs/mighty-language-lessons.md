@@ -2127,3 +2127,15 @@ to tolerate rows that could never open.
 - **Language note:** no compiler gap surfaced. Mighty should eventually have a
   typed fixture/story system for UI states so screenshots can use real resources
   without ad hoc host-side environment hooks.
+
+### L135. Dense modals need explicit viewport margins **[finding, P2]**
+The Settings overlay fit mathematically, but the rendered footer sat on the
+bottom crop line in gallery captures. A best-in-class IDE should treat modal
+margins as a first-class constraint, not an accidental leftover after rows are
+laid out.
+
+- **IDE note:** Settings now uses a more compact row rhythm, reserves a larger
+  viewport margin, and keeps the footer inside the visible card.
+- **Language note:** no compiler gap surfaced. Mighty UI would benefit from a
+  layout primitive that constrains cards by header, body rows, footer, and safe
+  viewport margins in one reusable calculation.

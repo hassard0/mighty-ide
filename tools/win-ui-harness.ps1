@@ -420,6 +420,23 @@ function Wait-TraceCountGreaterThan($pattern, $previousCount, $timeoutMs) {
   return $false
 }
 
+function Wait-TraceContainsAll($patterns, $timeoutMs) {
+  $deadline = (Get-Date).AddMilliseconds($timeoutMs)
+  while ((Get-Date) -lt $deadline) {
+    $text = Get-TraceText
+    $ok = $true
+    foreach ($pattern in $patterns) {
+      if ($text -notmatch $pattern) {
+        $ok = $false
+        break
+      }
+    }
+    if ($ok) { return $true }
+    Start-Sleep -Milliseconds 100
+  }
+  return $false
+}
+
 function Invoke-DirtyCloseCommand() {
   $before = Trace-MatchCount "tab_close idx=.* -> dirty-confirm"
   for ($attempt = 0; $attempt -lt 2; $attempt++) {
@@ -638,9 +655,14 @@ if (Invoke-DirtyCloseCommand) {
   $script:HarnessFailed = $true
 }
 if ($env:MUI_TRACE) {
-  Start-Sleep -Milliseconds 150
-  $traceText = Get-TraceText
-  if ($traceText -match "tab_close idx=.* -> dirty-confirm" -and $traceText -match "dirty_confirm_hit .* -> cancel" -and $traceText -match "dirty_confirm cancel" -and $traceText -match "dirty_confirm_hit .* -> discard" -and $traceText -match "dirty_confirm discard tab=") {
+  $dirtyTracePatterns = @(
+    "tab_close idx=.* -> dirty-confirm",
+    "dirty_confirm_hit .* -> cancel",
+    "dirty_confirm cancel",
+    "dirty_confirm_hit .* -> discard",
+    "dirty_confirm discard tab="
+  )
+  if (Wait-TraceContainsAll $dirtyTracePatterns 2000) {
     Log "DIRTY-CLOSE: cancel and discard traces observed"
   } else {
     Log "DIRTY-CLOSE: missing dirty confirmation trace"

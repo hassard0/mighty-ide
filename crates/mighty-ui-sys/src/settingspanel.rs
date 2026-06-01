@@ -189,11 +189,11 @@ impl SettingsPanel {
         let h = height as f32;
         let rows = RowId::ALL.len();
         let head_h = 50.0_f32;
-        let preferred_row_h = 56.0_f32;
-        let min_row_h = 42.0_f32;
-        let foot_h = 34.0_f32;
+        let preferred_row_h = 48.0_f32;
+        let min_row_h = 38.0_f32;
+        let foot_h = 30.0_f32;
         let fixed_h = head_h + foot_h + 12.0;
-        let max_box_h = (h - 32.0).max(fixed_h + min_row_h);
+        let max_box_h = (h - 96.0).max(fixed_h + min_row_h);
         let capacity = ((max_box_h - fixed_h) / min_row_h).floor().max(1.0) as usize;
         let visible = rows.min(capacity);
         let top = Self::scroll_top_for(self.sel, visible);
@@ -205,7 +205,7 @@ impl SettingsPanel {
         let box_w = 500.0_f32.min((w - horizontal_margin * 2.0).max(280.0));
         let box_h = head_h + shown as f32 * row_h + foot_h + 12.0;
         let box_x = ((w - box_w) * 0.5).max(0.0);
-        let box_y = ((h - box_h) * 0.5).max(12.0);
+        let box_y = ((h - box_h) * 0.5).max(24.0);
         let list_top = box_y + head_h;
         (box_x, box_y, box_w, box_h, list_top, row_h, top, shown)
     }
@@ -361,8 +361,8 @@ impl SettingsPanel {
 
             // Label + description (left).
             let txt_x = box_x + 22.0;
-            ctx.text.queue_ui_sized(txt_x, ry + 12.0, row.label(), theme::TEXT(), 14.0, clip);
-            ctx.text.queue_ui_sized(txt_x, ry + 32.0, row.desc(), theme::TEXT_3(), 11.5, clip);
+            ctx.text.queue_ui_sized(txt_x, ry + 9.0, row.label(), theme::TEXT(), 14.0, clip);
+            ctx.text.queue_ui_sized(txt_x, ry + 27.0, row.desc(), theme::TEXT_3(), 11.5, clip);
 
             // Control (right): a stepper for numeric rows, an on/off pill for
             // toggles, a value chip + cycle hint for the theme.
@@ -422,7 +422,7 @@ impl SettingsPanel {
         ctx.text.queue_ui_sized(
             box_x + 18.0,
             fty,
-            "\u{2191}\u{2193} move   \u{2212}/+ adjust   space toggle   esc close",
+            "\u{2191}\u{2193} move   \u{2212}/+ adjust   Space toggle   Esc close",
             theme::TEXT_3(),
             11.0,
             clip,
@@ -485,8 +485,14 @@ mod tests {
     fn geometry_compacts_rows_for_short_logical_windows() {
         let mut p = SettingsPanel::new();
         p.open();
+        let (_box_x, box_y, _box_w, box_h, _list_top, row_h, _top, shown) = p.geometry(1280, 832);
+        assert_eq!(shown, RowId::ALL.len());
+        assert!(box_y >= 24.0);
+        assert!(box_y + box_h <= 808.0);
+        assert!(row_h <= 48.0);
+
         let (_box_x, box_y, _box_w, box_h, _list_top, row_h, _top, shown) = p.geometry(1280, 666);
-        assert!(row_h < 56.0);
+        assert!(row_h < 48.0);
         assert_eq!(shown, RowId::ALL.len());
         assert!(box_y + box_h <= 666.0);
 
