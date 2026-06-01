@@ -1433,8 +1433,9 @@ pub extern "C" fn mui_ai_click(handle: i64) -> i32 {
         return 0;
     }
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
+    let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
     let (px, pw, input_y, input_h) =
-        crate::ai::input_geometry(&ctx.ai.input, ctx.gpu.width, ctx.gpu.height);
+        crate::ai::input_geometry(&ctx.ai.input, visible_w, ctx.gpu.height);
     if x < px || x > px + pw || y < 0.0 || y > ctx.gpu.height as f32 {
         return 0;
     }
@@ -1589,12 +1590,13 @@ pub extern "C" fn mui_ai_draw(handle: i64) {
         return;
     }
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let visible_w = layout::dock_visible_width(w, ctx.gpu.phys_width);
     // Render on the overlay layer so the chat card occludes editor glyphs that
     // sit underneath the right-docked panel band.
     let panel = std::mem::take(&mut ctx.ai);
     ctx.overlay = true;
     ctx.text.set_overlay(true);
-    panel.draw(ctx, w, h);
+    panel.draw(ctx, visible_w, h);
     ctx.overlay = false;
     ctx.text.set_overlay(false);
     ctx.ai = panel;

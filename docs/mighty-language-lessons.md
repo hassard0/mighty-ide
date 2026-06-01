@@ -1939,3 +1939,17 @@ entire UX audit.
 - **Language note:** no compiler gap surfaced. This is another testing
   contract: visual evidence should be artifact-first, with process liveness as
   cleanup telemetry rather than the primary success condition.
+
+### L119. Docked drawers must anchor to visible width, not raw logical GPU width **[finding, P1]**
+The AI copilot gallery passed while its right edge visibly clipped prose and code.
+The drawer used the raw logical GPU width, which can exceed the captured or
+physical surface under Windows scaling; other bottom docks already clamp through
+`dock_visible_width`.
+
+- **IDE note:** AI copilot draw and click geometry now use the visible dock width,
+  so the panel starts far enough left for its wrapped transcript and send button
+  to stay inside the pixels a user can actually see.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a shared
+  `visible_width` primitive at the language-side layout boundary so future
+  drawers do not rediscover physical/logical width mismatches one panel at a
+  time.

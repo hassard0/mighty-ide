@@ -495,8 +495,9 @@ fn click_routing_tab_bar_sidebar_and_text() {
     // while still leaving the top-right chrome strip to title-bar actions.
     ctx.ai.open = true;
     ctx.ai.input = "ship it".to_string();
+    let ai_visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
     let (px, pw, input_y, input_h) =
-        crate::ai::input_geometry(&ctx.ai.input, ctx.gpu.width, ctx.gpu.height);
+        crate::ai::input_geometry(&ctx.ai.input, ai_visible_w, ctx.gpu.height);
     ctx.last_event = MuiEvent::mouse(
         crate::ffi::MUI_EVENT_MOUSE_DOWN,
         0,
@@ -511,6 +512,32 @@ fn click_routing_tab_bar_sidebar_and_text() {
     assert_eq!(mui_ai_click(handle), 0);
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, reserved_x, 4.0, 0);
     assert_eq!(mui_ai_click(handle), 0);
+
+    // DPI/capture paths can report a logical GPU width wider than the actual
+    // visible surface. The AI drawer must anchor to the same visible width used
+    // by bottom docks, or the right edge of chat text renders off-screen.
+    ctx.gpu.width = 1374;
+    ctx.gpu.phys_width = 1280;
+    ctx.gpu.height = 832;
+    ctx.ai.open = true;
+    ctx.ai.input = "send from scaled window".to_string();
+    let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let (visible_px, visible_pw, visible_input_y, visible_input_h) =
+        crate::ai::input_geometry(&ctx.ai.input, visible_w, ctx.gpu.height);
+    let (raw_px, _raw_pw, _raw_input_y, _raw_input_h) =
+        crate::ai::input_geometry(&ctx.ai.input, ctx.gpu.width, ctx.gpu.height);
+    assert!(
+        raw_px > visible_px,
+        "raw logical width would push the drawer off the captured surface"
+    );
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        visible_px + visible_pw - 24.0,
+        visible_input_y + visible_input_h - 20.0,
+        0,
+    );
+    assert_eq!(mui_ai_click(handle), 2);
 
     let _ = std::fs::remove_dir_all(&root);
 }
