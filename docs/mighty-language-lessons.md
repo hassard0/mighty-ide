@@ -1349,3 +1349,15 @@ execution, status refresh, and toasts.
   index cleanup belongs in the command palette beside push, pull, and fetch.
 - **Language note:** no new gap surfaced. The operation needs platform process
   spawning and status parsing, both already intentionally shim-side.
+
+### L75. Commit commands can reuse shim-owned text buffers **[finding, P3]**
+Adding **Git: Commit Staged** did not need a new string-passing mechanism.
+Mighty already appends characters into the Source-Control message buffer through
+scalar ABI calls, so the command palette can route one id and let the shim commit
+with the existing buffer.
+
+- **IDE note:** keyboard-first git flow needs stage, unstage, and commit all
+  available from commands, not only clickable Source-Control chrome.
+- **Language note:** no new gap surfaced. This confirms the current pattern:
+  Mighty routes the command; the shim owns text-buffer, process, and refresh
+  details until richer FFI strings are available.

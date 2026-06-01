@@ -137,6 +137,8 @@ A large feature pass — all shim-side, Vello-rendered, driven by `src/main.mty`
   (`Alt+B`), on top of the existing status panel + inline diff (`Ctrl+Shift+G`).
 - **Git: Stage All / Unstage All**: command-palette bulk index actions for
   preparing or clearing a commit without clicking each changed file.
+- **Git: Commit Staged**: command-palette commit action that uses the Source
+  Control message buffer and refreshes status after a successful commit.
 
 ### Run · Test · Debug
 - Debugger (DAP): a shim-side DAP client driving `mty dap`, breakpoints, run

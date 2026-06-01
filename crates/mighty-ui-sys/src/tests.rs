@@ -922,6 +922,12 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_GIT_UNSTAGE_ALL)
         .unwrap();
     assert_eq!(unstage_all.label, "Git: Unstage All");
+
+    let commit_staged = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_GIT_COMMIT_STAGED)
+        .unwrap();
+    assert_eq!(commit_staged.label, "Git: Commit Staged");
 }
 
 #[test]
@@ -993,6 +999,46 @@ fn scm_stage_all_and_unstage_all_via_abi_or_skip() {
     assert_eq!(ctx.scm.status.staged_count(), 0);
     assert_eq!(ctx.scm.status.unstaged_count(), 2);
     assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Unstaged all changes");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn scm_commit_staged_uses_message_buffer_via_abi_or_skip() {
+    use std::process::Command;
+    if Command::new("git").arg("--version").output().is_err() {
+        eprintln!("scm_commit_staged_uses_message_buffer_via_abi_or_skip: git not found - skipping");
+        return;
+    }
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_scm_commit_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let git = |args: &[&str]| {
+        Command::new("git").arg("-C").arg(&root).args(args).output().unwrap()
+    };
+    assert!(git(&["init", "-q"]).status.success());
+    let _ = git(&["config", "user.email", "t@e.st"]);
+    let _ = git(&["config", "user.name", "Test"]);
+    std::fs::write(root.join("first.mty"), "first\n").unwrap();
+    assert!(git(&["add", "first.mty"]).status.success());
+    assert!(git(&["commit", "-q", "-m", "init"]).status.success());
+    std::fs::write(root.join("second.mty"), "second\n").unwrap();
+    ctx.scm.root = Some(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_scm_stage_all(handle), 1);
+    for ch in "add second".chars() {
+        crate::panels::mui_scm_msg_push(handle, ch as i32);
+    }
+    assert_eq!(crate::panels::mui_scm_commit(handle), 1);
+    assert_eq!(ctx.scm.message_string(), "");
+    assert_eq!(ctx.scm.count(), 0);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Committed changes");
+    let log = String::from_utf8_lossy(&git(&["log", "-1", "--pretty=%s"]).stdout)
+        .trim()
+        .to_string();
+    assert_eq!(log, "add second");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -2510,6 +2556,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_CLOSE_DUPLICATE_TABS, "cmd_close_duplicate_tabs"),
         (CMD_GIT_STAGE_ALL, "cmd_git_stage_all"),
         (CMD_GIT_UNSTAGE_ALL, "cmd_git_unstage_all"),
+        (CMD_GIT_COMMIT_STAGED, "cmd_git_commit_staged"),
         (CMD_RELOAD_ACTIVE_FILE, "cmd_reload_active_file"),
         (CMD_REVERT_ACTIVE_FILE, "cmd_revert_active_file"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),

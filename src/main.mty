@@ -669,6 +669,7 @@ fn cmd_sort_tabs_by_name() -> I32 { 66 }
 fn cmd_close_duplicate_tabs() -> I32 { 67 }
 fn cmd_git_stage_all() -> I32 { 68 }
 fn cmd_git_unstage_all() -> I32 { 69 }
+fn cmd_git_commit_staged() -> I32 { 70 }
 fn cmd_format_document() -> I32 { 12 }
 fn cmd_undo() -> I32 { 13 }
 fn cmd_redo() -> I32 { 14 }
@@ -3478,6 +3479,9 @@ fn main() {
           let _r = mui_scm_refresh(h)
         } else if id == cmd_git_unstage_all() {
           let _gua = mui_scm_unstage_all(h)
+          let _r = mui_scm_refresh(h)
+        } else if id == cmd_git_commit_staged() {
+          let _gc = mui_scm_commit(h)
           let _r = mui_scm_refresh(h)
         } else if id >= cmd_ws_first() && id <= cmd_ws_last() {
           let wr = mui_ws_dispatch(h, id)
