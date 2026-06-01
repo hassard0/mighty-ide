@@ -272,6 +272,40 @@ fn run_geom(ctx: &MuiContext) -> RunGeom {
     }
 }
 
+fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    let max_px = max_px.max(0.0);
+    if max_px <= 1.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    let ellipsis_w = text.measure_ui_sized(ellipsis, size).0;
+    if ellipsis_w >= max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        return ellipsis.to_string();
+    }
+    let mut out: String = chars.iter().take(lo).collect();
+    out.push_str(ellipsis);
+    out
+}
+
 /// Draw the Run panel as a lower band (header + status line + scrollable output
 /// with clickable diagnostics tinted). No-op when closed.
 #[no_mangle]
@@ -301,16 +335,8 @@ pub extern "C" fn mui_run_draw(handle: i64) {
     ctx.dl_icon(g.x0 + 12.0, g.y0 + (header_h - 13.0) * 0.5, 13.0, 13.0, icons::RUN, theme::GREEN(), 1.6, true);
     ctx.text.queue_ui_sized(g.x0 + 32.0, hy, "RUN", theme::DIM(), chrome - 1.0, clip);
 
-    let base = ctx
-        .run
-        .path()
-        .rsplit(['/', '\\'])
-        .next()
-        .unwrap_or("")
-        .to_string();
-    ctx.text.queue_ui_sized(g.x0 + 66.0, hy, &base, theme::TEXT_1(), chrome - 1.0, clip);
-
-    // Status pill (right): running / exit code + duration.
+    // Status pill (right): running / exit code + duration. Compute this before
+    // the filename so the filename can be measured into the remaining gap.
     let (status, scol) = if ctx.run.is_running() {
         ("running\u{2026}".to_string(), theme::WARNING())
     } else if let Some(code) = ctx.run.exit_code() {
@@ -322,9 +348,24 @@ pub extern "C" fn mui_run_draw(handle: i64) {
     } else {
         ("ready".to_string(), theme::TEXT_3())
     };
-    let sw = status.chars().count() as f32 * (chrome * 0.5) + 22.0;
+    let (status_text_w, _) = ctx.text.measure_ui_sized(&status, chrome - 2.0);
+    let sw = status_text_w + 22.0;
     let sx = g.x1 - sw - 12.0;
     let sy = g.y0 + (header_h - 18.0) * 0.5;
+
+    let base = ctx
+        .run
+        .path()
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or("")
+        .to_string();
+    let base_x = g.x0 + 66.0;
+    let base_shown = fit_ui_text(&mut ctx.text, &base, sx - base_x - 10.0, chrome - 1.0);
+    if !base_shown.is_empty() {
+        ctx.text
+            .queue_ui_sized(base_x, hy, &base_shown, theme::TEXT_1(), chrome - 1.0, clip);
+    }
     ctx.dl_round(sx, sy, sw, 18.0, 6.0, theme::BG_4());
     ctx.dl_stroke(sx, sy, sw, 18.0, 6.0, theme::BORDER_STRONG(), 1.0);
     ctx.text.queue_ui_sized(sx + 10.0, sy + 3.0, &status, scol, chrome - 2.0, clip);

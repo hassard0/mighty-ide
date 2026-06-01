@@ -1522,3 +1522,13 @@ manual resizing feel like guessing at an unmarked target.
   corner grips.
 - **Language note:** no Mighty gap surfaced. This is native-window chrome and
   shim hit-testing work.
+
+### L88. Drawer headers need measured collision budgets **[finding, P2]**
+The Run drawer header drew the active filename before computing the right status
+pill. Long filenames could therefore render under "running..." or exit-status
+text on compact windows.
+
+- **IDE note:** Run header status is measured first, then the filename is
+  measured and ellipsized into the remaining gap.
+- **Language note:** no Mighty gap surfaced. This is another shim-owned text
+  measurement/layout case.

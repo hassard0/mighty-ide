@@ -49,6 +49,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Borderless resize is more discoverable**: side/bottom resize hit targets are
   larger, the top tab row keeps a smaller resize band, and bottom corner grips
   are drawn into the custom frame.
+- **Run drawer header text is measured**: long active filenames now ellipsize
+  before the status pill instead of colliding with it.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,
