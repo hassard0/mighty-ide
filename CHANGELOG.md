@@ -110,6 +110,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Testing header avoids status-pill collisions**: the Testing sidebar title now
   measures the right-side `idle`/`running`/`failed`/`passed` pill first and fits
   the header label into the remaining space.
+- **Windows taskbar identity is explicit**: the desktop app now sets a stable
+  Windows AppUserModelID (`Hassard.MightyIDE`) before creating the window, so the
+  stamped Mighty icon and taskbar grouping are tied to the IDE instead of a
+  transient process identity.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

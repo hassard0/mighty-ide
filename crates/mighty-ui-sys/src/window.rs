@@ -23,6 +23,30 @@ use crate::ffi::*;
 pub const MIN_WINDOW_W: u32 = 860;
 pub const MIN_WINDOW_H: u32 = 560;
 
+#[cfg(target_os = "windows")]
+const APP_USER_MODEL_ID: &str = "Hassard.MightyIDE";
+
+#[cfg(target_os = "windows")]
+fn set_windows_app_user_model_id() {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+
+    #[link(name = "shell32")]
+    extern "system" {
+        fn SetCurrentProcessExplicitAppUserModelID(app_id: *const u16) -> i32;
+    }
+
+    let wide: Vec<u16> = OsStr::new(APP_USER_MODEL_ID)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    // Best effort: failing to set the ID should never block IDE startup.
+    let _ = unsafe { SetCurrentProcessExplicitAppUserModelID(wide.as_ptr()) };
+}
+
+#[cfg(not(target_os = "windows"))]
+fn set_windows_app_user_model_id() {}
+
 /// A FIFO of translated input events plus resize bookkeeping.
 #[derive(Default)]
 pub struct EventQueue {
@@ -219,6 +243,7 @@ impl ApplicationHandler for App {
         if self.window.is_some() {
             return;
         }
+        set_windows_app_user_model_id();
         // Borderless: the IDE draws its OWN title bar (M mark + filename + min/
         // max/close) so the default OS chrome no longer clashes with the in-app
         // UI. The window stays resizable — on a borderless window winit still
@@ -532,6 +557,13 @@ mod tests {
     fn minimum_window_size_keeps_chrome_usable() {
         assert!(MIN_WINDOW_W >= 860);
         assert!(MIN_WINDOW_H >= 560);
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn app_user_model_id_is_stable_and_brand_scoped() {
+        assert_eq!(APP_USER_MODEL_ID, "Hassard.MightyIDE");
+        assert!(APP_USER_MODEL_ID.contains("MightyIDE"));
     }
 
     #[test]

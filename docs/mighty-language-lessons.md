@@ -1804,3 +1804,15 @@ could visually crowd `running...`, `failed`, or `passed`.
 - **Language note:** no new Mighty gap surfaced. This is another shim-side
   proportional text layout fix; Mighty still only asks the Testing panel to
   draw.
+
+### L109. Windows taskbar identity must be explicit **[finding, P2]**
+Stamping `mighty-ide.exe` with an `.ico` is necessary, but not sufficient for a
+polished Windows taskbar experience. Without a stable process AppUserModelID,
+Windows can group or display the borderless app under a transient identity.
+
+- **IDE note:** the window shim now sets `Hassard.MightyIDE` via
+  `SetCurrentProcessExplicitAppUserModelID` before creating the winit window.
+  The call is Windows-only and best-effort so startup is not blocked if the API
+  fails.
+- **Language note:** no Mighty compiler gap surfaced. This belongs in the Rust
+  native-window shim, not in Mighty source.
