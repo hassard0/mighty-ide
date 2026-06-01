@@ -498,6 +498,18 @@ impl WindowHost {
             false
         }
     }
+
+    /// Native Win32 HWND for parenting modal OS dialogs to the IDE window.
+    #[cfg(target_os = "windows")]
+    pub fn hwnd_isize(&self) -> Option<isize> {
+        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+
+        let handle = self.window()?.window_handle().ok()?;
+        match handle.as_raw() {
+            RawWindowHandle::Win32(h) => Some(h.hwnd.get()),
+            _ => None,
+        }
+    }
 }
 
 /// Window-edge resize directions (mirrors winit's `ResizeDirection`), used by the

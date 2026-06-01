@@ -113,7 +113,7 @@ pub extern "C" fn mui_ws_open_dialog(handle: i64) -> i32 {
         return 0;
     };
     let root = effective_root(ctx);
-    match pick_folder_native(&root) {
+    match pick_folder_native(&root, crate::abi::dialog_owner_hwnd(ctx)) {
         FolderDialogPick::Picked(path) => open_folder(ctx, &path),
         FolderDialogPick::Cancelled => {
             println!("ws: native folder dialog cancelled");
@@ -409,7 +409,7 @@ enum FolderDialogPick {
 /// Show a native Windows folder picker and return the chosen absolute path.
 /// Runs a tiny PowerShell snippet that opens a `FolderBrowserDialog` and prints
 /// the selected path; we read it back off stdout.
-fn pick_folder_native(initial_dir: &std::path::Path) -> FolderDialogPick {
+fn pick_folder_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FolderDialogPick {
     if let Ok(path) = std::env::var("MUI_OPEN_FOLDER_PICK") {
         let trimmed = path.trim();
         return if trimmed.is_empty() {
@@ -429,23 +429,37 @@ $d.Description = 'Open Folder as Workspace'
 $d.ShowNewFolderButton = $true
 $dir = $env:MUI_DIALOG_DIR
 if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) { $d.SelectedPath = $dir }
-$owner = New-Object System.Windows.Forms.Form
-$owner.TopMost = $true
-$owner.ShowInTaskbar = $false
-$owner.StartPosition = 'CenterScreen'
-$owner.Width = 1
-$owner.Height = 1
+$owner = $null
+$ownerForm = $null
+$ownerHwnd = 0L
+$ownerText = $env:MUI_DIALOG_OWNER
+if ($ownerText -and [Int64]::TryParse($ownerText, [ref]$ownerHwnd) -and $ownerHwnd -ne 0) {
+  $owner = New-Object System.Windows.Forms.NativeWindow
+  $owner.AssignHandle([IntPtr]$ownerHwnd)
+} else {
+  $ownerForm = New-Object System.Windows.Forms.Form
+  $ownerForm.TopMost = $true
+  $ownerForm.ShowInTaskbar = $false
+  $ownerForm.StartPosition = 'CenterScreen'
+  $ownerForm.Width = 1
+  $ownerForm.Height = 1
+  $owner = $ownerForm
+}
 try {
   if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($d.SelectedPath) }
 } finally {
-  $owner.Dispose()
+  if ($owner -is [System.Windows.Forms.NativeWindow]) { $owner.ReleaseHandle() }
+  if ($ownerForm) { $ownerForm.Dispose() }
 }
 "#;
-    let out = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-STA", "-Command", script])
+    let mut cmd = std::process::Command::new("powershell");
+    cmd.args(["-NoProfile", "-STA", "-Command", script])
         .env("MUI_DIALOG_DIR", initial_dir)
-        .stdin(std::process::Stdio::null())
-        .output();
+        .stdin(std::process::Stdio::null());
+    if let Some(hwnd) = owner_hwnd {
+        cmd.env("MUI_DIALOG_OWNER", hwnd.to_string());
+    }
+    let out = cmd.output();
     let Ok(out) = out else {
         return FolderDialogPick::Unavailable;
     };

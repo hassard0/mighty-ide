@@ -2161,3 +2161,14 @@ the same dirty-file confirmation path as a real user quit.
 - **Language note:** Mighty would benefit from a first-class event/source flag so
   app code can distinguish user window closes from synthetic harness closes
   without threading host-mode checks through the main loop.
+
+### L138. Native dialogs must be owned by the IDE window **[finding, P2]**
+Open/New/Save/Open Folder used a tiny topmost helper form as the modal owner.
+That kept dialogs visible, but it made them feel detached from the IDE and could
+place focus or centering in surprising places.
+
+- **IDE note:** Windows native file/folder dialogs now receive the IDE HWND as
+  their owner and fall back to the helper form only when no real window exists.
+- **Language note:** no compiler gap surfaced. Mighty would benefit from a small
+  platform-dialog ABI wrapper so app code can request modal file/folder pickers
+  without embedding PowerShell snippets in host code.

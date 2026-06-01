@@ -209,6 +209,16 @@ pub(crate) fn file_dialog_initial_dir(ctx: &MuiContext) -> PathBuf {
     }
 }
 
+#[cfg(target_os = "windows")]
+pub(crate) fn dialog_owner_hwnd(ctx: &MuiContext) -> Option<isize> {
+    ctx.host.as_ref().and_then(|host| host.hwnd_isize())
+}
+
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn dialog_owner_hwnd(_ctx: &MuiContext) -> Option<isize> {
+    None
+}
+
 /// Cast an opaque `i64` handle back to a context reference. Returns `None` for
 /// null/zero handles.
 #[inline]
@@ -3340,7 +3350,8 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
         return -1;
     };
     let initial_dir = file_dialog_initial_dir(ctx);
-    let path = match pick_open_file_native(&initial_dir) {
+    let owner_hwnd = dialog_owner_hwnd(ctx);
+    let path = match pick_open_file_native(&initial_dir, owner_hwnd) {
         FileDialogPick::Picked(path) => path,
         FileDialogPick::Cancelled => {
             println!("mui_open_file_dialog: native file dialog cancelled");
@@ -4644,7 +4655,8 @@ pub extern "C" fn mui_newfile_dialog(handle: i64) -> i32 {
         return -1;
     };
     let initial_dir = file_dialog_initial_dir(ctx);
-    let target = match pick_new_file_native(&initial_dir) {
+    let owner_hwnd = dialog_owner_hwnd(ctx);
+    let target = match pick_new_file_native(&initial_dir, owner_hwnd) {
         FileDialogPick::Picked(path) => path,
         FileDialogPick::Cancelled => {
             println!("mui_newfile_dialog: native new-file dialog cancelled");
@@ -8589,7 +8601,7 @@ fn save_confirm_tab(ctx: &mut MuiContext, idx: usize) -> bool {
             .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
             .filter(|s| !s.trim().is_empty())
             .unwrap_or_else(|| "untitled.mty".to_string());
-        let target = match pick_save_file_native(&root, &suggested) {
+        let target = match pick_save_file_native(&root, &suggested, dialog_owner_hwnd(ctx)) {
             FileDialogPick::Picked(path) => path,
             FileDialogPick::Cancelled | FileDialogPick::Unavailable => return false,
         };
@@ -8645,7 +8657,7 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
             ctx.tabs.switch(idx);
             sync_active_path(ctx);
             let root = file_dialog_initial_dir(ctx);
-            let target = match pick_save_file_native(&root, "untitled.mty") {
+            let target = match pick_save_file_native(&root, "untitled.mty", dialog_owner_hwnd(ctx)) {
                 FileDialogPick::Picked(path) => path,
                 FileDialogPick::Cancelled | FileDialogPick::Unavailable => {
                     untitled += 1;
@@ -8738,7 +8750,7 @@ pub extern "C" fn mui_save_as_dialog(handle: i64) -> i32 {
         .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| "untitled.mty".to_string());
-    let target = match pick_save_file_native(&root, &suggested) {
+    let target = match pick_save_file_native(&root, &suggested, dialog_owner_hwnd(ctx)) {
         FileDialogPick::Picked(path) => path,
         FileDialogPick::Cancelled => {
             println!("mui_save_as_dialog: native save dialog cancelled");
@@ -8784,7 +8796,7 @@ enum FileDialogPick {
     Unavailable,
 }
 
-fn pick_open_file_native(initial_dir: &std::path::Path) -> FileDialogPick {
+fn pick_open_file_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FileDialogPick {
     if let Ok(path) = std::env::var("MUI_OPEN_FILE_PICK") {
         let trimmed = path.trim();
         return if trimmed.is_empty() {
@@ -8803,22 +8815,37 @@ $d.Title = 'Open File'
 $d.Filter = 'Mighty/code files (*.mty;*.rs;*.js;*.ts;*.tsx;*.jsx;*.py;*.go;*.md;*.toml;*.json)|*.mty;*.rs;*.js;*.ts;*.tsx;*.jsx;*.py;*.go;*.md;*.toml;*.json|All files (*.*)|*.*'
 $dir = $env:MUI_DIALOG_DIR
 if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) { $d.InitialDirectory = $dir }
-$owner = New-Object System.Windows.Forms.Form
-$owner.TopMost = $true
-$owner.ShowInTaskbar = $false
-$owner.StartPosition = 'CenterScreen'
-$owner.Width = 1
-$owner.Height = 1
+$owner = $null
+$ownerForm = $null
+$ownerHwnd = 0L
+$ownerText = $env:MUI_DIALOG_OWNER
+if ($ownerText -and [Int64]::TryParse($ownerText, [ref]$ownerHwnd) -and $ownerHwnd -ne 0) {
+  $owner = New-Object System.Windows.Forms.NativeWindow
+  $owner.AssignHandle([IntPtr]$ownerHwnd)
+} else {
+  $ownerForm = New-Object System.Windows.Forms.Form
+  $ownerForm.TopMost = $true
+  $ownerForm.ShowInTaskbar = $false
+  $ownerForm.StartPosition = 'CenterScreen'
+  $ownerForm.Width = 1
+  $ownerForm.Height = 1
+  $owner = $ownerForm
+}
 try {
   if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($d.FileName) }
 } finally {
-  $owner.Dispose()
+  if ($owner -is [System.Windows.Forms.NativeWindow]) { $owner.ReleaseHandle() }
+  if ($ownerForm) { $ownerForm.Dispose() }
 }
 "#;
-    run_file_dialog_script(script, initial_dir, None)
+    run_file_dialog_script(script, initial_dir, None, owner_hwnd)
 }
 
-fn pick_save_file_native(initial_dir: &std::path::Path, suggested_name: &str) -> FileDialogPick {
+fn pick_save_file_native(
+    initial_dir: &std::path::Path,
+    suggested_name: &str,
+    owner_hwnd: Option<isize>,
+) -> FileDialogPick {
     if let Ok(path) = std::env::var("MUI_SAVE_FILE_PICK") {
         let trimmed = path.trim();
         return if trimmed.is_empty() {
@@ -8842,22 +8869,33 @@ $dir = $env:MUI_DIALOG_DIR
 if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) { $d.InitialDirectory = $dir }
 $name = $env:MUI_DIALOG_FILE
 if ($name) { $d.FileName = $name }
-$owner = New-Object System.Windows.Forms.Form
-$owner.TopMost = $true
-$owner.ShowInTaskbar = $false
-$owner.StartPosition = 'CenterScreen'
-$owner.Width = 1
-$owner.Height = 1
+$owner = $null
+$ownerForm = $null
+$ownerHwnd = 0L
+$ownerText = $env:MUI_DIALOG_OWNER
+if ($ownerText -and [Int64]::TryParse($ownerText, [ref]$ownerHwnd) -and $ownerHwnd -ne 0) {
+  $owner = New-Object System.Windows.Forms.NativeWindow
+  $owner.AssignHandle([IntPtr]$ownerHwnd)
+} else {
+  $ownerForm = New-Object System.Windows.Forms.Form
+  $ownerForm.TopMost = $true
+  $ownerForm.ShowInTaskbar = $false
+  $ownerForm.StartPosition = 'CenterScreen'
+  $ownerForm.Width = 1
+  $ownerForm.Height = 1
+  $owner = $ownerForm
+}
 try {
   if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($d.FileName) }
 } finally {
-  $owner.Dispose()
+  if ($owner -is [System.Windows.Forms.NativeWindow]) { $owner.ReleaseHandle() }
+  if ($ownerForm) { $ownerForm.Dispose() }
 }
 "#;
-    run_file_dialog_script(script, initial_dir, Some(suggested_name))
+    run_file_dialog_script(script, initial_dir, Some(suggested_name), owner_hwnd)
 }
 
-fn pick_new_file_native(initial_dir: &std::path::Path) -> FileDialogPick {
+fn pick_new_file_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FileDialogPick {
     if let Ok(seq) = std::env::var("MUI_NEW_FILE_PICK_SEQUENCE") {
         let trimmed = seq.trim();
         if !trimmed.is_empty() {
@@ -8888,19 +8926,30 @@ $d.CheckPathExists = $true
 $dir = $env:MUI_DIALOG_DIR
 if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) { $d.InitialDirectory = $dir }
 $d.FileName = 'untitled.mty'
-$owner = New-Object System.Windows.Forms.Form
-$owner.TopMost = $true
-$owner.ShowInTaskbar = $false
-$owner.StartPosition = 'CenterScreen'
-$owner.Width = 1
-$owner.Height = 1
+$owner = $null
+$ownerForm = $null
+$ownerHwnd = 0L
+$ownerText = $env:MUI_DIALOG_OWNER
+if ($ownerText -and [Int64]::TryParse($ownerText, [ref]$ownerHwnd) -and $ownerHwnd -ne 0) {
+  $owner = New-Object System.Windows.Forms.NativeWindow
+  $owner.AssignHandle([IntPtr]$ownerHwnd)
+} else {
+  $ownerForm = New-Object System.Windows.Forms.Form
+  $ownerForm.TopMost = $true
+  $ownerForm.ShowInTaskbar = $false
+  $ownerForm.StartPosition = 'CenterScreen'
+  $ownerForm.Width = 1
+  $ownerForm.Height = 1
+  $owner = $ownerForm
+}
 try {
   if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($d.FileName) }
 } finally {
-  $owner.Dispose()
+  if ($owner -is [System.Windows.Forms.NativeWindow]) { $owner.ReleaseHandle() }
+  if ($ownerForm) { $ownerForm.Dispose() }
 }
 "#;
-    run_file_dialog_script(script, initial_dir, None)
+    run_file_dialog_script(script, initial_dir, None, owner_hwnd)
 }
 
 fn next_new_file_pick_from_sequence(sequence: &str) -> FileDialogPick {
@@ -8927,6 +8976,7 @@ fn run_file_dialog_script(
     script: &str,
     initial_dir: &std::path::Path,
     suggested_name: Option<&str>,
+    owner_hwnd: Option<isize>,
 ) -> FileDialogPick {
     let mut cmd = std::process::Command::new("powershell");
     cmd.args(["-NoProfile", "-STA", "-Command", script])
@@ -8934,6 +8984,9 @@ fn run_file_dialog_script(
         .stdin(std::process::Stdio::null());
     if let Some(name) = suggested_name {
         cmd.env("MUI_DIALOG_FILE", name);
+    }
+    if let Some(hwnd) = owner_hwnd {
+        cmd.env("MUI_DIALOG_OWNER", hwnd.to_string());
     }
     let Ok(out) = cmd.output() else {
         return FileDialogPick::Unavailable;
