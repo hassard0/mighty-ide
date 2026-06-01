@@ -63,6 +63,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Prompt text is measured**: long typed paths, rename targets, and delete
   confirmations now keep their useful tail and fit within the bottom prompt
   band instead of running under neighboring chrome.
+- **Status bar text is measured**: branch names, ahead/behind counts, problem
+  counters, cursor position, encoding, indentation, and language pill layout now
+  use shaped UI-font widths so compact windows do not let left and right status
+  clusters collide.
 - **Copy Active File Name / Directory** add basename and containing-folder
   clipboard commands alongside absolute and workspace-relative path copies.
 - **Save conveniences** (Settings, opt-in): trim trailing whitespace on save,

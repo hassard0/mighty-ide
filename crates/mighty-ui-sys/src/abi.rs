@@ -2522,9 +2522,6 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     let y = (h - bar_h).max(0.0);
     let chrome = theme::CHROME_FONT_SIZE - 1.0;
     let clip = ctx.clip;
-    let scale = chrome / theme::FONT_SIZE();
-    let advance = layout::CHAR_W() * scale;
-    let text_w = |s: &str| s.chars().count() as f32 * advance;
 
     use crate::icons;
     // Status band (mockup linear-gradient near-black) + a thin top divider.
@@ -2534,39 +2531,6 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     let icon_y = y + (bar_h - 13.0) * 0.5;
 
     let (line1, col1) = ctx.status_cursor;
-
-    // ---- left cluster: branch icon + branch ↑N ↓M · problems (err/warn) ----
-    // Use the live SCM status when a repo was discovered; else a neutral default.
-    let branch = if ctx.scm.status.branch.is_empty() {
-        "main".to_string()
-    } else {
-        ctx.scm.status.branch.clone()
-    };
-    let ab = format!("\u{2191}{} \u{2193}{}", ctx.scm.status.ahead.max(0), ctx.scm.status.behind.max(0));
-    let mut x = 10.0;
-    ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::BRANCH, theme::TEXT_1(), 1.5, false);
-    x += 18.0;
-    ctx.text.queue_sized(x, ty, &branch, theme::TEXT_1(), chrome, clip);
-    x += text_w(&branch) + 6.0;
-    ctx.text.queue_sized(x, ty, &ab, theme::TEXT_3(), chrome, clip);
-    x += text_w(&ab) + 12.0;
-
-    // Errors (red circle + N) and warnings (warn triangle + N). Prefer the
-    // aggregated Problems counts when the Problems panel has run; otherwise fall
-    // back to the per-file `error_count` the caller passed (active-file diags).
-    let chip_x = x;
-    let agg = ctx.problems.count() > 0 || ctx.problems.is_open();
-    let n_err = if agg { ctx.problems.error_count() } else { error_count.max(0) };
-    let n_warn = if agg { ctx.problems.warn_count() } else { 0 };
-    ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::ERROR_CIRCLE, theme::ERROR(), 1.5, false);
-    x += 16.0;
-    ctx.text.queue_sized(x, ty, &n_err.to_string(), if n_err > 0 { theme::ERROR() } else { theme::TEXT_1() }, chrome, clip);
-    x += text_w(&n_err.to_string()) + 10.0;
-    ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::WARN_TRI, theme::WARNING(), 1.5, false);
-    x += 16.0;
-    ctx.text.queue_sized(x, ty, &n_warn.to_string(), if n_warn > 0 { theme::WARNING() } else { theme::TEXT_1() }, chrome, clip);
-    x += text_w(&n_warn.to_string());
-    ctx.status_problems_rect = Some((chip_x - 4.0, y, (x - chip_x) + 8.0, bar_h));
 
     // ---- right cluster (laid out right-to-left) ----
     let mut rx = w - 12.0;
@@ -2579,7 +2543,7 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     // Language pill (detected from the active file) with an indigo gradient + an
     // M glyph. Falls back to "Mighty" only when the active file is Mighty.
     let lang = ctx.language.display_name();
-    let lang_w = text_w(lang);
+    let (lang_w, _) = ctx.text.measure_ui_sized(lang, chrome - 1.5);
     let pill_w = lang_w + 30.0;
     let pill_h = 19.0;
     rx -= pill_w;
@@ -2592,20 +2556,124 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
 
     // "UTF-8".
     let enc = "UTF-8";
-    rx -= text_w(enc);
-    ctx.text.queue_sized(rx, ty, enc, theme::DIM(), chrome, clip);
+    let (enc_w, _) = ctx.text.measure_ui_sized(enc, chrome);
+    rx -= enc_w;
+    ctx.text.queue_ui_sized(rx, ty, enc, theme::DIM(), chrome, clip);
     rx -= 14.0;
 
     // "Spaces: 2".
     let sp = "Spaces: 2";
-    rx -= text_w(sp);
-    ctx.text.queue_sized(rx, ty, sp, theme::DIM(), chrome, clip);
+    let (sp_w, _) = ctx.text.measure_ui_sized(sp, chrome);
+    rx -= sp_w;
+    ctx.text.queue_ui_sized(rx, ty, sp, theme::DIM(), chrome, clip);
     rx -= 14.0;
 
     // "Ln L, Col C".
     let lc = format!("Ln {line1}, Col {col1}");
-    rx -= text_w(&lc);
-    ctx.text.queue_sized(rx, ty, &lc, theme::DIM(), chrome, clip);
+    let (lc_w, _) = ctx.text.measure_ui_sized(&lc, chrome);
+    rx -= lc_w;
+    ctx.text.queue_ui_sized(rx, ty, &lc, theme::DIM(), chrome, clip);
+    let left_limit = (rx - 14.0).max(0.0);
+
+    // ---- left cluster: branch icon + branch ↑N ↓M · problems (err/warn) ----
+    // Use the live SCM status when a repo was discovered; else a neutral default.
+    let branch = if ctx.scm.status.branch.is_empty() {
+        "main".to_string()
+    } else {
+        ctx.scm.status.branch.clone()
+    };
+    let ab = format!("\u{2191}{} \u{2193}{}", ctx.scm.status.ahead.max(0), ctx.scm.status.behind.max(0));
+    let mut x = 10.0;
+    ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::BRANCH, theme::TEXT_1(), 1.5, false);
+    x += 18.0;
+
+    // Errors (red circle + N) and warnings (warn triangle + N). Prefer the
+    // aggregated Problems counts when the Problems panel has run; otherwise fall
+    // back to the per-file `error_count` the caller passed (active-file diags).
+    let agg = ctx.problems.count() > 0 || ctx.problems.is_open();
+    let n_err = if agg { ctx.problems.error_count() } else { error_count.max(0) };
+    let n_warn = if agg { ctx.problems.warn_count() } else { 0 };
+    let err = n_err.to_string();
+    let warn = n_warn.to_string();
+    let (ab_w, _) = ctx.text.measure_ui_sized(&ab, chrome);
+    let (err_w, _) = ctx.text.measure_ui_sized(&err, chrome);
+    let (warn_w, _) = ctx.text.measure_ui_sized(&warn, chrome);
+    let problems_w = 16.0 + err_w + 10.0 + 16.0 + warn_w;
+    let suffix_w = 6.0 + ab_w + 12.0 + problems_w;
+    let branch_budget = (left_limit - x - suffix_w).max(0.0);
+    let branch = fit_status_tail(&mut ctx.text, &branch, branch_budget, chrome);
+    let (branch_w, _) = ctx.text.measure_ui_sized(&branch, chrome);
+    if !branch.is_empty() {
+        ctx.text.queue_ui_sized(x, ty, &branch, theme::TEXT_1(), chrome, clip);
+        x += branch_w + 6.0;
+    }
+    if x + ab_w + 12.0 + problems_w <= left_limit {
+        ctx.text.queue_ui_sized(x, ty, &ab, theme::TEXT_3(), chrome, clip);
+        x += ab_w + 12.0;
+    }
+
+    let chip_x = x;
+    if x + problems_w <= left_limit {
+        ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::ERROR_CIRCLE, theme::ERROR(), 1.5, false);
+        x += 16.0;
+        ctx.text.queue_ui_sized(
+            x,
+            ty,
+            &err,
+            if n_err > 0 { theme::ERROR() } else { theme::TEXT_1() },
+            chrome,
+            clip,
+        );
+        x += err_w + 10.0;
+        ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::WARN_TRI, theme::WARNING(), 1.5, false);
+        x += 16.0;
+        ctx.text.queue_ui_sized(
+            x,
+            ty,
+            &warn,
+            if n_warn > 0 { theme::WARNING() } else { theme::TEXT_1() },
+            chrome,
+            clip,
+        );
+        x += warn_w;
+        ctx.status_problems_rect = Some((chip_x - 4.0, y, (x - chip_x) + 8.0, bar_h));
+    } else {
+        ctx.status_problems_rect = None;
+    }
+}
+
+fn fit_status_tail(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    if max_px <= 0.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    if text.measure_ui_sized(ellipsis, size).0 > max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let candidate: String = std::iter::once('\u{2026}')
+            .chain(chars[chars.len().saturating_sub(mid)..].iter().copied())
+            .collect();
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        ellipsis.to_string()
+    } else {
+        std::iter::once('\u{2026}')
+            .chain(chars[chars.len().saturating_sub(lo)..].iter().copied())
+            .collect()
+    }
 }
 
 /// `1` if the last click landed on the status-bar problems chip (the

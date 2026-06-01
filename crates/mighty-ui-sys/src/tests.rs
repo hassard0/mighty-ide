@@ -1814,6 +1814,35 @@ fn status_problems_chip_hit_tracks_rendered_branch_width() {
 }
 
 #[test]
+fn status_bar_compacts_long_left_cluster_before_right_cluster() {
+    use crate::{mui_status_problems_chip_at_click, mui_status_render};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 560;
+    ctx.gpu.height = 600;
+    ctx.scm.status.branch =
+        "feature/very-long-branch-name-with-wide-ui-letters-and-a-ticket-number-12345".to_string();
+    ctx.scm.status.ahead = 123;
+    ctx.scm.status.behind = 45;
+    ctx.status_cursor = (12345, 678);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_status_render(handle, 987);
+    if let Some((x, y, w, h)) = ctx.status_problems_rect {
+        assert!(x >= 0.0);
+        assert!(x + w < ctx.gpu.width as f32 - 8.0);
+        ctx.last_event = crate::ffi::MuiEvent::mouse(
+            crate::ffi::MUI_EVENT_MOUSE_DOWN,
+            0,
+            x + w * 0.5,
+            y + h * 0.5,
+            0,
+        );
+        assert_eq!(mui_status_problems_chip_at_click(handle), 1);
+    }
+}
+
+#[test]
 fn chord_command_id_resolves_palette_commands_for_mighty_dispatch() {
     use crate::mui_chord_command_id;
     use crate::shortcuts::{Chord, MOD_ALT, MOD_CTRL, MOD_SHIFT};

@@ -1456,6 +1456,9 @@ could either collide or push the chord out of its column.
 Manual feedback on May 31, 2026: the UX still feels poor around "New File",
 "Open File/Open Folder", drawer/test-panel overlap, and manual window resizing.
 Treat this as a named backlog track, not a collection of incidental polish bugs.
+Latest feedback also calls out file actions still feeling weird, drawer/testing
+text overlap, clunky manual resizing, and the need to keep a visible list of
+these gaps until they are actually closed.
 
 - **IDE note:** audit the complete first-run and file lifecycle path: Welcome
   quick actions, native dialog cancel/success states, typed-path fallback,
@@ -1583,3 +1586,18 @@ under adjacent chrome, especially in compact windows or with a visible sidebar.
 - **Language note:** no new Mighty gap surfaced. The pattern matches the other
   recent layout fixes: text fitting belongs shim-side until Mighty has richer UI
   text measurement and string/result ABI support.
+
+### L93. Status bar clusters need shaped text budgets **[finding, P2]**
+The status bar still used fixed character-width estimates for branch names,
+ahead/behind counters, problem counts, cursor position, encoding, indentation,
+and the language pill. Long branch names or large cursor/problem counts could
+push the left status cluster into the right cluster on compact windows.
+
+- **IDE note:** status rendering now lays out the right cluster first, measures
+  all UI-font text, and only draws the branch/ahead/problem cluster into the
+  remaining pixel budget. Long branches tail-ellipsize, and the Problems chip hit
+  rect is only recorded when the chip actually fits.
+- **Language note:** no new Mighty compiler gap surfaced, but this repeats the
+  same product pressure as L89-L92: Mighty can route scalar draw calls today, but
+  rich UI text measurement and structured layout/state values still have to live
+  in the Rust shim.
