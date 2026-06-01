@@ -2914,3 +2914,14 @@ the normal text layer while other body text was still present in the frame.
 - **Language note:** no compiler gap surfaced. Mighty UI needs a declarative
   overlay owner/surface concept so transient input bands automatically paint and
   queue text above normal editor/welcome content.
+
+### L195. Search inputs with trailing mode pills need reserved text budgets **[finding, P2]**
+The compact Quick Open capture showed the placeholder helper running underneath
+the active `FILES` pill. The input rendered its text before computing the pill,
+so the placeholder had no right boundary.
+
+- **IDE note:** Quick Open now computes the mode pill first, reserves a gap, and
+  measured-ellipsizes the placeholder/query before drawing the caret.
+- **Language note:** no compiler gap surfaced. Mighty UI needs an input primitive
+  with prefix icons and trailing adornments so placeholder/query text budgets are
+  derived from the same geometry as the visual pill.

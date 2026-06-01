@@ -920,16 +920,6 @@ impl QuickOpen {
         ctx.dl_icon(box_x + 18.0, box_y + (search_h - 20.0) * 0.5, 20.0, 20.0, icons::SEARCH, theme::DIM(), 1.7, false);
         let q_text_x = box_x + 50.0;
         let qy = box_y + (search_h - 16.0) * 0.5 - 1.0;
-        let placeholder = "Search files by name\u{2026}  (\u{203A} commands  @ symbols  : line)";
-        let (q_str, q_color): (&str, _) = if self.query.is_empty() {
-            (placeholder, theme::TEXT_3())
-        } else {
-            (self.query.as_str(), theme::TEXT())
-        };
-        ctx.text.queue_ui_sized(q_text_x, qy, q_str, q_color, 16.0, clip);
-        let qadv = 16.0 * 0.52;
-        let caret_x = q_text_x + self.query.chars().count() as f32 * qadv + 1.0;
-        ctx.dl_round(caret_x, box_y + (search_h - 18.0) * 0.5, 2.0, 18.0, 1.0, theme::ACCENT_BRIGHT());
         // Mode pill (right): the current mode label.
         let mode_txt = match self.mode() {
             Mode::Files => "FILES",
@@ -944,6 +934,22 @@ impl QuickOpen {
         ctx.dl_stroke(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_LINE(), 1.0);
         let mode_lbl_w = mode_txt.chars().count() as f32 * 6.2;
         ctx.text.queue_ui_sized(pill_x + (pill_w - mode_lbl_w) * 0.5, pill_y + 5.5, mode_txt, theme::ACCENT_BRIGHT(), 10.5, clip);
+        let placeholder = "Search files by name\u{2026}  (\u{203A} commands  @ symbols  : line)";
+        let (q_str, q_color): (&str, _) = if self.query.is_empty() {
+            (placeholder, theme::TEXT_3())
+        } else {
+            (self.query.as_str(), theme::TEXT())
+        };
+        let query_max = (pill_x - 12.0 - q_text_x).max(0.0);
+        let q_shown = fit_query_text(&mut ctx.text, q_str, query_max, 16.0);
+        ctx.text.queue_ui_sized(q_text_x, qy, &q_shown, q_color, 16.0, clip);
+        let (q_w, _) = ctx.text.measure_ui_sized(&q_shown, 16.0);
+        let caret_x = if self.query.is_empty() {
+            q_text_x + 1.0
+        } else {
+            (q_text_x + q_w + 1.0).min(pill_x - 14.0)
+        };
+        ctx.dl_round(caret_x, box_y + (search_h - 18.0) * 0.5, 2.0, 18.0, 1.0, theme::ACCENT_BRIGHT());
 
         // ---- category label ----
         let cat_y = box_y + search_h + 9.0;
@@ -1041,6 +1047,44 @@ impl QuickOpen {
     ) {
         let base_col = if selected { theme::TEXT() } else { theme::TEXT_1() };
         ctx.text.queue_ui_sized(x, y, name, base_col, 13.5, clip);
+    }
+}
+
+pub(crate) fn fit_query_text(
+    text: &mut crate::text::Text,
+    s: &str,
+    max_px: f32,
+    size: f32,
+) -> String {
+    if max_px <= 0.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    if text.measure_ui_sized(ellipsis, size).0 > max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        ellipsis.to_string()
+    } else {
+        let mut out: String = chars.iter().take(lo).collect();
+        out.push_str(ellipsis);
+        out
     }
 }
 

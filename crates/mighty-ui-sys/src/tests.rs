@@ -2676,6 +2676,16 @@ fn debug_stack_name_fits_before_location() {
 }
 
 #[test]
+fn quickopen_search_placeholder_fits_before_mode_pill() {
+    let mut ctx = ctx_or_skip!();
+    let placeholder = "Search files by name\u{2026}  (\u{203A} commands  @ symbols  : line)";
+    let shown = crate::quickopen::fit_query_text(&mut ctx.text, placeholder, 190.0, 16.0);
+    let (shown_w, _) = ctx.text.measure_ui_sized(&shown, 16.0);
+    assert!(shown_w <= 190.0, "placeholder should fit before mode pill: {shown}");
+    assert!(shown.ends_with('\u{2026}'));
+}
+
+#[test]
 fn status_problems_chip_hit_tracks_rendered_branch_width() {
     use crate::ffi::MuiEvent;
     use crate::{mui_status_problems_chip_at_click, mui_status_render};
