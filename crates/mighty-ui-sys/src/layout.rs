@@ -57,7 +57,7 @@ pub const TERM_FRACTION_MIN: f32 = 0.18;
 /// Largest user-resized bottom dock fraction. Above this the editor is cramped.
 pub const TERM_FRACTION_MAX: f32 = 0.68;
 /// Visible/hit-tested band around the top edge of the shared bottom dock.
-pub const DOCK_RESIZE_H: f32 = 8.0;
+pub const DOCK_RESIZE_H: f32 = 14.0;
 /// Square hit target for the shared bottom-dock close button.
 pub const DOCK_CLOSE_SIZE: f32 = 24.0;
 /// Keep the dock close affordance away from scaled/window-control gutters.
@@ -354,7 +354,7 @@ pub fn term_panel_top(height: u32) -> f32 {
 /// Top-edge resize target for the shared bottom dock.
 pub fn dock_resize_hit(height: u32, y: f32) -> bool {
     let top = term_panel_top(height);
-    y >= top - DOCK_RESIZE_H * 0.5 && y <= top + DOCK_RESIZE_H * 1.5
+    y >= top - DOCK_RESIZE_H * 0.5 && y <= top + DOCK_RESIZE_H
 }
 
 /// Resize the shared bottom dock so its top edge follows the given y pixel.
@@ -791,7 +791,10 @@ mod tests {
         let default_h = term_panel_height(600);
         let default_top = term_panel_top(600);
         assert!(dock_resize_hit(600, default_top + 2.0));
+        assert!(dock_resize_hit(600, default_top + 12.0));
+        assert!(dock_resize_hit(600, default_top - 6.0));
         assert!(!dock_resize_hit(600, default_top - 30.0));
+        assert!(!dock_resize_hit(600, default_top + 30.0));
 
         let taller = resize_dock_to_y(600, 210.0);
         assert!(taller > default_h, "taller={taller} default={default_h}");

@@ -312,6 +312,25 @@ if ($tf -and (Test-Path $tf)) {
 }
 Log "ui scale = $scale"
 function ClickL($lx, $ly) { Click $hwnd ([int][math]::Round($lx * $scale)) ([int][math]::Round($ly * $scale)) }
+function DragL($lx1, $ly1, $lx2, $ly2) {
+  $x1 = [int][math]::Round($lx1 * $scale)
+  $y1 = [int][math]::Round($ly1 * $scale)
+  $x2 = [int][math]::Round($lx2 * $scale)
+  $y2 = [int][math]::Round($ly2 * $scale)
+  $lp1 = [Win]::MouseLParam($x1, $y1)
+  [void][Win]::PostMessage($hwnd, [Win]::WM_MOUSEMOVE,   [IntPtr]0,                 $lp1); Start-Sleep -Milliseconds 30
+  [void][Win]::PostMessage($hwnd, [Win]::WM_LBUTTONDOWN, [IntPtr][Win]::MK_LBUTTON, $lp1); Start-Sleep -Milliseconds 60
+  for ($i = 1; $i -le 5; $i++) {
+    $x = [int][math]::Round($x1 + (($x2 - $x1) * $i / 5.0))
+    $y = [int][math]::Round($y1 + (($y2 - $y1) * $i / 5.0))
+    $lp = [Win]::MouseLParam($x, $y)
+    [void][Win]::PostMessage($hwnd, [Win]::WM_MOUSEMOVE, [IntPtr][Win]::MK_LBUTTON, $lp)
+    Start-Sleep -Milliseconds 45
+  }
+  $lp2 = [Win]::MouseLParam($x2, $y2)
+  [void][Win]::PostMessage($hwnd, [Win]::WM_LBUTTONUP, [IntPtr]0, $lp2)
+  Log "drag (PostMessage) from logical ($lx1,$ly1) to ($lx2,$ly2)"
+}
 $logicalW = [double]$script:WinW / [double]$scale
 $logicalH = [double]$script:WinH / [double]$scale
 # titlebar.rs: controls_x = w - 3*46, action strip = 68, run target is the
@@ -399,6 +418,28 @@ foreach ($ic in $rail) {
   Capture $hwnd ("20-rail-{0}-{1}" -f $slot, $ic.n)
   Log ("rail '{0}' (ly={1}) responsive={2}" -f $ic.n, $ic.y, $resp)
   if (-not $resp) { Log "!!! LOCKUP after rail '$($ic.n)'" }
+}
+
+# === BOTTOM DOCK RESIZE: drag the visible handle up and back down. ===
+Invoke-PaletteCommand "view problems" $null
+Start-Sleep -Milliseconds 300
+$dockHandleY = [math]::Round($logicalH * 0.61)
+DragL 460 $dockHandleY 460 ($dockHandleY - 90)
+Start-Sleep -Milliseconds 250
+DragL 460 ($dockHandleY - 90) 460 ($dockHandleY + 65)
+Start-Sleep -Milliseconds 250
+$respDock = Is-Responsive $hwnd
+Log "bottom dock resize drag responsive=$respDock"
+if (-not $respDock) { $script:HarnessFailed = $true }
+if ($env:MUI_TRACE) {
+  Start-Sleep -Milliseconds 150
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  if ($traceText -match "dock_resize drag") {
+    Log "BOTTOM-DOCK-RESIZE: drag trace observed"
+  } else {
+    Log "BOTTOM-DOCK-RESIZE: no drag trace observed"
+    $script:HarnessFailed = $true
+  }
 }
 ClickL 26 71             # back to Explorer
 Start-Sleep -Milliseconds 300

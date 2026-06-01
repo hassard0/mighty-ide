@@ -1595,6 +1595,11 @@ pub extern "C" fn mui_bottom_dock_resize_at_click(handle: i64) -> i32 {
             && layout::dock_resize_hit(c.gpu.height, c.last_event.y)
         {
             c.bottom_dock_resizing = true;
+            trace(&format!(
+                "dock_resize start y={:.1} h={:.1}",
+                c.last_event.y,
+                layout::term_panel_height(c.gpu.height)
+            ));
             1
         } else {
             0
@@ -1610,7 +1615,9 @@ pub extern "C" fn mui_bottom_dock_resize_to_event_y(handle: i64) -> i32 {
         if !c.bottom_dock_open() {
             return 0;
         }
-        layout::resize_dock_to_y(c.gpu.height, c.last_event.y).round() as i32
+        let h = layout::resize_dock_to_y(c.gpu.height, c.last_event.y).round() as i32;
+        trace(&format!("dock_resize drag y={:.1} h={h}", c.last_event.y));
+        h
     })
 }
 
@@ -1673,15 +1680,24 @@ pub extern "C" fn mui_bottom_dock_resize_draw(handle: i64) {
     ctx.overlay = true;
     ctx.clip = None;
     ctx.dl_rect(x0, band_y, w, layout::DOCK_RESIZE_H, theme::BG_1());
+    ctx.dl_rect(x0, band_y, w, 1.0, theme::BORDER());
     ctx.dl_rect(x0, top, w, 1.0, theme::BORDER_STRONG());
-    let grip_w = 64.0_f32.min((w - 32.0).max(0.0));
+    let grip_w = 96.0_f32.min((w - 32.0).max(0.0));
     let grip_x = x0 + (w - grip_w) * 0.5;
     ctx.dl_round(
+        grip_x - 8.0,
+        band_y + 3.0,
+        grip_w + 16.0,
+        8.0,
+        4.0,
+        theme::accent_a(0.12),
+    );
+    ctx.dl_round(
         grip_x,
-        band_y + 2.0,
+        band_y + 5.0,
         grip_w,
-        3.0,
-        1.5,
+        2.0,
+        1.0,
         theme::TEXT_3(),
     );
     let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);

@@ -1829,3 +1829,17 @@ the UI reads as contradictory even when the underlying action worked.
 - **Language note:** no new Mighty compiler gap surfaced. This remains a
   shim-side state model, but a future Mighty UI toolkit should make stateful
   notification channels explicit instead of relying on message-pattern grouping.
+
+### L111. Human-click harnesses need stable in-process dialog scripts **[finding, P2]**
+One end-to-end run now verifies Welcome New File, Explorer New File, Open File,
+Save As, Open Folder, and bottom-dock resizing through posted mouse/key events.
+That exposed a harness realism issue: a launched process cannot observe later
+environment-variable changes from the parent shell, so multiple dialog picks in
+one session need a deterministic in-process sequence.
+
+- **IDE note:** the new-file dialog test hook can consume a `|`-separated pick
+  sequence, and the Windows harness now drives the visible bottom-dock handle
+  with mouse down/move/up events instead of relying only on unit geometry.
+- **Language note:** no new Mighty compiler gap surfaced. The work reinforces
+  the current boundary: Mighty dispatches scalar UI intents, while the Rust shim
+  owns native dialogs, physical input geometry, and drag-state details.
