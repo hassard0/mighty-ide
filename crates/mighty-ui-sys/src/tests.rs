@@ -3829,6 +3829,36 @@ fn markdown_preview_header_close_hit_collapses_preview() {
 }
 
 #[test]
+fn problems_header_close_hit_collapses_panel_with_feedback() {
+    use crate::ffi::MuiEvent;
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    ctx.gpu.phys_width = 0;
+    ctx.gpu.phys_height = 0;
+    ctx.sidebar_visible = false;
+    ctx.problems.set_open(true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let (x, y, w, hrect) = crate::layout::dock_close_rect(ctx.gpu.width, ctx.gpu.height);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect * 0.5,
+        0,
+    );
+
+    assert_eq!(crate::navsurfaces::mui_problems_close_at_click(h), 1);
+    assert_eq!(crate::navsurfaces::mui_problems_toggle(h), 0);
+    assert_eq!(crate::navsurfaces::mui_problems_is_open(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Problems panel closed");
+}
+
+#[test]
 fn markdown_preview_rejects_non_markdown_active_file() {
     let mut ctx = ctx_or_skip!();
     ctx.language = crate::langdetect::Language::Mighty;

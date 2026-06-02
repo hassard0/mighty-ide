@@ -622,6 +622,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Bottom dock ")
         || m.starts_with("No bottom dock ")
         || m.starts_with("Sidebar ")
+        || m.starts_with("Problems panel ")
     {
         Some(OperationKey::Layout)
     } else {
@@ -891,6 +892,11 @@ mod tests {
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Sidebar resized to 310px");
         assert!(!q.toasts().iter().any(|t| t.message == "Dock resized to 228px"));
+
+        q.push_at(Kind::Info, "Problems panel closed", t0 + Duration::from_millis(1650));
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Problems panel closed");
+        assert!(!q.toasts().iter().any(|t| t.message == "Sidebar resized to 310px"));
 
         q.push_at(Kind::Info, "Markdown preview opened", t0 + Duration::from_millis(1700));
         q.push_at(Kind::Info, "Markdown preview closed", t0 + Duration::from_millis(1800));

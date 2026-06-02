@@ -245,6 +245,7 @@ pub extern "C" fn mui_problems_toggle(handle: i64) -> i32 {
     if open {
         1
     } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Problems panel closed");
         0
     }
 }

@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Problems panel close now confirms the mouse action**: clicking the Problems
+  dock header X now reports `Problems panel closed`, so the visible close
+  control no longer collapses a dock without feedback.
 - **Markdown preview lifecycle is now visible**: opening the preview reports
   `Markdown preview opened`, and closing it from the pane header reports
   `Markdown preview closed` instead of silently collapsing the split.

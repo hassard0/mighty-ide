@@ -4495,3 +4495,17 @@ click.
 - **Language note:** no compiler gap surfaced. Mighty needs typed lifecycle
   outcomes shared by palette, keyboard, and mouse actions so pane-local controls
   cannot silently diverge from command behavior.
+
+### L314. Bottom-dock panels need shared close semantics **[finding, P2]**
+The shared dock close button acknowledged `Bottom dock closed`, but the Problems
+panel reused a dock-shaped header X through a separate toggle path and closed
+without feedback. A user clicking two visually similar X controls should not get
+two different outcome policies.
+
+- **IDE note:** closing the Problems panel through its visible header X now
+  routes through the toggle path with a `Problems panel closed` toast, and layout
+  toasts replace older dock/sidebar/problem-panel feedback. Tests cover the
+  header close hit plus the resulting feedback.
+- **Language note:** no compiler gap surfaced. Mighty needs a reusable
+  dock-panel action contract so each panel cannot independently decide whether
+  close/open operations report outcomes.
