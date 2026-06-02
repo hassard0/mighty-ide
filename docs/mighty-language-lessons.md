@@ -4801,3 +4801,16 @@ felt like guessing at invisible edges.
 - **Language note:** no compiler bug surfaced. Mighty UI should expose reusable
   resize-grip primitives with normal, hover, dragging, disabled, and orientation
   states so custom panel chrome does not reimplement affordance drawing.
+
+L334. Modal rows need measured text budgets. Settings rows looked fine at the
+default desktop size, but their left labels/descriptions were drawn without
+reserving the right control column, so narrow windows could let text run under
+toggles, steppers, or chips.
+
+- **IDE note:** Settings now computes the right-side control geometry before
+  drawing row text, ellipsizes labels/descriptions against the remaining budget,
+  and measures the footer label instead of estimating by character count.
+- **Language note:** no compiler bug surfaced. Mighty UI needs reusable
+  constraint helpers for row layouts: measured leading text, reserved trailing
+  controls, ellipsis policy, and shared hit geometry from one declarative row
+  spec.

@@ -383,6 +383,10 @@ impl SettingsPanel {
 
             // Label + description (left).
             let txt_x = box_x + 22.0;
+            let val = Self::value_str(&cur, row);
+            let ctrl_right = box_x + box_w - 22.0;
+            let control_left = control_left_for_row(row, &val, box_x, box_w);
+            let text_max = (control_left - 14.0 - txt_x).max(0.0);
             let compact_row = row_h < 42.0;
             let label_y = if compact_row {
                 ry + (row_h - 14.0) * 0.5 - 1.0
@@ -391,15 +395,15 @@ impl SettingsPanel {
             };
             let label_col = if row_disabled { theme::TEXT_1() } else { theme::TEXT() };
             let desc_col = if row_disabled { theme::TEXT_3() } else { theme::OVERLAY_MUTED() };
-            ctx.text.queue_ui_sized(txt_x, label_y, row.label(), label_col, 14.0, clip);
+            let label = fit_ui_text(&mut ctx.text, row.label(), text_max, 14.0);
+            ctx.text.queue_ui_sized(txt_x, label_y, &label, label_col, 14.0, clip);
             if !compact_row {
-                ctx.text.queue_ui_sized(txt_x, ry + 27.0, row.desc(), desc_col, 11.5, clip);
+                let desc = fit_ui_text(&mut ctx.text, row.desc(), text_max, 11.5);
+                ctx.text.queue_ui_sized(txt_x, ry + 27.0, &desc, desc_col, 11.5, clip);
             }
 
             // Control (right): a stepper for numeric rows, an on/off pill for
             // toggles, a value chip + cycle hint for the theme.
-            let val = Self::value_str(&cur, row);
-            let ctrl_right = box_x + box_w - 22.0;
             let val_col = if row_disabled {
                 theme::TEXT_3()
             } else if selected {
@@ -466,8 +470,9 @@ impl SettingsPanel {
         ctx.dl_rect(box_x + 1.0, foot_y, box_w - 2.0, 1.0, theme::BORDER());
         let fty = foot_y + (foot_h - 11.0) * 0.5;
         let tag = "Mighty Settings";
+        let (tag_w, _) = ctx.text.measure_ui_sized(tag, 11.0);
         ctx.text.queue_ui_sized(
-            box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3,
+            box_x + box_w - 18.0 - tag_w,
             fty,
             tag,
             theme::ACCENT_BRIGHT(),
@@ -475,6 +480,45 @@ impl SettingsPanel {
             clip,
         );
     }
+}
+
+fn control_left_for_row(row: RowId, val: &str, box_x: f32, box_w: f32) -> f32 {
+    let ctrl_right = box_x + box_w - 22.0;
+    if row.is_numeric() {
+        let step = 22.0;
+        let plus_x = ctrl_right - step;
+        let val_w = val.chars().count() as f32 * 7.5;
+        let val_x = plus_x - 14.0 - val_w;
+        val_x - 14.0 - step
+    } else if row == RowId::Theme {
+        let chip_w = (val.chars().count() as f32 * 7.2 + 24.0).max(60.0);
+        ctrl_right - chip_w
+    } else {
+        ctrl_right - 42.0
+    }
+}
+
+fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    if max_px < 8.0 || s.is_empty() {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let suffix = "...";
+    let suffix_w = text.measure_ui_sized(suffix, size).0;
+    if suffix_w > max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    for keep in (1..chars.len()).rev() {
+        let mut candidate: String = chars.iter().take(keep).collect();
+        candidate.push_str(suffix);
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            return candidate;
+        }
+    }
+    suffix.to_string()
 }
 
 fn on_off(b: bool) -> String {
@@ -589,6 +633,19 @@ mod tests {
 
         // A miss outside the card is reported as a miss so Mighty can dismiss it.
         assert_eq!(p.click(box_x - 2.0, list_top + 20.0, 900, 760), 0);
+    }
+
+    #[test]
+    fn row_text_budget_stays_left_of_controls_on_narrow_panels() {
+        let p = SettingsPanel::new();
+        let (box_x, _box_y, box_w, _box_h, _list_top, _row_h, _top, _shown) = p.geometry(320, 560);
+        let txt_x = box_x + 22.0;
+        for row in RowId::ALL {
+            let val = SettingsPanel::value_str(&Settings::default(), row);
+            let control_left = control_left_for_row(row, &val, box_x, box_w);
+            let text_right = txt_x + (control_left - 14.0 - txt_x).max(0.0);
+            assert!(text_right <= control_left - 14.0 + f32::EPSILON);
+        }
     }
 
     #[test]
