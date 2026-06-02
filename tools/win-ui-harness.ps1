@@ -183,6 +183,10 @@ if (-not $configWasSet) {
   $env:MUI_CONFIG_DIR = Join-Path $OutDir "config"
   New-Dir $env:MUI_CONFIG_DIR
 }
+$termProbeWasSet = [bool]$env:MUI_TERM_PROBE_TEXT
+if (-not $termProbeWasSet) { $env:MUI_TERM_PROBE_TEXT = "MUIHARNESS_TERM_OK" }
+$termVisibleProbeWasSet = [bool]$env:ZZZ_MUI_TERM_PROBE_TEXT
+if (-not $termVisibleProbeWasSet) { $env:ZZZ_MUI_TERM_PROBE_TEXT = $env:MUI_TERM_PROBE_TEXT }
 
 $report = [System.Collections.Generic.List[string]]::new()
 function Log($m) { $line = "[{0}] {1}" -f ((Get-Date).ToString('HH:mm:ss.fff')), $m; $report.Add($line); Write-Host $line }
@@ -199,6 +203,8 @@ function Finish-Harness($proc) {
   Remove-Item Env:\MUI_OPEN_FILE_PICK -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_OPEN_FILE_PICK_SEQUENCE -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_OPEN_FOLDER_PICK -ErrorAction SilentlyContinue
+  if (-not $termProbeWasSet) { Remove-Item Env:\MUI_TERM_PROBE_TEXT -ErrorAction SilentlyContinue }
+  if (-not $termVisibleProbeWasSet) { Remove-Item Env:\ZZZ_MUI_TERM_PROBE_TEXT -ErrorAction SilentlyContinue }
   if (-not $traceWasSet) { Remove-Item Env:\MUI_TRACE -ErrorAction SilentlyContinue }
   if (-not $configWasSet) { Remove-Item Env:\MUI_CONFIG_DIR -ErrorAction SilentlyContinue }
   Remove-Item -LiteralPath $searchPath -Force -ErrorAction SilentlyContinue
@@ -1174,6 +1180,27 @@ if ($env:MUI_TRACE) {
     $script:HarnessFailed = $true
   }
 }
+
+# === TERMINAL: open the real PTY, type a command, and verify visible output. ===
+Invoke-PaletteCommand "view terminal" $null
+Start-Sleep -Milliseconds 900
+$termProbeCount = Trace-MatchCount "(?m)^terminal_probe text=MUIHARNESS_TERM_OK$"
+Type-Text $hwnd "set"
+Start-Sleep -Milliseconds 150
+Press-VK $hwnd 0x0D
+Start-Sleep -Milliseconds 1200
+Capture $hwnd "21-terminal-echo"
+if ($env:MUI_TRACE) {
+  if (Wait-TraceCountGreaterThan "(?m)^terminal_probe text=MUIHARNESS_TERM_OK$" $termProbeCount 3500) {
+    Log "TERMINAL-MOUSE: command output appeared in the visible terminal grid"
+  } else {
+    Log "TERMINAL-MOUSE: missing visible terminal output trace"
+    $script:HarnessFailed = $true
+  }
+}
+Invoke-PaletteCommand "close bottom dock" $null
+Start-Sleep -Milliseconds 250
+
 Invoke-PaletteCommand "view ai copilot" $null
 if ($env:MUI_TRACE) {
   [void](Wait-TraceContainsAll @("(?m)^ai_open$") 1800)

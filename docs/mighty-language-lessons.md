@@ -4086,3 +4086,17 @@ which is a weak affordance for a project-wide write.
 - **Language note:** no compiler gap surfaced. Mighty needs declarative command
   state for destructive actions so enabled/disabled visuals, click routing,
   confirmation policy, and harness evidence share one source of truth.
+
+### L285. Runtime surfaces need visible-output probes **[finding, P1]**
+The integrated terminal had a PTY-backed implementation and parser tests, but
+the Windows real-mouse harness did not prove that a command typed through the UI
+actually reached the shell and rendered back into the visible grid. Opening a
+terminal is weaker evidence than seeing command output in the shipped surface.
+
+- **IDE note:** the terminal pump can now trace an environment-selected probe
+  string when it appears in the visible grid, and the strict Windows harness
+  opens Terminal, runs `set`, captures the dock, and waits for the inherited
+  `MUI_TERM_PROBE_TEXT` value to appear in the visible-grid trace.
+- **Language note:** no compiler gap surfaced. Mighty needs a testable runtime
+  surface contract for embedded tools so terminal/web/run panels can expose
+  concise state and visible-output evidence without bespoke shim hooks.

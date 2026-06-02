@@ -6334,6 +6334,11 @@ pub extern "C" fn mui_term_pump(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         if let Some(t) = ctx.terminal.as_mut() {
             t.pump();
+            if let Ok(probe) = std::env::var("MUI_TERM_PROBE_TEXT") {
+                if !probe.is_empty() && t.visible_contains(&probe) {
+                    crate::abi::trace(&format!("terminal_probe text={probe}"));
+                }
+            }
         }
     }
 }

@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Integrated Terminal is covered by real command output**: the Windows harness
+  now opens the terminal from the command palette, runs `set` in the real PTY,
+  captures the dock, and verifies the inherited probe environment value reached
+  the visible terminal grid.
 - **Project Search replace is safer and tested by mouse**: the Search panel's
   replace-all button now only becomes active when the current search has real
   matches, uses the replace icon instead of a generic checkmark, and the Windows

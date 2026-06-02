@@ -222,8 +222,7 @@ impl Grid {
         out
     }
 
-    /// Whether any row contains `needle` (test helper).
-    #[cfg(test)]
+    /// Whether any row contains `needle`.
     pub fn contains(&self, needle: &str) -> bool {
         for r in 0..self.rows {
             let row: String = (0..self.cols).map(|c| self.cell(r, c).ch).collect();
@@ -646,6 +645,10 @@ impl Terminal {
 
     pub fn grid(&self) -> &Grid {
         &self.grid
+    }
+
+    pub fn visible_contains(&self, needle: &str) -> bool {
+        self.grid.contains(needle)
     }
 
     /// Drain any pending PTY output through the parser into the grid. Cheap when
