@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Sidebar toggle now confirms the layout change**: Ctrl+B and palette/sidebar
+  toggle routes now toast `Sidebar opened` or `Sidebar closed`, so a major
+  drawer visibility change has the same clear feedback as explicit close and
+  size commands.
 - **Dock preset buttons now acknowledge clicks**: the visible compact/default/
   expanded buttons in the lower dock header now show the same feedback as the
   command-palette dock actions, so a successful resize does not feel like a

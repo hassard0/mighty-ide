@@ -5801,8 +5801,12 @@ pub extern "C" fn mui_sidebar_toggle(handle: i64) -> i32 {
     };
     ctx.sidebar_visible = !ctx.sidebar_visible;
     if ctx.sidebar_visible {
+        ctx.push_toast(crate::toast::Kind::Info, "Sidebar opened");
+        trace("sidebar_toggle opened");
         1
     } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Sidebar closed");
+        trace("sidebar_toggle closed");
         0
     }
 }

@@ -1017,6 +1017,27 @@ fn sidebar_layout_commands_open_and_resize_sidebar() {
 }
 
 #[test]
+fn sidebar_toggle_acknowledges_open_and_close() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.sidebar_visible = true;
+    assert_eq!(crate::abi::mui_sidebar_toggle(handle), 0);
+    assert!(!ctx.sidebar_visible);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Sidebar closed"
+    );
+
+    assert_eq!(crate::abi::mui_sidebar_toggle(handle), 1);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Sidebar opened"
+    );
+}
+
+#[test]
 fn sidebar_resize_visible_grip_stays_subtle() {
     assert_eq!(crate::abi::sidebar_resize_grip_height(700.0), 42.0);
     assert_eq!(crate::abi::sidebar_resize_grip_height(72.0), 24.0);

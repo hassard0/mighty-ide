@@ -4351,3 +4351,14 @@ state acknowledgement.
 - **Language note:** no compiler gap surfaced. Mighty needs a command metadata
   layer where visible controls and palette commands share one action definition,
   including state mutation, toast/feedback policy, and tests.
+
+### L303. Layout visibility commands need explicit state feedback **[finding, P2]**
+Sidebar toggle changed a large part of the interface but did not acknowledge the
+new state. Explicit close and width-preset commands already pushed feedback, so
+the generic toggle felt less reliable even though it worked.
+
+- **IDE note:** sidebar toggle now pushes `Sidebar opened` or `Sidebar closed`
+  and traces the direction. A focused test pins both directions.
+- **Language note:** no compiler gap surfaced. This is another case for shared
+  command metadata: toggles should expose their resulting state and feedback
+  text from one definition used by shortcuts, palette rows, and visible chrome.
