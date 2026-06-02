@@ -12,11 +12,12 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
-- **Source Control workflows are now mouse-verified in an isolated repo**: the
-  Windows harness opens a temporary git workspace through the native folder
-  picker, clicks row stage/unstage affordances, runs Stage All / Unstage All
-  from the command palette, types a commit message, and clicks the visible
-  header commit button while asserting the git repo ends clean.
+- **Source Control now follows the folder users actually open**: switching
+  workspaces resets git-root discovery before refresh, so the SCM panel no
+  longer stages or commits against a stale repository. The Windows harness opens
+  a temporary git workspace through the native folder picker, clicks row
+  stage/unstage, runs Stage All / Unstage All, commits with the visible header
+  button, and asserts both traces and the isolated repo state.
 - **Multi-cursor gestures are now real-user verified**: the Windows harness opens
   fresh editors, drives `Ctrl+D`, `Ctrl+Alt+Up`, Alt+Click, and multi-caret
   typing, then asserts shim traces and captures the visible editor state.

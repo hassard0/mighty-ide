@@ -817,6 +817,26 @@ function Wait-TraceLiteralContains($needle, $timeoutMs) {
   return $false
 }
 
+function Wait-GitCachedNames($repoPath, $timeoutMs) {
+  $deadline = (Get-Date).AddMilliseconds($timeoutMs)
+  while ((Get-Date) -lt $deadline) {
+    $names = @(& git -C $repoPath diff --cached --name-only 2>$null)
+    if ($names.Count -gt 0) { return $names }
+    Start-Sleep -Milliseconds 100
+  }
+  return @()
+}
+
+function Wait-GitCachedEmpty($repoPath, $timeoutMs) {
+  $deadline = (Get-Date).AddMilliseconds($timeoutMs)
+  while ((Get-Date) -lt $deadline) {
+    $names = @(& git -C $repoPath diff --cached --name-only 2>$null)
+    if ($names.Count -eq 0) { return $true }
+    Start-Sleep -Milliseconds 100
+  }
+  return $false
+}
+
 # === TITLEBAR COMMAND CENTER: click the visible Quick Open pill in the empty tab strip. ===
 $commandCenterX = [math]::Min(($logicalW - 3 * 46 - 68 - 24), [math]::Max(520, $logicalW * 0.64))
 $commandCenterBefore = Trace-MatchCount "topbar_action .* -> command-center"
@@ -1206,47 +1226,58 @@ foreach ($ic in $rail) {
       }
     }
     if ($gitAvailable) {
-      $toggleBefore = Trace-MatchCount "(?m)^scm_toggle_stage ok=1"
+      $repoNeedle = "root=$($script:scmRepoPath.Replace('\', '/'))"
       ClickL 280 127
       Start-Sleep -Milliseconds 550
       if ($env:MUI_TRACE) {
-        if (Wait-TraceCountGreaterThan "(?m)^scm_toggle_stage ok=1" $toggleBefore 2500) {
+        if (Wait-TraceLiteralContains "scm_toggle_stage ok=1 idx=0 staged=1 unstaged=1 $repoNeedle" 12000) {
           Log "SCM-ROW-STAGE-MOUSE: visible row plus staged one change in isolated repo"
         } else {
           Log "SCM-ROW-STAGE-MOUSE: missing visible row stage trace"
           $script:HarnessFailed = $true
         }
       }
-      $toggleBefore = Trace-MatchCount "(?m)^scm_toggle_stage ok=1"
       ClickL 280 127
       Start-Sleep -Milliseconds 550
       if ($env:MUI_TRACE) {
-        if (Wait-TraceCountGreaterThan "(?m)^scm_toggle_stage ok=1" $toggleBefore 2500) {
+        if (Wait-TraceLiteralContains "scm_toggle_stage ok=1 idx=0 staged=0 unstaged=2 $repoNeedle" 12000) {
           Log "SCM-ROW-UNSTAGE-MOUSE: visible row minus unstaged one change in isolated repo"
         } else {
           Log "SCM-ROW-UNSTAGE-MOUSE: missing visible row unstage trace"
           $script:HarnessFailed = $true
         }
       }
-      $stageAllBefore = Trace-MatchCount "(?m)^scm_stage_all ok=1"
       Invoke-PaletteCommand "git stage all" $null
       if ($env:MUI_TRACE) {
-        if (Wait-TraceCountGreaterThan "(?m)^scm_stage_all ok=1 staged=2 unstaged=0" $stageAllBefore 3500) {
+        if (Wait-TraceLiteralContains "scm_stage_all ok=1 staged=2 unstaged=0 $repoNeedle" 12000) {
           Log "SCM-STAGE-ALL-COMMAND: command palette staged tracked and untracked changes"
         } else {
           Log "SCM-STAGE-ALL-COMMAND: missing stage-all trace"
           $script:HarnessFailed = $true
         }
       }
-      $unstageAllBefore = Trace-MatchCount "(?m)^scm_unstage_all ok=1"
+      $cached = @(Wait-GitCachedNames $script:scmRepoPath 2500)
+      if (($cached -contains "tracked.mty") -and ($cached -contains "fresh.mty")) {
+        Log "SCM-STAGE-ALL-COMMAND: git index contains tracked and untracked files"
+      } else {
+        Log "SCM-STAGE-ALL-COMMAND: git index missing expected files '$($cached -join ',')'"
+        $script:HarnessFailed = $true
+      }
       Invoke-PaletteCommand "git unstage all" $null
       if ($env:MUI_TRACE) {
-        if (Wait-TraceCountGreaterThan "(?m)^scm_unstage_all ok=1 staged=0 unstaged=2" $unstageAllBefore 3500) {
+        if (Wait-TraceLiteralContains "scm_unstage_all ok=1 staged=0 unstaged=2 $repoNeedle" 12000) {
           Log "SCM-UNSTAGE-ALL-COMMAND: command palette unstaged all changes"
         } else {
           Log "SCM-UNSTAGE-ALL-COMMAND: missing unstage-all trace"
           $script:HarnessFailed = $true
         }
+      }
+      if (Wait-GitCachedEmpty $script:scmRepoPath 2500) {
+        Log "SCM-UNSTAGE-ALL-COMMAND: git index is empty after command"
+      } else {
+        $cached = @(& git -C $script:scmRepoPath diff --cached --name-only 2>$null)
+        Log "SCM-UNSTAGE-ALL-COMMAND: git index still has '$($cached -join ',')'"
+        $script:HarnessFailed = $true
       }
       Invoke-PaletteCommand "git stage all" $null
       ClickL 120 63
@@ -1260,7 +1291,8 @@ foreach ($ic in $rail) {
       Capture $hwnd "20-scm-committed"
       if ($env:MUI_TRACE) {
         if ((Wait-TraceCountGreaterThan "(?m)^scm_header action=commit$" $commitHeaderBefore 2500) -and
-            (Wait-TraceCountGreaterThan "(?m)^scm_commit ok=1 staged=0 unstaged=0" $commitBefore 3500)) {
+            (Wait-TraceCountGreaterThan "(?m)^scm_commit ok=1 staged=0 unstaged=0" $commitBefore 3500) -and
+            (Wait-TraceLiteralContains $repoNeedle 1000)) {
           Log "SCM-COMMIT-MOUSE: visible header check committed staged changes"
         } else {
           Log "SCM-COMMIT-MOUSE: missing header commit or clean-status trace"

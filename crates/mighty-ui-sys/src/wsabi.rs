@@ -199,6 +199,7 @@ fn open_recent_folder(ctx: &mut MuiContext, path: &std::path::Path) -> i32 {
 /// free.) Returns the indexed file count (for the test signal).
 pub(crate) fn refresh_dependents(ctx: &mut MuiContext, root: &std::path::Path) -> i32 {
     let n = ctx.quickopen.ensure_index(root, true);
+    ctx.scm.root = None;
     let _ = ctx.scm.refresh(root);
     // Re-scan the Agents topology against the new root (mirrors
     // `agentsabi::mui_agents_refresh`, inlined to avoid re-aliasing the borrow).

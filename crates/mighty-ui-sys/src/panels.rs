@@ -96,6 +96,14 @@ fn workspace_dir(ctx: &MuiContext) -> std::path::PathBuf {
     crate::wsabi::effective_root(ctx)
 }
 
+fn scm_trace_root(ctx: &MuiContext) -> String {
+    ctx.scm
+        .root
+        .as_ref()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "<none>".to_string())
+}
+
 // ===========================================================================
 // Source Control panel — git status / stage / commit (shim shells to git)
 // ===========================================================================
@@ -115,8 +123,10 @@ pub extern "C" fn mui_scm_refresh(handle: i64) -> i32 {
         ctx.scm.status.branch, ctx.scm.status.ahead, ctx.scm.status.behind, n
     );
     crate::abi::trace(&format!(
-        "scm_refresh branch=\"{}\" changes={}",
-        ctx.scm.status.branch, n
+        "scm_refresh branch=\"{}\" changes={} root={}",
+        ctx.scm.status.branch,
+        n,
+        scm_trace_root(ctx)
     ));
     n
 }
@@ -193,8 +203,9 @@ pub extern "C" fn mui_scm_toggle_stage(handle: i64, i: i32) -> i32 {
     let staged = ctx.scm.status.staged_count();
     let unstaged = ctx.scm.status.unstaged_count();
     crate::abi::trace(&format!(
-        "scm_toggle_stage ok={} idx={i} staged={staged} unstaged={unstaged}",
-        i32::from(ok)
+        "scm_toggle_stage ok={} idx={i} staged={staged} unstaged={unstaged} root={}",
+        i32::from(ok),
+        scm_trace_root(ctx)
     ));
     if ok {
         1
@@ -217,8 +228,9 @@ pub extern "C" fn mui_scm_stage_all(handle: i64) -> i32 {
     let staged = ctx.scm.status.staged_count();
     let unstaged = ctx.scm.status.unstaged_count();
     crate::abi::trace(&format!(
-        "scm_stage_all ok={} staged={staged} unstaged={unstaged}",
-        i32::from(ok)
+        "scm_stage_all ok={} staged={staged} unstaged={unstaged} root={}",
+        i32::from(ok),
+        scm_trace_root(ctx)
     ));
     if ok {
         ctx.push_toast(crate::toast::Kind::Success, "Staged all changes");
@@ -243,8 +255,9 @@ pub extern "C" fn mui_scm_unstage_all(handle: i64) -> i32 {
     let staged = ctx.scm.status.staged_count();
     let unstaged = ctx.scm.status.unstaged_count();
     crate::abi::trace(&format!(
-        "scm_unstage_all ok={} staged={staged} unstaged={unstaged}",
-        i32::from(ok)
+        "scm_unstage_all ok={} staged={staged} unstaged={unstaged} root={}",
+        i32::from(ok),
+        scm_trace_root(ctx)
     ));
     if ok {
         ctx.push_toast(crate::toast::Kind::Success, "Unstaged all changes");
@@ -313,8 +326,9 @@ pub extern "C" fn mui_scm_commit(handle: i64) -> i32 {
     let staged = ctx.scm.status.staged_count();
     let unstaged = ctx.scm.status.unstaged_count();
     crate::abi::trace(&format!(
-        "scm_commit ok={} staged={staged} unstaged={unstaged}",
-        i32::from(ok)
+        "scm_commit ok={} staged={staged} unstaged={unstaged} root={}",
+        i32::from(ok),
+        scm_trace_root(ctx)
     ));
     if ok {
         println!("scm: committed");
