@@ -3323,3 +3323,14 @@ one scale and missed at another.
 - **Language note:** no compiler gap surfaced. A future Mighty UI layer should
   make testable layout rects first-class so user-facing widgets, hit tests, and
   harness clicks can share one source of truth.
+
+### L224. Placeholder and caret geometry must be explicit in focused inputs **[finding, P2]**
+The Keyboard Shortcuts overlay drew the empty search-field caret at the same X
+as the placeholder text. The field functioned, but the first visual state looked
+sloppy and undermined confidence in the command surface.
+
+- **IDE note:** the shortcuts renderer now separates placeholder text from the
+  insertion caret while preserving typed-query alignment.
+- **Language note:** no compiler gap surfaced. Mighty UI primitives should make
+  focused-empty input geometry reusable so every search box and picker field gets
+  consistent placeholder/caret spacing.

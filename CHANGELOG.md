@@ -168,6 +168,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **AI panel mouse verification is DPI-aware**: the strict mouse harness now
   derives the visible AI close-button target from the same titlebar geometry as
   the app instead of relying on a fixed coordinate.
+- **Keyboard shortcut search is visually clean**: the empty search-field caret
+  no longer draws on top of the placeholder text.
 - **Toast timing feels less stale**: success/info notifications now clear faster
   while warning/error messages remain visible longer, so completion messages do
   not follow users into unrelated panels.

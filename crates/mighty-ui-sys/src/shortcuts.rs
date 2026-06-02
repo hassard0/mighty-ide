@@ -816,7 +816,8 @@ impl ShortcutsEngine {
         // ---- search / filter field ----
         ctx.dl_rect(box_x + 1.0, box_y + search_h - 1.0, box_w - 2.0, 1.0, theme::BORDER());
         ctx.dl_icon(box_x + 18.0, box_y + (search_h - 20.0) * 0.5, 20.0, 20.0, icons::SEARCH, theme::DIM(), 1.7, false);
-        let q_text_x = box_x + 50.0;
+        let q_text_base_x = box_x + 50.0;
+        let q_text_x = search_field_text_x(q_text_base_x, self.query.is_empty());
         let qy = box_y + (search_h - 16.0) * 0.5 - 1.0;
         let (q_str, q_color): (&str, _) = if self.query.is_empty() {
             (if box_w < 360.0 { "Search\u{2026}" } else { "Search keyboard shortcuts\u{2026}" }, theme::TEXT_3())
@@ -825,7 +826,7 @@ impl ShortcutsEngine {
         };
         ctx.text.queue_ui_sized(q_text_x, qy, q_str, q_color, 16.0, clip);
         let qadv = 16.0 * 0.52;
-        let caret_x = q_text_x + self.query.chars().count() as f32 * qadv + 1.0;
+        let caret_x = q_text_base_x + self.query.chars().count() as f32 * qadv + 1.0;
         ctx.dl_round(caret_x, box_y + (search_h - 18.0) * 0.5, 2.0, 18.0, 1.0, theme::ACCENT_BRIGHT());
         let (cx, cy, cw, ch) = self.close_rect(width, height);
         ctx.dl_round(cx, cy, cw, ch, 6.0, theme::BG_2());
@@ -919,6 +920,14 @@ impl ShortcutsEngine {
         }
         let tag = "Mighty Shortcuts";
         ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
+    }
+}
+
+fn search_field_text_x(base_x: f32, is_placeholder: bool) -> f32 {
+    if is_placeholder {
+        base_x + 10.0
+    } else {
+        base_x
     }
 }
 
@@ -1232,5 +1241,12 @@ mod tests {
         assert_eq!(shortcut_row_affordance(true, true, 420.0), "Enter");
         assert_eq!(shortcut_row_affordance(true, false, 620.0), "");
         assert_eq!(shortcut_row_affordance(false, true, 420.0), "fixed");
+    }
+
+    #[test]
+    fn empty_search_placeholder_does_not_overlap_caret() {
+        let base = 300.0;
+        assert_eq!(search_field_text_x(base, false), base);
+        assert!(search_field_text_x(base, true) >= base + 8.0);
     }
 }
