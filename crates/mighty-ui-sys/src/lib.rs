@@ -299,6 +299,8 @@ pub struct MuiContext {
     /// strip and jump the editor to the corresponding source line. Updated each
     /// frame by the minimap draw; `None` when the minimap is hidden / too narrow.
     pub(crate) minimap_geom: Option<colorize::MinimapGeom>,
+    /// Screenshot-only override used by the minimap gallery fixture.
+    pub(crate) force_minimap_visible: bool,
 
     // ---- Vello proof (MUI_VELLO_PROOF=1; Phase 1 renderer upgrade) ----
     /// When `MUI_VELLO_PROOF` is set, [`render_and_present`] renders a static
@@ -877,6 +879,7 @@ pub(crate) fn build_context(
         ed_redo: Vec::new(),
         edit_probe_lock: false,
         minimap_geom: None,
+        force_minimap_visible: false,
         vello_proof: None,
         dl: vello_ui::DisplayList::default(),
         vello_ui: None,
@@ -1559,6 +1562,7 @@ impl MuiContext {
             ed_redo: Vec::new(),
             edit_probe_lock: false,
             minimap_geom: None,
+            force_minimap_visible: false,
             vello_proof: None,
             dl: vello_ui::DisplayList::default(),
             vello_ui: None,

@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Minimap gallery captures always show the minimap**: the screenshot-only
+  minimap autoopen hook now forces the minimap preference on while seeding its
+  tall demo buffer, and compact editor panes use a slimmer strip anchored to the
+  visible pane edge so audits cannot silently capture a no-minimap editor.
 - **Overlay geometry honors screenshot-visible bounds**: shared visible-surface
   sizing now caps to the screenshot/window override dimensions, so compact
   popups such as Code Actions do not measure against a wider offscreen surface

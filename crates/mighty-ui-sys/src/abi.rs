@@ -1512,6 +1512,7 @@ filename src/main.mty
     if std::env::var_os("MUI_MINIMAP_AUTOOPEN").is_some() {
         if let Some(ctx) = unsafe { ctx(handle) } {
             use crate::editor::TextModel;
+            crate::settings::update(|s| s.minimap = true);
             let mut src = String::from("// minimap.mty \u{2014} a tall file for the minimap viewport.\n");
             for i in 0..160 {
                 src.push_str(&format!(
@@ -1524,6 +1525,7 @@ filename src/main.mty
             m.set_first_visible(280);
             ctx.welcome.dismiss();
             ctx.edit_probe_lock = true;
+            ctx.force_minimap_visible = true;
         }
         println!("mui_init_s: MUI_MINIMAP_AUTOOPEN -> tall demo seeded");
     }
@@ -10188,7 +10190,9 @@ pub extern "C" fn mui_minimap_width(handle: i64) -> f32 {
 /// a split it draws every pane into its column via [`draw_editor_pane`], plus the
 /// 1px dividers between them. See `crate::panes`.
 pub(crate) const MINIMAP_W: f32 = 70.0;
-pub(crate) const MINIMAP_MIN_PANE_W: f32 = 260.0;
+pub(crate) const MINIMAP_COMPACT_W: f32 = 40.0;
+pub(crate) const MINIMAP_COMPACT_PANE_W: f32 = 320.0;
+pub(crate) const MINIMAP_MIN_PANE_W: f32 = 220.0;
 pub(crate) const MINIMAP_SPLIT_MIN_PANE_W: f32 = 420.0;
 
 pub(crate) fn should_show_minimap(pref_on: bool, split_chrome: bool, focused: bool, pane_w: f32) -> bool {
@@ -10201,6 +10205,14 @@ pub(crate) fn should_show_minimap(pref_on: bool, split_chrome: bool, focused: bo
         MINIMAP_MIN_PANE_W
     };
     pane_w >= min_w
+}
+
+pub(crate) fn minimap_width_for_pane(pane_w: f32) -> f32 {
+    if pane_w < MINIMAP_COMPACT_PANE_W {
+        MINIMAP_COMPACT_W
+    } else {
+        MINIMAP_W
+    }
 }
 
 #[no_mangle]
@@ -10395,9 +10407,20 @@ fn draw_editor_pane(
     // suppressed on UNFOCUSED panes and on narrow split columns where it would
     // cover source text instead of helping navigation.
     let pane_w = (x_right - region.left).max(0.0);
-    let minimap_on = should_show_minimap(crate::settings::minimap(), split_chrome, focused, pane_w);
-    let mm_w = if minimap_on { MINIMAP_W } else { 0.0_f32 };
-    let mm_x = win_w - mm_w;
+    let minimap_on = should_show_minimap(
+        ctx.force_minimap_visible || crate::settings::minimap(),
+        split_chrome,
+        focused,
+        pane_w,
+    );
+    let mm_w = if minimap_on { minimap_width_for_pane(pane_w) } else { 0.0_f32 };
+    let mm_x = x_right - mm_w;
+    let source_clip = Some((
+        region.left.max(0.0) as u32,
+        region.top.max(0.0) as u32,
+        (mm_x - region.left).max(0.0) as u32,
+        (win_h - 30.0 - region.top).max(0.0) as u32,
+    ));
 
     // 1) Current-line highlight band (only when the cursor row is visible), with
     //    a soft indigo left→clear gradient glow + a 2px indigo left edge.
@@ -10546,10 +10569,10 @@ fn draw_editor_pane(
                         sp.color,
                         theme::FONT_SIZE(),
                         crate::vello_ui::FontStyle::Italic,
-                        clip,
+                        source_clip,
                     );
                 } else {
-                    ctx.text.queue(x, y, &frag, sp.color, clip);
+                    ctx.text.queue(x, y, &frag, sp.color, source_clip);
                 }
             }
         }
@@ -10731,6 +10754,8 @@ fn draw_editor_pane(
     //    `minimap_geom` is cleared on UNFOCUSED panes so clicks only hit the
     //    focused pane's strip.
     if minimap_on {
+        let old_overlay = ctx.overlay;
+        ctx.overlay = true;
         let field_top = region.top;
         let field_h = (win_h - 30.0 - field_top).max(0.0);
         // Left divider + a faint left→transparent shade.
@@ -10796,6 +10821,7 @@ fn draw_editor_pane(
         let vp_h = (vis as f32 * mm_line_h).max(6.0);
         ctx.dl_round(mm_x + 4.0, vp_y - 1.0, mm_w - 8.0, vp_h + 2.0, 3.0, theme::accent_a(0.16));
         ctx.dl_stroke(mm_x + 4.0, vp_y - 1.0, mm_w - 8.0, vp_h + 2.0, 3.0, theme::ACCENT_LINE(), 1.2);
+        ctx.overlay = old_overlay;
     } else if focused {
         ctx.minimap_geom = None;
     }

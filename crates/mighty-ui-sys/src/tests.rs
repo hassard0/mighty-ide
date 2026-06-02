@@ -3492,6 +3492,33 @@ fn minimap_hides_in_narrow_split_panes() {
 }
 
 #[test]
+fn minimap_autoopen_forces_capture_visibility() {
+    let abi = std::fs::read_to_string("src/abi.rs").expect("abi source");
+    let start = abi.find("MUI_MINIMAP_AUTOOPEN").expect("minimap autoopen hook");
+    let rest = &abi[start..];
+    let next = rest
+        .find("handle\n}")
+        .map(|i| start + i)
+        .unwrap_or(abi.len());
+    let block = &abi[start..next];
+    assert!(
+        block.contains("s.minimap = true") && block.contains("ctx.force_minimap_visible = true"),
+        "minimap capture must force the setting on so the gallery does not silently show no minimap"
+    );
+}
+
+#[test]
+fn minimap_strip_anchors_to_pane_right_edge() {
+    let x_right = 560.0;
+    let mm_w = crate::abi::minimap_width_for_pane(280.0);
+    let mm_x = x_right - mm_w;
+    assert_eq!(mm_w, crate::abi::MINIMAP_COMPACT_W);
+    assert_eq!(mm_x, 520.0);
+    assert!(mm_x + mm_w <= x_right);
+    assert_eq!(crate::abi::minimap_width_for_pane(420.0), crate::abi::MINIMAP_W);
+}
+
+#[test]
 fn editor_power_features_via_abi() {
     use crate::{
         mui_ed_backspace_smart, mui_ed_bracket_match, mui_ed_duplicate, mui_ed_insert_char,

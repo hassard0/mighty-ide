@@ -3934,3 +3934,16 @@ edge.
 - **Language note:** no compiler gap surfaced. Mighty UI needs layout primitives
   that carry authoritative visible bounds through draw, hit-test, and screenshot
   harnesses instead of recomputing them from different size sources.
+
+### L273. Feature-specific captures must control feature preferences **[finding, P2]**
+The dedicated minimap gallery case seeded a tall file and scroll position, but
+could still render no minimap when the persisted user preference had minimap
+disabled. The capture looked like a valid editor screenshot while failing to
+exercise the feature under audit.
+
+- **IDE note:** the minimap autoopen hook now forces minimap on for its
+  screenshot-only demo path, and the strip anchors to the focused pane's right
+  edge with a slimmer compact width instead of a broader render width.
+- **Language note:** no compiler gap surfaced. Mighty UI needs capture fixtures
+  that pin relevant preferences and assert the target affordance is actually
+  visible, not just that a frame was produced.
