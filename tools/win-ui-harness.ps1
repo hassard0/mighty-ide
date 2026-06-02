@@ -178,6 +178,11 @@ New-Dir $OutDir
 $traceWasSet = [bool]$env:MUI_TRACE
 if (-not $traceWasSet) { $env:MUI_TRACE = Join-Path $OutDir "trace.txt" }
 if ($env:MUI_TRACE) { Remove-Item -LiteralPath $env:MUI_TRACE -Force -ErrorAction SilentlyContinue }
+$configWasSet = [bool]$env:MUI_CONFIG_DIR
+if (-not $configWasSet) {
+  $env:MUI_CONFIG_DIR = Join-Path $OutDir "config"
+  New-Dir $env:MUI_CONFIG_DIR
+}
 
 $report = [System.Collections.Generic.List[string]]::new()
 function Log($m) { $line = "[{0}] {1}" -f ((Get-Date).ToString('HH:mm:ss.fff')), $m; $report.Add($line); Write-Host $line }
@@ -192,6 +197,7 @@ function Finish-Harness($proc) {
   Remove-Item Env:\MUI_OPEN_FILE_PICK -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_OPEN_FOLDER_PICK -ErrorAction SilentlyContinue
   if (-not $traceWasSet) { Remove-Item Env:\MUI_TRACE -ErrorAction SilentlyContinue }
+  if (-not $configWasSet) { Remove-Item Env:\MUI_CONFIG_DIR -ErrorAction SilentlyContinue }
   Remove-Item -LiteralPath $openPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $openFolderPath -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $newFolderPath -Recurse -Force -ErrorAction SilentlyContinue
@@ -541,6 +547,15 @@ function ShortcutsCloseCenter() {
   $boxX = [math]::Max(($logicalW - $boxW) * 0.5, 0.0)
   $boxY = [math]::Min(80.0, [math]::Max(($logicalH - $boxH) * 0.5, 12.0))
   return [pscustomobject]@{ X = ($boxX + $boxW - 26.0); Y = ($boxY + 28.0) }
+}
+
+function AiPanelCloseCenter() {
+  # Mirrors ai.rs close_rect(): the panel close button avoids the topbar action
+  # strip, so its X position changes with DPI-scaled logical window width.
+  $controlsX = $logicalW - (3.0 * 46.0)
+  $reservedX = $controlsX - 68.0
+  $right = [math]::Min($reservedX, $logicalW) - 10.0
+  return [pscustomobject]@{ X = ($right - 16.0); Y = 60.0 }
 }
 
 # titlebar.rs: controls_x = w - 3*46, action strip = 68, run target is the
@@ -904,7 +919,8 @@ if ($env:MUI_TRACE) {
 }
 Start-Sleep -Milliseconds 250
 $aiCloseMouseCount = Trace-MatchCount "(?m)^ai_close$"
-ClickL 700 60
+$aiClosePt = AiPanelCloseCenter
+ClickL $aiClosePt.X $aiClosePt.Y
 if (Wait-TraceCountGreaterThan "(?m)^ai_close$" $aiCloseMouseCount 1200) {
   Log "AI-CLOSE-MOUSE: visible header close trace observed"
 } else {

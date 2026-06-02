@@ -23,6 +23,13 @@ use crate::theme::ThemeId;
 
 /// Directory that holds the config file (created on save if absent).
 fn config_dir() -> Option<PathBuf> {
+    // Test/automation override: keep screenshot and strict-mouse harness state
+    // out of the human user's real settings and recents.
+    if let Some(dir) = std::env::var_os("MUI_CONFIG_DIR") {
+        if !dir.is_empty() {
+            return Some(PathBuf::from(dir));
+        }
+    }
     // Windows: %APPDATA%\mighty-ide. Else: $XDG_CONFIG_HOME or ~/.config.
     if let Some(appdata) = std::env::var_os("APPDATA") {
         return Some(PathBuf::from(appdata).join("mighty-ide"));
@@ -294,5 +301,30 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn mui_config_dir_overrides_user_appdata() {
+        let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = std::env::temp_dir().join(format!("mighty-ide-config-override-{}", std::process::id()));
+        let appdata = std::env::temp_dir().join(format!("mighty-ide-config-appdata-{}", std::process::id()));
+        let old_override = std::env::var_os("MUI_CONFIG_DIR");
+        let old_appdata = std::env::var_os("APPDATA");
+        std::env::set_var("MUI_CONFIG_DIR", &tmp);
+        std::env::set_var("APPDATA", &appdata);
+
+        assert_eq!(recent_workspaces_path(), Some(tmp.join("recent-workspaces")));
+        assert_eq!(recent_files_path(), Some(tmp.join("recent-files")));
+
+        match old_override {
+            Some(v) => std::env::set_var("MUI_CONFIG_DIR", v),
+            None => std::env::remove_var("MUI_CONFIG_DIR"),
+        }
+        match old_appdata {
+            Some(v) => std::env::set_var("APPDATA", v),
+            None => std::env::remove_var("APPDATA"),
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+        let _ = std::fs::remove_dir_all(&appdata);
     }
 }

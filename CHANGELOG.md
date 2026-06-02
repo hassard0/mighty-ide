@@ -161,6 +161,13 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Palette verification waits for real readiness**: command-surface traces now
   record palette opens, query updates, selected ids, and cancellation, and the
   strict mouse harness waits for palette-open state before typing commands.
+- **Harness recents no longer pollute the user profile**: the config layer now
+  honors `MUI_CONFIG_DIR`, and strict mouse runs use an output-local config dir
+  so temporary picker workspaces cannot appear in the real Welcome/Open Recent
+  history.
+- **AI panel mouse verification is DPI-aware**: the strict mouse harness now
+  derives the visible AI close-button target from the same titlebar geometry as
+  the app instead of relying on a fixed coordinate.
 - **Toast timing feels less stale**: success/info notifications now clear faster
   while warning/error messages remain visible longer, so completion messages do
   not follow users into unrelated panels.

@@ -3298,3 +3298,28 @@ surface, which made the failure hard to diagnose.
 - **Language note:** no compiler gap surfaced. Mighty-driven apps need cheap
   state-transition traces for modal/command surfaces so real-input harnesses can
   synchronize on product state instead of sleep timing.
+
+### L222. Automation hooks need isolated persistence, not only deterministic input **[finding, P1]**
+Strict mouse runs used deterministic picker env vars, but still wrote Open
+Folder results into the user's real recent-workspaces file. If a run timed out
+before cleanup, temporary harness workspaces could show up on the real Welcome
+screen.
+
+- **IDE note:** the config layer now honors `MUI_CONFIG_DIR`, and the Windows
+  strict-mouse harness points it at the run output directory. Harness recents,
+  keybindings, and related config artifacts stay with the test output instead of
+  leaking into `%APPDATA%/mighty-ide`.
+- **Language note:** no compiler gap surfaced. Mighty apps that expose env-based
+  automation should also expose persistence scoping, because deterministic input
+  without deterministic storage still changes the human user's state.
+
+### L223. Strict automation should consume the app's geometry contract, not folklore coordinates **[finding, P2]**
+The AI panel close button avoids the topbar action strip, so its visual target
+depends on the DPI-scaled logical window width. A fixed harness click worked at
+one scale and missed at another.
+
+- **IDE note:** the Windows strict-mouse harness now derives the AI close target
+  from the same logical titlebar constants used by the shim.
+- **Language note:** no compiler gap surfaced. A future Mighty UI layer should
+  make testable layout rects first-class so user-facing widgets, hit tests, and
+  harness clicks can share one source of truth.
