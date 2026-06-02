@@ -3646,3 +3646,17 @@ reopened without visual leftovers or broken focus.
 - **Language note:** no compiler gap surfaced. Mighty needs reusable modal test
   primitives so close, escape, focus restore, and row activation can be verified
   consistently without hard-coded harness coordinates for each surface.
+
+### L249. No-op feature gates must not render enabled controls **[finding, P2]**
+The AI Copilot body correctly said an API key was required, but the input still
+said `Enter to send` and the send glyph stayed accent-colored. That made the
+no-key `send()` no-op look like a broken button rather than an unavailable
+feature.
+
+- **IDE note:** AI Copilot now mutes the no-key input border, replaces the
+  empty-input placeholder with setup copy, disables the send affordance until a
+  key and non-empty prompt are present, and captures the panel in the strict
+  Windows harness.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a first-class
+  enabled/available control state so labels, borders, icons, keyboard hints, and
+  click routing are derived from one semantic gate.

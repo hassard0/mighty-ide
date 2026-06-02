@@ -15,6 +15,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Inline AI settings state is honest**: when no `ANTHROPIC_API_KEY` or
   `CLAUDE_API_KEY` is configured, the Inline AI row now reads as unavailable
   instead of showing an enabled purple toggle for a feature that cannot run.
+- **AI Copilot no-key controls are honest**: without an API key, the chat input
+  now shows setup copy, uses a muted border, and disables the send affordance
+  instead of inviting Enter-to-send on a no-op path.
 - **Open Recent has a real close affordance**: the focused Open Recent picker
   now shows the same top-right close button pattern as the other modals, and
   mouse clicks dismiss the forced picker instead of requiring Esc or a row pick.

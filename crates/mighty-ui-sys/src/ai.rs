@@ -68,6 +68,18 @@ pub fn api_key() -> Option<String> {
     None
 }
 
+fn input_placeholder(chat_available: bool) -> &'static str {
+    if chat_available {
+        "Ask about your code...  (Enter to send)"
+    } else {
+        "Set ANTHROPIC_API_KEY to enable chat"
+    }
+}
+
+fn send_affordance_enabled(chat_available: bool, streaming: bool, input: &str) -> bool {
+    chat_available && !streaming && !input.trim().is_empty()
+}
+
 /// Who authored a transcript turn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Role {
@@ -752,11 +764,12 @@ impl AiPanel {
         let input_lines = wrap(&self.input, ((pw - 56.0) / (chrome * 0.55)) as usize);
         let body_top = top + head_h + 6.0;
         let body_bottom = input_y - 8.0;
+        let chat_available = self.force_transcript || api_key().is_some();
 
         // No-key state: a clear message instead of a transcript / live call.
         // (The screenshot/demo hook forces the transcript so the chat UI renders
         // without a key — never set on a normal launch.)
-        if api_key().is_none() && !self.force_transcript {
+        if !chat_available {
             let msg_y = body_top + 30.0;
             ctx.dl_icon(
                 px + 18.0,
@@ -806,15 +819,15 @@ impl AiPanel {
             pw - 20.0,
             input_h,
             8.0,
-            theme::ACCENT(),
+            if chat_available { theme::ACCENT() } else { theme::BORDER_STRONG() },
             1.2,
         );
         if self.input.is_empty() {
             ctx.text.queue_ui_sized(
                 px + 20.0,
                 input_y + 9.0,
-                "Ask about your code…  (Enter to send)",
-                theme::TEXT_1(),
+                input_placeholder(chat_available),
+                if chat_available { theme::TEXT_1() } else { theme::TEXT_3() },
                 chrome,
                 clip,
             );
@@ -831,10 +844,10 @@ impl AiPanel {
             }
         }
         // Send affordance (paper-plane-ish arrow) bottom-right of the input.
-        let send_col = if self.is_streaming() {
-            theme::TEXT_3()
-        } else {
+        let send_col = if send_affordance_enabled(chat_available, self.is_streaming(), &self.input) {
             theme::ACCENT_BRIGHT()
+        } else {
+            theme::TEXT_3()
         };
         ctx.dl_icon(
             px + pw - 34.0,
@@ -1075,6 +1088,26 @@ mod tests {
         assert_eq!(model_badge("claude-sonnet-4-6"), "Sonnet 4.6");
         assert_eq!(model_badge("claude-3-5-sonnet-latest"), "Sonnet 3.5");
         assert_eq!(model_badge("other-model"), "other-model");
+    }
+
+    #[test]
+    fn no_key_input_copy_does_not_invite_send() {
+        assert_eq!(
+            input_placeholder(false),
+            "Set ANTHROPIC_API_KEY to enable chat"
+        );
+        assert_eq!(
+            input_placeholder(true),
+            "Ask about your code...  (Enter to send)"
+        );
+    }
+
+    #[test]
+    fn send_affordance_requires_key_idle_and_input() {
+        assert!(!send_affordance_enabled(false, false, "question"));
+        assert!(!send_affordance_enabled(true, true, "question"));
+        assert!(!send_affordance_enabled(true, false, "   "));
+        assert!(send_affordance_enabled(true, false, "question"));
     }
 
     #[test]

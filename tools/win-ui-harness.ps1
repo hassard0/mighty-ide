@@ -1059,6 +1059,7 @@ if ($env:MUI_TRACE) {
   [void](Wait-TraceContainsAll @("(?m)^ai_open$") 1800)
 }
 Start-Sleep -Milliseconds 250
+Capture $hwnd "22-ai-copilot-no-key"
 $aiCloseMouseCount = Trace-MatchCount "(?m)^ai_close$"
 $aiClosePt = AiPanelCloseCenter
 ClickL $aiClosePt.X $aiClosePt.Y
