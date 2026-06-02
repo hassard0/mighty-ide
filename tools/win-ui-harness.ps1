@@ -750,6 +750,7 @@ Log "file-open (tree RUN.txt) captured"
 # actions; previous Welcome/file flows may leave another panel selected.
 ClickL 26 71
 Start-Sleep -Milliseconds 250
+$newFileDialogCount = Trace-MatchCount "(?m)^new_workspace_file_dialog path="
 ClickL $explorerNewFileX 20  # New File -> workspace file prompt
 Start-Sleep -Milliseconds 350
 Capture $hwnd "11-new-file-created"
@@ -758,6 +759,17 @@ if (Test-Path $newFilePath) {
 } else {
   Log "NEW-FILE: FILE NOT FOUND ($newFilePath)"
   $script:HarnessFailed = $true
+}
+if ($env:MUI_TRACE) {
+  $newFilePattern = [regex]::Escape($newFilePath)
+  $dialogPicked = Wait-TraceCountGreaterThan "(?m)^new_workspace_file_dialog path=" $newFileDialogCount 1800
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  if ($dialogPicked -and $traceText -match "new_workspace_file_dialog path=$newFilePattern") {
+    Log "NEW-FILE-DIALOG-MOUSE: visible Explorer New File used native workspace picker"
+  } else {
+    Log "NEW-FILE-DIALOG-MOUSE: missing native workspace file dialog trace"
+    $script:HarnessFailed = $true
+  }
 }
 
 # === TAB BAR: visible tab switching and close affordance must both work. ===

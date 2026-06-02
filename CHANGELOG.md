@@ -18,6 +18,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **AI Copilot no-key controls are honest**: without an API key, the chat input
   now shows setup copy, uses a muted border, and disables the send affordance
   instead of inviting Enter-to-send on a no-op path.
+- **Explorer New File now proves the native picker path**: the Windows harness
+  verifies that the visible Explorer New File button dispatches the native
+  workspace file picker for the selected path, not just that a file eventually
+  appears on disk.
 - **Open Recent has a real close affordance**: the focused Open Recent picker
   now shows the same top-right close button pattern as the other modals, and
   mouse clicks dismiss the forced picker instead of requiring Esc or a row pick.

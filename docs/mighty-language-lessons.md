@@ -3660,3 +3660,16 @@ feature.
 - **Language note:** no compiler gap surfaced. Mighty UI needs a first-class
   enabled/available control state so labels, borders, icons, keyboard hints, and
   click routing are derived from one semantic gate.
+
+### L250. File-flow tests must prove the dialog path, not just the result **[finding, P1]**
+Explorer New File was already creating the selected file, but the harness only
+checked filesystem state. That was too weak for the user's complaint: a broken
+in-app prompt, default filename, or stale command path could still create a file
+and pass.
+
+- **IDE note:** new-file dialog ABIs now emit cancel, unavailable, and picked-path
+  traces. The strict Windows harness requires the visible Explorer New File click
+  to produce `new_workspace_file_dialog path=...` for the exact created file.
+- **Language note:** no compiler gap surfaced. Mighty still needs structured
+  command-result values so dialog success/cancel/unavailable evidence is typed
+  instead of emitted as magic return codes plus trace strings.

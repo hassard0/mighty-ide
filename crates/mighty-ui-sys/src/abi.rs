@@ -5198,14 +5198,17 @@ pub extern "C" fn mui_newfile_dialog(handle: i64) -> i32 {
     let target = match pick_new_file_native(&initial_dir, owner_hwnd) {
         FileDialogPick::Picked(path) => path,
         FileDialogPick::Cancelled => {
+            trace("new_file_dialog cancel");
             println!("mui_newfile_dialog: native new-file dialog cancelled");
             return -2;
         }
         FileDialogPick::Unavailable => {
+            trace("new_file_dialog unavailable");
             println!("mui_newfile_dialog: native new-file dialog unavailable");
             return -1;
         }
     };
+    trace(&format!("new_file_dialog path={}", target.display()));
     let name = basename(&target);
     create_new_file_at(ctx, target, &workspace_root, &name, false)
 }
@@ -5224,14 +5227,17 @@ pub extern "C" fn mui_newfile_workspace_dialog(handle: i64) -> i32 {
     let target = match pick_new_file_native(&workspace_root, owner_hwnd) {
         FileDialogPick::Picked(path) => path,
         FileDialogPick::Cancelled => {
+            trace("new_workspace_file_dialog cancel");
             println!("mui_newfile_workspace_dialog: native new-file dialog cancelled");
             return -2;
         }
         FileDialogPick::Unavailable => {
+            trace("new_workspace_file_dialog unavailable");
             println!("mui_newfile_workspace_dialog: native new-file dialog unavailable");
             return -1;
         }
     };
+    trace(&format!("new_workspace_file_dialog path={}", target.display()));
     let name = basename(&target);
     create_new_file_at(ctx, target, &workspace_root, &name, true)
 }
