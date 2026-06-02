@@ -241,13 +241,13 @@ pub const CMD_WINDOW_MINIMIZE: u32 = 98;
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
-    Command { id: CMD_NEW_FILE,         label: "File: New File", keybinding: "Ctrl+N" },
-    Command { id: CMD_NEW_UNTITLED_FILE, label: "File: New Untitled Tab", keybinding: "" },
-    Command { id: CMD_NEW_WORKSPACE_FILE, label: "Explorer: New File in Workspace", keybinding: "" },
-    Command { id: CMD_NEW_FOLDER,       label: "Explorer: New Folder",   keybinding: "Ctrl+Shift+N" },
-    Command { id: CMD_OPEN_FILE,        label: "File: Open File", keybinding: "Ctrl+O" },
+    Command { id: CMD_NEW_FILE,         label: "File: New File...", keybinding: "Ctrl+N" },
+    Command { id: CMD_NEW_UNTITLED_FILE, label: "File: New Untitled File", keybinding: "" },
+    Command { id: CMD_NEW_WORKSPACE_FILE, label: "Explorer: New File in Workspace...", keybinding: "" },
+    Command { id: CMD_NEW_FOLDER,       label: "Explorer: New Folder...",   keybinding: "Ctrl+Shift+N" },
+    Command { id: CMD_OPEN_FILE,        label: "File: Open File...", keybinding: "Ctrl+O" },
     Command { id: CMD_SAVE,             label: "File: Save",         keybinding: "Ctrl+S" },
-    Command { id: CMD_SAVE_AS,          label: "File: Save As",   keybinding: "Ctrl+Shift+S" },
+    Command { id: CMD_SAVE_AS,          label: "File: Save As...",   keybinding: "Ctrl+Shift+S" },
     Command { id: CMD_SAVE_ALL,         label: "File: Save All",     keybinding: "Ctrl+Alt+S" },
     Command { id: CMD_RENAME_ACTIVE_FILE, label: "File: Rename Active File", keybinding: "" },
     Command { id: CMD_REVEAL_ACTIVE_FILE, label: "File: Reveal Active File in File Tree", keybinding: "" },
@@ -335,13 +335,13 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
     Command { id: CMD_CLOSE_PANE,       label: "Close Editor Pane",  keybinding: "" },
     Command { id: CMD_MARKDOWN_PREVIEW, label: "Markdown: Open Preview", keybinding: "Ctrl+Shift+V" },
-    Command { id: CMD_OPEN_FOLDER,      label: "File: Open Folder", keybinding: "Ctrl+Shift+O" },
+    Command { id: CMD_OPEN_FOLDER,      label: "File: Open Folder...", keybinding: "Ctrl+Shift+O" },
     Command { id: CMD_OPEN_RECENT,      label: "File: Open Recent",   keybinding: "" },
     Command { id: CMD_KEYBOARD_SHORTCUTS, label: "Help: Keyboard Shortcuts", keybinding: "Ctrl+Shift+/" },
     Command { id: CMD_FOLD_TOGGLE,      label: "Fold: Toggle at Cursor",  keybinding: "Ctrl+Shift+[" },
     Command { id: CMD_FOLD_ALL,         label: "Fold: Fold All",          keybinding: "" },
     Command { id: CMD_UNFOLD_ALL,       label: "Fold: Unfold All",        keybinding: "" },
-    Command { id: CMD_NEW_PROJECT,      label: "Mighty: New Project",     keybinding: "" },
+    Command { id: CMD_NEW_PROJECT,      label: "Mighty: New Project...",     keybinding: "" },
 ];
 
 /// Match quality for ranking. Lower sorts first.
@@ -932,12 +932,28 @@ mod tests {
             .find(|c| c.id == CMD_NEW_WORKSPACE_FILE)
             .expect("workspace new-file command should exist");
 
-        assert_eq!(file_dialog.label, "File: New File at Location");
+        assert_eq!(file_dialog.label, "File: New File...");
         assert_eq!(file_dialog.keybinding, "Ctrl+N");
-        assert_eq!(untitled.label, "File: New Untitled Tab");
+        assert_eq!(untitled.label, "File: New Untitled File");
         assert_eq!(untitled.keybinding, "");
-        assert_eq!(workspace.label, "Explorer: New File in Workspace");
+        assert_eq!(workspace.label, "Explorer: New File in Workspace...");
         assert_eq!(workspace.keybinding, "");
+    }
+
+    #[test]
+    fn dialog_commands_use_standard_ellipsis_labels() {
+        for (id, expected) in [
+            (CMD_OPEN_FILE, "File: Open File..."),
+            (CMD_SAVE_AS, "File: Save As..."),
+            (CMD_OPEN_FOLDER, "File: Open Folder..."),
+            (CMD_NEW_PROJECT, "Mighty: New Project..."),
+        ] {
+            let command = COMMANDS
+                .iter()
+                .find(|c| c.id == id)
+                .expect("dialog command should exist");
+            assert_eq!(command.label, expected);
+        }
     }
 
     #[test]

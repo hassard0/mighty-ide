@@ -4171,3 +4171,16 @@ than the source preview.
 - **Language note:** no compiler gap surfaced. Mighty needs an asset pipeline
   primitive for multi-resolution shell resources and visual-regression metadata
   so app identity does not depend on ad hoc Python tooling.
+
+### L291. Dialog commands need visible semantic conventions **[finding, P2]**
+File commands were functionally dialog-backed, but palette labels like
+`File: New File` and `File: Open File` did not tell users that a picker would
+open. That makes common commands feel weird even when the route is correct.
+
+- **IDE note:** picker-backed commands now use standard dialog ellipsis labels
+  (`New File...`, `Open File...`, `Save As...`, `Open Folder...`, `New
+  Project...`) while the instant scratch-tab action is explicitly `New Untitled
+  File`. Palette tests pin those distinctions.
+- **Language note:** no compiler gap surfaced. Mighty UI needs command metadata
+  that separates action name, dialog behavior, shortcut, description, and
+  menu/palette rendering conventions so labels do not drift from behavior.

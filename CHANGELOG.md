@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **File commands read like standard dialog actions**: command palette labels now
+  use `...` for New File, Open File, Save As, Open Folder, and New Project
+  because those actions ask the user for a file or folder, while `New Untitled
+  File` remains the instant scratch-tab action.
 - **Windows icon coverage matches real shell sizes**: the generated ICO now
   includes 16/20/24/32/40/48/64/128/256px DIB entries, with a heavier
   taskbar-scale Mighty mark and a regression test that pins the size ladder.
