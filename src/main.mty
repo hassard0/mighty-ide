@@ -3268,7 +3268,7 @@ fn main() {
             } else if scm_act == 3 {
               let _ps = mui_git_push(h)
             } else if scm_act == 4 {
-              let _ft = mui_git_fetch(h)
+              let _sr = mui_scm_refresh(h)
             }
           } else if scm_hit >= 0 {
             let is_stage = mui_scm_click_is_stage(h)

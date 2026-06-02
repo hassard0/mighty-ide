@@ -3439,3 +3439,16 @@ entry they visually represent.
 - **Language note:** no compiler gap surfaced. Mighty needs reusable command
   routing helpers so toolbar, keyboard, palette, and rail interactions cannot
   drift into similar-looking but different behavior.
+
+### L233. Refresh affordances must not hide network actions **[finding, P1]**
+The Source Control empty state told users to refresh local Git status, and the
+header icon was a refresh glyph, but the click path invoked Git Fetch. That makes
+the most obvious local scan control do a surprising network action.
+
+- **IDE note:** the SCM header refresh icon now calls local status refresh,
+  emits an `scm_refresh` trace, and the strict mouse harness clicks the visible
+  icon while requiring a rescan trace. Fetch remains available through palette
+  Git commands.
+- **Language note:** no compiler gap surfaced. Mighty UI would benefit from a
+  declarative action model where icon, label, tooltip, keyboard command, and
+  dispatcher target are defined once instead of inferred across separate paths.

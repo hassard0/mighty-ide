@@ -861,6 +861,19 @@ foreach ($ic in $rail) {
       }
     }
   }
+  if ($ic.n -eq 'scm') {
+    $scmRefreshCount = Trace-MatchCount "scm_refresh branch="
+    ClickL 280 20
+    Start-Sleep -Milliseconds 450
+    if ($env:MUI_TRACE) {
+      if (Wait-TraceCountGreaterThan "scm_refresh branch=" $scmRefreshCount 1800) {
+        Log "SCM-REFRESH-MOUSE: visible refresh icon rescanned local status"
+      } else {
+        Log "SCM-REFRESH-MOUSE: refresh icon did not rescan local status"
+        $script:HarnessFailed = $true
+      }
+    }
+  }
 }
 
 # The Testing rail should leave a working primary action visible. Exercise the

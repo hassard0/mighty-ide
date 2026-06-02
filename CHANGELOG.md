@@ -67,6 +67,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   visible Play button now shares the F5 start/continue behavior instead of
   silently doing nothing when idle, disabled toolbar actions surface feedback,
   and the strict mouse harness clicks Play and Stop to prove dispatch.
+- **Source Control refresh is local and mouse-verified**: the SCM header's
+  visible refresh icon now re-scans local Git status instead of invoking Fetch,
+  emits a refresh trace, and the strict mouse harness clicks it to prove the
+  empty-state "Refresh to scan Git status" path works.
 - **Compact sidebar leaves more room for work**: narrow windows now reduce the
   sidebar to 160px, giving terminal, debug, palette, and welcome views more
   usable width instead of crowding dock/header content.

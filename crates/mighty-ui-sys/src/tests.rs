@@ -1949,6 +1949,40 @@ fn scm_stage_all_and_unstage_all_via_abi_or_skip() {
 }
 
 #[test]
+fn scm_header_refresh_icon_maps_to_refresh_action() {
+    use crate::ffi::MuiEvent;
+
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_SCM;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let sx = crate::layout::RAIL_W;
+    let sw = crate::layout::sidebar_w();
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        sx + sw - 28.0 + 7.0,
+        20.0,
+        0,
+    );
+    assert_eq!(crate::panels::mui_scm_header_action_at_click(handle), 4);
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        sx + sw - 50.0 + 7.0,
+        20.0,
+        0,
+    );
+    assert_eq!(crate::panels::mui_scm_header_action_at_click(handle), 3);
+    crate::layout::reset_sidebar_preset();
+}
+
+#[test]
 fn scm_commit_staged_uses_message_buffer_via_abi_or_skip() {
     use std::process::Command;
     if Command::new("git").arg("--version").output().is_err() {

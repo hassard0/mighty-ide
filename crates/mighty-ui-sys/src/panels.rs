@@ -114,6 +114,10 @@ pub extern "C" fn mui_scm_refresh(handle: i64) -> i32 {
         "scm: branch={} ahead={} behind={} changes={}",
         ctx.scm.status.branch, ctx.scm.status.ahead, ctx.scm.status.behind, n
     );
+    crate::abi::trace(&format!(
+        "scm_refresh branch=\"{}\" changes={}",
+        ctx.scm.status.branch, n
+    ));
     n
 }
 
@@ -335,7 +339,7 @@ pub extern "C" fn mui_scm_click_is_stage(handle: i64) -> i32 {
 }
 
 /// Map the last click to a Source-Control HEADER action button:
-/// `1` = commit, `2` = pull, `3` = push, `4` = fetch, `0` = none. Mirrors the
+/// `1` = commit, `2` = pull, `3` = push, `4` = refresh, `0` = none. Mirrors the
 /// header icon geometry in `mui_scm_draw` (four 15px icons in the right of the
 /// 40px header band).
 #[no_mangle]
