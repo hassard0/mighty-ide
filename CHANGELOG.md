@@ -58,6 +58,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   to the open workspace's `mighty.toml` or first `.mty` file when the active tab
   has no file path, and the strict mouse harness clicks the visible button to
   prove it dispatches.
+- **Project Search is mouse-verified end to end**: the Search panel now emits
+  trace markers for run, replace-all, and result-open actions, and the strict
+  mouse harness types a real query, clicks the visible run button, and clicks a
+  result row to prove it opens the matching file.
 - **Compact sidebar leaves more room for work**: narrow windows now reduce the
   sidebar to 160px, giving terminal, debug, palette, and welcome views more
   usable width instead of crowding dock/header content.

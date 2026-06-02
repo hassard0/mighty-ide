@@ -3410,3 +3410,17 @@ strict mouse harness could not prove those paths worked.
 - **Language note:** no compiler gap surfaced. Mighty UI should treat overlay
   hit tests as observable state transitions so automation can verify human
   interactions instead of inferring them from transient pixels.
+
+### L231. Tool panels need human-click workflow proofs, not just screenshots **[finding, P1]**
+The Search rail looked like a real tool, but the strict harness only opened the
+panel and captured pixels. That misses the failure users actually feel: typing a
+query, clicking the visible action button, and clicking a result row.
+
+- **IDE note:** project Search now traces run, replace-all, and result-open
+  actions. The Windows strict-mouse harness types a deterministic query, clicks
+  the visible run icon, requires one result, then clicks that result and requires
+  the matching file-open trace.
+- **Language note:** no compiler gap surfaced. Mighty needs a small, reusable
+  panel-workflow test vocabulary so scalar UI surfaces can describe "field",
+  "primary action", and "result row" interactions without every feature
+  re-creating the same harness math.

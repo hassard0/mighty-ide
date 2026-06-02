@@ -198,6 +198,7 @@ function Finish-Harness($proc) {
   Remove-Item Env:\MUI_OPEN_FOLDER_PICK -ErrorAction SilentlyContinue
   if (-not $traceWasSet) { Remove-Item Env:\MUI_TRACE -ErrorAction SilentlyContinue }
   if (-not $configWasSet) { Remove-Item Env:\MUI_CONFIG_DIR -ErrorAction SilentlyContinue }
+  Remove-Item -LiteralPath $searchPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $openPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $openFolderPath -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $newFolderPath -Recurse -Force -ErrorAction SilentlyContinue
@@ -225,6 +226,9 @@ if (Test-Path $newFolderPath) { Remove-Item $newFolderPath -Recurse -Force }
 $openName = "harnessopen.mty"
 $openPath = Join-Path $WorkDir $openName
 Set-Content -LiteralPath $openPath -Value "opened" -Encoding utf8
+$searchName = "harnesssearch.mty"
+$searchPath = Join-Path $workspaceRoot $searchName
+Set-Content -LiteralPath $searchPath -Value "opened" -Encoding ascii
 $openFolderPath = Join-Path ([System.IO.Path]::GetTempPath()) ("mighty-ide-harnessworkspace-{0}" -f $PID)
 New-Item -ItemType Directory -Path $openFolderPath -Force | Out-Null
 Set-Content -LiteralPath (Join-Path $openFolderPath "ROOT.mty") -Value "workspace-root" -Encoding utf8
@@ -791,6 +795,37 @@ foreach ($ic in $rail) {
   Capture $hwnd ("20-rail-{0}-{1}" -f $slot, $ic.n)
   Log ("rail '{0}' (ly={1}) responsive={2}" -f $ic.n, $ic.y, $resp)
   if (-not $resp) { Log "!!! LOCKUP after rail '$($ic.n)'" }
+  if ($ic.n -eq 'search') {
+    # A human-visible Search panel must do more than open: typing in the field,
+    # clicking the visible run icon, and clicking a result row should open that
+    # match in the editor.
+    ClickL 120 75
+    Start-Sleep -Milliseconds 120
+    Type-Text $hwnd "opened"
+    Start-Sleep -Milliseconds 150
+    ClickL 273 75
+    Start-Sleep -Milliseconds 700
+    Capture $hwnd "20-search-results"
+    if ($env:MUI_TRACE) {
+      if (Wait-TraceContainsAll @("search_run query=""opened"" files=1 matches=1") 2500) {
+        Log "SEARCH-MOUSE: visible run button produced one deterministic result"
+      } else {
+        Log "SEARCH-MOUSE: missing deterministic search result trace"
+        $script:HarnessFailed = $true
+      }
+    }
+    ClickL 145 162
+    Start-Sleep -Milliseconds 600
+    Capture $hwnd "20-search-result-opened"
+    if ($env:MUI_TRACE) {
+      if (Wait-TraceContainsAll @("search_open idx=0 path=.*/harnesssearch\.mty line=1 col=[0-9]+") 2500) {
+        Log "SEARCH-RESULT-MOUSE: first result row opened the matching file"
+      } else {
+        Log "SEARCH-RESULT-MOUSE: missing result open trace"
+        $script:HarnessFailed = $true
+      }
+    }
+  }
 }
 
 # The Testing rail should leave a working primary action visible. Exercise the
@@ -1048,15 +1083,6 @@ Start-Sleep -Milliseconds 250
 # not the strip padding or the min-button boundary.
 Invoke-PaletteCommand "save as" "40-palette-open"
 Capture $hwnd "42-saved"
-Start-Sleep -Milliseconds 200
-$toastClickCount = Trace-MatchCount "toast_click .* hit=1"
-ClickL 704 604
-if (Wait-TraceCountGreaterThan "toast_click .* hit=1" $toastClickCount 1200) {
-  Log "TOAST-MOUSE: visible toast dismissed by click"
-} else {
-  Log "TOAST-MOUSE: click did not dismiss visible toast"
-  $script:HarnessFailed = $true
-}
 Start-Sleep -Milliseconds 250
 if (Test-Path $savePath) {
   $savedText = Get-Content -LiteralPath $savePath -Raw
@@ -1094,6 +1120,16 @@ ClickL 460 130
 Start-Sleep -Milliseconds 150
 Type-Text $hwnd "zz"
 Start-Sleep -Milliseconds 200
+$toastClickCount = Trace-MatchCount "toast_click .* hit=1"
+Invoke-PaletteCommand "reload active file" $null
+Start-Sleep -Milliseconds 150
+ClickL 704 604
+if (Wait-TraceCountGreaterThan "toast_click .* hit=1" $toastClickCount 1200) {
+  Log "TOAST-MOUSE: visible dirty-reload warning dismissed by click"
+} else {
+  Log "TOAST-MOUSE: click did not dismiss visible dirty-reload warning"
+  $script:HarnessFailed = $true
+}
 $toastClearCount = Trace-MatchCount "toast_clear removed=1"
 Invoke-PaletteCommand "reload active file" $null
 Start-Sleep -Milliseconds 150

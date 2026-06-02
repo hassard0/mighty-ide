@@ -1120,6 +1120,12 @@ pub extern "C" fn mui_search_run(handle: i64) -> i32 {
         ctx.search.file_count(),
         n
     );
+    crate::abi::trace(&format!(
+        "search_run query=\"{}\" files={} matches={}",
+        ctx.search.query_string(),
+        ctx.search.file_count(),
+        n
+    ));
     n
 }
 
@@ -1135,6 +1141,7 @@ pub extern "C" fn mui_search_replace_all(handle: i64) -> i32 {
     let (n, changed_paths) = ctx.search.replace_all_with_changed_paths(&dir);
     let (refreshed, dirty_skipped) = refresh_replaced_open_tabs(ctx, &changed_paths);
     println!("search: replaced {n}");
+    crate::abi::trace(&format!("search_replace_all replaced={n}"));
     if n > 0 {
         let suffix = if n == 1 { "" } else { "s" };
         if dirty_skipped > 0 {
@@ -1242,12 +1249,20 @@ pub extern "C" fn mui_search_open(handle: i64, i: i32) -> i32 {
     if !path.exists() {
         return -1;
     }
+    let opened_path = path.to_string_lossy().replace('\\', "/");
     let idx = ctx.tabs.open_path(path);
     crate::abi::sync_active_path(ctx);
     let model = ctx.tabs.active_model_mut();
     model.move_to(line, col);
     let first = (line - 2).max(0);
     model.set_first_visible(first as usize);
+    crate::abi::trace(&format!(
+        "search_open idx={} path={} line={} col={}",
+        i,
+        opened_path,
+        line + 1,
+        col + 1
+    ));
     idx as i32
 }
 
@@ -1269,7 +1284,7 @@ fn search_field_geometry() -> (f32, f32, f32) {
 }
 
 fn search_field_button_x(sx: f32, sw: f32) -> (f32, f32) {
-    (sx + sw - 40.0, sx + sw - 14.0)
+    (sx + sw - 46.0, sx + sw - 8.0)
 }
 
 /// Search-panel mouse action for the last click:
@@ -1296,20 +1311,24 @@ pub extern "C" fn mui_search_action_at_click(handle: i64) -> i32 {
     let y = ctx.last_event.y;
     let (qy, ry, box_h) = search_field_geometry();
     let box_x0 = sx + 10.0;
-    let box_x1 = sx + sw - 10.0;
     let (btn_x0, btn_x1) = search_field_button_x(sx, sw);
+    let box_x1 = (sx + sw - 10.0).max(btn_x1);
     if (box_x0..=box_x1).contains(&x) && (qy..=qy + box_h).contains(&y) {
         ctx.search.replace_focus = false;
         if (btn_x0..=btn_x1).contains(&x) {
+            crate::abi::trace(&format!("search_action x={x:.1} y={y:.1} -> run"));
             return 1;
         }
+        crate::abi::trace(&format!("search_action x={x:.1} y={y:.1} -> focus_query"));
         return 0;
     }
     if (box_x0..=box_x1).contains(&x) && (ry..=ry + box_h).contains(&y) {
         ctx.search.replace_focus = true;
         if (btn_x0..=btn_x1).contains(&x) {
+            crate::abi::trace(&format!("search_action x={x:.1} y={y:.1} -> replace_all"));
             return 2;
         }
+        crate::abi::trace(&format!("search_action x={x:.1} y={y:.1} -> focus_replace"));
     }
     0
 }
