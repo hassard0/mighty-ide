@@ -3765,14 +3765,17 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
     idx as i32
 }
 
-/// Switch the active tab to `idx`. Returns the resulting active index.
+/// Switch the active tab to `idx`. Returns the resulting active index, or `-1`
+/// when the requested tab does not exist.
 #[no_mangle]
 pub extern "C" fn mui_tab_switch(handle: i64, idx: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    if idx < 0 {
-        return ctx.tabs.active() as i32;
+    if idx < 0 || idx as usize >= ctx.tabs.count() {
+        ctx.push_toast(crate::toast::Kind::Warn, "No tab at that position");
+        trace(&format!("tab_switch idx={idx} -> invalid"));
+        return -1;
     }
     let a = ctx.tabs.switch(idx as usize);
     sync_active_path(ctx);
@@ -3809,14 +3812,16 @@ pub extern "C" fn mui_tab_prev(handle: i64) -> i32 {
 /// closed after an explicit Save or Discard choice, never from a repeated close
 /// click/key press.
 /// Returns the active index after a successful close, or `-1` when confirmation
-/// is required.
+/// is required / the requested tab does not exist.
 #[no_mangle]
 pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    if idx < 0 {
-        return ctx.tabs.active() as i32;
+    if idx < 0 || idx as usize >= ctx.tabs.count() {
+        ctx.push_toast(crate::toast::Kind::Warn, "No tab at that position");
+        trace(&format!("tab_close idx={idx} -> invalid"));
+        return -1;
     }
     let idx_u = idx as usize;
     if ctx.tabs.is_dirty(idx_u) {

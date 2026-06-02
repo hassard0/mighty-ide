@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Invalid tab commands now fail visibly**: tab switch/close ABIs now reject
+  out-of-range targets with `No tab at that position` instead of silently
+  returning the active tab, making bad mouse hit-tests or command routing errors
+  obvious to the user.
 - **Dialog cancellations now acknowledge the command**: Open File, New File, New
   Folder, and New Project native picker cancels now show a short info toast, and
   unavailable dialog fallbacks show a warning, so a closed dialog does not read

@@ -4401,3 +4401,17 @@ could see a dialog close and then receive no acknowledgement from the IDE.
   command-result enum across the FFI boundary: success, cancelled, unavailable,
   failed, already-in-state, and unchanged. Encoding that as scalar integers plus
   hand-written toast strings is workable but too easy to make inconsistent.
+
+### L307. User-facing tab commands should not clamp invalid targets **[finding, P2]**
+The tab store safely ignores out-of-range indices, but the public tab switch and
+close ABIs used that behavior directly. A bad mouse hit-test or stale command
+index could therefore leave the UI unchanged while returning the current active
+tab, which reads like a flaky tab bar.
+
+- **IDE note:** tab switch/close now reject invalid indices with `-1`, keep the
+  active tab and tab count unchanged, and push `No tab at that position`. The
+  regression covers invalid switch and close requests through the public ABI.
+- **Language note:** no compiler gap surfaced. This reinforces the need for
+  typed command-result states at the Mighty boundary: internal storage no-ops
+  and user-visible command failures are different outcomes and should not share
+  the same scalar success-looking return.

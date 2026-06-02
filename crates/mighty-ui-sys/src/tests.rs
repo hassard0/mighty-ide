@@ -377,6 +377,20 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(mui_tab_active(handle), 1);
     mui_path_clear(handle);
 
+    assert_eq!(mui_tab_switch(handle, 99), -1);
+    assert_eq!(mui_tab_active(handle), 1);
+    assert_eq!(mui_tab_count(handle), 2);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No tab at that position");
+    assert_eq!(mui_tab_close(handle, 99), -1);
+    assert_eq!(mui_tab_active(handle), 1);
+    assert_eq!(mui_tab_count(handle), 2);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No tab at that position"
+    );
+
     // The confirmation overlay can save a dirty file-backed tab before closing.
     let save_path = dir.join("mui_tababi_save_confirm.txt");
     std::fs::write(&save_path, b"save me").unwrap();

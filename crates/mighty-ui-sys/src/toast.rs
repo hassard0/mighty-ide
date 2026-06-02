@@ -492,6 +492,7 @@ enum OperationKey {
     CreateFile,
     CreateFolder,
     CreateProject,
+    Tab,
     Rename,
     Delete,
     Reveal,
@@ -554,6 +555,16 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Choose an existing parent folder"
     {
         Some(OperationKey::CreateProject)
+    } else if m == "No tab at that position"
+        || m.starts_with("Closed ")
+        || m.starts_with("Reopened ")
+        || m.starts_with("Duplicated ")
+        || m.starts_with("Moved tab ")
+        || m == "Sorted tabs by name"
+        || m == "No closed tab to reopen"
+        || m == "No duplicate file tabs"
+    {
+        Some(OperationKey::Tab)
     } else if m.starts_with("Renamed to")
         || m.starts_with("Rename failed")
         || m.starts_with("Already named")
@@ -845,6 +856,12 @@ mod tests {
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "New project cancelled");
         assert!(!q.toasts().iter().any(|t| t.message == "Created project: app"));
+
+        q.push_at(Kind::Info, "Closed 1 saved tab", t0 + Duration::from_millis(1100));
+        q.push_at(Kind::Warn, "No tab at that position", t0 + Duration::from_millis(1200));
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "No tab at that position");
+        assert!(!q.toasts().iter().any(|t| t.message == "Closed 1 saved tab"));
     }
 
     #[test]
