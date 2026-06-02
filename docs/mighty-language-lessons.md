@@ -4427,3 +4427,17 @@ palette users saw no visible state change and no explanation.
 - **Language note:** no compiler gap surfaced. This is another command-result
   enum case: changed, unchanged-because-boundary, and unavailable should be
   distinct typed outcomes instead of magic `-1` plus optional toasts.
+
+### L309. Drag completion should be a visible command outcome **[finding, P2]**
+Manual sidebar and bottom-dock resizing changed layout while dragging, but mouse
+release had no explicit finish state. Preset buttons already acknowledged size
+changes, so hand-resizing felt less certain and could leave stale layout toast
+text around after repeated adjustments.
+
+- **IDE note:** releasing a sidebar or bottom-dock resize now toasts the final
+  width/height, and layout toasts share one replacement family so repeated
+  drags and preset changes clear stale layout text.
+- **Language note:** no compiler gap surfaced. Mighty still needs typed command
+  outcomes for pointer gestures: started, updated, finished, cancelled, and
+  unchanged should be representable without ad hoc scalar returns plus string
+  matching.

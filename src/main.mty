@@ -29,12 +29,14 @@ extern c {
   fn mui_poll_event_s(handle: I64) -> I32
   fn mui_bottom_dock_resize_at_click(handle: I64) -> I32
   fn mui_bottom_dock_resize_to_event_y(handle: I64) -> I32
+  fn mui_bottom_dock_resize_finish(handle: I64) -> I32
   fn mui_bottom_dock_close_at_click(handle: I64) -> I32
   fn mui_bottom_dock_preset_at_click(handle: I64) -> I32
   fn mui_dock_dispatch(handle: I64, id: I32) -> I32
   fn mui_bottom_dock_resize_draw(handle: I64)
   fn mui_sidebar_resize_at_click(handle: I64) -> I32
   fn mui_sidebar_resize_to_event_x(handle: I64) -> I32
+  fn mui_sidebar_resize_finish(handle: I64) -> I32
   fn mui_sidebar_resize_draw(handle: I64)
   // Frame cap for non-interactive (headless / screenshot / probe) runs: returns
   // a positive cap when a headless env is set, else 0 (= run until window Close).
@@ -1281,10 +1283,12 @@ fn main() {
       if dock_resizing && tag == ev_mouse_move() {
         let _dh = mui_bottom_dock_resize_to_event_y(h)
       } else if dock_resizing && tag == ev_mouse_up() {
+        let _df = mui_bottom_dock_resize_finish(h)
         dock_resizing = false
       } else if sidebar_resizing && tag == ev_mouse_move() {
         let _sw = mui_sidebar_resize_to_event_x(h)
       } else if sidebar_resizing && tag == ev_mouse_up() {
+        let _sf = mui_sidebar_resize_finish(h)
         sidebar_resizing = false
       } else if tag == ev_mouse_down() && mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && mui_bottom_dock_close_at_click(h) == 1 {
         dock_resizing = false

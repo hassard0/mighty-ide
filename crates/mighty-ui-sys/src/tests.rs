@@ -1099,6 +1099,15 @@ fn sidebar_resize_preserves_grab_offset_inside_hit_band() {
         crate::abi::mui_sidebar_resize_to_event_x(handle),
         (start_w + 30.0).round() as i32
     );
+    assert_eq!(
+        crate::abi::mui_sidebar_resize_finish(handle),
+        (start_w + 30.0).round() as i32
+    );
+    assert!(!ctx.sidebar_resizing);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        format!("Sidebar resized to {}px", (start_w + 30.0).round() as i32)
+    );
     crate::layout::reset_sidebar_preset();
     crate::layout::set_zen(zen_before);
 }
@@ -1206,6 +1215,12 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
     assert!(shorter_h < resized_h, "shorter_h={shorter_h} resized_h={resized_h}");
     let rows_after_shorter = crate::abi::mui_visible_rows(handle);
     assert!(rows_after_shorter > rows_after_taller);
+    assert_eq!(crate::abi::mui_bottom_dock_resize_finish(handle), shorter_h);
+    assert!(!ctx.bottom_dock_resizing);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        format!("Dock resized to {shorter_h}px")
+    );
 
     let (rx, ry, rw, rh) = crate::layout::dock_preset_rect(visible_w, visible_h, 1);
     ctx.last_event = MuiEvent::mouse(

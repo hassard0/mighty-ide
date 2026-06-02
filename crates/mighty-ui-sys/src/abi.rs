@@ -1760,6 +1760,23 @@ pub extern "C" fn mui_bottom_dock_resize_to_event_y(handle: i64) -> i32 {
     })
 }
 
+/// Finish a manual lower-dock resize and acknowledge the resulting height.
+#[no_mangle]
+pub extern "C" fn mui_bottom_dock_resize_finish(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.bottom_dock_open() {
+        return 0;
+    }
+    let (_, visible_h) = visible_surface_size(ctx);
+    let h = layout::term_panel_height(visible_h).round() as i32;
+    ctx.bottom_dock_resizing = false;
+    ctx.push_toast(crate::toast::Kind::Info, format!("Dock resized to {h}px"));
+    trace(&format!("dock_resize finish h={h}"));
+    h
+}
+
 /// Close whichever shared lower dock is currently open when the latest mouse
 /// down lands on the visible close affordance. Returns 1 when it handled.
 #[no_mangle]
@@ -5923,6 +5940,22 @@ pub extern "C" fn mui_sidebar_resize_to_event_x(handle: i64) -> i32 {
         ));
         width
     })
+}
+
+/// Finish a manual sidebar resize and acknowledge the resulting width.
+#[no_mangle]
+pub extern "C" fn mui_sidebar_resize_finish(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.sidebar_visible {
+        return 0;
+    }
+    let width = layout::sidebar_w().round() as i32;
+    ctx.sidebar_resizing = false;
+    ctx.push_toast(crate::toast::Kind::Info, format!("Sidebar resized to {width}px"));
+    trace(&format!("sidebar_resize finish width={width}"));
+    width
 }
 
 /// Draw the visible divider/handle on the sidebar's right edge.

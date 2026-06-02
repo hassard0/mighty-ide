@@ -503,6 +503,7 @@ enum OperationKey {
     Diagnostic,
     Format,
     Navigation,
+    Layout,
 }
 
 fn operation_key(message: &str) -> Option<OperationKey> {
@@ -614,6 +615,12 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Format)
     } else if m == "No definition found" {
         Some(OperationKey::Navigation)
+    } else if m.starts_with("Dock ")
+        || m.starts_with("Bottom dock ")
+        || m.starts_with("No bottom dock ")
+        || m.starts_with("Sidebar ")
+    {
+        Some(OperationKey::Layout)
     } else {
         None
     }
@@ -875,6 +882,12 @@ mod tests {
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Tabs already sorted");
         assert!(!q.toasts().iter().any(|t| t.message == "Tab is already first"));
+
+        q.push_at(Kind::Info, "Dock resized to 228px", t0 + Duration::from_millis(1500));
+        q.push_at(Kind::Info, "Sidebar resized to 310px", t0 + Duration::from_millis(1600));
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Sidebar resized to 310px");
+        assert!(!q.toasts().iter().any(|t| t.message == "Dock resized to 228px"));
     }
 
     #[test]
