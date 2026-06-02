@@ -3898,3 +3898,13 @@ nonblank, even though it did not show the surface being audited.
   Welcome before the capture frame renders.
 - **Language note:** no compiler gap surfaced. Mighty UI needs screenshot hooks
   to assert the target surface is actually visible, not merely active in state.
+
+### L270. Compact panel headers need complete title variants **[finding, P2]**
+The compact Source Control sidebar rendered `SOURCE CO...` beside the git action
+icons. It fit inside the measured rectangle, but read like an unfinished label
+instead of a deliberate compact panel title.
+
+- **IDE note:** compact SCM sidebars now choose `SCM` before ellipsis fitting;
+  wider sidebars still show `SOURCE CONTROL`.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a reusable panel
+  header primitive that budgets title variants and action clusters together.

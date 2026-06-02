@@ -443,6 +443,24 @@ pub(crate) fn fit_scm_header(
     fit_head_px(text, &tracked, max_px, size)
 }
 
+pub(crate) fn scm_header_title_for_budget(
+    text: &mut crate::text::Text,
+    sx: f32,
+    sw: f32,
+    size: f32,
+) -> &'static str {
+    let label_x = sx + 14.0;
+    let first_action_x = sx + sw - 94.0;
+    let max_px = (first_action_x - 8.0 - label_x).max(0.0);
+    let full = "SOURCE CONTROL";
+    let tracked: String = full.chars().flat_map(|c| [c, '\u{2009}']).collect();
+    if text.measure_ui_sized(&tracked, size).0 <= max_px {
+        full
+    } else {
+        "SCM"
+    }
+}
+
 fn fit_head_px(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
     if max_px <= 0.0 {
         return String::new();
@@ -525,7 +543,7 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
     let head_h = 40.0;
     ctx.dl_rect(sx, 0.0, sw, head_h, theme::BG_2());
     ctx.dl_rect(sx, head_h - 1.0, sw, 1.0, theme::BORDER_SOFT());
-    let title = "SOURCE CONTROL";
+    let title = scm_header_title_for_budget(&mut ctx.text, sx, sw, chrome - 2.0);
     let tracked = fit_scm_header(&mut ctx.text, title, sx, sw, chrome - 2.0);
     ctx.text.queue_ui_sized(
         sx + 14.0,

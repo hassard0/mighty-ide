@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Compact Source Control headers use a complete title**: narrow SCM sidebars
+  now show `SCM` instead of truncating `SOURCE CONTROL` into an unfinished
+  `SOURCE CO...` label beside the git action icons.
 - **Diff gallery captures show the actual diff**: the inline-diff screenshot hook
   now suppresses automatic empty-buffer Welcome before drawing, so visual audits
   no longer pass while hiding the diff body behind the landing screen.

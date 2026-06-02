@@ -2842,7 +2842,9 @@ fn scm_header_fits_before_action_buttons() {
     let sx = crate::layout::RAIL_W;
     let sw = crate::layout::SIDEBAR_MIN_W;
     let chrome = crate::theme::CHROME_FONT_SIZE - 2.0;
-    let shown = crate::panels::fit_scm_header(&mut ctx.text, "SOURCE CONTROL", sx, sw, chrome);
+    let title = crate::panels::scm_header_title_for_budget(&mut ctx.text, sx, sw, chrome);
+    assert_eq!(title, "SCM");
+    let shown = crate::panels::fit_scm_header(&mut ctx.text, title, sx, sw, chrome);
     let (shown_w, _) = ctx.text.measure_ui_sized(&shown, chrome);
     let label_x = sx + 14.0;
     let first_button_x = sx + sw - 94.0;
@@ -2850,9 +2852,14 @@ fn scm_header_fits_before_action_buttons() {
         label_x + shown_w <= first_button_x - 8.0,
         "SCM header should leave a visible gap before actions: {shown}"
     );
-    assert!(shown.ends_with('\u{2026}'));
+    assert!(
+        !shown.ends_with('\u{2026}'),
+        "compact SCM header should use a complete title instead of truncating: {shown}"
+    );
 
-    let wide = crate::panels::fit_scm_header(&mut ctx.text, "SCM", sx, 248.0, chrome);
+    let wide_title = crate::panels::scm_header_title_for_budget(&mut ctx.text, sx, 248.0, chrome);
+    assert_eq!(wide_title, "SOURCE CONTROL");
+    let wide = crate::panels::fit_scm_header(&mut ctx.text, wide_title, sx, 248.0, chrome);
     assert!(!wide.ends_with('\u{2026}'));
 }
 
