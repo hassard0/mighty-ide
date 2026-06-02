@@ -202,7 +202,9 @@ impl ThemePicker {
 
             // Check on the highlighted row (right edge).
             if selected {
-                ctx.dl_icon(box_x + box_w - 40.0, ry + (row_h - 18.0) * 0.5, 18.0, 18.0, icons::PLUS, theme::ACCENT_BRIGHT(), 2.0, false);
+                ctx.dl_round(box_x + box_w - 46.0, ry + (row_h - 26.0) * 0.5, 26.0, 26.0, 7.0, theme::accent_a(0.16));
+                ctx.dl_stroke(box_x + box_w - 46.0, ry + (row_h - 26.0) * 0.5, 26.0, 26.0, 7.0, theme::ACCENT_LINE(), 1.0);
+                ctx.dl_icon(box_x + box_w - 40.0, ry + (row_h - 14.0) * 0.5, 14.0, 14.0, selected_theme_icon(), theme::ACCENT_BRIGHT(), 1.8, false);
             }
         }
 
@@ -214,6 +216,10 @@ impl ThemePicker {
         let tag = "Mighty Themes";
         ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
     }
+}
+
+fn selected_theme_icon() -> &'static str {
+    crate::icons::CHECK
 }
 
 #[cfg(test)]
@@ -325,5 +331,11 @@ mod tests {
         assert_eq!(p.click(cx + cw * 0.5, cy + ch * 0.5, 900, 700), 2);
         assert!(p.is_active());
         reset();
+    }
+
+    #[test]
+    fn selected_theme_uses_check_affordance() {
+        assert_eq!(selected_theme_icon(), crate::icons::CHECK);
+        assert_ne!(selected_theme_icon(), crate::icons::PLUS);
     }
 }

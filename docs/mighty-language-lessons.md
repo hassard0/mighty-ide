@@ -3573,3 +3573,14 @@ button is available before they trust the workflow.
   button states such as enabled, disabled, pending, and destructive/confirming
   as first-class styling primitives instead of encoding state through ad hoc
   color choices.
+
+### L243. Selected-state affordances must use semantic icons **[finding, P2]**
+The Color Theme picker highlighted the active row but used a plus icon at the
+right edge. That reads as "add this theme" rather than "this theme is selected",
+which makes an otherwise functional picker feel unfinished.
+
+- **IDE note:** selected theme rows now draw a checked accent capsule, and the
+  regression test asserts the selected icon cannot drift back to the plus icon.
+- **Language note:** no compiler gap surfaced. Mighty UI needs semantic icon
+  roles for selected/current, add/create, close, destructive, and disabled
+  states so app code does not hand-pick ambiguous symbols at every call site.

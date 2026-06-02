@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Color Theme selected state is explicit**: the current theme row now uses a
+  checked accent capsule instead of a plus icon, so the picker reads as
+  "selected" rather than "add".
 - **Project Search replace no longer looks disabled**: the replace field uses
   readable secondary text and the replace-all check button gains an active
   accent state whenever a real query is present.
