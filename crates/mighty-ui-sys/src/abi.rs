@@ -2296,6 +2296,7 @@ fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
                 if let (Some(dir), Some(host)) =
                     (crate::window::ResizeDir::from_code(rc), ctx.host.as_ref())
                 {
+                    trace(&format!("window_resize code={rc}"));
                     host.drag_resize(dir);
                 }
                 return ShimAction::Consume;
@@ -2570,6 +2571,7 @@ pub extern "C" fn mui_window_drag(handle: i64) {
 pub extern "C" fn mui_window_resize(handle: i64, code: i32) {
     if let Some(dir) = crate::window::ResizeDir::from_code(code) {
         if let Some(ctx) = unsafe { ctx(handle) } {
+            trace(&format!("window_resize code={code}"));
             if let Some(host) = ctx.host.as_ref() {
                 host.drag_resize(dir);
             }

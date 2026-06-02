@@ -3506,3 +3506,16 @@ borderless title bar must not steal that input.
   black-box interaction fixtures for pointer workflows so overflow, drag, and
   wheel behavior are verified against live windows instead of inferred from
   scalar hit-test units.
+
+### L238. Borderless resize must be proven at the OS level **[finding, P1]**
+Hit-test units can prove the bottom-right corner maps to a resize direction, but
+they cannot prove the live winit host starts an OS resize loop or that a human
+drag actually changes the window. That gap matters because manual resizing was
+called out as clunky.
+
+- **IDE note:** window resize now emits a `window_resize` trace, and the strict
+  Windows harness drags the bottom-right corner with real mouse input, verifies
+  the window rectangle changed, then restores the original test size.
+- **Language note:** no compiler gap surfaced. Mighty UI still needs a stronger
+  end-to-end test vocabulary for host-window interactions such as move, resize,
+  minimize, maximize, and focus restoration.

@@ -1359,6 +1359,29 @@ if (Wait-TraceCountGreaterThan "(?m)^md_close$" $mdCloseCount 1200) {
   $script:HarnessFailed = $true
 }
 
+# === BORDERLESS WINDOW RESIZE: bottom-right corner must work with the mouse. ===
+$resizeTraceCount = Trace-MatchCount "window_resize code="
+$beforeResize = Get-WinRect $hwnd
+$beforeW = $beforeResize.Right - $beforeResize.Left
+$beforeH = $beforeResize.Bottom - $beforeResize.Top
+DragL ($logicalW - 4) ($logicalH - 4) ($logicalW - 120) ($logicalH - 90)
+Start-Sleep -Milliseconds 800
+$afterResize = Get-WinRect $hwnd
+$afterW = $afterResize.Right - $afterResize.Left
+$afterH = $afterResize.Bottom - $afterResize.Top
+$didResize = ($afterW -ne $beforeW -or $afterH -ne $beforeH)
+$didTraceResize = Wait-TraceCountGreaterThan "window_resize code=" $resizeTraceCount 1200
+if ($didResize -and $didTraceResize) {
+  Log "WINDOW-RESIZE-MOUSE: bottom-right corner drag resized window ${beforeW}x${beforeH} -> ${afterW}x${afterH}"
+} else {
+  Log "WINDOW-RESIZE-MOUSE: bottom-right corner drag failed resize=$didResize trace=$didTraceResize (${beforeW}x${beforeH} -> ${afterW}x${afterH})"
+  $script:HarnessFailed = $true
+}
+[void][Win]::MoveWindow($hwnd, 0, 0, $script:WinW, $script:WinH, $true)
+Start-Sleep -Milliseconds 400
+[void][Win]::ForceForeground($hwnd)
+Start-Sleep -Milliseconds 150
+
 # === WINDOW COMMANDS: minimize must be command-palette reachable. ===
 Invoke-PaletteCommand "window minimize" $null
 Start-Sleep -Milliseconds 500

@@ -84,6 +84,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Overflow tabs are real-mouse verified**: the Windows harness now creates a
   crowded tab strip and uses an actual mouse-wheel event over the tab row,
   requiring a tab-scroll trace so hidden tabs are proven reachable by mouse.
+- **Borderless window resizing is mouse-verified**: the strict Windows harness
+  now drags the bottom-right corner, requires the OS window size to change, and
+  verifies the resize trace before restoring the test window.
 - **Compact sidebar leaves more room for work**: narrow windows now reduce the
   sidebar to 160px, giving terminal, debug, palette, and welcome views more
   usable width instead of crowding dock/header content.
