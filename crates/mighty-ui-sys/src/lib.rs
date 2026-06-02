@@ -1287,23 +1287,6 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         ctx.theme_picker = picker;
     }
 
-    // Screenshot hook for the keyboard-shortcuts overlay: force-draw when armed so
-    // a headless capture shows it (it otherwise only draws while the Mighty loop
-    // routes to it, which a non-interactive run can't enter).
-    if ctx.shortcuts_autoopen && ctx.shortcuts.is_active() {
-        let engine = std::mem::take(&mut ctx.shortcuts);
-        let old_clip = ctx.clip;
-        ctx.clip = None;
-        ctx.overlay = true;
-        ctx.text.clear_overlay_runs();
-        ctx.text.set_overlay(true);
-        engine.draw(ctx, layout_w, layout_h);
-        ctx.overlay = false;
-        ctx.text.set_overlay(false);
-        ctx.clip = old_clip;
-        ctx.shortcuts = engine;
-    }
-
     // Fold the queued glyphon text runs into the display list (each keeps its
     // layer/font/size/color), so the Vello scene reproduces all chrome + code.
     ctx.text.drain_into_display_list(&mut ctx.dl);

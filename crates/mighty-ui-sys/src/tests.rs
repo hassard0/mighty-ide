@@ -4913,6 +4913,31 @@ fn language_feature_autoopen_captures_dismiss_welcome_overlay() {
 }
 
 #[test]
+fn shortcuts_autoopen_uses_single_mighty_draw_path() {
+    let lib = include_str!("lib.rs");
+    let abi = include_str!("abi.rs");
+    let draw_start = abi.find("pub extern \"C\" fn mui_keys_draw").unwrap();
+    let draw_end = abi[draw_start..]
+        .find("// ---------------------------------------------------------------------------\n// Color theme")
+        .map(|i| draw_start + i)
+        .unwrap_or(abi.len());
+    let draw_block = &abi[draw_start..draw_end];
+
+    assert!(
+        abi.contains("ctx.shortcuts.open()") && abi.contains("ctx.shortcuts_autoopen = true"),
+        "shortcuts auto-open hook should activate the engine for the Mighty frame draw"
+    );
+    assert!(
+        !lib.contains("ctx.shortcuts_autoopen && ctx.shortcuts.is_active()"),
+        "shortcuts must not be force-drawn again in end_frame; double drawing creates offset overlay cards"
+    );
+    assert!(
+        draw_block.contains("visible_surface_size(ctx)") && !draw_block.contains("ctx.gpu.width, ctx.gpu.height"),
+        "shortcuts overlay geometry must honor screenshot/window visible bounds, not raw GPU dimensions"
+    );
+}
+
+#[test]
 fn every_palette_command_is_routed_by_mighty_dispatcher() {
     use crate::palette::*;
 

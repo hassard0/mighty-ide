@@ -6837,7 +6837,7 @@ pub extern "C" fn mui_complete_draw_at(
     let region = layout::region(ctx.sidebar_visible);
     let x = layout::text_x_in(region, total_lines.max(1) as u64, col);
     let y = layout::row_y_in(region, row);
-    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let (w, h) = visible_surface_size(ctx);
     let engine = std::mem::take(&mut ctx.complete);
     ctx.overlay = true;
     ctx.text.set_overlay(true);
@@ -7042,7 +7042,7 @@ pub extern "C" fn mui_palette_draw(handle: i64) {
     if !ctx.palette.is_active() {
         return;
     }
-    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let (w, h) = visible_surface_size(ctx);
     // Split the borrow: `draw` needs `&mut ctx` for both rects + text.
     let engine = std::mem::take(&mut ctx.palette);
     let old_clip = ctx.clip;
@@ -7274,7 +7274,7 @@ pub extern "C" fn mui_keys_draw(handle: i64) {
     if !ctx.shortcuts.is_active() {
         return;
     }
-    let (w, h) = (ctx.gpu.width, ctx.gpu.height);
+    let (w, h) = visible_surface_size(ctx);
     let engine = std::mem::take(&mut ctx.shortcuts);
     let old_clip = ctx.clip;
     ctx.clip = None;

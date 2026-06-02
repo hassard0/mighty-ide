@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Keyboard Shortcuts overlay no longer double-renders in screenshot/headless
+  flows**: the shortcuts auto-open path now uses the normal Mighty draw call
+  only, and the draw wrapper honors visible screenshot bounds so compact
+  captures keep the footer inside the viewport.
 - **Overlay clicks no longer get stolen by resize handles**: bottom-dock,
   Web-panel, and sidebar resize/header click paths now share the same
   modal-overlay guard as top-bar commands, so palette, quick-open, settings,

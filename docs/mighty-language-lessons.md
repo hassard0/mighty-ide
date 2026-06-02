@@ -4595,3 +4595,20 @@ while palette, quick-open, settings, theme, or prompt UI was visible.
   event-layer model so modal surfaces, chrome, panel headers, and editor bodies
   can register priority instead of manually repeating boolean guards in a long
   event ladder.
+
+### L321. Screenshot auto-open overlays must not bypass normal draw geometry **[finding, P1]**
+The compact Keyboard Shortcuts screenshot showed a second offset card and close
+button behind the visible overlay, then a footer clipped at the screenshot edge.
+The hook opened the shortcuts engine correctly, but `end_frame` force-drew it a
+second time while the Mighty frame also called `mui_keys_draw`. The draw wrapper
+also used raw GPU dimensions instead of the screenshot-visible override.
+
+- **IDE note:** the redundant `shortcuts_autoopen` force-draw path is gone, so
+  Keyboard Shortcuts renders once through the normal Mighty draw call. The
+  `mui_keys_draw` wrapper now uses `visible_surface_size(ctx)` for geometry, so
+  compact screenshots and hit targets share the same bounds. Verified with
+  `target/ux-compact-shortcuts-bounds-fixed.png`.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a screenshot
+  overlay contract that separates "activate state for draw" from "force draw in
+  renderer tail" so auto-open hooks cannot accidentally render the same modal
+  twice or with mismatched bounds.
