@@ -1112,6 +1112,31 @@ $respFolder = Wait-Responsive $hwnd 4500
 Log "OPEN-FOLDER: responsive after workspace change=$respFolder"
 if (-not $respFolder) { $script:HarnessFailed = $true }
 
+# === OPEN RECENT should be a focused picker, not a jump back to Welcome. ===
+Invoke-PaletteCommand "open recent" "46-open-recent-picker"
+Start-Sleep -Milliseconds 250
+Capture $hwnd "46-open-recent-picker"
+if ($env:MUI_TRACE) {
+  if (Wait-TraceContainsAll @("(?m)^welcome_recent_picker_open$") 1800) {
+    Log "OPEN-RECENT: focused recent picker opened"
+  } else {
+    Log "OPEN-RECENT: picker open trace missing"
+    $script:HarnessFailed = $true
+  }
+}
+# Click the first visible recent workspace row in the picker.
+ClickL 470 246
+Start-Sleep -Milliseconds 500
+if ($env:MUI_TRACE) {
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  if ($traceText -match "welcome_click .* -> 2000" -and $traceText -match "workspace_open_folder path=") {
+    Log "OPEN-RECENT-MOUSE: recent workspace row clicked and dispatched"
+  } else {
+    Log "OPEN-RECENT-MOUSE: missing recent row click/open trace"
+    $script:HarnessFailed = $true
+  }
+}
+
 # === RAIL UTILITY: bottom Settings icon should open Preferences, not be decorative. ===
 $settingsOpenCount = Trace-MatchCount "(?m)^settings_open$"
 ClickL 26 ($logicalH - 32)

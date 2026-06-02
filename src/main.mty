@@ -589,6 +589,7 @@ extern c {
   // ---- Welcome / first-impression screen ----
   fn mui_welcome_active(handle: I64) -> I32
   fn mui_welcome_open(handle: I64)
+  fn mui_welcome_open_recent_picker(handle: I64)
   fn mui_welcome_dismiss(handle: I64)
   fn mui_welcome_draw(handle: I64)
   fn mui_welcome_click(handle: I64) -> I32
@@ -3780,10 +3781,9 @@ fn main() {
             find_nav = false
           } else if wr == 3 {
             if mui_recent_any(h) == 1 {
-              // "Open Recent" should let the user choose, not silently open the
-              // newest entry. Reuse the Welcome recents surface, which already
-              // lists recent files and folders with click targets.
-              mui_welcome_open(h)
+              // "Open Recent" should let the user choose without jumping back
+              // to the branded first-run landing.
+              mui_welcome_open_recent_picker(h)
             } else {
               mui_prompt_open(h, prompt_open_folder())
               prompt_kind = prompt_open_folder()

@@ -119,6 +119,9 @@ pub struct WelcomeState {
     /// When `true`, the Welcome screen is FORCED open (via the palette command)
     /// even though a file is loaded. Cleared when a file is opened.
     pub force_open: bool,
+    /// When `true`, the forced surface is a focused Open Recent picker rather
+    /// than the branded first-run landing.
+    recent_picker: bool,
     /// When `true`, an intentionally-created empty untitled tab is allowed to
     /// show as a blank editor instead of being treated as the startup "no file"
     /// state. Cleared as soon as a real file becomes active or Welcome is forced.
@@ -139,17 +142,27 @@ impl WelcomeState {
     /// Force the Welcome screen open (palette "Welcome" command).
     pub fn open(&mut self) {
         self.force_open = true;
+        self.recent_picker = false;
+        self.hide_empty_auto = false;
+    }
+
+    /// Force a focused Open Recent chooser over the editor body.
+    pub fn open_recent_picker(&mut self) {
+        self.force_open = true;
+        self.recent_picker = true;
         self.hide_empty_auto = false;
     }
 
     /// Dismiss the forced Welcome screen (e.g. a file was opened).
     pub fn dismiss(&mut self) {
         self.force_open = false;
+        self.recent_picker = false;
     }
 
     /// Hide the automatic empty-buffer Welcome state for an explicit New File.
     pub fn dismiss_empty_auto(&mut self) {
         self.force_open = false;
+        self.recent_picker = false;
         self.hide_empty_auto = true;
     }
 
@@ -213,6 +226,11 @@ impl WelcomeState {
         // Paint the editor field over the body so it reads as a clean canvas
         // (the atmosphere already shows behind it; this keeps contrast).
         ctx.dl_rect(bx, by, bw, bh, theme::BG_EDIT());
+
+        if self.recent_picker {
+            self.draw_recent_picker(ctx, bx, by, bw, bh, recents, folders, clip);
+            return;
+        }
 
         // Center column. Generous max width so it breathes on wide windows.
         let col_w = 720.0_f32.min(bw - 48.0).max(280.0);
@@ -592,6 +610,153 @@ impl WelcomeState {
                 .queue_ui_sized(px + 7.0, py + 0.5, tip.key, theme::TEXT_3(), 9.5, clip);
         }
     }
+
+    fn draw_recent_picker(
+        &mut self,
+        ctx: &mut crate::MuiContext,
+        bx: f32,
+        by: f32,
+        bw: f32,
+        bh: f32,
+        recents: &[PathBuf],
+        folders: &[PathBuf],
+        clip: Option<(u32, u32, u32, u32)>,
+    ) {
+        let card_w = 680.0_f32.min(bw - 48.0).max(320.0);
+        let card_h = 452.0_f32.min(bh - 44.0).max(260.0);
+        let card_x = bx + (bw - card_w) * 0.5;
+        let card_y = by + ((bh - card_h) * 0.34).max(18.0);
+        let radius = 10.0;
+
+        ctx.dl_rect(bx, by, bw, bh, MuiColor::new(0.0, 0.0, 0.0, 0.34));
+        ctx.dl_shadow(card_x, card_y + 16.0, card_w, card_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.70), 36.0);
+        ctx.dl_round(card_x, card_y, card_w, card_h, radius, theme::ELEVATED());
+        ctx.dl_stroke(card_x, card_y, card_w, card_h, radius, theme::BORDER_STRONG(), 1.0);
+
+        let pad = 22.0;
+        let title_y = card_y + 22.0;
+        ctx.dl_icon(card_x + pad, title_y + 2.0, 22.0, 22.0, icons::FOLDER, theme::ACCENT_BRIGHT(), 1.8, false);
+        ctx.text.queue_ui_styled(
+            card_x + pad + 34.0,
+            title_y,
+            "Open Recent",
+            theme::TEXT(),
+            22.0,
+            crate::vello_ui::FontStyle::Bold,
+            clip,
+        );
+        ctx.text.queue_ui_sized(
+            card_x + pad + 34.0,
+            title_y + 28.0,
+            "Choose a recent workspace or file",
+            theme::TEXT_3(),
+            12.5,
+            clip,
+        );
+        ctx.dl_rect(card_x + pad, card_y + 72.0, card_w - pad * 2.0, 1.0, theme::BORDER());
+
+        let compact = card_w < 560.0;
+        if compact {
+            let list_x = card_x + pad;
+            let list_w = card_w - pad * 2.0;
+            let mut y = card_y + 91.0;
+            y = self.draw_recent_section(ctx, "RECENT FOLDERS", icons::FOLDER, list_x, y, list_w, folders, true, 4, clip);
+            y += 14.0;
+            let _ = self.draw_recent_section(ctx, "RECENT FILES", icons::FILE_TXT, list_x, y, list_w, recents, false, 5, clip);
+        } else {
+            let gutter = 28.0;
+            let col_w = (card_w - pad * 2.0 - gutter) * 0.5;
+            let left_x = card_x + pad;
+            let right_x = left_x + col_w + gutter;
+            let list_y = card_y + 91.0;
+            let _ = self.draw_recent_section(ctx, "RECENT FOLDERS", icons::FOLDER, left_x, list_y, col_w, folders, true, 7, clip);
+            let _ = self.draw_recent_section(ctx, "RECENT FILES", icons::FILE_TXT, right_x, list_y, col_w, recents, false, 7, clip);
+        }
+
+        if folders.is_empty() && recents.is_empty() {
+            let empty_y = card_y + card_h - 92.0;
+            self.draw_fallback_action(ctx, card_x + pad, empty_y, card_w - pad * 2.0, "Open File...", icons::EXPLORER, ACTION_OPEN_FILE, clip);
+            self.draw_fallback_action(ctx, card_x + pad, empty_y + 42.0, card_w - pad * 2.0, "Open Folder...", icons::FOLDER, ACTION_OPEN_FOLDER, clip);
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn draw_recent_section(
+        &mut self,
+        ctx: &mut crate::MuiContext,
+        title: &str,
+        fallback_icon: &'static str,
+        x: f32,
+        mut y: f32,
+        w: f32,
+        paths: &[PathBuf],
+        folders: bool,
+        max_rows: usize,
+        clip: Option<(u32, u32, u32, u32)>,
+    ) -> f32 {
+        ctx.text.queue_ui_styled(x, y, title, theme::TEXT_3(), 11.5, crate::vello_ui::FontStyle::Bold, clip);
+        y += 24.0;
+        if paths.is_empty() {
+            let msg = if folders { "No recent folders" } else { "No recent files" };
+            ctx.text.queue_ui_sized(x, y + 8.0, msg, theme::TEXT_3(), 12.5, clip);
+            return y + 38.0;
+        }
+
+        for (i, path) in paths.iter().take(max_rows).enumerate() {
+            let name = path
+                .file_name()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_else(|| path.to_string_lossy().into_owned());
+            let dir = if folders {
+                path.to_string_lossy().into_owned()
+            } else {
+                path.parent().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default()
+            };
+            ctx.dl_round(x, y, w, 42.0, 7.0, theme::BG_2());
+            ctx.dl_stroke(x, y, w, 42.0, 7.0, theme::BORDER(), 1.0);
+            let icon = if folders { fallback_icon } else { file_icon(&name) };
+            ctx.dl_icon(x + 12.0, y + 11.0, 18.0, 18.0, icon, theme::ACCENT_BRIGHT(), 1.7, false);
+            let name_short = shorten_dir(&name, w - 48.0);
+            ctx.text.queue_ui_sized(x + 40.0, y + 7.0, &name_short, theme::TEXT_1(), 13.0, clip);
+            if !dir.is_empty() {
+                let dir_short = shorten_dir(&dir, w - 48.0);
+                ctx.text.queue_ui_sized(x + 40.0, y + 24.0, &dir_short, theme::TEXT_3(), 10.5, clip);
+            }
+            self.hits.push(Hit {
+                x,
+                y,
+                w,
+                h: 42.0,
+                action: if folders {
+                    self.recent_folders.push(path.clone());
+                    ACTION_RECENT_FOLDER_BASE + i as i32
+                } else {
+                    self.recents.push(path.clone());
+                    ACTION_RECENT_BASE + i as i32
+                },
+            });
+            y += 48.0;
+        }
+        y
+    }
+
+    fn draw_fallback_action(
+        &mut self,
+        ctx: &mut crate::MuiContext,
+        x: f32,
+        y: f32,
+        w: f32,
+        label: &str,
+        icon: &'static str,
+        action: i32,
+        clip: Option<(u32, u32, u32, u32)>,
+    ) {
+        ctx.dl_round(x, y, w, 34.0, 7.0, theme::BG_2());
+        ctx.dl_stroke(x, y, w, 34.0, 7.0, theme::BORDER(), 1.0);
+        ctx.dl_icon(x + 12.0, y + 9.0, 16.0, 16.0, icon, theme::ACCENT_BRIGHT(), 1.7, false);
+        ctx.text.queue_ui_sized(x + 40.0, y + 8.0, label, theme::TEXT_1(), 13.0, clip);
+        self.hits.push(Hit { x, y, w, h: 34.0, action });
+    }
 }
 
 /// Pick a file glyph by extension.
@@ -682,8 +847,25 @@ mod tests {
         assert!(!w.force_open);
         w.open();
         assert!(w.force_open);
+        assert!(!w.recent_picker);
         w.dismiss();
         assert!(!w.force_open);
+        assert!(!w.recent_picker);
+    }
+
+    #[test]
+    fn recent_picker_is_forced_without_brand_landing_mode() {
+        let mut w = WelcomeState::new();
+        w.open_recent_picker();
+        assert!(w.force_open);
+        assert!(w.recent_picker);
+        w.open();
+        assert!(w.force_open);
+        assert!(!w.recent_picker);
+        w.open_recent_picker();
+        w.dismiss_empty_auto();
+        assert!(!w.force_open);
+        assert!(!w.recent_picker);
     }
 
     #[test]

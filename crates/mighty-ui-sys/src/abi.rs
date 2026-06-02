@@ -11963,6 +11963,15 @@ pub extern "C" fn mui_welcome_open(handle: i64) {
     }
 }
 
+/// Force the focused Open Recent chooser open over the editor body.
+#[no_mangle]
+pub extern "C" fn mui_welcome_open_recent_picker(handle: i64) {
+    trace("welcome_recent_picker_open");
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.welcome.open_recent_picker();
+    }
+}
+
 /// Dismiss the forced Welcome screen (called after opening a file from it).
 #[no_mangle]
 pub extern "C" fn mui_welcome_dismiss(handle: i64) {

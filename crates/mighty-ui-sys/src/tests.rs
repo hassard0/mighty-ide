@@ -4051,6 +4051,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "File: Open Recent must open the recents picker when either recent files or folders exist"
     );
     assert!(
+        main.contains("mui_welcome_open_recent_picker(h)"),
+        "File: Open Recent should use the focused recent picker, not the branded Welcome landing"
+    );
+    assert!(
         main.contains("key_page_up()") && main.contains("mui_tab_move_active_left(h)"),
         "Ctrl+Shift+PageUp should route to Move Active Tab Left"
     );

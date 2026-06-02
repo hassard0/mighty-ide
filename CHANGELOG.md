@@ -39,6 +39,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Open Recent** now opens the recent picker when either recent files or recent
   folders exist, instead of falling back to an open-folder prompt for file-only
   history.
+- **Open Recent is a focused chooser**: the command now opens a compact recent
+  workspace/file picker instead of jumping back to the branded Welcome landing,
+  and the strict mouse harness clicks a recent row to prove it dispatches.
 - **New File commands are explicit**: `Ctrl+N` is labeled
   **File: New File at Location** and opens the native picker, while the palette
   also exposes **File: New Untitled Tab** for a scratch buffer and

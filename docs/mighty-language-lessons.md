@@ -3371,3 +3371,17 @@ workspace is visibly open and contains Mighty files.
 - **Language note:** no compiler gap surfaced. Mighty apps need reusable product
   rules for target resolution: active document first, workspace context second,
   then a clear warning. Scalar ABI remains sufficient for the fix.
+
+### L228. In-workflow pickers should not masquerade as landing pages **[finding, P1]**
+`File: Open Recent` reused the Welcome landing to show recent files and folders.
+The command worked, but visually it looked like the IDE had navigated back to a
+first-run screen instead of opening a chooser for the current workflow.
+
+- **IDE note:** Open Recent now forces a focused recent picker surface that uses
+  the existing recent file/folder hit targets but draws a compact chooser over
+  the editor body. The strict mouse harness opens the command from the palette
+  and clicks a recent workspace row, requiring both picker-open and row-dispatch
+  traces.
+- **Language note:** no compiler gap surfaced. Mighty UI would benefit from a
+  reusable modal/picker surface abstraction so commands can share hit-tested row
+  behavior without sharing the wrong visual frame.
