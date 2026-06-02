@@ -11,7 +11,7 @@ The entire UI is drawn each frame as a Vello scene — smooth gradients, true ro
 Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [CHANGELOG.md](CHANGELOG.md).
 
 ### Editing & Multi-cursor
-- Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), Save All (Ctrl+Alt+S), and New File at Location (Ctrl+N, native file picker) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
+- Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), Save All (Ctrl+Alt+S), and New File (Ctrl+N, native file picker) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
 - Undo / redo (Ctrl+Z / Ctrl+Y), typing-run coalescing
 - Toggle line comment (Ctrl+/), auto-indent on Enter (brace-aware), bracket/quote auto-close + skip-over + empty-pair backspace, bracket-match highlight
 - Duplicate line/selection (Ctrl+Shift+D), move line up/down (Alt+↑ / Alt+↓), word-wise motion (Ctrl+←/→), smart Home, Shift+motion selection
@@ -85,7 +85,7 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   the command palette, matching the activity rail, status chip, and docked panels.
 - **Live Markdown preview (Ctrl+Shift+V)** — themed, live-updating split-pane render
 - **Keyboard Shortcuts overlay (Ctrl+Shift+/)** — searchable command/binding reference with router-command remapping (persists to `keybindings.toml`)
-- Welcome screen with first-run New File, New Mighty Project, Open File, Open
+- Welcome screen with first-run New File, New Project, Open File, Open
   Folder, Quick Open, and Command Palette actions; clickable toast notifications
   with a command-palette clear-all action, **Zen / focus mode (Alt+Z)**
 - **Mighty Agents panel (Alt+G)** — static agent-system topology, run, and live `mty inspect` when the Mighty runtime control socket is available

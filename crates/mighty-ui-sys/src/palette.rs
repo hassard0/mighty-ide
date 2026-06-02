@@ -241,7 +241,7 @@ pub const CMD_WINDOW_MINIMIZE: u32 = 98;
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
-    Command { id: CMD_NEW_FILE,         label: "File: New File at Location", keybinding: "Ctrl+N" },
+    Command { id: CMD_NEW_FILE,         label: "File: New File", keybinding: "Ctrl+N" },
     Command { id: CMD_NEW_UNTITLED_FILE, label: "File: New Untitled Tab", keybinding: "" },
     Command { id: CMD_NEW_WORKSPACE_FILE, label: "Explorer: New File in Workspace", keybinding: "" },
     Command { id: CMD_NEW_FOLDER,       label: "Explorer: New Folder",   keybinding: "Ctrl+Shift+N" },
