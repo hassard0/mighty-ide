@@ -271,17 +271,17 @@ impl WelcomeState {
             tile,
             tile,
             tile_r,
-            MuiColor::new(0.08, 0.09, 0.15, 1.0),
-            MuiColor::new(0.03, 0.04, 0.09, 1.0),
+            MuiColor::new(0.07, 0.10, 0.15, 1.0),
+            MuiColor::new(0.02, 0.03, 0.07, 1.0),
         );
         ctx.dl_stroke(tx, y, tile, tile, tile_r, MuiColor::new(0.56, 0.96, 0.94, 0.92), 1.3);
         // Centered Mighty mark. The old side-rail version read like a generic
         // app tile at small sizes; this keeps the first impression focused.
         let mark_ink = MuiColor::new(0.61, 1.0, 0.96, 0.98);
         let mark = if tight_height {
-            30.0
+            34.0
         } else if compact {
-            40.0
+            44.0
         } else {
             48.0
         };

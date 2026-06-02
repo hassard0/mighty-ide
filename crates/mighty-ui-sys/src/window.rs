@@ -639,4 +639,33 @@ mod tests {
         assert_eq!(rgba.len(), (width * height * 4) as usize);
         assert!(rgba.chunks_exact(4).any(|px| px[3] > 0));
     }
+
+    #[test]
+    fn bundled_icon_covers_windows_shell_sizes() {
+        let bytes = include_bytes!("../../../assets/mighty-ide.ico");
+        assert_eq!(u16_le(bytes, 0), Some(0));
+        assert_eq!(u16_le(bytes, 2), Some(1));
+        let count = u16_le(bytes, 4).expect("ico entry count") as usize;
+        let mut sizes = Vec::new();
+        for i in 0..count {
+            let off = 6 + i * 16;
+            let w = if bytes[off] == 0 { 256 } else { bytes[off] as u32 };
+            let h = if bytes[off + 1] == 0 { 256 } else { bytes[off + 1] as u32 };
+            sizes.push((w, h));
+        }
+        assert_eq!(
+            sizes,
+            vec![
+                (16, 16),
+                (20, 20),
+                (24, 24),
+                (32, 32),
+                (40, 40),
+                (48, 48),
+                (64, 64),
+                (128, 128),
+                (256, 256),
+            ]
+        );
+    }
 }

@@ -4158,3 +4158,16 @@ active.
   visible header.
 - **Language note:** Mighty needs a structured panel-transition primitive that
   updates the active panel, focus ownership, and refresh hooks together.
+
+### L290. Brand assets need shell-size regression tests **[finding, P2]**
+The Windows taskbar can choose 20px, 24px, 40px, 64px, or 128px icon entries
+depending on DPI and shell context. Shipping only 16/32/48/256px forces Windows
+to resample near-miss entries, which makes a carefully drawn mark look fuzzier
+than the source preview.
+
+- **IDE note:** `tools/make-icon.py` now emits 16/20/24/32/40/48/64/128/256px
+  DIB entries, gives the smallest Mighty monogram more optical weight, and the
+  window tests assert the bundled ICO size ladder.
+- **Language note:** no compiler gap surfaced. Mighty needs an asset pipeline
+  primitive for multi-resolution shell resources and visual-regression metadata
+  so app identity does not depend on ad hoc Python tooling.

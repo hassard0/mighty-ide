@@ -3,7 +3,7 @@
 
 The taskbar icon has to work at 16px, so this is deliberately simpler than the
 large Welcome art: a high-contrast Mighty "M" on a quiet editor tile, rendered
-separately at 16/32/48/256 and assembled into one multi-resolution ico.
+at the common Windows shell sizes and assembled into one multi-resolution ico.
 
 The glyph mirrors the IDE's in-app `icons::LANG_M_FILL` path, so the
 desktop/Explorer icon matches the UI mark.
@@ -16,12 +16,12 @@ from PIL import Image, ImageDraw
 
 # Brand palette. The dark tile reads like an IDE in the taskbar; cyan/violet are
 # accents instead of large shapes so the small icon stays balanced.
-TILE_TOP = (23, 27, 43, 255)
-TILE_BOTTOM = (7, 10, 21, 255)
+TILE_TOP = (18, 25, 39, 255)
+TILE_BOTTOM = (5, 8, 18, 255)
 ACCENT_TEAL = (76, 229, 218, 255)
 ACCENT_VIOLET = (126, 95, 255, 255)
 ACCENT_EDGE = (110, 241, 233, 235)
-INK = (155, 255, 246, 255)
+INK = (165, 255, 248, 255)
 INK_HIGHLIGHT = (255, 255, 255, 245)
 INK_SHADOW = (43, 24, 109, 170)
 
@@ -56,7 +56,7 @@ def render(size: int) -> Image.Image:
 
     # Accent frame: at taskbar sizes use one crisp outline and skip the nested
     # frame, because two thin rings collapse into fuzzy corners at 16/32px.
-    edge_w = SS if compact else max(1, int(s * 0.018))
+    edge_w = max(SS, int(s * (0.022 if compact else 0.018)))
     d.rounded_rectangle(
         [inset, inset, s - inset, s - inset],
         radius=radius,
@@ -71,8 +71,14 @@ def render(size: int) -> Image.Image:
             width=max(edge_w, int(s * 0.014)),
         )
 
-    # Mighty monogram. Scale the 24-unit glyph into the tile's safe area.
-    pad = s * (0.08 if compact else 0.13)
+    # Mighty monogram. At 16/20/24px the mark needs more optical weight than the
+    # large Welcome tile; the shell will shrink it again in the taskbar.
+    if size <= 24:
+        pad = s * 0.035
+    elif compact:
+        pad = s * 0.065
+    else:
+        pad = s * 0.13
     span = s - 2 * pad
     pts = [(pad + (x / 24.0) * span, pad + (y / 24.0) * span) for (x, y) in GLYPH]
     shadow_pts = [(x + max(1, s * 0.012), y + max(1, s * 0.018)) for x, y in pts]
@@ -89,7 +95,9 @@ def main() -> None:
     out = os.path.normpath(os.path.join(here, "..", "assets", "mighty-ide.ico"))
     preview = os.path.normpath(os.path.join(here, "..", "dist", "icon-preview.png"))
     strip_preview = os.path.normpath(os.path.join(here, "..", "dist", "icon-sizes-preview.png"))
-    sizes = [16, 32, 48, 256]
+    # Include the common Windows shell/taskbar sizes, not just the classic ICO
+    # quartet, so Explorer and the taskbar do not have to resample a near miss.
+    sizes = [16, 20, 24, 32, 40, 48, 64, 128, 256]
     imgs = [render(sz) for sz in sizes]
     # Write classic BGRA DIB icon entries rather than PNG-compressed entries.
     # Windows accepts PNG ICOs, but some shell/taskbar/System.Drawing paths render

@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Windows icon coverage matches real shell sizes**: the generated ICO now
+  includes 16/20/24/32/40/48/64/128/256px DIB entries, with a heavier
+  taskbar-scale Mighty mark and a regression test that pins the size ladder.
 - **Mighty Agents is covered by real-mouse UX tests**: the Windows harness now
   opens the language-native Agents topology from the rail, captures the panel,
   and clicks the visible Inspect and Run header affordances while tracing their
