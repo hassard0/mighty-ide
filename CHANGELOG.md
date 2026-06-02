@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Toast feedback clears stale dialog outcomes**: save/open/create workflows now
+  replace older toasts from the same operation family, so cancelled dialogs,
+  failed saves, Save As prompts, and later successful saves do not stack as
+  contradictory stale labels.
 - **Bottom dock resizing no longer jumps on grab**: the Terminal/Run/Tests/Web
   dock now preserves the pointer's offset inside the forgiving resize band, so
   grabbing the top edge off-center does not immediately change the dock height

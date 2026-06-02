@@ -4320,3 +4320,19 @@ the lower pane feel unstable during manual layout.
   gesture metadata for pointer capture, including captured-edge coordinates and
   pointer-to-edge offsets, so language-side layout code can implement forgiving
   resize targets without bespoke shim state.
+
+### L301. Feedback surfaces need workflow-scoped replacement keys **[finding, P2]**
+Several toast messages came from the same user workflow but did not share a
+replacement key. For example, a failed save, a cancelled Save dialog, a Save As
+fallback prompt, and a later successful save could all remain visible together.
+To a human user that reads as stale text that did not clear, even if each toast
+is individually valid.
+
+- **IDE note:** toast operation keys now group the dialog-heavy save/open/create
+  outcomes more aggressively. New save dialog results replace stale save errors
+  and later successful saves replace the fallback/cancel messages. Focused tests
+  cover the exact dirty-close/dialog strings.
+- **Language note:** no compiler gap surfaced. Mighty should eventually expose
+  command/workflow IDs with feedback events so the UI can replace, update, or
+  clear messages by operation identity instead of inferring families from human
+  strings.

@@ -507,13 +507,18 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     let m = message.trim();
     if m == "No unsaved files"
         || m == "Save All failed"
+        || m == "Save cancelled; tab is still open"
+        || m == "Save dialog unavailable; use Save As"
+        || m == "Use Save As to choose a file path"
         || m.starts_with("Saved ")
         || m.starts_with("Save failed")
         || m.starts_with("Auto-saved ")
+        || m.ends_with(" skipped")
         || m.contains(" need Save As")
     {
         Some(OperationKey::Save)
     } else if m.starts_with("Opened folder")
+        || m.starts_with("Opened file")
         || m.starts_with("Open failed")
         || m.starts_with("Recent file missing")
         || m.starts_with("Recent folder missing")
@@ -810,6 +815,34 @@ mod tests {
             .toasts()
             .iter()
             .any(|t| t.message == "File already exists: main.mty"));
+    }
+
+    #[test]
+    fn newer_save_dialog_outcomes_replace_stale_save_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Error, "Save failed: main.mty", t0);
+        q.push_at(
+            Kind::Info,
+            "Save cancelled; tab is still open",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Save cancelled; tab is still open");
+
+        q.push_at(
+            Kind::Warn,
+            "Save dialog unavailable; use Save As",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Save dialog unavailable; use Save As");
+
+        q.push_at(Kind::Warn, "Use Save As to choose a file path", t0 + Duration::from_millis(300));
+        q.push_at(Kind::Success, "Saved 2 files", t0 + Duration::from_millis(400));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Saved 2 files");
     }
 
     #[test]
