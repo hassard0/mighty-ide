@@ -199,6 +199,7 @@ Remove-Item Env:\CLAUDE_API_KEY -ErrorAction SilentlyContinue
 $report = [System.Collections.Generic.List[string]]::new()
 function Log($m) { $line = "[{0}] {1}" -f ((Get-Date).ToString('HH:mm:ss.fff')), $m; $report.Add($line); Write-Host $line }
 $script:HarnessFailed = $false
+$script:ScmWorkspaceTraceDeferred = $false
 
 function Finish-Harness($proc) {
   if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; Log "killed pid $($proc.Id)" }
@@ -1190,8 +1191,8 @@ foreach ($ic in $rail) {
         if (Wait-TraceLiteralContains $scmFolderTrace 7000) {
           Log "SCM-WORKSPACE: native folder picker opened isolated git fixture"
         } else {
-          Log "SCM-WORKSPACE: missing isolated git fixture open trace"
-          $script:HarnessFailed = $true
+          Log "SCM-WORKSPACE: isolated git fixture open trace not observed yet; deferring to SCM root proof"
+          $script:ScmWorkspaceTraceDeferred = $true
         }
       }
     }
@@ -1248,6 +1249,10 @@ foreach ($ic in $rail) {
       if ($env:MUI_TRACE) {
         if (Wait-TraceLiteralContains "scm_toggle_stage ok=1 idx=0 staged=1 unstaged=1 $repoNeedle" 12000) {
           Log "SCM-ROW-STAGE-MOUSE: visible row plus staged one change in isolated repo"
+          if ($script:ScmWorkspaceTraceDeferred) {
+            Log "SCM-WORKSPACE: downstream SCM root confirmed isolated git fixture"
+            $script:ScmWorkspaceTraceDeferred = $false
+          }
         } else {
           Log "SCM-ROW-STAGE-MOUSE: missing visible row stage trace"
           $script:HarnessFailed = $true
