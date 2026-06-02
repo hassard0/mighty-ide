@@ -2995,6 +2995,23 @@ fn run_status_label_stays_ascii_for_compact_chip() {
 }
 
 #[test]
+fn run_output_line_fits_compact_panel_width() {
+    let mut ctx = ctx_or_skip!();
+    let line = "[MT2001] Error: expected `I32` but found a deliberately verbose expression";
+    let shown = crate::featureabi::fit_code_text(&mut ctx.text, line, 210.0, crate::theme::CHROME_FONT_SIZE);
+
+    assert!(shown.ends_with('\u{2026}'), "long run output should visibly ellipsize: {shown}");
+    assert!(
+        ctx.text.measure_sized(&shown, crate::theme::CHROME_FONT_SIZE).0 <= 210.0,
+        "fitted run output must not draw under the dock edge: {shown}"
+    );
+    assert!(
+        shown.starts_with("[MT2001]"),
+        "diagnostic fitting should preserve the error code prefix: {shown}"
+    );
+}
+
+#[test]
 fn status_problems_chip_hit_tracks_rendered_branch_width() {
     use crate::ffi::MuiEvent;
     use crate::{mui_status_problems_chip_at_click, mui_status_render};

@@ -306,6 +306,40 @@ fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) ->
     out
 }
 
+pub(crate) fn fit_code_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    let max_px = max_px.max(0.0);
+    if max_px <= 1.0 {
+        return String::new();
+    }
+    if text.measure_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    let ellipsis_w = text.measure_sized(ellipsis, size).0;
+    if ellipsis_w >= max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if text.measure_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        return ellipsis.to_string();
+    }
+    let mut out: String = chars.iter().take(lo).collect();
+    out.push_str(ellipsis);
+    out
+}
+
 pub(crate) fn run_status_label(running: bool, exit_code: Option<i32>, _duration_ms: u128) -> String {
     if running {
         "running".to_string()
@@ -382,7 +416,6 @@ pub extern "C" fn mui_run_draw(handle: i64) {
     // Output rows.
     let first = ctx.run.first();
     let visible = ((g.panel_h - header_h) / line_h).floor().max(0.0) as usize;
-    let adv = layout::CHAR_W();
     let count = ctx.run.line_count();
     for vis in 0..visible {
         let idx = first + vis;
@@ -406,13 +439,10 @@ pub extern "C" fn mui_run_draw(handle: i64) {
         if clickable {
             ctx.dl_grad_h(g.x0, y, w - 4.0, line_h, 0.0, theme::accent_a(0.08), 0.7);
         }
-        // Clip the row text to the panel width.
-        let avail = (((g.x1 - 14.0) - (g.x0 + 12.0)) / adv).floor() as usize;
-        let mut shown = text;
-        if shown.chars().count() > avail && avail > 1 {
-            shown = shown.chars().take(avail - 1).collect::<String>() + "\u{2026}";
-        }
-        ctx.text.queue(g.x0 + 12.0, ty, &shown, col, clip);
+        let text_x = g.x0 + 12.0;
+        let max_w = (g.x1 - 14.0 - text_x).max(0.0);
+        let shown = fit_code_text(&mut ctx.text, &text, max_w, chrome);
+        ctx.text.queue_sized(text_x, ty, &shown, col, chrome, clip);
     }
 }
 

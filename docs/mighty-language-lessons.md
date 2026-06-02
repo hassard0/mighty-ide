@@ -3714,3 +3714,16 @@ labels make similar file actions feel arbitrary.
 - **Language note:** no compiler gap surfaced. Mighty needs command metadata as a
   generated source of truth with action name, short label, long description,
   keybinding, dialog semantics, and test fixture expectations derived together.
+
+### L254. Console-like panel text still needs measured fitting **[finding, P2]**
+The compact Run output capture showed long diagnostic lines clipped at the right
+edge. The row tried to shorten text using a fixed character-width estimate, but
+the actual shaped code font did not match that estimate closely enough.
+
+- **IDE note:** Run output rows now use measured code-font fitting and draw the
+  fitted text at the same size, preserving diagnostic prefixes such as
+  `[MT2001]` while ending long compact rows with a visible ellipsis inside the
+  dock bounds.
+- **Language note:** no compiler gap surfaced. Mighty UI still needs reusable
+  text-fit primitives for code-font and UI-font labels so each panel does not
+  duplicate binary-search ellipsizing in Rust.
