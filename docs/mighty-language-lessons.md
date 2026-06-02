@@ -3947,3 +3947,17 @@ exercise the feature under audit.
 - **Language note:** no compiler gap surfaced. Mighty UI needs capture fixtures
   that pin relevant preferences and assert the target affordance is actually
   visible, not just that a frame was produced.
+
+### L274. Feature captures need seeded editor context **[finding, P1]**
+Rename and inline ghost-text captures opened their target state, but left the
+automatic Welcome surface visible. The screenshot was nonblank and the internal
+feature state was active, yet a human saw the landing page instead of rename or
+ghost text anchored in code.
+
+- **IDE note:** rename and ghost-text autoopen hooks now seed Mighty source,
+  dismiss Welcome, and lock the probe buffer before opening their feature state.
+  The ghost fixture now anchors to an incomplete expression so suggested lines
+  render into open editor space instead of crossing existing source text.
+- **Language note:** no compiler gap surfaced. Mighty UI needs screenshot
+  fixtures that can assert both state activation and the visual layer that wins
+  composition for that frame.

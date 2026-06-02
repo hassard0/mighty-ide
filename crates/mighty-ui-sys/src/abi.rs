@@ -530,6 +530,11 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
     }
     if std::env::var_os("MUI_RENAME_AUTOOPEN").is_some() {
         if let Some(ctx) = unsafe { ctx(handle) } {
+            let demo = b"fn add(a: I32, b: I32) -> I32 {\n  a + b\n}\n\nfn main() {\n  let total = add(40, 2)\n  print(total)\n}\n";
+            *ctx.tabs.active_model_mut() = crate::editor::TextModel::from_bytes(demo);
+            ctx.tabs.active_model_mut().move_to(0, 3);
+            ctx.welcome.dismiss();
+            ctx.edit_probe_lock = true;
             let seed = std::env::var("MUI_RENAME_AUTOOPEN")
                 .ok()
                 .map(|v| v.trim().to_string())
@@ -695,24 +700,23 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
     // normal launches (the engine otherwise only fires on a real debounced call).
     if let Some(seed) = std::env::var_os("MUI_GHOST_AUTOOPEN") {
         if let Some(ctx) = unsafe { ctx(handle) } {
+            let demo = b"fn collect(items: List<Str>) -> I32 {\n  let mut total: I32 = 0\n  for item in items {\n    total";
+            *ctx.tabs.active_model_mut() = crate::editor::TextModel::from_bytes(demo);
+            ctx.welcome.dismiss();
+            ctx.edit_probe_lock = true;
             let raw = seed.to_string_lossy();
             let raw = raw.trim();
             let suggestion = if raw.is_empty() || raw == "1" {
-                ".push(item)\n  total = total + 1\n  log(\"added\")".to_string()
+                " = total + 1\n  }\n  total\n}".to_string()
             } else {
                 raw.replace("\\n", "\n")
             };
-            // Anchor at the end of the first non-empty line (or 0,0).
+            // Anchor at the end of the incomplete expression, with empty space
+            // below so the ghost lines do not overlap real source text.
             let (al, ac) = {
                 let m = ctx.tabs.active_model();
-                let mut anchor = (0usize, 0usize);
-                for li in 0..m.line_count() {
-                    if !m.line(li).trim().is_empty() {
-                        anchor = (li, m.line_len(li));
-                        break;
-                    }
-                }
-                anchor
+                let li = m.line_count().saturating_sub(1);
+                (li, m.line_len(li))
             };
             ctx.tabs.active_model_mut().move_to(al as i32, ac as i32);
             ctx.ghost.seed_demo(&suggestion, (al, ac));

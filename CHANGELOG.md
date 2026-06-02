@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Rename and ghost-text captures show code context**: screenshot-only hooks for
+  rename and inline ghost suggestions now seed Mighty source, dismiss Welcome,
+  and lock the probe buffer; the ghost fixture uses an incomplete edit so
+  suggested lines render in open space instead of overlapping real code.
 - **Minimap gallery captures always show the minimap**: the screenshot-only
   minimap autoopen hook now forces the minimap preference on while seeding its
   tall demo buffer, and compact editor panes use a slimmer strip anchored to the

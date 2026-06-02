@@ -4330,6 +4330,43 @@ fn screenshot_autoopen_diff_dismisses_welcome_overlay() {
 }
 
 #[test]
+fn language_feature_autoopen_captures_dismiss_welcome_overlay() {
+    let abi = include_str!("abi.rs");
+    for (marker, next_marker, target) in [
+        (
+            "if std::env::var_os(\"MUI_RENAME_AUTOOPEN\").is_some()",
+            "if std::env::var_os(\"MUI_CODEACTION_AUTOOPEN\").is_some()",
+            "ctx.rename.open",
+        ),
+        (
+            "if let Some(seed) = std::env::var_os(\"MUI_GHOST_AUTOOPEN\")",
+            "// Screenshot/render hook for the activity-rail panels",
+            "ctx.ghost.seed_demo",
+        ),
+    ] {
+        let start = abi.find(marker).expect("language feature autoopen hook should exist");
+        let next = abi[start + marker.len()..]
+            .find(next_marker)
+            .map(|i| start + marker.len() + i)
+            .unwrap_or(abi.len());
+        let block = &abi[start..next];
+        assert!(
+            block.contains("TextModel::from_bytes"),
+            "{marker} hook must seed code so the capture proves the editor surface"
+        );
+        assert!(block.contains(target), "{marker} hook must open the target feature");
+        assert!(
+            block.contains("ctx.welcome.dismiss()"),
+            "{marker} hook must dismiss Welcome so captures show the feature over code"
+        );
+        assert!(
+            block.contains("ctx.edit_probe_lock = true"),
+            "{marker} hook must keep the seeded code stable during screenshot capture"
+        );
+    }
+}
+
+#[test]
 fn every_palette_command_is_routed_by_mighty_dispatcher() {
     use crate::palette::*;
 
