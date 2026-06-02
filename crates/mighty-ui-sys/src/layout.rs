@@ -280,6 +280,9 @@ pub fn region(sidebar_visible: bool) -> Region {
 
 /// Width (px) of the vertical divider between split editor panes.
 pub const PANE_DIVIDER_W: f32 = 1.0;
+/// Left inset for panes that sit after a split divider. Without this, the right
+/// pane's gutter starts directly on the divider and looks visually clipped.
+pub const PANE_INNER_PAD: f32 = 8.0;
 
 /// Pixel column bounds `[left, right)` of pane `i` of `count` panes, given the
 /// editor body's `region` left edge and the window width `win_w`. The body
@@ -308,9 +311,14 @@ pub fn pane_bounds(region: Region, win_w: f32, count: usize, i: usize) -> (f32, 
 /// shared editor body, but its left edge shifted to the pane's column start.
 pub fn pane_region(region: Region, win_w: f32, count: usize, i: usize) -> Region {
     let (left, _right) = pane_bounds(region, win_w, count, i);
+    let inner_pad = if count > 1 && i > 0 {
+        PANE_INNER_PAD
+    } else {
+        0.0
+    };
     Region {
         top: region.top,
-        left,
+        left: left + inner_pad,
     }
 }
 
@@ -882,9 +890,11 @@ mod tests {
         let win_w = 1320.0;
         let pr0 = pane_region(r, win_w, 2, 0);
         let pr1 = pane_region(r, win_w, 2, 1);
+        let (raw_l1, _raw_r1) = pane_bounds(r, win_w, 2, 1);
         assert_eq!(pr0.top, r.top);
         assert_eq!(pr1.top, r.top);
         assert_eq!(pr0.left, r.left);
+        assert_eq!(pr1.left, raw_l1 + PANE_INNER_PAD);
         assert!(pr1.left > pr0.left, "right pane starts further right");
     }
 

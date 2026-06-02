@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Split editor panes get divider breathing room**: right-hand panes now start
+  with a small inner inset after the divider, so gutter numbers and source text
+  no longer appear glued to the split border in compact windows.
 - **Signature Help stays inside compact editor columns**: signature popups now
   cap their width to the actual visible work area before fitting text, avoiding
   right-edge overflow in narrow windows.

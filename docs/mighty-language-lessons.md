@@ -3878,3 +3878,12 @@ the right edge, so both the signature and documentation looked cut off.
 - **Language note:** no compiler gap surfaced. Mighty UI needs popup geometry
   helpers that take work-area width as a hard constraint, not just a preferred
   minimum.
+
+### L268. Split dividers need an inner content inset **[finding, P2]**
+The right editor pane in a compact split began immediately after the one-pixel
+divider, making line numbers and code feel glued to the border.
+
+- **IDE note:** non-left split panes now receive a small inner inset while the
+  unsplit editor and left pane keep their historical region.
+- **Language note:** no compiler gap surfaced. Mighty UI needs pane-layout
+  primitives that distinguish divider geometry from the content-start region.
