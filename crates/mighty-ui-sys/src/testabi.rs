@@ -512,6 +512,11 @@ fn testing_run_label(ran: bool, compact: bool) -> &'static str {
     }
 }
 
+fn testing_stop_label_size(compact: bool) -> f32 {
+    let chrome = theme::CHROME_FONT_SIZE;
+    if compact { chrome - 2.0 } else { chrome - 1.0 }
+}
+
 fn compact_testing_summary(sidebar_w: f32) -> bool {
     sidebar_w < 220.0
 }
@@ -649,9 +654,8 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     ctx.dl_round(tb.stop_x, tb.y, tb.btn_w, tb.btn_h, 7.0, stop_bg);
     ctx.dl_stroke(tb.stop_x, tb.y, tb.btn_w, tb.btn_h, 7.0, theme::BORDER_STRONG(), 1.0);
     ctx.dl_icon(tb.stop_x + 9.0, tb.y + (tb.btn_h - 12.0) * 0.5, 12.0, 12.0, icons::DBG_STOP, stop_col, 1.4, true);
-    if !tb.compact {
-        ctx.text.queue_ui_sized(tb.stop_x + 28.0, tb.y + (tb.btn_h - chrome) * 0.5 - 1.0, "Stop", stop_col, chrome - 1.0, clip);
-    }
+    let stop_label_size = testing_stop_label_size(tb.compact);
+    ctx.text.queue_ui_sized(tb.stop_x + 28.0, tb.y + (tb.btn_h - stop_label_size) * 0.5 - 1.0, "Stop", stop_col, stop_label_size, clip);
 
     // Summary line + a proportional pass/fail bar.
     let passed = ctx.tests_panel.passed();
@@ -832,6 +836,28 @@ mod tests {
         assert_eq!(testing_run_label(true, false), "Re-run");
         assert_eq!(testing_run_label(false, true), "Run");
         assert_eq!(testing_run_label(true, true), "Run");
+    }
+
+    #[test]
+    fn compact_testing_stop_button_keeps_action_verb() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(560, 520) else {
+            return;
+        };
+        crate::layout::reset_sidebar_preset();
+        crate::layout::set_window_width(560);
+        let tb = toolbar_geom();
+        assert!(tb.compact, "560px gallery sidebar should use compact toolbar");
+
+        let label_x = tb.stop_x + 28.0;
+        let label_size = testing_stop_label_size(true);
+        let (label_w, _) = ctx.text.measure_ui_sized("Stop", label_size);
+        assert!(
+            label_x + label_w <= tb.stop_x + tb.btn_w - 8.0,
+            "compact Stop label should fit inside the button"
+        );
+
+        crate::layout::reset_sidebar_preset();
+        crate::layout::set_window_width(900);
     }
 
     #[test]

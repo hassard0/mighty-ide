@@ -3742,3 +3742,14 @@ hint copy did not reserve enough space before the high-contrast adornment.
   field primitive that owns icon, caret, placeholder, typed text, and trailing
   adornment budgets together instead of requiring each overlay to re-create that
   layout math in Rust.
+
+### L256. Compact toolbars still need visible action verbs **[finding, P2]**
+The compact Testing drawer hid the `Stop` label and left only a faint square icon
+inside the secondary toolbar button. The hit-test worked, but the control read as
+blank or broken to a human scanning the drawer.
+
+- **IDE note:** the Testing toolbar now keeps `Stop` visible at compact width
+  with a measured label-size regression for the `560x520` gallery sidebar.
+- **Language note:** no compiler gap surfaced. Mighty UI needs button primitives
+  that can degrade from icon+label to icon-only only when an accessible action
+  name, tooltip, or disabled-state treatment remains explicit.

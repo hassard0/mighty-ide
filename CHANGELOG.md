@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Testing Stop control is no longer blank at compact width**: the compact
+  Testing toolbar now keeps the `Stop` action label visible beside the square
+  icon, so the disabled/runnable state reads like a control instead of an empty
+  button.
 - **Quick Open placeholder yields before the mode pill**: compact overlays now
   reserve a larger measured text budget before the `FILES` / `CMDS` adornment,
   and fall back to a clean short placeholder instead of clipping halfway through
