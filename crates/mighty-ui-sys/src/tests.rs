@@ -1042,6 +1042,27 @@ fn web_playground_idle_controls_explain_noops() {
 }
 
 #[test]
+fn web_headless_open_browser_does_not_cover_screenshot_with_success_toast() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let old_screenshot = std::env::var_os("MUI_SCREENSHOT");
+    std::env::set_var("MUI_SCREENSHOT", "target/web-headless-open-browser.png");
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    ctx.web.seed_demo("examples/webspin/src/main.mty");
+
+    let before = ctx.toasts.toasts().len();
+    assert_eq!(crate::webabi::mui_web_open_browser(handle), 1);
+    assert_eq!(ctx.toasts.toasts().len(), before);
+
+    if let Some(v) = old_screenshot {
+        std::env::set_var("MUI_SCREENSHOT", v);
+    } else {
+        std::env::remove_var("MUI_SCREENSHOT");
+    }
+}
+
+#[test]
 fn ai_send_idle_controls_explain_noops() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let old_anthropic = std::env::var_os("ANTHROPIC_API_KEY");

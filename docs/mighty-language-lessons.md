@@ -4872,3 +4872,15 @@ earlier/later tabs existed was a tiny edge sliver.
 - **Language note:** Mighty UI needs reusable overflow affordance primitives for
   scrollable strips/lists so "more content offscreen" is not reimplemented as
   bespoke rectangles in every component.
+
+L340. Headless visual hooks must not add transient success chrome. The Web
+Playground screenshot seed opened a ready URL, then the headless browser-open
+path pushed the same success toast a human click would get. That made the
+capture technically successful but visually masked the panel being inspected.
+
+- **IDE note:** headless Web browser-open now returns success without pushing an
+  `Opened ...` toast. Interactive browser opens still toast, and empty URL still
+  warns because it is actionable.
+- **Language note:** no compiler bug surfaced. Mighty UI needs a visual-test
+  lifecycle primitive that can activate state and acknowledge side effects
+  without injecting transient feedback into the frame under audit.

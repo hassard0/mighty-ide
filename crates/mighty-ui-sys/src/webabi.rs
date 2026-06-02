@@ -165,7 +165,6 @@ pub extern "C" fn mui_web_open_browser(handle: i64) -> i32 {
     if crate::abi::headless_mode_active() {
         if !url.is_empty() {
             println!("web: headless mode skipped opening {url}");
-            c.push_toast(crate::toast::Kind::Success, format!("Opened {url}"));
             return 1;
         }
         c.push_toast(crate::toast::Kind::Warn, "Web URL not ready");
