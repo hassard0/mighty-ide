@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Mighty Agents is covered by real-mouse UX tests**: the Windows harness now
+  opens the language-native Agents topology from the rail, captures the panel,
+  and clicks the visible Inspect and Run header affordances while tracing their
+  dispatch.
 - **Web Playground is usable from inside the panel**: the browser runtime panel
   now shows a compact empty state before any session has run, exposes a visible
   Run button in its header, lets that button win over the shared resize band,

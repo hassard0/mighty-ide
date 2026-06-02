@@ -4130,3 +4130,31 @@ routing ever saw it.
   event-priority or hit-layer table so overlay, dock, panel-header, resize, and
   editor-body regions are ordered by data instead of repeated long `if/else`
   guards.
+
+### L288. Language-native panels need real-mouse evidence **[finding, P1]**
+The Mighty Agents topology was implemented and screenshot-audited, but the
+strict Windows harness did not open it from the rail or click its header
+affordances. That left one of the IDE's most Mighty-specific surfaces weaker
+than generic file, terminal, search, and dialog workflows.
+
+- **IDE note:** the Agents panel now traces topology refresh, Inspect clicks,
+  Run clicks, and Run attempts. The Windows real-mouse harness opens Mighty
+  Agents from the rail, captures the topology, and clicks the visible Inspect
+  and Run buttons in the header.
+- **Language note:** no compiler gap surfaced. Mighty needs a first-class
+  UI-test vocabulary for language-native features so panels like Agents can
+  expose typed events and expected state without adding bespoke scalar trace
+  hooks for each visible affordance.
+
+### L289. Focused panel routers must transfer companion state **[finding, P1]**
+The Testing-focused mouse router could switch the sidebar to Mighty Agents but
+did not carry the companion Agents focus state. The topology drew correctly, yet
+the first visible Agents header click was routed as if no Agents header was
+active.
+
+- **IDE note:** switching from Testing to Mighty Agents now refreshes the
+  topology and marks Agents focused. The real-mouse harness covers this by
+  opening Agents from Testing focus and dispatching Inspect and Run from the
+  visible header.
+- **Language note:** Mighty needs a structured panel-transition primitive that
+  updates the active panel, focus ownership, and refresh hooks together.

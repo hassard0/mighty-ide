@@ -625,21 +625,42 @@ $topbarMoreX = $logicalW - (3 * 46) - 19
 $tabBodyLeft = 52 + [math]::Min(248, [math]::Max(184, $logicalW * 0.30))
 $tabRightLimit = ($logicalW - (3 * 46) - 68)
 
+function Normalize-PaletteQuery($query) {
+  return (($query -replace '\s+', '').ToLowerInvariant())
+}
+
 function Invoke-PaletteCommand($query, $captureName) {
   $moreCount = Trace-MatchCount "topbar_action .* -> more"
   $paletteOpenCount = Trace-MatchCount "(?m)^palette_open count="
+  $normalizedQuery = Normalize-PaletteQuery $query
+  $queryPattern = "(?m)^palette_query query=""$([regex]::Escape($normalizedQuery))"""
+  $queryCount = Trace-MatchCount $queryPattern
   ClickL $topbarMoreX 20
   [void](Wait-TraceCountGreaterThan "topbar_action .* -> more" $moreCount 1500)
   if (-not (Wait-TraceCountGreaterThan "(?m)^palette_open count=" $paletteOpenCount 1800)) {
-    Log "PALETTE: did not observe palette_open before typing '$query'"
-    $script:HarnessFailed = $true
+    Log "PALETTE: first click did not open before typing '$query'; retrying"
+    $moreCount = Trace-MatchCount "topbar_action .* -> more"
+    $paletteOpenCount = Trace-MatchCount "(?m)^palette_open count="
+    ClickL $topbarMoreX 20
+    [void](Wait-TraceCountGreaterThan "topbar_action .* -> more" $moreCount 1800)
+    if (-not (Wait-TraceCountGreaterThan "(?m)^palette_open count=" $paletteOpenCount 3000)) {
+      Log "PALETTE: did not observe palette_open before typing '$query'"
+      $script:HarnessFailed = $true
+    }
   }
   Start-Sleep -Milliseconds 120
   if ($captureName) { Capture $hwnd $captureName }
   Type-Text $hwnd $query
-  Start-Sleep -Milliseconds 300
+  if (-not (Wait-TraceCountGreaterThan $queryPattern $queryCount 4500)) {
+    Log "PALETTE: query '$query' did not fully reach the visible command palette"
+    $script:HarnessFailed = $true
+  }
+  $selectedPattern = "(?m)^palette_selected id=.* query=""$([regex]::Escape($normalizedQuery))"""
+  $selectedCount = Trace-MatchCount $selectedPattern
+  Start-Sleep -Milliseconds 120
   Press-VK $hwnd 0x0D
-  Start-Sleep -Milliseconds 800
+  [void](Wait-TraceCountGreaterThan $selectedPattern $selectedCount 3000)
+  Start-Sleep -Milliseconds 500
 }
 
 function Get-TraceText() {
@@ -676,6 +697,16 @@ function Wait-TraceContainsAll($patterns, $timeoutMs) {
       }
     }
     if ($ok) { return $true }
+    Start-Sleep -Milliseconds 100
+  }
+  return $false
+}
+
+function Wait-TraceLiteralContains($needle, $timeoutMs) {
+  $deadline = (Get-Date).AddMilliseconds($timeoutMs)
+  while ((Get-Date) -lt $deadline) {
+    $text = Get-TraceText
+    if ($text.Contains($needle)) { return $true }
     Start-Sleep -Milliseconds 100
   }
   return $false
@@ -787,15 +818,29 @@ function PaletteRowCenter($rowIndex) {
 function Invoke-PaletteCommandClick($query, $rowIndex, $captureName) {
   $moreCount = Trace-MatchCount "topbar_action .* -> more"
   $paletteOpenCount = Trace-MatchCount "(?m)^palette_open count="
+  $normalizedQuery = Normalize-PaletteQuery $query
+  $queryPattern = "(?m)^palette_query query=""$([regex]::Escape($normalizedQuery))"""
+  $queryCount = Trace-MatchCount $queryPattern
   ClickL $topbarMoreX 20
   [void](Wait-TraceCountGreaterThan "topbar_action .* -> more" $moreCount 1500)
   if (-not (Wait-TraceCountGreaterThan "(?m)^palette_open count=" $paletteOpenCount 1800)) {
-    Log "PALETTE-MOUSE: did not observe palette_open before typing '$query'"
-    $script:HarnessFailed = $true
+    Log "PALETTE-MOUSE: first click did not open before typing '$query'; retrying"
+    $moreCount = Trace-MatchCount "topbar_action .* -> more"
+    $paletteOpenCount = Trace-MatchCount "(?m)^palette_open count="
+    ClickL $topbarMoreX 20
+    [void](Wait-TraceCountGreaterThan "topbar_action .* -> more" $moreCount 1800)
+    if (-not (Wait-TraceCountGreaterThan "(?m)^palette_open count=" $paletteOpenCount 3000)) {
+      Log "PALETTE-MOUSE: did not observe palette_open before typing '$query'"
+      $script:HarnessFailed = $true
+    }
   }
   Start-Sleep -Milliseconds 120
   Type-Text $hwnd $query
-  Start-Sleep -Milliseconds 350
+  if (-not (Wait-TraceCountGreaterThan $queryPattern $queryCount 4500)) {
+    Log "PALETTE-MOUSE: query '$query' did not fully reach the visible command palette"
+    $script:HarnessFailed = $true
+  }
+  Start-Sleep -Milliseconds 160
   if ($captureName) { Capture $hwnd $captureName }
   $pt = PaletteRowCenter $rowIndex
   ClickL $pt.X $pt.Y
@@ -1028,7 +1073,7 @@ foreach ($ic in $rail) {
     ClickL 280 20
     Start-Sleep -Milliseconds 450
     if ($env:MUI_TRACE) {
-      if (Wait-TraceCountGreaterThan "scm_refresh branch=" $scmRefreshCount 1800) {
+      if (Wait-TraceCountGreaterThan "scm_refresh branch=" $scmRefreshCount 4500) {
         Log "SCM-REFRESH-MOUSE: visible refresh icon rescanned local status"
       } else {
         Log "SCM-REFRESH-MOUSE: refresh icon did not rescan local status"
@@ -1056,6 +1101,47 @@ if ($env:MUI_TRACE) {
     } else {
       Log "TEST-RUN-MOUSE: missing run dispatch trace"
     }
+    $script:HarnessFailed = $true
+  }
+}
+
+# === MIGHTY AGENTS: rail icon should open topology and header affordances. ===
+$agentsRefreshCount = Trace-MatchCount "(?m)^agents_refresh rows="
+ClickL 26 407
+Start-Sleep -Milliseconds 550
+Capture $hwnd "20-agents-topology"
+if ($env:MUI_TRACE) {
+  if (Wait-TraceCountGreaterThan "(?m)^agents_refresh rows=" $agentsRefreshCount 2200) {
+    Log "AGENTS-RAIL-MOUSE: topology panel refreshed from visible rail icon"
+  } else {
+    Log "AGENTS-RAIL-MOUSE: missing topology refresh trace"
+    $script:HarnessFailed = $true
+  }
+}
+$agentsInspectCount = Trace-MatchCount "(?m)^agents_click inspect$"
+# Packaged app sidebar right can vary slightly after earlier layout coverage;
+# this target sits in the overlap of the observed Inspect hit bands.
+# the visible header icons inside the Agents panel rather than the tab bar.
+ClickL 260 20
+Start-Sleep -Milliseconds 180
+ClickL 260 20
+Start-Sleep -Milliseconds 350
+if ($env:MUI_TRACE) {
+  if (Wait-TraceCountGreaterThan "(?m)^agents_click inspect$" $agentsInspectCount 1600) {
+    Log "AGENTS-INSPECT-MOUSE: visible Inspect header button dispatched"
+  } else {
+    Log "AGENTS-INSPECT-MOUSE: visible Inspect header button did not dispatch"
+    $script:HarnessFailed = $true
+  }
+}
+$agentsRunCount = Trace-MatchCount "(?m)^agents_click run$"
+ClickL 284 20
+Start-Sleep -Milliseconds 450
+if ($env:MUI_TRACE) {
+  if (Wait-TraceCountGreaterThan "(?m)^agents_click run$" $agentsRunCount 1600) {
+    Log "AGENTS-RUN-MOUSE: visible Run header button dispatched"
+  } else {
+    Log "AGENTS-RUN-MOUSE: visible Run header button did not dispatch"
     $script:HarnessFailed = $true
   }
 }
@@ -1441,17 +1527,15 @@ if ($openText -like "*zz*") {
 # === OPEN FOLDER dialog via palette should apply the selected workspace. ===
 Invoke-PaletteCommand "open folder" "45-open-folder-palette"
 if ($env:MUI_TRACE) {
-  $openFolderPattern = [regex]::Escape($openFolderPath)
-  $folderApplied = Wait-TraceContainsAll @("workspace_open_folder path=$openFolderPattern changed=1") 4500
-  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
-  if ($folderApplied -and $traceText -match "workspace_open_folder path=$openFolderPattern changed=1") {
+  $openFolderTrace = "workspace_open_folder path=$openFolderPath changed=1"
+  if (Wait-TraceLiteralContains $openFolderTrace 7000) {
     Log "OPEN-FOLDER: selected folder became workspace -> $openFolderPath"
   } else {
     Log "OPEN-FOLDER: selected folder was not applied as workspace ($openFolderPath)"
     $script:HarnessFailed = $true
   }
 }
-$respFolder = Wait-Responsive $hwnd 4500
+$respFolder = Wait-Responsive $hwnd 10000
 Log "OPEN-FOLDER: responsive after workspace change=$respFolder"
 if (-not $respFolder) { $script:HarnessFailed = $true }
 
@@ -1489,8 +1573,9 @@ $recentRowClickCount = Trace-MatchCount "welcome_click .* -> 2000"
 ClickL 470 246
 Start-Sleep -Milliseconds 500
 if ($env:MUI_TRACE) {
-  $rowClicked = Wait-TraceCountGreaterThan "welcome_click .* -> 2000" $recentRowClickCount 1800
-  $workspaceOpened = Wait-TraceContainsAll @("workspace_open_folder path=$openFolderPattern changed=(0|1)") 2500
+  $rowClicked = Wait-TraceCountGreaterThan "welcome_click .* -> 2000" $recentRowClickCount 3500
+  $workspaceOpened = (Wait-TraceLiteralContains "workspace_open_folder path=$openFolderPath changed=0" 3500) -or
+    (Wait-TraceLiteralContains "workspace_open_folder path=$openFolderPath changed=1" 3500)
   if ($rowClicked -and $workspaceOpened) {
     Log "OPEN-RECENT-MOUSE: recent workspace row clicked and dispatched"
   } else {

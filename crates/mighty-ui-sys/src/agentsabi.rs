@@ -798,6 +798,13 @@ pub extern "C" fn mui_agents_refresh(handle: i64) -> i32 {
         topo.tool_count(),
         topo.supervisor_count()
     );
+    crate::abi::trace(&format!(
+        "agents_refresh rows={n} agents={} protocols={} tools={} supervisors={}",
+        topo.agent_count(),
+        topo.protocol_count(),
+        topo.tool_count(),
+        topo.supervisor_count()
+    ));
     ctx.agents = topo;
     n as i32
 }
@@ -935,6 +942,7 @@ pub extern "C" fn mui_agents_click_is_run(handle: i64) -> i32 {
         && ctx.last_event.x >= run_x0
         && ctx.last_event.x <= layout::sidebar_right()
     {
+        crate::abi::trace("agents_click run");
         1
     } else {
         0
@@ -953,6 +961,7 @@ pub extern "C" fn mui_agents_click_is_inspect(handle: i64) -> i32 {
         && ctx.last_event.x >= inspect_x0
         && ctx.last_event.x < inspect_x1
     {
+        crate::abi::trace("agents_click inspect");
         1
     } else {
         0
@@ -977,11 +986,13 @@ pub extern "C" fn mui_agents_run(handle: i64) -> i32 {
         return 0;
     };
     let Some(path) = ctx.tabs.active_path() else {
+        crate::abi::trace("agents_run no_active_file");
         return 0;
     };
     let mut topo = std::mem::take(&mut ctx.agents);
     let ok = topo.run_start(&path);
     ctx.agents = topo;
+    crate::abi::trace(&format!("agents_run ok={} path={}", i32::from(ok), path.display()));
     if ok {
         1
     } else {
@@ -1029,6 +1040,7 @@ pub extern "C" fn mui_agents_inspect(handle: i64) -> i32 {
     let mut topo = std::mem::take(&mut ctx.agents);
     let n = topo.inspect();
     ctx.agents = topo;
+    crate::abi::trace(&format!("agents_inspect result={n}"));
     n
 }
 
