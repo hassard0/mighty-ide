@@ -1158,6 +1158,10 @@ fn search_panel_clicks_focus_fields_and_return_actions() {
     assert_eq!(crate::panels::mui_search_action_at_click(handle), 2);
     assert!(ctx.search.replace_focus);
 
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, sx + sw - 20.0, 20.0, 0);
+    assert_eq!(crate::panels::mui_search_action_at_click(handle), 1);
+    assert!(!ctx.search.replace_focus);
+
     ctx.active_panel = crate::PANEL_EXPLORER;
     assert_eq!(crate::panels::mui_search_action_at_click(handle), 0);
 }

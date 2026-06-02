@@ -803,6 +803,17 @@ foreach ($ic in $rail) {
     Start-Sleep -Milliseconds 120
     Type-Text $hwnd "opened"
     Start-Sleep -Milliseconds 150
+    if ($env:MUI_TRACE) { $searchRunHeaderCount = Trace-MatchCount "search_run query=""opened"" files=1 matches=1" }
+    ClickL 280 20
+    Start-Sleep -Milliseconds 450
+    if ($env:MUI_TRACE) {
+      if (Wait-TraceCountGreaterThan "search_run query=""opened"" files=1 matches=1" $searchRunHeaderCount 1800) {
+        Log "SEARCH-HEADER-MOUSE: visible header refresh ran the current query"
+      } else {
+        Log "SEARCH-HEADER-MOUSE: header refresh did not run the current query"
+        $script:HarnessFailed = $true
+      }
+    }
     ClickL 273 75
     Start-Sleep -Milliseconds 700
     Capture $hwnd "20-search-results"

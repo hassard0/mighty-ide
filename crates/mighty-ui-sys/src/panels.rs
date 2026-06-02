@@ -1313,6 +1313,13 @@ pub extern "C" fn mui_search_action_at_click(handle: i64) -> i32 {
     let box_x0 = sx + 10.0;
     let (btn_x0, btn_x1) = search_field_button_x(sx, sw);
     let box_x1 = (sx + sw - 10.0).max(btn_x1);
+    let header_btn_x0 = sx + sw - 36.0;
+    let header_btn_x1 = sx + sw - 8.0;
+    if (header_btn_x0..=header_btn_x1).contains(&x) && (0.0..=40.0).contains(&y) {
+        ctx.search.replace_focus = false;
+        crate::abi::trace(&format!("search_action x={x:.1} y={y:.1} -> header_run"));
+        return 1;
+    }
     if (box_x0..=box_x1).contains(&x) && (qy..=qy + box_h).contains(&y) {
         ctx.search.replace_focus = false;
         if (btn_x0..=btn_x1).contains(&x) {
