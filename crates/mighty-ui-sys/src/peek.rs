@@ -88,6 +88,53 @@ fn card_rect(
     (card_x, card_y, card_w, card_h)
 }
 
+pub(crate) fn peek_header_hint_for_width(card_w: f32) -> &'static str {
+    if card_w >= 460.0 {
+        "Enter: go / Esc: close"
+    } else if card_w >= 260.0 {
+        "Go / Esc"
+    } else if card_w >= 200.0 {
+        "Go/Esc"
+    } else {
+        "Esc"
+    }
+}
+
+pub(crate) fn fit_peek_header_label(
+    text: &mut crate::text::Text,
+    label: &str,
+    max_px: f32,
+    size: f32,
+) -> String {
+    let max_px = max_px.max(0.0);
+    if text.measure_ui_sized(label, size).0 <= max_px {
+        return label.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    let ellipsis_w = text.measure_ui_sized(ellipsis, size).0;
+    if ellipsis_w >= max_px {
+        return ellipsis.to_string();
+    }
+
+    let chars: Vec<char> = label.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi + 1) / 2;
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+
+    let mut out: String = chars.iter().take(lo).collect();
+    out.push_str(ellipsis);
+    out
+}
+
 /// One previewed line: its 0-based source line number + the text.
 #[derive(Debug, Clone)]
 struct PeekLine {
@@ -282,23 +329,21 @@ impl PeekState {
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_else(|| "definition".to_string());
         let header = format!("{}:{}", fname, self.def_line + 1);
-        let hint = if card_w >= 460.0 {
-            "Enter: go / Esc: close"
-        } else {
-            "Enter / Esc"
-        };
+        let hint = peek_header_hint_for_width(card_w);
         let hint_size = chrome - 1.5;
         let (hint_w, _) = ctx.text.measure_ui_sized(hint, hint_size);
         let hint_x = (card_x + card_w - hint_w - 12.0).max(card_x + 90.0);
-        let header_clip_w = (hint_x - (card_x + 40.0)).max(48.0);
+        let header_x = card_x + 32.0;
+        let header_budget = (hint_x - 10.0 - header_x).max(28.0);
+        let header = fit_peek_header_label(&mut ctx.text, &header, header_budget, chrome);
         let header_clip = Some((
-            (card_x + 32.0) as u32,
+            header_x as u32,
             card_y as u32,
-            header_clip_w as u32,
+            header_budget as u32,
             header_h as u32,
         ));
         ctx.text.queue_ui_sized(
-            card_x + 32.0,
+            header_x,
             card_y + 6.0,
             &header,
             theme::TEXT(),
@@ -456,6 +501,15 @@ mod tests {
             "peek card should stay inside the 12px right margin, right={}",
             x + w
         );
+    }
+
+    #[test]
+    fn compact_header_hint_shortens_before_it_crowds_label() {
+        assert_eq!(peek_header_hint_for_width(520.0), "Enter: go / Esc: close");
+        assert_eq!(peek_header_hint_for_width(360.0), "Go / Esc");
+        assert_eq!(peek_header_hint_for_width(260.0), "Go / Esc");
+        assert_eq!(peek_header_hint_for_width(220.0), "Go/Esc");
+        assert_eq!(peek_header_hint_for_width(180.0), "Esc");
     }
 
     #[test]

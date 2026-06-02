@@ -3132,6 +3132,21 @@ fn status_bar_compacts_long_left_cluster_before_right_cluster() {
 }
 
 #[test]
+fn peek_header_label_fits_measured_budget() {
+    let mut ctx = ctx_or_skip!();
+    let label = "very_long_nested_file_name_for_peek_header.mty:128";
+    let fitted = crate::peek::fit_peek_header_label(&mut ctx.text, label, 92.0, crate::theme::CHROME_FONT_SIZE);
+    assert!(fitted.ends_with('\u{2026}'));
+    assert!(
+        ctx.text.measure_ui_sized(&fitted, crate::theme::CHROME_FONT_SIZE).0 <= 92.0,
+        "peek header should fit its measured budget: {fitted}"
+    );
+
+    let short = crate::peek::fit_peek_header_label(&mut ctx.text, "main.mty:1", 160.0, crate::theme::CHROME_FONT_SIZE);
+    assert_eq!(short, "main.mty:1");
+}
+
+#[test]
 fn status_resize_grip_stays_in_bottom_right_corner() {
     let (x, y, w, h) = crate::abi::status_resize_grip_rect(1280.0, 832.0);
 

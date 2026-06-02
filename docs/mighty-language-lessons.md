@@ -3856,3 +3856,14 @@ Run button matched the guard and was consumed before the normal Run route.
 - **Language note:** no compiler gap surfaced. Mighty UI needs event-routing
   tests that assert every intercepted action id is either dispatched or allowed
   to fall through deliberately.
+
+### L266. Clipping is not fitting for mixed header/action rows **[finding, P2]**
+Peek Definition clipped its `file:line` label to make room for `Enter / Esc`, but
+the compact card still looked crowded because neither side had a deliberate
+compact variant or measured ellipsis budget.
+
+- **IDE note:** peek headers now choose `Go / Esc`, `Go/Esc`, or `Esc` at compact widths and
+  measured-ellipsis the file label before drawing.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a reusable header
+  row primitive that budgets title text, status/action hints, and icon slots
+  together instead of relying on clip rectangles.
