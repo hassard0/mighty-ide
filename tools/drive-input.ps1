@@ -24,12 +24,21 @@ public static class Win32 {
   [DllImport("user32.dll", SetLastError=true)] public static extern IntPtr FindWindow(string c, string n);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);
+  [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
   [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, System.Text.StringBuilder s, int n);
+  [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out RECT rect, int size);
   public const uint MOUSEEVENTF_LEFTDOWN = 0x02;
   public const uint MOUSEEVENTF_LEFTUP   = 0x04;
   public const uint MOUSEEVENTF_WHEEL    = 0x0800;
+  public static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+  public static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
+  public const uint SWP_NOMOVE = 0x0002;
+  public const uint SWP_NOSIZE = 0x0001;
+  public const uint SWP_SHOWWINDOW = 0x0040;
+  public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
 }
 "@
@@ -58,11 +67,19 @@ Start-Sleep -Milliseconds $WaitMs
 $hwnd = Find-IdeWindow $proc
 if ($hwnd -eq [IntPtr]::Zero) { Write-Host "WARN: no MainWindowHandle"; }
 [Win32]::ShowWindow($hwnd, 9) | Out-Null   # SW_RESTORE
+[Win32]::SetWindowPos($hwnd, [Win32]::HWND_TOPMOST, 0, 0, 0, 0, [Win32]::SWP_NOMOVE -bor [Win32]::SWP_NOSIZE -bor [Win32]::SWP_SHOWWINDOW) | Out-Null
+[Win32]::BringWindowToTop($hwnd) | Out-Null
 [Win32]::SetForegroundWindow($hwnd) | Out-Null
+Start-Sleep -Milliseconds 250
+[Win32]::SetWindowPos($hwnd, [Win32]::HWND_NOTOPMOST, 0, 0, 0, 0, [Win32]::SWP_NOMOVE -bor [Win32]::SWP_NOSIZE -bor [Win32]::SWP_SHOWWINDOW) | Out-Null
 Start-Sleep -Milliseconds 600
 
 $r = New-Object Win32+RECT
 [Win32]::GetWindowRect($hwnd, [ref]$r) | Out-Null
+$visual = New-Object Win32+RECT
+if ([Win32]::DwmGetWindowAttribute($hwnd, [Win32]::DWMWA_EXTENDED_FRAME_BOUNDS, [ref]$visual, [System.Runtime.InteropServices.Marshal]::SizeOf([type][Win32+RECT])) -eq 0) {
+  $r = $visual
+}
 Write-Host "Window rect: L=$($r.Left) T=$($r.Top) R=$($r.Right) B=$($r.Bottom)"
 $W = $r.Right - $r.Left
 $H = $r.Bottom - $r.Top

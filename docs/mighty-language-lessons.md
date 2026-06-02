@@ -4612,3 +4612,21 @@ also used raw GPU dimensions instead of the screenshot-visible override.
   overlay contract that separates "activate state for draw" from "force draw in
   renderer tail" so auto-open hooks cannot accidentally render the same modal
   twice or with mismatched bounds.
+
+### L322. GUI apps need first-class native subsystem metadata **[language/tooling gap, P1]**
+The real mouse harness launched the packaged Windows EXE and captured a console
+window instead of the IDE. The app itself is a GUI surface, but `mty build`
+produced a console-subsystem executable unless the app manifest passed raw
+Windows linker flags. Adding only `/subsystem:windows` made the CRT search for
+`WinMain`; Mighty emits a normal `main`, so the app also needed
+`/entry:mainCRTStartup`.
+
+- **IDE note:** `mighty.toml` now sets
+  `link-args = ["-Wl,/subsystem:windows,/entry:mainCRTStartup"]`, and the
+  packaged app was verified with `tools/drive-input.ps1` against
+  `target/ux-drive-rail-dwm-fixed.png`. The desktop harness also crops to DWM
+  extended frame bounds so screenshots match the visible IDE window.
+- **Language note:** Mighty should expose a first-class native app metadata knob
+  such as `[build] subsystem = "windows-gui"` or `mty build --subsystem gui`.
+  The compiler/link driver can then choose the correct subsystem and CRT entry
+  per host without each GUI app encoding platform-specific linker incantations.

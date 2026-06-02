@@ -3,6 +3,11 @@ name = "mighty-ide"
 version = "0.3.0"
 edition = "2026"
 
+[build]
+# Mighty IDE is a GUI app. Without the Windows subsystem flag the packaged EXE
+# launches with a console window, which steals focus and breaks real UX tests.
+link-args = ["-Wl,/subsystem:windows,/entry:mainCRTStartup"]
+
 # The wgpu render shim, linked as a DLL via its import library. The DLL itself
 # (target/mighty_ui_sys.dll) must sit next to the output exe at runtime — the
 # build-ide.sh script copies it there.

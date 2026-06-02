@@ -12,6 +12,13 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Packaged Windows app now launches as a real GUI app**: `mighty.toml` passes
+  the Windows subsystem and `mainCRTStartup` entry flags, so `mighty-ide.exe`
+  no longer opens a console window that steals focus from the IDE.
+- **Real desktop UX harness captures the visible IDE bounds**: `drive-input.ps1`
+  now brings the app forward and crops to DWM extended frame bounds, making
+  mouse-driven screenshots match what humans actually see instead of including
+  invisible shadow margins or whatever window was behind the IDE.
 - **Keyboard Shortcuts overlay no longer double-renders in screenshot/headless
   flows**: the shortcuts auto-open path now uses the normal Mighty draw call
   only, and the draw wrapper honors visible screenshot bounds so compact
