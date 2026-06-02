@@ -312,10 +312,15 @@ impl WelcomeState {
             clip,
         );
         if !tight_height {
+            let tagline = if compact {
+                "The agent-first IDE"
+            } else {
+                "The agent-first language IDE"
+            };
             ctx.text.queue_ui_sized(
                 word_x + 2.0,
                 y + if compact { 44.0 } else { 50.0 },
-                "The agent-first language IDE",
+                tagline,
                 theme::DIM(),
                 if compact { 13.5 } else { 14.5 },
                 clip,

@@ -12,9 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
-- **Welcome action labels are direct**: the first-run surface now says `New File`
-  and `New Project` instead of longer, clipped phrasing, while keeping the same
-  native file/project creation behavior.
+- **Welcome copy fits compact windows**: the first-run surface now says
+  `New File` and `New Project` instead of longer, clipped phrasing, and uses a
+  shorter compact subtitle while keeping the same native file/project creation
+  behavior.
 - **Focused dock panels no longer steal tab clicks**: when Run, Web Playground,
   or Testing has keyboard focus, tab switch and tab close clicks now route on
   the first click and clear transient panel focus after the tab action succeeds.
