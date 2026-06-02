@@ -72,7 +72,7 @@ fn input_placeholder(chat_available: bool) -> &'static str {
     if chat_available {
         "Ask about your code...  (Enter to send)"
     } else {
-        "Set ANTHROPIC_API_KEY to enable chat"
+        "Set ANTHROPIC_API_KEY, then restart Mighty IDE"
     }
 }
 
@@ -498,14 +498,24 @@ impl AiPanel {
 pub const AI_PANEL_W: f32 = 360.0;
 
 /// Geometry for the bottom input composer, shared by draw and click hit-tests.
+#[cfg(test)]
 pub fn input_geometry(input: &str, width: u32, height: u32) -> (f32, f32, f32, f32) {
+    input_geometry_for_state(input, true, width, height)
+}
+
+pub fn input_geometry_for_state(
+    input: &str,
+    chat_available: bool,
+    width: u32,
+    height: u32,
+) -> (f32, f32, f32, f32) {
     let w = width as f32;
     let h = height as f32;
     let pw = AI_PANEL_W;
     let px = w - pw;
     let chrome = theme::CHROME_FONT_SIZE;
     let input_pad = 56.0;
-    let input_lines = wrap(input, ((pw - 56.0) / (chrome * 0.55)) as usize);
+    let input_lines = composer_lines(chat_available, input, ((pw - 56.0) / (chrome * 0.55)) as usize);
     let n_in = input_lines.len().max(1) as f32;
     let input_h = (n_in * layout::LINE_H()).min(120.0) + 16.0;
     let input_y = h - input_h - input_pad;
@@ -577,6 +587,14 @@ fn wrap(text: &str, max_chars: usize) -> Vec<String> {
         out.push(cur);
     }
     out
+}
+
+fn composer_lines(chat_available: bool, input: &str, max_chars: usize) -> Vec<String> {
+    if !chat_available || input.is_empty() {
+        wrap(input_placeholder(chat_available), max_chars)
+    } else {
+        wrap(input, max_chars)
+    }
 }
 
 fn wrap_code_line(line: &str, max_chars: usize) -> Vec<String> {
@@ -760,11 +778,13 @@ impl AiPanel {
         }
 
         // ---- input box at the bottom ----
-        let (_gx, _gw, input_y, input_h) = input_geometry(&self.input, width, height);
-        let input_lines = wrap(&self.input, ((pw - 56.0) / (chrome * 0.55)) as usize);
+        let chat_available = self.force_transcript || api_key().is_some();
+        let (_gx, _gw, input_y, input_h) =
+            input_geometry_for_state(&self.input, chat_available, width, height);
+        let composer_cols = ((pw - 56.0) / (chrome * 0.55)) as usize;
+        let input_lines = composer_lines(chat_available, &self.input, composer_cols);
         let body_top = top + head_h + 6.0;
         let body_bottom = input_y - 8.0;
-        let chat_available = self.force_transcript || api_key().is_some();
 
         // No-key state: a clear message instead of a transcript / live call.
         // (The screenshot/demo hook forces the transcript so the chat UI renders
@@ -782,8 +802,9 @@ impl AiPanel {
                 false,
             );
             for (i, line) in [
-                "Set ANTHROPIC_API_KEY",
-                "to enable the AI copilot.",
+                "AI Copilot is offline",
+                "Set ANTHROPIC_API_KEY in your environment.",
+                "Restart Mighty IDE after changing it.",
                 "",
                 "(CLAUDE_API_KEY also works.)",
             ]
@@ -822,15 +843,25 @@ impl AiPanel {
             if chat_available { theme::ACCENT() } else { theme::BORDER_STRONG() },
             1.2,
         );
-        if self.input.is_empty() {
+        if !chat_available || self.input.is_empty() {
             ctx.text.queue_ui_sized(
                 px + 20.0,
                 input_y + 9.0,
-                input_placeholder(chat_available),
+                input_lines.first().map(String::as_str).unwrap_or(""),
                 if chat_available { theme::TEXT_1() } else { theme::TEXT_3() },
                 chrome,
                 clip,
             );
+            for (i, line) in input_lines.iter().enumerate().skip(1) {
+                ctx.text.queue_ui_sized(
+                    px + 20.0,
+                    input_y + 9.0 + i as f32 * layout::LINE_H(),
+                    line,
+                    theme::TEXT_3(),
+                    chrome,
+                    clip,
+                );
+            }
         } else {
             for (i, line) in input_lines.iter().enumerate() {
                 ctx.text.queue_sized(
@@ -849,12 +880,17 @@ impl AiPanel {
         } else {
             theme::TEXT_3()
         };
+        let send_icon = if chat_available {
+            "M4 12l16-8-6 16-3-7-7-1z"
+        } else {
+            icons::INFO_I
+        };
         ctx.dl_icon(
             px + pw - 34.0,
             input_y + input_h - 26.0,
             16.0,
             16.0,
-            "M4 12l16-8-6 16-3-7-7-1z",
+            send_icon,
             send_col,
             1.6,
             false,
@@ -1094,12 +1130,46 @@ mod tests {
     fn no_key_input_copy_does_not_invite_send() {
         assert_eq!(
             input_placeholder(false),
-            "Set ANTHROPIC_API_KEY to enable chat"
+            "Set ANTHROPIC_API_KEY, then restart Mighty IDE"
         );
         assert_eq!(
             input_placeholder(true),
             "Ask about your code...  (Enter to send)"
         );
+    }
+
+    #[test]
+    fn no_key_composer_shows_setup_copy_not_typed_draft() {
+        let lines = composer_lines(false, "explain this file", 28);
+        let shown = lines.join(" ");
+        assert!(shown.contains("ANTHROPIC_API_KEY"));
+        assert!(shown.contains("restart Mighty IDE"));
+        assert!(
+            !shown.contains("explain this file"),
+            "disabled composer should not look like an active chat draft"
+        );
+    }
+
+    #[test]
+    fn available_composer_shows_typed_draft() {
+        let lines = composer_lines(true, "explain this file", 28);
+        assert_eq!(lines, vec!["explain this file".to_string()]);
+    }
+
+    #[test]
+    fn no_key_geometry_uses_setup_copy_not_hidden_draft() {
+        let long = "explain this file ".repeat(20);
+        let (_, _, setup_y, setup_h) = input_geometry_for_state("", false, 1280, 832);
+        let (_, _, disabled_y, disabled_h) = input_geometry_for_state(&long, false, 1280, 832);
+        let (_, _, active_y, active_h) = input_geometry_for_state(&long, true, 1280, 832);
+
+        assert_eq!(disabled_h, setup_h);
+        assert_eq!(disabled_y, setup_y);
+        assert!(
+            active_h > disabled_h,
+            "available composer should still grow for a long draft"
+        );
+        assert!(active_y < disabled_y);
     }
 
     #[test]

@@ -1780,8 +1780,9 @@ pub extern "C" fn mui_ai_click(handle: i64) -> i32 {
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
     let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
     let visible_h = layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height);
+    let chat_available = ctx.ai.force_transcript || crate::ai::api_key().is_some();
     let (px, pw, input_y, input_h) =
-        crate::ai::input_geometry(&ctx.ai.input, visible_w, visible_h);
+        crate::ai::input_geometry_for_state(&ctx.ai.input, chat_available, visible_w, visible_h);
     if x < px || x > px + pw || y < layout::TAB_BAR_H || y > visible_h as f32 {
         crate::abi::trace(&format!("ai_click x={x:.1} y={y:.1} -> 0"));
         return 0;

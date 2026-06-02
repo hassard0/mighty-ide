@@ -4752,3 +4752,16 @@ after a human resize because they used rough width estimates and one raw string.
 - **Language note:** no compiler bug surfaced. Mighty needs ergonomic measured
   text/ellipsis helpers in the language UI layer so every panel can request
   "fit this line in this box" without hand-rolled Rust-side width code.
+
+L330. Disabled input surfaces need first-class state, not just a dimmed icon.
+The AI Copilot no-key state blocked sends correctly, but the composer still
+rendered typed draft text, making the unavailable state feel like a broken chat.
+
+- **IDE note:** when no AI key is configured, the composer now renders setup
+  copy instead of the typed draft, and its affordance reads as informational
+  while still giving a clear unavailable-send response when clicked. The
+  disabled composer's height and send hit target are derived from the displayed
+  setup copy, not hidden input state.
+- **Language note:** no compiler bug surfaced. Mighty UI would benefit from a
+  built-in disabled-input/composer primitive that separates stored state from
+  displayed setup copy and from click feedback.
