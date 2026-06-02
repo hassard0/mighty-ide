@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Run status chip no longer touches the Run label**: compact Run output
+  headers now reserve a measured gap between `RUN` and status chips like
+  `exit 1`, avoiding the broken-looking `RUNexit` merge.
 - **Testing Stop control is no longer blank at compact width**: the compact
   Testing toolbar now keeps the `Stop` action label visible beside the square
   icon, so the disabled/runnable state reads like a control instead of an empty

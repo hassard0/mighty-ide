@@ -3753,3 +3753,15 @@ blank or broken to a human scanning the drawer.
 - **Language note:** no compiler gap surfaced. Mighty UI needs button primitives
   that can degrade from icon+label to icon-only only when an accessible action
   name, tooltip, or disabled-state treatment remains explicit.
+
+### L257. Header status chips need measured left and right constraints **[finding, P2]**
+The compact Run output capture showed `RUN` and the `exit 1` status chip merged
+visually into `RUNexit 1`. The status pill respected the shared dock action
+controls on the right, but did not reserve a minimum measured gap from the fixed
+left header label.
+
+- **IDE note:** the Run header now measures the `RUN` label, enforces a minimum
+  status-pill x position after it, and tests the compact `560x520` dock case.
+- **Language note:** no compiler gap surfaced. Mighty UI needs shared header-row
+  layout primitives for left labels, optional middle text, right status chips,
+  and trailing action groups so each panel does not hand-roll competing bounds.

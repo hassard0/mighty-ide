@@ -3009,6 +3009,28 @@ fn run_status_label_stays_ascii_for_compact_chip() {
 }
 
 #[test]
+fn run_header_status_pill_leaves_gap_after_run_label() {
+    let mut ctx = ctx_or_skip!();
+    let chrome = crate::theme::CHROME_FONT_SIZE;
+    let g_x0 = crate::layout::region(true).left;
+    let run_label_x = g_x0 + 32.0;
+    let run_size = chrome - 1.0;
+    let (run_w, _) = ctx.text.measure_ui_sized("RUN", run_size);
+    let status = crate::featureabi::run_status_label(false, Some(1), 0);
+    let (status_w, _) = ctx.text.measure_ui_sized(&status, chrome - 2.0);
+    let pill_w = status_w + 22.0;
+    let right_edge = crate::layout::dock_header_content_right(560, 520);
+    let preferred_x = right_edge - pill_w;
+    let min_x = run_label_x + run_w + 12.0;
+    let sx = crate::featureabi::run_status_pill_x(preferred_x, min_x, right_edge, pill_w);
+
+    assert!(
+        sx >= min_x,
+        "status pill should leave a readable gap after RUN: sx={sx} min={min_x}"
+    );
+}
+
+#[test]
 fn run_output_line_fits_compact_panel_width() {
     let mut ctx = ctx_or_skip!();
     let line = "[MT2001] Error: expected `I32` but found a deliberately verbose expression";

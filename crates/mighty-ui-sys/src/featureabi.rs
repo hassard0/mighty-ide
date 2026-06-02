@@ -377,7 +377,10 @@ pub extern "C" fn mui_run_draw(handle: i64) {
     ctx.dl_rect(g.x0, g.y0 + header_h - 1.0, w, 1.0, theme::BORDER_SOFT());
     let hy = g.y0 + (header_h - chrome) * 0.5 - 1.0;
     ctx.dl_icon(g.x0 + 12.0, g.y0 + (header_h - 13.0) * 0.5, 13.0, 13.0, icons::RUN, theme::GREEN(), 1.6, true);
-    ctx.text.queue_ui_sized(g.x0 + 32.0, hy, "RUN", theme::DIM(), chrome - 1.0, clip);
+    let run_label_x = g.x0 + 32.0;
+    let run_label_size = chrome - 1.0;
+    ctx.text.queue_ui_sized(run_label_x, hy, "RUN", theme::DIM(), run_label_size, clip);
+    let (run_label_w, _) = ctx.text.measure_ui_sized("RUN", run_label_size);
 
     // Status pill (right): running / exit code + duration. Compute this before
     // the filename so the filename can be measured into the remaining gap.
@@ -392,7 +395,9 @@ pub extern "C" fn mui_run_draw(handle: i64) {
     let (status_text_w, _) = ctx.text.measure_ui_sized(&status, chrome - 2.0);
     let sw = status_text_w + 22.0;
     let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
-    let sx = layout::dock_header_content_right(visible_w, ctx.gpu.height) - sw;
+    let status_right = layout::dock_header_content_right(visible_w, ctx.gpu.height);
+    let status_min_x = run_label_x + run_label_w + 12.0;
+    let sx = run_status_pill_x(status_right - sw, status_min_x, status_right, sw);
     let sy = g.y0 + (header_h - 18.0) * 0.5;
 
     let base = ctx
@@ -444,6 +449,10 @@ pub extern "C" fn mui_run_draw(handle: i64) {
         let shown = fit_code_text(&mut ctx.text, &text, max_w, chrome);
         ctx.text.queue_sized(text_x, ty, &shown, col, chrome, clip);
     }
+}
+
+pub(crate) fn run_status_pill_x(preferred_x: f32, min_x: f32, right_edge: f32, pill_w: f32) -> f32 {
+    preferred_x.max(min_x).min((right_edge - pill_w).max(min_x))
 }
 
 // ===========================================================================
