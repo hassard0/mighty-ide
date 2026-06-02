@@ -3806,9 +3806,10 @@ changed hidden focus state.
 ### L261. Primary action labels should not explain implementation details **[finding, P2]**
 Welcome showed `New File at Location...` and `New Mighty Project...` in compact
 layouts. Both actions were functional, but the wording was longer than the row
-budget and made first-run file creation feel more complicated than it is.
+budget and the literal ellipsis made even short labels look visually clipped.
 
-- **IDE note:** Welcome and the command palette now use shorter `New File` and
-  `New Project` labels while preserving the native picker-backed behavior.
+- **IDE note:** Welcome now uses concise labels without faux truncation marks,
+  and the command palette uses shorter `File: New File` wording while
+  preserving the native picker-backed behavior.
 - **Language note:** no compiler gap surfaced. Mighty UI needs command metadata
   that can separate concise surface labels from longer tooltip/description text.
