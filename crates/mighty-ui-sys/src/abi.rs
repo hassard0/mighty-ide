@@ -4540,29 +4540,27 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
     ctx.dl_rect(0.0, 0.0, rw, h, theme::BG_RAIL());
     ctx.dl_rect(rw - 1.0, 0.0, 1.0, h, theme::BORDER());
 
-    // Brand tile: compact enough for the rail, but rendered as a real mark
-    // instead of a thin open stroke so it survives small screenshots/taskbar
-    // comparisons.
+    // Brand tile: compact enough for the rail, with the same simplified
+    // small-size treatment as the Windows icon so the mark stays crisp.
     let logo_tile = 32.0;
     let lx = (rw - logo_tile) * 0.5;
     let ly = 6.0;
-    ctx.dl_shadow(lx, ly + 2.0, logo_tile, logo_tile, 4.0, MuiColor::new(0.35, 0.95, 0.90, 0.22), 12.0);
+    ctx.dl_shadow(lx, ly + 2.0, logo_tile, logo_tile, 5.0, MuiColor::new(0.35, 0.95, 0.90, 0.15), 10.0);
     ctx.dl_grad_v(
         lx,
         ly,
         logo_tile,
         logo_tile,
-        4.0,
+        5.0,
         MuiColor::new(0.08, 0.09, 0.15, 1.0),
         MuiColor::new(0.03, 0.04, 0.09, 1.0),
     );
-    ctx.dl_stroke(lx, ly, logo_tile, logo_tile, 4.0, MuiColor::new(0.56, 0.96, 0.94, 0.82), 1.1);
-    ctx.dl_stroke(lx + 3.0, ly + 3.0, logo_tile - 6.0, logo_tile - 6.0, 2.5, theme::ACCENT(), 1.0);
+    ctx.dl_stroke(lx, ly, logo_tile, logo_tile, 5.0, MuiColor::new(0.56, 0.96, 0.94, 0.92), 1.2);
     ctx.dl_icon(
-        lx + 4.0,
-        ly + 4.0,
-        logo_tile - 8.0,
-        logo_tile - 8.0,
+        lx + 3.0,
+        ly + 3.0,
+        logo_tile - 6.0,
+        logo_tile - 6.0,
         icons::LANG_M_FILL,
         theme::ACCENT_BRIGHT(),
         0.0,

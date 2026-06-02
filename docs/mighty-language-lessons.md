@@ -3478,3 +3478,17 @@ silhouette and fewer nested strokes than the large preview.
 - **Language note:** no compiler gap surfaced. Mighty does not currently own
   raster asset generation; a future build pipeline could expose asset-generation
   tasks declaratively instead of relying on ad hoc Python tooling.
+
+### L236. Brand marks should use one visual system across chrome **[finding, P2]**
+The taskbar icon, rail logo, and Welcome logo were all variations of the same
+Mighty mark, but the in-app versions still used nested strokes that became fuzzy
+in compact UI. A product mark should be boringly consistent across shell chrome,
+navigation chrome, and first-run surfaces.
+
+- **IDE note:** the activity rail and Welcome brand tiles now use the same
+  single-outline treatment and larger filled M as the sharpened Windows icon,
+  while preserving their existing layout and hit targets.
+- **Language note:** no compiler gap surfaced. Mighty UI would benefit from a
+  shared brand/icon component primitive so the same mark geometry and spacing
+  can be reused without copying draw code between rail, welcome, status, and
+  packaging assets.

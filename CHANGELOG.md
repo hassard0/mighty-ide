@@ -78,6 +78,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Taskbar icon small sizes are sharper**: the generated Windows ICO now uses
   simplified 16px/32px variants with a larger Mighty mark and a single crisp
   outline, plus a generated size-strip preview for future visual checks.
+- **In-app Mighty marks match the icon system**: the rail and Welcome brand
+  tiles now use the same simplified single-outline treatment with a larger mark,
+  avoiding the fuzzy nested-frame look in small UI surfaces.
 - **Compact sidebar leaves more room for work**: narrow windows now reduce the
   sidebar to 160px, giving terminal, debug, palette, and welcome views more
   usable width instead of crowding dock/header content.

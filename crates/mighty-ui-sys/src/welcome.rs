@@ -256,8 +256,9 @@ impl WelcomeState {
             64.0_f32
         };
         let tx = cx;
-        // Rounded brand tile with a focused glow + the Mighty mark.
-        ctx.dl_shadow(tx, y + 8.0, tile, tile, 9.0, MuiColor::new(0.35, 0.95, 0.90, 0.24), 34.0);
+        // Rounded brand tile with a focused glow + the Mighty mark. Match the
+        // simplified icon treatment instead of stacking nested strokes.
+        ctx.dl_shadow(tx, y + 8.0, tile, tile, 9.0, MuiColor::new(0.35, 0.95, 0.90, 0.18), 28.0);
         let tile_r = if compact { 8.0 } else { 10.0 };
         ctx.dl_grad_v(
             tx,
@@ -268,12 +269,17 @@ impl WelcomeState {
             MuiColor::new(0.08, 0.09, 0.15, 1.0),
             MuiColor::new(0.03, 0.04, 0.09, 1.0),
         );
-        ctx.dl_stroke(tx, y, tile, tile, tile_r, MuiColor::new(0.56, 0.96, 0.94, 0.82), 1.2);
-        ctx.dl_stroke(tx + 4.0, y + 4.0, tile - 8.0, tile - 8.0, tile_r - 3.0, theme::ACCENT(), 1.0);
+        ctx.dl_stroke(tx, y, tile, tile, tile_r, MuiColor::new(0.56, 0.96, 0.94, 0.92), 1.3);
         // Centered Mighty mark. The old side-rail version read like a generic
         // app tile at small sizes; this keeps the first impression focused.
         let mark_ink = MuiColor::new(0.61, 1.0, 0.96, 0.98);
-        let mark = if compact { 38.0 } else { 44.0 };
+        let mark = if tight_height {
+            30.0
+        } else if compact {
+            40.0
+        } else {
+            48.0
+        };
         let mark_pad = (tile - mark) * 0.5;
         ctx.dl_icon(tx + mark_pad, y + mark_pad, mark, mark, icons::LANG_M_FILL, mark_ink, 0.0, true);
 
