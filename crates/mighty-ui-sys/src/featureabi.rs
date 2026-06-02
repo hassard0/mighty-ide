@@ -44,15 +44,18 @@ pub extern "C" fn mui_run_start(handle: i64) -> i32 {
         ctx.term_open = false;
         ctx.web.close();
         ctx.problems.set_open(false);
+        crate::abi::trace("run_start no_target");
         return 0;
     };
     ctx.term_open = false;
     ctx.web.close();
     ctx.problems.set_open(false);
     if ctx.run.start(&path) {
+        crate::abi::trace(&format!("run_start target={}", path.display()));
         println!("run: started `mty run {}`", path.display());
         1
     } else {
+        crate::abi::trace(&format!("run_start failed target={}", path.display()));
         0
     }
 }
@@ -78,6 +81,7 @@ pub extern "C" fn mui_run_toggle(handle: i64) -> i32 {
         ctx.web.close();
         ctx.problems.set_open(false);
     }
+    crate::abi::trace(&format!("run_toggle open={}", i32::from(open)));
     i32::from(open)
 }
 

@@ -1313,7 +1313,20 @@ fn main() {
         // human click on More or the command-center pill should never leave the
         // following typed query in the editor.
         let topbar_early = mui_topbar_action_at_click(h)
-        if topbar_early == 2 {
+        if topbar_early == 1 {
+          let opened = mui_run_toggle(h)
+          if opened == 1 {
+            run_focus = true
+            if mui_run_running(h) == 0 { let _r = mui_run_start(h) }
+          } else {
+            run_focus = false
+          }
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          typing = false
+        } else if topbar_early == 2 {
           mui_palette_open(h)
           palette_open = true
           palette_ignore_mouse_down = true

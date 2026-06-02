@@ -3845,3 +3845,14 @@ Problems drawer opened.
 - **Language note:** no compiler gap surfaced. Mighty UI needs reusable dock
   chrome primitives so resize grips, panel headers, and action clusters are
   visually tied to the panel they control.
+
+### L265. Priority click guards need per-action assertions **[finding, P1]**
+The titlebar click guard intentionally handled topbar actions before editor and
+panel focus, but it only dispatched More and Quick Open. A click on the visible
+Run button matched the guard and was consumed before the normal Run route.
+
+- **IDE note:** the early topbar path now toggles/starts Run for the play button
+  and clears competing transient focus, matching the later normal route.
+- **Language note:** no compiler gap surfaced. Mighty UI needs event-routing
+  tests that assert every intercepted action id is either dispatched or allowed
+  to fall through deliberately.

@@ -4184,6 +4184,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         main.contains("topbar_act == 3") && main.contains("mui_quickopen_open(h)"),
         "titlebar command center must route to Quick Open"
     );
+    assert!(
+        main.contains("topbar_early == 1")
+            && main.contains("let opened = mui_run_toggle(h)")
+            && main.contains("if mui_run_running(h) == 0 { let _r = mui_run_start(h) }"),
+        "the early topbar guard must run the visible play button instead of swallowing it"
+    );
     assert_eq!(
         main.matches("if id == cmd_open_file()").count(),
         1,

@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Topbar Run works on the first click**: the early titlebar-action guard now
+  handles the visible play button instead of swallowing it before the normal
+  mouse routing can start the Run panel.
 - **Bottom dock resize chrome reads as a dock control**: the shared lower-dock
   grip now uses a subtler full-width header treatment and calmer compact action
   buttons, avoiding the old floating scrollbar-like handle over editor content.

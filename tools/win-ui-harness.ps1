@@ -586,6 +586,7 @@ function AiPanelCloseCenter() {
 
 # titlebar.rs: controls_x = w - 3*46, action strip = 68, run target is the
 # first 30px of the strip. Click the center of the remaining "more" range.
+$topbarRunX = $logicalW - (3 * 46) - 68 + 15
 $topbarMoreX = $logicalW - (3 * 46) - 19
 $tabBodyLeft = 52 + [math]::Min(248, [math]::Max(184, $logicalW * 0.30))
 $tabRightLimit = ($logicalW - (3 * 46) - 68)
@@ -660,6 +661,24 @@ if (Wait-TraceCountGreaterThan "topbar_action .* -> command-center" $commandCent
 }
 Press-VK $hwnd 0x1B
 Start-Sleep -Milliseconds 200
+
+# === TITLEBAR RUN: click the visible play button; it must reach Run, not get swallowed. ===
+$topbarRunBefore = Trace-MatchCount "topbar_action .* -> run"
+$runToggleBefore = Trace-MatchCount "run_toggle open=1"
+$runStartBefore = Trace-MatchCount "run_start (target=|no_target|failed target=)"
+ClickL $topbarRunX 20
+Start-Sleep -Milliseconds 350
+Capture $hwnd "01b-topbar-run"
+if ((Wait-TraceCountGreaterThan "topbar_action .* -> run" $topbarRunBefore 1200) -and
+    (Wait-TraceCountGreaterThan "run_toggle open=1" $runToggleBefore 1200) -and
+    (Wait-TraceCountGreaterThan "run_start (target=|no_target|failed target=)" $runStartBefore 1200)) {
+  Log "TOPBAR-RUN: visible play button dispatched Run on first click"
+} else {
+  Log "TOPBAR-RUN: missing topbar/run dispatch trace"
+  $script:HarnessFailed = $true
+}
+ClickL $topbarRunX 20
+Start-Sleep -Milliseconds 250
 
 # === WELCOME NEW PROJECT: visible row should open the Mighty project prompt. ===
 $welcomeProjectBefore = Trace-MatchCount "welcome_click .* -> 8"
