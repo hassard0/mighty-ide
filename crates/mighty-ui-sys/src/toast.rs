@@ -503,6 +503,7 @@ enum OperationKey {
     Diagnostic,
     Format,
     Navigation,
+    Markdown,
     Layout,
 }
 
@@ -615,6 +616,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Format)
     } else if m == "No definition found" {
         Some(OperationKey::Navigation)
+    } else if m.starts_with("Markdown preview ") || m.starts_with("Markdown Preview ") {
+        Some(OperationKey::Markdown)
     } else if m.starts_with("Dock ")
         || m.starts_with("Bottom dock ")
         || m.starts_with("No bottom dock ")
@@ -888,6 +891,12 @@ mod tests {
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Sidebar resized to 310px");
         assert!(!q.toasts().iter().any(|t| t.message == "Dock resized to 228px"));
+
+        q.push_at(Kind::Info, "Markdown preview opened", t0 + Duration::from_millis(1700));
+        q.push_at(Kind::Info, "Markdown preview closed", t0 + Duration::from_millis(1800));
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Markdown preview closed");
+        assert!(!q.toasts().iter().any(|t| t.message == "Markdown preview opened"));
     }
 
     #[test]

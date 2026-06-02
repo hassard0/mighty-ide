@@ -4482,3 +4482,16 @@ palette command.
 - **Language note:** no compiler gap surfaced. Mighty needs command/action
   descriptors that can bind multiple triggers to one outcome policy so mouse,
   keyboard, and palette paths do not drift on feedback.
+
+### L313. Pane-local lifecycle controls need command-quality feedback **[finding, P2]**
+The Markdown preview split opened and closed correctly, but the visible preview
+header close button collapsed the pane without any user-facing outcome. That
+made a successful mouse action look indistinguishable from a missed or broken
+click.
+
+- **IDE note:** Markdown preview open and close now push lifecycle toasts, and
+  Markdown preview toasts replace each other as one operation family. Tests cover
+  the visible header close button path.
+- **Language note:** no compiler gap surfaced. Mighty needs typed lifecycle
+  outcomes shared by palette, keyboard, and mouse actions so pane-local controls
+  cannot silently diverge from command behavior.

@@ -3801,6 +3801,9 @@ fn markdown_preview_header_close_hit_collapses_preview() {
 
     assert_eq!(crate::abi::mui_md_open(h), 1);
     assert_eq!(crate::abi::mui_md_active(h), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Markdown preview opened");
 
     let visible_w = crate::layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
     let region = crate::layout::region(ctx.sidebar_visible);
@@ -3820,6 +3823,9 @@ fn markdown_preview_header_close_hit_collapses_preview() {
     assert_eq!(crate::abi::mui_md_close_at_click(h), 1);
     assert_eq!(crate::abi::mui_md_active(h), 0);
     assert_eq!(crate::abi::mui_pane_count(h), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Markdown preview closed");
 }
 
 #[test]

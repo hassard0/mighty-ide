@@ -11457,6 +11457,7 @@ pub extern "C" fn mui_md_open(handle: i64) -> i32 {
     ctx.panes.focus(0, s);
     pane_rebind_focus(ctx);
     trace("md_open");
+    ctx.push_toast(crate::toast::Kind::Info, "Markdown preview opened");
     1
 }
 
@@ -11553,6 +11554,7 @@ pub extern "C" fn mui_md_close(handle: i64) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
+    let was_open = ctx.md_preview.is_open() || ctx.md_pane.is_some();
     trace("md_close");
     ctx.md_preview.close();
     let restore_sidebar = ctx.md_preview_hid_sidebar;
@@ -11570,6 +11572,9 @@ pub extern "C" fn mui_md_close(handle: i64) {
     }
     if restore_sidebar {
         ctx.sidebar_visible = true;
+    }
+    if was_open {
+        ctx.push_toast(crate::toast::Kind::Info, "Markdown preview closed");
     }
 }
 
