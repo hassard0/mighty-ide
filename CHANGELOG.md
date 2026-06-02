@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Save dialog cancellations now speak consistently**: cancelling Save on an
+  untitled tab or cancelling Save As now reports `Save cancelled; tab is still
+  open`, instead of leaving the user to infer that the dialog cancellation was
+  handled.
 - **Problems panel close now confirms the mouse action**: clicking the Problems
   dock header X now reports `Problems panel closed`, so the visible close
   control no longer collapses a dock without feedback.

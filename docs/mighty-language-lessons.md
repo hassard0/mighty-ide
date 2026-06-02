@@ -4509,3 +4509,16 @@ two different outcome policies.
 - **Language note:** no compiler gap surfaced. Mighty needs a reusable
   dock-panel action contract so each panel cannot independently decide whether
   close/open operations report outcomes.
+
+### L315. Native dialog cancellations need one outcome vocabulary **[finding, P2]**
+The dirty-close Save path already reported `Save cancelled; tab is still open`,
+but cancelling plain Save on an untitled tab or explicit Save As returned a
+distinct code with no visible message. The tab stayed open correctly, but the UI
+looked like the save command had done nothing.
+
+- **IDE note:** untitled Save and Save As cancellations now push the same
+  `Save cancelled; tab is still open` toast as dirty-close saves. Tests cover
+  both direct dialog paths and verify the tab remains dirty and unbound.
+- **Language note:** no compiler gap surfaced. Mighty still needs a typed result
+  enum for dialog outcomes so `Picked`, `Cancelled`, and `Unavailable` cannot
+  drift across command surfaces.

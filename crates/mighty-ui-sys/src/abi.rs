@@ -9594,6 +9594,7 @@ fn save_active_current_path(ctx: &mut MuiContext) -> i32 {
             FileDialogPick::Picked(path) => path,
             FileDialogPick::Cancelled => {
                 println!("mui_ed_save: native save dialog cancelled for untitled tab");
+                ctx.push_toast(crate::toast::Kind::Info, "Save cancelled; tab is still open");
                 return -2;
             }
             FileDialogPick::Unavailable => {
@@ -9827,6 +9828,7 @@ pub extern "C" fn mui_save_as_dialog(handle: i64) -> i32 {
         FileDialogPick::Picked(path) => path,
         FileDialogPick::Cancelled => {
             println!("mui_save_as_dialog: native save dialog cancelled");
+            ctx.push_toast(crate::toast::Kind::Info, "Save cancelled; tab is still open");
             return -2;
         }
         FileDialogPick::Unavailable => {
