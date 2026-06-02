@@ -1825,6 +1825,7 @@ pub extern "C" fn mui_bottom_dock_preset_at_click(handle: i64) -> i32 {
             };
             layout::set_dock_fraction(frac);
             ctx.bottom_dock_resizing = false;
+            ctx.push_toast(crate::toast::Kind::Info, label);
             trace(&format!("dock_preset idx={idx} frac={frac:.2} {label}"));
             return idx as i32 + 1;
         }

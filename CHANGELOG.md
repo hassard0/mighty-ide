@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Dock preset buttons now acknowledge clicks**: the visible compact/default/
+  expanded buttons in the lower dock header now show the same feedback as the
+  command-palette dock actions, so a successful resize does not feel like a
+  silent or broken click.
 - **Toast feedback clears stale dialog outcomes**: save/open/create workflows now
   replace older toasts from the same operation family, so cancelled dialogs,
   failed saves, Save As prompts, and later successful saves do not stack as

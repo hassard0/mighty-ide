@@ -4336,3 +4336,18 @@ is individually valid.
   command/workflow IDs with feedback events so the UI can replace, update, or
   clear messages by operation identity instead of inferring families from human
   strings.
+
+### L302. Mouse controls need the same feedback as command dispatch **[finding, P2]**
+The bottom dock's compact/default/expanded buttons changed the panel size, but
+they did not show feedback. The command-palette versions of the same actions
+already pushed toasts. A human clicking the visible header controls could see
+the panel move but still read the button as unreliable because there was no
+state acknowledgement.
+
+- **IDE note:** visible bottom-dock preset clicks now push the same `Dock
+  compact`, `Dock reset`, and `Dock expanded` feedback used by palette dispatch.
+  The dock resize regression now pins that the mouse path acknowledges the
+  preset.
+- **Language note:** no compiler gap surfaced. Mighty needs a command metadata
+  layer where visible controls and palette commands share one action definition,
+  including state mutation, toast/feedback policy, and tests.

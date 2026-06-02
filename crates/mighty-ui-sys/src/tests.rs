@@ -1188,6 +1188,11 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
     );
     assert_eq!(crate::layout::dock_preset_index(), 1);
     assert!(!ctx.bottom_dock_resizing);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Dock reset",
+        "visible dock preset buttons should confirm the resize"
+    );
 
     assert_eq!(
         crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_COMPACT as i32),
