@@ -4198,3 +4198,18 @@ written. Generic helper text makes those outcomes feel like broken buttons.
 - **Language note:** no compiler gap surfaced. Mighty UI needs first-class
   command eligibility/state metadata so labels, helper text, enabled visuals,
   dispatch, and test expectations come from one command model.
+
+### L293. Disabled controls must share visual and dispatch state **[finding, P1]**
+The Settings panel correctly dimmed Inline AI when no Anthropic/Claude API key
+was available, but its row click still returned the same toggle/cycle action
+code as an enabled setting. Mighty then routed the click as an activation even
+though the Rust-side toggle was a no-op. To a user, that reads as a broken
+button: the control looks disabled, but still behaves like something happened.
+
+- **IDE note:** disabled Settings rows now return a select-only hit result.
+  Inline AI without `ANTHROPIC_API_KEY`/`CLAUDE_API_KEY` can still be selected so
+  its explanatory copy is visible, but its disabled switch no longer dispatches
+  an action-looking toggle. A focused settings-panel test pins the behavior.
+- **Language note:** no new compiler gap surfaced. This reinforces L292:
+  Mighty UI needs shared command/preference state metadata so disabled visuals,
+  explanatory text, hit-testing, and dispatch all read from the same source.

@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Disabled Settings rows no longer act clickable**: unavailable preferences
+  such as Inline AI without an API key now select for explanation only; their
+  visible switch no longer reports a toggle/cycle click back to Mighty.
 - **Command Palette file actions describe current state**: Save, Save As,
   Save All, Reload, Revert, Rename, Delete, and copy-path rows now update their
   helper text for untitled tabs, read-only previews, and the current dirty-tab

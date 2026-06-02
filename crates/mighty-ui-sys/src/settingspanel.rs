@@ -131,7 +131,8 @@ impl SettingsPanel {
 
     /// Classify a mouse click against the drawn Settings card and update the
     /// selected row on row hits. Returns: 0 miss, 1 select, 2 decrement,
-    /// 3 increment, 4 toggle/cycle, 5 close button.
+    /// 3 increment, 4 toggle/cycle, 5 close button. Disabled rows select only,
+    /// so visibly unavailable controls never dispatch an action-looking click.
     pub fn click(&mut self, x: f32, y: f32, width: u32, height: u32) -> i32 {
         if !self.active {
             return 0;
@@ -151,6 +152,9 @@ impl SettingsPanel {
         let row = top as i32 + vis;
         self.sel = row as usize;
         let row_id = self.selected();
+        if settings_row_disabled(row_id) {
+            return 1;
+        }
         let ry = list_top + vis as f32 * row_h;
         let ctrl_right = box_x + box_w - 22.0;
         if row_id.is_numeric() {
@@ -615,6 +619,23 @@ mod tests {
         assert_eq!(inline_ai_desc(), "Set ANTHROPIC_API_KEY to enable");
         assert!(settings_row_disabled(RowId::InlineAi));
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn disabled_inline_ai_click_selects_without_activating_toggle() {
+        let _g = guard();
+        std::env::remove_var("ANTHROPIC_API_KEY");
+        std::env::remove_var("CLAUDE_API_KEY");
+        let mut p = SettingsPanel::new();
+        p.open();
+        let (box_x, _box_y, _box_w, _box_h, list_top, row_h, _top, _shown) = p.geometry(900, 760);
+
+        assert_eq!(
+            p.click(box_x + 460.0, list_top + row_h * 6.0 + row_h * 0.5, 900, 760),
+            1
+        );
+        assert_eq!(p.selection(), 6);
+        assert!(settings::inline_ai(), "effective state is unavailable, but the stored preference is unchanged");
     }
 
     #[test]
