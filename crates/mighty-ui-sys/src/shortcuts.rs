@@ -870,18 +870,12 @@ impl ShortcutsEngine {
 
             // Title (left), fitted before remap text and shortcut pills.
             let txt_x = box_x + 22.0;
-            let tag = if !row.remappable {
-                "fixed"
-            } else if selected {
-                "Enter to remap"
-            } else {
-                ""
-            };
-            let tag_w = if tag.is_empty() { 0.0 } else { tag.chars().count() as f32 * 5.6 + 12.0 };
+            let tag = shortcut_row_affordance(row.remappable, selected, px - txt_x);
+            let tag_w = if tag.is_empty() { 0.0 } else { tag.chars().count() as f32 * 5.6 + 16.0 };
             let title_right = if parts.is_empty() {
                 box_x + box_w - 24.0 - tag_w
             } else {
-                px - 12.0 - tag_w
+                px - 18.0 - tag_w
             };
             let title_max = (title_right - txt_x).max(0.0);
             let name = crate::palette::fit_palette_text(&mut ctx.text, &row.name, title_max, 13.5);
@@ -905,7 +899,7 @@ impl ShortcutsEngine {
             // Remappable affordance: a small "remap" / "fixed" label left of pills.
             if !tag.is_empty() {
                 let tag_w = tag.chars().count() as f32 * 5.6;
-                let tag_x = px - 12.0 - tag_w;
+                let tag_x = px - 18.0 - tag_w;
                 let tcol = if row.remappable { theme::ACCENT_BRIGHT() } else { theme::TEXT_3() };
                 ctx.text.queue_ui_sized(tag_x, ry + (row_h - 10.0) * 0.5, tag, tcol, 10.0, clip);
             }
@@ -925,6 +919,18 @@ impl ShortcutsEngine {
         }
         let tag = "Mighty Shortcuts";
         ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
+    }
+}
+
+pub(crate) fn shortcut_row_affordance(remappable: bool, selected: bool, available_px: f32) -> &'static str {
+    if !remappable {
+        "fixed"
+    } else if selected && available_px >= 580.0 {
+        "Enter to remap"
+    } else if selected {
+        "Enter"
+    } else {
+        ""
     }
 }
 
@@ -1218,5 +1224,13 @@ mod tests {
     fn footer_hint_hides_when_card_is_compact() {
         assert_eq!(ShortcutsEngine::default_footer_hint(520.0), None);
         assert!(ShortcutsEngine::default_footer_hint(640.0).is_some());
+    }
+
+    #[test]
+    fn selected_shortcut_affordance_compacts_when_key_gutter_is_tight() {
+        assert_eq!(shortcut_row_affordance(true, true, 620.0), "Enter to remap");
+        assert_eq!(shortcut_row_affordance(true, true, 420.0), "Enter");
+        assert_eq!(shortcut_row_affordance(true, false, 620.0), "");
+        assert_eq!(shortcut_row_affordance(false, true, 420.0), "fixed");
     }
 }

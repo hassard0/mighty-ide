@@ -846,7 +846,7 @@ impl PaletteEngine {
 
             // Title + dim description (two lines), fitted before right chrome.
             let txt_x = box_x + 60.0;
-            let text_right = if parts.is_empty() { box_x + box_w - 24.0 } else { px - 16.0 };
+            let text_right = if parts.is_empty() { box_x + box_w - 24.0 } else { px - 28.0 };
             let text_max = (text_right - txt_x).max(0.0);
             let title = fit_palette_text(&mut ctx.text, cmd.label, text_max, 13.5);
             ctx.text.queue_ui_sized(txt_x, ry + 11.0, &title, theme::TEXT(), 13.5, clip);

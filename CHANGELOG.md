@@ -145,6 +145,16 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Command surfaces read cleaner**: file-dialog commands no longer bake fake
   `...` truncation into their names, and Command Palette / Keyboard Shortcuts
   rows now measure titles and descriptions against right-side shortcut chrome.
+- **Command shortcut gutters have breathing room**: Command Palette rows reserve
+  a wider gap before keybinding chips, and the Keyboard Shortcuts modal compacts
+  the selected-row remap affordance when the key gutter is tight.
+- **Open Folder harness follows the human flow**: strict real-mouse verification
+  now waits for the selected workspace trace before checking post-dialog
+  responsiveness, avoiding false failures while a native picker handoff is still
+  completing.
+- **Top-bar command clicks win over editor focus**: More and command-center mouse
+  clicks now open Palette/Quick Open before editor completion or panel focus can
+  consume the following typed query.
 - **Toast timing feels less stale**: success/info notifications now clear faster
   while warning/error messages remain visible longer, so completion messages do
   not follow users into unrelated panels.

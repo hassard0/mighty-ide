@@ -203,7 +203,9 @@ Discovered building the gutter+scroll render loop. A function `fn draw_buffer(h:
 
 **v0.42 T1 update — FIXED, root cause was NOT liveness/regalloc.** v0.41 T3's auto-arena-push at `main` entry (`crates/mty-codegen-cranelift/src/lower.rs::lower_blocks` lines 836-863) fixed this side-effect-free. The actual root cause: `mty_runtime_alloc` returns 0 when no arena frame is active; a bare `fn main()` had no surrounding `arena {}`, so `Vec.new()` got NULL and every nested deref SIGSEGV'd. v0.42 T1 verified the fix end-to-end against the IDE's `repro/` reproducer, ported the same fix to the LLVM backend, and added 6 JIT + 4 native-binary regression tests (`crates/mty-codegen-cranelift/tests/vec_liveness_v042.rs` + `crates/mty-driver/tests/vec_liveness_native_v042.rs`) so it can't silently regress.
 
-### L28. The `v = v.push(x)` capture-rebind grows NOTHING under native `mty build` — even a single flat loop leaves `v.len()==0` (confirmed codegen bug, NOT the runtime) ✅ **[P0] — FIXED v0.41 T3 (locked in v0.42 T1)**
+**v0.45 T4 correction — NOT FULLY FIXED.** Reopened. `l28_helper_param_grow_returns_grown_vec` passes under default cargo profile (`debug = 2`) but SIGSEGVs with `STATUS_ACCESS_VIOLATION` (0xC0000005) when built under `CARGO_PROFILE_DEV_DEBUG=0` + `CARGO_PROFILE_TEST_DEBUG=0`. This is the GHA Ubuntu profile from PR #22 (codex/ci-disk-headroom) — meaning the v0.42 GHA SIGSEGV at release time was a real codegen bug, not disk pressure as v0.44 release notes assumed. The auto-arena-push fix only worked because debug=2 metadata kept some pointer-shaped value alive that debug=0 strips. v0.45 T5 is the actual fix.
+
+### L28. The `v = v.push(x)` capture-rebind grows NOTHING under native `mty build` — even a single flat loop leaves `v.len()==0` (confirmed codegen bug, NOT the runtime) ⚠️ **[P0] — REOPENED v0.45 T4, real fix in v0.45 T5**
 The L12 workaround (`v = v.push(x)` to grow a `Vec`, since bare `v.push(x)` is a no-op) was verified **only under the interpreter** (`mty test` / `mty run`). Under **native `mty build`** it does not work at all: a flat `while` loop that does `v = v.push(byte)` iterates the correct number of times but the `Vec` stays empty (`v.len()==0`). This is exactly the bug that forced the IDE's editor body to render shim-side (`mui_draw_buffer_self` reads the shim's own byte copy) instead of from the live Mighty `buf`.
 
 **Ruled out the runtime first.** The hypothesis was that the IDE's no-op-arena C stub (`vendor/mty_runtime_stub.c`: `arena_push/pop` no-ops, `alloc` a bare `malloc`) broke the arena semantics Mighty's `Vec` grow path expects. So we vendored a **real bumpalo-backed arena runtime** (`crates/mty-rt-abi`, staticlib — thread-local `ArenaStack` of `bumpalo::Bump` frames; `arena_push` pushes/returns depth, `arena_pop` drops the frame, `alloc` allocates on the top frame with a leaked per-thread fallback `Bump` so allocs always succeed) and pointed the IDE at it (`mighty.toml` `[[extern_lib]] mtyrt → vendor/mty_rt_abi.lib`, `build-ide.sh`). **The buffer is STILL empty with the real arena** — so it is NOT a runtime/arena bug. It's in native codegen's `Vec.push` / capture-rebind lowering.
@@ -3239,3 +3241,33 @@ though the command surface had briefly opened.
   makes this kind of modal-open handoff easy to miss. Mouse-opened overlays need
   an explicit "opened by this click" latch when the runtime may deliver move/down
   events around the same coordinates.
+
+### L218. Secondary affordances need measured gutters, not leftover pixels **[finding, P2]**
+Strict screenshot review showed Command Palette and Keyboard Shortcuts rows
+still feeling crowded even after title truncation was added. The failure mode was
+not raw overflow: keybinding chips and selected-row action text technically fit,
+but the row read as overlapping because the text budget ended too close to the
+right-side chrome.
+
+- **IDE note:** Command Palette rows now reserve a wider gutter before shortcut
+  chips, and the Keyboard Shortcuts modal compacts "Enter to remap" to "Enter"
+  when the selected row has a tight keybinding/action gutter.
+- **Language note:** no compiler gap surfaced. Mighty can keep driving these
+  overlays, but shim-rendered command surfaces need explicit measured budgets for
+  secondary affordances instead of assuming the remaining pixels will look clean.
+
+### L219. Global chrome clicks need an early non-modal routing lane **[finding, P1]**
+Strict real-mouse testing caught an Open File -> edit -> Save flow where the
+More button logged a top-bar hit, but the typed command query landed in the
+editor. The visible behavior was bad: a user clicked command chrome, then saw
+`save` inserted into the document.
+
+- **IDE note:** top-bar More and command-center clicks now have an early
+  mouse-down lane whenever no modal overlay owns the screen. That lane opens
+  Palette or Quick Open before editor completion, bottom-dock focus, or other
+  non-modal states can consume subsequent text input.
+- **Language note:** no new compiler bug surfaced, but the flat event ladder is
+  fragile when global chrome, modal overlays, and editor focus all share scalar
+  state. Mighty would benefit from a small first-class event-priority pattern or
+  reusable helper that can own these "global chrome before local focus" checks
+  without adding broad parse-stack pressure.

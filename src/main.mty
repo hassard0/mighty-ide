@@ -1306,6 +1306,30 @@ fn main() {
         web_focus = false
         test_focus = false
         term_focus = false
+      } else if tag == ev_mouse_down() && mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && prompt_kind == 0 && !palette_open && !quickopen_open && !settings_open && !theme_picker_open && mui_topbar_action_at_click(h) > 0 {
+        // Top-bar command access must win over editor/completion/panel focus. A
+        // human click on More or the command-center pill should never leave the
+        // following typed query in the editor.
+        let topbar_early = mui_topbar_action_at_click(h)
+        if topbar_early == 2 {
+          mui_palette_open(h)
+          palette_open = true
+          palette_ignore_mouse_down = true
+          typing = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+        } else if topbar_early == 3 {
+          mui_quickopen_open(h)
+          quickopen_open = true
+          quickopen_ignore_mouse_down = true
+          typing = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+        }
       } else if tag == ev_mouse_down() && mui_toast_click(h) == 1 {
         // Toasts draw on the overlay layer, so a toast click dismisses it before
         // the underlying editor/panel sees the same mouse-down.

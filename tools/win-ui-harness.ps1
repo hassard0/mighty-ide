@@ -1049,20 +1049,20 @@ if ($openText -like "*zz*") {
 
 # === OPEN FOLDER dialog via palette should apply the selected workspace. ===
 Invoke-PaletteCommand "open folder" "45-open-folder-palette"
-$respFolder = Wait-Responsive $hwnd 4500
-Log "OPEN-FOLDER: responsive after dialog command=$respFolder"
-if (-not $respFolder) { $script:HarnessFailed = $true }
 if ($env:MUI_TRACE) {
   $openFolderPattern = [regex]::Escape($openFolderPath)
-  [void](Wait-TraceContainsAll @("workspace_open_folder path=$openFolderPattern changed=1") 4500)
+  $folderApplied = Wait-TraceContainsAll @("workspace_open_folder path=$openFolderPattern changed=1") 4500
   $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
-  if ($traceText -match "workspace_open_folder path=$openFolderPattern changed=1") {
+  if ($folderApplied -and $traceText -match "workspace_open_folder path=$openFolderPattern changed=1") {
     Log "OPEN-FOLDER: selected folder became workspace -> $openFolderPath"
   } else {
     Log "OPEN-FOLDER: selected folder was not applied as workspace ($openFolderPath)"
     $script:HarnessFailed = $true
   }
 }
+$respFolder = Wait-Responsive $hwnd 4500
+Log "OPEN-FOLDER: responsive after workspace change=$respFolder"
+if (-not $respFolder) { $script:HarnessFailed = $true }
 
 # === RAIL UTILITY: bottom Settings icon should open Preferences, not be decorative. ===
 $settingsOpenCount = Trace-MatchCount "(?m)^settings_open$"
