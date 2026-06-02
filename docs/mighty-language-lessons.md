@@ -3179,3 +3179,16 @@ important warnings.
 - **Language note:** no compiler gap surfaced. Mighty UI needs transient
   feedback policies that can encode severity, user action, and surface context
   instead of relying on one global toast timeout.
+
+### L214. Sidebar resizing needs direct manipulation, not presets only **[finding, P1]**
+Manual resizing still felt clunky because the left drawer had palette presets
+but no obvious divider the user could drag. A best-in-class IDE should let a
+human put the Explorer/Search/SCM width exactly where their project needs it.
+
+- **IDE note:** the sidebar now has a visible right-edge divider, east-west
+  cursor feedback, hand-resized width persistence, clamp rules that preserve a
+  usable editor body, and strict real-mouse harness coverage for divider drags.
+- **Language note:** no new compiler gap surfaced. This repeats the lower-dock
+  pattern: Mighty can own the high-level event loop, but shim-owned layout needs
+  explicit drag state so normally-consumed mouse-move events can be delivered to
+  direct-manipulation controls.

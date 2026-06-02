@@ -33,6 +33,9 @@ extern c {
   fn mui_bottom_dock_preset_at_click(handle: I64) -> I32
   fn mui_dock_dispatch(handle: I64, id: I32) -> I32
   fn mui_bottom_dock_resize_draw(handle: I64)
+  fn mui_sidebar_resize_at_click(handle: I64) -> I32
+  fn mui_sidebar_resize_to_event_x(handle: I64) -> I32
+  fn mui_sidebar_resize_draw(handle: I64)
   // Frame cap for non-interactive (headless / screenshot / probe) runs: returns
   // a positive cap when a headless env is set, else 0 (= run until window Close).
   fn mui_headless_frames() -> I32
@@ -1254,6 +1257,8 @@ fn main() {
   // True while the user is dragging the visible top edge of the shared lower
   // dock (Terminal / Run / Web / Problems).
   let mut dock_resizing = false
+  // True while the user is dragging the visible right edge of the left sidebar.
+  let mut sidebar_resizing = false
 
   while running {
     let rows_i = mui_visible_rows(h)
@@ -1265,21 +1270,36 @@ fn main() {
         let _dh = mui_bottom_dock_resize_to_event_y(h)
       } else if dock_resizing && tag == ev_mouse_up() {
         dock_resizing = false
+      } else if sidebar_resizing && tag == ev_mouse_move() {
+        let _sw = mui_sidebar_resize_to_event_x(h)
+      } else if sidebar_resizing && tag == ev_mouse_up() {
+        sidebar_resizing = false
       } else if tag == ev_mouse_down() && mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && mui_bottom_dock_close_at_click(h) == 1 {
         dock_resizing = false
+        sidebar_resizing = false
         run_focus = false
         web_focus = false
         test_focus = false
         term_focus = false
       } else if tag == ev_mouse_down() && mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && mui_bottom_dock_preset_at_click(h) > 0 {
         dock_resizing = false
+        sidebar_resizing = false
         run_focus = false
         web_focus = false
         test_focus = false
         term_focus = false
       } else if tag == ev_mouse_down() && mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && mui_bottom_dock_resize_at_click(h) == 1 {
         dock_resizing = true
+        sidebar_resizing = false
         let _dh = mui_bottom_dock_resize_to_event_y(h)
+        run_focus = false
+        web_focus = false
+        test_focus = false
+        term_focus = false
+      } else if tag == ev_mouse_down() && mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && mui_sidebar_resize_at_click(h) == 1 {
+        sidebar_resizing = true
+        dock_resizing = false
+        let _sw = mui_sidebar_resize_to_event_x(h)
         run_focus = false
         web_focus = false
         test_focus = false
@@ -3951,6 +3971,7 @@ fn main() {
       } else {
         mui_sidebar_draw(h)
       }
+      mui_sidebar_resize_draw(h)
       mui_rail_draw(h)
       mui_tab_bar_draw(h)
     }

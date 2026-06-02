@@ -468,6 +468,10 @@ impl WindowHost {
         self.set_cursor(CursorIcon::NsResize);
     }
 
+    pub fn set_cursor_col_resize(&self) {
+        self.set_cursor(CursorIcon::EwResize);
+    }
+
     pub fn set_cursor_resize(&self, dir: ResizeDir) {
         let icon = match dir {
             ResizeDir::West | ResizeDir::East => CursorIcon::EwResize,

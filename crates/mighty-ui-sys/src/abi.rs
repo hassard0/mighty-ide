@@ -2241,12 +2241,13 @@ fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
         // Drag-move events are only meaningful after Mighty captures a visible
         // drag target. Ordinary hover movement and unrelated OS/titlebar drags
         // are consumed here so click-focused routing stays deterministic.
-        MUI_EVENT_MOUSE_MOVE if !ctx.bottom_dock_resizing => {
+        MUI_EVENT_MOUSE_MOVE if !ctx.bottom_dock_resizing && !ctx.sidebar_resizing => {
             update_hover_cursor(ctx, ev);
             ShimAction::Consume
         }
-        MUI_EVENT_MOUSE_UP if ctx.bottom_dock_resizing => {
+        MUI_EVENT_MOUSE_UP if ctx.bottom_dock_resizing || ctx.sidebar_resizing => {
             ctx.bottom_dock_resizing = false;
+            ctx.sidebar_resizing = false;
             ShimAction::PassThrough
         }
         // --- Mouse press: title-bar controls / drag strip / resize edges win
@@ -2370,6 +2371,8 @@ fn update_hover_cursor(ctx: &mut MuiContext, ev: &MuiEvent) {
     let rc = crate::titlebar::resize_code(ev.x, ev.y, w, h);
     if let Some(dir) = crate::window::ResizeDir::from_code(rc) {
         host.set_cursor_resize(dir);
+    } else if layout::sidebar_resize_hit(ctx.sidebar_visible, ev.x, ev.y, visible_surface_size(ctx).1) {
+        host.set_cursor_col_resize();
     } else if ctx.bottom_dock_open() && layout::dock_resize_hit(visible_surface_size(ctx).1, ev.y) {
         host.set_cursor_row_resize();
     } else {
@@ -5696,6 +5699,74 @@ pub extern "C" fn mui_sidebar_layout_dispatch(handle: i64, id: i32) -> i32 {
         layout::sidebar_w()
     ));
     code
+}
+
+/// Hit-test and capture the sidebar divider for direct mouse resizing.
+#[no_mangle]
+pub extern "C" fn mui_sidebar_resize_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let (_, visible_h) = visible_surface_size(ctx);
+    if ctx.last_event.button == crate::ffi::MUI_MOUSE_LEFT
+        && layout::sidebar_resize_hit(ctx.sidebar_visible, ctx.last_event.x, ctx.last_event.y, visible_h)
+    {
+        ctx.sidebar_resizing = true;
+        trace(&format!(
+            "sidebar_resize start x={:.1} width={:.1}",
+            ctx.last_event.x,
+            layout::sidebar_w()
+        ));
+        1
+    } else {
+        0
+    }
+}
+
+/// Resize the sidebar so its divider follows the latest mouse event.
+/// Returns the resulting sidebar width in pixels for deterministic tests.
+#[no_mangle]
+pub extern "C" fn mui_sidebar_resize_to_event_x(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| {
+        if !c.sidebar_visible {
+            return 0;
+        }
+        let width = layout::resize_sidebar_to_x(c.last_event.x).round() as i32;
+        trace(&format!("sidebar_resize drag x={:.1} width={width}", c.last_event.x));
+        width
+    })
+}
+
+/// Draw the visible divider/handle on the sidebar's right edge.
+#[no_mangle]
+pub extern "C" fn mui_sidebar_resize_draw(handle: i64) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if !ctx.sidebar_visible || layout::zen_active() {
+        return;
+    }
+    let (_visible_w, visible_h) = visible_surface_size(ctx);
+    let x = layout::sidebar_right() - 1.0;
+    let top = layout::TAB_BAR_H;
+    let bottom = visible_h as f32 - 2.0 * layout::LINE_H();
+    let h = (bottom - top).max(0.0);
+    if h <= 80.0 {
+        return;
+    }
+    let was_overlay = ctx.overlay;
+    let was_clip = ctx.clip;
+    ctx.overlay = true;
+    ctx.clip = None;
+    ctx.dl_rect(x, top, 1.0, h, theme::BORDER());
+    let grip_h = 86.0_f32.min((h - 32.0).max(0.0));
+    let grip_y = top + (h - grip_h) * 0.5;
+    let bg = if ctx.sidebar_resizing { theme::accent_a(0.24) } else { theme::accent_a(0.12) };
+    let line = if ctx.sidebar_resizing { theme::ACCENT() } else { theme::TEXT_3() };
+    ctx.dl_round(x - 5.0, grip_y - 8.0, 10.0, grip_h + 16.0, 5.0, bg);
+    ctx.dl_round(x - 1.0, grip_y, 2.0, grip_h, 1.0, line);
+    ctx.clip = was_clip;
+    ctx.overlay = was_overlay;
 }
 
 /// Re-scan the tree from its root (honoring the current expand state).

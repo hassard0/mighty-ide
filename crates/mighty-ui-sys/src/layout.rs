@@ -46,6 +46,11 @@ pub const SIDEBAR_W: f32 = 248.0;
 /// Minimum compact sidebar width. Keeps rail panels usable while giving the
 /// editor enough room in small windows and dock-heavy workflows.
 pub const SIDEBAR_MIN_W: f32 = 176.0;
+/// Largest hand-resized sidebar width. Wider than this steals too much editor
+/// room, but still gives dense tree/search/source-control views breathing room.
+pub const SIDEBAR_MAX_W: f32 = 420.0;
+/// Visible/hit-tested divider band on the right edge of the sidebar.
+pub const SIDEBAR_RESIZE_W: f32 = 10.0;
 /// Pixels of indentation per tree depth level (mockup `.indent` = 16px).
 pub const TREE_INDENT: f32 = 16.0;
 
@@ -102,6 +107,8 @@ static ZEN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(f
 static WINDOW_W: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(900);
 /// Sidebar width preset: 0 = auto/default, 1 = compact, 2 = wide.
 static SIDEBAR_PRESET: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+static SIDEBAR_CUSTOM_WIDTH_BITS: std::sync::atomic::AtomicU32 =
+    std::sync::atomic::AtomicU32::new(0);
 static DOCK_FRACTION_BITS: std::sync::atomic::AtomicU32 =
     std::sync::atomic::AtomicU32::new(TERM_FRACTION.to_bits());
 
@@ -168,6 +175,7 @@ pub fn sidebar_w_for_preset(win_w: f32, preset: u8) -> f32 {
 #[inline]
 pub fn set_sidebar_preset(preset: u8) {
     SIDEBAR_PRESET.store(preset.min(2), std::sync::atomic::Ordering::Relaxed);
+    SIDEBAR_CUSTOM_WIDTH_BITS.store(0, std::sync::atomic::Ordering::Relaxed);
 }
 
 /// Current sidebar width preset: 0 = auto/default, 1 = compact, 2 = wide.
@@ -186,16 +194,57 @@ pub fn reset_sidebar_preset() {
 /// Current responsive sidebar width.
 #[inline]
 pub fn sidebar_w() -> f32 {
-    sidebar_w_for_preset(
-        WINDOW_W.load(std::sync::atomic::Ordering::Relaxed) as f32,
-        sidebar_preset(),
-    )
+    let win_w = WINDOW_W.load(std::sync::atomic::Ordering::Relaxed) as f32;
+    let custom_bits = SIDEBAR_CUSTOM_WIDTH_BITS.load(std::sync::atomic::Ordering::Relaxed);
+    if custom_bits != 0 {
+        return f32::from_bits(custom_bits).clamp(SIDEBAR_MIN_W, sidebar_max_w_for(win_w));
+    }
+    sidebar_w_for_preset(win_w, sidebar_preset())
 }
 
 /// Current right edge of the sidebar content band.
 #[inline]
 pub fn sidebar_right() -> f32 {
     RAIL_W + sidebar_w()
+}
+
+/// Maximum sidebar width for the current window: bounded by a hard maximum and
+/// by the need to leave a usable editor body.
+#[inline]
+pub fn sidebar_max_w_for(win_w: f32) -> f32 {
+    let editor_min = 440.0;
+    (win_w - RAIL_W - editor_min)
+        .max(SIDEBAR_MIN_W)
+        .min(SIDEBAR_MAX_W)
+}
+
+/// Set a hand-resized sidebar width, clamped to usable bounds.
+#[inline]
+pub fn set_sidebar_width(width: f32) -> f32 {
+    let win_w = WINDOW_W.load(std::sync::atomic::Ordering::Relaxed) as f32;
+    let width = width.clamp(SIDEBAR_MIN_W, sidebar_max_w_for(win_w));
+    SIDEBAR_PRESET.store(0, std::sync::atomic::Ordering::Relaxed);
+    SIDEBAR_CUSTOM_WIDTH_BITS.store(width.to_bits(), std::sync::atomic::Ordering::Relaxed);
+    width
+}
+
+/// Hit-test the hand-resize divider on the right edge of the sidebar.
+#[inline]
+pub fn sidebar_resize_hit(sidebar_visible: bool, x: f32, y: f32, height: u32) -> bool {
+    if !sidebar_visible || zen_active() {
+        return false;
+    }
+    let right = sidebar_right();
+    x >= right - SIDEBAR_RESIZE_W * 0.5
+        && x <= right + SIDEBAR_RESIZE_W * 0.5
+        && y >= TAB_BAR_H
+        && y <= height as f32 - 2.0 * LINE_H()
+}
+
+/// Resize the sidebar so its right edge follows the given x pixel.
+#[inline]
+pub fn resize_sidebar_to_x(x: f32) -> f32 {
+    set_sidebar_width(x - RAIL_W)
 }
 
 /// Current editor body left edge.
@@ -697,6 +746,47 @@ mod tests {
         assert_eq!(sidebar_w_for_preset(1200.0, 2), 360.0);
         assert!((sidebar_w_for_preset(860.0, 2) - 309.6).abs() < 0.01);
         assert_eq!(sidebar_w_for_preset(1200.0, 99), 360.0);
+    }
+
+    #[test]
+    fn sidebar_drag_width_clamps_and_drives_body_left() {
+        let _g = crate::settings::TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        set_window_width(1200);
+        reset_sidebar_preset();
+        let wide = resize_sidebar_to_x(RAIL_W + 390.0);
+        assert_eq!(wide, 390.0);
+        assert_eq!(sidebar_w(), 390.0);
+        assert_eq!(body_left(true), RAIL_W + 390.0);
+
+        let too_small = resize_sidebar_to_x(RAIL_W + 40.0);
+        assert_eq!(too_small, SIDEBAR_MIN_W);
+        let too_large = resize_sidebar_to_x(RAIL_W + 900.0);
+        assert_eq!(too_large, sidebar_max_w_for(1200.0));
+        reset_sidebar_preset();
+        set_window_width(900);
+    }
+
+    #[test]
+    fn sidebar_resize_hit_tracks_visible_divider_only() {
+        let _g = crate::settings::TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        set_zen(false);
+        set_window_width(1000);
+        reset_sidebar_preset();
+        let x = sidebar_right();
+        assert!(sidebar_resize_hit(true, x, TAB_BAR_H + 10.0, 700));
+        assert!(sidebar_resize_hit(true, x + SIDEBAR_RESIZE_W * 0.4, TAB_BAR_H + 10.0, 700));
+        assert!(!sidebar_resize_hit(true, x + SIDEBAR_RESIZE_W, TAB_BAR_H + 10.0, 700));
+        assert!(!sidebar_resize_hit(false, x, TAB_BAR_H + 10.0, 700));
+        assert!(!sidebar_resize_hit(true, x, TAB_BAR_H - 2.0, 700));
+        set_zen(true);
+        assert!(!sidebar_resize_hit(true, x, TAB_BAR_H + 10.0, 700));
+        set_zen(false);
+        reset_sidebar_preset();
+        set_window_width(900);
     }
 
     #[test]

@@ -185,6 +185,9 @@ pub struct MuiContext {
     tree: tree::FileTree,
     /// Whether the sidebar is currently shown (toggled by Ctrl+B).
     sidebar_visible: bool,
+    /// True while Mighty has captured the visible right edge of the left sidebar
+    /// for direct drag-resizing.
+    sidebar_resizing: bool,
 
     // ---- explicit workspace (open-folder) ----
     /// The EXPLICIT workspace `{ root, name }`. Everything that operates over the
@@ -847,6 +850,7 @@ pub(crate) fn build_context(
         tab_scroll: 0,
         tree: file_tree,
         sidebar_visible: true,
+        sidebar_resizing: false,
         workspace,
         recent_workspaces,
         lightbulb: lightbulb::Lightbulb::new(),
@@ -1526,6 +1530,7 @@ impl MuiContext {
             tab_scroll: 0,
             tree: tree::FileTree::new(),
             sidebar_visible: true,
+            sidebar_resizing: false,
             workspace: workspace::Workspace::default(),
             recent_workspaces: workspace::RecentWorkspaces::new(),
             lightbulb: lightbulb::Lightbulb::new(),

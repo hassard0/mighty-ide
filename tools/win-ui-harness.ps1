@@ -780,6 +780,25 @@ if ($env:MUI_TRACE) {
     $script:HarnessFailed = $true
   }
 }
+$sidebarDividerX = 300
+DragL $sidebarDividerX 260 ($sidebarDividerX + 92) 260
+Start-Sleep -Milliseconds 250
+DragL ($sidebarDividerX + 92) 260 ($sidebarDividerX - 34) 260
+Start-Sleep -Milliseconds 250
+Capture $hwnd "21-sidebar-resize"
+$respSidebar = Is-Responsive $hwnd
+Log "sidebar divider resize drag responsive=$respSidebar"
+if (-not $respSidebar) { $script:HarnessFailed = $true }
+if ($env:MUI_TRACE) {
+  Start-Sleep -Milliseconds 150
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  if ($traceText -match "sidebar_resize drag") {
+    Log "SIDEBAR-RESIZE: divider drag trace observed"
+  } else {
+    Log "SIDEBAR-RESIZE: no divider drag trace observed"
+    $script:HarnessFailed = $true
+  }
+}
 Invoke-PaletteCommand "close sidebar" $null
 Start-Sleep -Milliseconds 250
 if ($env:MUI_TRACE) {
