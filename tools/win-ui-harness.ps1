@@ -1201,6 +1201,22 @@ if ($env:MUI_TRACE) {
 Invoke-PaletteCommand "close bottom dock" $null
 Start-Sleep -Milliseconds 250
 
+# === WEB PLAYGROUND: opening the runtime panel should show a visible empty state. ===
+$webOpenCount = Trace-MatchCount "(?m)^web_open$"
+Invoke-PaletteCommand "view web playground" $null
+Start-Sleep -Milliseconds 350
+Capture $hwnd "21-web-playground-empty"
+if ($env:MUI_TRACE) {
+  if (Wait-TraceCountGreaterThan "(?m)^web_open$" $webOpenCount 1800) {
+    Log "WEB-PLAYGROUND-COMMAND: visible Web panel opened from palette"
+  } else {
+    Log "WEB-PLAYGROUND-COMMAND: missing Web panel open trace"
+    $script:HarnessFailed = $true
+  }
+}
+Invoke-PaletteCommand "close bottom dock" $null
+Start-Sleep -Milliseconds 250
+
 Invoke-PaletteCommand "view ai copilot" $null
 if ($env:MUI_TRACE) {
   [void](Wait-TraceContainsAll @("(?m)^ai_open$") 1800)

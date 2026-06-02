@@ -50,6 +50,7 @@ pub extern "C" fn mui_web_run(handle: i64) -> i32 {
         ctx.term_open = false;
         ctx.run.close();
         ctx.problems.set_open(false);
+        crate::abi::trace("web_run no_active_file");
         ctx.push_toast(crate::toast::Kind::Warn, "Run in Browser: no active file");
         return 0;
     };
@@ -109,6 +110,7 @@ pub extern "C" fn mui_web_open(handle: i64) -> i32 {
     ctx.term_open = false;
     ctx.run.close();
     ctx.problems.set_open(false);
+    crate::abi::trace("web_open");
     1
 }
 
@@ -457,6 +459,18 @@ pub extern "C" fn mui_web_draw(handle: i64) {
     let visible = ((g.panel_h - g.header_h) / line_h).floor().max(0.0) as usize;
     let adv = layout::CHAR_W();
     let count = ctx.web.line_count();
+    if count == 0 {
+        let empty_y = g.rows_top + 16.0;
+        ctx.text.queue_ui_sized(
+            g.x0 + 12.0,
+            empty_y,
+            "No web session yet",
+            theme::TEXT_3(),
+            chrome - 1.0,
+            clip,
+        );
+        return;
+    }
     for vis in 0..visible {
         let idx = first + vis;
         if idx >= count {

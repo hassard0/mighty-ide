@@ -4100,3 +4100,17 @@ terminal is weaker evidence than seeing command output in the shipped surface.
 - **Language note:** no compiler gap surfaced. Mighty needs a testable runtime
   surface contract for embedded tools so terminal/web/run panels can expose
   concise state and visible-output evidence without bespoke shim hooks.
+
+### L286. Runtime panels need first-open empty states **[finding, P2]**
+The Web Playground could be opened from the command palette without starting a
+browser session, but the panel body was blank. That makes a functional feature
+look broken during the exact first-run path a human is likely to try while
+exploring the IDE.
+
+- **IDE note:** the Web panel now renders a compact `No web session yet` state
+  before output exists, traces `web_open`, and the Windows real-mouse harness
+  opens `View: Web Playground`, captures the visible panel, and closes the
+  bottom dock afterward.
+- **Language note:** no compiler gap surfaced. Mighty needs declarative runtime
+  panel states so `idle`, `starting`, `running`, `failed`, and `finished` can
+  drive rendering, command enablement, traces, and tests from one typed model.
