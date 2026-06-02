@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Keyboard shortcut alternatives render honestly**: slash-separated bindings
+  like `Alt+Up / Alt+Down` now draw as distinct shortcut groups while slash-key
+  chords like `Ctrl+/` remain a real key pill.
 - **Color Theme selected state is explicit**: the current theme row now uses a
   checked accent capsule instead of a plus icon, so the picker reads as
   "selected" rather than "add".

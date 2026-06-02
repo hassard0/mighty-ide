@@ -3584,3 +3584,17 @@ which makes an otherwise functional picker feel unfinished.
 - **Language note:** no compiler gap surfaced. Mighty UI needs semantic icon
   roles for selected/current, add/create, close, destructive, and disabled
   states so app code does not hand-pick ambiguous symbols at every call site.
+
+### L244. Shortcut labels need structured chord tokens **[finding, P2]**
+The Keyboard Shortcuts overlay rendered keybinding pills from casual string
+splitting. That makes slash-separated alternatives such as `Alt+Up / Alt+Down`
+look like one impossible chord, while slash-key chords such as `Ctrl+/` need to
+stay intact.
+
+- **IDE note:** shortcut display now tokenizes alternatives separately from key
+  separators, drawing slash-separated bindings as distinct groups without
+  breaking real slash-key chords.
+- **Language note:** no compiler gap surfaced. Mighty UI should expose a
+  structured shortcut/chord model for views and commands so renderers receive
+  tokens like `modifier`, `key`, and `alternative` instead of reparsing display
+  strings at draw time.

@@ -125,6 +125,12 @@ pub struct ShortcutRow {
     pub remappable: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ShortcutToken {
+    Key(String),
+    Separator,
+}
+
 /// The set of palette command ids that can be rebound to an Alt+letter chord.
 /// The router resolves to a palette id and Mighty executes it through the shared
 /// command dispatcher, so every palette command is eligible.
@@ -852,19 +858,18 @@ impl ShortcutsEngine {
 
             // Right-aligned kbd pills.
             let right_edge = box_x + box_w - 20.0;
-            let parts: Vec<&str> = if row.keys.is_empty() {
-                Vec::new()
-            } else {
-                row.keys.split(['+', ' ']).filter(|s| !s.is_empty() && *s != "/").collect()
-            };
+            let tokens = shortcut_display_tokens(&row.keys);
             let pill_pad = 7.0;
             let gap = 4.0;
             let kadv = 11.0 * 0.55;
-            let widths: Vec<f32> = parts
+            let widths: Vec<f32> = tokens
                 .iter()
-                .map(|p| (p.chars().count() as f32 * kadv + 2.0 * pill_pad).max(22.0))
+                .map(|token| match token {
+                    ShortcutToken::Key(p) => (p.chars().count() as f32 * kadv + 2.0 * pill_pad).max(22.0),
+                    ShortcutToken::Separator => 8.0,
+                })
                 .collect();
-            let total_w: f32 = widths.iter().sum::<f32>() + gap * (parts.len().saturating_sub(1)) as f32;
+            let total_w: f32 = widths.iter().sum::<f32>() + gap * (tokens.len().saturating_sub(1)) as f32;
             let px = right_edge - total_w;
             let pill_h = 21.0;
             let py = ry + (row_h - pill_h) * 0.5;
@@ -873,7 +878,7 @@ impl ShortcutsEngine {
             let txt_x = box_x + 22.0;
             let tag = shortcut_row_affordance(row.remappable, selected, px - txt_x);
             let tag_w = if tag.is_empty() { 0.0 } else { tag.chars().count() as f32 * 5.6 + 16.0 };
-            let title_right = if parts.is_empty() {
+            let title_right = if tokens.is_empty() {
                 box_x + box_w - 24.0 - tag_w
             } else {
                 px - 18.0 - tag_w
@@ -883,8 +888,16 @@ impl ShortcutsEngine {
             ctx.text.queue_ui_sized(txt_x, ry + (row_h - 14.0) * 0.5, &name, theme::TEXT(), 13.5, clip);
 
             let mut draw_x = px;
-            for (k, part) in parts.iter().enumerate() {
+            for (k, token) in tokens.iter().enumerate() {
                 let pw = widths[k];
+                if matches!(token, ShortcutToken::Separator) {
+                    ctx.text.queue_ui_sized(draw_x + 1.0, py + 4.5, "/", theme::OVERLAY_SUBTLE(), 11.0, clip);
+                    draw_x += pw + gap;
+                    continue;
+                }
+                let ShortcutToken::Key(part) = token else {
+                    continue;
+                };
                 let (pbg, pborder, pfg) = if selected {
                     (theme::accent_a(0.10), theme::ACCENT_LINE(), theme::ACCENT_BRIGHT())
                 } else {
@@ -929,6 +942,19 @@ fn search_field_text_x(base_x: f32, is_placeholder: bool) -> f32 {
     } else {
         base_x
     }
+}
+
+fn shortcut_display_tokens(keys: &str) -> Vec<ShortcutToken> {
+    let mut tokens = Vec::new();
+    for (group_idx, group) in keys.split(" / ").map(str::trim).filter(|s| !s.is_empty()).enumerate() {
+        if group_idx > 0 {
+            tokens.push(ShortcutToken::Separator);
+        }
+        for part in group.split('+').map(str::trim).filter(|s| !s.is_empty()) {
+            tokens.push(ShortcutToken::Key(part.to_string()));
+        }
+    }
+    tokens
 }
 
 pub(crate) fn shortcut_row_affordance(remappable: bool, selected: bool, available_px: f32) -> &'static str {
@@ -1241,6 +1267,27 @@ mod tests {
         assert_eq!(shortcut_row_affordance(true, true, 420.0), "Enter");
         assert_eq!(shortcut_row_affordance(true, false, 620.0), "");
         assert_eq!(shortcut_row_affordance(false, true, 420.0), "fixed");
+    }
+
+    #[test]
+    fn shortcut_display_tokens_keep_slash_key_distinct_from_alternative_separator() {
+        assert_eq!(
+            shortcut_display_tokens("Ctrl+/"),
+            vec![
+                ShortcutToken::Key("Ctrl".to_string()),
+                ShortcutToken::Key("/".to_string()),
+            ]
+        );
+        assert_eq!(
+            shortcut_display_tokens("Alt+Up / Alt+Down"),
+            vec![
+                ShortcutToken::Key("Alt".to_string()),
+                ShortcutToken::Key("Up".to_string()),
+                ShortcutToken::Separator,
+                ShortcutToken::Key("Alt".to_string()),
+                ShortcutToken::Key("Down".to_string()),
+            ]
+        );
     }
 
     #[test]
