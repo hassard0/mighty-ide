@@ -4728,3 +4728,16 @@ sometimes reactivate the IDE instead of dispatching the intended topbar command.
 - **Language note:** no compiler bug surfaced. Mighty should expose first-class
   native-dialog lifecycle helpers for parent ownership, foreground restoration,
   and post-modal event draining, so apps do not hand-roll Win32 focus repair.
+
+L328. Workspace-level commands need deterministic project discovery, not a
+single top-level file fallback. The Test panel could run from a scratch tab by
+falling back to the workspace, but it only found a root `mighty.toml` or the
+first top-level `.mty` file.
+
+- **IDE note:** workspace test fallback now prefers the root manifest, then
+  nested package manifests, then `tests/*.test.mty`, then ordinary `.mty` files,
+  while skipping build/cache folders. This makes Run Tests behave better from
+  scratch tabs and normal package layouts.
+- **Language note:** no compiler bug surfaced. Mighty would benefit from
+  first-class package/workspace discovery APIs so IDE commands can ask for a
+  testable package target without each tool re-implementing directory traversal.

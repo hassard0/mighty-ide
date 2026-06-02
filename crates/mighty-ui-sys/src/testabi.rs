@@ -31,8 +31,7 @@ fn active_path(ctx: &MuiContext) -> Option<std::path::PathBuf> {
     ctx.tabs.active_path()
 }
 
-fn workspace_test_target(ctx: &MuiContext) -> Option<std::path::PathBuf> {
-    let root = crate::wsabi::effective_root(ctx);
+pub(crate) fn workspace_test_target_for_root(root: &std::path::Path) -> Option<std::path::PathBuf> {
     if root.as_os_str().is_empty() || !root.is_dir() {
         return None;
     }
@@ -40,11 +39,95 @@ fn workspace_test_target(ctx: &MuiContext) -> Option<std::path::PathBuf> {
     if manifest.is_file() {
         return Some(manifest);
     }
-    std::fs::read_dir(&root)
-        .ok()?
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .find(|path| path.extension().and_then(|e| e.to_str()) == Some("mty"))
+
+    let mut manifests = Vec::new();
+    collect_workspace_candidates(root, root, &mut manifests, CandidateKind::Manifest, 3);
+    manifests.sort_by(|a, b| candidate_rank(root, a).cmp(&candidate_rank(root, b)));
+    if let Some(path) = manifests.into_iter().next() {
+        return Some(path);
+    }
+
+    let mut tests = Vec::new();
+    collect_workspace_candidates(root, root, &mut tests, CandidateKind::TestFile, 5);
+    tests.sort_by(|a, b| candidate_rank(root, a).cmp(&candidate_rank(root, b)));
+    if let Some(path) = tests.into_iter().next() {
+        return Some(path);
+    }
+
+    let mut files = Vec::new();
+    collect_workspace_candidates(root, root, &mut files, CandidateKind::MightyFile, 4);
+    files.sort_by(|a, b| candidate_rank(root, a).cmp(&candidate_rank(root, b)));
+    files.into_iter().next()
+}
+
+fn workspace_test_target(ctx: &MuiContext) -> Option<std::path::PathBuf> {
+    workspace_test_target_for_root(&crate::wsabi::effective_root(ctx))
+}
+
+#[derive(Clone, Copy)]
+enum CandidateKind {
+    Manifest,
+    TestFile,
+    MightyFile,
+}
+
+fn collect_workspace_candidates(
+    root: &std::path::Path,
+    dir: &std::path::Path,
+    out: &mut Vec<std::path::PathBuf>,
+    kind: CandidateKind,
+    depth_left: usize,
+) {
+    if depth_left == 0 || should_skip_workspace_dir(root, dir) {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_workspace_candidates(root, &path, out, kind, depth_left - 1);
+            continue;
+        }
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+        let is_mty = path.extension().and_then(|e| e.to_str()) == Some("mty");
+        let matched = match kind {
+            CandidateKind::Manifest => name == "mighty.toml",
+            CandidateKind::TestFile => is_mty && name.ends_with(".test.mty"),
+            CandidateKind::MightyFile => is_mty,
+        };
+        if matched {
+            out.push(path);
+        }
+    }
+}
+
+fn should_skip_workspace_dir(root: &std::path::Path, dir: &std::path::Path) -> bool {
+    if dir == root {
+        return false;
+    }
+    let name = dir.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+    matches!(
+        name,
+        ".git" | "target" | "dist" | "node_modules" | ".venv" | "__pycache__"
+    )
+}
+
+fn candidate_rank(root: &std::path::Path, path: &std::path::Path) -> (usize, i32, String) {
+    let rel = path.strip_prefix(root).unwrap_or(path);
+    let depth = rel.components().count();
+    let rel_s = rel.to_string_lossy().replace('\\', "/").to_ascii_lowercase();
+    let priority = if rel_s == "mighty.toml" {
+        0
+    } else if rel_s.starts_with("tests/") {
+        1
+    } else if rel_s.starts_with("src/") {
+        2
+    } else {
+        3
+    };
+    (depth, priority, rel_s)
 }
 
 // ===========================================================================
@@ -888,6 +971,74 @@ mod tests {
         assert_eq!(workspace_test_target(&ctx), Some(file));
 
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn workspace_target_prefers_root_manifest() {
+        let root = std::env::temp_dir().join(format!(
+            "mui-workspace-test-root-manifest-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("tests")).unwrap();
+        std::fs::write(root.join("mighty.toml"), b"[package]\nname=\"root\"\n").unwrap();
+        std::fs::write(root.join("tests").join("a.test.mty"), b"fn test_a() {}\n").unwrap();
+
+        assert_eq!(
+            workspace_test_target_for_root(&root).unwrap(),
+            root.join("mighty.toml")
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn workspace_target_finds_tests_folder_when_manifest_is_absent() {
+        let root = std::env::temp_dir().join(format!(
+            "mui-workspace-test-tests-folder-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("tests")).unwrap();
+        std::fs::create_dir_all(root.join("target").join("tests")).unwrap();
+        std::fs::write(
+            root.join("target").join("tests").join("ignore.test.mty"),
+            b"fn test_ignore() {}\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("tests").join("suite.test.mty"),
+            b"fn test_suite() {}\n",
+        )
+        .unwrap();
+
+        assert_eq!(
+            workspace_test_target_for_root(&root).unwrap(),
+            root.join("tests").join("suite.test.mty")
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn workspace_target_finds_nested_manifest_before_loose_files() {
+        let root = std::env::temp_dir().join(format!(
+            "mui-workspace-test-nested-manifest-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("examples").join("demo")).unwrap();
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("src").join("main.mty"), b"fn main() {}\n").unwrap();
+        std::fs::write(
+            root.join("examples").join("demo").join("mighty.toml"),
+            b"[package]\nname=\"demo\"\n",
+        )
+        .unwrap();
+
+        assert_eq!(
+            workspace_test_target_for_root(&root).unwrap(),
+            root.join("examples").join("demo").join("mighty.toml")
+        );
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
