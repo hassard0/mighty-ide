@@ -4022,3 +4022,15 @@ at before clicking.
 - **Language note:** no compiler gap surfaced. Mighty UI still needs measured
   path-display helpers so path formatting can be specified semantically from
   Mighty instead of approximated in Rust with fixed character widths.
+
+### L280. Resize handles must read as layout affordances **[finding, P2]**
+The sidebar resize control rendered as a tall floating purple thumb, which looked
+more like a scrollbar than a draggable divider. That made manual resizing feel
+less obvious even though the hit target worked.
+
+- **IDE note:** the sidebar now draws a persistent edge divider with a compact
+  centered grip and an accent edge while resizing, keeping the same broad hit
+  target for real mouse drags.
+- **Language note:** no compiler gap surfaced. Mighty UI needs declarative
+  resize-divider primitives that separate visible affordance geometry from
+  generous hit-testing geometry.

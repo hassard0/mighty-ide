@@ -5861,15 +5861,23 @@ pub extern "C" fn mui_sidebar_resize_draw(handle: i64) {
     let was_clip = ctx.clip;
     ctx.overlay = true;
     ctx.clip = None;
-    ctx.dl_rect(x, top, 1.0, h, theme::BORDER());
-    let grip_h = 86.0_f32.min((h - 32.0).max(0.0));
+    let edge_w = if ctx.sidebar_resizing { 2.0 } else { 1.0 };
+    let edge_color = if ctx.sidebar_resizing {
+        theme::ACCENT()
+    } else {
+        theme::BORDER_STRONG()
+    };
+    ctx.dl_rect(x, top, edge_w, h, edge_color);
+    let grip_h = sidebar_resize_grip_height(h);
     let grip_y = top + (h - grip_h) * 0.5;
-    let bg = if ctx.sidebar_resizing { theme::accent_a(0.24) } else { theme::accent_a(0.12) };
-    let line = if ctx.sidebar_resizing { theme::ACCENT() } else { theme::TEXT_3() };
-    ctx.dl_round(x - 5.0, grip_y - 8.0, 10.0, grip_h + 16.0, 5.0, bg);
-    ctx.dl_round(x - 1.0, grip_y, 2.0, grip_h, 1.0, line);
+    let grip_color = if ctx.sidebar_resizing { theme::ACCENT() } else { theme::TEXT_4() };
+    ctx.dl_round(x - 2.0, grip_y, 4.0, grip_h, 2.0, grip_color);
     ctx.clip = was_clip;
     ctx.overlay = was_overlay;
+}
+
+pub(crate) fn sidebar_resize_grip_height(available_h: f32) -> f32 {
+    42.0_f32.min((available_h - 48.0).max(18.0))
 }
 
 /// Re-scan the tree from its root (honoring the current expand state).

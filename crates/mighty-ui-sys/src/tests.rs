@@ -965,6 +965,13 @@ fn sidebar_layout_commands_open_and_resize_sidebar() {
 }
 
 #[test]
+fn sidebar_resize_visible_grip_stays_subtle() {
+    assert_eq!(crate::abi::sidebar_resize_grip_height(700.0), 42.0);
+    assert_eq!(crate::abi::sidebar_resize_grip_height(72.0), 24.0);
+    assert_eq!(crate::abi::sidebar_resize_grip_height(24.0), 18.0);
+}
+
+#[test]
 fn sidebar_close_command_is_deterministic() {
     let mut ctx = ctx_or_skip!();
     ctx.sidebar_visible = true;

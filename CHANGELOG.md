@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Sidebar resizing looks like a divider**: the file-tree sidebar now renders a
+  slim edge divider with a compact centered grip instead of a tall floating
+  thumb, while keeping the same generous mouse hit target for dragging.
 - **Open Recent paths keep orientation**: recent-file and recent-folder rows now
   shorten long paths from the middle, preserving both the drive/root context and
   the actionable tail instead of showing ambiguous left-truncated fragments.
