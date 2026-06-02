@@ -2398,6 +2398,17 @@ fn toast_clear_abi_dismisses_visible_notifications() {
 }
 
 #[test]
+fn compact_windows_show_at_most_two_toast_cards() {
+    assert_eq!(crate::toast::visible_toast_count(560, 520, 0.0), 2);
+    assert_eq!(crate::toast::visible_toast_count(900, 700, 0.0), crate::toast::MAX_VISIBLE);
+    assert_eq!(
+        crate::toast::visible_toast_count(900, 700, crate::layout::term_panel_height(700)),
+        2,
+        "a bottom dock should reduce toast stack dominance"
+    );
+}
+
+#[test]
 fn toast_click_abi_dismisses_hit_toast_and_consumes_only_hits() {
     use crate::ffi::MuiEvent;
 

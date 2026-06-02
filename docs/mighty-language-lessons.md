@@ -3765,3 +3765,15 @@ left header label.
 - **Language note:** no compiler gap surfaced. Mighty UI needs shared header-row
   layout primitives for left labels, optional middle text, right status chips,
   and trailing action groups so each panel does not hand-roll competing bounds.
+
+### L258. Toast stacks need viewport-aware visible counts **[finding, P2]**
+The compact toast gallery still showed three cards covering the Welcome actions,
+making transient feedback feel stale and dominant even when each individual card
+was readable.
+
+- **IDE note:** compact windows and bottom-dock-heavy layouts now draw and
+  hit-test at most two toast cards, while retaining the existing queue and
+  newest-toast dismissal behavior.
+- **Language note:** no compiler gap surfaced. Mighty UI needs notification
+  stack primitives with viewport-aware caps, protected work regions, and
+  consistent draw/hit-test contracts.

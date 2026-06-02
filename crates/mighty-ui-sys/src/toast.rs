@@ -268,7 +268,8 @@ impl ToastQueue {
         let h = height as f32;
         let card_w = toast_card_width_with_left(w, reserve_left);
         let bottom = toast_stack_bottom(h, reserve_bottom);
-        for (rev, t) in self.toasts.iter().rev().enumerate() {
+        let visible = visible_toast_count(width, height, reserve_bottom);
+        for (rev, t) in self.toasts.iter().rev().take(visible).enumerate() {
             let presence = t.presence(now);
             let slot = rev as f32;
             let cy_settled = bottom - CARD_H - slot * (CARD_H + GAP);
@@ -349,8 +350,8 @@ impl ToastQueue {
         // Stack upward from the bottom-right, NEWEST at the bottom (last drawn).
         // Reserve a little headroom above the status bar.
         let bottom = toast_stack_bottom(h, reserve_bottom);
-        let n = self.toasts.len();
-        for (rev, t) in self.toasts.iter().rev().enumerate() {
+        let n = visible_toast_count(width, height, reserve_bottom).min(self.toasts.len());
+        for (rev, t) in self.toasts.iter().rev().take(n).enumerate() {
             let presence = t.presence(now);
             if presence <= 0.001 {
                 continue;
@@ -456,6 +457,15 @@ impl ToastQueue {
                 false,
             );
         }
+    }
+}
+
+pub(crate) fn visible_toast_count(width: u32, height: u32, reserve_bottom: f32) -> usize {
+    let usable_h = height as f32 - reserve_bottom.max(0.0);
+    if width <= 640 || usable_h < 520.0 {
+        2
+    } else {
+        MAX_VISIBLE
     }
 }
 
