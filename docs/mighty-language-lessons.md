@@ -4456,3 +4456,16 @@ target boundaries.
   from first-class reusable layout structs/tuples across draw and hit-test paths;
   today the safest option is to keep shared geometry in Rust where richer return
   types and arrays are less fragile.
+
+### L311. Recent location rows should separate object name from parent context **[finding, P3]**
+The Welcome screen recent-folder row displayed `samples` as the primary label
+and then repeated the full `...\samples` path as the secondary line. That made
+the first-run surface look noisy and made the dim line less useful.
+
+- **IDE note:** Welcome and Open Recent folder rows now use the folder name as
+  the primary label and the parent location as secondary text. File rows keep
+  their existing filename/parent split. Tests cover both row types.
+- **Language note:** no compiler gap surfaced. Mighty would benefit from a
+  path-display helper available to UI code: basename, parent, root-aware
+  truncation, and tooltip/full-path values should be reusable instead of
+  hand-authored at each surface.

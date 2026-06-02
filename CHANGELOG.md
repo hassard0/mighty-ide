@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Welcome recent rows now show cleaner location context**: recent folders now
+  display the folder name with its parent location, instead of repeating the full
+  selected folder path in dim text.
 - **Explorer header buttons now have clearer hit targets**: the new-file,
   new-folder, and collapse-all buttons are spaced as distinct controls, and the
   click geometry now shares the same centers as the rendered buttons.

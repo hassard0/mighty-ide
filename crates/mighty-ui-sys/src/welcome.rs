@@ -385,7 +385,7 @@ impl WelcomeState {
                             .file_name()
                             .map(|s| s.to_string_lossy().into_owned())
                             .unwrap_or_else(|| path.to_string_lossy().into_owned());
-                        let dir = path.to_string_lossy().into_owned();
+                        let dir = recent_secondary_path(path, true);
                         ctx.dl_icon(left_x, ry + 8.0, 15.0, 15.0, icons::FOLDER, theme::ACCENT_BRIGHT(), 1.6, false);
                         ctx.text.queue_ui_sized(left_x + 25.0, ry + 3.0, &name, theme::TEXT_1(), 13.0, clip);
                         let dir_short = shorten_dir(&dir, col_w - 30.0);
@@ -734,11 +734,7 @@ impl WelcomeState {
                 .file_name()
                 .map(|s| s.to_string_lossy().into_owned())
                 .unwrap_or_else(|| path.to_string_lossy().into_owned());
-            let dir = if folders {
-                path.to_string_lossy().into_owned()
-            } else {
-                path.parent().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default()
-            };
+            let dir = recent_secondary_path(path, folders);
             ctx.dl_round(x, y, w, 42.0, 7.0, theme::BG_2());
             ctx.dl_stroke(x, y, w, 42.0, 7.0, theme::BORDER(), 1.0);
             let icon = if folders { fallback_icon } else { file_icon(&name) };
@@ -798,6 +794,17 @@ fn file_icon(name: &str) -> &'static str {
     } else {
         icons::FILE_TXT
     }
+}
+
+fn recent_secondary_path(path: &std::path::Path, folder_row: bool) -> String {
+    if folder_row {
+        return path
+            .parent()
+            .map(|d| d.to_string_lossy().into_owned())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| path.to_string_lossy().into_owned());
+    }
+    path.parent().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default()
 }
 
 /// Shorten a directory path to roughly `max_px`, preserving both the root/start
@@ -981,6 +988,26 @@ mod tests {
             shown.ends_with("workspace-32440"),
             "shortened recent paths should keep the actionable folder/file tail: {shown}"
         );
+    }
+
+    #[test]
+    fn recent_folder_secondary_text_uses_parent_location() {
+        let path = PathBuf::from(r"C:\Users\ihass\mighty-ide\dist\mighty-ide-win64\samples");
+        let shown = recent_secondary_path(&path, true);
+
+        assert_eq!(shown, r"C:\Users\ihass\mighty-ide\dist\mighty-ide-win64");
+        assert!(
+            !shown.ends_with(r"\samples"),
+            "folder row secondary text should not repeat the displayed folder name: {shown}"
+        );
+    }
+
+    #[test]
+    fn recent_file_secondary_text_uses_parent_location() {
+        let path = PathBuf::from(r"C:\Users\ihass\mighty-ide\samples\hello.mty");
+        let shown = recent_secondary_path(&path, false);
+
+        assert_eq!(shown, r"C:\Users\ihass\mighty-ide\samples");
     }
 
     #[test]
