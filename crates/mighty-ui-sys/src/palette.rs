@@ -129,7 +129,7 @@ pub const CMD_COPY_ACTIVE_FILE_PATH: u32 = 50;
 pub const CMD_COPY_ACTIVE_FILE_RELATIVE_PATH: u32 = 51;
 /// Clear every visible toast notification.
 pub const CMD_CLEAR_NOTIFICATIONS: u32 = 52;
-/// Save every dirty file-backed tab.
+/// Save every dirty tab, asking for native picker destinations for untitled tabs.
 pub const CMD_SAVE_ALL: u32 = 53;
 /// Close every clean/saved tab, preserving dirty tabs.
 pub const CMD_CLOSE_SAVED_TABS: u32 = 54;
@@ -243,7 +243,7 @@ pub const CMD_WINDOW_MINIMIZE: u32 = 98;
 pub const COMMANDS: &[Command] = &[
     Command { id: CMD_NEW_FILE,         label: "File: New File at Location", keybinding: "Ctrl+N" },
     Command { id: CMD_NEW_UNTITLED_FILE, label: "File: New Untitled Tab", keybinding: "" },
-    Command { id: CMD_NEW_WORKSPACE_FILE, label: "Explorer: New Workspace File", keybinding: "" },
+    Command { id: CMD_NEW_WORKSPACE_FILE, label: "Explorer: New File in Workspace", keybinding: "" },
     Command { id: CMD_NEW_FOLDER,       label: "Explorer: New Folder",   keybinding: "Ctrl+Shift+N" },
     Command { id: CMD_OPEN_FILE,        label: "File: Open File", keybinding: "Ctrl+O" },
     Command { id: CMD_SAVE,             label: "File: Save",         keybinding: "Ctrl+S" },
@@ -936,7 +936,7 @@ mod tests {
         assert_eq!(file_dialog.keybinding, "Ctrl+N");
         assert_eq!(untitled.label, "File: New Untitled Tab");
         assert_eq!(untitled.keybinding, "");
-        assert_eq!(workspace.label, "Explorer: New Workspace File");
+        assert_eq!(workspace.label, "Explorer: New File in Workspace");
         assert_eq!(workspace.keybinding, "");
     }
 

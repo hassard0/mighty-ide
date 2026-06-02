@@ -3701,3 +3701,16 @@ but not that Save All consumed its own dialog path for a dirty untitled tab.
   dialog-result ABI problem. Mighty still needs structured command results for
   repeated native dialogs so success, cancellation, unavailable state, and picked
   paths are not coordinated through environment strings and trace text.
+
+### L253. Command wording must stay synchronized with behavior **[finding, P2]**
+The command registry still called the workspace file action
+`Explorer: New Workspace File` while the release notes and backlog used
+`Explorer: New File in Workspace`. The behavior was correct, but inconsistent
+labels make similar file actions feel arbitrary.
+
+- **IDE note:** the live command registry, palette tests, and changelog now use
+  `Explorer: New File in Workspace`, and Save All copy no longer describes only
+  file-backed tabs after the native untitled Save All flow shipped.
+- **Language note:** no compiler gap surfaced. Mighty needs command metadata as a
+  generated source of truth with action name, short label, long description,
+  keybinding, dialog semantics, and test fixture expectations derived together.

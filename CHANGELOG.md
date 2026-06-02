@@ -56,8 +56,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   placeholders, and footer hints no longer disappear into dark modal surfaces.
 - **Split editor** (`Ctrl+\`): side-by-side editor panes; focus a pane with
   `Ctrl+1` / `Ctrl+2`, click a pane to focus it.
-- **Save All** (`Ctrl+Alt+S`): writes every dirty file-backed tab at once and
-  leaves untitled buffers dirty with a toast that says they still need Save As.
+- **Save All** (`Ctrl+Alt+S`): writes dirty file-backed tabs in place and asks
+  where dirty untitled buffers should be saved through the native picker.
 - **Close Saved Tabs**: clears clean tab clutter while preserving every dirty
   buffer.
 - **Close Other Saved Tabs**: keeps the active tab plus dirty tabs and removes
