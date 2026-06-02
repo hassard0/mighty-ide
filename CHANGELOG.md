@@ -75,6 +75,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sit on the same tab-bar surface with compact button affordances instead of a
   wide dark strip that looked like an inactive/dead tab block beside the window
   controls.
+- **Taskbar icon small sizes are sharper**: the generated Windows ICO now uses
+  simplified 16px/32px variants with a larger Mighty mark and a single crisp
+  outline, plus a generated size-strip preview for future visual checks.
 - **Compact sidebar leaves more room for work**: narrow windows now reduce the
   sidebar to 160px, giving terminal, debug, palette, and welcome views more
   usable width instead of crowding dock/header content.

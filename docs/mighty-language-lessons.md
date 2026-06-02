@@ -3465,3 +3465,16 @@ before deciding what is interactive.
 - **Language note:** no compiler gap surfaced. Mighty needs reusable visual
   affordance primitives for icon buttons in chrome/toolbars so every surface does
   not hand-roll fill/stroke/icon spacing in Rust-side draw code.
+
+### L235. Brand assets need size-aware generation **[finding, P2]**
+The same richly framed icon art was being rendered at 16px, 32px, 48px, and
+256px. That is convenient, but the smallest Windows shell sizes need a bolder
+silhouette and fewer nested strokes than the large preview.
+
+- **IDE note:** `tools/make-icon.py` now renders compact 16px/32px variants with
+  one crisp outline and a larger Mighty mark, while preserving the richer 48px
+  and 256px tiles. The generator also writes `dist/icon-sizes-preview.png` so
+  small-size icon regressions can be checked visually.
+- **Language note:** no compiler gap surfaced. Mighty does not currently own
+  raster asset generation; a future build pipeline could expose asset-generation
+  tasks declaratively instead of relying on ad hoc Python tooling.

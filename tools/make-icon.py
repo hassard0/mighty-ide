@@ -40,7 +40,8 @@ def render(size: int) -> Image.Image:
     # Rounded brand tile. At 16px the tile itself must carry the silhouette, so
     # use a strong fill, modest radius, and no glossy stripe that can alias into
     # taskbar noise.
-    radius = int(s * 0.11)
+    compact = size <= 32
+    radius = int(s * (0.09 if compact else 0.11))
     inset = max(1, int(s * 0.02))
     for y in range(inset, s - inset + 1):
         t = (y - inset) / max(1, (s - 2 * inset))
@@ -53,23 +54,25 @@ def render(size: int) -> Image.Image:
     img = tile
     d = ImageDraw.Draw(img)
 
-    # Accent frame: visible at 16px without looking like a notification badge.
-    edge_w = max(1, int(s * 0.018))
+    # Accent frame: at taskbar sizes use one crisp outline and skip the nested
+    # frame, because two thin rings collapse into fuzzy corners at 16/32px.
+    edge_w = SS if compact else max(1, int(s * 0.018))
     d.rounded_rectangle(
         [inset, inset, s - inset, s - inset],
         radius=radius,
         outline=ACCENT_EDGE,
         width=edge_w,
     )
-    d.rounded_rectangle(
-        [inset + edge_w * 2, inset + edge_w * 2, s - inset - edge_w * 2, s - inset - edge_w * 2],
-        radius=max(1, radius - edge_w * 2),
-        outline=ACCENT_VIOLET,
-        width=max(edge_w, int(s * 0.014)),
-    )
+    if not compact:
+        d.rounded_rectangle(
+            [inset + edge_w * 2, inset + edge_w * 2, s - inset - edge_w * 2, s - inset - edge_w * 2],
+            radius=max(1, radius - edge_w * 2),
+            outline=ACCENT_VIOLET,
+            width=max(edge_w, int(s * 0.014)),
+        )
 
     # Mighty monogram. Scale the 24-unit glyph into the tile's safe area.
-    pad = s * 0.13
+    pad = s * (0.08 if compact else 0.13)
     span = s - 2 * pad
     pts = [(pad + (x / 24.0) * span, pad + (y / 24.0) * span) for (x, y) in GLYPH]
     shadow_pts = [(x + max(1, s * 0.012), y + max(1, s * 0.018)) for x, y in pts]
@@ -85,6 +88,7 @@ def main() -> None:
     here = os.path.dirname(os.path.abspath(__file__))
     out = os.path.normpath(os.path.join(here, "..", "assets", "mighty-ide.ico"))
     preview = os.path.normpath(os.path.join(here, "..", "dist", "icon-preview.png"))
+    strip_preview = os.path.normpath(os.path.join(here, "..", "dist", "icon-sizes-preview.png"))
     sizes = [16, 32, 48, 256]
     imgs = [render(sz) for sz in sizes]
     # Write classic BGRA DIB icon entries rather than PNG-compressed entries.
@@ -103,7 +107,26 @@ def main() -> None:
             f.write(data)
     os.makedirs(os.path.dirname(preview), exist_ok=True)
     imgs[-1].save(preview, format="PNG")
+    _save_size_strip(imgs, sizes, strip_preview)
     print(f"wrote {out} ({os.path.getsize(out)} bytes; sizes={sizes})")
+
+
+def _save_size_strip(imgs, sizes, path: str) -> None:
+    """Save a human-checkable preview of every generated icon size."""
+    cell = 72
+    label_h = 18
+    preview = Image.new("RGBA", (cell * len(imgs), cell + label_h), (7, 10, 21, 255))
+    d = ImageDraw.Draw(preview)
+    for i, (img, size) in enumerate(zip(imgs, sizes)):
+        shown = img
+        if size > 56:
+            shown = img.resize((56, 56), Image.LANCZOS)
+        shown_w, shown_h = shown.size
+        x = i * cell + (cell - shown_w) // 2
+        y = (cell - shown_h) // 2
+        preview.alpha_composite(shown, (x, y))
+        d.text((i * cell + 8, cell + 2), f"{size}px", fill=(185, 190, 210, 255))
+    preview.save(path, format="PNG")
 
 
 def _ico_dib(img: Image.Image) -> bytes:
