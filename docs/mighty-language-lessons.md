@@ -3834,3 +3834,14 @@ actual identity.
   wider sidebars keep `RUN AND DEBUG`.
 - **Language note:** no compiler gap surfaced. Mighty UI needs header-title
   variants, not just ellipsis fitting, for panel names with long formal labels.
+
+### L264. Resize affordances should not look like stray scrollbars **[finding, P2]**
+The shared bottom-dock resize handle was functional, but the narrow centered
+purple pill looked like a horizontal scrollbar floating over the editor when the
+Problems drawer opened.
+
+- **IDE note:** the lower dock now renders a quieter full-width header band with
+  a compact drag grip and calmer preset/close buttons.
+- **Language note:** no compiler gap surfaced. Mighty UI needs reusable dock
+  chrome primitives so resize grips, panel headers, and action clusters are
+  visually tied to the panel they control.

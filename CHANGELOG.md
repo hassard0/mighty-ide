@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Bottom dock resize chrome reads as a dock control**: the shared lower-dock
+  grip now uses a subtler full-width header treatment and calmer compact action
+  buttons, avoiding the old floating scrollbar-like handle over editor content.
 - **Compact Debug headers use a complete title**: narrow Run-and-Debug sidebars
   now show `DEBUG` instead of truncating `RUN AND DEBUG` into `RUN AND DEB...`,
   while preserving the `paused` / `running` state pill.

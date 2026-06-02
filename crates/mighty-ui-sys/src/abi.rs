@@ -1861,24 +1861,25 @@ pub extern "C" fn mui_bottom_dock_resize_draw(handle: i64) {
     ctx.clip = None;
     ctx.dl_rect(x0, band_y, w, layout::DOCK_RESIZE_H, theme::BG_1());
     ctx.dl_rect(x0, band_y, w, 1.0, theme::BORDER());
-    ctx.dl_rect(x0, top, w, 1.0, theme::BORDER_STRONG());
-    let grip_w = 96.0_f32.min((w - 32.0).max(0.0));
+    ctx.dl_rect(x0, top - 1.0, w, 1.0, theme::BORDER_STRONG());
+    ctx.dl_rect(x0, top, w, 1.0, theme::BG_2());
+    let grip_w = 56.0_f32.min((w - 32.0).max(0.0));
     let grip_x = x0 + (w - grip_w) * 0.5;
     ctx.dl_round(
-        grip_x - 8.0,
-        band_y + 3.0,
-        grip_w + 16.0,
-        8.0,
-        4.0,
-        theme::accent_a(0.12),
+        grip_x - 6.0,
+        band_y + 4.0,
+        grip_w + 12.0,
+        6.0,
+        3.0,
+        theme::BG_2(),
     );
     ctx.dl_round(
         grip_x,
-        band_y + 5.0,
+        band_y + 6.0,
         grip_w,
         2.0,
         1.0,
-        theme::TEXT_3(),
+        theme::accent_a(0.42),
     );
     let preset_icons = [
         crate::icons::ARROW_DOWN,
@@ -1889,10 +1890,10 @@ pub extern "C" fn mui_bottom_dock_resize_draw(handle: i64) {
     for (idx, icon) in preset_icons.iter().enumerate() {
         let (px, py, pw, ph) = layout::dock_preset_rect(visible_w, visible_h, idx);
         let is_active = idx == active_preset;
-        let bg = if is_active { theme::accent_a(0.22) } else { theme::BG_2() };
+        let bg = if is_active { theme::accent_a(0.20) } else { theme::BG_1() };
         let border = if is_active { theme::ACCENT() } else { theme::BORDER() };
         let icon_col = if is_active { theme::TEXT() } else { theme::TEXT_1() };
-        ctx.dl_round(px, py, pw, ph, 6.0, bg);
+        ctx.dl_round(px, py, pw, ph, 5.0, bg);
         ctx.dl_stroke(px, py, pw, ph, 6.0, border, if is_active { 1.5 } else { 1.0 });
         ctx.dl_icon(
             px + (pw - 12.0) * 0.5,
@@ -1906,8 +1907,8 @@ pub extern "C" fn mui_bottom_dock_resize_draw(handle: i64) {
         );
     }
     let (cx, cy, cw, ch) = layout::dock_close_rect(visible_w, visible_h);
-    ctx.dl_round(cx, cy, cw, ch, 6.0, theme::accent_a(0.18));
-    ctx.dl_stroke(cx, cy, cw, ch, 6.0, theme::ACCENT(), 1.0);
+    ctx.dl_round(cx, cy, cw, ch, 5.0, theme::BG_1());
+    ctx.dl_stroke(cx, cy, cw, ch, 5.0, theme::BORDER_STRONG(), 1.0);
     ctx.dl_icon(
         cx + (cw - 12.0) * 0.5,
         cy + (ch - 12.0) * 0.5,
