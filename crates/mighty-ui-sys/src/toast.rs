@@ -221,6 +221,16 @@ impl ToastQueue {
         had_toasts
     }
 
+    /// Clear informational, workflow-complete toasts while preserving warnings
+    /// and errors. Used when the user navigates to a different panel so stale
+    /// "saved/closed/no-op" feedback does not appear to belong to the new view.
+    pub fn clear_low_priority(&mut self) -> bool {
+        let before = self.toasts.len();
+        self.toasts
+            .retain(|t| matches!(t.kind, Kind::Warn | Kind::Error));
+        before != self.toasts.len()
+    }
+
     /// Dismiss the toast under a window-space point. Returns `true` when a toast
     /// was removed. Hit-testing mirrors the draw stack so the newest/lower toast
     /// wins when cards overlap during animation.
@@ -1133,6 +1143,21 @@ mod tests {
         assert!(q.clear());
         assert!(q.is_empty());
         assert!(!q.clear());
+    }
+
+    #[test]
+    fn clear_low_priority_keeps_attention_toasts() {
+        let mut q = ToastQueue::new();
+        q.push(Kind::Info, "No debug session to stop");
+        q.push(Kind::Success, "Saved main.mty");
+        q.push(Kind::Warn, "Save or discard changes before reloading");
+        q.push(Kind::Error, "Save failed: main.mty");
+
+        assert!(q.clear_low_priority());
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
+        assert_eq!(q.toasts()[1].kind, Kind::Error);
+        assert!(!q.clear_low_priority());
     }
 
     #[test]

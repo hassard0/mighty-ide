@@ -48,8 +48,12 @@ pub extern "C" fn mui_panel_set(handle: i64, panel: i32) -> i32 {
         || panel == crate::PANEL_TEST
         || panel == crate::PANEL_AGENTS_MTY
     {
+        let changed = ctx.active_panel != panel;
         ctx.active_panel = panel;
         ctx.sidebar_visible = true;
+        if changed && ctx.toasts.clear_low_priority() {
+            crate::abi::trace("toast_clear_low_priority panel_switch");
+        }
         if panel == crate::PANEL_DEBUG {
             ctx.dbg.set_open(true);
         } else if panel == crate::PANEL_TEST {

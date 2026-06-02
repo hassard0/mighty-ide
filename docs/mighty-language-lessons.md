@@ -4839,3 +4839,14 @@ mouse-only SCM checks operate on the previous Search panel.
   an input-settled/native-dialog-complete event or post-dialog focus barrier so
   app code and harnesses can wait for a reliable interactive frame instead of
   timing around OS modal transitions.
+
+L337. Feedback toasts need navigation-aware priority. Low-severity info/success
+toasts can become misleading when they linger after the user switches to a
+different rail panel; the next panel appears to have caused an old message.
+
+- **IDE note:** panel switches now clear only low-priority toasts while keeping
+  warnings and errors visible. This prevents stale completion/no-op feedback
+  from following the user into another workflow.
+- **Language note:** no compiler bug surfaced. Mighty UI should expose toast
+  scopes and priorities so navigation can clear scoped informational feedback
+  without dropping action-required warnings or errors.

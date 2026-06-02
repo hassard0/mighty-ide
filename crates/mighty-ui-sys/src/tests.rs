@@ -2850,6 +2850,33 @@ fn toast_clear_abi_dismisses_visible_notifications() {
 }
 
 #[test]
+fn panel_switch_clears_low_priority_toasts_only() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    ctx.push_toast(crate::toast::Kind::Info, "Old info");
+    ctx.push_toast(crate::toast::Kind::Success, "Old success");
+    ctx.push_toast(crate::toast::Kind::Warn, "Keep warning");
+    ctx.push_toast(crate::toast::Kind::Error, "Keep error");
+
+    assert_eq!(crate::panels::mui_panel_set(handle, crate::PANEL_SEARCH), crate::PANEL_SEARCH);
+
+    let remaining: Vec<_> = ctx
+        .toasts
+        .toasts()
+        .iter()
+        .map(|toast| (toast.kind, toast.message.as_str()))
+        .collect();
+    assert_eq!(
+        remaining,
+        vec![
+            (crate::toast::Kind::Warn, "Keep warning"),
+            (crate::toast::Kind::Error, "Keep error"),
+        ]
+    );
+}
+
+#[test]
 fn compact_windows_show_at_most_two_toast_cards() {
     assert_eq!(crate::toast::visible_toast_count(560, 520, 0.0), 2);
     assert_eq!(crate::toast::visible_toast_count(900, 700, 0.0), crate::toast::MAX_VISIBLE);
