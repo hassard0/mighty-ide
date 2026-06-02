@@ -4778,3 +4778,15 @@ header during fast UI captures.
 - **Language note:** no compiler bug surfaced. Mighty UI/runtime APIs should
   expose async command lifecycle phases such as starting, streaming output,
   final output received, reaping, complete, and cancelled.
+
+L332. Overlay affordances need shared exclusion geometry. Toasts already
+reserved the bottom dock and left sidebar, but the right AI drawer was a
+separate overlay path, so warning toasts could cover the AI composer.
+
+- **IDE note:** toast draw and click geometry now accept a right reserve and use
+  the AI drawer width while Copilot is open. A toast can still be dismissed, but
+  it no longer blocks the drawer's input or close affordances.
+- **Language note:** no compiler bug surfaced. Mighty UI would benefit from a
+  first-class overlay-safe-area primitive so panels, drawers, modals, toasts,
+  and hit-testing consume one shared exclusion model instead of duplicated
+  scalar geometry.

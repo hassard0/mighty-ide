@@ -12684,11 +12684,13 @@ pub extern "C" fn mui_toast_click(handle: i64) -> i32 {
     let (w, h) = visible_surface_size(ctx);
     let reserve_bottom = toast_bottom_reserve(ctx, h);
     let reserve_left = toast_left_reserve(ctx);
-    let dismissed = ctx.toasts.dismiss_at_reserved_inset(
+    let reserve_right = toast_right_reserve(ctx);
+    let dismissed = ctx.toasts.dismiss_at_reserved_insets(
         w,
         h,
         reserve_bottom,
         reserve_left,
+        reserve_right,
         x,
         y,
         std::time::Instant::now(),
@@ -12722,7 +12724,16 @@ pub extern "C" fn mui_toast_draw(handle: i64) {
     let toasts = std::mem::take(&mut ctx.toasts);
     let reserve_bottom = toast_bottom_reserve(ctx, h);
     let reserve_left = toast_left_reserve(ctx);
-    toasts.draw_reserved_inset(ctx, w, h, reserve_bottom, reserve_left, std::time::Instant::now());
+    let reserve_right = toast_right_reserve(ctx);
+    toasts.draw_reserved_insets(
+        ctx,
+        w,
+        h,
+        reserve_bottom,
+        reserve_left,
+        reserve_right,
+        std::time::Instant::now(),
+    );
     ctx.toasts = toasts;
     ctx.overlay = was_overlay;
     ctx.text.set_overlay(was_overlay);
@@ -12748,6 +12759,14 @@ fn toast_suppressed_by_overlay(ctx: &MuiContext) -> bool {
 
 fn toast_left_reserve(ctx: &MuiContext) -> f32 {
     layout::region(ctx.sidebar_visible).left + 10.0
+}
+
+fn toast_right_reserve(ctx: &MuiContext) -> f32 {
+    if ctx.ai.open {
+        crate::ai::AI_PANEL_W + 10.0
+    } else {
+        0.0
+    }
 }
 
 // ===========================================================================

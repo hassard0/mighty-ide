@@ -84,9 +84,14 @@ fn toast_card_width(window_w: f32) -> f32 {
 }
 
 fn toast_card_width_with_left(window_w: f32, reserve_left: f32) -> f32 {
+    toast_card_width_with_insets(window_w, reserve_left, 0.0)
+}
+
+fn toast_card_width_with_insets(window_w: f32, reserve_left: f32, reserve_right: f32) -> f32 {
     let left = reserve_left.max(0.0);
+    let right = reserve_right.max(0.0);
     320.0_f32
-        .min(window_w - left - MARGIN - RIGHT_SAFE_INSET)
+        .min(window_w - left - right - MARGIN - RIGHT_SAFE_INSET)
         .max(180.0)
 }
 
@@ -96,7 +101,12 @@ fn toast_card_x(window_w: f32, card_w: f32) -> f32 {
 }
 
 fn toast_card_x_with_left(window_w: f32, card_w: f32, reserve_left: f32) -> f32 {
-    (window_w - MARGIN - RIGHT_SAFE_INSET - card_w).max(MARGIN.max(reserve_left))
+    toast_card_x_with_insets(window_w, card_w, reserve_left, 0.0)
+}
+
+fn toast_card_x_with_insets(window_w: f32, card_w: f32, reserve_left: f32, reserve_right: f32) -> f32 {
+    let right = reserve_right.max(0.0);
+    (window_w - MARGIN - RIGHT_SAFE_INSET - right - card_w).max(MARGIN.max(reserve_left))
 }
 
 /// A single live toast.
@@ -244,7 +254,25 @@ impl ToastQueue {
         y: f32,
         now: Instant,
     ) -> bool {
-        let Some(idx) = self.hit_index_at(width, height, reserve_bottom, reserve_left, x, y, now) else {
+        self.dismiss_at_reserved_insets(width, height, reserve_bottom, reserve_left, 0.0, x, y, now)
+    }
+
+    /// Dismiss with bottom/left/right reserved space, matching the chrome-aware
+    /// draw path when side drawers are visible.
+    pub fn dismiss_at_reserved_insets(
+        &mut self,
+        width: u32,
+        height: u32,
+        reserve_bottom: f32,
+        reserve_left: f32,
+        reserve_right: f32,
+        x: f32,
+        y: f32,
+        now: Instant,
+    ) -> bool {
+        let Some(idx) =
+            self.hit_index_at(width, height, reserve_bottom, reserve_left, reserve_right, x, y, now)
+        else {
             return false;
         };
         self.toasts.remove(idx);
@@ -257,6 +285,7 @@ impl ToastQueue {
         height: u32,
         reserve_bottom: f32,
         reserve_left: f32,
+        reserve_right: f32,
         x: f32,
         y: f32,
         now: Instant,
@@ -266,7 +295,7 @@ impl ToastQueue {
         }
         let w = width as f32;
         let h = height as f32;
-        let card_w = toast_card_width_with_left(w, reserve_left);
+        let card_w = toast_card_width_with_insets(w, reserve_left, reserve_right);
         let bottom = toast_stack_bottom(h, reserve_bottom);
         let visible = visible_toast_count(width, height, reserve_bottom);
         for (rev, t) in self.toasts.iter().rev().take(visible).enumerate() {
@@ -278,7 +307,7 @@ impl ToastQueue {
             } else {
                 cy_settled
             };
-            let cx = toast_card_x_with_left(w, card_w, reserve_left);
+            let cx = toast_card_x_with_insets(w, card_w, reserve_left, reserve_right);
             if x >= cx && x <= cx + card_w && y >= cy && y <= cy + CARD_H {
                 return Some(self.toasts.len() - 1 - rev);
             }
@@ -337,12 +366,27 @@ impl ToastQueue {
         reserve_left: f32,
         now: Instant,
     ) {
+        self.draw_reserved_insets(ctx, width, height, reserve_bottom, reserve_left, 0.0, now);
+    }
+
+    /// Draw with bottom/left/right reserved space so toast cards do not obscure
+    /// active drawers such as AI Copilot.
+    pub fn draw_reserved_insets(
+        &self,
+        ctx: &mut crate::MuiContext,
+        width: u32,
+        height: u32,
+        reserve_bottom: f32,
+        reserve_left: f32,
+        reserve_right: f32,
+        now: Instant,
+    ) {
         if self.toasts.is_empty() {
             return;
         }
         let w = width as f32;
         let h = height as f32;
-        let card_w = toast_card_width_with_left(w, reserve_left);
+        let card_w = toast_card_width_with_insets(w, reserve_left, reserve_right);
         let card_h = CARD_H;
         let gap = GAP;
         let radius = 12.0_f32;
@@ -362,7 +406,7 @@ impl ToastQueue {
             // Slide in from below by a few px as it appears/dismisses.
             let slide = (1.0 - presence) * 16.0;
             let cy = cy_settled + slide;
-            let cx = toast_card_x_with_left(w, card_w, reserve_left);
+            let cx = toast_card_x_with_insets(w, card_w, reserve_left, reserve_right);
             let card_clip = Some((
                 cx.max(0.0) as u32,
                 cy.max(0.0) as u32,
@@ -1179,6 +1223,59 @@ mod tests {
             360,
             0.0,
             reserve_left,
+            cx + cw - 20.0,
+            cy + 24.0,
+            t0 + Duration::from_millis(500)
+        ));
+        assert!(q.is_empty());
+    }
+
+    #[test]
+    fn reserved_right_keeps_toasts_out_of_ai_drawer() {
+        let w = 1280.0;
+        let reserve_left = crate::layout::RAIL_W + crate::layout::SIDEBAR_W + 10.0;
+        let reserve_right = crate::ai::AI_PANEL_W + 10.0;
+        let cw = toast_card_width_with_insets(w, reserve_left, reserve_right);
+        let cx = toast_card_x_with_insets(w, cw, reserve_left, reserve_right);
+
+        assert!(cx >= reserve_left);
+        assert!(
+            cx + cw <= w - reserve_right - RIGHT_SAFE_INSET,
+            "toast right edge must stay left of the AI drawer: x={cx} w={cw}"
+        );
+    }
+
+    #[test]
+    fn reserved_right_hit_testing_matches_shifted_toast() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+        q.push_at(Kind::Warn, "Set ANTHROPIC_API_KEY to enable AI Copilot", t0);
+
+        let w = 1280.0;
+        let h = 832.0;
+        let reserve_left = crate::layout::RAIL_W + crate::layout::SIDEBAR_W + 10.0;
+        let reserve_right = crate::ai::AI_PANEL_W + 10.0;
+        let cw = toast_card_width_with_insets(w, reserve_left, reserve_right);
+        let cx = toast_card_x_with_insets(w, cw, reserve_left, reserve_right);
+        let cy = toast_stack_bottom(h, 0.0) - CARD_H;
+
+        assert!(!q.dismiss_at_reserved_insets(
+            w as u32,
+            h as u32,
+            0.0,
+            reserve_left,
+            reserve_right,
+            w - reserve_right + 24.0,
+            cy + 24.0,
+            t0 + Duration::from_millis(500)
+        ));
+        assert_eq!(q.len(), 1);
+        assert!(q.dismiss_at_reserved_insets(
+            w as u32,
+            h as u32,
+            0.0,
+            reserve_left,
+            reserve_right,
             cx + cw - 20.0,
             cy + 24.0,
             t0 + Duration::from_millis(500)
