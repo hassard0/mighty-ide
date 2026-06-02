@@ -3452,3 +3452,16 @@ the most obvious local scan control do a surprising network action.
 - **Language note:** no compiler gap surfaced. Mighty UI would benefit from a
   declarative action model where icon, label, tooltip, keyboard command, and
   dispatcher target are defined once instead of inferred across separate paths.
+
+### L234. Window chrome needs visual affordance primitives **[finding, P2]**
+The top-right Run/More strip remained functionally clickable, but its solid rail
+backing made it read like a dead tab-shaped block next to the native window
+controls. That is a UX problem even when hit tests pass: users scan the title bar
+before deciding what is interactive.
+
+- **IDE note:** the late window-control pass now paints the action strip on the
+  tab-bar surface and gives Run/More compact button affordances while preserving
+  the existing click geometry and overlay-bleed protection.
+- **Language note:** no compiler gap surfaced. Mighty needs reusable visual
+  affordance primitives for icon buttons in chrome/toolbars so every surface does
+  not hand-roll fill/stroke/icon spacing in Rust-side draw code.

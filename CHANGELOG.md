@@ -71,6 +71,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   visible refresh icon now re-scans local Git status instead of invoking Fetch,
   emits a refresh trace, and the strict mouse harness clicks it to prove the
   empty-state "Refresh to scan Git status" path works.
+- **Top-right action chrome reads like controls**: the Run and More buttons now
+  sit on the same tab-bar surface with compact button affordances instead of a
+  wide dark strip that looked like an inactive/dead tab block beside the window
+  controls.
 - **Compact sidebar leaves more room for work**: narrow windows now reduce the
   sidebar to 160px, giving terminal, debug, palette, and welcome views more
   usable width instead of crowding dock/header content.

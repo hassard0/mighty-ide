@@ -4903,16 +4903,21 @@ pub extern "C" fn mui_window_controls_draw(handle: i64) {
     let iy = (bar_h - icon_d) * 0.5;
 
     // A solid backing under the controls + run/dots so any panel drawn beneath
-    // can't bleed through (the AI panel header used to show under the icons).
+    // can't bleed through. Match the tab bar instead of the rail; otherwise the
+    // action strip reads like a dead tab-shaped block.
     let strip_x = controls_x - 60.0 - 8.0;
-    ctx.dl_rect(strip_x, 0.0, w - strip_x, bar_h, theme::BG_RAIL());
+    ctx.dl_rect(strip_x, 0.0, w - strip_x, bar_h, theme::BG_2());
     ctx.dl_rect(strip_x, 0.0, 1.0, bar_h, theme::BORDER_SOFT());
 
     // Run + more-actions (just left of the window controls).
     let ax = controls_x - 60.0;
     let ay = (bar_h - 16.0) * 0.5;
+    for (bx, col) in [(ax - 7.0, theme::green_wash(0.12)), (ax + 21.0, theme::accent_a(0.08))] {
+        ctx.dl_round(bx, 8.0, 30.0, 28.0, 7.0, col);
+        ctx.dl_stroke(bx, 8.0, 30.0, 28.0, 7.0, theme::BORDER_SOFT(), 1.0);
+    }
     ctx.dl_icon(ax, ay, 16.0, 16.0, icons::RUN, theme::GREEN(), 1.5, true);
-    ctx.dl_icon(ax + 28.0, ay, 16.0, 16.0, icons::DOTS, theme::TEXT_3(), 0.0, true);
+    ctx.dl_icon(ax + 28.0, ay, 16.0, 16.0, icons::DOTS, theme::TEXT_1(), 0.0, true);
 
     // Minimize / maximize-restore / close. Close gets a red tint.
     for (i, path) in [
