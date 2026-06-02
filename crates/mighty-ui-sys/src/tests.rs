@@ -3068,19 +3068,19 @@ fn explorer_header_actions_hit_their_visible_buttons() {
     let mut ctx = ctx_or_skip!();
     ctx.sidebar_visible = true;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
-    let right = crate::layout::sidebar_right();
+    let centers = crate::abi::explorer_header_action_centers(crate::layout::RAIL_W, crate::layout::sidebar_w());
 
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, right - 64.5, 20.0, 0);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, centers[0].0 + 7.5, 20.0, 0);
     assert_eq!(mui_explorer_header_at_click(handle), 1);
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, right - 42.5, 20.0, 0);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, centers[1].0 + 7.5, 20.0, 0);
     assert_eq!(mui_explorer_header_at_click(handle), 2);
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, right - 20.5, 20.0, 0);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, centers[2].0 + 7.5, 20.0, 0);
     assert_eq!(mui_explorer_header_at_click(handle), 3);
     assert!(crate::abi::explorer_header_action_opens_dialog(1));
     assert!(crate::abi::explorer_header_action_opens_dialog(2));
     assert!(!crate::abi::explorer_header_action_opens_dialog(3));
 
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, right - 64.5, 42.0, 0);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, centers[0].0 + 7.5, 42.0, 0);
     assert_eq!(mui_explorer_header_at_click(handle), 0);
 }
 
@@ -3132,7 +3132,7 @@ fn explorer_header_fits_before_action_buttons() {
         crate::abi::fit_explorer_header(&mut ctx.text, "MIGHTY-IDE-WIN64", sx, sw, chrome);
     let (shown_w, _) = ctx.text.measure_ui_sized(&shown, chrome);
     let label_x = sx + 14.0;
-    let first_button_x = sx + sw - 77.5;
+    let first_button_x = crate::abi::explorer_header_action_centers(sx, sw)[0].0 - 2.5;
     assert!(
         label_x + shown_w <= first_button_x - 8.0,
         "header should leave a visible gap before actions: {shown}"

@@ -5121,11 +5121,19 @@ pub extern "C" fn mui_topbar_action_at_click(handle: i64) -> i32 {
 }
 
 /// Hit-test the Explorer header action icons (new file / new folder / collapse),
-/// drawn in `mui_sidebar_draw` as three 15px icons at sx+sw-72/-50/-28 in the 40px
-/// header band. Returns 1 = new file, 2 = new folder, 3 = collapse all, else 0.
+/// drawn in `mui_sidebar_draw` as three spaced icon buttons in the 40px header
+/// band. Returns 1 = new file, 2 = new folder, 3 = collapse all, else 0.
 /// (Only meaningful while the Explorer panel + sidebar are visible.)
 pub(crate) fn explorer_header_action_opens_dialog(action: i32) -> bool {
     matches!(action, 1 | 2)
+}
+
+pub(crate) fn explorer_header_action_centers(sx: f32, sw: f32) -> [(f32, i32); 3] {
+    [
+        (sx + sw - 87.5, 1),
+        (sx + sw - 57.5, 2),
+        (sx + sw - 27.5, 3),
+    ]
 }
 
 #[no_mangle]
@@ -5145,23 +5153,18 @@ pub extern "C" fn mui_explorer_header_at_click(handle: i64) -> i32 {
         return 0;
     }
     let right = layout::sidebar_right();
-    // Each icon is 15px wide; give a forgiving ~20px hit slot centered on it.
-    let nf = right - 72.0;
-    let nfo = right - 50.0;
-    let col = right - 28.0;
-    if x >= nf - 3.0 && x < nf + 18.0 {
-        trace(&format!("explorer_header x={x:.1} y={y:.1} -> new-file"));
-        return 1;
+    for (cx, action) in explorer_header_action_centers(layout::RAIL_W, layout::sidebar_w()) {
+        if x >= cx - 3.0 && x < cx + 18.0 {
+            let label = match action {
+                1 => "new-file",
+                2 => "new-folder",
+                _ => "collapse",
+            };
+            trace(&format!("explorer_header x={x:.1} y={y:.1} -> {label}"));
+            return action;
+        }
     }
-    if x >= nfo - 3.0 && x < nfo + 18.0 {
-        trace(&format!("explorer_header x={x:.1} y={y:.1} -> new-folder"));
-        return 2;
-    }
-    if x >= col - 3.0 && x < col + 18.0 {
-        trace(&format!("explorer_header x={x:.1} y={y:.1} -> collapse"));
-        return 3;
-    }
-    if x >= nf - 12.0 && x < col + 24.0 {
+    if x >= right - 100.0 && x < right - 4.0 {
         trace(&format!("explorer_header x={x:.1} y={y:.1} -> miss"));
     }
     0
@@ -6157,20 +6160,22 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
         clip,
     );
     // Header actions (new file / new folder / collapse) right-aligned as real
-    // icon buttons. Dialog-backed actions get a tiny "..." mark so they read
-    // differently from immediate tree actions in the compact toolbar.
+    // icon buttons with enough air that they read as separate mouse targets.
+    // Dialog-backed actions get a tiny "..." mark so they read differently from
+    // immediate tree actions in the compact toolbar.
     let act_y = (head_h - 15.0) * 0.5;
-    for (x, icon, action) in [
-        (sx + sw - 75.5, icons::NEW_FILE, 1),
-        (sx + sw - 53.5, icons::NEW_FOLDER, 2),
-        (sx + sw - 31.5, icons::COLLAPSE, 3),
-    ] {
-        ctx.dl_round(x - 2.0, 9.0, 22.0, 22.0, 5.0, theme::BG_4());
-        ctx.dl_stroke(x - 2.0, 9.0, 22.0, 22.0, 5.0, theme::BORDER_SOFT(), 1.0);
-        ctx.dl_icon(x + 1.5, act_y, 15.0, 15.0, icon, theme::TEXT_3(), 1.5, false);
+    for (x, action) in explorer_header_action_centers(sx, sw) {
+        let icon = match action {
+            1 => icons::NEW_FILE,
+            2 => icons::NEW_FOLDER,
+            _ => icons::COLLAPSE,
+        };
+        ctx.dl_round(x - 2.5, 8.0, 24.0, 24.0, 5.0, theme::BG_4());
+        ctx.dl_stroke(x - 2.5, 8.0, 24.0, 24.0, 5.0, theme::BORDER_SOFT(), 1.0);
+        ctx.dl_icon(x + 2.0, act_y, 15.0, 15.0, icon, theme::TEXT_3(), 1.5, false);
         if explorer_header_action_opens_dialog(action) {
             for dx in [11.0, 14.0, 17.0] {
-                ctx.dl_round(x - 2.0 + dx, 26.0, 1.5, 1.5, 0.75, theme::TEXT_4());
+                ctx.dl_round(x - 2.5 + dx, 26.5, 1.5, 1.5, 0.75, theme::TEXT_4());
             }
         }
     }
@@ -6259,7 +6264,7 @@ pub(crate) fn fit_explorer_header(
     chrome: f32,
 ) -> String {
     let label_x = sx + 14.0;
-    let first_action_x = sx + sw - 77.5;
+    let first_action_x = explorer_header_action_centers(sx, sw)[0].0 - 2.5;
     let max_px = (first_action_x - 8.0 - label_x).max(0.0);
     let tracked: String = header.chars().flat_map(|c| [c, '\u{2009}']).collect();
     fit_status_head(text, &tracked, max_px, chrome)

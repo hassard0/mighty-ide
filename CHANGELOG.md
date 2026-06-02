@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Explorer header buttons now have clearer hit targets**: the new-file,
+  new-folder, and collapse-all buttons are spaced as distinct controls, and the
+  click geometry now shares the same centers as the rendered buttons.
 - **Manual resize drags now finish with visible feedback**: releasing a sidebar
   or bottom-dock drag now reports the final size, and layout toasts replace
   older layout messages instead of leaving stale resize/preset text on screen.

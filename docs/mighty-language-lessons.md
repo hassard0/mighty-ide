@@ -4441,3 +4441,18 @@ text around after repeated adjustments.
   outcomes for pointer gestures: started, updated, finished, cancelled, and
   unchanged should be representable without ad hoc scalar returns plus string
   matching.
+
+### L310. Header toolbar hit boxes must share rendered geometry **[finding, P2]**
+The Explorer header drew three adjacent action buttons with no visual gap, and
+the click hit-test used separate hard-coded offsets. The buttons technically
+worked, but a human saw a cramped cluster and could not confidently predict the
+target boundaries.
+
+- **IDE note:** Explorer new-file, new-folder, and collapse-all buttons now use
+  one shared geometry helper for drawing, hit testing, and header text fitting.
+  The rendered buttons have visible spacing, and tests click the same centers
+  used by the draw path.
+- **Language note:** no compiler gap surfaced. Mighty-side UI code would benefit
+  from first-class reusable layout structs/tuples across draw and hit-test paths;
+  today the safest option is to keep shared geometry in Rust where richer return
+  types and arrays are less fragile.
