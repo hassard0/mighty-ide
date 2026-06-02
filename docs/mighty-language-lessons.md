@@ -4034,3 +4034,14 @@ less obvious even though the hit target worked.
 - **Language note:** no compiler gap surfaced. Mighty UI needs declarative
   resize-divider primitives that separate visible affordance geometry from
   generous hit-testing geometry.
+
+### L281. Destructive prompts must name the target before input **[finding, P2]**
+Delete Active File required typing the active basename, but the bottom prompt
+only said `Delete active file, type name:`. The exact required name appeared only
+after a failed attempt, so a protected command still felt vague and clunky.
+
+- **IDE note:** the delete prompt now renders `Delete <basename>, type name:`
+  before the user types while preserving the exact-basename confirmation check.
+- **Language note:** no compiler gap surfaced. Mighty UI needs context-aware
+  prompt label composition so destructive confirmations can name their target
+  without shim-only string formatting.

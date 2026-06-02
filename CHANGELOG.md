@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Delete confirmation names the target up front**: the active-file delete
+  prompt now shows the exact file basename in the prompt label before the user
+  types, instead of only revealing the required confirmation name after a failed
+  attempt.
 - **Sidebar resizing looks like a divider**: the file-tree sidebar now renders a
   slim edge divider with a compact centered grip instead of a tall floating
   thumb, while keeping the same generous mouse hit target for dragging.

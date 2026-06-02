@@ -1687,6 +1687,32 @@ fn active_file_delete_requires_exact_basename_confirmation() {
 }
 
 #[test]
+fn delete_prompt_label_names_exact_file_before_confirmation() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_delete_prompt_label");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("doomed.mty");
+    std::fs::write(&file, "fn doomed() {}\n").unwrap();
+    ctx.tabs.open_path(file);
+    crate::abi::sync_active_path(&mut ctx);
+    ctx.prompt.open(crate::prompt::PromptKind::DeleteFile as i32);
+
+    assert_eq!(
+        crate::abi::prompt_draw_label(&ctx),
+        "Delete doomed.mty, type name: "
+    );
+
+    ctx.prompt.open(crate::prompt::PromptKind::RenameFile as i32);
+    assert_eq!(
+        crate::abi::prompt_draw_label(&ctx),
+        "Rename active file to: "
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn active_file_reveal_commands_are_named_for_their_scope() {
     let new_file = crate::palette::COMMANDS
         .iter()

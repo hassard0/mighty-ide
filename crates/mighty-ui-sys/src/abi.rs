@@ -3416,7 +3416,7 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
     }
     let (_x, y, w, bar_h) = prompt_band_rect(ctx);
     let chrome = theme::CHROME_FONT_SIZE;
-    let label = ctx.prompt.label();
+    let label = prompt_draw_label(ctx);
     let query = ctx.prompt.query_string();
     let text_y = y + (bar_h - chrome) * 0.5 - 1.0;
     let clip = ctx.clip;
@@ -3457,9 +3457,9 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
         ctx.overlay = was_overlay;
         return;
     }
-    let (label_w, _) = ctx.text.measure_ui_sized(label, chrome);
+    let (label_w, _) = ctx.text.measure_ui_sized(&label, chrome);
     if label_w >= max_w {
-        let label = fit_prompt_tail(&mut ctx.text, label, max_w, chrome);
+        let label = fit_prompt_tail(&mut ctx.text, &label, max_w, chrome);
         if !label.is_empty() {
             ctx.text.queue_sized(text_x, text_y, &label, theme::TEXT_3(), chrome, clip);
         }
@@ -3467,7 +3467,7 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
         ctx.overlay = was_overlay;
         return;
     }
-    ctx.text.queue_sized(text_x, text_y, label, theme::TEXT_3(), chrome, clip);
+    ctx.text.queue_sized(text_x, text_y, &label, theme::TEXT_3(), chrome, clip);
     let qx = text_x + label_w;
     let query = fit_prompt_tail(&mut ctx.text, &query, max_right - qx, chrome);
     if !query.is_empty() {
@@ -3475,6 +3475,16 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
     }
     ctx.text.set_overlay(false);
     ctx.overlay = was_overlay;
+}
+
+pub(crate) fn prompt_draw_label(ctx: &MuiContext) -> String {
+    let label = ctx.prompt.label();
+    if ctx.prompt.kind() == Some(crate::prompt::PromptKind::DeleteFile) {
+        if let Some(path) = ctx.tabs.active_path() {
+            return format!("Delete {}, type name: ", basename(&path));
+        }
+    }
+    label.to_string()
 }
 
 fn prompt_band_rect(ctx: &MuiContext) -> (f32, f32, f32, f32) {
