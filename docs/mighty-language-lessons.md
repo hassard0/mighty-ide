@@ -4275,3 +4275,17 @@ why Save appeared to do nothing.
   calls should eventually expose picked/cancelled/unavailable/error states as a
   typed result so command handlers can route fallback prompts, toasts, and focus
   restoration from one explicit outcome.
+
+### L298. Modal copy must be measured before drawing **[finding, P1]**
+The dirty-close confirmation used the raw tab basename in its detail line. A
+very long filename could run across the modal card, which made the dialog look
+broken even though the buttons still hit-tested correctly.
+
+- **IDE note:** dirty-confirm detail copy now uses the same measured tail-fit
+  strategy as status/file labels. Long filenames are shortened before drawing,
+  preserving the consequence text while keeping the line inside the modal text
+  budget. A focused regression checks the measured width.
+- **Language note:** no compiler gap surfaced. Mighty UI still needs reusable
+  text-measurement and fit primitives on the language side so modal/dialog
+  labels, helper text, and dynamic filenames can be composed without bespoke
+  shim helpers for every surface.

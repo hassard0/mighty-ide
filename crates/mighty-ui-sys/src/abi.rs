@@ -4266,6 +4266,7 @@ pub extern "C" fn mui_dirty_confirm_draw(handle: i64) {
             format!("{name} has unsaved edits. Discarding cannot be undone."),
         )
     };
+    let detail = fit_dirty_confirm_detail(&mut ctx.text, &detail, card_w, chrome);
     let (cancel, save, discard) = dirty_confirm_rects(ctx);
 
     let was_overlay = ctx.overlay;
@@ -4297,6 +4298,15 @@ pub extern "C" fn mui_dirty_confirm_draw(handle: i64) {
     ctx.overlay = was_overlay;
     ctx.text.set_overlay(was_overlay);
     ctx.clip = old_clip;
+}
+
+pub(crate) fn fit_dirty_confirm_detail(
+    text: &mut crate::text::Text,
+    detail: &str,
+    card_w: f32,
+    chrome: f32,
+) -> String {
+    fit_status_tail(text, detail, (card_w - 48.0).max(0.0), chrome)
 }
 
 /// Map the tab bar pixel x of the last click to a tab index, or -1 if the click

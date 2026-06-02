@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Dirty-close dialog detail text now fits the card**: long filenames in the
+  unsaved-tab confirmation are middle-truncated before drawing, preserving the
+  important consequence text without letting the detail line run across the
+  modal.
 - **Dirty-close Save now explains cancelled dialogs**: when a user tries to
   close an unsaved untitled tab, clicks Save, and cancels the native picker, the
   confirmation stays open and a toast now explains that the tab is still open

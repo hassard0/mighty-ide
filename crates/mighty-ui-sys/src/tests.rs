@@ -440,6 +440,22 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(mui_tab_active(handle), 1);
     mui_dirty_confirm_cancel(handle);
 
+    let long_detail = "extremely_long_component_name_that_used_to_run_across_the_dialog_and_overlap_buttons.mty has unsaved edits. Discarding cannot be undone.";
+    let fitted_detail = crate::abi::fit_dirty_confirm_detail(
+        &mut ctx.text,
+        long_detail,
+        360.0,
+        crate::theme::CHROME_FONT_SIZE,
+    );
+    let (fitted_w, _) = ctx
+        .text
+        .measure_ui_sized(&fitted_detail, crate::theme::CHROME_FONT_SIZE);
+    assert!(fitted_w <= 312.0, "dirty-confirm detail should fit modal text budget: {fitted_detail}");
+    assert!(
+        fitted_detail.ends_with("cannot be undone."),
+        "tail should preserve the consequence text: {fitted_detail}"
+    );
+
     // Dirty untitled tabs keep the confirmation active and explain a cancelled
     // Save dialog instead of failing silently.
     let untitled = ctx.tabs.new_untitled();
