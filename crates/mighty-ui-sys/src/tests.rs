@@ -2896,17 +2896,25 @@ fn debug_header_title_fits_before_state_pill() {
     let pill_w = crate::dapabi::debug_state_pill_width(&mut ctx.text, "running\u{2026}", chrome);
     let pill_x = sx + sw - pill_w - 12.0;
     let title_x = sx + 34.0;
+    let title = crate::dapabi::debug_header_title_for_budget(&mut ctx.text, title_x, pill_x, chrome);
+    assert_eq!(title, "DEBUG");
     let shown =
-        crate::dapabi::fit_debug_header_title(&mut ctx.text, "RUN AND DEBUG", title_x, pill_x, chrome);
+        crate::dapabi::fit_debug_header_title(&mut ctx.text, title, title_x, pill_x, chrome);
     let (shown_w, _) = ctx.text.measure_ui_sized(&shown, chrome);
     assert!(
         title_x + shown_w <= pill_x - 8.0,
         "debug header should leave a visible gap before the state pill: {shown}"
     );
-    assert!(shown.ends_with('\u{2026}'));
+    assert_eq!(shown, "D\u{2009}E\u{2009}B\u{2009}U\u{2009}G\u{2009}");
 
     crate::layout::reset_sidebar_preset();
-    crate::layout::set_window_width(900);
+    crate::layout::set_window_width(1200);
+    let wide_sw = crate::layout::sidebar_w();
+    let wide_pill_x = sx + wide_sw - pill_w - 12.0;
+    assert_eq!(
+        crate::dapabi::debug_header_title_for_budget(&mut ctx.text, title_x, wide_pill_x, chrome),
+        "RUN AND DEBUG"
+    );
 }
 
 #[test]

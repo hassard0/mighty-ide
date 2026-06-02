@@ -461,6 +461,22 @@ pub(crate) fn debug_state_pill_width(
     text.measure_ui_sized(state_label, size).0 + 18.0
 }
 
+pub(crate) fn debug_header_title_for_budget(
+    text: &mut crate::text::Text,
+    title_x: f32,
+    pill_x: f32,
+    size: f32,
+) -> &'static str {
+    let full = "RUN AND DEBUG";
+    let tracked: String = full.chars().flat_map(|c| [c, '\u{2009}']).collect();
+    let budget = (pill_x - 8.0 - title_x).max(0.0);
+    if text.measure_ui_sized(&tracked, size).0 <= budget {
+        full
+    } else {
+        "DEBUG"
+    }
+}
+
 pub(crate) fn fit_debug_header_title(
     text: &mut crate::text::Text,
     title: &str,
@@ -753,8 +769,8 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
     };
     let pill_w = debug_state_pill_width(&mut ctx.text, state_label, chrome - 2.0);
     let pill_x = sx + sw - pill_w - 12.0;
-    let title = "RUN AND DEBUG";
     let title_x = sx + 34.0;
+    let title = debug_header_title_for_budget(&mut ctx.text, title_x, pill_x, chrome - 2.0);
     let tracked = fit_debug_header_title(&mut ctx.text, title, title_x, pill_x, chrome - 2.0);
     ctx.text.queue_ui_sized(
         title_x,

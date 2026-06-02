@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Compact Debug headers use a complete title**: narrow Run-and-Debug sidebars
+  now show `DEBUG` instead of truncating `RUN AND DEBUG` into `RUN AND DEB...`,
+  while preserving the `paused` / `running` state pill.
 - **Keyboard Shortcuts no longer mixes action hints with chords**: compact
   selected rows now show `Remap` instead of a standalone `Enter` label beside
   the shortcut pills, so the visible chord reads as `Ctrl` + `N`, not

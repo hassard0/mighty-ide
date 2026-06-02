@@ -3824,3 +3824,13 @@ read like `Enter` was part of the shortcut rather than a row action.
 - **Language note:** no compiler gap surfaced. Mighty UI needs reusable
   shortcut-row primitives with separate regions for command name, action
   affordance, and keybinding pills.
+
+### L263. Compact headers should switch labels before truncating core nouns **[finding, P2]**
+The compact Run-and-Debug sidebar title rendered as `RUN AND DEB...` beside the
+state pill. It technically fit, but it looked unfinished and obscured the panel's
+actual identity.
+
+- **IDE note:** compact debug sidebars now use the complete `DEBUG` title while
+  wider sidebars keep `RUN AND DEBUG`.
+- **Language note:** no compiler gap surfaced. Mighty UI needs header-title
+  variants, not just ellipsis fitting, for panel names with long formal labels.
