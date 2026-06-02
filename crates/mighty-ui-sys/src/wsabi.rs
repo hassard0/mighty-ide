@@ -117,10 +117,12 @@ pub extern "C" fn mui_ws_open_dialog(handle: i64) -> i32 {
         FolderDialogPick::Picked(path) => open_folder(ctx, &path),
         FolderDialogPick::Cancelled => {
             println!("ws: native folder dialog cancelled");
+            ctx.push_toast(crate::toast::Kind::Info, "Open folder cancelled");
             0
         }
         FolderDialogPick::Unavailable => {
             println!("ws: native folder dialog unavailable");
+            ctx.push_toast(crate::toast::Kind::Warn, "Open folder dialog unavailable");
             -1
         }
     }

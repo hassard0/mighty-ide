@@ -524,7 +524,9 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m.starts_with("Opened folder")
         || m.starts_with("Opened file")
         || m == "Open file cancelled"
+        || m == "Open folder cancelled"
         || m == "Open file dialog unavailable"
+        || m == "Open folder dialog unavailable"
         || m.starts_with("Open failed")
         || m.starts_with("Recent file missing")
         || m.starts_with("Recent folder missing")
@@ -931,6 +933,30 @@ mod tests {
         q.push_at(Kind::Success, "Saved 2 files", t0 + Duration::from_millis(400));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Saved 2 files");
+    }
+
+    #[test]
+    fn newer_open_dialog_outcomes_replace_stale_open_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Success, "Opened file: main.mty", t0);
+        q.push_at(Kind::Info, "Open file cancelled", t0 + Duration::from_millis(100));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Open file cancelled");
+
+        q.push_at(Kind::Success, "Opened folder: mighty-ide", t0 + Duration::from_millis(200));
+        q.push_at(Kind::Info, "Open folder cancelled", t0 + Duration::from_millis(300));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Open folder cancelled");
+
+        q.push_at(
+            Kind::Warn,
+            "Open folder dialog unavailable",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Open folder dialog unavailable");
     }
 
     #[test]

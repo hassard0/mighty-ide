@@ -4522,3 +4522,16 @@ looked like the save command had done nothing.
 - **Language note:** no compiler gap surfaced. Mighty still needs a typed result
   enum for dialog outcomes so `Picked`, `Cancelled`, and `Unavailable` cannot
   drift across command surfaces.
+
+### L316. Folder picker outcomes must match file picker feedback **[finding, P2]**
+Open File cancellation already surfaced `Open file cancelled`, but Open Folder
+cancellation returned a no-op with no visible result. The workspace stayed put,
+which was correct, but the command looked inert from the user's point of view.
+
+- **IDE note:** Open Folder cancellation now pushes `Open folder cancelled`, and
+  unavailable folder pickers push `Open folder dialog unavailable`. Open-folder
+  dialog toasts now share the same replacement family as Open File, and tests
+  cover the cancelled folder picker state.
+- **Language note:** no compiler gap surfaced. Mighty needs a common dialog
+  result vocabulary for file and folder pickers so equivalent UX surfaces cannot
+  drift by command type.

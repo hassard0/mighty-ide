@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Open Folder cancellations now acknowledge the dialog result**: cancelling the
+  native folder picker now reports `Open folder cancelled`, and unavailable
+  folder pickers report `Open folder dialog unavailable`, matching Open File's
+  visible dialog outcomes.
 - **Save dialog cancellations now speak consistently**: cancelling Save on an
   untitled tab or cancelling Save As now reports `Save cancelled; tab is still
   open`, instead of leaving the user to infer that the dialog cancellation was

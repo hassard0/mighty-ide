@@ -4192,6 +4192,9 @@ fn workspace_open_dialog_cancel_does_not_fallback_or_mutate() {
     assert_eq!(opened, 0, "cancelled folder picker should be a no-op");
     assert_eq!(ctx.workspace.root(), before_root.as_path());
     assert_eq!(mui_ws_recent_count(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Open folder cancelled");
 }
 
 #[test]
