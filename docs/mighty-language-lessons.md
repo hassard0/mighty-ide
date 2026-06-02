@@ -3598,3 +3598,15 @@ stay intact.
   structured shortcut/chord model for views and commands so renderers receive
   tokens like `modifier`, `key`, and `alternative` instead of reparsing display
   strings at draw time.
+
+### L245. Empty input placeholders need reserved caret space **[finding, P2]**
+Quick Open fitted its long placeholder before the mode pill, but the empty-query
+caret still started at the same x-position as the placeholder. Humans read that
+as overlapping text even though typed queries work.
+
+- **IDE note:** Quick Open now insets empty placeholder copy away from the caret
+  and uses overlay-specific muted text, matching the command palette and
+  shortcuts overlay spacing contract.
+- **Language note:** no compiler gap surfaced. Mighty UI should expose a
+  reusable text-field primitive that owns placeholder, caret, and measured-fit
+  geometry together instead of requiring every overlay to duplicate those rules.

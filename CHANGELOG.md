@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Quick Open placeholder no longer collides with the caret**: empty Quick Open
+  now insets placeholder copy and uses overlay-specific muted text, matching the
+  command palette and shortcuts overlay spacing.
 - **Keyboard shortcut alternatives render honestly**: slash-separated bindings
   like `Alt+Up / Alt+Down` now draw as distinct shortcut groups while slash-key
   chords like `Ctrl+/` remain a real key pill.

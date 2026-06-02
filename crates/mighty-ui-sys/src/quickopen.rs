@@ -918,7 +918,8 @@ impl QuickOpen {
         // ---- search field ----
         ctx.dl_rect(box_x + 1.0, box_y + search_h - 1.0, box_w - 2.0, 1.0, theme::BORDER());
         ctx.dl_icon(box_x + 18.0, box_y + (search_h - 20.0) * 0.5, 20.0, 20.0, icons::SEARCH, theme::DIM(), 1.7, false);
-        let q_text_x = box_x + 50.0;
+        let q_text_base_x = box_x + 50.0;
+        let q_text_x = quickopen_search_text_x(q_text_base_x, self.query.is_empty());
         let qy = box_y + (search_h - 16.0) * 0.5 - 1.0;
         // Mode pill (right): the current mode label.
         let mode_txt = match self.mode() {
@@ -936,7 +937,7 @@ impl QuickOpen {
         ctx.text.queue_ui_sized(pill_x + (pill_w - mode_lbl_w) * 0.5, pill_y + 5.5, mode_txt, theme::ACCENT_BRIGHT(), 10.5, clip);
         let placeholder = "Search files by name\u{2026}  (\u{203A} commands  @ symbols  : line)";
         let (q_str, q_color): (&str, _) = if self.query.is_empty() {
-            (placeholder, theme::TEXT_3())
+            (placeholder, theme::OVERLAY_SUBTLE())
         } else {
             (self.query.as_str(), theme::TEXT())
         };
@@ -945,7 +946,7 @@ impl QuickOpen {
         ctx.text.queue_ui_sized(q_text_x, qy, &q_shown, q_color, 16.0, clip);
         let (q_w, _) = ctx.text.measure_ui_sized(&q_shown, 16.0);
         let caret_x = if self.query.is_empty() {
-            q_text_x + 1.0
+            q_text_base_x + 1.0
         } else {
             (q_text_x + q_w + 1.0).min(pill_x - 14.0)
         };
@@ -1047,6 +1048,14 @@ impl QuickOpen {
     ) {
         let base_col = if selected { theme::TEXT() } else { theme::TEXT_1() };
         ctx.text.queue_ui_sized(x, y, name, base_col, 13.5, clip);
+    }
+}
+
+fn quickopen_search_text_x(base_x: f32, is_placeholder: bool) -> f32 {
+    if is_placeholder {
+        base_x + 10.0
+    } else {
+        base_x
     }
 }
 
@@ -1447,6 +1456,13 @@ mod tests {
         assert_eq!(idx, 1);
         assert_eq!(qo.selection(), 1);
         assert_eq!(qo.click_row(box_x - 2.0, list_top + 4.0, 900, 700), -1);
+    }
+
+    #[test]
+    fn empty_search_placeholder_does_not_overlap_caret() {
+        let base = 320.0;
+        assert_eq!(quickopen_search_text_x(base, false), base);
+        assert!(quickopen_search_text_x(base, true) >= base + 8.0);
     }
 
     #[test]
