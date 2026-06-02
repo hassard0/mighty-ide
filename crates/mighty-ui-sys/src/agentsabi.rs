@@ -48,6 +48,89 @@ pub enum NodeKind {
     Llm = 9,
 }
 
+pub(crate) fn compact_agent_row_label(kind: NodeKind, name: &str) -> String {
+    match kind {
+        NodeKind::Implements => name
+            .strip_prefix("implements ")
+            .map(|proto| format!("impl {proto}"))
+            .unwrap_or_else(|| name.to_string()),
+        NodeKind::Message => compact_signature_label(name),
+        _ => name.to_string(),
+    }
+}
+
+fn compact_signature_label(sig: &str) -> String {
+    let Some(open) = sig.find('(') else {
+        return sig.to_string();
+    };
+    let Some(close_rel) = sig[open + 1..].find(')') else {
+        return sig.to_string();
+    };
+    let close = open + 1 + close_rel;
+    let params = &sig[open + 1..close];
+    let compact_params = params
+        .split(',')
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .map(|p| p.rsplit_once(':').map(|(_, ty)| ty.trim()).unwrap_or(p))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("{}({}){}", &sig[..open], compact_params, &sig[close + 1..])
+}
+
+pub(crate) fn fit_agent_row_label(
+    text: &mut crate::text::Text,
+    kind: NodeKind,
+    name: &str,
+    max_px: f32,
+    size: f32,
+) -> String {
+    if max_px <= 0.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(name, size).0 <= max_px {
+        return name.to_string();
+    }
+    let compact = compact_agent_row_label(kind, name);
+    if compact != name && text.measure_ui_sized(&compact, size).0 <= max_px {
+        return compact;
+    }
+    fit_head_px(text, if compact.len() < name.len() { &compact } else { name }, max_px, size)
+}
+
+fn fit_head_px(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    if max_px <= 0.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    if text.measure_ui_sized(ellipsis, size).0 > max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        ellipsis.to_string()
+    } else {
+        let mut out: String = chars.iter().take(lo).collect();
+        out.push_str(ellipsis);
+        out
+    }
+}
+
 /// One flattened topology row: kind + display name + nesting depth + an optional
 /// jump target (`file` + 0-based `line`). Rows with `line < 0` are not clickable
 /// (section headers, the synthetic "implements" edge that points at a protocol
@@ -656,11 +739,8 @@ impl AgentTopology {
             };
             // Reserve room for an LLM badge on agent rows.
             let badge_w = if n.kind == NodeKind::Agent && n.llm { 34.0 } else { 0.0 };
-            let avail = (((sx + sw - 12.0 - badge_w) - name_x) / adv).floor() as usize;
-            let mut name = n.name.clone();
-            if name.chars().count() > avail && avail > 1 {
-                name = name.chars().take(avail - 1).collect::<String>() + "\u{2026}";
-            }
+            let max_px = ((sx + sw - 12.0 - badge_w) - name_x).max(0.0);
+            let name = fit_agent_row_label(&mut ctx.text, n.kind, &n.name, max_px, chrome);
             ctx.text.queue_ui_sized(name_x, txt_y, &name, fg, chrome, clip);
 
             // LLM badge (small indigo pill) on LLM-backed agents.
@@ -1052,6 +1132,56 @@ mod tests {
             note.chars().count() <= 32,
             "default live-inspect copy should not truncate into an unclear fragment: {note}"
         );
+    }
+
+    #[test]
+    fn compact_agent_row_labels_preserve_signature_meaning() {
+        assert_eq!(
+            compact_agent_row_label(NodeKind::Message, "Submit(text: Str) -> U8"),
+            "Submit(Str) -> U8"
+        );
+        assert_eq!(
+            compact_agent_row_label(NodeKind::Message, "Ask(doc: Str) -> Str"),
+            "Ask(Str) -> Str"
+        );
+        assert_eq!(
+            compact_agent_row_label(NodeKind::Implements, "implements Summarize"),
+            "impl Summarize"
+        );
+    }
+
+    #[test]
+    fn agent_row_fitter_uses_compact_label_before_ellipsis() {
+        let mut ctx = match crate::MuiContext::new_offscreen(560, 520) {
+            Some(c) => c,
+            None => return,
+        };
+        let chrome = crate::theme::CHROME_FONT_SIZE;
+        let compact = "Submit(Str) -> U8";
+        let budget = ctx.text.measure_ui_sized(compact, chrome).0 + 1.0;
+        let shown = fit_agent_row_label(
+            &mut ctx.text,
+            NodeKind::Message,
+            "Submit(text: Str) -> U8",
+            budget,
+            chrome,
+        );
+        assert_eq!(shown, compact);
+        assert!(
+            !shown.ends_with('\u{2026}'),
+            "message signature should compact before ellipsizing: {shown}"
+        );
+
+        let impl_compact = "impl Summarize";
+        let impl_budget = ctx.text.measure_ui_sized(impl_compact, chrome).0 + 1.0;
+        let shown = fit_agent_row_label(
+            &mut ctx.text,
+            NodeKind::Implements,
+            "implements Summarize",
+            impl_budget,
+            chrome,
+        );
+        assert_eq!(shown, impl_compact);
     }
 
     #[test]

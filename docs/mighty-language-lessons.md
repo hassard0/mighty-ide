@@ -3908,3 +3908,16 @@ instead of a deliberate compact panel title.
   wider sidebars still show `SOURCE CONTROL`.
 - **Language note:** no compiler gap surfaced. Mighty UI needs a reusable panel
   header primitive that budgets title variants and action clusters together.
+
+### L271. Domain rows need semantic compact forms before ellipsis **[finding, P2]**
+The Mighty Agents topology clipped protocol messages and relationship rows into
+fragments like `Submit(text: Str...` and `implements Summa...`. The rows fit
+geometrically, but users lost the return type or target protocol that made the
+row meaningful.
+
+- **IDE note:** Agents rows now use measured fitting and semantic compact forms
+  such as `Submit(Str) -> U8` and `impl Summarize` before falling back to
+  ellipsis.
+- **Language note:** no compiler gap surfaced. Mighty UI needs reusable
+  domain-label formatters for signatures, relationships, and typed graph rows,
+  not only generic text clipping helpers.

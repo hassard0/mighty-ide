@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Mighty Agents rows preserve compact signatures**: protocol messages and
+  `implements` edges now use measured fitting with compact labels like
+  `Submit(Str) -> U8` and `impl Summarize` before ellipsizing, making the
+  agent topology readable in narrow sidebars.
 - **Compact Source Control headers use a complete title**: narrow SCM sidebars
   now show `SCM` instead of truncating `SOURCE CONTROL` into an unfinished
   `SOURCE CO...` label beside the git action icons.
