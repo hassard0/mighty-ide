@@ -109,6 +109,12 @@ fn use_compact_layout(body_w: f32, body_h: f32, col_w: f32) -> bool {
     body_w < 760.0 || body_h < 420.0 || col_w < 640.0
 }
 
+fn compact_recent_section_fits(section_y: f32, bottom_limit: f32, rows: usize, empty: bool) -> bool {
+    let row_count = if empty { 1 } else { rows.max(1) };
+    let needed = 28.0 + row_count as f32 * 34.0 + 10.0;
+    section_y + needed <= bottom_limit
+}
+
 impl Hit {
     fn contains(&self, px: f32, py: f32) -> bool {
         px >= self.x && px <= self.x + self.w && py >= self.y && py <= self.y + self.h
@@ -363,7 +369,7 @@ impl WelcomeState {
                 });
             }
             let mut ry = rows_top + max_actions as f32 * row_h + 18.0;
-            if ry + 58.0 < bottom_limit {
+            if compact_recent_section_fits(ry, bottom_limit, folders.len().min(2), folders.is_empty()) {
                 ctx.dl_rect(left_x, ry - 10.0, col_w, 1.0, theme::BORDER());
                 ctx.text.queue_ui_styled(
                     left_x,
@@ -402,7 +408,7 @@ impl WelcomeState {
                     }
                 }
             }
-            if ry + 58.0 < bottom_limit {
+            if compact_recent_section_fits(ry, bottom_limit, recents.len().min(2), recents.is_empty()) {
                 ctx.text.queue_ui_styled(
                     left_x,
                     ry + 8.0,
@@ -1016,5 +1022,13 @@ mod tests {
         assert!(use_compact_layout(740.0, 600.0, 692.0));
         assert!(use_compact_layout(954.0, 320.0, 720.0));
         assert!(!use_compact_layout(954.0, 600.0, 720.0));
+    }
+
+    #[test]
+    fn compact_recent_sections_require_room_for_header_and_row() {
+        assert!(!compact_recent_section_fits(490.0, 526.0, 0, true));
+        assert!(compact_recent_section_fits(454.0, 526.0, 0, true));
+        assert!(!compact_recent_section_fits(456.0, 526.0, 2, false));
+        assert!(compact_recent_section_fits(420.0, 526.0, 2, false));
     }
 }

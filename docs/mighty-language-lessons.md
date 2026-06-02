@@ -4565,3 +4565,17 @@ visually ambiguous: a user-initiated cancel looked like another failed command.
   result for batch commands, with per-item outcomes like `Saved`, `Cancelled`,
   `Unavailable`, `ReadOnly`, and `Failed`, so UI text can be derived without
   ad hoc counter plumbing.
+
+### L319. Compact landing sections must reserve full row height **[finding, P2]**
+The 860x560 Welcome screenshot showed the "RECENT FILES" empty-state text clipped
+against the bottom edge. The compact layout checked for enough room to start a
+section, but not enough room to draw the section header plus a readable row.
+
+- **IDE note:** compact Welcome now gates recent sections through a shared helper
+  that reserves header height plus at least one row. At 860x560 it cleanly stops
+  after Recent Folders instead of painting a clipped Recent Files empty state.
+  The fix was verified with `target/ux-welcome-compact-fixed.png` and a unit
+  test for the section-fit helper.
+- **Language note:** no compiler gap surfaced. Mighty UI needs first-class layout
+  fit predicates for repeated sections so draw and hit-test code can reject
+  partial sections consistently before any text is queued.

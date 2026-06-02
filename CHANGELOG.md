@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Compact Welcome no longer clips the Recent Files empty state**: the
+  single-column Welcome layout now requires enough room for a section header and
+  row before drawing it, preventing bottom-edge text clipping at 860x560.
 - **Save All cancellation now reads like a deliberate dialog outcome**:
   cancelling the Save As picker for an untitled tab now reports `Save All
   cancelled; 1 untitled file still unsaved`, while unavailable native dialogs
