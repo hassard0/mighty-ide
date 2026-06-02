@@ -46,6 +46,7 @@ public static class Win {
     [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
 
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+    [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out RECT rect, int size);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
     [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr h, int x, int y, int w, int ht, bool repaint);
     [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
@@ -165,6 +166,7 @@ public static class Win {
     public const uint KEYEVENTF_UNICODE = 0x0004, KEYEVENTF_KEYUP = 0x0002;
     public const uint WM_NULL = 0x0000;
     public const uint SMTO_ABORTIFHUNG = 0x0002;
+    public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
 
     public static int InputSize() { return Marshal.SizeOf(typeof(INPUT)); }
 }
@@ -266,7 +268,16 @@ $env:MUI_NEW_PROJECT_PICK = $newProjectPath
 $env:MUI_OPEN_FILE_PICK_SEQUENCE = "$openPath|$mdPath"
 $env:MUI_OPEN_FOLDER_PICK = $openFolderPath
 
-function Get-WinRect($h) { $r = New-Object Win+RECT; [void][Win]::GetWindowRect($h, [ref]$r); return $r }
+function Get-WinRect($h) {
+  $r = New-Object Win+RECT
+  [void][Win]::GetWindowRect($h, [ref]$r)
+  $visual = New-Object Win+RECT
+  $size = [System.Runtime.InteropServices.Marshal]::SizeOf([type][Win+RECT])
+  if ([Win]::DwmGetWindowAttribute($h, [Win]::DWMWA_EXTENDED_FRAME_BOUNDS, [ref]$visual, $size) -eq 0) {
+    return $visual
+  }
+  return $r
+}
 
 function Capture($h, $name) {
   if ($NoCapture) {

@@ -4624,8 +4624,9 @@ Windows linker flags. Adding only `/subsystem:windows` made the CRT search for
 - **IDE note:** `mighty.toml` now sets
   `link-args = ["-Wl,/subsystem:windows,/entry:mainCRTStartup"]`, and the
   packaged app was verified with `tools/drive-input.ps1` against
-  `target/ux-drive-rail-dwm-fixed.png`. The desktop harness also crops to DWM
-  extended frame bounds so screenshots match the visible IDE window.
+  `target/ux-drive-rail-dwm-fixed.png`. Both `tools/drive-input.ps1` and
+  `tools/win-ui-harness.ps1` crop to DWM extended frame bounds so screenshots
+  match the visible IDE window.
 - **Language note:** Mighty should expose a first-class native app metadata knob
   such as `[build] subsystem = "windows-gui"` or `mty build --subsystem gui`.
   The compiler/link driver can then choose the correct subsystem and CRT entry
