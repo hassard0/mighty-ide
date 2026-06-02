@@ -786,15 +786,24 @@ pub extern "C" fn mui_branch_move(handle: i64, delta: i32) {
     }
 }
 
-fn branch_picker_geometry(width: u32, height: u32, rows: usize) -> (f32, f32, f32, f32, f32, f32) {
+pub(crate) fn branch_picker_visible_rows(height: u32, wanted_rows: usize) -> usize {
+    let h = height as f32;
+    let row_h = 34.0_f32;
+    let fixed_h = 50.0_f32 + 16.0;
+    let available = (h - 32.0 - fixed_h).max(row_h);
+    let capacity = (available / row_h).floor().max(1.0) as usize;
+    wanted_rows.min(capacity).max(usize::from(wanted_rows > 0))
+}
+
+pub(crate) fn branch_picker_geometry(width: u32, height: u32, rows: usize) -> (f32, f32, f32, f32, f32, f32) {
     let w = width as f32;
     let h = height as f32;
     let row_h = 34.0_f32;
     let head_h = 50.0_f32;
-    let box_w = 460.0_f32.min(w - 80.0);
+    let box_w = (w - 32.0).max(1.0).min(460.0);
     let box_h = head_h + rows as f32 * row_h + 16.0;
     let box_x = ((w - box_w) * 0.5).max(0.0);
-    let box_y = 100.0_f32.min((h - box_h).max(0.0));
+    let box_y = 100.0_f32.min((h - box_h - 16.0).max(8.0));
     let list_top = box_y + head_h + 6.0;
     (box_x, box_y, box_w, box_h, list_top, row_h)
 }
@@ -815,11 +824,14 @@ pub extern "C" fn mui_branch_click(handle: i64) -> i32 {
     if !ctx.branch_picker.is_active() {
         return -1;
     }
-    let rows = if ctx.branch_picker.is_creating() {
-        1
-    } else {
-        ctx.branch_picker.count().min(10)
-    };
+    let rows = branch_picker_visible_rows(
+        ctx.gpu.height,
+        if ctx.branch_picker.is_creating() {
+            1
+        } else {
+            ctx.branch_picker.count().min(10)
+        },
+    );
     let (box_x, box_y, box_w, _box_h, list_top, row_h) =
         branch_picker_geometry(ctx.gpu.width, ctx.gpu.height, rows);
     let x = ctx.last_event.x;
@@ -1004,7 +1016,7 @@ fn draw_branch_picker(p: &crate::scm::BranchPicker, ctx: &mut MuiContext, width:
     let clip = ctx.clip;
 
     let creating = p.is_creating();
-    let rows = if creating { 1 } else { p.count().min(10) };
+    let rows = branch_picker_visible_rows(height, if creating { 1 } else { p.count().min(10) });
     let (box_x, box_y, box_w, box_h, list_top, row_h) =
         branch_picker_geometry(width, height, rows);
     let head_h = 50.0_f32;

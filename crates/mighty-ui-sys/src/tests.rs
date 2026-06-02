@@ -2965,6 +2965,32 @@ fn scm_section_branch_budget_yields_to_changes_count() {
 }
 
 #[test]
+fn branch_picker_visible_rows_fit_compact_heights() {
+    assert_eq!(crate::panels::branch_picker_visible_rows(720, 0), 0);
+    assert_eq!(crate::panels::branch_picker_visible_rows(120, 10), 1);
+    assert_eq!(crate::panels::branch_picker_visible_rows(220, 10), 3);
+    assert_eq!(crate::panels::branch_picker_visible_rows(720, 10), 10);
+}
+
+#[test]
+fn branch_picker_geometry_keeps_positive_width_in_narrow_windows() {
+    let (box_x, _box_y, box_w, _box_h, _list_top, _row_h) =
+        crate::panels::branch_picker_geometry(120, 220, 3);
+    assert!(box_w > 0.0, "branch picker card width should remain positive");
+    assert!(box_x >= 0.0, "branch picker card should not start offscreen");
+    assert!(
+        box_x + box_w <= 120.0,
+        "branch picker card should fit narrow windows: x={box_x} w={box_w}"
+    );
+
+    let (wide_x, _wide_y, wide_w, _wide_h, _wide_list_top, _wide_row_h) =
+        crate::panels::branch_picker_geometry(320, 220, 3);
+    assert!(wide_x >= 0.0);
+    assert!(wide_w <= 288.0);
+    assert!(wide_x + wide_w <= 320.0);
+}
+
+#[test]
 fn debug_header_title_fits_before_state_pill() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();

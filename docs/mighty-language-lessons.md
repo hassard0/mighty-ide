@@ -4045,3 +4045,16 @@ after a failed attempt, so a protected command still felt vague and clunky.
 - **Language note:** no compiler gap surfaced. Mighty UI needs context-aware
   prompt label composition so destructive confirmations can name their target
   without shim-only string formatting.
+
+### L282. Overlay geometry must share row budgets with hit-testing **[finding, P2]**
+The branch switcher still assumed a fixed 10-row card in parts of the draw and
+click path, and its card width math could go invalid in very narrow windows.
+That made the overlay vulnerable to cramped resize states where what users saw
+and what the mouse could hit drifted apart.
+
+- **IDE note:** branch switcher geometry now clamps the card inside compact
+  windows and uses one height-aware visible-row budget for both rendering and
+  mouse selection.
+- **Language note:** no compiler gap surfaced. Mighty needs measured overlay
+  layout primitives so cards, row budgets, and hit regions can be declared once
+  instead of manually synchronized through shim helpers.
