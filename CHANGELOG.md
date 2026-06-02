@@ -172,6 +172,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   no longer draws on top of the placeholder text.
 - **Command palette empty search is visually clean**: the focused caret no
   longer collides with the `Type a command...` placeholder.
+- **SCM empty-state hints fit cleanly**: narrow sidebars now show concise
+  action-oriented copy instead of tail-clipping to an unclear fragment.
 - **Toast timing feels less stale**: success/info notifications now clear faster
   while warning/error messages remain visible longer, so completion messages do
   not follow users into unrelated panels.

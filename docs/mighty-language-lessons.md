@@ -3345,3 +3345,14 @@ across command surfaces makes the UI drift one surface at a time.
 - **Language note:** no compiler gap surfaced. The repeated fix points toward a
   Mighty UI primitive for focused search fields rather than per-surface pixel
   math.
+
+### L226. Text fitting needs intent: paths keep tails, instructions keep heads **[finding, P2]**
+The Source Control empty-state hint used path-style tail fitting, so the narrow
+sidebar showed an ellipsis plus the end of the sentence and hid the action verb.
+That made the panel look broken even though the command existed.
+
+- **IDE note:** SCM instructional hints now use shorter action copy with
+  head-fitting fallback, preserving the useful instruction at narrow widths.
+- **Language note:** no compiler gap surfaced. Mighty UI helpers should separate
+  path/file fitting from instructional-copy fitting so intent is encoded at the
+  call site.

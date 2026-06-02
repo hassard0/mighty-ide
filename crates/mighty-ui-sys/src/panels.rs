@@ -601,14 +601,14 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
     if ctx.scm.root.is_none() {
         let top = scm_rows_top();
         ctx.text.queue_ui_sized(sx + 14.0, top + 4.0, "Source control not scanned", theme::TEXT_1(), chrome, clip);
-        let hint = fit_tail_px(&mut ctx.text, "Use the refresh action to scan this workspace for Git status.", sw - 28.0, chrome - 1.0);
+        let hint = fit_head_px(&mut ctx.text, "Refresh to scan Git status.", sw - 28.0, chrome - 1.0);
         ctx.text.queue_ui_sized(sx + 14.0, top + 25.0, &hint, theme::TEXT_3(), chrome - 1.0, clip);
         return;
     }
     if count == 0 {
         let top = scm_rows_top();
         ctx.text.queue_ui_sized(sx + 14.0, top + 4.0, "Working tree clean", theme::TEXT_1(), chrome, clip);
-        let hint = fit_tail_px(&mut ctx.text, "Pull, fetch, or edit a file to start a change.", sw - 28.0, chrome - 1.0);
+        let hint = fit_head_px(&mut ctx.text, "Edit a file to start a change.", sw - 28.0, chrome - 1.0);
         ctx.text.queue_ui_sized(sx + 14.0, top + 25.0, &hint, theme::TEXT_3(), chrome - 1.0, clip);
         return;
     }
@@ -1407,6 +1407,25 @@ mod branch_picker_surface_tests {
         assert!(cx + cw <= box_x + box_w);
         assert!(cy >= box_y);
         assert!(cy + ch < list_top);
+    }
+}
+
+#[cfg(test)]
+mod scm_empty_state_tests {
+    use super::fit_head_px;
+
+    #[test]
+    fn scm_empty_hint_keeps_action_verb_when_narrow() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(360, 240) else {
+            return;
+        };
+        let shown = fit_head_px(
+            &mut ctx.text,
+            "Refresh to scan Git status.",
+            220.0,
+            crate::theme::CHROME_FONT_SIZE - 1.0,
+        );
+        assert_eq!(shown, "Refresh to scan Git status.");
     }
 }
 
