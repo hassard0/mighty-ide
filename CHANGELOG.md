@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Project Search replace no longer looks disabled**: the replace field uses
+  readable secondary text and the replace-all check button gains an active
+  accent state whenever a real query is present.
 - **Autocomplete rows read like real IDE metadata**: semantic completions now
   show a clear `function` kind and suppress placeholder inline signatures,
   leaving full parameter detail in the selected-row footer.

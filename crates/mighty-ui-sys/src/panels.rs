@@ -1291,6 +1291,10 @@ fn search_field_button_x(sx: f32, sw: f32) -> (f32, f32) {
     (sx + sw - 46.0, sx + sw - 8.0)
 }
 
+fn search_replace_button_enabled(query: &str) -> bool {
+    !query.trim().is_empty()
+}
+
 /// Search-panel mouse action for the last click:
 /// `0` = no action, `1` = run search, `2` = replace all.
 ///
@@ -1406,7 +1410,7 @@ fn truncate_head(s: &str, avail: usize) -> String {
 
 #[cfg(test)]
 mod search_panel_tests {
-    use super::{tail, truncate_head};
+    use super::{search_replace_button_enabled, tail, truncate_head};
 
     #[test]
     fn search_preview_truncates_from_head_so_match_columns_stay_stable() {
@@ -1420,6 +1424,13 @@ mod search_panel_tests {
         assert_eq!(tail("abcdef", 4), "def");
         assert_eq!(tail("abcdef", 1), "abcdef");
         assert_eq!(tail("abc", 4), "abc");
+    }
+
+    #[test]
+    fn search_replace_button_tracks_real_query_availability() {
+        assert!(!search_replace_button_enabled(""));
+        assert!(!search_replace_button_enabled("   "));
+        assert!(search_replace_button_enabled("opened"));
     }
 }
 
@@ -1516,16 +1527,22 @@ pub extern "C" fn mui_search_draw(handle: i64) {
     let r_border = if replace_focus { theme::ACCENT_LINE() } else { theme::BORDER_STRONG() };
     ctx.dl_round(sx + 10.0, ry, sw - 20.0, box_h, 7.0, theme::BG_1());
     ctx.dl_stroke(sx + 10.0, ry, sw - 20.0, box_h, 7.0, r_border, 1.0);
-    ctx.dl_icon(sx + 16.0, ry + (box_h - 13.0) * 0.5, 13.0, 13.0, icons::REPLACE, theme::TEXT_3(), 1.5, false);
+    let replace_ready = search_replace_button_enabled(&query);
+    let replace_icon_col = if replace_focus { theme::ACCENT_BRIGHT() } else { theme::DIM() };
+    ctx.dl_icon(sx + 16.0, ry + (box_h - 13.0) * 0.5, 13.0, 13.0, icons::REPLACE, replace_icon_col, 1.5, false);
     let (r_text, r_col) = if replace.is_empty() {
-        ("Replace".to_string(), theme::TEXT_3())
+        ("Replace".to_string(), if replace_focus { theme::TEXT_1() } else { theme::DIM() })
     } else {
         (replace.clone(), theme::TEXT())
     };
     let rshown = tail(&r_text, qavail);
     ctx.text.queue_ui_sized(sx + 34.0, ry + (box_h - chrome) * 0.5 - 1.0, &rshown, r_col, chrome, clip);
-    ctx.dl_round(btn_x0, ry + 4.0, btn_x1 - btn_x0, box_h - 8.0, 5.0, theme::BG_4());
-    ctx.dl_icon(btn_x0 + 6.0, ry + 8.0, 14.0, 14.0, icons::CHECK, theme::TEXT_1(), 1.7, false);
+    let replace_btn_bg = if replace_ready { theme::accent_a(0.16) } else { theme::BG_4() };
+    let replace_btn_border = if replace_ready { theme::ACCENT_LINE() } else { theme::BORDER_STRONG() };
+    let replace_btn_icon = if replace_ready { theme::ACCENT_BRIGHT() } else { theme::TEXT_3() };
+    ctx.dl_round(btn_x0, ry + 4.0, btn_x1 - btn_x0, box_h - 8.0, 5.0, replace_btn_bg);
+    ctx.dl_stroke(btn_x0, ry + 4.0, btn_x1 - btn_x0, box_h - 8.0, 5.0, replace_btn_border, 1.0);
+    ctx.dl_icon(btn_x0 + 6.0, ry + 8.0, 14.0, 14.0, icons::CHECK, replace_btn_icon, 1.7, false);
 
     // results
     let total = ctx.search.match_count();

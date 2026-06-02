@@ -3559,3 +3559,17 @@ accept path works.
 - **Language note:** no compiler gap surfaced. Mighty UI needs richer
   completion item metadata from `mty-lsp` so label, kind, detail, and
   documentation are separate fields instead of heuristic strings.
+
+### L242. Destructive workflow controls need honest visual state **[finding, P1]**
+Project Search replace was functional, but the replace input and check button
+looked disabled because they reused faint tertiary styling. That is especially
+bad for destructive or project-wide operations: users need to know whether the
+button is available before they trust the workflow.
+
+- **IDE note:** the replace placeholder now uses readable secondary text, and
+  the replace-all check button switches to an accented active state when the
+  search query is non-empty.
+- **Language note:** no compiler gap surfaced. Mighty UI should expose semantic
+  button states such as enabled, disabled, pending, and destructive/confirming
+  as first-class styling primitives instead of encoding state through ad hoc
+  color choices.
