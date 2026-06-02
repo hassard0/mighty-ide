@@ -583,6 +583,9 @@ fn tree_abi_scan_toggle_and_open_row() {
 
 #[test]
 fn click_routing_tab_bar_sidebar_and_text() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     use crate::ffi::MuiEvent;
     use crate::{
         mui_rail_utility_at_click, mui_tab_close_index_at_click, mui_tab_index_at_click,
@@ -592,6 +595,8 @@ fn click_routing_tab_bar_sidebar_and_text() {
     use crate::panels::mui_ai_click;
 
     let mut ctx = ctx_or_skip!();
+    crate::uiscale::set_os_scale(1.0);
+    crate::uiscale::set_user_zoom(1.0);
     // Two tabs so index 1 is valid.
     ctx.tabs.ensure_scratch();
     ctx.tabs
@@ -623,10 +628,10 @@ fn click_routing_tab_bar_sidebar_and_text() {
     assert_eq!(mui_tab_close_index_at_click(handle), 1);
     // The top-right run/menu/window-control strip is not a tab, even though it
     // shares the tab-bar row.
-    let reserved_x = crate::titlebar::controls_x(ctx.gpu.width as f32)
+    let ai_reserved_x = crate::titlebar::controls_x(ctx.gpu.width as f32)
         - crate::titlebar::ACTION_STRIP_W
         + 4.0;
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, reserved_x, 4.0, 0);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, ai_reserved_x, 4.0, 0);
     assert_eq!(mui_tab_index_at_click(handle), -1);
     assert_eq!(mui_tab_close_index_at_click(handle), -1);
     // Same x but below the tab bar -> not a tab click.
@@ -660,11 +665,19 @@ fn click_routing_tab_bar_sidebar_and_text() {
 
     // The right-docked AI panel owns its surface, including the send affordance,
     // while still leaving the top-right chrome strip to title-bar actions.
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    ctx.gpu.phys_width = 0;
+    ctx.gpu.phys_height = 0;
+    let reserved_x = crate::titlebar::controls_x(ctx.gpu.width as f32)
+        - crate::titlebar::ACTION_STRIP_W
+        + 4.0;
     ctx.ai.open = true;
     ctx.ai.input = "ship it".to_string();
     let ai_visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let ai_visible_h = layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height);
     let (px, pw, input_y, input_h) =
-        crate::ai::input_geometry(&ctx.ai.input, ai_visible_w, ctx.gpu.height);
+        crate::ai::input_geometry(&ctx.ai.input, ai_visible_w, ai_visible_h);
     ctx.last_event = MuiEvent::mouse(
         crate::ffi::MUI_EVENT_MOUSE_DOWN,
         0,
@@ -692,20 +705,30 @@ fn click_routing_tab_bar_sidebar_and_text() {
 
     // DPI/capture paths can report a logical GPU width wider than the actual
     // visible surface. The AI drawer must anchor to the same visible width used
-    // by bottom docks, or the right edge of chat text renders off-screen.
+    // by bottom docks, or the right edge of chat text renders off-screen. The
+    // send hit-test must also use visible height, or the bottom composer icon
+    // misses under scaled Windows coordinates.
     ctx.gpu.width = 1374;
     ctx.gpu.phys_width = 1280;
     ctx.gpu.height = 832;
+    ctx.gpu.phys_height = 832;
+    crate::uiscale::set_os_scale(1.25);
+    crate::uiscale::set_user_zoom(1.0);
     ctx.ai.open = true;
     ctx.ai.input = "send from scaled window".to_string();
     let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let visible_h = layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height);
     let (visible_px, visible_pw, visible_input_y, visible_input_h) =
-        crate::ai::input_geometry(&ctx.ai.input, visible_w, ctx.gpu.height);
-    let (raw_px, _raw_pw, _raw_input_y, _raw_input_h) =
+        crate::ai::input_geometry(&ctx.ai.input, visible_w, visible_h);
+    let (raw_px, _raw_pw, raw_input_y, _raw_input_h) =
         crate::ai::input_geometry(&ctx.ai.input, ctx.gpu.width, ctx.gpu.height);
     assert!(
         raw_px > visible_px,
         "raw logical width would push the drawer off the captured surface"
+    );
+    assert!(
+        raw_input_y > visible_input_y,
+        "raw GPU height would push the send hit target below the visible composer"
     );
     ctx.last_event = MuiEvent::mouse(
         crate::ffi::MUI_EVENT_MOUSE_DOWN,
@@ -716,6 +739,8 @@ fn click_routing_tab_bar_sidebar_and_text() {
     );
     assert_eq!(mui_ai_click(handle), 2);
 
+    crate::uiscale::set_os_scale(1.0);
+    crate::uiscale::set_user_zoom(1.0);
     let _ = std::fs::remove_dir_all(&root);
 }
 
@@ -1009,6 +1034,38 @@ fn web_playground_idle_controls_explain_noops() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Web URL not ready");
+}
+
+#[test]
+fn ai_send_idle_controls_explain_noops() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let old_anthropic = std::env::var_os("ANTHROPIC_API_KEY");
+    let old_claude = std::env::var_os("CLAUDE_API_KEY");
+    std::env::remove_var("ANTHROPIC_API_KEY");
+    std::env::remove_var("CLAUDE_API_KEY");
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.ai.input = "   ".to_string();
+    assert_eq!(crate::panels::mui_ai_send(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Type a message before sending");
+
+    ctx.ai.input = "why did this fail?".to_string();
+    assert_eq!(crate::panels::mui_ai_send(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Set ANTHROPIC_API_KEY to enable AI Copilot");
+    assert_eq!(ctx.ai.input, "why did this fail?");
+
+    if let Some(v) = old_anthropic {
+        std::env::set_var("ANTHROPIC_API_KEY", v);
+    }
+    if let Some(v) = old_claude {
+        std::env::set_var("CLAUDE_API_KEY", v);
+    }
 }
 
 #[test]

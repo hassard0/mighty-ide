@@ -53,6 +53,11 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   server is running now reports `No web server running`, and opening the browser
   before a served URL exists reports `Web URL not ready` instead of failing
   silently.
+- **AI Copilot send now explains unavailable actions**: blank prompts, missing
+  API keys, in-flight responses, and startup failures now surface immediate
+  toasts instead of making Enter or the visible send button look broken. The
+  Windows harness types into the Copilot input and clicks Send with no key set,
+  then asserts the missing-key trace and captures the visible toast.
 - **Open Folder cancellations now acknowledge the dialog result**: cancelling the
   native folder picker now reports `Open folder cancelled`, and unavailable
   folder pickers report `Open folder dialog unavailable`, matching Open File's

@@ -505,11 +505,17 @@ enum OperationKey {
     Navigation,
     Markdown,
     Layout,
+    Ai,
 }
 
 fn operation_key(message: &str) -> Option<OperationKey> {
     let m = message.trim();
-    if m == "No unsaved files"
+    if m.starts_with("AI ")
+        || m.starts_with("Set ANTHROPIC_API_KEY")
+        || m == "Type a message before sending"
+    {
+        Some(OperationKey::Ai)
+    } else if m == "No unsaved files"
         || m == "Save All failed"
         || m == "Save cancelled; tab is still open"
         || m == "Save dialog unavailable; use Save As"
@@ -1029,6 +1035,28 @@ mod tests {
         assert_eq!(q.len(), 2);
         assert_eq!(q.toasts()[1].message, "MT2001: expected I32, found Str");
         assert!(!q.toasts().iter().any(|t| t.message == "MT1001: expected I32"));
+    }
+
+    #[test]
+    fn newer_ai_feedback_replaces_stale_ai_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "Type a message before sending", t0);
+        q.push_at(
+            Kind::Warn,
+            "Set ANTHROPIC_API_KEY to enable AI Copilot",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Set ANTHROPIC_API_KEY to enable AI Copilot"
+        );
+
+        q.push_at(Kind::Info, "AI Copilot closed", t0 + Duration::from_millis(200));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "AI Copilot closed");
     }
 
     #[test]

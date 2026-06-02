@@ -4655,3 +4655,19 @@ Windows linker flags. Adding only `/subsystem:windows` made the CRT search for
   such as `[build] subsystem = "windows-gui"` or `mty build --subsystem gui`.
   The compiler/link driver can then choose the correct subsystem and CRT entry
   per host without each GUI app encoding platform-specific linker incantations.
+
+### L323. Unavailable command actions still need visible outcomes **[finding, P2]**
+The AI Copilot panel already explained that an API key was required, but the
+input action itself could still feel broken: pressing Enter or clicking the
+visible send button with a blank prompt, missing key, or active response just
+returned `0` without user-facing feedback.
+
+- **IDE note:** `mui_ai_send` now reports blank prompts, missing keys, active
+  streams, and startup failures through toasts and `ai_send blocked=...` traces.
+  AI feedback replaces stale AI-family toasts, and the Windows harness clears
+  API keys, types into the Copilot input, clicks the visible send button, and
+  asserts the missing-key outcome.
+- **Language note:** no compiler gap surfaced. Mighty UI needs command/action
+  descriptors that can declare enabled state, unavailable reasons, and typed
+  command results, so controls and keyboard shortcuts share one visible outcome
+  model instead of each ABI hand-rolling guard text.

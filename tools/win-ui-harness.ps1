@@ -189,6 +189,12 @@ $termProbeWasSet = [bool]$env:MUI_TERM_PROBE_TEXT
 if (-not $termProbeWasSet) { $env:MUI_TERM_PROBE_TEXT = "MUIHARNESS_TERM_OK" }
 $termVisibleProbeWasSet = [bool]$env:ZZZ_MUI_TERM_PROBE_TEXT
 if (-not $termVisibleProbeWasSet) { $env:ZZZ_MUI_TERM_PROBE_TEXT = $env:MUI_TERM_PROBE_TEXT }
+$script:anthropicWasSet = [bool]$env:ANTHROPIC_API_KEY
+$script:anthropicOld = $env:ANTHROPIC_API_KEY
+$script:claudeWasSet = [bool]$env:CLAUDE_API_KEY
+$script:claudeOld = $env:CLAUDE_API_KEY
+Remove-Item Env:\ANTHROPIC_API_KEY -ErrorAction SilentlyContinue
+Remove-Item Env:\CLAUDE_API_KEY -ErrorAction SilentlyContinue
 
 $report = [System.Collections.Generic.List[string]]::new()
 function Log($m) { $line = "[{0}] {1}" -f ((Get-Date).ToString('HH:mm:ss.fff')), $m; $report.Add($line); Write-Host $line }
@@ -208,6 +214,8 @@ function Finish-Harness($proc) {
   Remove-Item Env:\MUI_OPEN_FOLDER_PICK_SEQUENCE -ErrorAction SilentlyContinue
   if (-not $termProbeWasSet) { Remove-Item Env:\MUI_TERM_PROBE_TEXT -ErrorAction SilentlyContinue }
   if (-not $termVisibleProbeWasSet) { Remove-Item Env:\ZZZ_MUI_TERM_PROBE_TEXT -ErrorAction SilentlyContinue }
+  if ($script:anthropicWasSet) { $env:ANTHROPIC_API_KEY = $script:anthropicOld } else { Remove-Item Env:\ANTHROPIC_API_KEY -ErrorAction SilentlyContinue }
+  if ($script:claudeWasSet) { $env:CLAUDE_API_KEY = $script:claudeOld } else { Remove-Item Env:\CLAUDE_API_KEY -ErrorAction SilentlyContinue }
   if (-not $traceWasSet) { Remove-Item Env:\MUI_TRACE -ErrorAction SilentlyContinue }
   if (-not $configWasSet) { Remove-Item Env:\MUI_CONFIG_DIR -ErrorAction SilentlyContinue }
   Remove-Item -LiteralPath $searchPath -Force -ErrorAction SilentlyContinue
@@ -706,6 +714,14 @@ function AiPanelCloseCenter() {
   $reservedX = $controlsX - 68.0
   $right = [math]::Min($reservedX, $logicalW) - 10.0
   return [pscustomobject]@{ X = ($right - 16.0); Y = 60.0 }
+}
+
+function AiInputCenter() {
+  return [pscustomobject]@{ X = ($logicalW - 180.0); Y = ($logicalH - 42.0) }
+}
+
+function AiSendCenter() {
+  return [pscustomobject]@{ X = ($logicalW - 27.0); Y = ($logicalH - 76.0) }
 }
 
 function BranchPickerCloseCenter() {
@@ -1549,6 +1565,22 @@ if ($env:MUI_TRACE) {
 }
 Start-Sleep -Milliseconds 250
 Capture $hwnd "22-ai-copilot-no-key"
+$aiInputPt = AiInputCenter
+ClickL $aiInputPt.X $aiInputPt.Y
+Start-Sleep -Milliseconds 120
+Type-Text $hwnd "explain this file"
+Start-Sleep -Milliseconds 180
+$aiNoKeySendCount = Trace-MatchCount "(?m)^ai_send blocked=no_key$"
+$aiSendPt = AiSendCenter
+ClickL $aiSendPt.X $aiSendPt.Y
+if (Wait-TraceCountGreaterThan "(?m)^ai_send blocked=no_key$" $aiNoKeySendCount 1600) {
+  Log "AI-SEND-NO-KEY-MOUSE: visible send button reports missing API key"
+} else {
+  Log "AI-SEND-NO-KEY-MOUSE: missing missing-key send trace"
+  $script:HarnessFailed = $true
+}
+Start-Sleep -Milliseconds 350
+Capture $hwnd "22-ai-copilot-no-key-send"
 $aiCloseMouseCount = Trace-MatchCount "(?m)^ai_close$"
 $aiClosePt = AiPanelCloseCenter
 ClickL $aiClosePt.X $aiClosePt.Y

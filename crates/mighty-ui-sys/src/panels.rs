@@ -1779,9 +1779,11 @@ pub extern "C" fn mui_ai_click(handle: i64) -> i32 {
     }
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
     let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let visible_h = layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height);
     let (px, pw, input_y, input_h) =
-        crate::ai::input_geometry(&ctx.ai.input, visible_w, ctx.gpu.height);
-    if x < px || x > px + pw || y < layout::TAB_BAR_H || y > ctx.gpu.height as f32 {
+        crate::ai::input_geometry(&ctx.ai.input, visible_w, visible_h);
+    if x < px || x > px + pw || y < layout::TAB_BAR_H || y > visible_h as f32 {
+        crate::abi::trace(&format!("ai_click x={x:.1} y={y:.1} -> 0"));
         return 0;
     }
     // Preserve the title-bar run/more/window-control strip: it is drawn above
@@ -1792,6 +1794,7 @@ pub extern "C" fn mui_ai_click(handle: i64) -> i32 {
     }
     let (close_x, close_y, close_w, close_h) = crate::ai::close_geometry(visible_w);
     if x >= close_x && x <= close_x + close_w && y >= close_y && y <= close_y + close_h {
+        crate::abi::trace(&format!("ai_click x={x:.1} y={y:.1} -> 3"));
         return 3;
     }
     let send_x0 = px + pw - 44.0;
@@ -1799,8 +1802,10 @@ pub extern "C" fn mui_ai_click(handle: i64) -> i32 {
     let send_y0 = input_y + input_h - 36.0;
     let send_y1 = input_y + input_h - 4.0;
     if (send_x0..=send_x1).contains(&x) && (send_y0..=send_y1).contains(&y) {
+        crate::abi::trace(&format!("ai_click x={x:.1} y={y:.1} -> 2"));
         return 2;
     }
+    crate::abi::trace(&format!("ai_click x={x:.1} y={y:.1} -> 1"));
     1
 }
 
@@ -1858,13 +1863,31 @@ pub extern "C" fn mui_ai_send(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if ctx.ai.is_streaming() {
+        ctx.push_toast(crate::toast::Kind::Info, "AI response already in progress");
+        crate::abi::trace("ai_send blocked=streaming");
+        return 0;
+    }
+    if ctx.ai.input.trim().is_empty() {
+        ctx.push_toast(crate::toast::Kind::Info, "Type a message before sending");
+        crate::abi::trace("ai_send blocked=blank");
+        return 0;
+    }
+    if crate::ai::api_key().is_none() {
+        ctx.push_toast(crate::toast::Kind::Warn, "Set ANTHROPIC_API_KEY to enable AI Copilot");
+        crate::abi::trace("ai_send blocked=no_key");
+        return 0;
+    }
     let file_name = ctx.file_name.clone();
     let content = ctx.tabs.active_model().as_text();
     let selection = ctx.tabs.active_model().selected_text();
     let system = crate::ai::build_system_prompt(&file_name, &content, &selection);
     if ctx.ai.send(system) {
+        crate::abi::trace("ai_send started");
         1
     } else {
+        ctx.push_toast(crate::toast::Kind::Warn, "AI Copilot could not start");
+        crate::abi::trace("ai_send blocked=send_failed");
         0
     }
 }
@@ -1940,12 +1963,13 @@ pub extern "C" fn mui_ai_draw(handle: i64) {
     }
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let visible_w = layout::dock_visible_width(w, ctx.gpu.phys_width);
+    let visible_h = layout::visible_height(h, ctx.gpu.phys_height);
     // Render on the overlay layer so the chat card occludes editor glyphs that
     // sit underneath the right-docked panel band.
     let panel = std::mem::take(&mut ctx.ai);
     ctx.overlay = true;
     ctx.text.set_overlay(true);
-    panel.draw(ctx, visible_w, h);
+    panel.draw(ctx, visible_w, visible_h);
     ctx.overlay = false;
     ctx.text.set_overlay(false);
     ctx.ai = panel;
