@@ -262,6 +262,12 @@ pub extern "C" fn mui_problems_open(handle: i64) -> i32 {
     ctx.term_open = false;
     ctx.run.close();
     ctx.web.close();
+    crate::abi::trace(&format!(
+        "problems_open count={} errors={} warnings={}",
+        ctx.problems.count(),
+        ctx.problems.error_count(),
+        ctx.problems.warn_count()
+    ));
     1
 }
 

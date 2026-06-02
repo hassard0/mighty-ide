@@ -3192,3 +3192,16 @@ human put the Explorer/Search/SCM width exactly where their project needs it.
   pattern: Mighty can own the high-level event loop, but shim-owned layout needs
   explicit drag state so normally-consumed mouse-move events can be delivered to
   direct-manipulation controls.
+
+### L215. Strict mouse harnesses need restore-aware foreground and command traces **[finding, P2]**
+The sidebar-resize verification exposed a later cascade where the harness lost
+foreground/window state and kept clicking stale coordinates. The app behavior
+under test was already complete, but the verifier lacked enough recovery and
+surface-open tracing to separate an app failure from test-driver drift.
+
+- **IDE note:** the Windows real-mouse harness now restores the IDE window before
+  every strict click/drag attempt, and the Problems panel emits a `problems_open`
+  trace with count/severity totals for command-path assertions.
+- **Language note:** no compiler gap surfaced. This reinforces that Mighty apps
+  need explicit, cheap trace/event markers for state transitions that are visible
+  to users but otherwise hard for external drivers to prove.

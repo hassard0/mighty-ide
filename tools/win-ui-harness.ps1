@@ -279,16 +279,21 @@ function Is-Responsive($h, $timeoutMs = 1200) {
   return ($ret -ne [IntPtr]::Zero)
 }
 
+function Ensure-Foreground($h) {
+  for ($i = 0; $i -lt 4; $i++) {
+    [void][Win]::ShowWindow($h, 9) # SW_RESTORE
+    Start-Sleep -Milliseconds 45
+    if ([Win]::ForceForeground($h)) { return $true }
+    Start-Sleep -Milliseconds 90
+  }
+  return $false
+}
+
 function Click($h, $relX, $relY) {
   # relX/relY are CLIENT (window-relative) physical pixels. Use the real OS
   # cursor and SendInput so this catches the same foreground, DPI, and chrome
   # problems a person would hit with a mouse.
-  $fg = $false
-  for ($i = 0; $i -lt 3; $i++) {
-    $fg = [Win]::ForceForeground($h)
-    if ($fg) { break }
-    Start-Sleep -Milliseconds 80
-  }
+  $fg = Ensure-Foreground $h
   if (-not $fg) {
     if ($StrictRealMouse) {
       Log "click: FAILED to foreground window before mouse input"
@@ -416,12 +421,7 @@ function DragL($lx1, $ly1, $lx2, $ly2) {
   $y1 = [int][math]::Round($ly1 * $scale)
   $x2 = [int][math]::Round($lx2 * $scale)
   $y2 = [int][math]::Round($ly2 * $scale)
-  $fg = $false
-  for ($attempt = 0; $attempt -lt 3; $attempt++) {
-    $fg = [Win]::ForceForeground($hwnd)
-    if ($fg) { break }
-    Start-Sleep -Milliseconds 80
-  }
+  $fg = Ensure-Foreground $hwnd
   if (-not $fg) {
     if ($StrictRealMouse) {
       Log "drag: FAILED to foreground window before mouse input"

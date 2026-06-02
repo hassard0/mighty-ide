@@ -81,6 +81,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Sidebar resizing is direct**: the left drawer now has a visible draggable
   divider with an east-west resize cursor, custom width persistence, and
   real-mouse harness coverage instead of requiring palette-only width presets.
+- **Real-mouse verification is more resilient**: the Windows harness restores
+  the target window before strict click/drag steps and traces Problems panel
+  opens, preventing a focus/minimize slip from cascading into false failures.
 - **UTF-8 BOMs no longer render as stray editor glyphs**: files opened from
   Windows tools strip the leading BOM at the text-model boundary, which keeps the
   editor and live Markdown preview from showing an odd first character.
