@@ -1920,24 +1920,45 @@ pub extern "C" fn mui_bottom_dock_resize_draw(handle: i64) {
     ctx.dl_rect(x0, band_y, w, 1.0, theme::BORDER());
     ctx.dl_rect(x0, top - 1.0, w, 1.0, theme::BORDER_STRONG());
     ctx.dl_rect(x0, top, w, 1.0, theme::BG_2());
-    let grip_w = 56.0_f32.min((w - 32.0).max(0.0));
+    let grip_w = 88.0_f32.min((w - 32.0).max(0.0));
     let grip_x = x0 + (w - grip_w) * 0.5;
-    ctx.dl_round(
-        grip_x - 6.0,
-        band_y + 4.0,
-        grip_w + 12.0,
+    let grip_y = band_y + 2.0;
+    let grip_bg = if ctx.bottom_dock_resizing {
+        theme::accent_a(0.22)
+    } else {
+        theme::BG_4()
+    };
+    ctx.dl_shadow(
+        grip_x - 8.0,
+        grip_y + 2.0,
+        grip_w + 16.0,
+        12.0,
         6.0,
-        3.0,
-        theme::BG_2(),
+        theme::SHADOW(),
+        10.0,
     );
     ctx.dl_round(
+        grip_x - 8.0,
+        grip_y,
+        grip_w + 16.0,
+        12.0,
+        6.0,
+        grip_bg,
+    );
+    ctx.dl_stroke(grip_x - 8.0, grip_y, grip_w + 16.0, 12.0, 6.0, theme::BORDER_STRONG(), 1.0);
+    ctx.dl_round(
         grip_x,
-        band_y + 6.0,
+        grip_y + 5.0,
         grip_w,
         2.0,
         1.0,
-        theme::accent_a(0.42),
+        if ctx.bottom_dock_resizing { theme::ACCENT() } else { theme::ACCENT_LINE() },
     );
+    let dot_y = grip_y + 5.0;
+    let dot_color = if ctx.bottom_dock_resizing { theme::ACCENT_BRIGHT() } else { theme::TEXT_3() };
+    for dx in [-12.0_f32, 0.0, 12.0] {
+        ctx.dl_round(grip_x + grip_w * 0.5 + dx - 1.5, dot_y - 1.5, 3.0, 3.0, 1.5, dot_color);
+    }
     let preset_icons = [
         crate::icons::ARROW_DOWN,
         crate::icons::WIN_MIN,
@@ -6017,17 +6038,31 @@ pub extern "C" fn mui_sidebar_resize_draw(handle: i64) {
     let was_clip = ctx.clip;
     ctx.overlay = true;
     ctx.clip = None;
-    let edge_w = if ctx.sidebar_resizing { 2.0 } else { 1.0 };
+    let edge_w = if ctx.sidebar_resizing { 3.0 } else { 2.0 };
     let edge_color = if ctx.sidebar_resizing {
         theme::ACCENT()
     } else {
-        theme::BORDER_STRONG()
+        theme::BORDER_SOFT()
     };
     ctx.dl_rect(x, top, edge_w, h, edge_color);
     let grip_h = sidebar_resize_grip_height(h);
     let grip_y = top + (h - grip_h) * 0.5;
-    let grip_color = if ctx.sidebar_resizing { theme::ACCENT() } else { theme::TEXT_4() };
-    ctx.dl_round(x - 2.0, grip_y, 4.0, grip_h, 2.0, grip_color);
+    let grip_x = x - 5.0;
+    let grip_bg = if ctx.sidebar_resizing {
+        theme::accent_a(0.24)
+    } else {
+        theme::BG_4()
+    };
+    ctx.dl_shadow(grip_x, grip_y, 10.0, grip_h, 5.0, theme::SHADOW(), 10.0);
+    ctx.dl_round(grip_x, grip_y, 10.0, grip_h, 5.0, grip_bg);
+    ctx.dl_stroke(grip_x, grip_y, 10.0, grip_h, 5.0, theme::BORDER_STRONG(), 1.0);
+    let grip_color = if ctx.sidebar_resizing { theme::ACCENT_BRIGHT() } else { theme::TEXT_3() };
+    let dot_x = grip_x + 3.5;
+    let dot_gap = (grip_h / 4.0).clamp(8.0, 13.0);
+    let dot_mid = grip_y + grip_h * 0.5;
+    for dy in [-dot_gap, 0.0, dot_gap] {
+        ctx.dl_round(dot_x, dot_mid + dy - 1.5, 3.0, 3.0, 1.5, grip_color);
+    }
     ctx.clip = was_clip;
     ctx.overlay = was_overlay;
 }

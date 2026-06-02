@@ -4790,3 +4790,14 @@ separate overlay path, so warning toasts could cover the AI composer.
   first-class overlay-safe-area primitive so panels, drawers, modals, toasts,
   and hit-testing consume one shared exclusion model instead of duplicated
   scalar geometry.
+
+L333. Resize handles need explicit affordance states. The sidebar and lower dock
+could be resized, but their visible handles were so subtle that manual resizing
+felt like guessing at invisible edges.
+
+- **IDE note:** sidebar and bottom-dock resize handles now draw larger pill
+  grips with grab dots, stronger active color, and the same existing hit zones.
+  This keeps the interaction precise while making the target obvious.
+- **Language note:** no compiler bug surfaced. Mighty UI should expose reusable
+  resize-grip primitives with normal, hover, dragging, disabled, and orientation
+  states so custom panel chrome does not reimplement affordance drawing.
