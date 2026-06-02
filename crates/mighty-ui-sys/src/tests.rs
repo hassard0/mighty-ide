@@ -439,6 +439,28 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(mui_tab_count(handle), 2);
     assert_eq!(mui_tab_active(handle), 1);
     mui_dirty_confirm_cancel(handle);
+
+    // Dirty untitled tabs keep the confirmation active and explain a cancelled
+    // Save dialog instead of failing silently.
+    let untitled = ctx.tabs.new_untitled();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("scratch");
+    mui_tab_set_dirty(handle, untitled as i32, 1);
+    assert_eq!(mui_tab_close(handle, untitled as i32), -1);
+    std::env::set_var("MUI_SAVE_FILE_PICK", "");
+    assert_eq!(mui_dirty_confirm_save(handle), -3);
+    std::env::remove_var("MUI_SAVE_FILE_PICK");
+    assert_eq!(mui_dirty_confirm_active(handle), 1);
+    assert_eq!(mui_tab_count(handle), 3);
+    assert!(ctx.tabs.is_dirty(untitled));
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Save cancelled; tab is still open"
+    );
+    mui_dirty_confirm_cancel(handle);
+    mui_tab_set_dirty(handle, untitled as i32, 0);
+    assert!(mui_tab_close(handle, untitled as i32) >= 0);
+    assert_eq!(mui_tab_count(handle), 2);
+
     mui_tab_set_dirty(handle, 1, 0);
     assert_eq!(mui_quit_request(handle), 1);
     mui_ed_set_dirty(handle, 1);

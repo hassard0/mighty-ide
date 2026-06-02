@@ -9509,7 +9509,14 @@ fn save_confirm_tab(ctx: &mut MuiContext, idx: usize) -> bool {
             .unwrap_or_else(|| "untitled.mty".to_string());
         let target = match pick_save_file_native(&root, &suggested, dialog_owner_hwnd(ctx)) {
             FileDialogPick::Picked(path) => path,
-            FileDialogPick::Cancelled | FileDialogPick::Unavailable => return false,
+            FileDialogPick::Cancelled => {
+                ctx.push_toast(crate::toast::Kind::Info, "Save cancelled; tab is still open");
+                return false;
+            }
+            FileDialogPick::Unavailable => {
+                ctx.push_toast(crate::toast::Kind::Warn, "Save dialog unavailable; use Save As");
+                return false;
+            }
         };
         save_active_to_path(ctx, target) == 0
     }

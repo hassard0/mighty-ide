@@ -4258,3 +4258,20 @@ easy to find.
   capture lifecycle callbacks, so IDE gestures like divider double-click reset
   can be implemented directly in language code instead of inferred through shim
   state.
+
+### L297. Dialog outcomes need explicit user feedback **[finding, P1]**
+Dirty-close Save on an untitled tab correctly opened a native Save dialog, but a
+cancelled or unavailable picker returned the same failed-save code to Mighty.
+The modal stayed active, which was safe, but the user got no explanation for
+why Save appeared to do nothing.
+
+- **IDE note:** dirty-confirm Save now distinguishes cancelled and unavailable
+  Save dialogs for untitled tabs. Cancel keeps the confirmation open and toasts
+  `Save cancelled; tab is still open`; unavailable picker flow toasts
+  `Save dialog unavailable; use Save As`. A regression test covers the cancelled
+  dirty-close path.
+- **Language note:** no compiler gap surfaced, but the Mighty side still wants
+  richer dialog result metadata than scalar success/fail codes. Native dialog
+  calls should eventually expose picked/cancelled/unavailable/error states as a
+  typed result so command handlers can route fallback prompts, toasts, and focus
+  restoration from one explicit outcome.

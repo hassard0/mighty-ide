@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Dirty-close Save now explains cancelled dialogs**: when a user tries to
+  close an unsaved untitled tab, clicks Save, and cancels the native picker, the
+  confirmation stays open and a toast now explains that the tab is still open
+  instead of failing silently.
 - **Sidebar resizing no longer jumps on grab**: direct sidebar drag now preserves
   the pointer's offset inside the forgiving hit band, so grabbing the divider
   off-center does not immediately nudge the Explorer width before the user
