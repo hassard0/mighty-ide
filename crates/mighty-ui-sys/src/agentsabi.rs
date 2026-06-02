@@ -131,6 +131,11 @@ fn fit_head_px(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) ->
     }
 }
 
+fn fit_sidebar_line(text: &mut crate::text::Text, s: &str, sidebar_w: f32, size: f32) -> String {
+    let max_px = (sidebar_w - 28.0).max(0.0);
+    fit_head_px(text, s, max_px, size)
+}
+
 /// One flattened topology row: kind + display name + nesting depth + an optional
 /// jump target (`file` + 0-based `line`). Rows with `line < 0` are not clickable
 /// (section headers, the synthetic "implements" edge that points at a protocol
@@ -656,18 +661,16 @@ impl AgentTopology {
 
         // Summary line: counts.
         let avail = ((sw - 24.0) / (adv * 0.92)).floor() as usize;
-        let mut shown = self.sidebar_summary_line(avail);
-        if shown.chars().count() > avail && avail > 1 {
-            shown = shown.chars().take(avail - 1).collect::<String>() + "\u{2026}";
-        }
+        let shown = fit_sidebar_line(
+            &mut ctx.text,
+            &self.sidebar_summary_line(avail),
+            sw,
+            chrome - 2.0,
+        );
         ctx.text.queue_ui_sized(sx + 14.0, head_h + 4.0, &shown, theme::TEXT_3(), chrome - 2.0, clip);
 
         // Live-inspect status note (dim, single line).
-        let note = self.inspect_note.clone();
-        let mut note_shown = note;
-        if note_shown.chars().count() > avail && avail > 1 {
-            note_shown = note_shown.chars().take(avail - 1).collect::<String>() + "\u{2026}";
-        }
+        let note_shown = fit_sidebar_line(&mut ctx.text, &self.inspect_note, sw, chrome - 3.0);
         ctx.text.queue_ui_sized(
             sx + 14.0,
             head_h + 4.0 + 18.0,
@@ -678,10 +681,16 @@ impl AgentTopology {
         );
 
         if self.nodes.is_empty() {
+            let empty = fit_sidebar_line(
+                &mut ctx.text,
+                "No agents found in the workspace.",
+                sw,
+                chrome,
+            );
             ctx.text.queue_ui_sized(
                 sx + 14.0,
                 Self::rows_top() + 4.0,
-                "No agents found in the workspace.",
+                &empty,
                 theme::TEXT_3(),
                 chrome,
                 clip,
@@ -1194,6 +1203,49 @@ mod tests {
             chrome,
         );
         assert_eq!(shown, impl_compact);
+    }
+
+    #[test]
+    fn sidebar_line_fitter_keeps_empty_state_inside_compact_panel() {
+        let mut ctx = match crate::MuiContext::new_offscreen(560, 520) {
+            Some(c) => c,
+            None => return,
+        };
+        let chrome = crate::theme::CHROME_FONT_SIZE;
+        let sidebar_w = 214.0;
+        let shown = fit_sidebar_line(
+            &mut ctx.text,
+            "No agents found in the workspace.",
+            sidebar_w,
+            chrome,
+        );
+        let (w, _) = ctx.text.measure_ui_sized(&shown, chrome);
+        assert!(
+            w <= sidebar_w - 28.0 + 0.5,
+            "empty-state line should fit compact sidebar: {shown} ({w}px)"
+        );
+        assert!(shown.ends_with('\u{2026}'), "long empty-state copy should ellipsize");
+    }
+
+    #[test]
+    fn sidebar_line_fitter_keeps_live_inspect_note_inside_panel() {
+        let mut ctx = match crate::MuiContext::new_offscreen(560, 520) {
+            Some(c) => c,
+            None => return,
+        };
+        let chrome = crate::theme::CHROME_FONT_SIZE - 3.0;
+        let sidebar_w = 184.0;
+        let shown = fit_sidebar_line(
+            &mut ctx.text,
+            "Live inspect: set MTY_RUNTIME_CONTROL_SOCK before `mty run` to attach.",
+            sidebar_w,
+            chrome,
+        );
+        let (w, _) = ctx.text.measure_ui_sized(&shown, chrome);
+        assert!(
+            w <= sidebar_w - 28.0 + 0.5,
+            "live-inspect note should fit compact sidebar: {shown} ({w}px)"
+        );
     }
 
     #[test]

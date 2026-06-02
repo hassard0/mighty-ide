@@ -4741,3 +4741,14 @@ first top-level `.mty` file.
 - **Language note:** no compiler bug surfaced. Mighty would benefit from
   first-class package/workspace discovery APIs so IDE commands can ask for a
   testable package target without each tool re-implementing directory traversal.
+
+L329. Sidebar text must be measured in pixels, not guessed from character counts.
+The Agents panel empty state and live-inspect note could run into the divider
+after a human resize because they used rough width estimates and one raw string.
+
+- **IDE note:** Agents sidebar summary, inspect note, and empty-state copy now
+  use the shared measured text fitter before drawing, so compact sidebars
+  ellipsize instead of overlapping the editor boundary.
+- **Language note:** no compiler bug surfaced. Mighty needs ergonomic measured
+  text/ellipsis helpers in the language UI layer so every panel can request
+  "fit this line in this box" without hand-rolled Rust-side width code.
