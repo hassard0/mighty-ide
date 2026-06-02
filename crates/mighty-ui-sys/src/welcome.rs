@@ -800,8 +800,9 @@ fn file_icon(name: &str) -> &'static str {
     }
 }
 
-/// Shorten a directory path to roughly `max_px` from the LEFT, with a leading
-/// ellipsis when truncated (so the meaningful tail stays visible).
+/// Shorten a directory path to roughly `max_px`, preserving both the root/start
+/// and the meaningful tail. Recent rows otherwise look broken because a
+/// left-only ellipsis hides the drive/user context.
 fn shorten_dir(dir: &str, max_px: f32) -> String {
     let approx = 6.0_f32;
     let max_chars = (max_px / approx).floor().max(8.0) as usize;
@@ -809,11 +810,28 @@ fn shorten_dir(dir: &str, max_px: f32) -> String {
     if count <= max_chars {
         return dir.to_string();
     }
-    let tail: String = dir
-        .chars()
-        .skip(count - max_chars.saturating_sub(1))
-        .collect();
-    format!("\u{2026}{tail}")
+
+    if max_chars <= 12 {
+        let tail: String = dir
+            .chars()
+            .skip(count - max_chars.saturating_sub(1))
+            .collect();
+        return format!("\u{2026}{tail}");
+    }
+
+    let drive_prefix = {
+        let mut chars = dir.chars();
+        matches!(
+            (chars.next(), chars.next(), chars.next()),
+            (Some(c), Some(':'), Some('\\' | '/')) if c.is_ascii_alphabetic()
+        )
+    };
+    let min_prefix = if drive_prefix { 3 } else { 4 };
+    let prefix_len = (max_chars / 3).max(min_prefix).min(max_chars - 8);
+    let tail_len = max_chars.saturating_sub(prefix_len + 1).max(6);
+    let prefix: String = dir.chars().take(prefix_len).collect();
+    let tail: String = dir.chars().skip(count - tail_len.min(count)).collect();
+    format!("{prefix}\u{2026}{tail}")
 }
 
 #[cfg(test)]
@@ -944,6 +962,25 @@ mod tests {
     #[test]
     fn quick_action_shortcut_hides_instead_of_overlapping() {
         assert!(quick_action_key_x(100.0, 180.0, 140.0, 112.0, 60.0, 16.0, 4.0).is_none());
+    }
+
+    #[test]
+    fn recent_paths_keep_root_and_tail_when_shortened() {
+        let path = r"C:\Users\ihass\AppData\Local\Temp\mighty-ide-harnessworkspace-32440";
+        let shown = shorten_dir(path, 180.0);
+
+        assert!(
+            shown.starts_with(r"C:\"),
+            "shortened recent paths should keep drive/root context: {shown}"
+        );
+        assert!(
+            shown.contains('\u{2026}'),
+            "shortened recent paths should show an ellipsis: {shown}"
+        );
+        assert!(
+            shown.ends_with("workspace-32440"),
+            "shortened recent paths should keep the actionable folder/file tail: {shown}"
+        );
     }
 
     #[test]

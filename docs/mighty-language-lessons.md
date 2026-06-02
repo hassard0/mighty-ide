@@ -4010,3 +4010,15 @@ problems summary, especially because Testing and diagnostics counts can differ.
 - **Language note:** no compiler defect surfaced. Mighty UI still needs a
   semantic status-chip primitive so labeled counters, tooltips, hit targets, and
   compact fallbacks can be declared from Mighty instead of hand-built in the shim.
+
+### L279. Recent path truncation must preserve orientation **[finding, P2]**
+Open Recent shortened long paths from the left, producing fragments like
+`...al\Temp\...` that hid the drive/root context and looked like broken text.
+Users need to know both where a recent item starts and which file/folder it ends
+at before clicking.
+
+- **IDE note:** recent-file and recent-folder rows now use middle path shortening,
+  preserving the root/start and actionable tail within the same fixed row.
+- **Language note:** no compiler gap surfaced. Mighty UI still needs measured
+  path-display helpers so path formatting can be specified semantically from
+  Mighty instead of approximated in Rust with fixed character widths.

@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Open Recent paths keep orientation**: recent-file and recent-folder rows now
+  shorten long paths from the middle, preserving both the drive/root context and
+  the actionable tail instead of showing ambiguous left-truncated fragments.
 - **Status problem counters read like labels**: the bottom status bar now renders
   diagnostics as `N err` and `N warn` when space allows, while keeping the
   compact icon-number fallback for narrow windows. This removes the stray-looking
