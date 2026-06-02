@@ -5829,9 +5829,11 @@ pub extern "C" fn mui_sidebar_resize_at_click(handle: i64) -> i32 {
         && layout::sidebar_resize_hit(ctx.sidebar_visible, ctx.last_event.x, ctx.last_event.y, visible_h)
     {
         ctx.sidebar_resizing = true;
+        ctx.sidebar_resize_grab_dx = layout::sidebar_right() - ctx.last_event.x;
         trace(&format!(
-            "sidebar_resize start x={:.1} width={:.1}",
+            "sidebar_resize start x={:.1} grab_dx={:.1} width={:.1}",
             ctx.last_event.x,
+            ctx.sidebar_resize_grab_dx,
             layout::sidebar_w()
         ));
         1
@@ -5848,8 +5850,12 @@ pub extern "C" fn mui_sidebar_resize_to_event_x(handle: i64) -> i32 {
         if !c.sidebar_visible {
             return 0;
         }
-        let width = layout::resize_sidebar_to_x(c.last_event.x).round() as i32;
-        trace(&format!("sidebar_resize drag x={:.1} width={width}", c.last_event.x));
+        let edge_x = c.last_event.x + c.sidebar_resize_grab_dx;
+        let width = layout::resize_sidebar_to_x(edge_x).round() as i32;
+        trace(&format!(
+            "sidebar_resize drag x={:.1} edge_x={edge_x:.1} width={width}",
+            c.last_event.x
+        ));
         width
     })
 }

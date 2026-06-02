@@ -4241,3 +4241,20 @@ That difference matters when the user is scanning the toolbar before clicking.
 - **Language note:** no compiler gap surfaced. Mighty still needs a first-class
   command metadata model that can expose labels, icons, dialog/immediate
   behavior, disabled state, help text, and tests from the same source of truth.
+
+### L296. Pointer capture needs grab-offset and gesture metadata **[finding, P2]**
+The sidebar divider had a forgiving hit band, but the resize math used the raw
+mouse x immediately. If the user grabbed the band a few pixels off the visible
+edge, the first resize call nudged the Explorer width before any real drag.
+That made manual resizing feel clunky even though the hit target was technically
+easy to find.
+
+- **IDE note:** sidebar resizing now stores the grab offset between the visible
+  divider and the mouse-down position, then applies that offset throughout the
+  drag. The first resize call preserves the current width; only actual pointer
+  movement changes the sidebar. A focused test covers the off-center grab case.
+- **Language note:** no compiler gap surfaced. Mighty would benefit from richer
+  pointer-event metadata, especially click count/double-click and pointer
+  capture lifecycle callbacks, so IDE gestures like divider double-click reset
+  can be implemented directly in language code instead of inferred through shim
+  state.

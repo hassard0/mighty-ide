@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Sidebar resizing no longer jumps on grab**: direct sidebar drag now preserves
+  the pointer's offset inside the forgiving hit band, so grabbing the divider
+  off-center does not immediately nudge the Explorer width before the user
+  actually drags.
 - **Explorer header actions now show dialog affordances**: New File and New
   Folder keep their compact icon buttons, but now carry a tiny `...` marker so
   they read as picker/prompt actions instead of looking identical to immediate

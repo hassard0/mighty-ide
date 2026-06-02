@@ -972,6 +972,51 @@ fn sidebar_resize_visible_grip_stays_subtle() {
 }
 
 #[test]
+fn sidebar_resize_preserves_grab_offset_inside_hit_band() {
+    use crate::ffi::MuiEvent;
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 1200;
+    ctx.gpu.height = 700;
+    ctx.gpu.phys_width = 0;
+    ctx.gpu.phys_height = 0;
+    ctx.sidebar_visible = true;
+    let zen_before = crate::layout::zen_active();
+    crate::layout::set_zen(false);
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(1200);
+    let start_w = crate::layout::sidebar_w();
+    let right = crate::layout::sidebar_right();
+    let (_, visible_h) = crate::abi::visible_surface_size_for(
+        ctx.gpu.width,
+        ctx.gpu.phys_width,
+        ctx.gpu.height,
+        ctx.gpu.phys_height,
+    );
+    let resize_bottom = visible_h as f32 - 2.0 * crate::layout::LINE_H();
+    let resize_y = ((crate::layout::TAB_BAR_H + resize_bottom) * 0.5).max(crate::layout::TAB_BAR_H);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        right + 4.0,
+        resize_y,
+        0,
+    );
+    assert_eq!(crate::abi::mui_sidebar_resize_at_click(handle), 1);
+    assert_eq!(crate::abi::mui_sidebar_resize_to_event_x(handle), start_w.round() as i32);
+
+    ctx.last_event = MuiEvent::mouse_move(right + 34.0, resize_y, 0);
+    assert_eq!(
+        crate::abi::mui_sidebar_resize_to_event_x(handle),
+        (start_w + 30.0).round() as i32
+    );
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_zen(zen_before);
+}
+
+#[test]
 fn sidebar_close_command_is_deterministic() {
     let mut ctx = ctx_or_skip!();
     ctx.sidebar_visible = true;

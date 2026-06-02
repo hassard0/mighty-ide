@@ -188,6 +188,9 @@ pub struct MuiContext {
     /// True while Mighty has captured the visible right edge of the left sidebar
     /// for direct drag-resizing.
     sidebar_resizing: bool,
+    /// Difference between the divider's right edge and the mouse x at capture
+    /// time, so forgiving hit zones do not make the sidebar jump on mouse-down.
+    sidebar_resize_grab_dx: f32,
 
     // ---- explicit workspace (open-folder) ----
     /// The EXPLICIT workspace `{ root, name }`. Everything that operates over the
@@ -853,6 +856,7 @@ pub(crate) fn build_context(
         tree: file_tree,
         sidebar_visible: true,
         sidebar_resizing: false,
+        sidebar_resize_grab_dx: 0.0,
         workspace,
         recent_workspaces,
         lightbulb: lightbulb::Lightbulb::new(),
@@ -1536,6 +1540,7 @@ impl MuiContext {
             tree: tree::FileTree::new(),
             sidebar_visible: true,
             sidebar_resizing: false,
+            sidebar_resize_grab_dx: 0.0,
             workspace: workspace::Workspace::default(),
             recent_workspaces: workspace::RecentWorkspaces::new(),
             lightbulb: lightbulb::Lightbulb::new(),
