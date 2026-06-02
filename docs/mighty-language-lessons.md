@@ -3867,3 +3867,14 @@ compact variant or measured ellipsis budget.
 - **Language note:** no compiler gap surfaced. Mighty UI needs a reusable header
   row primitive that budgets title text, status/action hints, and icon slots
   together instead of relying on clip rectangles.
+
+### L267. Popup minimum widths must yield to the visible work area **[finding, P2]**
+Signature Help used a sensible minimum popup width, but in a compact editor
+column that minimum was wider than the remaining work area. The card drew past
+the right edge, so both the signature and documentation looked cut off.
+
+- **IDE note:** signature popup width now caps to the actual work-area width
+  before label/doc fitting runs.
+- **Language note:** no compiler gap surfaced. Mighty UI needs popup geometry
+  helpers that take work-area width as a hard constraint, not just a preferred
+  minimum.

@@ -850,7 +850,7 @@ impl SigState {
         let w = width as f32;
         let h = height as f32;
         let min_x = min_x.max(POPUP_MARGIN).min((w - POPUP_MARGIN).max(POPUP_MARGIN));
-        let max_box_w = (w - min_x - POPUP_MARGIN).max(120.0);
+        let max_box_w = popup_available_width(w, min_x, 120.0);
         let wanted_w = (label_w.max(doc_w) + 2.0 * pad + 8.0).max(120.0);
         let box_w = wanted_w.min(max_box_w);
         let line_h = layout::LINE_H();
@@ -881,11 +881,12 @@ impl SigState {
         let text_x = box_x + pad;
         let label_y = box_y + pad - 0.5;
         let text_w = (box_w - 2.0 * pad).max(0.0);
-        let shown_label = fit_sized(&mut ctx.text, label, text_w - 8.0, chrome);
+        let content_w = signature_content_budget(text_w);
+        let shown_label = fit_sized(&mut ctx.text, label, content_w, chrome);
         let label_is_full = shown_label == *label;
         // Active-parameter highlight pill behind the param text.
         if let Some((prefix_w, param_w)) = hi_span {
-            if label_is_full && param_w > 0.0 && prefix_w + param_w + 3.0 <= text_w {
+            if label_is_full && param_w > 0.0 && prefix_w + param_w + 3.0 <= content_w {
                 let hx = text_x + prefix_w - 3.0;
                 let hw = param_w + 6.0;
                 ctx.dl_round(hx, label_y - 1.0, hw, chrome + 4.0, 4.0, theme::accent_a(0.26));
@@ -895,7 +896,7 @@ impl SigState {
         // The signature label, with the active param drawn in accent on top.
         ctx.text.queue_sized(text_x, label_y, &shown_label, theme::TEXT(), chrome, clip);
         if let Some((prefix_w, param_w)) = hi_span {
-            if label_is_full && param_w > 0.0 && prefix_w + param_w + 3.0 <= text_w {
+            if label_is_full && param_w > 0.0 && prefix_w + param_w + 3.0 <= content_w {
                 if let Some(p) = active_param {
                     let px = text_x + prefix_w;
                     ctx.text.queue_sized(px, label_y, p, theme::ACCENT_BRIGHT(), chrome, clip);
@@ -905,7 +906,7 @@ impl SigState {
         // Optional doc line, dim, below the signature.
         if has_doc {
             let dy = label_y + line_h;
-            let shown_doc = fit_sized(&mut ctx.text, &sig.doc, text_w - 8.0, chrome - 1.0);
+            let shown_doc = fit_sized(&mut ctx.text, &sig.doc, content_w, chrome - 1.0);
             ctx.text.queue_sized(text_x, dy, &shown_doc, theme::TEXT_3(), chrome - 1.0, clip);
         }
     }
@@ -1268,6 +1269,20 @@ fn clamp_popup_x(cx: f32, box_w: f32, window_w: f32, min_x: f32) -> f32 {
     let left = min_x.max(POPUP_MARGIN);
     let right = (window_w - POPUP_MARGIN - box_w).max(left);
     cx.clamp(left, right)
+}
+
+fn popup_available_width(window_w: f32, min_x: f32, preferred_min: f32) -> f32 {
+    let left = min_x.max(POPUP_MARGIN);
+    let available = (window_w - POPUP_MARGIN - left).max(40.0);
+    if available < preferred_min {
+        available
+    } else {
+        available.max(preferred_min)
+    }
+}
+
+fn signature_content_budget(text_w: f32) -> f32 {
+    (text_w - 22.0).max(12.0)
 }
 
 fn fit_sized(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
@@ -1791,6 +1806,23 @@ mod tests {
         let x = clamp_popup_x(470.0, 240.0, 520.0, 220.0);
         assert!(x >= 220.0);
         assert!(x + 240.0 <= 500.0);
+    }
+
+    #[test]
+    fn compact_signature_width_never_exceeds_work_area() {
+        let width = popup_available_width(560.0, 286.0, 120.0);
+        assert!(width <= 560.0 - POPUP_MARGIN - 286.0);
+        let x = clamp_popup_x(520.0, width, 560.0, 286.0);
+        assert!(x >= 286.0);
+        assert!(x + width <= 560.0 - POPUP_MARGIN + 0.1);
+
+        assert_eq!(popup_available_width(900.0, 260.0, 120.0), 620.0);
+    }
+
+    #[test]
+    fn signature_content_budget_reserves_trailing_cushion() {
+        assert_eq!(signature_content_budget(200.0), 178.0);
+        assert_eq!(signature_content_budget(8.0), 12.0);
     }
 
     #[test]

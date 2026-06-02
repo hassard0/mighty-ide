@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Signature Help stays inside compact editor columns**: signature popups now
+  cap their width to the actual visible work area before fitting text, avoiding
+  right-edge overflow in narrow windows.
 - **Peek Definition headers fit compact cards**: inline peek now uses shorter
   compact action hints and measured-ellipsis file labels, so `file:line` and
   `Go/Esc` do not crowd each other in narrow editor columns.
