@@ -618,6 +618,20 @@ fn testing_summary_lines(passed: usize, failed: usize, total: usize, running: bo
     }
 }
 
+fn testing_state_label(running: bool, final_summary: bool, total: usize, failed: usize) -> &'static str {
+    if running && !final_summary {
+        "running\u{2026}"
+    } else if running {
+        "finalizing\u{2026}"
+    } else if total == 0 {
+        "idle"
+    } else if failed > 0 {
+        "failed"
+    } else {
+        "passed"
+    }
+}
+
 /// Geometry of the toolbar Run/Re-run + Stop buttons (under the header).
 struct ToolbarGeom {
     run_x: f32,
@@ -695,14 +709,21 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     // Header: beaker icon + "TESTING" + a state pill.
     ctx.dl_rect(sx, 0.0, sw, HEAD_H, theme::BG_2());
     ctx.dl_rect(sx, HEAD_H - 1.0, sw, 1.0, theme::BORDER_SOFT());
-    let (state_label, state_col) = if ctx.tests_panel.is_running() {
-        ("running\u{2026}", theme::WARNING())
-    } else if ctx.tests_panel.total() == 0 {
-        ("idle", theme::TEXT_3())
-    } else if ctx.tests_panel.failed() > 0 {
-        ("failed", theme::ERROR())
+    let passed = ctx.tests_panel.passed();
+    let failed = ctx.tests_panel.failed();
+    let total = ctx.tests_panel.total();
+    let running = ctx.tests_panel.is_running();
+    let final_summary = ctx.tests_panel.has_final_summary();
+    let visual_running = running && !final_summary;
+    let state_label = testing_state_label(running, final_summary, total, failed);
+    let state_col = if running {
+        theme::WARNING()
+    } else if total == 0 {
+        theme::TEXT_3()
+    } else if failed > 0 {
+        theme::ERROR()
     } else {
-        ("passed", theme::GREEN())
+        theme::GREEN()
     };
     let (state_w, _) = ctx.text.measure_ui_sized(state_label, chrome - 2.0);
     let pill_w = state_w + 18.0;
@@ -741,9 +762,6 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     ctx.text.queue_ui_sized(tb.stop_x + 28.0, tb.y + (tb.btn_h - stop_label_size) * 0.5 - 1.0, "Stop", stop_col, stop_label_size, clip);
 
     // Summary line + a proportional pass/fail bar.
-    let passed = ctx.tests_panel.passed();
-    let failed = ctx.tests_panel.failed();
-    let total = ctx.tests_panel.total();
     let sum_y = tb.y + tb.btn_h + 8.0;
     let bar_x = sx + 12.0;
     let bar_w = sw - 24.0;
@@ -764,7 +782,7 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     }
     // Summary text + duration. Compact sidebars keep real words and wrap onto a
     // second line instead of falling back to p/f/t implementation shorthand.
-    let summary_lines = testing_summary_lines(passed, failed, total, ctx.tests_panel.is_running(), sw);
+    let summary_lines = testing_summary_lines(passed, failed, total, visual_running, sw);
     let sum_text_y = sum_y + bar_h + 4.0;
     let duration = if ctx.tests_panel.duration_ms() > 0 {
         let dur = format!("{}ms", ctx.tests_panel.duration_ms());
@@ -801,8 +819,10 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     let count = ctx.tests_panel.row_count();
     let first = ctx.tests_panel.first();
     if count == 0 {
-        let msg = if ctx.tests_panel.is_running() {
+        let msg = if visual_running {
             "Running\u{2026}"
+        } else if running && final_summary {
+            "Finalizing test process\u{2026}"
         } else {
             "Run the package's tests to see results."
         };
@@ -954,6 +974,15 @@ mod tests {
             vec!["16 passed \u{00b7} 0 failed \u{00b7} 16 total".to_string()]
         );
         assert_eq!(rows_top(184.0), rows_top(260.0) + 16.0);
+    }
+
+    #[test]
+    fn testing_state_distinguishes_final_summary_from_active_running() {
+        assert_eq!(testing_state_label(true, false, 0, 0), "running\u{2026}");
+        assert_eq!(testing_state_label(true, true, 16, 0), "finalizing\u{2026}");
+        assert_eq!(testing_state_label(false, false, 0, 0), "idle");
+        assert_eq!(testing_state_label(false, true, 16, 0), "passed");
+        assert_eq!(testing_state_label(false, true, 16, 1), "failed");
     }
 
     #[test]

@@ -165,6 +165,9 @@ impl TestPanel {
             self.rows.len()
         }
     }
+    pub fn has_final_summary(&self) -> bool {
+        self.total > 0 && self.passed + self.failed >= self.total
+    }
     pub fn duration_ms(&self) -> u128 {
         self.duration_ms
     }
@@ -621,6 +624,19 @@ mod tests {
         let mut t = TestPanel::new();
         t.feed("test result: 4 passed; 2 failed\n");
         assert_eq!(t.total(), 6);
+    }
+
+    #[test]
+    fn final_summary_requires_authoritative_total_and_resolved_counts() {
+        let mut t = TestPanel::new();
+        assert!(!t.has_final_summary());
+        t.passed = 2;
+        t.failed = 1;
+        assert!(!t.has_final_summary(), "row counts without summary are not final");
+        t.total = 4;
+        assert!(!t.has_final_summary(), "partial counts should still look active");
+        t.total = 3;
+        assert!(t.has_final_summary());
     }
 
     #[test]

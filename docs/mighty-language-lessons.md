@@ -4765,3 +4765,16 @@ rendered typed draft text, making the unavailable state feel like a broken chat.
 - **Language note:** no compiler bug surfaced. Mighty UI would benefit from a
   built-in disabled-input/composer primitive that separates stored state from
   displayed setup copy and from click feedback.
+
+L331. Async tool panels need lifecycle states richer than a single running
+boolean. The Testing panel can know the final test summary before the child
+process is fully reaped, which made complete results appear under a "running"
+header during fast UI captures.
+
+- **IDE note:** the Test panel now treats an authoritative final summary as a
+  distinct visual state, showing `finalizing...` instead of `running...` while
+  the process is still being reaped. Summary copy now uses unresolved-results
+  state rather than raw process-running state.
+- **Language note:** no compiler bug surfaced. Mighty UI/runtime APIs should
+  expose async command lifecycle phases such as starting, streaming output,
+  final output received, reaping, complete, and cancelled.
