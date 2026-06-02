@@ -4814,3 +4814,28 @@ toggles, steppers, or chips.
   constraint helpers for row layouts: measured leading text, reserved trailing
   controls, ellipsis policy, and shared hit geometry from one declarative row
   spec.
+
+L335. Dense reference overlays should size rows from content, not habit. The
+Keyboard Shortcuts overlay used tall single-line rows, so the list looked sparse
+and forced unnecessary scanning even though each row only needed a command name
+and key pills.
+
+- **IDE note:** the shortcuts overlay now shows more rows with tighter row
+  height, keeps key pills vertically centered, and measures/clips the footer
+  hint before the branded footer tag.
+- **Language note:** no compiler bug surfaced. Mighty UI should expose list/table
+  density presets and measured footer slots so reference overlays can choose a
+  compact, comfortable, or spacious density without manual geometry tuning.
+
+L336. Native dialog return can swallow the next mouse transition. Immediately
+after a native folder picker returned, the next rail mouse-down could be
+consumed before the rail hit-test trace appeared, which made downstream
+mouse-only SCM checks operate on the previous Search panel.
+
+- **IDE note:** the Windows UI harness now treats rail navigation as a verified
+  mouse action, retrying bounded clicks until the intended rail panel trace is
+  observed before exercising that panel's visible controls.
+- **Language note:** no compiler bug surfaced. Mighty should eventually expose
+  an input-settled/native-dialog-complete event or post-dialog focus barrier so
+  app code and harnesses can wait for a reliable interactive frame instead of
+  timing around OS modal transitions.

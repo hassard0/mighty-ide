@@ -1102,17 +1102,39 @@ Start-Sleep -Milliseconds 150
 
 # === RAIL NAVIGATION (logical x=26; slot center = 52 + slot*42 + 19) ===
 $rail = @(
-  @{ n='search';  y=113 },
-  @{ n='scm';     y=155 },
-  @{ n='outline'; y=281 },
-  @{ n='debug';   y=323 },
-  @{ n='test';    y=365 }
+  @{ n='search';  y=113; expect=1 },
+  @{ n='scm';     y=155; expect=2 },
+  @{ n='outline'; y=281; expect=5 },
+  @{ n='debug';   y=323; expect=6 },
+  @{ n='test';    y=365; expect=7 }
 )
+
+function Invoke-RailPanelClick($name, $y, $expect) {
+  $pattern = "rail_panel_at_click .* -> $expect"
+  $before = Trace-MatchCount $pattern
+  for ($attempt = 1; $attempt -le 3; $attempt++) {
+    ClickL 26 $y
+    Start-Sleep -Milliseconds 350
+    if (Wait-TraceCountGreaterThan $pattern $before 800) {
+      if ($attempt -gt 1) {
+        Log "RAIL-MOUSE: '$name' reached panel after retry $attempt"
+      }
+      return $true
+    }
+    if ($attempt -lt 3) {
+      Log "RAIL-MOUSE: '$name' click did not reach panel on attempt $attempt; retrying"
+      $before = Trace-MatchCount $pattern
+    }
+  }
+  Log "RAIL-MOUSE: '$name' click never reached expected panel $expect"
+  $script:HarnessFailed = $true
+  return $false
+}
+
 $slot = 0
 foreach ($ic in $rail) {
   $slot++
-  ClickL 26 $ic.y
-  Start-Sleep -Milliseconds 350
+  [void](Invoke-RailPanelClick $ic.n $ic.y $ic.expect)
   $resp = Is-Responsive $hwnd
   Capture $hwnd ("20-rail-{0}-{1}" -f $slot, $ic.n)
   Log ("rail '{0}' (ly={1}) responsive={2}" -f $ic.n, $ic.y, $resp)

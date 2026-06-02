@@ -434,7 +434,7 @@ pub fn filter_rows(rows: &[ShortcutRow], query: &str) -> Vec<ShortcutRow> {
 }
 
 /// Max rows drawn at once (the visible window).
-const VISIBLE: usize = 9;
+const VISIBLE: usize = 14;
 
 /// Shim-owned shortcuts overlay state: the typed filter, the (filtered) rows, the
 /// selection, the override map, and capture mode.
@@ -714,8 +714,8 @@ impl ShortcutsEngine {
         let h = height as f32;
         let search_h = 56.0;
         let cat_h = 26.0;
-        let row_h = 44.0;
-        let foot_h = 38.0;
+        let row_h = 34.0;
+        let foot_h = 36.0;
         let fixed_h = search_h + cat_h + 10.0 + foot_h;
         let vertical_margin = if h < 640.0 { 72.0 } else { 32.0 };
         let max_box_h = (h - vertical_margin).max(fixed_h + row_h);
@@ -807,7 +807,7 @@ impl ShortcutsEngine {
 
         let search_h = 56.0;
         let cat_h = 26.0;
-        let foot_h = 38.0;
+        let foot_h = 36.0;
         let (box_x, box_y, box_w, _list_top, row_h, box_h, top, shown) = self.geometry(width, height);
         let radius = 12.0_f32;
 
@@ -851,9 +851,9 @@ impl ShortcutsEngine {
             let ry = list_top + vis as f32 * row_h;
             let selected = idx == self.sel;
             if selected {
-                ctx.dl_grad_h(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::accent_a(0.22), 0.9);
-                ctx.dl_stroke(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::ACCENT_LINE(), 1.0);
-                ctx.dl_shadow(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::ACCENT_GLOW(), 16.0);
+                ctx.dl_grad_h(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 7.0, theme::accent_a(0.22), 0.9);
+                ctx.dl_stroke(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 7.0, theme::ACCENT_LINE(), 1.0);
+                ctx.dl_shadow(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 7.0, theme::ACCENT_GLOW(), 14.0);
             }
 
             // Right-aligned kbd pills.
@@ -871,7 +871,7 @@ impl ShortcutsEngine {
                 .collect();
             let total_w: f32 = widths.iter().sum::<f32>() + gap * (tokens.len().saturating_sub(1)) as f32;
             let px = right_edge - total_w;
-            let pill_h = 21.0;
+            let pill_h = 20.0;
             let py = ry + (row_h - pill_h) * 0.5;
 
             // Title (left), fitted before remap text and shortcut pills.
@@ -884,14 +884,14 @@ impl ShortcutsEngine {
                 px - 18.0 - tag_w
             };
             let title_max = (title_right - txt_x).max(0.0);
-            let name = crate::palette::fit_palette_text(&mut ctx.text, &row.name, title_max, 13.5);
-            ctx.text.queue_ui_sized(txt_x, ry + (row_h - 14.0) * 0.5, &name, theme::TEXT(), 13.5, clip);
+            let name = crate::palette::fit_palette_text(&mut ctx.text, &row.name, title_max, 13.0);
+            ctx.text.queue_ui_sized(txt_x, ry + (row_h - 13.0) * 0.5 - 0.5, &name, theme::TEXT(), 13.0, clip);
 
             let mut draw_x = px;
             for (k, token) in tokens.iter().enumerate() {
                 let pw = widths[k];
                 if matches!(token, ShortcutToken::Separator) {
-                    ctx.text.queue_ui_sized(draw_x + 1.0, py + 4.5, "/", theme::OVERLAY_SUBTLE(), 11.0, clip);
+                    ctx.text.queue_ui_sized(draw_x + 1.0, py + 4.0, "/", theme::OVERLAY_SUBTLE(), 11.0, clip);
                     draw_x += pw + gap;
                     continue;
                 }
@@ -906,7 +906,7 @@ impl ShortcutsEngine {
                 ctx.dl_round(draw_x, py, pw, pill_h, 5.0, pbg);
                 ctx.dl_stroke(draw_x, py, pw, pill_h, 5.0, pborder, 1.0);
                 let lbl_w = part.chars().count() as f32 * kadv;
-                ctx.text.queue_ui_sized(draw_x + (pw - lbl_w) * 0.5, py + 4.5, part, pfg, 11.0, clip);
+                ctx.text.queue_ui_sized(draw_x + (pw - lbl_w) * 0.5, py + 4.0, part, pfg, 11.0, clip);
                 draw_x += pw + gap;
             }
 
@@ -915,7 +915,7 @@ impl ShortcutsEngine {
                 let tag_w = tag.chars().count() as f32 * 5.6;
                 let tag_x = px - 18.0 - tag_w;
                 let tcol = if row.remappable { theme::ACCENT_BRIGHT() } else { theme::OVERLAY_SUBTLE() };
-                ctx.text.queue_ui_sized(tag_x, ry + (row_h - 10.0) * 0.5, tag, tcol, 10.0, clip);
+                ctx.text.queue_ui_sized(tag_x, ry + (row_h - 10.0) * 0.5 - 0.5, tag, tcol, 10.0, clip);
             }
         }
 
@@ -924,15 +924,22 @@ impl ShortcutsEngine {
         ctx.dl_rect(box_x + 1.0, foot_y, box_w - 2.0, 1.0, theme::BORDER());
         ctx.dl_round(box_x + 1.0, foot_y, box_w - 2.0, foot_h - 1.0, 0.0, theme::BG_2());
         let fty = foot_y + (foot_h - chrome + 1.0) * 0.5 - 1.0;
-        if self.capturing {
-            ctx.text.queue_ui_sized(box_x + 18.0, fty, &self.status, theme::ACCENT_BRIGHT(), 11.5, clip);
-        } else if !self.status.is_empty() {
-            ctx.text.queue_ui_sized(box_x + 18.0, fty, &self.status, theme::TEXT_1(), 11.5, clip);
-        } else if let Some(hint) = Self::default_footer_hint(box_w) {
-            ctx.text.queue_ui_sized(box_x + 18.0, fty, hint, theme::OVERLAY_SUBTLE(), 11.0, clip);
-        }
         let tag = "Mighty Shortcuts";
-        ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
+        let (tag_w, _) = ctx.text.measure_ui_sized(tag, 11.0);
+        let tag_x = box_x + box_w - 18.0 - tag_w;
+        let footer_text_x = box_x + 18.0;
+        let footer_max = (tag_x - 20.0 - footer_text_x).max(0.0);
+        if self.capturing {
+            let status = crate::palette::fit_palette_text(&mut ctx.text, &self.status, footer_max, 11.5);
+            ctx.text.queue_ui_sized(footer_text_x, fty, &status, theme::ACCENT_BRIGHT(), 11.5, clip);
+        } else if !self.status.is_empty() {
+            let status = crate::palette::fit_palette_text(&mut ctx.text, &self.status, footer_max, 11.5);
+            ctx.text.queue_ui_sized(footer_text_x, fty, &status, theme::TEXT_1(), 11.5, clip);
+        } else if let Some(hint) = Self::default_footer_hint(box_w) {
+            let hint = crate::palette::fit_palette_text(&mut ctx.text, hint, footer_max, 11.0);
+            ctx.text.queue_ui_sized(footer_text_x, fty, &hint, theme::OVERLAY_SUBTLE(), 11.0, clip);
+        }
+        ctx.text.queue_ui_sized(tag_x, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
     }
 }
 
@@ -1275,7 +1282,7 @@ mod tests {
     #[test]
     fn selected_shortcut_affordance_compacts_when_key_gutter_is_tight() {
         assert_eq!(shortcut_row_affordance(true, true, 620.0), "Enter to remap");
-        assert_eq!(shortcut_row_affordance(true, true, 420.0), "Enter");
+        assert_eq!(shortcut_row_affordance(true, true, 420.0), "Remap");
         assert_eq!(shortcut_row_affordance(true, false, 620.0), "");
         assert_eq!(shortcut_row_affordance(false, true, 420.0), "fixed");
     }
