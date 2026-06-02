@@ -3727,3 +3727,18 @@ the actual shaped code font did not match that estimate closely enough.
 - **Language note:** no compiler gap surfaced. Mighty UI still needs reusable
   text-fit primitives for code-font and UI-font labels so each panel does not
   duplicate binary-search ellipsizing in Rust.
+
+### L255. Inputs with trailing adornments need shared text budgets **[finding, P2]**
+The compact Quick Open capture showed the empty-search placeholder ending too
+close to the `FILES` mode pill. The measured text fit was technically inside its
+old bounds, but the visual result still read as overlapping because low-priority
+hint copy did not reserve enough space before the high-contrast adornment.
+
+- **IDE note:** Quick Open now derives the query text budget from the same
+  rendered text origin used by the draw call and reserves extra trailing space
+  for placeholder copy before the mode pill. The regression test models the
+  compact `560x520` overlay geometry.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a shared input
+  field primitive that owns icon, caret, placeholder, typed text, and trailing
+  adornment budgets together instead of requiring each overlay to re-create that
+  layout math in Rust.

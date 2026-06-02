@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Quick Open placeholder yields before the mode pill**: compact overlays now
+  reserve a larger measured text budget before the `FILES` / `CMDS` adornment,
+  and fall back to a clean short placeholder instead of clipping halfway through
+  the mode-hint sentence.
 - **Run output rows fit compact docks**: Run panel output now ellipsizes by
   measured code-font width instead of a fixed character estimate, keeping long
   diagnostics inside compact bottom-dock bounds.

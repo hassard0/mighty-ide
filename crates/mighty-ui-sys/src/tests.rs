@@ -2975,10 +2975,24 @@ fn debug_stack_name_fits_before_location() {
 fn quickopen_search_placeholder_fits_before_mode_pill() {
     let mut ctx = ctx_or_skip!();
     let placeholder = "Search files by name\u{2026}  (\u{203A} commands  @ symbols  : line)";
-    let shown = crate::quickopen::fit_query_text(&mut ctx.text, placeholder, 190.0, 16.0);
+    let box_x = 40.0;
+    let box_w = 480.0;
+    let q_text_base_x = box_x + 50.0;
+    let q_text_x = q_text_base_x + 10.0;
+    let pill_w = 44.0;
+    let pill_x = box_x + box_w - pill_w - 18.0;
+    let budget = crate::quickopen::quickopen_query_text_budget(q_text_x, pill_x, true);
+    let shown = crate::quickopen::fit_query_placeholder(&mut ctx.text, placeholder, budget, 16.0);
     let (shown_w, _) = ctx.text.measure_ui_sized(&shown, 16.0);
-    assert!(shown_w <= 190.0, "placeholder should fit before mode pill: {shown}");
+    assert!(
+        q_text_x + shown_w <= pill_x - 30.0,
+        "placeholder should leave a visible gap before mode pill: {shown}"
+    );
     assert!(shown.ends_with('\u{2026}'));
+    assert!(
+        !shown.contains('('),
+        "compact placeholder should not render a partial mode-hint sentence: {shown}"
+    );
 }
 
 #[test]

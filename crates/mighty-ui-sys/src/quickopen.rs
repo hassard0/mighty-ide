@@ -941,8 +941,12 @@ impl QuickOpen {
         } else {
             (self.query.as_str(), theme::TEXT())
         };
-        let query_max = (pill_x - 12.0 - q_text_x).max(0.0);
-        let q_shown = fit_query_text(&mut ctx.text, q_str, query_max, 16.0);
+        let query_max = quickopen_query_text_budget(q_text_x, pill_x, self.query.is_empty());
+        let q_shown = if self.query.is_empty() {
+            fit_query_placeholder(&mut ctx.text, q_str, query_max, 16.0)
+        } else {
+            fit_query_text(&mut ctx.text, q_str, query_max, 16.0)
+        };
         ctx.text.queue_ui_sized(q_text_x, qy, &q_shown, q_color, 16.0, clip);
         let (q_w, _) = ctx.text.measure_ui_sized(&q_shown, 16.0);
         let caret_x = if self.query.is_empty() {
@@ -1057,6 +1061,23 @@ fn quickopen_search_text_x(base_x: f32, is_placeholder: bool) -> f32 {
     } else {
         base_x
     }
+}
+
+pub(crate) fn quickopen_query_text_budget(text_x: f32, pill_x: f32, is_placeholder: bool) -> f32 {
+    let trailing_gap = if is_placeholder { 30.0 } else { 16.0 };
+    (pill_x - trailing_gap - text_x).max(0.0)
+}
+
+pub(crate) fn fit_query_placeholder(
+    text: &mut crate::text::Text,
+    s: &str,
+    max_px: f32,
+    size: f32,
+) -> String {
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    fit_query_text(text, "Search files by name\u{2026}", max_px, size)
 }
 
 pub(crate) fn fit_query_text(
