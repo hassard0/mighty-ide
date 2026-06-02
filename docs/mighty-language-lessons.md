@@ -1020,7 +1020,7 @@ comfortable with small tagged structs or enums.
   action family. If structs are not ready, consider generated constants on the Mighty
   side so `search_click_replace_all()` replaces raw `2`.
 
-### L50. `mty build` can exit success after object-only output when linker discovery fails **[language/tooling gap, P1]**
+### L50. `mty build` can exit success after object-only output when linker discovery fails **[language/tooling gap, P1, FIXED v0.46 T2]**
 While re-verifying the IDE build on May 31, 2026, `mty build src/main.mty --out-dir target`
 printed `wrote object target\main.o (no linker found; set $MTY_LINKER)` and returned
 success even though `target/main.exe` was not produced. Setting `MTY_LINKER` to
@@ -1036,6 +1036,23 @@ on PATH still produced object-only output in this environment.
   executable is not produced. It should also honor `MTY_LINKER` on Windows paths
   with spaces, or emit the exact env/path it tried so linker discovery failures
   are actionable.
+- **Mighty fix (v0.46 T2, June 2, 2026):** `mty build` now exits non-zero on
+  the native target whenever no linker can be discovered or the link step
+  doesn't actually produce a non-empty executable. CI flows that only need the
+  `.o` may opt back into the historic "object-only is OK" path via `--emit obj`.
+  Discovery emits a structured trace of every env var (`$MTY_LINKER`,
+  `$STARDUST_LINKER`) and PATH candidate (`clang`, `gcc`, `cc`, `lld-link`,
+  `ld.lld`, `lld`) that was probed plus the outcome (`unset` / `not on PATH` /
+  `file does not exist` / `found <path>`). `MTY_LINKER` honours wrapping ASCII
+  quotes (`MTY_LINKER='"C:\Program Files\LLVM\bin\clang.exe"'`) and PATH
+  lookup for bare program names (`MTY_LINKER=clang`). Linker stderr is folded
+  into the diagnostic when the link step itself fails, and a successful exit
+  that nevertheless produces no/empty output now reports the corner case
+  explicitly. Tracked in `crates/mty-codegen-cranelift/src/object.rs`
+  (`discover_linker`, `LinkerDiscovery::summary`),
+  `crates/mty-driver/src/build.rs`
+  (`BuildOutcome::NativeOkNoLinker { object_path, discovery }`), and
+  `crates/mty-cli/src/cmd/build.rs` (exit-code routing + `--emit obj`).
 
 ### L51. Runtime ABI archives must track Mighty's imported symbol table **[language/tooling gap, P1]**
 After fixing `build-ide.sh` to fail on missing `target/main.exe`, the next native

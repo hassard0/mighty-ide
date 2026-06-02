@@ -205,6 +205,7 @@ function Finish-Harness($proc) {
   Remove-Item Env:\MUI_OPEN_FILE_PICK -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_OPEN_FILE_PICK_SEQUENCE -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_OPEN_FOLDER_PICK -ErrorAction SilentlyContinue
+  Remove-Item Env:\MUI_OPEN_FOLDER_PICK_SEQUENCE -ErrorAction SilentlyContinue
   if (-not $termProbeWasSet) { Remove-Item Env:\MUI_TERM_PROBE_TEXT -ErrorAction SilentlyContinue }
   if (-not $termVisibleProbeWasSet) { Remove-Item Env:\ZZZ_MUI_TERM_PROBE_TEXT -ErrorAction SilentlyContinue }
   if (-not $traceWasSet) { Remove-Item Env:\MUI_TRACE -ErrorAction SilentlyContinue }
@@ -213,6 +214,7 @@ function Finish-Harness($proc) {
   Remove-Item -LiteralPath $saveAllPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $openPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $mdPath -Force -ErrorAction SilentlyContinue
+  if ($script:scmRepoPath) { Remove-Item -LiteralPath $script:scmRepoPath -Recurse -Force -ErrorAction SilentlyContinue }
   Remove-Item -LiteralPath $openFolderPath -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $newFolderPath -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $newProjectPath -Recurse -Force -ErrorAction SilentlyContinue
@@ -257,6 +259,20 @@ Set-Content -LiteralPath $searchPath -Value "opened" -Encoding ascii
 $openFolderPath = Join-Path ([System.IO.Path]::GetTempPath()) ("mighty-ide-harnessworkspace-{0}" -f $PID)
 New-Item -ItemType Directory -Path $openFolderPath -Force | Out-Null
 Set-Content -LiteralPath (Join-Path $openFolderPath "ROOT.mty") -Value "workspace-root" -Encoding utf8
+$script:scmRepoPath = Join-Path ([System.IO.Path]::GetTempPath()) ("mighty-ide-harness-scm-{0}" -f $PID)
+$gitAvailable = $false
+if (Get-Command git -ErrorAction SilentlyContinue) {
+  New-Item -ItemType Directory -Path $script:scmRepoPath -Force | Out-Null
+  & git -C $script:scmRepoPath init -q | Out-Null
+  & git -C $script:scmRepoPath config user.email "harness@example.invalid" | Out-Null
+  & git -C $script:scmRepoPath config user.name "Mighty Harness" | Out-Null
+  Set-Content -LiteralPath (Join-Path $script:scmRepoPath "tracked.mty") -Value "old" -Encoding ascii
+  & git -C $script:scmRepoPath add tracked.mty | Out-Null
+  & git -C $script:scmRepoPath commit -q -m "init" | Out-Null
+  Set-Content -LiteralPath (Join-Path $script:scmRepoPath "tracked.mty") -Value "new" -Encoding ascii
+  Set-Content -LiteralPath (Join-Path $script:scmRepoPath "fresh.mty") -Value "fresh" -Encoding ascii
+  $gitAvailable = $true
+}
 # The IDE now uses native SaveFileDialog paths for Save As, untitled Save, and
 # Save All. Feed deterministic picker results so the harness does not block on
 # OS-modal dialogs while still proving each command consumes a dialog path.
@@ -266,7 +282,11 @@ $env:MUI_NEW_FILE_PICK_SEQUENCE = "$welcomeFilePath|$newFilePath"
 $env:MUI_NEW_FOLDER_PICK = $newFolderPath
 $env:MUI_NEW_PROJECT_PICK = $newProjectPath
 $env:MUI_OPEN_FILE_PICK_SEQUENCE = "$openPath|$mdPath"
-$env:MUI_OPEN_FOLDER_PICK = $openFolderPath
+if ($gitAvailable) {
+  $env:MUI_OPEN_FOLDER_PICK_SEQUENCE = "$script:scmRepoPath|$openFolderPath"
+} else {
+  $env:MUI_OPEN_FOLDER_PICK = $openFolderPath
+}
 
 function Get-WinRect($h) {
   $r = New-Object Win+RECT
@@ -1126,6 +1146,19 @@ foreach ($ic in $rail) {
       Log "SEARCH-REPLACE-MOUSE: fixture did not contain expected replacement -> $searchPath"
       $script:HarnessFailed = $true
     }
+    if ($gitAvailable) {
+      Invoke-PaletteCommand "open folder" "20-scm-open-temp-repo"
+      Start-Sleep -Milliseconds 700
+      if ($env:MUI_TRACE) {
+        $scmFolderTrace = "workspace_open_folder path=$script:scmRepoPath changed=1"
+        if (Wait-TraceLiteralContains $scmFolderTrace 7000) {
+          Log "SCM-WORKSPACE: native folder picker opened isolated git fixture"
+        } else {
+          Log "SCM-WORKSPACE: missing isolated git fixture open trace"
+          $script:HarnessFailed = $true
+        }
+      }
+    }
   }
   if ($ic.n -eq 'debug') {
     $dbgStartCount = Trace-MatchCount "dbg_toolbar action=start_continue"
@@ -1169,6 +1202,77 @@ foreach ($ic in $rail) {
         Log "SCM-REFRESH-MOUSE: visible refresh icon rescanned local status"
       } else {
         Log "SCM-REFRESH-MOUSE: refresh icon did not rescan local status"
+        $script:HarnessFailed = $true
+      }
+    }
+    if ($gitAvailable) {
+      $toggleBefore = Trace-MatchCount "(?m)^scm_toggle_stage ok=1"
+      ClickL 280 127
+      Start-Sleep -Milliseconds 550
+      if ($env:MUI_TRACE) {
+        if (Wait-TraceCountGreaterThan "(?m)^scm_toggle_stage ok=1" $toggleBefore 2500) {
+          Log "SCM-ROW-STAGE-MOUSE: visible row plus staged one change in isolated repo"
+        } else {
+          Log "SCM-ROW-STAGE-MOUSE: missing visible row stage trace"
+          $script:HarnessFailed = $true
+        }
+      }
+      $toggleBefore = Trace-MatchCount "(?m)^scm_toggle_stage ok=1"
+      ClickL 280 127
+      Start-Sleep -Milliseconds 550
+      if ($env:MUI_TRACE) {
+        if (Wait-TraceCountGreaterThan "(?m)^scm_toggle_stage ok=1" $toggleBefore 2500) {
+          Log "SCM-ROW-UNSTAGE-MOUSE: visible row minus unstaged one change in isolated repo"
+        } else {
+          Log "SCM-ROW-UNSTAGE-MOUSE: missing visible row unstage trace"
+          $script:HarnessFailed = $true
+        }
+      }
+      $stageAllBefore = Trace-MatchCount "(?m)^scm_stage_all ok=1"
+      Invoke-PaletteCommand "git stage all" $null
+      if ($env:MUI_TRACE) {
+        if (Wait-TraceCountGreaterThan "(?m)^scm_stage_all ok=1 staged=2 unstaged=0" $stageAllBefore 3500) {
+          Log "SCM-STAGE-ALL-COMMAND: command palette staged tracked and untracked changes"
+        } else {
+          Log "SCM-STAGE-ALL-COMMAND: missing stage-all trace"
+          $script:HarnessFailed = $true
+        }
+      }
+      $unstageAllBefore = Trace-MatchCount "(?m)^scm_unstage_all ok=1"
+      Invoke-PaletteCommand "git unstage all" $null
+      if ($env:MUI_TRACE) {
+        if (Wait-TraceCountGreaterThan "(?m)^scm_unstage_all ok=1 staged=0 unstaged=2" $unstageAllBefore 3500) {
+          Log "SCM-UNSTAGE-ALL-COMMAND: command palette unstaged all changes"
+        } else {
+          Log "SCM-UNSTAGE-ALL-COMMAND: missing unstage-all trace"
+          $script:HarnessFailed = $true
+        }
+      }
+      Invoke-PaletteCommand "git stage all" $null
+      ClickL 120 63
+      Start-Sleep -Milliseconds 120
+      Type-Text $hwnd "harness commit"
+      Start-Sleep -Milliseconds 150
+      $commitBefore = Trace-MatchCount "(?m)^scm_commit ok=1"
+      $commitHeaderBefore = Trace-MatchCount "(?m)^scm_header action=commit$"
+      ClickL 213 20
+      Start-Sleep -Milliseconds 850
+      Capture $hwnd "20-scm-committed"
+      if ($env:MUI_TRACE) {
+        if ((Wait-TraceCountGreaterThan "(?m)^scm_header action=commit$" $commitHeaderBefore 2500) -and
+            (Wait-TraceCountGreaterThan "(?m)^scm_commit ok=1 staged=0 unstaged=0" $commitBefore 3500)) {
+          Log "SCM-COMMIT-MOUSE: visible header check committed staged changes"
+        } else {
+          Log "SCM-COMMIT-MOUSE: missing header commit or clean-status trace"
+          $script:HarnessFailed = $true
+        }
+      }
+      $lastSubject = (& git -C $script:scmRepoPath log -1 --pretty=%s 2>$null)
+      $porcelain = (& git -C $script:scmRepoPath status --porcelain 2>$null)
+      if ($lastSubject -eq "harnesscommit" -and -not $porcelain) {
+        Log "SCM-COMMIT-MOUSE: isolated git repo is clean at commit '$lastSubject'"
+      } else {
+        Log "SCM-COMMIT-MOUSE: git repo not clean or wrong subject subject='$lastSubject' status='$porcelain'"
         $script:HarnessFailed = $true
       }
     }

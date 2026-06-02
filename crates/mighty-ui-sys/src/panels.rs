@@ -185,10 +185,18 @@ pub extern "C" fn mui_scm_toggle_stage(handle: i64, i: i32) -> i32 {
         return 0;
     };
     if i < 0 {
+        crate::abi::trace("scm_toggle_stage ok=0 idx=-1");
         return 0;
     }
     let dir = workspace_dir(ctx);
-    if ctx.scm.toggle_stage(i as usize, &dir) {
+    let ok = ctx.scm.toggle_stage(i as usize, &dir);
+    let staged = ctx.scm.status.staged_count();
+    let unstaged = ctx.scm.status.unstaged_count();
+    crate::abi::trace(&format!(
+        "scm_toggle_stage ok={} idx={i} staged={staged} unstaged={unstaged}",
+        i32::from(ok)
+    ));
+    if ok {
         1
     } else {
         0
@@ -205,7 +213,14 @@ pub extern "C" fn mui_scm_stage_all(handle: i64) -> i32 {
     if ctx.scm.root.is_none() {
         ctx.scm.refresh(&dir);
     }
-    if ctx.scm.stage_all(&dir) {
+    let ok = ctx.scm.stage_all(&dir);
+    let staged = ctx.scm.status.staged_count();
+    let unstaged = ctx.scm.status.unstaged_count();
+    crate::abi::trace(&format!(
+        "scm_stage_all ok={} staged={staged} unstaged={unstaged}",
+        i32::from(ok)
+    ));
+    if ok {
         ctx.push_toast(crate::toast::Kind::Success, "Staged all changes");
         1
     } else {
@@ -224,7 +239,14 @@ pub extern "C" fn mui_scm_unstage_all(handle: i64) -> i32 {
     if ctx.scm.root.is_none() {
         ctx.scm.refresh(&dir);
     }
-    if ctx.scm.unstage_all(&dir) {
+    let ok = ctx.scm.unstage_all(&dir);
+    let staged = ctx.scm.status.staged_count();
+    let unstaged = ctx.scm.status.unstaged_count();
+    crate::abi::trace(&format!(
+        "scm_unstage_all ok={} staged={staged} unstaged={unstaged}",
+        i32::from(ok)
+    ));
+    if ok {
         ctx.push_toast(crate::toast::Kind::Success, "Unstaged all changes");
         1
     } else {
@@ -287,7 +309,14 @@ pub extern "C" fn mui_scm_commit(handle: i64) -> i32 {
         return 0;
     };
     let dir = workspace_dir(ctx);
-    if ctx.scm.commit_message(&dir) {
+    let ok = ctx.scm.commit_message(&dir);
+    let staged = ctx.scm.status.staged_count();
+    let unstaged = ctx.scm.status.unstaged_count();
+    crate::abi::trace(&format!(
+        "scm_commit ok={} staged={staged} unstaged={unstaged}",
+        i32::from(ok)
+    ));
+    if ok {
         println!("scm: committed");
         ctx.push_toast(crate::toast::Kind::Success, "Committed changes");
         1

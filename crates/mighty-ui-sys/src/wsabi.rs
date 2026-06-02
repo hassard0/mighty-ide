@@ -17,7 +17,10 @@
 //! and is rate-limited by [`crate::lightbulb::Lightbulb`] so the LSP isn't
 //! spammed each frame.
 
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::{Mutex, OnceLock},
+};
 
 use crate::{layout, theme, MuiContext};
 
@@ -417,6 +420,12 @@ enum FolderDialogPick {
 /// Runs a tiny PowerShell snippet that opens a `FolderBrowserDialog` and prints
 /// the selected path; we read it back off stdout.
 fn pick_folder_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FolderDialogPick {
+    if let Ok(sequence) = std::env::var("MUI_OPEN_FOLDER_PICK_SEQUENCE") {
+        let trimmed = sequence.trim();
+        if !trimmed.is_empty() {
+            return next_folder_pick_from_sequence(trimmed);
+        }
+    }
     if let Ok(path) = std::env::var("MUI_OPEN_FOLDER_PICK") {
         let trimmed = path.trim();
         return if trimmed.is_empty() {
@@ -478,6 +487,26 @@ try {
         FolderDialogPick::Cancelled
     } else {
         FolderDialogPick::Picked(path)
+    }
+}
+
+fn next_folder_pick_from_sequence(sequence: &str) -> FolderDialogPick {
+    static NEXT_PICK: OnceLock<Mutex<(String, usize)>> = OnceLock::new();
+    let mut state = NEXT_PICK
+        .get_or_init(|| Mutex::new((String::new(), 0)))
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if state.0 != sequence {
+        state.0 = sequence.to_string();
+        state.1 = 0;
+    }
+    let idx = state.1;
+    state.1 = state.1.saturating_add(1);
+    let picked = sequence.split('|').nth(idx).unwrap_or("").trim();
+    if picked.is_empty() {
+        FolderDialogPick::Cancelled
+    } else {
+        FolderDialogPick::Picked(picked.to_string())
     }
 }
 
