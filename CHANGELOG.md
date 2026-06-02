@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Keyboard Shortcuts no longer mixes action hints with chords**: compact
+  selected rows now show `Remap` instead of a standalone `Enter` label beside
+  the shortcut pills, so the visible chord reads as `Ctrl` + `N`, not
+  `Enter` + `Ctrl` + `N`.
 - **Welcome copy fits compact windows**: the first-run surface now says
   `New File`, `New Project`, `Open File`, and `Open Folder` without faux
   truncation marks, and uses a shorter compact subtitle while keeping the same

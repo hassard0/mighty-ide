@@ -3813,3 +3813,14 @@ budget and the literal ellipsis made even short labels look visually clipped.
   preserving the native picker-backed behavior.
 - **Language note:** no compiler gap surfaced. Mighty UI needs command metadata
   that can separate concise surface labels from longer tooltip/description text.
+
+### L262. Shortcut rows must visually separate action affordances from key chords **[finding, P2]**
+The compact Keyboard Shortcuts overlay drew the selected-row remap hint as
+`Enter` immediately beside the actual `Ctrl` + `N` shortcut pills. Visually, it
+read like `Enter` was part of the shortcut rather than a row action.
+
+- **IDE note:** compact selected shortcut rows now use the action label `Remap`;
+  wider rows still have room for `Enter to remap`.
+- **Language note:** no compiler gap surfaced. Mighty UI needs reusable
+  shortcut-row primitives with separate regions for command name, action
+  affordance, and keybinding pills.

@@ -963,7 +963,7 @@ pub(crate) fn shortcut_row_affordance(remappable: bool, selected: bool, availabl
     } else if selected && available_px >= 580.0 {
         "Enter to remap"
     } else if selected {
-        "Enter"
+        "Remap"
     } else {
         ""
     }
@@ -999,6 +999,17 @@ mod tests {
         assert_eq!(c.label(), "Ctrl+Shift+V");
         assert_eq!(Chord::new(92, MOD_CTRL).label(), "Ctrl+\\");
         assert_eq!(Chord::new('z' as i32, MOD_ALT).label(), "Alt+Z");
+    }
+
+    #[test]
+    fn compact_selected_affordance_is_not_a_key_chord() {
+        assert_eq!(shortcut_row_affordance(true, true, 120.0), "Remap");
+        assert_eq!(
+            shortcut_row_affordance(true, true, 640.0),
+            "Enter to remap"
+        );
+        assert_eq!(shortcut_row_affordance(false, true, 120.0), "fixed");
+        assert_eq!(shortcut_row_affordance(true, false, 120.0), "");
     }
 
     #[test]
