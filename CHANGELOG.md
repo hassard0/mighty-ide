@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Overlay helper text is readable**: command palette, Keyboard Shortcuts, and
+  Settings now use overlay-specific secondary colors so descriptions,
+  placeholders, and footer hints no longer disappear into dark modal surfaces.
 - **Split editor** (`Ctrl+\`): side-by-side editor panes; focus a pane with
   `Ctrl+1` / `Ctrl+2`, click a pane to focus it.
 - **Save All** (`Ctrl+Alt+S`): writes every dirty file-backed tab at once and

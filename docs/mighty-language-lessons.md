@@ -3519,3 +3519,17 @@ called out as clunky.
 - **Language note:** no compiler gap surfaced. Mighty UI still needs a stronger
   end-to-end test vocabulary for host-window interactions such as move, resize,
   minimize, maximize, and focus restoration.
+
+### L239. Native overlays need contrast tokens and screenshot-grade assertions **[finding, P1]**
+The command palette, Settings, and Keyboard Shortcuts were functionally correct
+but still read as sloppy because helper text used passive chrome colors that
+were too faint on dark elevated cards. Unit tests could pass while a human saw
+low-contrast descriptions and footer hints.
+
+- **IDE note:** overlay-specific muted/subtle colors now separate workflow copy
+  from passive editor chrome, and theme tests assert that dark-theme overlay
+  helper text is brighter than passive tertiary chrome.
+- **Language note:** no compiler gap surfaced. Mighty UI would benefit from
+  first-class design-token primitives and screenshot assertions for contrast,
+  text bounds, and overlay hierarchy so visual quality can be tested in the
+  language-facing app layer, not only in the Rust shim.

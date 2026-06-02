@@ -820,7 +820,7 @@ impl ShortcutsEngine {
         let q_text_x = search_field_text_x(q_text_base_x, self.query.is_empty());
         let qy = box_y + (search_h - 16.0) * 0.5 - 1.0;
         let (q_str, q_color): (&str, _) = if self.query.is_empty() {
-            (if box_w < 360.0 { "Search\u{2026}" } else { "Search keyboard shortcuts\u{2026}" }, theme::TEXT_3())
+            (if box_w < 360.0 { "Search\u{2026}" } else { "Search keyboard shortcuts\u{2026}" }, theme::OVERLAY_SUBTLE())
         } else {
             (self.query.as_str(), theme::TEXT())
         };
@@ -835,7 +835,7 @@ impl ShortcutsEngine {
 
         // ---- category / title ----
         let cat_y = box_y + search_h + 8.0;
-        ctx.text.queue_ui_sized(box_x + 18.0, cat_y, "KEYBOARD SHORTCUTS", theme::TEXT_3(), chrome - 2.5, clip);
+        ctx.text.queue_ui_sized(box_x + 18.0, cat_y, "KEYBOARD SHORTCUTS", theme::OVERLAY_SUBTLE(), chrome - 2.5, clip);
 
         // ---- rows ----
         let list_top = box_y + search_h + cat_h;
@@ -901,7 +901,7 @@ impl ShortcutsEngine {
             if !tag.is_empty() {
                 let tag_w = tag.chars().count() as f32 * 5.6;
                 let tag_x = px - 18.0 - tag_w;
-                let tcol = if row.remappable { theme::ACCENT_BRIGHT() } else { theme::TEXT_3() };
+                let tcol = if row.remappable { theme::ACCENT_BRIGHT() } else { theme::OVERLAY_SUBTLE() };
                 ctx.text.queue_ui_sized(tag_x, ry + (row_h - 10.0) * 0.5, tag, tcol, 10.0, clip);
             }
         }
@@ -916,7 +916,7 @@ impl ShortcutsEngine {
         } else if !self.status.is_empty() {
             ctx.text.queue_ui_sized(box_x + 18.0, fty, &self.status, theme::TEXT_1(), 11.5, clip);
         } else if let Some(hint) = Self::default_footer_hint(box_w) {
-            ctx.text.queue_ui_sized(box_x + 18.0, fty, hint, theme::TEXT_3(), 11.0, clip);
+            ctx.text.queue_ui_sized(box_x + 18.0, fty, hint, theme::OVERLAY_SUBTLE(), 11.0, clip);
         }
         let tag = "Mighty Shortcuts";
         ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);

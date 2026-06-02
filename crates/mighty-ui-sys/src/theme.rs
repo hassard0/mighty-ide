@@ -506,6 +506,28 @@ color_fn!(TEXT_4, text_4);
 color_fn!(GUTTER, gutter);
 color_fn!(GUTTER_ACTIVE, gutter_active);
 
+/// Secondary text inside modal/command overlays. This is intentionally brighter
+/// than `TEXT_3`: overlay helper text is workflow copy, not passive chrome.
+#[inline]
+pub fn OVERLAY_MUTED() -> MuiColor {
+    if active().is_light {
+        active().dim
+    } else {
+        hex(0x9292a2, 1.0)
+    }
+}
+
+/// Tertiary labels inside modal/command overlays, such as category names and
+/// footer hints. Kept legible against elevated cards and selected-row glows.
+#[inline]
+pub fn OVERLAY_SUBTLE() -> MuiColor {
+    if active().is_light {
+        active().text_3
+    } else {
+        hex(0x747486, 1.0)
+    }
+}
+
 color_fn!(ACCENT, accent);
 color_fn!(ACCENT_BRIGHT, accent_bright);
 color_fn!(ACCENT_DIM, accent_dim);
@@ -639,6 +661,24 @@ mod tests {
     fn all_three_names_distinct() {
         let names: Vec<&str> = ThemeId::ALL.iter().map(|i| i.name()).collect();
         assert_eq!(names, ["Vivid Modern", "Aurora Glass", "Warm Studio"]);
+    }
+
+    #[test]
+    fn overlay_helper_text_is_brighter_than_passive_chrome_on_dark_themes() {
+        set_active(ThemeId::Vivid);
+        let helper = OVERLAY_MUTED();
+        let label = OVERLAY_SUBTLE();
+        let passive = TEXT_3();
+        assert!(helper.r > passive.r && helper.g > passive.g && helper.b > passive.b);
+        assert!(label.r > passive.r && label.g > passive.g && label.b > passive.b);
+
+        set_active(ThemeId::Aurora);
+        let helper = OVERLAY_MUTED();
+        let label = OVERLAY_SUBTLE();
+        let passive = TEXT_3();
+        assert!(helper.r > passive.r && helper.g > passive.g && helper.b > passive.b);
+        assert!(label.r > passive.r && label.g > passive.g && label.b > passive.b);
+        set_active(ThemeId::Vivid);
     }
 
     #[test]

@@ -384,7 +384,7 @@ impl SettingsPanel {
             };
             ctx.text.queue_ui_sized(txt_x, label_y, row.label(), theme::TEXT(), 14.0, clip);
             if !compact_row {
-                ctx.text.queue_ui_sized(txt_x, ry + 27.0, row.desc(), theme::TEXT_3(), 11.5, clip);
+                ctx.text.queue_ui_sized(txt_x, ry + 27.0, row.desc(), theme::OVERLAY_MUTED(), 11.5, clip);
             }
 
             // Control (right): a stepper for numeric rows, an on/off pill for

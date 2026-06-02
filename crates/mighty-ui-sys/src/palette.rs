@@ -779,7 +779,7 @@ impl PaletteEngine {
         let q_text_x = command_field_text_x(q_text_base_x, self.query.is_empty());
         let qy = box_y + (search_h - 16.0) * 0.5 - 1.0;
         let (q_str, q_color): (&str, _) = if self.query.is_empty() {
-            ("Type a command\u{2026}", theme::TEXT_3())
+            ("Type a command\u{2026}", theme::OVERLAY_SUBTLE())
         } else {
             (self.query.as_str(), theme::TEXT())
         };
@@ -800,7 +800,7 @@ impl PaletteEngine {
         // ---- category label ----
         let cat_y = box_y + search_h + 9.0;
         let cat: String = "COMMANDS".chars().flat_map(|c| [c, '\u{2009}']).collect();
-        ctx.text.queue_ui_sized(box_x + 18.0, cat_y, &cat, theme::TEXT_3(), chrome - 2.5, clip);
+        ctx.text.queue_ui_sized(box_x + 18.0, cat_y, &cat, theme::OVERLAY_SUBTLE(), chrome - 2.5, clip);
 
         // ---- rows ----
         let list_top = box_y + search_h + cat_h;
@@ -852,7 +852,7 @@ impl PaletteEngine {
             let title = fit_palette_text(&mut ctx.text, cmd.label, text_max, 13.5);
             ctx.text.queue_ui_sized(txt_x, ry + 11.0, &title, theme::TEXT(), 13.5, clip);
             if !desc.is_empty() {
-                let desc_col = if selected { theme::TEXT_1() } else { theme::TEXT_3() };
+                let desc_col = if selected { theme::TEXT_1() } else { theme::OVERLAY_MUTED() };
                 let desc = fit_palette_text(&mut ctx.text, desc, text_max, 11.5);
                 ctx.text.queue_ui_sized(txt_x, ry + 28.0, &desc, desc_col, 11.5, clip);
             }
@@ -886,7 +886,7 @@ impl PaletteEngine {
             ctx.dl_stroke(*fx, foot_y + (foot_h - 18.0) * 0.5, kw, 18.0, 4.0, theme::BORDER_STRONG(), 1.0);
             ctx.text.queue_ui_sized(*fx + 5.0, foot_y + (foot_h - 10.0) * 0.5, key, theme::TEXT_1(), 10.0, clip);
             *fx += kw + 6.0;
-            ctx.text.queue_ui_sized(*fx, fty, label, theme::TEXT_3(), 11.0, clip);
+            ctx.text.queue_ui_sized(*fx, fty, label, theme::OVERLAY_SUBTLE(), 11.0, clip);
             *fx += label.chars().count() as f32 * 6.0 + 16.0;
         };
         foot_seg(ctx, "Enter", "select", &mut fx);
