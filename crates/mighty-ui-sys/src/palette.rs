@@ -11,6 +11,8 @@
 //! each command's label, ranked so prefix matches sort ahead of looser fuzzy
 //! matches. An empty query lists every command in registry order.
 
+use std::borrow::Cow;
+
 use crate::ffi::MuiColor;
 use crate::theme;
 
@@ -733,6 +735,16 @@ impl PaletteEngine {
         }
     }
 
+    fn contextual_desc<'a>(&self, ctx: &crate::MuiContext, id: u32, base: &'a str) -> Cow<'a, str> {
+        command_contextual_desc(
+            id,
+            base,
+            ctx.tabs.active_has_path(),
+            ctx.tabs.active_read_only(),
+            ctx.tabs.dirty_count(),
+        )
+    }
+
     /// Draw the rich command palette overlay (mockup `.palette`): a dim scrim, a
     /// rounded indigo-glow card with a search field (magnifier + caret + ⌘K
     /// pill), a "COMMANDS" category, rows with icon + title + dim description +
@@ -810,6 +822,7 @@ impl PaletteEngine {
             let ry = list_top + vis as f32 * row_h;
             let selected = idx == self.sel;
             let (icon, desc, fill) = Self::meta(cmd.id);
+            let desc = self.contextual_desc(ctx, cmd.id, desc);
             if selected {
                 ctx.dl_grad_h(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::accent_a(0.22), 0.9);
                 ctx.dl_stroke(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::ACCENT_LINE(), 1.0);
@@ -853,7 +866,7 @@ impl PaletteEngine {
             ctx.text.queue_ui_sized(txt_x, ry + 11.0, &title, theme::TEXT(), 13.5, clip);
             if !desc.is_empty() {
                 let desc_col = if selected { theme::TEXT_1() } else { theme::OVERLAY_MUTED() };
-                let desc = fit_palette_text(&mut ctx.text, desc, text_max, 11.5);
+                let desc = fit_palette_text(&mut ctx.text, &desc, text_max, 11.5);
                 ctx.text.queue_ui_sized(txt_x, ry + 28.0, &desc, desc_col, 11.5, clip);
             }
 
@@ -901,6 +914,47 @@ fn command_field_text_x(base_x: f32, is_placeholder: bool) -> f32 {
         base_x + 10.0
     } else {
         base_x
+    }
+}
+
+fn command_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    active_has_path: bool,
+    active_read_only: bool,
+    dirty_count: usize,
+) -> Cow<'a, str> {
+    if active_read_only {
+        return match id {
+            CMD_SAVE | CMD_SAVE_AS | CMD_REVERT_ACTIVE_FILE => Cow::Borrowed("Read-only preview: saving is unavailable"),
+            CMD_RELOAD_ACTIVE_FILE => Cow::Borrowed("Reload this read-only preview from disk"),
+            CMD_RENAME_ACTIVE_FILE | CMD_DELETE_ACTIVE_FILE => Cow::Borrowed("Read-only preview: file edits are unavailable"),
+            _ => Cow::Borrowed(base),
+        };
+    }
+
+    match id {
+        CMD_SAVE if active_has_path => Cow::Borrowed("Write the active file to disk"),
+        CMD_SAVE => Cow::Borrowed("Choose a path before saving this untitled file"),
+        CMD_SAVE_AS if active_has_path => Cow::Borrowed("Choose a new path or filename for this file"),
+        CMD_SAVE_AS => Cow::Borrowed("Choose where this untitled file should live"),
+        CMD_SAVE_ALL if dirty_count == 0 => Cow::Borrowed("No unsaved tabs need writing"),
+        CMD_SAVE_ALL if dirty_count == 1 => Cow::Borrowed("Write the one unsaved tab"),
+        CMD_SAVE_ALL => Cow::Owned(format!("Write {dirty_count} unsaved tabs")),
+        CMD_RELOAD_ACTIVE_FILE if active_has_path => Cow::Borrowed("Reload the active file from disk"),
+        CMD_RELOAD_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
+        CMD_REVERT_ACTIVE_FILE if active_has_path => Cow::Borrowed("Discard local edits and reload from disk"),
+        CMD_REVERT_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
+        CMD_RENAME_ACTIVE_FILE if active_has_path => Cow::Borrowed("Rename the active file on disk"),
+        CMD_RENAME_ACTIVE_FILE => Cow::Borrowed("Save this untitled file before renaming it"),
+        CMD_DELETE_ACTIVE_FILE if active_has_path => Cow::Borrowed("Delete the active file after confirmation"),
+        CMD_DELETE_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
+        CMD_COPY_ACTIVE_FILE_PATH | CMD_COPY_ACTIVE_FILE_RELATIVE_PATH | CMD_COPY_ACTIVE_FILE_NAME | CMD_COPY_ACTIVE_FILE_DIRECTORY
+            if !active_has_path =>
+        {
+            Cow::Borrowed("Needs a file-backed tab")
+        }
+        _ => Cow::Borrowed(base),
     }
 }
 
@@ -1129,5 +1183,41 @@ mod tests {
         let base = 300.0;
         assert_eq!(command_field_text_x(base, false), base);
         assert!(command_field_text_x(base, true) >= base + 8.0);
+    }
+
+    #[test]
+    fn file_command_descriptions_reflect_document_state() {
+        assert_eq!(
+            command_contextual_desc(CMD_SAVE, "base", false, false, 0),
+            Cow::Borrowed("Choose a path before saving this untitled file")
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_SAVE_AS, "base", true, false, 0),
+            Cow::Borrowed("Choose a new path or filename for this file")
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_RENAME_ACTIVE_FILE, "base", false, false, 0),
+            Cow::Borrowed("Save this untitled file before renaming it")
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_SAVE, "base", true, true, 1),
+            Cow::Borrowed("Read-only preview: saving is unavailable")
+        );
+    }
+
+    #[test]
+    fn save_all_description_reports_dirty_count() {
+        assert_eq!(
+            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, 0),
+            Cow::Borrowed("No unsaved tabs need writing")
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, 1),
+            Cow::Borrowed("Write the one unsaved tab")
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, 3).as_ref(),
+            "Write 3 unsaved tabs"
+        );
     }
 }

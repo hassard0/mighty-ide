@@ -4184,3 +4184,17 @@ open. That makes common commands feel weird even when the route is correct.
 - **Language note:** no compiler gap surfaced. Mighty UI needs command metadata
   that separates action name, dialog behavior, shortcut, description, and
   menu/palette rendering conventions so labels do not drift from behavior.
+
+### L292. Command help text must reflect current document state **[finding, P1]**
+The palette could list file commands whose generic descriptions were technically
+true but misleading in context. `Save` on an untitled tab opens a path picker,
+`Save All` with no dirty tabs does nothing, and read-only previews cannot be
+written. Generic helper text makes those outcomes feel like broken buttons.
+
+- **IDE note:** file-related command rows now describe the active state:
+  untitled save paths, read-only previews, file-backed requirements, and dirty
+  tab counts. The helper is tested independently so command copy stays aligned
+  with the active tab model.
+- **Language note:** no compiler gap surfaced. Mighty UI needs first-class
+  command eligibility/state metadata so labels, helper text, enabled visuals,
+  dispatch, and test expectations come from one command model.

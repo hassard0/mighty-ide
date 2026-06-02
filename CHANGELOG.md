@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Command Palette file actions describe current state**: Save, Save As,
+  Save All, Reload, Revert, Rename, Delete, and copy-path rows now update their
+  helper text for untitled tabs, read-only previews, and the current dirty-tab
+  count, so context-limited commands no longer look generically broken.
 - **File commands read like standard dialog actions**: command palette labels now
   use `...` for New File, Open File, Save As, Open Folder, and New Project
   because those actions ask the user for a file or folder, while `New Untitled
