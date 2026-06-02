@@ -170,6 +170,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   the app instead of relying on a fixed coordinate.
 - **Keyboard shortcut search is visually clean**: the empty search-field caret
   no longer draws on top of the placeholder text.
+- **Command palette empty search is visually clean**: the focused caret no
+  longer collides with the `Type a command...` placeholder.
 - **Toast timing feels less stale**: success/info notifications now clear faster
   while warning/error messages remain visible longer, so completion messages do
   not follow users into unrelated panels.

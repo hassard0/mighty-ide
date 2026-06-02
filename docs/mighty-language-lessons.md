@@ -3334,3 +3334,14 @@ sloppy and undermined confidence in the command surface.
 - **Language note:** no compiler gap surfaced. Mighty UI primitives should make
   focused-empty input geometry reusable so every search box and picker field gets
   consistent placeholder/caret spacing.
+
+### L225. Command surfaces need shared input-field primitives **[finding, P2]**
+After fixing the Keyboard Shortcuts overlay, the main command palette still had
+the same empty placeholder/caret collision. Similar hand-rolled field geometry
+across command surfaces makes the UI drift one surface at a time.
+
+- **IDE note:** the command palette now uses the same empty placeholder inset as
+  the shortcuts overlay while preserving typed-query caret alignment.
+- **Language note:** no compiler gap surfaced. The repeated fix points toward a
+  Mighty UI primitive for focused search fields rather than per-surface pixel
+  math.
