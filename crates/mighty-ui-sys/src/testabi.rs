@@ -676,9 +676,16 @@ pub extern "C" fn mui_test_draw(handle: i64) {
         } else {
             "Run the package's tests to see results."
         };
-        let msg = fit_ui_text(&mut ctx.text, msg, sw - 28.0, chrome);
-        if !msg.is_empty() {
-            ctx.text.queue_ui_sized(sx + 14.0, top + 2.0, &msg, theme::TEXT_3(), chrome, clip);
+        let lines = wrap_detail_lines(&mut ctx.text, msg, sw - 28.0, chrome, 2);
+        for (i, line) in lines.iter().enumerate() {
+            ctx.text.queue_ui_sized(
+                sx + 14.0,
+                top + 2.0 + i as f32 * (chrome + 3.0),
+                line,
+                theme::TEXT_3(),
+                chrome,
+                clip,
+            );
         }
         return;
     }
@@ -794,6 +801,19 @@ mod tests {
         assert_eq!(lines.len(), 2);
         assert!(lines[0].contains("MT5001"));
         assert!(lines[1].ends_with('\u{2026}') || lines[1].contains("tokens"));
+    }
+
+    #[test]
+    fn empty_testing_help_wraps_in_narrow_sidebar() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(320, 600) else {
+            return;
+        };
+        let msg = "Run the package's tests to see results.";
+        let lines = wrap_detail_lines(&mut ctx.text, msg, 132.0, theme::CHROME_FONT_SIZE, 2);
+        assert_eq!(lines.len(), 2);
+        assert!(!lines[0].ends_with('\u{2026}'));
+        assert!(lines[0].contains("package"));
+        assert!(lines[1].contains("results"));
     }
 
     #[test]

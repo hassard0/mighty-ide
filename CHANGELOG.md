@@ -155,6 +155,12 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Top-bar command clicks win over editor focus**: More and command-center mouse
   clicks now open Palette/Quick Open before editor completion or panel focus can
   consume the following typed query.
+- **Testing empty states stay readable**: the Testing panel now wraps its
+  no-results guidance across measured lines in compact sidebars instead of
+  truncating a short sentence.
+- **Palette verification waits for real readiness**: command-surface traces now
+  record palette opens, query updates, selected ids, and cancellation, and the
+  strict mouse harness waits for palette-open state before typing commands.
 - **Toast timing feels less stale**: success/info notifications now clear faster
   while warning/error messages remain visible longer, so completion messages do
   not follow users into unrelated panels.

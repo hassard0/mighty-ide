@@ -6665,6 +6665,7 @@ pub extern "C" fn mui_complete_probe(handle: i64) {
 pub extern "C" fn mui_palette_open(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         ctx.palette.open();
+        trace(&format!("palette_open count={}", ctx.palette.count()));
     }
 }
 
@@ -6675,6 +6676,12 @@ pub extern "C" fn mui_palette_push_char(handle: i64, cp: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
             ctx.palette.push_char(ch);
+            trace(&format!(
+                "palette_query query=\"{}\" count={} selected={}",
+                ctx.palette.query(),
+                ctx.palette.count(),
+                ctx.palette.selected_id()
+            ));
         }
     }
 }
@@ -6729,7 +6736,11 @@ pub extern "C" fn mui_palette_click(handle: i64) -> i32 {
 /// reads this on Enter and dispatches to the matching command helper.
 #[no_mangle]
 pub extern "C" fn mui_palette_selected_id(handle: i64) -> i32 {
-    unsafe { ctx(handle) }.map_or(-1, |c| c.palette.selected_id())
+    unsafe { ctx(handle) }.map_or(-1, |c| {
+        let id = c.palette.selected_id();
+        trace(&format!("palette_selected id={id} query=\"{}\"", c.palette.query()));
+        id
+    })
 }
 
 /// `1` if the palette overlay is open, else `0`.
@@ -6742,6 +6753,7 @@ pub extern "C" fn mui_palette_active(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_palette_cancel(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        trace(&format!("palette_cancel query=\"{}\"", ctx.palette.query()));
         ctx.palette.cancel();
     }
 }

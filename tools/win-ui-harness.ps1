@@ -551,9 +551,14 @@ $tabRightLimit = ($logicalW - (3 * 46) - 68)
 
 function Invoke-PaletteCommand($query, $captureName) {
   $moreCount = Trace-MatchCount "topbar_action .* -> more"
+  $paletteOpenCount = Trace-MatchCount "(?m)^palette_open count="
   ClickL $topbarMoreX 20
   [void](Wait-TraceCountGreaterThan "topbar_action .* -> more" $moreCount 1500)
-  Start-Sleep -Milliseconds 250
+  if (-not (Wait-TraceCountGreaterThan "(?m)^palette_open count=" $paletteOpenCount 1800)) {
+    Log "PALETTE: did not observe palette_open before typing '$query'"
+    $script:HarnessFailed = $true
+  }
+  Start-Sleep -Milliseconds 120
   if ($captureName) { Capture $hwnd $captureName }
   Type-Text $hwnd $query
   Start-Sleep -Milliseconds 300
@@ -657,9 +662,14 @@ function PaletteRowCenter($rowIndex) {
 
 function Invoke-PaletteCommandClick($query, $rowIndex, $captureName) {
   $moreCount = Trace-MatchCount "topbar_action .* -> more"
+  $paletteOpenCount = Trace-MatchCount "(?m)^palette_open count="
   ClickL $topbarMoreX 20
   [void](Wait-TraceCountGreaterThan "topbar_action .* -> more" $moreCount 1500)
-  Start-Sleep -Milliseconds 250
+  if (-not (Wait-TraceCountGreaterThan "(?m)^palette_open count=" $paletteOpenCount 1800)) {
+    Log "PALETTE-MOUSE: did not observe palette_open before typing '$query'"
+    $script:HarnessFailed = $true
+  }
+  Start-Sleep -Milliseconds 120
   Type-Text $hwnd $query
   Start-Sleep -Milliseconds 350
   if ($captureName) { Capture $hwnd $captureName }

@@ -3271,3 +3271,30 @@ editor. The visible behavior was bad: a user clicked command chrome, then saw
   state. Mighty would benefit from a small first-class event-priority pattern or
   reusable helper that can own these "global chrome before local focus" checks
   without adding broad parse-stack pressure.
+
+### L220. Compact sidebar help text should wrap before it truncates **[finding, P2]**
+Strict screenshot review showed the Testing panel empty state cutting off
+"Run the package's tests to see results." even though the panel had enough
+vertical space for two readable lines. This is a small bug, but it makes the UI
+feel less deliberate.
+
+- **IDE note:** the Testing panel now uses measured two-line wrapping for its
+  no-results guidance, matching the existing failed-test detail wrapping instead
+  of forcing every help string through a single-line ellipsis path.
+- **Language note:** no compiler gap surfaced. Mighty can keep delegating panel
+  rendering to the shim, but compact sidebar copy needs a reusable measured-wrap
+  primitive so helper text does not become fake-fitted one-liners.
+
+### L221. UX verifiers need state traces for command surfaces **[finding, P1]**
+The strict mouse harness intermittently failed the Open File -> edit -> Save
+workflow because the driver could prove a top-bar More click happened, but could
+not prove the command palette was ready before it started typing. When the app
+was slow for a frame, the trace only showed later command text reaching a stale
+surface, which made the failure hard to diagnose.
+
+- **IDE note:** Palette open, query update, selected-id, and cancel operations
+  now emit trace markers, and the Windows strict-mouse harness waits for a fresh
+  `palette_open` marker before typing command queries.
+- **Language note:** no compiler gap surfaced. Mighty-driven apps need cheap
+  state-transition traces for modal/command surfaces so real-input harnesses can
+  synchronize on product state instead of sleep timing.
