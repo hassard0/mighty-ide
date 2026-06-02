@@ -5081,10 +5081,15 @@ pub extern "C" fn mui_tab_bar_draw(handle: i64) {
     }
 
     if ctx.tab_scroll > 0 {
-        ctx.dl_rect(body_left, 7.0, 3.0, bar_h - 14.0, theme::ACCENT());
+        ctx.dl_grad_h(body_left, 0.0, 34.0, bar_h - 1.0, 0.0, theme::accent_a(0.18), 0.0);
+        ctx.dl_shadow(body_left, 7.0, 4.0, bar_h - 14.0, 1.5, theme::ACCENT_GLOW(), 8.0);
+        ctx.dl_round(body_left, 7.0, 4.0, bar_h - 14.0, 1.5, theme::ACCENT());
+        ctx.dl_icon(body_left + 5.0, (bar_h - 11.0) * 0.5, 11.0, 11.0, icons::ARROW_LEFT, theme::ACCENT_BRIGHT(), 1.4, false);
     }
     if ctx.tab_scroll < tab_max_scroll(ctx) {
-        ctx.dl_rect(tab_right - 3.0, 7.0, 3.0, bar_h - 14.0, theme::ACCENT());
+        ctx.dl_grad_h(tab_right - 34.0, 0.0, 34.0, bar_h - 1.0, 0.0, theme::accent_a(0.12), 0.9);
+        ctx.dl_shadow(tab_right - 4.0, 7.0, 4.0, bar_h - 14.0, 1.5, theme::ACCENT_GLOW(), 8.0);
+        ctx.dl_round(tab_right - 4.0, 7.0, 4.0, bar_h - 14.0, 1.5, theme::ACCENT());
     }
 
     if let Some((x, y, w, h)) = topbar_command_center_rect(ctx) {

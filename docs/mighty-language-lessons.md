@@ -4861,3 +4861,14 @@ Welcome let picker footer actions, overflow rows, and empty-section states drift
 - **Language note:** Mighty UI would benefit from declarative visual-test seeds
   for overlays and pickers so test fixtures can populate realistic UI state
   without adding one-off environment hooks in the ABI layer.
+
+L339. Overflow needs visible affordance even when input already works. The tab
+strip could scroll and the active tab was kept visible, but the only clue that
+earlier/later tabs existed was a tiny edge sliver.
+
+- **IDE note:** tab overflow now draws stronger edge fades and accent grips, with
+  a left-edge arrow where it cannot steal the close target. Mouse hit-testing and
+  close/switch mapping stay unchanged.
+- **Language note:** Mighty UI needs reusable overflow affordance primitives for
+  scrollable strips/lists so "more content offscreen" is not reimplemented as
+  bespoke rectangles in every component.
