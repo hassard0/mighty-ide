@@ -3687,3 +3687,17 @@ should not have to guess where the OS resize band starts.
   primitives for resize, move, minimize, maximize, restored/maximized state, and
   visible affordance drawing so every app does not hand-roll borderless window
   behavior.
+
+### L252. Save workflows need multi-dialog automation evidence **[finding, P1]**
+Save As and Save All can both need native SaveFileDialog paths during one human
+session. A single deterministic picker path let the harness prove one command,
+but not that Save All consumed its own dialog path for a dirty untitled tab.
+
+- **IDE note:** the save dialog shim now supports `MUI_SAVE_FILE_PICK_SEQUENCE`,
+  Save All traces `save_all_dialog path=...`, the command palette copy says
+  untitled tabs are included, and the strict Windows harness writes a dirty
+  untitled tab through Save All after first exercising Save As.
+- **Language note:** no compiler gap surfaced, but this reinforces the existing
+  dialog-result ABI problem. Mighty still needs structured command results for
+  repeated native dialogs so success, cancellation, unavailable state, and picked
+  paths are not coordinated through environment strings and trace text.

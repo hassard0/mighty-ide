@@ -635,7 +635,7 @@ impl PaletteEngine {
             CMD_OPEN_FILE => (icons::NEW_FILE, "Choose an existing file with the native picker", false),
             CMD_SAVE => (icons::FILE_MTY, "Write the active file to disk", false),
             CMD_SAVE_AS => (icons::FILE_MTY, "Save the active file with the native Save As dialog", false),
-            CMD_SAVE_ALL => (icons::FILE_MTY, "Write every dirty file-backed tab to disk", false),
+            CMD_SAVE_ALL => (icons::FILE_MTY, "Write dirty tabs and ask where untitled files should live", false),
             CMD_RENAME_ACTIVE_FILE => (icons::FILE_MTY, "Rename the active file on disk", false),
             CMD_REVEAL_ACTIVE_FILE => (icons::SEARCH, "Show the active file in the IDE file tree", false),
             CMD_REVEAL_ACTIVE_FILE_IN_OS => (icons::EXPLORER, "Show the active file in the OS file manager", false),

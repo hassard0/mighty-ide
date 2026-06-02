@@ -9405,9 +9405,9 @@ pub extern "C" fn mui_ed_save(handle: i64) -> i32 {
     save_active_current_path(ctx)
 }
 
-/// Save every dirty file-backed tab. Untitled dirty tabs are left dirty because
-/// they still need a user-chosen path. Returns the number of tabs saved, or -1
-/// when nothing could be saved because every attempted write failed.
+/// Save every dirty tab. File-backed tabs write in place; untitled tabs ask for
+/// a native Save As path. Returns the number of tabs saved, or -1 when nothing
+/// could be saved because every attempted write failed.
 #[no_mangle]
 pub extern "C" fn mui_save_all(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -9455,6 +9455,7 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
                     continue;
                 }
             };
+            trace(&format!("save_all_dialog path={}", target.display()));
             if save_active_to_path(ctx, target) == 0 {
                 saved += 1;
             } else {
@@ -9662,6 +9663,9 @@ fn pick_save_file_native(
     suggested_name: &str,
     owner_hwnd: Option<isize>,
 ) -> FileDialogPick {
+    if let Ok(sequence) = std::env::var("MUI_SAVE_FILE_PICK_SEQUENCE") {
+        return next_save_file_pick_from_sequence(&sequence);
+    }
     if let Ok(path) = std::env::var("MUI_SAVE_FILE_PICK") {
         let trimmed = path.trim();
         return if trimmed.is_empty() {
@@ -9709,6 +9713,26 @@ try {
 }
 "#;
     run_file_dialog_script(script, initial_dir, Some(suggested_name), owner_hwnd)
+}
+
+fn next_save_file_pick_from_sequence(sequence: &str) -> FileDialogPick {
+    static NEXT_PICK: OnceLock<Mutex<(String, usize)>> = OnceLock::new();
+    let mut state = NEXT_PICK
+        .get_or_init(|| Mutex::new((String::new(), 0)))
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if state.0 != sequence {
+        state.0 = sequence.to_string();
+        state.1 = 0;
+    }
+    let idx = state.1;
+    state.1 = state.1.saturating_add(1);
+    let picked = sequence.split('|').nth(idx).unwrap_or("").trim();
+    if picked.is_empty() {
+        FileDialogPick::Cancelled
+    } else {
+        FileDialogPick::Picked(PathBuf::from(picked))
+    }
 }
 
 fn pick_new_file_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FileDialogPick {

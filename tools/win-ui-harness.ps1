@@ -191,6 +191,7 @@ $script:HarnessFailed = $false
 function Finish-Harness($proc) {
   if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force; Log "killed pid $($proc.Id)" }
   Remove-Item Env:\MUI_SAVE_FILE_PICK -ErrorAction SilentlyContinue
+  Remove-Item Env:\MUI_SAVE_FILE_PICK_SEQUENCE -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_NEW_FILE_PICK -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_NEW_FILE_PICK_SEQUENCE -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_NEW_FOLDER_PICK -ErrorAction SilentlyContinue
@@ -199,6 +200,7 @@ function Finish-Harness($proc) {
   if (-not $traceWasSet) { Remove-Item Env:\MUI_TRACE -ErrorAction SilentlyContinue }
   if (-not $configWasSet) { Remove-Item Env:\MUI_CONFIG_DIR -ErrorAction SilentlyContinue }
   Remove-Item -LiteralPath $searchPath -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $saveAllPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $openPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $openFolderPath -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $newFolderPath -Recurse -Force -ErrorAction SilentlyContinue
@@ -212,6 +214,9 @@ function Finish-Harness($proc) {
 $saveName = "harnesssaveas.mty"
 $savePath = Join-Path $WorkDir $saveName
 if (Test-Path $savePath) { Remove-Item $savePath -Force }
+$saveAllName = "harnesssaveall.mty"
+$saveAllPath = Join-Path $WorkDir $saveAllName
+if (Test-Path $saveAllPath) { Remove-Item $saveAllPath -Force }
 $newFileName = "harnessnewfile.mty"
 $workspaceRoot = Join-Path $WorkDir "samples"
 if (-not (Test-Path -LiteralPath $workspaceRoot -PathType Container)) { $workspaceRoot = $WorkDir }
@@ -232,9 +237,10 @@ Set-Content -LiteralPath $searchPath -Value "opened" -Encoding ascii
 $openFolderPath = Join-Path ([System.IO.Path]::GetTempPath()) ("mighty-ide-harnessworkspace-{0}" -f $PID)
 New-Item -ItemType Directory -Path $openFolderPath -Force | Out-Null
 Set-Content -LiteralPath (Join-Path $openFolderPath "ROOT.mty") -Value "workspace-root" -Encoding utf8
-# The IDE now uses a native SaveFileDialog for untitled Save. Feed a deterministic
-# picker result so the harness does not block on an OS-modal dialog.
-$env:MUI_SAVE_FILE_PICK = $savePath
+# The IDE now uses native SaveFileDialog paths for Save As, untitled Save, and
+# Save All. Feed deterministic picker results so the harness does not block on
+# OS-modal dialogs while still proving each command consumes a dialog path.
+$env:MUI_SAVE_FILE_PICK_SEQUENCE = "$savePath|$saveAllPath"
 $env:MUI_NEW_FILE_PICK = $welcomeFilePath
 $env:MUI_NEW_FILE_PICK_SEQUENCE = "$welcomeFilePath|$newFilePath"
 $env:MUI_NEW_FOLDER_PICK = $newFolderPath
@@ -1194,6 +1200,33 @@ if (Test-Path $savePath) {
   $script:HarnessFailed = $true
 }
 if (Test-Path $savePath) { Remove-Item $savePath -Force; Log "SAVE-AS: cleaned harness file" }
+
+# === SAVE ALL on a dirty untitled buffer should consume the next native picker path. ===
+Invoke-PaletteCommand "untitled" $null
+Start-Sleep -Milliseconds 250
+ClickL 460 130
+Start-Sleep -Milliseconds 100
+Type-Text $hwnd "saveallcheck"
+Start-Sleep -Milliseconds 250
+$saveAllDialogCount = Trace-MatchCount "(?m)^save_all_dialog path="
+Invoke-PaletteCommand "save all" "42-save-all"
+Start-Sleep -Milliseconds 250
+$saveAllPathPattern = [regex]::Escape($saveAllPath)
+if (Test-Path $saveAllPath) {
+  $saveAllText = Get-Content -LiteralPath $saveAllPath -Raw
+  $dialogPicked = Wait-TraceCountGreaterThan "(?m)^save_all_dialog path=" $saveAllDialogCount 1800
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  if ($saveAllText -like "*saveallcheck*" -and $dialogPicked -and $traceText -match "save_all_dialog path=$saveAllPathPattern") {
+    Log "SAVE-ALL: dirty untitled file used native picker -> $saveAllPath"
+  } else {
+    Log "SAVE-ALL: missing content or native picker trace ($saveAllPath)"
+    $script:HarnessFailed = $true
+  }
+} else {
+  Log "SAVE-ALL: FILE NOT FOUND ($saveAllPath)"
+  $script:HarnessFailed = $true
+}
+if (Test-Path $saveAllPath) { Remove-Item $saveAllPath -Force; Log "SAVE-ALL: cleaned harness file" }
 if (Test-Path $newFilePath) { Remove-Item $newFilePath -Force; Log "NEW-FILE: cleaned harness file" }
 if (Test-Path $welcomeFilePath) { Remove-Item $welcomeFilePath -Force; Log "WELCOME NEW-FILE: cleaned harness file" }
 

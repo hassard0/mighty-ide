@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Save All now has native-picker proof for untitled tabs**: deterministic
+  SaveFileDialog sequences let the Windows harness verify Save As and Save All
+  in one run, including the exact Save All path used for a dirty untitled tab.
 - **Borderless resize is now discoverable**: the status bar reserves the
   bottom-right corner for a visible diagonal resize grip, shifts notifications
   away from that target, and the strict Windows harness captures the pre-drag

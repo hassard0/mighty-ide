@@ -1872,9 +1872,9 @@ fn save_all_prompts_for_dirty_untitled_tabs() {
     ctx.tabs.set_dirty(iu, true);
 
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
-    std::env::set_var("MUI_SAVE_FILE_PICK", u.to_string_lossy().as_ref());
+    std::env::set_var("MUI_SAVE_FILE_PICK_SEQUENCE", u.to_string_lossy().as_ref());
     assert_eq!(crate::mui_save_all(handle), 3);
-    std::env::remove_var("MUI_SAVE_FILE_PICK");
+    std::env::remove_var("MUI_SAVE_FILE_PICK_SEQUENCE");
     assert_eq!(std::fs::read_to_string(&a).unwrap(), "new a\n");
     assert_eq!(std::fs::read_to_string(&b).unwrap(), "new b\n");
     assert_eq!(std::fs::read_to_string(&u).unwrap(), "untitled\n");
