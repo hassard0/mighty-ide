@@ -1148,6 +1148,18 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
     let edge_y = crate::layout::term_panel_top(visible_h) + 2.0;
     ctx.last_event = MuiEvent::mouse(MUI_EVENT_MOUSE_DOWN, MUI_MOUSE_LEFT, 500.0, edge_y, 0);
     assert_eq!(crate::abi::mui_bottom_dock_resize_at_click(handle), 1);
+    assert_eq!(
+        crate::abi::mui_bottom_dock_resize_to_event_y(handle),
+        default_h,
+        "off-center dock grab should not jump before real pointer movement"
+    );
+
+    ctx.last_event = MuiEvent::mouse_move(500.0, edge_y - 40.0, 0);
+    let offset_resized_h = crate::abi::mui_bottom_dock_resize_to_event_y(handle);
+    assert!(
+        offset_resized_h > default_h,
+        "moving the captured pointer upward should grow the dock: {offset_resized_h} <= {default_h}"
+    );
 
     ctx.last_event = MuiEvent::mouse_move(500.0, 260.0, 0);
     let resized_h = crate::abi::mui_bottom_dock_resize_to_event_y(handle);

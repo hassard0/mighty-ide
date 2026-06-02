@@ -1727,9 +1727,11 @@ pub extern "C" fn mui_bottom_dock_resize_at_click(handle: i64) -> i32 {
             && layout::dock_resize_hit(visible_h, c.last_event.y)
         {
             c.bottom_dock_resizing = true;
+            c.bottom_dock_resize_grab_dy = layout::term_panel_top(visible_h) - c.last_event.y;
             trace(&format!(
-                "dock_resize start y={:.1} h={:.1}",
+                "dock_resize start y={:.1} grab_dy={:.1} h={:.1}",
                 c.last_event.y,
+                c.bottom_dock_resize_grab_dy,
                 layout::term_panel_height(visible_h)
             ));
             1
@@ -1748,8 +1750,12 @@ pub extern "C" fn mui_bottom_dock_resize_to_event_y(handle: i64) -> i32 {
             return 0;
         }
         let (_, visible_h) = visible_surface_size(c);
-        let h = layout::resize_dock_to_y(visible_h, c.last_event.y).round() as i32;
-        trace(&format!("dock_resize drag y={:.1} h={h}", c.last_event.y));
+        let edge_y = c.last_event.y + c.bottom_dock_resize_grab_dy;
+        let h = layout::resize_dock_to_y(visible_h, edge_y).round() as i32;
+        trace(&format!(
+            "dock_resize drag y={:.1} edge_y={edge_y:.1} h={h}",
+            c.last_event.y
+        ));
         h
     })
 }

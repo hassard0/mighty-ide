@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Bottom dock resizing no longer jumps on grab**: the Terminal/Run/Tests/Web
+  dock now preserves the pointer's offset inside the forgiving resize band, so
+  grabbing the top edge off-center does not immediately change the dock height
+  before the user actually drags.
 - **Dirty-close dialog buttons fit compact windows**: the unsaved-tab
   confirmation now derives action-button widths from the actual card width and
   centers button labels by measurement, so Cancel/Save/Discard stay inside the

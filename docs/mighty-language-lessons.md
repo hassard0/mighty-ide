@@ -4303,3 +4303,20 @@ centered.
   primitives for action rows, including measured labels, min/max button widths,
   gaps, and compact fallback behavior, so every modal/prompt uses the same
   responsive button math.
+
+### L300. Resize gestures need edge-relative pointer capture **[finding, P2]**
+The bottom dock resize band is intentionally forgiving, but its drag math used
+the raw mouse y position after capture. When a user grabbed a few pixels below
+or above the visible dock edge, the first resize calculation could change the
+Terminal/Run/Tests/Web dock height before the pointer actually moved. That made
+the lower pane feel unstable during manual layout.
+
+- **IDE note:** bottom dock resizing now stores the grab offset between the
+  visible dock edge and the mouse-down position, then applies it throughout the
+  drag. The first resize query preserves the current dock height; only actual
+  pointer movement changes the pane. A focused regression covers the off-center
+  grab.
+- **Language note:** no compiler gap surfaced. Mighty still needs first-class
+  gesture metadata for pointer capture, including captured-edge coordinates and
+  pointer-to-edge offsets, so language-side layout code can implement forgiving
+  resize targets without bespoke shim state.

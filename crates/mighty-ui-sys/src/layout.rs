@@ -456,9 +456,8 @@ pub fn dock_resize_hit(height: u32, y: f32) -> bool {
 pub fn resize_dock_to_y(height: u32, y: f32) -> f32 {
     let h = height as f32;
     let reserved_bottom = 2.0 * LINE_H();
-    let usable = (h - reserved_bottom).max(1.0);
     let panel_h = (h - reserved_bottom - y).max(0.0);
-    let frac = (panel_h / usable).clamp(TERM_FRACTION_MIN, TERM_FRACTION_MAX);
+    let frac = (panel_h / h.max(1.0)).clamp(TERM_FRACTION_MIN, TERM_FRACTION_MAX);
     set_dock_fraction(frac);
     term_panel_height(height)
 }

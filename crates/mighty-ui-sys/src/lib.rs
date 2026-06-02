@@ -371,6 +371,9 @@ pub struct MuiContext {
     /// True while Mighty has captured the visible top edge of the shared bottom
     /// dock for drag-resizing.
     bottom_dock_resizing: bool,
+    /// Difference between the dock top edge and the mouse y at capture time, so
+    /// the forgiving resize band does not make the dock jump on mouse-down.
+    bottom_dock_resize_grab_dy: f32,
 
     // ---- Web Playground (Run in Browser → wasm32-web + browser) ----
     /// The Web Playground: builds the active file to `wasm32-web` and runs it in
@@ -902,6 +905,7 @@ pub(crate) fn build_context(
         ghost: ghost::GhostState::new(),
         run: run::RunPanel::new(),
         bottom_dock_resizing: false,
+        bottom_dock_resize_grab_dy: 0.0,
         web: web::WebPlayground::new(),
         tests_panel: tests_panel::TestPanel::new(),
         dbg: dap::DebugModel::new(),
@@ -1586,6 +1590,7 @@ impl MuiContext {
             ghost: ghost::GhostState::new(),
             run: run::RunPanel::new(),
             bottom_dock_resizing: false,
+            bottom_dock_resize_grab_dy: 0.0,
             web: web::WebPlayground::new(),
             tests_panel: tests_panel::TestPanel::new(),
             dbg: dap::DebugModel::new(),
