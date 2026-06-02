@@ -3961,3 +3961,13 @@ ghost text anchored in code.
 - **Language note:** no compiler gap surfaced. Mighty UI needs screenshot
   fixtures that can assert both state activation and the visual layer that wins
   composition for that frame.
+
+### L275. Visual tests must track intentional compact copy **[finding, P2]**
+The Welcome screen had already been shortened to `New File` and `New Project`
+to avoid compact-window truncation, but two tests still expected the older
+longer labels. That made the suite stale and reduced trust in Welcome coverage.
+
+- **IDE note:** Welcome action tests now assert the shipped compact labels.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a stronger habit
+  of coupling visual-copy changes with tests that describe the current product
+  decision, not only the historical label.

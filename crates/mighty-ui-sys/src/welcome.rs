@@ -915,7 +915,7 @@ mod tests {
     #[test]
     fn new_file_is_the_primary_welcome_action() {
         assert_eq!(QUICK_ACTIONS.first().unwrap().action, ACTION_NEW_FILE);
-        assert_eq!(QUICK_ACTIONS.first().unwrap().label, "New File at Location\u{2026}");
+        assert_eq!(QUICK_ACTIONS.first().unwrap().label, "New File");
     }
 
     #[test]
@@ -923,9 +923,9 @@ mod tests {
         let row = QUICK_ACTIONS
             .iter()
             .position(|qa| qa.action == ACTION_NEW_PROJECT)
-            .expect("New Mighty Project should be discoverable from Welcome");
+            .expect("New Project should be discoverable from Welcome");
         assert_eq!(row, 1);
-        assert_eq!(QUICK_ACTIONS[row].label, "New Mighty Project\u{2026}");
+        assert_eq!(QUICK_ACTIONS[row].label, "New Project");
     }
 
     #[test]

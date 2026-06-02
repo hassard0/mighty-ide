@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Welcome action tests match the shipped compact labels**: stale assertions for
+  `New File at Location...` and `New Mighty Project...` now track the visible
+  `New File` and `New Project` labels, keeping the Welcome regression suite
+  aligned with the compact UX.
 - **Rename and ghost-text captures show code context**: screenshot-only hooks for
   rename and inline ghost suggestions now seed Mighty source, dismiss Welcome,
   and lock the probe buffer; the ghost fixture uses an incomplete edit so
