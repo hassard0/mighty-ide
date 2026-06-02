@@ -4213,3 +4213,17 @@ button: the control looks disabled, but still behaves like something happened.
 - **Language note:** no new compiler gap surfaced. This reinforces L292:
   Mighty UI needs shared command/preference state metadata so disabled visuals,
   explanatory text, hit-testing, and dispatch all read from the same source.
+
+### L294. First-run action labels must match dialog behavior **[finding, P2]**
+The command palette had been updated to use standard ellipsis labels for native
+picker actions, but the Welcome quick actions still said `New File`,
+`New Project`, `Open File`, and `Open Folder`. That makes the first screen feel
+inconsistent: the user clicks what looks like an instant action and gets a
+picker instead.
+
+- **IDE note:** Welcome quick actions now use `New File...`, `New Project...`,
+  `Open File...`, and `Open Folder...`, matching the palette and the native
+  dialog flow. Tests pin the Welcome labels and the palette mirror.
+- **Language note:** no new compiler gap surfaced. This again points to a
+  shared command metadata model so Welcome, menus, palette, shortcuts, and
+  tests all render the same behavior-aware labels.

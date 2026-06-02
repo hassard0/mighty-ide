@@ -50,10 +50,10 @@ struct QuickAction {
 }
 
 const QUICK_ACTIONS: &[QuickAction] = &[
-    QuickAction { icon: icons::NEW_FILE, label: "New File", key: "Ctrl+N", action: ACTION_NEW_FILE },
-    QuickAction { icon: icons::NEW_FOLDER, label: "New Project", key: "", action: ACTION_NEW_PROJECT },
-    QuickAction { icon: icons::EXPLORER, label: "Open File", key: "Ctrl+O", action: ACTION_OPEN_FILE },
-    QuickAction { icon: icons::FOLDER, label: "Open Folder", key: "Ctrl+Shift+O", action: ACTION_OPEN_FOLDER },
+    QuickAction { icon: icons::NEW_FILE, label: "New File...", key: "Ctrl+N", action: ACTION_NEW_FILE },
+    QuickAction { icon: icons::NEW_FOLDER, label: "New Project...", key: "", action: ACTION_NEW_PROJECT },
+    QuickAction { icon: icons::EXPLORER, label: "Open File...", key: "Ctrl+O", action: ACTION_OPEN_FILE },
+    QuickAction { icon: icons::FOLDER, label: "Open Folder...", key: "Ctrl+Shift+O", action: ACTION_OPEN_FOLDER },
     QuickAction { icon: icons::SEARCH, label: "Quick Open", key: "Ctrl+P", action: ACTION_QUICK_OPEN },
     QuickAction { icon: icons::TEST_BOX, label: "Command Palette", key: "Ctrl+Shift+P", action: ACTION_COMMAND_PALETTE },
 ];
@@ -933,7 +933,7 @@ mod tests {
     #[test]
     fn new_file_is_the_primary_welcome_action() {
         assert_eq!(QUICK_ACTIONS.first().unwrap().action, ACTION_NEW_FILE);
-        assert_eq!(QUICK_ACTIONS.first().unwrap().label, "New File");
+        assert_eq!(QUICK_ACTIONS.first().unwrap().label, "New File...");
     }
 
     #[test]
@@ -943,7 +943,7 @@ mod tests {
             .position(|qa| qa.action == ACTION_NEW_PROJECT)
             .expect("New Project should be discoverable from Welcome");
         assert_eq!(row, 1);
-        assert_eq!(QUICK_ACTIONS[row].label, "New Project");
+        assert_eq!(QUICK_ACTIONS[row].label, "New Project...");
     }
 
     #[test]

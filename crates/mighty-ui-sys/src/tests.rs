@@ -1729,7 +1729,7 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_NEW_FILE)
         .unwrap();
-    assert_eq!(new_file.label, "File: New File");
+    assert_eq!(new_file.label, "File: New File...");
     assert_eq!(new_file.keybinding, "Ctrl+N");
 
     let tree = crate::palette::COMMANDS

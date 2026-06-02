@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Welcome quick actions now advertise dialogs**: first-run actions use the
+  same `...` convention as the command palette for New File, New Project, Open
+  File, and Open Folder, so launch-screen buttons do not hide the picker flow.
 - **Disabled Settings rows no longer act clickable**: unavailable preferences
   such as Inline AI without an API key now select for explanation only; their
   visible switch no longer reports a toggle/cycle click back to Mighty.
