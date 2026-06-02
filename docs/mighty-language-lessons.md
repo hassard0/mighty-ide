@@ -4387,3 +4387,17 @@ sees stderr and the panel does not open.
 - **Language note:** no compiler gap surfaced. Mighty needs structured command
   result states for runtime panels, especially unavailable/failed startup
   outcomes, so commands can drive consistent UI feedback and retry behavior.
+
+### L306. Native dialog cancellation is still a command result **[finding, P2]**
+Several native dialog commands treated user cancellation as a quiet no-op. That
+kept state correct, but a human pressing a toolbar or command-palette action
+could see a dialog close and then receive no acknowledgement from the IDE.
+
+- **IDE note:** Open File, New File, New Folder, and New Project cancellations
+  now push short info toasts, and unavailable native-dialog fallbacks push warn
+  toasts. Toast operation keys group these outcomes with their matching
+  open/create workflow so stale dialog messages are replaced instead of stacked.
+- **Language note:** no compiler gap surfaced. Mighty needs a first-class
+  command-result enum across the FFI boundary: success, cancelled, unavailable,
+  failed, already-in-state, and unchanged. Encoding that as scalar integers plus
+  hand-written toast strings is workable but too easy to make inconsistent.

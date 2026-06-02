@@ -491,6 +491,7 @@ enum OperationKey {
     Open,
     CreateFile,
     CreateFolder,
+    CreateProject,
     Rename,
     Delete,
     Reveal,
@@ -519,21 +520,40 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Save)
     } else if m.starts_with("Opened folder")
         || m.starts_with("Opened file")
+        || m == "Open file cancelled"
+        || m == "Open file dialog unavailable"
         || m.starts_with("Open failed")
         || m.starts_with("Recent file missing")
         || m.starts_with("Recent folder missing")
     {
         Some(OperationKey::Open)
     } else if m.starts_with("Created file")
+        || m == "New file cancelled"
+        || m == "New file dialog unavailable"
         || m.starts_with("File already exists")
         || m.starts_with("File create failed")
     {
         Some(OperationKey::CreateFile)
     } else if m.starts_with("Created folder")
+        || m.starts_with("Folder ready")
+        || m == "New folder cancelled"
+        || m == "New folder dialog unavailable"
         || m.starts_with("Folder already exists")
         || m.starts_with("Folder create failed")
     {
         Some(OperationKey::CreateFolder)
+    } else if m.starts_with("Created project")
+        || m == "New project cancelled"
+        || m == "New project dialog unavailable"
+        || m.starts_with("New project failed")
+        || m == "Could not create project"
+        || m == "New Project needs the Mighty compiler `mty` on PATH"
+        || m.starts_with("Choose an empty folder for")
+        || m == "Choose a project folder name"
+        || m == "Choose a parent folder"
+        || m == "Choose an existing parent folder"
+    {
+        Some(OperationKey::CreateProject)
     } else if m.starts_with("Renamed to")
         || m.starts_with("Rename failed")
         || m.starts_with("Already named")
@@ -815,6 +835,16 @@ mod tests {
             .toasts()
             .iter()
             .any(|t| t.message == "File already exists: main.mty"));
+
+        q.push_at(Kind::Info, "New file cancelled", t0 + Duration::from_millis(800));
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[1].message, "New file cancelled");
+
+        q.push_at(Kind::Success, "Created project: app", t0 + Duration::from_millis(900));
+        q.push_at(Kind::Info, "New project cancelled", t0 + Duration::from_millis(1000));
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "New project cancelled");
+        assert!(!q.toasts().iter().any(|t| t.message == "Created project: app"));
     }
 
     #[test]

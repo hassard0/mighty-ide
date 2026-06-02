@@ -1492,7 +1492,9 @@ fn new_project_dialog_cancel_does_not_open_prompt_fallback() {
     std::env::set_var("MUI_NEW_PROJECT_PICK", "");
     assert_eq!(crate::mui_newproj_dialog(handle), 0);
     std::env::remove_var("MUI_NEW_PROJECT_PICK");
-    assert!(ctx.toasts.toasts().is_empty(), "cancel should be a quiet no-op");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "New project cancelled");
 }
 
 #[test]
@@ -1587,12 +1589,13 @@ fn new_folder_dialog_cancel_is_noop() {
         .unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
-    let before = ctx.toasts.len();
 
     std::env::set_var("MUI_NEW_FOLDER_PICK", "");
     assert_eq!(crate::mui_newfolder_dialog(handle), 0);
     std::env::remove_var("MUI_NEW_FOLDER_PICK");
-    assert_eq!(ctx.toasts.len(), before);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "New folder cancelled");
 }
 
 #[test]
@@ -1728,6 +1731,9 @@ fn new_file_dialog_cancel_and_existing_are_noops() {
     std::env::remove_var("MUI_NEW_FILE_PICK");
     assert_eq!(mui_tab_count(handle), 1);
     assert_eq!(mui_tab_active(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "New file cancelled");
 
     let existing = root.join("taken.mty");
     std::fs::write(&existing, b"existing").unwrap();
@@ -4269,6 +4275,9 @@ fn open_file_dialog_cancel_does_not_open_prompt_signal() {
     assert_eq!(idx, -2, "cancelled file picker should not request prompt fallback");
     assert_eq!(mui_tab_count(h), 1);
     assert_eq!(mui_tab_active(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Open file cancelled");
 }
 
 #[test]

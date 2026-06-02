@@ -3748,10 +3748,12 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
         FileDialogPick::Picked(path) => path,
         FileDialogPick::Cancelled => {
             println!("mui_open_file_dialog: native file dialog cancelled");
+            ctx.push_toast(crate::toast::Kind::Info, "Open file cancelled");
             return -2;
         }
         FileDialogPick::Unavailable => {
             println!("mui_open_file_dialog: native file dialog unavailable");
+            ctx.push_toast(crate::toast::Kind::Warn, "Open file dialog unavailable");
             return -1;
         }
     };
@@ -5202,10 +5204,12 @@ pub extern "C" fn mui_newfolder_dialog(handle: i64) -> i32 {
         FileDialogPick::Picked(path) => path,
         FileDialogPick::Cancelled => {
             println!("mui_newfolder_dialog: native folder dialog cancelled");
+            ctx.push_toast(crate::toast::Kind::Info, "New folder cancelled");
             return 0;
         }
         FileDialogPick::Unavailable => {
             println!("mui_newfolder_dialog: native folder dialog unavailable");
+            ctx.push_toast(crate::toast::Kind::Warn, "New folder dialog unavailable");
             return -1;
         }
     };
@@ -5229,11 +5233,13 @@ pub extern "C" fn mui_newproj_dialog(handle: i64) -> i32 {
         FileDialogPick::Cancelled => {
             trace("new_project_dialog cancel");
             println!("mui_newproj_dialog: native project folder dialog cancelled");
+            ctx.push_toast(crate::toast::Kind::Info, "New project cancelled");
             return 0;
         }
         FileDialogPick::Unavailable => {
             trace("new_project_dialog unavailable");
             println!("mui_newproj_dialog: native project folder dialog unavailable");
+            ctx.push_toast(crate::toast::Kind::Warn, "New project dialog unavailable");
             return -1;
         }
     };
@@ -5336,11 +5342,13 @@ pub extern "C" fn mui_newfile_dialog(handle: i64) -> i32 {
         FileDialogPick::Cancelled => {
             trace("new_file_dialog cancel");
             println!("mui_newfile_dialog: native new-file dialog cancelled");
+            ctx.push_toast(crate::toast::Kind::Info, "New file cancelled");
             return -2;
         }
         FileDialogPick::Unavailable => {
             trace("new_file_dialog unavailable");
             println!("mui_newfile_dialog: native new-file dialog unavailable");
+            ctx.push_toast(crate::toast::Kind::Warn, "New file dialog unavailable");
             return -1;
         }
     };
@@ -5365,11 +5373,13 @@ pub extern "C" fn mui_newfile_workspace_dialog(handle: i64) -> i32 {
         FileDialogPick::Cancelled => {
             trace("new_workspace_file_dialog cancel");
             println!("mui_newfile_workspace_dialog: native new-file dialog cancelled");
+            ctx.push_toast(crate::toast::Kind::Info, "New file cancelled");
             return -2;
         }
         FileDialogPick::Unavailable => {
             trace("new_workspace_file_dialog unavailable");
             println!("mui_newfile_workspace_dialog: native new-file dialog unavailable");
+            ctx.push_toast(crate::toast::Kind::Warn, "New file dialog unavailable");
             return -1;
         }
     };
