@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Borderless resize is now discoverable**: the status bar reserves the
+  bottom-right corner for a visible diagonal resize grip, shifts notifications
+  away from that target, and the strict Windows harness captures the pre-drag
+  frame before proving the real mouse resize path.
 - **Inline AI settings state is honest**: when no `ANTHROPIC_API_KEY` or
   `CLAUDE_API_KEY` is configured, the Inline AI row now reads as unavailable
   instead of showing an enabled purple toggle for a feature that cannot run.

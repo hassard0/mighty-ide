@@ -3673,3 +3673,17 @@ and pass.
 - **Language note:** no compiler gap surfaced. Mighty still needs structured
   command-result values so dialog success/cancel/unavailable evidence is typed
   instead of emitted as magic return codes plus trace strings.
+
+### L251. Window resize needs a visible affordance, not only hit testing **[finding, P2]**
+The borderless window could resize from the bottom-right corner, but screenshots
+left the actual target nearly invisible inside the status-bar chrome. Humans
+should not have to guess where the OS resize band starts.
+
+- **IDE note:** the status bar now reserves the bottom-right corner for a visible
+  diagonal resize grip, moves the notification bell left of that target, pins
+  the grip geometry in a unit test, and captures the pre-drag frame in the
+  strict Windows harness before performing the real mouse resize.
+- **Language note:** no compiler gap surfaced. Mighty UI needs host-window chrome
+  primitives for resize, move, minimize, maximize, restored/maximized state, and
+  visible affordance drawing so every app does not hand-roll borderless window
+  behavior.

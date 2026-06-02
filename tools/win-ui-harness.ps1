@@ -1393,6 +1393,7 @@ if (Wait-TraceCountGreaterThan "(?m)^md_close$" $mdCloseCount 1200) {
 }
 
 # === BORDERLESS WINDOW RESIZE: bottom-right corner must work with the mouse. ===
+Capture $hwnd "54-window-resize-grip"
 $resizeTraceCount = Trace-MatchCount "window_resize code="
 $beforeResize = Get-WinRect $hwnd
 $beforeW = $beforeResize.Right - $beforeResize.Left

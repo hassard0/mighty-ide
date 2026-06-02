@@ -2947,9 +2947,11 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     let (line1, col1) = ctx.status_cursor;
 
     // ---- right cluster (laid out right-to-left) ----
-    let mut rx = w - 12.0;
+    let (grip_x, grip_y, grip_w, grip_h) = status_resize_grip_rect(w, h);
+    ctx.dl_icon(grip_x, grip_y, grip_w, grip_h, icons::RESIZE_GRIP, theme::TEXT_4(), 1.4, false);
+    let mut rx = grip_x - 10.0;
 
-    // Bell (notifications) at the far right.
+    // Bell (notifications), kept left of the always-visible resize grip.
     rx -= 16.0;
     ctx.dl_icon(rx, icon_y - 0.5, 14.0, 14.0, icons::BELL, theme::DIM(), 1.5, false);
     rx -= 10.0;
@@ -3054,6 +3056,11 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     } else {
         ctx.status_problems_rect = None;
     }
+}
+
+pub(crate) fn status_resize_grip_rect(width: f32, height: f32) -> (f32, f32, f32, f32) {
+    let size = 14.0_f32;
+    ((width - size - 6.0).max(0.0), (height - size - 5.0).max(0.0), size, size)
 }
 
 fn fit_status_tail(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {

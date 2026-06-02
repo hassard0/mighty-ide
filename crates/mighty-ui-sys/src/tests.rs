@@ -3053,6 +3053,17 @@ fn status_bar_compacts_long_left_cluster_before_right_cluster() {
 }
 
 #[test]
+fn status_resize_grip_stays_in_bottom_right_corner() {
+    let (x, y, w, h) = crate::abi::status_resize_grip_rect(1280.0, 832.0);
+
+    assert!(x >= 1250.0, "grip should be visually anchored at the right edge");
+    assert!(y >= 812.0, "grip should be visually anchored at the bottom edge");
+    assert!(x + w <= 1275.0, "grip should leave a tiny frame margin");
+    assert!(y + h <= 827.0, "grip should leave a tiny frame margin");
+    assert_eq!((w, h), (14.0, 14.0));
+}
+
+#[test]
 fn chord_command_id_resolves_palette_commands_for_mighty_dispatch() {
     use crate::mui_chord_command_id;
     use crate::shortcuts::{Chord, MOD_ALT, MOD_CTRL, MOD_SHIFT};
