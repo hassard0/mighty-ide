@@ -4123,7 +4123,7 @@ fn dirty_confirm_rects(
     let card_h = 184.0;
     let card_x = ((w - card_w) * 0.5).max(16.0);
     let card_y = ((h - card_h) * 0.5).max(48.0);
-    let btn_w = 112.0;
+    let btn_w = dirty_confirm_button_width(card_w);
     let btn_h = 34.0;
     let by = card_y + card_h - 54.0;
     let discard = (card_x + card_w - btn_w - 24.0, by, btn_w, btn_h);
@@ -4285,19 +4285,36 @@ pub extern "C" fn mui_dirty_confirm_draw(handle: i64) {
 
     ctx.dl_round(cancel.0, cancel.1, cancel.2, cancel.3, 6.0, theme::BG_4());
     ctx.dl_stroke(cancel.0, cancel.1, cancel.2, cancel.3, 6.0, theme::BORDER(), 1.0);
-    ctx.text.queue_ui_sized(cancel.0 + 31.0, cancel.1 + 8.0, "Cancel", theme::TEXT(), chrome, clip);
+    queue_centered_button_label(ctx, cancel, "Cancel", theme::TEXT(), chrome, clip);
 
     ctx.dl_round(save.0, save.1, save.2, save.3, 6.0, theme::accent_a(0.18));
     ctx.dl_stroke(save.0, save.1, save.2, save.3, 6.0, theme::ACCENT_LINE(), 1.0);
-    ctx.text.queue_ui_sized(save.0 + 39.0, save.1 + 8.0, "Save", theme::ACCENT_BRIGHT(), chrome, clip);
+    queue_centered_button_label(ctx, save, "Save", theme::ACCENT_BRIGHT(), chrome, clip);
 
     ctx.dl_round(discard.0, discard.1, discard.2, discard.3, 6.0, theme::error_wash(0.22));
     ctx.dl_stroke(discard.0, discard.1, discard.2, discard.3, 6.0, theme::ERROR(), 1.0);
-    ctx.text.queue_ui_sized(discard.0 + 26.0, discard.1 + 8.0, "Discard", theme::ERROR(), chrome, clip);
+    queue_centered_button_label(ctx, discard, "Discard", theme::ERROR(), chrome, clip);
 
     ctx.overlay = was_overlay;
     ctx.text.set_overlay(was_overlay);
     ctx.clip = old_clip;
+}
+
+pub(crate) fn dirty_confirm_button_width(card_w: f32) -> f32 {
+    ((card_w - 48.0 - 24.0) / 3.0).clamp(72.0, 112.0)
+}
+
+fn queue_centered_button_label(
+    ctx: &mut MuiContext,
+    rect: (f32, f32, f32, f32),
+    label: &str,
+    color: MuiColor,
+    chrome: f32,
+    clip: Option<(u32, u32, u32, u32)>,
+) {
+    let (label_w, _) = ctx.text.measure_ui_sized(label, chrome);
+    let x = rect.0 + ((rect.2 - label_w) * 0.5).max(6.0);
+    ctx.text.queue_ui_sized(x, rect.1 + 8.0, label, color, chrome, clip);
 }
 
 pub(crate) fn fit_dirty_confirm_detail(

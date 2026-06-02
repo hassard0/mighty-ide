@@ -4289,3 +4289,17 @@ broken even though the buttons still hit-tested correctly.
   text-measurement and fit primitives on the language side so modal/dialog
   labels, helper text, and dynamic filenames can be composed without bespoke
   shim helpers for every surface.
+
+### L299. Modal action rows must derive from available width **[finding, P1]**
+The dirty-close modal's card width responds to narrow windows, but its
+Cancel/Save/Discard buttons were fixed at desktop widths. On compact surfaces
+the row could extend outside the card even though the dialog itself was
+centered.
+
+- **IDE note:** dirty-confirm action buttons now compute their width from the
+  modal card width and center labels by measured text width. A compact-card
+  regression verifies the full action row and all labels fit.
+- **Language note:** no compiler gap surfaced. Mighty UI needs reusable layout
+  primitives for action rows, including measured labels, min/max button widths,
+  gaps, and compact fallback behavior, so every modal/prompt uses the same
+  responsive button math.

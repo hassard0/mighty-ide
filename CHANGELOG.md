@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Dirty-close dialog buttons fit compact windows**: the unsaved-tab
+  confirmation now derives action-button widths from the actual card width and
+  centers button labels by measurement, so Cancel/Save/Discard stay inside the
+  modal on narrow windows.
 - **Dirty-close dialog detail text now fits the card**: long filenames in the
   unsaved-tab confirmation are middle-truncated before drawing, preserving the
   important consequence text without letting the detail line run across the

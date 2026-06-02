@@ -455,6 +455,20 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
         fitted_detail.ends_with("cannot be undone."),
         "tail should preserve the consequence text: {fitted_detail}"
     );
+    let compact_card_w = 288.0;
+    let compact_btn_w = crate::abi::dirty_confirm_button_width(compact_card_w);
+    let button_row_w = compact_btn_w * 3.0 + 24.0;
+    assert!(
+        button_row_w <= compact_card_w - 48.0,
+        "dirty-confirm buttons should fit compact card: row={button_row_w} card={compact_card_w}"
+    );
+    for label in ["Cancel", "Save", "Discard"] {
+        let (label_w, _) = ctx.text.measure_ui_sized(label, crate::theme::CHROME_FONT_SIZE);
+        assert!(
+            label_w + 12.0 <= compact_btn_w,
+            "button label should fit centered compact button: {label}"
+        );
+    }
 
     // Dirty untitled tabs keep the confirmation active and explain a cancelled
     // Save dialog instead of failing silently.
