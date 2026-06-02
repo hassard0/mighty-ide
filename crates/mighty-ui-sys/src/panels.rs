@@ -359,7 +359,7 @@ pub extern "C" fn mui_scm_header_action_at_click(handle: i64) -> i32 {
     // Icon centers at sw-94 (commit), sw-72 (pull), sw-50 (push), sw-28 (fetch),
     // each ~15px wide — use 11px half-windows around each.
     let hit = |cx: f32| -> bool { (x - cx).abs() <= 11.0 };
-    if hit(sx + sw - 94.0 + 7.0) {
+    let action = if hit(sx + sw - 94.0 + 7.0) {
         1
     } else if hit(sx + sw - 72.0 + 7.0) {
         2
@@ -369,7 +369,17 @@ pub extern "C" fn mui_scm_header_action_at_click(handle: i64) -> i32 {
         4
     } else {
         0
+    };
+    if action > 0 {
+        let label = match action {
+            1 => "commit",
+            2 => "pull",
+            3 => "push",
+            _ => "refresh",
+        };
+        crate::abi::trace(&format!("scm_header action={label}"));
     }
+    action
 }
 
 /// Y pixel (top) of the first Source-Control changes row.

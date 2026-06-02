@@ -4790,9 +4790,11 @@ pub extern "C" fn mui_rail_utility_at_click(handle: i64) -> i32 {
     }
     let h = ctx.gpu.height as f32;
     if y >= h - 84.0 && y <= h - 56.0 {
+        trace(&format!("rail_utility x={x:.1} y={y:.1} -> account"));
         return 1;
     }
     if y >= h - 46.0 && y <= h - 18.0 {
+        trace(&format!("rail_utility x={x:.1} y={y:.1} -> settings"));
         return 2;
     }
     -1

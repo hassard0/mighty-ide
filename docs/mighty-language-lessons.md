@@ -22,6 +22,13 @@ _Last updated: 2026-05-31 (persisted recent files — L54; snippet mirror placeh
 > even when Ctrl is held (a winit/shim behavior the IDE already relied on for
 > Ctrl+S, not a Mighty issue).
 
+> **Real-mouse UX harness note (no NEW limitation):** this pass fixed stale
+> Windows harness geometry for Explorer header actions, bottom-dock preset
+> buttons, Source Control refresh timing, and the rail Settings click trace.
+> No new Mighty language defect was found; the work stayed in Rust/PowerShell
+> because OS-level foregrounding, DWM visible-bounds capture, native file/folder
+> pickers, and real mouse-event automation remain host/shim responsibilities.
+
 ---
 
 ## P0 — Blocks building real native apps in Mighty

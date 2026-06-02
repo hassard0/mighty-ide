@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Full real-mouse UX harness is back to green**: the Windows harness now clicks
+  Explorer header buttons, bottom-dock preset controls, Source Control refresh,
+  and the rail Settings gear using the same live geometry the app hit-tests.
+  It also waits for slower git refresh traces instead of misclassifying a
+  successful visible click as a failure.
 - **Packaged Windows app now launches as a real GUI app**: `mighty.toml` passes
   the Windows subsystem and `mainCRTStartup` entry flags, so `mighty-ide.exe`
   no longer opens a console window that steals focus from the IDE.

@@ -605,6 +605,23 @@ function ShortcutsCloseCenter() {
   return [pscustomobject]@{ X = ($boxX + $boxW - 26.0); Y = ($boxY + 28.0) }
 }
 
+function SidebarWidth() {
+  return [math]::Min([math]::Max($logicalW * 0.36, 184.0), 248.0)
+}
+
+function ExplorerHeaderActionX($idx) {
+  $sidebarRight = 52.0 + (SidebarWidth)
+  $offsets = @(87.5, 57.5, 27.5)
+  return $sidebarRight - $offsets[$idx]
+}
+
+function DockPresetCenter($idx, $edgeY) {
+  $closeX = $logicalW - 24.0 - 40.0
+  $closeY = $edgeY + 2.0
+  $x = $closeX - 6.0 - ((3.0 - [double]$idx) * 24.0) - ((2.0 - [double]$idx) * 6.0)
+  return [pscustomobject]@{ X = ($x + 12.0); Y = ($closeY + 12.0) }
+}
+
 function AiPanelCloseCenter() {
   # Mirrors ai.rs close_rect(): the panel close button avoids the topbar action
   # strip, so its X position changes with DPI-scaled logical window width.
@@ -863,12 +880,10 @@ function Invoke-PaletteCommandClick($query, $rowIndex, $captureName) {
 # messages, and winit reports logical coordinates back to the IDE, so pass the
 # same logical positions the app hit-tests against.
 $treeX = 110
-# abi.rs hit-tests the Explorer header actions against sidebar_right()-72/-50/-28.
-# At the harness window's compact sidebar width, the button centers are in the
-# 236/258/280px range; farther right enters titlebar drag/chrome.
-$explorerNewFileX = 236
-$explorerNewFolderX = 258
-$explorerCollapseX = 280
+# abi.rs hit-tests the Explorer header actions from the live sidebar width.
+$explorerNewFileX = ExplorerHeaderActionX 0
+$explorerNewFolderX = ExplorerHeaderActionX 1
+$explorerCollapseX = ExplorerHeaderActionX 2
 
 # === WELCOME NEW FILE: quick action must reveal a blank editor, not leave Welcome up. ===
 # Compact Welcome layout places "New File" as the primary quick-action row below
@@ -1080,11 +1095,20 @@ foreach ($ic in $rail) {
     }
   }
   if ($ic.n -eq 'scm') {
-    $scmRefreshCount = Trace-MatchCount "scm_refresh branch="
     ClickL 280 20
     Start-Sleep -Milliseconds 450
     if ($env:MUI_TRACE) {
-      if (Wait-TraceCountGreaterThan "scm_refresh branch=" $scmRefreshCount 4500) {
+      $scmOk = $false
+      $scmDeadline = (Get-Date).AddMilliseconds(15000)
+      while ((Get-Date) -lt $scmDeadline) {
+        $scmTraceText = Get-TraceText
+        if (($scmTraceText -match "(?m)^scm_header action=refresh$") -and ($scmTraceText -match "scm_refresh branch=")) {
+          $scmOk = $true
+          break
+        }
+        Start-Sleep -Milliseconds 100
+      }
+      if ($scmOk) {
         Log "SCM-REFRESH-MOUSE: visible refresh icon rescanned local status"
       } else {
         Log "SCM-REFRESH-MOUSE: refresh icon did not rescan local status"
@@ -1231,9 +1255,8 @@ if ($env:MUI_TRACE) {
     $script:HarnessFailed = $true
   }
 }
-$dockResetX = $logicalW - 124
-$dockButtonY = $dockHandleY - 90
-ClickL $dockResetX $dockButtonY
+$dockResetPt = DockPresetCenter 1 ($dockHandleY + 65)
+ClickL $dockResetPt.X $dockResetPt.Y
 Start-Sleep -Milliseconds 250
 if ($env:MUI_TRACE) {
   Start-Sleep -Milliseconds 150
@@ -1597,8 +1620,13 @@ if ($env:MUI_TRACE) {
 
 # === RAIL UTILITY: bottom Settings icon should open Preferences, not be decorative. ===
 $settingsOpenCount = Trace-MatchCount "(?m)^settings_open$"
+$railSettingsCount = Trace-MatchCount "rail_utility .* -> settings"
+[void][Win]::ForceForeground($hwnd)
+Start-Sleep -Milliseconds 180
 ClickL 26 ($logicalH - 32)
-if (Wait-TraceCountGreaterThan "(?m)^settings_open$" $settingsOpenCount 1200) {
+if ((Wait-TraceCountGreaterThan "(?m)^settings_open$" $settingsOpenCount 1200) -or
+    ((Wait-TraceCountGreaterThan "rail_utility .* -> settings" $railSettingsCount 600) -and
+     (Wait-TraceCountGreaterThan "(?m)^settings_open$" $settingsOpenCount 1200))) {
   Start-Sleep -Milliseconds 250
   Capture $hwnd "50-settings-rail"
 } else {
