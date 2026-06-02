@@ -3356,3 +3356,18 @@ That made the panel look broken even though the command existed.
 - **Language note:** no compiler gap surfaced. Mighty UI helpers should separate
   path/file fitting from instructional-copy fitting so intent is encoded at the
   call site.
+
+### L227. Visible primary actions need a workspace fallback before warning **[finding, P1]**
+The Testing panel showed a prominent **Run Tests** button, but if the active tab
+was an untitled scratch buffer the action had no file path and returned without
+starting anything. To a user this reads as a broken button, especially when a
+workspace is visibly open and contains Mighty files.
+
+- **IDE note:** `mui_test_run` now falls back to the open workspace's
+  `mighty.toml` or first `.mty` file before warning that no test target exists.
+  The Windows strict-mouse harness opens the Testing rail and clicks the visible
+  Run button, requiring a `test_run start` trace so this failure mode cannot hide
+  behind a screenshot-only pass.
+- **Language note:** no compiler gap surfaced. Mighty apps need reusable product
+  rules for target resolution: active document first, workspace context second,
+  then a clear warning. Scalar ABI remains sufficient for the fix.

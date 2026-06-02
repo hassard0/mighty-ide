@@ -793,6 +793,28 @@ foreach ($ic in $rail) {
   if (-not $resp) { Log "!!! LOCKUP after rail '$($ic.n)'" }
 }
 
+# The Testing rail should leave a working primary action visible. Exercise the
+# actual button with a mouse click; this catches the "looks clickable but does
+# nothing" failure mode on scratch tabs by requiring a workspace fallback target.
+ClickL 112 63
+Start-Sleep -Milliseconds 650
+Capture $hwnd "20-test-run-clicked"
+if ($env:MUI_TRACE) {
+  if (Wait-TraceContainsAll @("test_run start target=.*\.mty") 2500) {
+    Log "TEST-RUN-MOUSE: run button started tests from workspace fallback"
+  } else {
+    $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+    if ($traceText -match "test_run no_target") {
+      Log "TEST-RUN-MOUSE: run button had no test target"
+    } elseif ($traceText -match "test_run failed target=") {
+      Log "TEST-RUN-MOUSE: run button selected a target but failed to spawn mty"
+    } else {
+      Log "TEST-RUN-MOUSE: missing run dispatch trace"
+    }
+    $script:HarnessFailed = $true
+  }
+}
+
 # === SIDEBAR LAYOUT: palette commands should resize drawers without window drag. ===
 Invoke-PaletteCommand "sidebar compact" $null
 Start-Sleep -Milliseconds 250

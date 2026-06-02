@@ -31,6 +31,22 @@ fn active_path(ctx: &MuiContext) -> Option<std::path::PathBuf> {
     ctx.tabs.active_path()
 }
 
+fn workspace_test_target(ctx: &MuiContext) -> Option<std::path::PathBuf> {
+    let root = crate::wsabi::effective_root(ctx);
+    if root.as_os_str().is_empty() || !root.is_dir() {
+        return None;
+    }
+    let manifest = root.join("mighty.toml");
+    if manifest.is_file() {
+        return Some(manifest);
+    }
+    std::fs::read_dir(&root)
+        .ok()?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .find(|path| path.extension().and_then(|e| e.to_str()) == Some("mty"))
+}
+
 // ===========================================================================
 // Run / stop lifecycle (Ctrl+Shift+T / "Run Tests")
 // ===========================================================================
@@ -43,18 +59,22 @@ pub extern "C" fn mui_test_run(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    let Some(path) = active_path(ctx) else {
+    let Some(path) = active_path(ctx).or_else(|| workspace_test_target(ctx)) else {
         ctx.tests_panel.open();
         ctx.active_panel = crate::PANEL_TEST;
         ctx.sidebar_visible = true;
+        ctx.push_toast(crate::toast::Kind::Warn, "Open a Mighty file or folder before running tests");
+        crate::abi::trace("test_run no_target");
         return 0;
     };
     ctx.active_panel = crate::PANEL_TEST;
     ctx.sidebar_visible = true;
     if ctx.tests_panel.start(&path, None) {
         println!("test: started `mty test` in {}", ctx.tests_panel.pkg());
+        crate::abi::trace(&format!("test_run start target={}", path.display()));
         1
     } else {
+        crate::abi::trace(&format!("test_run failed target={}", path.display()));
         0
     }
 }
@@ -789,6 +809,23 @@ mod tests {
         assert_eq!(testing_run_label(true, false), "Re-run");
         assert_eq!(testing_run_label(false, true), "Run");
         assert_eq!(testing_run_label(true, true), "Run");
+    }
+
+    #[test]
+    fn pathless_tabs_run_tests_against_workspace_file() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(320, 600) else {
+            return;
+        };
+        let root = std::env::temp_dir().join(format!("mighty-ide-test-target-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let file = root.join("main.mty");
+        std::fs::write(&file, "fn main() {}\n").unwrap();
+        ctx.workspace = crate::workspace::Workspace::new(root.clone());
+
+        assert_eq!(workspace_test_target(&ctx), Some(file));
+
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

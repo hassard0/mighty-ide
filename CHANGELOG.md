@@ -51,6 +51,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   picker, instead of sharing the arbitrary-location File > New flow.
 - **Welcome now names the file picker intent**: the first quick action is
   labeled **New File at Location** so it matches the native path picker behavior.
+- **Testing Run works from scratch tabs**: clicking **Run Tests** now falls back
+  to the open workspace's `mighty.toml` or first `.mty` file when the active tab
+  has no file path, and the strict mouse harness clicks the visible button to
+  prove it dispatches.
 - **Compact sidebar leaves more room for work**: narrow windows now reduce the
   sidebar to 160px, giving terminal, debug, palette, and welcome views more
   usable width instead of crowding dock/header content.
