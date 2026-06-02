@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Explorer header actions now show dialog affordances**: New File and New
+  Folder keep their compact icon buttons, but now carry a tiny `...` marker so
+  they read as picker/prompt actions instead of looking identical to immediate
+  commands like Collapse All.
 - **Welcome quick actions now advertise dialogs**: first-run actions use the
   same `...` convention as the command palette for New File, New Project, Open
   File, and Open Folder, so launch-screen buttons do not hide the picker flow.

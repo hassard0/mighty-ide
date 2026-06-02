@@ -2827,6 +2827,9 @@ fn explorer_header_actions_hit_their_visible_buttons() {
     assert_eq!(mui_explorer_header_at_click(handle), 2);
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, right - 20.5, 20.0, 0);
     assert_eq!(mui_explorer_header_at_click(handle), 3);
+    assert!(crate::abi::explorer_header_action_opens_dialog(1));
+    assert!(crate::abi::explorer_header_action_opens_dialog(2));
+    assert!(!crate::abi::explorer_header_action_opens_dialog(3));
 
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, right - 64.5, 42.0, 0);
     assert_eq!(mui_explorer_header_at_click(handle), 0);

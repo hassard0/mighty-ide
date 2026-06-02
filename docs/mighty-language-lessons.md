@@ -4227,3 +4227,17 @@ picker instead.
 - **Language note:** no new compiler gap surfaced. This again points to a
   shared command metadata model so Welcome, menus, palette, shortcuts, and
   tests all render the same behavior-aware labels.
+
+### L295. Icon-only commands need behavior affordances **[finding, P2]**
+The Explorer header correctly hit-tested New File, New Folder, and Collapse All,
+but all three controls looked like the same kind of compact icon button. New
+File and New Folder open prompts/dialog flow; Collapse All acts immediately.
+That difference matters when the user is scanning the toolbar before clicking.
+
+- **IDE note:** the Explorer header now marks the dialog-backed New File and
+  New Folder buttons with a compact `...` affordance while leaving Collapse All
+  unmarked as an immediate tree action. A focused test pins both the visible
+  button hit zones and the dialog/immediate action classification.
+- **Language note:** no compiler gap surfaced. Mighty still needs a first-class
+  command metadata model that can expose labels, icons, dialog/immediate
+  behavior, disabled state, help text, and tests from the same source of truth.

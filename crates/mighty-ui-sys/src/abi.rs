@@ -5054,6 +5054,10 @@ pub extern "C" fn mui_topbar_action_at_click(handle: i64) -> i32 {
 /// drawn in `mui_sidebar_draw` as three 15px icons at sx+sw-72/-50/-28 in the 40px
 /// header band. Returns 1 = new file, 2 = new folder, 3 = collapse all, else 0.
 /// (Only meaningful while the Explorer panel + sidebar are visible.)
+pub(crate) fn explorer_header_action_opens_dialog(action: i32) -> bool {
+    matches!(action, 1 | 2)
+}
+
 #[no_mangle]
 pub extern "C" fn mui_explorer_header_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -6049,16 +6053,22 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
         clip,
     );
     // Header actions (new file / new folder / collapse) right-aligned as real
-    // icon buttons so the clickable area is visually obvious.
+    // icon buttons. Dialog-backed actions get a tiny "..." mark so they read
+    // differently from immediate tree actions in the compact toolbar.
     let act_y = (head_h - 15.0) * 0.5;
-    for (x, icon) in [
-        (sx + sw - 75.5, icons::NEW_FILE),
-        (sx + sw - 53.5, icons::NEW_FOLDER),
-        (sx + sw - 31.5, icons::COLLAPSE),
+    for (x, icon, action) in [
+        (sx + sw - 75.5, icons::NEW_FILE, 1),
+        (sx + sw - 53.5, icons::NEW_FOLDER, 2),
+        (sx + sw - 31.5, icons::COLLAPSE, 3),
     ] {
         ctx.dl_round(x - 2.0, 9.0, 22.0, 22.0, 5.0, theme::BG_4());
         ctx.dl_stroke(x - 2.0, 9.0, 22.0, 22.0, 5.0, theme::BORDER_SOFT(), 1.0);
         ctx.dl_icon(x + 1.5, act_y, 15.0, 15.0, icon, theme::TEXT_3(), 1.5, false);
+        if explorer_header_action_opens_dialog(action) {
+            for dx in [11.0, 14.0, 17.0] {
+                ctx.dl_round(x - 2.0 + dx, 26.0, 1.5, 1.5, 0.75, theme::TEXT_4());
+            }
+        }
     }
 
     // File rows. Mockup row height is 28px; we keep LINE_H rhythm but draw a
