@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Overlay geometry honors screenshot-visible bounds**: shared visible-surface
+  sizing now caps to the screenshot/window override dimensions, so compact
+  popups such as Code Actions do not measure against a wider offscreen surface
+  and spill past the right edge in audits.
 - **Mighty Agents rows preserve compact signatures**: protocol messages and
   `implements` edges now use measured fitting with compact labels like
   `Submit(Str) -> U8` and `impl Summarize` before ellipsizing, making the

@@ -3921,3 +3921,16 @@ row meaningful.
 - **Language note:** no compiler gap surfaced. Mighty UI needs reusable
   domain-label formatters for signatures, relationships, and typed graph rows,
   not only generic text clipping helpers.
+
+### L272. Overlay fit must use the actual visible surface **[finding, P1]**
+The Code Actions popup used the reported render width while screenshot captures
+were clipped to the explicit gallery size. Its geometry test passed for the
+helper inputs, but the real capture still showed the card running past the right
+edge.
+
+- **IDE note:** shared visible-surface sizing now caps to
+  `MUI_SCREENSHOT_W/H` and `MUI_WIDTH/HEIGHT`, so overlay draw and hit-test
+  geometry use the same visible bounds as the captured frame.
+- **Language note:** no compiler gap surfaced. Mighty UI needs layout primitives
+  that carry authoritative visible bounds through draw, hit-test, and screenshot
+  harnesses instead of recomputing them from different size sources.

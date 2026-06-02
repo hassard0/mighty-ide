@@ -3154,6 +3154,17 @@ fn peek_header_label_fits_measured_budget() {
 }
 
 #[test]
+fn visible_surface_size_honors_screenshot_caps() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    std::env::set_var("MUI_SCREENSHOT_W", "560");
+    std::env::set_var("MUI_SCREENSHOT_H", "520");
+    let size = crate::abi::visible_surface_size_for(640, 0, 600, 0);
+    std::env::remove_var("MUI_SCREENSHOT_W");
+    std::env::remove_var("MUI_SCREENSHOT_H");
+    assert_eq!(size, (560, 520));
+}
+
+#[test]
 fn status_resize_grip_stays_in_bottom_right_corner() {
     let (x, y, w, h) = crate::abi::status_resize_grip_rect(1280.0, 832.0);
 

@@ -223,11 +223,32 @@ unsafe fn ctx<'a>(handle: i64) -> Option<&'a mut MuiContext> {
     (handle as usize as *mut MuiContext).as_mut()
 }
 
-fn visible_surface_size(ctx: &MuiContext) -> (u32, u32) {
+pub(crate) fn visible_surface_size_for(
+    width: u32,
+    phys_width: u32,
+    height: u32,
+    phys_height: u32,
+) -> (u32, u32) {
+    let w = layout::dock_visible_width(width, phys_width);
+    let h = layout::visible_height(height, phys_height);
     (
-        layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width),
-        layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height),
+        env_surface_cap(&["MUI_SCREENSHOT_W", "MUI_WIDTH"], w),
+        env_surface_cap(&["MUI_SCREENSHOT_H", "MUI_HEIGHT"], h),
     )
+}
+
+fn visible_surface_size(ctx: &MuiContext) -> (u32, u32) {
+    visible_surface_size_for(ctx.gpu.width, ctx.gpu.phys_width, ctx.gpu.height, ctx.gpu.phys_height)
+}
+
+fn env_surface_cap(keys: &[&str], fallback: u32) -> u32 {
+    let cap = keys.iter().find_map(|key| {
+        std::env::var(key)
+            .ok()
+            .and_then(|v| v.trim().parse::<u32>().ok())
+            .filter(|&n| n >= 64)
+    });
+    cap.map_or(fallback.max(1), |n| fallback.min(n).max(1))
 }
 
 // ---------------------------------------------------------------------------

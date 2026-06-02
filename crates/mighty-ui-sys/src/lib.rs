@@ -1195,6 +1195,8 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
             }
         }
     }
+    let (layout_w, layout_h) =
+        crate::abi::visible_surface_size_for(w, ctx.gpu.phys_width, h, ctx.gpu.phys_height);
 
     // Screenshot hook: force-draw the autocomplete dropdown when armed (so a
     // headless capture shows it). Mirrors `mui_complete_draw_at` exactly.
@@ -1206,7 +1208,7 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         let engine = std::mem::take(&mut ctx.complete);
         ctx.overlay = true;
         ctx.text.set_overlay(true);
-        engine.draw(ctx, cx, cy, w, h);
+        engine.draw(ctx, cx, cy, layout_w, layout_h);
         ctx.overlay = false;
         ctx.text.set_overlay(false);
         ctx.complete = engine;
@@ -1222,7 +1224,7 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         let sig = std::mem::take(&mut ctx.sig);
         ctx.overlay = true;
         ctx.text.set_overlay(true);
-        sig.draw_inset(ctx, cx, cy, w, h, region.left + 8.0);
+        sig.draw_inset(ctx, cx, cy, layout_w, layout_h, region.left + 8.0);
         ctx.overlay = false;
         ctx.text.set_overlay(false);
         ctx.sig = sig;
@@ -1235,7 +1237,7 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         let menu = std::mem::take(&mut ctx.codeaction);
         ctx.overlay = true;
         ctx.text.set_overlay(true);
-        menu.draw_inset(ctx, cx, cy, w, h, region.left + 8.0);
+        menu.draw_inset(ctx, cx, cy, layout_w, layout_h, region.left + 8.0);
         ctx.overlay = false;
         ctx.text.set_overlay(false);
         ctx.codeaction = menu;
@@ -1250,7 +1252,7 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         ctx.overlay = true;
         ctx.text.clear_overlay_runs();
         ctx.text.set_overlay(true);
-        rename.draw(ctx, w, h);
+        rename.draw(ctx, layout_w, layout_h);
         ctx.overlay = false;
         ctx.text.set_overlay(false);
         ctx.clip = old_clip;
@@ -1267,7 +1269,7 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         ctx.overlay = true;
         ctx.text.clear_overlay_runs();
         ctx.text.set_overlay(true);
-        picker.draw(ctx, w, h);
+        picker.draw(ctx, layout_w, layout_h);
         ctx.overlay = false;
         ctx.text.set_overlay(false);
         ctx.clip = old_clip;
@@ -1284,7 +1286,7 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         ctx.overlay = true;
         ctx.text.clear_overlay_runs();
         ctx.text.set_overlay(true);
-        engine.draw(ctx, w, h);
+        engine.draw(ctx, layout_w, layout_h);
         ctx.overlay = false;
         ctx.text.set_overlay(false);
         ctx.clip = old_clip;
