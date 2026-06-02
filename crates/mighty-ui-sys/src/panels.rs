@@ -1854,15 +1854,7 @@ pub extern "C" fn mui_ai_input_len(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.ai.input.chars().count() as i32)
 }
 
-/// Send the current input as a new turn, embedding the active file's content
-/// (and any selection) as context. Spawns the background streaming request.
-/// Returns `1` if a request was started, `0` otherwise (blank input / already
-/// streaming / no key).
-#[no_mangle]
-pub extern "C" fn mui_ai_send(handle: i64) -> i32 {
-    let Some(ctx) = (unsafe { ctx(handle) }) else {
-        return 0;
-    };
+fn ai_send_with_feedback(ctx: &mut MuiContext) -> i32 {
     if ctx.ai.is_streaming() {
         ctx.push_toast(crate::toast::Kind::Info, "AI response already in progress");
         crate::abi::trace("ai_send blocked=streaming");
@@ -1892,6 +1884,18 @@ pub extern "C" fn mui_ai_send(handle: i64) -> i32 {
     }
 }
 
+/// Send the current input as a new turn, embedding the active file's content
+/// (and any selection) as context. Spawns the background streaming request.
+/// Returns `1` if a request was started, `0` otherwise (blank input / already
+/// streaming / no key).
+#[no_mangle]
+pub extern "C" fn mui_ai_send(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ai_send_with_feedback(ctx)
+}
+
 /// Seed an inline-ask: pre-fill the AI input with `instruction` about the current
 /// selection/file, open the panel, and send it. Mighty stages the instruction
 /// via `mui_ai_input_push` (reusing the prompt UI) then calls this. Returns the
@@ -1903,15 +1907,7 @@ pub extern "C" fn mui_ai_send_inline(handle: i64) -> i32 {
     };
     ctx.ai.open = true;
     // The instruction is already in ctx.ai.input (pushed char-by-char by Mighty).
-    let file_name = ctx.file_name.clone();
-    let content = ctx.tabs.active_model().as_text();
-    let selection = ctx.tabs.active_model().selected_text();
-    let system = crate::ai::build_system_prompt(&file_name, &content, &selection);
-    if ctx.ai.send(system) {
-        1
-    } else {
-        0
-    }
+    ai_send_with_feedback(ctx)
 }
 
 /// Drain pending stream deltas into the transcript. Returns `1` if the

@@ -4671,3 +4671,20 @@ returned `0` without user-facing feedback.
   descriptors that can declare enabled state, unavailable reasons, and typed
   command results, so controls and keyboard shortcuts share one visible outcome
   model instead of each ABI hand-rolling guard text.
+
+### L324. Prompt-routed commands need the same outcomes as button-routed commands **[finding, P2]**
+The `Ctrl+I` inline ask prompt opened the AI panel and copied the instruction,
+but then sent through a lower-level path that skipped the visible AI send
+guards. With no API key, the panel opened and the prompt vanished while the
+action returned `0`, which made the shortcut feel broken even though the toolbar
+send button explained the same unavailable state.
+
+- **IDE note:** `mui_ai_send_inline` now shares the same send helper as
+  `mui_ai_send`, preserving the staged instruction while reporting blank input,
+  missing keys, active streams, startup failures, and successful starts through
+  the same toasts and traces. The new regression test covers the no-key inline
+  path and asserts that the AI panel opens with a visible missing-key outcome.
+- **Language note:** this reinforces L323. Mighty apps need a declarative
+  command/action result contract that can be invoked from prompts, buttons,
+  palette entries, and shortcuts without each route deciding independently
+  whether an unavailable action should clear UI, toast, trace, or stay staged.

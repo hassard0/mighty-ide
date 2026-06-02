@@ -26,6 +26,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   and the rail Settings gear using the same live geometry the app hit-tests.
   It also waits for slower git refresh traces instead of misclassifying a
   successful visible click as a failure.
+- **Inline AI Ask now fails visibly when unavailable**: `Ctrl+I` routes through
+  the same AI send preflight as the visible Copilot send button, so blank
+  prompts, missing API keys, active streams, and startup failures produce the
+  same toast and trace outcomes instead of silently returning `0`.
 - **Packaged Windows app now launches as a real GUI app**: `mighty.toml` passes
   the Windows subsystem and `mainCRTStartup` entry flags, so `mighty-ide.exe`
   no longer opens a console window that steals focus from the IDE.

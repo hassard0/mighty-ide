@@ -1069,6 +1069,34 @@ fn ai_send_idle_controls_explain_noops() {
 }
 
 #[test]
+fn ai_inline_send_reports_unavailable_outcomes() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let old_anthropic = std::env::var_os("ANTHROPIC_API_KEY");
+    let old_claude = std::env::var_os("CLAUDE_API_KEY");
+    std::env::remove_var("ANTHROPIC_API_KEY");
+    std::env::remove_var("CLAUDE_API_KEY");
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.ai.open = false;
+    ctx.ai.input = "explain the selected code".to_string();
+    assert_eq!(crate::panels::mui_ai_send_inline(handle), 0);
+    assert!(ctx.ai.open);
+    assert_eq!(ctx.ai.input, "explain the selected code");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Set ANTHROPIC_API_KEY to enable AI Copilot");
+
+    if let Some(v) = old_anthropic {
+        std::env::set_var("ANTHROPIC_API_KEY", v);
+    }
+    if let Some(v) = old_claude {
+        std::env::set_var("CLAUDE_API_KEY", v);
+    }
+}
+
+#[test]
 fn sidebar_layout_commands_open_and_resize_sidebar() {
     let mut ctx = ctx_or_skip!();
     ctx.gpu.width = 1200;
