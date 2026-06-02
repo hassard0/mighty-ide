@@ -291,7 +291,7 @@ pub extern "C" fn mui_test_row_at_click(handle: i64) -> i32 {
     if x < sx0 || x > sx1 {
         return -1;
     }
-    let top = rows_top();
+    let top = rows_top(sx1 - sx0);
     if y < top {
         return -1;
     }
@@ -384,9 +384,10 @@ pub extern "C" fn mui_test_scroll(handle: i64, delta: i32) {
 const HEAD_H: f32 = 40.0;
 
 /// Y pixel (top) of the first result row.
-fn rows_top() -> f32 {
+fn rows_top(sidebar_w: f32) -> f32 {
     // header + toolbar row + summary bar + section label.
-    HEAD_H + 8.0 + 30.0 + 8.0 + 22.0 + 20.0
+    let summary_h = if compact_testing_summary(sidebar_w) { 38.0 } else { 22.0 };
+    HEAD_H + 8.0 + 30.0 + 8.0 + summary_h + 20.0
 }
 
 fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
@@ -508,6 +509,24 @@ fn testing_run_label(ran: bool, compact: bool) -> &'static str {
         "Re-run"
     } else {
         "Run Tests"
+    }
+}
+
+fn compact_testing_summary(sidebar_w: f32) -> bool {
+    sidebar_w < 220.0
+}
+
+fn testing_summary_lines(passed: usize, failed: usize, total: usize, running: bool, sidebar_w: f32) -> Vec<String> {
+    if total == 0 && !running {
+        return vec!["No tests run yet".to_string()];
+    }
+    if compact_testing_summary(sidebar_w) {
+        vec![
+            format!("{passed} passed \u{00b7} {failed} failed"),
+            format!("{total} total"),
+        ]
+    } else {
+        vec![format!("{passed} passed \u{00b7} {failed} failed \u{00b7} {total} total")]
     }
 }
 
@@ -656,19 +675,14 @@ pub extern "C" fn mui_test_draw(handle: i64) {
             ctx.dl_round(bar_x + p_w, sum_y, f_w, bar_h, 3.0, theme::ERROR());
         }
     }
-    // Summary text + duration.
-    let summary = if total == 0 && !ctx.tests_panel.is_running() {
-        "No tests run yet".to_string()
-    } else if sw < 220.0 {
-        format!("{passed}p \u{00b7} {failed}f \u{00b7} {total}t")
-    } else {
-        format!("{passed} passed \u{00b7} {failed} failed \u{00b7} {total} total")
-    };
+    // Summary text + duration. Compact sidebars keep real words and wrap onto a
+    // second line instead of falling back to p/f/t implementation shorthand.
+    let summary_lines = testing_summary_lines(passed, failed, total, ctx.tests_panel.is_running(), sw);
     let sum_text_y = sum_y + bar_h + 4.0;
     let duration = if ctx.tests_panel.duration_ms() > 0 {
         let dur = format!("{}ms", ctx.tests_panel.duration_ms());
         let (dw, _) = ctx.text.measure_ui_sized(&dur, chrome - 1.5);
-        if sw >= 180.0 {
+        if sw >= 180.0 && !compact_testing_summary(sw) {
             ctx.text.queue_ui_sized(sx + sw - dw - 14.0, sum_text_y, &dur, theme::TEXT_4(), chrome - 1.5, clip);
             dw + 10.0
         } else {
@@ -677,17 +691,26 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     } else {
         0.0
     };
-    let shown_summary = fit_ui_text(&mut ctx.text, &summary, sw - 24.0 - duration, chrome - 1.0);
-    if !shown_summary.is_empty() {
-        ctx.text.queue_ui_sized(bar_x, sum_text_y, &shown_summary, theme::TEXT_1(), chrome - 1.0, clip);
+    for (i, summary) in summary_lines.iter().enumerate() {
+        let shown_summary = fit_ui_text(&mut ctx.text, summary, sw - 24.0 - duration, chrome - 1.0);
+        if !shown_summary.is_empty() {
+            ctx.text.queue_ui_sized(
+                bar_x,
+                sum_text_y + i as f32 * (chrome + 2.0),
+                &shown_summary,
+                theme::TEXT_1(),
+                chrome - 1.0,
+                clip,
+            );
+        }
     }
 
     // Section label.
-    let label_y = sum_text_y + 18.0;
+    let label_y = sum_text_y + if compact_testing_summary(sw) { 34.0 } else { 18.0 };
     ctx.text.queue_ui_sized(sx + 14.0, label_y, "RESULTS", theme::DIM(), chrome - 2.0, clip);
 
     // Results tree.
-    let top = rows_top();
+    let top = rows_top(sw);
     let count = ctx.tests_panel.row_count();
     let first = ctx.tests_panel.first();
     if count == 0 {
@@ -809,6 +832,19 @@ mod tests {
         assert_eq!(testing_run_label(true, false), "Re-run");
         assert_eq!(testing_run_label(false, true), "Run");
         assert_eq!(testing_run_label(true, true), "Run");
+    }
+
+    #[test]
+    fn compact_testing_summary_keeps_readable_words() {
+        assert_eq!(
+            testing_summary_lines(16, 0, 16, false, 184.0),
+            vec!["16 passed \u{00b7} 0 failed".to_string(), "16 total".to_string()]
+        );
+        assert_eq!(
+            testing_summary_lines(16, 0, 16, false, 260.0),
+            vec!["16 passed \u{00b7} 0 failed \u{00b7} 16 total".to_string()]
+        );
+        assert_eq!(rows_top(184.0), rows_top(260.0) + 16.0);
     }
 
     #[test]

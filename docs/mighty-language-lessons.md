@@ -3385,3 +3385,15 @@ first-run screen instead of opening a chooser for the current workflow.
 - **Language note:** no compiler gap surfaced. Mighty UI would benefit from a
   reusable modal/picker surface abstraction so commands can share hit-tested row
   behavior without sharing the wrong visual frame.
+
+### L229. Compact summaries should wrap words before abbreviating meaning **[finding, P2]**
+The Testing sidebar summary used `16p • 0f • 16t` once the drawer became narrow.
+That saved pixels, but it read like developer shorthand and made an otherwise
+functional panel feel unfinished.
+
+- **IDE note:** compact Testing summaries now keep semantic labels, wrapping to
+  two lines (`passed/failed`, then `total`) and reserving the matching vertical
+  space before the Results tree begins.
+- **Language note:** no compiler gap surfaced. Mighty UI needs summary/chip
+  primitives that can choose between single-line, wrapped, and elided layouts
+  without losing the user-facing meaning of the text.
