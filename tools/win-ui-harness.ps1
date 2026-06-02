@@ -343,6 +343,22 @@ function Send-MouseEvent($flags) {
   [Win]::mouse_event([uint32]$flags, 0, 0, 0, [UIntPtr]::Zero)
 }
 
+function WheelL($lx, $ly, $delta) {
+  $fg = Ensure-Foreground $hwnd
+  if (-not $fg) {
+    Log "wheel: FAILED to foreground window before mouse input"
+    $script:HarnessFailed = $true
+    return
+  }
+  $x = [int][math]::Round($lx * $scale)
+  $y = [int][math]::Round($ly * $scale)
+  $r = Get-WinRect $hwnd
+  [void][Win]::SetCursorPos($r.Left + $x, $r.Top + $y)
+  Start-Sleep -Milliseconds 45
+  [Win]::mouse_event([uint32][Win]::MOUSEEVENTF_WHEEL, 0, 0, [uint32]$delta, [UIntPtr]::Zero)
+  Log "wheel (mouse_event) at logical ($lx,$ly) delta=$delta"
+}
+
 function Press-VK($h, $vk) {
   [void][Win]::PostMessage($h, [Win]::WM_KEYDOWN, [IntPtr]$vk, [IntPtr]0); Start-Sleep -Milliseconds 15
   [void][Win]::PostMessage($h, [Win]::WM_KEYUP,   [IntPtr]$vk, [IntPtr]0); Start-Sleep -Milliseconds 15
@@ -760,6 +776,26 @@ if ($env:MUI_TRACE) {
     Log "TAB-BAR: switch and close traces observed"
   } else {
     Log "TAB-BAR: missing switch/close trace"
+    $script:HarnessFailed = $true
+  }
+}
+
+# === TAB OVERFLOW: create enough tabs that the strip must scroll, then use the
+# real mouse wheel over the visible tab row. This catches the human failure mode
+# where crowded tabs look present but cannot be reached without keyboard commands.
+for ($i = 0; $i -lt 7; $i++) {
+  Invoke-PaletteCommand "untitled" $null
+  Start-Sleep -Milliseconds 120
+}
+Capture $hwnd "12-tabs-overflow"
+if ($env:MUI_TRACE) {
+  $tabScrollCount = Trace-MatchCount "tab_scroll dir="
+  WheelL ($tabBodyLeft + 40) 20 120
+  Start-Sleep -Milliseconds 450
+  if (Wait-TraceCountGreaterThan "tab_scroll dir=" $tabScrollCount 1800) {
+    Log "TAB-OVERFLOW-WHEEL: real wheel over tab strip scrolled visible tabs"
+  } else {
+    Log "TAB-OVERFLOW-WHEEL: real wheel over tab strip did not move visible tabs"
     $script:HarnessFailed = $true
   }
 }

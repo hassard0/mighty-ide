@@ -3492,3 +3492,17 @@ navigation chrome, and first-run surfaces.
   shared brand/icon component primitive so the same mark geometry and spacing
   can be reused without copying draw code between rail, welcome, status, and
   packaging assets.
+
+### L237. Crowded tab strips need live pointer proof **[finding, P1]**
+Tab overflow had unit coverage, but the strict Windows harness only clicked
+ordinary visible tabs. That leaves a real UX gap: users need hidden tabs to be
+reachable with the same mouse wheel gesture they use in other IDEs, and a
+borderless title bar must not steal that input.
+
+- **IDE note:** tab-strip scrolling now emits `tab_scroll` traces, and the
+  strict Windows harness creates a crowded tab strip, sends a real OS mouse-wheel
+  event over the tab row, and requires the visible tab window to move.
+- **Language note:** no compiler gap surfaced. Mighty UI needs reusable
+  black-box interaction fixtures for pointer workflows so overflow, drag, and
+  wheel behavior are verified against live windows instead of inferred from
+  scalar hit-test units.

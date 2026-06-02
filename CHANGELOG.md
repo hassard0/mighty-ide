@@ -81,6 +81,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **In-app Mighty marks match the icon system**: the rail and Welcome brand
   tiles now use the same simplified single-outline treatment with a larger mark,
   avoiding the fuzzy nested-frame look in small UI surfaces.
+- **Overflow tabs are real-mouse verified**: the Windows harness now creates a
+  crowded tab strip and uses an actual mouse-wheel event over the tab row,
+  requiring a tab-scroll trace so hidden tabs are proven reachable by mouse.
 - **Compact sidebar leaves more room for work**: narrow windows now reduce the
   sidebar to 160px, giving terminal, debug, palette, and welcome views more
   usable width instead of crowding dock/header content.

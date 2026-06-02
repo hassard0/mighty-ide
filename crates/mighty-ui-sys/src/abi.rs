@@ -4325,7 +4325,11 @@ fn tab_scroll_by(ctx: &mut MuiContext, dir: i32) -> bool {
     } else if dir < 0 {
         ctx.tab_scroll = ctx.tab_scroll.saturating_sub(1);
     }
-    before != ctx.tab_scroll
+    let changed = before != ctx.tab_scroll;
+    if changed {
+        trace(&format!("tab_scroll dir={dir} from={before} to={}", ctx.tab_scroll));
+    }
+    changed
 }
 
 fn topbar_command_center_rect(ctx: &MuiContext) -> Option<(f32, f32, f32, f32)> {
