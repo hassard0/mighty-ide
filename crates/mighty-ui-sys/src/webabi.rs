@@ -230,11 +230,12 @@ pub extern "C" fn mui_web_scroll(handle: i64, delta: i32) {
 }
 
 /// Map the last click to a Web-panel click code: `-1` none, `1` the "Stop
-/// server" button, `2` the "Open in browser" pill (the URL). The IDE dispatches
-/// the action.
+/// server" button, `2` the "Open in browser" pill (the URL), `3` the Run
+/// button. The IDE dispatches the action.
 pub const WEB_CLICK_NONE: i32 = -1;
 pub const WEB_CLICK_STOP: i32 = 1;
 pub const WEB_CLICK_OPEN: i32 = 2;
+pub const WEB_CLICK_RUN: i32 = 3;
 
 #[no_mangle]
 pub extern "C" fn mui_web_click(handle: i64) -> i32 {
@@ -248,6 +249,12 @@ pub extern "C" fn mui_web_click(handle: i64) -> i32 {
     let g = web_geom(ctx);
     // Hit-test the header action buttons (right-aligned).
     if y >= g.y0 && y <= g.y0 + g.header_h {
+        if let Some(r) = g.run_btn {
+            if x >= r.0 && x <= r.0 + r.2 && y >= r.1 && y <= r.1 + r.3 {
+                crate::abi::trace("web_click run");
+                return WEB_CLICK_RUN;
+            }
+        }
         if let Some(r) = g.stop_btn {
             if x >= r.0 && x <= r.0 + r.2 && y >= r.1 && y <= r.1 + r.3 {
                 return WEB_CLICK_STOP;
@@ -274,6 +281,8 @@ struct WebGeom {
     stop_btn: Option<(f32, f32, f32, f32)>,
     /// True when compact width uses an icon-only stop button.
     stop_icon_only: bool,
+    /// (x, y, w, h) of the Run button, when idle.
+    run_btn: Option<(f32, f32, f32, f32)>,
     /// (x, y, w, h) of the Open-in-browser pill, when a URL exists.
     open_btn: Option<(f32, f32, f32, f32)>,
 }
@@ -317,6 +326,7 @@ fn web_geom(ctx: &MuiContext) -> WebGeom {
     let min_action_x = region.left + 220.0;
     let mut stop_btn = None;
     let mut stop_icon_only = false;
+    let mut run_btn = None;
     let mut open_btn = None;
     if ctx.web.is_running() {
         let min_stop_x = region.left + 96.0;
@@ -324,6 +334,14 @@ fn web_geom(ctx: &MuiContext) -> WebGeom {
         stop_btn = btn;
         stop_icon_only = icon_only;
         cursor = next_cursor;
+    } else {
+        let run_w = 54.0;
+        let min_run_x = region.left + 96.0;
+        if cursor - run_w >= min_run_x {
+            cursor -= run_w;
+            run_btn = Some((cursor, by, run_w, btn_h));
+            cursor -= 8.0;
+        }
     }
     let url = ctx.web.url();
     if !url.is_empty() {
@@ -344,6 +362,7 @@ fn web_geom(ctx: &MuiContext) -> WebGeom {
         header_h,
         stop_btn,
         stop_icon_only,
+        run_btn,
         open_btn,
     }
 }
@@ -451,6 +470,26 @@ pub extern "C" fn mui_web_draw(handle: i64) {
             );
         } else {
             ctx.text.queue_ui_sized(bx + 10.0, by + 3.0, "Stop", theme::ERROR(), chrome - 2.0, clip);
+        }
+    }
+
+    // Run button (when idle): lets the Web panel start a session without leaving
+    // the panel or hunting through the palette.
+    if let Some((bx, by, bw, bh)) = g.run_btn {
+        ctx.dl_round(bx, by, bw, bh, 6.0, theme::accent_a(0.22));
+        ctx.dl_stroke(bx, by, bw, bh, 6.0, theme::ACCENT(), 1.0);
+        ctx.dl_icon(
+            bx + 8.0,
+            by + (bh - 10.0) * 0.5,
+            10.0,
+            10.0,
+            icons::RUN,
+            theme::ACCENT_BRIGHT(),
+            1.4,
+            true,
+        );
+        if bw >= 48.0 {
+            ctx.text.queue_ui_sized(bx + 22.0, by + 3.0, "Run", theme::TEXT_1(), chrome - 2.0, clip);
         }
     }
 

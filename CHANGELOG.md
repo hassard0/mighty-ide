@@ -12,9 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
-- **Web Playground no longer opens blank**: the browser runtime panel now shows a
-  compact empty state before any session has run, traces palette opens, and is
-  covered by the strict Windows real-mouse harness with a screenshot capture.
+- **Web Playground is usable from inside the panel**: the browser runtime panel
+  now shows a compact empty state before any session has run, exposes a visible
+  Run button in its header, lets that button win over the shared resize band,
+  traces palette opens and button clicks, and is covered by the strict Windows
+  real-mouse harness with screenshot capture.
 - **Integrated Terminal is covered by real command output**: the Windows harness
   now opens the terminal from the command palette, runs `set` in the real PTY,
   captures the dock, and verifies the inherited probe environment value reached

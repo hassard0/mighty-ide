@@ -1214,6 +1214,19 @@ if ($env:MUI_TRACE) {
     $script:HarnessFailed = $true
   }
 }
+$webRunClickCount = Trace-MatchCount "(?m)^web_click run$"
+# layout::dock_header_content_right leaves room for the close/preset buttons;
+# the Web Run button sits immediately to the left of that action cluster.
+ClickL ($logicalW - 203) ($logicalH - 250)
+Start-Sleep -Milliseconds 450
+if ($env:MUI_TRACE) {
+  if (Wait-TraceCountGreaterThan "(?m)^web_click run$" $webRunClickCount 1800) {
+    Log "WEB-PLAYGROUND-RUN-MOUSE: visible Run button dispatched"
+  } else {
+    Log "WEB-PLAYGROUND-RUN-MOUSE: visible Run button did not dispatch"
+    $script:HarnessFailed = $true
+  }
+}
 Invoke-PaletteCommand "close bottom dock" $null
 Start-Sleep -Milliseconds 250
 

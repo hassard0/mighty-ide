@@ -1271,6 +1271,10 @@ fn main() {
     let mut tag = mui_poll_event_s(h)
     while tag != 0 && running {
       let mut command_click_id: I32 = -1
+      let mut web_header_click: I32 = -1
+      if tag == ev_mouse_down() && web_focus {
+        web_header_click = mui_web_click(h)
+      }
       if dock_resizing && tag == ev_mouse_move() {
         let _dh = mui_bottom_dock_resize_to_event_y(h)
       } else if dock_resizing && tag == ev_mouse_up() {
@@ -1293,6 +1297,20 @@ fn main() {
         web_focus = false
         test_focus = false
         term_focus = false
+      } else if tag == ev_mouse_down() && mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && web_header_click > 0 {
+        dock_resizing = false
+        sidebar_resizing = false
+        run_focus = false
+        test_focus = false
+        term_focus = false
+        if web_header_click == 1 {
+          mui_web_stop(h)
+        } else if web_header_click == 2 {
+          let _ob = mui_web_open_browser(h)
+        } else if web_header_click == 3 {
+          let _wr = mui_web_run(h)
+        }
+        web_focus = true
       } else if tag == ev_mouse_down() && mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && mui_bottom_dock_resize_at_click(h) == 1 {
         dock_resizing = true
         sidebar_resizing = false
@@ -1854,13 +1872,16 @@ fn main() {
             let dir = mui_event_scroll_dir(h)
             if dir > 0 { mui_web_scroll(h, -3) } else { mui_web_scroll(h, 3) }
           } else if tag == ev_mouse_down() {
-            let wc = mui_web_click(h)
+            let wc = web_header_click
             if wc == 1 {
               // Stop server.
               mui_web_stop(h)
             } else if wc == 2 {
               // Open the served URL in the default browser.
               let _ob = mui_web_open_browser(h)
+            } else if wc == 3 {
+              let _wr = mui_web_run(h)
+              web_focus = true
             } else {
               // Clicked outside the Web band: release focus so the click flow
               // recovers (the next click reaches the editor / its target).

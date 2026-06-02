@@ -4108,9 +4108,25 @@ look broken during the exact first-run path a human is likely to try while
 exploring the IDE.
 
 - **IDE note:** the Web panel now renders a compact `No web session yet` state
-  before output exists, traces `web_open`, and the Windows real-mouse harness
-  opens `View: Web Playground`, captures the visible panel, and closes the
-  bottom dock afterward.
+  before output exists, includes a visible header Run button, traces `web_open`
+  and `web_click run`, and the Windows real-mouse harness opens
+  `View: Web Playground`, captures the visible panel, clicks the Run affordance,
+  and closes the bottom dock afterward.
 - **Language note:** no compiler gap surfaced. Mighty needs declarative runtime
   panel states so `idle`, `starting`, `running`, `failed`, and `finished` can
   drive rendering, command enablement, traces, and tests from one typed model.
+
+### L287. Overlapping hit zones need an event-priority model **[finding, P1]**
+The Web panel's visible Run button sat inside the bottom-dock header. The
+global dock-resize hit test also covered the top part of that same header, so a
+human click on the button could be consumed as a resize start before Web-panel
+routing ever saw it.
+
+- **IDE note:** mouse-down processing now samples the Web header action once per
+  event and lets Stop/Open/Run win before the shared resize band. The strict
+  Windows harness clicks the visible Web Run button and waits for
+  `web_click run`, proving the real button dispatches.
+- **Language note:** no compiler gap surfaced. Mighty needs a declarative
+  event-priority or hit-layer table so overlay, dock, panel-header, resize, and
+  editor-body regions are ordered by data instead of repeated long `if/else`
+  guards.
