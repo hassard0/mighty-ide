@@ -279,6 +279,15 @@ function Is-Responsive($h, $timeoutMs = 1200) {
   return ($ret -ne [IntPtr]::Zero)
 }
 
+function Wait-Responsive($h, $timeoutMs = 3000) {
+  $deadline = (Get-Date).AddMilliseconds($timeoutMs)
+  while ((Get-Date) -lt $deadline) {
+    if (Is-Responsive $h 600) { return $true }
+    Start-Sleep -Milliseconds 100
+  }
+  return $false
+}
+
 function Ensure-Foreground($h) {
   for ($i = 0; $i -lt 4; $i++) {
     [void][Win]::ShowWindow($h, 9) # SW_RESTORE
@@ -1040,13 +1049,13 @@ if ($openText -like "*zz*") {
 
 # === OPEN FOLDER dialog via palette should apply the selected workspace. ===
 Invoke-PaletteCommand "open folder" "45-open-folder-palette"
-$respFolder = Is-Responsive $hwnd
+$respFolder = Wait-Responsive $hwnd 4500
 Log "OPEN-FOLDER: responsive after dialog command=$respFolder"
 if (-not $respFolder) { $script:HarnessFailed = $true }
 if ($env:MUI_TRACE) {
-  Start-Sleep -Milliseconds 150
-  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
   $openFolderPattern = [regex]::Escape($openFolderPath)
+  [void](Wait-TraceContainsAll @("workspace_open_folder path=$openFolderPattern changed=1") 4500)
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
   if ($traceText -match "workspace_open_folder path=$openFolderPattern changed=1") {
     Log "OPEN-FOLDER: selected folder became workspace -> $openFolderPath"
   } else {

@@ -78,6 +78,17 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Toast notifications stay out of modal dialogs**: active Settings, Keyboard
   Shortcuts, Theme Picker, and dirty-work confirmation overlays suppress toast
   drawing and toast hit targets so transient feedback cannot cover modal content.
+- **Source Control opens without freezing the UI**: the SCM model now checks for
+  a `.git` marker before shelling out to `git rev-parse`, and view-switch
+  commands no longer run `git status` directly on the click path. The panel opens
+  immediately and the refresh action performs the scan intentionally.
+- **Top-bar command access is stable after dialogs and tab growth**: mouse-opened
+  Palette and Quick Open surfaces now ignore the opener click that follows the
+  More/command-center press, preventing the surface from closing itself and
+  sending typed commands into the editor.
+- **Outline opens without blocking the rail**: switching to the Outline panel no
+  longer refreshes symbols directly on the click path; document-open/save paths
+  continue to refresh outline data when content changes.
 - **Sidebar resizing is direct**: the left drawer now has a visible draggable
   divider with an east-west resize cursor, custom width persistence, and
   real-mouse harness coverage instead of requiring palette-only width presets.

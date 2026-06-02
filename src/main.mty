@@ -1229,8 +1229,10 @@ fn main() {
   let mut ai_focus = false
   // Command palette open.
   let mut palette_open = false
+  let mut palette_ignore_mouse_down = false
   // Universal Quick-Open (Ctrl+P) overlay open: keys route to the finder.
   let mut quickopen_open = false
+  let mut quickopen_ignore_mouse_down = false
   // Color-theme picker open (Preferences: Color Theme).
   let mut theme_picker_open = false
   // Run panel focused (Run rail icon / Ctrl+Shift+R): keys route to it (scroll).
@@ -1506,9 +1508,11 @@ fn main() {
       } else if palette_open {
         // -------- command palette is open: route keystrokes to it -----------
         if tag == ev_char() {
+          palette_ignore_mouse_down = false
           let cp = mui_event_codepoint(h)
           if cp >= 32 && cp < 127 { mui_palette_push_char(h, cp) }
         } else if tag == ev_key() {
+          palette_ignore_mouse_down = false
           let k = mui_event_key(h)
           if k == key_backspace() {
             mui_palette_backspace(h)
@@ -1526,15 +1530,21 @@ fn main() {
             typing = false
           }
         } else if tag == ev_mouse_down() {
+          if palette_ignore_mouse_down {
+            palette_ignore_mouse_down = false
+          } else {
           let ph = mui_palette_click(h)
           if ph < 0 {
             mui_palette_cancel(h)
             palette_open = false
+            palette_ignore_mouse_down = false
           } else {
             command_click_id = mui_palette_selected_id(h)
             mui_palette_cancel(h)
             palette_open = false
+            palette_ignore_mouse_down = false
             typing = false
+          }
           }
         }
       } else if quickopen_open {
@@ -1544,9 +1554,11 @@ fn main() {
         // jumps to the symbol/line, or yields a command id we dispatch); Esc
         // dismisses; Backspace past a prefix drops back to file mode.
         if tag == ev_char() {
+          quickopen_ignore_mouse_down = false
           let cp = mui_event_codepoint(h)
           if cp >= 32 && cp < 127 { mui_qo_push_char(h, cp) }
         } else if tag == ev_key() {
+          quickopen_ignore_mouse_down = false
           let k = mui_event_key(h)
           if k == key_backspace() {
             mui_qo_backspace(h)
@@ -1589,20 +1601,26 @@ fn main() {
             }
           }
         } else if tag == ev_mouse_down() {
+          if quickopen_ignore_mouse_down {
+            quickopen_ignore_mouse_down = false
+          } else {
           let qh = mui_qo_click(h)
           if qh < 0 {
             mui_qo_cancel(h)
             quickopen_open = false
+            quickopen_ignore_mouse_down = false
           } else {
             let mode = mui_qo_mode(h)
             if mode == 1 {
               command_click_id = mui_qo_command_id(h, qh)
               mui_qo_cancel(h)
               quickopen_open = false
+              quickopen_ignore_mouse_down = false
               typing = false
             } else {
               let r = mui_qo_accept(h, qh)
               quickopen_open = false
+              quickopen_ignore_mouse_down = false
               if mode == 0 {
                 if r >= 0 {
                   let _b = mui_ed_tab_switch(h, r)
@@ -1617,6 +1635,7 @@ fn main() {
                 hovering = false
               }
             }
+          }
           }
         }
       } else if ai_focus && tag != ev_mouse_down() {
@@ -1669,6 +1688,7 @@ fn main() {
           } else if is_palette_chord(cp, mods) {            // Ctrl+Shift+P : palette
             mui_palette_open(h)
             palette_open = true
+            palette_ignore_mouse_down = false
             typing = false
           } else if is_ai_panel_chord(cp, mods) {           // Ctrl+Shift+A : close/unfocus
             let _o = mui_ai_open(h)
@@ -1881,10 +1901,12 @@ fn main() {
           } else if topbar_act == 2 {
             mui_palette_open(h)
             palette_open = true
+            palette_ignore_mouse_down = true
             test_focus = false
           } else if topbar_act == 3 {
             mui_quickopen_open(h)
             quickopen_open = true
+            quickopen_ignore_mouse_down = true
             test_focus = false
           } else if rail_hit == rail_test() {
             // Re-clicking the beaker toggles the panel off.
@@ -1902,8 +1924,6 @@ fn main() {
               let _p = mui_panel_set(h, panel_debug())
             } else {
               let _p = mui_panel_set(h, rail_hit)
-              if rail_hit == panel_scm() { let _s = mui_scm_refresh(h) }
-              if rail_hit == panel_outline() { let _o = mui_outline_refresh(h) }
             }
           } else if tb_hit == test_tb_run() {
             let _r = mui_test_run(h)
@@ -2414,10 +2434,12 @@ fn main() {
         } else if is_palette_chord(cp, mods) {              // Ctrl+Shift+P : palette
           mui_palette_open(h)
           palette_open = true
+          palette_ignore_mouse_down = false
           typing = false
         } else if is_quickopen_chord(cp, mods) {            // Ctrl+P : universal Quick-Open
           mui_quickopen_open(h)
           quickopen_open = true
+          quickopen_ignore_mouse_down = false
           typing = false
         } else if is_run_chord(cp, mods) {                  // Ctrl+Shift+R : run the active file
           let _r = mui_run_start(h)
@@ -2455,7 +2477,6 @@ fn main() {
           let _p = mui_panel_set(h, panel_search())
         } else if is_scm_panel_chord(cp, mods) {            // Ctrl+Shift+G : source control
           let _p = mui_panel_set(h, panel_scm())
-          let _s = mui_scm_refresh(h)
         } else if ctrl_held(mods) && shift_held(mods) && cp == 32 {  // Ctrl+Shift+Space : signature help
           let ok = do_signature_help(h)
           if ok == 1 {
@@ -2956,9 +2977,11 @@ fn main() {
           } else if welcome_act == welcome_quick_open() {
             mui_quickopen_open(h)
             quickopen_open = true
+            quickopen_ignore_mouse_down = true
           } else if welcome_act == welcome_palette() {
             mui_palette_open(h)
             palette_open = true
+            palette_ignore_mouse_down = true
           } else if welcome_act == welcome_new_file() {
             // Welcome New File follows File > New: choose the path up front,
             // with typed-name fallback only when native dialogs are unavailable.
@@ -3077,11 +3100,13 @@ fn main() {
           // Top-right more-actions (⋯) button: open the command palette.
           mui_palette_open(h)
           palette_open = true
+          palette_ignore_mouse_down = true
         } else if topbar_act == 3 {
           // Titlebar command-center pill: open Quick Open without stealing the
           // whole empty titlebar drag strip.
           mui_quickopen_open(h)
           quickopen_open = true
+          quickopen_ignore_mouse_down = true
         } else if ai_click == 3 {
           let _aic = mui_ai_close(h)
           ai_focus = false
@@ -3120,12 +3145,8 @@ fn main() {
           let _a = mui_agents_refresh(h)
         } else if rail_hit >= 0 {
           let _p = mui_panel_set(h, rail_hit)
-          if rail_hit == panel_scm() {
-            let _s = mui_scm_refresh(h)
-          } else if rail_hit == panel_search() {
+          if rail_hit == panel_search() {
             let _q = mui_search_query_len(h)
-          } else if rail_hit == panel_outline() {
-            let _o = mui_outline_refresh(h)
           }
         } else if tab_close_hit >= 0 {
           let a = mui_tab_close(h, tab_close_hit)
@@ -3677,7 +3698,6 @@ fn main() {
           let _vp = mui_panel_set(h, panel_search())
         } else if id == cmd_view_source_control() {
           let _vp = mui_panel_set(h, panel_scm())
-          let _r = mui_scm_refresh(h)
         } else if id == cmd_view_outline() {
           let _vp = mui_panel_set(h, panel_outline())
         } else if id == cmd_view_run_debug() {

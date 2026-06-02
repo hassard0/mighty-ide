@@ -169,8 +169,12 @@ v0.36's real `extern c` (the post-L11 direct-call ABI) works, but the *Mighty si
 **Consequence for the IDE / any FFI app:** the C ABI must be **scalar-only**. We revised `crates/mighty-ui-sys` to add a parallel `mui_*_s` surface (`abi.rs`): the context is an `i64` handle; colors are four `f32`; **the shim owns all buffers** — text is staged codepoint-by-codepoint (`mui_text_push`/`mui_text_draw`), events are polled to a scalar tag with scalar field accessors (`mui_event_codepoint/_key/_mods`), and file I/O lives entirely in the shim (`mui_load`+`mui_load_byte` for read, `mui_save_push`/`mui_save_commit` for write) because Mighty can pass neither a path string nor a byte buffer. The original struct/pointer ABI in `lib.rs` stays for the Rust GPU tests but is NOT callable from built Mighty.
 **Suggested fix:** the v0.37 follow-ups already listed in `extern-c-matrix.md` (Str→*U8 coercion, address-of FFI locals, struct-literal-as-arg) — without at least address-of-local + Str→*U8, FFI apps must push bulk data one scalar at a time.
 
-### L18. `std.fs` is a Rust capability API, not a Mighty-callable surface in built binaries 🔎 **[P1]**
+### L18. `std.fs` is a Rust capability API, not a Mighty-callable surface in built binaries 🔎 **[P1] — FIXED v0.45 T1**
 `crates/mty-stdlib/src/fs.rs` exposes `read/read_file/write/write_file/stat/open/...` but they take a `&FsCap` and `&Path`/`&[u8]` — Rust-internal types. There is no Mighty-source path that constructs those, and (per L17) Mighty can't pass a path string across FFI anyway. So **Ctrl+S "save the buffer to disk" cannot be done from Mighty `std.fs` in a `mty build` binary.** The IDE delegates file I/O to the shim instead (the shim's Rust side calls `std::fs`). Needs confirming whether `mty run` (interpreter) exposes a higher-level `fs` to Mighty source.
+
+**v0.44 update — PARTIAL fix.** Under `mty run` (interpreter) the host dispatcher in `crates/mty-stdlib/src/host.rs` now accepts the agent-friendly aliases (`read_file`, `read_to_string`, `write_file`, `write_string`, `read_dir`), so `std.fs.read_to_string("path")` lands on the real `std::fs::read_to_string` path. The cranelift codegen still threw `Unsupported` for these methods and forced fallback to interp, so `mty build` was still useless for disk-touching programs.
+
+**v0.45 T1 update — FULLY FIXED.** The marquee v0.45 fix wires `std.fs.*` through a dedicated native runtime ABI on both the cranelift JIT/AOT and LLVM backends. New runtime symbols (registered in `mty_runtime::codegen_abi::symbol_table` and declared as backend imports via `crates/mty-codegen-cranelift/src/runtime_imports.rs`): `mty_runtime_fs_{read, read_to_string, read_dir, write, write_string, append, exists, metadata, create_dir_all, remove_file, remove_dir_all}`. The cranelift `Stmt::EffectInvoke` arm now intercepts every `std.fs.*` (or bare `fs.*` after `use std.fs`) call and routes it to its dedicated symbol via `emit_fs_call` (see `crates/mty-codegen-cranelift/src/lower.rs`); the LLVM backend does the same via `emit_fs_call_llvm`. Read/read_dir methods write a 24-byte `(ptr, len, ok)` slot; write/etc. return `i32 (1=ok, -errno on err)`; metadata writes a 24-byte `{size:u64, mtime_ms:i64, is_file:i8, is_dir:i8}` record. Capability check stays compile-time: a `pub fn` missing `effect fs` still trips MT4001 at typeck before codegen runs. The IDE can now drop its `mui-sys/src/fs.rs` shim and let Ctrl+S call `std.fs.write_string` directly. See `crates/mty-codegen-cranelift/tests/fs_native_v045_t1.rs` (13 tests: roundtrip + capability + all 11 methods), `crates/mty-driver/tests/fs_native_v045_t1.rs` (4 AOT roundtrip tests behind `host-toolchain`), and the stdlib host-dispatch parity test in `crates/mty-stdlib/src/host.rs`. read_dir currently returns a newline-joined `Str` of paths; the iterator-handle ABI (open-handle / next-entry / close-handle) is deferred to v0.46 — IDE call sites that consume the listing eagerly aren't blocked.
 
 ### L19. `expr as T` numeric casts DON'T convert — the value keeps its original type ✅ **[P0]**
 `expr as T` parses as a `HirExpr::Cast` and typeck's Cast arm returns the target type `T` — but the conversion does not actually take effect for numeric types: downstream the expression is still treated as the operand's type. Probed under `mty check`:
@@ -3205,3 +3209,33 @@ surface-open tracing to separate an app failure from test-driver drift.
 - **Language note:** no compiler gap surfaced. This reinforces that Mighty apps
   need explicit, cheap trace/event markers for state transitions that are visible
   to users but otherwise hard for external drivers to prove.
+
+### L216. Shell-backed panels need native fast-fail guards before process IO **[finding, P1]**
+Strict real-mouse testing still showed Source Control briefly unresponsive when
+opened on the packaged sample workspace. The visible issue was a rail button
+that appeared not to work, but the root cause was `git rev-parse` being launched
+from a plain folder where a quick ancestor `.git` check could answer immediately.
+
+- **IDE note:** SCM repo discovery now walks ancestors for a `.git` file or
+  directory before spawning Git, and Source Control view-switch commands no
+  longer run `git status` directly from the mouse/key command path. The panel
+  opens immediately, then explicit refresh/save/git mutation paths can update
+  status.
+- **Language note:** no compiler gap surfaced. Mighty can orchestrate the panel
+  flow, but any shim feature that shells out should expose a cheap synchronous
+  preflight or an asynchronous path before it is wired directly to mouse input.
+
+### L217. Mouse-opened overlays must swallow their opener event tail **[finding, P1]**
+The real-mouse harness showed More opening the Palette and then immediately
+closing it from a follow-up mouse event at the same coordinate. The visible
+failure looked like Open/Save/Open Folder commands typing into the editor, even
+though the command surface had briefly opened.
+
+- **IDE note:** Palette and Quick Open now keep a one-click ignore latch when
+  opened from mouse UI, so the opener click cannot be interpreted as an outside
+  overlay click. Outline view switches also avoid synchronous refresh work on the
+  rail click path.
+- **Language note:** no compiler gap surfaced, but Mighty’s scalar event loop
+  makes this kind of modal-open handoff easy to miss. Mouse-opened overlays need
+  an explicit "opened by this click" latch when the runtime may deliver move/down
+  events around the same coordinates.

@@ -199,6 +199,10 @@ fn unquote(path: &str) -> String {
 /// Find the enclosing git repo root for `dir` via
 /// `git -C <dir> rev-parse --show-toplevel`. Returns `None` if not a repo.
 pub fn discover_root(dir: &Path) -> Option<PathBuf> {
+    if !has_git_marker_in_ancestors(dir) {
+        return None;
+    }
+
     let out = Command::new("git")
         .arg("-C")
         .arg(dir)
@@ -215,6 +219,10 @@ pub fn discover_root(dir: &Path) -> Option<PathBuf> {
     } else {
         Some(PathBuf::from(line))
     }
+}
+
+fn has_git_marker_in_ancestors(dir: &Path) -> bool {
+    dir.ancestors().any(|p| p.join(".git").exists())
 }
 
 /// Run `git -C <root> status --porcelain=v1 -b` and parse the result.
@@ -856,6 +864,48 @@ impl BranchPicker {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn discover_root_skips_plain_folders_without_git_marker() {
+        let tmp = std::env::temp_dir().join(format!(
+            "mui_scm_plain_folder_{}_{}",
+            std::process::id(),
+            unique_suffix()
+        ));
+        let nested = tmp.join("a").join("b").join("c");
+        std::fs::create_dir_all(&nested).unwrap();
+
+        assert!(!has_git_marker_in_ancestors(&nested));
+        assert_eq!(discover_root(&nested), None);
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn git_marker_check_accepts_nested_repo_paths() {
+        let tmp = std::env::temp_dir().join(format!(
+            "mui_scm_marker_folder_{}_{}",
+            std::process::id(),
+            unique_suffix()
+        ));
+        let nested = tmp.join("src").join("app");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::create_dir_all(tmp.join(".git")).unwrap();
+
+        assert!(has_git_marker_in_ancestors(&nested));
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    fn unique_suffix() -> String {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+            .to_string()
+    }
 
     #[test]
     fn parse_branch_with_ahead_behind() {
