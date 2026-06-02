@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Save All cancellation now reads like a deliberate dialog outcome**:
+  cancelling the Save As picker for an untitled tab now reports `Save All
+  cancelled; 1 untitled file still unsaved`, while unavailable native dialogs
+  report a distinct system limitation.
 - **Web Playground idle controls now explain themselves**: pressing Stop when no
   server is running now reports `No web server running`, and opening the browser
   before a served URL exists reports `Web URL not ready` instead of failing

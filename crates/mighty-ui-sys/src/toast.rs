@@ -513,6 +513,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Save All failed"
         || m == "Save cancelled; tab is still open"
         || m == "Save dialog unavailable; use Save As"
+        || m.starts_with("Save All cancelled")
+        || m.starts_with("Save dialog unavailable")
         || m == "Use Save As to choose a file path"
         || m.starts_with("Saved ")
         || m.starts_with("Save failed")
@@ -930,7 +932,18 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Save dialog unavailable; use Save As");
 
-        q.push_at(Kind::Warn, "Use Save As to choose a file path", t0 + Duration::from_millis(300));
+        q.push_at(
+            Kind::Info,
+            "Save All cancelled; 1 untitled file still unsaved",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Save All cancelled; 1 untitled file still unsaved"
+        );
+
+        q.push_at(Kind::Warn, "Use Save As to choose a file path", t0 + Duration::from_millis(400));
         q.push_at(Kind::Success, "Saved 2 files", t0 + Duration::from_millis(400));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Saved 2 files");

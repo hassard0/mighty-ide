@@ -4549,3 +4549,19 @@ made the panel controls feel broken even though the state check was correct.
 - **Language note:** no compiler gap surfaced. Mighty needs panel-toolbar action
   descriptors with enabled/disabled state and canonical no-op outcomes so
   inactive controls can be rendered or messaged consistently.
+
+### L318. Multi-file commands need per-dialog outcome accounting **[finding, P2]**
+Save All saved file-backed tabs correctly, but when an untitled tab needed a
+Save As path, dialog cancellation and dialog unavailability were folded into the
+same generic "needs Save As" count. The result was technically correct and
+visually ambiguous: a user-initiated cancel looked like another failed command.
+
+- **IDE note:** Save All now tracks cancelled and unavailable Save As pickers
+  separately for untitled tabs. Cancelling reports `Save All cancelled; 1
+  untitled file still unsaved`, while an unavailable picker reports `Save dialog
+  unavailable; 1 untitled file still unsaved`. Toast replacement treats both as
+  save-family outcomes so stale save messages clear.
+- **Language note:** no compiler gap surfaced. Mighty needs a typed aggregate
+  result for batch commands, with per-item outcomes like `Saved`, `Cancelled`,
+  `Unavailable`, `ReadOnly`, and `Failed`, so UI text can be derived without
+  ad hoc counter plumbing.

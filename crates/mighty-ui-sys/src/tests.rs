@@ -2229,8 +2229,8 @@ fn save_all_cancelled_untitled_picker_preserves_dirty_tab() {
     assert!(ctx.tabs.is_dirty(iu));
     assert!(ctx.tabs.get(iu).unwrap().path.is_none());
     let toast = ctx.toasts.toasts().last().unwrap();
-    assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "1 untitled file need Save As");
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Save All cancelled; 1 untitled file still unsaved");
 }
 
 #[test]

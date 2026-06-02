@@ -9681,6 +9681,8 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
     let mut saved = 0_i32;
     let mut failed = 0_i32;
     let mut untitled = 0_i32;
+    let mut untitled_cancelled = 0_i32;
+    let mut untitled_unavailable = 0_i32;
     let mut read_only = 0_i32;
     let original_active = ctx.tabs.active();
     for idx in dirty {
@@ -9710,8 +9712,14 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
             let root = file_dialog_initial_dir(ctx);
             let target = match pick_save_file_native(&root, "untitled.mty", dialog_owner_hwnd(ctx)) {
                 FileDialogPick::Picked(path) => path,
-                FileDialogPick::Cancelled | FileDialogPick::Unavailable => {
+                FileDialogPick::Cancelled => {
                     untitled += 1;
+                    untitled_cancelled += 1;
+                    continue;
+                }
+                FileDialogPick::Unavailable => {
+                    untitled += 1;
+                    untitled_unavailable += 1;
                     continue;
                 }
             };
@@ -9739,6 +9747,22 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
             ctx.push_toast(crate::toast::Kind::Warn, format!("{r} {noun} skipped"));
             0
         }
+        (0, 0, u, 0) if u > 0 && untitled_cancelled > 0 => {
+            let noun = if u == 1 { "untitled file" } else { "untitled files" };
+            ctx.push_toast(
+                crate::toast::Kind::Info,
+                format!("Save All cancelled; {u} {noun} still unsaved"),
+            );
+            0
+        }
+        (0, 0, u, 0) if u > 0 && untitled_unavailable > 0 => {
+            let noun = if u == 1 { "untitled file" } else { "untitled files" };
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                format!("Save dialog unavailable; {u} {noun} still unsaved"),
+            );
+            0
+        }
         (0, 0, u, 0) if u > 0 => {
             let noun = if u == 1 { "untitled file" } else { "untitled files" };
             ctx.push_toast(crate::toast::Kind::Warn, format!("{u} {noun} need Save As"));
@@ -9751,6 +9775,22 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
         (s, 0, 0, 0) => {
             let noun = if s == 1 { "file" } else { "files" };
             ctx.push_toast(crate::toast::Kind::Success, format!("Saved {s} {noun}"));
+            s
+        }
+        (s, 0, u, 0) if untitled_cancelled > 0 => {
+            let noun = if u == 1 { "untitled file" } else { "untitled files" };
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                format!("Saved {s}; Save All cancelled for {u} {noun}"),
+            );
+            s
+        }
+        (s, 0, u, 0) if untitled_unavailable > 0 => {
+            let noun = if u == 1 { "untitled file" } else { "untitled files" };
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                format!("Saved {s}; Save dialog unavailable for {u} {noun}"),
+            );
             s
         }
         (s, 0, u, 0) => {
