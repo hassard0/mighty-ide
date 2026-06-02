@@ -63,6 +63,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   refresh icon runs the current query; and the strict mouse harness types a real
   query, clicks both visible run affordances, and clicks a result row to prove
   it opens the matching file.
+- **Debug toolbar Play is actionable from idle**: the Run and Debug panel's
+  visible Play button now shares the F5 start/continue behavior instead of
+  silently doing nothing when idle, disabled toolbar actions surface feedback,
+  and the strict mouse harness clicks Play and Stop to prove dispatch.
 - **Compact sidebar leaves more room for work**: narrow windows now reduce the
   sidebar to 160px, giving terminal, debug, palette, and welcome views more
   usable width instead of crowding dock/header content.

@@ -2875,6 +2875,37 @@ fn debug_toolbar_fits_compact_sidebar() {
 }
 
 #[test]
+fn debug_toolbar_play_starts_or_prompts_from_idle() {
+    use crate::ffi::MuiEvent;
+
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_DEBUG;
+    ctx.dbg.set_open(true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let tb = crate::dapabi::toolbar_geom();
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        tb.x0 + tb.btn * 0.5,
+        tb.y + tb.btn * 0.5,
+        0,
+    );
+    let hit = crate::dapabi::mui_dbg_click(handle);
+    assert_eq!(hit, 1000);
+
+    crate::dapabi::mui_dbg_toolbar_action(handle, hit);
+    assert_eq!(crate::dapabi::mui_dbg_active(handle), 1);
+    assert_eq!(crate::dapabi::mui_dbg_state(handle), crate::dap::DebugState::Idle.as_i32());
+
+    crate::layout::reset_sidebar_preset();
+}
+
+#[test]
 fn debug_stack_name_fits_before_location() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();

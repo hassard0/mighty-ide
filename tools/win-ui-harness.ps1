@@ -837,6 +837,30 @@ foreach ($ic in $rail) {
       }
     }
   }
+  if ($ic.n -eq 'debug') {
+    $dbgStartCount = Trace-MatchCount "dbg_toolbar action=start_continue"
+    ClickL 91 63
+    Start-Sleep -Milliseconds 550
+    if ($env:MUI_TRACE) {
+      if (Wait-TraceCountGreaterThan "dbg_toolbar action=start_continue" $dbgStartCount 1800) {
+        Log "DEBUG-PLAY-MOUSE: visible Play toolbar button dispatched"
+      } else {
+        Log "DEBUG-PLAY-MOUSE: Play toolbar button did not dispatch"
+        $script:HarnessFailed = $true
+      }
+    }
+    $dbgStopCount = Trace-MatchCount "dbg_toolbar action=stop"
+    ClickL 235 63
+    Start-Sleep -Milliseconds 250
+    if ($env:MUI_TRACE) {
+      if (Wait-TraceCountGreaterThan "dbg_toolbar action=stop" $dbgStopCount 1800) {
+        Log "DEBUG-STOP-MOUSE: visible Stop toolbar button dispatched"
+      } else {
+        Log "DEBUG-STOP-MOUSE: Stop toolbar button did not dispatch"
+        $script:HarnessFailed = $true
+      }
+    }
+  }
 }
 
 # The Testing rail should leave a working primary action visible. Exercise the

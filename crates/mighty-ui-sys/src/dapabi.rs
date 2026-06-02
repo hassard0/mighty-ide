@@ -48,19 +48,33 @@ pub extern "C" fn mui_dbg_start(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    dbg_start_or_continue(ctx)
+}
+
+fn dbg_start_or_continue(ctx: &mut MuiContext) -> i32 {
     use crate::dap::DebugState;
     match ctx.dbg.state() {
         DebugState::Stopped => {
+            crate::abi::trace("dbg_action continue");
             ctx.dbg.continue_();
         }
-        DebugState::Running => { /* already running; nothing to do */ }
+        DebugState::Running => {
+            ctx.push_toast(crate::toast::Kind::Info, "Debug session already running");
+            crate::abi::trace("dbg_action already_running");
+        }
         DebugState::Idle | DebugState::Terminated => {
             let Some(path) = ctx.tabs.active_path() else {
                 ctx.dbg.set_open(true);
+                ctx.push_toast(crate::toast::Kind::Warn, "Open a file before starting debug");
+                crate::abi::trace("dbg_action start_no_file");
                 return ctx.dbg.state().as_i32();
             };
             ctx.active_panel = crate::PANEL_DEBUG;
             ctx.sidebar_visible = true;
+            crate::abi::trace(&format!(
+                "dbg_action start path={}",
+                path.to_string_lossy().replace('\\', "/")
+            ));
             let ok = ctx.dbg.start(&path);
             println!("dbg: start {} -> {ok}", path.display());
         }
@@ -591,11 +605,42 @@ pub extern "C" fn mui_dbg_toolbar_action(handle: i64, code: i32) {
         return;
     };
     match code - TOOLBAR_BASE {
-        x if x == TB_CONTINUE => ctx.dbg.continue_(),
-        x if x == TB_STEP_OVER => ctx.dbg.step_over(),
-        x if x == TB_STEP_INTO => ctx.dbg.step_into(),
-        x if x == TB_STEP_OUT => ctx.dbg.step_out(),
-        x if x == TB_STOP => ctx.dbg.stop(),
+        x if x == TB_CONTINUE => {
+            crate::abi::trace("dbg_toolbar action=start_continue");
+            let _ = dbg_start_or_continue(ctx);
+        }
+        x if x == TB_STEP_OVER => {
+            crate::abi::trace("dbg_toolbar action=step_over");
+            if ctx.dbg.state() == crate::dap::DebugState::Stopped {
+                ctx.dbg.step_over();
+            } else {
+                ctx.push_toast(crate::toast::Kind::Info, "Step Over is available when paused");
+            }
+        }
+        x if x == TB_STEP_INTO => {
+            crate::abi::trace("dbg_toolbar action=step_into");
+            if ctx.dbg.state() == crate::dap::DebugState::Stopped {
+                ctx.dbg.step_into();
+            } else {
+                ctx.push_toast(crate::toast::Kind::Info, "Step Into is available when paused");
+            }
+        }
+        x if x == TB_STEP_OUT => {
+            crate::abi::trace("dbg_toolbar action=step_out");
+            if ctx.dbg.state() == crate::dap::DebugState::Stopped {
+                ctx.dbg.step_out();
+            } else {
+                ctx.push_toast(crate::toast::Kind::Info, "Step Out is available when paused");
+            }
+        }
+        x if x == TB_STOP => {
+            crate::abi::trace("dbg_toolbar action=stop");
+            if matches!(ctx.dbg.state(), crate::dap::DebugState::Running | crate::dap::DebugState::Stopped) {
+                ctx.dbg.stop();
+            } else {
+                ctx.push_toast(crate::toast::Kind::Info, "No debug session to stop");
+            }
+        }
         _ => {}
     }
 }
@@ -735,8 +780,10 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
     ];
     for (i, (path, color, stroke, fill)) in buttons.iter().enumerate() {
         let bx = tb.x0 + i as f32 * (tb.btn + tb.gap);
-        let enabled = if i == 0 || i == 4 {
+        let enabled = if i == 0 {
             true
+        } else if i == 4 {
+            running
         } else {
             ctx.dbg.state() == DebugState::Stopped
         };
@@ -748,8 +795,6 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
         let off = (tb.btn - isz) * 0.5;
         ctx.dl_icon(bx + off, tb.y + off, isz, isz, path, col, *stroke, *fill);
     }
-    let _ = running;
-
     // ---- Call Stack section ----
     let label_y = tb.y + tb.btn + 10.0;
     ctx.text.queue_ui_sized(sx + 14.0, label_y, "CALL STACK", theme::DIM(), chrome - 2.0, clip);

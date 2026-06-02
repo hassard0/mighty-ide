@@ -3425,3 +3425,17 @@ query, clicking the visible action button, and clicking a result row.
   panel-workflow test vocabulary so scalar UI surfaces can describe "field",
   "primary action", and "result row" interactions without every feature
   re-creating the same harness math.
+
+### L232. Toolbar icons must share command semantics with shortcuts **[finding, P1]**
+The Debug panel's Play icon looked like the F5 command, but in idle state it only
+called "continue", so a user click could appear broken while the keyboard path
+worked. Icon buttons need the same command semantics as the shortcut and palette
+entry they visually represent.
+
+- **IDE note:** Debug Play now uses the same start/continue path as F5, disabled
+  step/stop actions provide feedback instead of silent no-ops, and the strict
+  mouse harness clicks the visible Play and Stop toolbar buttons while requiring
+  dispatch traces.
+- **Language note:** no compiler gap surfaced. Mighty needs reusable command
+  routing helpers so toolbar, keyboard, palette, and rail interactions cannot
+  drift into similar-looking but different behavior.
