@@ -3533,3 +3533,15 @@ low-contrast descriptions and footer hints.
   first-class design-token primitives and screenshot assertions for contrast,
   text bounds, and overlay hierarchy so visual quality can be tested in the
   language-facing app layer, not only in the Rust shim.
+
+### L240. Secondary workflow metadata cannot reuse "faint" chrome colors **[finding, P2]**
+Testing result suite names and run duration were not overlapping, but they were
+so dim that the drawer looked unfinished. The distinction matters: passive
+decorative chrome can be faint; workflow metadata still has to be readable.
+
+- **IDE note:** Testing drawer suite labels and duration now use secondary text
+  rather than the faint `TEXT_4` color.
+- **Language note:** no compiler gap surfaced. A Mighty-native UI toolkit should
+  separate semantic roles such as `metadata`, `disabled`, `placeholder`, and
+  `decorative` instead of forcing app code to infer meaning from generic color
+  constants.

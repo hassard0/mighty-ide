@@ -683,7 +683,7 @@ pub extern "C" fn mui_test_draw(handle: i64) {
         let dur = format!("{}ms", ctx.tests_panel.duration_ms());
         let (dw, _) = ctx.text.measure_ui_sized(&dur, chrome - 1.5);
         if sw >= 180.0 && !compact_testing_summary(sw) {
-            ctx.text.queue_ui_sized(sx + sw - dw - 14.0, sum_text_y, &dur, theme::TEXT_4(), chrome - 1.5, clip);
+            ctx.text.queue_ui_sized(sx + sw - dw - 14.0, sum_text_y, &dur, theme::DIM(), chrome - 1.5, clip);
             dw + 10.0
         } else {
             0.0
@@ -776,7 +776,7 @@ pub extern "C" fn mui_test_draw(handle: i64) {
                 let candidate_x = sx + sw - sbw - 14.0;
                 if candidate_x - (sx + 32.0) >= 92.0 {
                     suite_x = candidate_x;
-                    ctx.text.queue_ui_sized(suite_x, ty, &sb, theme::TEXT_4(), chrome - 2.0, clip);
+                    ctx.text.queue_ui_sized(suite_x, ty, &sb, theme::DIM(), chrome - 2.0, clip);
                 }
             }
         }

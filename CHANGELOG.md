@@ -12,6 +12,8 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Testing result metadata is readable**: suite names and run duration in the
+  Testing drawer now use secondary text instead of near-invisible faint chrome.
 - **Overlay helper text is readable**: command palette, Keyboard Shortcuts, and
   Settings now use overlay-specific secondary colors so descriptions,
   placeholders, and footer hints no longer disappear into dark modal surfaces.
