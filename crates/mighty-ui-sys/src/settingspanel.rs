@@ -74,7 +74,7 @@ impl RowId {
             RowId::Minimap => "Show the code minimap strip",
             RowId::BracketColors => "Rainbow-color matched brackets by depth",
             RowId::IndentGuides => "Show vertical indent guide lines",
-            RowId::InlineAi => "AI ghost-text completions (needs API key)",
+            RowId::InlineAi => inline_ai_desc(),
             RowId::TrimWhitespace => "Strip trailing whitespace on save",
             RowId::FinalNewline => "Ensure a trailing newline on save",
             RowId::AutoSave => "Save the file shortly after you stop typing",
@@ -271,8 +271,10 @@ impl SettingsPanel {
                 settings::save();
             }
             RowId::InlineAi => {
-                settings::update(|s| s.inline_ai = !s.inline_ai);
-                settings::save();
+                if inline_ai_key_available() {
+                    settings::update(|s| s.inline_ai = !s.inline_ai);
+                    settings::save();
+                }
             }
             RowId::TrimWhitespace => {
                 settings::update(|s| s.trim_ws = !s.trim_ws);
@@ -315,7 +317,7 @@ impl SettingsPanel {
             RowId::Minimap => on_off(s.minimap),
             RowId::BracketColors => on_off(s.bracket_colors),
             RowId::IndentGuides => on_off(s.indent_guides),
-            RowId::InlineAi => on_off(s.inline_ai),
+            RowId::InlineAi => inline_ai_value(s),
             RowId::TrimWhitespace => on_off(s.trim_ws),
             RowId::FinalNewline => on_off(s.final_newline),
             RowId::AutoSave => on_off(s.autosave),
@@ -367,6 +369,7 @@ impl SettingsPanel {
         for vis in 0..shown {
             let i = top + vis;
             let row = RowId::ALL[i];
+            let row_disabled = settings_row_disabled(row);
             let ry = list_top + vis as f32 * row_h;
             let selected = i == self.sel;
             if selected {
@@ -382,16 +385,24 @@ impl SettingsPanel {
             } else {
                 ry + 9.0
             };
-            ctx.text.queue_ui_sized(txt_x, label_y, row.label(), theme::TEXT(), 14.0, clip);
+            let label_col = if row_disabled { theme::TEXT_1() } else { theme::TEXT() };
+            let desc_col = if row_disabled { theme::TEXT_3() } else { theme::OVERLAY_MUTED() };
+            ctx.text.queue_ui_sized(txt_x, label_y, row.label(), label_col, 14.0, clip);
             if !compact_row {
-                ctx.text.queue_ui_sized(txt_x, ry + 27.0, row.desc(), theme::OVERLAY_MUTED(), 11.5, clip);
+                ctx.text.queue_ui_sized(txt_x, ry + 27.0, row.desc(), desc_col, 11.5, clip);
             }
 
             // Control (right): a stepper for numeric rows, an on/off pill for
             // toggles, a value chip + cycle hint for the theme.
             let val = Self::value_str(&cur, row);
             let ctrl_right = box_x + box_w - 22.0;
-            let val_col = if selected { theme::ACCENT_BRIGHT() } else { theme::TEXT_1() };
+            let val_col = if row_disabled {
+                theme::TEXT_3()
+            } else if selected {
+                theme::ACCENT_BRIGHT()
+            } else {
+                theme::TEXT_1()
+            };
 
             if row.is_numeric() {
                 // [ - ]  value  [ + ]   laid out right-to-left.
@@ -425,7 +436,9 @@ impl SettingsPanel {
                 let track_h = 22.0;
                 let tx = ctrl_right - track_w;
                 let ty = ry + (row_h - track_h) * 0.5;
-                let (track, knob_off) = if on {
+                let (track, knob_off) = if row_disabled {
+                    (theme::BG_2(), 2.0)
+                } else if on {
                     (theme::accent_a(0.40), track_w - track_h + 2.0)
                 } else {
                     (theme::BG_4(), 2.0)
@@ -433,7 +446,13 @@ impl SettingsPanel {
                 ctx.dl_round(tx, ty, track_w, track_h, track_h * 0.5, track);
                 ctx.dl_stroke(tx, ty, track_w, track_h, track_h * 0.5, theme::BORDER_STRONG(), 1.0);
                 let knob = track_h - 4.0;
-                let knob_col = if on { theme::ACCENT_BRIGHT() } else { theme::TEXT_3() };
+                let knob_col = if row_disabled {
+                    theme::TEXT_4()
+                } else if on {
+                    theme::ACCENT_BRIGHT()
+                } else {
+                    theme::TEXT_3()
+                };
                 ctx.dl_round(tx + knob_off, ty + 2.0, knob, knob, knob * 0.5, knob_col);
             }
         }
@@ -456,6 +475,28 @@ impl SettingsPanel {
 
 fn on_off(b: bool) -> String {
     if b { "On".to_string() } else { "Off".to_string() }
+}
+
+fn inline_ai_key_available() -> bool {
+    std::env::var_os("ANTHROPIC_API_KEY")
+        .or_else(|| std::env::var_os("CLAUDE_API_KEY"))
+        .is_some()
+}
+
+fn inline_ai_desc() -> &'static str {
+    if inline_ai_key_available() {
+        "AI ghost-text completions"
+    } else {
+        "Set ANTHROPIC_API_KEY to enable"
+    }
+}
+
+fn inline_ai_value(s: &Settings) -> String {
+    on_off(s.inline_ai && inline_ai_key_available())
+}
+
+fn settings_row_disabled(row: RowId) -> bool {
+    matches!(row, RowId::InlineAi) && !inline_ai_key_available()
 }
 
 #[cfg(test)]
@@ -557,8 +598,10 @@ mod tests {
     }
 
     #[test]
-    fn toggle_inline_ai() {
+    fn inline_ai_row_is_disabled_without_api_key() {
         let _g = guard();
+        std::env::remove_var("ANTHROPIC_API_KEY");
+        std::env::remove_var("CLAUDE_API_KEY");
         let tmp = std::env::temp_dir().join(format!("mui-setpanel-iai-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::env::set_var("APPDATA", &tmp);
@@ -567,10 +610,34 @@ mod tests {
         p.move_sel(6); // InlineAi
         assert!(settings::inline_ai()); // default on
         p.toggle();
+        assert!(settings::inline_ai(), "preference should stay on; effective state is disabled by missing key");
+        assert_eq!(SettingsPanel::value_str(&settings::active(), RowId::InlineAi), "Off");
+        assert_eq!(inline_ai_desc(), "Set ANTHROPIC_API_KEY to enable");
+        assert!(settings_row_disabled(RowId::InlineAi));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn inline_ai_row_toggles_when_api_key_exists() {
+        let _g = guard();
+        std::env::set_var("ANTHROPIC_API_KEY", "test-key");
+        std::env::remove_var("CLAUDE_API_KEY");
+        let tmp = std::env::temp_dir().join(format!("mui-setpanel-iai-key-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::env::set_var("APPDATA", &tmp);
+        let mut p = SettingsPanel::new();
+        p.open();
+        p.move_sel(6); // InlineAi
+        assert!(settings::inline_ai());
+        assert_eq!(SettingsPanel::value_str(&settings::active(), RowId::InlineAi), "On");
+        assert_eq!(inline_ai_desc(), "AI ghost-text completions");
+        assert!(!settings_row_disabled(RowId::InlineAi));
+        p.toggle();
         assert!(!settings::inline_ai());
         p.toggle();
         assert!(settings::inline_ai());
         let _ = std::fs::remove_dir_all(&tmp);
+        std::env::remove_var("ANTHROPIC_API_KEY");
     }
 
     #[test]

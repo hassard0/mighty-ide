@@ -3622,3 +3622,15 @@ even when row selection works.
 - **Language note:** no compiler gap surfaced. Mighty UI needs modal primitives
   with standard title, close, escape, focus, and hit-test behavior so every
   overlay does not recreate dismissal chrome by hand.
+
+### L247. Settings must show effective availability, not only preferences **[finding, P2]**
+Inline AI persisted as enabled by default, but without an API key the ghost
+engine is effectively disabled. Showing a purple enabled toggle in Settings made
+the app look broken when the feature correctly refused to run.
+
+- **IDE note:** the Inline AI row now displays as unavailable/off when neither
+  `ANTHROPIC_API_KEY` nor `CLAUDE_API_KEY` is configured, while preserving the
+  stored preference so it can activate once a key exists.
+- **Language note:** no compiler gap surfaced. Mighty UI needs settings controls
+  that separate stored preference, runtime availability, effective state, and
+  explanatory copy so feature gates are honest in the UI.

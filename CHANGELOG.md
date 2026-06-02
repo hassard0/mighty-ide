@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Inline AI settings state is honest**: when no `ANTHROPIC_API_KEY` or
+  `CLAUDE_API_KEY` is configured, the Inline AI row now reads as unavailable
+  instead of showing an enabled purple toggle for a feature that cannot run.
 - **Open Recent has a real close affordance**: the focused Open Recent picker
   now shows the same top-right close button pattern as the other modals, and
   mouse clicks dismiss the forced picker instead of requiring Esc or a row pick.
