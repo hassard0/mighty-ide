@@ -996,6 +996,22 @@ fn view_commands_open_non_sidebar_surfaces_without_toggling() {
 }
 
 #[test]
+fn web_playground_idle_controls_explain_noops() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::webabi::mui_web_stop(handle);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No web server running");
+
+    assert_eq!(crate::webabi::mui_web_open_browser(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Web URL not ready");
+}
+
+#[test]
 fn sidebar_layout_commands_open_and_resize_sidebar() {
     let mut ctx = ctx_or_skip!();
     ctx.gpu.width = 1200;

@@ -80,7 +80,14 @@ pub extern "C" fn mui_web_run(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_web_stop(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        let was_running = ctx.web.is_running();
         ctx.web.stop();
+        if was_running {
+            let _ = ctx.web.take_just_finished();
+            ctx.push_toast(crate::toast::Kind::Info, "Web server stopped");
+        } else {
+            ctx.push_toast(crate::toast::Kind::Info, "No web server running");
+        }
     }
 }
 
@@ -161,6 +168,7 @@ pub extern "C" fn mui_web_open_browser(handle: i64) -> i32 {
             c.push_toast(crate::toast::Kind::Success, format!("Opened {url}"));
             return 1;
         }
+        c.push_toast(crate::toast::Kind::Warn, "Web URL not ready");
         return 0;
     }
     if crate::web::open_in_browser(&url) {
@@ -168,6 +176,11 @@ pub extern "C" fn mui_web_open_browser(handle: i64) -> i32 {
         c.push_toast(crate::toast::Kind::Success, format!("Opened {url}"));
         1
     } else {
+        if url.is_empty() {
+            c.push_toast(crate::toast::Kind::Warn, "Web URL not ready");
+        } else {
+            c.push_toast(crate::toast::Kind::Warn, "Web browser open failed");
+        }
         0
     }
 }

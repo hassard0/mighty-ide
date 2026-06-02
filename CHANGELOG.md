@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Web Playground idle controls now explain themselves**: pressing Stop when no
+  server is running now reports `No web server running`, and opening the browser
+  before a served URL exists reports `Web URL not ready` instead of failing
+  silently.
 - **Open Folder cancellations now acknowledge the dialog result**: cancelling the
   native folder picker now reports `Open folder cancelled`, and unavailable
   folder pickers report `Open folder dialog unavailable`, matching Open File's

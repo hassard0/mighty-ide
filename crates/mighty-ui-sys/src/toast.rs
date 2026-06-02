@@ -603,6 +603,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Test)
     } else if m.starts_with("Run in Browser:")
         || m.starts_with("Web ")
+        || m.starts_with("No web server ")
         || m.starts_with("Opened http://")
         || m.starts_with("Opened https://")
         || m.starts_with("Run finished")
@@ -982,6 +983,16 @@ mod tests {
             .toasts()
             .iter()
             .any(|t| t.message == "Run in Browser: mty serve..."));
+
+        q.push_at(Kind::Warn, "Web URL not ready", t0 + Duration::from_millis(350));
+        q.push_at(
+            Kind::Info,
+            "No web server running",
+            t0 + Duration::from_millis(360),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[1].message, "No web server running");
+        assert!(!q.toasts().iter().any(|t| t.message == "Web URL not ready"));
 
         q.push_at(Kind::Error, "Format failed", t0 + Duration::from_millis(400));
         q.push_at(Kind::Success, "Formatted document", t0 + Duration::from_millis(500));

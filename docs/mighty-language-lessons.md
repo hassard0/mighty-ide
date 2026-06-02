@@ -4535,3 +4535,17 @@ which was correct, but the command looked inert from the user's point of view.
 - **Language note:** no compiler gap surfaced. Mighty needs a common dialog
   result vocabulary for file and folder pickers so equivalent UX surfaces cannot
   drift by command type.
+
+### L317. Idle panel toolbar buttons should report state, not disappear **[finding, P2]**
+The Web Playground Stop and Open-in-Browser controls could be invoked when no
+server or URL existed. Both paths returned without user-facing feedback, which
+made the panel controls feel broken even though the state check was correct.
+
+- **IDE note:** Web Stop now reports `No web server running` when idle and
+  `Web server stopped` when it actually stops a process. Open-in-Browser now
+  reports `Web URL not ready` before a URL is available and `Web browser open
+  failed` if launching a non-empty URL fails. Tests cover the idle button paths
+  and toast replacement.
+- **Language note:** no compiler gap surfaced. Mighty needs panel-toolbar action
+  descriptors with enabled/disabled state and canonical no-op outcomes so
+  inactive controls can be rendered or messaged consistently.
