@@ -1275,6 +1275,25 @@ fn terminal_close_acknowledges_state_without_requiring_pty_spawn() {
 }
 
 #[test]
+fn terminal_open_failure_reports_visible_feedback() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_TERM_FORCE_OPEN_FAIL", "1");
+    assert_eq!(crate::abi::mui_term_open(handle), 0);
+    std::env::remove_var("MUI_TERM_FORCE_OPEN_FAIL");
+
+    assert!(!ctx.term_open);
+    assert!(ctx.terminal.is_none());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Terminal failed to open");
+}
+
+#[test]
 fn account_utility_opens_settings_on_inline_ai_row() {
     use crate::featureabi::{mui_settings_open_account, mui_settings_sel};
 

@@ -6278,14 +6278,25 @@ pub extern "C" fn mui_term_open(handle: i64) -> i32 {
         return 0;
     };
     let (rows, cols) = term_dims(ctx);
+    let was_open = ctx.term_open;
+    let mut spawned = false;
+    #[cfg(test)]
+    if std::env::var_os("MUI_TERM_FORCE_OPEN_FAIL").is_some() {
+        ctx.push_toast(crate::toast::Kind::Error, "Terminal failed to open");
+        trace("term_open forced failure");
+        return 0;
+    }
     if ctx.terminal.is_none() {
         match crate::terminal::Terminal::spawn(rows, cols) {
             Ok(t) => {
                 println!("mui_term_open: spawned shell, grid {rows}x{cols}");
                 ctx.terminal = Some(t);
+                spawned = true;
             }
             Err(e) => {
                 eprintln!("mui_term_open: {e}");
+                ctx.push_toast(crate::toast::Kind::Error, "Terminal failed to open");
+                trace(&format!("term_open failed: {e}"));
                 return 0;
             }
         }
@@ -6297,6 +6308,12 @@ pub extern "C" fn mui_term_open(handle: i64) -> i32 {
     ctx.web.close();
     ctx.problems.set_open(false);
     ctx.term_open = true;
+    if spawned || !was_open {
+        ctx.push_toast(crate::toast::Kind::Info, "Terminal opened");
+    }
+    trace(&format!(
+        "term_open rows={rows} cols={cols} spawned={spawned} was_open={was_open}"
+    ));
     1
 }
 

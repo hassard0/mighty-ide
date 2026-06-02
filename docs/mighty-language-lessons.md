@@ -4374,3 +4374,16 @@ lifecycle controls read as unreliable when users receive no confirmation.
 - **Language note:** no compiler gap surfaced. Mighty needs command result
   metadata that can distinguish changed-state, already-in-state, failed, and
   unavailable lifecycle outcomes without encoding them as ad hoc toast strings.
+
+### L305. Runtime panel startup failures need visible feedback **[finding, P1]**
+The terminal open command could fail during shell/PTY startup and only write to
+stderr. In a GUI that reads like a broken toolbar button because the user never
+sees stderr and the panel does not open.
+
+- **IDE note:** terminal open now pushes `Terminal failed to open` on startup
+  failure and `Terminal opened` when the panel first opens or respawns a shell.
+  A forced-failure regression covers the visible error path without depending
+  on a real PTY.
+- **Language note:** no compiler gap surfaced. Mighty needs structured command
+  result states for runtime panels, especially unavailable/failed startup
+  outcomes, so commands can drive consistent UI feedback and retry behavior.

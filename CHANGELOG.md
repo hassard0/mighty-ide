@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Terminal open failures now surface in the UI**: failed shell/PTY startup now
+  pushes `Terminal failed to open` instead of only logging stderr, and first
+  successful opens acknowledge the panel with `Terminal opened`.
 - **Terminal close now reports its state**: the terminal close ABI now confirms
   `Terminal closed` and distinguishes the no-op `Terminal is already closed`
   path, so direct terminal lifecycle controls do not fail silently.
