@@ -4469,3 +4469,16 @@ the first-run surface look noisy and made the dim line less useful.
   path-display helper available to UI code: basename, parent, root-aware
   truncation, and tooltip/full-path values should be reusable instead of
   hand-authored at each surface.
+
+### L312. Visible chrome buttons should share command feedback **[finding, P2]**
+The bottom-dock close command from the palette pushed `Bottom dock closed`, but
+clicking the visible X in the dock header closed the panel silently. The state
+changed correctly, but the visible affordance felt less reliable than the
+palette command.
+
+- **IDE note:** the bottom-dock close hit-test now pushes the same
+  `Bottom dock closed` toast as the palette command. The dock geometry regression
+  covers the visible close button path.
+- **Language note:** no compiler gap surfaced. Mighty needs command/action
+  descriptors that can bind multiple triggers to one outcome policy so mouse,
+  keyboard, and palette paths do not drift on feedback.

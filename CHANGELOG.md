@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Visible dock close now acknowledges the click**: clicking the bottom-dock X
+  now reports `Bottom dock closed`, matching the palette close command instead
+  of silently changing layout.
 - **Welcome recent rows now show cleaner location context**: recent folders now
   display the folder name with its parent location, instead of repeating the full
   selected folder path in dim text.

@@ -1794,8 +1794,13 @@ pub extern "C" fn mui_bottom_dock_close_at_click(handle: i64) -> i32 {
     if px < x || px > x + w || py < y || py > y + h {
         return 0;
     }
-    close_bottom_dock(ctx);
-    1
+    if close_bottom_dock(ctx) {
+        ctx.push_toast(crate::toast::Kind::Info, "Bottom dock closed");
+        trace("dock_close_button closed");
+        1
+    } else {
+        0
+    }
 }
 
 fn close_bottom_dock(ctx: &mut MuiContext) -> bool {

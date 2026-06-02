@@ -1277,6 +1277,11 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
     );
     assert_eq!(crate::abi::mui_bottom_dock_close_at_click(handle), 1);
     assert!(!ctx.bottom_dock_open());
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Bottom dock closed",
+        "visible dock close button should confirm the close"
+    );
     crate::uiscale::set_os_scale(1.0);
     crate::uiscale::set_user_zoom(1.0);
     crate::layout::reset_dock_fraction();
