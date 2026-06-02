@@ -15,6 +15,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Branch switcher respects compact windows**: the Git branch overlay now uses
   shared, height-aware row budgeting for drawing and mouse hit-testing, and its
   card width clamps inside narrow windows instead of producing invalid geometry.
+- **Branch switcher is covered by real-mouse UX tests**: the Windows harness now
+  clicks the visible status-bar branch segment, captures the branch picker, and
+  closes it through the visible close button while tracing overlay open/close.
 - **Delete confirmation names the target up front**: the active-file delete
   prompt now shows the exact file basename in the prompt label before the user
   types, instead of only revealing the required confirmation name after a failed

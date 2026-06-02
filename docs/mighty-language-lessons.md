@@ -4058,3 +4058,17 @@ and what the mouse could hit drifted apart.
 - **Language note:** no compiler gap surfaced. Mighty needs measured overlay
   layout primitives so cards, row budgets, and hit regions can be declared once
   instead of manually synchronized through shim helpers.
+
+### L283. Overlay lifecycle needs real-mouse evidence **[finding, P2]**
+The branch picker had geometry unit tests, but the Windows harness did not open
+it through the visible status-bar branch segment. That left a gap between the
+implementation proof and the human workflow: click the branch chip, see the
+picker, then dismiss it with the visible close affordance.
+
+- **IDE note:** the branch picker now traces `branch_open count=...`, and the
+  strict Windows harness clicks the status-bar branch segment, captures the
+  picker, and closes it with the real mouse.
+- **Language note:** no compiler gap surfaced. Mighty needs a first-class
+  overlay lifecycle/event model so open, close, hit-test, and visual capture
+  evidence can be declared alongside the UI instead of stitched together with
+  shim traces.

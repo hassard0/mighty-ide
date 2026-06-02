@@ -597,6 +597,21 @@ function AiPanelCloseCenter() {
   return [pscustomobject]@{ X = ($right - 16.0); Y = 60.0 }
 }
 
+function BranchPickerCloseCenter() {
+  # Mirrors panels.rs::branch_picker_geometry() + branch_picker_close_rect().
+  $boxW = [math]::Min([math]::Max($logicalW - 32.0, 1.0), 460.0)
+  $boxX = [math]::Max(($logicalW - $boxW) * 0.5, 0.0)
+  $rowH = 34.0
+  $headH = 50.0
+  $fixedH = 50.0 + 16.0
+  $available = [math]::Max($logicalH - 32.0 - $fixedH, $rowH)
+  $capacity = [math]::Max([math]::Floor($available / $rowH), 1.0)
+  $rows = [math]::Min($capacity, 10.0)
+  $boxH = $headH + ($rows * $rowH) + 16.0
+  $boxY = [math]::Min(100.0, [math]::Max($logicalH - $boxH - 16.0, 8.0))
+  return [pscustomobject]@{ X = ($boxX + $boxW - 26.0); Y = ($boxY + 25.0) }
+}
+
 # titlebar.rs: controls_x = w - 3*46, action strip = 68, run target is the
 # first 30px of the strip. Click the center of the remaining "more" range.
 $topbarRunX = $logicalW - (3 * 46) - 68 + 15
@@ -692,6 +707,34 @@ if ((Wait-TraceCountGreaterThan "topbar_action .* -> run" $topbarRunBefore 1200)
 }
 ClickL $topbarRunX 20
 Start-Sleep -Milliseconds 250
+
+# === STATUS BAR BRANCH: click the visible branch segment and close the picker. ===
+$branchOpenBefore = Trace-MatchCount "(?m)^branch_open count="
+$branchCloseBefore = Trace-MatchCount "(?m)^branch_close$"
+ClickL 44 ($logicalH - 16)
+Start-Sleep -Milliseconds 450
+Capture $hwnd "01c-branch-picker"
+if ($env:MUI_TRACE) {
+  if (Wait-TraceCountGreaterThan "(?m)^branch_open count=" $branchOpenBefore 1800) {
+    Log "BRANCH-PICKER-MOUSE: status branch segment opened the picker"
+  } else {
+    Log "BRANCH-PICKER-MOUSE: status branch segment did not open the picker"
+    $script:HarnessFailed = $true
+  }
+}
+$branchClose = BranchPickerCloseCenter
+ClickL $branchClose.X $branchClose.Y
+Start-Sleep -Milliseconds 300
+if ($env:MUI_TRACE) {
+  if (Wait-TraceCountGreaterThan "(?m)^branch_close$" $branchCloseBefore 1800) {
+    Log "BRANCH-PICKER-CLOSE-MOUSE: visible close button dismissed picker"
+  } else {
+    Log "BRANCH-PICKER-CLOSE-MOUSE: close button did not dismiss picker"
+    $script:HarnessFailed = $true
+    Press-VK $hwnd 0x1B
+    Start-Sleep -Milliseconds 150
+  }
+}
 
 # === WELCOME NEW PROJECT: visible row should use the native project-folder picker. ===
 $welcomeProjectBefore = Trace-MatchCount "welcome_click .* -> 8"

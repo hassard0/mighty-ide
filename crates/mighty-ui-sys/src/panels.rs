@@ -737,6 +737,7 @@ pub extern "C" fn mui_git_branches(handle: i64) -> i32 {
     let n = ctx.scm.refresh_branches();
     let list = ctx.scm.branches.clone();
     ctx.branch_picker.open(&list);
+    crate::abi::trace(&format!("branch_open count={n}"));
     n
 }
 
