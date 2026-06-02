@@ -393,14 +393,16 @@ impl CompletionEngine {
             let ty = row_y + (row_h - chrome) * 0.5 - 0.5;
             let name_x = box_x + 38.0;
             ctx.text.queue_sized(name_x, ty, &cand.text, theme::TEXT(), chrome, clip);
-            // Signature hint immediately after the name, dimmer mono.
-            if !sig.is_empty() {
+            // Signature hint immediately after the name, when the provider has
+            // real row-level detail. Avoid placeholder fragments; the footer
+            // carries full signature context for the selected row.
+            if completion_row_signature_visible(sig) {
                 let sx = name_x + cand.text.chars().count() as f32 * advance + 2.0;
-                ctx.text.queue_sized(sx, ty, sig, theme::TEXT_3(), chrome - 1.0, clip);
+                ctx.text.queue_sized(sx, ty, sig, theme::DIM(), chrome - 1.0, clip);
             }
-            // Right-aligned dim kind.
+            // Right-aligned kind metadata.
             let kw = kind.chars().count() as f32 * (chrome - 1.5) * 0.55;
-            ctx.text.queue_ui_sized(box_x + box_w - 12.0 - kw, ty, kind, theme::TEXT_3(), chrome - 1.5, clip);
+            ctx.text.queue_ui_sized(box_x + box_w - 12.0 - kw, ty, kind, theme::DIM(), chrome - 1.5, clip);
         }
 
         // Signature-hint footer (mockup `.ac-hint`): the selected candidate's
@@ -464,7 +466,7 @@ fn classify_candidate(cand: &Candidate) -> (MuiColor, MuiColor, &'static str, &'
             MuiColor::new(1.0, 0.824, 0.478, 0.14),
             theme::SYN_FUNCTION(),
             "\u{0192}",
-            "\u{2192} fn",
+            "function",
             "(…)",
         );
     }
@@ -475,6 +477,10 @@ fn classify_candidate(cand: &Candidate) -> (MuiColor, MuiColor, &'static str, &'
         "local",
         "",
     )
+}
+
+fn completion_row_signature_visible(sig: &str) -> bool {
+    !sig.is_empty() && sig.is_ascii()
 }
 
 // ---------------------------------------------------------------------------
@@ -917,6 +923,19 @@ mod tests {
         // Moving off the snippet entry clears the snippet-accept flag.
         e.move_sel(1);
         assert!(!e.accepted_is_snippet());
+    }
+
+    #[test]
+    fn semantic_completion_row_uses_readable_kind_label() {
+        let cand = Candidate {
+            text: "protocol".to_string(),
+            semantic: true,
+            snippet: false,
+        };
+        let (_, _, _letter, kind, sig) = classify_candidate(&cand);
+        assert_eq!(kind, "function");
+        assert!(!kind.contains("fn"));
+        assert!(!completion_row_signature_visible(sig));
     }
 
     #[test]

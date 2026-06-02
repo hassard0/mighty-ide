@@ -3545,3 +3545,17 @@ decorative chrome can be faint; workflow metadata still has to be readable.
   separate semantic roles such as `metadata`, `disabled`, `placeholder`, and
   `decorative` instead of forcing app code to infer meaning from generic color
   constants.
+
+### L241. Completion metadata must not render fake signature fragments **[finding, P2]**
+The autocomplete popup looked broken because semantic candidates drew a tiny
+inline placeholder signature while the footer already contained the selected
+candidate's full signature. A human sees that as sloppy even if the completion
+accept path works.
+
+- **IDE note:** semantic completion rows now use a readable `function` kind
+  label, and row-level signature fragments render only when they are real
+  ASCII-safe detail. The selected-row footer remains the place for full
+  parameter context.
+- **Language note:** no compiler gap surfaced. Mighty UI needs richer
+  completion item metadata from `mty-lsp` so label, kind, detail, and
+  documentation are separate fields instead of heuristic strings.
