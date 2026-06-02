@@ -4579,3 +4579,19 @@ section, but not enough room to draw the section header plus a readable row.
 - **Language note:** no compiler gap surfaced. Mighty UI needs first-class layout
   fit predicates for repeated sections so draw and hit-test code can reject
   partial sections consistently before any text is queued.
+
+### L320. Chrome hit-tests need one modal-overlay guard **[finding, P1]**
+Manual resize/header click paths in the top-level Mighty event loop excluded
+some overlays, but not every prompt or centered modal. That meant a human click
+near a sidebar or bottom-dock divider could be stolen by resize/header logic
+while palette, quick-open, settings, theme, or prompt UI was visible.
+
+- **IDE note:** the event loop now computes one `chrome_click_allowed` guard and
+  uses it for bottom-dock close/presets, Web-panel header controls, bottom-dock
+  resize, sidebar resize, and top-bar actions. The guard blocks chrome hit-tests
+  while prompts or modal overlays are active, and a source-level regression test
+  pins the routing shape.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a declarative
+  event-layer model so modal surfaces, chrome, panel headers, and editor bodies
+  can register priority instead of manually repeating boolean guards in a long
+  event ladder.

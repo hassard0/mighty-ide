@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Overlay clicks no longer get stolen by resize handles**: bottom-dock,
+  Web-panel, and sidebar resize/header click paths now share the same
+  modal-overlay guard as top-bar commands, so palette, quick-open, settings,
+  theme, and prompt surfaces keep owning their mouse clicks.
 - **Compact Welcome no longer clips the Recent Files empty state**: the
   single-column Welcome layout now requires enough room for a section header and
   row before drawing it, preventing bottom-edge text clipping at 860x560.

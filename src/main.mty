@@ -1280,6 +1280,7 @@ fn main() {
       if tag == ev_mouse_down() && web_focus {
         web_header_click = mui_web_click(h)
       }
+      let chrome_click_allowed = mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && prompt_kind == 0 && !palette_open && !quickopen_open && !settings_open && !theme_picker_open
       if dock_resizing && tag == ev_mouse_move() {
         let _dh = mui_bottom_dock_resize_to_event_y(h)
       } else if dock_resizing && tag == ev_mouse_up() {
@@ -1290,21 +1291,21 @@ fn main() {
       } else if sidebar_resizing && tag == ev_mouse_up() {
         let _sf = mui_sidebar_resize_finish(h)
         sidebar_resizing = false
-      } else if tag == ev_mouse_down() && mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && mui_bottom_dock_close_at_click(h) == 1 {
+      } else if tag == ev_mouse_down() && chrome_click_allowed && mui_bottom_dock_close_at_click(h) == 1 {
         dock_resizing = false
         sidebar_resizing = false
         run_focus = false
         web_focus = false
         test_focus = false
         term_focus = false
-      } else if tag == ev_mouse_down() && mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && mui_bottom_dock_preset_at_click(h) > 0 {
+      } else if tag == ev_mouse_down() && chrome_click_allowed && mui_bottom_dock_preset_at_click(h) > 0 {
         dock_resizing = false
         sidebar_resizing = false
         run_focus = false
         web_focus = false
         test_focus = false
         term_focus = false
-      } else if tag == ev_mouse_down() && mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && web_header_click > 0 {
+      } else if tag == ev_mouse_down() && chrome_click_allowed && web_header_click > 0 {
         dock_resizing = false
         sidebar_resizing = false
         run_focus = false
@@ -1318,7 +1319,7 @@ fn main() {
           let _wr = mui_web_run(h)
         }
         web_focus = true
-      } else if tag == ev_mouse_down() && mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && mui_bottom_dock_resize_at_click(h) == 1 {
+      } else if tag == ev_mouse_down() && chrome_click_allowed && mui_bottom_dock_resize_at_click(h) == 1 {
         dock_resizing = true
         sidebar_resizing = false
         let _dh = mui_bottom_dock_resize_to_event_y(h)
@@ -1326,7 +1327,7 @@ fn main() {
         web_focus = false
         test_focus = false
         term_focus = false
-      } else if tag == ev_mouse_down() && mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && mui_sidebar_resize_at_click(h) == 1 {
+      } else if tag == ev_mouse_down() && chrome_click_allowed && mui_sidebar_resize_at_click(h) == 1 {
         sidebar_resizing = true
         dock_resizing = false
         let _sw = mui_sidebar_resize_to_event_x(h)
@@ -1334,7 +1335,7 @@ fn main() {
         web_focus = false
         test_focus = false
         term_focus = false
-      } else if tag == ev_mouse_down() && mui_dirty_confirm_active(h) == 0 && mui_keys_active(h) == 0 && mui_crumb_menu_active(h) == 0 && mui_branch_active(h) == 0 && prompt_kind == 0 && !palette_open && !quickopen_open && !settings_open && !theme_picker_open && mui_topbar_action_at_click(h) > 0 {
+      } else if tag == ev_mouse_down() && chrome_click_allowed && mui_topbar_action_at_click(h) > 0 {
         // Top-bar command access must win over editor/completion/panel focus. A
         // human click on More or the command-center pill should never leave the
         // following typed query in the editor.

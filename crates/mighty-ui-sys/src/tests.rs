@@ -4802,6 +4802,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "main editor key routing must keep Ctrl+Shift+S on the Save As path"
     );
     assert!(
+        main.contains("let chrome_click_allowed =")
+            && main.contains("prompt_kind == 0 && !palette_open && !quickopen_open && !settings_open && !theme_picker_open")
+            && main.contains("chrome_click_allowed && mui_bottom_dock_resize_at_click(h) == 1")
+            && main.contains("chrome_click_allowed && mui_sidebar_resize_at_click(h) == 1"),
+        "manual resize/header controls must not steal clicks while prompts or modal overlays are open"
+    );
+    assert!(
         main.contains("if shift_held(mods) {\n            let sr = mui_save_as_dialog(h)"),
         "Ctrl+Shift+S should force the native Save As dialog even for file-backed tabs"
     );
