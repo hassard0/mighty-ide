@@ -1,18 +1,16 @@
 //! "Mighty: New Project" ABI — the scalar veneer over [`crate::newproj`].
 //!
-//! Flow (Mighty side): the New Project palette command opens the bottom prompt
-//! for a name; on Enter the IDE stages the typed name into the shared byte
-//! buffer (`mui_path_push`, the same one Open-File / Open-Folder use) and calls
-//! [`mui_newproj_create`]. This validates the name, picks a parent directory
-//! (the open workspace, else home), runs `mty new <name>` there, opens the new
-//! project folder as the workspace, and toasts the outcome.
+//! Flow: the preferred command path chooses the final project folder through a
+//! native dialog, then calls [`create_project_at`]. The bottom prompt remains as
+//! a fallback when native dialogs are unavailable; it stages the typed name into
+//! the shared byte buffer and calls [`mui_newproj_create`].
 //!
 //! All string handling stays Rust-side (L17). `mty` discovery mirrors the other
 //! shim call sites (`MIGHTY_MTY` env → dev path → `mty` on PATH); if `mty` can't
 //! be run we toast a clear "needs the Mighty compiler" message and return -1 so
 //! the feature degrades gracefully instead of failing silently.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::MuiContext;
@@ -47,7 +45,6 @@ pub extern "C" fn mui_newproj_create(handle: i64) -> i32 {
     };
     let staged = std::mem::take(&mut ctx.path_stage);
     let typed = String::from_utf8_lossy(&staged).into_owned();
-
     let name = match crate::newproj::validate_name(&typed) {
         Ok(n) => n,
         Err(e) => {
@@ -65,13 +62,65 @@ pub extern "C" fn mui_newproj_create(handle: i64) -> i32 {
         Some(ws_root.as_path())
     };
     let parent = crate::newproj::resolve_parent_dir(ws_opt);
-    let target = parent.join(&name);
+    create_project_at(ctx, parent.join(name))
+}
+
+/// Create a Mighty project at the exact selected folder path.
+///
+/// The selected path is interpreted as the final project directory, not merely a
+/// parent. A non-existing path is ideal. An existing empty directory is accepted
+/// and removed before `mty new` so the compiler can scaffold it. Non-empty
+/// folders and files are rejected rather than overwritten.
+pub(crate) fn create_project_at(ctx: &mut MuiContext, target: PathBuf) -> i32 {
+    let Some(raw_name) = target.file_name().and_then(|n| n.to_str()) else {
+        ctx.push_toast(crate::toast::Kind::Warn, "Choose a project folder name");
+        println!("newproj: selected path has no folder name: {}", target.display());
+        return 0;
+    };
+    let name = match crate::newproj::validate_name(raw_name) {
+        Ok(n) => n,
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Warn, e.clone());
+            println!("newproj: invalid selected folder name: {e}");
+            return 0;
+        }
+    };
+    let Some(parent) = target.parent().map(|p| p.to_path_buf()) else {
+        ctx.push_toast(crate::toast::Kind::Warn, "Choose a parent folder");
+        println!("newproj: selected path has no parent: {}", target.display());
+        return 0;
+    };
+    if !parent.is_dir() {
+        ctx.push_toast(crate::toast::Kind::Warn, "Choose an existing parent folder");
+        println!("newproj: parent is not a folder: {}", parent.display());
+        return 0;
+    }
 
     if target.exists() {
-        let msg = format!("'{name}' already exists in {}", parent.display());
-        ctx.push_toast(crate::toast::Kind::Warn, msg.clone());
-        println!("newproj: {msg}");
-        return 0;
+        if !target.is_dir() {
+            ctx.push_toast(crate::toast::Kind::Warn, format!("File already exists: {name}"));
+            println!("newproj: target is a file: {}", target.display());
+            return 0;
+        }
+        match target.read_dir() {
+            Ok(mut entries) => {
+                if entries.next().is_some() {
+                    ctx.push_toast(crate::toast::Kind::Warn, format!("Choose an empty folder for {name}"));
+                    println!("newproj: selected folder is not empty: {}", target.display());
+                    return 0;
+                }
+                if let Err(e) = std::fs::remove_dir(&target) {
+                    ctx.push_toast(crate::toast::Kind::Warn, format!("Could not prepare folder: {name}"));
+                    println!("newproj: could not remove empty folder {}: {e}", target.display());
+                    return 0;
+                }
+            }
+            Err(e) => {
+                ctx.push_toast(crate::toast::Kind::Warn, format!("Could not inspect folder: {name}"));
+                println!("newproj: could not inspect {}: {e}", target.display());
+                return 0;
+            }
+        }
     }
 
     let mty = mty_path();

@@ -5143,6 +5143,36 @@ pub extern "C" fn mui_newfolder_dialog(handle: i64) -> i32 {
     create_or_accept_folder_at(ctx, target, &initial_dir, &name)
 }
 
+/// Create a new Mighty project through a native folder picker. The selected path
+/// is the final project folder name. Returns `1` on success, `0` on cancel or a
+/// rejected folder, and `-1` when native dialogs are unavailable so Mighty can
+/// fall back to the typed-name prompt.
+#[no_mangle]
+pub extern "C" fn mui_newproj_dialog(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let root = crate::wsabi::effective_root(ctx);
+    let initial_dir = crate::newproj::resolve_parent_dir(Some(&root));
+    let target = match pick_new_project_native(&initial_dir, dialog_owner_hwnd(ctx)) {
+        FileDialogPick::Picked(path) => path,
+        FileDialogPick::Cancelled => {
+            trace("new_project_dialog cancel");
+            println!("mui_newproj_dialog: native project folder dialog cancelled");
+            return 0;
+        }
+        FileDialogPick::Unavailable => {
+            trace("new_project_dialog unavailable");
+            println!("mui_newproj_dialog: native project folder dialog unavailable");
+            return -1;
+        }
+    };
+    trace(&format!("new_project_dialog path={}", target.display()));
+    let created = crate::newprojabi::create_project_at(ctx, target);
+    trace(&format!("new_project_dialog result={created}"));
+    created
+}
+
 fn path_is_inside_workspace(root: &std::path::Path, target: &std::path::Path) -> bool {
     let root = std::fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
     if let Ok(target) = std::fs::canonicalize(target) {
@@ -9837,6 +9867,51 @@ fn pick_new_folder_native(initial_dir: &std::path::Path, owner_hwnd: Option<isiz
 Add-Type -AssemblyName System.Windows.Forms | Out-Null
 $d = New-Object System.Windows.Forms.FolderBrowserDialog
 $d.Description = 'Choose or create a folder'
+$d.ShowNewFolderButton = $true
+$dir = $env:MUI_DIALOG_DIR
+if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) { $d.SelectedPath = $dir }
+$owner = $null
+$ownerForm = $null
+$ownerHwnd = 0L
+$ownerText = $env:MUI_DIALOG_OWNER
+if ($ownerText -and [Int64]::TryParse($ownerText, [ref]$ownerHwnd) -and $ownerHwnd -ne 0) {
+  $owner = New-Object System.Windows.Forms.NativeWindow
+  $owner.AssignHandle([IntPtr]$ownerHwnd)
+} else {
+  $ownerForm = New-Object System.Windows.Forms.Form
+  $ownerForm.TopMost = $true
+  $ownerForm.ShowInTaskbar = $false
+  $ownerForm.StartPosition = 'CenterScreen'
+  $ownerForm.Width = 1
+  $ownerForm.Height = 1
+  $owner = $ownerForm
+}
+try {
+  if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($d.SelectedPath) }
+} finally {
+  if ($owner -is [System.Windows.Forms.NativeWindow]) { $owner.ReleaseHandle() }
+  if ($ownerForm) { $ownerForm.Dispose() }
+}
+"#;
+    run_file_dialog_script(script, initial_dir, None, owner_hwnd)
+}
+
+fn pick_new_project_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FileDialogPick {
+    if let Ok(path) = std::env::var("MUI_NEW_PROJECT_PICK") {
+        let trimmed = path.trim();
+        return if trimmed.is_empty() {
+            FileDialogPick::Cancelled
+        } else {
+            FileDialogPick::Picked(PathBuf::from(trimmed))
+        };
+    }
+    if !cfg!(windows) {
+        return FileDialogPick::Unavailable;
+    }
+    let script = r#"
+Add-Type -AssemblyName System.Windows.Forms | Out-Null
+$d = New-Object System.Windows.Forms.FolderBrowserDialog
+$d.Description = 'Choose or create the Mighty project folder'
 $d.ShowNewFolderButton = $true
 $dir = $env:MUI_DIALOG_DIR
 if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) { $d.SelectedPath = $dir }

@@ -3971,3 +3971,16 @@ longer labels. That made the suite stale and reduced trust in Welcome coverage.
 - **Language note:** no compiler gap surfaced. Mighty UI needs a stronger habit
   of coupling visual-copy changes with tests that describe the current product
   decision, not only the historical label.
+
+### L276. Creation flows should prefer native pickers over bottom prompts **[finding, P1]**
+New Project still opened the bottom prompt for a name while New File, Open File,
+Open Folder, Save As, and Save All had moved to native picker-backed flows. It
+worked, but felt unlike the rest of the IDE and made the Welcome quick action
+look like an internal command line.
+
+- **IDE note:** New Project now tries a native folder picker first, treats the
+  selected path as the intended project folder, rejects non-empty folders, and
+  keeps the typed prompt only as a fallback when native dialogs are unavailable.
+- **Language note:** Mighty still cannot pass owned strings or paths through the
+  scalar ABI, so dialog selection, path validation, and project creation remain
+  shim-owned. A richer string/path FFI would let Mighty own more of this flow.

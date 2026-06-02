@@ -1,8 +1,9 @@
 //! "Mighty: New Project" — name validation + scaffolding via `mty new`.
 //!
-//! The IDE's New Project command collects a project NAME through the existing
-//! bottom prompt (L17: strings can't cross the FFI, so the name is streamed in
-//! char-by-char), then this module:
+//! The IDE's New Project command prefers a native picker for the intended
+//! project folder. The older bottom prompt remains as the no-dialog fallback
+//! (L17: strings can't cross the FFI, so the name is streamed in char-by-char).
+//! This module:
 //!   * validates the name (a safe single path segment — no separators, no
 //!     traversal, sane charset), so we never shell out with a hostile string;
 //!   * resolves a PARENT directory to create the project under (the current

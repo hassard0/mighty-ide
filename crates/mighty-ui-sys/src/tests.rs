@@ -1241,6 +1241,7 @@ fn new_project_invalid_and_existing_names_toast_without_shelling_out() {
     let root = std::env::temp_dir().join("mui_new_project_guards");
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("taken")).unwrap();
+    std::fs::write(root.join("taken").join("keep.txt"), "existing").unwrap();
     ctx.workspace.set_root(root.clone());
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -1256,9 +1257,49 @@ fn new_project_invalid_and_existing_names_toast_without_shelling_out() {
     assert!(ctx.path_stage.is_empty());
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert!(toast.message.contains("already exists"));
+    assert_eq!(toast.message, "Choose an empty folder for taken");
 
     let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn new_project_dialog_rejects_non_empty_selected_folder() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_new_project_dialog_{}", std::process::id()));
+    let target = root.join("chosen_project");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&target).unwrap();
+    std::fs::write(target.join("keep.txt"), "do not overwrite").unwrap();
+    ctx.workspace.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_NEW_PROJECT_PICK", target.to_string_lossy().as_ref());
+    assert_eq!(crate::mui_newproj_dialog(handle), 0);
+    std::env::remove_var("MUI_NEW_PROJECT_PICK");
+
+    assert!(target.join("keep.txt").exists(), "dialog path must not overwrite non-empty folders");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Choose an empty folder for chosen_project");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn new_project_dialog_cancel_does_not_open_prompt_fallback() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_NEW_PROJECT_PICK", "");
+    assert_eq!(crate::mui_newproj_dialog(handle), 0);
+    std::env::remove_var("MUI_NEW_PROJECT_PICK");
+    assert!(ctx.toasts.toasts().is_empty(), "cancel should be a quiet no-op");
 }
 
 #[test]
@@ -4278,6 +4319,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         main.contains("mui_welcome_open_recent_picker(h)"),
         "File: Open Recent should use the focused recent picker, not the branded Welcome landing"
+    );
+    assert!(
+        main.contains("let np = mui_newproj_dialog(h)")
+            && main.contains("if np == -1 {\n              mui_prompt_open(h, prompt_new_project())"),
+        "New Project should use the native project-folder picker before falling back to the bottom prompt"
     );
     assert!(
         main.contains("fn welcome_close() -> I32 { 9 }")

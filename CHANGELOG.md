@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **New Project uses a native folder picker first**: Welcome and command-palette
+  New Project now ask for the intended project folder through the native picker,
+  reject non-empty folders without overwriting content, and keep the bottom
+  prompt only as an unavailable-dialog fallback.
 - **Welcome action tests match the shipped compact labels**: stale assertions for
   `New File at Location...` and `New Mighty Project...` now track the visible
   `New File` and `New Project` labels, keeping the Welcome regression suite

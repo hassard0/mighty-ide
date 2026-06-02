@@ -646,7 +646,8 @@ extern c {
   fn mui_ws_recent_count(handle: I64) -> I32
   fn mui_recent_any(handle: I64) -> I32
   fn mui_ws_dispatch(handle: I64, cmd_id: I32) -> I32
-  // ---- New Project (Mighty: New Project) — runs `mty new <name>` ----
+  // ---- New Project (Mighty: New Project): native picker, prompt fallback ----
+  fn mui_newproj_dialog(handle: I64) -> I32
   fn mui_newproj_create(handle: I64) -> I32
   // ---- quick-fix lightbulb (gutter indicator) ----
   fn mui_lightbulb_tick(handle: I64) -> I32
@@ -3041,8 +3042,11 @@ fn main() {
             }
             find_nav = false
           } else if welcome_act == welcome_new_project() {
-            mui_prompt_open(h, prompt_new_project())
-            prompt_kind = prompt_new_project()
+            let np = mui_newproj_dialog(h)
+            if np == -1 {
+              mui_prompt_open(h, prompt_new_project())
+              prompt_kind = prompt_new_project()
+            }
             find_nav = false
           } else if welcome_act == welcome_close() {
             mui_welcome_dismiss(h)
@@ -3852,8 +3856,11 @@ fn main() {
         } else if id == cmd_keyboard_shortcuts() {
           mui_keys_open(h)
         } else if id == cmd_new_project() {
-          mui_prompt_open(h, prompt_new_project())
-          prompt_kind = prompt_new_project()
+          let np = mui_newproj_dialog(h)
+          if np == -1 {
+            mui_prompt_open(h, prompt_new_project())
+            prompt_kind = prompt_new_project()
+          }
           find_nav = false
         }
       }

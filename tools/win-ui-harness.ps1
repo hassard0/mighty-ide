@@ -195,6 +195,7 @@ function Finish-Harness($proc) {
   Remove-Item Env:\MUI_NEW_FILE_PICK -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_NEW_FILE_PICK_SEQUENCE -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_NEW_FOLDER_PICK -ErrorAction SilentlyContinue
+  Remove-Item Env:\MUI_NEW_PROJECT_PICK -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_OPEN_FILE_PICK -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_OPEN_FOLDER_PICK -ErrorAction SilentlyContinue
   if (-not $traceWasSet) { Remove-Item Env:\MUI_TRACE -ErrorAction SilentlyContinue }
@@ -204,6 +205,7 @@ function Finish-Harness($proc) {
   Remove-Item -LiteralPath $openPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $openFolderPath -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $newFolderPath -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $newProjectPath -Recurse -Force -ErrorAction SilentlyContinue
   $reportPath = Join-Path $OutDir 'report.txt'
   $report | Set-Content $reportPath -Encoding utf8
   Log "report -> $reportPath"
@@ -228,6 +230,11 @@ if (Test-Path $welcomeFilePath) { Remove-Item $welcomeFilePath -Force }
 $newFolderName = "harnessnewfolder"
 $newFolderPath = Join-Path $workspaceRoot $newFolderName
 if (Test-Path $newFolderPath) { Remove-Item $newFolderPath -Recurse -Force }
+$newProjectName = "harnessproject"
+$newProjectPath = Join-Path $WorkDir $newProjectName
+if (Test-Path $newProjectPath) { Remove-Item $newProjectPath -Recurse -Force }
+New-Item -ItemType Directory -Path $newProjectPath -Force | Out-Null
+Set-Content -LiteralPath (Join-Path $newProjectPath "keep.txt") -Value "existing project content" -Encoding utf8
 $openName = "harnessopen.mty"
 $openPath = Join-Path $WorkDir $openName
 Set-Content -LiteralPath $openPath -Value "opened" -Encoding utf8
@@ -244,6 +251,7 @@ $env:MUI_SAVE_FILE_PICK_SEQUENCE = "$savePath|$saveAllPath"
 $env:MUI_NEW_FILE_PICK = $welcomeFilePath
 $env:MUI_NEW_FILE_PICK_SEQUENCE = "$welcomeFilePath|$newFilePath"
 $env:MUI_NEW_FOLDER_PICK = $newFolderPath
+$env:MUI_NEW_PROJECT_PICK = $newProjectPath
 $env:MUI_OPEN_FILE_PICK = $openPath
 $env:MUI_OPEN_FOLDER_PICK = $openFolderPath
 
@@ -680,17 +688,19 @@ if ((Wait-TraceCountGreaterThan "topbar_action .* -> run" $topbarRunBefore 1200)
 ClickL $topbarRunX 20
 Start-Sleep -Milliseconds 250
 
-# === WELCOME NEW PROJECT: visible row should open the Mighty project prompt. ===
+# === WELCOME NEW PROJECT: visible row should use the native project-folder picker. ===
 $welcomeProjectBefore = Trace-MatchCount "welcome_click .* -> 8"
-$promptProjectBefore = Trace-MatchCount "prompt_open kind=6"
+$newProjectDialogBefore = Trace-MatchCount "new_project_dialog path="
+$newProjectResultBefore = Trace-MatchCount "new_project_dialog result=0"
 ClickL 407 214
 Start-Sleep -Milliseconds 250
 Capture $hwnd "01-welcome-new-project"
 if ((Wait-TraceCountGreaterThan "welcome_click .* -> 8" $welcomeProjectBefore 1200) -and
-    (Wait-TraceCountGreaterThan "prompt_open kind=6" $promptProjectBefore 1200)) {
-  Log "WELCOME NEW-PROJECT: click routed to project-name prompt"
+    (Wait-TraceCountGreaterThan "new_project_dialog path=" $newProjectDialogBefore 1200) -and
+    (Wait-TraceCountGreaterThan "new_project_dialog result=0" $newProjectResultBefore 1200)) {
+  Log "WELCOME NEW-PROJECT: native project picker consumed selection and protected non-empty folder"
 } else {
-  Log "WELCOME NEW-PROJECT: missing click or project prompt trace"
+  Log "WELCOME NEW-PROJECT: missing click, native project picker trace, or safety rejection"
   $script:HarnessFailed = $true
 }
 Press-VK $hwnd 0x1B
