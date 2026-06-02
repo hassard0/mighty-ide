@@ -53,6 +53,27 @@ fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) ->
     out
 }
 
+pub(crate) fn compact_problem_rows(panel_w: f32) -> bool {
+    panel_w < 360.0
+}
+
+pub(crate) fn problem_location_label(line: i32, col: i32, compact: bool) -> String {
+    if compact {
+        format!("{}:{}", line + 1, col + 1)
+    } else {
+        format!("Ln {}, Col {}", line + 1, col + 1)
+    }
+}
+
+pub(crate) fn problem_message_budget(
+    msg_x: f32,
+    location_x: f32,
+    code_x: Option<f32>,
+) -> f32 {
+    let right_x = code_x.unwrap_or(location_x);
+    right_x - 10.0 - msg_x
+}
+
 /// One aggregated problem: an owning file plus the underlying diagnostic fields.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Problem {
@@ -263,6 +284,8 @@ impl ProblemSet {
         let adv = chrome * 0.55;
         let top = Self::panel_top(h);
         let panel_h = layout::term_panel_height(ctx.gpu.height);
+        let panel_w = w - left;
+        let compact_rows = compact_problem_rows(panel_w);
 
         // Panel surface (elevated) + a top divider with a faint glow line.
         ctx.dl_rect(left, top, w - left, panel_h, theme::BG_1());
@@ -343,17 +366,22 @@ impl ProblemSet {
                     ctx.dl_icon(sx, y + (row_h - 13.0) * 0.5, 13.0, 13.0, sicon, scol, 1.5, false);
                     let msg_x = sx + 20.0;
                     // Right cluster: code + Ln:Col, laid out from the right.
-                    let lc = format!("Ln {}, Col {}", p.line + 1, p.col + 1);
+                    let lc = problem_location_label(p.line, p.col, compact_rows);
                     let lc_w = lc.chars().count() as f32 * (chrome - 1.0) * 0.55;
-                    let code_w = p.code.chars().count() as f32 * (chrome - 1.0) * 0.55;
+                    let code_w = if compact_rows {
+                        0.0
+                    } else {
+                        p.code.chars().count() as f32 * (chrome - 1.0) * 0.55
+                    };
                     let rx_lc = w - 14.0 - lc_w;
-                    let rx_code = rx_lc - 12.0 - code_w;
+                    let rx_code = if compact_rows { rx_lc } else { rx_lc - 12.0 - code_w };
                     ctx.text.queue_ui_sized(rx_lc, y + (row_h - (chrome - 1.0)) * 0.5 - 1.0, &lc, theme::TEXT_4(), chrome - 1.0, clip);
-                    if !p.code.is_empty() {
+                    if !compact_rows && !p.code.is_empty() {
                         ctx.text.queue_ui_sized(rx_code, y + (row_h - (chrome - 1.0)) * 0.5 - 1.0, &p.code, theme::TEXT_3(), chrome - 1.0, clip);
                     }
                     // Message, measured and clipped before the right cluster.
-                    let msg = fit_ui_text(&mut ctx.text, &p.message, rx_code - 8.0 - msg_x, chrome);
+                    let code_x = if compact_rows || p.code.is_empty() { None } else { Some(rx_code) };
+                    let msg = fit_ui_text(&mut ctx.text, &p.message, problem_message_budget(msg_x, rx_lc, code_x), chrome);
                     if !msg.is_empty() {
                         ctx.text.queue_ui_sized(msg_x, y + (row_h - chrome) * 0.5 - 1.0, &msg, theme::TEXT(), chrome, clip);
                     }
@@ -447,6 +475,21 @@ mod tests {
         ]);
         assert_eq!(ps.file_count(), 2);
         assert_eq!(ps.count(), 2);
+    }
+
+    #[test]
+    fn compact_problem_rows_use_short_location_and_hide_code_budget() {
+        assert!(compact_problem_rows(282.0));
+        assert!(!compact_problem_rows(420.0));
+        assert_eq!(problem_location_label(6, 13, true), "7:14");
+        assert_eq!(problem_location_label(6, 13, false), "Ln 7, Col 14");
+
+        let compact_budget = problem_message_budget(332.0, 515.0, None);
+        let wide_budget = problem_message_budget(332.0, 515.0, Some(450.0));
+        assert!(
+            compact_budget > wide_budget,
+            "compact rows should give the message the code column's space"
+        );
     }
 
     #[test]

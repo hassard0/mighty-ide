@@ -3777,3 +3777,15 @@ was readable.
 - **Language note:** no compiler gap surfaced. Mighty UI needs notification
   stack primitives with viewport-aware caps, protected work regions, and
   consistent draw/hit-test contracts.
+
+### L259. Diagnostic rows need compact metadata priority rules **[finding, P2]**
+The compact Problems dock squeezed the diagnostic message, compiler code, and
+`Ln/Col` metadata into one narrow row. The result was technically clipped, but
+visually read like the message and metadata were colliding.
+
+- **IDE note:** compact Problems rows now use short `line:col` metadata and omit
+  the redundant compiler code column, giving the diagnostic message more room
+  without changing row height or click mapping.
+- **Language note:** no compiler gap surfaced. Mighty UI needs reusable
+  severity-row primitives that can define priority order for message, code,
+  file, and location metadata across compact and full-width surfaces.

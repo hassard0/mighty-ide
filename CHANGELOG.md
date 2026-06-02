@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Compact Problems rows prioritize diagnostic text**: narrow Problems docks now
+  shorten location metadata to `line:col` and omit the redundant code column, so
+  the actual error/warning message has room before the right edge.
 - **Compact toast stacks are less intrusive**: narrow windows and bottom-dock
   layouts now render at most two toast cards at once, while retaining the queue
   and click-dismiss behavior.
