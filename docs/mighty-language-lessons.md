@@ -4362,3 +4362,15 @@ the generic toggle felt less reliable even though it worked.
 - **Language note:** no compiler gap surfaced. This is another case for shared
   command metadata: toggles should expose their resulting state and feedback
   text from one definition used by shortcuts, palette rows, and visible chrome.
+
+### L304. Lifecycle close commands need no-op feedback **[finding, P2]**
+The integrated terminal close ABI changed state silently and also treated an
+already-closed terminal as a quiet no-op. That is safe internally, but direct
+lifecycle controls read as unreliable when users receive no confirmation.
+
+- **IDE note:** terminal close now pushes `Terminal closed` when it actually
+  closes the panel/shell state and `Terminal is already closed` for the no-op
+  path. The regression covers both cases without requiring a PTY spawn.
+- **Language note:** no compiler gap surfaced. Mighty needs command result
+  metadata that can distinguish changed-state, already-in-state, failed, and
+  unavailable lifecycle outcomes without encoding them as ad hoc toast strings.

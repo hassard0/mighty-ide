@@ -6305,10 +6305,17 @@ pub extern "C" fn mui_term_open(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_term_close(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.term_open && ctx.terminal.is_none() {
+            ctx.push_toast(crate::toast::Kind::Info, "Terminal is already closed");
+            trace("term_close noop");
+            return;
+        }
         ctx.term_open = false;
         // Dropping the Terminal kills the child + joins nothing (reader thread
         // exits on EOF). Keep this explicit for clarity.
         ctx.terminal = None;
+        ctx.push_toast(crate::toast::Kind::Info, "Terminal closed");
+        trace("term_close");
     }
 }
 

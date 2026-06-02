@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Terminal close now reports its state**: the terminal close ABI now confirms
+  `Terminal closed` and distinguishes the no-op `Terminal is already closed`
+  path, so direct terminal lifecycle controls do not fail silently.
 - **Sidebar toggle now confirms the layout change**: Ctrl+B and palette/sidebar
   toggle routes now toast `Sidebar opened` or `Sidebar closed`, so a major
   drawer visibility change has the same clear feedback as explicit close and

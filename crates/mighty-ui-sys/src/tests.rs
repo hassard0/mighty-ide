@@ -1254,6 +1254,27 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
 }
 
 #[test]
+fn terminal_close_acknowledges_state_without_requiring_pty_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.term_open = true;
+    crate::abi::mui_term_close(handle);
+    assert!(!ctx.term_open);
+    assert!(ctx.terminal.is_none());
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Terminal closed"
+    );
+
+    crate::abi::mui_term_close(handle);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Terminal is already closed"
+    );
+}
+
+#[test]
 fn account_utility_opens_settings_on_inline_ai_row() {
     use crate::featureabi::{mui_settings_open_account, mui_settings_sel};
 
