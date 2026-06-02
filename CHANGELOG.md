@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Status problem counters read like labels**: the bottom status bar now renders
+  diagnostics as `N err` and `N warn` when space allows, while keeping the
+  compact icon-number fallback for narrow windows. This removes the stray-looking
+  bare numbers visible beside branch state in full-width screenshots.
 - **Markdown Preview only opens on Markdown files**: command-palette and
   keyboard preview requests now warn on non-Markdown buffers instead of opening
   a misleading rendered pane for `.mty` or plain text. The real-mouse harness

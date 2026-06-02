@@ -3999,3 +3999,14 @@ mental model for a document-specific feature.
   metadata for document/context eligibility so disabled states, palette hints,
   shortcut routing, and tests can share one rule instead of relying on shim-side
   guards.
+
+### L278. Status counters need semantic labels, not bare numerals **[finding, P2]**
+The status bar rendered branch state followed by bare diagnostic numbers. In
+screenshots this read like stray text (`main ↑0 ↓0 4 0`) instead of a clear
+problems summary, especially because Testing and diagnostics counts can differ.
+
+- **IDE note:** wide status bars now render diagnostics as `N err` and `N warn`,
+  with the original compact icon-number fallback preserved for narrow windows.
+- **Language note:** no compiler defect surfaced. Mighty UI still needs a
+  semantic status-chip primitive so labeled counters, tooltips, hit targets, and
+  compact fallbacks can be declared from Mighty instead of hand-built in the shim.

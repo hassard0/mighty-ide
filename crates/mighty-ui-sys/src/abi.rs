@@ -3040,10 +3040,23 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
     let n_warn = if agg { ctx.problems.warn_count() } else { 0 };
     let err = n_err.to_string();
     let warn = n_warn.to_string();
+    let err_suffix = " err";
+    let warn_suffix = " warn";
     let (ab_w, _) = ctx.text.measure_ui_sized(&ab, chrome);
     let (err_w, _) = ctx.text.measure_ui_sized(&err, chrome);
     let (warn_w, _) = ctx.text.measure_ui_sized(&warn, chrome);
-    let problems_w = 16.0 + err_w + 10.0 + 16.0 + warn_w;
+    let (err_suffix_w, _) = ctx.text.measure_ui_sized(err_suffix, chrome);
+    let (warn_suffix_w, _) = ctx.text.measure_ui_sized(warn_suffix, chrome);
+    let compact_problems_w = 16.0 + err_w + 10.0 + 16.0 + warn_w;
+    let labeled_problems_w =
+        16.0 + err_w + err_suffix_w + 10.0 + 16.0 + warn_w + warn_suffix_w;
+    let available_left = (left_limit - x).max(0.0);
+    let use_labeled_problems = 6.0 + ab_w + 12.0 + labeled_problems_w <= available_left;
+    let problems_w = if use_labeled_problems {
+        labeled_problems_w
+    } else {
+        compact_problems_w
+    };
     let suffix_w = 6.0 + ab_w + 12.0 + problems_w;
     let branch_budget = (left_limit - x - suffix_w).max(0.0);
     let branch = fit_status_tail(&mut ctx.text, &branch, branch_budget, chrome);
@@ -3069,7 +3082,12 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
             chrome,
             clip,
         );
-        x += err_w + 10.0;
+        x += err_w;
+        if use_labeled_problems {
+            ctx.text.queue_ui_sized(x, ty, err_suffix, theme::TEXT_3(), chrome, clip);
+            x += err_suffix_w;
+        }
+        x += 10.0;
         ctx.dl_icon(x, icon_y, 13.0, 13.0, icons::WARN_TRI, theme::WARNING(), 1.5, false);
         x += 16.0;
         ctx.text.queue_ui_sized(
@@ -3081,6 +3099,10 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
             clip,
         );
         x += warn_w;
+        if use_labeled_problems {
+            ctx.text.queue_ui_sized(x, ty, warn_suffix, theme::TEXT_3(), chrome, clip);
+            x += warn_suffix_w;
+        }
         ctx.status_problems_rect = Some((chip_x - 4.0, y, (x - chip_x) + 8.0, bar_h));
     } else {
         ctx.status_problems_rect = None;

@@ -3151,6 +3151,27 @@ fn status_problems_chip_hit_tracks_rendered_branch_width() {
 }
 
 #[test]
+fn status_problems_chip_uses_readable_labels_when_width_allows() {
+    use crate::mui_status_render;
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 1280;
+    ctx.gpu.height = 720;
+    ctx.scm.status.branch = "main".to_string();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_status_render(handle, 4);
+    let (_, _, w, _) = ctx
+        .status_problems_rect
+        .expect("wide status bars should render the Problems chip");
+
+    assert!(
+        w > 85.0,
+        "wide status bars should use readable 'err'/'warn' labels, not bare numbers: w={w}"
+    );
+}
+
+#[test]
 fn status_bar_compacts_long_left_cluster_before_right_cluster() {
     use crate::{mui_status_problems_chip_at_click, mui_status_render};
 
