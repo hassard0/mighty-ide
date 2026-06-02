@@ -4069,6 +4069,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "id >= cmd_fold_first() && id <= cmd_fold_last()",
         "id >= cmd_sidebar_layout_first() && id <= cmd_sidebar_layout_last()",
         "id == cmd_keyboard_shortcuts()",
+        "id == cmd_clear_notifications()",
         "id == cmd_new_project()",
         "id == cmd_new_workspace_file()",
         "mui_prompt_open(h, prompt_new_file())",

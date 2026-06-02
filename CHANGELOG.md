@@ -141,6 +141,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Toast cards stay readable over busy screens**: toast surfaces now remain
   effectively opaque during their slide animation so Welcome/editor text cannot
   bleed through and look like stale toast copy.
+- **Toast dismissal is mouse-verified**: visible toast clicks and
+  **Notifications: Clear All Toasts** now emit trace evidence, and the strict
+  mouse harness verifies both dismissal paths after real file-operation toasts.
 - **Overflowing tabs are reachable with the mouse**: the tab strip now keeps a
   first-visible tab offset, scrolls with the mouse wheel over the top tab row,
   keeps the active tab visible after tab commands, and includes a screenshot

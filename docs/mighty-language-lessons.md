@@ -3397,3 +3397,16 @@ functional panel feel unfinished.
 - **Language note:** no compiler gap surfaced. Mighty UI needs summary/chip
   primitives that can choose between single-line, wrapped, and elided layouts
   without losing the user-facing meaning of the text.
+
+### L230. Dismissible feedback needs traceable hit tests **[finding, P1]**
+Toast stale-text complaints are hard to close with screenshots alone: a toast
+can look visible in one capture, expire in the next frame, or be hidden under an
+overlay. The product already supports click-dismiss and clear-all, but the
+strict mouse harness could not prove those paths worked.
+
+- **IDE note:** toast click-dismiss and clear-all now emit trace markers, and
+  the Windows strict-mouse harness dismisses a visible Save As toast by mouse
+  before invoking **Notifications: Clear All Toasts** against a later save toast.
+- **Language note:** no compiler gap surfaced. Mighty UI should treat overlay
+  hit tests as observable state transitions so automation can verify human
+  interactions instead of inferring them from transient pixels.

@@ -1048,7 +1048,16 @@ Start-Sleep -Milliseconds 250
 # not the strip padding or the min-button boundary.
 Invoke-PaletteCommand "save as" "40-palette-open"
 Capture $hwnd "42-saved"
-Start-Sleep -Milliseconds 500
+Start-Sleep -Milliseconds 200
+$toastClickCount = Trace-MatchCount "toast_click .* hit=1"
+ClickL 704 604
+if (Wait-TraceCountGreaterThan "toast_click .* hit=1" $toastClickCount 1200) {
+  Log "TOAST-MOUSE: visible toast dismissed by click"
+} else {
+  Log "TOAST-MOUSE: click did not dismiss visible toast"
+  $script:HarnessFailed = $true
+}
+Start-Sleep -Milliseconds 250
 if (Test-Path $savePath) {
   $savedText = Get-Content -LiteralPath $savePath -Raw
   if ($savedText -like "*savecheck*") {
@@ -1085,6 +1094,16 @@ ClickL 460 130
 Start-Sleep -Milliseconds 150
 Type-Text $hwnd "zz"
 Start-Sleep -Milliseconds 200
+$toastClearCount = Trace-MatchCount "toast_clear removed=1"
+Invoke-PaletteCommand "reload active file" $null
+Start-Sleep -Milliseconds 150
+Invoke-PaletteCommand "clear all toasts" $null
+if (Wait-TraceCountGreaterThan "toast_clear removed=1" $toastClearCount 1200) {
+  Log "TOAST-CLEAR-COMMAND: visible warning toast stack cleared"
+} else {
+  Log "TOAST-CLEAR-COMMAND: clear command did not remove a toast"
+  $script:HarnessFailed = $true
+}
 Invoke-PaletteCommand "save" $null
 Start-Sleep -Milliseconds 300
 $openText = if (Test-Path $openPath) { Get-Content -LiteralPath $openPath -Raw } else { "" }

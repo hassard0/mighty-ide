@@ -12122,7 +12122,9 @@ pub extern "C" fn mui_toast_clear(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    i32::from(ctx.toasts.clear())
+    let cleared = ctx.toasts.clear();
+    trace(&format!("toast_clear removed={}", if cleared { 1 } else { 0 }));
+    i32::from(cleared)
 }
 
 /// Dismiss the toast under the last mouse-down position. Returns 1 on hit.
@@ -12143,7 +12145,7 @@ pub extern "C" fn mui_toast_click(handle: i64) -> i32 {
     let (w, h) = visible_surface_size(ctx);
     let reserve_bottom = toast_bottom_reserve(ctx, h);
     let reserve_left = toast_left_reserve(ctx);
-    i32::from(ctx.toasts.dismiss_at_reserved_inset(
+    let dismissed = ctx.toasts.dismiss_at_reserved_inset(
         w,
         h,
         reserve_bottom,
@@ -12151,7 +12153,14 @@ pub extern "C" fn mui_toast_click(handle: i64) -> i32 {
         x,
         y,
         std::time::Instant::now(),
-    ))
+    );
+    trace(&format!(
+        "toast_click x={:.1} y={:.1} hit={}",
+        x,
+        y,
+        if dismissed { 1 } else { 0 }
+    ));
+    i32::from(dismissed)
 }
 
 /// Draw the bottom-right toast stack over everything (overlay layer). No-op when
