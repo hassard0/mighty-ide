@@ -4704,3 +4704,27 @@ especially at high DPI.
   should offer first-class borderless window affordance metadata or helpers for
   resize margins, cursor feedback, and edge/corner routing so apps do not each
   hand-tune native-feeling resize behavior through scalar ABI glue.
+
+L326. Human-visible chrome polish needs reusable layout primitives, not only raw
+coordinates. The rail logo, active rail indicator, utility hit cells, and resize
+grip all needed small visual offsets that also had to preserve mouse hit tests.
+
+- **IDE note:** tightened the rail logo tile, pushed the active rail stack away
+  from the mark, gave account/settings visible hit cells, and framed the
+  bottom-right resize grip so users can see where to grab the borderless window.
+- **Language note:** no compiler bug surfaced. Mighty still needs ergonomic UI
+  primitives for paired visual/hit-test rectangles, optical padding, and
+  stateful chrome affordances so visual polish does not require duplicating
+  constants across rendering and routing paths.
+
+L327. Native dialog ownership is not enough; the app also needs predictable focus
+restoration after modal child processes return. The Windows file/folder pickers
+run through PowerShell STA helpers, and the first click after a picker could
+sometimes reactivate the IDE instead of dispatching the intended topbar command.
+
+- **IDE note:** restore the IDE window foreground after file, save, new-file, and
+  workspace folder dialogs return, reducing the chance that a human's next click
+  is swallowed as a focus-only activation.
+- **Language note:** no compiler bug surfaced. Mighty should expose first-class
+  native-dialog lifecycle helpers for parent ownership, foreground restoration,
+  and post-modal event draining, so apps do not hand-roll Win32 focus repair.

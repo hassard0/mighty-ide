@@ -3663,11 +3663,11 @@ fn visible_surface_size_honors_screenshot_caps() {
 fn status_resize_grip_stays_in_bottom_right_corner() {
     let (x, y, w, h) = crate::abi::status_resize_grip_rect(1280.0, 832.0);
 
-    assert!(x >= 1250.0, "grip should be visually anchored at the right edge");
-    assert!(y >= 812.0, "grip should be visually anchored at the bottom edge");
-    assert!(x + w <= 1275.0, "grip should leave a tiny frame margin");
-    assert!(y + h <= 827.0, "grip should leave a tiny frame margin");
-    assert_eq!((w, h), (14.0, 14.0));
+    assert!(x >= 1254.0, "grip should be visually anchored at the right edge");
+    assert!(y >= 808.0, "grip should stay inside the status bar, not on top of text");
+    assert!(x + w <= 1273.0, "grip should leave a frame margin for borderless resize");
+    assert!(y + h <= 826.0, "grip should leave a frame margin for borderless resize");
+    assert_eq!((w, h), (16.0, 16.0));
 }
 
 #[test]

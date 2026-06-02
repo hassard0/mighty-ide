@@ -3016,7 +3016,9 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
 
     // ---- right cluster (laid out right-to-left) ----
     let (grip_x, grip_y, grip_w, grip_h) = status_resize_grip_rect(w, h);
-    ctx.dl_icon(grip_x, grip_y, grip_w, grip_h, icons::RESIZE_GRIP, theme::TEXT_4(), 1.4, false);
+    ctx.dl_round(grip_x - 5.0, grip_y - 5.0, grip_w + 10.0, grip_h + 10.0, 6.0, theme::accent_a(0.035));
+    ctx.dl_stroke(grip_x - 5.0, grip_y - 5.0, grip_w + 10.0, grip_h + 10.0, 6.0, theme::BORDER_SOFT(), 1.0);
+    ctx.dl_icon(grip_x, grip_y, grip_w, grip_h, icons::RESIZE_GRIP, theme::TEXT_3(), 1.5, false);
     let mut rx = grip_x - 10.0;
 
     // Bell (notifications), kept left of the always-visible resize grip.
@@ -3149,8 +3151,8 @@ pub extern "C" fn mui_status_render(handle: i64, error_count: i32) {
 }
 
 pub(crate) fn status_resize_grip_rect(width: f32, height: f32) -> (f32, f32, f32, f32) {
-    let size = 14.0_f32;
-    ((width - size - 6.0).max(0.0), (height - size - 5.0).max(0.0), size, size)
+    let size = 16.0_f32;
+    ((width - size - 8.0).max(0.0), (height - size - 7.0).max(0.0), size, size)
 }
 
 fn fit_status_tail(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
@@ -4701,25 +4703,25 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
 
     // Brand tile: compact enough for the rail, with the same simplified
     // small-size treatment as the Windows icon so the mark stays crisp.
-    let logo_tile = 32.0;
+    let logo_tile = 30.0;
     let lx = (rw - logo_tile) * 0.5;
-    let ly = 6.0;
-    ctx.dl_shadow(lx, ly + 2.0, logo_tile, logo_tile, 5.0, MuiColor::new(0.35, 0.95, 0.90, 0.15), 10.0);
+    let ly = 8.0;
+    ctx.dl_shadow(lx, ly + 2.0, logo_tile, logo_tile, 6.0, MuiColor::new(0.35, 0.95, 0.90, 0.13), 10.0);
     ctx.dl_grad_v(
         lx,
         ly,
         logo_tile,
         logo_tile,
-        5.0,
+        6.0,
         MuiColor::new(0.08, 0.09, 0.15, 1.0),
         MuiColor::new(0.03, 0.04, 0.09, 1.0),
     );
-    ctx.dl_stroke(lx, ly, logo_tile, logo_tile, 5.0, MuiColor::new(0.56, 0.96, 0.94, 0.92), 1.2);
+    ctx.dl_stroke(lx, ly, logo_tile, logo_tile, 6.0, MuiColor::new(0.56, 0.96, 0.94, 0.86), 1.1);
     ctx.dl_icon(
-        lx + 3.0,
-        ly + 3.0,
-        logo_tile - 6.0,
-        logo_tile - 6.0,
+        lx + 4.0,
+        ly + 4.0,
+        logo_tile - 8.0,
+        logo_tile - 8.0,
         icons::LANG_M_FILL,
         theme::ACCENT_BRIGHT(),
         0.0,
@@ -4742,7 +4744,7 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
     ];
     let cell = 38.0;
     let icon_sz = 21.0;
-    let icon_top = 52.0; // 12px pad + logo region
+    let icon_top = 60.0; // separated from the brand tile so active state never reads as logo chrome
     let gap = 4.0;
     let cx = (rw - cell) * 0.5;
     // The active rail icon reflects the live sidebar panel where applicable.
@@ -4760,7 +4762,7 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
         let iy = cy + (cell - icon_sz) * 0.5;
         if active {
             // Tile (top-lit indigo gradient) + left accent bar + soft glow.
-            ctx.dl_grad_v(cx, cy, cell, cell, 8.0, theme::ACCENT_FAINT(), theme::accent_a(0.04));
+            ctx.dl_grad_v(cx, cy, cell, cell, 8.0, theme::ACCENT_FAINT(), theme::accent_a(0.035));
             ctx.dl_round(0.0, cy + 9.0, 3.0, cell - 18.0, 1.5, theme::ACCENT());
             ctx.dl_shadow(0.0, cy + 9.0, 3.0, cell - 18.0, 1.5, theme::ACCENT_GLOW(), 8.0);
         }
@@ -4782,8 +4784,10 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
 
     // Bottom: accounts + settings.
     let sx = (rw - icon_sz) * 0.5;
-    ctx.dl_icon(sx, h - 80.0, icon_sz, icon_sz, icons::USER, theme::DIM(), 1.5, false);
-    ctx.dl_icon(sx, h - 42.0, icon_sz, icon_sz, icons::SETTINGS, theme::DIM(), 1.5, false);
+    for (y, icon) in [(h - 84.0, icons::USER), (h - 46.0, icons::SETTINGS)] {
+        ctx.dl_round((rw - 34.0) * 0.5, y - 5.0, 34.0, 31.0, 7.0, theme::accent_a(0.025));
+        ctx.dl_icon(sx, y, icon_sz, icon_sz, icon, theme::DIM(), 1.5, false);
+    }
 }
 
 /// Hit-test the bottom utility icons in the activity rail.
@@ -5061,8 +5065,8 @@ pub extern "C" fn mui_window_controls_draw(handle: i64) {
     // Visible corner grips for the borderless resize affordance. These stay
     // subtle but give users a target instead of a hidden one-pixel frame.
     let grip = theme::BORDER_STRONG();
-    for offset in [6.0_f32, 12.0] {
-        let len = 16.0 - (offset - 6.0);
+    for offset in [7.0_f32, 14.0] {
+        let len = 19.0 - (offset - 7.0);
         ctx.dl_rect(w - offset - len, wh - offset, len, 1.0, grip);
         ctx.dl_rect(w - offset, wh - offset - len, 1.0, len, grip);
         ctx.dl_rect(offset, wh - offset, len, 1.0, grip);
@@ -10271,7 +10275,9 @@ fn run_file_dialog_script(
     if let Some(hwnd) = owner_hwnd {
         cmd.env("MUI_DIALOG_OWNER", hwnd.to_string());
     }
-    let Ok(out) = cmd.output() else {
+    let out = cmd.output();
+    restore_dialog_owner_focus(owner_hwnd);
+    let Ok(out) = out else {
         return FileDialogPick::Unavailable;
     };
     if !out.status.success() {
@@ -10284,6 +10290,37 @@ fn run_file_dialog_script(
         FileDialogPick::Picked(PathBuf::from(path))
     }
 }
+
+#[cfg(target_os = "windows")]
+pub(crate) fn restore_dialog_owner_focus(owner_hwnd: Option<isize>) {
+    use std::ffi::c_void;
+
+    let Some(hwnd) = owner_hwnd else {
+        return;
+    };
+    if hwnd == 0 {
+        return;
+    }
+
+    unsafe extern "system" {
+        fn ShowWindow(hwnd: *mut c_void, n_cmd_show: i32) -> i32;
+        fn BringWindowToTop(hwnd: *mut c_void) -> i32;
+        fn SetForegroundWindow(hwnd: *mut c_void) -> i32;
+    }
+
+    let hwnd = hwnd as *mut c_void;
+    unsafe {
+        // SW_SHOW keeps restored/maximized state intact while making sure the
+        // parent IDE window receives the next real click after a child dialog.
+        let _ = ShowWindow(hwnd, 5);
+        let _ = BringWindowToTop(hwnd);
+        let _ = SetForegroundWindow(hwnd);
+    }
+    trace("dialog_focus_restore");
+}
+
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn restore_dialog_owner_focus(_owner_hwnd: Option<isize>) {}
 
 /// Stream the active model's bytes into the shim's find engine and run the
 /// search using the active prompt's query. Replaces the Mighty byte-push loop —

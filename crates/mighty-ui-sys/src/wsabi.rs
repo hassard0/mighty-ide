@@ -477,6 +477,7 @@ try {
         cmd.env("MUI_DIALOG_OWNER", hwnd.to_string());
     }
     let out = cmd.output();
+    crate::abi::restore_dialog_owner_focus(owner_hwnd);
     let Ok(out) = out else {
         return FolderDialogPick::Unavailable;
     };
