@@ -3610,3 +3610,15 @@ as overlapping text even though typed queries work.
 - **Language note:** no compiler gap surfaced. Mighty UI should expose a
   reusable text-field primitive that owns placeholder, caret, and measured-fit
   geometry together instead of requiring every overlay to duplicate those rules.
+
+### L246. Modal surfaces need consistent close affordances **[finding, P2]**
+The focused Open Recent picker could be dismissed indirectly, but it lacked the
+visible top-right close button used by Settings, Keyboard Shortcuts, Theme
+Picker, and Markdown Preview. That inconsistency makes the dialog feel unfinished
+even when row selection works.
+
+- **IDE note:** Open Recent now draws a standard close button and routes its
+  click through the Welcome action id path to dismiss the forced picker.
+- **Language note:** no compiler gap surfaced. Mighty UI needs modal primitives
+  with standard title, close, escape, focus, and hit-test behavior so every
+  overlay does not recreate dismissal chrome by hand.

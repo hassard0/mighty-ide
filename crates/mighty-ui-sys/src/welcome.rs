@@ -32,6 +32,7 @@ pub const ACTION_OPEN_FOLDER: i32 = 6;
 #[allow(dead_code)]
 pub const ACTION_NEW_FOLDER: i32 = 7;
 pub const ACTION_NEW_PROJECT: i32 = 8;
+pub const ACTION_CLOSE: i32 = 9;
 /// MRU recents: returned id is `ACTION_RECENT_BASE + i` (i = row in the recents
 /// list). The Mighty side reads the path back via [`WelcomeState::recent_path`].
 pub const ACTION_RECENT_BASE: i32 = 1000;
@@ -98,6 +99,10 @@ fn quick_action_key_x(
         return None;
     }
     Some((right_edge - key_w).max(after_label))
+}
+
+fn recent_picker_close_rect(card_x: f32, card_y: f32, card_w: f32, pad: f32) -> (f32, f32, f32, f32) {
+    (card_x + card_w - pad - 28.0, card_y + 20.0, 28.0, 28.0)
 }
 
 fn use_compact_layout(body_w: f32, body_h: f32, col_w: f32) -> bool {
@@ -659,6 +664,17 @@ impl WelcomeState {
             12.5,
             clip,
         );
+        let (close_x, close_y, close_w, close_h) = recent_picker_close_rect(card_x, card_y, card_w, pad);
+        ctx.dl_round(close_x, close_y, close_w, close_h, 7.0, theme::BG_2());
+        ctx.dl_stroke(close_x, close_y, close_w, close_h, 7.0, theme::BORDER_STRONG(), 1.0);
+        ctx.dl_icon(close_x + 7.0, close_y + 7.0, 14.0, 14.0, icons::CLOSE, theme::TEXT_1(), 1.7, false);
+        self.hits.push(Hit {
+            x: close_x,
+            y: close_y,
+            w: close_w,
+            h: close_h,
+            action: ACTION_CLOSE,
+        });
         ctx.dl_rect(card_x + pad, card_y + 72.0, card_w - pad * 2.0, 1.0, theme::BORDER());
 
         let compact = card_w < 560.0;
@@ -872,6 +888,15 @@ mod tests {
         w.dismiss_empty_auto();
         assert!(!w.force_open);
         assert!(!w.recent_picker);
+    }
+
+    #[test]
+    fn recent_picker_close_action_is_top_right_hit() {
+        let (x, y, w, h) = recent_picker_close_rect(100.0, 80.0, 680.0, 22.0);
+        assert_eq!((x, y, w, h), (730.0, 100.0, 28.0, 28.0));
+        let hit = Hit { x, y, w, h, action: ACTION_CLOSE };
+        assert!(hit.contains(744.0, 114.0));
+        assert_eq!(hit.action, ACTION_CLOSE);
     }
 
     #[test]

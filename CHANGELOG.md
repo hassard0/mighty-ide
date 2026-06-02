@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Open Recent has a real close affordance**: the focused Open Recent picker
+  now shows the same top-right close button pattern as the other modals, and
+  mouse clicks dismiss the forced picker instead of requiring Esc or a row pick.
 - **Quick Open placeholder no longer collides with the caret**: empty Quick Open
   now insets placeholder copy and uses overlay-specific muted text, matching the
   command palette and shortcuts overlay spacing.
