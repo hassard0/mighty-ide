@@ -3789,3 +3789,16 @@ visually read like the message and metadata were colliding.
 - **Language note:** no compiler gap surfaced. Mighty UI needs reusable
   severity-row primitives that can define priority order for message, code,
   file, and location metadata across compact and full-width surfaces.
+
+### L260. Focused panels must not require a cleanup click before global chrome **[finding, P1]**
+When Run, Web Playground, or Testing had keyboard focus, clicking an editor tab
+could be consumed as "leave the focused panel" instead of switching or closing
+the tab. That made a normal tab click feel broken because the first click only
+changed hidden focus state.
+
+- **IDE note:** tab switch and tab close hit-tests now bypass focused dock-panel
+  input handling, and successful tab actions clear transient Run/Web/Test/
+  Terminal/AI focus so typing returns to the editor immediately.
+- **Language note:** no compiler gap surfaced. Mighty UI needs a central chrome
+  priority router so global window/tab/sidebar controls are always handled
+  before focused panel-local input.

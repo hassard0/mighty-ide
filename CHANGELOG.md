@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Focused dock panels no longer steal tab clicks**: when Run, Web Playground,
+  or Testing has keyboard focus, tab switch and tab close clicks now route on
+  the first click and clear transient panel focus after the tab action succeeds.
 - **Compact Problems rows prioritize diagnostic text**: narrow Problems docks now
   shorten location metadata to `line:col` and omit the redundant code column, so
   the actual error/warning message has room before the right edge.

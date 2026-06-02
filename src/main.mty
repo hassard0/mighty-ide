@@ -1816,7 +1816,7 @@ fn main() {
             mui_settings_toggle(h)
           }
         }
-      } else if (run_focus || web_focus) && !(tag == ev_mouse_down() && (mui_rail_panel_at_click(h) >= 0 || mui_rail_utility_at_click(h) >= 0 || mui_topbar_action_at_click(h) > 0)) {
+      } else if (run_focus || web_focus) && !(tag == ev_mouse_down() && (mui_rail_panel_at_click(h) >= 0 || mui_rail_utility_at_click(h) >= 0 || mui_topbar_action_at_click(h) > 0 || mui_tab_index_at_click(h) >= 0 || mui_tab_close_index_at_click(h) >= 0)) {
         // -------- Bottom-band panel focused: Run panel OR Web Playground -------
         // A rail-icon click escapes to the unified router (so the rail stays live
         // while this band has focus); the band still handles its own row/button
@@ -1890,7 +1890,7 @@ fn main() {
             }
           }
         }
-      } else if test_focus {
+      } else if test_focus && !(tag == ev_mouse_down() && (mui_rail_panel_at_click(h) >= 0 || mui_rail_utility_at_click(h) >= 0 || mui_topbar_action_at_click(h) > 0 || mui_tab_index_at_click(h) >= 0 || mui_tab_close_index_at_click(h) >= 0)) {
         // -------- Test panel focused: scroll results, click toolbar/rows -------
         if tag == ev_key() {
           let k = mui_event_key(h)
@@ -3185,6 +3185,11 @@ fn main() {
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
           }
         } else if tab_hit >= 0 {
           let cur_active = mui_tab_active(h)
@@ -3194,6 +3199,11 @@ fn main() {
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
           }
         } else if cur_panel == panel_agents_mty() {
           // Mighty Agents panel: header affordances run or inspect the active
