@@ -1322,8 +1322,8 @@ fn search_field_button_x(sx: f32, sw: f32) -> (f32, f32) {
     (sx + sw - 46.0, sx + sw - 8.0)
 }
 
-fn search_replace_button_enabled(query: &str) -> bool {
-    !query.trim().is_empty()
+fn search_replace_button_enabled(query: &str, matches: i32) -> bool {
+    !query.trim().is_empty() && matches > 0
 }
 
 /// Search-panel mouse action for the last click:
@@ -1370,7 +1370,7 @@ pub extern "C" fn mui_search_action_at_click(handle: i64) -> i32 {
     }
     if (box_x0..=box_x1).contains(&x) && (ry..=ry + box_h).contains(&y) {
         ctx.search.replace_focus = true;
-        if (btn_x0..=btn_x1).contains(&x) {
+        if (btn_x0..=btn_x1).contains(&x) && search_replace_button_enabled(&ctx.search.query_string(), ctx.search.match_count()) {
             crate::abi::trace(&format!("search_action x={x:.1} y={y:.1} -> replace_all"));
             return 2;
         }
@@ -1459,9 +1459,10 @@ mod search_panel_tests {
 
     #[test]
     fn search_replace_button_tracks_real_query_availability() {
-        assert!(!search_replace_button_enabled(""));
-        assert!(!search_replace_button_enabled("   "));
-        assert!(search_replace_button_enabled("opened"));
+        assert!(!search_replace_button_enabled("", 1));
+        assert!(!search_replace_button_enabled("   ", 1));
+        assert!(!search_replace_button_enabled("opened", 0));
+        assert!(search_replace_button_enabled("opened", 1));
     }
 }
 
@@ -1558,7 +1559,7 @@ pub extern "C" fn mui_search_draw(handle: i64) {
     let r_border = if replace_focus { theme::ACCENT_LINE() } else { theme::BORDER_STRONG() };
     ctx.dl_round(sx + 10.0, ry, sw - 20.0, box_h, 7.0, theme::BG_1());
     ctx.dl_stroke(sx + 10.0, ry, sw - 20.0, box_h, 7.0, r_border, 1.0);
-    let replace_ready = search_replace_button_enabled(&query);
+    let replace_ready = search_replace_button_enabled(&query, ctx.search.match_count());
     let replace_icon_col = if replace_focus { theme::ACCENT_BRIGHT() } else { theme::DIM() };
     ctx.dl_icon(sx + 16.0, ry + (box_h - 13.0) * 0.5, 13.0, 13.0, icons::REPLACE, replace_icon_col, 1.5, false);
     let (r_text, r_col) = if replace.is_empty() {
@@ -1573,7 +1574,7 @@ pub extern "C" fn mui_search_draw(handle: i64) {
     let replace_btn_icon = if replace_ready { theme::ACCENT_BRIGHT() } else { theme::TEXT_3() };
     ctx.dl_round(btn_x0, ry + 4.0, btn_x1 - btn_x0, box_h - 8.0, 5.0, replace_btn_bg);
     ctx.dl_stroke(btn_x0, ry + 4.0, btn_x1 - btn_x0, box_h - 8.0, 5.0, replace_btn_border, 1.0);
-    ctx.dl_icon(btn_x0 + 6.0, ry + 8.0, 14.0, 14.0, icons::CHECK, replace_btn_icon, 1.7, false);
+    ctx.dl_icon(btn_x0 + 6.0, ry + 8.0, 14.0, 14.0, icons::REPLACE, replace_btn_icon, 1.6, false);
 
     // results
     let total = ctx.search.match_count();

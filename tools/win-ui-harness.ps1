@@ -967,6 +967,31 @@ foreach ($ic in $rail) {
         $script:HarnessFailed = $true
       }
     }
+    # Replace is a destructive project-wide action. Prove the visible Replace
+    # field accepts text, then click the visible replace-all button and verify
+    # the deterministic fixture changed on disk.
+    ClickL 120 96
+    Start-Sleep -Milliseconds 120
+    Type-Text $hwnd "closed"
+    Start-Sleep -Milliseconds 150
+    $replaceBefore = Trace-MatchCount "(?m)^search_replace_all replaced=1$"
+    ClickL 273 96
+    Start-Sleep -Milliseconds 700
+    Capture $hwnd "20-search-replace-all"
+    if ($env:MUI_TRACE) {
+      if (Wait-TraceCountGreaterThan "(?m)^search_replace_all replaced=1$" $replaceBefore 2500) {
+        Log "SEARCH-REPLACE-MOUSE: visible replace-all button rewrote one match"
+      } else {
+        Log "SEARCH-REPLACE-MOUSE: missing replace-all trace"
+        $script:HarnessFailed = $true
+      }
+    }
+    if ((Test-Path $searchPath) -and ((Get-Content -LiteralPath $searchPath -Raw) -match "closed") -and ((Get-Content -LiteralPath $searchPath -Raw) -notmatch "opened")) {
+      Log "SEARCH-REPLACE-MOUSE: fixture changed on disk -> $searchPath"
+    } else {
+      Log "SEARCH-REPLACE-MOUSE: fixture did not contain expected replacement -> $searchPath"
+      $script:HarnessFailed = $true
+    }
   }
   if ($ic.n -eq 'debug') {
     $dbgStartCount = Trace-MatchCount "dbg_toolbar action=start_continue"

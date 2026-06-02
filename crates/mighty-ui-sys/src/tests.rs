@@ -1161,6 +1161,17 @@ fn search_panel_clicks_focus_fields_and_return_actions() {
     assert_eq!(crate::panels::mui_search_action_at_click(handle), 1);
     assert!(!ctx.search.replace_focus);
 
+    ctx.search.query = "opened".chars().collect();
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, sx + sw - 26.0, 88.0, 0);
+    assert_eq!(crate::panels::mui_search_action_at_click(handle), 0);
+    assert!(ctx.search.replace_focus);
+
+    ctx.search.results.matches.push(crate::search::SearchMatch {
+        file: 0,
+        line: 0,
+        col: 0,
+        preview: "opened".to_string(),
+    });
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, sx + sw - 26.0, 88.0, 0);
     assert_eq!(crate::panels::mui_search_action_at_click(handle), 2);
     assert!(ctx.search.replace_focus);

@@ -4072,3 +4072,17 @@ picker, then dismiss it with the visible close affordance.
   overlay lifecycle/event model so open, close, hit-test, and visual capture
   evidence can be declared alongside the UI instead of stitched together with
   shim traces.
+
+### L284. Destructive project actions need stateful enablement and disk proof **[finding, P1]**
+Project Search exposed a replace-all button, but the real-mouse harness only
+proved search and result opening. The visible button also used a generic
+checkmark and could look ready before the current query had any matched files,
+which is a weak affordance for a project-wide write.
+
+- **IDE note:** the replace-all button now only appears active after the current
+  search has matches, uses the replace glyph for the action, and the Windows
+  harness types replacement text, clicks the visible button, and verifies the
+  fixture changed on disk.
+- **Language note:** no compiler gap surfaced. Mighty needs declarative command
+  state for destructive actions so enabled/disabled visuals, click routing,
+  confirmation policy, and harness evidence share one source of truth.

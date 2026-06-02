@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Project Search replace is safer and tested by mouse**: the Search panel's
+  replace-all button now only becomes active when the current search has real
+  matches, uses the replace icon instead of a generic checkmark, and the Windows
+  harness proves the visible replace field and button rewrite a file on disk.
 - **Branch switcher respects compact windows**: the Git branch overlay now uses
   shared, height-aware row budgeting for drawing and mouse hit-testing, and its
   card width clamps inside narrow windows instead of producing invalid geometry.
