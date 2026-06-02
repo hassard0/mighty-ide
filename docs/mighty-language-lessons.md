@@ -4688,3 +4688,19 @@ send button explained the same unavailable state.
   command/action result contract that can be invoked from prompts, buttons,
   palette entries, and shortcuts without each route deciding independently
   whether an unavailable action should clear UI, toast, trace, or stay staged.
+
+### L325. Borderless windows need forgiving native resize hit zones **[finding, P2]**
+The Windows harness proved bottom-right resize worked, but a borderless GUI still
+felt clunky because users expect the whole perimeter and corners to behave like
+native chrome. A narrow invisible target turns resizing into guesswork,
+especially at high DPI.
+
+- **IDE note:** side and bottom resize bands are wider, the top edge is slightly
+  easier to hit without stealing normal tab clicks, and corner hit squares are
+  larger. The title-bar controls and bottom rail utility icons still win before
+  resize hit-testing, so minimize, maximize, close, account, and settings remain
+  reliable even when they sit near an edge or corner.
+- **Language note:** no compiler bug surfaced. Mighty's window/runtime layer
+  should offer first-class borderless window affordance metadata or helpers for
+  resize margins, cursor feedback, and edge/corner routing so apps do not each
+  hand-tune native-feeling resize behavior through scalar ABI glue.

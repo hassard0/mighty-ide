@@ -30,6 +30,12 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   the same AI send preflight as the visible Copilot send button, so blank
   prompts, missing API keys, active streams, and startup failures produce the
   same toast and trace outcomes instead of silently returning `0`.
+- **Borderless window resize targets are easier to hit**: side and bottom edge
+  grab bands are wider, corner zones are larger, and tests cover the expanded
+  direction mapping so manual resizing feels less like finding a one-pixel edge.
+  The bottom rail account/settings icons now explicitly win over southwest
+  resize hit-testing, preventing enlarged corner zones from stealing utility
+  clicks.
 - **Packaged Windows app now launches as a real GUI app**: `mighty.toml` passes
   the Windows subsystem and `mainCRTStartup` entry flags, so `mighty-ide.exe`
   no longer opens a console window that steals focus from the IDE.

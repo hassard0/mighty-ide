@@ -2349,6 +2349,9 @@ fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
                 _ => {}
             }
             // Resize edges/corners next.
+            if rail_utility_hit(ev.x, ev.y, h) > 0 {
+                return ShimAction::PassThrough;
+            }
             let rc = crate::titlebar::resize_code(ev.x, ev.y, w, h);
             if rc > 0 {
                 if let (Some(dir), Some(host)) =
@@ -2427,6 +2430,10 @@ fn update_hover_cursor(ctx: &mut MuiContext, ev: &MuiEvent) {
     };
     let w = ctx.gpu.width as f32;
     let h = ctx.gpu.height as f32;
+    if rail_utility_hit(ev.x, ev.y, h) > 0 {
+        host.set_cursor_default();
+        return;
+    }
     let rc = crate::titlebar::resize_code(ev.x, ev.y, w, h);
     if let Some(dir) = crate::window::ResizeDir::from_code(rc) {
         host.set_cursor_resize(dir);
@@ -2611,6 +2618,9 @@ pub extern "C" fn mui_window_resize_at_click(handle: i64) -> i32 {
     };
     let w = ctx.gpu.width as f32;
     let h = ctx.gpu.height as f32;
+    if rail_utility_hit(ctx.last_event.x, ctx.last_event.y, h) > 0 {
+        return 0;
+    }
     crate::titlebar::resize_code(ctx.last_event.x, ctx.last_event.y, w, h)
 }
 
@@ -4778,6 +4788,21 @@ pub extern "C" fn mui_rail_draw(handle: i64) {
 
 /// Hit-test the bottom utility icons in the activity rail.
 /// Returns 1 = account/user, 2 = settings, -1 = none.
+fn rail_utility_hit(x: f32, y: f32, h: f32) -> i32 {
+    if !(0.0..=layout::RAIL_W).contains(&x) {
+        return -1;
+    }
+    if y >= h - 84.0 && y <= h - 56.0 {
+        return 1;
+    }
+    if y >= h - 46.0 && y <= h - 18.0 {
+        return 2;
+    }
+    -1
+}
+
+/// Hit-test the bottom utility icons in the activity rail.
+/// Returns 1 = account/user, 2 = settings, -1 = none.
 #[no_mangle]
 pub extern "C" fn mui_rail_utility_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -4785,19 +4810,18 @@ pub extern "C" fn mui_rail_utility_at_click(handle: i64) -> i32 {
     };
     let x = ctx.last_event.x;
     let y = ctx.last_event.y;
-    if !(0.0..=layout::RAIL_W).contains(&x) {
-        return -1;
-    }
     let h = ctx.gpu.height as f32;
-    if y >= h - 84.0 && y <= h - 56.0 {
-        trace(&format!("rail_utility x={x:.1} y={y:.1} -> account"));
-        return 1;
+    match rail_utility_hit(x, y, h) {
+        1 => {
+            trace(&format!("rail_utility x={x:.1} y={y:.1} -> account"));
+            1
+        }
+        2 => {
+            trace(&format!("rail_utility x={x:.1} y={y:.1} -> settings"));
+            2
+        }
+        _ => -1,
     }
-    if y >= h - 46.0 && y <= h - 18.0 {
-        trace(&format!("rail_utility x={x:.1} y={y:.1} -> settings"));
-        return 2;
-    }
-    -1
 }
 
 /// Draw the breadcrumb bar at the top of the editor body (`path › file › symbol`,

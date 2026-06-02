@@ -589,7 +589,7 @@ fn click_routing_tab_bar_sidebar_and_text() {
     use crate::ffi::MuiEvent;
     use crate::{
         mui_rail_utility_at_click, mui_tab_close_index_at_click, mui_tab_index_at_click,
-        mui_tree_row_at_click,
+        mui_tree_row_at_click, mui_window_resize_at_click,
     };
     use crate::layout;
     use crate::panels::mui_ai_click;
@@ -662,6 +662,11 @@ fn click_routing_tab_bar_sidebar_and_text() {
         0,
     );
     assert_eq!(mui_rail_utility_at_click(handle), 2);
+    assert_eq!(
+        mui_window_resize_at_click(handle),
+        0,
+        "rail Settings click must not be swallowed by the southwest resize corner"
+    );
 
     // The right-docked AI panel owns its surface, including the send affordance,
     // while still leaving the top-right chrome strip to title-bar actions.

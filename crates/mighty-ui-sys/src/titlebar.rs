@@ -21,17 +21,17 @@ pub const BTN_W: f32 = 46.0;
 /// Width reserved immediately left of the window controls for Run / More actions
 /// plus padding. The tab bar must not draw or hit-test underneath this strip.
 pub const ACTION_STRIP_W: f32 = 68.0;
-/// Thickness (px) of the resize-grab band along the side edges. Wider than the
-/// old 6px target so the borderless window is practical to resize.
-pub const EDGE_SIDE: f32 = 12.0;
+/// Thickness (px) of the resize-grab band along the side edges. Borderless
+/// windows need a forgiving target; native chrome gets this for free.
+pub const EDGE_SIDE: f32 = 16.0;
 /// Bottom resize target. Also wider because the bottom edge has no tab controls.
-pub const EDGE_BOTTOM: f32 = 12.0;
+pub const EDGE_BOTTOM: f32 = 16.0;
 /// Top resize target. Kept conservative so the top tab row does not feel stolen
 /// by resize hit-testing.
-pub const EDGE_TOP: f32 = 6.0;
+pub const EDGE_TOP: f32 = 8.0;
 /// Corners get a larger square grab zone (diagonal resize is the common case and
 /// the hardest to hit), so a corner wins within this distance of two edges.
-pub const CORNER: f32 = 28.0;
+pub const CORNER: f32 = 34.0;
 
 /// A title-bar hit result (what a press at a point landed on).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -168,10 +168,12 @@ mod tests {
         assert_eq!(resize_code(w - 1.0, 300.0, w, h), 2); // E
         assert_eq!(resize_code(400.0, 1.0, w, h), 3); // N
         assert_eq!(resize_code(400.0, h - 1.0, w, h), 4); // S
-        assert_eq!(resize_code(10.0, 300.0, w, h), 1); // forgiving W
-        assert_eq!(resize_code(w - 10.0, 300.0, w, h), 2); // forgiving E
-        assert_eq!(resize_code(400.0, h - 10.0, w, h), 4); // forgiving S
-        assert_eq!(resize_code(400.0, 8.0, w, h), 0); // top tab row not stolen
+        assert_eq!(resize_code(15.0, 300.0, w, h), 1); // forgiving W
+        assert_eq!(resize_code(w - 15.0, 300.0, w, h), 2); // forgiving E
+        assert_eq!(resize_code(400.0, h - 15.0, w, h), 4); // forgiving S
+        assert_eq!(resize_code(400.0, 10.0, w, h), 0); // top tab row not stolen
+        assert_eq!(resize_code(32.0, 32.0, w, h), 5); // forgiving NW
+        assert_eq!(resize_code(w - 32.0, h - 32.0, w, h), 8); // forgiving SE
         // Interior: no resize.
         assert_eq!(resize_code(400.0, 300.0, w, h), 0);
     }
