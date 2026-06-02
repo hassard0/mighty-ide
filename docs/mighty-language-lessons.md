@@ -4415,3 +4415,15 @@ tab, which reads like a flaky tab bar.
   typed command-result states at the Mighty boundary: internal storage no-ops
   and user-visible command failures are different outcomes and should not share
   the same scalar success-looking return.
+
+### L308. Tab reordering commands need visible unchanged-state feedback **[finding, P2]**
+Move-active-tab and sort-tabs commands returned `-1` silently when the active
+tab was already at the edge or the tab list was already sorted. Keyboard and
+palette users saw no visible state change and no explanation.
+
+- **IDE note:** Move Active Tab Left/Right now toast `Tab is already first` /
+  `Tab is already last`; Sort Open Tabs by Name toasts `Tabs already sorted`.
+  Tests cover unchanged-state paths and tab toast replacement.
+- **Language note:** no compiler gap surfaced. This is another command-result
+  enum case: changed, unchanged-because-boundary, and unavailable should be
+  distinct typed outcomes instead of magic `-1` plus optional toasts.

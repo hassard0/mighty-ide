@@ -3886,7 +3886,11 @@ pub extern "C" fn mui_tab_move_active_left(handle: i64) -> i32 {
             ctx.push_toast(crate::toast::Kind::Info, "Moved tab left");
             active as i32
         }
-        None => -1,
+        None => {
+            ctx.push_toast(crate::toast::Kind::Info, "Tab is already first");
+            trace("tab_move_left noop");
+            -1
+        }
     }
 }
 
@@ -3906,7 +3910,11 @@ pub extern "C" fn mui_tab_move_active_right(handle: i64) -> i32 {
             ctx.push_toast(crate::toast::Kind::Info, "Moved tab right");
             active as i32
         }
-        None => -1,
+        None => {
+            ctx.push_toast(crate::toast::Kind::Info, "Tab is already last");
+            trace("tab_move_right noop");
+            -1
+        }
     }
 }
 
@@ -3926,7 +3934,11 @@ pub extern "C" fn mui_tab_sort_by_name(handle: i64) -> i32 {
             ctx.push_toast(crate::toast::Kind::Info, "Sorted tabs by name");
             active as i32
         }
-        None => -1,
+        None => {
+            ctx.push_toast(crate::toast::Kind::Info, "Tabs already sorted");
+            trace("tab_sort_by_name noop");
+            -1
+        }
     }
 }
 

@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Tab move/sort no-ops now explain themselves**: Move Active Tab Left/Right
+  and Sort Open Tabs by Name now report already-first, already-last, and
+  already-sorted states instead of looking like dead palette or shortcut
+  actions.
 - **Invalid tab commands now fail visibly**: tab switch/close ABIs now reject
   out-of-range targets with `No tab at that position` instead of silently
   returning the active tab, making bad mouse hit-tests or command routing errors

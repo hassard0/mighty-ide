@@ -2531,12 +2531,49 @@ fn move_active_tab_left_right_preserves_split_pane_documents() {
     assert_eq!(ctx.panes.tab_at(1), Some(moved_left), "right pane should follow b.mty");
     assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Moved tab left");
 
-    assert_eq!(crate::mui_tab_move_active_right(handle), b_idx as i32);
+    while ctx.tabs.active() > 0 {
+        let before = ctx.tabs.active();
+        assert_eq!(crate::mui_tab_move_active_left(handle), (before - 1) as i32);
+        assert_eq!(ctx.tabs.get(ctx.tabs.active()).unwrap().basename(), "b.mty");
+        assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Moved tab left");
+    }
+
+    assert_eq!(crate::mui_tab_move_active_left(handle), -1);
+    assert_eq!(ctx.tabs.active(), 0);
+    assert_eq!(ctx.tabs.get(0).unwrap().basename(), "b.mty");
+    assert_eq!(ctx.toasts.toasts().last().unwrap().kind, crate::toast::Kind::Info);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Tab is already first");
+
+    while ctx.tabs.active() < b_idx {
+        let before = ctx.tabs.active();
+        assert_eq!(crate::mui_tab_move_active_right(handle), (before + 1) as i32);
+        assert_eq!(ctx.tabs.get(ctx.tabs.active()).unwrap().basename(), "b.mty");
+        assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Moved tab right");
+    }
+
     assert_eq!(ctx.tabs.active(), b_idx);
     assert_eq!(ctx.tabs.get(b_idx).unwrap().basename(), "b.mty");
     assert_eq!(ctx.panes.tab_at(0), Some(a_idx), "left pane should follow a.mty back");
     assert_eq!(ctx.panes.tab_at(1), Some(b_idx), "right pane should follow b.mty back");
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Moved tab right");
+
+    while ctx.tabs.active() + 1 < ctx.tabs.count() {
+        let before = ctx.tabs.active();
+        assert_eq!(crate::mui_tab_move_active_right(handle), (before + 1) as i32);
+        assert_eq!(ctx.tabs.get(ctx.tabs.active()).unwrap().basename(), "b.mty");
+        assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Moved tab right");
+    }
+
+    let last_idx = ctx.tabs.count() - 1;
+    assert_eq!(ctx.tabs.active(), last_idx);
+    assert_eq!(ctx.tabs.get(last_idx).unwrap().basename(), "b.mty");
+    assert_eq!(ctx.panes.tab_at(0), Some(a_idx), "left pane should keep a.mty");
+    assert_eq!(ctx.panes.tab_at(1), Some(last_idx), "right pane should follow b.mty to the edge");
+
+    assert_eq!(crate::mui_tab_move_active_right(handle), -1);
+    assert_eq!(ctx.tabs.active(), last_idx);
+    assert_eq!(ctx.tabs.get(last_idx).unwrap().basename(), "b.mty");
+    assert_eq!(ctx.toasts.toasts().last().unwrap().kind, crate::toast::Kind::Info);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Tab is already last");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -2569,6 +2606,8 @@ fn sort_tabs_by_name_preserves_active_and_split_pane_documents() {
     assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Sorted tabs by name");
 
     assert_eq!(crate::mui_tab_sort_by_name(handle), -1);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().kind, crate::toast::Kind::Info);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Tabs already sorted");
 
     let _ = std::fs::remove_dir_all(&root);
 }

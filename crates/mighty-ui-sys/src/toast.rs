@@ -556,6 +556,9 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::CreateProject)
     } else if m == "No tab at that position"
+        || m == "Tab is already first"
+        || m == "Tab is already last"
+        || m == "Tabs already sorted"
         || m.starts_with("Closed ")
         || m.starts_with("Reopened ")
         || m.starts_with("Duplicated ")
@@ -862,6 +865,16 @@ mod tests {
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "No tab at that position");
         assert!(!q.toasts().iter().any(|t| t.message == "Closed 1 saved tab"));
+
+        q.push_at(Kind::Info, "Tab is already first", t0 + Duration::from_millis(1300));
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Tab is already first");
+        assert!(!q.toasts().iter().any(|t| t.message == "No tab at that position"));
+
+        q.push_at(Kind::Info, "Tabs already sorted", t0 + Duration::from_millis(1400));
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Tabs already sorted");
+        assert!(!q.toasts().iter().any(|t| t.message == "Tab is already first"));
     }
 
     #[test]
