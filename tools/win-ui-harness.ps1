@@ -400,6 +400,52 @@ function Press-VK($h, $vk) {
   [void][Win]::PostMessage($h, [Win]::WM_KEYUP,   [IntPtr]$vk, [IntPtr]0); Start-Sleep -Milliseconds 15
 }
 
+function Press-ChordVK($h, [int[]]$mods, [int]$vk) {
+  [void](Ensure-Foreground $h)
+  foreach ($mod in $mods) {
+    [Win]::keybd_event([byte]$mod, 0, 0, [UIntPtr]::Zero)
+    [void][Win]::PostMessage($h, [Win]::WM_KEYDOWN, [IntPtr]$mod, [IntPtr]0)
+    Start-Sleep -Milliseconds 18
+  }
+  [void][Win]::PostMessage($h, [Win]::WM_KEYDOWN, [IntPtr]$vk, [IntPtr]0)
+  Start-Sleep -Milliseconds 18
+  [void][Win]::PostMessage($h, [Win]::WM_KEYUP, [IntPtr]$vk, [IntPtr]0)
+  Start-Sleep -Milliseconds 18
+  for ($i = $mods.Length - 1; $i -ge 0; $i--) {
+    $mod = $mods[$i]
+    [void][Win]::PostMessage($h, [Win]::WM_KEYUP, [IntPtr]$mod, [IntPtr]0)
+    [Win]::keybd_event([byte]$mod, 0, [Win]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+    Start-Sleep -Milliseconds 18
+  }
+  Log ("pressed chord mods=[{0}] vk=0x{1:X2}" -f (($mods | ForEach-Object { "0x{0:X2}" -f $_ }) -join ','), $vk)
+}
+
+function Press-ChordChar($h, [int[]]$mods, [char]$ch) {
+  [void](Ensure-Foreground $h)
+  $code = [int][char]$ch
+  $vks = [Win]::VkKeyScan($ch)
+  $vk = $vks -band 0xFF
+  if ($vk -le 0) { $vk = $code }
+  foreach ($mod in $mods) {
+    [Win]::keybd_event([byte]$mod, 0, 0, [UIntPtr]::Zero)
+    [void][Win]::PostMessage($h, [Win]::WM_KEYDOWN, [IntPtr]$mod, [IntPtr]0)
+    Start-Sleep -Milliseconds 18
+  }
+  [void][Win]::PostMessage($h, [Win]::WM_KEYDOWN, [IntPtr]$vk, [IntPtr]0)
+  Start-Sleep -Milliseconds 10
+  [void][Win]::PostMessage($h, [Win]::WM_CHAR, [IntPtr]$code, [IntPtr]0)
+  Start-Sleep -Milliseconds 10
+  [void][Win]::PostMessage($h, [Win]::WM_KEYUP, [IntPtr]$vk, [IntPtr]0)
+  Start-Sleep -Milliseconds 10
+  for ($i = $mods.Length - 1; $i -ge 0; $i--) {
+    $mod = $mods[$i]
+    [void][Win]::PostMessage($h, [Win]::WM_KEYUP, [IntPtr]$mod, [IntPtr]0)
+    [Win]::keybd_event([byte]$mod, 0, [Win]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+    Start-Sleep -Milliseconds 18
+  }
+  Log ("pressed chord mods=[{0}] char='{1}'" -f (($mods | ForEach-Object { "0x{0:X2}" -f $_ }) -join ','), $ch)
+}
+
 function Type-Text($h, $text) {
   # Post WM_KEYDOWN + WM_CHAR + WM_KEYUP per character. The KEYDOWN's VK must be
   # the REAL virtual-key for the char (via VkKeyScan) or winit drops the WM_CHAR
@@ -487,6 +533,17 @@ if ($tf -and (Test-Path $tf)) {
 }
 Log "ui scale = $scale"
 function ClickL($lx, $ly) { Click $hwnd ([int][math]::Round($lx * $scale)) ([int][math]::Round($ly * $scale)) }
+function ClickLWithModifier([int]$mod, $lx, $ly) {
+  [void](Ensure-Foreground $hwnd)
+  [Win]::keybd_event([byte]$mod, 0, 0, [UIntPtr]::Zero)
+  [void][Win]::PostMessage($hwnd, [Win]::WM_KEYDOWN, [IntPtr]$mod, [IntPtr]0)
+  Start-Sleep -Milliseconds 45
+  ClickL $lx $ly
+  Start-Sleep -Milliseconds 45
+  [void][Win]::PostMessage($hwnd, [Win]::WM_KEYUP, [IntPtr]$mod, [IntPtr]0)
+  [Win]::keybd_event([byte]$mod, 0, [Win]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+  Log ("click with modifier 0x{0:X2} at logical ({1},{2})" -f $mod, $lx, $ly)
+}
 function DragL($lx1, $ly1, $lx2, $ly2) {
   $x1 = [int][math]::Round($lx1 * $scale)
   $y1 = [int][math]::Round($ly1 * $scale)
@@ -1410,6 +1467,75 @@ Log "after typing: responsive=$respT"
 if (-not $respT) { $script:HarnessFailed = $true }
 Press-VK $hwnd 0x1B      # close autocomplete before using topbar commands
 Start-Sleep -Milliseconds 150
+
+# === MULTI-CURSOR: prove visible editor gestures reach the multi-caret engine. ===
+Invoke-PaletteCommand "untitled" $null
+Start-Sleep -Milliseconds 250
+ClickL 460 130
+Start-Sleep -Milliseconds 100
+Type-Text $hwnd "foo.foo.foo"
+Start-Sleep -Milliseconds 150
+$multiNextBefore = Trace-MatchCount "(?m)^multi_cursor add_next ok=1"
+Press-ChordChar $hwnd @(0x11) 'd'
+Start-Sleep -Milliseconds 120
+Press-ChordChar $hwnd @(0x11) 'd'
+Start-Sleep -Milliseconds 250
+Type-Text $hwnd "."
+Start-Sleep -Milliseconds 250
+if ($env:MUI_TRACE) {
+  if ((Wait-TraceCountGreaterThan "(?m)^multi_cursor add_next ok=1" $multiNextBefore 1800) -and
+      (Wait-TraceContainsAll @("multi_cursor add_next ok=1 count=2", "ed_insert_smart_multi cp=46") 1800)) {
+    Log "MULTI-CURSOR-CTRLD: Ctrl+D added a real second selection and typed through it"
+  } else {
+    Log "MULTI-CURSOR-CTRLD: missing add-next or multi-insert trace"
+    $script:HarnessFailed = $true
+  }
+}
+Press-VK $hwnd 0x1B
+Start-Sleep -Milliseconds 150
+if (Invoke-DirtyCloseCommand) {
+  $multiDiscardCount = Trace-MatchCount "dirty_confirm_hit .* -> discard"
+  $multiDiscardPt = DirtyConfirmButtonCenter 'discard'
+  ClickL $multiDiscardPt.X $multiDiscardPt.Y
+  [void](Wait-TraceCountGreaterThan "dirty_confirm_hit .* -> discard" $multiDiscardCount 1200)
+  Start-Sleep -Milliseconds 250
+}
+Invoke-PaletteCommand "untitled" $null
+Start-Sleep -Milliseconds 250
+ClickL 460 130
+Start-Sleep -Milliseconds 100
+Type-Text $hwnd "left"
+Press-VK $hwnd 0x0D
+Type-Text $hwnd "left"
+Start-Sleep -Milliseconds 150
+$multiAboveBefore = Trace-MatchCount "(?m)^multi_cursor add_above ok=1"
+Press-ChordVK $hwnd @(0x11, 0x12) 0x26
+Start-Sleep -Milliseconds 250
+Type-Text $hwnd "."
+Start-Sleep -Milliseconds 250
+$toggleBefore = Trace-MatchCount "(?m)^multi_cursor toggle_click"
+ClickLWithModifier 0x12 460 130
+Start-Sleep -Milliseconds 250
+Capture $hwnd "31-multicursor"
+if ($env:MUI_TRACE) {
+  if ((Wait-TraceCountGreaterThan "(?m)^multi_cursor add_above ok=1" $multiAboveBefore 1800) -and
+      (Wait-TraceContainsAll @("multi_cursor add_above ok=1 count=2", "ed_insert_smart_multi cp=46") 1800) -and
+      (Wait-TraceCountGreaterThan "(?m)^multi_cursor toggle_click" $toggleBefore 1800)) {
+    Log "MULTI-CURSOR-VERTICAL-MOUSE: Ctrl+Alt+Up and Alt+Click both reached multi-caret state"
+  } else {
+    Log "MULTI-CURSOR-VERTICAL-MOUSE: missing vertical add, multi-insert, or Alt+Click trace"
+    $script:HarnessFailed = $true
+  }
+}
+Press-VK $hwnd 0x1B
+Start-Sleep -Milliseconds 150
+if (Invoke-DirtyCloseCommand) {
+  $multiDiscardCount = Trace-MatchCount "dirty_confirm_hit .* -> discard"
+  $multiDiscardPt = DirtyConfirmButtonCenter 'discard'
+  ClickL $multiDiscardPt.X $multiDiscardPt.Y
+  [void](Wait-TraceCountGreaterThan "dirty_confirm_hit .* -> discard" $multiDiscardCount 1200)
+  Start-Sleep -Milliseconds 250
+}
 
 # === DIRTY TAB CLOSE CONFIRMATION: Cancel preserves the tab, Discard closes it. ===
 if (Invoke-DirtyCloseCommand) {

@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Multi-cursor gestures are now real-user verified**: the Windows harness opens
+  fresh editors, drives `Ctrl+D`, `Ctrl+Alt+Up`, Alt+Click, and multi-caret
+  typing, then asserts shim traces and captures the visible editor state.
 - **Full real-mouse UX harness is back to green**: the Windows harness now clicks
   Explorer header buttons, bottom-dock preset controls, Source Control refresh,
   and the rail Settings gear using the same live geometry the app hit-tests.

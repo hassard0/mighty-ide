@@ -12061,8 +12061,15 @@ pub extern "C" fn mui_ed_caret_n_col(handle: i64, i: i32) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_ed_add_caret_next(handle: i64) -> i32 {
     if let Some(m) = unsafe { model_mut(handle) } {
-        return i32::from(m.add_caret_next_occurrence());
+        let ok = m.add_caret_next_occurrence();
+        trace(&format!(
+            "multi_cursor add_next ok={} count={}",
+            i32::from(ok),
+            m.caret_count()
+        ));
+        return i32::from(ok);
     }
+    trace("multi_cursor add_next ok=0 count=0");
     0
 }
 
@@ -12071,8 +12078,15 @@ pub extern "C" fn mui_ed_add_caret_next(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_ed_add_caret_above(handle: i64) -> i32 {
     if let Some(m) = unsafe { model_mut(handle) } {
-        return i32::from(m.add_caret_vertical(-1));
+        let ok = m.add_caret_vertical(-1);
+        trace(&format!(
+            "multi_cursor add_above ok={} count={}",
+            i32::from(ok),
+            m.caret_count()
+        ));
+        return i32::from(ok);
     }
+    trace("multi_cursor add_above ok=0 count=0");
     0
 }
 
@@ -12081,8 +12095,15 @@ pub extern "C" fn mui_ed_add_caret_above(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_ed_add_caret_below(handle: i64) -> i32 {
     if let Some(m) = unsafe { model_mut(handle) } {
-        return i32::from(m.add_caret_vertical(1));
+        let ok = m.add_caret_vertical(1);
+        trace(&format!(
+            "multi_cursor add_below ok={} count={}",
+            i32::from(ok),
+            m.caret_count()
+        ));
+        return i32::from(ok);
     }
+    trace("multi_cursor add_below ok=0 count=0");
     0
 }
 
@@ -12091,6 +12112,7 @@ pub extern "C" fn mui_ed_add_caret_below(handle: i64) -> i32 {
 pub extern "C" fn mui_ed_collapse_carets(handle: i64) {
     if let Some(m) = unsafe { model_mut(handle) } {
         m.collapse_carets();
+        trace(&format!("multi_cursor collapse count={}", m.caret_count()));
     }
 }
 
@@ -12106,6 +12128,8 @@ pub extern "C" fn mui_ed_toggle_caret_click(handle: i64) {
     let (line, col) =
         layout::pixel_to_cell_in(region, ctx.last_event.x, ctx.last_event.y, first, total);
     ctx.tabs.active_model_mut().toggle_caret_at(line as i32, col as i32);
+    let count = ctx.tabs.active_model().caret_count();
+    trace(&format!("multi_cursor toggle_click line={line} col={col} count={count}"));
 }
 
 // ---- multi-caret edit / motion entry points (apply at EVERY caret) ----
