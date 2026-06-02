@@ -4268,6 +4268,23 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
 }
 
 #[test]
+fn screenshot_autoopen_diff_dismisses_welcome_overlay() {
+    let abi = include_str!("abi.rs");
+    let marker = "MUI_DIFF_AUTOOPEN";
+    let start = abi.find(marker).expect("diff autoopen hook should exist");
+    let next = abi[start..]
+        .find("MUI_MD_AUTOOPEN")
+        .map(|i| start + i)
+        .unwrap_or(abi.len());
+    let block = &abi[start..next];
+    assert!(block.contains("ctx.diff.open"), "diff autoopen hook should open the diff view");
+    assert!(
+        block.contains("ctx.welcome.dismiss_empty_auto()"),
+        "diff autoopen hook must suppress automatic empty-buffer Welcome so captures show the diff body"
+    );
+}
+
+#[test]
 fn every_palette_command_is_routed_by_mighty_dispatcher() {
     use crate::palette::*;
 

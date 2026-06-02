@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Diff gallery captures show the actual diff**: the inline-diff screenshot hook
+  now suppresses automatic empty-buffer Welcome before drawing, so visual audits
+  no longer pass while hiding the diff body behind the landing screen.
 - **Split editor panes get divider breathing room**: right-hand panes now start
   with a small inner inset after the divider, so gutter numbers and source text
   no longer appear glued to the split border in compact windows.

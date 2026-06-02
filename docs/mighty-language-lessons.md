@@ -3887,3 +3887,14 @@ divider, making line numbers and code feel glued to the border.
   unsplit editor and left pane keep their historical region.
 - **Language note:** no compiler gap surfaced. Mighty UI needs pane-layout
   primitives that distinguish divider geometry from the content-start region.
+
+### L269. Screenshot hooks must clear higher-priority overlays **[finding, P1]**
+The inline-diff autoopen hook successfully opened a sample diff, but the
+automatic empty-buffer Welcome state was still active and the draw loop rendered
+Welcome instead of the diff. The gallery case passed because the frame was
+nonblank, even though it did not show the surface being audited.
+
+- **IDE note:** the diff autoopen hook now suppresses automatic empty-buffer
+  Welcome before the capture frame renders.
+- **Language note:** no compiler gap surfaced. Mighty UI needs screenshot hooks
+  to assert the target surface is actually visible, not merely active in state.

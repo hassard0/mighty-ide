@@ -836,6 +836,7 @@ index 83db48f..f735c2d 100644
    done()
 ";
             let n = ctx.diff.open("src/main.mty", false, SAMPLE);
+            ctx.welcome.dismiss_empty_auto();
             println!("mui_init_s: MUI_DIFF_AUTOOPEN -> diff view open ({n} lines)");
         }
     }
