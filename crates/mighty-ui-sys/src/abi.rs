@@ -1380,6 +1380,49 @@ filename src/main.mty
         }
     }
 
+    // Screenshot/render hook for the focused Open Recent picker. Unlike the
+    // branded Welcome capture, this opens the operational chooser and seeds real
+    // packaged sample/example paths so visual tests cover row density, footer
+    // actions, overflow messaging, and close affordance in the picker itself.
+    if std::env::var_os("MUI_RECENT_AUTOOPEN").is_some() {
+        if let Some(ctx) = unsafe { ctx(handle) } {
+            ctx.welcome.open_recent_picker();
+            if let Ok(exe) = std::env::current_exe() {
+                if let Some(exe_dir) = exe.parent() {
+                    let samples = exe_dir.join("samples");
+                    let examples = exe_dir.join("examples");
+                    for path in [
+                        examples.join("sample.json"),
+                        examples.join("sample.rs"),
+                        examples.join("sample.py"),
+                        examples.join("demo.mty"),
+                        examples.join("agents.mty"),
+                        samples.join("web-spinner.mty"),
+                        samples.join("hello.mty"),
+                        samples.join("agents.mty"),
+                    ] {
+                        if path.is_file() {
+                            ctx.quickopen.record_mru(path);
+                        }
+                    }
+                    for folder in [examples, samples.clone()] {
+                        if folder.is_dir() {
+                            ctx.recent_workspaces.record(folder);
+                        }
+                    }
+                    if samples.is_dir() {
+                        ctx.workspace = crate::workspace::Workspace::new(samples);
+                    }
+                }
+            }
+            println!(
+                "mui_init_s: MUI_RECENT_AUTOOPEN -> recent picker open, {} recents, {} folders",
+                ctx.quickopen.mru_len(),
+                ctx.recent_workspaces.len()
+            );
+        }
+    }
+
     // Screenshot/render hook for toasts: with MUI_TOAST_AUTOOPEN set, push a few
     // stacked toasts of varied severity so a headless capture shows the bottom-
     // right stack (toasts otherwise only appear on shim events a non-interactive

@@ -4850,3 +4850,14 @@ different rail panel; the next panel appears to have caused an old message.
 - **Language note:** no compiler bug surfaced. Mighty UI should expose toast
   scopes and priorities so navigation can clear scoped informational feedback
   without dropping action-required warnings or errors.
+
+L338. Focused pickers need their own visual-test entry points. The Open Recent
+flow is not the same surface as the branded Welcome landing, so testing only
+Welcome let picker footer actions, overflow rows, and empty-section states drift.
+
+- **IDE note:** the Open Recent picker now reserves footer space, always exposes
+  Open File/Open Folder actions, shows empty sections as framed rows, reports
+  hidden overflow rows, and has a dedicated `MUI_RECENT_AUTOOPEN` gallery case.
+- **Language note:** Mighty UI would benefit from declarative visual-test seeds
+  for overlays and pickers so test fixtures can populate realistic UI state
+  without adding one-off environment hooks in the ABI layer.

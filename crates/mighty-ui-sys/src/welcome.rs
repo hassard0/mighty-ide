@@ -115,6 +115,11 @@ fn compact_recent_section_fits(section_y: f32, bottom_limit: f32, rows: usize, e
     section_y + needed <= bottom_limit
 }
 
+fn recent_picker_fit_rows(section_y: f32, footer_top: f32, preferred: usize) -> usize {
+    let available = (footer_top - section_y - 28.0).max(0.0);
+    ((available / 48.0).floor() as usize).max(1).min(preferred)
+}
+
 impl Hit {
     fn contains(&self, px: f32, py: f32) -> bool {
         px >= self.x && px <= self.x + self.w && py >= self.y && py <= self.y + self.h
@@ -688,28 +693,61 @@ impl WelcomeState {
         });
         ctx.dl_rect(card_x + pad, card_y + 72.0, card_w - pad * 2.0, 1.0, theme::BORDER());
 
+        let footer_top = card_y + card_h - 54.0;
+        ctx.dl_rect(card_x + pad, footer_top - 12.0, card_w - pad * 2.0, 1.0, theme::BORDER());
+
         let compact = card_w < 560.0;
         if compact {
             let list_x = card_x + pad;
             let list_w = card_w - pad * 2.0;
             let mut y = card_y + 91.0;
-            y = self.draw_recent_section(ctx, "RECENT FOLDERS", icons::FOLDER, list_x, y, list_w, folders, true, 4, clip);
+            let folder_rows = recent_picker_fit_rows(y, footer_top, 3);
+            y = self.draw_recent_section(ctx, "RECENT FOLDERS", icons::FOLDER, list_x, y, list_w, folders, true, folder_rows, clip);
             y += 14.0;
-            let _ = self.draw_recent_section(ctx, "RECENT FILES", icons::FILE_TXT, list_x, y, list_w, recents, false, 5, clip);
+            let file_rows = recent_picker_fit_rows(y, footer_top, 4);
+            let _ = self.draw_recent_section(ctx, "RECENT FILES", icons::FILE_TXT, list_x, y, list_w, recents, false, file_rows, clip);
         } else {
             let gutter = 28.0;
             let col_w = (card_w - pad * 2.0 - gutter) * 0.5;
             let left_x = card_x + pad;
             let right_x = left_x + col_w + gutter;
             let list_y = card_y + 91.0;
-            let _ = self.draw_recent_section(ctx, "RECENT FOLDERS", icons::FOLDER, left_x, list_y, col_w, folders, true, 7, clip);
-            let _ = self.draw_recent_section(ctx, "RECENT FILES", icons::FILE_TXT, right_x, list_y, col_w, recents, false, 7, clip);
+            let rows = recent_picker_fit_rows(list_y, footer_top, 5);
+            let _ = self.draw_recent_section(ctx, "RECENT FOLDERS", icons::FOLDER, left_x, list_y, col_w, folders, true, rows, clip);
+            let _ = self.draw_recent_section(ctx, "RECENT FILES", icons::FILE_TXT, right_x, list_y, col_w, recents, false, rows, clip);
         }
 
-        if folders.is_empty() && recents.is_empty() {
-            let empty_y = card_y + card_h - 92.0;
-            self.draw_fallback_action(ctx, card_x + pad, empty_y, card_w - pad * 2.0, "Open File...", icons::EXPLORER, ACTION_OPEN_FILE, clip);
-            self.draw_fallback_action(ctx, card_x + pad, empty_y + 42.0, card_w - pad * 2.0, "Open Folder...", icons::FOLDER, ACTION_OPEN_FOLDER, clip);
+        let action_y = card_y + card_h - 42.0;
+        let action_w = if compact {
+            (card_w - pad * 2.0 - 10.0) * 0.5
+        } else {
+            156.0
+        };
+        let actions_x = if compact {
+            card_x + pad
+        } else {
+            card_x + card_w - pad - action_w * 2.0 - 10.0
+        };
+        self.draw_fallback_action(ctx, actions_x, action_y, action_w, "Open File...", icons::EXPLORER, ACTION_OPEN_FILE, clip);
+        self.draw_fallback_action(
+            ctx,
+            actions_x + action_w + 10.0,
+            action_y,
+            action_w,
+            "Open Folder...",
+            icons::FOLDER,
+            ACTION_OPEN_FOLDER,
+            clip,
+        );
+        if !compact {
+            ctx.text.queue_ui_sized(
+                card_x + pad,
+                action_y + 9.0,
+                "Esc closes this picker",
+                theme::TEXT_3(),
+                12.0,
+                clip,
+            );
         }
     }
 
@@ -731,8 +769,11 @@ impl WelcomeState {
         y += 24.0;
         if paths.is_empty() {
             let msg = if folders { "No recent folders" } else { "No recent files" };
-            ctx.text.queue_ui_sized(x, y + 8.0, msg, theme::TEXT_3(), 12.5, clip);
-            return y + 38.0;
+            ctx.dl_round(x, y, w, 42.0, 7.0, theme::BG_2());
+            ctx.dl_stroke(x, y, w, 42.0, 7.0, theme::BORDER(), 1.0);
+            ctx.dl_icon(x + 12.0, y + 11.0, 18.0, 18.0, fallback_icon, theme::TEXT_3(), 1.5, false);
+            ctx.text.queue_ui_sized(x + 40.0, y + 12.0, msg, theme::TEXT_3(), 12.5, clip);
+            return y + 48.0;
         }
 
         for (i, path) in paths.iter().take(max_rows).enumerate() {
@@ -765,6 +806,12 @@ impl WelcomeState {
                 },
             });
             y += 48.0;
+        }
+        let hidden = paths.len().saturating_sub(max_rows);
+        if hidden > 0 {
+            let msg = format!("+{hidden} more in Quick Open");
+            ctx.text.queue_ui_sized(x + 2.0, y + 2.0, &msg, theme::TEXT_3(), 11.5, clip);
+            y += 22.0;
         }
         y
     }
@@ -933,6 +980,20 @@ mod tests {
         let hit = Hit { x, y, w, h, action: ACTION_CLOSE };
         assert!(hit.contains(744.0, 114.0));
         assert_eq!(hit.action, ACTION_CLOSE);
+    }
+
+    #[test]
+    fn recent_picker_rows_reserve_footer_space() {
+        assert_eq!(
+            recent_picker_fit_rows(171.0, 478.0, 7),
+            5,
+            "wide picker rows should leave room for footer actions"
+        );
+        assert_eq!(
+            recent_picker_fit_rows(171.0, 302.0, 4),
+            2,
+            "compact picker rows should shrink to available height"
+        );
     }
 
     #[test]
