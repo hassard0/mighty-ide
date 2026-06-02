@@ -3634,3 +3634,15 @@ the app look broken when the feature correctly refused to run.
 - **Language note:** no compiler gap surfaced. Mighty UI needs settings controls
   that separate stored preference, runtime availability, effective state, and
   explanatory copy so feature gates are honest in the UI.
+
+### L248. Visible modal affordances need mouse-trace coverage **[finding, P2]**
+Adding a close button is not enough if the harness only verifies the happy-path
+row selection. A human judges whether the dialog can be opened, dismissed, and
+reopened without visual leftovers or broken focus.
+
+- **IDE note:** Open Recent now has a strict real-mouse harness leg that opens
+  the picker, clicks the visible close button, verifies `welcome_dismiss`,
+  reopens it, and then clicks a recent workspace row.
+- **Language note:** no compiler gap surfaced. Mighty needs reusable modal test
+  primitives so close, escape, focus restore, and row activation can be verified
+  consistently without hard-coded harness coordinates for each surface.

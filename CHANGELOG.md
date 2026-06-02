@@ -18,6 +18,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Open Recent has a real close affordance**: the focused Open Recent picker
   now shows the same top-right close button pattern as the other modals, and
   mouse clicks dismiss the forced picker instead of requiring Esc or a row pick.
+  The Windows harness now explicitly opens, closes, reopens, and selects from
+  the picker with real mouse events.
 - **Quick Open placeholder no longer collides with the caret**: empty Quick Open
   now insets placeholder copy and uses overlay-specific muted text, matching the
   command palette and shortcuts overlay spacing.

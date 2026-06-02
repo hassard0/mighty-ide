@@ -1252,9 +1252,9 @@ Log "OPEN-FOLDER: responsive after workspace change=$respFolder"
 if (-not $respFolder) { $script:HarnessFailed = $true }
 
 # === OPEN RECENT should be a focused picker, not a jump back to Welcome. ===
-Invoke-PaletteCommand "open recent" "46-open-recent-picker"
+Invoke-PaletteCommand "open recent" "46-open-recent-picker-closeable"
 Start-Sleep -Milliseconds 250
-Capture $hwnd "46-open-recent-picker"
+Capture $hwnd "46-open-recent-picker-closeable"
 if ($env:MUI_TRACE) {
   if (Wait-TraceContainsAll @("(?m)^welcome_recent_picker_open$") 1800) {
     Log "OPEN-RECENT: focused recent picker opened"
@@ -1263,12 +1263,32 @@ if ($env:MUI_TRACE) {
     $script:HarnessFailed = $true
   }
 }
+$recentDismissCount = Trace-MatchCount "(?m)^welcome_dismiss$"
+# Click the visible top-right close button and verify it dismisses the focused picker.
+ClickL 949 153
+Start-Sleep -Milliseconds 350
+Capture $hwnd "46-open-recent-picker-closed"
+if ($env:MUI_TRACE) {
+  if (Wait-TraceCountGreaterThan "(?m)^welcome_dismiss$" $recentDismissCount 1200) {
+    Log "OPEN-RECENT-CLOSE-MOUSE: visible close button dismissed picker"
+  } else {
+    Log "OPEN-RECENT-CLOSE-MOUSE: missing visible close dismiss trace"
+    $script:HarnessFailed = $true
+  }
+}
+
+Invoke-PaletteCommand "open recent" "46-open-recent-picker"
+Start-Sleep -Milliseconds 250
+Capture $hwnd "46-open-recent-picker"
 # Click the first visible recent workspace row in the picker.
+$recentRowClickCount = Trace-MatchCount "welcome_click .* -> 2000"
+$recentWorkspaceOpenCount = Trace-MatchCount "workspace_open_folder path="
 ClickL 470 246
 Start-Sleep -Milliseconds 500
 if ($env:MUI_TRACE) {
-  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
-  if ($traceText -match "welcome_click .* -> 2000" -and $traceText -match "workspace_open_folder path=") {
+  $rowClicked = Wait-TraceCountGreaterThan "welcome_click .* -> 2000" $recentRowClickCount 1800
+  $workspaceOpened = Wait-TraceCountGreaterThan "workspace_open_folder path=" $recentWorkspaceOpenCount 2500
+  if ($rowClicked -and $workspaceOpened) {
     Log "OPEN-RECENT-MOUSE: recent workspace row clicked and dispatched"
   } else {
     Log "OPEN-RECENT-MOUSE: missing recent row click/open trace"
