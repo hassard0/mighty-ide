@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Markdown Preview only opens on Markdown files**: command-palette and
+  keyboard preview requests now warn on non-Markdown buffers instead of opening
+  a misleading rendered pane for `.mty` or plain text. The real-mouse harness
+  now opens a `.md` fixture through the native file dialog before testing the
+  rendered preview and visible close affordance.
 - **New Project uses a native folder picker first**: Welcome and command-palette
   New Project now ask for the intended project folder through the native picker,
   reject non-empty folders without overwriting content, and keep the bottom

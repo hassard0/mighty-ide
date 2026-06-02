@@ -3448,6 +3448,7 @@ fn markdown_preview_header_close_hit_collapses_preview() {
     let mut ctx = ctx_or_skip!();
     ctx.gpu.width = 900;
     ctx.gpu.height = 700;
+    ctx.language = crate::langdetect::Language::Markdown;
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(crate::abi::mui_md_open(h), 1);
@@ -3474,6 +3475,20 @@ fn markdown_preview_header_close_hit_collapses_preview() {
 }
 
 #[test]
+fn markdown_preview_rejects_non_markdown_active_file() {
+    let mut ctx = ctx_or_skip!();
+    ctx.language = crate::langdetect::Language::Mighty;
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::abi::mui_md_open(h), 0);
+    assert_eq!(crate::abi::mui_md_active(h), 0);
+    assert_eq!(crate::abi::mui_pane_count(h), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Markdown Preview is available for Markdown files");
+}
+
+#[test]
 fn markdown_preview_hides_sidebar_when_compact_and_restores_on_close() {
     let mut ctx = ctx_or_skip!();
     ctx.gpu.width = 520;
@@ -3481,6 +3496,7 @@ fn markdown_preview_hides_sidebar_when_compact_and_restores_on_close() {
     ctx.gpu.height = 360;
     ctx.gpu.phys_height = 360;
     ctx.sidebar_visible = true;
+    ctx.language = crate::langdetect::Language::Markdown;
     crate::layout::reset_sidebar_preset();
     crate::layout::set_window_width(520);
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -3925,6 +3941,43 @@ fn open_file_dialog_env_pick_opens_tab_and_records_recent() {
     assert_eq!(ctx.tabs.active_path().as_deref(), Some(picked.as_path()));
     assert_eq!(ctx.tabs.active_model().as_text(), "fn picked() -> I32 { 7 }");
     assert_eq!(mui_quickopen_reindex(h), 1, "picked file's folder is still indexed");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn open_file_dialog_sequence_picks_distinct_files() {
+    use crate::{mui_open_file_dialog, mui_tab_active, mui_tab_count};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let root = std::env::temp_dir().join(format!("mui_open_file_sequence_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let first = root.join("first.mty");
+    let second = root.join("second.md");
+    std::fs::write(&first, b"first").unwrap();
+    std::fs::write(&second, b"# Second").unwrap();
+    let seq = format!("{}|{}", first.display(), second.display());
+
+    std::env::remove_var("MUI_OPEN_FILE_PICK");
+    std::env::set_var("MUI_OPEN_FILE_PICK_SEQUENCE", seq);
+    let first_idx = mui_open_file_dialog(h);
+    let second_idx = mui_open_file_dialog(h);
+    std::env::remove_var("MUI_OPEN_FILE_PICK_SEQUENCE");
+
+    assert_eq!(first_idx, 1);
+    assert_eq!(second_idx, 2);
+    assert_eq!(mui_tab_count(h), 3);
+    assert_eq!(mui_tab_active(h), second_idx);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(second.as_path()));
+    assert_eq!(ctx.tabs.active_model().as_text(), "# Second");
+    assert_eq!(ctx.language, crate::langdetect::Language::Markdown);
 
     let _ = std::fs::remove_dir_all(&root);
 }

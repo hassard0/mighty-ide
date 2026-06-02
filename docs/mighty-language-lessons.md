@@ -3984,3 +3984,18 @@ look like an internal command line.
 - **Language note:** Mighty still cannot pass owned strings or paths through the
   scalar ABI, so dialog selection, path validation, and project creation remain
   shim-owned. A richer string/path FFI would let Mighty own more of this flow.
+
+### L277. Feature commands must validate their document context **[finding, P2]**
+Markdown Preview looked available from the command palette on any active file,
+so the harness opened a rendered pane over a `.mty` buffer and produced a plain
+`opened zz` preview. The UI technically responded, but it taught users the wrong
+mental model for a document-specific feature.
+
+- **IDE note:** Markdown Preview now rejects non-Markdown buffers with a warning
+  toast and no split pane. The real-mouse harness opens a real `.md` fixture
+  through the native file picker before asserting preview rendering and close
+  hit-testing.
+- **Language note:** no compiler gap surfaced. Mighty UI still needs command
+  metadata for document/context eligibility so disabled states, palette hints,
+  shortcut routing, and tests can share one rule instead of relying on shim-side
+  guards.

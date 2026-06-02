@@ -9673,6 +9673,12 @@ enum FileDialogPick {
 }
 
 fn pick_open_file_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FileDialogPick {
+    if let Ok(sequence) = std::env::var("MUI_OPEN_FILE_PICK_SEQUENCE") {
+        let trimmed = sequence.trim();
+        if !trimmed.is_empty() {
+            return next_open_file_pick_from_sequence(trimmed);
+        }
+    }
     if let Ok(path) = std::env::var("MUI_OPEN_FILE_PICK") {
         let trimmed = path.trim();
         return if trimmed.is_empty() {
@@ -9772,6 +9778,26 @@ try {
 }
 "#;
     run_file_dialog_script(script, initial_dir, Some(suggested_name), owner_hwnd)
+}
+
+fn next_open_file_pick_from_sequence(sequence: &str) -> FileDialogPick {
+    static NEXT_PICK: OnceLock<Mutex<(String, usize)>> = OnceLock::new();
+    let mut state = NEXT_PICK
+        .get_or_init(|| Mutex::new((String::new(), 0)))
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if state.0 != sequence {
+        state.0 = sequence.to_string();
+        state.1 = 0;
+    }
+    let idx = state.1;
+    state.1 = state.1.saturating_add(1);
+    let picked = sequence.split('|').nth(idx).unwrap_or("").trim();
+    if picked.is_empty() {
+        FileDialogPick::Cancelled
+    } else {
+        FileDialogPick::Picked(PathBuf::from(picked))
+    }
 }
 
 fn next_save_file_pick_from_sequence(sequence: &str) -> FileDialogPick {
@@ -11197,6 +11223,11 @@ pub extern "C" fn mui_md_open(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if ctx.language != crate::langdetect::Language::Markdown {
+        ctx.push_toast(crate::toast::Kind::Warn, "Markdown Preview is available for Markdown files");
+        trace("md_open unavailable: non_markdown");
+        return 0;
+    }
     let (visible_w, _) = visible_surface_size(ctx);
     let body_w_with_sidebar = visible_w as f32 - layout::body_left(ctx.sidebar_visible);
     if ctx.sidebar_visible

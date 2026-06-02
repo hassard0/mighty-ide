@@ -197,12 +197,14 @@ function Finish-Harness($proc) {
   Remove-Item Env:\MUI_NEW_FOLDER_PICK -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_NEW_PROJECT_PICK -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_OPEN_FILE_PICK -ErrorAction SilentlyContinue
+  Remove-Item Env:\MUI_OPEN_FILE_PICK_SEQUENCE -ErrorAction SilentlyContinue
   Remove-Item Env:\MUI_OPEN_FOLDER_PICK -ErrorAction SilentlyContinue
   if (-not $traceWasSet) { Remove-Item Env:\MUI_TRACE -ErrorAction SilentlyContinue }
   if (-not $configWasSet) { Remove-Item Env:\MUI_CONFIG_DIR -ErrorAction SilentlyContinue }
   Remove-Item -LiteralPath $searchPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $saveAllPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $openPath -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $mdPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $openFolderPath -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $newFolderPath -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $newProjectPath -Recurse -Force -ErrorAction SilentlyContinue
@@ -238,6 +240,9 @@ Set-Content -LiteralPath (Join-Path $newProjectPath "keep.txt") -Value "existing
 $openName = "harnessopen.mty"
 $openPath = Join-Path $WorkDir $openName
 Set-Content -LiteralPath $openPath -Value "opened" -Encoding utf8
+$mdName = "harnesspreview.md"
+$mdPath = Join-Path $WorkDir $mdName
+Set-Content -LiteralPath $mdPath -Value "# Harness Preview`n`nThis **Markdown** file verifies the rendered preview path.`n`n- opens from the native file dialog`n- closes by visible mouse affordance" -Encoding utf8
 $searchName = "harnesssearch.mty"
 $searchPath = Join-Path $workspaceRoot $searchName
 Set-Content -LiteralPath $searchPath -Value "opened" -Encoding ascii
@@ -252,7 +257,7 @@ $env:MUI_NEW_FILE_PICK = $welcomeFilePath
 $env:MUI_NEW_FILE_PICK_SEQUENCE = "$welcomeFilePath|$newFilePath"
 $env:MUI_NEW_FOLDER_PICK = $newFolderPath
 $env:MUI_NEW_PROJECT_PICK = $newProjectPath
-$env:MUI_OPEN_FILE_PICK = $openPath
+$env:MUI_OPEN_FILE_PICK_SEQUENCE = "$openPath|$mdPath"
 $env:MUI_OPEN_FOLDER_PICK = $openFolderPath
 
 function Get-WinRect($h) { $r = New-Object Win+RECT; [void][Win]::GetWindowRect($h, [ref]$r); return $r }
@@ -1357,12 +1362,11 @@ Start-Sleep -Milliseconds 250
 Capture $hwnd "46-open-recent-picker"
 # Click the first visible recent workspace row in the picker.
 $recentRowClickCount = Trace-MatchCount "welcome_click .* -> 2000"
-$recentWorkspaceOpenCount = Trace-MatchCount "workspace_open_folder path="
 ClickL 470 246
 Start-Sleep -Milliseconds 500
 if ($env:MUI_TRACE) {
   $rowClicked = Wait-TraceCountGreaterThan "welcome_click .* -> 2000" $recentRowClickCount 1800
-  $workspaceOpened = Wait-TraceCountGreaterThan "workspace_open_folder path=" $recentWorkspaceOpenCount 2500
+  $workspaceOpened = Wait-TraceContainsAll @("workspace_open_folder path=$openFolderPattern changed=(0|1)") 2500
   if ($rowClicked -and $workspaceOpened) {
     Log "OPEN-RECENT-MOUSE: recent workspace row clicked and dispatched"
   } else {
@@ -1434,7 +1438,19 @@ if (Wait-TraceCountGreaterThan "(?m)^theme_picker_close$" $themeCloseCount 1200)
   $script:HarnessFailed = $true
 }
 
-# === MARKDOWN PREVIEW: visible pane close affordance should collapse the split. ===
+# === MARKDOWN PREVIEW: native-opened .md file should render and close by mouse. ===
+Invoke-PaletteCommandClick "open file" 0 "53-markdown-open-file"
+Start-Sleep -Milliseconds 350
+if ($env:MUI_TRACE) {
+  $traceText = if (Test-Path $env:MUI_TRACE) { Get-Content -LiteralPath $env:MUI_TRACE -Raw } else { "" }
+  $mdPathPattern = [regex]::Escape($mdPath)
+  if ($traceText -match "open_file_dialog path=$mdPathPattern") {
+    Log "MARKDOWN-PREVIEW-OPEN-FILE: native dialog opened Markdown fixture"
+  } else {
+    Log "MARKDOWN-PREVIEW-OPEN-FILE: missing Markdown native open trace"
+    $script:HarnessFailed = $true
+  }
+}
 $mdOpenCount = Trace-MatchCount "(?m)^md_open$"
 Invoke-PaletteCommand "markdown preview" $null
 if (Wait-TraceCountGreaterThan "(?m)^md_open$" $mdOpenCount 1200) {
