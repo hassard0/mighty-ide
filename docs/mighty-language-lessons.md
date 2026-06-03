@@ -5964,3 +5964,13 @@ Quick Open command mode reused palette filtering, so shortcut searches such as
 - **IDE note:** Quick Open command rows now carry the palette keybinding into
   the secondary row text. Command-mode results stay dispatch-compatible while
   showing the shortcut that matched, e.g. `Quick Open` with `Ctrl+P`.
+
+L449. Cross-surface command rows need fallback context when no shortcut exists.
+After Quick Open command mode started showing shortcuts, commands without
+keybindings still looked bare even though the command palette had useful
+descriptions for them.
+
+- **IDE note:** Quick Open command mode now uses the palette shortcut as the
+  secondary row text when present, otherwise it falls back to the palette's
+  static command description. This keeps no-shortcut commands like
+  `File: Open Recent` informative without duplicating description copy.

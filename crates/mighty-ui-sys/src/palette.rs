@@ -8,8 +8,9 @@
 //! command id back and dispatches to the SAME code path the keybinding triggers.
 //!
 //! Filtering is a case-insensitive prefix-OR-subsequence (fuzzy) match against
-//! each command's label, ranked so prefix matches sort ahead of looser fuzzy
-//! matches. An empty query lists every command in registry order.
+//! each command's label and shortcut text, ranked so label matches sort ahead
+//! of shortcut matches at the same quality. An empty query lists every command
+//! in registry order.
 
 use std::borrow::Cow;
 
@@ -1128,6 +1129,11 @@ fn command_field_text_x(base_x: f32, is_placeholder: bool) -> f32 {
     }
 }
 
+/// Static non-contextual description for command surfaces outside the palette.
+pub fn command_static_desc(id: u32) -> &'static str {
+    PaletteEngine::meta(id).1
+}
+
 fn command_contextual_desc<'a>(
     id: u32,
     base: &'a str,
@@ -1403,6 +1409,14 @@ mod tests {
                 cmd.label
             );
         }
+    }
+
+    #[test]
+    fn static_command_descriptions_are_available_to_other_surfaces() {
+        assert_eq!(
+            command_static_desc(CMD_OPEN_RECENT),
+            "Open a recent file or workspace folder"
+        );
     }
 
     #[test]

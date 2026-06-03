@@ -766,19 +766,20 @@ impl QuickOpen {
     }
 
     /// Replace the rows with caller-built command rows (Commands mode). The
-    /// `cmds` are `(label, keybinding, command_id)` triples already filtered/ranked by the
-    /// caller (it reuses the palette's `filter_commands`); we just map them to
-    /// rows, fuzzy-highlighting the label against the query sans the `>` prefix.
+    /// `cmds` are `(label, secondary, command_id)` triples already filtered/ranked
+    /// by the caller (it reuses the palette's `filter_commands`); we just map
+    /// them to rows, fuzzy-highlighting the label against the query sans the `>`
+    /// prefix.
     pub fn set_command_rows(&mut self, cmds: &[(String, String, i32)]) {
         let q = Mode::strip(Mode::Commands, &self.query);
         self.rows = cmds
             .iter()
-            .map(|(label, keybinding, id)| {
+            .map(|(label, secondary, id)| {
                 let indices = fuzzy_match(label, q).map(|m| m.indices).unwrap_or_default();
                 Row {
                     icon_kind: Row::ICON_LINE,
                     name: label.clone(),
-                    dir: keybinding.clone(),
+                    dir: secondary.clone(),
                     indices,
                     target: *id,
                 }
@@ -1481,6 +1482,23 @@ mod tests {
         let row = qo.row(0).unwrap();
         assert_eq!(row.name, "Quick Open");
         assert_eq!(row.dir, "Ctrl+P");
+    }
+
+    #[test]
+    fn command_mode_rows_can_show_description_fallback() {
+        let mut qo = QuickOpen::new();
+        qo.open();
+        qo.push_char('>');
+        qo.set_command_rows(&[(
+            "File: Open Recent".to_string(),
+            "Open a recent file or workspace folder".to_string(),
+            37,
+        )]);
+
+        let row = qo.row(0).unwrap();
+        assert_eq!(row.name, "File: Open Recent");
+        assert_eq!(row.dir, "Open a recent file or workspace folder");
+        assert_eq!(row.target, 37);
     }
 
     #[test]

@@ -7980,7 +7980,14 @@ fn quickopen_sync_providers(ctx: &mut MuiContext) {
             let cmds: Vec<(String, String, i32)> =
                 crate::palette::filter_commands(crate::palette::COMMANDS, &q)
                     .into_iter()
-                    .map(|c| (c.label.to_string(), c.keybinding.to_string(), c.id as i32))
+                    .map(|c| {
+                        let secondary = if c.keybinding.is_empty() {
+                            crate::palette::command_static_desc(c.id)
+                        } else {
+                            c.keybinding
+                        };
+                        (c.label.to_string(), secondary.to_string(), c.id as i32)
+                    })
                     .collect();
             ctx.quickopen.set_command_rows(&cmds);
         }
