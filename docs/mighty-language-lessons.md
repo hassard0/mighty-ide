@@ -6378,3 +6378,14 @@ text makes paste behavior fragile and can execute pasted newlines as commands.
   `ESC[?2004h/l`, and terminal paste wraps clipboard bytes only while bracketed
   paste is enabled. Parser/helper tests cover mode toggling, escape
   consumption, plain paste bytes, and bracketed paste framing.
+
+L496. Terminal focus should forward every named key the window layer exposes.
+The window shim already turns PageUp/PageDown and several function keys into
+`MUI_KEY_*` events, but the terminal mapper dropped them. That made terminal
+applications lose common navigation/help/debug keys even though the IDE had
+already captured the correct physical key.
+
+- **IDE note:** The terminal key mapper now emits standard VT sequences for
+  PageUp, PageDown, F2, F5, F10, F11, and F12 in addition to arrows, Home/End,
+  Delete, Enter, Backspace, Tab, and Escape. Unit coverage pins the bytes for
+  every named key currently forwarded to terminal focus.

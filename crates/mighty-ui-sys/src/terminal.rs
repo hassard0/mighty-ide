@@ -1185,6 +1185,13 @@ pub fn key_to_bytes(key: u32, _mods: u32) -> Option<Vec<u8>> {
         MUI_KEY_HOME => vec![0x1b, b'[', b'H'],
         MUI_KEY_END => vec![0x1b, b'[', b'F'],
         MUI_KEY_DELETE => vec![0x1b, b'[', b'3', b'~'],
+        MUI_KEY_PAGE_UP => vec![0x1b, b'[', b'5', b'~'],
+        MUI_KEY_PAGE_DOWN => vec![0x1b, b'[', b'6', b'~'],
+        MUI_KEY_F2 => vec![0x1b, b'[', b'1', b'2', b'~'],
+        MUI_KEY_F5 => vec![0x1b, b'[', b'1', b'5', b'~'],
+        MUI_KEY_F10 => vec![0x1b, b'[', b'2', b'1', b'~'],
+        MUI_KEY_F11 => vec![0x1b, b'[', b'2', b'3', b'~'],
+        MUI_KEY_F12 => vec![0x1b, b'[', b'2', b'4', b'~'],
         _ => return None,
     };
     Some(bytes)
@@ -1683,6 +1690,15 @@ mod tests {
         assert_eq!(key_to_bytes(MUI_KEY_UP, 0), Some(vec![0x1b, b'[', b'A']));
         assert_eq!(key_to_bytes(MUI_KEY_LEFT, 0), Some(vec![0x1b, b'[', b'D']));
         assert_eq!(key_to_bytes(MUI_KEY_HOME, 0), Some(vec![0x1b, b'[', b'H']));
+        assert_eq!(key_to_bytes(MUI_KEY_END, 0), Some(vec![0x1b, b'[', b'F']));
+        assert_eq!(key_to_bytes(MUI_KEY_DELETE, 0), Some(vec![0x1b, b'[', b'3', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_PAGE_UP, 0), Some(vec![0x1b, b'[', b'5', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_PAGE_DOWN, 0), Some(vec![0x1b, b'[', b'6', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F2, 0), Some(vec![0x1b, b'[', b'1', b'2', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F5, 0), Some(vec![0x1b, b'[', b'1', b'5', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F10, 0), Some(vec![0x1b, b'[', b'2', b'1', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F11, 0), Some(vec![0x1b, b'[', b'2', b'3', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F12, 0), Some(vec![0x1b, b'[', b'2', b'4', b'~']));
         assert_eq!(key_to_bytes(MUI_KEY_UNKNOWN, 0), None);
     }
 
