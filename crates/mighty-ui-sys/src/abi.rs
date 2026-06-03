@@ -7295,6 +7295,51 @@ pub extern "C" fn mui_complete_active(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.complete.is_active()))
 }
 
+fn active_completion_prefix(ctx: &MuiContext, prefix_chars: usize) -> String {
+    if prefix_chars == 0 {
+        return String::new();
+    }
+    let text = ctx.tabs.active_model().as_text();
+    let (line, col) = {
+        let model = ctx.tabs.active_model();
+        (model.cursor_line() as i32, model.cursor_col() as i32)
+    };
+    let mut cursor = line_col_to_offset(text.as_bytes(), line, col).min(text.len());
+    while cursor > 0 && !text.is_char_boundary(cursor) {
+        cursor -= 1;
+    }
+    text[..cursor]
+        .chars()
+        .rev()
+        .take(prefix_chars)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect()
+}
+
+/// `1` when accepting the selected completion can mutate the active model.
+/// Pure preflight: leaves user-facing read-only/no-suggestion feedback to the
+/// stateful accept/cancel commands.
+#[no_mangle]
+pub extern "C" fn mui_complete_can_accept(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only() || !ctx.complete.is_active() || ctx.complete.count() == 0 {
+        return 0;
+    }
+    let accepted = ctx.complete.accepted_text();
+    if accepted.is_empty() {
+        return 0;
+    }
+    if ctx.complete.accepted_is_snippet() {
+        return 1;
+    }
+    let prefix = active_completion_prefix(ctx, ctx.complete.prefix_len());
+    i32::from(accepted != prefix)
+}
+
 /// Index (0-based) of the currently selected candidate.
 #[no_mangle]
 pub extern "C" fn mui_complete_sel(handle: i64) -> i32 {

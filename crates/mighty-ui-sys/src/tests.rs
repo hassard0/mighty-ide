@@ -6587,6 +6587,41 @@ fn autocomplete_close_command_clears_active_dropdown() {
 }
 
 #[test]
+fn completion_accept_preflight_tracks_editability() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_complete_can_accept(0), 0);
+    assert_eq!(crate::mui_complete_can_accept(h), 0);
+
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("alpha al");
+    ctx.tabs.active_model_mut().move_to(0, 8);
+    assert!(crate::mui_ed_complete_request(h) > 0);
+    assert_eq!(crate::mui_complete_can_accept(h), 1);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    let root = std::env::temp_dir().join("mui_completion_accept_preflight");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    ctx.complete_buf = b"alpha al".to_vec();
+    assert!(ctx.complete.request(&ctx.complete_buf, ctx.complete_buf.len(), &[]) > 0);
+    let before_toasts = ctx.toasts.toasts().len();
+    assert_eq!(crate::mui_complete_can_accept(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), before_toasts);
+    assert_eq!(crate::mui_ed_complete_accept(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn pane_split_focus_close_via_abi() {
     use crate::ffi::MuiEvent;
     use crate::{
@@ -8302,6 +8337,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("let accepted = if mui_snippet_complete_is(h) == 1")
+            && main
+                .matches("if mui_complete_can_accept(h) == 1 { mui_ed_undo_record(h) }\n            let accepted = if mui_snippet_complete_is(h) == 1")
+                .count()
+                >= 2
             && main.contains("let accepted = mui_ghost_accept(h)")
             && main.contains("let accepted = mui_ghost_accept_word(h)")
             && main.contains("if mui_ghost_can_accept(h) == 1 { mui_ed_undo_record(h) }\n            typing = false\n            let accepted = mui_ghost_accept(h)")

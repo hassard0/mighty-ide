@@ -300,6 +300,7 @@ extern c {
   fn mui_log_terminal(handle: I64)
   // ---- autocomplete dropdown (shim-side engine) ----
   fn mui_complete_count(handle: I64) -> I32
+  fn mui_complete_can_accept(handle: I64) -> I32
   fn mui_complete_sel(handle: I64) -> I32
   fn mui_complete_report_empty(handle: I64) -> I32
   fn mui_complete_move(handle: I64, delta: I32)
@@ -2519,7 +2520,7 @@ fn main() {
           } else if k == key_enter() || k == key_tab() {
             // (3) Accept the selected candidate. A snippet entry EXPANDS its body
             // (and begins the tab-stop session); a plain entry inserts its text.
-            mui_ed_undo_record(h)
+            if mui_complete_can_accept(h) == 1 { mui_ed_undo_record(h) }
             let accepted = if mui_snippet_complete_is(h) == 1 {
               mui_snippet_complete_expand(h)
             } else {
@@ -2558,7 +2559,7 @@ fn main() {
           let total_c = mui_ed_line_count(h)
           let ch = mui_complete_click_at(h, c_line - first, c_col, total_c)
           if ch >= 0 {
-            mui_ed_undo_record(h)
+            if mui_complete_can_accept(h) == 1 { mui_ed_undo_record(h) }
             let accepted = if mui_snippet_complete_is(h) == 1 {
               mui_snippet_complete_expand(h)
             } else {

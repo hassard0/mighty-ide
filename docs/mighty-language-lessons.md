@@ -7495,3 +7495,8 @@ recording undo.
   active tab without emitting feedback. Tab full-accept and Ctrl+Right
   word-accept use it before `mui_ed_undo_record`, while the existing accept ABIs
   keep the read-only warning and no-op behavior.
+
+L603. Completion accept needs a dropdown editability preflight. The selected
+candidate can be visible while the focused tab is read-only or otherwise unable
+to change; keep the warning in the stateful accept ABI, but gate undo snapshots
+through a silent `can_accept` predicate.
