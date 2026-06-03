@@ -696,9 +696,18 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Reopened ")
         || m.starts_with("Duplicated ")
         || m.starts_with("Moved tab ")
+        || m.starts_with("Review ")
+        || m.starts_with("Reloaded ")
+        || m.starts_with("Reverted ")
+        || m.starts_with("Reload failed:")
+        || m.starts_with("Revert failed:")
         || m == "Sorted tabs by name"
         || m == "No closed tab to reopen"
         || m == "No duplicate file tabs"
+        || m == "Save or discard changes before reloading"
+        || m.starts_with("No file-backed tab to ")
+        || m.starts_with("No saved tabs")
+        || m == "No other saved tabs to close"
     {
         Some(OperationKey::Tab)
     } else if m.starts_with("Renamed to")
@@ -1101,19 +1110,59 @@ mod tests {
         assert_eq!(q.toasts()[2].message, "Tabs already sorted");
         assert!(!q.toasts().iter().any(|t| t.message == "Tab is already first"));
 
-        q.push_at(Kind::Info, "Dock resized to 228px", t0 + Duration::from_millis(1500));
-        q.push_at(Kind::Info, "Sidebar resized to 310px", t0 + Duration::from_millis(1600));
+        q.push_at(
+            Kind::Warn,
+            "Review unsaved changes in main.mty",
+            t0 + Duration::from_millis(1500),
+        );
+        q.push_at(
+            Kind::Warn,
+            "Save or discard changes before reloading",
+            t0 + Duration::from_millis(1600),
+        );
+        assert_eq!(q.len(), 3);
+        assert_eq!(
+            q.toasts()[2].message,
+            "Save or discard changes before reloading"
+        );
+        assert!(!q
+            .toasts()
+            .iter()
+            .any(|t| t.message == "Review unsaved changes in main.mty"));
+
+        q.push_at(Kind::Info, "Reloaded main.mty", t0 + Duration::from_millis(1700));
+        q.push_at(Kind::Info, "Reverted main.mty", t0 + Duration::from_millis(1800));
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Reverted main.mty");
+        assert!(!q.toasts().iter().any(|t| t.message == "Reloaded main.mty"));
+
+        q.push_at(
+            Kind::Error,
+            "Reload failed: main.mty",
+            t0 + Duration::from_millis(1900),
+        );
+        q.push_at(
+            Kind::Info,
+            "No file-backed tab to reload",
+            t0 + Duration::from_millis(2000),
+        );
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "No file-backed tab to reload");
+        assert!(!q.toasts().iter().any(|t| t.message == "Reload failed: main.mty"));
+
+        q.push_at(Kind::Info, "Dock resized to 228px", t0 + Duration::from_millis(2100));
+        q.push_at(Kind::Info, "Sidebar resized to 310px", t0 + Duration::from_millis(2200));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Sidebar resized to 310px");
         assert!(!q.toasts().iter().any(|t| t.message == "Dock resized to 228px"));
 
-        q.push_at(Kind::Info, "Problems panel closed", t0 + Duration::from_millis(1650));
+        q.push_at(Kind::Info, "Problems panel closed", t0 + Duration::from_millis(2250));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Problems panel closed");
         assert!(!q.toasts().iter().any(|t| t.message == "Sidebar resized to 310px"));
 
-        q.push_at(Kind::Info, "Markdown preview opened", t0 + Duration::from_millis(1700));
-        q.push_at(Kind::Info, "Markdown preview closed", t0 + Duration::from_millis(1800));
+        q.push_at(Kind::Info, "Markdown preview opened", t0 + Duration::from_millis(2300));
+        q.push_at(Kind::Info, "Markdown preview closed", t0 + Duration::from_millis(2400));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Markdown preview closed");
         assert!(!q.toasts().iter().any(|t| t.message == "Markdown preview opened"));

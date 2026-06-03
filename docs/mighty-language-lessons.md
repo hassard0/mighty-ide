@@ -5672,3 +5672,14 @@ new state of the same text-entry task rather than a separate notification.
   path-separator errors, invalid traversal names, bad first characters, and
   unsupported characters, now share a NameInput toast replacement key. Repeated
   invalid-name submissions keep only the latest validation reason visible.
+
+L417. Reload and dirty-close feedback belongs to tab lifecycle. Reloading,
+reverting, refusing to reload a dirty tab, and asking the user to review
+unsaved changes are all states of tab management, so they should replace stale
+tab-operation toasts instead of stacking around the editor.
+
+- **IDE note:** `Review ... unsaved ...`, `Save or discard changes before
+  reloading`, `Reloaded ...`, `Reverted ...`, reload/revert failures,
+  `No file-backed tab to ...`, and no-saved-tabs close messages now share the
+  Tab toast replacement key. Repeated tab lifecycle commands keep the latest
+  tab state visible.
