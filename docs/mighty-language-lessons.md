@@ -6204,3 +6204,11 @@ estimates, so long author/date labels could run past the window edge.
 - **IDE note:** Inline blame now fits annotation labels with the measured
   UI-font fitter before drawing. Long author names and commit metadata stay
   inside the editor width without relying on half-font character estimates.
+
+L477. Markdown fenced code should clip by rendered code width. Code blocks in
+preview cards still used fixed character counts, even after inline code chips
+and language tags moved to measured text widths.
+
+- **IDE note:** Markdown preview code blocks now fit each rendered monospace
+  row with measured code-font budgets before drawing. Long fenced-code lines
+  stay inside the card padding without relying on global character estimates.

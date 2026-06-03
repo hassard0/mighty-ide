@@ -303,7 +303,6 @@ impl Painter<'_> {
     fn code_block(&mut self, lang: Option<&str>, lines: &[String], indent: f32) {
         let size = BODY_SIZE - 1.0;
         let lh = crate::layout::LINE_H();
-        let adv = crate::layout::CHAR_W();
         let x = self.x0 + indent;
         let avail = self.width - indent;
         let pad = 12.0;
@@ -326,14 +325,11 @@ impl Painter<'_> {
             );
         }
         let tx = x + pad;
-        let max_chars = (((avail - 2.0 * pad) / adv).floor() as usize).max(1);
+        let max_w = (avail - 2.0 * pad).max(0.0);
         let mut cy = self.y + pad;
         for line in lines {
             // Monospace, syntax-default color; clip overlong lines.
-            let mut shown = line.clone();
-            if shown.chars().count() > max_chars {
-                shown = shown.chars().take(max_chars.saturating_sub(1)).collect::<String>() + "\u{2026}";
-            }
+            let shown = fit_code_block_text(self.ctx, line, max_w, size);
             self.ctx
                 .text
                 .queue_sized(tx, cy, &shown, theme::SYN_DEFAULT(), size, self.clip);
@@ -515,6 +511,40 @@ fn code_lang_tag_width(ctx: &mut MuiContext, text: &str, size: f32) -> f32 {
 
 fn inline_code_chip_width(ctx: &mut MuiContext, text: &str, size: f32) -> f32 {
     ctx.text.measure_sized(text, size).0 + 8.0
+}
+
+fn fit_code_block_text(ctx: &mut MuiContext, text: &str, max_px: f32, size: f32) -> String {
+    let max_px = max_px.max(0.0);
+    if max_px <= 1.0 {
+        return String::new();
+    }
+    if ctx.text.measure_sized(text, size).0 <= max_px {
+        return text.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    let ellipsis_w = ctx.text.measure_sized(ellipsis, size).0;
+    if ellipsis_w >= max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = text.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if ctx.text.measure_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        return ellipsis.to_string();
+    }
+    let mut out: String = chars.iter().take(lo).collect();
+    out.push_str(ellipsis);
+    out
 }
 
 fn code_draw_advance(text: &str, size: f32) -> f32 {
@@ -723,6 +753,29 @@ mod tests {
         assert!(short > 8.0, "inline code chip width should include rendered text");
         assert!(long > short, "longer rendered code spans need wider chips");
         assert_eq!(long, measured_long + 8.0);
+    }
+
+    #[test]
+    fn code_block_line_fits_measured_card_width() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+
+        let size = BODY_SIZE - 1.0;
+        let budget = 180.0;
+        let shown = fit_code_block_text(
+            &mut ctx,
+            "let very_long_identifier = render_really_long_markdown_code_block_line();",
+            budget,
+            size,
+        );
+        let shown_w = ctx.text.measure_sized(&shown, size).0;
+
+        assert!(shown.ends_with('\u{2026}'));
+        assert!(
+            shown_w <= budget + 0.5,
+            "markdown code block line should fit measured budget: {shown}"
+        );
     }
 
     #[test]
