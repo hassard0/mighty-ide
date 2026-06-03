@@ -2962,6 +2962,11 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
             "AI: Force Ghost Completion",
             "Alt+\\",
         ),
+        (
+            crate::palette::CMD_GHOST_COMPLETION_DISMISS,
+            "AI: Dismiss Ghost Completion",
+            "",
+        ),
         (crate::palette::CMD_AI_CLEAR_CHAT, "AI: Clear Chat", ""),
         (
             crate::palette::CMD_AGENTS_REFRESH,
@@ -6000,6 +6005,20 @@ fn welcome_close_command_dismisses_forced_surfaces() {
 }
 
 #[test]
+fn ghost_completion_dismiss_command_clears_seeded_suggestion() {
+    use crate::ghostabi::{mui_ghost_dismiss, mui_ghost_has};
+
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.ghost.seed_demo(".push(value)", (0, 0));
+    assert_eq!(mui_ghost_has(h), 1);
+
+    mui_ghost_dismiss(h);
+    assert_eq!(mui_ghost_has(h), 0);
+}
+
+#[test]
 fn breadcrumb_accept_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -7209,6 +7228,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Welcome: Close must reuse the visible close affordance's dismiss path"
     );
     assert!(
+        main.contains("id == cmd_ghost_completion_dismiss()")
+            && main.contains("mui_ghost_dismiss(h)"),
+        "AI: Dismiss Ghost Completion must clear the inline suggestion without accepting it"
+    );
+    assert!(
         main.contains("id == cmd_hover_close()")
             && main.contains("mui_hover_clear(h)")
             && main.contains("hovering = false"),
@@ -7594,6 +7618,10 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (
             CMD_FORCE_GHOST_COMPLETION,
             "cmd_force_ghost_completion",
+        ),
+        (
+            CMD_GHOST_COMPLETION_DISMISS,
+            "cmd_ghost_completion_dismiss",
         ),
         (CMD_AI_CLEAR_CHAT, "cmd_ai_clear_chat"),
         (CMD_VIEW_TERMINAL, "cmd_view_terminal"),

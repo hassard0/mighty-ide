@@ -6895,3 +6895,13 @@ only mouse-driven.
   `mui_welcome_dismiss` for both the forced Welcome landing and Open Recent
   picker. ABI, registry, metadata, dispatcher, and label tests pin the close
   path.
+
+L545. Inline suggestions need non-accepting command exits.
+Ghost completions are accepted by Tab or Ctrl+Right, so their dismiss path should
+be a named command that clears the suggestion without inserting any generated
+text.
+
+- **IDE note:** The command palette now lists
+  `AI: Dismiss Ghost Completion`, calling `mui_ghost_dismiss`. Seeded ghost,
+  registry, metadata, dispatcher, and label tests pin that the command clears the
+  visible inline suggestion without accepting it.

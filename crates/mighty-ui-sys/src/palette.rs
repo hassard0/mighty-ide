@@ -383,6 +383,8 @@ pub const CMD_COMMAND_PALETTE_CLOSE: u32 = 175;
 pub const CMD_QUICK_OPEN_CLOSE: u32 = 176;
 /// Close the forced Welcome or Open Recent surface without opening anything.
 pub const CMD_WELCOME_CLOSE: u32 = 177;
+/// Dismiss the visible inline AI ghost completion without accepting text.
+pub const CMD_GHOST_COMPLETION_DISMISS: u32 = 178;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -533,6 +535,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_VIEW_AI_COPILOT,  label: "View: AI Copilot",    keybinding: "Ctrl+Shift+A" },
     Command { id: CMD_INLINE_AI_ASK,    label: "AI: Inline Ask",      keybinding: "Ctrl+I" },
     Command { id: CMD_FORCE_GHOST_COMPLETION, label: "AI: Force Ghost Completion", keybinding: "Alt+\\" },
+    Command { id: CMD_GHOST_COMPLETION_DISMISS, label: "AI: Dismiss Ghost Completion", keybinding: "" },
     Command { id: CMD_AI_CLEAR_CHAT,    label: "AI: Clear Chat",      keybinding: "" },
     Command { id: CMD_AI_CLOSE,         label: "View: Close AI Copilot", keybinding: "" },
     Command { id: CMD_SIDEBAR_CLOSE,    label: "View: Close Sidebar", keybinding: "" },
@@ -1071,6 +1074,7 @@ impl PaletteEngine {
             CMD_VIEW_AI_COPILOT => (icons::AGENTS, "Open the AI copilot panel", false),
             CMD_INLINE_AI_ASK => (icons::AGENTS, "Ask AI about the active selection or file", false),
             CMD_FORCE_GHOST_COMPLETION => (icons::AGENTS, "Request an inline AI ghost completion now", false),
+            CMD_GHOST_COMPLETION_DISMISS => (icons::CLOSE, "Dismiss the visible inline AI ghost completion without accepting text", false),
             CMD_AI_CLEAR_CHAT => (icons::CLOSE, "Clear the AI transcript and draft composer", false),
             CMD_AI_CLOSE => (icons::CLOSE, "Close the AI copilot panel", false),
             CMD_SIDEBAR_CLOSE => (icons::CLOSE, "Close the left sidebar drawer", false),
