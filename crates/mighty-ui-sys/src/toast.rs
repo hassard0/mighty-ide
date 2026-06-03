@@ -1865,6 +1865,14 @@ mod tests {
         assert_eq!(q.toasts()[0].message, "Step Out is available when paused");
 
         q.push_at(
+            Kind::Info,
+            "Debug session stopped",
+            t0 + Duration::from_millis(550),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Debug session stopped");
+
+        q.push_at(
             Kind::Error,
             "Debug restart failed",
             t0 + Duration::from_millis(600),

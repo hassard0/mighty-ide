@@ -7370,3 +7370,13 @@ still hid the difference from Mighty call sites and source guards.
   `Web server stopped` / `No web server running` messages in the WebRun toast
   lane, and Mighty explicitly discards the returned state from header and
   palette command paths.
+
+L591. Debug stop should match the stateful stop-command contract too. A stopped
+or running debug session is an active target for Stop; an idle debugger is a
+no-op, and callers should be able to distinguish those outcomes.
+
+- **IDE note:** `mui_dbg_stop` now returns `1` when it stops a running or paused
+  debug session and `0` when no debug session is available. Active stop reports
+  `Debug session stopped`; idle stop continues to report
+  `No debug session to stop`. Both messages stay in the Debug toast lane, and
+  Mighty explicitly discards the returned state from Shift+F5 and palette paths.

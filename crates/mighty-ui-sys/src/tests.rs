@@ -5253,12 +5253,21 @@ fn direct_debug_actions_report_unavailable_state() {
     ctx.active_panel = crate::PANEL_EXPLORER;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
-    crate::dapabi::mui_dbg_stop(handle);
+    assert_eq!(crate::dapabi::mui_dbg_stop(handle), 0);
     assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
     assert!(ctx.sidebar_visible);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "No debug session to stop"
+    );
+
+    ctx.dbg.seed_demo("C:/workspace/src/main.mty");
+    assert_eq!(crate::dapabi::mui_dbg_state(handle), crate::dap::DebugState::Stopped.as_i32());
+    assert_eq!(crate::dapabi::mui_dbg_stop(handle), 1);
+    assert_eq!(crate::dapabi::mui_dbg_state(handle), crate::dap::DebugState::Idle.as_i32());
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Debug session stopped"
     );
 
     crate::dapabi::mui_dbg_pause(handle);
@@ -8320,6 +8329,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _rc = mui_run_close(h)")
             && main.contains("run_focus = false"),
         "Run close command must use the Run-specific close ABI and release Run focus"
+    );
+    assert!(
+        main.contains("id == cmd_debug_stop()")
+            && main.contains("let _ds = mui_dbg_stop(h)")
+            && main.contains("let _vp = mui_panel_set(h, panel_debug())"),
+        "Debug stop command must report stop state while revealing Run and Debug"
     );
     assert!(
         main.contains("id == cmd_debug_close()")

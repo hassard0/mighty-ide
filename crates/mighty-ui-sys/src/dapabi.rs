@@ -113,18 +113,23 @@ pub extern "C" fn mui_dbg_continue(handle: i64) -> i32 {
 
 /// Shift+F5 / Stop: disconnect the session.
 #[no_mangle]
-pub extern "C" fn mui_dbg_stop(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
-        open_debug_view(ctx);
-        if matches!(
-            ctx.dbg.state(),
-            crate::dap::DebugState::Running | crate::dap::DebugState::Stopped
-        ) {
-            ctx.dbg.stop();
-        } else {
-            ctx.push_toast(crate::toast::Kind::Info, "No debug session to stop");
-            crate::abi::trace("dbg_action stop_unavailable");
-        }
+pub extern "C" fn mui_dbg_stop(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    open_debug_view(ctx);
+    if matches!(
+        ctx.dbg.state(),
+        crate::dap::DebugState::Running | crate::dap::DebugState::Stopped
+    ) {
+        ctx.dbg.stop();
+        ctx.push_toast(crate::toast::Kind::Info, "Debug session stopped");
+        crate::abi::trace("dbg_action stop");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No debug session to stop");
+        crate::abi::trace("dbg_action stop_unavailable");
+        0
     }
 }
 
@@ -792,7 +797,7 @@ pub extern "C" fn mui_dbg_toolbar_action(handle: i64, code: i32) {
         }
         x if x == TB_STOP => {
             crate::abi::trace("dbg_toolbar action=stop");
-            mui_dbg_stop(handle);
+            let _ = mui_dbg_stop(handle);
         }
         _ => {}
     }

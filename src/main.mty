@@ -510,7 +510,7 @@ extern c {
   // ---- debugger (Run and Debug rail icon / DAP) ----
   fn mui_dbg_start(handle: I64) -> I32
   fn mui_dbg_continue(handle: I64) -> I32
-  fn mui_dbg_stop(handle: I64)
+  fn mui_dbg_stop(handle: I64) -> I32
   fn mui_dbg_pause(handle: I64)
   fn mui_dbg_restart(handle: I64) -> I32
   fn mui_dbg_step_over(handle: I64)
@@ -3042,7 +3042,7 @@ fn main() {
         } else if k == key_f5() {                            // F5 / Shift+F5 : start-continue / stop
           let kmods = mui_event_mods(h)
           if shift_held(kmods) {
-            mui_dbg_stop(h)
+            let _ds = mui_dbg_stop(h)
           } else {
             let _st = mui_dbg_start(h)
           }
@@ -4531,7 +4531,7 @@ fn main() {
           let _st = mui_dbg_start(h)
         } else if id == cmd_debug_stop() {
           let _vp = mui_panel_set(h, panel_debug())
-          mui_dbg_stop(h)
+          let _ds = mui_dbg_stop(h)
         } else if id == cmd_debug_step_over() {
           let _vp = mui_panel_set(h, panel_debug())
           mui_dbg_step_over(h)
