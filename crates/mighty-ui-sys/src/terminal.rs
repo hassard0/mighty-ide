@@ -28,20 +28,22 @@ use portable_pty::{Child, CommandBuilder, MasterPty, PtySize};
 
 /// One terminal cell: a Unicode scalar value and palette color indices.
 ///
-/// `fg`/`bg` are xterm palette indices 0..=255, or sentinels for "use the
-/// default". Keeping color as small indices (not RGBA) means the draw path
-/// resolves them to concrete colors, and the grid stays compact.
+/// `fg`/`bg` are color codes: xterm palette indices 0..=255, encoded RGB
+/// truecolor values, or sentinels for "use the default". Keeping colors encoded
+/// (not expanded RGBA) means the draw path resolves them to concrete colors,
+/// and the grid stays compact.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Cell {
     pub ch: char,
-    pub fg: u16,
-    pub bg: u16,
+    pub fg: u32,
+    pub bg: u32,
 }
 
 /// Sentinel `fg` meaning "default foreground" (SGR 0 / 39).
-pub const DEFAULT_FG: u16 = 0xffff;
+pub const DEFAULT_FG: u32 = 0xffff_ffff;
 /// Sentinel `bg` meaning "transparent/default background" (SGR 0 / 49).
-pub const DEFAULT_BG: u16 = 0xfffe;
+pub const DEFAULT_BG: u32 = 0xffff_fffe;
+const TRUECOLOR_MASK: u32 = 0x0100_0000;
 
 impl Default for Cell {
     fn default() -> Self {
@@ -74,9 +76,9 @@ pub struct Grid {
     cur_row: usize,
     cur_col: usize,
     /// Current SGR foreground applied to newly-written cells.
-    cur_fg: u16,
+    cur_fg: u32,
     /// Current SGR background applied to newly-written cells.
-    cur_bg: u16,
+    cur_bg: u32,
     primary_screen: Option<ScreenSnapshot>,
 }
 
@@ -648,8 +650,9 @@ impl VtParser {
 
     /// Apply an `ESC [ … m` SGR sequence: parse `;`-separated numeric params and
     /// update the grid's current colors. Handles reset (0), the basic/bright
-    /// ANSI colors, xterm 256-color `38;5;n` / `48;5;n`, and default fg/bg
-    /// (39/49). Unknown params are ignored.
+    /// ANSI colors, xterm 256-color `38;5;n` / `48;5;n`, truecolor
+    /// `38;2;r;g;b` / `48;2;r;g;b`, and default fg/bg (39/49). Unknown params
+    /// are ignored.
     fn apply_sgr(&mut self, grid: &mut Grid) {
         let params = std::str::from_utf8(&self.csi).unwrap_or("");
         // A bare `ESC [ m` means reset.
@@ -684,12 +687,12 @@ impl VtParser {
                     grid.cur_fg = DEFAULT_FG;
                     grid.cur_bg = DEFAULT_BG;
                 }
-                30..=37 => grid.cur_fg = (n - 30) as u16, // basic 0..=7
+                30..=37 => grid.cur_fg = (n - 30) as u32, // basic 0..=7
                 39 => grid.cur_fg = DEFAULT_FG,     // default fg
-                40..=47 => grid.cur_bg = (n - 40) as u16, // basic bg 0..=7
+                40..=47 => grid.cur_bg = (n - 40) as u32, // basic bg 0..=7
                 49 => grid.cur_bg = DEFAULT_BG,      // default bg
-                90..=97 => grid.cur_fg = (n - 90 + 8) as u16, // bright 8..=15
-                100..=107 => grid.cur_bg = (n - 100 + 8) as u16, // bright bg
+                90..=97 => grid.cur_fg = (n - 90 + 8) as u32, // bright 8..=15
+                100..=107 => grid.cur_bg = (n - 100 + 8) as u32, // bright bg
                 38 | 48 => {
                     let is_fg = n == 38;
                     match params.get(i + 1).and_then(|value| *value) {
@@ -698,16 +701,26 @@ impl VtParser {
                                 params.get(i + 2).and_then(|value| *value)
                             {
                                 if is_fg {
-                                    grid.cur_fg = idx as u16;
+                                    grid.cur_fg = idx as u32;
                                 } else {
-                                    grid.cur_bg = idx as u16;
+                                    grid.cur_bg = idx as u32;
                                 }
                             }
                             i += 2;
                         }
                         Some(2) => {
-                            // Truecolor needs an RGB cell model. Consume it so
-                            // its components do not become stray SGR params.
+                            if let (Some(r @ 0..=255), Some(g @ 0..=255), Some(b @ 0..=255)) = (
+                                params.get(i + 2).and_then(|value| *value),
+                                params.get(i + 3).and_then(|value| *value),
+                                params.get(i + 4).and_then(|value| *value),
+                            ) {
+                                let color = encode_truecolor(r as u8, g as u8, b as u8);
+                                if is_fg {
+                                    grid.cur_fg = color;
+                                } else {
+                                    grid.cur_bg = color;
+                                }
+                            }
                             i += 4;
                         }
                         _ => {}
@@ -984,10 +997,26 @@ impl VtParser {
     }
 }
 
-/// Resolve a palette `fg` index to RGBA (0.0..=1.0). [`DEFAULT_FG`] -> a light
-/// neutral. The first 16 entries are a readable ANSI-ish palette tuned for a
-/// dark background; 16..=255 follow the standard xterm 256-color palette.
-pub fn palette_rgba(fg: u16) -> (f32, f32, f32, f32) {
+fn encode_truecolor(r: u8, g: u8, b: u8) -> u32 {
+    TRUECOLOR_MASK | ((r as u32) << 16) | ((g as u32) << 8) | b as u32
+}
+
+/// Resolve a terminal color code to RGBA (0.0..=1.0). [`DEFAULT_FG`] -> a light
+/// neutral. The first 16 palette entries are a readable ANSI-ish palette tuned
+/// for a dark background; 16..=255 follow the standard xterm 256-color palette.
+/// Encoded RGB truecolor values resolve exactly.
+pub fn palette_rgba(fg: u32) -> (f32, f32, f32, f32) {
+    if fg == DEFAULT_FG {
+        return (0.82, 0.84, 0.88, 1.0);
+    }
+
+    if fg & TRUECOLOR_MASK != 0 {
+        let r = ((fg >> 16) & 0xff) as f32 / 255.0;
+        let g = ((fg >> 8) & 0xff) as f32 / 255.0;
+        let b = (fg & 0xff) as f32 / 255.0;
+        return (r, g, b, 1.0);
+    }
+
     let rgb = match fg {
         0 => (0.20, 0.20, 0.22),  // black (dim, visible on dark bg)
         1 => (0.80, 0.25, 0.25),  // red
@@ -1025,14 +1054,15 @@ pub fn palette_rgba(fg: u16) -> (f32, f32, f32, f32) {
             let level = (8 + (fg - 232) * 10) as f32 / 255.0;
             (level, level, level)
         }
-        _ => (0.82, 0.84, 0.88),  // DEFAULT_FG / unknown
+        _ => (0.82, 0.84, 0.88),  // unknown
     };
     (rgb.0, rgb.1, rgb.2, 1.0)
 }
 
-/// Resolve a palette background index to RGBA. [`DEFAULT_BG`] is transparent so
-/// the terminal panel background shows through when no SGR background is active.
-pub fn background_rgba(bg: u16) -> Option<(f32, f32, f32, f32)> {
+/// Resolve a terminal background color code to RGBA. [`DEFAULT_BG`] is
+/// transparent so the terminal panel background shows through when no SGR
+/// background is active.
+pub fn background_rgba(bg: u32) -> Option<(f32, f32, f32, f32)> {
     if bg == DEFAULT_BG {
         return None;
     }
@@ -1467,24 +1497,37 @@ mod tests {
     }
 
     #[test]
-    fn sgr_truecolor_is_consumed_without_side_effects() {
+    fn sgr_truecolor_foreground_and_background() {
         let g = grid_feed(
             1,
             8,
             b"\x1b[31mA\x1b[38;2;1;2;3mB\x1b[48;2;4;5;6mC",
         );
         assert_eq!(g.cell(0, 0).fg, 1);
-        assert_eq!(g.cell(0, 1).fg, 1);
+        assert_eq!(g.cell(0, 1).fg, encode_truecolor(1, 2, 3));
         assert_eq!(g.cell(0, 1).bg, DEFAULT_BG);
-        assert_eq!(g.cell(0, 2).fg, 1);
-        assert_eq!(g.cell(0, 2).bg, DEFAULT_BG);
+        assert_eq!(g.cell(0, 2).fg, encode_truecolor(1, 2, 3));
+        assert_eq!(g.cell(0, 2).bg, encode_truecolor(4, 5, 6));
     }
 
     #[test]
-    fn xterm_palette_resolves_cube_and_grayscale() {
+    fn invalid_truecolor_is_consumed_without_side_effects() {
+        let g = grid_feed(1, 8, b"\x1b[31mA\x1b[38;2;1;2;300mB");
+        assert_eq!(g.cell(0, 0).fg, 1);
+        assert_eq!(g.cell(0, 1).fg, 1);
+        assert_eq!(g.cell(0, 1).bg, DEFAULT_BG);
+    }
+
+    #[test]
+    fn terminal_colors_resolve_palette_cube_grayscale_and_truecolor() {
+        assert_eq!(palette_rgba(DEFAULT_FG), (0.82, 0.84, 0.88, 1.0));
         assert_eq!(palette_rgba(196), (1.0, 0.0, 0.0, 1.0));
         let gray = 238.0 / 255.0;
         assert_eq!(palette_rgba(255), (gray, gray, gray, 1.0));
+        assert_eq!(
+            palette_rgba(encode_truecolor(12, 34, 56)),
+            (12.0 / 255.0, 34.0 / 255.0, 56.0 / 255.0, 1.0)
+        );
     }
 
     #[test]

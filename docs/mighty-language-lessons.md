@@ -6424,3 +6424,15 @@ cell color index type large enough to keep defaults outside the real palette.
   palette resolves standard xterm cube and grayscale entries. Unsupported
   truecolor SGR forms are consumed as a unit so their RGB components cannot
   accidentally change subsequent terminal styling.
+
+L500. Terminal truecolor should be represented, not just consumed.
+Many modern prompts, diff tools, test runners, and TUIs emit `38;2;r;g;b` and
+`48;2;r;g;b` because their themes are not limited to the 256-color palette.
+Consuming those sequences avoids escape garbage, but it still drops visible
+semantic color information from the terminal output.
+
+- **IDE note:** Terminal foreground/background colors now use a compact color
+  code that can represent palette indices and exact RGB truecolor values. The
+  SGR parser applies valid truecolor foreground/background sequences, rejects
+  out-of-range RGB components without style side effects, and the draw resolver
+  maps encoded RGB values directly to RGBA.
