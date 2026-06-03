@@ -45,6 +45,13 @@ pub const DEFAULT_FG: u32 = 0xffff_ffff;
 pub const DEFAULT_BG: u32 = 0xffff_fffe;
 const TRUECOLOR_MASK: u32 = 0x0100_0000;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CursorShape {
+    Block,
+    Underline,
+    Bar,
+}
+
 impl Default for Cell {
     fn default() -> Self {
         Cell {
@@ -513,6 +520,8 @@ pub struct VtParser {
     bracketed_paste: bool,
     /// Whether the terminal cursor should be drawn (`CSI ?25 h/l`).
     cursor_visible: bool,
+    /// Shape requested by DECSCUSR (`CSI Ps SP q`).
+    cursor_shape: CursorShape,
     /// Whether the running app asked for mouse button/drag/all-motion reports.
     mouse_reporting: bool,
     /// Whether mouse reports should use SGR extended coordinates (`CSI ?1006 h`).
@@ -536,6 +545,7 @@ impl VtParser {
             saved_cursor: None,
             bracketed_paste: false,
             cursor_visible: true,
+            cursor_shape: CursorShape::Block,
             mouse_reporting: false,
             sgr_mouse: false,
         }
@@ -564,6 +574,10 @@ impl VtParser {
 
     pub fn cursor_visible(&self) -> bool {
         self.cursor_visible
+    }
+
+    pub fn cursor_shape(&self) -> CursorShape {
+        self.cursor_shape
     }
 
     fn feed_byte(&mut self, grid: &mut Grid, b: u8) {
@@ -700,6 +714,8 @@ impl VtParser {
                     self.set_mode(grid, b);
                 } else if b == b'r' {
                     self.set_scroll_region(grid);
+                } else if b == b'q' {
+                    self.set_cursor_shape();
                 } else if b == b'H' || b == b'f' {
                     self.cursor_position(grid);
                 } else if matches!(b, b'A' | b'B' | b'C' | b'D') {
@@ -922,8 +938,31 @@ impl VtParser {
         self.saved_cursor = None;
         self.bracketed_paste = false;
         self.cursor_visible = true;
+        self.cursor_shape = CursorShape::Block;
         self.mouse_reporting = false;
         self.sgr_mouse = false;
+    }
+
+    fn set_cursor_shape(&mut self) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        let Some(params) = params.strip_suffix(' ') else {
+            return;
+        };
+        if params.starts_with('?') {
+            return;
+        }
+        let shape = params
+            .split(';')
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<u32>().ok())
+            .unwrap_or(0);
+        self.cursor_shape = match shape {
+            0 | 1 | 2 => CursorShape::Block,
+            3 | 4 => CursorShape::Underline,
+            5 | 6 => CursorShape::Bar,
+            _ => self.cursor_shape,
+        };
     }
 
     fn erase_display(&mut self, grid: &mut Grid) {
@@ -1289,6 +1328,10 @@ impl Terminal {
 
     pub fn cursor_visible(&self) -> bool {
         self.parser.cursor_visible()
+    }
+
+    pub fn cursor_shape(&self) -> CursorShape {
+        self.parser.cursor_shape()
     }
 
     /// Drain any pending PTY output through the parser into the grid. Cheap when
@@ -1980,11 +2023,45 @@ mod tests {
     }
 
     #[test]
+    fn cursor_shape_tracks_decscusr() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+        assert_eq!(p.cursor_shape(), CursorShape::Block);
+
+        p.feed(&mut g, b"\x1b[4 q");
+        assert_eq!(p.cursor_shape(), CursorShape::Underline);
+        assert!(!g.contains("4 q"));
+
+        p.feed(&mut g, b"\x1b[6 q");
+        assert_eq!(p.cursor_shape(), CursorShape::Bar);
+        assert!(!g.contains("6 q"));
+
+        p.feed(&mut g, b"\x1b[2 q");
+        assert_eq!(p.cursor_shape(), CursorShape::Block);
+        assert!(!g.contains("2 q"));
+    }
+
+    #[test]
+    fn cursor_shape_ignores_non_decscusr_q_sequences() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b[6 q");
+        assert_eq!(p.cursor_shape(), CursorShape::Bar);
+
+        p.feed(&mut g, b"\x1b[4q");
+        assert_eq!(p.cursor_shape(), CursorShape::Bar);
+    }
+
+    #[test]
     fn esc_c_resets_terminal_modes() {
         let mut g = Grid::new(1, 8);
         let mut p = VtParser::new();
-        p.feed(&mut g, b"\x1b[?25l\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1bc");
+        p.feed(
+            &mut g,
+            b"\x1b[?25l\x1b[6 q\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1bc",
+        );
         assert!(p.cursor_visible());
+        assert_eq!(p.cursor_shape(), CursorShape::Block);
         assert!(!p.bracketed_paste_enabled());
         assert!(!p.sgr_mouse_enabled());
     }

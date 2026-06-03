@@ -7018,7 +7018,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
 
     // Snapshot the grid into owned data so the borrow on `ctx.terminal` ends
     // before we borrow `ctx.text`.
-    let (rows, cols, cursor, cursor_visible, backgrounds, glyphs) = {
+    let (rows, cols, cursor, cursor_visible, cursor_shape, backgrounds, glyphs) = {
         let Some(t) = ctx.terminal.as_ref() else {
             return;
         };
@@ -7064,7 +7064,15 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 }
             }
         }
-        (rows, cols, g.cursor(), t.cursor_visible(), bg_runs, runs)
+        (
+            rows,
+            cols,
+            g.cursor(),
+            t.cursor_visible(),
+            t.cursor_shape(),
+            bg_runs,
+            runs,
+        )
     };
 
     for (x, y, w, (r, gc, b, a)) in &backgrounds {
@@ -7080,14 +7088,27 @@ pub extern "C" fn mui_term_draw(handle: i64) {
     let (cr, cc) = cursor;
     if cursor_visible && cr < rows && cc <= cols {
         let cx = layout::term_cell_x(region, cc);
-        let cy = layout::term_cell_y(height, cr);
+        let mut cy = layout::term_cell_y(height, cr);
+        let mut cw = layout::CHAR_W();
+        let mut ch = layout::LINE_H() - 2.0;
+        match cursor_shape {
+            crate::terminal::CursorShape::Block => {}
+            crate::terminal::CursorShape::Underline => {
+                let h = 2.0;
+                cy += ch - h;
+                ch = h;
+            }
+            crate::terminal::CursorShape::Bar => {
+                cw = 2.0;
+            }
+        }
         unsafe {
             crate::mui_fill_rect(
                 handle_ptr,
                 cx,
                 cy,
-                layout::CHAR_W(),
-                layout::LINE_H() - 2.0,
+                cw,
+                ch,
                 MuiColor::new(0.486, 0.361, 1.0, 0.6),
             );
         }

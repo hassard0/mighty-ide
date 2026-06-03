@@ -6471,3 +6471,15 @@ apps that explicitly asked for a clean canvas.
   full terminal reset, and exposes it through the terminal snapshot used by the
   draw path. The renderer skips the terminal block cursor while `?25l` is active.
   Unit coverage pins hide/show mode toggling and `ESC c` mode restoration.
+
+L504. Terminal cursor shape is part of the app contract.
+Shells and editors use DECSCUSR (`CSI Ps SP q`) to request block, underline, or
+bar cursors that communicate insert/overwrite/focus state. Ignoring the shape
+while always drawing a block cursor makes modal and text-editing TUIs feel less
+precise than a real terminal.
+
+- **IDE note:** The VT parser now tracks DECSCUSR cursor shape, maps blinking
+  and steady variants onto block/underline/bar geometry, resets shape on full
+  terminal reset, and exposes it through the terminal draw snapshot. The renderer
+  draws the requested block, underline, or bar cursor, and unit tests pin valid
+  shape changes plus ignored non-DECSCUSR `q` sequences.
