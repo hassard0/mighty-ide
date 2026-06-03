@@ -848,8 +848,9 @@ fn click_routing_tab_bar_sidebar_and_text() {
     ctx.ai.input = "ship it".to_string();
     let ai_visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
     let ai_visible_h = layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height);
+    let ai_input = ctx.ai.input.clone();
     let (px, pw, input_y, input_h) =
-        crate::ai::input_geometry(&ctx.ai.input, ai_visible_w, ai_visible_h);
+        crate::ai::input_geometry(&mut ctx.text, &ai_input, ai_visible_w, ai_visible_h);
     ctx.last_event = MuiEvent::mouse(
         crate::ffi::MUI_EVENT_MOUSE_DOWN,
         0,
@@ -890,10 +891,11 @@ fn click_routing_tab_bar_sidebar_and_text() {
     ctx.ai.input = "send from scaled window".to_string();
     let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
     let visible_h = layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height);
+    let ai_input = ctx.ai.input.clone();
     let (visible_px, visible_pw, visible_input_y, visible_input_h) =
-        crate::ai::input_geometry(&ctx.ai.input, visible_w, visible_h);
+        crate::ai::input_geometry(&mut ctx.text, &ai_input, visible_w, visible_h);
     let (raw_px, _raw_pw, raw_input_y, _raw_input_h) =
-        crate::ai::input_geometry(&ctx.ai.input, ctx.gpu.width, ctx.gpu.height);
+        crate::ai::input_geometry(&mut ctx.text, &ai_input, ctx.gpu.width, ctx.gpu.height);
     assert!(
         raw_px > visible_px,
         "raw logical width would push the drawer off the captured surface"

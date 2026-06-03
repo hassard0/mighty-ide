@@ -6518,3 +6518,14 @@ now emits.
   range, and `ffi.rs` has a unit test that parses the header's unsigned
   `#define`s and compares them against the Rust constants. Future ABI additions
   now fail fast when the public header drifts.
+
+L508. Visual hit-test tests should use rendered geometry.
+When a component has moved from estimated text layout to measured text layout,
+test helpers that keep the old character-count math can still pass while the
+real renderer and click targets diverge on wide glyphs, DPI-scaled surfaces, or
+wrapped composer text.
+
+- **IDE note:** The AI composer hit-test and no-key/active geometry tests now
+  call the same measured input-geometry helper as the draw path. The old
+  character-estimated composer geometry helper was removed from the test surface,
+  so future AI panel regressions are checked against rendered text metrics.
