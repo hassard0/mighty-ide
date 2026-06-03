@@ -567,6 +567,7 @@ enum OperationKey {
     Diagnostic,
     CodeAction,
     Format,
+    Fold,
     Navigation,
     Markdown,
     Layout,
@@ -757,6 +758,12 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::CodeAction)
     } else if m == "Formatted document" || m == "Format failed" {
         Some(OperationKey::Format)
+    } else if m == "No foldable block at cursor"
+        || m == "No foldable blocks"
+        || m == "All foldable blocks already folded"
+        || m == "No folded blocks to unfold"
+    {
+        Some(OperationKey::Fold)
     } else if m == "No definition found"
         || m == "No definition target selected"
         || m.starts_with("Definition target missing")
@@ -1352,6 +1359,40 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Terminal failed to open");
         assert_eq!(q.toasts()[0].kind, Kind::Error);
+    }
+
+    #[test]
+    fn newer_fold_feedback_replaces_stale_fold_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "No foldable block at cursor", t0);
+        q.push_at(
+            Kind::Info,
+            "No foldable blocks",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No foldable blocks");
+
+        q.push_at(
+            Kind::Info,
+            "All foldable blocks already folded",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "All foldable blocks already folded"
+        );
+
+        q.push_at(
+            Kind::Info,
+            "No folded blocks to unfold",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No folded blocks to unfold");
     }
 
     #[test]

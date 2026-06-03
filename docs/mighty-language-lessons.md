@@ -5596,3 +5596,13 @@ feedback.
   `Blame on ... toggle to hide` now share the Git toast replacement key.
   Repeated blame toggles and follow-up git commands replace stale blame cards
   with the latest source-control outcome.
+
+L409. Code-folding no-ops should collapse as one editor workflow. Palette and
+keyboard fold commands can be repeated quickly while the cursor or document
+cannot produce a fold, so each new fold explanation should replace the previous
+one.
+
+- **IDE note:** `No foldable block at cursor`, `No foldable blocks`,
+  `All foldable blocks already folded`, and `No folded blocks to unfold` now
+  share a Fold toast replacement key. Repeated fold/unfold commands keep only
+  the latest folding outcome visible.
