@@ -4175,6 +4175,53 @@ fn debug_variable_equals_position_tracks_rendered_name_width() {
 }
 
 #[test]
+fn debug_variable_name_fits_measured_budget() {
+    let mut ctx = ctx_or_skip!();
+    let chrome = crate::theme::CHROME_FONT_SIZE;
+    let budget = 12.0 * (chrome * 0.55);
+    let shown = crate::dapabi::fit_debug_variable_name(
+        &mut ctx.text,
+        "long_variable_name_for_debugger",
+        budget,
+        chrome,
+    );
+    let shown_w = ctx.text.measure_ui_sized(&shown, chrome).0;
+
+    assert!(shown.ends_with('\u{2026}'));
+    assert!(shown_w <= budget + 0.5, "variable name should fit measured budget: {shown}");
+}
+
+#[test]
+fn debug_variable_value_reserves_measured_type_label() {
+    let mut ctx = ctx_or_skip!();
+    let chrome = crate::theme::CHROME_FONT_SIZE;
+    let sx = crate::layout::RAIL_W;
+    let sw = crate::layout::sidebar_w();
+    let adv = chrome * 0.55;
+    let name_x = sx + 16.0;
+    let name = crate::dapabi::fit_debug_variable_name(&mut ctx.text, "result_value", 12.0 * adv, chrome);
+    let eq_x = name_x + crate::dapabi::debug_ui_text_width(&mut ctx.text, &name, chrome) + adv;
+    let val_x = eq_x + 2.0 * adv;
+    let kind = "Array<String>";
+    let kind_w = crate::dapabi::debug_ui_text_width(&mut ctx.text, kind, chrome - 2.0);
+    let kind_x = sx + sw - kind_w - 12.0;
+    let value_budget = (kind_x - 8.0 - val_x).max(0.0);
+    let shown = crate::dapabi::fit_debug_variable_value(
+        &mut ctx.text,
+        "\"a very long debugger value that should stop before the type label\"",
+        value_budget,
+        chrome,
+    );
+    let shown_w = ctx.text.measure_ui_sized(&shown, chrome).0;
+
+    assert!(shown.ends_with('\u{2026}'));
+    assert!(
+        val_x + shown_w <= kind_x - 8.0 + 0.5,
+        "variable value should leave a measured gap before type metadata: {shown}"
+    );
+}
+
+#[test]
 fn quickopen_search_placeholder_fits_before_mode_pill() {
     let mut ctx = ctx_or_skip!();
     let placeholder = "Search files by name\u{2026}  (\u{203A} commands  @ symbols  : line)";

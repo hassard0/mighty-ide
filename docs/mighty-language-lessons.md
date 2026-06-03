@@ -6172,3 +6172,11 @@ counts, then applied measured fitting afterward.
 - **IDE note:** Agents sidebar summaries now choose the most informative form
   that fits the actual rendered UI-font width before final ellipsizing. Compact
   drawers keep readable counts without relying on proportional text estimates.
+
+L473. Debug variable values must reserve measured type metadata. Debug variable
+rows measured names before placing `=`, but long values still clipped by a
+character estimate and could run into right-aligned type labels.
+
+- **IDE note:** Debug variable rows now fit names and values with measured
+  UI-font budgets, and values reserve the rendered type-label width before
+  drawing. Long runtime values stop before type metadata instead of crowding it.
