@@ -653,10 +653,14 @@ fn floor_char_boundary(s: &str, i: usize) -> usize {
 // Code actions
 // ---------------------------------------------------------------------------
 
-/// One code action: a `title`, an optional inline `WorkspaceEdit`, and an
-/// optional command (`command` string + the synthetic "kind" for mty's own
-/// fixers). For our purposes the title is what the menu shows; applying either
-/// runs the edit or, for synthetic actions, triggers `mty fix`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommandAction {
+    pub command: String,
+    pub arguments_json: Option<String>,
+}
+
+/// One code action: a `title`, optional inline/command edits, optional command
+/// metadata, and the synthetic "kind" for mty's own fixers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodeAction {
     /// Menu title (e.g. `Replace with 'print'`, `Fix all (mty)`).
@@ -665,6 +669,9 @@ pub struct CodeAction {
     pub edit: Option<WorkspaceEdit>,
     /// A workspace edit embedded in a command action's arguments.
     pub command_edit: Option<WorkspaceEdit>,
+    /// A command to execute through `workspace/executeCommand` when no edit was
+    /// available inline.
+    pub command: Option<CommandAction>,
     /// `true` if this is the synthetic shim-provided "Fix all (mty)" action that
     /// runs `mty fix --apply` rather than applying an LSP edit.
     pub fix_all_mty: bool,
@@ -672,7 +679,7 @@ pub struct CodeAction {
 
 impl CodeAction {
     fn is_actionable(&self) -> bool {
-        self.edit.is_some() || self.command_edit.is_some() || self.fix_all_mty
+        self.edit.is_some() || self.command_edit.is_some() || self.command.is_some() || self.fix_all_mty
     }
 }
 
@@ -763,10 +770,15 @@ fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
     } else {
         None
     };
+    let command = parse_command_action(obj);
     let command_edit = parse_command_edit(obj);
     let fix_all_mty = read_json_field_string(obj, b"\"kind\"")
         .map(|kind| kind == "source.fixAll.mighty")
         .unwrap_or(false)
+        || command
+            .as_ref()
+            .map(|cmd| cmd.command.contains("fixAll") || cmd.command.contains("fix_all"))
+            .unwrap_or(false)
         || read_json_field_string(obj, b"\"command\"")
             .map(|cmd| cmd.contains("fixAll") || cmd.contains("fix_all"))
             .unwrap_or(false);
@@ -774,8 +786,48 @@ fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
         title,
         edit,
         command_edit,
+        command,
         fix_all_mty,
     })
+}
+
+fn parse_command_action(obj: &[u8]) -> Option<CommandAction> {
+    let cmd_at = find_sub(obj, b"\"command\"")?;
+    if let Some((command, past)) = read_json_string_at(obj, cmd_at + b"\"command\"".len()) {
+        return Some(CommandAction {
+            command,
+            arguments_json: read_arguments_json(&obj[past..]).or_else(|| read_arguments_json(obj)),
+        });
+    }
+
+    let mut i = cmd_at + b"\"command\"".len();
+    while i < obj.len() && matches!(obj[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
+        i += 1;
+    }
+    if i >= obj.len() || obj[i] != b'{' {
+        return None;
+    }
+    let end = match_brace(obj, i).min(obj.len());
+    let command_obj = &obj[i..end];
+    let inner_at = find_sub(command_obj, b"\"command\"")?;
+    let (command, past) = read_json_string_at(command_obj, inner_at + b"\"command\"".len())?;
+    Some(CommandAction {
+        command,
+        arguments_json: read_arguments_json(&command_obj[past..]).or_else(|| read_arguments_json(command_obj)),
+    })
+}
+
+fn read_arguments_json(obj: &[u8]) -> Option<String> {
+    let args_at = find_sub(obj, b"\"arguments\"")?;
+    let mut i = args_at + b"\"arguments\"".len();
+    while i < obj.len() && matches!(obj[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
+        i += 1;
+    }
+    if i >= obj.len() || obj[i] != b'[' {
+        return None;
+    }
+    let end = match_bracket(obj, i).min(obj.len());
+    std::str::from_utf8(&obj[i..end]).ok().map(|s| s.to_string())
 }
 
 fn parse_command_edit(obj: &[u8]) -> Option<WorkspaceEdit> {
@@ -1731,6 +1783,7 @@ mod tests {
         assert_eq!(actions[0].title, "Run fixer");
         assert!(actions[0].edit.is_none());
         assert!(actions[0].command_edit.is_none());
+        assert_eq!(actions[0].command.as_ref().map(|c| c.command.as_str()), Some("mighty.fixAll"));
         assert!(actions[0].fix_all_mty);
     }
 
@@ -1744,6 +1797,25 @@ mod tests {
         let e = actions[0].command_edit.as_ref().expect("command edit");
         assert_eq!(e.total_edits(), 1);
         assert_eq!(e.files[0].1[0].new_text, "println!");
+        let command = actions[0].command.as_ref().expect("command");
+        assert_eq!(command.command, "rust-analyzer.applySourceChange");
+        assert!(command.arguments_json.as_ref().unwrap().contains("workspaceEdit"));
+    }
+
+    #[test]
+    fn parse_code_actions_nested_command_object() {
+        let json = r#"{"result":[{"title":"Apply import","command":{"title":"Apply import","command":"typescript.applyCodeActionCommand","arguments":[{"file":"a.ts","fixId":"fixMissingImport"}]}}],"id":5}"#;
+        let actions = parse_code_actions(json);
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].title, "Apply import");
+        let command = actions[0].command.as_ref().expect("command");
+        assert_eq!(command.command, "typescript.applyCodeActionCommand");
+        assert_eq!(
+            command.arguments_json.as_deref(),
+            Some(r#"[{"file":"a.ts","fixId":"fixMissingImport"}]"#)
+        );
+        assert!(actions[0].edit.is_none());
+        assert!(actions[0].command_edit.is_none());
     }
 
     // ---- state types ----
@@ -1790,25 +1862,37 @@ mod tests {
         assert_eq!(c.set(vec![]), 0);
         assert!(!c.is_active());
         assert_eq!(
-            c.set(vec![CodeAction { title: "Inert command".into(), edit: None, command_edit: None, fix_all_mty: false }]),
+            c.set(vec![CodeAction { title: "Inert command".into(), edit: None, command_edit: None, command: None, fix_all_mty: false }]),
             0,
             "non-actionable code actions are hidden instead of becoming inert menu rows"
         );
         let actions = vec![
-            CodeAction { title: "A".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, fix_all_mty: false },
-            CodeAction { title: "B".into(), edit: None, command_edit: None, fix_all_mty: true },
+            CodeAction { title: "A".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, fix_all_mty: false },
+            CodeAction {
+                title: "C".into(),
+                edit: None,
+                command_edit: None,
+                command: Some(CommandAction {
+                    command: "server.command".into(),
+                    arguments_json: None,
+                }),
+                fix_all_mty: false,
+            },
+            CodeAction { title: "B".into(), edit: None, command_edit: None, command: None, fix_all_mty: true },
         ];
-        assert_eq!(c.set(actions), 2);
+        assert_eq!(c.set(actions), 3);
         assert!(c.is_active());
         assert_eq!(c.selection(), 0);
         assert_eq!(c.selected().unwrap().title, "A");
+        c.move_sel(1);
+        assert_eq!(c.selected().unwrap().title, "C");
         c.move_sel(1);
         assert_eq!(c.selected().unwrap().title, "B");
         assert!(c.selected().unwrap().fix_all_mty);
         c.move_sel(1); // wrap
         assert_eq!(c.selection(), 0);
         c.move_sel(-1); // wrap to last
-        assert_eq!(c.selection(), 1);
+        assert_eq!(c.selection(), 2);
         assert!(c.select(0));
         assert_eq!(c.title(0), Some("A"));
         c.cancel();
@@ -1819,8 +1903,8 @@ mod tests {
     fn code_action_click_row_selects_action() {
         let mut c = CodeActionState::new();
         let actions = vec![
-            CodeAction { title: "Replace typo".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, fix_all_mty: false },
-            CodeAction { title: "Fix all".into(), edit: None, command_edit: None, fix_all_mty: true },
+            CodeAction { title: "Replace typo".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, fix_all_mty: false },
+            CodeAction { title: "Fix all".into(), edit: None, command_edit: None, command: None, fix_all_mty: true },
         ];
         assert_eq!(c.set(actions), 2);
         let (box_x, box_y, _box_w, _box_h, pad, row_h) = c.geometry(300.0, 120.0, 900, 700);
@@ -1862,9 +1946,10 @@ mod tests {
                 title: "Replace extremely long unresolved symbol with imported candidate".into(),
                 edit: Some(WorkspaceEdit::default()),
                 command_edit: None,
+                command: None,
                 fix_all_mty: false,
             },
-            CodeAction { title: "Fix all".into(), edit: None, command_edit: None, fix_all_mty: true },
+            CodeAction { title: "Fix all".into(), edit: None, command_edit: None, command: None, fix_all_mty: true },
         ];
         assert_eq!(c.set(actions), 2);
         let min_x = 220.0;

@@ -234,6 +234,34 @@ fn lsp_rename_raw(
     )
 }
 
+fn lsp_execute_command_raw(
+    lang: Language,
+    path: &std::path::Path,
+    source: &str,
+    command: &crate::language::CommandAction,
+) -> String {
+    if lang == Language::Mighty {
+        return String::new();
+    }
+    let Some(spec) = crate::lspregistry::server_for(lang) else {
+        return String::new();
+    };
+    let root = workspace_root(path);
+    crate::lspclient::request(
+        &spec,
+        lang.lsp_id(),
+        &root,
+        path,
+        source,
+        crate::lspclient::Method::ExecuteCommand {
+            command: command.command.clone(),
+            arguments_json: command.arguments_json.clone(),
+        },
+        0,
+        0,
+    )
+}
+
 /// Resolve the file to edit: `argv[1]` if given, else a virtual scratch tab.
 /// The scratch tab is not file-backed, so startup does not create `scratch.mty`
 /// in the workspace or make a clean Git repo dirty.
@@ -656,18 +684,21 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
                     title: "Replace 'prnt' with 'print'".to_string(),
                     edit: None,
                     command_edit: None,
+                    command: None,
                     fix_all_mty: false,
                 },
                 crate::language::CodeAction {
                     title: "Import 'print' from std".to_string(),
                     edit: None,
                     command_edit: None,
+                    command: None,
                     fix_all_mty: false,
                 },
                 crate::language::CodeAction {
                     title: "Fix all (mty)".to_string(),
                     edit: None,
                     command_edit: None,
+                    command: None,
                     fix_all_mty: true,
                 },
             ];
@@ -8802,6 +8833,7 @@ pub(crate) fn compute_line_actions(
             title: "Fix all (mty)".to_string(),
             edit: None,
             command_edit: None,
+            command: None,
             fix_all_mty: true,
         });
     }
@@ -8942,6 +8974,22 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         let changed = apply_workspace_edit(ctx, &we, "");
         println!("codeaction: apply command-edit files={changed}");
         return i32::from(changed > 0);
+    }
+    if let Some(command) = &action.command {
+        let Some(path) = ctx.file_path.clone() else {
+            println!("codeaction: execute command={} no active path", command.command);
+            return 0;
+        };
+        let (source, _, _) = active_source_and_cursor(ctx);
+        let raw = lsp_execute_command_raw(ctx.language, &path, &source, command);
+        let we = crate::language::parse_workspace_edit(&raw);
+        if !we.is_empty() {
+            let changed = apply_workspace_edit(ctx, &we, "");
+            println!("codeaction: execute command={} files={changed}", command.command);
+            return i32::from(changed > 0);
+        }
+        println!("codeaction: execute command={} no-edit", command.command);
+        return 0;
     }
     println!("codeaction: apply (command/no-edit) — no-op");
     0

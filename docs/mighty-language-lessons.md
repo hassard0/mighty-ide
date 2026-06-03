@@ -4937,8 +4937,8 @@ Mighty-only `mty lsp` code-action request path.
   remains limited to Mighty files.
 - **Language note:** no compiler bug surfaced. Mighty can now apply command-form
   actions that carry a `WorkspaceEdit` in their arguments, but should eventually
-  support the full LSP code-action lifecycle, including long-lived
-  `workspace/executeCommand` and server-initiated `workspace/applyEdit`.
+  support the full LSP code-action lifecycle, especially server-initiated
+  `workspace/applyEdit` on a long-lived connection.
 
 L345. Generic LSP parity also needs mutating navigation features, not only
 read-only requests. Signature help and rename were still routed through the
@@ -4966,3 +4966,18 @@ asked rust-analyzer/pyright/gopls/etc. for their real symbol tree.
   generic LSP client using `textDocument/documentSymbol`. Missing servers, empty
   results, or mty-lsp's `-32601` still fall back to the shim scanner, so the
   panel remains nonblocking and useful even without an installed server.
+
+L347. Command-only code actions should not become inert menu rows. Some servers
+return quick fixes as plain `Command` objects, or as CodeActions whose `command`
+field must be executed before the edit is known. The menu previously filtered
+those out unless the command arguments happened to embed a `WorkspaceEdit`.
+
+- **IDE note:** parsed code actions now preserve command name + raw
+  `arguments`, including nested CodeAction `command:{...}` objects. Command-only
+  actions stay visible, and applying one on a non-Mighty file runs a scoped
+  `workspace/executeCommand` through the generic LSP client, then applies any
+  returned `WorkspaceEdit` through the same existing edit pipeline. This closes
+  the common returned-edit command path while keeping failures nonblocking.
+- **Remaining LSP gap:** servers that require a long-lived connection and send
+  `workspace/applyEdit` as a server-initiated request during command execution
+  still need a persistent LSP session with request/response handling.

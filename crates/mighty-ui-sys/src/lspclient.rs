@@ -31,7 +31,7 @@ use std::time::Duration;
 use crate::diagnostics::{Diag, Severity};
 use crate::lspregistry::ServerSpec;
 
-/// Which `textDocument/*` request to fire.
+/// Which single LSP request to fire after initialize + didOpen.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Method {
     Completion,
@@ -42,6 +42,10 @@ pub enum Method {
     Rename { new_name: String },
     CodeAction { end_line: u32, end_col: u32 },
     DocumentSymbol,
+    ExecuteCommand {
+        command: String,
+        arguments_json: Option<String>,
+    },
 }
 
 impl Method {
@@ -55,6 +59,7 @@ impl Method {
             Method::Rename { .. } => "textDocument/rename",
             Method::CodeAction { .. } => "textDocument/codeAction",
             Method::DocumentSymbol => "textDocument/documentSymbol",
+            Method::ExecuteCommand { .. } => "workspace/executeCommand",
         }
     }
 
@@ -76,6 +81,13 @@ impl Method {
                 r#"{{"textDocument":{{"uri":"{u}"}},"range":{{"start":{{"line":{line},"character":{col}}},"end":{{"line":{end_line},"character":{end_col}}}}},"context":{{"diagnostics":[]}}}}"#
             ),
             Method::DocumentSymbol => format!(r#"{{"textDocument":{{"uri":"{u}"}}}}"#),
+            Method::ExecuteCommand {
+                command,
+                arguments_json,
+            } => {
+                let args = arguments_json.as_deref().unwrap_or("[]");
+                format!(r#"{{"command":"{}","arguments":{args}}}"#, json_escape(command))
+            }
         }
     }
 }
@@ -144,7 +156,7 @@ fn initialize_msg(root: &Path) -> String {
     let root_uri = file_uri(root);
     let pid = std::process::id();
     format!(
-        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"processId":{pid},"rootUri":"{}","capabilities":{{"textDocument":{{"completion":{{"completionItem":{{"snippetSupport":false}}}},"hover":{{}},"definition":{{}},"signatureHelp":{{}},"rename":{{}},"codeAction":{{}},"documentSymbol":{{}},"publishDiagnostics":{{}}}}}},"workspaceFolders":null}}}}"#,
+        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"processId":{pid},"rootUri":"{}","capabilities":{{"workspace":{{"applyEdit":true}},"textDocument":{{"completion":{{"completionItem":{{"snippetSupport":false}}}},"hover":{{}},"definition":{{}},"signatureHelp":{{}},"rename":{{}},"codeAction":{{}},"documentSymbol":{{}},"publishDiagnostics":{{}}}}}},"workspaceFolders":null}}}}"#,
         json_escape(&root_uri)
     )
 }
@@ -711,6 +723,22 @@ mod tests {
         assert!(msg.contains(r#""method":"textDocument/documentSymbol""#));
         assert!(msg.contains(r#""params":{"textDocument":{"uri":"file:///repo/src/main.rs"}}"#));
         assert!(!msg.contains(r#""position""#));
+    }
+
+    #[test]
+    fn execute_command_request_uses_command_params() {
+        let msg = request_msg(
+            &Method::ExecuteCommand {
+                command: "rust-analyzer.applySourceChange".to_string(),
+                arguments_json: Some(r#"[{"id":1}]"#.to_string()),
+            },
+            "file:///repo/src/main.rs",
+            0,
+            0,
+        );
+        assert!(msg.contains(r#""method":"workspace/executeCommand""#));
+        assert!(msg.contains(r#""params":{"command":"rust-analyzer.applySourceChange","arguments":[{"id":1}]}"#));
+        assert!(!msg.contains(r#""textDocument""#));
     }
 
     /// Guarded integration test: if a real `rust-analyzer` is on PATH, spawn it
