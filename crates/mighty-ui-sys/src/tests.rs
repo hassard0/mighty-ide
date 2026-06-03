@@ -3548,6 +3548,46 @@ fn debug_restart_without_target_reports_visible_feedback() {
 }
 
 #[test]
+fn direct_debug_actions_report_unavailable_state() {
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::dapabi::mui_dbg_stop(handle);
+    assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No debug session to stop"
+    );
+
+    crate::dapabi::mui_dbg_pause(handle);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Pause is available while running"
+    );
+
+    crate::dapabi::mui_dbg_step_over(handle);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Step Over is available when paused"
+    );
+
+    crate::dapabi::mui_dbg_step_into(handle);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Step Into is available when paused"
+    );
+
+    crate::dapabi::mui_dbg_step_out(handle);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Step Out is available when paused"
+    );
+}
+
+#[test]
 fn debug_stack_name_fits_before_location() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();

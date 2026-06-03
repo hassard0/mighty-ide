@@ -5209,3 +5209,13 @@ debug console, so palette or shortcut users saw no immediate explanation.
   restarts of an existing target surface `Debug restart failed`. Debug start
   failures also now toast the active file name. Tests cover the no-target
   restart panel transition and toast.
+
+L370. Toolbar-only feedback is not enough when palette commands call different
+ABI entry points. Debug Step/Stop toolbar buttons explained idle-state no-ops,
+but palette and shortcut dispatch called `mui_dbg_step_*`, `mui_dbg_pause`, and
+`mui_dbg_stop` directly, where the same idle commands returned silently.
+
+- **IDE note:** direct debug Stop, Pause, Step Over, Step Into, and Step Out now
+  open the Run and Debug view and show the same unavailable-state messages as
+  the toolbar route. Tests cover the idle direct-command path and the broader
+  debug command feedback filter.

@@ -103,7 +103,16 @@ pub extern "C" fn mui_dbg_continue(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_dbg_stop(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        ctx.dbg.stop();
+        if matches!(
+            ctx.dbg.state(),
+            crate::dap::DebugState::Running | crate::dap::DebugState::Stopped
+        ) {
+            ctx.dbg.stop();
+        } else {
+            open_debug_view(ctx);
+            ctx.push_toast(crate::toast::Kind::Info, "No debug session to stop");
+            crate::abi::trace("dbg_action stop_unavailable");
+        }
     }
 }
 
@@ -111,7 +120,13 @@ pub extern "C" fn mui_dbg_stop(handle: i64) {
 #[no_mangle]
 pub extern "C" fn mui_dbg_pause(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        ctx.dbg.pause();
+        if ctx.dbg.state() == crate::dap::DebugState::Running {
+            ctx.dbg.pause();
+        } else {
+            open_debug_view(ctx);
+            ctx.push_toast(crate::toast::Kind::Info, "Pause is available while running");
+            crate::abi::trace("dbg_action pause_unavailable");
+        }
     }
 }
 
@@ -142,7 +157,13 @@ pub extern "C" fn mui_dbg_restart(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_dbg_step_over(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        ctx.dbg.step_over();
+        if ctx.dbg.state() == crate::dap::DebugState::Stopped {
+            ctx.dbg.step_over();
+        } else {
+            open_debug_view(ctx);
+            ctx.push_toast(crate::toast::Kind::Info, "Step Over is available when paused");
+            crate::abi::trace("dbg_action step_over_unavailable");
+        }
     }
 }
 
@@ -150,7 +171,13 @@ pub extern "C" fn mui_dbg_step_over(handle: i64) {
 #[no_mangle]
 pub extern "C" fn mui_dbg_step_into(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        ctx.dbg.step_into();
+        if ctx.dbg.state() == crate::dap::DebugState::Stopped {
+            ctx.dbg.step_into();
+        } else {
+            open_debug_view(ctx);
+            ctx.push_toast(crate::toast::Kind::Info, "Step Into is available when paused");
+            crate::abi::trace("dbg_action step_into_unavailable");
+        }
     }
 }
 
@@ -158,8 +185,20 @@ pub extern "C" fn mui_dbg_step_into(handle: i64) {
 #[no_mangle]
 pub extern "C" fn mui_dbg_step_out(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        ctx.dbg.step_out();
+        if ctx.dbg.state() == crate::dap::DebugState::Stopped {
+            ctx.dbg.step_out();
+        } else {
+            open_debug_view(ctx);
+            ctx.push_toast(crate::toast::Kind::Info, "Step Out is available when paused");
+            crate::abi::trace("dbg_action step_out_unavailable");
+        }
     }
+}
+
+fn open_debug_view(ctx: &mut MuiContext) {
+    ctx.dbg.set_open(true);
+    ctx.active_panel = crate::PANEL_DEBUG;
+    ctx.sidebar_visible = true;
 }
 
 // ===========================================================================
