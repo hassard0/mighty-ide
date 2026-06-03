@@ -325,6 +325,54 @@ impl TextModel {
         true
     }
 
+    /// Text copied when there is no selection: the current line plus its
+    /// following newline when one exists.
+    pub fn current_line_text_for_clipboard(&self) -> String {
+        let li = self.carets[0].line.min(self.lines.len().saturating_sub(1));
+        let mut text = self.lines[li].clone();
+        if self.lines.len() > 1 && li + 1 < self.lines.len() {
+            text.push('\n');
+        }
+        text
+    }
+
+    /// Delete the current line as a line operation. Used by Cut with no
+    /// selection; always leaves at least one line and collapses to column 0.
+    pub fn delete_current_line(&mut self) -> bool {
+        let li = self.carets[0].line.min(self.lines.len().saturating_sub(1));
+        if self.lines.len() == 1 {
+            if self.lines[0].is_empty() {
+                self.carets.clear();
+                self.carets.push(Caret::at(0, 0));
+                return false;
+            }
+            self.dirty = true;
+            self.lines[0].clear();
+            self.carets.clear();
+            self.carets.push(Caret::at(0, 0));
+            return true;
+        }
+        self.dirty = true;
+        self.lines.remove(li);
+        let next_line = li.min(self.lines.len().saturating_sub(1));
+        self.carets.clear();
+        self.carets.push(Caret::at(next_line, 0));
+        true
+    }
+
+    /// Insert text at the primary caret, replacing the active selection first.
+    /// Returns true when the model changed.
+    pub fn insert_text(&mut self, text: &str) -> bool {
+        if text.is_empty() {
+            return false;
+        }
+        let changed = self.delete_selection();
+        for ch in text.chars() {
+            self.insert_char(ch);
+        }
+        changed || !text.is_empty()
+    }
+
     // ---- internal helpers ----
 
     /// Clamp the cursor column to the current line's length.
@@ -1732,6 +1780,54 @@ mod tests {
         assert_eq!(m2.line_count(), 1);
         assert_eq!(m2.line(0), "acc");
         assert_eq!((m2.cursor_line(), m2.cursor_col()), (0, 1));
+    }
+
+    #[test]
+    fn clipboard_line_text_includes_newline_when_not_last_line() {
+        let mut m = doc("alpha\nbeta");
+
+        m.move_to(0, 2);
+        assert_eq!(m.current_line_text_for_clipboard(), "alpha\n");
+
+        m.move_to(1, 2);
+        assert_eq!(m.current_line_text_for_clipboard(), "beta");
+    }
+
+    #[test]
+    fn delete_current_line_removes_whole_line_and_preserves_document() {
+        let mut m = doc("alpha\nbeta\ngamma");
+        m.move_to(1, 3);
+        m.mark_clean();
+
+        assert!(m.delete_current_line());
+
+        assert_eq!(m.as_text(), "alpha\ngamma");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (1, 0));
+        assert!(m.dirty());
+    }
+
+    #[test]
+    fn delete_current_line_on_only_empty_line_is_clean_noop() {
+        let mut m = TextModel::new();
+
+        assert!(!m.delete_current_line());
+
+        assert_eq!(m.as_text(), "");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 0));
+        assert!(!m.dirty());
+    }
+
+    #[test]
+    fn insert_text_replaces_selection_and_handles_newlines() {
+        let mut m = doc("hello world");
+        m.set_selection((0, 6), (0, 11));
+        m.mark_clean();
+
+        assert!(m.insert_text("Mighty\nIDE"));
+
+        assert_eq!(m.as_text(), "hello Mighty\nIDE");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (1, 3));
+        assert!(m.dirty());
     }
 
     #[test]

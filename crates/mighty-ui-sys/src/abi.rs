@@ -5972,6 +5972,36 @@ pub(crate) fn platform_clipboard_command() -> Option<(String, Vec<String>)> {
     }
 }
 
+pub(crate) fn platform_clipboard_read_command() -> Option<(String, Vec<String>)> {
+    #[cfg(target_os = "windows")]
+    {
+        Some((
+            "powershell".to_string(),
+            vec![
+                "-NoProfile".to_string(),
+                "-Command".to_string(),
+                "Get-Clipboard -Raw".to_string(),
+            ],
+        ))
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Some(("pbpaste".to_string(), Vec::new()))
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        if std::process::Command::new("wl-paste").arg("--version").output().is_ok() {
+            Some(("wl-paste".to_string(), vec!["--no-newline".to_string()]))
+        } else {
+            Some(("xclip".to_string(), vec!["-selection".to_string(), "clipboard".to_string(), "-o".to_string()]))
+        }
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos", unix)))]
+    {
+        None
+    }
+}
+
 fn write_clipboard_text(text: &str) -> std::io::Result<()> {
     use std::io::Write;
 
@@ -5995,6 +6025,21 @@ fn write_clipboard_text(text: &str) -> std::io::Result<()> {
         Ok(())
     } else {
         Err(std::io::Error::new(std::io::ErrorKind::Other, "clipboard command failed"))
+    }
+}
+
+fn read_clipboard_text() -> std::io::Result<String> {
+    let Some((program, args)) = platform_clipboard_read_command() else {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "clipboard command unavailable",
+        ));
+    };
+    let output = std::process::Command::new(program).args(args).output()?;
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    } else {
+        Err(std::io::Error::new(std::io::ErrorKind::Other, "clipboard read failed"))
     }
 }
 
@@ -12655,6 +12700,113 @@ pub extern "C" fn mui_ed_select_line(handle: i64) {
 pub extern "C" fn mui_ed_select_all(handle: i64) {
     if let Some(m) = unsafe { model_mut(handle) } {
         m.select_all();
+    }
+}
+
+/// Copy the active selection, or the current line when there is no selection.
+#[no_mangle]
+pub extern "C" fn mui_ed_copy(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let (text, is_selection) = {
+        let model = ctx.tabs.active_model();
+        let selected = model.selected_text();
+        if selected.is_empty() {
+            (model.current_line_text_for_clipboard(), false)
+        } else {
+            (selected, true)
+        }
+    };
+    if text.is_empty() {
+        ctx.push_toast(crate::toast::Kind::Info, "No text to copy");
+        return 0;
+    }
+    match write_clipboard_text(&text) {
+        Ok(()) => {
+            ctx.push_toast(
+                crate::toast::Kind::Success,
+                if is_selection { "Copied selection" } else { "Copied line" },
+            );
+            1
+        }
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, "Could not copy text");
+            println!("editor-copy: failed: {e}");
+            0
+        }
+    }
+}
+
+/// Cut the active selection, or the current line when there is no selection.
+#[no_mangle]
+pub extern "C" fn mui_ed_cut(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let (text, is_selection) = {
+        let model = ctx.tabs.active_model();
+        let selected = model.selected_text();
+        if selected.is_empty() {
+            (model.current_line_text_for_clipboard(), false)
+        } else {
+            (selected, true)
+        }
+    };
+    if text.is_empty() {
+        ctx.push_toast(crate::toast::Kind::Info, "Nothing to cut");
+        return 0;
+    }
+    match write_clipboard_text(&text) {
+        Ok(()) => {
+            let changed = if is_selection {
+                ctx.tabs.active_model_mut().delete_selection()
+            } else {
+                ctx.tabs.active_model_mut().delete_current_line()
+            };
+            if changed {
+                ctx.push_toast(
+                    crate::toast::Kind::Success,
+                    if is_selection { "Cut selection" } else { "Cut line" },
+                );
+                1
+            } else {
+                ctx.push_toast(crate::toast::Kind::Info, "Nothing to cut");
+                0
+            }
+        }
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, "Could not cut text");
+            println!("editor-cut: failed: {e}");
+            0
+        }
+    }
+}
+
+/// Paste operating-system clipboard text at the primary caret.
+#[no_mangle]
+pub extern "C" fn mui_ed_paste(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let text = match read_clipboard_text() {
+        Ok(text) => text,
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, "Clipboard paste failed");
+            println!("editor-paste: failed to read clipboard: {e}");
+            return 0;
+        }
+    };
+    if text.is_empty() {
+        ctx.push_toast(crate::toast::Kind::Info, "Clipboard is empty");
+        return 0;
+    }
+    if ctx.tabs.active_model_mut().insert_text(&text) {
+        ctx.push_toast(crate::toast::Kind::Success, "Pasted clipboard");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Clipboard is empty");
+        0
     }
 }
 

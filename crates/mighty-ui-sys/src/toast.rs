@@ -746,6 +746,15 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No active file path to copy"
         || m == "No active file name to copy"
         || m == "No active file directory to copy"
+        || m == "No text to copy"
+        || m == "Nothing to cut"
+        || m == "Could not copy text"
+        || m == "Could not cut text"
+        || m == "Cut selection"
+        || m == "Cut line"
+        || m == "Clipboard paste failed"
+        || m == "Clipboard is empty"
+        || m == "Pasted clipboard"
         || m.starts_with("Could not copy")
     {
         Some(OperationKey::Copy)
@@ -1239,6 +1248,26 @@ mod tests {
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Markdown preview closed");
         assert!(!q.toasts().iter().any(|t| t.message == "Markdown preview opened"));
+    }
+
+    #[test]
+    fn newer_clipboard_feedback_replaces_stale_copy_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Success, "Copied selection", t0);
+        q.push_at(Kind::Success, "Cut line", t0 + Duration::from_millis(100));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Cut line");
+
+        q.push_at(Kind::Info, "Clipboard is empty", t0 + Duration::from_millis(200));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Clipboard is empty");
+
+        q.push_at(Kind::Success, "Pasted clipboard", t0 + Duration::from_millis(300));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Pasted clipboard");
+        assert_eq!(q.toasts()[0].kind, Kind::Success);
     }
 
     #[test]

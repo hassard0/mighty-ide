@@ -5746,3 +5746,11 @@ normal editing chord and document it beside the other motion commands.
 - **IDE note:** `mui_ed_select_line` now exposes the shim model's current-line
   selection, Mighty routes `Ctrl+L` to it, and the shortcut docs list Select
   Current Line. The operation is pure selection motion and does not dirty tabs.
+
+L425. Clipboard editing has to be first-class, not only file-path copying.
+Selection-aware copy/cut/paste is table-stakes editor muscle memory; no-selection
+copy/cut should operate on the current line so keyboard editing stays fast.
+
+- **IDE note:** `Ctrl+C`, `Ctrl+X`, and `Ctrl+V` now route to editor clipboard
+  ABIs. Copy/cut use the active selection or current line, paste replaces the
+  selection, and clipboard feedback shares the Copy toast lane.
