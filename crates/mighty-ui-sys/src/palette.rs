@@ -236,6 +236,8 @@ pub const CMD_SIDEBAR_CYCLE_WIDTH: u32 = 102;
 pub const CMD_DELETE_LINE: u32 = 103;
 /// Join the current editor line with the next line.
 pub const CMD_JOIN_LINE: u32 = 104;
+/// Select the word at the current editor cursor.
+pub const CMD_SELECT_WORD: u32 = 105;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -287,6 +289,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_CLOSE_DUPLICATE_TABS, label: "File: Close Duplicate Tabs", keybinding: "" },
     Command { id: CMD_RELOAD_ACTIVE_FILE, label: "File: Reload Active File from Disk", keybinding: "" },
     Command { id: CMD_REVERT_ACTIVE_FILE, label: "File: Revert Active File from Disk", keybinding: "" },
+    Command { id: CMD_SELECT_WORD,      label: "Edit: Select Word", keybinding: "Ctrl+D (first press)" },
     Command { id: CMD_DELETE_LINE,      label: "Edit: Delete Line", keybinding: "Ctrl+Shift+K" },
     Command { id: CMD_JOIN_LINE,        label: "Edit: Join Line",   keybinding: "Ctrl+J" },
     Command { id: CMD_FORMAT_DOCUMENT,  label: "Format Document",    keybinding: "Ctrl+Shift+I" },
@@ -677,6 +680,7 @@ impl PaletteEngine {
             CMD_CLOSE_DUPLICATE_TABS => (icons::CLOSE, "Close clean duplicate file tabs", false),
             CMD_RELOAD_ACTIVE_FILE => (icons::REFRESH, "Reload the active file from disk", false),
             CMD_REVERT_ACTIVE_FILE => (icons::REFRESH, "Discard local edits and reload from disk", false),
+            CMD_SELECT_WORD => (icons::FN_SYMBOL, "Select the word at the cursor", false),
             CMD_DELETE_LINE => (icons::CLOSE, "Remove the current line without changing the clipboard", false),
             CMD_JOIN_LINE => (icons::CHEVRON, "Join the current line with the next line", false),
             CMD_FORMAT_DOCUMENT => (icons::PLUS, "Apply mightyfmt to active file", false),

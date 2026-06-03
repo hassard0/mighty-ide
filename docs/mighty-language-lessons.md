@@ -5819,3 +5819,11 @@ Ctrl+End to jump to file start/end, with Shift variants extending selection.
   and multi-caret state. The existing Mighty Home/End key arms branch internally
   on Ctrl, so Ctrl+Home/Ctrl+End and Ctrl+Shift+Home/Ctrl+Shift+End work without
   adding more top-level key-ladder arms.
+
+L433. Word selection should be visible outside multi-cursor setup. Ctrl+D
+already selected the word on its first press, but hiding Select Word behind a
+multi-cursor description made a useful selection command hard to discover.
+
+- **IDE note:** the command palette now lists `Edit: Select Word` and dispatches
+  through the existing `mui_ed_select_word` ABI. The shortcut reference now
+  documents Ctrl+D as `Select word / add caret at next occurrence`.

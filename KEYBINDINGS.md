@@ -33,7 +33,7 @@ the `mui_chord` router). This table is the authoritative list.
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+D` | Add caret at next occurrence of selection |
+| `Ctrl+D` | Select word / add caret at next occurrence |
 | `Ctrl+Alt+Up` | Add caret above |
 | `Ctrl+Alt+Down` | Add caret below |
 | `Alt+Click` | Toggle a caret at the click point |
