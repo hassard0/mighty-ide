@@ -9751,6 +9751,24 @@ pub extern "C" fn mui_ed_delete(handle: i64) {
     }
 }
 
+/// Delete from the cursor back to the previous word boundary.
+#[no_mangle]
+pub extern "C" fn mui_ed_delete_word_left(handle: i64) -> i32 {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        return i32::from(m.delete_word_left());
+    }
+    0
+}
+
+/// Delete from the cursor forward to the next word boundary.
+#[no_mangle]
+pub extern "C" fn mui_ed_delete_word_right(handle: i64) -> i32 {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        return i32::from(m.delete_word_right());
+    }
+    0
+}
+
 /// Insert a newline at the cursor.
 #[no_mangle]
 pub extern "C" fn mui_ed_newline(handle: i64) {
@@ -13006,6 +13024,22 @@ pub extern "C" fn mui_ed_backspace_multi(handle: i64) {
 pub extern "C" fn mui_ed_delete_multi(handle: i64) {
     if let Some(m) = unsafe { model_mut(handle) } {
         m.delete_multi();
+    }
+}
+
+/// Delete previous word at every caret.
+#[no_mangle]
+pub extern "C" fn mui_ed_delete_word_left_multi(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.delete_word_left_multi();
+    }
+}
+
+/// Delete next word at every caret.
+#[no_mangle]
+pub extern "C" fn mui_ed_delete_word_right_multi(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.delete_word_right_multi();
     }
 }
 

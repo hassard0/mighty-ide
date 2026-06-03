@@ -20,6 +20,7 @@ the `mui_chord` router). This table is the authoritative list.
 | `Ctrl+Shift+D` | Duplicate line / selection |
 | `Alt+Up` / `Alt+Down` | Move line up / down |
 | `Ctrl+Left` / `Ctrl+Right` | Word-wise cursor motion |
+| `Ctrl+Backspace` / `Ctrl+Delete` | Delete previous / next word |
 | `Shift`+motion | Extend selection |
 | `Ctrl+Shift+I` | Format document |
 | `Ctrl+F` | Find (in file) |

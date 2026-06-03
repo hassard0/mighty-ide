@@ -494,6 +494,57 @@ impl TextModel {
         }
     }
 
+    /// Delete from the cursor back to the previous word boundary. An active
+    /// selection is removed directly, matching normal Backspace behavior.
+    pub fn delete_word_left(&mut self) -> bool {
+        if self.delete_primary_selection() {
+            return true;
+        }
+        let before = (self.carets[0].line, self.carets[0].col);
+        let mut probe = self.clone();
+        probe.move_word_left(false);
+        let target = (probe.carets[0].line, probe.carets[0].col);
+        if target == before {
+            return false;
+        }
+        self.carets[0].anchor = Some(target);
+        self.delete_primary_selection()
+    }
+
+    /// Delete from the cursor forward to the next word boundary. An active
+    /// selection is removed directly, matching normal Delete behavior.
+    pub fn delete_word_right(&mut self) -> bool {
+        if self.delete_primary_selection() {
+            return true;
+        }
+        let before = (self.carets[0].line, self.carets[0].col);
+        let li = self.carets[0].line;
+        let chars: Vec<char> = self.lines[li].chars().collect();
+        let mut i = self.carets[0].col;
+        let target = if i >= chars.len() {
+            if li + 1 < self.lines.len() {
+                (li + 1, 0)
+            } else {
+                before
+            }
+        } else {
+            while i < chars.len() && chars[i].is_whitespace() {
+                i += 1;
+            }
+            while i < chars.len() && !chars[i].is_whitespace() {
+                i += 1;
+            }
+            (li, i)
+        };
+        if target == before {
+            return false;
+        }
+        self.carets[0].line = target.0;
+        self.carets[0].col = target.1;
+        self.carets[0].anchor = Some(before);
+        self.delete_primary_selection()
+    }
+
     /// Move the cursor one step in `dir` (one of the `DIR_*` constants),
     /// clamping to document/line bounds. Clears the selection.
     pub fn move_cursor(&mut self, dir: i32) {
@@ -1527,6 +1578,20 @@ impl TextModel {
         self.for_each_caret_edit(|m| m.delete());
     }
 
+    /// Delete the previous word at every caret. With one caret == [`delete_word_left`].
+    pub fn delete_word_left_multi(&mut self) {
+        self.for_each_caret_edit(|m| {
+            let _ = m.delete_word_left();
+        });
+    }
+
+    /// Delete the next word at every caret. With one caret == [`delete_word_right`].
+    pub fn delete_word_right_multi(&mut self) {
+        self.for_each_caret_edit(|m| {
+            let _ = m.delete_word_right();
+        });
+    }
+
     // ---- multi-caret motion (move EVERY caret; Shift extends each) ----
 
     /// Single-step motion at every caret (`extend` keeps/grows each selection).
@@ -2002,6 +2067,51 @@ mod tests {
         m.delete();
         assert_eq!(m.line_count(), 1);
         assert_eq!(m.line(0), "bcdef");
+    }
+
+    #[test]
+    fn ctrl_backspace_deletes_to_previous_word_boundary() {
+        let mut m = doc("foo bar  baz");
+        m.move_to(0, 12);
+        m.mark_clean();
+
+        assert!(m.delete_word_left());
+
+        assert_eq!(m.line(0), "foo bar  ");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 9));
+        assert!(m.dirty());
+
+        assert!(m.delete_word_left());
+        assert_eq!(m.line(0), "foo ");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 4));
+    }
+
+    #[test]
+    fn ctrl_delete_deletes_to_next_word_boundary() {
+        let mut m = doc("foo  bar baz");
+        m.move_to(0, 3);
+        m.mark_clean();
+
+        assert!(m.delete_word_right());
+
+        assert_eq!(m.line(0), "foo baz");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 3));
+        assert!(m.dirty());
+    }
+
+    #[test]
+    fn word_delete_crosses_lines_and_respects_selection() {
+        let mut m = doc("alpha\nbeta");
+        m.move_to(1, 0);
+        assert!(m.delete_word_left());
+        assert_eq!(m.as_text(), "alphabeta");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 5));
+
+        let mut m2 = doc("hello world");
+        m2.set_selection((0, 0), (0, 5));
+        assert!(m2.delete_word_right());
+        assert_eq!(m2.as_text(), " world");
+        assert_eq!((m2.cursor_line(), m2.cursor_col()), (0, 0));
     }
 
     #[test]
@@ -2647,6 +2757,20 @@ mod tests {
         assert_eq!(m.line(1), "b");
         assert_eq!(m.line(2), "c");
         assert_eq!(caret_positions(&m), vec![(0, 0), (1, 0), (2, 0)]);
+    }
+
+    #[test]
+    fn multi_word_delete_at_every_caret() {
+        let mut m = doc("foo bar\nfoo baz");
+        m.move_to(0, 7);
+        m.add_caret_vertical(1);
+        assert_eq!(m.caret_count(), 2);
+
+        m.delete_word_left_multi();
+
+        assert_eq!(m.line(0), "foo ");
+        assert_eq!(m.line(1), "foo ");
+        assert_eq!(caret_positions(&m), vec![(0, 4), (1, 4)]);
     }
 
     #[test]

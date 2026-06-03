@@ -5781,3 +5781,12 @@ edge still need to reach the IDE so switching tabs never feels intermittent.
 - **IDE note:** The shim mouse prefilter now lets real tab-slot hits pass
   through before applying resize-edge interception, while empty caption chrome
   continues to support OS drag and resize behavior.
+
+L429. Word motion should come with word deletion. Once Ctrl+Left and Ctrl+Right
+exist, Ctrl+Backspace and Ctrl+Delete are the matching edit commands users
+expect for fast keyboard cleanup.
+
+- **IDE note:** `TextModel` now deletes to the previous or next word boundary,
+  including selection replacement and multi-caret edits. The ABI exports single
+  and multi-caret word-delete routes, and Mighty maps Ctrl+Backspace/Ctrl+Delete
+  through them in the editor key path.

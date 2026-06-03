@@ -49,6 +49,8 @@ extern c {
   fn mui_ed_insert_char(handle: I64, cp: I32)
   fn mui_ed_backspace(handle: I64)
   fn mui_ed_delete(handle: I64)
+  fn mui_ed_delete_word_left(handle: I64) -> I32
+  fn mui_ed_delete_word_right(handle: I64) -> I32
   fn mui_ed_newline(handle: I64)
   fn mui_ed_move(handle: I64, dir: I32)
   fn mui_ed_move_to(handle: I64, line: I32, col: I32)
@@ -115,6 +117,8 @@ extern c {
   fn mui_ed_insert_smart_multi(handle: I64, cp: I32)
   fn mui_ed_backspace_multi(handle: I64)
   fn mui_ed_delete_multi(handle: I64)
+  fn mui_ed_delete_word_left_multi(handle: I64)
+  fn mui_ed_delete_word_right_multi(handle: I64)
   fn mui_ed_newline_indent_multi(handle: I64)
   fn mui_ed_move_ext_multi(handle: I64, dir: I32, extend: I32)
   fn mui_ed_move_word_multi(handle: I64, right: I32, extend: I32)
@@ -2358,7 +2362,12 @@ fn main() {
             mui_complete_cancel(h)
             completing = false
           } else if k == key_backspace() {
-            mui_ed_backspace(h)
+            let kmods = mui_event_mods(h)
+            if ctrl_held(kmods) {
+              let _dw = mui_ed_delete_word_left(h)
+            } else {
+              mui_ed_backspace(h)
+            }
             mui_tab_set_dirty(h, mui_tab_active(h), 1)
             let _c = mui_ed_complete_request(h)
             mui_snippet_inject_completions(h)
@@ -3010,18 +3019,28 @@ fn main() {
           typing = false
         } else if k == key_backspace() {
           find_nav = false
+          let kmods = mui_event_mods(h)
           mui_ed_undo_record(h)
           typing = false
-          // Backspace at EVERY caret (smart pair-delete where applicable).
-          mui_ed_backspace_multi(h)
+          if ctrl_held(kmods) {
+            mui_ed_delete_word_left_multi(h)                  // Ctrl+Backspace : delete previous word
+          } else {
+            // Backspace at EVERY caret (smart pair-delete where applicable).
+            mui_ed_backspace_multi(h)
+          }
           mui_tab_set_dirty(h, mui_tab_active(h), 1)
           mui_ghost_dismiss(h)                                 // edit: ghost stale, re-arm
           mui_ghost_arm(h)
         } else if k == key_delete() {
           find_nav = false
+          let kmods = mui_event_mods(h)
           mui_ed_undo_record(h)
           typing = false
-          mui_ed_delete_multi(h)
+          if ctrl_held(kmods) {
+            mui_ed_delete_word_right_multi(h)                 // Ctrl+Delete : delete next word
+          } else {
+            mui_ed_delete_multi(h)
+          }
           mui_tab_set_dirty(h, mui_tab_active(h), 1)
           mui_ghost_dismiss(h)
           mui_ghost_arm(h)
