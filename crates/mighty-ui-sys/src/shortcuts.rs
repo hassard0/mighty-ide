@@ -725,7 +725,7 @@ impl ShortcutsEngine {
         let top = self.scroll_top_for(visible);
         let shown = self.rows.len().saturating_sub(top).min(visible);
         let horizontal_margin = if w < 420.0 { 16.0 } else { 40.0 };
-        let box_w = 640.0_f32.min((w - horizontal_margin * 2.0).max(280.0));
+        let box_w = shortcuts_panel_width(w, horizontal_margin);
         let box_h = search_h + cat_h + shown as f32 * row_h + 10.0 + foot_h;
         let box_x = ((w - box_w) * 0.5).max(0.0);
         let box_y = 80.0_f32.min(((h - box_h) * 0.5).max(12.0));
@@ -956,6 +956,11 @@ fn search_field_text_x(base_x: f32, is_placeholder: bool) -> f32 {
 fn search_query_text_budget(text_x: f32, close_x: f32, is_placeholder: bool) -> f32 {
     let trailing_gap = if is_placeholder { 24.0 } else { 14.0 };
     (close_x - trailing_gap - text_x).max(0.0)
+}
+
+fn shortcuts_panel_width(window_w: f32, horizontal_margin: f32) -> f32 {
+    let available = (window_w - horizontal_margin * 2.0).max(0.0);
+    available.clamp(280.0, 640.0).min(window_w.max(1.0))
 }
 
 fn shortcut_key_label_width(text: &mut crate::text::Text, label: &str, size: f32) -> f32 {
@@ -1309,6 +1314,25 @@ mod tests {
         let (_box_x, _box_y, _box_w, _list_top, _row_h, _box_h, top, shown) = e.geometry(640, 480);
         assert!(top <= e.sel);
         assert!(e.sel < top + shown);
+    }
+
+    #[test]
+    fn geometry_clamps_card_inside_ultra_narrow_windows() {
+        let mut e = ShortcutsEngine::new();
+        e.overrides = Overrides::new();
+        e.open();
+        let (box_x, _box_y, box_w, _list_top, _row_h, _box_h, _top, _shown) = e.geometry(180, 560);
+
+        assert!(box_x >= 0.0);
+        assert!(box_w <= 180.0);
+        assert!(box_x + box_w <= 180.0 + 0.5);
+    }
+
+    #[test]
+    fn panel_width_preserves_preferred_width_until_viewport_is_tiny() {
+        assert_eq!(shortcuts_panel_width(900.0, 40.0), 640.0);
+        assert_eq!(shortcuts_panel_width(360.0, 16.0), 328.0);
+        assert_eq!(shortcuts_panel_width(180.0, 16.0), 180.0);
     }
 
     #[test]
