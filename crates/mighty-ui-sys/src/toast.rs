@@ -879,6 +879,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Bottom dock ")
         || m.starts_with("No bottom dock ")
         || m.starts_with("Sidebar ")
+        || m.starts_with("Explorer panel ")
         || m.starts_with("Problems panel ")
     {
         Some(OperationKey::Layout)

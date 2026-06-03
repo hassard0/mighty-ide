@@ -2243,6 +2243,40 @@ fn search_close_command_acknowledges_state_without_clearing_query_or_results() {
 }
 
 #[test]
+fn explorer_close_command_hides_sidebar_without_clearing_tree() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_explorer_close_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("sub")).unwrap();
+    std::fs::write(root.join("sub").join("deep.mty"), "fn deep() {}\n").unwrap();
+    std::fs::write(root.join("main.mty"), "fn main() {}\n").unwrap();
+    ctx.tree.set_root(root.clone());
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_tree_refresh(handle), 2);
+    assert_eq!(crate::mui_tree_toggle(handle, 0), 3);
+    assert_eq!(crate::panels::mui_explorer_close(handle), 1);
+    assert!(!ctx.sidebar_visible);
+    assert_eq!(ctx.active_panel, crate::PANEL_EXPLORER);
+    assert_eq!(crate::mui_tree_count(handle), 3);
+    assert_eq!(crate::mui_tree_is_expanded(handle, 0), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Explorer panel closed"
+    );
+
+    assert_eq!(crate::panels::mui_explorer_close(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Explorer panel is already closed"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn search_open_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -2811,6 +2845,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_EXPLORER_COLLAPSE_ALL)
         .unwrap();
     assert_eq!(collapse_tree.label, "Explorer: Collapse All Folders");
+
+    let close_tree = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_EXPLORER_CLOSE)
+        .unwrap();
+    assert_eq!(close_tree.label, "Explorer: Close Panel");
+    assert_eq!(close_tree.keybinding, "");
 
     let os = crate::palette::COMMANDS
         .iter()
@@ -7643,6 +7684,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Explorer refresh command must reveal Explorer and refresh both tree and Quick Open index"
     );
     assert!(
+        main.contains("id == cmd_explorer_close()")
+            && main.contains("let _ec = mui_explorer_close(h)")
+            && main.contains("find_nav = false"),
+        "Explorer close command must use the Explorer-specific close ABI without clearing tree state"
+    );
+    assert!(
         main.contains("id == cmd_git_refresh_source_control()")
             && main.contains("let _vp = mui_panel_set(h, panel_scm())")
             && main.contains("let _r = mui_scm_refresh(h)"),
@@ -7911,6 +7958,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_REVEAL_ACTIVE_FILE, "cmd_reveal_active_file"),
         (CMD_EXPLORER_REFRESH, "cmd_explorer_refresh"),
         (CMD_EXPLORER_COLLAPSE_ALL, "cmd_explorer_collapse_all"),
+        (CMD_EXPLORER_CLOSE, "cmd_explorer_close"),
         (CMD_DELETE_ACTIVE_FILE, "cmd_delete_active_file"),
         (CMD_REVEAL_ACTIVE_FILE_IN_OS, "cmd_reveal_active_file_in_os"),
         (CMD_COPY_ACTIVE_FILE_PATH, "cmd_copy_active_file_path"),

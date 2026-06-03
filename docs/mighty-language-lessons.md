@@ -7008,3 +7008,12 @@ debug model intact.
   back to Explorer, preserves stopped/session state, stack/variable rows, and
   breakpoints, reports closed/already-closed feedback, and routes through the
   Mighty dispatcher.
+
+L557. Explorer close should hide chrome, not reset the tree. Expanded folders
+and the active Explorer panel are navigation context; a close command should
+make room for editing without collapsing or refreshing the file tree.
+
+- **IDE note:** The command palette now lists `Explorer: Close Panel`, calling
+  `mui_explorer_close`. The close path hides the sidebar, keeps Explorer as the
+  active panel, preserves expanded rows, reports closed/already-closed feedback,
+  and routes through the Mighty dispatcher.

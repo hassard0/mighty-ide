@@ -245,6 +245,7 @@ extern c {
   // ---- activity-rail panels (Explorer / Search / Source Control) ----
   fn mui_panel_active(handle: I64) -> I32
   fn mui_panel_set(handle: I64, panel: I32) -> I32
+  fn mui_explorer_close(handle: I64) -> I32
   fn mui_rail_panel_at_click(handle: I64) -> I32
   // Source Control panel (git)
   fn mui_scm_refresh(handle: I64) -> I32
@@ -800,6 +801,7 @@ fn cmd_search_close() -> I32 { 186 }
 fn cmd_outline_close() -> I32 { 187 }
 fn cmd_git_close_source_control() -> I32 { 188 }
 fn cmd_debug_close() -> I32 { 189 }
+fn cmd_explorer_close() -> I32 { 190 }
 fn cmd_diff_close_view() -> I32 { 158 }
 fn cmd_git_hide_blame() -> I32 { 159 }
 fn cmd_peek_close() -> I32 { 160 }
@@ -3763,6 +3765,10 @@ fn main() {
         } else if id == cmd_explorer_collapse_all() {
           let _vp = mui_panel_set(h, panel_explorer())
           mui_tree_collapse_all(h)
+          agents_focus = false
+          find_nav = false
+        } else if id == cmd_explorer_close() {
+          let _ec = mui_explorer_close(h)
           agents_focus = false
           find_nav = false
         } else if id == cmd_reveal_active_file_in_os() {

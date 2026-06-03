@@ -63,6 +63,24 @@ pub extern "C" fn mui_panel_set(handle: i64, panel: i32) -> i32 {
     ctx.active_panel
 }
 
+/// Close the Explorer panel by hiding the sidebar without clearing tree state.
+/// Returns `1` when it closed Explorer, or `0` when Explorer was already closed.
+#[no_mangle]
+pub extern "C" fn mui_explorer_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.sidebar_visible && ctx.active_panel == crate::PANEL_EXPLORER {
+        ctx.sidebar_visible = false;
+        ctx.push_toast(crate::toast::Kind::Info, "Explorer panel closed");
+        crate::abi::trace("explorer_close");
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "Explorer panel is already closed");
+    crate::abi::trace("explorer_close noop");
+    0
+}
+
 /// Map the last click's pixel position to a rail icon slot, or `-1` if the click
 /// was not on a rail icon. The rail geometry mirrors `mui_rail_draw`: a column of
 /// 38px cells starting at y=52 with a 4px gap. Slots 0/1/2/5/6/7/8 are sidebar

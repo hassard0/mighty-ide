@@ -407,6 +407,8 @@ pub const CMD_OUTLINE_CLOSE: u32 = 187;
 pub const CMD_GIT_CLOSE_SOURCE_CONTROL: u32 = 188;
 /// Close the Run and Debug panel without stopping or resetting the debug model.
 pub const CMD_DEBUG_CLOSE: u32 = 189;
+/// Close the Explorer panel without clearing or collapsing the file tree.
+pub const CMD_EXPLORER_CLOSE: u32 = 190;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -432,6 +434,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_REVEAL_ACTIVE_FILE, label: "File: Reveal Active File in File Tree", keybinding: "" },
     Command { id: CMD_EXPLORER_REFRESH, label: "Explorer: Refresh",   keybinding: "" },
     Command { id: CMD_EXPLORER_COLLAPSE_ALL, label: "Explorer: Collapse All Folders", keybinding: "" },
+    Command { id: CMD_EXPLORER_CLOSE, label: "Explorer: Close Panel", keybinding: "" },
     Command { id: CMD_REVEAL_ACTIVE_FILE_IN_OS, label: "File: Show Active File in File Manager", keybinding: "" },
     Command { id: CMD_COPY_ACTIVE_FILE_PATH, label: "File: Copy Active File Path", keybinding: "" },
     Command { id: CMD_COPY_ACTIVE_FILE_RELATIVE_PATH, label: "File: Copy Active File Relative Path", keybinding: "" },
@@ -982,6 +985,7 @@ impl PaletteEngine {
             CMD_REVEAL_ACTIVE_FILE => (icons::SEARCH, "Show the active file in the IDE file tree", false),
             CMD_EXPLORER_REFRESH => (icons::REFRESH, "Refresh the Explorer tree and file index", false),
             CMD_EXPLORER_COLLAPSE_ALL => (icons::COLLAPSE, "Collapse all expanded Explorer folders", false),
+            CMD_EXPLORER_CLOSE => (icons::CLOSE, "Close the Explorer panel without clearing or collapsing the file tree", false),
             CMD_REVEAL_ACTIVE_FILE_IN_OS => (icons::EXPLORER, "Show the active file in the OS file manager", false),
             CMD_COPY_ACTIVE_FILE_PATH => (icons::FILE_MTY, "Copy the active file path to the clipboard", false),
             CMD_COPY_ACTIVE_FILE_RELATIVE_PATH => (icons::FILE_MTY, "Copy the workspace-relative path", false),
