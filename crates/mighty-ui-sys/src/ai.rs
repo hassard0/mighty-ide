@@ -404,6 +404,23 @@ impl AiPanel {
             .unwrap_or(false)
     }
 
+    /// Clear the current draft, transcript, scroll position, and any in-flight
+    /// stream handle. Returns `true` when there was user-visible state to clear.
+    pub fn clear(&mut self) -> bool {
+        let had_state = !self.input.is_empty()
+            || !self.transcript.is_empty()
+            || self.stream.is_some()
+            || self.scroll > 0.0;
+        if let Some(stream) = self.stream.as_ref() {
+            stream.finish();
+        }
+        self.input.clear();
+        self.transcript.clear();
+        self.scroll = 0.0;
+        self.stream = None;
+        had_state
+    }
+
     /// Append a finished user turn + an empty assistant turn to stream into, and
     /// kick off the background request. `system` already embeds file context.
     /// No-op (returns `false`) when the input is blank, a request is in flight,
@@ -1407,6 +1424,26 @@ mod tests {
         stream.finish();
         assert!(panel.pump());
         assert!(panel.transcript[1].text.contains("API error 400"));
+    }
+
+    #[test]
+    fn clear_resets_draft_transcript_scroll_and_stream() {
+        let mut panel = AiPanel::new();
+        panel.input = "draft".to_string();
+        panel.scroll = 72.0;
+        panel.transcript.push(Turn { role: Role::User, text: "q".to_string() });
+        panel.transcript.push(Turn { role: Role::Assistant, text: "a".to_string() });
+        let stream = SharedStream::default();
+        stream.running.store(true, std::sync::atomic::Ordering::SeqCst);
+        panel.stream = Some(stream.clone());
+
+        assert!(panel.clear());
+        assert!(panel.input.is_empty());
+        assert!(panel.transcript.is_empty());
+        assert_eq!(panel.scroll, 0.0);
+        assert!(!panel.is_streaming());
+        assert!(!stream.running.load(std::sync::atomic::Ordering::SeqCst));
+        assert!(!panel.clear(), "clearing an already empty chat is a no-op");
     }
 
     // ---- Code-block segmentation produces monospace Code segs ----

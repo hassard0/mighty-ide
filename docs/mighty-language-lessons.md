@@ -6598,3 +6598,14 @@ exists but the lower dock is not focused.
   `Web: Open in Browser`, dispatching through the existing `mui_web_stop` and
   `mui_web_open_browser` ABIs. Registry/mirror coverage pins the stable command
   ids and Mighty helpers beside `Mighty: Run in Browser`.
+
+L515. Chat surfaces need explicit reset commands.
+AI panels accumulate transcript, draft, scroll, and sometimes in-flight stream
+state. If clearing that state is only possible by restarting the app or manually
+deleting draft text, the copilot feels less like an editor surface and more like
+a one-off modal.
+
+- **IDE note:** The command palette now lists `AI: Clear Chat`, dispatching
+  through a new `mui_ai_clear` ABI that opens the AI panel, clears draft,
+  transcript, scroll, and active stream state, and reports both changed and
+  already-empty outcomes. Registry/mirror and ABI tests pin the behavior.

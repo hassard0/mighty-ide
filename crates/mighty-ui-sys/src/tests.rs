@@ -1292,6 +1292,38 @@ fn ai_inline_send_reports_unavailable_outcomes() {
 }
 
 #[test]
+fn ai_clear_chat_reports_state_and_resets_panel() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.ai.open = false;
+    ctx.ai.input = "draft".to_string();
+    ctx.ai.scroll = 48.0;
+    ctx.ai.transcript.push(crate::ai::Turn {
+        role: crate::ai::Role::User,
+        text: "question".to_string(),
+    });
+    ctx.ai.transcript.push(crate::ai::Turn {
+        role: crate::ai::Role::Assistant,
+        text: "answer".to_string(),
+    });
+
+    assert_eq!(crate::panels::mui_ai_clear(handle), 1);
+    assert!(ctx.ai.open);
+    assert!(ctx.ai.input.is_empty());
+    assert!(ctx.ai.transcript.is_empty());
+    assert_eq!(ctx.ai.scroll, 0.0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "AI Copilot chat cleared");
+
+    assert_eq!(crate::panels::mui_ai_clear(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "AI Copilot chat is already empty");
+}
+
+#[test]
 fn sidebar_layout_commands_open_and_resize_sidebar() {
     let mut ctx = ctx_or_skip!();
     ctx.gpu.width = 1200;
@@ -2658,6 +2690,21 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     for (id, label) in view_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
         assert_eq!(cmd.label, label);
+    }
+
+    let ai_commands = [
+        (crate::palette::CMD_INLINE_AI_ASK, "AI: Inline Ask", "Ctrl+I"),
+        (
+            crate::palette::CMD_FORCE_GHOST_COMPLETION,
+            "AI: Force Ghost Completion",
+            "Alt+\\",
+        ),
+        (crate::palette::CMD_AI_CLEAR_CHAT, "AI: Clear Chat", ""),
+    ];
+    for (id, label, keybinding) in ai_commands {
+        let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
+        assert_eq!(cmd.label, label);
+        assert_eq!(cmd.keybinding, keybinding);
     }
 
     let debug_commands = [
@@ -6666,6 +6713,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
             CMD_FORCE_GHOST_COMPLETION,
             "cmd_force_ghost_completion",
         ),
+        (CMD_AI_CLEAR_CHAT, "cmd_ai_clear_chat"),
         (CMD_VIEW_TERMINAL, "cmd_view_terminal"),
         (CMD_VIEW_WEB_PLAYGROUND, "cmd_view_web_playground"),
         (CMD_DEBUG_START_CONTINUE, "cmd_debug_start_continue"),

@@ -1876,6 +1876,25 @@ pub extern "C" fn mui_ai_close(handle: i64) -> i32 {
     1
 }
 
+/// Clear the AI transcript and draft, leaving the panel visible so the empty
+/// copilot surface is immediately obvious. Returns `1` when state changed.
+#[no_mangle]
+pub extern "C" fn mui_ai_clear(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.ai.open = true;
+    if ctx.ai.clear() {
+        ctx.push_toast(crate::toast::Kind::Info, "AI Copilot chat cleared");
+        crate::abi::trace("ai_clear");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "AI Copilot chat is already empty");
+        crate::abi::trace("ai_clear noop");
+        0
+    }
+}
+
 /// `1` if the AI panel is currently open, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_ai_is_open(handle: i64) -> i32 {

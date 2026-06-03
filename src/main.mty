@@ -387,6 +387,7 @@ extern c {
   fn mui_ai_open(handle: I64) -> I32
   fn mui_ai_show(handle: I64) -> I32
   fn mui_ai_close(handle: I64) -> I32
+  fn mui_ai_clear(handle: I64) -> I32
   fn mui_ai_is_open(handle: I64) -> I32
   fn mui_ai_click(handle: I64) -> I32
   fn mui_ai_has_key(handle: I64) -> I32
@@ -751,6 +752,7 @@ fn cmd_test_stop() -> I32 { 137 }
 fn cmd_run_test_at_cursor() -> I32 { 138 }
 fn cmd_web_stop() -> I32 { 139 }
 fn cmd_web_open_browser() -> I32 { 140 }
+fn cmd_ai_clear_chat() -> I32 { 141 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4222,6 +4224,11 @@ fn main() {
         } else if id == cmd_force_ghost_completion() {
           let _gf = mui_ghost_force(h)
           typing = false
+        } else if id == cmd_ai_clear_chat() {
+          let _aic = mui_ai_clear(h)
+          ai_focus = true
+          typing = false
+          agents_focus = false
         } else if id == cmd_ai_close() {
           let _aic = mui_ai_close(h)
           ai_focus = false

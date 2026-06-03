@@ -309,6 +309,8 @@ pub const CMD_RUN_TEST_AT_CURSOR: u32 = 138;
 pub const CMD_WEB_STOP: u32 = 139;
 /// Open the current Web Playground URL in the default browser.
 pub const CMD_WEB_OPEN_BROWSER: u32 = 140;
+/// Clear the AI copilot transcript and draft composer.
+pub const CMD_AI_CLEAR_CHAT: u32 = 141;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -427,6 +429,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_VIEW_AI_COPILOT,  label: "View: AI Copilot",    keybinding: "Ctrl+Shift+A" },
     Command { id: CMD_INLINE_AI_ASK,    label: "AI: Inline Ask",      keybinding: "Ctrl+I" },
     Command { id: CMD_FORCE_GHOST_COMPLETION, label: "AI: Force Ghost Completion", keybinding: "Alt+\\" },
+    Command { id: CMD_AI_CLEAR_CHAT,    label: "AI: Clear Chat",      keybinding: "" },
     Command { id: CMD_AI_CLOSE,         label: "View: Close AI Copilot", keybinding: "" },
     Command { id: CMD_SIDEBAR_CLOSE,    label: "View: Close Sidebar", keybinding: "" },
     Command { id: CMD_VIEW_TERMINAL,    label: "View: Terminal",      keybinding: "Ctrl+`" },
@@ -928,6 +931,7 @@ impl PaletteEngine {
             CMD_VIEW_AI_COPILOT => (icons::AGENTS, "Open the AI copilot panel", false),
             CMD_INLINE_AI_ASK => (icons::AGENTS, "Ask AI about the active selection or file", false),
             CMD_FORCE_GHOST_COMPLETION => (icons::AGENTS, "Request an inline AI ghost completion now", false),
+            CMD_AI_CLEAR_CHAT => (icons::CLOSE, "Clear the AI transcript and draft composer", false),
             CMD_AI_CLOSE => (icons::CLOSE, "Close the AI copilot panel", false),
             CMD_SIDEBAR_CLOSE => (icons::CLOSE, "Close the left sidebar drawer", false),
             CMD_VIEW_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
