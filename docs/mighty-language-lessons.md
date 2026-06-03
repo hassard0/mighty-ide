@@ -5848,3 +5848,13 @@ expect to find by name, especially when learning shortcuts through the palette.
   dispatch through the clean `mui_ed_select_all` / `mui_ed_select_line` ABI calls,
   while comment toggle keeps the existing undo-record and dirty-tab behavior from
   the Ctrl+/ key path.
+
+L436. Clipboard editing should be command-palette visible. Copy, Cut, and Paste
+were real editor operations with selection-or-line semantics, but palette users
+could only discover file-path copy commands, not text clipboard commands.
+
+- **IDE note:** the command palette now lists `Edit: Copy Selection or Line`,
+  `Edit: Cut Selection or Line`, and `Edit: Paste`. Mighty dispatches through
+  the existing `mui_ed_copy`, `mui_ed_cut`, and `mui_ed_paste` ABI calls; Cut and
+  Paste keep the shortcut path's undo record and dirty-tab update only when the
+  ABI reports a real edit.

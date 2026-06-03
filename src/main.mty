@@ -720,6 +720,9 @@ fn cmd_move_line_down() -> I32 { 108 }
 fn cmd_select_all() -> I32 { 109 }
 fn cmd_select_line() -> I32 { 110 }
 fn cmd_toggle_line_comment() -> I32 { 111 }
+fn cmd_copy_selection_or_line() -> I32 { 112 }
+fn cmd_cut_selection_or_line() -> I32 { 113 }
+fn cmd_paste_in_editor() -> I32 { 114 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -3706,6 +3709,28 @@ fn main() {
           typing = false
           mui_ed_toggle_comment(h)
           mui_tab_set_dirty(h, mui_tab_active(h), 1)
+        } else if id == cmd_copy_selection_or_line() {
+          mui_complete_cancel(h)
+          completing = false
+          find_nav = false
+          typing = false
+          let _copy = mui_ed_copy(h)
+        } else if id == cmd_cut_selection_or_line() || id == cmd_paste_in_editor() {
+          mui_complete_cancel(h)
+          completing = false
+          find_nav = false
+          typing = false
+          mui_ed_undo_record(h)
+          let edit_ok = if id == cmd_cut_selection_or_line() {
+            mui_ed_cut(h)
+          } else {
+            mui_ed_paste(h)
+          }
+          if edit_ok == 1 {
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            mui_ghost_dismiss(h)
+            mui_ghost_arm(h)
+          }
         } else if id == cmd_duplicate_line_selection() || id == cmd_move_line_up() || id == cmd_move_line_down() {
           mui_ed_undo_record(h)
           if id == cmd_duplicate_line_selection() {

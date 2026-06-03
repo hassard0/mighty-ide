@@ -250,6 +250,12 @@ pub const CMD_SELECT_ALL: u32 = 109;
 pub const CMD_SELECT_LINE: u32 = 110;
 /// Toggle line comments for the current editor line or selection.
 pub const CMD_TOGGLE_LINE_COMMENT: u32 = 111;
+/// Copy the current editor selection, or the current line when no selection exists.
+pub const CMD_COPY_SELECTION_OR_LINE: u32 = 112;
+/// Cut the current editor selection, or the current line when no selection exists.
+pub const CMD_CUT_SELECTION_OR_LINE: u32 = 113;
+/// Paste clipboard text into the active editor.
+pub const CMD_PASTE_IN_EDITOR: u32 = 114;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -305,6 +311,9 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_SELECT_LINE,      label: "Edit: Select Line", keybinding: "Ctrl+L" },
     Command { id: CMD_SELECT_WORD,      label: "Edit: Select Word", keybinding: "Ctrl+D (first press)" },
     Command { id: CMD_TOGGLE_LINE_COMMENT, label: "Edit: Toggle Line Comment", keybinding: "Ctrl+/" },
+    Command { id: CMD_COPY_SELECTION_OR_LINE, label: "Edit: Copy Selection or Line", keybinding: "Ctrl+C" },
+    Command { id: CMD_CUT_SELECTION_OR_LINE, label: "Edit: Cut Selection or Line", keybinding: "Ctrl+X" },
+    Command { id: CMD_PASTE_IN_EDITOR,  label: "Edit: Paste", keybinding: "Ctrl+V" },
     Command { id: CMD_DUPLICATE_LINE_SELECTION, label: "Edit: Duplicate Line or Selection", keybinding: "Ctrl+Shift+D" },
     Command { id: CMD_MOVE_LINE_UP,     label: "Edit: Move Line Up", keybinding: "Alt+Up" },
     Command { id: CMD_MOVE_LINE_DOWN,   label: "Edit: Move Line Down", keybinding: "Alt+Down" },
@@ -702,6 +711,9 @@ impl PaletteEngine {
             CMD_SELECT_LINE => (icons::FN_SYMBOL, "Select the current editor line", false),
             CMD_SELECT_WORD => (icons::FN_SYMBOL, "Select the word at the cursor", false),
             CMD_TOGGLE_LINE_COMMENT => (icons::FN_SYMBOL, "Comment or uncomment the active line or selection", false),
+            CMD_COPY_SELECTION_OR_LINE => (icons::FILE_MTY, "Copy the selection or current line to the clipboard", false),
+            CMD_CUT_SELECTION_OR_LINE => (icons::CLOSE, "Cut the selection or current line to the clipboard", false),
+            CMD_PASTE_IN_EDITOR => (icons::PLUS, "Paste clipboard text into the editor", false),
             CMD_DUPLICATE_LINE_SELECTION => (icons::PLUS, "Duplicate the active line or selection", false),
             CMD_MOVE_LINE_UP => (icons::ARROW_UP, "Move the active line or selection upward", false),
             CMD_MOVE_LINE_DOWN => (icons::ARROW_DOWN, "Move the active line or selection downward", false),

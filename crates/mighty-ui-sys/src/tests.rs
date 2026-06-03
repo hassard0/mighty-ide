@@ -6212,6 +6212,9 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_SELECT_LINE, "cmd_select_line"),
         (CMD_SELECT_WORD, "cmd_select_word"),
         (CMD_TOGGLE_LINE_COMMENT, "cmd_toggle_line_comment"),
+        (CMD_COPY_SELECTION_OR_LINE, "cmd_copy_selection_or_line"),
+        (CMD_CUT_SELECTION_OR_LINE, "cmd_cut_selection_or_line"),
+        (CMD_PASTE_IN_EDITOR, "cmd_paste_in_editor"),
         (
             CMD_DUPLICATE_LINE_SELECTION,
             "cmd_duplicate_line_selection",
