@@ -4148,6 +4148,33 @@ fn debug_stack_name_fits_before_location() {
 }
 
 #[test]
+fn debug_ui_text_width_uses_measured_text() {
+    let mut ctx = ctx_or_skip!();
+    let chrome = crate::theme::CHROME_FONT_SIZE;
+    let short = crate::dapabi::debug_ui_text_width(&mut ctx.text, "i", chrome);
+    let long = crate::dapabi::debug_ui_text_width(&mut ctx.text, "result_value", chrome);
+
+    assert!(short > 0.0);
+    assert!(long > short);
+}
+
+#[test]
+fn debug_variable_equals_position_tracks_rendered_name_width() {
+    let mut ctx = ctx_or_skip!();
+    let chrome = crate::theme::CHROME_FONT_SIZE;
+    let sx = crate::layout::RAIL_W;
+    let name_x = sx + 16.0;
+    let narrow = "i";
+    let wide = "result_value";
+    let adv = crate::layout::CHAR_W();
+    let narrow_eq = name_x + crate::dapabi::debug_ui_text_width(&mut ctx.text, narrow, chrome) + adv;
+    let wide_eq = name_x + crate::dapabi::debug_ui_text_width(&mut ctx.text, wide, chrome) + adv;
+
+    assert!(wide_eq > narrow_eq);
+    assert!(narrow_eq > name_x);
+}
+
+#[test]
 fn quickopen_search_placeholder_fits_before_mode_pill() {
     let mut ctx = ctx_or_skip!();
     let placeholder = "Search files by name\u{2026}  (\u{203A} commands  @ symbols  : line)";

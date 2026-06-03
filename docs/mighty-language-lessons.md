@@ -6130,3 +6130,12 @@ button still used fixed character estimates for right alignment.
 - **IDE note:** Inline diff now measures the header summary and hunk action
   label before right-aligning those surfaces. Hunk headers reserve the rendered
   button width, keeping section text out from under stage/unstage actions.
+
+L468. Debug variable rows need measured name and type widths. The Debug panel
+measured header and stack-frame text, but variable rows still placed `=` and the
+right-side type label from fixed character estimates.
+
+- **IDE note:** Debug variable rows now measure the displayed variable name
+  before placing `=`, and measure type labels before right-aligning them. Narrow
+  and wide identifiers keep value text and type metadata aligned with rendered
+  UI text.

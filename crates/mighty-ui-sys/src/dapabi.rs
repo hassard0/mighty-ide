@@ -618,6 +618,10 @@ pub(crate) fn fit_debug_stack_location(
     fit_tail_px(text, loc, max_px, size)
 }
 
+pub(crate) fn debug_ui_text_width(text: &mut crate::text::Text, s: &str, size: f32) -> f32 {
+    text.measure_ui_sized(s, size).0
+}
+
 fn fit_tail_px(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
     if max_px <= 0.0 {
         return String::new();
@@ -966,7 +970,7 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
                 nm = nm.chars().take(11).collect::<String>() + "\u{2026}";
             }
             ctx.text.queue_ui_sized(sx + 16.0, ty, &nm, theme::SYN_FUNCTION(), chrome, clip);
-            let eq_x = sx + 16.0 + (nm.chars().count() as f32 + 1.0) * adv;
+            let eq_x = sx + 16.0 + debug_ui_text_width(&mut ctx.text, &nm, chrome) + adv;
             ctx.text.queue_ui_sized(eq_x, ty, "=", theme::TEXT_4(), chrome, clip);
             let val_x = eq_x + 2.0 * adv;
             let mut vv = value;
@@ -977,7 +981,7 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
             ctx.text.queue_ui_sized(val_x, ty, &vv, theme::SYN_STRING(), chrome, clip);
             // type badge at the right.
             if !kind.is_empty() {
-                let kw = kind.chars().count() as f32 * (chrome * 0.45);
+                let kw = debug_ui_text_width(&mut ctx.text, &kind, chrome - 2.0);
                 ctx.text.queue_ui_sized(sx + sw - kw - 12.0, ty, &kind, theme::TEXT_4(), chrome - 2.0, clip);
             }
             var_next_y = y + row_h;
