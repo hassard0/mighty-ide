@@ -6164,3 +6164,11 @@ after Run output moved to measured code-font fitting.
   `fit_code_text` path as Run output before drawing command echoes, errors, and
   normal output. Long server/build lines fit the visible dock width by rendered
   glyph width instead of character count.
+
+L472. Compact summary choices need measured budgets before fallback. The Agents
+sidebar selected full, compact, or count-only summary text from character
+counts, then applied measured fitting afterward.
+
+- **IDE note:** Agents sidebar summaries now choose the most informative form
+  that fits the actual rendered UI-font width before final ellipsizing. Compact
+  drawers keep readable counts without relying on proportional text estimates.

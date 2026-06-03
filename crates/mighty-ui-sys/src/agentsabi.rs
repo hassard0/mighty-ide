@@ -399,9 +399,9 @@ impl AgentTopology {
         .join(" \u{00b7} ")
     }
 
-    fn sidebar_summary_line(&self, avail_chars: usize) -> String {
+    fn sidebar_summary_line(&self, text: &mut crate::text::Text, max_px: f32, size: f32) -> String {
         let full = self.summary_line();
-        if full.chars().count() <= avail_chars {
+        if text.measure_ui_sized(&full, size).0 <= max_px {
             return full;
         }
         let compact = [
@@ -410,7 +410,7 @@ impl AgentTopology {
             Self::summary_label(self.tool_count(), "tool", "tools"),
         ]
         .join(" \u{00b7} ");
-        if compact.chars().count() <= avail_chars {
+        if text.measure_ui_sized(&compact, size).0 <= max_px {
             compact
         } else {
             format!(
@@ -616,7 +616,6 @@ impl AgentTopology {
         let h = ctx.gpu.height as f32;
         let clip = ctx.clip;
         let chrome = theme::CHROME_FONT_SIZE;
-        let adv = chrome * 0.55;
         let sx = layout::RAIL_W;
         let sw = layout::sidebar_w();
 
@@ -660,14 +659,16 @@ impl AgentTopology {
         );
 
         // Summary line: counts.
-        let avail = ((sw - 24.0) / (adv * 0.92)).floor() as usize;
+        let summary_size = chrome - 2.0;
+        let summary_budget = (sw - 28.0).max(0.0);
+        let summary = self.sidebar_summary_line(&mut ctx.text, summary_budget, summary_size);
         let shown = fit_sidebar_line(
             &mut ctx.text,
-            &self.sidebar_summary_line(avail),
+            &summary,
             sw,
-            chrome - 2.0,
+            summary_size,
         );
-        ctx.text.queue_ui_sized(sx + 14.0, head_h + 4.0, &shown, theme::TEXT_3(), chrome - 2.0, clip);
+        ctx.text.queue_ui_sized(sx + 14.0, head_h + 4.0, &shown, theme::TEXT_3(), summary_size, clip);
 
         // Live-inspect status note (dim, single line).
         let note_shown = fit_sidebar_line(&mut ctx.text, &self.inspect_note, sw, chrome - 3.0);
@@ -1148,9 +1149,22 @@ mod tests {
 
     #[test]
     fn sidebar_summary_uses_clean_compact_form_when_narrow() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(560, 520) else {
+            return;
+        };
         let t = seeded();
-        assert_eq!(t.sidebar_summary_line(32), "2 agents \u{00b7} 2 protocols \u{00b7} 1 tool");
-        assert_eq!(t.sidebar_summary_line(10), "2a \u{00b7} 2p \u{00b7} 1t \u{00b7} 1s");
+        let size = crate::theme::CHROME_FONT_SIZE - 2.0;
+        let compact = "2 agents \u{00b7} 2 protocols \u{00b7} 1 tool";
+        let full_budget = ctx.text.measure_ui_sized(&t.summary_line(), size).0 + 1.0;
+        let compact_budget = ctx.text.measure_ui_sized(compact, size).0 + 1.0;
+        let tiny_budget = ctx.text.measure_ui_sized("2a \u{00b7} 2p \u{00b7} 1t \u{00b7} 1s", size).0 - 1.0;
+
+        assert_eq!(t.sidebar_summary_line(&mut ctx.text, full_budget, size), t.summary_line());
+        assert_eq!(t.sidebar_summary_line(&mut ctx.text, compact_budget, size), compact);
+        assert_eq!(
+            t.sidebar_summary_line(&mut ctx.text, tiny_budget, size),
+            "2a \u{00b7} 2p \u{00b7} 1t \u{00b7} 1s"
+        );
     }
 
     #[test]
