@@ -2745,6 +2745,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(git_branch_cancel.label, "Git: Close Branch Switcher");
     assert_eq!(git_branch_cancel.keybinding, "");
 
+    let breadcrumb_cancel = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_BREADCRUMB_MENU_CANCEL)
+        .unwrap();
+    assert_eq!(breadcrumb_cancel.label, "Breadcrumb: Close Menu");
+    assert_eq!(breadcrumb_cancel.keybinding, "");
+
     let close_saved = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_SAVED_TABS)
@@ -5971,6 +5978,25 @@ fn breadcrumb_accept_misses_report_visible_feedback() {
 }
 
 #[test]
+fn breadcrumb_close_command_clears_active_menu() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let item = crate::crumbmenu::MenuItem {
+        label: "main.mty".to_string(),
+        icon: None,
+        icon_color: crate::theme::TEXT(),
+        depth: 0,
+        target: 0,
+    };
+    ctx.crumb_menu
+        .open(crate::crumbmenu::MenuKind::Files, vec![item], 80.0);
+
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_active(h), 1);
+    crate::navsurfaces::mui_crumb_menu_cancel(h);
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_active(h), 0);
+}
+
+#[test]
 fn problems_header_close_hit_collapses_panel_with_feedback() {
     use crate::ffi::MuiEvent;
 
@@ -7103,6 +7129,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Git: Close Branch Switcher must clear both the picker and Mighty-side flag"
     );
     assert!(
+        main.contains("id == cmd_breadcrumb_menu_cancel()")
+            && main.contains("mui_crumb_menu_cancel(h)"),
+        "Breadcrumb: Close Menu must reuse the same close path as Esc"
+    );
+    assert!(
         main.contains("id == cmd_hover_close()")
             && main.contains("mui_hover_clear(h)")
             && main.contains("hovering = false"),
@@ -7508,6 +7539,10 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_AUTOCOMPLETE_CLOSE, "cmd_autocomplete_close"),
         (CMD_DIRTY_CONFIRM_CANCEL, "cmd_dirty_confirm_cancel"),
         (CMD_GIT_BRANCH_CANCEL, "cmd_git_branch_cancel"),
+        (
+            CMD_BREADCRUMB_MENU_CANCEL,
+            "cmd_breadcrumb_menu_cancel",
+        ),
         (CMD_JUMP_BACK, "cmd_jump_back"),
         (CMD_QUIT, "cmd_quit"),
         (CMD_COLOR_THEME, "cmd_color_theme"),

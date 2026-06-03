@@ -6867,3 +6867,11 @@ path.
 - **IDE note:** The command palette now lists `Git: Close Branch Switcher`,
   calling `mui_branch_cancel` while clearing Mighty's local `branch_open` flag.
   ABI, registry, metadata, dispatcher, and label tests pin the close path.
+
+L542. Breadcrumb dropdowns need command-palette dismissal.
+Breadcrumb menus can open files or jump to symbols, so their dismiss action
+should be a named command that cannot accidentally accept the highlighted row.
+
+- **IDE note:** The command palette now lists `Breadcrumb: Close Menu`, calling
+  `mui_crumb_menu_cancel`. ABI, registry, metadata, dispatcher, and label tests
+  pin the close path.

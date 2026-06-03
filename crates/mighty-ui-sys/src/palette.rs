@@ -375,6 +375,8 @@ pub const CMD_AUTOCOMPLETE_CLOSE: u32 = 171;
 pub const CMD_DIRTY_CONFIRM_CANCEL: u32 = 172;
 /// Close the Git branch switcher without checking out or creating a branch.
 pub const CMD_GIT_BRANCH_CANCEL: u32 = 173;
+/// Close the breadcrumb dropdown without opening a file or jumping to a symbol.
+pub const CMD_BREADCRUMB_MENU_CANCEL: u32 = 174;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -472,6 +474,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_AUTOCOMPLETE_CLOSE, label: "Autocomplete: Close Suggestions", keybinding: "" },
     Command { id: CMD_DIRTY_CONFIRM_CANCEL, label: "Unsaved Changes: Cancel Confirmation", keybinding: "" },
     Command { id: CMD_GIT_BRANCH_CANCEL, label: "Git: Close Branch Switcher", keybinding: "" },
+    Command { id: CMD_BREADCRUMB_MENU_CANCEL, label: "Breadcrumb: Close Menu", keybinding: "" },
     Command { id: CMD_JUMP_BACK,        label: "Jump Back",          keybinding: "" },
     Command { id: CMD_QUIT,             label: "Quit",               keybinding: "Esc / close" },
     Command { id: CMD_COLOR_THEME,      label: "Preferences: Color Theme", keybinding: "" },
@@ -1006,6 +1009,7 @@ impl PaletteEngine {
             CMD_AUTOCOMPLETE_CLOSE => (icons::CLOSE, "Close autocomplete suggestions without accepting one", false),
             CMD_DIRTY_CONFIRM_CANCEL => (icons::CLOSE, "Cancel the unsaved-work confirmation without saving or discarding", false),
             CMD_GIT_BRANCH_CANCEL => (icons::CLOSE, "Close the Git branch switcher without checking out or creating a branch", false),
+            CMD_BREADCRUMB_MENU_CANCEL => (icons::CLOSE, "Close the breadcrumb dropdown without opening a file or jumping to a symbol", false),
             CMD_JUMP_BACK => (icons::CHEVRON, "Return to the previous location", false),
             CMD_QUIT => (icons::CLOSE, "Close the editor", false),
             CMD_COLOR_THEME => (icons::SETTINGS, "Switch the editor color theme", false),
