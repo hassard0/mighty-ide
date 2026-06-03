@@ -5838,3 +5838,13 @@ or invoke them from the same workflow as delete line, join line, and select word
   commands through the existing `mui_ed_duplicate`, `mui_ed_move_lines_up`, and
   `mui_ed_move_lines_down` ABI calls with the same undo, dirty-tab, and ghost-text
   handling used by their keyboard shortcuts.
+
+L435. Baseline selection and comment commands should not be shortcut-only.
+Select All, Select Line, and Toggle Line Comment are core editing actions users
+expect to find by name, especially when learning shortcuts through the palette.
+
+- **IDE note:** the command palette now lists `Edit: Select All`,
+  `Edit: Select Line`, and `Edit: Toggle Line Comment`. The selection commands
+  dispatch through the clean `mui_ed_select_all` / `mui_ed_select_line` ABI calls,
+  while comment toggle keeps the existing undo-record and dirty-tab behavior from
+  the Ctrl+/ key path.

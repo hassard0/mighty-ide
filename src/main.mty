@@ -717,6 +717,9 @@ fn cmd_select_word() -> I32 { 105 }
 fn cmd_duplicate_line_selection() -> I32 { 106 }
 fn cmd_move_line_up() -> I32 { 107 }
 fn cmd_move_line_down() -> I32 { 108 }
+fn cmd_select_all() -> I32 { 109 }
+fn cmd_select_line() -> I32 { 110 }
+fn cmd_toggle_line_comment() -> I32 { 111 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -3687,6 +3690,22 @@ fn main() {
         } else if id == cmd_select_word() {
           let _sw = mui_ed_select_word(h)
           find_nav = false
+        } else if id == cmd_select_all() || id == cmd_select_line() {
+          mui_complete_cancel(h)
+          completing = false
+          find_nav = false
+          typing = false
+          if id == cmd_select_all() {
+            mui_ed_select_all(h)
+          } else {
+            mui_ed_select_line(h)
+          }
+        } else if id == cmd_toggle_line_comment() {
+          find_nav = false
+          mui_ed_undo_record(h)
+          typing = false
+          mui_ed_toggle_comment(h)
+          mui_tab_set_dirty(h, mui_tab_active(h), 1)
         } else if id == cmd_duplicate_line_selection() || id == cmd_move_line_up() || id == cmd_move_line_down() {
           mui_ed_undo_record(h)
           if id == cmd_duplicate_line_selection() {

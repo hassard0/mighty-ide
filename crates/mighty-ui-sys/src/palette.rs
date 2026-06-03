@@ -244,6 +244,12 @@ pub const CMD_DUPLICATE_LINE_SELECTION: u32 = 106;
 pub const CMD_MOVE_LINE_UP: u32 = 107;
 /// Move the current editor line or selection down one row.
 pub const CMD_MOVE_LINE_DOWN: u32 = 108;
+/// Select the entire active editor document.
+pub const CMD_SELECT_ALL: u32 = 109;
+/// Select the current editor line.
+pub const CMD_SELECT_LINE: u32 = 110;
+/// Toggle line comments for the current editor line or selection.
+pub const CMD_TOGGLE_LINE_COMMENT: u32 = 111;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -295,7 +301,10 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_CLOSE_DUPLICATE_TABS, label: "File: Close Duplicate Tabs", keybinding: "" },
     Command { id: CMD_RELOAD_ACTIVE_FILE, label: "File: Reload Active File from Disk", keybinding: "" },
     Command { id: CMD_REVERT_ACTIVE_FILE, label: "File: Revert Active File from Disk", keybinding: "" },
+    Command { id: CMD_SELECT_ALL,       label: "Edit: Select All", keybinding: "Ctrl+A" },
+    Command { id: CMD_SELECT_LINE,      label: "Edit: Select Line", keybinding: "Ctrl+L" },
     Command { id: CMD_SELECT_WORD,      label: "Edit: Select Word", keybinding: "Ctrl+D (first press)" },
+    Command { id: CMD_TOGGLE_LINE_COMMENT, label: "Edit: Toggle Line Comment", keybinding: "Ctrl+/" },
     Command { id: CMD_DUPLICATE_LINE_SELECTION, label: "Edit: Duplicate Line or Selection", keybinding: "Ctrl+Shift+D" },
     Command { id: CMD_MOVE_LINE_UP,     label: "Edit: Move Line Up", keybinding: "Alt+Up" },
     Command { id: CMD_MOVE_LINE_DOWN,   label: "Edit: Move Line Down", keybinding: "Alt+Down" },
@@ -689,7 +698,10 @@ impl PaletteEngine {
             CMD_CLOSE_DUPLICATE_TABS => (icons::CLOSE, "Close clean duplicate file tabs", false),
             CMD_RELOAD_ACTIVE_FILE => (icons::REFRESH, "Reload the active file from disk", false),
             CMD_REVERT_ACTIVE_FILE => (icons::REFRESH, "Discard local edits and reload from disk", false),
+            CMD_SELECT_ALL => (icons::FN_SYMBOL, "Select the entire active document", false),
+            CMD_SELECT_LINE => (icons::FN_SYMBOL, "Select the current editor line", false),
             CMD_SELECT_WORD => (icons::FN_SYMBOL, "Select the word at the cursor", false),
+            CMD_TOGGLE_LINE_COMMENT => (icons::FN_SYMBOL, "Comment or uncomment the active line or selection", false),
             CMD_DUPLICATE_LINE_SELECTION => (icons::PLUS, "Duplicate the active line or selection", false),
             CMD_MOVE_LINE_UP => (icons::ARROW_UP, "Move the active line or selection upward", false),
             CMD_MOVE_LINE_DOWN => (icons::ARROW_DOWN, "Move the active line or selection downward", false),
