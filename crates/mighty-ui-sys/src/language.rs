@@ -611,8 +611,8 @@ fn compute_line_starts(text: &str) -> Vec<usize> {
     starts
 }
 
-/// Byte offset of (0-based) `line`,`col` (col in CHARS) within `text`. Clamps to
-/// the line's end / the document's end.
+/// Byte offset of (0-based) `line`,`col` within `text`, where `col` is an LSP
+/// UTF-16 character offset. Clamps to the line's end / the document's end.
 fn offset_of(text: &str, line_starts: &[usize], line: u32, col: u32) -> usize {
     let li = line as usize;
     if li >= line_starts.len() {
@@ -625,12 +625,19 @@ fn offset_of(text: &str, line_starts: &[usize], line: u32, col: u32) -> usize {
         .map(|&s| s.saturating_sub(1))
         .unwrap_or(text.len());
     let line_slice = &text[line_start..line_end.min(text.len())];
-    // Advance `col` chars into the line.
+    // Advance `col` UTF-16 code units into the line. LSP positions default to
+    // UTF-16; ASCII stays identical, while non-BMP chars count as two units.
     let mut off = line_start;
-    for (c, ch) in line_slice.chars().enumerate() {
-        if c as u32 >= col {
+    let mut units = 0u32;
+    for ch in line_slice.chars() {
+        if units >= col {
             break;
         }
+        let next = units.saturating_add(ch.len_utf16() as u32);
+        if next > col {
+            break;
+        }
+        units = next;
         off += ch.len_utf8();
     }
     off
@@ -1742,6 +1749,32 @@ mod tests {
     }
 
     #[test]
+    fn apply_edits_use_lsp_utf16_columns_after_non_bmp_chars() {
+        let src = "a😀b";
+        let edits = vec![TextEdit {
+            start_line: 0,
+            start_col: 3,
+            end_line: 0,
+            end_col: 4,
+            new_text: "c".into(),
+        }];
+        assert_eq!(apply_text_edits(src, &edits), "a😀c");
+    }
+
+    #[test]
+    fn apply_edits_insert_at_utf16_column_after_non_bmp_chars() {
+        let src = "a😀b";
+        let edits = vec![TextEdit {
+            start_line: 0,
+            start_col: 3,
+            end_line: 0,
+            end_col: 3,
+            new_text: "_".into(),
+        }];
+        assert_eq!(apply_text_edits(src, &edits), "a😀_b");
+    }
+
+    #[test]
     fn offset_of_handles_lines_and_chars() {
         let text = "ab\ncde\nf";
         let ls = compute_line_starts(text);
@@ -1752,6 +1785,17 @@ mod tests {
         assert_eq!(offset_of(text, &ls, 2, 0), 7); // start of "f"
         // Out-of-range line clamps to end.
         assert_eq!(offset_of(text, &ls, 9, 0), text.len());
+    }
+
+    #[test]
+    fn offset_of_uses_utf16_units() {
+        let text = "a😀b";
+        let ls = compute_line_starts(text);
+        assert_eq!(offset_of(text, &ls, 0, 0), 0);
+        assert_eq!(offset_of(text, &ls, 0, 1), "a".len());
+        assert_eq!(offset_of(text, &ls, 0, 2), "a".len());
+        assert_eq!(offset_of(text, &ls, 0, 3), "a😀".len());
+        assert_eq!(offset_of(text, &ls, 0, 4), text.len());
     }
 
     // ---- code action parsing ----

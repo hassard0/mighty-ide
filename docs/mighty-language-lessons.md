@@ -5041,3 +5041,12 @@ strings, so looking only for a nested `value` field can make hover appear empty.
   `{language,value}`, and arrays mixing strings and marked-string objects. The
   parsed text still flows through the existing markdown cleanup, wrapping, and
   popup rendering path.
+
+L354. WorkspaceEdit positions need LSP offset semantics, not Rust `char` counts.
+LSP defaults `character` offsets to UTF-16 code units; treating them as Unicode
+scalar indexes applies rename/code-action edits at the wrong byte when a line
+contains non-BMP characters before the edit range.
+
+- **IDE note:** `apply_text_edits` now maps edit ranges with UTF-16 column
+  accounting. ASCII and BMP-only files keep the same offsets, while emoji and
+  other surrogate-pair characters no longer shift later LSP edits.
