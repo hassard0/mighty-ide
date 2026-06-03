@@ -165,17 +165,33 @@ impl StickyState {
 
     /// Map a pixel `y` (relative to the window) to a pinned row index, or `-1`
     /// when `y` is outside the sticky band. Mirrors [`Self::draw`]'s row geometry.
+    #[allow(dead_code)]
     pub fn row_at(&self, region: layout::Region, y: f32) -> i32 {
+        self.row_at_visible(region, self.rows.len(), y)
+    }
+
+    /// Height-aware hit test used by the live ABI path. Caps the sticky band to
+    /// the actual editor rows available after top chrome and lower docks.
+    pub fn row_at_height(&self, region: layout::Region, height: u32, bottom_dock_open: bool, y: f32) -> i32 {
+        let visible = visible_sticky_rows(self.rows.len(), region, height, bottom_dock_open);
+        self.row_at_visible(region, visible, y)
+    }
+
+    fn row_at_visible(&self, region: layout::Region, visible: usize, y: f32) -> i32 {
         if self.rows.is_empty() {
+            return -1;
+        }
+        let visible = visible.min(self.rows.len());
+        if visible == 0 {
             return -1;
         }
         let top = region.top;
         let row_h = sticky_row_h();
-        if y < top || y >= top + self.rows.len() as f32 * row_h {
+        if y < top || y >= top + visible as f32 * row_h {
             return -1;
         }
         let i = ((y - top) / row_h).floor() as i32;
-        if i >= 0 && (i as usize) < self.rows.len() {
+        if i >= 0 && (i as usize) < visible {
             i
         } else {
             -1
@@ -197,10 +213,16 @@ impl StickyState {
         let clip = ctx.clip;
         let win_w = ctx.gpu.width as f32;
         let row_h = sticky_row_h();
-        let n = self.rows.len();
+        let n = visible_sticky_rows(self.rows.len(), region, ctx.gpu.height, ctx.bottom_dock_open());
+        if n == 0 {
+            return;
+        }
         let band_h = n as f32 * row_h;
         let left = region.left;
-        let band_w = win_w - left;
+        let band_w = (win_w - left).max(0.0);
+        if band_w <= 0.0 {
+            return;
+        }
         let text_x = layout::text_left_in(region, total_lines.max(1));
 
         // Drop shadow cast DOWNWARD onto the scrolling code just below the band,
@@ -216,7 +238,7 @@ impl StickyState {
         ctx.dl_grad_h(left, region.top + band_h, band_w, 3.0, 0.0, theme::accent_a(0.14), 0.7);
 
         let chrome = theme::CHROME_FONT_SIZE;
-        for (vi, (&sym_line, text)) in self.lines.iter().zip(self.texts.iter()).enumerate() {
+        for (vi, (&sym_line, text)) in self.lines.iter().zip(self.texts.iter()).take(n).enumerate() {
             let y = region.top + vi as f32 * row_h;
             // A subtle nesting indent so deeper pinned scopes step in (read as a
             // hierarchy), bounded so the text never collides with the gutter.
@@ -256,6 +278,14 @@ impl StickyState {
 #[inline]
 pub fn sticky_row_h() -> f32 {
     layout::LINE_H()
+}
+
+fn visible_sticky_rows(total: usize, region: layout::Region, height: u32, bottom_dock_open: bool) -> usize {
+    if total == 0 {
+        return 0;
+    }
+    let rows = layout::visible_rows_in(region, height, bottom_dock_open) as usize;
+    total.min(rows)
 }
 
 pub(crate) fn sticky_gutter_number_width(
@@ -391,6 +421,46 @@ mod tests {
         assert_eq!(n, 2);
         assert_eq!(st.text_of(0), "struct Foo");
         assert_eq!(st.text_of(1), "fn bar");
+    }
+
+    #[test]
+    fn visible_rows_cap_sticky_band_to_editor_height() {
+        let region = layout::region_chrome(false, false);
+        let total = 5;
+        let rows = visible_sticky_rows(total, region, 92, false);
+
+        assert!(rows < total);
+        assert_eq!(rows, layout::visible_rows_in(region, 92, false) as usize);
+    }
+
+    #[test]
+    fn row_at_height_ignores_rows_hidden_by_short_window() {
+        let syms = nested_doc();
+        let lines: Vec<&str> = vec![
+            "struct Foo {", "", "", "", "  fn bar() {", "    body", "    more",
+        ];
+        let mut st = StickyState::new();
+        assert_eq!(st.recompute(&syms, &lines, 6), 2);
+        let region = layout::region_chrome(false, false);
+        let row_h = sticky_row_h();
+
+        assert_eq!(visible_sticky_rows(st.count(), region, 92, false), 1);
+        assert_eq!(st.row_at_height(region, 92, false, region.top + 2.0), 0);
+        assert_eq!(
+            st.row_at_height(region, 92, false, region.top + row_h + 2.0),
+            -1,
+            "second sticky row is outside the capped band"
+        );
+    }
+
+    #[test]
+    fn bottom_dock_reduces_visible_sticky_rows() {
+        let region = layout::region_chrome(false, false);
+        let total = 5;
+        let without = visible_sticky_rows(total, region, 220, false);
+        let with = visible_sticky_rows(total, region, 220, true);
+
+        assert!(with < without, "bottom dock should leave fewer sticky rows visible");
     }
 
     #[test]

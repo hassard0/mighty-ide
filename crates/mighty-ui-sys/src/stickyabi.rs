@@ -88,7 +88,9 @@ pub extern "C" fn mui_sticky_click(handle: i64) -> i32 {
     }
     let region = layout::region(ctx.sidebar_visible);
     let y = ctx.last_event.y;
-    let row = ctx.sticky.row_at(region, y);
+    let row = ctx
+        .sticky
+        .row_at_height(region, ctx.gpu.height, ctx.bottom_dock_open(), y);
     if row < 0 {
         return -1;
     }
