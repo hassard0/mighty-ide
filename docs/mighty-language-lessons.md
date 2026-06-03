@@ -4912,3 +4912,15 @@ object against a wider runtime ABI than Mighty IDE's staged archive exported.
 - **Language note:** Mighty needs a versioned runtime ABI manifest or linker
   helper so applications can ship the exact symbol surface required by the
   compiler instead of discovering missing imports during packaging.
+
+L343. Disabled composer placeholders need their own compact copy, not a repeated
+setup sentence. The AI panel body already explains `ANTHROPIC_API_KEY` and
+restart requirements; repeating that full sentence in the narrow bottom composer
+wrapped into a stray final line and made the disabled input look broken.
+
+- **IDE note:** the no-key AI composer now uses the shorter one-line
+  `Set API key to enable AI` placeholder while keeping the detailed offline
+  instructions in the panel body and warning toast.
+- **Language note:** no compiler bug surfaced. The UI layer needs layout tests
+  that assert compact empty/disabled placeholders fit within their real control
+  budget instead of relying only on screenshot review.

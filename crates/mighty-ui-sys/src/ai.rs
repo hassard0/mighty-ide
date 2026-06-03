@@ -72,7 +72,7 @@ fn input_placeholder(chat_available: bool) -> &'static str {
     if chat_available {
         "Ask about your code...  (Enter to send)"
     } else {
-        "Set ANTHROPIC_API_KEY, then restart Mighty IDE"
+        "Set API key to enable AI"
     }
 }
 
@@ -1128,10 +1128,7 @@ mod tests {
 
     #[test]
     fn no_key_input_copy_does_not_invite_send() {
-        assert_eq!(
-            input_placeholder(false),
-            "Set ANTHROPIC_API_KEY, then restart Mighty IDE"
-        );
+        assert_eq!(input_placeholder(false), "Set API key to enable AI");
         assert_eq!(
             input_placeholder(true),
             "Ask about your code...  (Enter to send)"
@@ -1140,10 +1137,14 @@ mod tests {
 
     #[test]
     fn no_key_composer_shows_setup_copy_not_typed_draft() {
-        let lines = composer_lines(false, "explain this file", 28);
+        let lines = composer_lines(false, "explain this file", 42);
         let shown = lines.join(" ");
-        assert!(shown.contains("ANTHROPIC_API_KEY"));
-        assert!(shown.contains("restart Mighty IDE"));
+        assert_eq!(
+            lines.len(),
+            1,
+            "disabled composer copy should fit on one line"
+        );
+        assert_eq!(shown, "Set API key to enable AI");
         assert!(
             !shown.contains("explain this file"),
             "disabled composer should not look like an active chat draft"
