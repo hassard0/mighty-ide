@@ -32,7 +32,7 @@
 #![allow(dead_code)]
 #![allow(non_snake_case)]
 
-use std::sync::RwLock;
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::ffi::MuiColor;
 
@@ -417,10 +417,18 @@ pub const WARM: Theme = Theme {
 
 static ACTIVE: RwLock<Theme> = RwLock::new(VIVID);
 
+fn active_read() -> RwLockReadGuard<'static, Theme> {
+    ACTIVE.read().unwrap_or_else(|e| e.into_inner())
+}
+
+fn active_write() -> RwLockWriteGuard<'static, Theme> {
+    ACTIVE.write().unwrap_or_else(|e| e.into_inner())
+}
+
 /// The currently-active theme (by value; `Theme` is `Copy`).
 #[inline]
 pub fn active() -> Theme {
-    *ACTIVE.read().unwrap()
+    *active_read()
 }
 
 /// The active theme's id.
@@ -431,7 +439,7 @@ pub fn active_id() -> ThemeId {
 
 /// Switch the active theme to `id`. Effective on the next frame (live re-skin).
 pub fn set_active(id: ThemeId) {
-    *ACTIVE.write().unwrap() = id.theme();
+    *active_write() = id.theme();
 }
 
 /// `true` when the active theme is a light (paper) theme.
@@ -688,6 +696,22 @@ mod tests {
         let ember = WARM.accent;
         assert!((wash.r - ember.r).abs() < 0.01, "accent_a should use ember rgb");
         assert!((wash.a - 0.5).abs() < 0.001);
+        set_active(ThemeId::Vivid);
+    }
+
+    #[test]
+    fn recovers_from_poisoned_active_lock() {
+        set_active(ThemeId::Vivid);
+
+        let _ = std::thread::spawn(|| {
+            let _guard = ACTIVE.write().unwrap();
+            panic!("poison theme lock");
+        })
+        .join();
+
+        assert_eq!(active_id(), ThemeId::Vivid);
+        set_active(ThemeId::Warm);
+        assert_eq!(active_id(), ThemeId::Warm);
         set_active(ThemeId::Vivid);
     }
 }
