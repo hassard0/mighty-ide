@@ -343,6 +343,15 @@ pub(crate) fn diff_hunk_button_width(text: &mut crate::text::Text, label: &str, 
     feature_ui_text_width(text, label, size) + 18.0
 }
 
+pub(crate) fn fit_diff_code_text(
+    text: &mut crate::text::Text,
+    s: &str,
+    max_px: f32,
+    size: f32,
+) -> String {
+    fit_code_text(text, s, max_px, size)
+}
+
 pub(crate) fn fit_code_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
     let max_px = max_px.max(0.0);
     if max_px <= 1.0 {
@@ -718,7 +727,6 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
     let clip = ctx.clip;
     let chrome = theme::CHROME_FONT_SIZE;
     let line_h = layout::LINE_H();
-    let adv = layout::CHAR_W();
     let w = ctx.gpu.width as f32;
     let h = ctx.gpu.height as f32;
 
@@ -796,11 +804,8 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
             // pill. Narrow panes used to paint the pill directly over the
             // optional section text after the second @@.
             let hunk_x = region.left + 8.0;
-            let hunk_avail = ((bx - hunk_x - 10.0) / adv).floor().max(0.0) as usize;
-            let mut shown = text;
-            if shown.chars().count() > hunk_avail && hunk_avail > 1 {
-                shown = shown.chars().take(hunk_avail - 1).collect::<String>() + "\u{2026}";
-            }
+            let hunk_max_w = (bx - hunk_x - 10.0).max(0.0);
+            let shown = fit_diff_code_text(&mut ctx.text, &text, hunk_max_w, chrome);
             ctx.text.queue(hunk_x, ty, &shown, fg, clip);
             ctx.dl_round(bx, y + 3.0, lw, bh, 5.0, theme::accent_a(0.10));
             ctx.dl_stroke(bx, y + 3.0, lw, bh, 5.0, theme::BORDER_STRONG(), 1.0);
@@ -822,11 +827,8 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
         ctx.text.queue(region.left + gut_w - 6.0, ty, marker, fg, clip);
 
         // Diff line text (clipped to the window width).
-        let avail = (((w - 12.0) - text_x) / adv).floor() as usize;
-        let mut shown = text;
-        if shown.chars().count() > avail && avail > 1 {
-            shown = shown.chars().take(avail - 1).collect::<String>() + "\u{2026}";
-        }
+        let max_w = (w - 12.0 - text_x).max(0.0);
+        let shown = fit_diff_code_text(&mut ctx.text, &text, max_w, chrome);
         let text_col = if kind == LineKind::Context { theme::TEXT_1() } else { fg };
         ctx.text.queue(text_x, ty, &shown, text_col, clip);
     }

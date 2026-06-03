@@ -6188,3 +6188,11 @@ after variable rows moved to rendered-width budgets.
 - **IDE note:** Debug Console rows now fit output and error lines with measured
   UI-font width before drawing. Long debugger messages stay inside the sidebar
   panel without relying on per-character estimates.
+
+L475. Inline diff text should use measured code-font budgets like Run/Web
+output. Inline diff measured hunk action buttons, but hunk headers and body rows
+still clipped from fixed character estimates.
+
+- **IDE note:** Inline diff now fits hunk headers and body text through the
+  measured code-font fitter before drawing. Long diff context and changed lines
+  reserve actual rendered space before action buttons and the editor edge.

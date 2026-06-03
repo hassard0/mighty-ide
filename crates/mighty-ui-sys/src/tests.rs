@@ -4347,6 +4347,48 @@ fn diff_hunk_button_width_uses_measured_label_text() {
 }
 
 #[test]
+fn diff_hunk_header_fits_before_measured_action_button() {
+    let mut ctx = ctx_or_skip!();
+    let chrome = crate::theme::CHROME_FONT_SIZE;
+    let hunk_x = 50.0;
+    let button_x = 245.0;
+    let budget = (button_x - hunk_x - 10.0_f32).max(0.0);
+    let shown = crate::featureabi::fit_diff_code_text(
+        &mut ctx.text,
+        "@@ -120,24 +120,42 @@ fn render_really_long_inline_diff_header_context()",
+        budget,
+        chrome,
+    );
+    let shown_w = ctx.text.measure_sized(&shown, chrome).0;
+
+    assert!(shown.ends_with('\u{2026}'));
+    assert!(
+        hunk_x + shown_w <= button_x - 10.0 + 0.5,
+        "hunk header should leave measured space before action button: {shown}"
+    );
+}
+
+#[test]
+fn diff_body_line_fits_measured_editor_width() {
+    let mut ctx = ctx_or_skip!();
+    let chrome = crate::theme::CHROME_FONT_SIZE;
+    let budget = 220.0;
+    let shown = crate::featureabi::fit_diff_code_text(
+        &mut ctx.text,
+        "+    let very_long_identifier = render_really_long_inline_diff_body_line();",
+        budget,
+        chrome,
+    );
+    let shown_w = ctx.text.measure_sized(&shown, chrome).0;
+
+    assert!(shown.ends_with('\u{2026}'));
+    assert!(
+        shown_w <= budget + 0.5,
+        "diff body line should fit measured budget: {shown}"
+    );
+}
+
+#[test]
 fn status_problems_chip_hit_tracks_rendered_branch_width() {
     use crate::ffi::MuiEvent;
     use crate::{mui_status_problems_chip_at_click, mui_status_render};
