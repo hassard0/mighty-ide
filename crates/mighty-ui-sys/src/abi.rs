@@ -10765,10 +10765,8 @@ fn save_confirm_tab(ctx: &mut MuiContext, idx: usize) -> bool {
     if idx >= ctx.tabs.count() {
         return false;
     }
-    ctx.tabs.switch(idx);
-    sync_active_path(ctx);
-    if ctx.tabs.active_has_path() {
-        save_active_current_path(ctx) == 0
+    if let Some(path) = ctx.tabs.path(idx) {
+        save_tab_to_path(ctx, idx, path) == 0
     } else {
         let root = file_dialog_initial_dir(ctx);
         let suggested = ctx
@@ -10789,7 +10787,48 @@ fn save_confirm_tab(ctx: &mut MuiContext, idx: usize) -> bool {
                 return false;
             }
         };
-        save_active_to_path(ctx, target) == 0
+        save_tab_to_path(ctx, idx, target) == 0
+    }
+}
+
+fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf) -> i32 {
+    let Some(tab) = ctx.tabs.get_mut(idx) else {
+        return -1;
+    };
+    if tab.read_only {
+        let name = tab
+            .path
+            .as_deref()
+            .map(basename)
+            .unwrap_or_else(|| "binary file".to_string());
+        ctx.autosave.disarm();
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("{name} is read-only in the text editor"),
+        );
+        return -1;
+    }
+    let bytes = save_bytes_for_tab(tab);
+    let name = basename(&path);
+    match std::fs::write(&path, &bytes) {
+        Ok(()) => {
+            tab.path = Some(path.clone());
+            tab.read_only = false;
+            tab.dirty = false;
+            tab.model.mark_clean();
+            if idx == ctx.tabs.active() {
+                sync_active_path(ctx);
+            }
+            ctx.autosave.disarm();
+            println!("mui_ed_save: {} ({} bytes)", path.display(), bytes.len());
+            ctx.push_toast(crate::toast::Kind::Success, format!("Saved {name}"));
+            0
+        }
+        Err(e) => {
+            eprintln!("mui_ed_save({}): {e}", path.display());
+            ctx.push_toast(crate::toast::Kind::Error, format!("Save failed: {name}"));
+            -1
+        }
     }
 }
 

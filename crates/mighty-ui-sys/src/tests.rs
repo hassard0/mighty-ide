@@ -4318,6 +4318,91 @@ fn close_duplicate_tabs_preserves_active_dirty_and_valid_panes() {
 }
 
 #[test]
+fn dirty_confirm_save_closes_nonfocused_split_tab_without_stealing_focus() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_dirty_confirm_split_save_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let left = root.join("left.mty");
+    let right = root.join("right.mty");
+    std::fs::write(&left, "left\n").unwrap();
+    std::fs::write(&right, "right\n").unwrap();
+
+    let left_idx = ctx.tabs.open_path(left);
+    let right_idx = ctx.tabs.open_path(right.clone());
+    ctx.tabs.switch(left_idx);
+    ctx.panes = crate::panes::PaneLayout::new(left_idx);
+    ctx.panes.split_right(right_idx, 0);
+    ctx.panes.focus(0, 0);
+    ctx.tabs.switch(left_idx);
+    ctx.tabs
+        .get_mut(right_idx)
+        .unwrap()
+        .model
+        .set_text_preserving_cursor("right changed\n");
+    ctx.tabs.set_dirty(right_idx, true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_tab_close(handle, right_idx as i32), -1);
+    assert_eq!(crate::mui_dirty_confirm_save(handle), left_idx as i32);
+    assert_eq!(ctx.tabs.count(), 2);
+    assert_eq!(ctx.tabs.active(), left_idx);
+    assert_eq!(ctx.panes.count(), 2);
+    assert_eq!(ctx.panes.focused(), 0);
+    assert_eq!(ctx.panes.tab_at(0), Some(left_idx));
+    assert_eq!(ctx.panes.tab_at(1), Some(left_idx));
+    assert_eq!(ctx.tabs.get(left_idx).unwrap().basename(), "left.mty");
+    assert_eq!(std::fs::read_to_string(&right).unwrap(), "right changed\n");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn dirty_confirm_save_cancel_on_nonfocused_untitled_keeps_focused_tab_active() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_dirty_confirm_split_cancel_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let left = root.join("left.mty");
+    std::fs::write(&left, "left\n").unwrap();
+
+    let left_idx = ctx.tabs.open_path(left);
+    let untitled = ctx.tabs.new_untitled();
+    ctx.tabs.switch(left_idx);
+    ctx.panes = crate::panes::PaneLayout::new(left_idx);
+    ctx.panes.split_right(untitled, 0);
+    ctx.panes.focus(0, 0);
+    ctx.tabs.switch(left_idx);
+    ctx.tabs
+        .get_mut(untitled)
+        .unwrap()
+        .model
+        .set_text_preserving_cursor("scratch changed\n");
+    ctx.tabs.set_dirty(untitled, true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_tab_close(handle, untitled as i32), -1);
+    std::env::set_var("MUI_SAVE_FILE_PICK", "");
+    assert_eq!(crate::mui_dirty_confirm_save(handle), -3);
+    std::env::remove_var("MUI_SAVE_FILE_PICK");
+    assert_eq!(ctx.tabs.active(), left_idx);
+    assert_eq!(ctx.panes.focused(), 0);
+    assert_eq!(ctx.panes.tab_at(0), Some(left_idx));
+    assert_eq!(ctx.panes.tab_at(1), Some(untitled));
+    assert!(ctx.tabs.is_dirty(untitled));
+    assert_eq!(crate::mui_dirty_confirm_active(handle), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Save cancelled; tab is still open"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn reload_active_file_refreshes_clean_file_and_protects_dirty_tab() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_reload_file_{}", std::process::id()));
