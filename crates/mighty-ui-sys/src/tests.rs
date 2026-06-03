@@ -6591,8 +6591,12 @@ fn palette_and_quickopen_close_commands_clear_active_overlays() {
 
     crate::mui_palette_open(h);
     assert_eq!(crate::mui_palette_active(h), 1);
-    crate::mui_palette_cancel(h);
+    assert_eq!(crate::mui_palette_cancel(h), 1);
     assert_eq!(crate::mui_palette_active(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 0);
+    assert_eq!(crate::mui_palette_cancel(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].message, "No command palette open");
 
     crate::mui_quickopen_open(h);
     assert_eq!(crate::mui_qo_active(h), 1);
@@ -7985,7 +7989,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_command_palette_close()")
-            && main.contains("mui_palette_cancel(h)")
+            && main.contains("let _palc = mui_palette_cancel(h)")
             && main.contains("palette_open = false"),
         "Command Palette: Close must clear both shim and Mighty-side palette state"
     );

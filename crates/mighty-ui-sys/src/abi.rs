@@ -7589,10 +7589,17 @@ pub extern "C" fn mui_palette_active(handle: i64) -> i32 {
 
 /// Close the palette and clear its state (Escape, or after Enter dispatch).
 #[no_mangle]
-pub extern "C" fn mui_palette_cancel(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
-        trace(&format!("palette_cancel query=\"{}\"", ctx.palette.query()));
+pub extern "C" fn mui_palette_cancel(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    trace(&format!("palette_cancel query=\"{}\"", ctx.palette.query()));
+    if ctx.palette.is_active() {
         ctx.palette.cancel();
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No command palette open");
+        0
     }
 }
 

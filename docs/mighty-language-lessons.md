@@ -7225,3 +7225,13 @@ real action toast.
   actions keep their own feedback; the no-op path reports `No prompt input open`
   in the name-input toast lane, and Mighty explicitly discards the returned
   state from keyboard, mouse-dismiss, and palette paths.
+
+L578. Command palette cancel is also command dispatch cleanup. Enter and mouse
+selection close the palette immediately before dispatching the selected command,
+so an active-close toast would compete with the command's real outcome.
+
+- **IDE note:** `mui_palette_cancel` now returns `1` when it closes an active
+  palette and `0` when no palette is open. Active closes stay silent for command
+  dispatch cleanup; the no-op path reports `No command palette open` in the
+  navigation toast lane, and Mighty explicitly discards the returned state from
+  Escape, mouse-dismiss, command-selection, and palette command paths.

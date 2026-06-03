@@ -858,6 +858,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::CodeIntel)
     } else if m == "Breadcrumb menu closed"
         || m == "No breadcrumb menu open"
+        || m == "No command palette open"
         || m == "No breadcrumb row selected"
         || m == "Breadcrumb file no longer listed"
         || m == "Breadcrumb symbol unavailable"
@@ -2102,6 +2103,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No breadcrumb row selected");
+
+        q.push_at(
+            Kind::Info,
+            "No command palette open",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No command palette open");
     }
 
     #[test]
