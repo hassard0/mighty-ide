@@ -2688,6 +2688,75 @@ fn scm_commit_staged_uses_message_buffer_via_abi_or_skip() {
 }
 
 #[test]
+fn diff_open_noops_report_visible_feedback() {
+    use crate::scm::ScmEntry;
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_diff_open(handle, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No file to diff");
+
+    assert_eq!(crate::featureabi::mui_diff_open_row(handle, -1), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No source-control row");
+
+    ctx.scm.status.entries.push(ScmEntry {
+        path: "tracked.mty".to_string(),
+        staged: false,
+        status: 'M',
+    });
+    assert_eq!(crate::featureabi::mui_diff_open_row(handle, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No git repository for diff");
+}
+
+#[test]
+fn diff_open_empty_blob_reports_clean_file_or_skip() {
+    use crate::scm::ScmEntry;
+    use std::process::Command;
+
+    if Command::new("git").arg("--version").output().is_err() {
+        eprintln!("diff_open_empty_blob_reports_clean_file_or_skip: git not found - skipping");
+        return;
+    }
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_diff_noop_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let git = |args: &[&str]| {
+        Command::new("git").arg("-C").arg(&root).args(args).output().unwrap()
+    };
+    assert!(git(&["init", "-q"]).status.success());
+    let _ = git(&["config", "user.email", "t@e.st"]);
+    let _ = git(&["config", "user.name", "Test"]);
+    std::fs::write(root.join("clean.mty"), "clean\n").unwrap();
+    assert!(git(&["add", "clean.mty"]).status.success());
+    assert!(git(&["commit", "-q", "-m", "init"]).status.success());
+
+    ctx.scm.root = Some(root.clone());
+    ctx.scm.status.entries.push(ScmEntry {
+        path: "clean.mty".to_string(),
+        staged: false,
+        status: 'M',
+    });
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_diff_open_row(handle, 0), 0);
+    assert!(!ctx.diff.is_active());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No diff for clean.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn close_saved_tabs_preserves_dirty_buffers_and_reports_count() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_close_saved_{}", std::process::id()));

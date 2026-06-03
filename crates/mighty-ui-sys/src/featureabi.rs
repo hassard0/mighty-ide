@@ -487,11 +487,10 @@ pub extern "C" fn mui_diff_open(handle: i64, staged: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    let Some(root) = ctx.scm.root.clone().or_else(|| Some(ctx.tree.root().to_path_buf())) else {
-        return 0;
-    };
+    let root = ctx.scm.root.clone().unwrap_or_else(|| ctx.tree.root().to_path_buf());
     // Repo-relative path of the active file.
     let Some(abs) = active_path(ctx) else {
+        ctx.push_toast(crate::toast::Kind::Warn, "No file to diff");
         return 0;
     };
     let rel = abs
@@ -499,6 +498,11 @@ pub extern "C" fn mui_diff_open(handle: i64, staged: i32) -> i32 {
         .map(|p| p.to_string_lossy().replace('\\', "/"))
         .unwrap_or_else(|_| abs.to_string_lossy().into_owned());
     let blob = crate::diff::run_diff(&root, &rel, staged != 0);
+    if blob.trim().is_empty() {
+        ctx.diff.close();
+        ctx.push_toast(crate::toast::Kind::Info, format!("No diff for {}", diff_label(&rel)));
+        return 0;
+    }
     let n = ctx.diff.open(&rel, staged != 0, &blob);
     println!("diff: {rel} staged={} lines={n}", staged != 0);
     i32::from(n > 0)
@@ -512,13 +516,16 @@ pub extern "C" fn mui_diff_open_row(handle: i64, i: i32) -> i32 {
         return 0;
     };
     if i < 0 {
+        ctx.push_toast(crate::toast::Kind::Warn, "No source-control row");
         return 0;
     }
     let (path, staged, root) = {
         let Some(entry) = ctx.scm.get(i as usize) else {
+            ctx.push_toast(crate::toast::Kind::Warn, "No source-control row");
             return 0;
         };
         let Some(root) = ctx.scm.root.clone() else {
+            ctx.push_toast(crate::toast::Kind::Warn, "No git repository for diff");
             return 0;
         };
         (entry.path.clone(), entry.staged, root)
@@ -530,9 +537,18 @@ pub extern "C" fn mui_diff_open_row(handle: i64, i: i32) -> i32 {
         blob = crate::diff::run_diff(&root, &path, !staged);
         used_staged = !staged;
     }
+    if blob.trim().is_empty() {
+        ctx.diff.close();
+        ctx.push_toast(crate::toast::Kind::Info, format!("No diff for {}", diff_label(&path)));
+        return 0;
+    }
     let n = ctx.diff.open(&path, used_staged, &blob);
     println!("diff: row {i} {path} staged={used_staged} lines={n}");
     i32::from(n > 0)
+}
+
+fn diff_label(path: &str) -> &str {
+    path.rsplit(['/', '\\']).next().filter(|s| !s.is_empty()).unwrap_or("file")
 }
 
 /// `1` if the diff view is currently shown, else `0`.

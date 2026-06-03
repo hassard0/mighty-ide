@@ -5401,3 +5401,14 @@ right-side drawers that provide the next action.
   shrink when a valid lane remains and are skipped from draw/hit-testing when no
   safe lane exists, while staying queued for expiry or a later wider layout. The
   regressions cover both compact shrink and over-reserved hide behavior.
+
+L388. Source-control inspection commands should explain empty results. Opening a
+diff is a deliberate action; when there is no file, no selected row, no git
+repository, or no parsed diff, the IDE should report the reason instead of
+leaving the user to infer whether the click registered.
+
+- **IDE note:** `mui_diff_open` and `mui_diff_open_row` now preserve their
+  existing `0` return codes for misses but add targeted toasts for missing active
+  files, invalid SCM rows, missing repository roots, and clean/no-diff files.
+  Empty diff results close any stale diff view so the editor does not retain an
+  old inspection surface after a no-op request.
