@@ -6155,3 +6155,12 @@ from fixed character estimates, even though those glyphs are proportional.
 - **IDE note:** Web Playground now measures Stop labels, URL pill text, package
   names, and mode labels before sizing or ellipsizing header chrome. The
   clickable URL target and drawn text now share measured layout budgets.
+
+L471. Bottom-panel output clipping should share the measured code-text fitter.
+Web Playground output rows still clipped from a fixed monospace estimate even
+after Run output moved to measured code-font fitting.
+
+- **IDE note:** Web Playground output rows now use the same measured
+  `fit_code_text` path as Run output before drawing command echoes, errors, and
+  normal output. Long server/build lines fit the visible dock width by rendered
+  glyph width instead of character count.

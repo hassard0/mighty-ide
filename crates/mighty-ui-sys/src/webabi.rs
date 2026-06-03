@@ -504,7 +504,6 @@ pub extern "C" fn mui_web_draw(handle: i64) {
     // Output rows.
     let first = ctx.web.first();
     let visible = ((g.panel_h - g.header_h) / line_h).floor().max(0.0) as usize;
-    let adv = layout::CHAR_W();
     let count = ctx.web.line_count();
     if count == 0 {
         let empty_y = g.rows_top + 16.0;
@@ -530,12 +529,15 @@ pub extern "C" fn mui_web_draw(handle: i64) {
         let y = g.rows_top + vis as f32 * line_h;
         let ty = y + (line_h - chrome) * 0.5 - 1.0;
         let col = if is_error { theme::ERROR() } else { theme::TEXT_1() };
+        let text_x = g.x0 + 12.0;
+        let max_w = (g.x1 - 14.0 - text_x).max(0.0);
+        let shown = crate::featureabi::fit_code_text(&mut ctx.text, &text, max_w, chrome);
         // Tint command echoes ("$ …") + the URL line so the eye lands on them.
         if text.starts_with("$ ") {
-            ctx.text.queue(g.x0 + 12.0, ty, &clip_row(&text, g.x0, g.x1, adv), theme::ACCENT(), clip);
+            ctx.text.queue(text_x, ty, &shown, theme::ACCENT(), clip);
             continue;
         }
-        ctx.text.queue(g.x0 + 12.0, ty, &clip_row(&text, g.x0, g.x1, adv), col, clip);
+        ctx.text.queue(text_x, ty, &shown, col, clip);
     }
 }
 
@@ -569,16 +571,6 @@ fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) ->
     let mut shown: String = chars.iter().take(lo).collect();
     shown.push_str(ellipsis);
     shown
-}
-
-/// Clip `text` to the panel width (ellipsizing).
-fn clip_row(text: &str, x0: f32, x1: f32, adv: f32) -> String {
-    let avail = (((x1 - 14.0) - (x0 + 12.0)) / adv).floor() as usize;
-    if text.chars().count() > avail && avail > 1 {
-        text.chars().take(avail - 1).collect::<String>() + "\u{2026}"
-    } else {
-        text.to_string()
-    }
 }
 
 #[cfg(test)]
@@ -616,8 +608,16 @@ mod tests {
     }
 
     #[test]
-    fn clip_row_ellipsizes_long_output() {
-        assert_eq!(clip_row("abcdef", 0.0, 56.0, 10.0), "ab\u{2026}");
+    fn web_output_uses_measured_code_text_fit() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+        let size = crate::theme::CHROME_FONT_SIZE;
+        let budget = ctx.text.measure_sized("ab\u{2026}", size).0 + 0.5;
+        let shown = crate::featureabi::fit_code_text(&mut ctx.text, "abcdef", budget, size);
+
+        assert!(shown.ends_with('\u{2026}'));
+        assert!(ctx.text.measure_sized(&shown, size).0 <= budget);
     }
 
     #[test]
