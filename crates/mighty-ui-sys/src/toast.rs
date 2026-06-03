@@ -855,7 +855,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No rename target"
     {
         Some(OperationKey::CodeIntel)
-    } else if m == "No breadcrumb menu open"
+    } else if m == "Breadcrumb menu closed"
+        || m == "No breadcrumb menu open"
         || m == "No breadcrumb row selected"
         || m == "Breadcrumb file no longer listed"
         || m == "Breadcrumb symbol unavailable"
@@ -2054,6 +2055,29 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No rename target");
+    }
+
+    #[test]
+    fn newer_navigation_feedback_replaces_stale_breadcrumb_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "Breadcrumb menu closed", t0);
+        q.push_at(
+            Kind::Info,
+            "No breadcrumb menu open",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No breadcrumb menu open");
+
+        q.push_at(
+            Kind::Info,
+            "No breadcrumb row selected",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No breadcrumb row selected");
     }
 
     #[test]

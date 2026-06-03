@@ -7194,3 +7194,13 @@ capture when the overlay is open.
   `Keyboard Shortcuts closed` or `Keyboard Shortcuts is already closed`. The
   regression verifies that close still exits capture mode and that the feedback
   uses the layout toast replacement lane.
+
+L575. Breadcrumb menu cancel should be stateful too. The palette exposes
+`Breadcrumb: Close Menu`, but the old cancel ABI silently did nothing when the
+dropdown was already gone and gave Mighty no state to consume.
+
+- **IDE note:** `mui_crumb_menu_cancel` now returns `1` when it closes an active
+  breadcrumb dropdown and `0` when no menu is open, reporting
+  `Breadcrumb menu closed` or the existing `No breadcrumb menu open`. Mighty
+  explicitly discards the return value from keyboard, mouse, and palette cancel
+  paths.

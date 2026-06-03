@@ -619,7 +619,7 @@ extern c {
   fn mui_md_close(handle: I64) -> I32
   fn mui_crumb_menu_active(handle: I64) -> I32
   fn mui_crumb_menu_move(handle: I64, delta: I32)
-  fn mui_crumb_menu_cancel(handle: I64)
+  fn mui_crumb_menu_cancel(handle: I64) -> I32
   fn mui_crumb_menu_row_at_click(handle: I64) -> I32
   fn mui_crumb_menu_accept(handle: I64, i: I32) -> I32
   fn mui_crumb_menu_draw(handle: I64)
@@ -1713,11 +1713,11 @@ fn main() {
               let _r = mui_diag_refresh(h)
               let _o = mui_outline_refresh(h)
             } else if k == key_escape() {
-              mui_crumb_menu_cancel(h)
+              let _cmc = mui_crumb_menu_cancel(h)
             }
           } else if tag == ev_char() {
             // Any printed char dismisses the dropdown.
-            mui_crumb_menu_cancel(h)
+            let _cmc = mui_crumb_menu_cancel(h)
           } else if tag == ev_mouse_down() {
             let ch = mui_crumb_menu_row_at_click(h)
             if ch >= 0 {
@@ -1727,7 +1727,7 @@ fn main() {
               let _r = mui_diag_refresh(h)
               let _o = mui_outline_refresh(h)
             } else {
-              mui_crumb_menu_cancel(h)
+              let _cmc = mui_crumb_menu_cancel(h)
             }
           }
         }
@@ -3391,7 +3391,7 @@ fn main() {
             find_nav = false
             let _r = mui_diag_refresh(h)
           } else {
-            mui_crumb_menu_cancel(h)
+            let _cmc = mui_crumb_menu_cancel(h)
           }
         } else if md_close == 1 {
           // Preview pane header close: the shim already collapsed the preview.
@@ -4236,7 +4236,7 @@ fn main() {
           mui_branch_cancel(h)
           branch_open = false
         } else if id == cmd_breadcrumb_menu_cancel() {
-          mui_crumb_menu_cancel(h)
+          let _cmc = mui_crumb_menu_cancel(h)
         } else if id == cmd_command_palette_close() {
           mui_palette_cancel(h)
           palette_open = false

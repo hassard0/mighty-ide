@@ -730,11 +730,20 @@ pub extern "C" fn mui_crumb_menu_move(handle: i64, delta: i32) {
     }
 }
 
-/// Cancel / close the dropdown.
+/// Cancel / close the dropdown. Returns `1` when it closed an open menu, or `0`
+/// when there was no breadcrumb menu open.
 #[no_mangle]
-pub extern "C" fn mui_crumb_menu_cancel(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
+pub extern "C" fn mui_crumb_menu_cancel(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.crumb_menu.is_active() {
         ctx.crumb_menu.cancel();
+        ctx.push_toast(crate::toast::Kind::Info, "Breadcrumb menu closed");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No breadcrumb menu open");
+        0
     }
 }
 

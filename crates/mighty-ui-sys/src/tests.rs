@@ -6694,8 +6694,16 @@ fn breadcrumb_close_command_clears_active_menu() {
         .open(crate::crumbmenu::MenuKind::Files, vec![item], 80.0);
 
     assert_eq!(crate::navsurfaces::mui_crumb_menu_active(h), 1);
-    crate::navsurfaces::mui_crumb_menu_cancel(h);
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_cancel(h), 1);
     assert_eq!(crate::navsurfaces::mui_crumb_menu_active(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Breadcrumb menu closed");
+
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_cancel(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No breadcrumb menu open");
 }
 
 #[test]
@@ -7959,7 +7967,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_breadcrumb_menu_cancel()")
-            && main.contains("mui_crumb_menu_cancel(h)"),
+            && main.contains("let _cmc = mui_crumb_menu_cancel(h)"),
         "Breadcrumb: Close Menu must reuse the same close path as Esc"
     );
     assert!(
