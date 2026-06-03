@@ -7099,3 +7099,13 @@ states beside the latest result.
   `Test results already empty`, `Testing panel closed`, and
   `Testing panel is already closed` now share the Testing replacement key.
   Repeated Run and Testing panel actions keep the latest state visible.
+
+L566. Save As fallback should explain why typed-path mode opened. When the
+native Save As picker cannot run, Mighty falls back to its scalar bottom prompt
+so the user can still type a destination. Without visible feedback, that prompt
+looks like a random mode switch after the Save As command.
+
+- **IDE note:** `mui_save_as_dialog` now reports
+  `Save dialog unavailable; use typed path` before returning `-1` for the Mighty
+  prompt fallback. The regression forces the unavailable branch without showing
+  native UI and verifies the untitled dirty tab remains unchanged.

@@ -10683,6 +10683,7 @@ pub extern "C" fn mui_save_as_dialog(handle: i64) -> i32 {
         }
         FileDialogPick::Unavailable => {
             println!("mui_save_as_dialog: native save dialog unavailable");
+            ctx.push_toast(crate::toast::Kind::Warn, "Save dialog unavailable; use typed path");
             return -1;
         }
     };
@@ -10780,6 +10781,10 @@ fn pick_save_file_native(
     suggested_name: &str,
     owner_hwnd: Option<isize>,
 ) -> FileDialogPick {
+    #[cfg(test)]
+    if std::env::var_os("MUI_SAVE_FILE_FORCE_UNAVAILABLE").is_some() {
+        return FileDialogPick::Unavailable;
+    }
     if let Ok(sequence) = std::env::var("MUI_SAVE_FILE_PICK_SEQUENCE") {
         return next_save_file_pick_from_sequence(&sequence);
     }
