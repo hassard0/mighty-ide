@@ -6885,3 +6885,13 @@ mode, without executing the selected command or opening a file.
   `Quick Open: Close`, calling `mui_palette_cancel` and `mui_qo_cancel` while
   clearing Mighty's local overlay flags. ABI, registry, metadata, dispatcher,
   and label tests pin both close paths.
+
+L544. Palette-opened landing surfaces need matching close commands.
+Welcome and the focused Open Recent picker are reachable from commands and quick
+actions, so their dismiss path should also be command-addressable rather than
+only mouse-driven.
+
+- **IDE note:** The command palette now lists `Welcome: Close`, calling
+  `mui_welcome_dismiss` for both the forced Welcome landing and Open Recent
+  picker. ABI, registry, metadata, dispatcher, and label tests pin the close
+  path.

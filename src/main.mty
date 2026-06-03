@@ -799,6 +799,7 @@ fn cmd_git_branch_cancel() -> I32 { 173 }
 fn cmd_breadcrumb_menu_cancel() -> I32 { 174 }
 fn cmd_command_palette_close() -> I32 { 175 }
 fn cmd_quick_open_close() -> I32 { 176 }
+fn cmd_welcome_close() -> I32 { 177 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4202,6 +4203,8 @@ fn main() {
         } else if id == cmd_quick_open_close() {
           mui_qo_cancel(h)
           quickopen_open = false
+        } else if id == cmd_welcome_close() {
+          mui_welcome_dismiss(h)
         } else if id == cmd_jump_back() {
           if have_prev {
             mui_ed_move_to(h, prev_line, prev_col)

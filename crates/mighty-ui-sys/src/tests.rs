@@ -2766,6 +2766,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(quickopen_close.label, "Quick Open: Close");
     assert_eq!(quickopen_close.keybinding, "");
 
+    let welcome_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_WELCOME_CLOSE)
+        .unwrap();
+    assert_eq!(welcome_close.label, "Welcome: Close");
+    assert_eq!(welcome_close.keybinding, "");
+
     let close_saved = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_SAVED_TABS)
@@ -5972,6 +5979,27 @@ fn palette_and_quickopen_close_commands_clear_active_overlays() {
 }
 
 #[test]
+fn welcome_close_command_dismisses_forced_surfaces() {
+    use crate::{mui_ed_insert_char, mui_welcome_active, mui_welcome_dismiss, mui_welcome_open};
+
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_ed_insert_char(h, 'x' as i32);
+    assert_eq!(mui_welcome_active(h), 0);
+
+    mui_welcome_open(h);
+    assert_eq!(mui_welcome_active(h), 1);
+    mui_welcome_dismiss(h);
+    assert_eq!(mui_welcome_active(h), 0);
+
+    ctx.welcome.open_recent_picker();
+    assert_eq!(mui_welcome_active(h), 1);
+    mui_welcome_dismiss(h);
+    assert_eq!(mui_welcome_active(h), 0);
+}
+
+#[test]
 fn breadcrumb_accept_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -7176,6 +7204,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Quick Open: Close must clear both shim and Mighty-side Quick Open state"
     );
     assert!(
+        main.contains("id == cmd_welcome_close()")
+            && main.contains("mui_welcome_dismiss(h)"),
+        "Welcome: Close must reuse the visible close affordance's dismiss path"
+    );
+    assert!(
         main.contains("id == cmd_hover_close()")
             && main.contains("mui_hover_clear(h)")
             && main.contains("hovering = false"),
@@ -7590,6 +7623,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
             "cmd_command_palette_close",
         ),
         (CMD_QUICK_OPEN_CLOSE, "cmd_quick_open_close"),
+        (CMD_WELCOME_CLOSE, "cmd_welcome_close"),
         (CMD_JUMP_BACK, "cmd_jump_back"),
         (CMD_QUIT, "cmd_quit"),
         (CMD_COLOR_THEME, "cmd_color_theme"),
