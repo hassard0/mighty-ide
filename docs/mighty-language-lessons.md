@@ -5251,3 +5251,14 @@ from idle or terminated states.
   paused, reports `Debug session already running` while running, and reports
   `Continue is available when paused` from idle/terminated states while opening
   Run and Debug. The direct-debug regression covers the idle no-op.
+
+L374. Right-aligned header actions need reserved text budgets. The Markdown
+breadcrumb rendered `workspace > file > symbol` left-to-right while the Preview
+pill was right-aligned independently, so compact windows or long filenames could
+draw breadcrumb text underneath the button.
+
+- **IDE note:** `mui_breadcrumb_draw` now reserves the Markdown Preview pill's
+  left edge, fits breadcrumb segments to that boundary, and skips separators or
+  icons that no longer fit. The regression measures a compact Markdown filename
+  budget and ensures the fitted text stays before the Preview pill while keeping
+  the `.md` suffix.

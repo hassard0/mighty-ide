@@ -4232,6 +4232,60 @@ fn markdown_preview_header_close_hit_collapses_preview() {
 }
 
 #[test]
+fn markdown_breadcrumb_reserves_preview_button_space() {
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 520;
+    ctx.gpu.phys_width = 520;
+    ctx.gpu.height = 360;
+    ctx.gpu.phys_height = 360;
+    ctx.sidebar_visible = true;
+    ctx.language = crate::langdetect::Language::Markdown;
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(520);
+
+    let left = crate::layout::body_left(ctx.sidebar_visible);
+    let (bx, _by, bw, _bh) = crate::abi::md_button_rect(520.0, crate::layout::TAB_BAR_H, crate::layout::BREADCRUMB_H);
+    assert!(bx > left, "preview button should remain in the editor breadcrumb band");
+
+    let text_right = bx - 8.0;
+    let parent_x = left + 16.0 + 13.0 + 6.0;
+    let parent_right = parent_x + (text_right - parent_x) * 0.34;
+    let parent = crate::abi::fit_breadcrumb_segment(
+        &mut ctx.text,
+        "very_long_workspace_name_that_used_to_crowd_the_markdown_preview_button",
+        parent_right - parent_x,
+        crate::theme::CHROME_FONT_SIZE,
+    );
+    let (parent_w, _) = ctx.text.measure_ui_sized(&parent, crate::theme::CHROME_FONT_SIZE);
+    assert!(
+        parent_x + parent_w <= parent_right,
+        "workspace segment should be capped before it consumes the file budget: {parent}"
+    );
+
+    let file_x = parent_x + parent_w + 20.0;
+    let file_right = file_x + (text_right - file_x) * 0.68;
+    let shown = crate::abi::fit_breadcrumb_segment(
+        &mut ctx.text,
+        "feature_walkthrough_with_a_long_markdown_filename_that_used_to_run_under_preview.md",
+        file_right - file_x,
+        crate::theme::CHROME_FONT_SIZE,
+    );
+    let (shown_w, _) = ctx.text.measure_ui_sized(&shown, crate::theme::CHROME_FONT_SIZE);
+
+    assert!(
+        file_x + shown_w <= file_right,
+        "breadcrumb text should stop before Preview pill: shown={shown}"
+    );
+    assert!(shown.ends_with("md"), "Markdown filename should keep its extension: {shown}");
+    assert!(
+        bx + bw <= 520.0 - 12.0,
+        "preview pill geometry should stay right-aligned and measurable"
+    );
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+}
+
+#[test]
 fn problems_header_close_hit_collapses_panel_with_feedback() {
     use crate::ffi::MuiEvent;
 

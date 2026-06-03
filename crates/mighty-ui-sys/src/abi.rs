@@ -5090,24 +5090,36 @@ pub extern "C" fn mui_breadcrumb_draw(handle: i64) {
 
     let ty = top + (bar_h - chrome) * 0.5 - 1.0;
     let icon_y = top + (bar_h - 12.0) * 0.5;
+    let md_button = if ctx.language == crate::langdetect::Language::Markdown {
+        Some(md_button_rect(w, top, bar_h))
+    } else {
+        None
+    };
+    let text_right = md_button.map_or(w - 12.0, |(bx, _, _, _)| bx - 8.0).max(left + 24.0);
     let mut x = left + 16.0;
-    let put = |ctx: &mut MuiContext, x: &mut f32, s: &str, color| {
-        ctx.text.queue_ui_sized(*x, ty, s, color, chrome, clip);
-        let (w, _) = ctx.text.measure_ui_sized(s, chrome);
-        *x += w;
-    };
-    let sep = |ctx: &mut MuiContext, x: &mut f32| {
-        *x += 4.0;
-        ctx.dl_icon(*x, icon_y, 12.0, 12.0, crate::icons::CHEVRON, theme::TEXT_4(), 1.5, false);
-        *x += 12.0 + 4.0;
-    };
     // Folder icon for the first segment.
-    ctx.dl_icon(x, icon_y, 13.0, 13.0, crate::icons::FOLDER, theme::DIM(), 1.4, false);
-    x += 13.0 + 6.0;
-    put(ctx, &mut x, &parent, theme::DIM());
-    sep(ctx, &mut x);
-    put(ctx, &mut x, &file, theme::TEXT_1());
-    sep(ctx, &mut x);
+    if x + 19.0 <= text_right {
+        ctx.dl_icon(x, icon_y, 13.0, 13.0, crate::icons::FOLDER, theme::DIM(), 1.4, false);
+        x += 13.0 + 6.0;
+    }
+    let reserve_file_space = md_button.is_some();
+    let parent_right = if reserve_file_space {
+        (x + (text_right - x) * 0.34).min(text_right)
+    } else {
+        text_right
+    };
+    let _ = queue_breadcrumb_segment(ctx, &mut x, &parent, theme::DIM(), chrome, ty, clip, parent_right);
+    if queue_breadcrumb_separator(ctx, &mut x, icon_y, text_right) {
+        let file_right = if reserve_file_space {
+            (x + (text_right - x) * 0.68).min(text_right)
+        } else {
+            text_right
+        };
+        let file_full = queue_breadcrumb_segment(ctx, &mut x, &file, theme::TEXT_1(), chrome, ty, clip, file_right);
+        if file_full {
+            let _ = queue_breadcrumb_separator(ctx, &mut x, icon_y, text_right);
+        }
+    }
     // Symbol segment: the symbol under the cursor (from the Outline data), drawn
     // with its per-kind icon + color. Falls back to "main" when no symbol is
     // resolved (matching the prior static breadcrumb).
@@ -5120,14 +5132,15 @@ pub extern "C" fn mui_breadcrumb_draw(handle: i64) {
     } else {
         ("main".to_string(), crate::icons::FN_SYMBOL, theme::SYN_FUNCTION())
     };
-    ctx.dl_icon(x, icon_y, 13.0, 13.0, sym_icon, sym_color, 1.5, false);
-    x += 13.0 + 5.0;
-    put(ctx, &mut x, &sym_name, sym_color);
+    if x + 18.0 <= text_right {
+        ctx.dl_icon(x, icon_y, 13.0, 13.0, sym_icon, sym_color, 1.5, false);
+        x += 13.0 + 5.0;
+        let _ = queue_breadcrumb_segment(ctx, &mut x, &sym_name, sym_color, chrome, ty, clip, text_right);
+    }
 
     // Right-aligned "Preview" pill — shown only when the active file is Markdown.
     // Clicking it (hit-tested by `mui_md_button_at_click`) opens the live preview.
-    if ctx.language == crate::langdetect::Language::Markdown {
-        let (bx, by, bw, bh) = md_button_rect(w, top, bar_h);
+    if let Some((bx, by, bw, bh)) = md_button {
         let active = ctx.md_pane.is_some() && ctx.md_preview.is_open();
         let (bg, fg) = if active {
             (theme::accent_a(0.18), theme::ACCENT_BRIGHT())
@@ -5141,9 +5154,51 @@ pub extern "C" fn mui_breadcrumb_draw(handle: i64) {
     }
 }
 
+pub(crate) fn fit_breadcrumb_segment(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    if s.contains('.') {
+        fit_tab_label(text, s, max_px, size)
+    } else {
+        fit_status_head(text, s, max_px, size)
+    }
+}
+
+fn queue_breadcrumb_segment(
+    ctx: &mut MuiContext,
+    x: &mut f32,
+    s: &str,
+    color: MuiColor,
+    size: f32,
+    y: f32,
+    clip: Option<(u32, u32, u32, u32)>,
+    right: f32,
+) -> bool {
+    let max_px = right - *x;
+    if max_px <= 0.0 {
+        return false;
+    }
+    let shown = fit_breadcrumb_segment(&mut ctx.text, s, max_px, size);
+    if shown.is_empty() {
+        return false;
+    }
+    ctx.text.queue_ui_sized(*x, y, &shown, color, size, clip);
+    let (w, _) = ctx.text.measure_ui_sized(&shown, size);
+    *x += w;
+    shown == s
+}
+
+fn queue_breadcrumb_separator(ctx: &mut MuiContext, x: &mut f32, icon_y: f32, right: f32) -> bool {
+    if *x + 20.0 > right {
+        return false;
+    }
+    *x += 4.0;
+    ctx.dl_icon(*x, icon_y, 12.0, 12.0, crate::icons::CHEVRON, theme::TEXT_4(), 1.5, false);
+    *x += 12.0 + 4.0;
+    true
+}
+
 /// The screen rect `(x, y, w, h)` of the breadcrumb "Preview" pill for window
 /// width `w`, breadcrumb `top`, and bar height `bar_h`. Right-aligned.
-fn md_button_rect(w: f32, top: f32, bar_h: f32) -> (f32, f32, f32, f32) {
+pub(crate) fn md_button_rect(w: f32, top: f32, bar_h: f32) -> (f32, f32, f32, f32) {
     let bw = 92.0_f32;
     let bh = (bar_h - 10.0).max(16.0);
     let bx = w - bw - 12.0;
