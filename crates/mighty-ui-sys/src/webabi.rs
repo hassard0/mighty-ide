@@ -304,9 +304,9 @@ fn web_stop_button(
     min_stop_x: f32,
     by: f32,
     btn_h: f32,
-    chrome: f32,
+    label_w: f32,
 ) -> (Option<(f32, f32, f32, f32)>, bool, f32) {
-    let label_w = 4.0 * (chrome * 0.55) + 22.0; // "Stop"
+    let label_w = label_w + 20.0;
     let compact_w = 28.0;
     if cursor - label_w >= min_stop_x {
         cursor -= label_w;
@@ -319,7 +319,7 @@ fn web_stop_button(
     }
 }
 
-fn web_geom(ctx: &MuiContext) -> WebGeom {
+fn web_geom(ctx: &mut MuiContext) -> WebGeom {
     let region = layout::region(ctx.sidebar_visible);
     let w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
     let h = ctx.gpu.height;
@@ -342,7 +342,8 @@ fn web_geom(ctx: &MuiContext) -> WebGeom {
     let mut open_btn = None;
     if ctx.web.is_running() {
         let min_stop_x = region.left + 96.0;
-        let (btn, icon_only, next_cursor) = web_stop_button(cursor, min_stop_x, by, btn_h, chrome);
+        let stop_label_w = ctx.text.measure_ui_sized("Stop", chrome - 2.0).0;
+        let (btn, icon_only, next_cursor) = web_stop_button(cursor, min_stop_x, by, btn_h, stop_label_w);
         stop_btn = btn;
         stop_icon_only = icon_only;
         cursor = next_cursor;
@@ -355,9 +356,9 @@ fn web_geom(ctx: &MuiContext) -> WebGeom {
             cursor -= 8.0;
         }
     }
-    let url = ctx.web.url();
+    let url = ctx.web.url().to_string();
     if !url.is_empty() {
-        let desired = (url.chars().count() as f32 * (chrome * 0.5)).min(360.0) + 22.0;
+        let desired = web_url_pill_width(&mut ctx.text, &url, chrome - 2.0);
         let available = cursor - min_action_x;
         if available >= 96.0 {
             let pill_w = desired.min(available);
@@ -437,18 +438,18 @@ pub extern "C" fn mui_web_draw(handle: i64) {
         - 10.0;
     let base_x = g.x0 + 66.0;
     let mode_gap = 8.0;
-    let base_adv = chrome * 0.55;
-    let mode_adv = chrome * 0.50;
-    let base_shown = fit_text(&base, text_right - base_x, base_adv);
+    let base_size = chrome - 1.0;
+    let mode_size = chrome - 2.0;
+    let base_shown = fit_ui_text(&mut ctx.text, &base, text_right - base_x, base_size);
     if !base_shown.is_empty() {
         ctx.text
-            .queue_ui_sized(base_x, hy, &base_shown, theme::TEXT_1(), chrome - 1.0, clip);
+            .queue_ui_sized(base_x, hy, &base_shown, theme::TEXT_1(), base_size, clip);
     }
-    let mode_x = base_x + (base_shown.chars().count() as f32 * base_adv) + mode_gap;
-    if !mode.is_empty() && mode_x + mode_adv * 4.0 < text_right {
-        let mode_shown = fit_text(mode, text_right - mode_x, mode_adv);
+    let mode_x = base_x + ctx.text.measure_ui_sized(&base_shown, base_size).0 + mode_gap;
+    if !mode.is_empty() && mode_x + ctx.text.measure_ui_sized("mty", mode_size).0 < text_right {
+        let mode_shown = fit_ui_text(&mut ctx.text, mode, text_right - mode_x, mode_size);
         ctx.text
-            .queue_ui_sized(mode_x, hy, &mode_shown, theme::TEXT_3(), chrome - 2.0, clip);
+            .queue_ui_sized(mode_x, hy, &mode_shown, theme::TEXT_3(), mode_size, clip);
     }
 
     // Open-in-browser pill (the URL), accent-tinted + clickable.
@@ -456,12 +457,7 @@ pub extern "C" fn mui_web_draw(handle: i64) {
         ctx.dl_round(bx, by, bw, bh, 6.0, theme::accent_a(0.18));
         ctx.dl_stroke(bx, by, bw, bh, 6.0, theme::ACCENT(), 1.0);
         let url = ctx.web.url().to_string();
-        let avail = ((bw - 16.0) / (chrome * 0.5)).floor().max(1.0) as usize;
-        let shown = if url.chars().count() > avail {
-            url.chars().take(avail.saturating_sub(1)).collect::<String>() + "\u{2026}"
-        } else {
-            url
-        };
+        let shown = fit_ui_text(&mut ctx.text, &url, bw - 16.0, chrome - 2.0);
         ctx.text.queue_ui_sized(bx + 8.0, by + 3.0, &shown, theme::TEXT_1(), chrome - 2.0, clip);
     }
 
@@ -543,18 +539,36 @@ pub extern "C" fn mui_web_draw(handle: i64) {
     }
 }
 
-fn fit_text(text: &str, width: f32, adv: f32) -> String {
-    if width <= adv {
+fn web_url_pill_width(text: &mut crate::text::Text, url: &str, size: f32) -> f32 {
+    text.measure_ui_sized(url, size).0.min(360.0) + 22.0
+}
+
+fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    let max_px = max_px.max(0.0);
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    if text.measure_ui_sized(ellipsis, size).0 > max_px {
         return String::new();
     }
-    let avail = (width / adv).floor().max(0.0) as usize;
-    if text.chars().count() > avail && avail > 1 {
-        text.chars().take(avail - 1).collect::<String>() + "\u{2026}"
-    } else if avail == 0 {
-        String::new()
-    } else {
-        text.to_string()
+
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
     }
+    let mut shown: String = chars.iter().take(lo).collect();
+    shown.push_str(ellipsis);
+    shown
 }
 
 /// Clip `text` to the panel width (ellipsizing).
@@ -572,10 +586,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn fit_text_ellipsizes_inside_available_width() {
-        assert_eq!(fit_text("scratch.mty", 5.0 * 10.0, 10.0), "scra\u{2026}");
-        assert_eq!(fit_text("web", 6.0 * 10.0, 10.0), "web");
-        assert_eq!(fit_text("web", 10.0, 10.0), "");
+    fn fit_ui_text_ellipsizes_inside_measured_width() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+        let size = 12.0;
+        let full = "scratch.mty";
+        let budget = ctx.text.measure_ui_sized("scra\u{2026}", size).0 + 0.5;
+        let shown = fit_ui_text(&mut ctx.text, full, budget, size);
+
+        assert!(shown.ends_with('\u{2026}'));
+        assert!(ctx.text.measure_ui_sized(&shown, size).0 <= budget);
+        assert_eq!(fit_ui_text(&mut ctx.text, "web", 10_000.0, size), "web");
+        assert_eq!(fit_ui_text(&mut ctx.text, "web", 0.0, size), "");
+    }
+
+    #[test]
+    fn web_url_pill_width_uses_measured_ui_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+        let size = 10.0;
+        let short = web_url_pill_width(&mut ctx.text, "http://x", size);
+        let long = web_url_pill_width(&mut ctx.text, "http://localhost:8000/examples/demo.html", size);
+
+        assert!(short > 22.0);
+        assert!(long > short);
+        assert!(long <= 382.0);
     }
 
     #[test]
@@ -585,7 +622,7 @@ mod tests {
 
     #[test]
     fn compact_web_stop_button_falls_back_to_icon_only() {
-        let (btn, icon_only, next_cursor) = web_stop_button(356.0, 328.0, 194.0, 18.0, 12.0);
+        let (btn, icon_only, next_cursor) = web_stop_button(356.0, 328.0, 194.0, 18.0, 28.0);
         let (x, _, w, _) = btn.expect("compact icon stop button should fit");
         assert!(icon_only);
         assert_eq!(w, 28.0);

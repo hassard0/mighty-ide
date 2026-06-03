@@ -6147,3 +6147,11 @@ backgrounds still used fixed character estimates.
 - **IDE note:** Markdown preview now measures code-block language tags and
   inline-code chip text before positioning or sizing their chrome. Code badges
   and inline code backgrounds align with the actual rendered glyphs.
+
+L470. Web Playground header chrome should measure UI text before fitting. The
+Web panel drew UI-family package names, mode labels, URL pills, and Stop labels
+from fixed character estimates, even though those glyphs are proportional.
+
+- **IDE note:** Web Playground now measures Stop labels, URL pill text, package
+  names, and mode labels before sizing or ellipsizing header chrome. The
+  clickable URL target and drawn text now share measured layout budgets.
