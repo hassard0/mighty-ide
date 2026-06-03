@@ -364,7 +364,6 @@ impl CompletionEngine {
 
         let clip = ctx.clip;
         let radius = 8.0_f32;
-        let advance = layout::CHAR_W();
 
         // Soft drop shadow + rounded raised card + hairline border (mockup
         // `.autocomplete`).
@@ -392,17 +391,31 @@ impl CompletionEngine {
 
             let ty = row_y + (row_h - chrome) * 0.5 - 0.5;
             let name_x = box_x + 38.0;
-            ctx.text.queue_sized(name_x, ty, &cand.text, theme::TEXT(), chrome, clip);
+            let kind_size = chrome - 1.5;
+            let kind_x = completion_kind_x(box_x, box_w, kind, kind_size);
+            let sig_gap = if completion_row_signature_visible(sig) { 2.0 } else { 0.0 };
+            let sig_w = if sig_gap > 0.0 {
+                ctx.text.measure_ui_sized(sig, chrome - 1.0).0
+            } else {
+                0.0
+            };
+            let name_budget = (kind_x - 10.0 - name_x - sig_gap - sig_w).max(0.0);
+            let shown_name = fit_completion_text(&mut ctx.text, &cand.text, name_budget, chrome);
+            ctx.text.queue_sized(name_x, ty, &shown_name, theme::TEXT(), chrome, clip);
             // Signature hint immediately after the name, when the provider has
             // real row-level detail. Avoid placeholder fragments; the footer
             // carries full signature context for the selected row.
             if completion_row_signature_visible(sig) {
-                let sx = name_x + cand.text.chars().count() as f32 * advance + 2.0;
-                ctx.text.queue_sized(sx, ty, sig, theme::DIM(), chrome - 1.0, clip);
+                let name_w = ctx.text.measure_ui_sized(&shown_name, chrome).0;
+                let sig_x = name_x + name_w + sig_gap;
+                let sig_budget = (kind_x - 10.0 - sig_x).max(0.0);
+                let shown_sig = fit_completion_text(&mut ctx.text, sig, sig_budget, chrome - 1.0);
+                if !shown_sig.is_empty() {
+                    ctx.text.queue_sized(sig_x, ty, &shown_sig, theme::DIM(), chrome - 1.0, clip);
+                }
             }
             // Right-aligned kind metadata.
-            let kw = kind.chars().count() as f32 * (chrome - 1.5) * 0.55;
-            ctx.text.queue_ui_sized(box_x + box_w - 12.0 - kw, ty, kind, theme::DIM(), chrome - 1.5, clip);
+            ctx.text.queue_ui_sized(kind_x, ty, kind, theme::DIM(), kind_size, clip);
         }
 
         // Signature-hint footer (mockup `.ac-hint`): the selected candidate's
@@ -413,12 +426,46 @@ impl CompletionEngine {
         if let Some(sel) = self.candidates.get(self.sel) {
             let hy = hint_y + (hint_h - (chrome - 1.0)) * 0.5 - 0.5;
             let mut hx = box_x + 12.0;
-            ctx.text.queue_sized(hx, hy, &sel.text, theme::ACCENT_BRIGHT(), chrome - 1.0, clip);
-            hx += sel.text.chars().count() as f32 * (advance * 0.93);
             let tail = if sel.semantic { "(a: I32, b: I32) \u{2192} I32  \u{00B7} pure" } else { "  \u{00B7} local symbol" };
-            ctx.text.queue_sized(hx, hy, tail, theme::DIM(), chrome - 1.0, clip);
+            let tail_w = ctx.text.measure_ui_sized(tail, chrome - 1.0).0;
+            let name_budget = (box_x + box_w - 12.0 - tail_w - hx).max(0.0);
+            let shown_name = fit_completion_text(&mut ctx.text, &sel.text, name_budget, chrome - 1.0);
+            ctx.text.queue_sized(hx, hy, &shown_name, theme::ACCENT_BRIGHT(), chrome - 1.0, clip);
+            hx += ctx.text.measure_ui_sized(&shown_name, chrome - 1.0).0;
+            let tail_budget = (box_x + box_w - 12.0 - hx).max(0.0);
+            let shown_tail = fit_completion_text(&mut ctx.text, tail, tail_budget, chrome - 1.0);
+            if !shown_tail.is_empty() {
+                ctx.text.queue_sized(hx, hy, &shown_tail, theme::DIM(), chrome - 1.0, clip);
+            }
         }
     }
+}
+
+fn completion_kind_x(box_x: f32, box_w: f32, kind: &str, size: f32) -> f32 {
+    let kw = kind.chars().count() as f32 * size * 0.55;
+    box_x + box_w - 12.0 - kw
+}
+
+fn fit_completion_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    if max_px <= 0.0 || s.is_empty() {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    const ELLIPSIS: &str = "...";
+    if text.measure_ui_sized(ELLIPSIS, size).0 > max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    for keep in (1..=chars.len()).rev() {
+        let mut candidate: String = chars.iter().take(keep).collect();
+        candidate.push_str(ELLIPSIS);
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            return candidate;
+        }
+    }
+    ELLIPSIS.to_string()
 }
 
 /// Classify a candidate into a mockup-style type badge + a signature/kind hint.
@@ -936,6 +983,71 @@ mod tests {
         assert_eq!(kind, "function");
         assert!(!kind.contains("fn"));
         assert!(!completion_row_signature_visible(sig));
+    }
+
+    #[test]
+    fn completion_row_label_fits_before_kind_metadata() {
+        let mut ctx = match crate::MuiContext::new_offscreen(640, 480) {
+            Some(c) => c,
+            None => {
+                eprintln!("SKIP: no GPU adapter available; skipping completion text measurement");
+                return;
+            }
+        };
+        let name_x = 38.0;
+        let box_x = 0.0;
+        let box_w = 280.0;
+        let size = theme::CHROME_FONT_SIZE;
+        let kind_x = completion_kind_x(box_x, box_w, "snippet", size - 1.5);
+        let budget = (kind_x - 10.0 - name_x).max(0.0);
+        let shown = fit_completion_text(
+            &mut ctx.text,
+            "very_long_completion_candidate_that_used_to_run_under_kind",
+            budget,
+            size,
+        );
+        let shown_w = ctx.text.measure_ui_sized(&shown, size).0;
+        assert!(shown.ends_with("..."), "long completion rows should ellipsize: {shown}");
+        assert!(
+            name_x + shown_w <= kind_x - 10.0 + 0.5,
+            "completion label should fit before kind metadata: name_end={} kind_x={kind_x}",
+            name_x + shown_w
+        );
+    }
+
+    #[test]
+    fn completion_footer_name_and_tail_fit_panel_width() {
+        let mut ctx = match crate::MuiContext::new_offscreen(640, 480) {
+            Some(c) => c,
+            None => {
+                eprintln!("SKIP: no GPU adapter available; skipping completion text measurement");
+                return;
+            }
+        };
+        let box_x = 0.0;
+        let box_w = 280.0;
+        let size = theme::CHROME_FONT_SIZE - 1.0;
+        let hx = box_x + 12.0;
+        let tail = "  \u{00B7} local symbol";
+        let tail_w = ctx.text.measure_ui_sized(tail, size).0;
+        let name_budget = (box_x + box_w - 12.0 - tail_w - hx).max(0.0);
+        let shown_name = fit_completion_text(
+            &mut ctx.text,
+            "selected_completion_candidate_with_a_long_name",
+            name_budget,
+            size,
+        );
+        let name_w = ctx.text.measure_ui_sized(&shown_name, size).0;
+        let tail_budget = (box_x + box_w - 12.0 - (hx + name_w)).max(0.0);
+        let shown_tail = fit_completion_text(&mut ctx.text, tail, tail_budget, size);
+        let total_w = name_w + ctx.text.measure_ui_sized(&shown_tail, size).0;
+        assert!(shown_name.ends_with("..."), "long footer name should ellipsize: {shown_name}");
+        assert!(
+            hx + total_w <= box_x + box_w - 12.0 + 0.5,
+            "completion footer should fit within panel: footer_end={} panel_right={}",
+            hx + total_w,
+            box_x + box_w - 12.0
+        );
     }
 
     #[test]

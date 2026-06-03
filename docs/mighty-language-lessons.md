@@ -5273,3 +5273,13 @@ input invites a wrong edit that can rewrite syntax words across the buffer.
   reports `No rename target` instead of opening the inline rename editor. Unit
   tests cover server rejection parsing, range parsing, keyword filtering, and
   local identifier extraction.
+
+L376. Autocomplete rows need a real right column budget. Completion labels,
+signature snippets, and kind metadata are independent text runs; without fitting
+the label and footer to the right-aligned metadata boundary, long candidates can
+draw under the `function`/`snippet` label or overflow the hint strip.
+
+- **IDE note:** completion drawing now measures the right-aligned kind column,
+  fits row labels/signatures before it, and fits the selected footer name/tail
+  within the panel edge. Regression tests measure compact completion budgets so
+  long labels and footer text ellipsize before overlapping metadata.
