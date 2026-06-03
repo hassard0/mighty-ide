@@ -6460,3 +6460,14 @@ and editors behave unlike a real terminal.
   reports while mouse reporting is active and keeps the previous cursor-key
   fallback for ordinary shells. Unit coverage pins mode toggling and both
   scroll encodings.
+
+L503. Terminal cursor visibility is app-controlled rendering state.
+TUIs commonly hide the text cursor with `CSI ?25l` while rendering their own
+selection, focus, or status surfaces, then restore it with `CSI ?25h`. If the
+IDE keeps drawing its block cursor anyway, it creates a phantom caret inside
+apps that explicitly asked for a clean canvas.
+
+- **IDE note:** The VT parser now tracks cursor visibility mode, resets it on
+  full terminal reset, and exposes it through the terminal snapshot used by the
+  draw path. The renderer skips the terminal block cursor while `?25l` is active.
+  Unit coverage pins hide/show mode toggling and `ESC c` mode restoration.

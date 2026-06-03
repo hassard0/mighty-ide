@@ -511,6 +511,8 @@ pub struct VtParser {
     saved_cursor: Option<(usize, usize)>,
     /// Whether the running app asked for bracketed paste (`CSI ?2004 h`).
     bracketed_paste: bool,
+    /// Whether the terminal cursor should be drawn (`CSI ?25 h/l`).
+    cursor_visible: bool,
     /// Whether the running app asked for mouse button/drag/all-motion reports.
     mouse_reporting: bool,
     /// Whether mouse reports should use SGR extended coordinates (`CSI ?1006 h`).
@@ -533,6 +535,7 @@ impl VtParser {
             reply: Vec::new(),
             saved_cursor: None,
             bracketed_paste: false,
+            cursor_visible: true,
             mouse_reporting: false,
             sgr_mouse: false,
         }
@@ -557,6 +560,10 @@ impl VtParser {
 
     pub fn sgr_mouse_enabled(&self) -> bool {
         self.mouse_reporting && self.sgr_mouse
+    }
+
+    pub fn cursor_visible(&self) -> bool {
+        self.cursor_visible
     }
 
     fn feed_byte(&mut self, grid: &mut Grid, b: u8) {
@@ -638,6 +645,7 @@ impl VtParser {
             // `ESC c` full reset — clear the grid.
             b'c' => {
                 grid.clear();
+                self.reset_modes();
                 self.state = State::Ground;
             }
             b'7' => {
@@ -897,6 +905,8 @@ impl VtParser {
                 ("47" | "1047" | "1049", b'l') => grid.exit_alternate_screen(),
                 ("1048", b'h') => self.save_cursor(grid),
                 ("1048", b'l') => self.restore_cursor(grid),
+                ("25", b'h') => self.cursor_visible = true,
+                ("25", b'l') => self.cursor_visible = false,
                 ("2004", b'h') => self.bracketed_paste = true,
                 ("2004", b'l') => self.bracketed_paste = false,
                 ("1000" | "1002" | "1003", b'h') => self.mouse_reporting = true,
@@ -906,6 +916,14 @@ impl VtParser {
                 _ => {}
             }
         }
+    }
+
+    fn reset_modes(&mut self) {
+        self.saved_cursor = None;
+        self.bracketed_paste = false;
+        self.cursor_visible = true;
+        self.mouse_reporting = false;
+        self.sgr_mouse = false;
     }
 
     fn erase_display(&mut self, grid: &mut Grid) {
@@ -1267,6 +1285,10 @@ impl Terminal {
 
     pub fn visible_contains(&self, needle: &str) -> bool {
         self.grid.contains(needle)
+    }
+
+    pub fn cursor_visible(&self) -> bool {
+        self.parser.cursor_visible()
     }
 
     /// Drain any pending PTY output through the parser into the grid. Cheap when
@@ -1939,6 +1961,31 @@ mod tests {
         assert!(!p.sgr_mouse_enabled());
 
         p.feed(&mut g, b"\x1b[?1006h\x1b[?1000l");
+        assert!(!p.sgr_mouse_enabled());
+    }
+
+    #[test]
+    fn cursor_visibility_mode_tracks_private_csi() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+        assert!(p.cursor_visible());
+
+        p.feed(&mut g, b"\x1b[?25l");
+        assert!(!p.cursor_visible());
+        assert!(!g.contains("25"));
+
+        p.feed(&mut g, b"\x1b[?25h");
+        assert!(p.cursor_visible());
+        assert!(!g.contains("25"));
+    }
+
+    #[test]
+    fn esc_c_resets_terminal_modes() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b[?25l\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1bc");
+        assert!(p.cursor_visible());
+        assert!(!p.bracketed_paste_enabled());
         assert!(!p.sgr_mouse_enabled());
     }
 

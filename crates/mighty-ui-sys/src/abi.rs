@@ -7018,7 +7018,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
 
     // Snapshot the grid into owned data so the borrow on `ctx.terminal` ends
     // before we borrow `ctx.text`.
-    let (rows, cols, cursor, backgrounds, glyphs) = {
+    let (rows, cols, cursor, cursor_visible, backgrounds, glyphs) = {
         let Some(t) = ctx.terminal.as_ref() else {
             return;
         };
@@ -7064,7 +7064,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 }
             }
         }
-        (rows, cols, g.cursor(), bg_runs, runs)
+        (rows, cols, g.cursor(), t.cursor_visible(), bg_runs, runs)
     };
 
     for (x, y, w, (r, gc, b, a)) in &backgrounds {
@@ -7078,7 +7078,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
 
     // Block cursor at the grid cursor position (clamped into the panel).
     let (cr, cc) = cursor;
-    if cr < rows && cc <= cols {
+    if cursor_visible && cr < rows && cc <= cols {
         let cx = layout::term_cell_x(region, cc);
         let cy = layout::term_cell_y(height, cr);
         unsafe {
