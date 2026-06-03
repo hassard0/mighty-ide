@@ -19,9 +19,11 @@
 
 use std::time::Instant;
 
+use crate::ai::api_key;
 use crate::ghost::{Context, GhostState};
 use crate::layout;
 use crate::theme;
+use crate::toast::Kind;
 use crate::MuiContext;
 
 /// Cast an opaque `i64` handle back to a context reference.
@@ -150,9 +152,26 @@ pub extern "C" fn mui_ghost_force(handle: i64) -> i32 {
     let Some(c) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !crate::settings::inline_ai() {
+        c.push_toast(Kind::Warn, "AI inline completion is disabled in Settings");
+        return 0;
+    }
+    if api_key().is_none() {
+        c.push_toast(Kind::Warn, "Set ANTHROPIC_API_KEY to enable Inline AI");
+        return 0;
+    }
+    if c.ghost.is_inflight() {
+        c.push_toast(Kind::Info, "AI completion already running");
+        return 0;
+    }
+
     let ptr: *const MuiContext = c;
     let snap = snapshot(unsafe { &*ptr });
-    i32::from(c.ghost.force(snap))
+    let started = c.ghost.force(snap);
+    if !started {
+        c.push_toast(Kind::Warn, "AI completion could not start");
+    }
+    i32::from(started)
 }
 
 /// Draw the dim ghost-text overlay starting at the cursor. The first line
@@ -221,5 +240,51 @@ mod tests {
         mui_ghost_dismiss(0);
         assert_eq!(mui_ghost_force(0), 0);
         mui_ghost_draw(0);
+    }
+
+    #[test]
+    fn force_reports_missing_key() {
+        let _g = crate::settings::TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        crate::settings::update(|s| s.inline_ai = true);
+        std::env::remove_var("ANTHROPIC_API_KEY");
+        std::env::remove_var("CLAUDE_API_KEY");
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+        let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+        assert_eq!(mui_ghost_force(handle), 0);
+        assert_eq!(ctx.toasts.toasts().len(), 1);
+        assert_eq!(
+            ctx.toasts.toasts()[0].message,
+            "Set ANTHROPIC_API_KEY to enable Inline AI"
+        );
+        assert_eq!(ctx.toasts.toasts()[0].kind, Kind::Warn);
+        crate::settings::set_active(crate::settings::Settings::default());
+    }
+
+    #[test]
+    fn force_reports_disabled_setting_before_key_check() {
+        let _g = crate::settings::TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        crate::settings::update(|s| s.inline_ai = false);
+        std::env::remove_var("ANTHROPIC_API_KEY");
+        std::env::remove_var("CLAUDE_API_KEY");
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+        let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+        assert_eq!(mui_ghost_force(handle), 0);
+        assert_eq!(ctx.toasts.toasts().len(), 1);
+        assert_eq!(
+            ctx.toasts.toasts()[0].message,
+            "AI inline completion is disabled in Settings"
+        );
+        assert_eq!(ctx.toasts.toasts()[0].kind, Kind::Warn);
+        crate::settings::set_active(crate::settings::Settings::default());
     }
 }

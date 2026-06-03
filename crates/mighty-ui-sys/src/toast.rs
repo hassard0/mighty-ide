@@ -1955,6 +1955,28 @@ mod tests {
         q.push_at(Kind::Info, "AI Copilot closed", t0 + Duration::from_millis(200));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "AI Copilot closed");
+
+        q.push_at(
+            Kind::Warn,
+            "AI inline completion is disabled in Settings",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "AI inline completion is disabled in Settings"
+        );
+
+        q.push_at(
+            Kind::Warn,
+            "Set ANTHROPIC_API_KEY to enable Inline AI",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Set ANTHROPIC_API_KEY to enable Inline AI"
+        );
     }
 
     #[test]

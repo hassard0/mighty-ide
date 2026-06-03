@@ -6529,3 +6529,16 @@ wrapped composer text.
   call the same measured input-geometry helper as the draw path. The old
   character-estimated composer geometry helper was removed from the test surface,
   so future AI panel regressions are checked against rendered text metrics.
+
+L509. Explicit AI commands should explain unavailable states.
+Debounced background completion is allowed to stay quiet so typing never becomes
+noisy, but a direct user command like Force Inline AI Completion is an explicit
+request. Returning `0` without feedback makes the command palette and shortcut
+feel broken when the setting is off, the API key is missing, or a request is
+already in flight.
+
+- **IDE note:** `mui_ghost_force` now reports disabled Inline AI, missing
+  `ANTHROPIC_API_KEY`, already-running requests, and unexpected start failures
+  through the toast lane while preserving the silent automatic debounce path.
+  The new messages share the existing AI toast replacement key, so repeated AI
+  availability feedback updates in place instead of stacking.
