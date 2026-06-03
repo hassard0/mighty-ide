@@ -296,6 +296,8 @@ pub const CMD_CODE_ACTIONS: u32 = 132;
 pub const CMD_INLINE_AI_ASK: u32 = 133;
 /// Force an inline AI ghost-text completion at the cursor.
 pub const CMD_FORCE_GHOST_COMPLETION: u32 = 134;
+/// Open Universal Quick Open for files, commands, symbols, and line jumps.
+pub const CMD_QUICK_OPEN: u32 = 135;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -326,6 +328,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_COPY_ACTIVE_FILE_DIRECTORY, label: "File: Copy Active File Directory", keybinding: "" },
     Command { id: CMD_DELETE_ACTIVE_FILE, label: "File: Delete Active File", keybinding: "" },
     Command { id: CMD_CLEAR_NOTIFICATIONS, label: "Notifications: Clear All Toasts", keybinding: "" },
+    Command { id: CMD_QUICK_OPEN,       label: "Quick Open",          keybinding: "Ctrl+P" },
     Command { id: CMD_FIND,             label: "Find",               keybinding: "Ctrl+F" },
     Command { id: CMD_FIND_REPLACE,     label: "Find & Replace",     keybinding: "Ctrl+H" },
     Command { id: CMD_GOTO_LINE,        label: "Go to Line",         keybinding: "Ctrl+G" },
@@ -746,6 +749,7 @@ impl PaletteEngine {
             CMD_COPY_ACTIVE_FILE_DIRECTORY => (icons::FOLDER, "Copy the active file's containing folder", false),
             CMD_DELETE_ACTIVE_FILE => (icons::ERROR_CIRCLE, "Delete the active file after confirmation", false),
             CMD_CLEAR_NOTIFICATIONS => (icons::CLOSE, "Dismiss every visible toast notification", false),
+            CMD_QUICK_OPEN => (icons::SEARCH, "Open files, commands, symbols, or line jumps", false),
             CMD_FIND => (icons::SEARCH, "Search within the current document", false),
             CMD_FIND_REPLACE => (icons::SEARCH, "Search and replace within the current document", false),
             CMD_GOTO_LINE => (icons::CHEVRON, "Jump to a specific line number", false),

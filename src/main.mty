@@ -743,6 +743,7 @@ fn cmd_rename_symbol() -> I32 { 131 }
 fn cmd_code_actions() -> I32 { 132 }
 fn cmd_inline_ai_ask() -> I32 { 133 }
 fn cmd_force_ghost_completion() -> I32 { 134 }
+fn cmd_quick_open() -> I32 { 135 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -3881,6 +3882,15 @@ fn main() {
           let _sa = mui_save_all(h)
           let _g = mui_scm_refresh(h)
           find_nav = false
+        } else if id == cmd_quick_open() {
+          mui_quickopen_open(h)
+          quickopen_open = true
+          quickopen_ignore_mouse_down = true
+          typing = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
         } else if id == cmd_find() {
           mui_prompt_open(h, prompt_find())
           prompt_kind = prompt_find()

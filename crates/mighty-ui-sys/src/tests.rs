@@ -6245,6 +6245,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_SAVE, "cmd_save"),
         (CMD_SAVE_AS, "cmd_save_as"),
         (CMD_SAVE_ALL, "cmd_save_all"),
+        (CMD_QUICK_OPEN, "cmd_quick_open"),
         (CMD_FIND, "cmd_find"),
         (CMD_FIND_REPLACE, "cmd_find_replace"),
         (CMD_GOTO_LINE, "cmd_goto_line"),

@@ -5930,3 +5930,11 @@ shortcut-only actions.
 - **IDE note:** the command palette now lists `AI: Inline Ask` and `AI: Force
   Ghost Completion`. Mighty opens the same Ask AI prompt as Ctrl+I and calls
   `mui_ghost_force` for the same explicit inline-completion path as Alt+\.
+
+L445. Navigation surfaces should be reachable from each other. Universal
+Quick-Open is a core files/commands/symbols/line-jump surface, but it was only
+available by Ctrl+P or the top-bar command center.
+
+- **IDE note:** the command palette now lists `Quick Open` with `Ctrl+P`. The
+  dispatcher opens the same `mui_quickopen_open` overlay and resets transient
+  panel focus so selecting the command hands off cleanly to the quick-open UI.
