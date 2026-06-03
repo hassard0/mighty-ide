@@ -834,6 +834,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Fold)
     } else if m == "Enter text to replace"
         || m == "Replace is unavailable in read-only previews"
+        || m == "Find & Replace closed"
+        || m == "No Find & Replace bar open"
         || m == "No matches to replace"
         || m == "No project replacements"
         || (m.starts_with("Replaced ") && m.contains(" occurrence"))
@@ -2003,6 +2005,22 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No project replacements");
+
+        q.push_at(
+            Kind::Info,
+            "Find & Replace closed",
+            t0 + Duration::from_millis(500),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Find & Replace closed");
+
+        q.push_at(
+            Kind::Info,
+            "No Find & Replace bar open",
+            t0 + Duration::from_millis(600),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No Find & Replace bar open");
     }
 
     #[test]

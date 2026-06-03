@@ -7303,3 +7303,13 @@ compete with the action result.
   `No code action menu open` in the CodeAction toast lane, and Mighty explicitly
   discards the returned state from Escape, char-dismiss, mouse-dismiss, and
   palette command paths.
+
+L585. Find & Replace close is a real surface command. Unlike action-application
+cleanup, closing the bar should be visible whether the command closed an active
+bar or found that the bar was already gone.
+
+- **IDE note:** `mui_replace_cancel` now returns `1` when it closes the active
+  Find & Replace bar and `0` when no bar is open. Active close reports
+  `Find & Replace closed`; no-op close reports `No Find & Replace bar open`;
+  both messages stay in the replace toast lane, and Mighty explicitly discards
+  the returned state from Escape, close-button, and palette command paths.

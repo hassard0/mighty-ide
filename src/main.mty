@@ -136,7 +136,7 @@ extern c {
   fn mui_replace_backspace(handle: I64)
   fn mui_replace_toggle_focus(handle: I64) -> I32
   fn mui_replace_focus(handle: I64) -> I32
-  fn mui_replace_cancel(handle: I64)
+  fn mui_replace_cancel(handle: I64) -> I32
   fn mui_replace_close_at_click(handle: I64) -> I32
   fn mui_replace_next(handle: I64) -> I32
   fn mui_replace_all(handle: I64) -> I32
@@ -2214,7 +2214,7 @@ fn main() {
           } else if k == key_tab() {
             let _f = mui_replace_toggle_focus(h)
           } else if k == key_escape() {
-            mui_replace_cancel(h)
+            let _repc = mui_replace_cancel(h)
             replacing = false
           } else if k == key_enter() {
             // Enter on the replace field replaces all; otherwise replace-next.
@@ -2231,7 +2231,7 @@ fn main() {
           }
         } else if tag == ev_mouse_down() {
           if mui_replace_close_at_click(h) == 1 {
-            mui_replace_cancel(h)
+            let _repc = mui_replace_cancel(h)
             replacing = false
           }
         }
@@ -4012,7 +4012,7 @@ fn main() {
           find_nav = false
           typing = false
         } else if id == cmd_find_replace_close() {
-          mui_replace_cancel(h)
+          let _repc = mui_replace_cancel(h)
           replacing = false
         } else if id == cmd_goto_line() {
           mui_prompt_open(h, prompt_goto())

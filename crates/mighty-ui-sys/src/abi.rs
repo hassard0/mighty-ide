@@ -13413,11 +13413,20 @@ pub extern "C" fn mui_replace_focus(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.replace_bar.replace_focus())
 }
 
-/// Close the replace bar (clears its fields).
+/// Close the replace bar (clears its fields). Returns `1` when an active bar
+/// was closed and `0` when there was nothing to close.
 #[no_mangle]
-pub extern "C" fn mui_replace_cancel(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
+pub extern "C" fn mui_replace_cancel(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.replace_bar.is_active() {
         ctx.replace_bar.cancel();
+        ctx.push_toast(crate::toast::Kind::Info, "Find & Replace closed");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No Find & Replace bar open");
+        0
     }
 }
 

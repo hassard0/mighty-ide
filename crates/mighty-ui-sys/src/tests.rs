@@ -7104,8 +7104,19 @@ fn find_replace_close_command_clears_active_bar() {
     crate::mui_replace_push(handle, b'o' as i32);
     crate::mui_replace_push(handle, b'o' as i32);
 
-    crate::mui_replace_cancel(handle);
+    assert_eq!(crate::mui_replace_cancel(handle), 1);
     assert_eq!(crate::mui_replace_active(handle), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(ctx.toasts.toasts()[0].message, "Find & Replace closed");
+
+    assert_eq!(crate::mui_replace_cancel(handle), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(
+        ctx.toasts.toasts()[0].message,
+        "No Find & Replace bar open"
+    );
 }
 
 #[test]
@@ -8093,7 +8104,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_find_replace_close()")
-            && main.contains("mui_replace_cancel(h)")
+            && main.contains("let _repc = mui_replace_cancel(h)")
             && main.contains("replacing = false"),
         "Find & Replace close command must clear shim replace state and Mighty's local replace flag"
     );
