@@ -6632,3 +6632,13 @@ as compact header icons.
   dispatching through the existing `mui_tree_collapse_all` ABI after focusing
   the Explorer panel. Registry, metadata, and dispatcher tests pin the command
   id, label, helper, and Explorer-focus behavior.
+
+L518. Panel primary actions should be command-palette reachable.
+Opening a panel is not the same as exposing its core workflow. If Search can only
+run or replace from panel-local keys and compact buttons, command-first users
+cannot chain those actions from Quick Open or the palette after entering a query.
+
+- **IDE note:** The command palette now lists `Search: Run Search`,
+  `Search: Replace All`, and `Search: Toggle Replace Field`, each focusing the
+  Search panel before calling the existing Search ABI. Registry, metadata, and
+  dispatcher tests pin the ids, labels, helpers, and Search-focus behavior.

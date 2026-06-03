@@ -319,6 +319,12 @@ pub const CMD_ZOOM_OUT: u32 = 143;
 pub const CMD_ZOOM_RESET: u32 = 144;
 /// Collapse every expanded folder in the Explorer tree.
 pub const CMD_EXPLORER_COLLAPSE_ALL: u32 = 145;
+/// Run the project-wide Search panel query.
+pub const CMD_SEARCH_RUN: u32 = 146;
+/// Replace all project-wide Search panel matches.
+pub const CMD_SEARCH_REPLACE_ALL: u32 = 147;
+/// Move focus between the Search query and replace fields.
+pub const CMD_SEARCH_TOGGLE_REPLACE: u32 = 148;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -432,6 +438,9 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_GIT_COMMIT_STAGED, label: "Git: Commit Staged", keybinding: "" },
     Command { id: CMD_VIEW_EXPLORER,    label: "View: Explorer",      keybinding: "" },
     Command { id: CMD_VIEW_SEARCH,      label: "View: Search",        keybinding: "Ctrl+Shift+F" },
+    Command { id: CMD_SEARCH_RUN,       label: "Search: Run Search",   keybinding: "" },
+    Command { id: CMD_SEARCH_REPLACE_ALL, label: "Search: Replace All", keybinding: "" },
+    Command { id: CMD_SEARCH_TOGGLE_REPLACE, label: "Search: Toggle Replace Field", keybinding: "" },
     Command { id: CMD_VIEW_SOURCE_CONTROL, label: "View: Source Control", keybinding: "Ctrl+Shift+G" },
     Command { id: CMD_VIEW_OUTLINE,     label: "View: Outline",       keybinding: "" },
     Command { id: CMD_VIEW_RUN_DEBUG,   label: "View: Run and Debug", keybinding: "" },
@@ -938,6 +947,9 @@ impl PaletteEngine {
             CMD_GIT_COMMIT_STAGED => (icons::GIT, "Commit staged changes with the SCM message", false),
             CMD_VIEW_EXPLORER => (icons::EXPLORER, "Open the file explorer view", false),
             CMD_VIEW_SEARCH => (icons::SEARCH, "Open project-wide search", false),
+            CMD_SEARCH_RUN => (icons::SEARCH, "Run the current project-wide search query", false),
+            CMD_SEARCH_REPLACE_ALL => (icons::REPLACE, "Replace every current project-wide search match", false),
+            CMD_SEARCH_TOGGLE_REPLACE => (icons::REPLACE, "Move Search panel focus between query and replace", false),
             CMD_VIEW_SOURCE_CONTROL => (icons::GIT, "Open source control", false),
             CMD_VIEW_OUTLINE => (icons::FN_SYMBOL, "Open the symbol outline", false),
             CMD_VIEW_RUN_DEBUG => (icons::DEBUG, "Open Run and Debug", false),

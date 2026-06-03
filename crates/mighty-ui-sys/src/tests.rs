@@ -2657,6 +2657,25 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(commit_staged.label, "Git: Commit Staged");
 
+    let search_commands = [
+        (crate::palette::CMD_SEARCH_RUN, "Search: Run Search", ""),
+        (
+            crate::palette::CMD_SEARCH_REPLACE_ALL,
+            "Search: Replace All",
+            "",
+        ),
+        (
+            crate::palette::CMD_SEARCH_TOGGLE_REPLACE,
+            "Search: Toggle Replace Field",
+            "",
+        ),
+    ];
+    for (id, label, keybinding) in search_commands {
+        let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
+        assert_eq!(cmd.label, label);
+        assert_eq!(cmd.keybinding, keybinding);
+    }
+
     let view_commands = [
         (crate::palette::CMD_VIEW_EXPLORER, "View: Explorer"),
         (crate::palette::CMD_VIEW_SEARCH, "View: Search"),
@@ -6535,6 +6554,18 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("mui_tree_collapse_all(h)"),
         "Explorer collapse-all command must reveal Explorer before collapsing the tree"
     );
+    for (helper, action) in [
+        ("cmd_search_run", "mui_search_run(h)"),
+        ("cmd_search_replace_all", "mui_search_replace_all(h)"),
+        ("cmd_search_toggle_replace", "mui_search_toggle_focus(h)"),
+    ] {
+        assert!(
+            main.contains(&format!("id == {helper}()"))
+                && main.contains("let _vp = mui_panel_set(h, panel_search())")
+                && main.contains(action),
+            "Search command `{helper}` must reveal Search before invoking `{action}`"
+        );
+    }
     for needle in [
         "id >= cmd_pane_first() && id <= cmd_pane_last()",
         "id >= cmd_git_first() && id <= cmd_git_last()",
@@ -6733,6 +6764,12 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_GIT_COMMIT_STAGED, "cmd_git_commit_staged"),
         (CMD_VIEW_EXPLORER, "cmd_view_explorer"),
         (CMD_VIEW_SEARCH, "cmd_view_search"),
+        (CMD_SEARCH_RUN, "cmd_search_run"),
+        (CMD_SEARCH_REPLACE_ALL, "cmd_search_replace_all"),
+        (
+            CMD_SEARCH_TOGGLE_REPLACE,
+            "cmd_search_toggle_replace",
+        ),
         (CMD_VIEW_SOURCE_CONTROL, "cmd_view_source_control"),
         (CMD_VIEW_OUTLINE, "cmd_view_outline"),
         (CMD_VIEW_RUN_DEBUG, "cmd_view_run_debug"),

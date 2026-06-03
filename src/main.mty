@@ -760,6 +760,9 @@ fn cmd_zoom_in() -> I32 { 142 }
 fn cmd_zoom_out() -> I32 { 143 }
 fn cmd_zoom_reset() -> I32 { 144 }
 fn cmd_explorer_collapse_all() -> I32 { 145 }
+fn cmd_search_run() -> I32 { 146 }
+fn cmd_search_replace_all() -> I32 { 147 }
+fn cmd_search_toggle_replace() -> I32 { 148 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4213,6 +4216,21 @@ fn main() {
         } else if id == cmd_view_search() {
           let _vp = mui_panel_set(h, panel_search())
           agents_focus = false
+        } else if id == cmd_search_run() {
+          let _vp = mui_panel_set(h, panel_search())
+          let _c = mui_search_run(h)
+          agents_focus = false
+          find_nav = false
+        } else if id == cmd_search_replace_all() {
+          let _vp = mui_panel_set(h, panel_search())
+          let _r = mui_search_replace_all(h)
+          agents_focus = false
+          find_nav = false
+        } else if id == cmd_search_toggle_replace() {
+          let _vp = mui_panel_set(h, panel_search())
+          let _f = mui_search_toggle_focus(h)
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_view_source_control() {
           let _vp = mui_panel_set(h, panel_scm())
           agents_focus = false
