@@ -5956,3 +5956,11 @@ binding like `Ctrl+1 / Ctrl+2` could become a malformed `1 / Ctrl` key pill.
 - **IDE note:** palette rows now tokenize shortcut text into key pills plus a
   lightweight `/` separator. `Ctrl+/` stays a real slash key, while
   `Ctrl+1 / Ctrl+2` renders as two clear shortcut alternatives.
+
+L448. Cross-surface command search should not drop the hint that made the match.
+Quick Open command mode reused palette filtering, so shortcut searches such as
+`>ctrl p` could find `Quick Open`, but the row only showed the command name.
+
+- **IDE note:** Quick Open command rows now carry the palette keybinding into
+  the secondary row text. Command-mode results stay dispatch-compatible while
+  showing the shortcut that matched, e.g. `Quick Open` with `Ctrl+P`.

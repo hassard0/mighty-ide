@@ -7977,10 +7977,10 @@ fn quickopen_sync_providers(ctx: &mut MuiContext) {
                 ctx.quickopen.query(),
             )
             .to_string();
-            let cmds: Vec<(String, i32)> =
+            let cmds: Vec<(String, String, i32)> =
                 crate::palette::filter_commands(crate::palette::COMMANDS, &q)
                     .into_iter()
-                    .map(|c| (c.label.to_string(), c.id as i32))
+                    .map(|c| (c.label.to_string(), c.keybinding.to_string(), c.id as i32))
                     .collect();
             ctx.quickopen.set_command_rows(&cmds);
         }

@@ -766,19 +766,19 @@ impl QuickOpen {
     }
 
     /// Replace the rows with caller-built command rows (Commands mode). The
-    /// `cmds` are `(label, command_id)` pairs already filtered/ranked by the
+    /// `cmds` are `(label, keybinding, command_id)` triples already filtered/ranked by the
     /// caller (it reuses the palette's `filter_commands`); we just map them to
     /// rows, fuzzy-highlighting the label against the query sans the `>` prefix.
-    pub fn set_command_rows(&mut self, cmds: &[(String, i32)]) {
+    pub fn set_command_rows(&mut self, cmds: &[(String, String, i32)]) {
         let q = Mode::strip(Mode::Commands, &self.query);
         self.rows = cmds
             .iter()
-            .map(|(label, id)| {
+            .map(|(label, keybinding, id)| {
                 let indices = fuzzy_match(label, q).map(|m| m.indices).unwrap_or_default();
                 Row {
                     icon_kind: Row::ICON_LINE,
                     name: label.clone(),
-                    dir: String::new(),
+                    dir: keybinding.clone(),
                     indices,
                     target: *id,
                 }
@@ -1450,6 +1450,37 @@ mod tests {
         assert!(names.contains(&"parse"));
         assert!(!names.contains(&"main"));
         assert_eq!(qo.accept_symbol(-1), qo.row(0).unwrap().target);
+    }
+
+    #[test]
+    fn command_mode_rows_preserve_keybinding_hint() {
+        let mut qo = QuickOpen::new();
+        qo.open();
+        qo.push_char('>');
+        qo.set_command_rows(&[
+            ("Quick Open".to_string(), "Ctrl+P".to_string(), 135),
+            ("Find".to_string(), "Ctrl+F".to_string(), 3),
+        ]);
+
+        assert_eq!(qo.count(), 2);
+        let row = qo.row(0).unwrap();
+        assert_eq!(row.name, "Quick Open");
+        assert_eq!(row.dir, "Ctrl+P");
+        assert_eq!(row.target, 135);
+    }
+
+    #[test]
+    fn command_mode_shortcut_query_still_keeps_shortcut_visible() {
+        let mut qo = QuickOpen::new();
+        qo.open();
+        for ch in ">ctrl p".chars() {
+            qo.push_char(ch);
+        }
+        qo.set_command_rows(&[("Quick Open".to_string(), "Ctrl+P".to_string(), 135)]);
+
+        let row = qo.row(0).unwrap();
+        assert_eq!(row.name, "Quick Open");
+        assert_eq!(row.dir, "Ctrl+P");
     }
 
     #[test]
