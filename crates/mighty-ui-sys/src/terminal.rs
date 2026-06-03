@@ -233,6 +233,16 @@ impl Grid {
         self.cur_col = col;
     }
 
+    fn move_cursor_col_1_based(&mut self, col: usize) {
+        self.cur_col = col.saturating_sub(1).min(self.cols - 1);
+    }
+
+    fn move_cursor_line_relative(&mut self, d_row: isize) {
+        let row = self.cur_row.saturating_add_signed(d_row).min(self.rows - 1);
+        self.cur_row = row;
+        self.cur_col = 0;
+    }
+
     fn tab(&mut self) {
         // Advance to the next multiple-of-8 column (classic tab stops).
         let next = ((self.cur_col / 8) + 1) * 8;
@@ -453,6 +463,10 @@ impl VtParser {
                     self.cursor_position(grid);
                 } else if matches!(b, b'A' | b'B' | b'C' | b'D') {
                     self.cursor_relative(grid, b);
+                } else if b == b'G' {
+                    self.cursor_column(grid);
+                } else if b == b'E' || b == b'F' {
+                    self.cursor_line_relative(grid, b);
                 } else if b == b's' {
                     self.save_cursor(grid);
                 } else if b == b'u' {
@@ -578,6 +592,40 @@ impl VtParser {
             b'B' => grid.move_cursor_relative(amount, 0),
             b'C' => grid.move_cursor_relative(0, amount),
             b'D' => grid.move_cursor_relative(0, -amount),
+            _ => {}
+        }
+    }
+
+    fn cursor_column(&mut self, grid: &mut Grid) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        if params.starts_with('?') {
+            return;
+        }
+        let col = params
+            .split(';')
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(1)
+            .max(1);
+        grid.move_cursor_col_1_based(col);
+    }
+
+    fn cursor_line_relative(&mut self, grid: &mut Grid, final_byte: u8) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        if params.starts_with('?') {
+            return;
+        }
+        let amount = params
+            .split(';')
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(1)
+            .max(1) as isize;
+        match final_byte {
+            b'E' => grid.move_cursor_line_relative(amount),
+            b'F' => grid.move_cursor_line_relative(-amount),
             _ => {}
         }
     }
@@ -1100,6 +1148,24 @@ mod tests {
         assert_eq!(g2.cell(1, 5).ch, 'b');
         assert!(!g2.contains("[s"));
         assert!(!g2.contains("[u"));
+    }
+
+    #[test]
+    fn cursor_column_and_line_csi_moves_and_clamps() {
+        let g = grid_feed(3, 8, b"abcd\x1b[2GZ\x1b[20GX");
+        assert_eq!(g.cell(0, 0).ch, 'a');
+        assert_eq!(g.cell(0, 1).ch, 'Z');
+        assert_eq!(g.cell(0, 7).ch, 'X');
+        assert!(!g.contains("2G"));
+        assert!(!g.contains("20G"));
+
+        let g2 = grid_feed(3, 8, b"\x1b[2;4H@\x1b[EZ\x1b[2FY\x1b[20E\x1b[2GX");
+        assert_eq!(g2.cell(1, 3).ch, '@');
+        assert_eq!(g2.cell(2, 0).ch, 'Z');
+        assert_eq!(g2.cell(0, 0).ch, 'Y');
+        assert_eq!(g2.cell(2, 1).ch, 'X');
+        assert!(!g2.contains("[E"));
+        assert!(!g2.contains("[2F"));
     }
 
     #[test]

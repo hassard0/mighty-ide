@@ -5148,3 +5148,14 @@ cursor.
   cursor for both DEC and CSI save/restore sequences. Parser tests cover
   overwrite behavior after restore and verify the control bytes are consumed
   instead of leaking into terminal output.
+
+L364. Cursor addressing has more common forms than row/column and arrows. Prompt
+renderers also use `CSI G` for absolute columns and `CSI E`/`CSI F` for
+next-line/previous-line movement with an implicit carriage return; skipping
+those forms makes redraw code leave escape text behind or paint at stale
+columns.
+
+- **IDE note:** the integrated terminal now handles `ESC[nG`, `ESC[nE`, and
+  `ESC[nF`, including default count one and grid clamping. Parser tests cover
+  absolute column moves, next/previous line resets to column zero, large-count
+  clamps, and consuming the control bytes.
