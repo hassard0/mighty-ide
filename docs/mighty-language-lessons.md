@@ -6046,3 +6046,12 @@ font.
   choose popup width, then fit each row label against the actual remaining row
   budget. Deep symbol names and long sibling filenames ellipsize before the card
   edge.
+
+L458. Measured rendering changes must keep hit-testing geometry in sync.
+Settings values moved to measured drawing, but numeric row click handling still
+computed the minus button from a character-count value width.
+
+- **IDE note:** Numeric Settings rows now share a fixed value slot for drawing,
+  label budgeting, and mouse hit-testing. The rendered value is centered by
+  measured width inside that bounded slot, so `-` and `+` click targets match
+  what users see.

@@ -161,9 +161,7 @@ impl SettingsPanel {
             let step = 22.0;
             let py = ry + (row_h - step) * 0.5;
             let plus_x = ctrl_right - step;
-            let val = Self::value_str(&settings::active(), row_id);
-            let val_w = val.chars().count() as f32 * 7.5;
-            let val_x = plus_x - 14.0 - val_w;
+            let val_x = plus_x - 14.0 - settings_numeric_value_slot_width();
             let minus_x = val_x - 14.0 - step;
             if (minus_x..=minus_x + step).contains(&x) && (py..=py + step).contains(&y) {
                 return 2;
@@ -421,9 +419,11 @@ impl SettingsPanel {
                 ctx.dl_stroke(plus_x, py, step, step, 6.0, theme::BORDER_STRONG(), 1.0);
                 ctx.dl_icon(plus_x + 4.0, py + 4.0, 14.0, 14.0, icons::STAGE_PLUS, val_col, 1.7, false);
 
+                let val_slot_w = settings_numeric_value_slot_width();
                 let val_w = settings_value_width(&mut ctx.text, &val, 14.0);
-                let val_x = plus_x - 14.0 - val_w;
-                ctx.text.queue_ui_sized(val_x, ry + (row_h - 14.0) * 0.5 - 1.0, &val, val_col, 14.0, clip);
+                let val_x = plus_x - 14.0 - val_slot_w;
+                let text_x = val_x + ((val_slot_w - val_w) * 0.5).max(0.0);
+                ctx.text.queue_ui_sized(text_x, ry + (row_h - 14.0) * 0.5 - 1.0, &val, val_col, 14.0, clip);
 
                 let minus_x = val_x - 14.0 - step;
                 ctx.dl_round(minus_x, py, step, step, 6.0, theme::BG_2());
@@ -487,8 +487,9 @@ fn control_left_for_row(text: &mut crate::text::Text, row: RowId, val: &str, box
     if row.is_numeric() {
         let step = 22.0;
         let plus_x = ctrl_right - step;
-        let val_w = settings_value_width(text, val, 14.0);
-        let val_x = plus_x - 14.0 - val_w;
+        let _ = text;
+        let _ = val;
+        let val_x = plus_x - 14.0 - settings_numeric_value_slot_width();
         val_x - 14.0 - step
     } else if row == RowId::Theme {
         let chip_w = settings_theme_chip_width(text, val, 12.5);
@@ -496,6 +497,10 @@ fn control_left_for_row(text: &mut crate::text::Text, row: RowId, val: &str, box
     } else {
         ctrl_right - 42.0
     }
+}
+
+fn settings_numeric_value_slot_width() -> f32 {
+    46.0
 }
 
 fn settings_value_width(text: &mut crate::text::Text, val: &str, size: f32) -> f32 {
@@ -644,6 +649,25 @@ mod tests {
     }
 
     #[test]
+    fn numeric_minus_click_uses_shared_value_slot() {
+        let _g = guard();
+        let mut p = SettingsPanel::new();
+        p.open();
+        let (box_x, _box_y, box_w, _box_h, list_top, row_h, _top, _shown) = p.geometry(900, 760);
+        let ctrl_right = box_x + box_w - 22.0;
+        let step = 22.0;
+        let plus_x = ctrl_right - step;
+        let val_x = plus_x - 14.0 - settings_numeric_value_slot_width();
+        let minus_x = val_x - 14.0 - step;
+
+        assert_eq!(
+            p.click(minus_x + step * 0.5, list_top + row_h * 0.5, 900, 760),
+            2
+        );
+        assert_eq!(p.selection(), 0);
+    }
+
+    #[test]
     fn row_text_budget_stays_left_of_controls_on_narrow_panels() {
         let Some(mut ctx) = crate::MuiContext::new_offscreen(320, 560) else {
             return;
@@ -671,6 +695,18 @@ mod tests {
         assert!(wide > narrow);
         assert!(chip >= 60.0);
         assert!(chip >= settings_value_width(&mut ctx.text, "Vivid", 12.5) + 24.0);
+    }
+
+    #[test]
+    fn numeric_value_slot_fits_bounded_settings_values() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(500, 240) else {
+            return;
+        };
+        let max_font = format!("{:.0} px", settings::FONT_MAX);
+        let max_tab = settings::TAB_MAX.to_string();
+
+        assert!(settings_value_width(&mut ctx.text, &max_font, 14.0) <= settings_numeric_value_slot_width());
+        assert!(settings_value_width(&mut ctx.text, &max_tab, 14.0) <= settings_numeric_value_slot_width());
     }
 
     #[test]
