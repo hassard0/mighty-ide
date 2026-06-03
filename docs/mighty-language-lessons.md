@@ -5886,3 +5886,12 @@ chord.
   previous/next word and document start/end. Mighty dispatches through the
   existing multi-caret movement ABI with selection extension disabled, matching
   Ctrl+Left, Ctrl+Right, Ctrl+Home, and Ctrl+End while dismissing stale ghost text.
+
+L440. Line start/end navigation should be visible beside document navigation.
+Smart Home and End are baseline cursor commands, and hiding them while exposing
+document-boundary commands leaves the palette navigation set oddly incomplete.
+
+- **IDE note:** the command palette now lists `Edit: Move Cursor to Line Start`
+  and `Edit: Move Cursor to Line End`. Mighty dispatches through
+  `mui_ed_home_smart_multi` and `mui_ed_move_ext_multi(...dir_end...)`, and the
+  shortcut table now documents Home/End next to Ctrl+Home/Ctrl+End.

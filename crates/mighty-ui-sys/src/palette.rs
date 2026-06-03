@@ -272,6 +272,10 @@ pub const CMD_MOVE_WORD_RIGHT: u32 = 120;
 pub const CMD_MOVE_DOCUMENT_START: u32 = 121;
 /// Move each active editor caret to the end of the document.
 pub const CMD_MOVE_DOCUMENT_END: u32 = 122;
+/// Move each active editor caret to the smart start of its line.
+pub const CMD_MOVE_LINE_START: u32 = 123;
+/// Move each active editor caret to the end of its line.
+pub const CMD_MOVE_LINE_END: u32 = 124;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -338,6 +342,8 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_MOVE_WORD_RIGHT, label: "Edit: Move Cursor Word Right", keybinding: "Ctrl+Right" },
     Command { id: CMD_MOVE_DOCUMENT_START, label: "Edit: Move Cursor to Document Start", keybinding: "Ctrl+Home" },
     Command { id: CMD_MOVE_DOCUMENT_END, label: "Edit: Move Cursor to Document End", keybinding: "Ctrl+End" },
+    Command { id: CMD_MOVE_LINE_START, label: "Edit: Move Cursor to Line Start", keybinding: "Home" },
+    Command { id: CMD_MOVE_LINE_END, label: "Edit: Move Cursor to Line End", keybinding: "End" },
     Command { id: CMD_DUPLICATE_LINE_SELECTION, label: "Edit: Duplicate Line or Selection", keybinding: "Ctrl+Shift+D" },
     Command { id: CMD_MOVE_LINE_UP,     label: "Edit: Move Line Up", keybinding: "Alt+Up" },
     Command { id: CMD_MOVE_LINE_DOWN,   label: "Edit: Move Line Down", keybinding: "Alt+Down" },
@@ -746,6 +752,8 @@ impl PaletteEngine {
             CMD_MOVE_WORD_RIGHT => (icons::ARROW_RIGHT, "Move the cursor to the next word boundary", false),
             CMD_MOVE_DOCUMENT_START => (icons::ARROW_UP, "Move the cursor to the start of the document", false),
             CMD_MOVE_DOCUMENT_END => (icons::ARROW_DOWN, "Move the cursor to the end of the document", false),
+            CMD_MOVE_LINE_START => (icons::ARROW_LEFT, "Move the cursor to the smart start of the line", false),
+            CMD_MOVE_LINE_END => (icons::ARROW_RIGHT, "Move the cursor to the end of the line", false),
             CMD_DUPLICATE_LINE_SELECTION => (icons::PLUS, "Duplicate the active line or selection", false),
             CMD_MOVE_LINE_UP => (icons::ARROW_UP, "Move the active line or selection upward", false),
             CMD_MOVE_LINE_DOWN => (icons::ARROW_DOWN, "Move the active line or selection downward", false),

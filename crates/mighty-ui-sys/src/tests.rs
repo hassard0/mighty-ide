@@ -6223,6 +6223,8 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_MOVE_WORD_RIGHT, "cmd_move_word_right"),
         (CMD_MOVE_DOCUMENT_START, "cmd_move_document_start"),
         (CMD_MOVE_DOCUMENT_END, "cmd_move_document_end"),
+        (CMD_MOVE_LINE_START, "cmd_move_line_start"),
+        (CMD_MOVE_LINE_END, "cmd_move_line_end"),
         (
             CMD_DUPLICATE_LINE_SELECTION,
             "cmd_duplicate_line_selection",

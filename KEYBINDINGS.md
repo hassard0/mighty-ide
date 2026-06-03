@@ -22,6 +22,7 @@ the `mui_chord` router). This table is the authoritative list.
 | `Ctrl+J` | Join current line with next line |
 | `Alt+Up` / `Alt+Down` | Move line up / down |
 | `Ctrl+Left` / `Ctrl+Right` | Word-wise cursor motion |
+| `Home` / `End` | Move to smart line start / line end |
 | `Ctrl+Home` / `Ctrl+End` | Move to start / end of document |
 | `Ctrl+Backspace` / `Ctrl+Delete` | Delete previous / next word |
 | `Shift`+motion | Extend selection |

@@ -731,6 +731,8 @@ fn cmd_move_word_left() -> I32 { 119 }
 fn cmd_move_word_right() -> I32 { 120 }
 fn cmd_move_document_start() -> I32 { 121 }
 fn cmd_move_document_end() -> I32 { 122 }
+fn cmd_move_line_start() -> I32 { 123 }
+fn cmd_move_line_end() -> I32 { 124 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -3764,7 +3766,7 @@ fn main() {
             mui_ghost_dismiss(h)
             mui_ghost_arm(h)
           }
-        } else if id == cmd_move_word_left() || id == cmd_move_word_right() || id == cmd_move_document_start() || id == cmd_move_document_end() {
+        } else if id == cmd_move_word_left() || id == cmd_move_word_right() || id == cmd_move_document_start() || id == cmd_move_document_end() || id == cmd_move_line_start() || id == cmd_move_line_end() {
           mui_ghost_dismiss(h)
           typing = false
           if id == cmd_move_word_left() {
@@ -3773,8 +3775,12 @@ fn main() {
             mui_ed_move_word_multi(h, 1, 0)
           } else if id == cmd_move_document_start() {
             mui_ed_document_start_multi(h, 0)
-          } else {
+          } else if id == cmd_move_document_end() {
             mui_ed_document_end_multi(h, 0)
+          } else if id == cmd_move_line_start() {
+            mui_ed_home_smart_multi(h, 0)
+          } else {
+            mui_ed_move_ext_multi(h, dir_end(), 0)
           }
         } else if id == cmd_duplicate_line_selection() || id == cmd_move_line_up() || id == cmd_move_line_down() {
           mui_ed_undo_record(h)
