@@ -5504,3 +5504,12 @@ deleted files must not fail as silent `-1` returns.
   `No source control row selected`, `Source control root missing`, or
   `Source control target missing: ...` for failed Source Control file jumps.
   Successful changed-file rows still open the file as before.
+
+L399. Search-result jumps should treat stale results as navigation misses.
+Project-wide search results are a cached snapshot; files can be deleted or
+results can go stale before the user clicks a match.
+
+- **IDE note:** `mui_search_open` now reports `No search result selected`,
+  `Search result file no longer listed`, or `Search target missing: ...` for
+  failed result jumps. Successful result rows still open the file, move the
+  cursor to the match, and scroll it into view.

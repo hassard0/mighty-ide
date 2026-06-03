@@ -733,6 +733,9 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Breadcrumb file no longer listed"
         || m == "Breadcrumb symbol unavailable"
         || m.starts_with("Breadcrumb target missing")
+        || m == "No search result selected"
+        || m == "Search result file no longer listed"
+        || m.starts_with("Search target missing")
     {
         Some(OperationKey::Navigation)
     } else if m.starts_with("Markdown preview ") || m.starts_with("Markdown Preview ") {

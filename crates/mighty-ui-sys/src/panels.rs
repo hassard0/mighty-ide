@@ -1335,18 +1335,23 @@ pub extern "C" fn mui_search_open(handle: i64, i: i32) -> i32 {
         return -1;
     };
     if i < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No search result selected");
         return -1;
     }
     let (path, line, col) = {
         let Some(m) = ctx.search.match_at(i as usize) else {
+            ctx.push_toast(crate::toast::Kind::Info, "No search result selected");
             return -1;
         };
         let Some(f) = ctx.search.file_at(m.file) else {
+            ctx.push_toast(crate::toast::Kind::Info, "Search result file no longer listed");
             return -1;
         };
         (f.path.clone(), m.line, m.col)
     };
     if !path.exists() {
+        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Search target missing: {name}"));
         return -1;
     }
     let opened_path = path.to_string_lossy().replace('\\', "/");

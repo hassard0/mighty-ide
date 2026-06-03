@@ -1930,6 +1930,42 @@ fn search_replace_all_preserves_dirty_open_tab() {
 }
 
 #[test]
+fn search_open_misses_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_search_open(handle, -1), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No search result selected");
+
+    ctx.search.results.matches.push(crate::search::SearchMatch {
+        file: 1,
+        line: 0,
+        col: 0,
+        preview: "needle".to_string(),
+    });
+    assert_eq!(crate::panels::mui_search_open(handle, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Search result file no longer listed");
+
+    let missing = std::env::temp_dir()
+        .join(format!("mui_search_missing_{}", std::process::id()))
+        .join("hit.mty");
+    ctx.search.results.files.push(crate::search::SearchFile {
+        path: missing,
+        rel: "hit.mty".to_string(),
+        match_count: 1,
+    });
+    ctx.search.results.matches[0].file = 0;
+    assert_eq!(crate::panels::mui_search_open(handle, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Search target missing: hit.mty");
+}
+
+#[test]
 fn new_project_invalid_and_existing_names_toast_without_shelling_out() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_new_project_guards");
