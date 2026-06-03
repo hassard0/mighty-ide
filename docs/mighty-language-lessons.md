@@ -6080,3 +6080,12 @@ still used fixed character advances.
   centering the header chip, and right-aligns the result count from measured UI
   text. The top chrome follows the same proportional-font contract as the row
   and footer surfaces.
+
+L462. Shortcut-editor key pills need measured text, not estimated advances. The
+Shortcuts overlay measured its search and title text, but key pills and the
+selected-row remap/fixed affordance still used fixed per-character widths.
+
+- **IDE note:** Shortcut rows now measure each key token before sizing and
+  centering keyboard pills, and reserve selected-row affordance space from the
+  measured remap/fixed label. Long modifier names and proportional glyphs keep
+  the row title gutter accurate.

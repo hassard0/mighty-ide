@@ -866,15 +866,10 @@ impl ShortcutsEngine {
             // Right-aligned kbd pills.
             let right_edge = box_x + box_w - 20.0;
             let tokens = shortcut_display_tokens(&row.keys);
-            let pill_pad = 7.0;
             let gap = 4.0;
-            let kadv = 11.0 * 0.55;
             let widths: Vec<f32> = tokens
                 .iter()
-                .map(|token| match token {
-                    ShortcutToken::Key(p) => (p.chars().count() as f32 * kadv + 2.0 * pill_pad).max(22.0),
-                    ShortcutToken::Separator => 8.0,
-                })
+                .map(|token| shortcut_token_width(&mut ctx.text, token, 11.0))
                 .collect();
             let total_w: f32 = widths.iter().sum::<f32>() + gap * (tokens.len().saturating_sub(1)) as f32;
             let px = right_edge - total_w;
@@ -884,7 +879,7 @@ impl ShortcutsEngine {
             // Title (left), fitted before remap text and shortcut pills.
             let txt_x = box_x + 22.0;
             let tag = shortcut_row_affordance(row.remappable, selected, px - txt_x);
-            let tag_w = if tag.is_empty() { 0.0 } else { tag.chars().count() as f32 * 5.6 + 16.0 };
+            let tag_w = shortcut_affordance_reserve(&mut ctx.text, tag, 10.0);
             let title_right = if tokens.is_empty() {
                 box_x + box_w - 24.0 - tag_w
             } else {
@@ -912,14 +907,14 @@ impl ShortcutsEngine {
                 };
                 ctx.dl_round(draw_x, py, pw, pill_h, 5.0, pbg);
                 ctx.dl_stroke(draw_x, py, pw, pill_h, 5.0, pborder, 1.0);
-                let lbl_w = part.chars().count() as f32 * kadv;
+                let lbl_w = shortcut_key_label_width(&mut ctx.text, part, 11.0);
                 ctx.text.queue_ui_sized(draw_x + (pw - lbl_w) * 0.5, py + 4.0, part, pfg, 11.0, clip);
                 draw_x += pw + gap;
             }
 
             // Remappable affordance: a small "remap" / "fixed" label left of pills.
             if !tag.is_empty() {
-                let tag_w = tag.chars().count() as f32 * 5.6;
+                let tag_w = shortcut_affordance_label_width(&mut ctx.text, tag, 10.0);
                 let tag_x = px - 18.0 - tag_w;
                 let tcol = if row.remappable { theme::ACCENT_BRIGHT() } else { theme::OVERLAY_SUBTLE() };
                 ctx.text.queue_ui_sized(tag_x, ry + (row_h - 10.0) * 0.5 - 0.5, tag, tcol, 10.0, clip);
@@ -961,6 +956,33 @@ fn search_field_text_x(base_x: f32, is_placeholder: bool) -> f32 {
 fn search_query_text_budget(text_x: f32, close_x: f32, is_placeholder: bool) -> f32 {
     let trailing_gap = if is_placeholder { 24.0 } else { 14.0 };
     (close_x - trailing_gap - text_x).max(0.0)
+}
+
+fn shortcut_key_label_width(text: &mut crate::text::Text, label: &str, size: f32) -> f32 {
+    text.measure_ui_sized(label, size).0
+}
+
+fn shortcut_token_width(text: &mut crate::text::Text, token: &ShortcutToken, size: f32) -> f32 {
+    match token {
+        ShortcutToken::Key(label) => (shortcut_key_label_width(text, label, size) + 14.0).max(22.0),
+        ShortcutToken::Separator => 8.0,
+    }
+}
+
+fn shortcut_affordance_label_width(text: &mut crate::text::Text, tag: &str, size: f32) -> f32 {
+    if tag.is_empty() {
+        0.0
+    } else {
+        text.measure_ui_sized(tag, size).0
+    }
+}
+
+fn shortcut_affordance_reserve(text: &mut crate::text::Text, tag: &str, size: f32) -> f32 {
+    if tag.is_empty() {
+        0.0
+    } else {
+        shortcut_affordance_label_width(text, tag, size) + 16.0
+    }
 }
 
 fn shortcut_display_tokens(keys: &str) -> Vec<ShortcutToken> {
@@ -1322,6 +1344,32 @@ mod tests {
                 ShortcutToken::Key("Down".to_string()),
             ]
         );
+    }
+
+    #[test]
+    fn shortcut_token_width_uses_measured_key_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let short = shortcut_token_width(&mut ctx.text, &ShortcutToken::Key("/".to_string()), 11.0);
+        let long = shortcut_token_width(&mut ctx.text, &ShortcutToken::Key("Shift".to_string()), 11.0);
+
+        assert!(short >= 22.0);
+        assert!(long > short);
+        assert_eq!(shortcut_token_width(&mut ctx.text, &ShortcutToken::Separator, 11.0), 8.0);
+    }
+
+    #[test]
+    fn shortcut_affordance_reserve_uses_measured_label_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let fixed = shortcut_affordance_reserve(&mut ctx.text, "fixed", 10.0);
+        let remap = shortcut_affordance_reserve(&mut ctx.text, "Enter to remap", 10.0);
+
+        assert_eq!(shortcut_affordance_reserve(&mut ctx.text, "", 10.0), 0.0);
+        assert!(fixed > 16.0);
+        assert!(remap > fixed);
     }
 
     #[test]
