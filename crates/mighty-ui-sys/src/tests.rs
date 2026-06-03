@@ -5849,7 +5849,7 @@ fn rename_and_code_action_close_commands_clear_active_state() {
     assert_eq!(crate::abi::mui_codeaction_active(handle), 1);
 
     assert_eq!(crate::abi::mui_rename_cancel(handle), 1);
-    crate::abi::mui_codeaction_cancel(handle);
+    assert_eq!(crate::abi::mui_codeaction_cancel(handle), 1);
     assert_eq!(crate::abi::mui_rename_active(handle), 0);
     assert_eq!(crate::abi::mui_codeaction_active(handle), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
@@ -5858,6 +5858,10 @@ fn rename_and_code_action_close_commands_clear_active_state() {
     assert_eq!(crate::abi::mui_rename_cancel(handle), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(ctx.toasts.toasts()[0].message, "No rename input open");
+
+    assert_eq!(crate::abi::mui_codeaction_cancel(handle), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 2);
+    assert_eq!(ctx.toasts.toasts()[1].message, "No code action menu open");
 }
 
 #[test]
@@ -8077,7 +8081,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_code_actions_close()")
-            && main.contains("mui_codeaction_cancel(h)")
+            && main.contains("let _cac = mui_codeaction_cancel(h)")
             && main.contains("code_action_open = false"),
         "Code Actions close command must clear shim code action state and Mighty's local menu flag"
     );

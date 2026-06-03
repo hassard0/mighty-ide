@@ -7291,3 +7291,15 @@ success cleanup path, so closing an active rename input should be visible.
   `Rename cancelled`; no-op cancel reports `No rename input open`; both messages
   stay in the rename toast lane, and Mighty explicitly discards the returned
   state from Escape and palette command paths.
+
+L584. Code-action cancel is usually cleanup around another editor action.
+Applying an action, typing through the menu, or clicking away all close the same
+shim menu, so active close should report state without adding a toast that can
+compete with the action result.
+
+- **IDE note:** `mui_codeaction_cancel` now returns `1` when it clears an active
+  code-action menu and `0` when no menu is open. Active closes stay silent for
+  apply/typing/click-away cleanup; the no-op path reports
+  `No code action menu open` in the CodeAction toast lane, and Mighty explicitly
+  discards the returned state from Escape, char-dismiss, mouse-dismiss, and
+  palette command paths.

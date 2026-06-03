@@ -9420,9 +9420,16 @@ pub extern "C" fn mui_codeaction_click(handle: i64, row: i32, col: i32, total_li
 
 /// Cancel/close the code-action menu.
 #[no_mangle]
-pub extern "C" fn mui_codeaction_cancel(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
+pub extern "C" fn mui_codeaction_cancel(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.codeaction.is_active() {
         ctx.codeaction.cancel();
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No code action menu open");
+        0
     }
 }
 

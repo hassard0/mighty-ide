@@ -811,6 +811,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Diagnostic)
     } else if m == "No code actions available"
         || m == "No code action selected"
+        || m == "No code action menu open"
         || m == "Code action needs a file"
         || m == "Save failed before code action"
         || m == "Applied Fix all (mty)"
@@ -2147,6 +2148,33 @@ mod tests {
         );
         assert_eq!(q.len(), 2);
         assert_eq!(q.toasts()[1].message, "No rename input open");
+    }
+
+    #[test]
+    fn newer_code_action_feedback_replaces_stale_menu_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "No code actions available", t0);
+        q.push_at(
+            Kind::Info,
+            "No code action menu open",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No code action menu open");
+
+        q.push_at(
+            Kind::Warn,
+            "Code action needs a file",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Code action needs a file");
+
+        q.push_at(Kind::Success, "Applied code action", t0 + Duration::from_millis(300));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Applied code action");
     }
 
     #[test]

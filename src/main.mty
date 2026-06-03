@@ -352,7 +352,7 @@ extern c {
   fn mui_codeaction_sel(handle: I64) -> I32
   fn mui_codeaction_move(handle: I64, delta: I32)
   fn mui_codeaction_click(handle: I64, row: I32, col: I32, total_lines: I32) -> I32
-  fn mui_codeaction_cancel(handle: I64)
+  fn mui_codeaction_cancel(handle: I64) -> I32
   fn mui_codeaction_apply(handle: I64) -> I32
   fn mui_codeaction_draw(handle: I64, row: I32, col: I32, total_lines: I32)
   // ---- command palette (Ctrl+Shift+P): shim-side registry + filtering ----
@@ -2593,12 +2593,12 @@ fn main() {
               let _r = mui_diag_refresh(h)
             }
           } else if k == key_escape() {
-            mui_codeaction_cancel(h)
+            let _cac = mui_codeaction_cancel(h)
             code_action_open = false
           }
         } else if tag == ev_char() {
           // Any printed char dismisses the menu (then re-handled next frame).
-          mui_codeaction_cancel(h)
+          let _cac = mui_codeaction_cancel(h)
           code_action_open = false
         } else if tag == ev_mouse_down() {
           let total_ca = mui_ed_line_count(h)
@@ -2614,7 +2614,7 @@ fn main() {
               let _r = mui_diag_refresh(h)
             }
           } else {
-            mui_codeaction_cancel(h)
+            let _cac = mui_codeaction_cancel(h)
             code_action_open = false
           }
         }
@@ -2737,7 +2737,7 @@ fn main() {
             ca_line = mui_ed_cursor_line(h)
             ca_col = mui_ed_cursor_col(h)
           } else {
-            mui_codeaction_cancel(h)
+            let _cac = mui_codeaction_cancel(h)
           }
         } else if ctrl_held(mods) && cp == 32 {             // Ctrl+Space : autocomplete
           let _c = mui_ed_complete_request(h)
@@ -3696,7 +3696,7 @@ fn main() {
                   ca_line = lb_l
                   ca_col = 0
                 } else {
-                  mui_codeaction_cancel(h)
+                  let _cac = mui_codeaction_cancel(h)
                 }
               }
               typing = false
@@ -4062,7 +4062,7 @@ fn main() {
               ca_line = mui_ed_cursor_line(h)
               ca_col = mui_ed_cursor_col(h)
             } else {
-              mui_codeaction_cancel(h)
+              let _cac = mui_codeaction_cancel(h)
             }
           }
         } else if id == cmd_signature_help_close() {
@@ -4072,7 +4072,7 @@ fn main() {
           let _rcancel = mui_rename_cancel(h)
           renaming = false
         } else if id == cmd_code_actions_close() {
-          mui_codeaction_cancel(h)
+          let _cac = mui_codeaction_cancel(h)
           code_action_open = false
         } else if id == cmd_prompt_cancel() {
           let _pc = mui_prompt_cancel(h)
