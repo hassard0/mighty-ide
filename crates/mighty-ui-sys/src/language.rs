@@ -1167,6 +1167,18 @@ pub struct CodeActionState {
     active: bool,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct CodeActionGeometry {
+    box_x: f32,
+    box_y: f32,
+    box_w: f32,
+    box_h: f32,
+    pad: f32,
+    row_h: f32,
+    first: usize,
+    visible: usize,
+}
+
 impl CodeActionState {
     pub fn new() -> Self {
         CodeActionState::default()
@@ -1245,7 +1257,8 @@ impl CodeActionState {
         width: u32,
         height: u32,
     ) -> (f32, f32, f32, f32, f32, f32) {
-        self.geometry_inset(text, cx, cy, width, height, 0.0)
+        let g = self.geometry_inset(text, cx, cy, width, height, 0.0);
+        (g.box_x, g.box_y, g.box_w, g.box_h, g.pad, g.row_h)
     }
 
     fn geometry_inset(
@@ -1256,17 +1269,19 @@ impl CodeActionState {
         width: u32,
         height: u32,
         min_x: f32,
-    ) -> (f32, f32, f32, f32, f32, f32) {
+    ) -> CodeActionGeometry {
         let row_h = layout::LINE_H();
         let chrome = theme::CHROME_FONT_SIZE;
         let pad = 5.0;
         let w = width as f32;
         let h = height as f32;
+        let total = self.actions.len();
         let min_x = min_x.max(POPUP_MARGIN).min((w - POPUP_MARGIN).max(POPUP_MARGIN));
         let max_box_w = popup_available_width(w, min_x, 180.0);
         let wanted_w = code_action_popup_width(text, &self.actions, chrome);
         let box_w = wanted_w.min(max_box_w);
-        let box_h = self.actions.len() as f32 * row_h + 2.0 * pad;
+        let visible = code_action_visible_rows(total, h, pad, row_h);
+        let box_h = visible as f32 * row_h + 2.0 * pad;
 
         let box_x = clamp_popup_x(cx, box_w, w, min_x);
         let mut box_y = cy + row_h;
@@ -1274,7 +1289,17 @@ impl CodeActionState {
             box_y = (cy - box_h).max(0.0);
         }
 
-        (box_x, box_y, box_w, box_h, pad, row_h)
+        let first = code_action_first_visible(self.sel.min(total.saturating_sub(1)), total, visible);
+        CodeActionGeometry {
+            box_x,
+            box_y,
+            box_w,
+            box_h,
+            pad,
+            row_h,
+            first,
+            visible,
+        }
     }
 
     /// Select the action row under a click. Returns the selected index, or -1
@@ -1308,19 +1333,22 @@ impl CodeActionState {
         if !self.active || self.actions.is_empty() {
             return -1;
         }
-        let (box_x, box_y, box_w, _box_h, pad, row_h) =
-            self.geometry_inset(text, cx, cy, width, height, min_x);
-        if x < box_x || x > box_x + box_w {
+        let g = self.geometry_inset(text, cx, cy, width, height, min_x);
+        if g.visible == 0 {
             return -1;
         }
-        let row_top = box_y + pad;
+        if x < g.box_x || x > g.box_x + g.box_w {
+            return -1;
+        }
+        let row_top = g.box_y + g.pad;
         if y < row_top {
             return -1;
         }
-        let idx = ((y - row_top) / row_h).floor() as usize;
-        if idx >= self.actions.len() {
+        let visible_idx = ((y - row_top) / g.row_h).floor() as usize;
+        if visible_idx >= g.visible {
             return -1;
         }
+        let idx = g.first + visible_idx;
         if self.select(idx) {
             idx as i32
         } else {
@@ -1352,8 +1380,14 @@ impl CodeActionState {
         let row_h = layout::LINE_H();
         let chrome = theme::CHROME_FONT_SIZE;
         let pad = 5.0;
-        let (box_x, box_y, box_w, box_h, _pad, _row_h) =
-            self.geometry_inset(&mut ctx.text, cx, cy, width, height, min_x);
+        let g = self.geometry_inset(&mut ctx.text, cx, cy, width, height, min_x);
+        if g.visible == 0 {
+            return;
+        }
+        let box_x = g.box_x;
+        let box_y = g.box_y;
+        let box_w = g.box_w;
+        let box_h = g.box_h;
 
         let clip = Some((
             box_x.max(0.0) as u32,
@@ -1366,8 +1400,8 @@ impl CodeActionState {
         ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED());
         ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG(), 1.0);
 
-        for (i, a) in self.actions.iter().enumerate() {
-            let row_y = box_y + pad + i as f32 * row_h;
+        for (i, a) in self.actions.iter().enumerate().skip(g.first).take(g.visible) {
+            let row_y = box_y + pad + (i - g.first) as f32 * row_h;
             let selected = i == self.sel;
             if selected {
                 ctx.dl_grad_h(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::accent_a(0.20), 0.9);
@@ -1426,6 +1460,25 @@ fn code_action_popup_width(text: &mut crate::text::Text, actions: &[CodeAction],
         .map(|a| text.measure_ui_sized(&a.title, chrome).0)
         .fold(0.0_f32, f32::max);
     (content_w + 56.0).max(240.0)
+}
+
+fn code_action_visible_rows(total: usize, window_h: f32, pad: f32, row_h: f32) -> usize {
+    if total == 0 {
+        return 0;
+    }
+    let available = window_h - 2.0 * pad;
+    if available < row_h {
+        return 0;
+    }
+    let max_rows = (available / row_h).floor() as usize;
+    total.min(max_rows)
+}
+
+fn code_action_first_visible(sel: usize, total: usize, visible: usize) -> usize {
+    if total == 0 || visible == 0 || visible >= total {
+        return 0;
+    }
+    sel.saturating_sub(visible - 1).min(total - visible)
 }
 
 fn rename_field_text_budget(field_w: f32) -> f32 {
@@ -2197,15 +2250,14 @@ mod tests {
         ];
         assert_eq!(c.set(actions), 2);
         let min_x = 220.0;
-        let (box_x, box_y, box_w, _box_h, pad, row_h) =
-            c.geometry_inset(&mut ctx.text, 470.0, 120.0, 520, 360, min_x);
-        assert!(box_x >= min_x);
-        assert!(box_x + box_w <= 500.0);
+        let g = c.geometry_inset(&mut ctx.text, 470.0, 120.0, 520, 360, min_x);
+        assert!(g.box_x >= min_x);
+        assert!(g.box_x + g.box_w <= 500.0);
         assert_eq!(
             c.click_row_inset(
                 &mut ctx.text,
-                box_x + 24.0,
-                box_y + pad + row_h + 3.0,
+                g.box_x + 24.0,
+                g.box_y + g.pad + g.row_h + 3.0,
                 470.0,
                 120.0,
                 520,
@@ -2215,7 +2267,7 @@ mod tests {
             1
         );
         assert_eq!(
-            c.click_row_inset(&mut ctx.text, min_x - 4.0, box_y + pad + 3.0, 470.0, 120.0, 520, 360, min_x),
+            c.click_row_inset(&mut ctx.text, min_x - 4.0, g.box_y + g.pad + 3.0, 470.0, 120.0, 520, 360, min_x),
             -1
         );
     }
@@ -2235,12 +2287,109 @@ mod tests {
         }];
         assert_eq!(c.set(actions), 1);
         let min_x = 210.0;
-        let (box_x, _box_y, box_w, _box_h, _pad, _row_h) =
-            c.geometry_inset(&mut ctx.text, 245.0, 90.0, 260, 240, min_x);
+        let g = c.geometry_inset(&mut ctx.text, 245.0, 90.0, 260, 240, min_x);
 
-        assert!(box_x >= min_x);
-        assert!(box_w <= 30.0);
-        assert!(box_x + box_w <= 240.0 + 0.5);
+        assert!(g.box_x >= min_x);
+        assert!(g.box_w <= 30.0);
+        assert!(g.box_x + g.box_w <= 240.0 + 0.5);
+    }
+
+    #[test]
+    fn code_action_geometry_caps_visible_rows_to_viewport() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(520, 86) else {
+            return;
+        };
+        let mut c = CodeActionState::new();
+        let actions = (0..8)
+            .map(|i| CodeAction {
+                title: format!("Action {i}"),
+                edit: Some(WorkspaceEdit::default()),
+                command_edit: None,
+                command: None,
+                fix_all_mty: false,
+            })
+            .collect();
+        assert_eq!(c.set(actions), 8);
+        c.select(7);
+        let g = c.geometry_inset(&mut ctx.text, 300.0, 70.0, 520, 86, 0.0);
+
+        assert!(g.visible < c.count());
+        assert!(g.box_y >= 0.0);
+        assert!(g.box_y + g.box_h <= 86.0 + 0.5);
+        assert!(g.first <= c.selection());
+        assert!(c.selection() < g.first + g.visible);
+    }
+
+    #[test]
+    fn code_action_click_ignores_rows_beyond_visible_window() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(520, 86) else {
+            return;
+        };
+        let mut c = CodeActionState::new();
+        let actions = (0..8)
+            .map(|i| CodeAction {
+                title: format!("Action {i}"),
+                edit: Some(WorkspaceEdit::default()),
+                command_edit: None,
+                command: None,
+                fix_all_mty: false,
+            })
+            .collect();
+        assert_eq!(c.set(actions), 8);
+        c.select(7);
+        let g = c.geometry_inset(&mut ctx.text, 300.0, 70.0, 520, 86, 0.0);
+
+        assert_eq!(
+            c.click_row_inset(
+                &mut ctx.text,
+                g.box_x + 24.0,
+                g.box_y + g.pad + 3.0,
+                300.0,
+                70.0,
+                520,
+                86,
+                0.0
+            ),
+            g.first as i32
+        );
+        assert_eq!(
+            c.click_row_inset(
+                &mut ctx.text,
+                g.box_x + 24.0,
+                g.box_y + g.pad + g.visible as f32 * g.row_h + 3.0,
+                300.0,
+                70.0,
+                520,
+                86,
+                0.0
+            ),
+            -1
+        );
+    }
+
+    #[test]
+    fn code_action_geometry_hides_rows_when_viewport_is_too_short() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(520, 24) else {
+            return;
+        };
+        let mut c = CodeActionState::new();
+        assert_eq!(
+            c.set(vec![CodeAction {
+                title: "Action".into(),
+                edit: Some(WorkspaceEdit::default()),
+                command_edit: None,
+                command: None,
+                fix_all_mty: false,
+            }]),
+            1
+        );
+        let g = c.geometry_inset(&mut ctx.text, 300.0, 18.0, 520, 24, 0.0);
+
+        assert_eq!(g.visible, 0);
+        assert_eq!(
+            c.click_row_inset(&mut ctx.text, g.box_x + 8.0, g.box_y + 8.0, 300.0, 18.0, 520, 24, 0.0),
+            -1
+        );
     }
 
     // ---- guarded end-to-end LSP integration ----
