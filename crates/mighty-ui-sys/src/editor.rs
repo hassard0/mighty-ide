@@ -1472,12 +1472,12 @@ impl TextModel {
         self.carets.sort_by_key(|c| (c.line, c.col));
         let mut deduped: Vec<Caret> = Vec::with_capacity(self.carets.len());
         for c in self.carets.drain(..) {
-            match deduped.last() {
+            match deduped.last_mut() {
                 Some(last) if last.line == c.line && last.col == c.col => {
                     // Same cursor position: merge. Prefer a caret that carries a
                     // selection so a Ctrl+D match isn't silently dropped.
-                    if deduped.last().unwrap().anchor.is_none() && c.anchor.is_some() {
-                        *deduped.last_mut().unwrap() = c;
+                    if last.anchor.is_none() && c.anchor.is_some() {
+                        *last = c;
                     }
                 }
                 _ => deduped.push(c),
@@ -2962,6 +2962,22 @@ mod tests {
         m.move_ext_multi(DIR_LEFT, false);
         assert_eq!(m.caret_count(), 1);
         assert_eq!((m.cursor_line(), m.cursor_col()), (0, 0));
+    }
+
+    #[test]
+    fn caret_collision_keeps_selection_when_plain_caret_overlaps() {
+        let mut m = doc("abc");
+        m.move_to(0, 1);
+        m.carets.push(Caret {
+            line: 0,
+            col: 1,
+            anchor: Some((0, 0)),
+        });
+
+        m.normalize_carets();
+
+        assert_eq!(m.caret_count(), 1);
+        assert_eq!(m.caret_selection(0), Some(((0, 0), (0, 1))));
     }
 
     #[test]
