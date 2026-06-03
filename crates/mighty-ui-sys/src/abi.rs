@@ -12642,6 +12642,14 @@ pub extern "C" fn mui_ed_select_word(handle: i64) -> i32 {
     0
 }
 
+/// Select the current line in the active document. Pure motion; does not mark dirty.
+#[no_mangle]
+pub extern "C" fn mui_ed_select_line(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.select_line();
+    }
+}
+
 /// Select the entire active document. Pure motion; does not mark dirty.
 #[no_mangle]
 pub extern "C" fn mui_ed_select_all(handle: i64) {

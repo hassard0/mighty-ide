@@ -2230,8 +2230,12 @@ mod tests {
     fn select_line_spans_whole_line() {
         let mut m = doc("abc\ndef");
         m.move_to(0, 1);
+        m.mark_clean();
         m.select_line();
         assert_eq!(m.selected_text(), "abc");
+        assert_eq!(m.selection_range(), Some(((0, 0), (0, 3))));
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 3));
+        assert!(!m.dirty());
     }
 
     #[test]

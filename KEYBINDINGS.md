@@ -13,6 +13,7 @@ the `mui_chord` router). This table is the authoritative list.
 | `Ctrl+Z` | Undo |
 | `Ctrl+Y` / `Ctrl+Shift+Z` | Redo |
 | `Ctrl+A` | Select all |
+| `Ctrl+L` | Select current line |
 | `Ctrl+/` | Toggle line comment |
 | `Ctrl+Shift+D` | Duplicate line / selection |
 | `Alt+Up` / `Alt+Down` | Move line up / down |

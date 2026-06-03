@@ -96,6 +96,7 @@ extern c {
   fn mui_ed_move_word(handle: I64, right: I32, extend: I32)
   fn mui_ed_home_smart(handle: I64, extend: I32)
   fn mui_ed_select_word(handle: I64) -> I32
+  fn mui_ed_select_line(handle: I64)
   fn mui_ed_select_all(handle: I64)
   fn mui_ed_has_selection(handle: I64) -> I32
   // ---- multi-cursor (multiple carets / selections) ----
@@ -2602,6 +2603,12 @@ fn main() {
           find_nav = false
           typing = false
           mui_ed_select_all(h)
+        } else if ctrl_held(mods) && (cp == 108 || cp == 76) {  // Ctrl+L : select current line
+          mui_complete_cancel(h)
+          completing = false
+          find_nav = false
+          typing = false
+          mui_ed_select_line(h)
         } else if ctrl_held(mods) && (cp == 115 || cp == 83) {  // Ctrl+S save / Ctrl+Shift+S Save As
           // Save As must always ask for a destination; plain Save only writes
           // directly when the active tab is already file-backed.

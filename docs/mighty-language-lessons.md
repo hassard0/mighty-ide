@@ -5738,3 +5738,11 @@ memory; `Ctrl+A` should select the whole active document without dirtying it.
 - **IDE note:** The shim text model now exposes `select_all`, Mighty routes
   `Ctrl+A` to `mui_ed_select_all`, and the shortcut docs list Select All as a
   first-class editing command. Empty documents remain clean no-op selections.
+
+L424. Line selection is another baseline editor convention, not a hidden model
+helper. If the text model can select a line, the IDE should expose it through a
+normal editing chord and document it beside the other motion commands.
+
+- **IDE note:** `mui_ed_select_line` now exposes the shim model's current-line
+  selection, Mighty routes `Ctrl+L` to it, and the shortcut docs list Select
+  Current Line. The operation is pure selection motion and does not dirty tabs.
