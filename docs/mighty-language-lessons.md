@@ -5380,3 +5380,14 @@ preview should explain why the buffer did not change.
   undo`, `Nothing to redo`, or read-only preview warnings on misses while keeping
   successful history moves quiet. The regressions cover empty stacks, read-only
   binary previews, and the existing successful undo/redo round-trip.
+
+L386. Fold commands need semantic no-op feedback. Fold toggles and Fold/Unfold
+All are explicit commands, so a buffer with no foldable ranges, a cursor outside
+any block, an already-folded document, or an already-unfolded document should not
+look like a swallowed shortcut.
+
+- **IDE note:** `mui_fold_dispatch` now returns `0` and reports `No foldable
+  block at cursor`, `No foldable blocks`, `All foldable blocks already folded`,
+  or `No folded blocks to unfold` for semantic misses while preserving quiet
+  successful fold changes. The regression covers empty documents, success paths,
+  and repeated all-document fold commands.

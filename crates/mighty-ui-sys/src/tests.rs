@@ -134,6 +134,68 @@ fn jump_back_empty_target_toast_is_available_to_mighty_dispatch() {
 }
 
 #[test]
+fn fold_commands_report_empty_and_noop_outcomes() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("let x = 1\nlet y = 2");
+    ctx.tabs.recompute_active_fold();
+    assert_eq!(
+        crate::abi::mui_fold_dispatch(handle, crate::palette::CMD_FOLD_TOGGLE as i32),
+        0
+    );
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No foldable block at cursor");
+
+    assert_eq!(
+        crate::abi::mui_fold_dispatch(handle, crate::palette::CMD_FOLD_ALL as i32),
+        0
+    );
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "No foldable blocks");
+
+    ctx.toasts.clear();
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("fn main() {\n  let x = 1\n}\n\nlet y = 2");
+    ctx.tabs.active_model_mut().move_to(0, 0);
+    ctx.tabs.recompute_active_fold();
+    assert_eq!(
+        crate::abi::mui_fold_dispatch(handle, crate::palette::CMD_FOLD_TOGGLE as i32),
+        1
+    );
+    assert!(ctx.toasts.toasts().is_empty(), "successful fold toggle should stay quiet");
+
+    assert_eq!(
+        crate::abi::mui_fold_dispatch(handle, crate::palette::CMD_FOLD_ALL as i32),
+        0
+    );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "All foldable blocks already folded"
+    );
+
+    ctx.toasts.clear();
+    assert_eq!(
+        crate::abi::mui_fold_dispatch(handle, crate::palette::CMD_UNFOLD_ALL as i32),
+        1
+    );
+    assert!(ctx.toasts.toasts().is_empty(), "successful unfold all should stay quiet");
+
+    assert_eq!(
+        crate::abi::mui_fold_dispatch(handle, crate::palette::CMD_UNFOLD_ALL as i32),
+        0
+    );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No folded blocks to unfold"
+    );
+}
+
+#[test]
 fn fill_rect_produces_red_texels_and_clear_elsewhere() {
     let mut ctx = ctx_or_skip!();
     let p: *mut MuiContext = &mut ctx;

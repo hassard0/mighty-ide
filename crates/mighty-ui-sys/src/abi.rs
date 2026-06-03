@@ -9911,12 +9911,34 @@ pub extern "C" fn mui_fold_dispatch(handle: i64, cmd_id: i32) -> i32 {
     let id = cmd_id as u32;
     if id == CMD_FOLD_TOGGLE {
         let line = ctx.tabs.active_model().cursor_line();
-        ctx.tabs.active_fold_mut().toggle_at_cursor(line);
-        1
+        if ctx.tabs.active_fold_mut().toggle_at_cursor(line).is_some() {
+            1
+        } else {
+            ctx.push_toast(crate::toast::Kind::Info, "No foldable block at cursor");
+            0
+        }
     } else if id == CMD_FOLD_ALL {
+        let fold = ctx.tabs.active_fold();
+        if fold.ranges().is_empty() {
+            ctx.push_toast(crate::toast::Kind::Info, "No foldable blocks");
+            return 0;
+        }
+        if fold.ranges().iter().all(|r| fold.is_folded(r.start)) {
+            ctx.push_toast(crate::toast::Kind::Info, "All foldable blocks already folded");
+            return 0;
+        }
         ctx.tabs.active_fold_mut().fold_all();
         1
     } else if id == CMD_UNFOLD_ALL {
+        let fold = ctx.tabs.active_fold();
+        if fold.ranges().is_empty() {
+            ctx.push_toast(crate::toast::Kind::Info, "No foldable blocks");
+            return 0;
+        }
+        if !fold.ranges().iter().any(|r| fold.is_folded(r.start)) {
+            ctx.push_toast(crate::toast::Kind::Info, "No folded blocks to unfold");
+            return 0;
+        }
         ctx.tabs.active_fold_mut().unfold_all();
         1
     } else {
