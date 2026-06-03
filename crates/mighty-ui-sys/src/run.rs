@@ -119,6 +119,15 @@ impl RunPanel {
         self.running
     }
 
+    #[cfg(test)]
+    pub fn mark_running_for_test(&mut self) {
+        self.active = true;
+        self.running = true;
+        self.started = Some(Instant::now());
+        self.exit_code = None;
+        self.duration_ms = 0;
+    }
+
     pub fn exit_code(&self) -> Option<i32> {
         self.exit_code
     }

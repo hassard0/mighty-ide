@@ -1624,7 +1624,7 @@ fn run_stop_when_idle_reports_visible_feedback() {
     ctx.problems.set_open(true);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
-    crate::featureabi::mui_run_stop(handle);
+    assert_eq!(crate::featureabi::mui_run_stop(handle), 0);
     assert!(ctx.run.is_active());
     assert!(!ctx.run.is_running());
     assert!(!ctx.term_open);
@@ -1633,6 +1633,33 @@ fn run_stop_when_idle_reports_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No run process to stop");
+}
+
+#[test]
+fn run_stop_when_running_acknowledges_active_process() {
+    let mut ctx = ctx_or_skip!();
+    ctx.term_open = true;
+    ctx.web.open();
+    ctx.problems.set_open(true);
+    ctx.run.mark_running_for_test();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_run_stop(handle), 1);
+    assert!(ctx.run.is_active());
+    assert!(!ctx.run.is_running());
+    assert_eq!(ctx.run.exit_code(), Some(-1));
+    assert!(ctx.term_open);
+    assert!(ctx.web.is_active());
+    assert!(ctx.problems.is_open());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Run process stopped");
+
+    assert_eq!(crate::featureabi::mui_run_stop(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No run process to stop"
+    );
 }
 
 #[test]
@@ -8317,6 +8344,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _ac = mui_agents_close(h)")
             && main.contains("agents_focus = false"),
         "Agents close command must use the Agents-specific close ABI and release Agents focus"
+    );
+    assert!(
+        main.contains("id == cmd_run_stop()")
+            && main.contains("let _rst = mui_run_stop(h)")
+            && main.contains("run_focus = true"),
+        "Run stop command must report stop state while keeping Run focused"
     );
     assert!(
         main.contains("id == cmd_run_clear_output()")

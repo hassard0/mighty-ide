@@ -796,6 +796,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Run finished")
         || m.starts_with("Run failed")
         || m.starts_with("Run stopped")
+        || m == "Run process stopped"
         || m == "No file to run"
         || m == "No run process to stop"
         || m == "No run output row selected"
@@ -1919,6 +1920,22 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Run panel is already closed");
+
+        q.push_at(
+            Kind::Info,
+            "Run process stopped",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Run process stopped");
+
+        q.push_at(
+            Kind::Info,
+            "No run process to stop",
+            t0 + Duration::from_millis(500),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No run process to stop");
     }
 
     #[test]

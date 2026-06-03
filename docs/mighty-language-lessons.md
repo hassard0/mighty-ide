@@ -7380,3 +7380,13 @@ no-op, and callers should be able to distinguish those outcomes.
   `Debug session stopped`; idle stop continues to report
   `No debug session to stop`. Both messages stay in the Debug toast lane, and
   Mighty explicitly discards the returned state from Shift+F5 and palette paths.
+
+L592. Run stop should be stateful like the other work-stopping commands. A
+running process is an active target, while an idle Run panel is a no-op that
+still deserves visible feedback from the palette.
+
+- **IDE note:** `mui_run_stop` now returns `1` when it stops an active run
+  process and `0` when no process is running. Active stop reports
+  `Run process stopped`; idle stop continues to open Run and report
+  `No run process to stop`. Both messages stay in the WebRun toast lane, and
+  Mighty explicitly discards the returned state from the palette path.

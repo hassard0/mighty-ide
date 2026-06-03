@@ -448,7 +448,7 @@ extern c {
   fn mui_theme_picker_draw(handle: I64)
   // ---- Run panel (Run rail icon / Ctrl+Shift+R) ----
   fn mui_run_start(handle: I64) -> I32
-  fn mui_run_stop(handle: I64)
+  fn mui_run_stop(handle: I64) -> I32
   fn mui_run_clear(handle: I64) -> I32
   fn mui_run_open(handle: I64) -> I32
   fn mui_run_close(handle: I64) -> I32
@@ -4272,7 +4272,7 @@ fn main() {
           run_focus = true
           agents_focus = false
         } else if id == cmd_run_stop() {
-          mui_run_stop(h)
+          let _rst = mui_run_stop(h)
           run_focus = true
           agents_focus = false
         } else if id == cmd_run_clear_output() {

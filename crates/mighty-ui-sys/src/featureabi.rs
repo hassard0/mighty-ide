@@ -66,21 +66,26 @@ pub extern "C" fn mui_run_start(handle: i64) -> i32 {
     }
 }
 
-/// Stop the running process (best-effort kill). If idle, open Run and explain
-/// that there is no process to stop.
+/// Stop the running process (best-effort kill). Returns `1` when it stopped an
+/// active process. If idle, open Run, explain the no-op, and return `0`.
 #[no_mangle]
-pub extern "C" fn mui_run_stop(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
-        if ctx.run.is_running() {
-            ctx.run.stop();
-        } else {
-            ctx.run.open();
-            ctx.term_open = false;
-            ctx.web.close();
-            ctx.problems.set_open(false);
-            ctx.push_toast(crate::toast::Kind::Info, "No run process to stop");
-            crate::abi::trace("run_stop idle");
-        }
+pub extern "C" fn mui_run_stop(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.run.is_running() {
+        ctx.run.stop();
+        ctx.push_toast(crate::toast::Kind::Info, "Run process stopped");
+        crate::abi::trace("run_stop stopped");
+        1
+    } else {
+        ctx.run.open();
+        ctx.term_open = false;
+        ctx.web.close();
+        ctx.problems.set_open(false);
+        ctx.push_toast(crate::toast::Kind::Info, "No run process to stop");
+        crate::abi::trace("run_stop idle");
+        0
     }
 }
 
