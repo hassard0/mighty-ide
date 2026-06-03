@@ -109,6 +109,14 @@ fn use_compact_layout(body_w: f32, body_h: f32, col_w: f32) -> bool {
     body_w < 760.0 || body_h < 420.0 || col_w < 640.0
 }
 
+fn welcome_column_width(body_w: f32) -> f32 {
+    (body_w - 48.0).max(0.0).clamp(280.0, 720.0).min(body_w.max(1.0))
+}
+
+fn recent_picker_card_width(body_w: f32) -> f32 {
+    (body_w - 48.0).max(0.0).clamp(320.0, 680.0).min(body_w.max(1.0))
+}
+
 fn compact_recent_section_fits(section_y: f32, bottom_limit: f32, rows: usize, empty: bool) -> bool {
     let row_count = if empty { 1 } else { rows.max(1) };
     let needed = 28.0 + row_count as f32 * 34.0 + 10.0;
@@ -249,7 +257,7 @@ impl WelcomeState {
         }
 
         // Center column. Generous max width so it breathes on wide windows.
-        let col_w = 720.0_f32.min(bw - 48.0).max(280.0);
+        let col_w = welcome_column_width(bw);
         let compact = use_compact_layout(bw, bh, col_w);
         let tight_height = bh < 340.0;
         let cx = bx + (bw - col_w) * 0.5;
@@ -649,7 +657,7 @@ impl WelcomeState {
         folders: &[PathBuf],
         clip: Option<(u32, u32, u32, u32)>,
     ) {
-        let card_w = 680.0_f32.min(bw - 48.0).max(320.0);
+        let card_w = recent_picker_card_width(bw);
         let card_h = 452.0_f32.min(bh - 44.0).max(260.0);
         let card_x = bx + (bw - card_w) * 0.5;
         let card_y = by + ((bh - card_h) * 0.34).max(18.0);
@@ -1062,6 +1070,20 @@ mod tests {
             2,
             "compact picker rows should shrink to available height"
         );
+    }
+
+    #[test]
+    fn welcome_column_width_clamps_inside_ultra_narrow_body() {
+        assert_eq!(welcome_column_width(180.0), 180.0);
+        assert_eq!(welcome_column_width(360.0), 312.0);
+        assert_eq!(welcome_column_width(900.0), 720.0);
+    }
+
+    #[test]
+    fn recent_picker_card_width_clamps_inside_ultra_narrow_body() {
+        assert_eq!(recent_picker_card_width(180.0), 180.0);
+        assert_eq!(recent_picker_card_width(360.0), 320.0);
+        assert_eq!(recent_picker_card_width(900.0), 680.0);
     }
 
     #[test]
