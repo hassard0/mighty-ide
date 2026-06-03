@@ -1230,6 +1230,22 @@ pub fn paste_to_bytes(text: &str, bracketed: bool) -> Vec<u8> {
     bytes
 }
 
+pub fn scroll_to_bytes(dir: i32) -> Option<Vec<u8>> {
+    let key = if dir > 0 {
+        b'A'
+    } else if dir < 0 {
+        b'B'
+    } else {
+        return None;
+    };
+
+    let mut bytes = Vec::with_capacity(9);
+    for _ in 0..3 {
+        bytes.extend_from_slice(&[0x1b, b'[', key]);
+    }
+    Some(bytes)
+}
+
 /// Tiny extension so `codepoint_to_bytes` can uppercase a raw u32 codepoint
 /// without an intermediate `char` round-trip for the ASCII range.
 trait AsciiUpperU32 {
@@ -1724,6 +1740,13 @@ mod tests {
             paste_to_bytes("a\nb", true),
             b"\x1b[200~a\nb\x1b[201~".to_vec()
         );
+    }
+
+    #[test]
+    fn scroll_bytes_send_repeated_cursor_moves() {
+        assert_eq!(scroll_to_bytes(1), Some(b"\x1b[A\x1b[A\x1b[A".to_vec()));
+        assert_eq!(scroll_to_bytes(-1), Some(b"\x1b[B\x1b[B\x1b[B".to_vec()));
+        assert_eq!(scroll_to_bytes(0), None);
     }
 
     // ---- PTY integration (skips gracefully if spawn fails) ----

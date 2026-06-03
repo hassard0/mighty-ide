@@ -282,6 +282,7 @@ extern c {
   fn mui_term_key(handle: I64, keycode: I32, mods: I32)
   fn mui_term_send_codepoint(handle: I64, codepoint: I32, mods: I32)
   fn mui_term_paste(handle: I64) -> I32
+  fn mui_term_scroll(handle: I64, dir: I32)
   fn mui_term_pump(handle: I64)
   fn mui_term_draw(handle: I64)
   fn mui_log_terminal(handle: I64)
@@ -2376,6 +2377,9 @@ fn main() {
           let k = mui_event_key(h)
           let kmods = mui_event_mods(h)
           mui_term_key(h, k, kmods)
+        } else if tag == ev_scroll() {
+          let sdir = mui_event_scroll_dir(h)
+          mui_term_scroll(h, sdir)
         }
       } else if completing {
         // -------- autocomplete dropdown is open ------------------------------

@@ -6389,3 +6389,14 @@ already captured the correct physical key.
   PageUp, PageDown, F2, F5, F10, F11, and F12 in addition to arrows, Home/End,
   Delete, Enter, Backspace, Tab, and Escape. Unit coverage pins the bytes for
   every named key currently forwarded to terminal focus.
+
+L497. Terminal focus should not swallow scroll-wheel input. The event loop
+already routed keyboard events to the PTY while terminal focus was active, but
+wheel events entered the same focus arm and then did nothing. That made pagers
+and terminal UIs feel inert even though the IDE had captured the gesture.
+
+- **IDE note:** Terminal focus now forwards wheel direction through a
+  `mui_term_scroll` ABI. The shim converts scroll-up/down into three standard
+  cursor-up/down VT sequences so shells, pagers, and TUIs receive a predictable
+  navigation gesture. Unit coverage pins the emitted bytes and the zero-delta
+  no-op case.

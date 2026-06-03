@@ -6920,6 +6920,19 @@ pub extern "C" fn mui_term_paste(handle: i64) -> i32 {
     }
 }
 
+/// Send a mouse-wheel scroll gesture to the PTY as repeated cursor movement.
+/// Positive dir scrolls up; negative dir scrolls down. No-op if not running.
+#[no_mangle]
+pub extern "C" fn mui_term_scroll(handle: i64, dir: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if let Some(t) = ctx.terminal.as_mut() {
+            if let Some(bytes) = crate::terminal::scroll_to_bytes(dir) {
+                t.send(&bytes);
+            }
+        }
+    }
+}
+
 /// Write a single raw byte to the PTY stdin. No-op if not running.
 #[no_mangle]
 pub extern "C" fn mui_term_send_byte(handle: i64, byte: i32) {
