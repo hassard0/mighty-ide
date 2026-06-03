@@ -6572,6 +6572,7 @@ keyboard-first users dependent on locating the visual toolbar. Stop controls are
 part of the same workflow as start controls, so both should be discoverable from
 the command surface.
 
-- **IDE note:** The command palette now lists `Run: Stop Process` and dispatches
-  it through the existing `mui_run_stop` ABI. Registry/mirror coverage pins the
-  new stable command id and Mighty helper so the command remains reachable.
+- **IDE note:** The command palette now lists `Run: Stop Process` and
+  `Test: Stop Run`, dispatching through the existing `mui_run_stop` and
+  `mui_test_stop` ABIs. Registry/mirror coverage pins the stable command ids and
+  Mighty helpers so the commands remain reachable.

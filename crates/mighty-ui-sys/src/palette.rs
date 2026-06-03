@@ -301,6 +301,8 @@ pub const CMD_FORCE_GHOST_COMPLETION: u32 = 134;
 pub const CMD_QUICK_OPEN: u32 = 135;
 /// Stop the currently running `mty run` process.
 pub const CMD_RUN_STOP: u32 = 136;
+/// Stop the currently running `mty test` process.
+pub const CMD_TEST_STOP: u32 = 137;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -394,6 +396,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_RUN_STOP,         label: "Run: Stop Process",  keybinding: "" },
     Command { id: CMD_SETTINGS,         label: "Preferences: Settings", keybinding: "Ctrl+," },
     Command { id: CMD_RUN_TESTS,        label: "Run Tests",          keybinding: "Ctrl+Shift+T" },
+    Command { id: CMD_TEST_STOP,        label: "Test: Stop Run",     keybinding: "" },
     Command { id: CMD_PEEK_DEFINITION,  label: "Peek Definition",    keybinding: "Alt+F12" },
     Command { id: CMD_WELCOME,          label: "Welcome",            keybinding: "" },
     Command { id: CMD_ZEN_MODE,         label: "Toggle Zen Mode",    keybinding: "Alt+Z" },
@@ -891,6 +894,7 @@ impl PaletteEngine {
             CMD_RUN_STOP => (icons::CLOSE, "Stop the active Run output process", false),
             CMD_SETTINGS => (icons::SETTINGS, "Edit editor preferences", false),
             CMD_RUN_TESTS => (icons::BEAKER, "Run the package's tests (mty test)", false),
+            CMD_TEST_STOP => (icons::CLOSE, "Stop the active test run", false),
             CMD_PEEK_DEFINITION => (icons::FN_SYMBOL, "Preview the definition inline (Alt+F12)", false),
             CMD_WELCOME => (icons::LANG_M, "Open the Welcome screen", false),
             CMD_ZEN_MODE => (icons::INFO_I, "Toggle distraction-free focus mode", false),
