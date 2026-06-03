@@ -9769,6 +9769,15 @@ pub extern "C" fn mui_ed_delete_word_right(handle: i64) -> i32 {
     0
 }
 
+/// Delete the current logical line from the active editor model.
+#[no_mangle]
+pub extern "C" fn mui_ed_delete_current_line(handle: i64) -> i32 {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        return i32::from(m.delete_current_line());
+    }
+    0
+}
+
 /// Insert a newline at the cursor.
 #[no_mangle]
 pub extern "C" fn mui_ed_newline(handle: i64) {

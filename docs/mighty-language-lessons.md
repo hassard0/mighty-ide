@@ -5790,3 +5790,13 @@ expect for fast keyboard cleanup.
   including selection replacement and multi-caret edits. The ABI exports single
   and multi-caret word-delete routes, and Mighty maps Ctrl+Backspace/Ctrl+Delete
   through them in the editor key path.
+
+L430. Delete Line should be a first-class edit command, not a hidden Cut mode.
+The model already removed the current line when Cut ran without a selection, but
+that overloaded clipboard semantics and left command-palette users without the
+expected fast cleanup action.
+
+- **IDE note:** `mui_ed_delete_current_line` now exposes the model operation
+  directly, Mighty routes Ctrl+Shift+K before the Ctrl+K hover branch, and the
+  command palette lists `Edit: Delete Line` with the same undo/dirty handling as
+  other destructive text edits.
