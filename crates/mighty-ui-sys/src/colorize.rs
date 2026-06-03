@@ -114,7 +114,9 @@ pub fn colorize_brackets<'a>(
                 // Closer: must match the top opener's species.
                 match stack.last().copied() {
                     Some((open_ch, _)) if closer_of(open_ch) == ch => {
-                        let (_open, _pos) = stack.pop().unwrap();
+                        let Some((_open, _pos)) = stack.pop() else {
+                            continue;
+                        };
                         let depth = stack.len(); // depth the pair lives at
                         out.push(BracketTag {
                             col,
