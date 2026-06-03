@@ -329,6 +329,8 @@ pub const CMD_SEARCH_TOGGLE_REPLACE: u32 = 148;
 pub const CMD_GIT_REFRESH_SOURCE_CONTROL: u32 = 149;
 /// Refresh the Explorer tree and file-navigation index.
 pub const CMD_EXPLORER_REFRESH: u32 = 150;
+/// Refresh diagnostics and show the Problems panel.
+pub const CMD_PROBLEMS_REFRESH: u32 = 151;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -453,6 +455,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_VIEW_TESTING,     label: "View: Testing",       keybinding: "" },
     Command { id: CMD_VIEW_RUN_OUTPUT,  label: "View: Run Output",    keybinding: "" },
     Command { id: CMD_VIEW_PROBLEMS,    label: "View: Problems",      keybinding: "" },
+    Command { id: CMD_PROBLEMS_REFRESH, label: "Problems: Refresh Diagnostics", keybinding: "" },
     Command { id: CMD_VIEW_AI_COPILOT,  label: "View: AI Copilot",    keybinding: "Ctrl+Shift+A" },
     Command { id: CMD_INLINE_AI_ASK,    label: "AI: Inline Ask",      keybinding: "Ctrl+I" },
     Command { id: CMD_FORCE_GHOST_COMPLETION, label: "AI: Force Ghost Completion", keybinding: "Alt+\\" },
@@ -964,6 +967,7 @@ impl PaletteEngine {
             CMD_VIEW_TESTING => (icons::BEAKER, "Open the testing view", false),
             CMD_VIEW_RUN_OUTPUT => (icons::RUN, "Open the Run output panel", false),
             CMD_VIEW_PROBLEMS => (icons::ERROR_CIRCLE, "Open diagnostics and build problems", false),
+            CMD_PROBLEMS_REFRESH => (icons::REFRESH, "Refresh diagnostics and show Problems", false),
             CMD_VIEW_AI_COPILOT => (icons::AGENTS, "Open the AI copilot panel", false),
             CMD_INLINE_AI_ASK => (icons::AGENTS, "Ask AI about the active selection or file", false),
             CMD_FORCE_GHOST_COMPLETION => (icons::AGENTS, "Request an inline AI ghost completion now", false),

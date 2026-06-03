@@ -766,6 +766,7 @@ fn cmd_search_replace_all() -> I32 { 147 }
 fn cmd_search_toggle_replace() -> I32 { 148 }
 fn cmd_git_refresh_source_control() -> I32 { 149 }
 fn cmd_explorer_refresh() -> I32 { 150 }
+fn cmd_problems_refresh() -> I32 { 151 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4265,6 +4266,11 @@ fn main() {
           agents_focus = false
         } else if id == cmd_view_problems() {
           let _po = mui_problems_open(h)
+        } else if id == cmd_problems_refresh() {
+          let _dr = mui_diag_refresh(h)
+          let _pr = mui_problems_refresh(h)
+          let _po = mui_problems_open(h)
+          agents_focus = false
         } else if id == cmd_view_ai_copilot() {
           let _ai = mui_ai_show(h)
           ai_focus = true

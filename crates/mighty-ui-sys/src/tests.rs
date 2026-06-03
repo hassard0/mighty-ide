@@ -2731,6 +2731,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         assert_eq!(cmd.label, label);
     }
 
+    let problems_refresh = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_PROBLEMS_REFRESH)
+        .unwrap();
+    assert_eq!(problems_refresh.label, "Problems: Refresh Diagnostics");
+    assert_eq!(problems_refresh.keybinding, "");
+
     let ai_commands = [
         (crate::palette::CMD_INLINE_AI_ASK, "AI: Inline Ask", "Ctrl+I"),
         (
@@ -6581,6 +6588,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _r = mui_scm_refresh(h)"),
         "Git refresh command must reveal Source Control before refreshing status"
     );
+    assert!(
+        main.contains("id == cmd_problems_refresh()")
+            && main.contains("let _dr = mui_diag_refresh(h)")
+            && main.contains("let _pr = mui_problems_refresh(h)")
+            && main.contains("let _po = mui_problems_open(h)"),
+        "Problems refresh command must refresh diagnostics, aggregate Problems, and show the panel"
+    );
     for (helper, action) in [
         ("cmd_search_run", "mui_search_run(h)"),
         ("cmd_search_replace_all", "mui_search_replace_all(h)"),
@@ -6808,6 +6822,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_VIEW_TESTING, "cmd_view_testing"),
         (CMD_VIEW_RUN_OUTPUT, "cmd_view_run_output"),
         (CMD_VIEW_PROBLEMS, "cmd_view_problems"),
+        (CMD_PROBLEMS_REFRESH, "cmd_problems_refresh"),
         (CMD_VIEW_AI_COPILOT, "cmd_view_ai_copilot"),
         (CMD_INLINE_AI_ASK, "cmd_inline_ai_ask"),
         (

@@ -6662,3 +6662,13 @@ command should keep both navigation surfaces in sync.
   Explorer panel, calling `mui_tree_refresh`, and reindexing Quick Open through
   `mui_quickopen_reindex`. Registry, metadata, and dispatcher tests pin the id,
   label, helper, Explorer focus, tree refresh, and file-index refresh.
+
+L521. Diagnostics refresh should be an explicit command.
+Opening Problems refreshes the list, but once the dock is already visible there
+should be a named command that reruns diagnostics and rebuilds the Problems
+aggregation without depending on save/open side effects.
+
+- **IDE note:** The command palette now lists `Problems: Refresh Diagnostics`,
+  calling `mui_diag_refresh`, `mui_problems_refresh`, and `mui_problems_open` so
+  the gutter diagnostics and Problems dock update together. Registry, metadata,
+  and dispatcher tests pin the id, label, helper, refresh calls, and panel open.
