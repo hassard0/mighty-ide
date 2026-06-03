@@ -2279,6 +2279,36 @@ fn search_open_misses_report_visible_feedback() {
 }
 
 #[test]
+fn outline_close_command_preserves_symbols_and_current_row() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("fn alpha() {\n  1\n}\n\nfn beta() {\n  2\n}\n");
+    ctx.active_panel = crate::PANEL_OUTLINE;
+    ctx.sidebar_visible = true;
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::navsurfaces::mui_outline_refresh(h), 2);
+    assert_eq!(crate::navsurfaces::mui_outline_set_cursor(h, 4), 1);
+    assert_eq!(crate::navsurfaces::mui_outline_count(h), 2);
+
+    assert_eq!(crate::navsurfaces::mui_outline_close(h), 1);
+    assert_eq!(ctx.active_panel, crate::PANEL_EXPLORER);
+    assert_eq!(crate::navsurfaces::mui_outline_count(h), 2);
+    assert_eq!(crate::navsurfaces::mui_outline_current(h), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Outline panel closed"
+    );
+
+    assert_eq!(crate::navsurfaces::mui_outline_close(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Outline panel is already closed"
+    );
+}
+
+#[test]
 fn new_project_invalid_and_existing_names_toast_without_shelling_out() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_new_project_guards");
@@ -3099,6 +3129,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(outline_refresh.label, "Outline: Refresh Symbols");
     assert_eq!(outline_refresh.keybinding, "");
+
+    let outline_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_OUTLINE_CLOSE)
+        .unwrap();
+    assert_eq!(outline_close.label, "Outline: Close Panel");
+    assert_eq!(outline_close.keybinding, "");
 
     let ai_commands = [
         (crate::palette::CMD_INLINE_AI_ASK, "AI: Inline Ask", "Ctrl+I"),
@@ -7547,6 +7584,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Outline refresh command must reveal Outline before refreshing symbols"
     );
     assert!(
+        main.contains("id == cmd_outline_close()")
+            && main.contains("let _oc = mui_outline_close(h)")
+            && main.contains("find_nav = false"),
+        "Outline close command must use the Outline-specific close ABI without clearing symbols"
+    );
+    assert!(
         main.contains("id == cmd_agents_refresh()")
             && main.contains("let _p = mui_panel_set(h, panel_agents_mty())")
             && main.contains("let _a = mui_agents_refresh(h)"),
@@ -7874,6 +7917,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_VIEW_SOURCE_CONTROL, "cmd_view_source_control"),
         (CMD_VIEW_OUTLINE, "cmd_view_outline"),
         (CMD_OUTLINE_REFRESH, "cmd_outline_refresh"),
+        (CMD_OUTLINE_CLOSE, "cmd_outline_close"),
         (CMD_VIEW_RUN_DEBUG, "cmd_view_run_debug"),
         (CMD_VIEW_TESTING, "cmd_view_testing"),
         (CMD_VIEW_RUN_OUTPUT, "cmd_view_run_output"),

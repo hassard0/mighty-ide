@@ -401,6 +401,8 @@ pub const CMD_WEB_CLOSE: u32 = 184;
 pub const CMD_AGENTS_CLOSE: u32 = 185;
 /// Close the Search panel without clearing query or results.
 pub const CMD_SEARCH_CLOSE: u32 = 186;
+/// Close the Outline panel without clearing document symbols.
+pub const CMD_OUTLINE_CLOSE: u32 = 187;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -548,6 +550,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_VIEW_SOURCE_CONTROL, label: "View: Source Control", keybinding: "Ctrl+Shift+G" },
     Command { id: CMD_VIEW_OUTLINE,     label: "View: Outline",       keybinding: "" },
     Command { id: CMD_OUTLINE_REFRESH,  label: "Outline: Refresh Symbols", keybinding: "" },
+    Command { id: CMD_OUTLINE_CLOSE,    label: "Outline: Close Panel", keybinding: "" },
     Command { id: CMD_VIEW_RUN_DEBUG,   label: "View: Run and Debug", keybinding: "" },
     Command { id: CMD_VIEW_TESTING,     label: "View: Testing",       keybinding: "" },
     Command { id: CMD_VIEW_RUN_OUTPUT,  label: "View: Run Output",    keybinding: "" },
@@ -1095,6 +1098,7 @@ impl PaletteEngine {
             CMD_VIEW_SOURCE_CONTROL => (icons::GIT, "Open source control", false),
             CMD_VIEW_OUTLINE => (icons::FN_SYMBOL, "Open the symbol outline", false),
             CMD_OUTLINE_REFRESH => (icons::REFRESH, "Refresh the active document's Outline symbols", false),
+            CMD_OUTLINE_CLOSE => (icons::CLOSE, "Close the Outline panel without clearing document symbols", false),
             CMD_VIEW_RUN_DEBUG => (icons::DEBUG, "Open Run and Debug", false),
             CMD_VIEW_TESTING => (icons::BEAKER, "Open the testing view", false),
             CMD_VIEW_RUN_OUTPUT => (icons::RUN, "Open the Run output panel", false),

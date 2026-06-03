@@ -6978,3 +6978,12 @@ should hide it, not discard that work.
   `mui_search_close`. The close path switches back to Explorer, preserves the
   query/results state, reports closed/already-closed feedback, and routes
   through the Mighty dispatcher.
+
+L554. Outline close should not throw away navigation context. The document
+symbol tree and current-symbol highlight are expensive enough to preserve, and
+users often hide Outline briefly before returning to the same navigation state.
+
+- **IDE note:** The command palette now lists `Outline: Close Panel`, calling
+  `mui_outline_close`. The close path switches back to Explorer, preserves the
+  symbol cache and current row, reports closed/already-closed feedback, and
+  routes through the Mighty dispatcher.

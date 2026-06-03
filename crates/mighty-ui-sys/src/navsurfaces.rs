@@ -94,6 +94,24 @@ pub extern "C" fn mui_outline_count(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.outline.count() as i32)
 }
 
+/// Close the Outline panel without clearing its symbol cache or current symbol.
+/// Returns `1` when it closed Outline, or `0` when Outline was already closed.
+#[no_mangle]
+pub extern "C" fn mui_outline_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.active_panel == crate::PANEL_OUTLINE {
+        ctx.active_panel = crate::PANEL_EXPLORER;
+        ctx.push_toast(crate::toast::Kind::Info, "Outline panel closed");
+        crate::abi::trace("outline_close");
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "Outline panel is already closed");
+    crate::abi::trace("outline_close noop");
+    0
+}
+
 /// Scalar kind of symbol `i` (see [`SymKind`]), or `-1` out of range.
 #[no_mangle]
 pub extern "C" fn mui_outline_row_kind(handle: i64, i: i32) -> i32 {
