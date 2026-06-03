@@ -7281,3 +7281,13 @@ cancel should report state without adding a competing toast.
   `No autocomplete suggestions open` in the CodeIntel toast lane, and Mighty
   explicitly discards the returned state from typing, Escape, mouse, undo/redo,
   and palette command paths.
+
+L583. Rename cancel should report the inline-edit state. Rename Symbol has a
+palette-visible cancel command, and unlike autocomplete it is not a normal
+success cleanup path, so closing an active rename input should be visible.
+
+- **IDE note:** `mui_rename_cancel` now returns `1` when it clears an active
+  rename input and `0` when no rename input is open. Active cancel reports
+  `Rename cancelled`; no-op cancel reports `No rename input open`; both messages
+  stay in the rename toast lane, and Mighty explicitly discards the returned
+  state from Escape and palette command paths.

@@ -342,7 +342,7 @@ extern c {
   fn mui_rename_push_char(handle: I64, codepoint: I32)
   fn mui_rename_backspace(handle: I64)
   fn mui_rename_active(handle: I64) -> I32
-  fn mui_rename_cancel(handle: I64)
+  fn mui_rename_cancel(handle: I64) -> I32
   fn mui_rename_commit(handle: I64, line: I32, col: I32) -> I32
   fn mui_rename_draw(handle: I64)
   // ---- code actions / quick-fix (Ctrl+.): shim-side LSP + mty fix ----
@@ -2562,7 +2562,7 @@ fn main() {
           if k == key_backspace() {
             mui_rename_backspace(h)
           } else if k == key_escape() {
-            mui_rename_cancel(h)
+            let _rcancel = mui_rename_cancel(h)
             renaming = false
           } else if k == key_enter() {
             mui_ed_undo_record(h)
@@ -4069,7 +4069,7 @@ fn main() {
           mui_sig_clear(h)
           sig_open = false
         } else if id == cmd_rename_cancel() {
-          mui_rename_cancel(h)
+          let _rcancel = mui_rename_cancel(h)
           renaming = false
         } else if id == cmd_code_actions_close() {
           mui_codeaction_cancel(h)

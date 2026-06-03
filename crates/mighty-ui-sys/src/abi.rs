@@ -9044,9 +9044,17 @@ pub extern "C" fn mui_rename_active(handle: i64) -> i32 {
 
 /// Cancel the rename input (discard the buffer + any staged edit).
 #[no_mangle]
-pub extern "C" fn mui_rename_cancel(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
+pub extern "C" fn mui_rename_cancel(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.rename.is_active() {
         ctx.rename.cancel();
+        ctx.push_toast(crate::toast::Kind::Info, "Rename cancelled");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No rename input open");
+        0
     }
 }
 

@@ -736,6 +736,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m.starts_with("Renamed to")
         || m.starts_with("Rename failed")
         || m.starts_with("Already named")
+        || m == "Rename cancelled"
+        || m == "No rename input open"
         || m == "No active file to rename"
         || m == "Cannot rename this path"
     {
@@ -2133,6 +2135,18 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No rename target");
+
+        q.push_at(Kind::Info, "Rename cancelled", t0 + Duration::from_millis(700));
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[1].message, "Rename cancelled");
+
+        q.push_at(
+            Kind::Info,
+            "No rename input open",
+            t0 + Duration::from_millis(725),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[1].message, "No rename input open");
     }
 
     #[test]
