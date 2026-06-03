@@ -1264,6 +1264,15 @@ mod tests {
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Markdown preview closed");
         assert!(!q.toasts().iter().any(|t| t.message == "Markdown preview opened"));
+
+        q.push_at(
+            Kind::Info,
+            "Markdown preview is already closed",
+            t0 + Duration::from_millis(3100),
+        );
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Markdown preview is already closed");
+        assert!(!q.toasts().iter().any(|t| t.message == "Markdown preview closed"));
     }
 
     #[test]

@@ -616,7 +616,7 @@ extern c {
   fn mui_md_active(handle: I64) -> I32
   fn mui_md_scroll(handle: I64, delta: I32)
   fn mui_md_close_at_click(handle: I64) -> I32
-  fn mui_md_close(handle: I64)
+  fn mui_md_close(handle: I64) -> I32
   fn mui_crumb_menu_active(handle: I64) -> I32
   fn mui_crumb_menu_move(handle: I64, delta: I32)
   fn mui_crumb_menu_cancel(handle: I64)
@@ -4368,7 +4368,7 @@ fn main() {
           diff_open = false
           typing = true
         } else if id == cmd_markdown_close_preview() {
-          mui_md_close(h)
+          let _mdc = mui_md_close(h)
         } else if id == cmd_git_hide_blame() {
           let _bc = mui_blame_close(h)
         } else if id >= cmd_pane_first() && id <= cmd_pane_last() {

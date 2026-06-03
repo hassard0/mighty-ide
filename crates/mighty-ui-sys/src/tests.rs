@@ -6467,12 +6467,17 @@ fn markdown_close_preview_command_collapses_preview() {
     assert_eq!(crate::abi::mui_md_active(h), 1);
     assert_eq!(crate::abi::mui_pane_count(h), 2);
 
-    crate::abi::mui_md_close(h);
+    assert_eq!(crate::abi::mui_md_close(h), 1);
     assert_eq!(crate::abi::mui_md_active(h), 0);
     assert_eq!(crate::abi::mui_pane_count(h), 1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Markdown preview closed");
+
+    assert_eq!(crate::abi::mui_md_close(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Markdown preview is already closed");
 }
 
 #[test]
@@ -6789,7 +6794,7 @@ fn markdown_preview_hides_sidebar_when_compact_and_restores_on_close() {
         "preview pane should be readable after hiding sidebar"
     );
 
-    crate::abi::mui_md_close(h);
+    assert_eq!(crate::abi::mui_md_close(h), 1);
     assert_eq!(crate::abi::mui_md_active(h), 0);
     assert!(ctx.sidebar_visible, "closing preview restores the user's sidebar");
     crate::layout::reset_sidebar_preset();
@@ -8163,7 +8168,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_markdown_close_preview()")
-            && main.contains("mui_md_close(h)"),
+            && main.contains("let _mdc = mui_md_close(h)"),
         "Markdown close-preview command must call the dedicated Markdown preview close ABI"
     );
     assert!(

@@ -12432,7 +12432,7 @@ pub extern "C" fn mui_md_close_at_click(handle: i64) -> i32 {
         px >= x && px <= x + w && py >= y && py <= y + h
     };
     if hit {
-        mui_md_close(handle);
+        let _ = mui_md_close(handle);
         1
     } else {
         0
@@ -12461,12 +12461,18 @@ pub extern "C" fn mui_md_draw(handle: i64) {
 }
 
 /// Close the markdown preview pane (collapse the split back to a single editor).
+/// Returns `1` when it closed a preview, or `0` when already closed.
 #[no_mangle]
-pub extern "C" fn mui_md_close(handle: i64) {
+pub extern "C" fn mui_md_close(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
-        return;
+        return 0;
     };
     let was_open = ctx.md_preview.is_open() || ctx.md_pane.is_some();
+    if !was_open {
+        ctx.push_toast(crate::toast::Kind::Info, "Markdown preview is already closed");
+        trace("md_close noop");
+        return 0;
+    }
     trace("md_close");
     ctx.md_preview.close();
     let restore_sidebar = ctx.md_preview_hid_sidebar;
@@ -12485,9 +12491,8 @@ pub extern "C" fn mui_md_close(handle: i64) {
     if restore_sidebar {
         ctx.sidebar_visible = true;
     }
-    if was_open {
-        ctx.push_toast(crate::toast::Kind::Info, "Markdown preview closed");
-    }
+    ctx.push_toast(crate::toast::Kind::Info, "Markdown preview closed");
+    1
 }
 
 /// Launch-test hook: with `MUI_EDIT_PROBE` set, run a scripted insert, newline,

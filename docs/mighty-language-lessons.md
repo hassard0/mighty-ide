@@ -7151,3 +7151,14 @@ stateful command.
   and `0` when the terminal is already closed. Mighty declares the return value
   and explicitly discards it in the command dispatcher, matching the typed
   pattern used by other close commands.
+
+L571. Markdown preview close should acknowledge palette no-ops. The preview
+header close button is only visible when there is something to close, but the
+command palette can invoke `Markdown: Close Preview` when the preview is already
+closed. Silent no-ops make that command feel broken.
+
+- **IDE note:** `mui_md_close` now returns `1` when it collapses the preview and
+  `0` when the preview is already closed, reporting
+  `Markdown preview is already closed` for the no-op path. Mighty declares and
+  discards the return value explicitly, and Markdown preview feedback stays in
+  the Markdown toast replacement lane.
