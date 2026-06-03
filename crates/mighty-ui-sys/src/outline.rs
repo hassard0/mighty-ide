@@ -432,6 +432,11 @@ fn read_str_after(region: &[u8], key: &[u8]) -> Option<String> {
     Some(s)
 }
 
+fn read_range_start_line_after(region: &[u8], key: &[u8]) -> Option<u32> {
+    let p = find_sub(region, key)?;
+    read_uint_after(&region[p..], b"\"line\"")
+}
+
 /// Parse one symbol object (`{...}`) into `out`, then recurse into `children`.
 fn parse_one_symbol(obj: &[u8], depth: u32, out: &mut Vec<Symbol>) {
     let name = match read_str_after(obj, b"\"name\"") {
@@ -440,16 +445,8 @@ fn parse_one_symbol(obj: &[u8], depth: u32, out: &mut Vec<Symbol>) {
     };
     let kind_n = read_uint_after(obj, b"\"kind\"").unwrap_or(14);
     // selectionRange (DocumentSymbol) preferred, else range, else location.range.
-    let line = read_uint_after(obj, b"\"selectionRange\"")
-        .map(|_| {
-            // grab the line inside selectionRange's start.
-            let p = find_sub(obj, b"\"selectionRange\"").unwrap();
-            read_uint_after(&obj[p..], b"\"line\"").unwrap_or(0)
-        })
-        .or_else(|| {
-            let p = find_sub(obj, b"\"range\"")?;
-            read_uint_after(&obj[p..], b"\"line\"")
-        })
+    let line = read_range_start_line_after(obj, b"\"selectionRange\"")
+        .or_else(|| read_range_start_line_after(obj, b"\"range\""))
         .unwrap_or(0);
     out.push(Symbol {
         name,
@@ -800,6 +797,16 @@ fn b() {}\n";
         assert_eq!(syms[1].name, "x");
         assert_eq!(syms[1].depth, 1);
         assert_eq!(syms[1].line, 1);
+    }
+
+    #[test]
+    fn parse_document_symbols_prefers_selection_range_line() {
+        let json = r#"{"result":[{"name":"method","kind":6,"range":{"start":{"line":10,"character":0},"end":{"line":14,"character":1}},"selectionRange":{"start":{"line":12,"character":5},"end":{"line":12,"character":11}}}],"id":2}"#;
+        let syms = parse_document_symbols(json).expect("symbols");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "method");
+        assert_eq!(syms[0].line, 12);
     }
 
     #[test]
