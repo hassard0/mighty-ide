@@ -135,16 +135,18 @@ pub extern "C" fn mui_dbg_stop(handle: i64) -> i32 {
 
 /// Pause a running debuggee.
 #[no_mangle]
-pub extern "C" fn mui_dbg_pause(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
-        open_debug_view(ctx);
-        if ctx.dbg.state() == crate::dap::DebugState::Running {
-            ctx.dbg.pause();
-        } else {
-            ctx.push_toast(crate::toast::Kind::Info, "Pause is available while running");
-            crate::abi::trace("dbg_action pause_unavailable");
-        }
+pub extern "C" fn mui_dbg_pause(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    open_debug_view(ctx);
+    if ctx.dbg.state() == crate::dap::DebugState::Running {
+        ctx.dbg.pause();
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Pause is available while running");
+        crate::abi::trace("dbg_action pause_unavailable");
     }
+    ctx.dbg.state().as_i32()
 }
 
 /// Restart the last debug target.
@@ -170,44 +172,50 @@ pub extern "C" fn mui_dbg_restart(handle: i64) -> i32 {
 
 /// F10 / step over (`next`).
 #[no_mangle]
-pub extern "C" fn mui_dbg_step_over(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
-        open_debug_view(ctx);
-        if ctx.dbg.state() == crate::dap::DebugState::Stopped {
-            ctx.dbg.step_over();
-        } else {
-            ctx.push_toast(crate::toast::Kind::Info, "Step Over is available when paused");
-            crate::abi::trace("dbg_action step_over_unavailable");
-        }
+pub extern "C" fn mui_dbg_step_over(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    open_debug_view(ctx);
+    if ctx.dbg.state() == crate::dap::DebugState::Stopped {
+        ctx.dbg.step_over();
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Step Over is available when paused");
+        crate::abi::trace("dbg_action step_over_unavailable");
     }
+    ctx.dbg.state().as_i32()
 }
 
 /// F11 / step into (`stepIn`).
 #[no_mangle]
-pub extern "C" fn mui_dbg_step_into(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
-        open_debug_view(ctx);
-        if ctx.dbg.state() == crate::dap::DebugState::Stopped {
-            ctx.dbg.step_into();
-        } else {
-            ctx.push_toast(crate::toast::Kind::Info, "Step Into is available when paused");
-            crate::abi::trace("dbg_action step_into_unavailable");
-        }
+pub extern "C" fn mui_dbg_step_into(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    open_debug_view(ctx);
+    if ctx.dbg.state() == crate::dap::DebugState::Stopped {
+        ctx.dbg.step_into();
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Step Into is available when paused");
+        crate::abi::trace("dbg_action step_into_unavailable");
     }
+    ctx.dbg.state().as_i32()
 }
 
 /// Shift+F11 / step out (`stepOut`).
 #[no_mangle]
-pub extern "C" fn mui_dbg_step_out(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
-        open_debug_view(ctx);
-        if ctx.dbg.state() == crate::dap::DebugState::Stopped {
-            ctx.dbg.step_out();
-        } else {
-            ctx.push_toast(crate::toast::Kind::Info, "Step Out is available when paused");
-            crate::abi::trace("dbg_action step_out_unavailable");
-        }
+pub extern "C" fn mui_dbg_step_out(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    open_debug_view(ctx);
+    if ctx.dbg.state() == crate::dap::DebugState::Stopped {
+        ctx.dbg.step_out();
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Step Out is available when paused");
+        crate::abi::trace("dbg_action step_out_unavailable");
     }
+    ctx.dbg.state().as_i32()
 }
 
 fn open_debug_view(ctx: &mut MuiContext) {

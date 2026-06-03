@@ -7390,3 +7390,12 @@ still deserves visible feedback from the palette.
   `Run process stopped`; idle stop continues to open Run and report
   `No run process to stop`. Both messages stay in the WebRun toast lane, and
   Mighty explicitly discards the returned state from the palette path.
+
+L593. Debug pause and step commands should return state like Continue. Palette
+commands and shortcuts can ignore that scalar today, but the ABI should still
+make the result observable and easy to guard.
+
+- **IDE note:** `mui_dbg_pause`, `mui_dbg_step_over`, `mui_dbg_step_into`, and
+  `mui_dbg_step_out` now return the current debug state after the action. Their
+  existing unavailable-action messages are unchanged, and Mighty explicitly
+  discards the returned state from keyboard and palette paths.

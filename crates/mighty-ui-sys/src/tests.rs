@@ -5297,7 +5297,10 @@ fn direct_debug_actions_report_unavailable_state() {
         "Debug session stopped"
     );
 
-    crate::dapabi::mui_dbg_pause(handle);
+    assert_eq!(
+        crate::dapabi::mui_dbg_pause(handle),
+        crate::dap::DebugState::Idle.as_i32()
+    );
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Pause is available while running"
@@ -5309,19 +5312,28 @@ fn direct_debug_actions_report_unavailable_state() {
         "Continue is available when paused"
     );
 
-    crate::dapabi::mui_dbg_step_over(handle);
+    assert_eq!(
+        crate::dapabi::mui_dbg_step_over(handle),
+        crate::dap::DebugState::Idle.as_i32()
+    );
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Step Over is available when paused"
     );
 
-    crate::dapabi::mui_dbg_step_into(handle);
+    assert_eq!(
+        crate::dapabi::mui_dbg_step_into(handle),
+        crate::dap::DebugState::Idle.as_i32()
+    );
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Step Into is available when paused"
     );
 
-    crate::dapabi::mui_dbg_step_out(handle);
+    assert_eq!(
+        crate::dapabi::mui_dbg_step_out(handle),
+        crate::dap::DebugState::Idle.as_i32()
+    );
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Step Out is available when paused"
@@ -5336,7 +5348,10 @@ fn debug_step_from_closed_sidebar_reveals_debug_view() {
     ctx.active_panel = crate::PANEL_EXPLORER;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
-    crate::dapabi::mui_dbg_step_over(handle);
+    assert_eq!(
+        crate::dapabi::mui_dbg_step_over(handle),
+        crate::dap::DebugState::Stopped.as_i32()
+    );
     assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
     assert!(ctx.sidebar_visible);
     assert_eq!(crate::dapabi::mui_dbg_active(handle), 1);
@@ -8368,6 +8383,17 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _ds = mui_dbg_stop(h)")
             && main.contains("let _vp = mui_panel_set(h, panel_debug())"),
         "Debug stop command must report stop state while revealing Run and Debug"
+    );
+    assert!(
+        main.contains("id == cmd_debug_step_over()")
+            && main.contains("let _dso = mui_dbg_step_over(h)")
+            && main.contains("id == cmd_debug_step_into()")
+            && main.contains("let _dsi = mui_dbg_step_into(h)")
+            && main.contains("id == cmd_debug_step_out()")
+            && main.contains("let _dsout = mui_dbg_step_out(h)")
+            && main.contains("id == cmd_debug_pause()")
+            && main.contains("let _dp = mui_dbg_pause(h)"),
+        "Debug pause and step commands must explicitly discard returned debug state"
     );
     assert!(
         main.contains("id == cmd_debug_close()")
