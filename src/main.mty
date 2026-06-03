@@ -112,6 +112,7 @@ extern c {
   fn mui_ed_select_line(handle: I64)
   fn mui_ed_select_all(handle: I64)
   fn mui_ed_copy(handle: I64) -> I32
+  fn mui_ed_can_cut(handle: I64) -> I32
   fn mui_ed_cut(handle: I64) -> I32
   fn mui_ed_paste(handle: I64) -> I32
   fn mui_ed_has_selection(handle: I64) -> I32
@@ -2843,7 +2844,7 @@ fn main() {
           completing = false
           find_nav = false
           typing = false
-          mui_ed_undo_record(h)
+          if mui_ed_can_cut(h) == 1 { mui_ed_undo_record(h) }
           let cut_ok = mui_ed_cut(h)
           if cut_ok == 1 {
             mui_tab_set_dirty(h, mui_tab_active(h), 1)
@@ -3933,7 +3934,9 @@ fn main() {
           completing = false
           find_nav = false
           typing = false
-          mui_ed_undo_record(h)
+          if id == cmd_paste_in_editor() || mui_ed_can_cut(h) == 1 {
+            mui_ed_undo_record(h)
+          }
           let edit_ok = if id == cmd_cut_selection_or_line() {
             mui_ed_cut(h)
           } else {

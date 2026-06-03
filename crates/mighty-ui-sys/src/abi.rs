@@ -13295,6 +13295,9 @@ pub extern "C" fn mui_ed_cut(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        return reject_read_only_edit(ctx);
+    }
     let (text, is_selection) = {
         let model = ctx.tabs.active_model();
         let selected = model.selected_text();
@@ -13334,12 +13337,32 @@ pub extern "C" fn mui_ed_cut(handle: i64) -> i32 {
     }
 }
 
+/// `1` when Cut can remove a selection or current line from the active model.
+/// Pure preflight: no clipboard access and no toasts; Cut keeps user feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_cut(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only() {
+        return 0;
+    }
+    let model = ctx.tabs.active_model();
+    if !model.selected_text().is_empty() {
+        return 1;
+    }
+    i32::from(model.line_count() > 1 || !model.current_line_text_for_clipboard().is_empty())
+}
+
 /// Paste operating-system clipboard text at the primary caret.
 #[no_mangle]
 pub extern "C" fn mui_ed_paste(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        return reject_read_only_edit(ctx);
+    }
     let text = match read_clipboard_text() {
         Ok(text) => text,
         Err(e) => {

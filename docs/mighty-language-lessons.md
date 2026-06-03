@@ -7521,3 +7521,8 @@ L607. Outdent needs an indentation preflight before undo. Shift+Tab is a
 mutating route only when at least one affected line has removable leading
 whitespace; the ABI should still own read-only feedback, while Mighty should
 skip undo snapshots for no-indent ranges.
+
+L608. Cut needs a clipboard-free mutation preflight. Empty single-line buffers
+should not gain undo history just because Cut was invoked, and read-only
+previews must reject Cut/Paste before any clipboard access or nonstandard
+feedback.
