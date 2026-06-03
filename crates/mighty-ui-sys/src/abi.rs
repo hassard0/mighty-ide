@@ -6978,7 +6978,9 @@ pub extern "C" fn mui_term_draw(handle: i64) {
     // Snapshot the grid into owned data so the borrow on `ctx.terminal` ends
     // before we borrow `ctx.text`.
     let (rows, cols, cursor, glyphs) = {
-        let t = ctx.terminal.as_ref().expect("terminal present");
+        let Some(t) = ctx.terminal.as_ref() else {
+            return;
+        };
         let g = t.grid();
         let rows = g.rows();
         let cols = g.cols();
