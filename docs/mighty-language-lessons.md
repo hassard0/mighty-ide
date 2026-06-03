@@ -6353,3 +6353,16 @@ it as delete-character would shift the row and corrupt aligned prompts.
   counts to one, clamping at the row edge, preserving adjacent rows, and leaving
   the row tail in place. Parser tests distinguish `CSI X` from `CSI P` and cover
   large-count clamping plus escape consumption.
+
+L494. Terminal alternate-screen mode must preserve the shell grid. Full-screen
+terminal tools switch into a scratch screen with private modes like
+`CSI ?1049h` and return with `CSI ?1049l`. Consuming those escapes without
+switching screens mixes the tool's frame with the shell prompt and loses the
+pre-tool terminal state users expect to return to.
+
+- **IDE note:** The integrated terminal now handles `ESC[?47h/l`,
+  `ESC[?1047h/l`, and `ESC[?1049h/l` by snapshotting the primary grid, drawing
+  the alternate screen on a cleared grid, and restoring the primary grid and
+  cursor on exit. `ESC[?1048h/l` is handled as cursor-only save/restore. Parser
+  tests cover alternate-screen restoration, resize-safe snapshot restoration,
+  cursor restoration, and escape consumption.

@@ -50,6 +50,15 @@ impl Default for Cell {
     }
 }
 
+#[derive(Clone, Debug)]
+struct ScreenSnapshot {
+    rows: usize,
+    cols: usize,
+    cells: Vec<Cell>,
+    cur_row: usize,
+    cur_col: usize,
+}
+
 /// A fixed-size character grid with a cursor. Rows are stored top-to-bottom; the
 /// cursor is a (row, col) within bounds. Writing past the last column wraps to
 /// the next row; writing past the last row scrolls the whole grid up one line.
@@ -63,6 +72,7 @@ pub struct Grid {
     cur_col: usize,
     /// Current SGR foreground applied to newly-written cells.
     cur_fg: u8,
+    primary_screen: Option<ScreenSnapshot>,
 }
 
 impl Grid {
@@ -76,6 +86,7 @@ impl Grid {
             cur_row: 0,
             cur_col: 0,
             cur_fg: DEFAULT_FG,
+            primary_screen: None,
         }
     }
 
@@ -121,6 +132,44 @@ impl Grid {
         self.cols = cols;
         self.cur_row = self.cur_row.min(rows - 1);
         self.cur_col = self.cur_col.min(cols);
+    }
+
+    fn snapshot(&self) -> ScreenSnapshot {
+        ScreenSnapshot {
+            rows: self.rows,
+            cols: self.cols,
+            cells: self.cells.clone(),
+            cur_row: self.cur_row,
+            cur_col: self.cur_col,
+        }
+    }
+
+    fn restore_snapshot(&mut self, snapshot: ScreenSnapshot) {
+        self.cells.fill(Cell::default());
+        let copy_rows = self.rows.min(snapshot.rows);
+        let copy_cols = self.cols.min(snapshot.cols);
+        for r in 0..copy_rows {
+            for c in 0..copy_cols {
+                self.cells[r * self.cols + c] = snapshot.cells[r * snapshot.cols + c];
+            }
+        }
+        self.cur_row = snapshot.cur_row.min(self.rows - 1);
+        self.cur_col = snapshot.cur_col.min(self.cols);
+    }
+
+    fn enter_alternate_screen(&mut self) {
+        if self.primary_screen.is_none() {
+            self.primary_screen = Some(self.snapshot());
+        }
+        self.cells.fill(Cell::default());
+        self.cur_row = 0;
+        self.cur_col = 0;
+    }
+
+    fn exit_alternate_screen(&mut self) {
+        if let Some(snapshot) = self.primary_screen.take() {
+            self.restore_snapshot(snapshot);
+        }
     }
 
     /// Clear all cells to blanks and home the cursor.
@@ -550,6 +599,8 @@ impl VtParser {
                     self.scroll_down(grid);
                 } else if b == b'X' {
                     self.erase_chars(grid);
+                } else if b == b'h' || b == b'l' {
+                    self.set_mode(grid, b);
                 } else if b == b'H' || b == b'f' {
                     self.cursor_position(grid);
                 } else if matches!(b, b'A' | b'B' | b'C' | b'D') {
@@ -670,6 +721,24 @@ impl VtParser {
     fn scroll_down(&mut self, grid: &mut Grid) {
         if let Some(count) = self.first_count_param() {
             grid.scroll_down(count);
+        }
+    }
+
+    fn set_mode(&mut self, grid: &mut Grid, final_byte: u8) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("").to_string();
+        let Some(private) = params.strip_prefix('?') else {
+            return;
+        };
+
+        let modes: Vec<&str> = private.split(';').collect();
+        for mode in modes {
+            match (mode, final_byte) {
+                ("47" | "1047" | "1049", b'h') => grid.enter_alternate_screen(),
+                ("47" | "1047" | "1049", b'l') => grid.exit_alternate_screen(),
+                ("1048", b'h') => self.save_cursor(grid),
+                ("1048", b'l') => self.restore_cursor(grid),
+                _ => {}
+            }
         }
     }
 
@@ -1421,6 +1490,37 @@ mod tests {
         assert_eq!(g2.cell(1, 5).ch, 'b');
         assert!(!g2.contains("[s"));
         assert!(!g2.contains("[u"));
+    }
+
+    #[test]
+    fn alternate_screen_restores_primary_grid_and_cursor() {
+        let g = grid_feed(2, 10, b"prompt\x1b[?1049hALT\x1b[?1049l!");
+        assert_eq!(g.cell(0, 0).ch, 'p');
+        assert_eq!(g.cell(0, 5).ch, 't');
+        assert_eq!(g.cell(0, 6).ch, '!');
+        assert_eq!(g.cursor(), (0, 7));
+        assert!(!g.contains("ALT"));
+        assert!(!g.contains("1049"));
+    }
+
+    #[test]
+    fn alternate_screen_restore_survives_resize() {
+        let mut g = Grid::new(2, 6);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"ABC\nDEF\x1b[?1047hALT");
+        g.resize(3, 8);
+        p.feed(&mut g, b"\x1b[?1047l!");
+
+        assert_eq!(g.to_text(), "ABC     \nDEF!    \n        ");
+        assert_eq!(g.cursor(), (1, 4));
+        assert!(!g.contains("ALT"));
+    }
+
+    #[test]
+    fn private_cursor_save_restore_mode_does_not_switch_screens() {
+        let g = grid_feed(1, 8, b"A\x1b[?1048hBC\x1b[?1048lZ");
+        assert_eq!(g.to_text(), "AZC     ");
+        assert!(!g.contains("1048"));
     }
 
     #[test]
