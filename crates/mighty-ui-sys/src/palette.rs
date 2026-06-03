@@ -299,6 +299,8 @@ pub const CMD_INLINE_AI_ASK: u32 = 133;
 pub const CMD_FORCE_GHOST_COMPLETION: u32 = 134;
 /// Open Universal Quick Open for files, commands, symbols, and line jumps.
 pub const CMD_QUICK_OPEN: u32 = 135;
+/// Stop the currently running `mty run` process.
+pub const CMD_RUN_STOP: u32 = 136;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -389,6 +391,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_QUIT,             label: "Quit",               keybinding: "Esc / close" },
     Command { id: CMD_COLOR_THEME,      label: "Preferences: Color Theme", keybinding: "" },
     Command { id: CMD_RUN_FILE,         label: "Run File",           keybinding: "Ctrl+Shift+R" },
+    Command { id: CMD_RUN_STOP,         label: "Run: Stop Process",  keybinding: "" },
     Command { id: CMD_SETTINGS,         label: "Preferences: Settings", keybinding: "Ctrl+," },
     Command { id: CMD_RUN_TESTS,        label: "Run Tests",          keybinding: "Ctrl+Shift+T" },
     Command { id: CMD_PEEK_DEFINITION,  label: "Peek Definition",    keybinding: "Alt+F12" },
@@ -885,6 +888,7 @@ impl PaletteEngine {
             CMD_QUIT => (icons::CLOSE, "Close the editor", false),
             CMD_COLOR_THEME => (icons::SETTINGS, "Switch the editor color theme", false),
             CMD_RUN_FILE => (icons::RUN, "Run the active Mighty file", true),
+            CMD_RUN_STOP => (icons::CLOSE, "Stop the active Run output process", false),
             CMD_SETTINGS => (icons::SETTINGS, "Edit editor preferences", false),
             CMD_RUN_TESTS => (icons::BEAKER, "Run the package's tests (mty test)", false),
             CMD_PEEK_DEFINITION => (icons::FN_SYMBOL, "Preview the definition inline (Alt+F12)", false),

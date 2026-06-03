@@ -6565,3 +6565,13 @@ palette and toolbar commands.
   before applying start, continue, stop, pause, restart, or step behavior.
   Regression coverage pins F5-without-file feedback and paused-step behavior
   from a closed sidebar.
+
+L512. Long-running workflows need palette-visible stop commands.
+Starting a run from the command palette without an adjacent stop command leaves
+keyboard-first users dependent on locating the visual toolbar. Stop controls are
+part of the same workflow as start controls, so both should be discoverable from
+the command surface.
+
+- **IDE note:** The command palette now lists `Run: Stop Process` and dispatches
+  it through the existing `mui_run_stop` ABI. Registry/mirror coverage pins the
+  new stable command id and Mighty helper so the command remains reachable.

@@ -2682,6 +2682,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         assert_eq!(cmd.label, label);
         assert_eq!(cmd.keybinding, keybinding);
     }
+
+    let run_stop = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_RUN_STOP)
+        .unwrap();
+    assert_eq!(run_stop.label, "Run: Stop Process");
+    assert_eq!(run_stop.keybinding, "");
 }
 
 #[test]
@@ -6650,6 +6657,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_QUIT, "cmd_quit"),
         (CMD_COLOR_THEME, "cmd_color_theme"),
         (CMD_RUN_FILE, "cmd_run_file"),
+        (CMD_RUN_STOP, "cmd_run_stop"),
         (CMD_SETTINGS, "cmd_settings"),
         (CMD_RUN_TESTS, "cmd_run_tests"),
         (CMD_PEEK_DEFINITION, "cmd_peek_definition"),

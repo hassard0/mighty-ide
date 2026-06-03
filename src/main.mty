@@ -746,6 +746,7 @@ fn cmd_code_actions() -> I32 { 132 }
 fn cmd_inline_ai_ask() -> I32 { 133 }
 fn cmd_force_ghost_completion() -> I32 { 134 }
 fn cmd_quick_open() -> I32 { 135 }
+fn cmd_run_stop() -> I32 { 136 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4122,6 +4123,10 @@ fn main() {
           theme_picker_open = true
         } else if id == cmd_run_file() {
           let _r = mui_run_start(h)
+          run_focus = true
+          agents_focus = false
+        } else if id == cmd_run_stop() {
+          mui_run_stop(h)
           run_focus = true
           agents_focus = false
         } else if id == cmd_settings() {
