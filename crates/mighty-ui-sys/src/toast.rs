@@ -859,11 +859,15 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No autocomplete suggestions open"
         || m == "Save the file before hover"
         || m == "No hover information"
+        || m == "Hover popup closed"
+        || m == "No hover popup open"
         || m == "Save the file before Go to Definition"
         || m == "Save the file before Peek Definition"
         || m == "Peek view closed"
         || m == "Peek view is already closed"
         || m == "Save the file before signature help"
+        || m == "Signature Help popup closed"
+        || m == "No Signature Help popup open"
         || m == "No definition found"
         || m == "No definition target selected"
         || m.starts_with("Definition target missing")
@@ -2138,6 +2142,22 @@ mod tests {
         assert_eq!(q.toasts()[0].message, "No hover information");
 
         q.push_at(
+            Kind::Info,
+            "Hover popup closed",
+            t0 + Duration::from_millis(225),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Hover popup closed");
+
+        q.push_at(
+            Kind::Info,
+            "No hover popup open",
+            t0 + Duration::from_millis(250),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No hover popup open");
+
+        q.push_at(
             Kind::Warn,
             "Save the file before Go to Definition",
             t0 + Duration::from_millis(300),
@@ -2172,6 +2192,22 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Save the file before signature help");
+
+        q.push_at(
+            Kind::Info,
+            "Signature Help popup closed",
+            t0 + Duration::from_millis(525),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Signature Help popup closed");
+
+        q.push_at(
+            Kind::Info,
+            "No Signature Help popup open",
+            t0 + Duration::from_millis(550),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No Signature Help popup open");
 
         q.push_at(
             Kind::Info,

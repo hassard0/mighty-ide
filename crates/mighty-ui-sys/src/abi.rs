@@ -8589,6 +8589,23 @@ pub extern "C" fn mui_hover_clear(handle: i64) {
     }
 }
 
+/// Close the hover popup as an explicit command. Returns `1` when it closed an
+/// active popup and `0` when no hover popup was open.
+#[no_mangle]
+pub extern "C" fn mui_hover_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.hover.is_active() {
+        ctx.hover.clear();
+        ctx.push_toast(crate::toast::Kind::Info, "Hover popup closed");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No hover popup open");
+        0
+    }
+}
+
 /// Draw the hover popup near the cursor `(row, col)` (screen row + buffer col),
 /// offset past the gutter sized for `total_lines`. No-op when no hover is active.
 /// Mirrors `mui_complete_draw_at`'s pixel math (Mighty has no int->float, L19).
@@ -8851,6 +8868,23 @@ pub extern "C" fn mui_sig_active(handle: i64) -> i32 {
 pub extern "C" fn mui_sig_clear(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         ctx.sig.clear();
+    }
+}
+
+/// Close the signature-help popup as an explicit command. Returns `1` when it
+/// closed an active popup and `0` when no signature-help popup was open.
+#[no_mangle]
+pub extern "C" fn mui_sig_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.sig.is_active() {
+        ctx.sig.clear();
+        ctx.push_toast(crate::toast::Kind::Info, "Signature Help popup closed");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No Signature Help popup open");
+        0
     }
 }
 

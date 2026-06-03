@@ -308,6 +308,7 @@ extern c {
   fn mui_hover_request(handle: I64, line: I32, col: I32) -> I32
   fn mui_hover_active(handle: I64) -> I32
   fn mui_hover_clear(handle: I64)
+  fn mui_hover_close(handle: I64) -> I32
   fn mui_hover_draw(handle: I64, row: I32, col: I32, total_lines: I32)
   fn mui_def_request(handle: I64, line: I32, col: I32) -> I32
   fn mui_def_path_matches_current(handle: I64) -> I32
@@ -335,6 +336,7 @@ extern c {
   fn mui_sig_request(handle: I64, line: I32, col: I32) -> I32
   fn mui_sig_active(handle: I64) -> I32
   fn mui_sig_clear(handle: I64)
+  fn mui_sig_close(handle: I64) -> I32
   fn mui_sig_draw(handle: I64, row: I32, col: I32, total_lines: I32)
   // ---- rename symbol (F2): shim-side LSP rename + inline input ----
   fn mui_rename_prepare(handle: I64, line: I32, col: I32) -> I32
@@ -4032,7 +4034,7 @@ fn main() {
           let ok = do_hover(h)
           if ok == 1 { hovering = true; hover_line = mui_ed_cursor_line(h); hover_col = mui_ed_cursor_col(h) } else { hovering = false }
         } else if id == cmd_hover_close() {
-          mui_hover_clear(h)
+          let _hc = mui_hover_close(h)
           hovering = false
         } else if id == cmd_signature_help() || id == cmd_rename_symbol() || id == cmd_code_actions() {
           if id == cmd_signature_help() {
@@ -4066,7 +4068,7 @@ fn main() {
             }
           }
         } else if id == cmd_signature_help_close() {
-          mui_sig_clear(h)
+          let _sc = mui_sig_close(h)
           sig_open = false
         } else if id == cmd_rename_cancel() {
           let _rcancel = mui_rename_cancel(h)

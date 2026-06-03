@@ -5821,10 +5821,33 @@ fn language_popup_close_commands_clear_active_state() {
     assert_eq!(crate::mui_hover_active(handle), 1);
     assert_eq!(crate::abi::mui_sig_active(handle), 1);
 
-    crate::mui_hover_clear(handle);
-    crate::abi::mui_sig_clear(handle);
+    assert_eq!(crate::mui_hover_close(handle), 1);
     assert_eq!(crate::mui_hover_active(handle), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(ctx.toasts.toasts()[0].message, "Hover popup closed");
+
+    assert_eq!(crate::abi::mui_sig_close(handle), 1);
     assert_eq!(crate::abi::mui_sig_active(handle), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(
+        ctx.toasts.toasts()[0].message,
+        "Signature Help popup closed"
+    );
+
+    assert_eq!(crate::mui_hover_close(handle), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(ctx.toasts.toasts()[0].message, "No hover popup open");
+
+    assert_eq!(crate::abi::mui_sig_close(handle), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(
+        ctx.toasts.toasts()[0].message,
+        "No Signature Help popup open"
+    );
 }
 
 #[test]
@@ -8082,13 +8105,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_hover_close()")
-            && main.contains("mui_hover_clear(h)")
+            && main.contains("let _hc = mui_hover_close(h)")
             && main.contains("hovering = false"),
         "Hover close command must clear shim hover state and Mighty's local hover flag"
     );
     assert!(
         main.contains("id == cmd_signature_help_close()")
-            && main.contains("mui_sig_clear(h)")
+            && main.contains("let _sc = mui_sig_close(h)")
             && main.contains("sig_open = false"),
         "Signature Help close command must clear shim signature state and Mighty's local signature flag"
     );

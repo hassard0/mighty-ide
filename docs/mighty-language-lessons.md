@@ -7324,3 +7324,17 @@ the explicit command should still report whether a tab-stop session existed.
   `No snippet session active`; both messages share a snippet toast lane. Mighty
   only calls the ABI from generic Escape/collapse cleanup while a session is
   active, and explicitly discards the returned state for the palette command.
+
+L587. Cleanup ABIs and command-close ABIs do not have to be the same function.
+Hover and signature help are dismissed during cursor movement, Escape cleanup,
+and feature transitions, so those cleanup paths must stay silent while the
+palette-visible close commands still need observable state.
+
+- **IDE note:** `mui_hover_clear` and `mui_sig_clear` remain silent cleanup
+  helpers. New `mui_hover_close` and `mui_sig_close` command ABIs return `1`
+  when they close an active popup and `0` when the popup is already inactive.
+  Hover close reports `Hover popup closed` / `No hover popup open`; signature
+  close reports `Signature Help popup closed` /
+  `No Signature Help popup open`; all four messages stay in the CodeIntel toast
+  lane, and Mighty uses the stateful close APIs only from the explicit palette
+  command paths.
