@@ -622,6 +622,19 @@ pub(crate) fn debug_ui_text_width(text: &mut crate::text::Text, s: &str, size: f
     text.measure_ui_sized(s, size).0
 }
 
+pub(crate) fn debug_variable_name_budget(
+    text: &mut crate::text::Text,
+    cells: usize,
+    size: f32,
+) -> f32 {
+    let probe = "m".repeat(cells);
+    text.measure_ui_sized(&probe, size).0
+}
+
+pub(crate) fn debug_variable_separator_advance(text: &mut crate::text::Text, size: f32) -> f32 {
+    text.measure_ui_sized(" = ", size).0
+}
+
 pub(crate) fn fit_debug_variable_name(
     text: &mut crate::text::Text,
     name: &str,
@@ -858,7 +871,6 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
     let h = ctx.gpu.height as f32;
     let clip = ctx.clip;
     let chrome = theme::CHROME_FONT_SIZE;
-    let adv = chrome * 0.55;
     let sx = layout::RAIL_W;
     let sw = layout::sidebar_w();
 
@@ -992,11 +1004,15 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
             }
             let ty = y + (row_h - chrome) * 0.5 - 1.0;
             // name (function color) : value (string color), type dim.
-            let nm = fit_debug_variable_name(&mut ctx.text, &name, 12.0 * adv, chrome);
+            let name_budget = debug_variable_name_budget(&mut ctx.text, 12, chrome);
+            let nm = fit_debug_variable_name(&mut ctx.text, &name, name_budget, chrome);
             ctx.text.queue_ui_sized(sx + 16.0, ty, &nm, theme::SYN_FUNCTION(), chrome, clip);
-            let eq_x = sx + 16.0 + debug_ui_text_width(&mut ctx.text, &nm, chrome) + adv;
+            let sep = debug_variable_separator_advance(&mut ctx.text, chrome);
+            let eq_w = debug_ui_text_width(&mut ctx.text, "=", chrome);
+            let space_w = ((sep - eq_w) * 0.5).max(0.0);
+            let eq_x = sx + 16.0 + debug_ui_text_width(&mut ctx.text, &nm, chrome) + space_w;
             ctx.text.queue_ui_sized(eq_x, ty, "=", theme::TEXT_4(), chrome, clip);
-            let val_x = eq_x + 2.0 * adv;
+            let val_x = eq_x + eq_w + space_w;
             let kind_w = if kind.is_empty() {
                 0.0
             } else {

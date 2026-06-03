@@ -6247,3 +6247,11 @@ switching to shaped proportional text, leaving matches visually unmarked.
   proportional prefix positions. Fuzzy matches remain visually highlighted
   without returning to fixed-advance row rendering, and clipped ellipsis/tail
   characters are skipped safely.
+
+L482. Debug variable separators should use measured spacing. Variable rows fit
+names and values with measured budgets, but the name budget and `=` offsets
+still used a half-font multiplier.
+
+- **IDE note:** Debug variable rows now derive the compact name budget and
+  separator/value offsets from measured UI-font text. Values still reserve room
+  for type metadata, and the `name = value` spacing follows the rendered font.

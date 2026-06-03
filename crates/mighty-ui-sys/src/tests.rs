@@ -4178,7 +4178,7 @@ fn debug_variable_equals_position_tracks_rendered_name_width() {
 fn debug_variable_name_fits_measured_budget() {
     let mut ctx = ctx_or_skip!();
     let chrome = crate::theme::CHROME_FONT_SIZE;
-    let budget = 12.0 * (chrome * 0.55);
+    let budget = crate::dapabi::debug_variable_name_budget(&mut ctx.text, 12, chrome);
     let shown = crate::dapabi::fit_debug_variable_name(
         &mut ctx.text,
         "long_variable_name_for_debugger",
@@ -4192,16 +4192,31 @@ fn debug_variable_name_fits_measured_budget() {
 }
 
 #[test]
+fn debug_variable_separator_advance_uses_measured_text() {
+    let mut ctx = ctx_or_skip!();
+    let chrome = crate::theme::CHROME_FONT_SIZE;
+    let sep = crate::dapabi::debug_variable_separator_advance(&mut ctx.text, chrome);
+    let measured = ctx.text.measure_ui_sized(" = ", chrome).0;
+    let eq = ctx.text.measure_ui_sized("=", chrome).0;
+
+    assert_eq!(sep, measured);
+    assert!(sep > eq);
+}
+
+#[test]
 fn debug_variable_value_reserves_measured_type_label() {
     let mut ctx = ctx_or_skip!();
     let chrome = crate::theme::CHROME_FONT_SIZE;
     let sx = crate::layout::RAIL_W;
     let sw = crate::layout::sidebar_w();
-    let adv = chrome * 0.55;
     let name_x = sx + 16.0;
-    let name = crate::dapabi::fit_debug_variable_name(&mut ctx.text, "result_value", 12.0 * adv, chrome);
-    let eq_x = name_x + crate::dapabi::debug_ui_text_width(&mut ctx.text, &name, chrome) + adv;
-    let val_x = eq_x + 2.0 * adv;
+    let name_budget = crate::dapabi::debug_variable_name_budget(&mut ctx.text, 12, chrome);
+    let name = crate::dapabi::fit_debug_variable_name(&mut ctx.text, "result_value", name_budget, chrome);
+    let sep = crate::dapabi::debug_variable_separator_advance(&mut ctx.text, chrome);
+    let eq_w = crate::dapabi::debug_ui_text_width(&mut ctx.text, "=", chrome);
+    let space_w = ((sep - eq_w) * 0.5).max(0.0);
+    let eq_x = name_x + crate::dapabi::debug_ui_text_width(&mut ctx.text, &name, chrome) + space_w;
+    let val_x = eq_x + eq_w + space_w;
     let kind = "Array<String>";
     let kind_w = crate::dapabi::debug_ui_text_width(&mut ctx.text, kind, chrome - 2.0);
     let kind_x = sx + sw - kind_w - 12.0;
