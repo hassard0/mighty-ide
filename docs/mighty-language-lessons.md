@@ -6412,3 +6412,15 @@ source terminal stream intended.
   default-background reset, and the terminal draw path paints compact
   contiguous background runs before glyph runs. Unit coverage pins basic,
   bright, compound, `49`, and full-reset behavior.
+
+L499. Terminal 256-color SGR needs sentinel-safe color storage.
+The xterm `38;5;n` and `48;5;n` forms use palette entries all the way through
+255, which collides with byte-sized "default" sentinels if the grid stores color
+as `u8`. Supporting modern CLI color output therefore starts with making the
+cell color index type large enough to keep defaults outside the real palette.
+
+- **IDE note:** Terminal cell foreground/background indices now use sentinel-safe
+  `u16` values, `38;5;n` and `48;5;n` update the active SGR colors, and the draw
+  palette resolves standard xterm cube and grayscale entries. Unsupported
+  truecolor SGR forms are consumed as a unit so their RGB components cannot
+  accidentally change subsequent terminal styling.
