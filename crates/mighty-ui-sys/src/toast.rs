@@ -761,6 +761,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Clipboard paste failed"
         || m == "Clipboard is empty"
         || m == "Pasted clipboard"
+        || m == "Pasted to terminal"
+        || m == "Terminal paste failed"
         || m.starts_with("Could not copy")
     {
         Some(OperationKey::Copy)
@@ -1279,6 +1281,16 @@ mod tests {
         q.push_at(Kind::Success, "Pasted clipboard", t0 + Duration::from_millis(300));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Pasted clipboard");
+        assert_eq!(q.toasts()[0].kind, Kind::Success);
+
+        q.push_at(Kind::Error, "Terminal paste failed", t0 + Duration::from_millis(400));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Terminal paste failed");
+        assert_eq!(q.toasts()[0].kind, Kind::Error);
+
+        q.push_at(Kind::Success, "Pasted to terminal", t0 + Duration::from_millis(500));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Pasted to terminal");
         assert_eq!(q.toasts()[0].kind, Kind::Success);
     }
 

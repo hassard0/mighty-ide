@@ -7109,3 +7109,13 @@ looks like a random mode switch after the Save As command.
   `Save dialog unavailable; use typed path` before returning `-1` for the Mighty
   prompt fallback. The regression forces the unavailable branch without showing
   native UI and verifies the untitled dirty tab remains unchanged.
+
+L567. Terminal paste feedback is still clipboard feedback. Terminal paste uses
+different messages from editor paste, but the user is repeating the same
+clipboard operation. Letting those outcomes live in separate toast lanes makes
+old paste failures or successes linger next to the current state.
+
+- **IDE note:** `Pasted to terminal` and `Terminal paste failed` now share the
+  clipboard toast replacement key with editor paste/copy/cut outcomes. The
+  regression extends the clipboard toast replacement test across terminal paste
+  failure and success.
