@@ -571,6 +571,7 @@ enum OperationKey {
     Markdown,
     Layout,
     Ai,
+    Agents,
 }
 
 fn operation_key(message: &str) -> Option<OperationKey> {
@@ -580,6 +581,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Type a message before sending"
     {
         Some(OperationKey::Ai)
+    } else if m == "Open a file before running Agents" || m.starts_with("Agents ") {
+        Some(OperationKey::Agents)
     } else if m == "No unsaved files"
         || m == "Save All failed"
         || m == "Save cancelled; tab is still open"

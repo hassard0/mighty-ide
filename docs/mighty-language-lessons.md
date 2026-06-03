@@ -5457,3 +5457,12 @@ ABI, and the panel should explain whether no row or no file target was available
   and reports `No test result row selected`, `Test result row has no file target`,
   or `Test target missing: ...` on failed jumps. Successful result rows keep the
   existing open-tab and jump behavior.
+
+L394. Agent run commands should explain missing program context. Running Agents
+is an intentional command; if no file-backed program is active, returning `0`
+without feedback makes the header action feel inert.
+
+- **IDE note:** `mui_agents_run` now reports `Open a file before running Agents`
+  when there is no active file path. The toast is grouped as Agents feedback so
+  repeated attempts refresh the same operation instead of stacking unrelated
+  notifications.

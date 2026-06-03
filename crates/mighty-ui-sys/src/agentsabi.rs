@@ -996,6 +996,7 @@ pub extern "C" fn mui_agents_run(handle: i64) -> i32 {
     };
     let Some(path) = ctx.tabs.active_path() else {
         crate::abi::trace("agents_run no_active_file");
+        ctx.push_toast(crate::toast::Kind::Warn, "Open a file before running Agents");
         return 0;
     };
     let mut topo = std::mem::take(&mut ctx.agents);

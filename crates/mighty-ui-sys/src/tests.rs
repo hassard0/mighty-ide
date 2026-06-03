@@ -1598,6 +1598,17 @@ fn test_result_open_misses_report_visible_feedback() {
 }
 
 #[test]
+fn agents_run_without_file_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::agentsabi::mui_agents_run(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Open a file before running Agents");
+}
+
+#[test]
 fn bottom_dock_resize_uses_visible_mouse_geometry() {
     let _g = crate::settings::TEST_LOCK
         .lock()
