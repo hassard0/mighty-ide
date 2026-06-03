@@ -5891,9 +5891,15 @@ fn color_theme_close_command_cancels_picker() {
     crate::mui_theme_picker_move(handle, 1);
     assert_eq!(crate::theme::active_id(), crate::theme::ThemeId::Aurora);
 
-    crate::mui_theme_picker_cancel(handle);
+    assert_eq!(crate::mui_theme_picker_cancel(handle), 1);
     assert_eq!(crate::mui_theme_picker_active(handle), 0);
     assert_eq!(crate::theme::active_id(), crate::theme::ThemeId::Vivid);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].message, "Color theme picker cancelled");
+
+    assert_eq!(crate::mui_theme_picker_cancel(handle), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].message, "No color theme picker open");
 }
 
 #[test]
@@ -8245,7 +8251,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_color_theme_close()")
-            && main.contains("mui_theme_picker_cancel(h)")
+            && main.contains("let _thc = mui_theme_picker_cancel(h)")
             && main.contains("theme_picker_open = false"),
         "Color theme close command must cancel the picker and clear Mighty's local flag"
     );

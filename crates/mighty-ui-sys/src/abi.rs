@@ -7989,9 +7989,17 @@ pub extern "C" fn mui_theme_picker_apply(handle: i64) -> i32 {
 
 /// Cancel the picker, reverting to the theme that was active when it opened.
 #[no_mangle]
-pub extern "C" fn mui_theme_picker_cancel(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
+pub extern "C" fn mui_theme_picker_cancel(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.theme_picker.is_active() {
         ctx.theme_picker.cancel();
+        ctx.push_toast(crate::toast::Kind::Info, "Color theme picker cancelled");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No color theme picker open");
+        0
     }
 }
 

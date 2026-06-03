@@ -441,7 +441,7 @@ extern c {
   fn mui_theme_picker_move(handle: I64, delta: I32)
   fn mui_theme_picker_click(handle: I64) -> I32
   fn mui_theme_picker_apply(handle: I64) -> I32
-  fn mui_theme_picker_cancel(handle: I64)
+  fn mui_theme_picker_cancel(handle: I64) -> I32
   fn mui_theme_picker_draw(handle: I64)
   // ---- Run panel (Run rail icon / Ctrl+Shift+R) ----
   fn mui_run_start(handle: I64) -> I32
@@ -1956,16 +1956,16 @@ fn main() {
             let _t = mui_theme_picker_apply(h)
             theme_picker_open = false
           } else if k == key_escape() {
-            mui_theme_picker_cancel(h)
+            let _thc = mui_theme_picker_cancel(h)
             theme_picker_open = false
           }
         } else if tag == ev_mouse_down() {
           let th = mui_theme_picker_click(h)
           if th == 2 {
-            mui_theme_picker_cancel(h)
+            let _thc = mui_theme_picker_cancel(h)
             theme_picker_open = false
           } else if th == 0 {
-            mui_theme_picker_cancel(h)
+            let _thc = mui_theme_picker_cancel(h)
             theme_picker_open = false
           } else {
             let _t = mui_theme_picker_apply(h)
@@ -4262,7 +4262,7 @@ fn main() {
           mui_theme_picker_open(h)
           theme_picker_open = true
         } else if id == cmd_color_theme_close() {
-          mui_theme_picker_cancel(h)
+          let _thc = mui_theme_picker_cancel(h)
           theme_picker_open = false
         } else if id == cmd_run_file() {
           let _r = mui_run_start(h)

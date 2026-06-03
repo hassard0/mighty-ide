@@ -798,7 +798,10 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Run target missing")
     {
         Some(OperationKey::WebRun)
-    } else if m.starts_with("Theme:") {
+    } else if m.starts_with("Theme:")
+        || m == "Color theme picker cancelled"
+        || m == "No color theme picker open"
+    {
         Some(OperationKey::Theme)
     } else if is_mighty_diagnostic_message(m) {
         Some(OperationKey::Diagnostic)
@@ -1513,6 +1516,22 @@ mod tests {
         q.push_at(Kind::Info, "Theme: Vivid Modern", t0 + Duration::from_millis(100));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Theme: Vivid Modern");
+
+        q.push_at(
+            Kind::Info,
+            "Color theme picker cancelled",
+            t0 + Duration::from_millis(150),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Color theme picker cancelled");
+
+        q.push_at(
+            Kind::Info,
+            "No color theme picker open",
+            t0 + Duration::from_millis(175),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No color theme picker open");
 
         q.push_at(Kind::Error, "MT1001: expected I32", t0 + Duration::from_millis(200));
         q.push_at(Kind::Error, "MT2001: expected I32, found Str", t0 + Duration::from_millis(300));

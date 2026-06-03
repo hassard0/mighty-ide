@@ -7247,3 +7247,15 @@ adding active-close noise.
   `No Quick Open panel open` in the navigation toast lane, and Mighty explicitly
   discards the returned state from Escape, mouse-dismiss, command-selection, and
   palette command paths.
+
+L580. Color theme cancel is a real revert action. Unlike command-palette or
+Quick Open accept cleanup, cancelling the theme picker restores the theme that
+was active when the picker opened, so both active and no-op command paths should
+report visible state.
+
+- **IDE note:** `mui_theme_picker_cancel` now returns `1` when it cancels an
+  active picker and `0` when no picker is open. Active cancel reports
+  `Color theme picker cancelled`; no-op cancel reports
+  `No color theme picker open`; both messages stay in the theme toast lane, and
+  Mighty explicitly discards the returned state from Escape, mouse-dismiss, and
+  palette command paths.
