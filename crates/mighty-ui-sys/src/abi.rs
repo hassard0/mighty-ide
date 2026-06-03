@@ -6612,13 +6612,12 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
     let row_h = layout::LINE_H();
     let row_top = head_h + 6.0;
     let active_path = ctx.tabs.active_path();
+    let active_path = active_path.as_deref();
     let count = ctx.tree.count();
     for i in 0..count {
         let (is_dir, expanded, depth, name, selected) = {
             let Some(row) = ctx.tree.get(i) else { continue };
-            let selected = !row.is_dir
-                && active_path.is_some()
-                && row.path == *active_path.as_ref().unwrap();
+            let selected = explorer_row_selected(row.is_dir, &row.path, active_path);
             (row.is_dir, row.expanded, row.depth, row.display_name(), selected)
         };
         let y = row_top + (i as f32) * row_h;
@@ -6668,6 +6667,14 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
             ctx.text.queue_ui_sized(sx + sw - 22.0, txt_y, gl, gc, chrome - 2.0, clip);
         }
     }
+}
+
+pub(crate) fn explorer_row_selected(
+    is_dir: bool,
+    row_path: &std::path::Path,
+    active_path: Option<&std::path::Path>,
+) -> bool {
+    !is_dir && active_path == Some(row_path)
 }
 
 pub(crate) fn fit_explorer_name(

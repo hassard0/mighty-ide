@@ -3811,6 +3811,20 @@ fn explorer_header_fits_before_action_buttons() {
 }
 
 #[test]
+fn explorer_row_selection_handles_missing_active_path() {
+    let file = std::path::Path::new("src/main.mty");
+
+    assert!(!crate::abi::explorer_row_selected(false, file, None));
+    assert!(!crate::abi::explorer_row_selected(true, file, Some(file)));
+    assert!(crate::abi::explorer_row_selected(false, file, Some(file)));
+    assert!(!crate::abi::explorer_row_selected(
+        false,
+        file,
+        Some(std::path::Path::new("src/lib.mty"))
+    ));
+}
+
+#[test]
 fn scm_row_name_and_dir_fit_before_stage_action() {
     let mut ctx = ctx_or_skip!();
     let sx = crate::layout::RAIL_W;
