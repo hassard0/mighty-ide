@@ -621,6 +621,13 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Choose an existing parent folder"
     {
         Some(OperationKey::CreateProject)
+    } else if m == "Split editor right"
+        || m == "Editor is already split"
+        || m.starts_with("Focused editor pane ")
+        || m == "Closed editor pane"
+        || m == "Only one editor pane"
+    {
+        Some(OperationKey::Layout)
     } else if m == "No tab at that position"
         || m == "Tab is already first"
         || m == "Tab is already last"
@@ -1089,6 +1096,26 @@ mod tests {
         assert_eq!(q.len(), 2);
         assert_eq!(q.toasts()[1].message, "MT2001: expected I32, found Str");
         assert!(!q.toasts().iter().any(|t| t.message == "MT1001: expected I32"));
+    }
+
+    #[test]
+    fn newer_pane_lifecycle_feedback_replaces_stale_layout_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "Split editor right", t0);
+        q.push_at(
+            Kind::Info,
+            "Focused editor pane 2",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Focused editor pane 2");
+
+        q.push_at(Kind::Info, "Closed editor pane", t0 + Duration::from_millis(200));
+        q.push_at(Kind::Info, "Only one editor pane", t0 + Duration::from_millis(300));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Only one editor pane");
     }
 
     #[test]

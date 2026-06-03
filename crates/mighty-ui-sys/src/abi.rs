@@ -11601,11 +11601,17 @@ pub extern "C" fn mui_pane_split_right(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 1;
     };
+    let before = ctx.panes.count();
     let cur_tab = ctx.panes.focused_tab();
     let s = active_scroll(ctx);
     ctx.panes.split_right(cur_tab, s);
     pane_rebind_focus(ctx);
     ctx.welcome.dismiss();
+    if before > 1 {
+        ctx.push_toast(crate::toast::Kind::Info, "Editor is already split");
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Split editor right");
+    }
     ctx.panes.count() as i32
 }
 
@@ -11616,9 +11622,17 @@ pub extern "C" fn mui_pane_focus_next(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if ctx.panes.count() <= 1 {
+        ctx.push_toast(crate::toast::Kind::Info, "Only one editor pane");
+        return ctx.panes.focused() as i32;
+    }
     let s = active_scroll(ctx);
     ctx.panes.focus_next(s);
     pane_rebind_focus(ctx);
+    ctx.push_toast(
+        crate::toast::Kind::Info,
+        format!("Focused editor pane {}", ctx.panes.focused() + 1),
+    );
     ctx.panes.focused() as i32
 }
 
@@ -11654,10 +11668,15 @@ pub extern "C" fn mui_pane_close(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 1;
     };
+    if ctx.panes.count() <= 1 {
+        ctx.push_toast(crate::toast::Kind::Info, "Only one editor pane");
+        return ctx.panes.count() as i32;
+    }
     let s = active_scroll(ctx);
     ctx.panes.save_focused_scroll(s);
     ctx.panes.close_focused();
     pane_rebind_focus(ctx);
+    ctx.push_toast(crate::toast::Kind::Info, "Closed editor pane");
     ctx.panes.count() as i32
 }
 

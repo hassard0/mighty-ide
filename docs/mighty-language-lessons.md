@@ -5085,3 +5085,13 @@ IDE should.
   the palette commands. The command is palette-visible, appears in Keyboard
   Shortcuts, opens the sidebar when needed, and has tests for chord resolution
   and preset rotation.
+
+L358. Split-editor lifecycle commands should acknowledge both changes and
+one-pane no-ops. Split, focus-next, and close-pane were functionally correct,
+but palette or shortcut users received no visible confirmation, so a successful
+split/focus/close looked too similar to a missed command.
+
+- **IDE note:** generic pane operations now toast `Split editor right`,
+  `Focused editor pane N`, `Closed editor pane`, or `Only one editor pane` for
+  one-pane no-ops. The existing pane ABI regression now checks that direct and
+  palette-dispatched pane operations share those visible outcomes.

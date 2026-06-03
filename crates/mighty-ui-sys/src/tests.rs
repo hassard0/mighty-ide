@@ -3911,11 +3911,23 @@ fn pane_split_focus_close_via_abi() {
     assert_eq!(mui_pane_tab(h, 0), 0);
     // Focus-next / close are no-ops with one pane (active tab unchanged).
     assert_eq!(mui_pane_focus_next(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Only one editor pane"
+    );
     assert_eq!(mui_pane_close(h), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Only one editor pane"
+    );
     assert_eq!(mui_tab_active(h), 0);
 
     // --- split -> two panes, new (right) pane focused, active tab rebinds --
     assert_eq!(mui_pane_split_right(h), 2);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Split editor right"
+    );
     assert_eq!(mui_pane_count(h), 2);
     assert_eq!(mui_pane_focused(h), 1);
     // split_right clones the focused pane's tab, so both show tab 0 here.
@@ -3937,6 +3949,10 @@ fn pane_split_focus_close_via_abi() {
     // --- focus pane 0: active tab rebinds to tab 0 + restores its scroll ----
     let f0 = mui_pane_focus_next(h); // wraps 1 -> 0
     assert_eq!(f0, 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Focused editor pane 1"
+    );
     assert_eq!(mui_tab_active(h), 0);
     {
         let ctx = unsafe { &mut *(h as usize as *mut MuiContext) };
@@ -3963,6 +3979,10 @@ fn pane_split_focus_close_via_abi() {
 
     // --- close the focused pane -> back to the single-pane state -----------
     assert_eq!(mui_pane_close(h), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Closed editor pane"
+    );
     assert_eq!(mui_pane_count(h), 1);
     assert_eq!(mui_pane_focused(h), 0);
     // The surviving (left) pane shows tab 0 and is the active tab.
@@ -3971,7 +3991,15 @@ fn pane_split_focus_close_via_abi() {
 
     // --- palette dispatch routes the same as the direct ops ----------------
     assert_eq!(mui_pane_dispatch(h, crate::palette::CMD_SPLIT_RIGHT as i32), 2);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Split editor right"
+    );
     assert_eq!(mui_pane_dispatch(h, crate::palette::CMD_CLOSE_PANE as i32), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Closed editor pane"
+    );
     // An out-of-block id is ignored (returns the current count, no panic).
     assert_eq!(mui_pane_dispatch(h, 0), 1);
 
