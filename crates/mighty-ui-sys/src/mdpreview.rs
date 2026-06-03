@@ -315,7 +315,7 @@ impl Painter<'_> {
         self.ctx.dl_stroke(x, self.y, avail, card_h, 8.0, theme::BORDER_SOFT(), 1.0);
         // Optional language tag, top-right.
         if let Some(l) = lang {
-            let lw = l.chars().count() as f32 * ui_advance(size - 1.0) + 8.0;
+            let lw = code_lang_tag_width(self.ctx, l, size - 1.0);
             self.ctx.text.queue_ui_sized(
                 (x + avail - lw - 8.0).max(x + pad),
                 self.y + 5.0,
@@ -442,8 +442,7 @@ impl Painter<'_> {
             match piece.kind {
                 PieceKind::Code => {
                     // Inline code chip: a tinted rounded background + mono text.
-                    let cadv = piece.text.chars().count() as f32 * crate::layout::CHAR_W() * (size / crate::theme::FONT_SIZE());
-                    let chip_w = cadv + 8.0;
+                    let chip_w = inline_code_chip_width(self.ctx, &piece.text, size);
                     self.ctx
                         .dl_round(px, y - 1.0, chip_w, size + 6.0, 4.0, theme::accent_a(0.12));
                     self.ctx
@@ -508,6 +507,14 @@ impl Painter<'_> {
 fn ui_draw_advance(ctx: &mut MuiContext, text: &str, size: f32) -> f32 {
     let trailing_spaces = text.chars().rev().take_while(|&ch| ch == ' ').count();
     ctx.text.measure_ui_sized(text, size).0 + trailing_spaces as f32 * size * 0.34
+}
+
+fn code_lang_tag_width(ctx: &mut MuiContext, text: &str, size: f32) -> f32 {
+    ctx.text.measure_ui_sized(text, size).0 + 8.0
+}
+
+fn inline_code_chip_width(ctx: &mut MuiContext, text: &str, size: f32) -> f32 {
+    ctx.text.measure_sized(text, size).0 + 8.0
 }
 
 fn code_draw_advance(text: &str, size: f32) -> f32 {
@@ -685,6 +692,37 @@ mod tests {
             lines.len() > 1,
             "inline code chips should wrap before their padded background clips"
         );
+    }
+
+    #[test]
+    fn code_lang_tag_width_uses_measured_ui_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+
+        let size = BODY_SIZE - 2.0;
+        let short = code_lang_tag_width(&mut ctx, "rs", size);
+        let long = code_lang_tag_width(&mut ctx, "typescript", size);
+        let measured_long = ctx.text.measure_ui_sized("typescript", size).0;
+
+        assert!(short > 8.0, "language tag width should include rendered text");
+        assert!(long > short, "longer rendered language tags need more width");
+        assert_eq!(long, measured_long + 8.0);
+    }
+
+    #[test]
+    fn inline_code_chip_width_uses_measured_code_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+
+        let short = inline_code_chip_width(&mut ctx, "i", BODY_SIZE);
+        let long = inline_code_chip_width(&mut ctx, "inline_code", BODY_SIZE);
+        let measured_long = ctx.text.measure_sized("inline_code", BODY_SIZE).0;
+
+        assert!(short > 8.0, "inline code chip width should include rendered text");
+        assert!(long > short, "longer rendered code spans need wider chips");
+        assert_eq!(long, measured_long + 8.0);
     }
 
     #[test]

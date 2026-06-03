@@ -6139,3 +6139,11 @@ right-side type label from fixed character estimates.
   before placing `=`, and measure type labels before right-aligning them. Narrow
   and wide identifiers keep value text and type metadata aligned with rendered
   UI text.
+
+L469. Markdown preview code chrome needs measured widths too. Markdown preview
+wrapped prose conservatively, but code-block language tags and inline-code chip
+backgrounds still used fixed character estimates.
+
+- **IDE note:** Markdown preview now measures code-block language tags and
+  inline-code chip text before positioning or sizing their chrome. Code badges
+  and inline code backgrounds align with the actual rendered glyphs.
