@@ -2696,6 +2696,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(test_stop.label, "Test: Stop Run");
     assert_eq!(test_stop.keybinding, "");
+
+    let test_at_cursor = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_RUN_TEST_AT_CURSOR)
+        .unwrap();
+    assert_eq!(test_at_cursor.label, "Run Test at Cursor");
+    assert_eq!(test_at_cursor.keybinding, "");
 }
 
 #[test]
@@ -6667,6 +6674,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_RUN_STOP, "cmd_run_stop"),
         (CMD_SETTINGS, "cmd_settings"),
         (CMD_RUN_TESTS, "cmd_run_tests"),
+        (CMD_RUN_TEST_AT_CURSOR, "cmd_run_test_at_cursor"),
         (CMD_TEST_STOP, "cmd_test_stop"),
         (CMD_PEEK_DEFINITION, "cmd_peek_definition"),
         (CMD_WELCOME, "cmd_welcome"),

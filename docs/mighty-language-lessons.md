@@ -6576,3 +6576,14 @@ the command surface.
   `Test: Stop Run`, dispatching through the existing `mui_run_stop` and
   `mui_test_stop` ABIs. Registry/mirror coverage pins the stable command ids and
   Mighty helpers so the commands remain reachable.
+
+L513. Focused test workflows should be command-surface visible.
+`Run Tests` is useful, but it does not advertise the stricter current-cursor
+workflow that records the nearest `fn test_*` and highlights that row after the
+package run. If the focused path only exists as an ABI or toolbar shortcut, users
+cannot discover it from search.
+
+- **IDE note:** The command palette now lists `Run Test at Cursor` and routes it
+  through the existing `mui_test_run_at_cursor` ABI. Registry/mirror coverage
+  pins the stable command id and Mighty helper beside the full-run and stop
+  testing commands.
