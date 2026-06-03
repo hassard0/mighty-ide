@@ -5984,3 +5984,13 @@ card width.
   path/description text against the actual row text budget before drawing. Long
   command descriptions and deep paths ellipsize instead of spilling past the
   overlay edge.
+
+L451. Command palette search fields need the same measured budget as result
+rows. The palette command input drew full pasted queries and positioned the
+caret from an approximate character advance, so long text could run underneath
+the prompt pill.
+
+- **IDE note:** The command palette now measures and fits the search field text
+  against the available space before the `>_` pill, then places the caret from
+  the measured rendered width. Long queries ellipsize before colliding with the
+  right-side command prompt.

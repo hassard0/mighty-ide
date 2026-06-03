@@ -998,21 +998,27 @@ impl PaletteEngine {
         let q_text_base_x = box_x + 50.0;
         let q_text_x = command_field_text_x(q_text_base_x, self.query.is_empty());
         let qy = box_y + (search_h - 16.0) * 0.5 - 1.0;
+        let pill_w = 40.0;
+        let pill_x = box_x + box_w - pill_w - 18.0;
+        let pill_y = box_y + (search_h - 22.0) * 0.5;
         let (q_str, q_color): (&str, _) = if self.query.is_empty() {
             ("Type a command\u{2026}", theme::OVERLAY_SUBTLE())
         } else {
             (self.query.as_str(), theme::TEXT())
         };
         // Search font is larger (16px) per the mockup.
-        ctx.text.queue_ui_sized(q_text_x, qy, q_str, q_color, 16.0, clip);
-        let qadv = 16.0 * 0.52;
-        let caret_x = q_text_base_x + self.query.chars().count() as f32 * qadv + 1.0;
+        let query_max = command_query_text_budget(q_text_x, pill_x, self.query.is_empty());
+        let q_shown = fit_palette_text(&mut ctx.text, q_str, query_max, 16.0);
+        ctx.text.queue_ui_sized(q_text_x, qy, &q_shown, q_color, 16.0, clip);
+        let (q_w, _) = ctx.text.measure_ui_sized(&q_shown, 16.0);
+        let caret_x = if self.query.is_empty() {
+            q_text_base_x + 1.0
+        } else {
+            (q_text_x + q_w + 1.0).min(pill_x - 14.0)
+        };
         ctx.dl_round(caret_x, box_y + (search_h - 18.0) * 0.5, 2.0, 18.0, 1.0, theme::ACCENT_BRIGHT());
         // Command-mode pill (right). ASCII ">_" prompt motif (the UI font lacks the
         // Mac command glyph, which also rendered as a box on Windows).
-        let pill_w = 40.0;
-        let pill_x = box_x + box_w - pill_w - 18.0;
-        let pill_y = box_y + (search_h - 22.0) * 0.5;
         ctx.dl_round(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_FAINT());
         ctx.dl_stroke(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_LINE(), 1.0);
         ctx.text.queue_ui_sized(pill_x + 11.0, pill_y + 4.5, ">_", theme::ACCENT_BRIGHT(), 10.5, clip);
@@ -1127,6 +1133,11 @@ fn command_field_text_x(base_x: f32, is_placeholder: bool) -> f32 {
     } else {
         base_x
     }
+}
+
+fn command_query_text_budget(text_x: f32, pill_x: f32, is_placeholder: bool) -> f32 {
+    let trailing_gap = if is_placeholder { 24.0 } else { 14.0 };
+    (pill_x - trailing_gap - text_x).max(0.0)
 }
 
 /// Static non-contextual description for command surfaces outside the palette.
@@ -1451,6 +1462,19 @@ mod tests {
         let base = 300.0;
         assert_eq!(command_field_text_x(base, false), base);
         assert!(command_field_text_x(base, true) >= base + 8.0);
+    }
+
+    #[test]
+    fn command_query_text_budget_stops_before_prompt_pill() {
+        let text_x = 150.0;
+        let pill_x = 560.0;
+        let placeholder_budget = command_query_text_budget(text_x, pill_x, true);
+        let query_budget = command_query_text_budget(text_x, pill_x, false);
+
+        assert!(placeholder_budget < query_budget);
+        assert!(text_x + placeholder_budget <= pill_x - 24.0);
+        assert!(text_x + query_budget <= pill_x - 14.0);
+        assert_eq!(command_query_text_budget(pill_x, text_x, false), 0.0);
     }
 
     #[test]
