@@ -2036,7 +2036,7 @@ fn terminal_close_acknowledges_state_without_requiring_pty_spawn() {
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     ctx.term_open = true;
-    crate::abi::mui_term_close(handle);
+    assert_eq!(crate::abi::mui_term_close(handle), 1);
     assert!(!ctx.term_open);
     assert!(ctx.terminal.is_none());
     assert_eq!(
@@ -2044,7 +2044,7 @@ fn terminal_close_acknowledges_state_without_requiring_pty_spawn() {
         "Terminal closed"
     );
 
-    crate::abi::mui_term_close(handle);
+    assert_eq!(crate::abi::mui_term_close(handle), 0);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Terminal is already closed"
@@ -7949,7 +7949,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_terminal_close()")
-            && main.contains("mui_term_close(h)")
+            && main.contains("let _tclose = mui_term_close(h)")
             && main.contains("term_focus = false"),
         "Terminal: Close must use the terminal-specific close ABI and clear terminal focus"
     );

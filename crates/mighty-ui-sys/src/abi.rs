@@ -6819,22 +6819,25 @@ pub extern "C" fn mui_term_open(handle: i64) -> i32 {
 }
 
 /// Close the terminal panel and tear down the shell (frees the PTY + grid).
-/// Marks the panel closed.
+/// Marks the panel closed. Returns `1` when a terminal was closed, or `0`
+/// when it was already closed.
 #[no_mangle]
-pub extern "C" fn mui_term_close(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
-        if !ctx.term_open && ctx.terminal.is_none() {
-            ctx.push_toast(crate::toast::Kind::Info, "Terminal is already closed");
-            trace("term_close noop");
-            return;
-        }
-        ctx.term_open = false;
-        // Dropping the Terminal kills the child + joins nothing (reader thread
-        // exits on EOF). Keep this explicit for clarity.
-        ctx.terminal = None;
-        ctx.push_toast(crate::toast::Kind::Info, "Terminal closed");
-        trace("term_close");
+pub extern "C" fn mui_term_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.term_open && ctx.terminal.is_none() {
+        ctx.push_toast(crate::toast::Kind::Info, "Terminal is already closed");
+        trace("term_close noop");
+        return 0;
     }
+    ctx.term_open = false;
+    // Dropping the Terminal kills the child + joins nothing (reader thread
+    // exits on EOF). Keep this explicit for clarity.
+    ctx.terminal = None;
+    ctx.push_toast(crate::toast::Kind::Info, "Terminal closed");
+    trace("term_close");
+    1
 }
 
 /// Clear the terminal's visible buffer without killing the shell.

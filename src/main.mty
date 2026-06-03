@@ -285,7 +285,7 @@ extern c {
   fn mui_log_workspace(handle: I64)
   // ---- integrated terminal ----
   fn mui_term_open(handle: I64) -> I32
-  fn mui_term_close(handle: I64)
+  fn mui_term_close(handle: I64) -> I32
   fn mui_term_clear(handle: I64) -> I32
   fn mui_term_is_open(handle: I64) -> I32
   fn mui_term_running(handle: I64) -> I32
@@ -4516,7 +4516,7 @@ fn main() {
           let _tc = mui_term_clear(h)
           if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }
         } else if id == cmd_terminal_close() {
-          mui_term_close(h)
+          let _tclose = mui_term_close(h)
           term_focus = false
         } else if id == cmd_view_web_playground() {
           let _vw = mui_web_open(h)

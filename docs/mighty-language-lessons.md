@@ -7141,3 +7141,13 @@ surface.
   `Peek view closed` or `Peek view is already closed`. Those messages share the
   code-intelligence toast replacement key, and the regression verifies both the
   active-close and already-closed paths.
+
+L570. Terminal close should return state like other panel close commands. The
+terminal close path already distinguished a real close from the already-closed
+case in its toast, but its void ABI kept Mighty from treating it as a normal
+stateful command.
+
+- **IDE note:** `mui_term_close` now returns `1` when it closes a terminal panel
+  and `0` when the terminal is already closed. Mighty declares the return value
+  and explicitly discards it in the command dispatcher, matching the typed
+  pattern used by other close commands.
