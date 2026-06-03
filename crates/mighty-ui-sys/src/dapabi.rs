@@ -278,7 +278,7 @@ pub extern "C" fn mui_dbg_cur_file_matches(handle: i64) -> i32 {
 
 /// Toggle a breakpoint on (0-based) `line` of the active file. If a session is
 /// live, the updated breakpoints are re-sent to the adapter. Returns `1` if the
-/// breakpoint is now set, `0` if cleared.
+/// breakpoint is now set, `0` if cleared or unavailable.
 #[no_mangle]
 pub extern "C" fn mui_bp_toggle(handle: i64, line: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -286,6 +286,9 @@ pub extern "C" fn mui_bp_toggle(handle: i64, line: i32) -> i32 {
     };
     let file = active_path_str(ctx);
     if file.is_empty() {
+        open_debug_view(ctx);
+        ctx.push_toast(crate::toast::Kind::Warn, "Save the file before setting breakpoints");
+        crate::abi::trace("bp_toggle no_file");
         return 0;
     }
     let now_on = ctx.dbg.toggle_breakpoint(&file, line);

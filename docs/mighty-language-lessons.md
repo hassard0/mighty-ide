@@ -5229,3 +5229,14 @@ click missed, the process already exited, or the command failed.
   lower panels, and reports `No run process to stop`. Idle `mui_test_stop` now
   opens Testing and reports `No test run to stop`. Tests cover both visible
   no-op outcomes.
+
+L372. Gutter actions still need command-grade unavailable feedback. Breakpoint
+toggling is usually reached by clicking a visual gutter target, but scratch and
+untitled buffers have no file path to send to the debugger. Returning `0`
+silently made the click look missed instead of explaining the saved-file
+precondition.
+
+- **IDE note:** `mui_bp_toggle` now opens the Run and Debug view and reports
+  `Save the file before setting breakpoints` when the active tab has no file
+  path. The regression test asserts the panel transition, empty breakpoint set,
+  and toast message.

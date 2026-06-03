@@ -3624,6 +3624,23 @@ fn direct_debug_actions_report_unavailable_state() {
 }
 
 #[test]
+fn breakpoint_toggle_without_file_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::dapabi::mui_bp_toggle(handle, 0), 0);
+    assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(crate::dapabi::mui_dbg_active(handle), 1);
+    assert_eq!(crate::dapabi::mui_bp_count(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Save the file before setting breakpoints");
+}
+
+#[test]
 fn debug_stack_name_fits_before_location() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
