@@ -640,6 +640,15 @@ pub(crate) fn fit_debug_variable_value(
     fit_head_px(text, value, max_px, size)
 }
 
+pub(crate) fn fit_debug_console_line(
+    text: &mut crate::text::Text,
+    line: &str,
+    max_px: f32,
+    size: f32,
+) -> String {
+    fit_head_px(text, line, max_px, size)
+}
+
 fn fit_tail_px(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
     if max_px <= 0.0 {
         return String::new();
@@ -1018,12 +1027,10 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
             let y = con_top + vis as f32 * row_h;
             let ty = y + (row_h - chrome) * 0.5 - 1.0;
             let col = if l.is_error { theme::ERROR() } else { theme::TEXT_1() };
-            let mut t = l.text.clone();
-            let avail = ((sw - 24.0) / adv).floor() as usize;
-            if t.chars().count() > avail && avail > 1 {
-                t = t.chars().take(avail - 1).collect::<String>() + "\u{2026}";
-            }
-            ctx.text.queue_ui_sized(sx + 14.0, ty, &t, col, chrome - 0.5, clip);
+            let text_x = sx + 14.0;
+            let max_w = (sx + sw - 12.0 - text_x).max(0.0);
+            let t = fit_debug_console_line(&mut ctx.text, &l.text, max_w, chrome - 0.5);
+            ctx.text.queue_ui_sized(text_x, ty, &t, col, chrome - 0.5, clip);
         }
     }
 }

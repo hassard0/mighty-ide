@@ -6180,3 +6180,11 @@ character estimate and could run into right-aligned type labels.
 - **IDE note:** Debug variable rows now fit names and values with measured
   UI-font budgets, and values reserve the rendered type-label width before
   drawing. Long runtime values stop before type metadata instead of crowding it.
+
+L474. Debug Console rows should use the same measured fitting as Debug variables.
+Debug Console output lines still clipped from a fixed character estimate even
+after variable rows moved to rendered-width budgets.
+
+- **IDE note:** Debug Console rows now fit output and error lines with measured
+  UI-font width before drawing. Long debugger messages stay inside the sidebar
+  panel without relying on per-character estimates.

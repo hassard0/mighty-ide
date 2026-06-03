@@ -4222,6 +4222,29 @@ fn debug_variable_value_reserves_measured_type_label() {
 }
 
 #[test]
+fn debug_console_line_fits_measured_panel_width() {
+    let mut ctx = ctx_or_skip!();
+    let chrome = crate::theme::CHROME_FONT_SIZE - 0.5;
+    let sx = crate::layout::RAIL_W;
+    let sw = crate::layout::sidebar_w();
+    let text_x = sx + 14.0;
+    let max_w = (sx + sw - 12.0 - text_x).max(0.0);
+    let shown = crate::dapabi::fit_debug_console_line(
+        &mut ctx.text,
+        "Debugger output: a very long diagnostic line with paths and runtime details",
+        max_w,
+        chrome,
+    );
+    let shown_w = ctx.text.measure_ui_sized(&shown, chrome).0;
+
+    assert!(shown.ends_with('\u{2026}'));
+    assert!(
+        shown_w <= max_w + 0.5,
+        "debug console line should fit measured panel width: {shown}"
+    );
+}
+
+#[test]
 fn quickopen_search_placeholder_fits_before_mode_pill() {
     let mut ctx = ctx_or_skip!();
     let placeholder = "Search files by name\u{2026}  (\u{203A} commands  @ symbols  : line)";
