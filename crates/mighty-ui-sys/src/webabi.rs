@@ -523,7 +523,9 @@ pub extern "C" fn mui_web_draw(handle: i64) {
             break;
         }
         let (text, is_error) = {
-            let l = ctx.web.line(idx).unwrap();
+            let Some(l) = ctx.web.line(idx) else {
+                continue;
+            };
             (l.text.clone(), l.is_error)
         };
         let y = g.rows_top + vis as f32 * line_h;

@@ -1382,7 +1382,6 @@ fn maybe_capture_screenshot(ctx: &mut MuiContext) {
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     match ctx.gpu.read_pixels() {
         Some(pixels) => {
-            let shot = ctx.screenshot.as_mut().unwrap();
             match screenshot::write_png(&shot.out_path, w, h, &pixels) {
                 Ok(bytes) => println!(
                     "mui_screenshot: wrote {} ({w}x{h}, {bytes} bytes, frame {})",
@@ -1395,7 +1394,7 @@ fn maybe_capture_screenshot(ctx: &mut MuiContext) {
         }
         None => {
             eprintln!("mui_screenshot: read_pixels returned None (not offscreen?)");
-            ctx.screenshot.as_mut().unwrap().captured = true;
+            shot.captured = true;
         }
     }
 }
