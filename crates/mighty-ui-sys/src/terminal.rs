@@ -237,6 +237,10 @@ impl Grid {
         self.cur_col = col.saturating_sub(1).min(self.cols - 1);
     }
 
+    fn move_cursor_row_1_based(&mut self, row: usize) {
+        self.cur_row = row.saturating_sub(1).min(self.rows - 1);
+    }
+
     fn move_cursor_line_relative(&mut self, d_row: isize) {
         let row = self.cur_row.saturating_add_signed(d_row).min(self.rows - 1);
         self.cur_row = row;
@@ -465,6 +469,12 @@ impl VtParser {
                     self.cursor_relative(grid, b);
                 } else if b == b'G' {
                     self.cursor_column(grid);
+                } else if b == b'`' {
+                    self.cursor_column(grid);
+                } else if b == b'd' {
+                    self.cursor_row(grid);
+                } else if b == b'e' {
+                    self.cursor_row_relative(grid);
                 } else if b == b'E' || b == b'F' {
                     self.cursor_line_relative(grid, b);
                 } else if b == b's' {
@@ -609,6 +619,36 @@ impl VtParser {
             .unwrap_or(1)
             .max(1);
         grid.move_cursor_col_1_based(col);
+    }
+
+    fn cursor_row(&mut self, grid: &mut Grid) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        if params.starts_with('?') {
+            return;
+        }
+        let row = params
+            .split(';')
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(1)
+            .max(1);
+        grid.move_cursor_row_1_based(row);
+    }
+
+    fn cursor_row_relative(&mut self, grid: &mut Grid) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        if params.starts_with('?') {
+            return;
+        }
+        let amount = params
+            .split(';')
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(1)
+            .max(1) as isize;
+        grid.move_cursor_relative(amount, 0);
     }
 
     fn cursor_line_relative(&mut self, grid: &mut Grid, final_byte: u8) {
@@ -1166,6 +1206,27 @@ mod tests {
         assert_eq!(g2.cell(2, 1).ch, 'X');
         assert!(!g2.contains("[E"));
         assert!(!g2.contains("[2F"));
+    }
+
+    #[test]
+    fn cursor_hpa_vpa_and_vpr_csi_moves_and_clamps() {
+        let g = grid_feed(3, 8, b"abcd\x1b[3`Z\x1b[20`X");
+        assert_eq!(g.cell(0, 2).ch, 'Z');
+        assert_eq!(g.cell(0, 7).ch, 'X');
+        assert!(!g.contains("3`"));
+        assert!(!g.contains("20`"));
+
+        let g2 = grid_feed(3, 8, b"\x1b[1;4H@\x1b[3dZ\x1b[1dA\x1b[20dB");
+        assert_eq!(g2.cell(0, 5).ch, 'A');
+        assert_eq!(g2.cell(2, 6).ch, 'B');
+        assert!(!g2.contains("[3d"));
+        assert!(!g2.contains("[20d"));
+
+        let g3 = grid_feed(3, 8, b"\x1b[1;4H@\x1b[eA\x1b[20eB");
+        assert_eq!(g3.cell(1, 4).ch, 'A');
+        assert_eq!(g3.cell(2, 5).ch, 'B');
+        assert!(!g3.contains("[e"));
+        assert!(!g3.contains("[20e"));
     }
 
     #[test]

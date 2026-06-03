@@ -5159,3 +5159,13 @@ columns.
   `ESC[nF`, including default count one and grid clamping. Parser tests cover
   absolute column moves, next/previous line resets to column zero, large-count
   clamps, and consuming the control bytes.
+
+L365. Horizontal and vertical absolute cursor forms need to preserve the other
+axis. `CSI \`` and `CSI d` move only the column or row, while `CSI e` moves
+down without the carriage-return behavior of `CSI E`; conflating these with
+line movement makes prompt redraws drift horizontally.
+
+- **IDE note:** the integrated terminal now handles `ESC[n\``, `ESC[nd`, and
+  `ESC[ne`, including default count one, grid clamping, and column preservation
+  for vertical-only movement. Parser tests distinguish these forms from
+  next-line/previous-line movement and verify control bytes do not leak.
