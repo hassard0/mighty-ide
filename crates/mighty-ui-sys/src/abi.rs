@@ -13175,9 +13175,11 @@ pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
         return -1;
     };
     if i < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No recent file selected");
         return -1;
     }
     let Some(path) = ctx.welcome.recent_path(i as usize).cloned() else {
+        ctx.push_toast(crate::toast::Kind::Info, "No recent file selected");
         return -1;
     };
     if !path.is_file() {

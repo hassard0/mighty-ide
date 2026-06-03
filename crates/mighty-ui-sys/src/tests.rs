@@ -5405,6 +5405,24 @@ fn quickopen_open_prunes_missing_recent_files_before_rendering() {
 }
 
 #[test]
+fn welcome_open_recent_misses_report_visible_feedback() {
+    use crate::mui_welcome_open_recent;
+
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_welcome_open_recent(h, -1), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No recent file selected");
+
+    assert_eq!(mui_welcome_open_recent(h, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No recent file selected");
+}
+
+#[test]
 fn welcome_missing_recent_folder_stays_open_and_prunes() {
     use crate::wsabi::mui_ws_recent_count;
     use crate::{mui_welcome_active, mui_welcome_draw, mui_welcome_open_folder};

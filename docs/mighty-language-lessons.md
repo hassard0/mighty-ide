@@ -5513,3 +5513,12 @@ results can go stale before the user clicks a match.
   `Search result file no longer listed`, or `Search target missing: ...` for
   failed result jumps. Successful result rows still open the file, move the
   cursor to the match, and scroll it into view.
+
+L400. Welcome recent-file picks should explain empty selections. The Welcome
+recent list can be opened by menu actions and keyboard paths, so negative or
+out-of-range indices are user-visible misses rather than internal no-ops.
+
+- **IDE note:** `mui_welcome_open_recent` now reports `No recent file selected`
+  when the Welcome recent-file picker has no valid row to open. Stale files
+  still use `Recent file missing: ...`, prune the missing recent, and keep the
+  Welcome surface open.
