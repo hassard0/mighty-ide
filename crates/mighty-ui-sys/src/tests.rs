@@ -2831,6 +2831,10 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
             "Window: Toggle Maximize",
         ),
         (crate::palette::CMD_WINDOW_MINIMIZE, "Window: Minimize"),
+        (
+            crate::palette::CMD_MARKDOWN_CLOSE_PREVIEW,
+            "Markdown: Close Preview",
+        ),
     ];
     for (id, label) in view_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
@@ -5636,6 +5640,26 @@ fn markdown_preview_header_close_hit_collapses_preview() {
 }
 
 #[test]
+fn markdown_close_preview_command_collapses_preview() {
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    ctx.language = crate::langdetect::Language::Markdown;
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::abi::mui_md_open(h), 1);
+    assert_eq!(crate::abi::mui_md_active(h), 1);
+    assert_eq!(crate::abi::mui_pane_count(h), 2);
+
+    crate::abi::mui_md_close(h);
+    assert_eq!(crate::abi::mui_md_active(h), 0);
+    assert_eq!(crate::abi::mui_pane_count(h), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Markdown preview closed");
+}
+
+#[test]
 fn markdown_breadcrumb_reserves_preview_button_space() {
     let mut ctx = ctx_or_skip!();
     ctx.gpu.width = 520;
@@ -6918,6 +6942,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Diff close command must close the shim diff view and clear Mighty's diff-open flag"
     );
     assert!(
+        main.contains("id == cmd_markdown_close_preview()")
+            && main.contains("mui_md_close(h)"),
+        "Markdown close-preview command must call the dedicated Markdown preview close ABI"
+    );
+    assert!(
         main.contains("id == cmd_git_hide_blame()")
             && main.contains("let _bc = mui_blame_close(h)"),
         "Git hide-blame command must call the dedicated blame close ABI"
@@ -7207,6 +7236,10 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_WEB_OPEN_BROWSER, "cmd_web_open_browser"),
         (CMD_WEB_CLEAR_OUTPUT, "cmd_web_clear_output"),
         (CMD_DIFF_CLOSE_VIEW, "cmd_diff_close_view"),
+        (
+            CMD_MARKDOWN_CLOSE_PREVIEW,
+            "cmd_markdown_close_preview",
+        ),
         (CMD_GIT_HIDE_BLAME, "cmd_git_hide_blame"),
         (CMD_KEYBOARD_SHORTCUTS, "cmd_keyboard_shortcuts"),
         (CMD_NEW_PROJECT, "cmd_new_project"),

@@ -353,6 +353,8 @@ pub const CMD_PEEK_CLOSE: u32 = 160;
 pub const CMD_HOVER_CLOSE: u32 = 161;
 /// Close the signature-help popup without requesting new language-server data.
 pub const CMD_SIGNATURE_HELP_CLOSE: u32 = 162;
+/// Close the live Markdown preview pane without toggling it open.
+pub const CMD_MARKDOWN_CLOSE_PREVIEW: u32 = 163;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -521,6 +523,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
     Command { id: CMD_CLOSE_PANE,       label: "Close Editor Pane",  keybinding: "" },
     Command { id: CMD_MARKDOWN_PREVIEW, label: "Markdown: Open Preview", keybinding: "Ctrl+Shift+V" },
+    Command { id: CMD_MARKDOWN_CLOSE_PREVIEW, label: "Markdown: Close Preview", keybinding: "" },
     Command { id: CMD_OPEN_FOLDER,      label: "File: Open Folder...", keybinding: "Ctrl+Shift+O" },
     Command { id: CMD_OPEN_RECENT,      label: "File: Open Recent",   keybinding: "" },
     Command { id: CMD_KEYBOARD_SHORTCUTS, label: "Help: Keyboard Shortcuts", keybinding: "Ctrl+Shift+/" },
@@ -1044,6 +1047,7 @@ impl PaletteEngine {
             CMD_FOCUS_NEXT_PANE => (icons::CHEVRON, "Move focus between editor panes", false),
             CMD_CLOSE_PANE => (icons::CLOSE, "Close the focused editor pane", false),
             CMD_MARKDOWN_PREVIEW => (icons::FILE_MD, "Open or close the live Markdown preview", false),
+            CMD_MARKDOWN_CLOSE_PREVIEW => (icons::CLOSE, "Close the live Markdown preview pane", false),
             CMD_OPEN_FOLDER => (icons::FOLDER, "Open a workspace folder with the native folder picker", false),
             CMD_OPEN_RECENT => (icons::FOLDER, "Open a recent file or workspace folder", false),
             CMD_KEYBOARD_SHORTCUTS => (icons::INFO_I, "List & remap all keyboard shortcuts", false),

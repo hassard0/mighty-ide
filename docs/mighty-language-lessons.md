@@ -6770,3 +6770,12 @@ that clear popup state without making a fresh language-server request.
   `Signature Help: Close Popup`, calling `mui_hover_clear` and `mui_sig_clear`
   while resetting Mighty's local popup flags. ABI, registry, metadata,
   dispatcher, and label tests pin both close paths.
+
+L532. Toggleable previews still need a one-way close.
+A preview command that toggles or opens is not the same as an explicit dismiss
+command. Command-palette users need a safe way to close Markdown preview without
+accidentally opening it when it is already closed.
+
+- **IDE note:** The command palette now lists `Markdown: Close Preview`, calling
+  `mui_md_close`. ABI, registry, metadata, dispatcher, and label tests pin that
+  Markdown preview has a dedicated one-way close path.
