@@ -10409,7 +10409,7 @@ fn save_active_current_path(ctx: &mut MuiContext) -> i32 {
             }
             FileDialogPick::Unavailable => {
                 eprintln!("mui_ed_save: no file path and native save dialog unavailable");
-                ctx.push_toast(crate::toast::Kind::Warn, "Use Save As to choose a file path");
+                ctx.push_toast(crate::toast::Kind::Warn, "Save dialog unavailable; use typed path");
                 return -1;
             }
         };

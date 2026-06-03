@@ -7598,6 +7598,37 @@ fn plain_save_on_untitled_cancel_keeps_dirty_and_toasts() {
 }
 
 #[test]
+fn plain_save_on_untitled_unavailable_reports_typed_path_fallback() {
+    use crate::{mui_active_has_path, mui_ed_dirty, mui_ed_save};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    crate::settings::set_active(crate::settings::Settings::default());
+
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("fn main() {}");
+    ctx.tabs.set_dirty(ctx.tabs.active(), true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_SAVE_FILE_FORCE_UNAVAILABLE", "1");
+    let saved = mui_ed_save(h);
+    std::env::remove_var("MUI_SAVE_FILE_FORCE_UNAVAILABLE");
+
+    assert_eq!(saved, -1, "unavailable Save should request typed-path fallback");
+    assert_eq!(mui_active_has_path(h), 0);
+    assert_eq!(mui_ed_dirty(h), 1);
+    assert!(ctx.tabs.active_path().is_none());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Save dialog unavailable; use typed path");
+
+    crate::settings::set_active(before);
+}
+
+#[test]
 fn save_as_prompt_consumes_staged_path() {
     use crate::{mui_active_has_path, mui_ed_dirty, mui_path_push, mui_save_as};
 

@@ -7119,3 +7119,14 @@ old paste failures or successes linger next to the current state.
   clipboard toast replacement key with editor paste/copy/cut outcomes. The
   regression extends the clipboard toast replacement test across terminal paste
   failure and success.
+
+L568. Plain Save on an untitled buffer should describe the same fallback as Save
+As. Even though the main UI routes untitled Ctrl+S through Save As, direct ABI
+callers can still reach `mui_ed_save` without a file path. If the native picker
+cannot run, telling the user to use Save As is stale when the real recovery is
+the typed-path fallback.
+
+- **IDE note:** `mui_ed_save` now reports
+  `Save dialog unavailable; use typed path` when an untitled buffer cannot open
+  the native save picker. The regression forces that direct Save branch and
+  verifies the tab remains dirty, untitled, and ready for typed-path recovery.
