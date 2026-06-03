@@ -758,6 +758,7 @@ fn cmd_code_actions() -> I32 { 132 }
 fn cmd_inline_ai_ask() -> I32 { 133 }
 fn cmd_force_ghost_completion() -> I32 { 134 }
 fn cmd_ghost_completion_dismiss() -> I32 { 178 }
+fn cmd_snippet_cancel() -> I32 { 179 }
 fn cmd_quick_open() -> I32 { 135 }
 fn cmd_run_stop() -> I32 { 136 }
 fn cmd_test_stop() -> I32 { 137 }
@@ -4403,6 +4404,9 @@ fn main() {
           typing = false
         } else if id == cmd_ghost_completion_dismiss() {
           mui_ghost_dismiss(h)
+          typing = false
+        } else if id == cmd_snippet_cancel() {
+          mui_snippet_cancel(h)
           typing = false
         } else if id == cmd_ai_clear_chat() {
           let _aic = mui_ai_clear(h)

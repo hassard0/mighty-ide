@@ -6905,3 +6905,13 @@ text.
   `AI: Dismiss Ghost Completion`, calling `mui_ghost_dismiss`. Seeded ghost,
   registry, metadata, dispatcher, and label tests pin that the command clears the
   visible inline suggestion without accepting it.
+
+L546. Snippet tab-stop sessions need command cancellation.
+Expanded snippets leave real text in the editor while Tab and Shift+Tab navigate
+placeholders, so cancellation should end only the navigation session and never
+delete the expansion.
+
+- **IDE note:** The command palette now lists
+  `Snippet: Cancel Tab-Stop Session`, calling `mui_snippet_cancel`. Snippet
+  expansion, registry, metadata, dispatcher, and label tests pin that the command
+  ends tab-stop mode while preserving the expanded text.

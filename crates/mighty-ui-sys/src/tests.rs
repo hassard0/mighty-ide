@@ -2773,6 +2773,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(welcome_close.label, "Welcome: Close");
     assert_eq!(welcome_close.keybinding, "");
 
+    let snippet_cancel = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_SNIPPET_CANCEL)
+        .unwrap();
+    assert_eq!(snippet_cancel.label, "Snippet: Cancel Tab-Stop Session");
+    assert_eq!(snippet_cancel.keybinding, "");
+
     let close_saved = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_SAVED_TABS)
@@ -6019,6 +6026,27 @@ fn ghost_completion_dismiss_command_clears_seeded_suggestion() {
 }
 
 #[test]
+fn snippet_cancel_command_ends_session_without_removing_expansion() {
+    use crate::snippetsabi::{mui_snippet_active, mui_snippet_cancel, mui_snippet_try_expand};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.language = crate::langdetect::Language::Mighty;
+    ctx.tabs.ensure_scratch();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("fn");
+    ctx.tabs.active_model_mut().move_to(0, 2);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_snippet_try_expand(h), 1);
+    assert_eq!(mui_snippet_active(h), 1);
+    let expanded = ctx.tabs.active_model().as_text();
+    assert!(expanded.contains("fn name(args) -> I32"));
+
+    mui_snippet_cancel(h);
+    assert_eq!(mui_snippet_active(h), 0);
+    assert_eq!(ctx.tabs.active_model().as_text(), expanded);
+}
+
+#[test]
 fn breadcrumb_accept_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -7233,6 +7261,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "AI: Dismiss Ghost Completion must clear the inline suggestion without accepting it"
     );
     assert!(
+        main.contains("id == cmd_snippet_cancel()")
+            && main.contains("mui_snippet_cancel(h)"),
+        "Snippet: Cancel Tab-Stop Session must end snippet navigation without editing text"
+    );
+    assert!(
         main.contains("id == cmd_hover_close()")
             && main.contains("mui_hover_clear(h)")
             && main.contains("hovering = false"),
@@ -7623,6 +7656,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
             CMD_GHOST_COMPLETION_DISMISS,
             "cmd_ghost_completion_dismiss",
         ),
+        (CMD_SNIPPET_CANCEL, "cmd_snippet_cancel"),
         (CMD_AI_CLEAR_CHAT, "cmd_ai_clear_chat"),
         (CMD_VIEW_TERMINAL, "cmd_view_terminal"),
         (CMD_VIEW_WEB_PLAYGROUND, "cmd_view_web_playground"),

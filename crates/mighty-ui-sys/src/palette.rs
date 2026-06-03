@@ -385,6 +385,8 @@ pub const CMD_QUICK_OPEN_CLOSE: u32 = 176;
 pub const CMD_WELCOME_CLOSE: u32 = 177;
 /// Dismiss the visible inline AI ghost completion without accepting text.
 pub const CMD_GHOST_COMPLETION_DISMISS: u32 = 178;
+/// Cancel the active snippet tab-stop session without removing expanded text.
+pub const CMD_SNIPPET_CANCEL: u32 = 179;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -486,6 +488,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_COMMAND_PALETTE_CLOSE, label: "Command Palette: Close", keybinding: "" },
     Command { id: CMD_QUICK_OPEN_CLOSE, label: "Quick Open: Close", keybinding: "" },
     Command { id: CMD_WELCOME_CLOSE, label: "Welcome: Close", keybinding: "" },
+    Command { id: CMD_SNIPPET_CANCEL, label: "Snippet: Cancel Tab-Stop Session", keybinding: "" },
     Command { id: CMD_JUMP_BACK,        label: "Jump Back",          keybinding: "" },
     Command { id: CMD_QUIT,             label: "Quit",               keybinding: "Esc / close" },
     Command { id: CMD_COLOR_THEME,      label: "Preferences: Color Theme", keybinding: "" },
@@ -1025,6 +1028,7 @@ impl PaletteEngine {
             CMD_COMMAND_PALETTE_CLOSE => (icons::CLOSE, "Close the command palette without executing the highlighted command", false),
             CMD_QUICK_OPEN_CLOSE => (icons::CLOSE, "Close Quick Open without opening a file, command, symbol, or line jump", false),
             CMD_WELCOME_CLOSE => (icons::CLOSE, "Close the forced Welcome or Open Recent surface without opening anything", false),
+            CMD_SNIPPET_CANCEL => (icons::CLOSE, "Cancel the active snippet tab-stop session without removing expanded text", false),
             CMD_JUMP_BACK => (icons::CHEVRON, "Return to the previous location", false),
             CMD_QUIT => (icons::CLOSE, "Close the editor", false),
             CMD_COLOR_THEME => (icons::SETTINGS, "Switch the editor color theme", false),
