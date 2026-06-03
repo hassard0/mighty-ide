@@ -6011,3 +6011,11 @@ against the close button and current/remote badges.
   close button and places the caret from rendered width. Branch row names fit
   against the badge gutter, so long local or remote branch names ellipsize
   before touching `current` or `remote` labels.
+
+L454. Inline rename inputs need measured code-font fitting too. Rename Symbol
+drew the full proposed identifier and placed the caret from a fixed character
+advance, so a long pasted name could cross the input border.
+
+- **IDE note:** Rename Symbol now fits the editable name with the same measured
+  code-font path used elsewhere and clamps the caret inside the input padding.
+  Long rename targets ellipsize instead of bleeding through the inline card.

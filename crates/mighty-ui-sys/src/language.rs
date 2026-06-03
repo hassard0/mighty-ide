@@ -1144,9 +1144,16 @@ impl RenameState {
         ctx.dl_round(field_x, field_y, field_w, field_h, 5.0, theme::BG_1());
         ctx.dl_stroke(field_x, field_y, field_w, field_h, 5.0, theme::BORDER_STRONG(), 1.0);
         let name = self.name_string();
-        ctx.text.queue_sized(field_x + 7.0, field_y + 4.0, &name, theme::ACCENT_BRIGHT(), chrome, clip);
-        // Caret after the name.
-        let caret_x = field_x + 7.0 + name.chars().count() as f32 * layout::CHAR_W();
+        let text_x = field_x + 7.0;
+        let text_budget = rename_field_text_budget(field_w);
+        let shown = fit_sized(&mut ctx.text, &name, text_budget, chrome);
+        ctx.text.queue_sized(text_x, field_y + 4.0, &shown, theme::ACCENT_BRIGHT(), chrome, clip);
+        let (shown_w, _) = ctx.text.measure_sized(&shown, chrome);
+        let caret_x = if name.is_empty() {
+            text_x
+        } else {
+            (text_x + shown_w + 1.0).min(field_x + field_w - 7.0)
+        };
         ctx.dl_rect(caret_x, field_y + 4.0, 1.5, chrome + 2.0, theme::ACCENT_BRIGHT());
     }
 }
@@ -1397,6 +1404,10 @@ fn popup_available_width(window_w: f32, min_x: f32, preferred_min: f32) -> f32 {
 
 fn signature_content_budget(text_w: f32) -> f32 {
     (text_w - 22.0).max(12.0)
+}
+
+fn rename_field_text_budget(field_w: f32) -> f32 {
+    (field_w - 16.0).max(0.0)
 }
 
 fn fit_sized(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
@@ -1973,6 +1984,30 @@ mod tests {
         r.cancel();
         assert!(!r.is_active());
         assert_eq!(r.name_string(), "");
+    }
+
+    #[test]
+    fn rename_field_text_budget_keeps_border_padding() {
+        assert_eq!(rename_field_text_budget(200.0), 184.0);
+        assert_eq!(rename_field_text_budget(8.0), 0.0);
+    }
+
+    #[test]
+    fn rename_field_long_name_fits_measured_budget() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(520, 220) else {
+            return;
+        };
+        let budget = rename_field_text_budget(252.0);
+        let shown = fit_sized(
+            &mut ctx.text,
+            "very_long_symbol_name_that_would_cross_the_input_field_border",
+            budget,
+            theme::CHROME_FONT_SIZE,
+        );
+        let (shown_w, _) = ctx.text.measure_sized(&shown, theme::CHROME_FONT_SIZE);
+
+        assert!(shown.ends_with('\u{2026}'));
+        assert!(shown_w <= budget);
     }
 
     #[test]
