@@ -5857,9 +5857,14 @@ fn prompt_cancel_command_clears_active_prompt() {
     assert_eq!(crate::abi::mui_prompt_active(handle), 1);
     assert_eq!(crate::abi::mui_prompt_len(handle), 4);
 
-    crate::abi::mui_prompt_cancel(handle);
+    assert_eq!(crate::abi::mui_prompt_cancel(handle), 1);
     assert_eq!(crate::abi::mui_prompt_active(handle), 0);
     assert_eq!(crate::abi::mui_prompt_len(handle), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 0);
+
+    assert_eq!(crate::abi::mui_prompt_cancel(handle), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].message, "No prompt input open");
 }
 
 #[test]
@@ -8043,7 +8048,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_prompt_cancel()")
-            && main.contains("mui_prompt_cancel(h)")
+            && main.contains("let _pc = mui_prompt_cancel(h)")
             && main.contains("prompt_kind = 0"),
         "Prompt cancel command must clear shim prompt state and Mighty's local prompt kind"
     );

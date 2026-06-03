@@ -7214,3 +7214,14 @@ picker has already closed, so a void cancel ABI makes that no-op look broken.
   `Branch switcher closed` or `No branch picker open`. Mighty explicitly
   discards the return from Esc, mouse-dismiss, and palette cancel paths, and the
   feedback stays in the Git toast replacement lane.
+
+L577. Prompt cancel is both a user command and shared typed-action cleanup.
+The same ABI clears prompts after successful Save As/New File/Open workflows and
+also backs `Prompt: Cancel Input`, so active cleanup should not overwrite the
+real action toast.
+
+- **IDE note:** `mui_prompt_cancel` now returns `1` when it clears an active
+  prompt and `0` when no prompt is open. The active path stays silent so typed
+  actions keep their own feedback; the no-op path reports `No prompt input open`
+  in the name-input toast lane, and Mighty explicitly discards the returned
+  state from keyboard, mouse-dismiss, and palette paths.

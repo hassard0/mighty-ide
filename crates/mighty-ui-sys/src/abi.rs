@@ -3583,9 +3583,16 @@ pub extern "C" fn mui_prompt_backspace(handle: i64) {
 
 /// Close the prompt and clear its query.
 #[no_mangle]
-pub extern "C" fn mui_prompt_cancel(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
+pub extern "C" fn mui_prompt_cancel(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.prompt.is_active() {
         ctx.prompt.cancel();
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No prompt input open");
+        0
     }
 }
 

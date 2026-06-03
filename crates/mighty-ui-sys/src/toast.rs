@@ -943,6 +943,7 @@ fn is_mighty_diagnostic_message(message: &str) -> bool {
 
 fn is_name_input_message(message: &str) -> bool {
     message == "Enter a project name"
+        || message == "No prompt input open"
         || message.starts_with("Project name too long")
         || message == "Invalid project name"
         || message == "Name must not contain path separators"
@@ -1409,6 +1410,14 @@ mod tests {
             q.toasts()[0].message,
             "Use letters, digits, '-', '_' or '.' only"
         );
+
+        q.push_at(
+            Kind::Info,
+            "No prompt input open",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No prompt input open");
     }
 
     #[test]

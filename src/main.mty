@@ -157,7 +157,7 @@ extern c {
   fn mui_prompt_open(handle: I64, kind: I32)
   fn mui_prompt_push(handle: I64, codepoint: I32)
   fn mui_prompt_backspace(handle: I64)
-  fn mui_prompt_cancel(handle: I64)
+  fn mui_prompt_cancel(handle: I64) -> I32
   fn mui_prompt_hit_at_click(handle: I64) -> I32
   fn mui_prompt_close_at_click(handle: I64) -> I32
   fn mui_prompt_len(handle: I64) -> I32
@@ -2245,13 +2245,13 @@ fn main() {
           if k == key_backspace() {
             mui_prompt_backspace(h)
           } else if k == key_escape() {
-            mui_prompt_cancel(h)
+            let _pc = mui_prompt_cancel(h)
             prompt_kind = 0
           } else if k == key_enter() {
             if prompt_kind == prompt_goto() {
               let target1 = mui_prompt_goto_target(h)
               if target1 >= 1 { mui_ed_move_to(h, target1 - 1, 0) }
-              mui_prompt_cancel(h)
+              let _pc = mui_prompt_cancel(h)
               prompt_kind = 0
             } else if prompt_kind == prompt_open() {
               mui_path_clear(h)
@@ -2270,7 +2270,7 @@ fn main() {
                 let _r = mui_diag_refresh(h)
                 mui_qo_record_active(h)
               }
-              mui_prompt_cancel(h)
+              let _pc = mui_prompt_cancel(h)
               prompt_kind = 0
             } else if prompt_kind == prompt_open_folder() {
               // Open Folder typed-path fallback: stage the typed path into the
@@ -2287,7 +2287,7 @@ fn main() {
               }
               let _wo = mui_ws_open(h)
               find_nav = false
-              mui_prompt_cancel(h)
+              let _pc = mui_prompt_cancel(h)
               prompt_kind = 0
             } else if prompt_kind == prompt_new_project() {
               // New Project: stage the typed NAME into the shared byte buffer,
@@ -2304,7 +2304,7 @@ fn main() {
               }
               let _np = mui_newproj_create(h)
               find_nav = false
-              mui_prompt_cancel(h)
+              let _pc = mui_prompt_cancel(h)
               prompt_kind = 0
             } else if prompt_kind == prompt_new_folder() {
               // New Folder: stage the typed name into the shared byte buffer, then
@@ -2319,7 +2319,7 @@ fn main() {
               }
               let _nf = mui_newfolder_create(h)
               find_nav = false
-              mui_prompt_cancel(h)
+              let _pc = mui_prompt_cancel(h)
               prompt_kind = 0
             } else if prompt_kind == prompt_new_file() {
               // Explorer New File: stage the typed name, create it under the
@@ -2343,7 +2343,7 @@ fn main() {
                 mui_qo_record_active(h)
               }
               find_nav = false
-              mui_prompt_cancel(h)
+              let _pc = mui_prompt_cancel(h)
               prompt_kind = 0
             } else if prompt_kind == prompt_save_as() {
               // Save As: stage the typed name, write the untitled buffer there,
@@ -2365,7 +2365,7 @@ fn main() {
                 let _pr = mui_problems_refresh(h)
               }
               find_nav = false
-              mui_prompt_cancel(h)
+              let _pc = mui_prompt_cancel(h)
               prompt_kind = 0
             } else if prompt_kind == prompt_rename_file() {
               // File rename: stage the typed basename, then let the shim move
@@ -2386,7 +2386,7 @@ fn main() {
                 let _rp = mui_problems_refresh(h)
               }
               find_nav = false
-              mui_prompt_cancel(h)
+              let _pc = mui_prompt_cancel(h)
               prompt_kind = 0
             } else if prompt_kind == prompt_delete_file() {
               // File delete: require the exact active basename in the prompt
@@ -2409,7 +2409,7 @@ fn main() {
                 let _dp = mui_problems_refresh(h)
               }
               find_nav = false
-              mui_prompt_cancel(h)
+              let _pc = mui_prompt_cancel(h)
               prompt_kind = 0
             } else if prompt_kind == prompt_ai() {
               // Inline ask: copy the typed instruction into the AI input, then
@@ -2424,7 +2424,7 @@ fn main() {
               }
               let _s = mui_ai_send_inline(h)
               ai_focus = true
-              mui_prompt_cancel(h)
+              let _pc = mui_prompt_cancel(h)
               prompt_kind = 0
             } else {
               // find: run, jump to the first match if any (keep matches for nav).
@@ -2436,16 +2436,16 @@ fn main() {
               } else {
                 find_nav = false
               }
-              mui_prompt_cancel(h)
+              let _pc = mui_prompt_cancel(h)
               prompt_kind = 0
             }
           }
         } else if tag == ev_mouse_down() {
           if mui_prompt_close_at_click(h) == 1 {
-            mui_prompt_cancel(h)
+            let _pc = mui_prompt_cancel(h)
             prompt_kind = 0
           } else if mui_prompt_hit_at_click(h) == 0 {
-            mui_prompt_cancel(h)
+            let _pc = mui_prompt_cancel(h)
             prompt_kind = 0
           }
         }
@@ -4075,7 +4075,7 @@ fn main() {
           mui_codeaction_cancel(h)
           code_action_open = false
         } else if id == cmd_prompt_cancel() {
-          mui_prompt_cancel(h)
+          let _pc = mui_prompt_cancel(h)
           prompt_kind = 0
         } else if id == cmd_toggle_terminal() {
           if mui_term_is_open(h) == 1 {
