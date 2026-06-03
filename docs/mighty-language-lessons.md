@@ -6987,3 +6987,13 @@ users often hide Outline briefly before returning to the same navigation state.
   `mui_outline_close`. The close path switches back to Explorer, preserves the
   symbol cache and current row, reports closed/already-closed feedback, and
   routes through the Mighty dispatcher.
+
+L555. Source Control close should preserve git context. Branch/ahead-behind
+state, the parsed change list, and a partially written commit message are active
+workflow state; hiding Source Control must not imply refresh, reset, or discard.
+
+- **IDE note:** The command palette now lists
+  `Source Control: Close Panel`, calling `mui_scm_close`. The close path
+  switches back to Explorer, preserves status rows and commit-message text,
+  reports closed/already-closed feedback, and routes through the Mighty
+  dispatcher.

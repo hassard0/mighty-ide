@@ -3041,6 +3041,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(refresh_scm.label, "Git: Refresh Source Control");
     assert_eq!(refresh_scm.keybinding, "");
 
+    let close_scm = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_GIT_CLOSE_SOURCE_CONTROL)
+        .unwrap();
+    assert_eq!(close_scm.label, "Source Control: Close Panel");
+    assert_eq!(close_scm.keybinding, "");
+
     let search_commands = [
         (crate::palette::CMD_SEARCH_RUN, "Search: Run Search", ""),
         (
@@ -4584,6 +4591,44 @@ fn scm_open_row_misses_report_visible_feedback() {
     assert_eq!(toast.message, "Source control target missing: deleted.mty");
 
     let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn scm_close_command_preserves_status_and_message() {
+    let mut ctx = ctx_or_skip!();
+    ctx.active_panel = crate::PANEL_SCM;
+    ctx.sidebar_visible = true;
+    ctx.scm.root = Some(std::path::PathBuf::from("repo"));
+    ctx.scm.status.branch = "feature/source-control".to_string();
+    ctx.scm.status.ahead = 2;
+    ctx.scm.status.behind = 1;
+    ctx.scm.status.entries.push(crate::scm::ScmEntry {
+        path: "src/main.mty".to_string(),
+        staged: false,
+        status: 'M',
+    });
+    for ch in "commit draft".chars() {
+        ctx.scm.message.push(ch);
+    }
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_scm_close(h), 1);
+    assert_eq!(ctx.active_panel, crate::PANEL_EXPLORER);
+    assert_eq!(ctx.scm.status.branch, "feature/source-control");
+    assert_eq!(ctx.scm.status.ahead, 2);
+    assert_eq!(ctx.scm.status.behind, 1);
+    assert_eq!(ctx.scm.count(), 1);
+    assert_eq!(ctx.scm.message_string(), "commit draft");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Source Control panel closed"
+    );
+
+    assert_eq!(crate::panels::mui_scm_close(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Source Control panel is already closed"
+    );
 }
 
 #[test]
@@ -7566,6 +7611,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Git refresh command must reveal Source Control before refreshing status"
     );
     assert!(
+        main.contains("id == cmd_git_close_source_control()")
+            && main.contains("let _gc = mui_scm_close(h)")
+            && main.contains("find_nav = false"),
+        "Source Control close command must use the SCM-specific close ABI without clearing git state"
+    );
+    assert!(
         main.contains("id == cmd_problems_refresh()")
             && main.contains("let _dr = mui_diag_refresh(h)")
             && main.contains("let _pr = mui_problems_refresh(h)")
@@ -7904,6 +7955,10 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (
             CMD_GIT_REFRESH_SOURCE_CONTROL,
             "cmd_git_refresh_source_control",
+        ),
+        (
+            CMD_GIT_CLOSE_SOURCE_CONTROL,
+            "cmd_git_close_source_control",
         ),
         (CMD_VIEW_EXPLORER, "cmd_view_explorer"),
         (CMD_VIEW_SEARCH, "cmd_view_search"),

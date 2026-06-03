@@ -135,6 +135,24 @@ pub extern "C" fn mui_scm_refresh(handle: i64) -> i32 {
     n
 }
 
+/// Close the Source Control panel without clearing status, branch, or message state.
+/// Returns `1` when it closed Source Control, or `0` when already closed.
+#[no_mangle]
+pub extern "C" fn mui_scm_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.active_panel == crate::PANEL_SCM {
+        ctx.active_panel = crate::PANEL_EXPLORER;
+        ctx.push_toast(crate::toast::Kind::Info, "Source Control panel closed");
+        crate::abi::trace("scm_close");
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "Source Control panel is already closed");
+    crate::abi::trace("scm_close noop");
+    0
+}
+
 /// Number of changed entries in the last status.
 #[no_mangle]
 pub extern "C" fn mui_scm_count(handle: i64) -> i32 {

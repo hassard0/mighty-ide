@@ -606,6 +606,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Source control unstage failed"
         || m == "No source control row selected"
         || m == "Source control root missing"
+        || m == "Source Control panel closed"
+        || m == "Source Control panel is already closed"
         || m.starts_with("Source control target missing")
         || m == "No hunk selected"
         || m == "Staged hunk"

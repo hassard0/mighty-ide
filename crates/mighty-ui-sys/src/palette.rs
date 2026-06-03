@@ -403,6 +403,8 @@ pub const CMD_AGENTS_CLOSE: u32 = 185;
 pub const CMD_SEARCH_CLOSE: u32 = 186;
 /// Close the Outline panel without clearing document symbols.
 pub const CMD_OUTLINE_CLOSE: u32 = 187;
+/// Close the Source Control panel without clearing git status or message state.
+pub const CMD_GIT_CLOSE_SOURCE_CONTROL: u32 = 188;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -541,6 +543,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_GIT_UNSTAGE_ALL,  label: "Git: Unstage All",   keybinding: "" },
     Command { id: CMD_GIT_COMMIT_STAGED, label: "Git: Commit Staged", keybinding: "" },
     Command { id: CMD_GIT_REFRESH_SOURCE_CONTROL, label: "Git: Refresh Source Control", keybinding: "" },
+    Command { id: CMD_GIT_CLOSE_SOURCE_CONTROL, label: "Source Control: Close Panel", keybinding: "" },
     Command { id: CMD_VIEW_EXPLORER,    label: "View: Explorer",      keybinding: "" },
     Command { id: CMD_VIEW_SEARCH,      label: "View: Search",        keybinding: "Ctrl+Shift+F" },
     Command { id: CMD_SEARCH_RUN,       label: "Search: Run Search",   keybinding: "" },
@@ -1089,6 +1092,7 @@ impl PaletteEngine {
             CMD_GIT_UNSTAGE_ALL => (icons::UNSTAGE_MINUS, "Unstage every staged path", false),
             CMD_GIT_COMMIT_STAGED => (icons::GIT, "Commit staged changes with the SCM message", false),
             CMD_GIT_REFRESH_SOURCE_CONTROL => (icons::REFRESH, "Refresh the Source Control git status", false),
+            CMD_GIT_CLOSE_SOURCE_CONTROL => (icons::CLOSE, "Close the Source Control panel without clearing git status or message state", false),
             CMD_VIEW_EXPLORER => (icons::EXPLORER, "Open the file explorer view", false),
             CMD_VIEW_SEARCH => (icons::SEARCH, "Open project-wide search", false),
             CMD_SEARCH_RUN => (icons::SEARCH, "Run the current project-wide search query", false),
