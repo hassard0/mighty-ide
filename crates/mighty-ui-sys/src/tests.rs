@@ -6583,6 +6583,64 @@ fn codeaction_apply_preflight_tracks_selected_action_target() {
 }
 
 #[test]
+fn codeaction_workspace_edit_refreshes_clean_split_tab_without_switching_focus() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_codeaction_workspace_split_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let left = root.join("left.mty");
+    let right = root.join("right.mty");
+    std::fs::write(&left, "left_symbol\n").unwrap();
+    std::fs::write(&right, "right_symbol\n").unwrap();
+
+    let left_idx = ctx.tabs.open_path(left);
+    let right_idx = ctx.tabs.open_path(right.clone());
+    ctx.tabs.switch(left_idx);
+    crate::sync_active_path(&mut ctx);
+    ctx.panes = crate::panes::PaneLayout::new(left_idx);
+    ctx.panes.split_right(right_idx, 0);
+    ctx.panes.focus(0, 0);
+    ctx.tabs.switch(left_idx);
+    crate::sync_active_path(&mut ctx);
+
+    let uri_path = right.to_string_lossy().replace('\\', "/");
+    let uri = if uri_path.starts_with('/') {
+        format!("file://{uri_path}")
+    } else {
+        format!("file:///{uri_path}")
+    };
+    assert_eq!(ctx.codeaction.set(vec![crate::language::CodeAction {
+        title: "Rename in other file".to_string(),
+        edit: Some(crate::language::WorkspaceEdit {
+            files: vec![(
+                uri,
+                vec![crate::language::TextEdit {
+                    start_line: 0,
+                    start_col: 0,
+                    end_line: 0,
+                    end_col: 12,
+                    new_text: "updated_symbol".to_string(),
+                }],
+            )],
+        }),
+        command_edit: None,
+        command: None,
+        fix_all_mty: false,
+    }]), 1);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_codeaction_apply(h), 1);
+    assert_eq!(ctx.tabs.active(), left_idx);
+    assert_eq!(ctx.panes.focused(), 0);
+    assert_eq!(ctx.panes.tab_at(0), Some(left_idx));
+    assert_eq!(ctx.panes.tab_at(1), Some(right_idx));
+    assert_eq!(ctx.tabs.get(right_idx).unwrap().model.as_text(), "updated_symbol\n");
+    assert_eq!(std::fs::read_to_string(&right).unwrap(), "updated_symbol\n");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn format_current_reports_missing_or_unsupported_target() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;

@@ -9340,17 +9340,9 @@ fn apply_workspace_edit(
             let edited = crate::language::apply_text_edits(&text, &edits);
             if std::fs::write(&fpath, edited.as_bytes()).is_ok() {
                 changed += 1;
-                // If this file is open in a tab, reopen it to refresh its model.
-                if ctx.tabs.find_by_path(&fpath).is_some() {
-                    let _ = ctx.tabs.open_path(fpath.clone());
-                }
+                let _ = ctx.tabs.reload_clean_path(&fpath, edited.as_bytes());
             }
         }
-    }
-    // Restore active focus to the original file (open_path may have switched).
-    if let Some(p) = current {
-        let _ = ctx.tabs.open_path(p);
-        sync_active_path(ctx);
     }
     changed
 }
