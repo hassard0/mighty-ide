@@ -78,16 +78,33 @@ fn default_command(lang: Language) -> Option<(&'static str, &'static [&'static s
 /// value disables the language. Returns `Some((program, args))` or `None` to
 /// disable.
 fn parse_command_value(value: &str) -> Option<CommandLine> {
-    let v = value.trim().trim_matches('"').trim();
+    let v = value.trim();
     if v.is_empty() || v.eq_ignore_ascii_case("off") || v.eq_ignore_ascii_case("none") {
         return None;
     }
-    // Simple whitespace tokenization (paths with spaces should be the whole
-    // value if no args; we keep it simple — quote-aware splitting is overkill).
-    let mut parts = v.split_whitespace();
-    let program = parts.next()?.to_string();
-    let args = parts.map(|s| s.to_string()).collect();
+    // Preserve a quoted program path so install paths with spaces work.
+    let (program, rest) = split_program_and_args(v)?;
+    let args = rest.split_whitespace().map(|s| s.to_string()).collect();
     Some((program, args))
+}
+
+fn split_program_and_args(value: &str) -> Option<(String, &str)> {
+    let v = value.trim();
+    if v.is_empty() {
+        return None;
+    }
+    if let Some(rest) = v.strip_prefix('"') {
+        let end = rest.find('"')?;
+        let program = rest[..end].trim().to_string();
+        if program.is_empty() {
+            return None;
+        }
+        return Some((program, rest[end + 1..].trim()));
+    }
+    let mut parts = v.splitn(2, char::is_whitespace);
+    let program = parts.next()?.to_string();
+    let rest = parts.next().unwrap_or("").trim();
+    Some((program, rest))
 }
 
 /// A parsed command line: `(program, args)`. `None` (in an override) means the
@@ -272,6 +289,21 @@ mod tests {
         assert_eq!(
             parse_command_value("  \"rust-analyzer\"  "),
             Some(("rust-analyzer".to_string(), vec![]))
+        );
+    }
+
+    #[test]
+    fn parse_command_value_preserves_quoted_program_paths() {
+        assert_eq!(
+            parse_command_value(r#""C:\Program Files\LSP\server.exe""#),
+            Some((r#"C:\Program Files\LSP\server.exe"#.to_string(), vec![]))
+        );
+        assert_eq!(
+            parse_command_value(r#""/opt/language servers/rust-analyzer" --stdio"#),
+            Some((
+                "/opt/language servers/rust-analyzer".to_string(),
+                vec!["--stdio".to_string()]
+            ))
         );
     }
 
