@@ -10001,28 +10001,23 @@ struct FoldMark {
 
 /// Insert one Unicode scalar at the cursor (a `\n` codepoint splits the line).
 #[no_mangle]
-pub extern "C" fn mui_ed_insert_char(handle: i64, cp: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
-            m.insert_char(ch);
-        }
+pub extern "C" fn mui_ed_insert_char(handle: i64, cp: i32) -> i32 {
+    if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
+        return apply_model_edit(handle, |m| m.insert_char(ch));
     }
+    0
 }
 
 /// Delete the char before the cursor (joining lines at column 0).
 #[no_mangle]
-pub extern "C" fn mui_ed_backspace(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        m.backspace();
-    }
+pub extern "C" fn mui_ed_backspace(handle: i64) -> i32 {
+    apply_model_edit(handle, |m| m.backspace())
 }
 
 /// Delete the char at the cursor (joining the next line at end of line).
 #[no_mangle]
-pub extern "C" fn mui_ed_delete(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        m.delete();
-    }
+pub extern "C" fn mui_ed_delete(handle: i64) -> i32 {
+    apply_model_edit(handle, |m| m.delete())
 }
 
 /// Delete from the cursor back to the previous word boundary.
@@ -10063,10 +10058,8 @@ pub extern "C" fn mui_ed_join_line(handle: i64) -> i32 {
 
 /// Insert a newline at the cursor.
 #[no_mangle]
-pub extern "C" fn mui_ed_newline(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        m.newline();
-    }
+pub extern "C" fn mui_ed_newline(handle: i64) -> i32 {
+    apply_model_edit(handle, |m| m.newline())
 }
 
 /// Move the cursor one step in `dir` (0=L 1=R 2=Up 3=Down 4=Home 5=End).
@@ -12859,10 +12852,8 @@ pub extern "C" fn mui_ed_outdent(handle: i64) -> i32 {
 /// indent level for `{` / `}`). The IDE routes Enter here instead of the plain
 /// `mui_ed_newline`.
 #[no_mangle]
-pub extern "C" fn mui_ed_newline_indent(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        m.newline_auto_indent();
-    }
+pub extern "C" fn mui_ed_newline_indent(handle: i64) -> i32 {
+    apply_model_edit(handle, |m| m.newline_auto_indent())
 }
 
 // ---- Feature 3: bracket / quote auto-close + skip-over + pair backspace ----
@@ -13292,49 +13283,49 @@ pub extern "C" fn mui_ed_toggle_caret_click(handle: i64) {
 
 /// Insert one scalar at every caret (a `\n` codepoint splits at each).
 #[no_mangle]
-pub extern "C" fn mui_ed_insert_char_multi(handle: i64, cp: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
-            m.insert_char_multi(ch);
-        }
+pub extern "C" fn mui_ed_insert_char_multi(handle: i64, cp: i32) -> i32 {
+    if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
+        return apply_model_edit(handle, |m| m.insert_char_multi(ch));
     }
+    0
 }
 
 /// Smart insert (auto-close/skip-over) at every caret, falling back to a plain
 /// insert where the smart path declined. Replaces the Mighty-side
 /// smart/plain branch when multiple carets are active.
 #[no_mangle]
-pub extern "C" fn mui_ed_insert_smart_multi(handle: i64, cp: i32) {
+pub extern "C" fn mui_ed_insert_smart_multi(handle: i64, cp: i32) -> i32 {
     trace(&format!("ed_insert_smart_multi cp={cp}"));
-    if let Some(c) = unsafe { ctx(handle) } {
-        if c.tabs.active_read_only() {
-            return;
-        }
-        if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
-            c.tabs.active_model_mut().insert_char_smart_multi(ch);
-            if c.snippet_session.is_active() {
-                let session = &mut c.snippet_session;
-                let model = c.tabs.active_model_mut();
-                session.sync_mirrors_from_current(model);
-            }
-        }
+    let Some(c) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if c.tabs.active_read_only() {
+        return reject_read_only_edit(c);
     }
+    let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) else {
+        return 0;
+    };
+    let before = c.tabs.active_model().as_text();
+    c.tabs.active_model_mut().insert_char_smart_multi(ch);
+    let changed = c.tabs.active_model().as_text() != before;
+    if changed && c.snippet_session.is_active() {
+        let session = &mut c.snippet_session;
+        let model = c.tabs.active_model_mut();
+        session.sync_mirrors_from_current(model);
+    }
+    i32::from(changed)
 }
 
 /// Backspace at every caret (smart pair-delete where applicable).
 #[no_mangle]
-pub extern "C" fn mui_ed_backspace_multi(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        m.backspace_multi();
-    }
+pub extern "C" fn mui_ed_backspace_multi(handle: i64) -> i32 {
+    apply_model_edit(handle, |m| m.backspace_multi())
 }
 
 /// Delete-forward at every caret.
 #[no_mangle]
-pub extern "C" fn mui_ed_delete_multi(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        m.delete_multi();
-    }
+pub extern "C" fn mui_ed_delete_multi(handle: i64) -> i32 {
+    apply_model_edit(handle, |m| m.delete_multi())
 }
 
 /// Delete previous word at every caret.
@@ -13351,10 +13342,8 @@ pub extern "C" fn mui_ed_delete_word_right_multi(handle: i64) -> i32 {
 
 /// Newline + auto-indent at every caret.
 #[no_mangle]
-pub extern "C" fn mui_ed_newline_indent_multi(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        m.newline_indent_multi();
-    }
+pub extern "C" fn mui_ed_newline_indent_multi(handle: i64) -> i32 {
+    apply_model_edit(handle, |m| m.newline_indent_multi())
 }
 
 /// Single-step motion at every caret; `extend != 0` grows each selection.

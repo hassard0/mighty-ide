@@ -7422,3 +7422,16 @@ but void edit ABIs still let shortcut and palette paths assume success.
   and report `Edit is unavailable in read-only previews`; Mighty gates
   dirty/ghost updates on that scalar for the matching shortcut and palette
   paths.
+
+L596. Ordinary typing needs the same changed-state contract as explicit edit
+commands. Treating printable input, Backspace/Delete, and Enter as always
+successful creates stale dirty, completion, and inline-AI follow-up work when
+the editor model declined the edit.
+
+- **IDE note:** `mui_ed_insert_char`, `mui_ed_backspace`, `mui_ed_delete`,
+  `mui_ed_newline`, `mui_ed_newline_indent`, `mui_ed_insert_char_multi`,
+  `mui_ed_insert_smart_multi`, `mui_ed_backspace_multi`,
+  `mui_ed_delete_multi`, and `mui_ed_newline_indent_multi` now return `1` only
+  when text changed. The main typing, autocomplete, Backspace/Delete, and Enter
+  paths gate dirty/completion/ghost follow-up work on that scalar, and read-only
+  previews reuse the same `Edit is unavailable in read-only previews` warning.

@@ -6221,18 +6221,18 @@ fn editor_abi_drives_live_model_and_undo() {
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
     // Type "hi", newline, "x". The model must reflect each edit LIVE.
-    mui_ed_insert_char(h, 'h' as i32);
-    mui_ed_insert_char(h, 'i' as i32);
+    assert_eq!(mui_ed_insert_char(h, 'h' as i32), 1);
+    assert_eq!(mui_ed_insert_char(h, 'i' as i32), 1);
     assert_eq!(mui_ed_line_count(h), 1);
     assert_eq!(mui_ed_cursor_col(h), 2);
 
-    mui_ed_newline(h);
-    mui_ed_insert_char(h, 'x' as i32);
+    assert_eq!(mui_ed_newline(h), 1);
+    assert_eq!(mui_ed_insert_char(h, 'x' as i32), 1);
     assert_eq!(mui_ed_line_count(h), 2);
     assert_eq!(mui_ed_cursor_line(h), 1);
     assert_eq!(mui_ed_cursor_col(h), 1);
 
-    mui_ed_backspace(h);
+    assert_eq!(mui_ed_backspace(h), 1);
     assert_eq!(mui_ed_cursor_col(h), 0);
 
     // Movement clamps within bounds.
@@ -6243,7 +6243,7 @@ fn editor_abi_drives_live_model_and_undo() {
     // Undo/redo round-trip: checkpoint, edit, undo restores, redo re-applies.
     mui_ed_undo_record(h);
     mui_ed_move(h, crate::editor::DIR_END);
-    mui_ed_insert_char(h, '!' as i32);
+    assert_eq!(mui_ed_insert_char(h, '!' as i32), 1);
     let after = mui_ed_cursor_col(h);
     assert_eq!(mui_ed_undo(h), 1);
     assert!(ctx.toasts.toasts().is_empty(), "successful undo should stay quiet");
@@ -6301,8 +6301,11 @@ fn editor_undo_redo_report_read_only_preview() {
 #[test]
 fn editor_mutating_commands_report_read_only_preview() {
     use crate::{
+        mui_ed_backspace, mui_ed_backspace_multi, mui_ed_delete, mui_ed_delete_multi,
         mui_ed_delete_word_left_multi, mui_ed_delete_word_right_multi, mui_ed_duplicate,
-        mui_ed_move_lines_down, mui_ed_move_lines_up, mui_ed_toggle_comment,
+        mui_ed_insert_char, mui_ed_insert_char_multi, mui_ed_insert_smart_multi, mui_ed_move_lines_down,
+        mui_ed_move_lines_up, mui_ed_newline, mui_ed_newline_indent, mui_ed_newline_indent_multi,
+        mui_ed_toggle_comment,
     };
 
     let mut ctx = ctx_or_skip!();
@@ -6322,10 +6325,29 @@ fn editor_mutating_commands_report_read_only_preview() {
         mui_ed_duplicate,
         mui_ed_move_lines_up,
         mui_ed_move_lines_down,
+        mui_ed_backspace,
+        mui_ed_backspace_multi,
+        mui_ed_delete,
+        mui_ed_delete_multi,
+        mui_ed_newline,
+        mui_ed_newline_indent,
+        mui_ed_newline_indent_multi,
         mui_ed_delete_word_left_multi,
         mui_ed_delete_word_right_multi,
     ] {
         assert_eq!(edit(h), 0);
+        let toast = ctx.toasts.toasts().last().unwrap();
+        assert_eq!(toast.kind, crate::toast::Kind::Warn);
+        assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+        assert_eq!(ctx.tabs.active_model().as_text(), before);
+        assert!(!ctx.tabs.is_dirty(active));
+    }
+    for edit in [
+        mui_ed_insert_char as extern "C" fn(i64, i32) -> i32,
+        mui_ed_insert_char_multi,
+        mui_ed_insert_smart_multi,
+    ] {
+        assert_eq!(edit(h, 'x' as i32), 0);
         let toast = ctx.toasts.toasts().last().unwrap();
         assert_eq!(toast.kind, crate::toast::Kind::Warn);
         assert_eq!(toast.message, "Edit is unavailable in read-only previews");
@@ -8176,7 +8198,9 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         main.contains("let changed = mui_ed_toggle_comment(h)")
             && main.contains("let changed = if id == cmd_delete_previous_word()")
-            && main.contains("let changed = if id == cmd_duplicate_line_selection()"),
+            && main.contains("let changed = if id == cmd_duplicate_line_selection()")
+            && main.contains("let changed = mui_ed_insert_smart_multi(h, cp)")
+            && main.contains("let changed = mui_ed_newline_indent_multi(h)"),
         "mutating editor commands must gate dirty/ghost updates on ABI changed-state"
     );
     assert!(
