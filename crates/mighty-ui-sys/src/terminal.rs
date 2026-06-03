@@ -195,6 +195,15 @@ impl Grid {
         }
     }
 
+    fn erase_chars(&mut self, count: usize) {
+        let col = self.cur_col.min(self.cols - 1);
+        let count = count.max(1).min(self.cols - col);
+        let row_start = self.cur_row * self.cols;
+        for c in col..col + count {
+            self.cells[row_start + c] = Cell::default();
+        }
+    }
+
     fn insert_blank_lines(&mut self, count: usize) {
         let count = count.max(1).min(self.rows - self.cur_row);
         for row in (self.cur_row..self.rows - count).rev() {
@@ -539,6 +548,8 @@ impl VtParser {
                     self.scroll_up(grid);
                 } else if b == b'T' {
                     self.scroll_down(grid);
+                } else if b == b'X' {
+                    self.erase_chars(grid);
                 } else if b == b'H' || b == b'f' {
                     self.cursor_position(grid);
                 } else if matches!(b, b'A' | b'B' | b'C' | b'D') {
@@ -629,6 +640,12 @@ impl VtParser {
     fn delete_chars(&mut self, grid: &mut Grid) {
         if let Some(count) = self.first_count_param() {
             grid.delete_chars(count);
+        }
+    }
+
+    fn erase_chars(&mut self, grid: &mut Grid) {
+        if let Some(count) = self.first_count_param() {
+            grid.erase_chars(count);
         }
     }
 
@@ -1296,6 +1313,21 @@ mod tests {
         assert!(!g.contains("2P"));
 
         let g2 = grid_feed(1, 8, b"abcdef\x1b[1;5H\x1b[99P");
+        assert_eq!(g2.to_text(), "abcd    ");
+    }
+
+    #[test]
+    fn erase_chars_csi_blanks_without_shifting_row() {
+        let g = grid_feed(2, 8, b"abcdef\nQRSTUV\x1b[1;3H\x1b[2X");
+        assert_eq!(g.cell(0, 0).ch, 'a');
+        assert_eq!(g.cell(0, 1).ch, 'b');
+        assert_eq!(g.cell(0, 2).ch, ' ');
+        assert_eq!(g.cell(0, 3).ch, ' ');
+        assert_eq!(g.cell(0, 4).ch, 'e', "tail should not shift left");
+        assert_eq!(g.cell(1, 0).ch, 'Q', "row below should not be erased");
+        assert!(!g.contains("2X"));
+
+        let g2 = grid_feed(1, 8, b"abcdef\x1b[1;5H\x1b[99X");
         assert_eq!(g2.to_text(), "abcd    ");
     }
 

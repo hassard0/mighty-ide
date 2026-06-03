@@ -6343,3 +6343,13 @@ the intended terminal state.
   preserving the cursor, and blanking rows introduced by the scroll. Parser
   tests cover both directions, default counts, large-count clamping, and escape
   consumption.
+
+L493. Terminal erase-character must not behave like delete-character. Redraw
+code can use `CSI X` to blank a run of cells on the current row while preserving
+the text to the right. Skipping it leaves stale characters, while implementing
+it as delete-character would shift the row and corrupt aligned prompts.
+
+- **IDE note:** The integrated terminal now handles `ESC[nX`, defaulting missing
+  counts to one, clamping at the row edge, preserving adjacent rows, and leaving
+  the row tail in place. Parser tests distinguish `CSI X` from `CSI P` and cover
+  large-count clamping plus escape consumption.
