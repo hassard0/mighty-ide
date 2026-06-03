@@ -792,6 +792,7 @@ fn cmd_keyboard_shortcuts_close() -> I32 { 166 }
 fn cmd_rename_cancel() -> I32 { 167 }
 fn cmd_code_actions_close() -> I32 { 168 }
 fn cmd_prompt_cancel() -> I32 { 169 }
+fn cmd_find_replace_close() -> I32 { 170 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -3963,6 +3964,9 @@ fn main() {
           replacing = true
           find_nav = false
           typing = false
+        } else if id == cmd_find_replace_close() {
+          mui_replace_cancel(h)
+          replacing = false
         } else if id == cmd_goto_line() {
           mui_prompt_open(h, prompt_goto())
           prompt_kind = prompt_goto()

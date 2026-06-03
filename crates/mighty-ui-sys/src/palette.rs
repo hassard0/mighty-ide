@@ -367,6 +367,8 @@ pub const CMD_RENAME_CANCEL: u32 = 167;
 pub const CMD_CODE_ACTIONS_CLOSE: u32 = 168;
 /// Close the active bottom prompt without applying its typed input.
 pub const CMD_PROMPT_CANCEL: u32 = 169;
+/// Close the in-file Find & Replace bar without applying replacement text.
+pub const CMD_FIND_REPLACE_CLOSE: u32 = 170;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -402,6 +404,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_QUICK_OPEN,       label: "Quick Open",          keybinding: "Ctrl+P" },
     Command { id: CMD_FIND,             label: "Find",               keybinding: "Ctrl+F" },
     Command { id: CMD_FIND_REPLACE,     label: "Find & Replace",     keybinding: "Ctrl+H" },
+    Command { id: CMD_FIND_REPLACE_CLOSE, label: "Find & Replace: Close Bar", keybinding: "" },
     Command { id: CMD_GOTO_LINE,        label: "Go to Line",         keybinding: "Ctrl+G" },
     Command { id: CMD_GOTO_DEFINITION,  label: "Go to Definition",   keybinding: "F12" },
     Command { id: CMD_HOVER,            label: "Show Hover",         keybinding: "Ctrl+K" },
@@ -932,6 +935,7 @@ impl PaletteEngine {
             CMD_QUICK_OPEN => (icons::SEARCH, "Open files, commands, symbols, or line jumps", false),
             CMD_FIND => (icons::SEARCH, "Search within the current document", false),
             CMD_FIND_REPLACE => (icons::SEARCH, "Search and replace within the current document", false),
+            CMD_FIND_REPLACE_CLOSE => (icons::CLOSE, "Close the in-file Find & Replace bar", false),
             CMD_GOTO_LINE => (icons::CHEVRON, "Jump to a specific line number", false),
             CMD_GOTO_DEFINITION => (icons::FN_SYMBOL, "Navigate to the symbol definition", false),
             CMD_HOVER => (icons::INFO_I, "Show type & docs at the cursor", false),

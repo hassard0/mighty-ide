@@ -6829,3 +6829,12 @@ outside clicks.
   `mui_prompt_cancel` while clearing Mighty's local `prompt_kind`. ABI,
   registry, metadata, dispatcher, and label tests pin that prompt cancellation
   is available as a first-class command.
+
+L538. Editor find surfaces deserve one-way close commands.
+Find & Replace edits the active document when accepted, so dismissing the bar
+should be a named palette action that cannot accidentally replace text or reopen
+the surface.
+
+- **IDE note:** The command palette now lists `Find & Replace: Close Bar`,
+  calling `mui_replace_cancel` while clearing Mighty's local `replacing` flag.
+  ABI, registry, metadata, dispatcher, and label tests pin the close path.

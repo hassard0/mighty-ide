@@ -2698,6 +2698,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(prompt_cancel.label, "Prompt: Cancel Input");
     assert_eq!(prompt_cancel.keybinding, "");
 
+    let find_replace_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_FIND_REPLACE_CLOSE)
+        .unwrap();
+    assert_eq!(find_replace_close.label, "Find & Replace: Close Bar");
+    assert_eq!(find_replace_close.keybinding, "");
+
     let close_saved = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_SAVED_TABS)
@@ -6153,6 +6160,21 @@ fn in_file_replace_reports_read_only_preview() {
 }
 
 #[test]
+fn find_replace_close_command_clears_active_bar() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_replace_open(handle);
+    assert_eq!(crate::mui_replace_active(handle), 1);
+    crate::mui_replace_push(handle, b'f' as i32);
+    crate::mui_replace_push(handle, b'o' as i32);
+    crate::mui_replace_push(handle, b'o' as i32);
+
+    crate::mui_replace_cancel(handle);
+    assert_eq!(crate::mui_replace_active(handle), 0);
+}
+
+#[test]
 fn welcome_active_when_no_file_open_then_inactive_after_edit() {
     use crate::{
         mui_ed_insert_char, mui_tab_new_untitled, mui_welcome_active, mui_welcome_dismiss,
@@ -7024,6 +7046,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Prompt cancel command must clear shim prompt state and Mighty's local prompt kind"
     );
     assert!(
+        main.contains("id == cmd_find_replace_close()")
+            && main.contains("mui_replace_cancel(h)")
+            && main.contains("replacing = false"),
+        "Find & Replace close command must clear shim replace state and Mighty's local replace flag"
+    );
+    assert!(
         main.contains("id == cmd_explorer_collapse_all()")
             && main.contains("let _vp = mui_panel_set(h, panel_explorer())")
             && main.contains("mui_tree_collapse_all(h)"),
@@ -7304,6 +7332,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_QUICK_OPEN, "cmd_quick_open"),
         (CMD_FIND, "cmd_find"),
         (CMD_FIND_REPLACE, "cmd_find_replace"),
+        (CMD_FIND_REPLACE_CLOSE, "cmd_find_replace_close"),
         (CMD_GOTO_LINE, "cmd_goto_line"),
         (CMD_GOTO_DEFINITION, "cmd_goto_definition"),
         (CMD_HOVER, "cmd_hover"),
