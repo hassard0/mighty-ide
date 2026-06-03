@@ -5021,3 +5021,14 @@ look broken even when the server answered correctly.
   `targetUri` and preferring `targetSelectionRange.start`, with a fallback to
   `targetRange.start`. The existing `Location` parser remains the fallback, so
   Mighty and servers returning plain `Location` keep the same behavior.
+
+L352. Generic diagnostics must be keyed to the requested document URI. Language
+servers can publish diagnostics for multiple workspace files, and some send
+several notifications for the same file as analysis settles. Reading the first
+`diagnostics` array in the stream can show another file's errors or preserve an
+empty early result.
+
+- **IDE note:** the generic diagnostics reader now waits for a
+  `publishDiagnostics` notification containing the requested `file://` URI, and
+  parsing selects the latest matching notification for that URI. The legacy
+  parser entry point remains for tests and single-notification callers.

@@ -325,6 +325,7 @@ pub fn diagnostics_with_timeout(
     };
 
     let uri = file_uri(path);
+    let uri_for_reader = uri.clone();
     let initialize = initialize_msg(root);
     let initialized = r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#.to_string();
     let did_open = format!(
@@ -375,9 +376,10 @@ pub fn diagnostics_with_timeout(
                 Ok(n) => {
                     buf.extend_from_slice(&chunk[..n]);
                     // Stop once a publishDiagnostics notification for our URI has
-                    // arrived (the diagnostics array is then complete in the buf).
+                    // arrived. Other open workspace files can publish first.
                     if find_sub(&buf, b"publishDiagnostics").is_some()
                         && find_sub(&buf, b"\"diagnostics\"").is_some()
+                        && find_sub(&buf, uri_for_reader.as_bytes()).is_some()
                     {
                         // Give a brief grace read so the array body is fully buffered.
                         break;
@@ -410,29 +412,74 @@ pub fn diagnostics_with_timeout(
     };
 
     let text = String::from_utf8_lossy(&raw).into_owned();
-    parse_publish_diagnostics(&text)
+    parse_publish_diagnostics_for_uri(&text, &uri)
 }
 
 /// Parse a `textDocument/publishDiagnostics` notification stream into [`Diag`]s.
 /// Reads the `diagnostics` array, and for each entry the `range.start`
 /// line/character (0-based), the `severity` (1=error,2=warning → our 0/1; 3/4
 /// info/hint folded to warning), and the `message`.
+#[cfg(test)]
 pub fn parse_publish_diagnostics(stream: &str) -> Vec<Diag> {
+    parse_publish_diagnostics_latest(stream, None)
+}
+
+pub fn parse_publish_diagnostics_for_uri(stream: &str, wanted_uri: &str) -> Vec<Diag> {
+    parse_publish_diagnostics_latest(stream, Some(wanted_uri))
+}
+
+fn parse_publish_diagnostics_latest(stream: &str, wanted_uri: Option<&str>) -> Vec<Diag> {
     let bytes = stream.as_bytes();
-    // Anchor at the diagnostics array.
-    let Some(diag_at) = find_sub(bytes, b"\"diagnostics\"") else {
-        return Vec::new();
+    let mut cursor = 0usize;
+    let mut latest: Option<Vec<Diag>> = None;
+    while cursor < bytes.len() {
+        let Some(rel) = find_sub(&bytes[cursor..], b"publishDiagnostics") else {
+            break;
+        };
+        let start = cursor + rel;
+        let next = find_sub(&bytes[start + 1..], b"publishDiagnostics")
+            .map(|n| start + 1 + n)
+            .unwrap_or(bytes.len());
+        let chunk = &bytes[start..next];
+        if publish_chunk_matches_uri(chunk, wanted_uri) {
+            if let Some(diags) = parse_diagnostics_array_from_bytes(chunk) {
+                latest = Some(diags);
+            }
+        }
+        cursor = next;
+    }
+    if let Some(diags) = latest {
+        return diags;
+    }
+    if wanted_uri.is_none() {
+        return parse_diagnostics_array_from_bytes(bytes).unwrap_or_default();
+    }
+    Vec::new()
+}
+
+fn publish_chunk_matches_uri(chunk: &[u8], wanted_uri: Option<&str>) -> bool {
+    let Some(wanted) = wanted_uri else {
+        return true;
     };
+    find_sub(chunk, b"\"uri\"")
+        .and_then(|u| read_json_string_at(chunk, u + b"\"uri\"".len()))
+        .map(|(uri, _)| uri == wanted)
+        .unwrap_or(false)
+}
+
+fn parse_diagnostics_array_from_bytes(bytes: &[u8]) -> Option<Vec<Diag>> {
+    // Anchor at the diagnostics array.
+    let diag_at = find_sub(bytes, b"\"diagnostics\"")?;
     let mut i = diag_at + b"\"diagnostics\"".len();
     while i < bytes.len() && matches!(bytes[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
         i += 1;
     }
     if i >= bytes.len() || bytes[i] != b'[' {
-        return Vec::new();
+        return None;
     }
     let end = match_bracket(bytes, i);
     let arr = &bytes[i..end.min(bytes.len())];
-    parse_diag_array(arr)
+    Some(parse_diag_array(arr))
 }
 
 /// Split a `[ {...}, ... ]` slice into per-diagnostic objects and parse each.
@@ -625,6 +672,31 @@ mod tests {
         assert_eq!(diags[1].line, 10);
         assert_eq!(diags[1].severity, Severity::Warning);
         assert_eq!(diags[1].col_end, 2);
+    }
+
+    #[test]
+    fn diagnostics_for_uri_ignores_other_files() {
+        let stream = r#"{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///x/other.rs","diagnostics":[{"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":4}},"severity":1,"message":"wrong file"}]}}{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///x/main.rs","diagnostics":[{"range":{"start":{"line":9,"character":2},"end":{"line":9,"character":6}},"severity":2,"message":"right file"}]}}"#;
+        let diags = parse_publish_diagnostics_for_uri(stream, "file:///x/main.rs");
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].line, 9);
+        assert_eq!(diags[0].message, "right file");
+    }
+
+    #[test]
+    fn diagnostics_for_uri_uses_latest_matching_notification() {
+        let stream = r#"{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///x/main.rs","diagnostics":[]}}{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///x/main.rs","diagnostics":[{"range":{"start":{"line":2,"character":3},"end":{"line":2,"character":8}},"severity":1,"message":"later error"}]}}"#;
+        let diags = parse_publish_diagnostics_for_uri(stream, "file:///x/main.rs");
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].line, 2);
+        assert_eq!(diags[0].col_start, 3);
+        assert_eq!(diags[0].message, "later error");
+    }
+
+    #[test]
+    fn diagnostics_for_uri_returns_empty_when_only_other_uri_publishes() {
+        let stream = r#"{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///x/other.rs","diagnostics":[{"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":4}},"severity":1,"message":"wrong file"}]}}"#;
+        assert!(parse_publish_diagnostics_for_uri(stream, "file:///x/main.rs").is_empty());
     }
 
     #[test]
