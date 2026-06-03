@@ -4939,3 +4939,18 @@ Mighty-only `mty lsp` code-action request path.
   actions that carry a `WorkspaceEdit` in their arguments, but should eventually
   support the full LSP code-action lifecycle, including long-lived
   `workspace/executeCommand` and server-initiated `workspace/applyEdit`.
+
+L345. Generic LSP parity also needs mutating navigation features, not only
+read-only requests. Signature help and rename were still routed through the
+Mighty-only `mty lsp` helper, so Rust/Python/Go/etc. files could get generic
+completion, hover, definition, diagnostics, and quick fixes, but F2 rename and
+Ctrl+Shift+Space signature help quietly skipped their configured server.
+
+- **IDE note:** the registry-backed generic LSP client now supports
+  `textDocument/signatureHelp`, `textDocument/prepareRename`, and
+  `textDocument/rename` request shapes, including escaped `newName` payloads.
+  The ABI keeps the Mighty path on the existing bespoke client and routes every
+  non-Mighty language through the configured server, then reuses the existing
+  `parse_signature_help` and `parse_workspace_edit` application path. The local
+  identifier scan/fallback remains as the last resort when a server is missing
+  or returns no `WorkspaceEdit`.

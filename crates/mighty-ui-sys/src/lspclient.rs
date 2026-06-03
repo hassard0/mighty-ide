@@ -11,7 +11,8 @@
 //! Two entry points:
 //!   * [`request`] — run the handshake + a single `textDocument/*` request and
 //!     return the isolated `"id":2` response object (completion / hover /
-//!     definition). Empty string on any failure / timeout (never blocks).
+//!     definition / signature help / rename / code actions). Empty string on any
+//!     failure / timeout (never blocks).
 //!   * [`diagnostics`] — `didOpen` the doc and collect the server's
 //!     `textDocument/publishDiagnostics` for that URI, parsed into
 //!     [`crate::diagnostics::Diag`]. Empty on failure.
@@ -31,29 +32,43 @@ use crate::diagnostics::{Diag, Severity};
 use crate::lspregistry::ServerSpec;
 
 /// Which `textDocument/*` request to fire.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Method {
     Completion,
     Hover,
     Definition,
+    SignatureHelp,
+    PrepareRename,
+    Rename { new_name: String },
     CodeAction { end_line: u32, end_col: u32 },
 }
 
 impl Method {
-    fn name(self) -> &'static str {
+    fn name(&self) -> &'static str {
         match self {
             Method::Completion => "textDocument/completion",
             Method::Hover => "textDocument/hover",
             Method::Definition => "textDocument/definition",
+            Method::SignatureHelp => "textDocument/signatureHelp",
+            Method::PrepareRename => "textDocument/prepareRename",
+            Method::Rename { .. } => "textDocument/rename",
             Method::CodeAction { .. } => "textDocument/codeAction",
         }
     }
 
-    fn params(self, uri: &str, line: u32, col: u32) -> String {
+    fn params(&self, uri: &str, line: u32, col: u32) -> String {
         let u = json_escape(uri);
         match self {
-            Method::Completion | Method::Hover | Method::Definition => format!(
+            Method::Completion
+            | Method::Hover
+            | Method::Definition
+            | Method::SignatureHelp
+            | Method::PrepareRename => format!(
                 r#"{{"textDocument":{{"uri":"{u}"}},"position":{{"line":{line},"character":{col}}}}}"#
+            ),
+            Method::Rename { new_name } => format!(
+                r#"{{"textDocument":{{"uri":"{u}"}},"position":{{"line":{line},"character":{col}}},"newName":"{}"}}"#,
+                json_escape(new_name)
             ),
             Method::CodeAction { end_line, end_col } => format!(
                 r#"{{"textDocument":{{"uri":"{u}"}},"range":{{"start":{{"line":{line},"character":{col}}},"end":{{"line":{end_line},"character":{end_col}}}}},"context":{{"diagnostics":[]}}}}"#
@@ -126,7 +141,7 @@ fn initialize_msg(root: &Path) -> String {
     let root_uri = file_uri(root);
     let pid = std::process::id();
     format!(
-        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"processId":{pid},"rootUri":"{}","capabilities":{{"textDocument":{{"completion":{{"completionItem":{{"snippetSupport":false}}}},"hover":{{}},"definition":{{}},"publishDiagnostics":{{}}}}}},"workspaceFolders":null}}}}"#,
+        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"processId":{pid},"rootUri":"{}","capabilities":{{"textDocument":{{"completion":{{"completionItem":{{"snippetSupport":false}}}},"hover":{{}},"definition":{{}},"signatureHelp":{{}},"rename":{{}},"codeAction":{{}},"publishDiagnostics":{{}}}}}},"workspaceFolders":null}}}}"#,
         json_escape(&root_uri)
     )
 }
@@ -184,7 +199,7 @@ pub fn request_with_timeout(
         json_escape(language_id),
         json_escape(source)
     );
-    let request_msg = request_msg(method, &uri, line, col);
+    let request_msg = request_msg(&method, &uri, line, col);
 
     let Some(mut stdin) = child.stdin.take() else {
         kill(child);
@@ -260,7 +275,7 @@ pub fn request_with_timeout(
     crate::nav::lsp::isolate_response(&text, "\"id\":2")
 }
 
-fn request_msg(method: Method, uri: &str, line: u32, col: u32) -> String {
+fn request_msg(method: &Method, uri: &str, line: u32, col: u32) -> String {
     format!(
         r#"{{"jsonrpc":"2.0","id":2,"method":"{}","params":{}}}"#,
         method.name(),
@@ -626,7 +641,7 @@ mod tests {
     #[test]
     fn code_action_request_uses_range_params() {
         let msg = request_msg(
-            Method::CodeAction {
+            &Method::CodeAction {
                 end_line: 4,
                 end_col: 17,
             },
@@ -637,6 +652,49 @@ mod tests {
         assert!(msg.contains(r#""method":"textDocument/codeAction""#));
         assert!(msg.contains(r#""range":{"start":{"line":4,"character":0},"end":{"line":4,"character":17}}"#));
         assert!(msg.contains(r#""context":{"diagnostics":[]}"#));
+    }
+
+    #[test]
+    fn signature_help_request_uses_position_params() {
+        let msg = request_msg(
+            &Method::SignatureHelp,
+            "file:///repo/src/main.rs",
+            7,
+            12,
+        );
+        assert!(msg.contains(r#""method":"textDocument/signatureHelp""#));
+        assert!(msg.contains(
+            r#""textDocument":{"uri":"file:///repo/src/main.rs"},"position":{"line":7,"character":12}"#
+        ));
+    }
+
+    #[test]
+    fn prepare_rename_request_uses_position_params() {
+        let msg = request_msg(
+            &Method::PrepareRename,
+            "file:///repo/src/main.rs",
+            2,
+            5,
+        );
+        assert!(msg.contains(r#""method":"textDocument/prepareRename""#));
+        assert!(msg.contains(
+            r#""textDocument":{"uri":"file:///repo/src/main.rs"},"position":{"line":2,"character":5}"#
+        ));
+    }
+
+    #[test]
+    fn rename_request_uses_new_name_params() {
+        let msg = request_msg(
+            &Method::Rename {
+                new_name: "next_value".to_string(),
+            },
+            "file:///repo/src/main.rs",
+            3,
+            9,
+        );
+        assert!(msg.contains(r#""method":"textDocument/rename""#));
+        assert!(msg.contains(r#""position":{"line":3,"character":9}"#));
+        assert!(msg.contains(r#""newName":"next_value""#));
     }
 
     /// Guarded integration test: if a real `rust-analyzer` is on PATH, spawn it

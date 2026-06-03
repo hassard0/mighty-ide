@@ -139,6 +139,101 @@ pub(crate) fn lsp_def_raw(lang: Language, path: &std::path::Path, source: &str, 
     )
 }
 
+fn lsp_signature_raw(
+    lang: Language,
+    path: &std::path::Path,
+    source: &str,
+    line: u32,
+    col: u32,
+) -> String {
+    if lang == Language::Mighty {
+        return crate::language::lsp::request(
+            path,
+            source,
+            crate::language::lsp::Req::SignatureHelp { line, col },
+        );
+    }
+    let Some(spec) = crate::lspregistry::server_for(lang) else {
+        return String::new();
+    };
+    let root = workspace_root(path);
+    crate::lspclient::request(
+        &spec,
+        lang.lsp_id(),
+        &root,
+        path,
+        source,
+        crate::lspclient::Method::SignatureHelp,
+        line,
+        col,
+    )
+}
+
+fn lsp_prepare_rename_raw(
+    lang: Language,
+    path: &std::path::Path,
+    source: &str,
+    line: u32,
+    col: u32,
+) -> String {
+    if lang == Language::Mighty {
+        return crate::language::lsp::request(
+            path,
+            source,
+            crate::language::lsp::Req::PrepareRename { line, col },
+        );
+    }
+    let Some(spec) = crate::lspregistry::server_for(lang) else {
+        return String::new();
+    };
+    let root = workspace_root(path);
+    crate::lspclient::request(
+        &spec,
+        lang.lsp_id(),
+        &root,
+        path,
+        source,
+        crate::lspclient::Method::PrepareRename,
+        line,
+        col,
+    )
+}
+
+fn lsp_rename_raw(
+    lang: Language,
+    path: &std::path::Path,
+    source: &str,
+    line: u32,
+    col: u32,
+    new_name: String,
+) -> String {
+    if lang == Language::Mighty {
+        return crate::language::lsp::request(
+            path,
+            source,
+            crate::language::lsp::Req::Rename {
+                line,
+                col,
+                new_name,
+            },
+        );
+    }
+    let Some(spec) = crate::lspregistry::server_for(lang) else {
+        return String::new();
+    };
+    let root = workspace_root(path);
+    crate::lspclient::request(
+        &spec,
+        lang.lsp_id(),
+        &root,
+        path,
+        source,
+        crate::lspclient::Method::Rename { new_name },
+        line,
+        col,
+    )
+}
+
 /// Resolve the file to edit: `argv[1]` if given, else a virtual scratch tab.
 /// The scratch tab is not file-backed, so startup does not create `scratch.mty`
 /// in the workspace or make a clean Git repo dirty.
@@ -8290,13 +8385,12 @@ pub extern "C" fn mui_sig_request(handle: i64, line: i32, col: i32) -> i32 {
         None => return 0,
     };
     let (source, _, _) = active_source_and_cursor(ctx);
-    let raw = crate::language::lsp::request(
+    let raw = lsp_signature_raw(
+        ctx.language,
         &path,
         &source,
-        crate::language::lsp::Req::SignatureHelp {
-            line: line.max(0) as u32,
-            col: col.max(0) as u32,
-        },
+        line.max(0) as u32,
+        col.max(0) as u32,
     );
     let available = match crate::language::parse_signature_help(&raw) {
         Some(sig) => ctx.sig.set(Some(sig)),
@@ -8361,13 +8455,12 @@ pub extern "C" fn mui_rename_prepare(handle: i64, line: i32, col: i32) -> i32 {
     let mut symbol = identifier_at(&source, line.max(0) as u32, col.max(0) as u32);
     if symbol.is_empty() {
         if let Some(path) = ctx.file_path.clone() {
-            let raw = crate::language::lsp::request(
+            let raw = lsp_prepare_rename_raw(
+                ctx.language,
                 &path,
                 &source,
-                crate::language::lsp::Req::PrepareRename {
-                    line: line.max(0) as u32,
-                    col: col.max(0) as u32,
-                },
+                line.max(0) as u32,
+                col.max(0) as u32,
             );
             // prepareRename returns a range; re-derive the symbol from its start.
             if let Some((sl, sc)) = parse_prepare_rename_start(&raw) {
@@ -8464,14 +8557,13 @@ pub extern "C" fn mui_rename_commit(handle: i64, line: i32, col: i32) -> i32 {
         }
     };
     let (source, _, _) = active_source_and_cursor(ctx);
-    let raw = crate::language::lsp::request(
+    let raw = lsp_rename_raw(
+        ctx.language,
         &path,
         &source,
-        crate::language::lsp::Req::Rename {
-            line: line.max(0) as u32,
-            col: col.max(0) as u32,
-            new_name: new_name.clone(),
-        },
+        line.max(0) as u32,
+        col.max(0) as u32,
+        new_name.clone(),
     );
     let mut we = crate::language::parse_workspace_edit(&raw);
 
