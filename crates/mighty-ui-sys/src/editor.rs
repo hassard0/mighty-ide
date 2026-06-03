@@ -717,6 +717,29 @@ impl TextModel {
         self.carets[0].col
     }
 
+    /// Move to the start of the document. Optionally extends selection.
+    pub fn move_document_start(&mut self, extend: bool) {
+        if extend {
+            self.begin_or_keep_anchor();
+        } else {
+            self.carets[0].anchor = None;
+        }
+        self.carets[0].line = 0;
+        self.carets[0].col = 0;
+    }
+
+    /// Move to the end of the document. Optionally extends selection.
+    pub fn move_document_end(&mut self, extend: bool) {
+        if extend {
+            self.begin_or_keep_anchor();
+        } else {
+            self.carets[0].anchor = None;
+        }
+        let last = self.lines.len().saturating_sub(1);
+        self.carets[0].line = last;
+        self.carets[0].col = self.line_len(last);
+    }
+
     // -----------------------------------------------------------------------
     // Word-wise motion (Ctrl+Left / Ctrl+Right)
     // -----------------------------------------------------------------------
@@ -1654,6 +1677,28 @@ impl TextModel {
         for i in 0..n {
             self.carets.swap(0, i);
             self.home_smart(extend);
+            self.carets.swap(0, i);
+        }
+        self.normalize_carets();
+    }
+
+    /// Move every caret to document start.
+    pub fn move_document_start_multi(&mut self, extend: bool) {
+        let n = self.carets.len();
+        for i in 0..n {
+            self.carets.swap(0, i);
+            self.move_document_start(extend);
+            self.carets.swap(0, i);
+        }
+        self.normalize_carets();
+    }
+
+    /// Move every caret to document end.
+    pub fn move_document_end_multi(&mut self, extend: bool) {
+        let n = self.carets.len();
+        for i in 0..n {
+            self.carets.swap(0, i);
+            self.move_document_end(extend);
             self.carets.swap(0, i);
         }
         self.normalize_carets();
@@ -2674,6 +2719,53 @@ mod tests {
         // Plain motion collapses the selection.
         m.move_cursor_ext(DIR_RIGHT, false);
         assert!(!m.has_selection());
+    }
+
+    #[test]
+    fn document_boundary_motion_moves_to_file_edges() {
+        let mut m = doc("alpha\nbeta\ngamma");
+        m.move_to(1, 2);
+
+        m.move_document_start(false);
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 0));
+        assert!(!m.has_selection());
+
+        m.move_document_end(false);
+        assert_eq!((m.cursor_line(), m.cursor_col()), (2, 5));
+        assert!(!m.has_selection());
+    }
+
+    #[test]
+    fn document_boundary_motion_extends_selection() {
+        let mut m = doc("alpha\nbeta\ngamma");
+        m.move_to(1, 2);
+
+        m.move_document_end(true);
+        assert_eq!((m.cursor_line(), m.cursor_col()), (2, 5));
+        assert_eq!(m.selected_text(), "ta\ngamma");
+
+        m.move_document_start(false);
+        assert!(!m.has_selection());
+        m.move_document_end(true);
+        assert_eq!(m.selected_text(), "alpha\nbeta\ngamma");
+    }
+
+    #[test]
+    fn document_boundary_motion_normalizes_multi_carets() {
+        let mut m = doc("alpha\nbeta\ngamma");
+        m.move_to(1, 1);
+        assert!(m.add_caret_vertical(1));
+        assert_eq!(m.caret_count(), 2);
+
+        m.move_document_start_multi(false);
+        assert_eq!(m.caret_count(), 1);
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 0));
+
+        assert!(m.add_caret_vertical(1));
+        m.move_document_end_multi(true);
+        assert_eq!(m.caret_count(), 1);
+        assert_eq!((m.cursor_line(), m.cursor_col()), (2, 5));
+        assert!(m.has_selection());
     }
 
     #[test]

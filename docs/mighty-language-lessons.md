@@ -5810,3 +5810,12 @@ cleaning up indentation and spacing at the join boundary.
   space when two text runs would otherwise touch, and returns a changed flag for
   no-op-safe dirty handling. Mighty routes Ctrl+J and the command palette lists
   `Edit: Join Line`.
+
+L432. Document-boundary motion belongs with word and line motion. Home/End alone
+only handles one line; real editing muscle memory also expects Ctrl+Home and
+Ctrl+End to jump to file start/end, with Shift variants extending selection.
+
+- **IDE note:** `TextModel` now exposes document-start/end motion for primary
+  and multi-caret state. The existing Mighty Home/End key arms branch internally
+  on Ctrl, so Ctrl+Home/Ctrl+End and Ctrl+Shift+Home/Ctrl+Shift+End work without
+  adding more top-level key-ladder arms.

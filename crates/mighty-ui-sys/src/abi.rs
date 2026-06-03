@@ -12735,6 +12735,22 @@ pub extern "C" fn mui_ed_home_smart(handle: i64, extend: i32) {
     }
 }
 
+/// Move to document start; `extend != 0` grows the selection.
+#[no_mangle]
+pub extern "C" fn mui_ed_document_start(handle: i64, extend: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.move_document_start(extend != 0);
+    }
+}
+
+/// Move to document end; `extend != 0` grows the selection.
+#[no_mangle]
+pub extern "C" fn mui_ed_document_end(handle: i64, extend: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.move_document_end(extend != 0);
+    }
+}
+
 /// Select the word under the cursor. Returns its char length.
 #[no_mangle]
 pub extern "C" fn mui_ed_select_word(handle: i64) -> i32 {
@@ -13090,6 +13106,22 @@ pub extern "C" fn mui_ed_move_word_multi(handle: i64, right: i32, extend: i32) {
 pub extern "C" fn mui_ed_home_smart_multi(handle: i64, extend: i32) {
     if let Some(m) = unsafe { model_mut(handle) } {
         m.home_smart_multi(extend != 0);
+    }
+}
+
+/// Move every caret to document start; `extend != 0` grows each selection.
+#[no_mangle]
+pub extern "C" fn mui_ed_document_start_multi(handle: i64, extend: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.move_document_start_multi(extend != 0);
+    }
+}
+
+/// Move every caret to document end; `extend != 0` grows each selection.
+#[no_mangle]
+pub extern "C" fn mui_ed_document_end_multi(handle: i64, extend: i32) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.move_document_end_multi(extend != 0);
     }
 }
 
