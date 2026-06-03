@@ -6113,3 +6113,12 @@ positions still came from fixed character advances.
 - **IDE note:** Completion rows now measure the badge glyph and right-side kind
   label before centering or reserving space. Candidate names and signatures fit
   against the actual rendered kind metadata in the autocomplete popup.
+
+L466. Problems panel counters and right clusters need measured widths. The
+Problems panel fit messages, but still advanced the header counters and row
+location/code cluster from fixed per-character estimates.
+
+- **IDE note:** Problems now measures the header label/counts plus row
+  location/code labels before laying out the message budget. Diagnostic messages
+  fit against the actual rendered right-side metadata in both compact and wide
+  panel modes.

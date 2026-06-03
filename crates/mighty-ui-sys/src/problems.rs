@@ -52,6 +52,10 @@ fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) ->
     out
 }
 
+fn problem_ui_text_width(text: &mut crate::text::Text, s: &str, size: f32) -> f32 {
+    text.measure_ui_sized(s, size).0
+}
+
 pub(crate) fn compact_problem_rows(panel_w: f32) -> bool {
     panel_w < 360.0
 }
@@ -262,7 +266,6 @@ impl ProblemSet {
         let h = ctx.gpu.height as f32;
         let clip = ctx.clip;
         let chrome = theme::CHROME_FONT_SIZE;
-        let adv = chrome * 0.55;
         let top = Self::panel_top(h);
         let panel_h = layout::term_panel_height(ctx.gpu.height);
         let panel_w = w - left;
@@ -282,15 +285,16 @@ impl ProblemSet {
         let hy = top + (head_h - (chrome - 1.0)) * 0.5 - 1.0;
         let iy = top + (head_h - 13.0) * 0.5;
         let mut x = left + 14.0;
-        ctx.text.queue_ui_sized(x, hy, "PROBLEMS", theme::DIM(), chrome - 1.0, clip);
-        x += "PROBLEMS".chars().count() as f32 * adv + 18.0;
+        let heading = "PROBLEMS";
+        ctx.text.queue_ui_sized(x, hy, heading, theme::DIM(), chrome - 1.0, clip);
+        x += problem_ui_text_width(&mut ctx.text, heading, chrome - 1.0) + 18.0;
 
         // Error count chip.
         ctx.dl_icon(x, iy, 13.0, 13.0, icons::ERROR_CIRCLE, theme::ERROR(), 1.5, false);
         x += 17.0;
         let ec = self.errors.to_string();
         ctx.text.queue_ui_sized(x, hy, &ec, if self.errors > 0 { theme::ERROR() } else { theme::TEXT_3() }, chrome - 1.0, clip);
-        x += ec.chars().count() as f32 * adv + 12.0;
+        x += problem_ui_text_width(&mut ctx.text, &ec, chrome - 1.0) + 12.0;
         // Warning count chip.
         ctx.dl_icon(x, iy, 13.0, 13.0, icons::WARN_TRI, theme::WARNING(), 1.5, false);
         x += 17.0;
@@ -348,11 +352,11 @@ impl ProblemSet {
                     let msg_x = sx + 20.0;
                     // Right cluster: code + Ln:Col, laid out from the right.
                     let lc = problem_location_label(p.line, p.col, compact_rows);
-                    let lc_w = lc.chars().count() as f32 * (chrome - 1.0) * 0.55;
+                    let lc_w = problem_ui_text_width(&mut ctx.text, &lc, chrome - 1.0);
                     let code_w = if compact_rows {
                         0.0
                     } else {
-                        p.code.chars().count() as f32 * (chrome - 1.0) * 0.55
+                        problem_ui_text_width(&mut ctx.text, &p.code, chrome - 1.0)
                     };
                     let rx_lc = w - 14.0 - lc_w;
                     let rx_code = if compact_rows { rx_lc } else { rx_lc - 12.0 - code_w };
@@ -525,6 +529,38 @@ mod tests {
             compact_budget > wide_budget,
             "compact rows should give the message the code column's space"
         );
+    }
+
+    #[test]
+    fn problem_ui_text_width_uses_measured_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+        let short = problem_ui_text_width(&mut ctx.text, "1", theme::CHROME_FONT_SIZE - 1.0);
+        let long = problem_ui_text_width(&mut ctx.text, "Ln 128, Col 64", theme::CHROME_FONT_SIZE - 1.0);
+
+        assert!(short > 0.0);
+        assert!(long > short);
+    }
+
+    #[test]
+    fn measured_problem_right_cluster_tightens_message_budget() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+        let chrome = theme::CHROME_FONT_SIZE;
+        let panel_right = 620.0;
+        let msg_x = 120.0;
+        let lc = problem_location_label(128, 64, false);
+        let lc_w = problem_ui_text_width(&mut ctx.text, &lc, chrome - 1.0);
+        let code_w = problem_ui_text_width(&mut ctx.text, "MT4001", chrome - 1.0);
+        let rx_lc = panel_right - 14.0 - lc_w;
+        let rx_code = rx_lc - 12.0 - code_w;
+        let wide_budget = problem_message_budget(msg_x, rx_lc, Some(rx_code));
+        let compact_budget = problem_message_budget(msg_x, rx_lc, None);
+
+        assert!(rx_code < rx_lc);
+        assert!(wide_budget < compact_budget);
     }
 
     #[test]
