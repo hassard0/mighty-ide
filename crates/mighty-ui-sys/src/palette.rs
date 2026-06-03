@@ -331,6 +331,8 @@ pub const CMD_GIT_REFRESH_SOURCE_CONTROL: u32 = 149;
 pub const CMD_EXPLORER_REFRESH: u32 = 150;
 /// Refresh diagnostics and show the Problems panel.
 pub const CMD_PROBLEMS_REFRESH: u32 = 151;
+/// Refresh the active document's Outline symbols.
+pub const CMD_OUTLINE_REFRESH: u32 = 152;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -451,6 +453,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_SEARCH_TOGGLE_REPLACE, label: "Search: Toggle Replace Field", keybinding: "" },
     Command { id: CMD_VIEW_SOURCE_CONTROL, label: "View: Source Control", keybinding: "Ctrl+Shift+G" },
     Command { id: CMD_VIEW_OUTLINE,     label: "View: Outline",       keybinding: "" },
+    Command { id: CMD_OUTLINE_REFRESH,  label: "Outline: Refresh Symbols", keybinding: "" },
     Command { id: CMD_VIEW_RUN_DEBUG,   label: "View: Run and Debug", keybinding: "" },
     Command { id: CMD_VIEW_TESTING,     label: "View: Testing",       keybinding: "" },
     Command { id: CMD_VIEW_RUN_OUTPUT,  label: "View: Run Output",    keybinding: "" },
@@ -963,6 +966,7 @@ impl PaletteEngine {
             CMD_SEARCH_TOGGLE_REPLACE => (icons::REPLACE, "Move Search panel focus between query and replace", false),
             CMD_VIEW_SOURCE_CONTROL => (icons::GIT, "Open source control", false),
             CMD_VIEW_OUTLINE => (icons::FN_SYMBOL, "Open the symbol outline", false),
+            CMD_OUTLINE_REFRESH => (icons::REFRESH, "Refresh the active document's Outline symbols", false),
             CMD_VIEW_RUN_DEBUG => (icons::DEBUG, "Open Run and Debug", false),
             CMD_VIEW_TESTING => (icons::BEAKER, "Open the testing view", false),
             CMD_VIEW_RUN_OUTPUT => (icons::RUN, "Open the Run output panel", false),

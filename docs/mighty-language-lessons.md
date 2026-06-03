@@ -6672,3 +6672,13 @@ aggregation without depending on save/open side effects.
   calling `mui_diag_refresh`, `mui_problems_refresh`, and `mui_problems_open` so
   the gutter diagnostics and Problems dock update together. Registry, metadata,
   and dispatcher tests pin the id, label, helper, refresh calls, and panel open.
+
+L522. Symbol navigation needs an explicit refresh command.
+Outline refreshes during common file lifecycle events, but command-first users
+need a direct way to rescan document symbols after generated edits, language
+server recovery, or other state changes that do not pass through save/open.
+
+- **IDE note:** The command palette now lists `Outline: Refresh Symbols`,
+  focusing the Outline panel before calling `mui_outline_refresh`. Registry,
+  metadata, and dispatcher tests pin the id, label, helper, panel focus, and
+  symbol refresh call.

@@ -2738,6 +2738,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(problems_refresh.label, "Problems: Refresh Diagnostics");
     assert_eq!(problems_refresh.keybinding, "");
 
+    let outline_refresh = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_OUTLINE_REFRESH)
+        .unwrap();
+    assert_eq!(outline_refresh.label, "Outline: Refresh Symbols");
+    assert_eq!(outline_refresh.keybinding, "");
+
     let ai_commands = [
         (crate::palette::CMD_INLINE_AI_ASK, "AI: Inline Ask", "Ctrl+I"),
         (
@@ -6595,6 +6602,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _po = mui_problems_open(h)"),
         "Problems refresh command must refresh diagnostics, aggregate Problems, and show the panel"
     );
+    assert!(
+        main.contains("id == cmd_outline_refresh()")
+            && main.contains("let _vp = mui_panel_set(h, panel_outline())")
+            && main.contains("let _or = mui_outline_refresh(h)"),
+        "Outline refresh command must reveal Outline before refreshing symbols"
+    );
     for (helper, action) in [
         ("cmd_search_run", "mui_search_run(h)"),
         ("cmd_search_replace_all", "mui_search_replace_all(h)"),
@@ -6818,6 +6831,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         ),
         (CMD_VIEW_SOURCE_CONTROL, "cmd_view_source_control"),
         (CMD_VIEW_OUTLINE, "cmd_view_outline"),
+        (CMD_OUTLINE_REFRESH, "cmd_outline_refresh"),
         (CMD_VIEW_RUN_DEBUG, "cmd_view_run_debug"),
         (CMD_VIEW_TESTING, "cmd_view_testing"),
         (CMD_VIEW_RUN_OUTPUT, "cmd_view_run_output"),
