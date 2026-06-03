@@ -6238,3 +6238,12 @@ widths, while the actual labels were drawn through text shaping.
   measured font widths before placement and sizing. Source text remains on the
   monospace grid, but editor chrome no longer relies on approximate character
   multipliers.
+
+L481. Quick Open fuzzy matches should be visible without fixed glyph advances.
+Rows ranked by fuzzy indices, but the renderer ignored those indices after
+switching to shaped proportional text, leaving matches visually unmarked.
+
+- **IDE note:** Quick Open now overlays matched characters at measured
+  proportional prefix positions. Fuzzy matches remain visually highlighted
+  without returning to fixed-advance row rendering, and clipped ellipsis/tail
+  characters are skipped safely.

@@ -979,7 +979,6 @@ impl QuickOpen {
 
         // ---- rows ----
         let list_top = box_y + search_h + cat_h;
-        let name_adv = 13.5 * 0.55;
         for vis in 0..shown {
             let idx = top + vis;
             let Some(row) = self.rows.get(idx) else { break };
@@ -1009,7 +1008,7 @@ impl QuickOpen {
             let text_max = quickopen_row_text_budget(box_x, box_w, txt_x);
             let name_y = ry + (row_h - 13.5) * 0.5 - if row.dir.is_empty() { 0.0 } else { 8.0 };
             let name = crate::palette::fit_palette_text(&mut ctx.text, &row.name, text_max, 13.5);
-            self.draw_highlighted(ctx, txt_x, name_y, &name, &row.indices, name_adv, selected, clip);
+            self.draw_highlighted(ctx, txt_x, name_y, &name, &row.indices, selected, clip);
 
             // Dim secondary (dir / kind) under the name.
             if !row.dir.is_empty() {
@@ -1051,13 +1050,18 @@ impl QuickOpen {
         x: f32,
         y: f32,
         name: &str,
-        _indices: &[usize],
-        _adv: f32,
+        indices: &[usize],
         selected: bool,
         clip: Option<(u32, u32, u32, u32)>,
     ) {
         let base_col = if selected { theme::TEXT() } else { theme::TEXT_1() };
         ctx.text.queue_ui_sized(x, y, name, base_col, 13.5, clip);
+        let accent = if selected { theme::ACCENT_BRIGHT() } else { theme::ACCENT() };
+        for idx in visible_match_indices(name, indices) {
+            let Some(ch) = name.chars().nth(idx) else { continue };
+            let cx = x + quickopen_match_prefix_width(&mut ctx.text, name, idx, 13.5);
+            ctx.text.queue_ui_sized(cx, y, &ch.to_string(), accent, 13.5, clip);
+        }
     }
 }
 
@@ -1076,6 +1080,26 @@ pub(crate) fn quickopen_query_text_budget(text_x: f32, pill_x: f32, is_placehold
 
 pub(crate) fn quickopen_row_text_budget(box_x: f32, box_w: f32, text_x: f32) -> f32 {
     (box_x + box_w - 24.0 - text_x).max(0.0)
+}
+
+pub(crate) fn quickopen_match_prefix_width(
+    text: &mut crate::text::Text,
+    name: &str,
+    index: usize,
+    size: f32,
+) -> f32 {
+    let prefix: String = name.chars().take(index).collect();
+    text.measure_ui_sized(&prefix, size).0
+}
+
+fn visible_match_indices(name: &str, indices: &[usize]) -> Vec<usize> {
+    let visible_len = name.chars().count();
+    let ellipsis_idx = name.chars().position(|ch| ch == '\u{2026}');
+    indices
+        .iter()
+        .copied()
+        .filter(|idx| *idx < visible_len && Some(*idx) != ellipsis_idx)
+        .collect()
 }
 
 fn quickopen_mode_label_width(text: &mut crate::text::Text, label: &str, size: f32) -> f32 {
@@ -1607,6 +1631,28 @@ mod tests {
 
         assert!(navigate > open);
         assert!(open > 16.0);
+    }
+
+    #[test]
+    fn match_prefix_width_uses_measured_ui_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+
+        let size = 13.5;
+        let name = "WorkspaceSettingsPanel";
+        let prefix_w = quickopen_match_prefix_width(&mut ctx.text, name, 9, size);
+        let measured = ctx.text.measure_ui_sized("Workspace", size).0;
+
+        assert_eq!(prefix_w, measured);
+    }
+
+    #[test]
+    fn visible_match_indices_skip_ellipsis_and_clipped_tail() {
+        let shown = "Workspace\u{2026}";
+        let indices = visible_match_indices(shown, &[0, 4, 9, 12]);
+
+        assert_eq!(indices, vec![0, 4]);
     }
 
     #[test]
