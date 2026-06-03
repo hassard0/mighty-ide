@@ -6089,3 +6089,11 @@ selected-row remap/fixed affordance still used fixed per-character widths.
   centering keyboard pills, and reserve selected-row affordance space from the
   measured remap/fixed label. Long modifier names and proportional glyphs keep
   the row title gutter accurate.
+
+L463. Command palette keybinding chips need measured labels too. The command
+palette had measured search text, rows, and footer hints, but row shortcut pills
+still sized and centered key labels from fixed per-character advances.
+
+- **IDE note:** Command palette shortcut chips now measure each key token before
+  sizing pills and centering labels. Alternative shortcuts, long modifier names,
+  and narrow glyphs reserve the actual rendered space before row titles are fit.

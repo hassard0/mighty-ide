@@ -567,9 +567,13 @@ fn keybinding_tokens(keybinding: &str) -> Vec<ShortcutToken> {
     tokens
 }
 
-fn shortcut_token_width(token: &ShortcutToken, kadv: f32, pill_pad: f32) -> f32 {
+fn shortcut_key_label_width(text: &mut crate::text::Text, label: &str, size: f32) -> f32 {
+    text.measure_ui_sized(label, size).0
+}
+
+fn shortcut_token_width(text: &mut crate::text::Text, token: &ShortcutToken, size: f32) -> f32 {
     match token {
-        ShortcutToken::Key(part) => (part.chars().count() as f32 * kadv + 2.0 * pill_pad).max(22.0),
+        ShortcutToken::Key(part) => (shortcut_key_label_width(text, part, size) + 14.0).max(22.0),
         ShortcutToken::Separator => 8.0,
     }
 }
@@ -1057,13 +1061,11 @@ impl PaletteEngine {
             ctx.dl_icon(tile_x + 6.5, tile_y + 6.5, 17.0, 17.0, icon, icon_col, 1.6, fill);
 
             // Right-aligned kbd pills (commands with no keybinding draw none).
-            let pill_pad = 7.0;
             let gap = 4.0;
-            let kadv = 11.0 * 0.55;
             let parts = keybinding_tokens(cmd.keybinding);
             let widths: Vec<f32> = parts
                 .iter()
-                .map(|p| shortcut_token_width(p, kadv, pill_pad))
+                .map(|p| shortcut_token_width(&mut ctx.text, p, 11.0))
                 .collect();
             let total_w: f32 = widths.iter().sum::<f32>() + gap * (parts.len().saturating_sub(1)) as f32;
             let mut px = box_x + box_w - 20.0 - total_w;
@@ -1099,7 +1101,7 @@ impl PaletteEngine {
                 let ShortcutToken::Key(part) = part else {
                     unreachable!("separator handled before pill draw");
                 };
-                let lbl_w = part.chars().count() as f32 * kadv;
+                let lbl_w = shortcut_key_label_width(&mut ctx.text, part, 11.0);
                 ctx.text.queue_ui_sized(px + (pw - lbl_w) * 0.5, py + 4.5, part, pfg, 11.0, clip);
                 px += pw + gap;
             }
@@ -1353,6 +1355,34 @@ mod tests {
                 ShortcutToken::Key("/".to_string()),
             ]
         );
+    }
+
+    #[test]
+    fn shortcut_token_width_uses_measured_key_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+
+        let short = shortcut_token_width(&mut ctx.text, &ShortcutToken::Key("/".to_string()), 11.0);
+        let long = shortcut_token_width(&mut ctx.text, &ShortcutToken::Key("Shift".to_string()), 11.0);
+
+        assert!(short >= 22.0);
+        assert!(long > short);
+        assert_eq!(shortcut_token_width(&mut ctx.text, &ShortcutToken::Separator, 11.0), 8.0);
+    }
+
+    #[test]
+    fn shortcut_token_width_contains_measured_label_with_padding() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+
+        let label = "Enter";
+        let label_w = shortcut_key_label_width(&mut ctx.text, label, 11.0);
+        let pill_w = shortcut_token_width(&mut ctx.text, &ShortcutToken::Key(label.to_string()), 11.0);
+
+        assert!(pill_w >= label_w + 14.0);
+        assert!(pill_w >= 22.0);
     }
 
     #[test]
