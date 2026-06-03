@@ -1536,6 +1536,33 @@ fn run_stop_when_idle_reports_visible_feedback() {
 }
 
 #[test]
+fn run_clear_output_reports_feedback_and_preserves_status() {
+    let mut ctx = ctx_or_skip!();
+    ctx.term_open = true;
+    ctx.web.open();
+    ctx.problems.set_open(true);
+    ctx.run.seed_demo("C:/proj/demo.mty");
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_run_clear(handle), 8);
+    assert!(ctx.run.is_active());
+    assert_eq!(ctx.run.line_count(), 0);
+    assert_eq!(ctx.run.exit_code(), Some(1));
+    assert_eq!(ctx.run.duration_ms(), 142);
+    assert!(!ctx.term_open);
+    assert!(!ctx.web.is_active());
+    assert!(!ctx.problems.is_open());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Run output cleared");
+
+    assert_eq!(crate::featureabi::mui_run_clear(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Run output already empty");
+}
+
+#[test]
 fn run_output_click_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -2812,6 +2839,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(run_stop.label, "Run: Stop Process");
     assert_eq!(run_stop.keybinding, "");
+
+    let run_clear = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_RUN_CLEAR_OUTPUT)
+        .unwrap();
+    assert_eq!(run_clear.label, "Run: Clear Output");
+    assert_eq!(run_clear.keybinding, "");
 
     let test_stop = crate::palette::COMMANDS
         .iter()
@@ -6619,6 +6653,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _a = mui_agents_refresh(h)"),
         "Agents refresh command must reveal Mighty Agents before refreshing topology"
     );
+    assert!(
+        main.contains("id == cmd_run_clear_output()")
+            && main.contains("let _rc = mui_run_clear(h)")
+            && main.contains("run_focus = true"),
+        "Run clear-output command must reveal Run before clearing rendered output"
+    );
     for (helper, action) in [
         ("cmd_search_run", "mui_search_run(h)"),
         ("cmd_search_replace_all", "mui_search_replace_all(h)"),
@@ -6875,6 +6915,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_COLOR_THEME, "cmd_color_theme"),
         (CMD_RUN_FILE, "cmd_run_file"),
         (CMD_RUN_STOP, "cmd_run_stop"),
+        (CMD_RUN_CLEAR_OUTPUT, "cmd_run_clear_output"),
         (CMD_SETTINGS, "cmd_settings"),
         (CMD_ZOOM_IN, "cmd_zoom_in"),
         (CMD_ZOOM_OUT, "cmd_zoom_out"),

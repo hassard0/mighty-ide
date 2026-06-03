@@ -137,6 +137,16 @@ impl RunPanel {
         self.lines.len()
     }
 
+    /// Clear rendered output while preserving the run status/process lifecycle.
+    pub fn clear_output(&mut self) -> usize {
+        let n = self.lines.len();
+        self.lines.clear();
+        self.partial.clear();
+        self.first = 0;
+        self.click_target = None;
+        n
+    }
+
     pub fn first(&self) -> usize {
         self.first
     }
@@ -525,6 +535,25 @@ mod tests {
         assert_eq!(r.first(), 2);
         r.scroll(-10);
         assert_eq!(r.first(), 0);
+    }
+
+    #[test]
+    fn clear_output_preserves_status_and_resets_rows() {
+        let mut r = RunPanel::new();
+        r.seed_demo("C:/proj/demo.mty");
+        r.scroll(10);
+        r.set_click_target(Some(("C:/proj/demo.mty".to_string(), 6, 13)));
+
+        let cleared = r.clear_output();
+
+        assert_eq!(cleared, 8);
+        assert_eq!(r.line_count(), 0);
+        assert_eq!(r.first(), 0);
+        assert_eq!(r.click_target(), None);
+        assert!(r.is_active());
+        assert_eq!(r.exit_code(), Some(1));
+        assert_eq!(r.duration_ms(), 142);
+        assert_eq!(r.path(), "C:/proj/demo.mty");
     }
 
     #[test]

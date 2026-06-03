@@ -84,6 +84,27 @@ pub extern "C" fn mui_run_stop(handle: i64) {
     }
 }
 
+/// Clear the rendered Run output without stopping the current process. Returns
+/// how many output lines were removed.
+#[no_mangle]
+pub extern "C" fn mui_run_clear(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.run.open();
+    ctx.term_open = false;
+    ctx.web.close();
+    ctx.problems.set_open(false);
+    let cleared = ctx.run.clear_output() as i32;
+    if cleared > 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "Run output cleared");
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Run output already empty");
+    }
+    crate::abi::trace(&format!("run_clear lines={cleared}"));
+    cleared
+}
+
 /// Toggle the Run panel open/closed (the Run rail icon / Ctrl+Shift+R). Returns
 /// `1` if now open, `0` if closed.
 #[no_mangle]

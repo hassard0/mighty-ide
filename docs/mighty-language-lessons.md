@@ -6693,3 +6693,13 @@ keyboard flow.
   focusing the Mighty Agents topology panel before calling `mui_agents_refresh`.
   Registry, metadata, and dispatcher tests pin the id, label, helper, panel
   focus, and topology refresh call.
+
+L524. Output panels need clear actions that do not imply process control.
+Stopping a task and clearing its transcript are different user intents. A Run
+panel can be useful while a process keeps running, but the user may still need a
+fresh viewport before repeating an interaction or capturing only new output.
+
+- **IDE note:** The command palette now lists `Run: Clear Output`, opening the
+  Run dock and calling `mui_run_clear` without stopping the active process or
+  resetting the last status. State, ABI, registry, metadata, dispatcher, and
+  feedback tests pin the behavior.

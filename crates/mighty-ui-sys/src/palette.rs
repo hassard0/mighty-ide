@@ -335,6 +335,8 @@ pub const CMD_PROBLEMS_REFRESH: u32 = 151;
 pub const CMD_OUTLINE_REFRESH: u32 = 152;
 /// Refresh the Mighty Agents topology model.
 pub const CMD_AGENTS_REFRESH: u32 = 153;
+/// Clear the Run panel's rendered output without stopping a process.
+pub const CMD_RUN_CLEAR_OUTPUT: u32 = 154;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -428,6 +430,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_COLOR_THEME,      label: "Preferences: Color Theme", keybinding: "" },
     Command { id: CMD_RUN_FILE,         label: "Run File",           keybinding: "Ctrl+Shift+R" },
     Command { id: CMD_RUN_STOP,         label: "Run: Stop Process",  keybinding: "" },
+    Command { id: CMD_RUN_CLEAR_OUTPUT, label: "Run: Clear Output",  keybinding: "" },
     Command { id: CMD_SETTINGS,         label: "Preferences: Settings", keybinding: "Ctrl+," },
     Command { id: CMD_ZOOM_IN,          label: "View: Zoom In",      keybinding: "Ctrl+=" },
     Command { id: CMD_ZOOM_OUT,         label: "View: Zoom Out",     keybinding: "Ctrl+-" },
@@ -942,6 +945,7 @@ impl PaletteEngine {
             CMD_COLOR_THEME => (icons::SETTINGS, "Switch the editor color theme", false),
             CMD_RUN_FILE => (icons::RUN, "Run the active Mighty file", true),
             CMD_RUN_STOP => (icons::CLOSE, "Stop the active Run output process", false),
+            CMD_RUN_CLEAR_OUTPUT => (icons::CLOSE, "Clear the Run output without stopping the process", false),
             CMD_SETTINGS => (icons::SETTINGS, "Edit editor preferences", false),
             CMD_ZOOM_IN => (icons::PLUS, "Increase the IDE UI scale", false),
             CMD_ZOOM_OUT => (icons::UNSTAGE_MINUS, "Decrease the IDE UI scale", false),
