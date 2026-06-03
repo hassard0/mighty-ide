@@ -6299,6 +6299,44 @@ fn editor_undo_redo_report_read_only_preview() {
 }
 
 #[test]
+fn editor_mutating_commands_report_read_only_preview() {
+    use crate::{
+        mui_ed_delete_word_left_multi, mui_ed_delete_word_right_multi, mui_ed_duplicate,
+        mui_ed_move_lines_down, mui_ed_move_lines_up, mui_ed_toggle_comment,
+    };
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_edit_read_only_preview");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    let active = ctx.tabs.active();
+    let before = ctx.tabs.active_model().as_text();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    for edit in [
+        mui_ed_toggle_comment as extern "C" fn(i64) -> i32,
+        mui_ed_duplicate,
+        mui_ed_move_lines_up,
+        mui_ed_move_lines_down,
+        mui_ed_delete_word_left_multi,
+        mui_ed_delete_word_right_multi,
+    ] {
+        assert_eq!(edit(h), 0);
+        let toast = ctx.toasts.toasts().last().unwrap();
+        assert_eq!(toast.kind, crate::toast::Kind::Warn);
+        assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+        assert_eq!(ctx.tabs.active_model().as_text(), before);
+        assert!(!ctx.tabs.is_dirty(active));
+    }
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn codeaction_no_actions_toasts_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -7138,9 +7176,9 @@ fn editor_power_features_via_abi() {
     for c in "let x = 1".chars() {
         mui_ed_insert_char(h, c as i32);
     }
-    mui_ed_toggle_comment(h);
+    assert_eq!(mui_ed_toggle_comment(h), 1);
     assert_eq!(ctx.tabs.active_model().line(0), "// let x = 1");
-    mui_ed_toggle_comment(h);
+    assert_eq!(mui_ed_toggle_comment(h), 1);
     assert_eq!(ctx.tabs.active_model().line(0), "let x = 1");
 
     // Auto-close: typing '(' inserts a pair and reports smart-handled.
@@ -7163,9 +7201,9 @@ fn editor_power_features_via_abi() {
     // Duplicate + move line down.
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
     let before = mui_ed_line_count(h);
-    mui_ed_duplicate(h);
+    assert_eq!(mui_ed_duplicate(h), 1);
     assert_eq!(mui_ed_line_count(h), before + 1);
-    mui_ed_move_lines_down(h);
+    let _ = mui_ed_move_lines_down(h);
 
     // Bracket match: place cursor before a '(' typed earlier — none here, so 0.
     let _ = mui_ed_bracket_match(h);
@@ -8134,6 +8172,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         !main.contains("let _a = mui_codeaction_apply(h)"),
         "code action accept must not blindly reload after a no-op action"
+    );
+    assert!(
+        main.contains("let changed = mui_ed_toggle_comment(h)")
+            && main.contains("let changed = if id == cmd_delete_previous_word()")
+            && main.contains("let changed = if id == cmd_duplicate_line_selection()"),
+        "mutating editor commands must gate dirty/ghost updates on ABI changed-state"
     );
     assert!(
         main.contains("Ctrl+S save / Ctrl+Shift+S Save As"),

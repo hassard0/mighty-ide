@@ -7410,3 +7410,15 @@ Welcome state.
   `Welcome closed`; no-op close reports `Welcome is already closed`. The helper
   hides automatic empty-buffer Welcome too, while `mui_welcome_dismiss` remains
   the silent internal transition for file-opening and typing flows.
+
+L595. Editor commands that can fail or no-op should return changed-state before
+Mighty marks the tab dirty. Read-only previews already block mutation shim-side,
+but void edit ABIs still let shortcut and palette paths assume success.
+
+- **IDE note:** `mui_ed_toggle_comment`, `mui_ed_duplicate`,
+  `mui_ed_move_lines_up`, `mui_ed_move_lines_down`,
+  `mui_ed_delete_word_left_multi`, and `mui_ed_delete_word_right_multi` now
+  return `1` only when the text changed. Read-only preview attempts return `0`
+  and report `Edit is unavailable in read-only previews`; Mighty gates
+  dirty/ghost updates on that scalar for the matching shortcut and palette
+  paths.

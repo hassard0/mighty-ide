@@ -850,6 +850,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Snippet)
     } else if m == "Nothing to undo"
         || m == "Nothing to redo"
+        || m == "Edit is unavailable in read-only previews"
         || m == "Undo is unavailable in read-only previews"
         || m == "Redo is unavailable in read-only previews"
     {
@@ -2094,6 +2095,18 @@ mod tests {
         assert_eq!(
             q.toasts()[0].message,
             "Undo is unavailable in read-only previews"
+        );
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
+            Kind::Warn,
+            "Edit is unavailable in read-only previews",
+            t0 + Duration::from_millis(250),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Edit is unavailable in read-only previews"
         );
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
 

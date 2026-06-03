@@ -9952,6 +9952,23 @@ unsafe fn model_mut<'a>(handle: i64) -> Option<&'a mut TextModel> {
     })
 }
 
+fn reject_read_only_edit(ctx: &mut MuiContext) -> i32 {
+    ctx.push_toast(crate::toast::Kind::Warn, "Edit is unavailable in read-only previews");
+    0
+}
+
+fn apply_model_edit(handle: i64, edit: impl FnOnce(&mut TextModel)) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only() {
+        return reject_read_only_edit(ctx);
+    }
+    let before = ctx.tabs.active_model().as_text();
+    edit(ctx.tabs.active_model_mut());
+    i32::from(ctx.tabs.active_model().as_text() != before)
+}
+
 /// Owned snapshot of the model fields [`mui_ed_draw`] needs, taken so the borrow
 /// on the model ends before the rect/text draw calls borrow the context again.
 struct EdDrawSnapshot {
@@ -12814,10 +12831,8 @@ pub extern "C" fn mui_ed_redo(handle: i64) -> i32 {
 
 /// Toggle a `// ` line comment on the cursor line or every selected line.
 #[no_mangle]
-pub extern "C" fn mui_ed_toggle_comment(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        m.toggle_line_comment();
-    }
+pub extern "C" fn mui_ed_toggle_comment(handle: i64) -> i32 {
+    apply_model_edit(handle, |m| m.toggle_line_comment())
 }
 
 /// Tab: insert configured spaces at a plain caret, or indent selected lines.
@@ -12949,26 +12964,20 @@ fn bracket_source_cell(m: &TextModel) -> (i32, i32) {
 
 /// Duplicate the current line or selection (copy inserted below).
 #[no_mangle]
-pub extern "C" fn mui_ed_duplicate(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        m.duplicate();
-    }
+pub extern "C" fn mui_ed_duplicate(handle: i64) -> i32 {
+    apply_model_edit(handle, |m| m.duplicate())
 }
 
 /// Move the current line / selected line range up by one.
 #[no_mangle]
-pub extern "C" fn mui_ed_move_lines_up(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        m.move_lines_up();
-    }
+pub extern "C" fn mui_ed_move_lines_up(handle: i64) -> i32 {
+    apply_model_edit(handle, |m| m.move_lines_up())
 }
 
 /// Move the current line / selected line range down by one.
 #[no_mangle]
-pub extern "C" fn mui_ed_move_lines_down(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        m.move_lines_down();
-    }
+pub extern "C" fn mui_ed_move_lines_down(handle: i64) -> i32 {
+    apply_model_edit(handle, |m| m.move_lines_down())
 }
 
 // ---- Feature 7: word motion + selection-extending motion + smart home ----
@@ -13330,18 +13339,14 @@ pub extern "C" fn mui_ed_delete_multi(handle: i64) {
 
 /// Delete previous word at every caret.
 #[no_mangle]
-pub extern "C" fn mui_ed_delete_word_left_multi(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        m.delete_word_left_multi();
-    }
+pub extern "C" fn mui_ed_delete_word_left_multi(handle: i64) -> i32 {
+    apply_model_edit(handle, |m| m.delete_word_left_multi())
 }
 
 /// Delete next word at every caret.
 #[no_mangle]
-pub extern "C" fn mui_ed_delete_word_right_multi(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        m.delete_word_right_multi();
-    }
+pub extern "C" fn mui_ed_delete_word_right_multi(handle: i64) -> i32 {
+    apply_model_edit(handle, |m| m.delete_word_right_multi())
 }
 
 /// Newline + auto-indent at every caret.

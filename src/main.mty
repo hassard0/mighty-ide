@@ -88,16 +88,16 @@ extern c {
   fn mui_ed_redo(handle: I64) -> I32
   // ---- editor power-features (comment / indent / auto-close / brackets /
   //      duplicate / move-line / word-motion / select) ----
-  fn mui_ed_toggle_comment(handle: I64)
+  fn mui_ed_toggle_comment(handle: I64) -> I32
   fn mui_ed_indent(handle: I64) -> I32
   fn mui_ed_outdent(handle: I64) -> I32
   fn mui_ed_newline_indent(handle: I64)
   fn mui_ed_insert_smart(handle: I64, cp: I32) -> I32
   fn mui_ed_backspace_smart(handle: I64) -> I32
   fn mui_ed_bracket_match(handle: I64) -> I32
-  fn mui_ed_duplicate(handle: I64)
-  fn mui_ed_move_lines_up(handle: I64)
-  fn mui_ed_move_lines_down(handle: I64)
+  fn mui_ed_duplicate(handle: I64) -> I32
+  fn mui_ed_move_lines_up(handle: I64) -> I32
+  fn mui_ed_move_lines_down(handle: I64) -> I32
   fn mui_ed_move_ext(handle: I64, dir: I32, extend: I32)
   fn mui_ed_move_word(handle: I64, right: I32, extend: I32)
   fn mui_ed_home_smart(handle: I64, extend: I32)
@@ -121,8 +121,8 @@ extern c {
   fn mui_ed_insert_smart_multi(handle: I64, cp: I32)
   fn mui_ed_backspace_multi(handle: I64)
   fn mui_ed_delete_multi(handle: I64)
-  fn mui_ed_delete_word_left_multi(handle: I64)
-  fn mui_ed_delete_word_right_multi(handle: I64)
+  fn mui_ed_delete_word_left_multi(handle: I64) -> I32
+  fn mui_ed_delete_word_right_multi(handle: I64) -> I32
   fn mui_ed_newline_indent_multi(handle: I64)
   fn mui_ed_move_ext_multi(handle: I64, dir: I32, extend: I32)
   fn mui_ed_move_word_multi(handle: I64, right: I32, extend: I32)
@@ -2915,8 +2915,10 @@ fn main() {
           typing = false
           if shift_held(mods) {                                  // Ctrl+Shift+D : duplicate line/sel
             mui_ed_undo_record(h)
-            mui_ed_duplicate(h)
-            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            let changed = mui_ed_duplicate(h)
+            if changed == 1 {
+              mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            }
           } else {                                               // Ctrl+D : add caret at next occurrence
             let _d = mui_ed_add_caret_next(h)
           }
@@ -2929,8 +2931,10 @@ fn main() {
           find_nav = false
           mui_ed_undo_record(h)
           typing = false
-          mui_ed_toggle_comment(h)
-          mui_tab_set_dirty(h, mui_tab_active(h), 1)
+          let changed = mui_ed_toggle_comment(h)
+          if changed == 1 {
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+          }
         } else if ctrl_held(mods) && (cp == 98 || cp == 66) {    // Ctrl+B : toggle sidebar
           let _s = mui_sidebar_toggle(h)
         } else if ctrl_held(mods) && (cp == 119 || cp == 87) {   // Ctrl+W : close active tab
@@ -3166,8 +3170,10 @@ fn main() {
           } else if alt_held(kmods) {                          // Alt+Up : move line up
             find_nav = false
             mui_ed_undo_record(h)
-            mui_ed_move_lines_up(h)
-            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            let changed = mui_ed_move_lines_up(h)
+            if changed == 1 {
+              mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            }
           } else {
             mui_ed_move_ext_multi(h, dir_up(), ext_flag(shift_held(kmods)))
           }
@@ -3181,8 +3187,10 @@ fn main() {
           } else if alt_held(kmods) {                          // Alt+Down : move line down
             find_nav = false
             mui_ed_undo_record(h)
-            mui_ed_move_lines_down(h)
-            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            let changed = mui_ed_move_lines_down(h)
+            if changed == 1 {
+              mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            }
           } else {
             mui_ed_move_ext_multi(h, dir_down(), ext_flag(shift_held(kmods)))
           }
@@ -3210,28 +3218,34 @@ fn main() {
           let kmods = mui_event_mods(h)
           mui_ed_undo_record(h)
           typing = false
-          if ctrl_held(kmods) {
+          let changed = if ctrl_held(kmods) {
             mui_ed_delete_word_left_multi(h)                  // Ctrl+Backspace : delete previous word
           } else {
             // Backspace at EVERY caret (smart pair-delete where applicable).
             mui_ed_backspace_multi(h)
+            1
           }
-          mui_tab_set_dirty(h, mui_tab_active(h), 1)
-          mui_ghost_dismiss(h)                                 // edit: ghost stale, re-arm
-          mui_ghost_arm(h)
+          if changed == 1 {
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            mui_ghost_dismiss(h)                                 // edit: ghost stale, re-arm
+            mui_ghost_arm(h)
+          }
         } else if k == key_delete() {
           find_nav = false
           let kmods = mui_event_mods(h)
           mui_ed_undo_record(h)
           typing = false
-          if ctrl_held(kmods) {
+          let changed = if ctrl_held(kmods) {
             mui_ed_delete_word_right_multi(h)                 // Ctrl+Delete : delete next word
           } else {
             mui_ed_delete_multi(h)
+            1
           }
-          mui_tab_set_dirty(h, mui_tab_active(h), 1)
-          mui_ghost_dismiss(h)
-          mui_ghost_arm(h)
+          if changed == 1 {
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            mui_ghost_dismiss(h)
+            mui_ghost_arm(h)
+          }
         } else if k == key_enter() {
           if find_nav {
             let cnt = mui_find_count(h)
@@ -3865,8 +3879,10 @@ fn main() {
           find_nav = false
           mui_ed_undo_record(h)
           typing = false
-          mui_ed_toggle_comment(h)
-          mui_tab_set_dirty(h, mui_tab_active(h), 1)
+          let changed = mui_ed_toggle_comment(h)
+          if changed == 1 {
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+          }
         } else if id == cmd_copy_selection_or_line() {
           let _cc = mui_complete_cancel(h)
           completing = false
@@ -3893,14 +3909,16 @@ fn main() {
           find_nav = false
           mui_ed_undo_record(h)
           typing = false
-          if id == cmd_delete_previous_word() {
+          let changed = if id == cmd_delete_previous_word() {
             mui_ed_delete_word_left_multi(h)
           } else {
             mui_ed_delete_word_right_multi(h)
           }
-          mui_tab_set_dirty(h, mui_tab_active(h), 1)
-          mui_ghost_dismiss(h)
-          mui_ghost_arm(h)
+          if changed == 1 {
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            mui_ghost_dismiss(h)
+            mui_ghost_arm(h)
+          }
         } else if id == cmd_indent_line_selection() || id == cmd_outdent_line_selection() {
           mui_ed_undo_record(h)
           typing = false
@@ -3932,16 +3950,18 @@ fn main() {
           }
         } else if id == cmd_duplicate_line_selection() || id == cmd_move_line_up() || id == cmd_move_line_down() {
           mui_ed_undo_record(h)
-          if id == cmd_duplicate_line_selection() {
+          let changed = if id == cmd_duplicate_line_selection() {
             mui_ed_duplicate(h)
           } else if id == cmd_move_line_up() {
             mui_ed_move_lines_up(h)
           } else {
             mui_ed_move_lines_down(h)
           }
-          mui_tab_set_dirty(h, mui_tab_active(h), 1)
-          mui_ghost_dismiss(h)
-          mui_ghost_arm(h)
+          if changed == 1 {
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            mui_ghost_dismiss(h)
+            mui_ghost_arm(h)
+          }
           find_nav = false
         } else if id == cmd_open_file() {
           let oi = mui_open_file_dialog(h)
