@@ -4489,6 +4489,73 @@ fn editor_power_features_via_abi() {
 }
 
 #[test]
+fn in_file_replace_reports_noop_and_success_states() {
+    use crate::{mui_replace_all, mui_replace_next};
+
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    *ctx.tabs.active_model_mut() = crate::editor::TextModel::from_bytes(b"alpha beta alpha");
+
+    ctx.replace_bar.open("");
+    assert_eq!(mui_replace_all(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Enter text to replace");
+
+    ctx.replace_bar.open("gamma");
+    assert_eq!(mui_replace_next(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No matches to replace");
+
+    ctx.replace_bar.open("alpha");
+    assert_eq!(ctx.replace_bar.toggle_focus(), 1);
+    for c in "omega".chars() {
+        ctx.replace_bar.push(c as u32);
+    }
+    assert_eq!(mui_replace_next(h), 1);
+    assert_eq!(ctx.tabs.active_model().line(0), "omega beta alpha");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Replaced 1 occurrence");
+
+    ctx.replace_bar.open("alpha");
+    assert_eq!(ctx.replace_bar.toggle_focus(), 1);
+    for c in "omega".chars() {
+        ctx.replace_bar.push(c as u32);
+    }
+    assert_eq!(mui_replace_all(h), 1);
+    assert_eq!(ctx.tabs.active_model().line(0), "omega beta omega");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Replaced 1 occurrence");
+}
+
+#[test]
+fn in_file_replace_reports_read_only_preview() {
+    use crate::mui_replace_all;
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_replace_read_only_preview");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary foo").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.replace_bar.open("foo");
+    assert_eq!(mui_replace_all(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Replace is unavailable in read-only previews");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn welcome_active_when_no_file_open_then_inactive_after_edit() {
     use crate::{
         mui_ed_insert_char, mui_tab_new_untitled, mui_welcome_active, mui_welcome_dismiss,

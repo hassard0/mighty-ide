@@ -5283,3 +5283,14 @@ draw under the `function`/`snippet` label or overflow the hint strip.
   fits row labels/signatures before it, and fits the selected footer name/tail
   within the panel edge. Regression tests measure compact completion budgets so
   long labels and footer text ellipsize before overlapping metadata.
+
+L377. Replace commands need visible outcome feedback. `Replace Next` and
+`Replace All` both return `0` for empty queries, read-only previews, and no
+matches, so leaving those paths silent makes Enter feel broken and gives no clue
+about whether the command was refused or simply found nothing.
+
+- **IDE note:** in-file replace now toasts `Enter text to replace`, read-only
+  preview refusal, no-match outcomes, and successful replacement counts while
+  preserving the existing numeric ABI returns. Regression tests cover empty
+  queries, no matches, successful next/all replacement, and read-only binary
+  previews.

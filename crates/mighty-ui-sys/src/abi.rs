@@ -12846,12 +12846,23 @@ pub extern "C" fn mui_replace_next(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    if ctx.tabs.active_read_only() {
+    let needle = ctx.replace_bar.find_string();
+    if needle.is_empty() {
+        ctx.push_toast(crate::toast::Kind::Info, "Enter text to replace");
         return 0;
     }
-    let needle = ctx.replace_bar.find_string();
+    if ctx.tabs.active_read_only() {
+        ctx.push_toast(crate::toast::Kind::Warn, "Replace is unavailable in read-only previews");
+        return 0;
+    }
     let repl = ctx.replace_bar.repl_string();
-    i32::from(ctx.tabs.active_model_mut().replace_next(&needle, &repl))
+    if ctx.tabs.active_model_mut().replace_next(&needle, &repl) {
+        ctx.push_toast(crate::toast::Kind::Success, "Replaced 1 occurrence");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No matches to replace");
+        0
+    }
 }
 
 /// Replace ALL occurrences of the find field with the replace field in the
@@ -12861,12 +12872,29 @@ pub extern "C" fn mui_replace_all(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    if ctx.tabs.active_read_only() {
+    let needle = ctx.replace_bar.find_string();
+    if needle.is_empty() {
+        ctx.push_toast(crate::toast::Kind::Info, "Enter text to replace");
         return 0;
     }
-    let needle = ctx.replace_bar.find_string();
+    if ctx.tabs.active_read_only() {
+        ctx.push_toast(crate::toast::Kind::Warn, "Replace is unavailable in read-only previews");
+        return 0;
+    }
     let repl = ctx.replace_bar.repl_string();
-    ctx.tabs.active_model_mut().replace_all(&needle, &repl) as i32
+    let n = ctx.tabs.active_model_mut().replace_all(&needle, &repl) as i32;
+    if n > 0 {
+        ctx.push_toast(
+            crate::toast::Kind::Success,
+            format!(
+                "Replaced {n} {}",
+                if n == 1 { "occurrence" } else { "occurrences" }
+            ),
+        );
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No matches to replace");
+    }
+    n
 }
 
 /// Draw the in-file replace bar: two stacked input rows (find + replace) as a
