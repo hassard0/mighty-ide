@@ -4924,3 +4924,18 @@ wrapped into a stray final line and made the disabled input look broken.
 - **Language note:** no compiler bug surfaced. The UI layer needs layout tests
   that assert compact empty/disabled placeholders fit within their real control
   budget instead of relying only on screenshot review.
+
+L344. Generic LSP parity must include quick fixes, not only read-only
+intelligence. Completion, hover, definition, and diagnostics already routed
+non-Mighty files through configured language servers, but Ctrl+. still used the
+Mighty-only `mty lsp` code-action request path.
+
+- **IDE note:** code-action requests now route non-Mighty files through the
+  registry-backed generic LSP client using `textDocument/codeAction` range
+  params, so inline-edit quick fixes from servers such as rust-analyzer can
+  appear in the existing quick-fix menu. The Mighty-only `Fix all (mty)` action
+  remains limited to Mighty files.
+- **Language note:** no compiler bug surfaced. Mighty should eventually support
+  the full LSP code-action lifecycle, including `workspace/executeCommand` and
+  server-initiated `workspace/applyEdit`, so command-only actions can be applied
+  rather than filtered out.

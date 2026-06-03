@@ -30,12 +30,13 @@ use std::time::Duration;
 use crate::diagnostics::{Diag, Severity};
 use crate::lspregistry::ServerSpec;
 
-/// Which `textDocument/*` request to fire (the method + position).
+/// Which `textDocument/*` request to fire.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Method {
     Completion,
     Hover,
     Definition,
+    CodeAction { end_line: u32, end_col: u32 },
 }
 
 impl Method {
@@ -44,6 +45,19 @@ impl Method {
             Method::Completion => "textDocument/completion",
             Method::Hover => "textDocument/hover",
             Method::Definition => "textDocument/definition",
+            Method::CodeAction { .. } => "textDocument/codeAction",
+        }
+    }
+
+    fn params(self, uri: &str, line: u32, col: u32) -> String {
+        let u = json_escape(uri);
+        match self {
+            Method::Completion | Method::Hover | Method::Definition => format!(
+                r#"{{"textDocument":{{"uri":"{u}"}},"position":{{"line":{line},"character":{col}}}}}"#
+            ),
+            Method::CodeAction { end_line, end_col } => format!(
+                r#"{{"textDocument":{{"uri":"{u}"}},"range":{{"start":{{"line":{line},"character":{col}}},"end":{{"line":{end_line},"character":{end_col}}}}},"context":{{"diagnostics":[]}}}}"#
+            ),
         }
     }
 }
@@ -170,13 +184,7 @@ pub fn request_with_timeout(
         json_escape(language_id),
         json_escape(source)
     );
-    let request_msg = format!(
-        r#"{{"jsonrpc":"2.0","id":2,"method":"{}","params":{{"textDocument":{{"uri":"{}"}},"position":{{"line":{},"character":{}}}}}}}"#,
-        method.name(),
-        json_escape(&uri),
-        line,
-        col
-    );
+    let request_msg = request_msg(method, &uri, line, col);
 
     let Some(mut stdin) = child.stdin.take() else {
         kill(child);
@@ -250,6 +258,14 @@ pub fn request_with_timeout(
 
     let text = String::from_utf8_lossy(&raw).into_owned();
     crate::nav::lsp::isolate_response(&text, "\"id\":2")
+}
+
+fn request_msg(method: Method, uri: &str, line: u32, col: u32) -> String {
+    format!(
+        r#"{{"jsonrpc":"2.0","id":2,"method":"{}","params":{}}}"#,
+        method.name(),
+        method.params(uri, line, col)
+    )
 }
 
 /// Open `source` on the server and collect its `publishDiagnostics` for the
@@ -605,6 +621,22 @@ mod tests {
         assert_eq!(json_escape("a\"b\\c"), "a\\\"b\\\\c");
         let u = file_uri(Path::new("C:\\x\\y.rs"));
         assert!(u.starts_with("file:///C:/x/y.rs") || u.starts_with("file://"));
+    }
+
+    #[test]
+    fn code_action_request_uses_range_params() {
+        let msg = request_msg(
+            Method::CodeAction {
+                end_line: 4,
+                end_col: 17,
+            },
+            "file:///repo/src/main.rs",
+            4,
+            0,
+        );
+        assert!(msg.contains(r#""method":"textDocument/codeAction""#));
+        assert!(msg.contains(r#""range":{"start":{"line":4,"character":0},"end":{"line":4,"character":17}}"#));
+        assert!(msg.contains(r#""context":{"diagnostics":[]}"#));
     }
 
     /// Guarded integration test: if a real `rust-analyzer` is on PATH, spawn it

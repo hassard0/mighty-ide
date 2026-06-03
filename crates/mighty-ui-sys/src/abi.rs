@@ -8671,21 +8671,38 @@ pub(crate) fn compute_line_actions(
         .nth(line0 as usize)
         .map(|l| l.chars().count() as u32)
         .unwrap_or(0);
-    let raw = crate::language::lsp::request(
-        &path,
-        &source,
-        crate::language::lsp::Req::CodeAction {
-            start_line: line0,
-            start_col: 0,
-            end_line: line0,
-            end_col: line_len.max(col.max(0) as u32),
-        },
-    );
+    let end_col = line_len.max(col.max(0) as u32);
+    let raw = if ctx.language == Language::Mighty {
+        crate::language::lsp::request(
+            &path,
+            &source,
+            crate::language::lsp::Req::CodeAction {
+                start_line: line0,
+                start_col: 0,
+                end_line: line0,
+                end_col,
+            },
+        )
+    } else if let Some(spec) = crate::lspregistry::server_for(ctx.language) {
+        let root = workspace_root(&path);
+        crate::lspclient::request(
+            &spec,
+            ctx.language.lsp_id(),
+            &root,
+            &path,
+            &source,
+            crate::lspclient::Method::CodeAction { end_line: line0, end_col },
+            line0,
+            0,
+        )
+    } else {
+        String::new()
+    };
     let mut actions = crate::language::parse_code_actions(&raw);
     // Only offer "Fix all (mty)" when there's an actual fixable diagnostic on the
     // line (the LSP returned at least one action) — so the lightbulb never lights
     // every line just because the `mty fix` subcommand exists.
-    if !actions.is_empty() && mty_fix_available() {
+    if ctx.language == Language::Mighty && !actions.is_empty() && mty_fix_available() {
         actions.push(crate::language::CodeAction {
             title: "Fix all (mty)".to_string(),
             edit: None,
