@@ -6279,3 +6279,11 @@ counts before drawing proportional UI text.
 - **IDE note:** Welcome recents and the Open Recent picker now shorten names and
   paths with measured UI-font widths. Long workspace paths keep useful root and
   tail context without overflowing their row budgets.
+
+L486. AI chat prose wrapping should use measured UI text. The copilot transcript
+and composer converted panel width into character counts before rendering
+proportional UI text, so wide glyphs could exceed their row budgets.
+
+- **IDE note:** AI transcript prose and the composer now wrap against measured
+  UI-font widths, and the send hit-test shares the measured composer geometry.
+  Code blocks still wrap on the monospace grid where columns are intentional.

@@ -503,6 +503,7 @@ pub fn input_geometry(input: &str, width: u32, height: u32) -> (f32, f32, f32, f
     input_geometry_for_state(input, true, width, height)
 }
 
+#[cfg(test)]
 pub fn input_geometry_for_state(
     input: &str,
     chat_available: bool,
@@ -515,7 +516,27 @@ pub fn input_geometry_for_state(
     let px = w - pw;
     let chrome = theme::CHROME_FONT_SIZE;
     let input_pad = 56.0;
-    let input_lines = composer_lines(chat_available, input, ((pw - 56.0) / (chrome * 0.55)) as usize);
+    let input_lines = composer_lines_estimated(chat_available, input, ((pw - 56.0) / (chrome * 0.55)) as usize);
+    let n_in = input_lines.len().max(1) as f32;
+    let input_h = (n_in * layout::LINE_H()).min(120.0) + 16.0;
+    let input_y = h - input_h - input_pad;
+    (px, pw, input_y, input_h)
+}
+
+pub fn input_geometry_for_state_measured(
+    text: &mut crate::text::Text,
+    input: &str,
+    chat_available: bool,
+    width: u32,
+    height: u32,
+) -> (f32, f32, f32, f32) {
+    let w = width as f32;
+    let h = height as f32;
+    let pw = AI_PANEL_W;
+    let px = w - pw;
+    let chrome = theme::CHROME_FONT_SIZE;
+    let input_pad = 56.0;
+    let input_lines = composer_lines(text, chat_available, input, pw - 56.0, chrome);
     let n_in = input_lines.len().max(1) as f32;
     let input_h = (n_in * layout::LINE_H()).min(120.0) + 16.0;
     let input_y = h - input_h - input_pad;
@@ -547,12 +568,13 @@ enum Seg {
     Gap,
 }
 
-/// Word-wrap `text` to `max_chars` per line (greedy). Preserves explicit
-/// newlines. Used for both prose and code.
-fn wrap(text: &str, max_chars: usize) -> Vec<String> {
+/// Word-wrap `value` to `max_chars` per line (greedy). Preserves explicit
+/// newlines. Used for legacy geometry tests and monospace-adjacent logic.
+#[cfg(test)]
+fn wrap(value: &str, max_chars: usize) -> Vec<String> {
     let max = max_chars.max(8);
     let mut out = Vec::new();
-    for raw in text.split('\n') {
+    for raw in value.split('\n') {
         if raw.chars().count() <= max {
             out.push(raw.to_string());
             continue;
@@ -593,7 +615,94 @@ fn wrap(text: &str, max_chars: usize) -> Vec<String> {
     out
 }
 
-fn composer_lines(chat_available: bool, input: &str, max_chars: usize) -> Vec<String> {
+fn wrap_ui(text: &mut crate::text::Text, value: &str, max_px: f32, size: f32) -> Vec<String> {
+    let max_px = max_px.max(1.0);
+    let mut out = Vec::new();
+    for raw in value.split('\n') {
+        if raw.is_empty() || text.measure_ui_sized(raw, size).0 <= max_px {
+            out.push(raw.to_string());
+            continue;
+        }
+
+        let mut cur = String::new();
+        for word in raw.split(' ') {
+            if word.is_empty() {
+                continue;
+            }
+            if text.measure_ui_sized(word, size).0 > max_px {
+                if !cur.is_empty() {
+                    out.push(std::mem::take(&mut cur));
+                }
+                for chunk in wrap_long_ui_token(text, word, max_px, size) {
+                    if text.measure_ui_sized(&chunk, size).0 > max_px && chunk.chars().count() > 1 {
+                        continue;
+                    }
+                    out.push(chunk);
+                }
+                continue;
+            }
+
+            let candidate = if cur.is_empty() {
+                word.to_string()
+            } else {
+                format!("{cur} {word}")
+            };
+            if text.measure_ui_sized(&candidate, size).0 <= max_px {
+                cur = candidate;
+            } else {
+                if !cur.is_empty() {
+                    out.push(std::mem::take(&mut cur));
+                }
+                cur.push_str(word);
+            }
+        }
+        if !cur.is_empty() {
+            out.push(cur);
+        }
+    }
+    out
+}
+
+fn wrap_long_ui_token(text: &mut crate::text::Text, token: &str, max_px: f32, size: f32) -> Vec<String> {
+    let chars: Vec<char> = token.chars().collect();
+    let mut out = Vec::new();
+    let mut start = 0usize;
+    while start < chars.len() {
+        let mut lo = 1usize;
+        let mut hi = chars.len() - start;
+        let mut best = 1usize;
+        while lo <= hi {
+            let mid = (lo + hi) / 2;
+            let candidate: String = chars[start..start + mid].iter().collect();
+            if text.measure_ui_sized(&candidate, size).0 <= max_px || mid == 1 {
+                best = mid;
+                lo = mid + 1;
+            } else {
+                hi = mid.saturating_sub(1);
+            }
+        }
+        out.push(chars[start..start + best].iter().collect());
+        start += best;
+    }
+    out
+}
+
+fn composer_lines(
+    text: &mut crate::text::Text,
+    chat_available: bool,
+    input: &str,
+    max_px: f32,
+    size: f32,
+) -> Vec<String> {
+    if !chat_available || input.is_empty() {
+        wrap_ui(text, input_placeholder(chat_available), max_px, size)
+    } else {
+        wrap_ui(text, input, max_px, size)
+    }
+}
+
+#[cfg(test)]
+fn composer_lines_estimated(chat_available: bool, input: &str, max_chars: usize) -> Vec<String> {
     if !chat_available || input.is_empty() {
         wrap(input_placeholder(chat_available), max_chars)
     } else {
@@ -645,7 +754,13 @@ fn code_break_index(s: &str, max_chars: usize) -> usize {
 
 /// Flatten the transcript into wrapped segments, splitting fenced ``` code
 /// blocks out so they can render in a monospace card (markdown-ish).
-fn segments(transcript: &[Turn], prose_cols: usize, code_cols: usize) -> Vec<Seg> {
+fn segments(
+    text: &mut crate::text::Text,
+    transcript: &[Turn],
+    prose_px: f32,
+    prose_size: f32,
+    code_cols: usize,
+) -> Vec<Seg> {
     let mut segs = Vec::new();
     for (i, turn) in transcript.iter().enumerate() {
         if i > 0 {
@@ -678,7 +793,7 @@ fn segments(transcript: &[Turn], prose_cols: usize, code_cols: usize) -> Vec<Seg
                     code_run.push(w);
                 }
             } else {
-                for w in wrap(line, prose_cols) {
+                for w in wrap_ui(text, line, prose_px, prose_size) {
                     segs.push(Seg::Line {
                         role: turn.role,
                         text: w,
@@ -785,9 +900,8 @@ impl AiPanel {
         // ---- input box at the bottom ----
         let chat_available = self.force_transcript || api_key().is_some();
         let (_gx, _gw, input_y, input_h) =
-            input_geometry_for_state(&self.input, chat_available, width, height);
-        let composer_cols = ((pw - 56.0) / (chrome * 0.55)) as usize;
-        let input_lines = composer_lines(chat_available, &self.input, composer_cols);
+            input_geometry_for_state_measured(&mut ctx.text, &self.input, chat_available, width, height);
+        let input_lines = composer_lines(&mut ctx.text, chat_available, &self.input, pw - 56.0, chrome);
         let body_top = top + head_h + 6.0;
         let body_bottom = input_y - 8.0;
 
@@ -940,7 +1054,6 @@ impl AiPanel {
     ) {
         let chrome = theme::CHROME_FONT_SIZE;
         let row_h = 18.0_f32;
-        let prose_cols = ((pw - 48.0) / (chrome * 0.55)) as usize;
         let code_cols = ((pw - 56.0) / (theme::CHAR_W())) as usize;
 
         if self.transcript.is_empty() {
@@ -955,7 +1068,7 @@ impl AiPanel {
             return;
         }
 
-        let segs = segments(&self.transcript, prose_cols, code_cols);
+        let segs = segments(&mut ctx.text, &self.transcript, pw - 48.0, chrome, code_cols);
         let total_h = segs
             .iter()
             .map(|s| match s {
@@ -1166,7 +1279,10 @@ mod tests {
 
     #[test]
     fn no_key_composer_shows_setup_copy_not_typed_draft() {
-        let lines = composer_lines(false, "explain this file", 42);
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let lines = composer_lines(&mut ctx.text, false, "explain this file", 300.0, theme::CHROME_FONT_SIZE);
         let shown = lines.join(" ");
         assert_eq!(
             lines.len(),
@@ -1182,8 +1298,27 @@ mod tests {
 
     #[test]
     fn available_composer_shows_typed_draft() {
-        let lines = composer_lines(true, "explain this file", 28);
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let lines = composer_lines(&mut ctx.text, true, "explain this file", 300.0, theme::CHROME_FONT_SIZE);
         assert_eq!(lines, vec!["explain this file".to_string()]);
+    }
+
+    #[test]
+    fn wrap_ui_respects_measured_width_for_wide_glyphs() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let size = theme::CHROME_FONT_SIZE;
+        let max_px = ctx.text.measure_ui_sized("WWWW", size).0 + 0.5;
+        let lines = wrap_ui(&mut ctx.text, "WWWW WWWW WWWW", max_px, size);
+
+        assert!(lines.len() >= 3);
+        for line in lines {
+            let w = ctx.text.measure_ui_sized(&line, size).0;
+            assert!(w <= max_px + 0.5, "wrapped line should fit measured width: {line} ({w})");
+        }
     }
 
     #[test]
@@ -1200,6 +1335,21 @@ mod tests {
             "available composer should still grow for a long draft"
         );
         assert!(active_y < disabled_y);
+    }
+
+    #[test]
+    fn measured_geometry_grows_for_measured_composer_lines() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(1280, 832) else {
+            return;
+        };
+        let long = "WWWW ".repeat(40);
+        let (_, _, setup_y, setup_h) =
+            input_geometry_for_state_measured(&mut ctx.text, "", false, 1280, 832);
+        let (_, _, active_y, active_h) =
+            input_geometry_for_state_measured(&mut ctx.text, &long, true, 1280, 832);
+
+        assert!(active_h > setup_h);
+        assert!(active_y < setup_y);
     }
 
     #[test]
@@ -1280,11 +1430,14 @@ mod tests {
     // ---- Code-block segmentation produces monospace Code segs ----
     #[test]
     fn segments_split_code_fences() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
         let turns = vec![Turn {
             role: Role::Assistant,
             text: "before\n```\nlet x = 1\n```\nafter".to_string(),
         }];
-        let segs = segments(&turns, 80, 80);
+        let segs = segments(&mut ctx.text, &turns, 300.0, theme::CHROME_FONT_SIZE, 80);
         let codes = segs
             .iter()
             .filter(|s| matches!(s, Seg::Code { .. }))
