@@ -5730,3 +5730,11 @@ should replace stale layout cards instead of stacking beside pane feedback.
 - **IDE note:** `Window minimized`, `Window maximized`, `Window restored`,
   `Zen mode on ...`, and `Zen mode off` now share the Layout toast replacement
   key. Repeated chrome changes keep the latest window/focus state visible.
+
+L423. Core editor conventions still matter after advanced features land.
+Multi-cursor, snippets, and command-palette flows do not replace baseline muscle
+memory; `Ctrl+A` should select the whole active document without dirtying it.
+
+- **IDE note:** The shim text model now exposes `select_all`, Mighty routes
+  `Ctrl+A` to `mui_ed_select_all`, and the shortcut docs list Select All as a
+  first-class editing command. Empty documents remain clean no-op selections.

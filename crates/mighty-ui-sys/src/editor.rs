@@ -686,6 +686,14 @@ impl TextModel {
         self.carets[0].col = self.line_len(self.carets[0].line);
     }
 
+    /// Select the entire document. This collapses any multi-caret state back to
+    /// one primary selection and does not mark the buffer dirty.
+    pub fn select_all(&mut self) {
+        let last_line = self.lines.len().saturating_sub(1);
+        let last_col = self.line_len(last_line);
+        self.set_selection((0, 0), (last_line, last_col));
+    }
+
     /// The text currently selected (empty string when there is no selection).
     pub fn selected_text(&self) -> String {
         let Some(((l0, c0), (l1, c1))) = self.selection_range() else {
@@ -2224,6 +2232,32 @@ mod tests {
         m.move_to(0, 1);
         m.select_line();
         assert_eq!(m.selected_text(), "abc");
+    }
+
+    #[test]
+    fn select_all_spans_entire_document_without_dirtying() {
+        let mut m = doc("abc\ndef");
+        m.move_to(1, 1);
+        m.mark_clean();
+
+        m.select_all();
+
+        assert_eq!(m.selected_text(), "abc\ndef");
+        assert_eq!(m.selection_range(), Some(((0, 0), (1, 3))));
+        assert_eq!((m.cursor_line(), m.cursor_col()), (1, 3));
+        assert!(!m.dirty());
+    }
+
+    #[test]
+    fn select_all_on_empty_document_is_a_clean_noop_selection() {
+        let mut m = TextModel::new();
+
+        m.select_all();
+
+        assert!(!m.has_selection());
+        assert_eq!(m.selected_text(), "");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 0));
+        assert!(!m.dirty());
     }
 
     // ---- Multi-cursor ----

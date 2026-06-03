@@ -12642,6 +12642,14 @@ pub extern "C" fn mui_ed_select_word(handle: i64) -> i32 {
     0
 }
 
+/// Select the entire active document. Pure motion; does not mark dirty.
+#[no_mangle]
+pub extern "C" fn mui_ed_select_all(handle: i64) {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        m.select_all();
+    }
+}
+
 /// `1` if the active model has a non-empty selection, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_ed_has_selection(handle: i64) -> i32 {

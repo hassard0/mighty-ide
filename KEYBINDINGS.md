@@ -12,6 +12,7 @@ the `mui_chord` router). This table is the authoritative list.
 | `Ctrl+Shift+S` | Save As (native file picker, typed-path fallback) |
 | `Ctrl+Z` | Undo |
 | `Ctrl+Y` / `Ctrl+Shift+Z` | Redo |
+| `Ctrl+A` | Select all |
 | `Ctrl+/` | Toggle line comment |
 | `Ctrl+Shift+D` | Duplicate line / selection |
 | `Alt+Up` / `Alt+Down` | Move line up / down |
