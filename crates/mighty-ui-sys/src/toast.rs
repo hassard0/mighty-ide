@@ -621,6 +621,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No source-control row"
         || m == "No git repository for diff"
         || m.starts_with("No diff for ")
+        || m == "Diff view closed"
+        || m == "Diff view is already closed"
         || m == "No file to blame"
         || m.starts_with("No blame ")
         || m.starts_with("Blame on ")
@@ -1586,6 +1588,18 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No diff for main.mty");
         assert_eq!(q.toasts()[0].kind, Kind::Info);
+
+        q.push_at(Kind::Info, "Diff view closed", t0 + Duration::from_millis(250));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Diff view closed");
+
+        q.push_at(
+            Kind::Info,
+            "Diff view is already closed",
+            t0 + Duration::from_millis(275),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Diff view is already closed");
 
         q.push_at(
             Kind::Warn,

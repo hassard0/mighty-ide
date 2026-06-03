@@ -7162,3 +7162,14 @@ closed. Silent no-ops make that command feel broken.
   `Markdown preview is already closed` for the no-op path. Mighty declares and
   discards the return value explicitly, and Markdown preview feedback stays in
   the Markdown toast replacement lane.
+
+L572. Diff close should behave like the other source-control close commands.
+`Diff: Close View` could be invoked from the palette after the inline diff was
+already gone, but the old void ABI silently did nothing and could not report
+whether it actually closed a view.
+
+- **IDE note:** `mui_diff_close` now returns `1` when it closes an active diff
+  view and `0` when the view is already closed, reporting `Diff view closed` or
+  `Diff view is already closed`. Those messages share the Git/diff toast
+  replacement lane, and Mighty explicitly discards the return in both Esc and
+  palette close paths.

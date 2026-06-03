@@ -3798,10 +3798,18 @@ fn diff_close_clears_inline_view() {
     );
     assert!(ctx.diff.is_active());
 
-    crate::featureabi::mui_diff_close(handle);
+    assert_eq!(crate::featureabi::mui_diff_close(handle), 1);
 
     assert!(!ctx.diff.is_active());
     assert_eq!(ctx.diff.line_count(), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Diff view closed");
+
+    assert_eq!(crate::featureabi::mui_diff_close(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Diff view is already closed");
 }
 
 #[test]
@@ -8162,7 +8170,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_diff_close_view()")
-            && main.contains("mui_diff_close(h)")
+            && main.contains("let _dcv = mui_diff_close(h)")
             && main.contains("diff_open = false"),
         "Diff close command must close the shim diff view and clear Mighty's diff-open flag"
     );

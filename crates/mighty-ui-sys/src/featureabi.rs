@@ -643,11 +643,20 @@ pub extern "C" fn mui_diff_active(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.diff.is_active()))
 }
 
-/// Close the diff view (return to editing).
+/// Close the diff view (return to editing). Returns `1` when it closed an
+/// active diff, or `0` when the diff view was already closed.
 #[no_mangle]
-pub extern "C" fn mui_diff_close(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
+pub extern "C" fn mui_diff_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.diff.is_active() {
         ctx.diff.close();
+        ctx.push_toast(crate::toast::Kind::Info, "Diff view closed");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Diff view is already closed");
+        0
     }
 }
 
