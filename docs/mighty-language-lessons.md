@@ -7531,3 +7531,8 @@ L609. Boundary deletes need model-clone preflights. Backspace, Delete, and
 word-delete can be valid commands that do nothing at document edges; use a
 silent cloned edit probe for undo routing while the real edit ABI keeps
 read-only feedback and changed-state ownership.
+
+L610. Paste undo routing needs a silent clipboard preflight. Empty or
+unavailable clipboard reads should not create editor undo checkpoints; keep
+the visible clipboard/read-only feedback in Paste itself and gate snapshots
+through a no-toast `can_paste` query.

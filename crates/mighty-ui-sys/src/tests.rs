@@ -7536,6 +7536,48 @@ fn cut_preflight_tracks_mutating_targets_and_read_only() {
 }
 
 #[test]
+fn paste_preflight_tracks_clipboard_editability_and_read_only() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_ed_can_paste(0), 0);
+
+    std::env::set_var("MUI_CLIPBOARD_TEXT", "");
+    assert_eq!(crate::mui_ed_can_paste(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_ed_paste(h), 0);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Clipboard is empty");
+
+    ctx.toasts.clear();
+    std::env::set_var("MUI_CLIPBOARD_TEXT", "clip");
+    assert_eq!(crate::mui_ed_can_paste(h), 1);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_ed_paste(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "clip");
+
+    let root = std::env::temp_dir().join("mui_paste_preflight");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    assert_eq!(crate::mui_ed_can_paste(h), 0);
+    assert_eq!(crate::mui_ed_paste(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+
+    std::env::remove_var("MUI_CLIPBOARD_TEXT");
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn delete_preflights_track_boundaries_selection_and_read_only() {
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();
@@ -8652,8 +8694,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("if mui_ed_can_cut(h) == 1 { mui_ed_undo_record(h) }\n          let cut_ok = mui_ed_cut(h)")
-            && main.contains("if id == cmd_paste_in_editor() || mui_ed_can_cut(h) == 1 {\n            mui_ed_undo_record(h)\n          }\n          let edit_ok = if id == cmd_cut_selection_or_line()"),
+            && main.contains("if (id == cmd_paste_in_editor() && mui_ed_can_paste(h) == 1) || (id == cmd_cut_selection_or_line() && mui_ed_can_cut(h) == 1) {\n            mui_ed_undo_record(h)\n          }\n          let edit_ok = if id == cmd_cut_selection_or_line()"),
         "cut key and command paths must preflight empty-line no-ops before recording undo"
+    );
+    assert!(
+        main.contains("if mui_ed_can_paste(h) == 1 { mui_ed_undo_record(h) }\n          let paste_ok = mui_ed_paste(h)")
+            && main.contains("id == cmd_paste_in_editor() && mui_ed_can_paste(h) == 1"),
+        "paste key and command paths must preflight empty clipboard/read-only no-ops before recording undo"
     );
     assert!(
         main.contains("let can_delete = if ctrl_held(kmods) {\n            mui_ed_can_delete_word_left(h)\n          } else {\n            mui_ed_can_backspace(h)\n          }\n          if can_delete == 1 { mui_ed_undo_record(h) }")

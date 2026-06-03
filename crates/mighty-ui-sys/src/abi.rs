@@ -6062,6 +6062,9 @@ fn write_clipboard_text(text: &str) -> std::io::Result<()> {
 }
 
 fn read_clipboard_text() -> std::io::Result<String> {
+    if let Ok(text) = std::env::var("MUI_CLIPBOARD_TEXT") {
+        return Ok(text);
+    }
     let Some((program, args)) = platform_clipboard_read_command() else {
         return Err(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
@@ -13430,6 +13433,22 @@ pub extern "C" fn mui_ed_paste(handle: i64) -> i32 {
     } else {
         ctx.push_toast(crate::toast::Kind::Info, "Clipboard is empty");
         0
+    }
+}
+
+/// `1` when Paste can insert non-empty clipboard text into the active model.
+/// Pure preflight: no toasts; Paste keeps clipboard/read-only feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_paste(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only() {
+        return 0;
+    }
+    match read_clipboard_text() {
+        Ok(text) => i32::from(!text.is_empty()),
+        Err(_) => 0,
     }
 }
 
