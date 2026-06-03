@@ -10607,11 +10607,26 @@ pub extern "C" fn mui_ed_load(handle: i64) -> i64 {
 /// in-memory model so the buffer matches disk (cursor preserved). Returns the
 /// exact bytes that should be written.
 fn mark_active_clean(ctx: &mut MuiContext) {
-    ctx.tabs.active_model_mut().mark_clean();
     let active = ctx.tabs.active();
-    ctx.tabs.set_dirty(active, false);
+    let bytes = ctx.tabs.active_model().to_bytes();
+    if let Some(tab) = ctx.tabs.get_mut(active) {
+        tab.bytes = bytes;
+        tab.model.mark_clean();
+        tab.dirty = false;
+    }
     ctx.pending_dirty_close = None;
     ctx.pending_quit = None;
+}
+
+fn refresh_active_dirty_from_saved(ctx: &mut MuiContext) {
+    let active = ctx.tabs.active();
+    if let Some(tab) = ctx.tabs.get_mut(active) {
+        let clean = tab.model.to_bytes() == tab.bytes;
+        if clean {
+            tab.model.mark_clean();
+        }
+        tab.dirty = !clean && !tab.read_only;
+    }
 }
 
 fn reject_read_only_save(ctx: &mut MuiContext) -> i32 {
@@ -13057,8 +13072,7 @@ pub extern "C" fn mui_ed_undo(handle: i64) -> i32 {
             let current = ctx.tabs.active_model().clone();
             ctx.ed_redo.push(current);
             *ctx.tabs.active_model_mut() = prev;
-            let active = ctx.tabs.active();
-            ctx.tabs.set_dirty(active, true);
+            refresh_active_dirty_from_saved(ctx);
             1
         }
         None => {
@@ -13084,8 +13098,7 @@ pub extern "C" fn mui_ed_redo(handle: i64) -> i32 {
             let current = ctx.tabs.active_model().clone();
             ctx.ed_undo.push(current);
             *ctx.tabs.active_model_mut() = next;
-            let active = ctx.tabs.active();
-            ctx.tabs.set_dirty(active, true);
+            refresh_active_dirty_from_saved(ctx);
             1
         }
         None => {

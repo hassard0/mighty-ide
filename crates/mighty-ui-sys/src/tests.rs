@@ -3638,6 +3638,8 @@ fn save_all_prompts_for_dirty_untitled_tabs() {
     let _g = crate::settings::TEST_LOCK
         .lock()
         .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    crate::settings::set_active(crate::settings::Settings::default());
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_save_all_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
@@ -3681,6 +3683,7 @@ fn save_all_prompts_for_dirty_untitled_tabs() {
     assert_eq!(toast.kind, crate::toast::Kind::Success);
     assert_eq!(toast.message, "Saved 3 files");
 
+    crate::settings::set_active(before);
     let _ = std::fs::remove_dir_all(&root);
 }
 
@@ -6692,6 +6695,10 @@ fn codeaction_active_workspace_edit_remains_undoable() {
     assert_eq!(crate::mui_ed_undo(h), 1);
     assert_eq!(ctx.tabs.active_model().as_text(), "old_symbol\n");
     assert!(ctx.tabs.is_dirty(ctx.tabs.active()));
+
+    assert_eq!(crate::mui_ed_redo(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "new_symbol\n");
+    assert!(!ctx.tabs.is_dirty(ctx.tabs.active()));
 
     let _ = std::fs::remove_dir_all(&root);
 }
