@@ -7465,3 +7465,12 @@ snippet is available before it can record the undo checkpoint for the expansion.
   `mui_snippet_try_expand`, then marks dirty only when the expansion succeeds.
   This makes direct snippet expansion undoable as a single edit without adding
   undo checkpoints to ordinary Tab indentation misses.
+
+L600. Format Document needs an undo preflight after save. The formatter ABI is
+stateful because it reports user-facing outcomes, but unsupported targets should
+not add an undo checkpoint before that no-op feedback is shown.
+
+- **IDE note:** `mui_format_can_current` now exposes a silent file-backed,
+  editable `.mty` preflight. `do_format` saves first, checks that preflight, and
+  records the undo snapshot only for real format attempts while still calling
+  `mui_format_current` for existing failure toasts.

@@ -6404,6 +6404,8 @@ fn format_current_reports_missing_or_unsupported_target() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
+    assert_eq!(crate::mui_format_can_current(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
     assert_eq!(crate::mui_format_current(h), -1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
@@ -6415,6 +6417,7 @@ fn format_current_reports_missing_or_unsupported_target() {
     ctx.tabs.open_path(path.clone());
     crate::sync_active_path(&mut ctx);
 
+    assert_eq!(crate::mui_format_can_current(h), 0);
     assert_eq!(crate::mui_format_current(h), 0);
     assert_eq!(std::fs::read(&path).unwrap(), original);
     let toast = ctx.toasts.toasts().last().unwrap();
@@ -6422,6 +6425,32 @@ fn format_current_reports_missing_or_unsupported_target() {
     assert_eq!(toast.message, "Format is available for Mighty files");
 
     let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn format_preflight_reports_only_safe_mutating_targets() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!("mui_format_preflight_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+
+    let mty = root.join("main.mty");
+    std::fs::write(&mty, b"fn main() {}\n").unwrap();
+    ctx.tabs.open_path(mty);
+    crate::sync_active_path(&mut ctx);
+    assert_eq!(crate::mui_format_can_current(h), 1);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    let binary_mty = root.join("asset.mty");
+    std::fs::write(&binary_mty, b"\0not editable mighty source").unwrap();
+    ctx.tabs.open_path(binary_mty);
+    crate::sync_active_path(&mut ctx);
+    assert_eq!(crate::mui_format_can_current(h), 0);
+    assert!(ctx.tabs.active_read_only());
+    assert!(ctx.toasts.toasts().is_empty());
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]
@@ -8249,6 +8278,24 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         main.contains("mui_snippet_can_expand(h) == 1")
             && main.contains("mui_ed_undo_record(h)\n            typing = false\n            let expanded = mui_snippet_try_expand(h)"),
         "direct Tab snippet expansion must record undo before mutating"
+    );
+    let format_fn = main
+        .split("fn do_format(h: I64) {")
+        .nth(1)
+        .and_then(|tail| tail.split("\n}").next())
+        .expect("Mighty main must keep a do_format helper");
+    let format_can = format_fn
+        .find("let can_format = mui_format_can_current(h)")
+        .expect("Format Document must preflight before recording undo");
+    let format_undo = format_fn
+        .find("mui_ed_undo_record(h)")
+        .expect("Format Document must record undo for real format attempts");
+    let format_run = format_fn
+        .find("let ok = mui_format_current(h)")
+        .expect("Format Document must still invoke the stateful format ABI");
+    assert!(
+        format_can < format_undo && format_undo < format_run,
+        "Format Document must preflight before adding an undo checkpoint, then run the formatter"
     );
     assert!(
         main.contains("Ctrl+S save / Ctrl+Shift+S Save As"),

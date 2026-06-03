@@ -9813,6 +9813,22 @@ pub extern "C" fn mui_redo_depth(handle: i64) -> i32 {
 // Feature B — format document (`mty fmt`; logic in format.rs)
 // ---------------------------------------------------------------------------
 
+/// Pure preflight for Format Document. Returns `1` only when the active tab is
+/// file-backed, editable, and safe to hand to `mty fmt`; emits no feedback.
+#[no_mangle]
+pub extern "C" fn mui_format_can_current(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only() {
+        return 0;
+    }
+    let Some(path) = ctx.file_path.as_deref() else {
+        return 0;
+    };
+    i32::from(crate::format::is_mty_path(path))
+}
+
 /// Format the currently-configured file in place via `mty fmt <path>`. The
 /// Mighty side saves the live buffer to disk FIRST (so the formatter sees the
 /// current text), then calls this, then reloads the formatted file (only when

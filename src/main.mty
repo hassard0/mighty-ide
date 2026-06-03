@@ -331,6 +331,7 @@ extern c {
   fn mui_peek_goto(handle: I64) -> I32
   fn mui_peek_draw(handle: I64, first: I32, rows: I32)
   // ---- format document (`mty fmt <path>`) ----
+  fn mui_format_can_current(handle: I64) -> I32
   fn mui_format_current(handle: I64) -> I32
   // ---- signature help (shim-side LSP) ----
   fn mui_sig_request(handle: I64, line: I32, col: I32) -> I32
@@ -5001,17 +5002,20 @@ fn peek_definition(h: I64) -> I32 {
   mui_peek_open(h, line, col)
 }
 
-// Format the active document in place: save -> checkpoint -> `mty fmt` -> reload
-// (only on success). The save+reload keeps the model authoritative; the undo
-// checkpoint makes the format reversible in one Ctrl+Z.
+// Format the active document in place: save -> preflight -> checkpoint ->
+// `mty fmt` -> reload (only on success). The save+reload keeps the model
+// authoritative; the undo checkpoint makes the format reversible in one Ctrl+Z.
 fn do_format(h: I64) {
   let active = mui_tab_active(h)
   let rc = mui_ed_save(h)
   if rc == 0 {
     mui_tab_set_dirty(h, active, 0)
-    // Checkpoint the pre-format model so the whole format is one Ctrl+Z. Keep
-    // the checkpoint (no reset) after reload so undo can restore it.
-    mui_ed_undo_record(h)
+    let can_format = mui_format_can_current(h)
+    if can_format == 1 {
+      // Checkpoint the pre-format model so the whole format is one Ctrl+Z. Keep
+      // the checkpoint (no reset) after reload so undo can restore it.
+      mui_ed_undo_record(h)
+    }
     let ok = mui_format_current(h)
     if ok == 1 {
       let _n = mui_ed_load(h)
