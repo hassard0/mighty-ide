@@ -5938,3 +5938,13 @@ available by Ctrl+P or the top-bar command center.
 - **IDE note:** the command palette now lists `Quick Open` with `Ctrl+P`. The
   dispatcher opens the same `mui_quickopen_open` overlay and resets transient
   panel focus so selecting the command hands off cleanly to the quick-open UI.
+
+L446. Visible shortcut chips should be searchable, not just decorative.
+Command palette rows showed keybindings, but filtering only considered command
+labels. That made `Ctrl+P`, `F5`, or remembered shortcut fragments useless when
+the user forgot the command name.
+
+- **IDE note:** palette filtering now scores command labels first, then
+  keybinding text. Shortcut matching accepts both literal forms like `Ctrl+P`
+  and normalized forms like `ctrl p` / `ctrlp`, including slash-separated
+  alternatives such as `Ctrl+1 / Ctrl+2`.

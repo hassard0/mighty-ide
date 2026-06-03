@@ -510,6 +510,38 @@ fn collapse_repeated_chars(s: &str) -> String {
     out
 }
 
+fn normalized_shortcut_query(s: &str) -> String {
+    s.chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .map(|ch| ch.to_ascii_lowercase())
+        .collect()
+}
+
+fn score_keybinding(keybinding: &str, query_lc: &str) -> Option<Rank> {
+    if keybinding.is_empty() || query_lc.is_empty() {
+        return None;
+    }
+    let keybinding_lc = keybinding.to_ascii_lowercase();
+    if let Some(rank) = score(&keybinding_lc, query_lc) {
+        return Some(rank);
+    }
+    let query_key = normalized_shortcut_query(query_lc);
+    if query_key.is_empty() || query_key == query_lc {
+        return None;
+    }
+    keybinding
+        .split('/')
+        .filter_map(|part| {
+            let part_key = normalized_shortcut_query(part);
+            if part_key.is_empty() {
+                None
+            } else {
+                score_exact(&part_key, &query_key)
+            }
+        })
+        .min()
+}
+
 pub(crate) fn fit_palette_text(
     text: &mut crate::text::Text,
     s: &str,
@@ -558,13 +590,21 @@ pub(crate) fn fit_palette_text(
 /// registry index so the order is deterministic. Pure + unit-tested.
 pub fn filter_commands(commands: &[Command], query: &str) -> Vec<Command> {
     let query_lc = query.to_ascii_lowercase();
-    let mut scored: Vec<(Rank, usize, Command)> = commands
+    let mut scored: Vec<(Rank, u8, usize, Command)> = commands
         .iter()
         .enumerate()
-        .filter_map(|(i, c)| score(c.label, &query_lc).map(|r| (r, i, *c)))
+        .filter_map(|(i, c)| {
+            let label = score(c.label, &query_lc).map(|r| (r, 0_u8));
+            let keybinding = score_keybinding(c.keybinding, &query_lc).map(|r| (r, 1_u8));
+            label
+                .into_iter()
+                .chain(keybinding)
+                .min()
+                .map(|(rank, source)| (rank, source, i, *c))
+        })
         .collect();
-    scored.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-    scored.into_iter().map(|(_, _, c)| c).collect()
+    scored.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+    scored.into_iter().map(|(_, _, _, c)| c).collect()
 }
 
 /// Max rows drawn in the palette at once (the visible window).
@@ -1209,6 +1249,24 @@ mod tests {
     fn duplicate_keystroke_still_finds_command() {
         let got = filter_commands(COMMANDS, "savee as");
         assert_eq!(got.first().map(|c| c.id), Some(CMD_SAVE_AS));
+    }
+
+    #[test]
+    fn shortcut_text_is_searchable() {
+        let got = filter_commands(COMMANDS, "Ctrl+P");
+        assert_eq!(got.first().map(|c| c.id), Some(CMD_QUICK_OPEN));
+
+        let space_separated = filter_commands(COMMANDS, "ctrl p");
+        assert_eq!(
+            space_separated.first().map(|c| c.id),
+            Some(CMD_QUICK_OPEN)
+        );
+    }
+
+    #[test]
+    fn shortcut_alternatives_are_searchable_individually() {
+        let got = filter_commands(COMMANDS, "ctrl2");
+        assert_eq!(got.first().map(|c| c.id), Some(CMD_FOCUS_NEXT_PANE));
     }
 
     #[test]
