@@ -425,6 +425,7 @@ extern c {
   fn mui_ghost_accept(handle: I64) -> I32
   fn mui_ghost_accept_word(handle: I64) -> I32
   fn mui_ghost_dismiss(handle: I64)
+  fn mui_ghost_dismiss_command(handle: I64) -> I32
   fn mui_ghost_force(handle: I64) -> I32
   fn mui_ghost_draw(handle: I64)
   // ---- snippets (prefix -> template expansion with navigable tab-stops) ----
@@ -4496,7 +4497,7 @@ fn main() {
           let _gf = mui_ghost_force(h)
           typing = false
         } else if id == cmd_ghost_completion_dismiss() {
-          mui_ghost_dismiss(h)
+          let _gcd = mui_ghost_dismiss_command(h)
           typing = false
         } else if id == cmd_snippet_cancel() {
           let _snc = mui_snippet_cancel(h)

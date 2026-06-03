@@ -7338,3 +7338,15 @@ palette-visible close commands still need observable state.
   `No Signature Help popup open`; all four messages stay in the CodeIntel toast
   lane, and Mighty uses the stateful close APIs only from the explicit palette
   command paths.
+
+L588. Inline ghost completion dismissal has the same cleanup-versus-command
+split. Cursor movement and edits dismiss stale ghost text constantly, so those
+cleanup calls must remain silent, but the explicit palette command should say
+whether visible ghost text was actually present.
+
+- **IDE note:** `mui_ghost_dismiss` remains the silent cleanup helper. New
+  `mui_ghost_dismiss_command` returns `1` when it dismisses visible ghost text
+  and `0` when no ghost completion is visible. The active path reports
+  `AI ghost completion dismissed`; the no-op path reports
+  `No AI ghost completion visible`; both messages stay in the AI toast lane, and
+  Mighty uses the stateful ABI only for `AI: Dismiss Ghost Completion`.

@@ -13,7 +13,8 @@
 //!   * [`mui_ghost_accept`] — insert the FULL suggestion at the cursor (reusing
 //!     the editor insert path), clear the ghost. Returns `1` if it accepted.
 //!   * [`mui_ghost_accept_word`] — insert ONE word; keep the remainder as ghost.
-//!   * [`mui_ghost_dismiss`] — clear the ghost + cancel any pending request.
+//!   * [`mui_ghost_dismiss`] — silently clear the ghost + cancel any pending request.
+//!   * [`mui_ghost_dismiss_command`] — explicit command dismiss with feedback.
 //!   * [`mui_ghost_force`] — explicit trigger (Alt+\), bypassing the debounce.
 //!   * [`mui_ghost_draw`] — paint the dim ghost overlay at the cursor.
 
@@ -145,6 +146,24 @@ pub extern "C" fn mui_ghost_dismiss(handle: i64) {
     }
 }
 
+/// Dismiss the visible ghost completion as an explicit command. Returns `1` when
+/// a visible ghost was dismissed and `0` when there was no ghost to dismiss.
+#[no_mangle]
+pub extern "C" fn mui_ghost_dismiss_command(handle: i64) -> i32 {
+    let Some(c) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if c.ghost.has_ghost() {
+        c.ghost.dismiss();
+        c.push_toast(Kind::Info, "AI ghost completion dismissed");
+        1
+    } else {
+        c.ghost.dismiss();
+        c.push_toast(Kind::Info, "No AI ghost completion visible");
+        0
+    }
+}
+
 /// Explicit trigger (Alt+\): fire a request immediately, bypassing the debounce.
 /// Returns `1` if a request was started.
 #[no_mangle]
@@ -238,6 +257,7 @@ mod tests {
         assert_eq!(mui_ghost_accept(0), 0);
         assert_eq!(mui_ghost_accept_word(0), 0);
         mui_ghost_dismiss(0);
+        assert_eq!(mui_ghost_dismiss_command(0), 0);
         assert_eq!(mui_ghost_force(0), 0);
         mui_ghost_draw(0);
     }

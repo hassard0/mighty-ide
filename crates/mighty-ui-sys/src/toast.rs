@@ -590,6 +590,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     if m.starts_with("AI ")
         || m.starts_with("Set ANTHROPIC_API_KEY")
         || m == "Type a message before sending"
+        || m == "No AI ghost completion visible"
     {
         Some(OperationKey::Ai)
     } else if m == "No notifications to clear" {
@@ -2370,6 +2371,22 @@ mod tests {
             q.toasts()[0].message,
             "Set ANTHROPIC_API_KEY to enable Inline AI"
         );
+
+        q.push_at(
+            Kind::Info,
+            "AI ghost completion dismissed",
+            t0 + Duration::from_millis(500),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "AI ghost completion dismissed");
+
+        q.push_at(
+            Kind::Info,
+            "No AI ghost completion visible",
+            t0 + Duration::from_millis(600),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No AI ghost completion visible");
     }
 
     #[test]

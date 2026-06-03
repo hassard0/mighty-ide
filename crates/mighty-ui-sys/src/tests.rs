@@ -6685,7 +6685,7 @@ fn welcome_close_command_dismisses_forced_surfaces() {
 
 #[test]
 fn ghost_completion_dismiss_command_clears_seeded_suggestion() {
-    use crate::ghostabi::{mui_ghost_dismiss, mui_ghost_has};
+    use crate::ghostabi::{mui_ghost_dismiss_command, mui_ghost_has};
 
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -6693,8 +6693,22 @@ fn ghost_completion_dismiss_command_clears_seeded_suggestion() {
     ctx.ghost.seed_demo(".push(value)", (0, 0));
     assert_eq!(mui_ghost_has(h), 1);
 
-    mui_ghost_dismiss(h);
+    assert_eq!(mui_ghost_dismiss_command(h), 1);
     assert_eq!(mui_ghost_has(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(
+        ctx.toasts.toasts()[0].message,
+        "AI ghost completion dismissed"
+    );
+
+    assert_eq!(mui_ghost_dismiss_command(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(
+        ctx.toasts.toasts()[0].message,
+        "No AI ghost completion visible"
+    );
 }
 
 #[test]
@@ -8083,7 +8097,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_ghost_completion_dismiss()")
-            && main.contains("mui_ghost_dismiss(h)"),
+            && main.contains("let _gcd = mui_ghost_dismiss_command(h)"),
         "AI: Dismiss Ghost Completion must clear the inline suggestion without accepting it"
     );
     assert!(
