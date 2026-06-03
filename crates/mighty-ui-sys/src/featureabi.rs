@@ -944,6 +944,25 @@ pub extern "C" fn mui_blame_active(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.blame.is_active()))
 }
 
+/// Hide the git blame gutter if it is active. Returns `1` when it closed an
+/// active gutter, `0` when blame was already hidden.
+#[no_mangle]
+pub extern "C" fn mui_blame_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.blame.is_active() {
+        ctx.blame.close();
+        ctx.push_toast(crate::toast::Kind::Info, "Blame hidden");
+        crate::abi::trace("blame_close");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Blame is already hidden");
+        crate::abi::trace("blame_close noop");
+        0
+    }
+}
+
 /// Number of blamed lines (for the active file).
 #[no_mangle]
 pub extern "C" fn mui_blame_line_count(handle: i64) -> i32 {

@@ -6742,3 +6742,12 @@ way back to editing that updates both shim state and Mighty-side mode flags.
 - **IDE note:** The command palette now lists `Diff: Close View`, calling
   `mui_diff_close` and clearing Mighty's `diff_open` flag. ABI, registry,
   metadata, dispatcher, and label tests pin the close path.
+
+L529. Toggles still need one-way hide commands for persistent overlays.
+Git blame is a persistent editor annotation. A toggle is useful for shortcuts,
+but command-palette users need an unambiguous hide action that never turns blame
+back on by mistake.
+
+- **IDE note:** The command palette now lists `Git: Hide Blame`, calling
+  `mui_blame_close`. ABI, registry, metadata, dispatcher, feedback, and
+  idempotency tests pin that hiding blame is separate from toggling it.

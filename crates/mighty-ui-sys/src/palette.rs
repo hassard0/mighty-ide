@@ -345,6 +345,8 @@ pub const CMD_WEB_CLEAR_OUTPUT: u32 = 156;
 pub const CMD_AGENTS_CLEAR_RUN_OUTPUT: u32 = 157;
 /// Close the inline git diff view and return to editing.
 pub const CMD_DIFF_CLOSE_VIEW: u32 = 158;
+/// Hide the git blame gutter without toggling it back on.
+pub const CMD_GIT_HIDE_BLAME: u32 = 159;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -458,6 +460,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_GIT_PULL,         label: "Git: Pull",          keybinding: "" },
     Command { id: CMD_GIT_FETCH,        label: "Git: Fetch",         keybinding: "" },
     Command { id: CMD_GIT_TOGGLE_BLAME, label: "Git: Toggle Blame",  keybinding: "Alt+B" },
+    Command { id: CMD_GIT_HIDE_BLAME,   label: "Git: Hide Blame",    keybinding: "" },
     Command { id: CMD_GIT_STAGE_ALL,    label: "Git: Stage All",     keybinding: "" },
     Command { id: CMD_GIT_UNSTAGE_ALL,  label: "Git: Unstage All",   keybinding: "" },
     Command { id: CMD_GIT_COMMIT_STAGED, label: "Git: Commit Staged", keybinding: "" },
@@ -977,6 +980,7 @@ impl PaletteEngine {
             CMD_GIT_PULL => (icons::GIT, "Pull (fast-forward only) from the remote", false),
             CMD_GIT_FETCH => (icons::GIT, "Fetch refs from the remote", false),
             CMD_GIT_TOGGLE_BLAME => (icons::GIT, "Show git blame in the gutter", false),
+            CMD_GIT_HIDE_BLAME => (icons::CLOSE, "Hide the active git blame gutter", false),
             CMD_GIT_STAGE_ALL => (icons::STAGE_PLUS, "Stage every changed path", false),
             CMD_GIT_UNSTAGE_ALL => (icons::UNSTAGE_MINUS, "Unstage every staged path", false),
             CMD_GIT_COMMIT_STAGED => (icons::GIT, "Commit staged changes with the SCM message", false),

@@ -2975,6 +2975,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(diff_close.label, "Diff: Close View");
     assert_eq!(diff_close.keybinding, "");
 
+    let blame_hide = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_GIT_HIDE_BLAME)
+        .unwrap();
+    assert_eq!(blame_hide.label, "Git: Hide Blame");
+    assert_eq!(blame_hide.keybinding, "");
+
     let agents_clear = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_AGENTS_CLEAR_RUN_OUTPUT)
@@ -4881,6 +4888,33 @@ fn blame_annotation_fits_measured_window_budget() {
         shown_w <= budget + 0.5,
         "blame annotation should fit measured budget: {shown}"
     );
+}
+
+#[test]
+fn blame_close_reports_feedback_and_is_idempotent() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let blob = "\
+1111111111111111111111111111111111111111 1 1 1
+author Ada Lovelace
+author-time 1136239445
+author-tz +0000
+filename src/main.mty
+\tfn main() {}
+";
+    assert_eq!(ctx.blame.seed_demo(blob), 1);
+    assert_eq!(crate::featureabi::mui_blame_active(handle), 1);
+
+    assert_eq!(crate::featureabi::mui_blame_close(handle), 1);
+    assert_eq!(crate::featureabi::mui_blame_active(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Blame hidden");
+
+    assert_eq!(crate::featureabi::mui_blame_close(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Blame is already hidden");
 }
 
 #[test]
@@ -6807,6 +6841,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("diff_open = false"),
         "Diff close command must close the shim diff view and clear Mighty's diff-open flag"
     );
+    assert!(
+        main.contains("id == cmd_git_hide_blame()")
+            && main.contains("let _bc = mui_blame_close(h)"),
+        "Git hide-blame command must call the dedicated blame close ABI"
+    );
     for (helper, action) in [
         ("cmd_search_run", "mui_search_run(h)"),
         ("cmd_search_replace_all", "mui_search_replace_all(h)"),
@@ -7086,6 +7125,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_WEB_OPEN_BROWSER, "cmd_web_open_browser"),
         (CMD_WEB_CLEAR_OUTPUT, "cmd_web_clear_output"),
         (CMD_DIFF_CLOSE_VIEW, "cmd_diff_close_view"),
+        (CMD_GIT_HIDE_BLAME, "cmd_git_hide_blame"),
         (CMD_KEYBOARD_SHORTCUTS, "cmd_keyboard_shortcuts"),
         (CMD_NEW_PROJECT, "cmd_new_project"),
         (CMD_WINDOW_TOGGLE_MAXIMIZE, "cmd_window_toggle_maximize"),
