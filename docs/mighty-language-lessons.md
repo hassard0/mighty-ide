@@ -7077,3 +7077,13 @@ session model while keeping breakpoints and target setup.
   clears state/stack/variables/current stop/console, preserves breakpoints and
   the last target, keeps Run and Debug open, reports cleared/already-empty
   feedback, and routes through the Mighty dispatcher.
+
+L564. Terminal buffers need clearing separate from close. Close tears down the
+PTY and shell, while users often only want to discard visible scrollback/prompt
+noise and keep the current terminal session alive.
+
+- **IDE note:** The command palette now lists `Terminal: Clear Buffer`, calling
+  `mui_term_clear`. The command clears the visible terminal grid without closing
+  the shell, preserves terminal focus when the panel remains open, reports
+  cleared/already-empty/closed feedback, and routes through the Mighty
+  dispatcher.

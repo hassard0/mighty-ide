@@ -217,6 +217,15 @@ impl Grid {
         self.reset_scroll_region();
     }
 
+    /// Whether the visible grid differs from a freshly-cleared terminal grid.
+    pub fn has_visible_content(&self) -> bool {
+        self.cur_row != 0
+            || self.cur_col != 0
+            || self.scroll_top != 0
+            || self.scroll_bottom != self.rows.saturating_sub(1)
+            || self.cells.iter().any(|c| *c != Cell::default())
+    }
+
     fn clear_from_cursor_to_end(&mut self) {
         let start = self.cur_row * self.cols + self.cur_col.min(self.cols - 1);
         for c in &mut self.cells[start..] {
@@ -1336,6 +1345,12 @@ impl Terminal {
         self.grid.contains(needle)
     }
 
+    pub fn clear_buffer(&mut self) -> bool {
+        let had_content = self.grid.has_visible_content();
+        self.grid.clear();
+        had_content
+    }
+
     pub fn cursor_visible(&self) -> bool {
         self.parser.cursor_visible()
     }
@@ -1593,6 +1608,16 @@ mod tests {
         assert_eq!(g.cell(0, 4).ch, 'o');
         assert_eq!(g.cursor(), (0, 5));
         assert!(g.contains("hello"));
+    }
+
+    #[test]
+    fn clear_buffer_empties_visible_grid_and_reports_content() {
+        let mut g = grid_feed(2, 8, b"prompt");
+        assert!(g.has_visible_content());
+        g.clear();
+        assert!(!g.has_visible_content());
+        assert_eq!(g.to_text(), "        \n        ");
+        assert_eq!(g.cursor(), (0, 0));
     }
 
     #[test]

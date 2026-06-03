@@ -6837,6 +6837,35 @@ pub extern "C" fn mui_term_close(handle: i64) {
     }
 }
 
+/// Clear the terminal's visible buffer without killing the shell.
+/// Returns `1` when a terminal panel remains open afterwards, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_term_clear(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.term_open || ctx.terminal.is_none() {
+        ctx.push_toast(crate::toast::Kind::Info, "Terminal is already closed");
+        trace("term_clear noop");
+        return 0;
+    }
+    ctx.run.close();
+    ctx.web.close();
+    ctx.problems.set_open(false);
+    if let Some(t) = ctx.terminal.as_mut() {
+        let had_content = t.clear_buffer();
+        let msg = if had_content {
+            "Terminal cleared"
+        } else {
+            "Terminal is already empty"
+        };
+        ctx.push_toast(crate::toast::Kind::Info, msg);
+        trace("term_clear");
+        return 1;
+    }
+    0
+}
+
 /// `1` if the terminal panel is currently open AND a shell is running, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_term_running(handle: i64) -> i32 {

@@ -859,11 +859,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Navigation)
     } else if m.starts_with("Markdown preview ") || m.starts_with("Markdown Preview ") {
         Some(OperationKey::Markdown)
-    } else if m == "Terminal opened"
-        || m == "Terminal closed"
-        || m == "Terminal is already closed"
-        || m == "Terminal failed to open"
-    {
+    } else if m.starts_with("Terminal ") {
         Some(OperationKey::Terminal)
     } else if m.starts_with("Debug session ")
         || m == "Open a file before starting debug"
@@ -1654,10 +1650,14 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Terminal is already closed");
 
+        q.push_at(Kind::Info, "Terminal cleared", t0 + Duration::from_millis(300));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Terminal cleared");
+
         q.push_at(
             Kind::Error,
             "Terminal failed to open",
-            t0 + Duration::from_millis(300),
+            t0 + Duration::from_millis(400),
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Terminal failed to open");

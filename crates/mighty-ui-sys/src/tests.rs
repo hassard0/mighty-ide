@@ -2052,6 +2052,20 @@ fn terminal_close_acknowledges_state_without_requiring_pty_spawn() {
 }
 
 #[test]
+fn terminal_clear_acknowledges_closed_state_without_requiring_pty_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::abi::mui_term_clear(handle), 0);
+    assert!(!ctx.term_open);
+    assert!(ctx.terminal.is_none());
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Terminal is already closed"
+    );
+}
+
+#[test]
 fn terminal_open_failure_reports_visible_feedback() {
     let _g = crate::settings::TEST_LOCK
         .lock()
@@ -3218,6 +3232,10 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_AI_CLOSE, "View: Close AI Copilot"),
         (crate::palette::CMD_SIDEBAR_CLOSE, "View: Close Sidebar"),
         (crate::palette::CMD_VIEW_TERMINAL, "View: Terminal"),
+        (
+            crate::palette::CMD_TERMINAL_CLEAR,
+            "Terminal: Clear Buffer",
+        ),
         (crate::palette::CMD_TERMINAL_CLOSE, "Terminal: Close"),
         (crate::palette::CMD_VIEW_WEB_PLAYGROUND, "View: Web Playground"),
         (crate::palette::CMD_DOCK_COMPACT, "View: Bottom Dock Compact"),
@@ -7866,6 +7884,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Terminal: Close must use the terminal-specific close ABI and clear terminal focus"
     );
     assert!(
+        main.contains("id == cmd_terminal_clear()")
+            && main.contains("mui_term_clear(h)")
+            && main.contains("if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }"),
+        "Terminal: Clear Buffer must clear through the terminal ABI and preserve focus when terminal remains open"
+    );
+    assert!(
         main.contains("id == cmd_hover_close()")
             && main.contains("mui_hover_clear(h)")
             && main.contains("hovering = false"),
@@ -8367,6 +8391,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_SNIPPET_CANCEL, "cmd_snippet_cancel"),
         (CMD_AI_CLEAR_CHAT, "cmd_ai_clear_chat"),
         (CMD_VIEW_TERMINAL, "cmd_view_terminal"),
+        (CMD_TERMINAL_CLEAR, "cmd_terminal_clear"),
         (CMD_TERMINAL_CLOSE, "cmd_terminal_close"),
         (CMD_VIEW_WEB_PLAYGROUND, "cmd_view_web_playground"),
         (CMD_DEBUG_START_CONTINUE, "cmd_debug_start_continue"),

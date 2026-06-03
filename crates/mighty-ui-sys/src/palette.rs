@@ -419,6 +419,8 @@ pub const CMD_SEARCH_CLEAR_RESULTS: u32 = 193;
 pub const CMD_OUTLINE_CLEAR_SYMBOLS: u32 = 194;
 /// Clear the current debug session without clearing breakpoints or target.
 pub const CMD_DEBUG_CLEAR_SESSION: u32 = 195;
+/// Clear the integrated terminal's visible buffer without closing the shell.
+pub const CMD_TERMINAL_CLEAR: u32 = 196;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -587,6 +589,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_AI_CLOSE,         label: "View: Close AI Copilot", keybinding: "" },
     Command { id: CMD_SIDEBAR_CLOSE,    label: "View: Close Sidebar", keybinding: "" },
     Command { id: CMD_VIEW_TERMINAL,    label: "View: Terminal",      keybinding: "Ctrl+`" },
+    Command { id: CMD_TERMINAL_CLEAR,   label: "Terminal: Clear Buffer", keybinding: "" },
     Command { id: CMD_TERMINAL_CLOSE,   label: "Terminal: Close",     keybinding: "" },
     Command { id: CMD_VIEW_WEB_PLAYGROUND, label: "View: Web Playground", keybinding: "" },
     Command { id: CMD_DIFF_CLOSE_VIEW,  label: "Diff: Close View",    keybinding: "" },
@@ -1143,6 +1146,7 @@ impl PaletteEngine {
             CMD_AI_CLOSE => (icons::CLOSE, "Close the AI copilot panel", false),
             CMD_SIDEBAR_CLOSE => (icons::CLOSE, "Close the left sidebar drawer", false),
             CMD_VIEW_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
+            CMD_TERMINAL_CLEAR => (icons::CLOSE, "Clear the integrated terminal buffer without closing the shell", false),
             CMD_TERMINAL_CLOSE => (icons::CLOSE, "Close the integrated terminal without changing other bottom-dock panels", false),
             CMD_VIEW_WEB_PLAYGROUND => (icons::GLOBE, "Open the Web Playground output panel", false),
             CMD_DIFF_CLOSE_VIEW => (icons::CLOSE, "Close the inline git diff view and return to editing", false),
