@@ -5169,3 +5169,12 @@ line movement makes prompt redraws drift horizontally.
   `ESC[ne`, including default count one, grid clamping, and column preservation
   for vertical-only movement. Parser tests distinguish these forms from
   next-line/previous-line movement and verify control bytes do not leak.
+
+L366. Command shortcuts need the same unavailable-state feedback as visible
+buttons. Running without a file opened the Run dock but returned `0` silently,
+so users saw a panel switch without knowing why no process started.
+
+- **IDE note:** `mui_run_start` now reports `No file to run` when invoked from a
+  scratch/untitled context and still opens the Run dock while closing competing
+  lower panels. Spawn failures now also surface an error toast with the file
+  name. Tests cover the no-file command outcome and dock-owner transition.

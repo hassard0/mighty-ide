@@ -44,6 +44,7 @@ pub extern "C" fn mui_run_start(handle: i64) -> i32 {
         ctx.term_open = false;
         ctx.web.close();
         ctx.problems.set_open(false);
+        ctx.push_toast(crate::toast::Kind::Warn, "No file to run");
         crate::abi::trace("run_start no_target");
         return 0;
     };
@@ -55,6 +56,11 @@ pub extern "C" fn mui_run_start(handle: i64) -> i32 {
         println!("run: started `mty run {}`", path.display());
         1
     } else {
+        let name = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("file");
+        ctx.push_toast(crate::toast::Kind::Error, format!("Run failed to start: {name}"));
         crate::abi::trace(&format!("run_start failed target={}", path.display()));
         0
     }

@@ -1298,6 +1298,24 @@ fn visible_rows_reserve_space_for_every_bottom_dock_owner() {
 }
 
 #[test]
+fn run_start_without_file_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    ctx.term_open = true;
+    ctx.web.open();
+    ctx.problems.set_open(true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_run_start(handle), 0);
+    assert!(ctx.run.is_active());
+    assert!(!ctx.term_open);
+    assert!(!ctx.web.is_active());
+    assert!(!ctx.problems.is_open());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No file to run");
+}
+
+#[test]
 fn bottom_dock_resize_uses_visible_mouse_geometry() {
     let _g = crate::settings::TEST_LOCK
         .lock()
