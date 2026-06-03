@@ -6641,6 +6641,62 @@ fn codeaction_workspace_edit_refreshes_clean_split_tab_without_switching_focus()
 }
 
 #[test]
+fn codeaction_active_workspace_edit_remains_undoable() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_codeaction_active_undo_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, "old_symbol\n").unwrap();
+
+    ctx.tabs.open_path(path.clone());
+    crate::sync_active_path(&mut ctx);
+    let uri_path = path.to_string_lossy().replace('\\', "/");
+    let uri = if uri_path.starts_with('/') {
+        format!("file://{uri_path}")
+    } else {
+        format!("file:///{uri_path}")
+    };
+    assert_eq!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Rename active symbol".to_string(),
+            edit: Some(crate::language::WorkspaceEdit {
+                files: vec![(
+                    uri,
+                    vec![crate::language::TextEdit {
+                        start_line: 0,
+                        start_col: 0,
+                        end_line: 0,
+                        end_col: 10,
+                        new_text: "new_symbol".to_string(),
+                    }],
+                )],
+            }),
+            command_edit: None,
+            command: None,
+            fix_all_mty: false,
+        }]),
+        1
+    );
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_ed_undo_record(h);
+    assert_eq!(crate::mui_codeaction_apply(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "new_symbol\n");
+    assert!(!ctx.tabs.is_dirty(ctx.tabs.active()));
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "new_symbol\n");
+
+    assert_eq!(crate::mui_ed_undo(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "old_symbol\n");
+    assert!(ctx.tabs.is_dirty(ctx.tabs.active()));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn codeaction_workspace_edit_skips_dirty_non_active_split_tab() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!(
@@ -9001,6 +9057,14 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         !main.contains("let _a = mui_codeaction_apply(h)"),
         "code action accept must not blindly reload after a no-op action"
+    );
+    assert!(
+        !main.contains(
+            "let applied = mui_codeaction_apply(h)\n            code_action_open = false\n            if applied == 1 {\n              let _n = mui_ed_load(h)"
+        ) && !main.contains(
+            "let applied = mui_codeaction_apply(h)\n            code_action_open = false\n            if applied == 1 {\n              mui_ed_undo_reset(h)"
+        ),
+        "code action accept must preserve the undo checkpoint after applying a workspace edit"
     );
     assert!(
         main.contains("let changed = mui_ed_toggle_comment(h)")

@@ -13057,6 +13057,8 @@ pub extern "C" fn mui_ed_undo(handle: i64) -> i32 {
             let current = ctx.tabs.active_model().clone();
             ctx.ed_redo.push(current);
             *ctx.tabs.active_model_mut() = prev;
+            let active = ctx.tabs.active();
+            ctx.tabs.set_dirty(active, true);
             1
         }
         None => {
@@ -13082,6 +13084,8 @@ pub extern "C" fn mui_ed_redo(handle: i64) -> i32 {
             let current = ctx.tabs.active_model().clone();
             ctx.ed_undo.push(current);
             *ctx.tabs.active_model_mut() = next;
+            let active = ctx.tabs.active();
+            ctx.tabs.set_dirty(active, true);
             1
         }
         None => {

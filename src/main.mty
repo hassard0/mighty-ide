@@ -2629,9 +2629,6 @@ fn main() {
             let applied = mui_codeaction_apply(h)
             code_action_open = false
             if applied == 1 {
-              let _n = mui_ed_load(h)
-              mui_ed_undo_reset(h)
-              mui_tab_set_dirty(h, mui_tab_active(h), 0)
               let _r = mui_diag_refresh(h)
             }
           } else if k == key_escape() {
@@ -2650,9 +2647,6 @@ fn main() {
             let applied = mui_codeaction_apply(h)
             code_action_open = false
             if applied == 1 {
-              let _n = mui_ed_load(h)
-              mui_ed_undo_reset(h)
-              mui_tab_set_dirty(h, mui_tab_active(h), 0)
               let _r = mui_diag_refresh(h)
             }
           } else {
