@@ -3657,6 +3657,10 @@ fn save_all_prompts_for_dirty_untitled_tabs() {
     let iu = ctx.tabs.new_untitled();
     ctx.tabs.active_model_mut().set_text_preserving_cursor("untitled");
     ctx.tabs.set_dirty(iu, true);
+    ctx.panes = crate::panes::PaneLayout::new(ia);
+    ctx.panes.split_right(iu, 0);
+    ctx.panes.focus(0, 0);
+    ctx.tabs.switch(ia);
 
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
     std::env::set_var("MUI_SAVE_FILE_PICK_SEQUENCE", u.to_string_lossy().as_ref());
@@ -3669,6 +3673,10 @@ fn save_all_prompts_for_dirty_untitled_tabs() {
     assert!(!ctx.tabs.is_dirty(ib));
     assert!(!ctx.tabs.is_dirty(iu));
     assert_eq!(ctx.tabs.get(iu).unwrap().path.as_deref(), Some(u.as_path()));
+    assert_eq!(ctx.tabs.active(), ia);
+    assert_eq!(ctx.panes.focused(), 0);
+    assert_eq!(ctx.panes.tab_at(0), Some(ia));
+    assert_eq!(ctx.panes.tab_at(1), Some(iu));
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Success);
     assert_eq!(toast.message, "Saved 3 files");
@@ -3682,9 +3690,19 @@ fn save_all_cancelled_untitled_picker_preserves_dirty_tab() {
         .lock()
         .unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_save_all_cancel_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let left = root.join("left.mty");
+    std::fs::write(&left, "left").unwrap();
+    let left_idx = ctx.tabs.open_path(left);
     let iu = ctx.tabs.new_untitled();
     ctx.tabs.active_model_mut().set_text_preserving_cursor("untitled");
     ctx.tabs.set_dirty(iu, true);
+    ctx.panes = crate::panes::PaneLayout::new(left_idx);
+    ctx.panes.split_right(iu, 0);
+    ctx.panes.focus(0, 0);
+    ctx.tabs.switch(left_idx);
 
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
     std::env::set_var("MUI_SAVE_FILE_PICK", "");
@@ -3692,9 +3710,15 @@ fn save_all_cancelled_untitled_picker_preserves_dirty_tab() {
     std::env::remove_var("MUI_SAVE_FILE_PICK");
     assert!(ctx.tabs.is_dirty(iu));
     assert!(ctx.tabs.get(iu).unwrap().path.is_none());
+    assert_eq!(ctx.tabs.active(), left_idx);
+    assert_eq!(ctx.panes.focused(), 0);
+    assert_eq!(ctx.panes.tab_at(0), Some(left_idx));
+    assert_eq!(ctx.panes.tab_at(1), Some(iu));
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Save All cancelled; 1 untitled file still unsaved");
+
+    let _ = std::fs::remove_dir_all(&root);
 }
 
 #[test]

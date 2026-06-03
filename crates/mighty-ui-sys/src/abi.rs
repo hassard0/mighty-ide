@@ -10766,7 +10766,7 @@ fn save_confirm_tab(ctx: &mut MuiContext, idx: usize) -> bool {
         return false;
     }
     if let Some(path) = ctx.tabs.path(idx) {
-        save_tab_to_path(ctx, idx, path) == 0
+        save_tab_to_path(ctx, idx, path, true) == 0
     } else {
         let root = file_dialog_initial_dir(ctx);
         let suggested = ctx
@@ -10787,11 +10787,11 @@ fn save_confirm_tab(ctx: &mut MuiContext, idx: usize) -> bool {
                 return false;
             }
         };
-        save_tab_to_path(ctx, idx, target) == 0
+        save_tab_to_path(ctx, idx, target, true) == 0
     }
 }
 
-fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf) -> i32 {
+fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf, toast_success: bool) -> i32 {
     let Some(tab) = ctx.tabs.get_mut(idx) else {
         return -1;
     };
@@ -10821,7 +10821,9 @@ fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf) -> i32 {
             }
             ctx.autosave.disarm();
             println!("mui_ed_save: {} ({} bytes)", path.display(), bytes.len());
-            ctx.push_toast(crate::toast::Kind::Success, format!("Saved {name}"));
+            if toast_success {
+                ctx.push_toast(crate::toast::Kind::Success, format!("Saved {name}"));
+            }
             0
         }
         Err(e) => {
@@ -10884,8 +10886,6 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
                 }
             }
         } else {
-            ctx.tabs.switch(idx);
-            sync_active_path(ctx);
             let root = file_dialog_initial_dir(ctx);
             let target = match pick_save_file_native(&root, "untitled.mty", dialog_owner_hwnd(ctx)) {
                 FileDialogPick::Picked(path) => path,
@@ -10901,7 +10901,7 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
                 }
             };
             trace(&format!("save_all_dialog path={}", target.display()));
-            if save_active_to_path(ctx, target) == 0 {
+            if save_tab_to_path(ctx, idx, target, false) == 0 {
                 saved += 1;
             } else {
                 failed += 1;
