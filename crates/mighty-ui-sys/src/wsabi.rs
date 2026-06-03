@@ -252,16 +252,19 @@ pub extern "C" fn mui_ws_recent_char(handle: i64, i: i32, j: i32) -> i32 {
 }
 
 /// Open recent workspace `i` as the workspace. Returns `1` on success, `0` if the
-/// index is out of range or the folder no longer validates.
+/// index is out of range or the folder no longer validates. User-invoked misses
+/// explain whether the row was missing or stale.
 #[no_mangle]
 pub extern "C" fn mui_ws_open_recent(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
     if i < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No recent folder selected");
         return 0;
     }
     let Some(path) = ctx.recent_workspaces.get(i as usize).cloned() else {
+        ctx.push_toast(crate::toast::Kind::Info, "No recent folder selected");
         return 0;
     };
     open_recent_folder(ctx, &path)

@@ -5095,6 +5095,20 @@ fn workspace_open_recent_prunes_missing_folder() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
+    assert_eq!(mui_ws_open_recent(h, -1), 0, "negative recent row should fail");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No recent folder selected");
+
+    assert_eq!(
+        mui_ws_open_recent(h, 0),
+        0,
+        "out-of-range recent row should fail"
+    );
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No recent folder selected");
+
     let missing = std::env::temp_dir().join(format!(
         "mui_ws_recent_missing_{}",
         std::process::id()
@@ -5105,6 +5119,9 @@ fn workspace_open_recent_prunes_missing_folder() {
 
     assert_eq!(mui_ws_open_recent(h, 0), 0, "missing recent folder should fail");
     assert_eq!(mui_ws_recent_count(h), 0, "stale recent folder should be pruned");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert!(toast.message.starts_with("Recent folder missing:"));
 }
 
 #[test]

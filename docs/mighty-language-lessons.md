@@ -5421,3 +5421,12 @@ but an untitled buffer cannot be sent to the language server as a stable file.
   buffers while showing `Save the file before signature help`, matching hover,
   definition, peek, and formatting feedback for commands that require a saved
   file path.
+
+L390. Recent-workspace activation should distinguish a missing row from a stale
+folder. Both are legitimate no-op outcomes, but the user needs to know whether
+the selection disappeared or the saved folder no longer exists.
+
+- **IDE note:** `mui_ws_open_recent` now reports `No recent folder selected` for
+  negative or out-of-range rows while keeping stale-folder pruning on
+  `Recent folder missing: ...`. The open-operation toast grouping treats both as
+  workspace-open feedback, so repeated open attempts collapse predictably.

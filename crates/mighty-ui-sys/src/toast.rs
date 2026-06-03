@@ -603,6 +603,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Open failed")
         || m.starts_with("Recent file missing")
         || m.starts_with("Recent folder missing")
+        || m == "No recent folder selected"
     {
         Some(OperationKey::Open)
     } else if m.starts_with("Created file")
