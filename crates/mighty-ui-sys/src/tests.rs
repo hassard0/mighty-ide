@@ -1316,6 +1316,25 @@ fn run_start_without_file_reports_visible_feedback() {
 }
 
 #[test]
+fn test_at_cursor_without_file_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::testabi::mui_test_run_at_cursor(handle), 0);
+    assert_eq!(ctx.active_panel, crate::PANEL_TEST);
+    assert!(ctx.sidebar_visible);
+    assert!(ctx.tests_panel.is_active());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Open a Mighty file before running test at cursor"
+    );
+}
+
+#[test]
 fn bottom_dock_resize_uses_visible_mouse_geometry() {
     let _g = crate::settings::TEST_LOCK
         .lock()
@@ -5291,6 +5310,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_DOCK_CLOSE, "cmd_dock_close"),
         (CMD_AI_CLOSE, "cmd_ai_close"),
         (CMD_SIDEBAR_CLOSE, "cmd_sidebar_close"),
+        (CMD_SIDEBAR_CYCLE_WIDTH, "cmd_sidebar_cycle_width"),
     ];
 
     for cmd in COMMANDS {

@@ -171,6 +171,11 @@ pub extern "C" fn mui_test_run_at_cursor(handle: i64) -> i32 {
         return 0;
     };
     let Some(path) = active_path(ctx) else {
+        ctx.tests_panel.open();
+        ctx.active_panel = crate::PANEL_TEST;
+        ctx.sidebar_visible = true;
+        ctx.push_toast(crate::toast::Kind::Warn, "Open a Mighty file before running test at cursor");
+        crate::abi::trace("test_run_at_cursor no_target");
         return 0;
     };
     // Find the nearest enclosing `fn test_*` above the cursor in the live model.
@@ -185,6 +190,12 @@ pub extern "C" fn mui_test_run_at_cursor(handle: i64) -> i32 {
         );
         1
     } else {
+        let name = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("file");
+        ctx.push_toast(crate::toast::Kind::Error, format!("Test run failed to start: {name}"));
+        crate::abi::trace(&format!("test_run_at_cursor failed target={}", path.display()));
         0
     }
 }

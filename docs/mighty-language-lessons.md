@@ -5178,3 +5178,24 @@ so users saw a panel switch without knowing why no process started.
   scratch/untitled context and still opens the Run dock while closing competing
   lower panels. Spawn failures now also surface an error toast with the file
   name. Tests cover the no-file command outcome and dock-owner transition.
+
+L367. Focused commands need their own unavailable-state path. `Run Test at
+Cursor` is stricter than `Run Tests`: it needs an active file, not just a
+workspace fallback. Returning `0` silently from a scratch tab made the shortcut
+feel broken even though the Testing panel could be shown.
+
+- **IDE note:** `mui_test_run_at_cursor` now opens the Testing panel and reports
+  `Open a Mighty file before running test at cursor` when no active file exists.
+  Spawn failures now also surface a file-specific error toast. Tests cover the
+  scratch/no-target path and visible panel transition.
+
+L368. Command registry audits must cover metadata and dispatch together. `View:
+Cycle Sidebar Width` was callable from `main.mty`, but it was outside the
+sidebar-layout range used by the dispatcher audit and lacked rich palette row
+metadata, so the command could render as a generic row and fail coverage even
+though the behavior existed.
+
+- **IDE note:** the cycle-sidebar-width command now has explicit rich palette
+  metadata and is listed in the direct dispatcher audit. Focused tests cover
+  rich row metadata, central Mighty dispatcher routing, and the new
+  test-at-cursor unavailable-state feedback.

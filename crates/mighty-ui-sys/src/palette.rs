@@ -713,6 +713,7 @@ impl PaletteEngine {
             CMD_SIDEBAR_COMPACT => (icons::ARROW_LEFT, "Use a smaller sidebar drawer", false),
             CMD_SIDEBAR_DEFAULT => (icons::EXPLORER, "Restore responsive sidebar width", false),
             CMD_SIDEBAR_WIDE => (icons::ARROW_RIGHT, "Use a wider sidebar drawer", false),
+            CMD_SIDEBAR_CYCLE_WIDTH => (icons::EXPLORER, "Cycle sidebar width through compact, default, and wide", false),
             CMD_WINDOW_TOGGLE_MAXIMIZE => (icons::WIN_MAX, "Maximize or restore the IDE window", false),
             CMD_WINDOW_MINIMIZE => (icons::WIN_MIN, "Minimize the IDE window", false),
             CMD_DEBUG_START_CONTINUE => (icons::DBG_CONTINUE, "Start debugging or continue the paused session", true),
