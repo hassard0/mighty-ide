@@ -52,6 +52,7 @@ extern c {
   fn mui_ed_delete_word_left(handle: I64) -> I32
   fn mui_ed_delete_word_right(handle: I64) -> I32
   fn mui_ed_delete_current_line(handle: I64) -> I32
+  fn mui_ed_join_line(handle: I64) -> I32
   fn mui_ed_newline(handle: I64)
   fn mui_ed_move(handle: I64, dir: I32)
   fn mui_ed_move_to(handle: I64, line: I32, col: I32)
@@ -707,6 +708,7 @@ fn cmd_revert_active_file() -> I32 { 61 }
 fn cmd_copy_active_file_name() -> I32 { 62 }
 fn cmd_copy_active_file_directory() -> I32 { 63 }
 fn cmd_delete_line() -> I32 { 103 }
+fn cmd_join_line() -> I32 { 104 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -946,6 +948,14 @@ fn is_delete_line_chord(cp: I32, mods: I32) -> Bool {    // Ctrl+Shift+K
   let alt = alt_held(mods)
   let k = cp == 107 || cp == 75
   ctrl && shift && !alt && k
+}
+
+fn is_join_line_chord(cp: I32, mods: I32) -> Bool {      // Ctrl+J
+  let ctrl = ctrl_held(mods)
+  let shift = shift_held(mods)
+  let alt = alt_held(mods)
+  let j = cp == 106 || cp == 74
+  ctrl && !shift && !alt && j
 }
 
 // True if the shift bit (value 1) is set in `mods`.
@@ -2614,6 +2624,18 @@ fn main() {
             mui_ghost_dismiss(h)
             mui_ghost_arm(h)
           }
+        } else if is_join_line_chord(cp, mods) {
+          mui_complete_cancel(h)
+          completing = false
+          find_nav = false
+          typing = false
+          mui_ed_undo_record(h)
+          let changed = mui_ed_join_line(h)
+          if changed == 1 {
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            mui_ghost_dismiss(h)
+            mui_ghost_arm(h)
+          }
         } else if ctrl_held(mods) && !shift_held(mods) && (cp == 107 || cp == 75) {  // Ctrl+K : hover
           let ok = do_hover(h)
           if ok == 1 { hovering = true; hover_line = mui_ed_cursor_line(h); hover_col = mui_ed_cursor_col(h) } else { hovering = false }
@@ -3631,6 +3653,15 @@ fn main() {
         } else if id == cmd_delete_line() {
           mui_ed_undo_record(h)
           let changed = mui_ed_delete_current_line(h)
+          if changed == 1 {
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            mui_ghost_dismiss(h)
+            mui_ghost_arm(h)
+          }
+          find_nav = false
+        } else if id == cmd_join_line() {
+          mui_ed_undo_record(h)
+          let changed = mui_ed_join_line(h)
           if changed == 1 {
             mui_tab_set_dirty(h, mui_tab_active(h), 1)
             mui_ghost_dismiss(h)

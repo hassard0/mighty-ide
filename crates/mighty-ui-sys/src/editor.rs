@@ -494,6 +494,36 @@ impl TextModel {
         }
     }
 
+    /// Join the current line with the next line. Leading whitespace from the
+    /// next line is removed, and one space is inserted when two non-empty text
+    /// runs would otherwise be glued together. Returns true when a line join
+    /// happened.
+    pub fn join_line(&mut self) -> bool {
+        let li = self.carets[0].line;
+        if li + 1 >= self.lines.len() {
+            return false;
+        }
+
+        self.begin_edit_keep_sel();
+        let next = self.lines.remove(li + 1);
+        let mut cur = std::mem::take(&mut self.lines[li]);
+        let join_col = cur.chars().count();
+        let next_trimmed = next.trim_start();
+        if !cur.is_empty()
+            && !next_trimmed.is_empty()
+            && !cur.chars().last().is_some_and(char::is_whitespace)
+        {
+            cur.push(' ');
+        }
+        cur.push_str(next_trimmed);
+        self.lines[li] = cur;
+        self.carets[0].line = li;
+        self.carets[0].col = join_col;
+        self.carets[0].anchor = None;
+        self.collapse_carets();
+        true
+    }
+
     /// Delete from the cursor back to the previous word boundary. An active
     /// selection is removed directly, matching normal Backspace behavior.
     pub fn delete_word_left(&mut self) -> bool {
@@ -2067,6 +2097,34 @@ mod tests {
         m.delete();
         assert_eq!(m.line_count(), 1);
         assert_eq!(m.line(0), "bcdef");
+    }
+
+    #[test]
+    fn join_line_merges_next_line_with_sensible_spacing() {
+        let mut m = doc("let x =\n    value");
+        m.move_to(0, 2);
+        m.mark_clean();
+
+        assert!(m.join_line());
+
+        assert_eq!(m.as_text(), "let x = value");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 7));
+        assert!(m.dirty());
+    }
+
+    #[test]
+    fn join_line_preserves_existing_boundary_space_and_noops_at_end() {
+        let mut m = doc("alpha \n  beta");
+        m.move_to(0, 0);
+
+        assert!(m.join_line());
+        assert_eq!(m.as_text(), "alpha beta");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 6));
+
+        m.mark_clean();
+        assert!(!m.join_line());
+        assert_eq!(m.as_text(), "alpha beta");
+        assert!(!m.dirty());
     }
 
     #[test]

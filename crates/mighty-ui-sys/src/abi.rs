@@ -9778,6 +9778,15 @@ pub extern "C" fn mui_ed_delete_current_line(handle: i64) -> i32 {
     0
 }
 
+/// Join the current line with the following line.
+#[no_mangle]
+pub extern "C" fn mui_ed_join_line(handle: i64) -> i32 {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        return i32::from(m.join_line());
+    }
+    0
+}
+
 /// Insert a newline at the cursor.
 #[no_mangle]
 pub extern "C" fn mui_ed_newline(handle: i64) {

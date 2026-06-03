@@ -19,6 +19,7 @@ the `mui_chord` router). This table is the authoritative list.
 | `Ctrl+/` | Toggle line comment |
 | `Ctrl+Shift+D` | Duplicate line / selection |
 | `Ctrl+Shift+K` | Delete current line |
+| `Ctrl+J` | Join current line with next line |
 | `Alt+Up` / `Alt+Down` | Move line up / down |
 | `Ctrl+Left` / `Ctrl+Right` | Word-wise cursor motion |
 | `Ctrl+Backspace` / `Ctrl+Delete` | Delete previous / next word |

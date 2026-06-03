@@ -5800,3 +5800,13 @@ expected fast cleanup action.
   directly, Mighty routes Ctrl+Shift+K before the Ctrl+K hover branch, and the
   command palette lists `Edit: Delete Line` with the same undo/dirty handling as
   other destructive text edits.
+
+L431. Join Line is a distinct editing primitive, not just End plus Delete.
+Keyboard-heavy editing needs a command that removes the next line break while
+cleaning up indentation and spacing at the join boundary.
+
+- **IDE note:** `TextModel::join_line` now joins the current line with the next
+  line, trims leading indentation from the next line, inserts one separator
+  space when two text runs would otherwise touch, and returns a changed flag for
+  no-op-safe dirty handling. Mighty routes Ctrl+J and the command palette lists
+  `Edit: Join Line`.

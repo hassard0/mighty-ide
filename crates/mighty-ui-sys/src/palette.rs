@@ -234,6 +234,8 @@ pub const CMD_SIDEBAR_WIDE: u32 = 96;
 pub const CMD_SIDEBAR_CYCLE_WIDTH: u32 = 102;
 /// Delete the current editor line without touching the clipboard.
 pub const CMD_DELETE_LINE: u32 = 103;
+/// Join the current editor line with the next line.
+pub const CMD_JOIN_LINE: u32 = 104;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -286,6 +288,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_RELOAD_ACTIVE_FILE, label: "File: Reload Active File from Disk", keybinding: "" },
     Command { id: CMD_REVERT_ACTIVE_FILE, label: "File: Revert Active File from Disk", keybinding: "" },
     Command { id: CMD_DELETE_LINE,      label: "Edit: Delete Line", keybinding: "Ctrl+Shift+K" },
+    Command { id: CMD_JOIN_LINE,        label: "Edit: Join Line",   keybinding: "Ctrl+J" },
     Command { id: CMD_FORMAT_DOCUMENT,  label: "Format Document",    keybinding: "Ctrl+Shift+I" },
     Command { id: CMD_UNDO,             label: "Undo",               keybinding: "Ctrl+Z" },
     Command { id: CMD_REDO,             label: "Redo",               keybinding: "Ctrl+Y" },
@@ -675,6 +678,7 @@ impl PaletteEngine {
             CMD_RELOAD_ACTIVE_FILE => (icons::REFRESH, "Reload the active file from disk", false),
             CMD_REVERT_ACTIVE_FILE => (icons::REFRESH, "Discard local edits and reload from disk", false),
             CMD_DELETE_LINE => (icons::CLOSE, "Remove the current line without changing the clipboard", false),
+            CMD_JOIN_LINE => (icons::CHEVRON, "Join the current line with the next line", false),
             CMD_FORMAT_DOCUMENT => (icons::PLUS, "Apply mightyfmt to active file", false),
             CMD_UNDO => (icons::CHEVRON, "Undo the last edit", false),
             CMD_REDO => (icons::CHEVRON, "Redo the last undone edit", false),
