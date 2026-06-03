@@ -58,7 +58,7 @@ impl ThemePicker {
         let head_h = 50.0_f32;
         let row_h = 64.0_f32;
         let foot_h = 34.0_f32;
-        let box_w = 460.0_f32.min(w - 80.0);
+        let box_w = theme_picker_width(w);
         let box_h = head_h + rows as f32 * row_h + foot_h + 12.0;
         let box_x = ((w - box_w) * 0.5).max(0.0);
         let box_y = ((h - box_h) * 0.5).max(40.0);
@@ -231,6 +231,10 @@ fn theme_row_text_right(box_x: f32, box_w: f32) -> f32 {
     box_x + box_w - 56.0
 }
 
+fn theme_picker_width(window_w: f32) -> f32 {
+    (window_w - 80.0).max(0.0).clamp(280.0, 460.0).min(window_w.max(1.0))
+}
+
 fn fit_theme_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
     if max_px < 8.0 || s.is_empty() {
         return String::new();
@@ -365,6 +369,22 @@ mod tests {
 
         assert!(right < box_x + box_w - 46.0);
         assert!(txt_x < right);
+    }
+
+    #[test]
+    fn geometry_clamps_card_inside_ultra_narrow_windows() {
+        let (box_x, _box_y, box_w, _box_h, _list_top, _row_h) = ThemePicker::geometry(180, 560);
+
+        assert!(box_x >= 0.0);
+        assert!(box_w <= 180.0);
+        assert!(box_x + box_w <= 180.0 + 0.5);
+    }
+
+    #[test]
+    fn picker_width_preserves_preferred_width_until_viewport_is_tiny() {
+        assert_eq!(theme_picker_width(900.0), 460.0);
+        assert_eq!(theme_picker_width(360.0), 280.0);
+        assert_eq!(theme_picker_width(180.0), 180.0);
     }
 
     #[test]
