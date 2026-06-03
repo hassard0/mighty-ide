@@ -2752,6 +2752,20 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(breadcrumb_cancel.label, "Breadcrumb: Close Menu");
     assert_eq!(breadcrumb_cancel.keybinding, "");
 
+    let palette_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_COMMAND_PALETTE_CLOSE)
+        .unwrap();
+    assert_eq!(palette_close.label, "Command Palette: Close");
+    assert_eq!(palette_close.keybinding, "");
+
+    let quickopen_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_QUICK_OPEN_CLOSE)
+        .unwrap();
+    assert_eq!(quickopen_close.label, "Quick Open: Close");
+    assert_eq!(quickopen_close.keybinding, "");
+
     let close_saved = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_SAVED_TABS)
@@ -5942,6 +5956,22 @@ fn markdown_breadcrumb_reserves_preview_button_space() {
 }
 
 #[test]
+fn palette_and_quickopen_close_commands_clear_active_overlays() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_palette_open(h);
+    assert_eq!(crate::mui_palette_active(h), 1);
+    crate::mui_palette_cancel(h);
+    assert_eq!(crate::mui_palette_active(h), 0);
+
+    crate::mui_quickopen_open(h);
+    assert_eq!(crate::mui_qo_active(h), 1);
+    crate::mui_qo_cancel(h);
+    assert_eq!(crate::mui_qo_active(h), 0);
+}
+
+#[test]
 fn breadcrumb_accept_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -7134,6 +7164,18 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Breadcrumb: Close Menu must reuse the same close path as Esc"
     );
     assert!(
+        main.contains("id == cmd_command_palette_close()")
+            && main.contains("mui_palette_cancel(h)")
+            && main.contains("palette_open = false"),
+        "Command Palette: Close must clear both shim and Mighty-side palette state"
+    );
+    assert!(
+        main.contains("id == cmd_quick_open_close()")
+            && main.contains("mui_qo_cancel(h)")
+            && main.contains("quickopen_open = false"),
+        "Quick Open: Close must clear both shim and Mighty-side Quick Open state"
+    );
+    assert!(
         main.contains("id == cmd_hover_close()")
             && main.contains("mui_hover_clear(h)")
             && main.contains("hovering = false"),
@@ -7543,6 +7585,11 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
             CMD_BREADCRUMB_MENU_CANCEL,
             "cmd_breadcrumb_menu_cancel",
         ),
+        (
+            CMD_COMMAND_PALETTE_CLOSE,
+            "cmd_command_palette_close",
+        ),
+        (CMD_QUICK_OPEN_CLOSE, "cmd_quick_open_close"),
         (CMD_JUMP_BACK, "cmd_jump_back"),
         (CMD_QUIT, "cmd_quit"),
         (CMD_COLOR_THEME, "cmd_color_theme"),

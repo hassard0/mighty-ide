@@ -377,6 +377,10 @@ pub const CMD_DIRTY_CONFIRM_CANCEL: u32 = 172;
 pub const CMD_GIT_BRANCH_CANCEL: u32 = 173;
 /// Close the breadcrumb dropdown without opening a file or jumping to a symbol.
 pub const CMD_BREADCRUMB_MENU_CANCEL: u32 = 174;
+/// Close the command palette without executing the highlighted command.
+pub const CMD_COMMAND_PALETTE_CLOSE: u32 = 175;
+/// Close Quick Open without opening a file, command, symbol, or line jump.
+pub const CMD_QUICK_OPEN_CLOSE: u32 = 176;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -475,6 +479,8 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_DIRTY_CONFIRM_CANCEL, label: "Unsaved Changes: Cancel Confirmation", keybinding: "" },
     Command { id: CMD_GIT_BRANCH_CANCEL, label: "Git: Close Branch Switcher", keybinding: "" },
     Command { id: CMD_BREADCRUMB_MENU_CANCEL, label: "Breadcrumb: Close Menu", keybinding: "" },
+    Command { id: CMD_COMMAND_PALETTE_CLOSE, label: "Command Palette: Close", keybinding: "" },
+    Command { id: CMD_QUICK_OPEN_CLOSE, label: "Quick Open: Close", keybinding: "" },
     Command { id: CMD_JUMP_BACK,        label: "Jump Back",          keybinding: "" },
     Command { id: CMD_QUIT,             label: "Quit",               keybinding: "Esc / close" },
     Command { id: CMD_COLOR_THEME,      label: "Preferences: Color Theme", keybinding: "" },
@@ -1010,6 +1016,8 @@ impl PaletteEngine {
             CMD_DIRTY_CONFIRM_CANCEL => (icons::CLOSE, "Cancel the unsaved-work confirmation without saving or discarding", false),
             CMD_GIT_BRANCH_CANCEL => (icons::CLOSE, "Close the Git branch switcher without checking out or creating a branch", false),
             CMD_BREADCRUMB_MENU_CANCEL => (icons::CLOSE, "Close the breadcrumb dropdown without opening a file or jumping to a symbol", false),
+            CMD_COMMAND_PALETTE_CLOSE => (icons::CLOSE, "Close the command palette without executing the highlighted command", false),
+            CMD_QUICK_OPEN_CLOSE => (icons::CLOSE, "Close Quick Open without opening a file, command, symbol, or line jump", false),
             CMD_JUMP_BACK => (icons::CHEVRON, "Return to the previous location", false),
             CMD_QUIT => (icons::CLOSE, "Close the editor", false),
             CMD_COLOR_THEME => (icons::SETTINGS, "Switch the editor color theme", false),

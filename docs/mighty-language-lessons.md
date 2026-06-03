@@ -6875,3 +6875,13 @@ should be a named command that cannot accidentally accept the highlighted row.
 - **IDE note:** The command palette now lists `Breadcrumb: Close Menu`, calling
   `mui_crumb_menu_cancel`. ABI, registry, metadata, dispatcher, and label tests
   pin the close path.
+
+L543. Launcher overlays need explicit close commands too.
+Command Palette and Quick Open are launchers, not just keyboard shortcuts. Their
+close actions should be callable by name, especially from Quick Open command
+mode, without executing the selected command or opening a file.
+
+- **IDE note:** The command palette now lists `Command Palette: Close` and
+  `Quick Open: Close`, calling `mui_palette_cancel` and `mui_qo_cancel` while
+  clearing Mighty's local overlay flags. ABI, registry, metadata, dispatcher,
+  and label tests pin both close paths.
