@@ -568,6 +568,7 @@ enum OperationKey {
     CodeAction,
     Format,
     Fold,
+    Replace,
     Navigation,
     Markdown,
     Layout,
@@ -764,6 +765,13 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No folded blocks to unfold"
     {
         Some(OperationKey::Fold)
+    } else if m == "Enter text to replace"
+        || m == "Replace is unavailable in read-only previews"
+        || m == "No matches to replace"
+        || m == "No project replacements"
+        || (m.starts_with("Replaced ") && m.contains(" occurrence"))
+    {
+        Some(OperationKey::Replace)
     } else if m == "No definition found"
         || m == "No definition target selected"
         || m.starts_with("Definition target missing")
@@ -1393,6 +1401,52 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No folded blocks to unfold");
+    }
+
+    #[test]
+    fn newer_replace_feedback_replaces_stale_replace_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "Enter text to replace", t0);
+        q.push_at(
+            Kind::Warn,
+            "Replace is unavailable in read-only previews",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Replace is unavailable in read-only previews"
+        );
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
+            Kind::Success,
+            "Replaced 2 occurrences",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Replaced 2 occurrences");
+
+        q.push_at(
+            Kind::Warn,
+            "Replaced 1 occurrence; 1 dirty open tab not refreshed",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Replaced 1 occurrence; 1 dirty open tab not refreshed"
+        );
+
+        q.push_at(
+            Kind::Warn,
+            "No project replacements",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No project replacements");
     }
 
     #[test]

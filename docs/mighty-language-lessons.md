@@ -5606,3 +5606,12 @@ one.
   `All foldable blocks already folded`, and `No folded blocks to unfold` now
   share a Fold toast replacement key. Repeated fold/unfold commands keep only
   the latest folding outcome visible.
+
+L410. Replace outcomes should share one replacement lane. In-file replace and
+project replace-all are the same user intent at different scopes, and repeated
+attempts should replace stale replacement cards with the latest result.
+
+- **IDE note:** `Enter text to replace`, read-only replace warnings,
+  `No matches to replace`, `No project replacements`, and `Replaced ...
+  occurrence...` messages now share a Replace toast replacement key. Replace
+  retries keep the freshest result visible across file and project scopes.
