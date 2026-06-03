@@ -4427,10 +4427,7 @@ fn dirty_confirm_rects(
     (f32, f32, f32, f32),
 ) {
     let (w, h) = dirty_confirm_surface_size(ctx);
-    let card_w = w.min(520.0).max(320.0).min((w - 32.0).max(280.0));
-    let card_h = 184.0;
-    let card_x = ((w - card_w) * 0.5).max(16.0);
-    let card_y = ((h - card_h) * 0.5).max(48.0);
+    let (card_x, card_y, card_w, card_h) = dirty_confirm_card_rect(w, h);
     let btn_w = dirty_confirm_button_width(card_w);
     let btn_h = 34.0;
     let by = card_y + card_h - 54.0;
@@ -4549,10 +4546,7 @@ pub extern "C" fn mui_dirty_confirm_draw(handle: i64) {
     }
 
     let (w, h) = dirty_confirm_surface_size(ctx);
-    let card_w = w.min(520.0).max(320.0).min((w - 32.0).max(280.0));
-    let card_h = 184.0;
-    let card_x = ((w - card_w) * 0.5).max(16.0);
-    let card_y = ((h - card_h) * 0.5).max(48.0);
+    let (card_x, card_y, card_w, card_h) = dirty_confirm_card_rect(w, h);
     let chrome = theme::CHROME_FONT_SIZE;
     let old_clip = ctx.clip;
     ctx.clip = None;
@@ -4609,7 +4603,20 @@ pub extern "C" fn mui_dirty_confirm_draw(handle: i64) {
 }
 
 pub(crate) fn dirty_confirm_button_width(card_w: f32) -> f32 {
-    ((card_w - 48.0 - 24.0) / 3.0).clamp(72.0, 112.0)
+    ((card_w - 48.0 - 24.0) / 3.0).max(1.0).min(112.0)
+}
+
+pub(crate) fn dirty_confirm_card_rect(surface_w: f32, surface_h: f32) -> (f32, f32, f32, f32) {
+    let card_w = (surface_w - 32.0)
+        .max(0.0)
+        .clamp(280.0, 520.0)
+        .min(surface_w.max(1.0));
+    let card_h = 184.0;
+    let card_x = ((surface_w - card_w) * 0.5).max(0.0);
+    let card_y = ((surface_h - card_h) * 0.5)
+        .max(48.0)
+        .min((surface_h - card_h).max(0.0));
+    (card_x, card_y, card_w, card_h)
 }
 
 fn queue_centered_button_label(

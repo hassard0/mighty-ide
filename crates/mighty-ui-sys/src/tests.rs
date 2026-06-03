@@ -556,13 +556,10 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     crate::uiscale::set_user_zoom(1.0);
     let visible_w = crate::layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
     let visible_h = crate::layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height) as f32;
-    let card_w = visible_w.min(520.0).max(320.0).min((visible_w - 32.0).max(280.0));
-    let card_h = 184.0;
-    let card_x = ((visible_w - card_w) * 0.5).max(16.0);
-    let card_y = ((visible_h - card_h) * 0.5).max(48.0);
-    let btn_w = 112.0;
+    let (card_x, card_y, card_w, _card_h) = crate::abi::dirty_confirm_card_rect(visible_w, visible_h);
+    let btn_w = crate::abi::dirty_confirm_button_width(card_w);
     let btn_h = 34.0;
-    let by = card_y + card_h - 54.0;
+    let by = card_y + _card_h - 54.0;
     let discard_x = card_x + card_w - btn_w - 24.0;
     let save_x = discard_x - btn_w - 12.0;
     let cancel_x = save_x - btn_w - 12.0;
@@ -619,6 +616,18 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
             "button label should fit centered compact button: {label}"
         );
     }
+    let (tiny_x, _tiny_y, tiny_card_w, _tiny_card_h) = crate::abi::dirty_confirm_card_rect(180.0, 360.0);
+    assert!(tiny_x >= 0.0);
+    assert!(tiny_card_w <= 180.0);
+    assert!(tiny_x + tiny_card_w <= 180.0 + 0.5);
+    let tiny_btn_w = crate::abi::dirty_confirm_button_width(tiny_card_w);
+    assert!(
+        tiny_btn_w * 3.0 + 24.0 <= tiny_card_w - 48.0 + 0.5,
+        "dirty-confirm buttons should shrink inside tiny card"
+    );
+    let (_short_x, short_y, _short_w, short_h) = crate::abi::dirty_confirm_card_rect(520.0, 220.0);
+    assert!(short_y >= 0.0);
+    assert!(short_y + short_h <= 220.0 + 0.5);
     let long_label = "Discard changes permanently";
     let fitted_long_label = crate::abi::fit_dirty_confirm_button_label(
         &mut ctx.text,
