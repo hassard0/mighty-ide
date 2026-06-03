@@ -6838,3 +6838,13 @@ the surface.
 - **IDE note:** The command palette now lists `Find & Replace: Close Bar`,
   calling `mui_replace_cancel` while clearing Mighty's local `replacing` flag.
   ABI, registry, metadata, dispatcher, and label tests pin the close path.
+
+L539. Suggestion popups should be dismissible as commands.
+Autocomplete suggestions are accepted by Enter or mouse, so the command palette
+needs a distinct close action that only dismisses the dropdown and never inserts
+the selected candidate.
+
+- **IDE note:** The command palette now lists
+  `Autocomplete: Close Suggestions`, calling `mui_complete_cancel` while
+  clearing Mighty's local `completing` flag. ABI, registry, metadata,
+  dispatcher, and label tests pin the close path.

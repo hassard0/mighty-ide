@@ -2705,6 +2705,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(find_replace_close.label, "Find & Replace: Close Bar");
     assert_eq!(find_replace_close.keybinding, "");
 
+    let autocomplete_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_AUTOCOMPLETE_CLOSE)
+        .unwrap();
+    assert_eq!(autocomplete_close.label, "Autocomplete: Close Suggestions");
+    assert_eq!(autocomplete_close.keybinding, "");
+
     let close_saved = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_SAVED_TABS)
@@ -5613,6 +5620,23 @@ fn explicit_completion_reports_empty_result_only_when_empty() {
 }
 
 #[test]
+fn autocomplete_close_command_clears_active_dropdown() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("alpha al");
+    ctx.tabs.active_model_mut().move_to(0, 8);
+    assert!(crate::mui_ed_complete_request(h) > 0);
+    assert_eq!(crate::mui_complete_active(h), 1);
+    assert!(crate::mui_complete_count(h) > 0);
+
+    crate::mui_complete_cancel(h);
+    assert_eq!(crate::mui_complete_active(h), 0);
+    assert_eq!(crate::mui_complete_count(h), 0);
+}
+
+#[test]
 fn pane_split_focus_close_via_abi() {
     use crate::ffi::MuiEvent;
     use crate::{
@@ -7052,6 +7076,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Find & Replace close command must clear shim replace state and Mighty's local replace flag"
     );
     assert!(
+        main.contains("id == cmd_autocomplete_close()")
+            && main.contains("mui_complete_cancel(h)")
+            && main.contains("completing = false"),
+        "Autocomplete close command must clear shim completion state and Mighty's local completion flag"
+    );
+    assert!(
         main.contains("id == cmd_explorer_collapse_all()")
             && main.contains("let _vp = mui_panel_set(h, panel_explorer())")
             && main.contains("mui_tree_collapse_all(h)"),
@@ -7407,6 +7437,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_UNDO, "cmd_undo"),
         (CMD_REDO, "cmd_redo"),
         (CMD_AUTOCOMPLETE, "cmd_autocomplete"),
+        (CMD_AUTOCOMPLETE_CLOSE, "cmd_autocomplete_close"),
         (CMD_JUMP_BACK, "cmd_jump_back"),
         (CMD_QUIT, "cmd_quit"),
         (CMD_COLOR_THEME, "cmd_color_theme"),

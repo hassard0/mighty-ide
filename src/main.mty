@@ -793,6 +793,7 @@ fn cmd_rename_cancel() -> I32 { 167 }
 fn cmd_code_actions_close() -> I32 { 168 }
 fn cmd_prompt_cancel() -> I32 { 169 }
 fn cmd_find_replace_close() -> I32 { 170 }
+fn cmd_autocomplete_close() -> I32 { 171 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4180,6 +4181,9 @@ fn main() {
           mui_snippet_inject_completions(h)
           let cnt = mui_complete_count(h)
           if cnt > 0 { completing = true } else { mui_complete_cancel(h); let _ce = mui_complete_report_empty(h) }
+        } else if id == cmd_autocomplete_close() {
+          mui_complete_cancel(h)
+          completing = false
         } else if id == cmd_jump_back() {
           if have_prev {
             mui_ed_move_to(h, prev_line, prev_col)
