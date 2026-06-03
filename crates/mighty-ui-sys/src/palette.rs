@@ -357,6 +357,8 @@ pub const CMD_SIGNATURE_HELP_CLOSE: u32 = 162;
 pub const CMD_MARKDOWN_CLOSE_PREVIEW: u32 = 163;
 /// Close the Settings panel without changing preferences.
 pub const CMD_SETTINGS_CLOSE: u32 = 164;
+/// Close the color theme picker and revert any uncommitted preview.
+pub const CMD_COLOR_THEME_CLOSE: u32 = 165;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -450,6 +452,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_JUMP_BACK,        label: "Jump Back",          keybinding: "" },
     Command { id: CMD_QUIT,             label: "Quit",               keybinding: "Esc / close" },
     Command { id: CMD_COLOR_THEME,      label: "Preferences: Color Theme", keybinding: "" },
+    Command { id: CMD_COLOR_THEME_CLOSE, label: "Preferences: Close Color Theme Picker", keybinding: "" },
     Command { id: CMD_RUN_FILE,         label: "Run File",           keybinding: "Ctrl+Shift+R" },
     Command { id: CMD_RUN_STOP,         label: "Run: Stop Process",  keybinding: "" },
     Command { id: CMD_RUN_CLEAR_OUTPUT, label: "Run: Clear Output",  keybinding: "" },
@@ -975,6 +978,7 @@ impl PaletteEngine {
             CMD_JUMP_BACK => (icons::CHEVRON, "Return to the previous location", false),
             CMD_QUIT => (icons::CLOSE, "Close the editor", false),
             CMD_COLOR_THEME => (icons::SETTINGS, "Switch the editor color theme", false),
+            CMD_COLOR_THEME_CLOSE => (icons::CLOSE, "Close the color theme picker and revert preview", false),
             CMD_RUN_FILE => (icons::RUN, "Run the active Mighty file", true),
             CMD_RUN_STOP => (icons::CLOSE, "Stop the active Run output process", false),
             CMD_RUN_CLEAR_OUTPUT => (icons::CLOSE, "Clear the Run output without stopping the process", false),

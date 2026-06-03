@@ -6788,3 +6788,14 @@ can leave the surface without relying on the mouse or Escape.
 - **IDE note:** The command palette now lists `Preferences: Close Settings`,
   calling `mui_settings_close` and clearing Mighty's `settings_open` flag. ABI,
   registry, metadata, dispatcher, and label tests pin the close path.
+
+L534. Previewing modal pickers need explicit cancel commands.
+Color theme selection previews choices live. A command-palette close action must
+cancel that picker, not commit the previewed theme or leave Mighty-side modal
+flags stale.
+
+- **IDE note:** The command palette now lists
+  `Preferences: Close Color Theme Picker`, calling `mui_theme_picker_cancel` and
+  clearing Mighty's `theme_picker_open` flag. ABI, registry, metadata,
+  dispatcher, and label tests pin that closing the picker reverts previewed
+  themes.

@@ -786,6 +786,7 @@ fn cmd_hover_close() -> I32 { 161 }
 fn cmd_signature_help_close() -> I32 { 162 }
 fn cmd_markdown_close_preview() -> I32 { 163 }
 fn cmd_settings_close() -> I32 { 164 }
+fn cmd_color_theme_close() -> I32 { 165 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4177,6 +4178,9 @@ fn main() {
         } else if id == cmd_color_theme() {
           mui_theme_picker_open(h)
           theme_picker_open = true
+        } else if id == cmd_color_theme_close() {
+          mui_theme_picker_cancel(h)
+          theme_picker_open = false
         } else if id == cmd_run_file() {
           let _r = mui_run_start(h)
           run_focus = true

@@ -2937,6 +2937,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(settings_close.label, "Preferences: Close Settings");
     assert_eq!(settings_close.keybinding, "");
 
+    let theme_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_COLOR_THEME_CLOSE)
+        .unwrap();
+    assert_eq!(theme_close.label, "Preferences: Close Color Theme Picker");
+    assert_eq!(theme_close.keybinding, "");
+
     let test_stop = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_TEST_STOP)
@@ -5095,6 +5102,23 @@ fn settings_close_command_clears_active_panel() {
 }
 
 #[test]
+fn color_theme_close_command_cancels_picker() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    crate::theme::set_active(crate::theme::ThemeId::Vivid);
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_theme_picker_open(handle);
+    assert_eq!(crate::mui_theme_picker_active(handle), 1);
+    crate::mui_theme_picker_move(handle, 1);
+    assert_eq!(crate::theme::active_id(), crate::theme::ThemeId::Aurora);
+
+    crate::mui_theme_picker_cancel(handle);
+    assert_eq!(crate::mui_theme_picker_active(handle), 0);
+    assert_eq!(crate::theme::active_id(), crate::theme::ThemeId::Vivid);
+}
+
+#[test]
 fn visible_surface_size_honors_screenshot_caps() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     std::env::set_var("MUI_SCREENSHOT_W", "560");
@@ -6972,6 +6996,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Settings close command must call the dedicated Settings close ABI and clear Mighty's local flag"
     );
     assert!(
+        main.contains("id == cmd_color_theme_close()")
+            && main.contains("mui_theme_picker_cancel(h)")
+            && main.contains("theme_picker_open = false"),
+        "Color theme close command must cancel the picker and clear Mighty's local flag"
+    );
+    assert!(
         main.contains("id == cmd_git_hide_blame()")
             && main.contains("let _bc = mui_blame_close(h)"),
         "Git hide-blame command must call the dedicated blame close ABI"
@@ -7235,6 +7265,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_JUMP_BACK, "cmd_jump_back"),
         (CMD_QUIT, "cmd_quit"),
         (CMD_COLOR_THEME, "cmd_color_theme"),
+        (CMD_COLOR_THEME_CLOSE, "cmd_color_theme_close"),
         (CMD_RUN_FILE, "cmd_run_file"),
         (CMD_RUN_STOP, "cmd_run_stop"),
         (CMD_RUN_CLEAR_OUTPUT, "cmd_run_clear_output"),
