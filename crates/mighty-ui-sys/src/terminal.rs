@@ -511,6 +511,10 @@ pub struct VtParser {
     saved_cursor: Option<(usize, usize)>,
     /// Whether the running app asked for bracketed paste (`CSI ?2004 h`).
     bracketed_paste: bool,
+    /// Whether the running app asked for mouse button/drag/all-motion reports.
+    mouse_reporting: bool,
+    /// Whether mouse reports should use SGR extended coordinates (`CSI ?1006 h`).
+    sgr_mouse: bool,
 }
 
 impl Default for VtParser {
@@ -529,6 +533,8 @@ impl VtParser {
             reply: Vec::new(),
             saved_cursor: None,
             bracketed_paste: false,
+            mouse_reporting: false,
+            sgr_mouse: false,
         }
     }
 
@@ -547,6 +553,10 @@ impl VtParser {
 
     pub fn bracketed_paste_enabled(&self) -> bool {
         self.bracketed_paste
+    }
+
+    pub fn sgr_mouse_enabled(&self) -> bool {
+        self.mouse_reporting && self.sgr_mouse
     }
 
     fn feed_byte(&mut self, grid: &mut Grid, b: u8) {
@@ -889,6 +899,10 @@ impl VtParser {
                 ("1048", b'l') => self.restore_cursor(grid),
                 ("2004", b'h') => self.bracketed_paste = true,
                 ("2004", b'l') => self.bracketed_paste = false,
+                ("1000" | "1002" | "1003", b'h') => self.mouse_reporting = true,
+                ("1000" | "1002" | "1003", b'l') => self.mouse_reporting = false,
+                ("1006", b'h') => self.sgr_mouse = true,
+                ("1006", b'l') => self.sgr_mouse = false,
                 _ => {}
             }
         }
@@ -1290,6 +1304,14 @@ impl Terminal {
         self.send(&bytes);
     }
 
+    /// Send a wheel gesture using mouse reporting when the running app requested
+    /// it; otherwise fall back to repeated cursor movement for ordinary shells.
+    pub fn send_scroll(&mut self, dir: i32) {
+        if let Some(bytes) = scroll_to_bytes(dir, self.parser.sgr_mouse_enabled()) {
+            self.send(&bytes);
+        }
+    }
+
     /// Resize the PTY and the grid to `rows`×`cols`.
     pub fn resize(&mut self, rows: usize, cols: usize) {
         let rows = rows.max(1);
@@ -1421,7 +1443,15 @@ pub fn paste_to_bytes(text: &str, bracketed: bool) -> Vec<u8> {
     bytes
 }
 
-pub fn scroll_to_bytes(dir: i32) -> Option<Vec<u8>> {
+pub fn scroll_to_bytes(dir: i32, sgr_mouse: bool) -> Option<Vec<u8>> {
+    if sgr_mouse {
+        return match dir {
+            d if d > 0 => Some(b"\x1b[<64;1;1M".to_vec()),
+            d if d < 0 => Some(b"\x1b[<65;1;1M".to_vec()),
+            _ => None,
+        };
+    }
+
     let key = if dir > 0 {
         b'A'
     } else if dir < 0 {
@@ -1895,6 +1925,24 @@ mod tests {
     }
 
     #[test]
+    fn mouse_reporting_modes_track_private_csi() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+        assert!(!p.sgr_mouse_enabled());
+
+        p.feed(&mut g, b"\x1b[?1000h\x1b[?1006h");
+        assert!(p.sgr_mouse_enabled());
+        assert!(!g.contains("1000"));
+        assert!(!g.contains("1006"));
+
+        p.feed(&mut g, b"\x1b[?1006l");
+        assert!(!p.sgr_mouse_enabled());
+
+        p.feed(&mut g, b"\x1b[?1006h\x1b[?1000l");
+        assert!(!p.sgr_mouse_enabled());
+    }
+
+    #[test]
     fn cursor_column_and_line_csi_moves_and_clamps() {
         let g = grid_feed(3, 8, b"abcd\x1b[2GZ\x1b[20GX");
         assert_eq!(g.cell(0, 0).ch, 'a');
@@ -2051,9 +2099,22 @@ mod tests {
 
     #[test]
     fn scroll_bytes_send_repeated_cursor_moves() {
-        assert_eq!(scroll_to_bytes(1), Some(b"\x1b[A\x1b[A\x1b[A".to_vec()));
-        assert_eq!(scroll_to_bytes(-1), Some(b"\x1b[B\x1b[B\x1b[B".to_vec()));
-        assert_eq!(scroll_to_bytes(0), None);
+        assert_eq!(
+            scroll_to_bytes(1, false),
+            Some(b"\x1b[A\x1b[A\x1b[A".to_vec())
+        );
+        assert_eq!(
+            scroll_to_bytes(-1, false),
+            Some(b"\x1b[B\x1b[B\x1b[B".to_vec())
+        );
+        assert_eq!(scroll_to_bytes(0, false), None);
+    }
+
+    #[test]
+    fn scroll_bytes_send_sgr_mouse_wheel_when_enabled() {
+        assert_eq!(scroll_to_bytes(1, true), Some(b"\x1b[<64;1;1M".to_vec()));
+        assert_eq!(scroll_to_bytes(-1, true), Some(b"\x1b[<65;1;1M".to_vec()));
+        assert_eq!(scroll_to_bytes(0, true), None);
     }
 
     // ---- PTY integration (skips gracefully if spawn fails) ----

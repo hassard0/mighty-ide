@@ -6928,9 +6928,7 @@ pub extern "C" fn mui_term_paste(handle: i64) -> i32 {
 pub extern "C" fn mui_term_scroll(handle: i64, dir: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         if let Some(t) = ctx.terminal.as_mut() {
-            if let Some(bytes) = crate::terminal::scroll_to_bytes(dir) {
-                t.send(&bytes);
-            }
+            t.send_scroll(dir);
         }
     }
 }

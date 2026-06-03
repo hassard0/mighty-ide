@@ -6448,3 +6448,15 @@ rows are overwritten and TUIs visibly tear apart during ordinary output.
   applies them to linefeed, `CSI S/T`, and `CSI L/M`. Parser tests cover
   margin-preserving linefeed, explicit scroll commands, insert/delete lines
   inside and outside the region, and bare `CSI r` reset to full-grid scrolling.
+
+L502. Terminal wheel input should honor mouse-reporting mode.
+Once a TUI enables mouse tracking, scroll-wheel gestures are not just navigation
+keys; they are mouse events the app asked to receive. Continuing to translate
+wheel input into repeated cursor-up/down bytes makes mouse-aware panes, lists,
+and editors behave unlike a real terminal.
+
+- **IDE note:** The VT parser now tracks private mouse modes `1000`, `1002`,
+  `1003`, and SGR mouse mode `1006`. Terminal scroll dispatch emits SGR wheel
+  reports while mouse reporting is active and keeps the previous cursor-key
+  fallback for ordinary shells. Unit coverage pins mode toggling and both
+  scroll encodings.
