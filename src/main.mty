@@ -206,6 +206,9 @@ extern c {
   fn mui_dirty_confirm_draw(handle: I64)
   fn mui_window_minimize(handle: I64)
   fn mui_window_toggle_maximize(handle: I64) -> I32
+  fn mui_zoom_in(handle: I64) -> I32
+  fn mui_zoom_out(handle: I64) -> I32
+  fn mui_zoom_reset(handle: I64) -> I32
   fn mui_window_controls_draw(handle: I64)
   fn mui_topbar_action_at_click(handle: I64) -> I32
   fn mui_explorer_header_at_click(handle: I64) -> I32
@@ -753,6 +756,9 @@ fn cmd_run_test_at_cursor() -> I32 { 138 }
 fn cmd_web_stop() -> I32 { 139 }
 fn cmd_web_open_browser() -> I32 { 140 }
 fn cmd_ai_clear_chat() -> I32 { 141 }
+fn cmd_zoom_in() -> I32 { 142 }
+fn cmd_zoom_out() -> I32 { 143 }
+fn cmd_zoom_reset() -> I32 { 144 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4138,6 +4144,15 @@ fn main() {
         } else if id == cmd_settings() {
           let _s = mui_settings_open(h)
           settings_open = true
+        } else if id == cmd_zoom_in() {
+          let _zi = mui_zoom_in(h)
+          typing = false
+        } else if id == cmd_zoom_out() {
+          let _zo = mui_zoom_out(h)
+          typing = false
+        } else if id == cmd_zoom_reset() {
+          let _zr = mui_zoom_reset(h)
+          typing = false
         } else if id == cmd_run_tests() {
           let _t = mui_test_run(h)
           test_focus = true

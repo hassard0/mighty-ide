@@ -6609,3 +6609,15 @@ a one-off modal.
   through a new `mui_ai_clear` ABI that opens the AI panel, clears draft,
   transcript, scroll, and active stream state, and reports both changed and
   already-empty outcomes. Registry/mirror and ABI tests pin the behavior.
+
+L516. Global viewport controls should be searchable.
+If a feature is implemented only as an intercepted chord or mouse gesture, users
+who search the command palette cannot discover it and stale shortcut labels can
+drift after input routing changes. UI zoom is a global editor control, so it
+belongs beside other View commands.
+
+- **IDE note:** The command palette now lists `View: Zoom In`, `View: Zoom Out`,
+  and `View: Reset Zoom`, dispatching through the existing `mui_zoom_in`,
+  `mui_zoom_out`, and `mui_zoom_reset` ABIs. `Jump Back` no longer advertises
+  the now-reserved `Ctrl+-` chord, and registry/mirror tests pin the command
+  labels, keybindings, ids, and Mighty helpers.

@@ -2730,6 +2730,24 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         assert_eq!(cmd.keybinding, keybinding);
     }
 
+    let jump_back = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_JUMP_BACK)
+        .unwrap();
+    assert_eq!(jump_back.label, "Jump Back");
+    assert_eq!(jump_back.keybinding, "");
+
+    let zoom_commands = [
+        (crate::palette::CMD_ZOOM_IN, "View: Zoom In", "Ctrl+="),
+        (crate::palette::CMD_ZOOM_OUT, "View: Zoom Out", "Ctrl+-"),
+        (crate::palette::CMD_ZOOM_RESET, "View: Reset Zoom", "Ctrl+0"),
+    ];
+    for (id, label, keybinding) in zoom_commands {
+        let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
+        assert_eq!(cmd.label, label);
+        assert_eq!(cmd.keybinding, keybinding);
+    }
+
     let run_stop = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_RUN_STOP)
@@ -6735,6 +6753,9 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_RUN_FILE, "cmd_run_file"),
         (CMD_RUN_STOP, "cmd_run_stop"),
         (CMD_SETTINGS, "cmd_settings"),
+        (CMD_ZOOM_IN, "cmd_zoom_in"),
+        (CMD_ZOOM_OUT, "cmd_zoom_out"),
+        (CMD_ZOOM_RESET, "cmd_zoom_reset"),
         (CMD_RUN_TESTS, "cmd_run_tests"),
         (CMD_RUN_TEST_AT_CURSOR, "cmd_run_test_at_cursor"),
         (CMD_TEST_STOP, "cmd_test_stop"),

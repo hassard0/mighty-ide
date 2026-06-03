@@ -311,6 +311,12 @@ pub const CMD_WEB_STOP: u32 = 139;
 pub const CMD_WEB_OPEN_BROWSER: u32 = 140;
 /// Clear the AI copilot transcript and draft composer.
 pub const CMD_AI_CLEAR_CHAT: u32 = 141;
+/// Increase the UI zoom by one step.
+pub const CMD_ZOOM_IN: u32 = 142;
+/// Decrease the UI zoom by one step.
+pub const CMD_ZOOM_OUT: u32 = 143;
+/// Reset the UI zoom to 100%.
+pub const CMD_ZOOM_RESET: u32 = 144;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -397,12 +403,15 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_UNDO,             label: "Undo",               keybinding: "Ctrl+Z" },
     Command { id: CMD_REDO,             label: "Redo",               keybinding: "Ctrl+Y" },
     Command { id: CMD_AUTOCOMPLETE,     label: "Trigger Autocomplete", keybinding: "Ctrl+Space" },
-    Command { id: CMD_JUMP_BACK,        label: "Jump Back",          keybinding: "Ctrl+-" },
+    Command { id: CMD_JUMP_BACK,        label: "Jump Back",          keybinding: "" },
     Command { id: CMD_QUIT,             label: "Quit",               keybinding: "Esc / close" },
     Command { id: CMD_COLOR_THEME,      label: "Preferences: Color Theme", keybinding: "" },
     Command { id: CMD_RUN_FILE,         label: "Run File",           keybinding: "Ctrl+Shift+R" },
     Command { id: CMD_RUN_STOP,         label: "Run: Stop Process",  keybinding: "" },
     Command { id: CMD_SETTINGS,         label: "Preferences: Settings", keybinding: "Ctrl+," },
+    Command { id: CMD_ZOOM_IN,          label: "View: Zoom In",      keybinding: "Ctrl+=" },
+    Command { id: CMD_ZOOM_OUT,         label: "View: Zoom Out",     keybinding: "Ctrl+-" },
+    Command { id: CMD_ZOOM_RESET,       label: "View: Reset Zoom",   keybinding: "Ctrl+0" },
     Command { id: CMD_RUN_TESTS,        label: "Run Tests",          keybinding: "Ctrl+Shift+T" },
     Command { id: CMD_RUN_TEST_AT_CURSOR, label: "Run Test at Cursor", keybinding: "" },
     Command { id: CMD_TEST_STOP,        label: "Test: Stop Run",     keybinding: "" },
@@ -905,6 +914,9 @@ impl PaletteEngine {
             CMD_RUN_FILE => (icons::RUN, "Run the active Mighty file", true),
             CMD_RUN_STOP => (icons::CLOSE, "Stop the active Run output process", false),
             CMD_SETTINGS => (icons::SETTINGS, "Edit editor preferences", false),
+            CMD_ZOOM_IN => (icons::PLUS, "Increase the IDE UI scale", false),
+            CMD_ZOOM_OUT => (icons::UNSTAGE_MINUS, "Decrease the IDE UI scale", false),
+            CMD_ZOOM_RESET => (icons::WIN_MAX, "Reset the IDE UI scale to 100%", false),
             CMD_RUN_TESTS => (icons::BEAKER, "Run the package's tests (mty test)", false),
             CMD_RUN_TEST_AT_CURSOR => (icons::BEAKER, "Run tests and focus the nearest test at the cursor", false),
             CMD_TEST_STOP => (icons::CLOSE, "Stop the active test run", false),
