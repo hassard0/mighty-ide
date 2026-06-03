@@ -850,6 +850,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Breadcrumb file no longer listed"
         || m == "Breadcrumb symbol unavailable"
         || m.starts_with("Breadcrumb target missing")
+        || m.starts_with("Outline symbols ")
         || m == "No search result selected"
         || m == "Search result file no longer listed"
         || m.starts_with("Search results ")

@@ -2388,6 +2388,35 @@ fn outline_close_command_preserves_symbols_and_current_row() {
 }
 
 #[test]
+fn outline_clear_symbols_command_keeps_panel_open_and_clears_current_row() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("fn alpha() {\n  1\n}\n\nfn beta() {\n  2\n}\n");
+    ctx.active_panel = crate::PANEL_OUTLINE;
+    ctx.sidebar_visible = true;
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::navsurfaces::mui_outline_refresh(h), 2);
+    assert_eq!(crate::navsurfaces::mui_outline_set_cursor(h, 4), 1);
+    assert_eq!(crate::navsurfaces::mui_outline_clear_symbols(h), 1);
+    assert_eq!(ctx.active_panel, crate::PANEL_OUTLINE);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(crate::navsurfaces::mui_outline_count(h), 0);
+    assert_eq!(crate::navsurfaces::mui_outline_current(h), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Outline symbols cleared"
+    );
+
+    assert_eq!(crate::navsurfaces::mui_outline_clear_symbols(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Outline symbols already empty"
+    );
+}
+
+#[test]
 fn new_project_invalid_and_existing_names_toast_without_shelling_out() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_new_project_guards");
@@ -3246,6 +3275,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(outline_refresh.label, "Outline: Refresh Symbols");
     assert_eq!(outline_refresh.keybinding, "");
+
+    let outline_clear = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_OUTLINE_CLEAR_SYMBOLS)
+        .unwrap();
+    assert_eq!(outline_clear.label, "Outline: Clear Symbols");
+    assert_eq!(outline_clear.keybinding, "");
 
     let outline_close = crate::palette::COMMANDS
         .iter()
@@ -7905,6 +7941,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Outline refresh command must reveal Outline before refreshing symbols"
     );
     assert!(
+        main.contains("id == cmd_outline_clear_symbols()")
+            && main.contains("let _vp = mui_panel_set(h, panel_outline())")
+            && main.contains("let _ocs = mui_outline_clear_symbols(h)")
+            && main.contains("find_nav = false"),
+        "Outline clear command must clear symbols while keeping Outline visible"
+    );
+    assert!(
         main.contains("id == cmd_outline_close()")
             && main.contains("let _oc = mui_outline_close(h)")
             && main.contains("find_nav = false"),
@@ -8254,6 +8297,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_VIEW_SOURCE_CONTROL, "cmd_view_source_control"),
         (CMD_VIEW_OUTLINE, "cmd_view_outline"),
         (CMD_OUTLINE_REFRESH, "cmd_outline_refresh"),
+        (CMD_OUTLINE_CLEAR_SYMBOLS, "cmd_outline_clear_symbols"),
         (CMD_OUTLINE_CLOSE, "cmd_outline_close"),
         (CMD_VIEW_RUN_DEBUG, "cmd_view_run_debug"),
         (CMD_DEBUG_CLOSE, "cmd_debug_close"),

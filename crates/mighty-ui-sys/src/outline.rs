@@ -510,6 +510,15 @@ impl OutlineState {
         self.syms = syms;
     }
 
+    /// Clear derived symbol rows and the cursor-tracked current symbol.
+    pub fn clear_symbols(&mut self) -> bool {
+        let changed = !self.syms.is_empty() || self.current.is_some();
+        self.syms.clear();
+        self.current = None;
+        self.used_lsp = false;
+        changed
+    }
+
     pub fn used_lsp(&self) -> bool {
         self.used_lsp
     }
@@ -749,6 +758,21 @@ fn b() {}\n";
         let n = st.refresh("fn main() {}\n", "");
         assert_eq!(n, 1);
         assert!(!st.used_lsp());
+    }
+
+    #[test]
+    fn clear_symbols_clears_rows_and_current_symbol() {
+        let mut st = OutlineState::new();
+        let n = st.refresh("fn alpha() {}\nfn beta() {}\n", "");
+        assert_eq!(n, 2);
+        assert_eq!(st.set_cursor(1), 1);
+        assert_eq!(st.count(), 2);
+
+        assert!(st.clear_symbols());
+        assert_eq!(st.count(), 0);
+        assert_eq!(st.current(), -1);
+        assert!(!st.used_lsp());
+        assert!(!st.clear_symbols());
     }
 
     #[test]

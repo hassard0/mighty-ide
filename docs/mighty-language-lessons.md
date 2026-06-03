@@ -7056,3 +7056,13 @@ query.
   and matches, keeps the Search panel active, preserves query/replace/focus
   state, reports cleared/already-empty feedback, and routes through the Mighty
   dispatcher.
+
+L562. Outline symbols are derived navigation state and need an explicit clear.
+Refresh recomputes symbols from the active document, and Close hides the panel;
+neither gives users a way to discard stale symbol rows while keeping Outline
+visible.
+
+- **IDE note:** The command palette now lists `Outline: Clear Symbols`, calling
+  `mui_outline_clear_symbols`. The command clears symbol rows and the
+  cursor-current symbol, keeps the Outline panel active, reports
+  cleared/already-empty feedback, and routes through the Mighty dispatcher.

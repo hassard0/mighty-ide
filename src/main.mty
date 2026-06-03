@@ -551,6 +551,7 @@ extern c {
   fn mui_diff_toggle_hunk(handle: I64, hunk: I32) -> I32
   // ---- Outline / document symbols panel (rail slot 5) ----
   fn mui_outline_refresh(handle: I64) -> I32
+  fn mui_outline_clear_symbols(handle: I64) -> I32
   fn mui_outline_close(handle: I64) -> I32
   fn mui_outline_count(handle: I64) -> I32
   fn mui_outline_row_kind(handle: I64, i: I32) -> I32
@@ -808,6 +809,7 @@ fn cmd_explorer_close() -> I32 { 190 }
 fn cmd_problems_clear() -> I32 { 191 }
 fn cmd_git_clear_commit_message() -> I32 { 192 }
 fn cmd_search_clear_results() -> I32 { 193 }
+fn cmd_outline_clear_symbols() -> I32 { 194 }
 fn cmd_diff_close_view() -> I32 { 158 }
 fn cmd_git_hide_blame() -> I32 { 159 }
 fn cmd_peek_close() -> I32 { 160 }
@@ -4431,6 +4433,11 @@ fn main() {
         } else if id == cmd_outline_refresh() {
           let _vp = mui_panel_set(h, panel_outline())
           let _or = mui_outline_refresh(h)
+          agents_focus = false
+          find_nav = false
+        } else if id == cmd_outline_clear_symbols() {
+          let _vp = mui_panel_set(h, panel_outline())
+          let _ocs = mui_outline_clear_symbols(h)
           agents_focus = false
           find_nav = false
         } else if id == cmd_outline_close() {

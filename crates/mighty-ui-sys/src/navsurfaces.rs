@@ -112,6 +112,23 @@ pub extern "C" fn mui_outline_close(handle: i64) -> i32 {
     0
 }
 
+/// Clear Outline symbols without closing the panel. Returns `1` when rows or
+/// current-symbol state were cleared, or `0` when the Outline was already empty.
+#[no_mangle]
+pub extern "C" fn mui_outline_clear_symbols(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.outline.clear_symbols() {
+        ctx.push_toast(crate::toast::Kind::Info, "Outline symbols cleared");
+        crate::abi::trace("outline_clear_symbols");
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "Outline symbols already empty");
+    crate::abi::trace("outline_clear_symbols noop");
+    0
+}
+
 /// Scalar kind of symbol `i` (see [`SymKind`]), or `-1` out of range.
 #[no_mangle]
 pub extern "C" fn mui_outline_row_kind(handle: i64, i: i32) -> i32 {
