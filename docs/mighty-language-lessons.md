@@ -6915,3 +6915,12 @@ delete the expansion.
   `Snippet: Cancel Tab-Stop Session`, calling `mui_snippet_cancel`. Snippet
   expansion, registry, metadata, dispatcher, and label tests pin that the command
   ends tab-stop mode while preserving the expanded text.
+
+L547. Shared drawers still need surface-specific close commands.
+Generic bottom-dock close is useful for layout recovery, but users also expect to
+close a named tool without depending on which drawer is active.
+
+- **IDE note:** The command palette now lists `Terminal: Close`, calling
+  `mui_term_close` and clearing terminal focus. Terminal state, registry,
+  metadata, dispatcher, and label tests pin that the command uses the
+  terminal-specific close path rather than the shared dock fallback.

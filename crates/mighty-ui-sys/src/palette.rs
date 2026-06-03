@@ -387,6 +387,8 @@ pub const CMD_WELCOME_CLOSE: u32 = 177;
 pub const CMD_GHOST_COMPLETION_DISMISS: u32 = 178;
 /// Cancel the active snippet tab-stop session without removing expanded text.
 pub const CMD_SNIPPET_CANCEL: u32 = 179;
+/// Close the integrated terminal without affecting other bottom-dock panels.
+pub const CMD_TERMINAL_CLOSE: u32 = 180;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -543,6 +545,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_AI_CLOSE,         label: "View: Close AI Copilot", keybinding: "" },
     Command { id: CMD_SIDEBAR_CLOSE,    label: "View: Close Sidebar", keybinding: "" },
     Command { id: CMD_VIEW_TERMINAL,    label: "View: Terminal",      keybinding: "Ctrl+`" },
+    Command { id: CMD_TERMINAL_CLOSE,   label: "Terminal: Close",     keybinding: "" },
     Command { id: CMD_VIEW_WEB_PLAYGROUND, label: "View: Web Playground", keybinding: "" },
     Command { id: CMD_DIFF_CLOSE_VIEW,  label: "Diff: Close View",    keybinding: "" },
     Command { id: CMD_DOCK_COMPACT,     label: "View: Bottom Dock Compact", keybinding: "" },
@@ -1083,6 +1086,7 @@ impl PaletteEngine {
             CMD_AI_CLOSE => (icons::CLOSE, "Close the AI copilot panel", false),
             CMD_SIDEBAR_CLOSE => (icons::CLOSE, "Close the left sidebar drawer", false),
             CMD_VIEW_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
+            CMD_TERMINAL_CLOSE => (icons::CLOSE, "Close the integrated terminal without changing other bottom-dock panels", false),
             CMD_VIEW_WEB_PLAYGROUND => (icons::GLOBE, "Open the Web Playground output panel", false),
             CMD_DIFF_CLOSE_VIEW => (icons::CLOSE, "Close the inline git diff view and return to editing", false),
             CMD_DOCK_COMPACT => (icons::ARROW_DOWN, "Use a smaller shared bottom dock", false),

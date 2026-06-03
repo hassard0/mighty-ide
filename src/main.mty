@@ -280,6 +280,7 @@ extern c {
   fn mui_log_workspace(handle: I64)
   // ---- integrated terminal ----
   fn mui_term_open(handle: I64) -> I32
+  fn mui_term_close(handle: I64)
   fn mui_term_is_open(handle: I64) -> I32
   fn mui_term_running(handle: I64) -> I32
   fn mui_term_key(handle: I64, keycode: I32, mods: I32)
@@ -875,6 +876,7 @@ fn cmd_dock_close() -> I32 { 99 }
 fn cmd_ai_close() -> I32 { 100 }
 fn cmd_sidebar_close() -> I32 { 101 }
 fn cmd_sidebar_cycle_width() -> I32 { 102 }
+fn cmd_terminal_close() -> I32 { 180 }
 
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
@@ -4421,6 +4423,9 @@ fn main() {
         } else if id == cmd_view_terminal() {
           let ok = mui_term_open(h)
           if ok == 1 { term_focus = true; mui_log_terminal(h) }
+        } else if id == cmd_terminal_close() {
+          mui_term_close(h)
+          term_focus = false
         } else if id == cmd_view_web_playground() {
           let _vw = mui_web_open(h)
           web_focus = true
