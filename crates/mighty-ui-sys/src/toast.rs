@@ -852,6 +852,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Breadcrumb target missing")
         || m == "No search result selected"
         || m == "Search result file no longer listed"
+        || m.starts_with("Search results ")
         || m.starts_with("Search target missing")
     {
         Some(OperationKey::Navigation)

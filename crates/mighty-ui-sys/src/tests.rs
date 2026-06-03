@@ -2243,6 +2243,51 @@ fn search_close_command_acknowledges_state_without_clearing_query_or_results() {
 }
 
 #[test]
+fn search_clear_results_command_preserves_query_replace_and_focus() {
+    let mut ctx = ctx_or_skip!();
+    ctx.active_panel = crate::PANEL_SEARCH;
+    ctx.sidebar_visible = true;
+    for ch in "needle".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+    ctx.search.replace_focus = true;
+    for ch in "replacement".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+    ctx.search.results.files.push(crate::search::SearchFile {
+        path: std::path::PathBuf::from("hit.mty"),
+        rel: "hit.mty".to_string(),
+        match_count: 1,
+    });
+    ctx.search.results.matches.push(crate::search::SearchMatch {
+        file: 0,
+        line: 4,
+        col: 2,
+        preview: "let needle = 1".to_string(),
+    });
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_search_clear_results(h), 1);
+    assert_eq!(ctx.active_panel, crate::PANEL_SEARCH);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(ctx.search.query_string(), "needle");
+    assert_eq!(ctx.search.replace_string(), "replacement");
+    assert!(ctx.search.replace_focus);
+    assert_eq!(ctx.search.file_count(), 0);
+    assert_eq!(ctx.search.match_count(), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Search results cleared"
+    );
+
+    assert_eq!(crate::panels::mui_search_clear_results(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Search results already empty"
+    );
+}
+
+#[test]
 fn explorer_close_command_hides_sidebar_without_clearing_tree() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_explorer_close_{}", std::process::id()));
@@ -2888,6 +2933,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .find(|cmd| cmd.id == crate::palette::CMD_CLEAR_NOTIFICATIONS)
         .unwrap();
     assert_eq!(clear_notifications.label, "Notifications: Clear All Toasts");
+
+    let search_clear_results = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_SEARCH_CLEAR_RESULTS)
+        .unwrap();
+    assert_eq!(search_clear_results.label, "Search: Clear Results");
+    assert_eq!(search_clear_results.keybinding, "");
 
     let save_all = crate::palette::COMMANDS
         .iter()
@@ -7822,6 +7874,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Source Control clear-message command must clear only the commit draft"
     );
     assert!(
+        main.contains("id == cmd_search_clear_results()")
+            && main.contains("let _vp = mui_panel_set(h, panel_search())")
+            && main.contains("let _scr = mui_search_clear_results(h)")
+            && main.contains("find_nav = false"),
+        "Search clear-results command must clear only result rows while keeping Search visible"
+    );
+    assert!(
         main.contains("id == cmd_problems_refresh()")
             && main.contains("let _dr = mui_diag_refresh(h)")
             && main.contains("let _pr = mui_problems_refresh(h)")
@@ -8185,6 +8244,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_VIEW_EXPLORER, "cmd_view_explorer"),
         (CMD_VIEW_SEARCH, "cmd_view_search"),
         (CMD_SEARCH_RUN, "cmd_search_run"),
+        (CMD_SEARCH_CLEAR_RESULTS, "cmd_search_clear_results"),
         (CMD_SEARCH_REPLACE_ALL, "cmd_search_replace_all"),
         (
             CMD_SEARCH_TOGGLE_REPLACE,

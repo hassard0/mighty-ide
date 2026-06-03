@@ -7045,3 +7045,14 @@ preserve it; users still need an explicit way to throw away the draft.
   command clears only the shim-owned commit-message buffer, preserves git status
   rows and the active Source Control panel, reports cleared/already-empty
   feedback, and routes through the Mighty dispatcher.
+
+L561. Search results need clearing separate from query text. Search query and
+replacement drafts are user input, while result rows are derived navigation
+state; users should be able to discard stale matches without rebuilding the
+query.
+
+- **IDE note:** The command palette now lists `Search: Clear Results`, calling
+  `mui_search_clear_results`. The clear path drops only the current result files
+  and matches, keeps the Search panel active, preserves query/replace/focus
+  state, reports cleared/already-empty feedback, and routes through the Mighty
+  dispatcher.

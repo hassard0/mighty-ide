@@ -413,6 +413,8 @@ pub const CMD_EXPLORER_CLOSE: u32 = 190;
 pub const CMD_PROBLEMS_CLEAR: u32 = 191;
 /// Clear the Source Control commit-message draft without changing git status.
 pub const CMD_GIT_CLEAR_COMMIT_MESSAGE: u32 = 192;
+/// Clear Search results while preserving query and replace text.
+pub const CMD_SEARCH_CLEAR_RESULTS: u32 = 193;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -557,6 +559,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_VIEW_EXPLORER,    label: "View: Explorer",      keybinding: "" },
     Command { id: CMD_VIEW_SEARCH,      label: "View: Search",        keybinding: "Ctrl+Shift+F" },
     Command { id: CMD_SEARCH_RUN,       label: "Search: Run Search",   keybinding: "" },
+    Command { id: CMD_SEARCH_CLEAR_RESULTS, label: "Search: Clear Results", keybinding: "" },
     Command { id: CMD_SEARCH_REPLACE_ALL, label: "Search: Replace All", keybinding: "" },
     Command { id: CMD_SEARCH_TOGGLE_REPLACE, label: "Search: Toggle Replace Field", keybinding: "" },
     Command { id: CMD_SEARCH_CLOSE,     label: "Search: Close Panel", keybinding: "" },
@@ -1110,6 +1113,7 @@ impl PaletteEngine {
             CMD_VIEW_EXPLORER => (icons::EXPLORER, "Open the file explorer view", false),
             CMD_VIEW_SEARCH => (icons::SEARCH, "Open project-wide search", false),
             CMD_SEARCH_RUN => (icons::SEARCH, "Run the current project-wide search query", false),
+            CMD_SEARCH_CLEAR_RESULTS => (icons::CLOSE, "Clear Search results without changing query or replace text", false),
             CMD_SEARCH_REPLACE_ALL => (icons::REPLACE, "Replace every current project-wide search match", false),
             CMD_SEARCH_TOGGLE_REPLACE => (icons::REPLACE, "Move Search panel focus between query and replace", false),
             CMD_SEARCH_CLOSE => (icons::CLOSE, "Close the Search panel without clearing query or results", false),

@@ -154,6 +154,13 @@ impl SearchState {
         self.results = SearchResults::default();
     }
 
+    /// Clear derived results while preserving the user's query/replace draft.
+    pub fn clear_results(&mut self) -> bool {
+        let changed = !self.results.files.is_empty() || !self.results.matches.is_empty();
+        self.results = SearchResults::default();
+        changed
+    }
+
     /// Walk `root`, searching every text file for the current query. Returns the
     /// total match count. Caps total matches + files scanned so a huge tree
     /// can't hang the UI.
@@ -478,5 +485,36 @@ mod tests {
         let a = std::fs::read_to_string(root.join("a.txt")).unwrap();
         assert!(a.contains("got me"));
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn search_clear_results_preserves_fields() {
+        let mut state = SearchState::new();
+        for ch in "needle".chars() {
+            state.push_char(ch as u32);
+        }
+        state.replace_focus = true;
+        for ch in "replacement".chars() {
+            state.push_char(ch as u32);
+        }
+        state.results.files.push(SearchFile {
+            path: PathBuf::from("hit.mty"),
+            rel: "hit.mty".to_string(),
+            match_count: 1,
+        });
+        state.results.matches.push(SearchMatch {
+            file: 0,
+            line: 2,
+            col: 4,
+            preview: "let needle = 1".to_string(),
+        });
+
+        assert!(state.clear_results());
+        assert_eq!(state.query_string(), "needle");
+        assert_eq!(state.replace_string(), "replacement");
+        assert!(state.replace_focus);
+        assert_eq!(state.file_count(), 0);
+        assert_eq!(state.match_count(), 0);
+        assert!(!state.clear_results());
     }
 }

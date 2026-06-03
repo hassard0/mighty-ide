@@ -1333,6 +1333,23 @@ pub extern "C" fn mui_search_close(handle: i64) -> i32 {
     0
 }
 
+/// Clear Search results without changing query, replacement text, or focus.
+/// Returns `1` when results were cleared, or `0` when they were already empty.
+#[no_mangle]
+pub extern "C" fn mui_search_clear_results(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.search.clear_results() {
+        ctx.push_toast(crate::toast::Kind::Info, "Search results cleared");
+        crate::abi::trace("search_clear_results");
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "Search results already empty");
+    crate::abi::trace("search_clear_results noop");
+    0
+}
+
 /// Run the project-wide search over the workspace root. Returns total matches.
 #[no_mangle]
 pub extern "C" fn mui_search_run(handle: i64) -> i32 {
