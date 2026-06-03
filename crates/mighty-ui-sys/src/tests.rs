@@ -2759,6 +2759,32 @@ fn scm_stage_all_and_unstage_all_via_abi_or_skip() {
 }
 
 #[test]
+fn scm_toggle_stage_misses_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_scm_toggle_stage(handle, -1), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No source control row selected");
+
+    assert_eq!(crate::panels::mui_scm_toggle_stage(handle, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No source control row selected");
+
+    ctx.scm.status.entries.push(crate::scm::ScmEntry {
+        path: "tracked.mty".to_string(),
+        staged: false,
+        status: 'M',
+    });
+    assert_eq!(crate::panels::mui_scm_toggle_stage(handle, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Source control root missing");
+}
+
+#[test]
 fn scm_header_refresh_icon_maps_to_refresh_action() {
     use crate::ffi::MuiEvent;
 

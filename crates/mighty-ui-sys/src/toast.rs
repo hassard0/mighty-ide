@@ -588,6 +588,14 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Pushed:")
         || m.starts_with("Pulled:")
         || m.starts_with("Fetched:")
+        || m == "Staged all changes"
+        || m == "Unstaged all changes"
+        || m == "Committed changes"
+        || m == "Nothing to stage"
+        || m == "Nothing to unstage"
+        || m == "Nothing to commit"
+        || m == "Source control stage failed"
+        || m == "Source control unstage failed"
         || m == "Enter a branch name"
         || m == "No branch picker open"
         || m == "No branch selected"

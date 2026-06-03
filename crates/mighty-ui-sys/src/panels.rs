@@ -207,7 +207,21 @@ pub extern "C" fn mui_scm_toggle_stage(handle: i64, i: i32) -> i32 {
         return 0;
     };
     if i < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No source control row selected");
         crate::abi::trace("scm_toggle_stage ok=0 idx=-1");
+        return 0;
+    }
+    let staged_before = match ctx.scm.get(i as usize) {
+        Some(entry) => entry.staged,
+        None => {
+            ctx.push_toast(crate::toast::Kind::Info, "No source control row selected");
+            crate::abi::trace(&format!("scm_toggle_stage ok=0 idx={i} missing-row"));
+            return 0;
+        }
+    };
+    if ctx.scm.root.is_none() {
+        ctx.push_toast(crate::toast::Kind::Warn, "Source control root missing");
+        crate::abi::trace(&format!("scm_toggle_stage ok=0 idx={i} missing-root"));
         return 0;
     }
     let dir = workspace_dir(ctx);
@@ -222,6 +236,8 @@ pub extern "C" fn mui_scm_toggle_stage(handle: i64, i: i32) -> i32 {
     if ok {
         1
     } else {
+        let action = if staged_before { "unstage" } else { "stage" };
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Source control {action} failed"));
         0
     }
 }

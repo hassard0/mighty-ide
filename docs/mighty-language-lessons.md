@@ -5531,3 +5531,11 @@ overlay has already closed should not disappear as a bare `0` return.
   accept command is routed without an active picker. Existing checkout/create
   failures still surface git's own error text, and active empty pickers continue
   to route Enter into the Create Branch flow.
+
+L402. Source-control stage toggles should explain stale row targets. SCM rows are
+cached snapshots, and the stage button can be invoked after the row disappeared
+or before a repository root is available.
+
+- **IDE note:** `mui_scm_toggle_stage` now reports `No source control row
+  selected`, `Source control root missing`, or `Source control stage/unstage
+  failed` instead of silently returning `0` for failed stage-button actions.
