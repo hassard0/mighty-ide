@@ -627,6 +627,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("No blame ")
         || m.starts_with("Blame on ")
         || m == "Enter a branch name"
+        || m == "Branch switcher closed"
         || m == "No branch picker open"
         || m == "No branch selected"
         || m == "Not a git repository"
@@ -1591,6 +1592,20 @@ mod tests {
         q.push_at(Kind::Warn, "Not a git repository", t0 + Duration::from_millis(300));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Not a git repository");
+
+        q.push_at(
+            Kind::Info,
+            "Branch switcher closed",
+            t0 + Duration::from_millis(400),
+        );
+        q.push_at(
+            Kind::Info,
+            "No branch picker open",
+            t0 + Duration::from_millis(500),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No branch picker open");
+        assert!(!q.toasts().iter().any(|t| t.message == "Branch switcher closed"));
     }
 
     #[test]

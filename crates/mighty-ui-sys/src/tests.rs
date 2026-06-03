@@ -4986,8 +4986,16 @@ fn branch_switcher_close_command_clears_active_picker() {
     });
 
     assert_eq!(crate::panels::mui_branch_active(h), 1);
-    crate::panels::mui_branch_cancel(h);
+    assert_eq!(crate::panels::mui_branch_cancel(h), 1);
     assert_eq!(crate::panels::mui_branch_active(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Branch switcher closed");
+
+    assert_eq!(crate::panels::mui_branch_cancel(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No branch picker open");
 }
 
 #[test]
@@ -7961,7 +7969,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_git_branch_cancel()")
-            && main.contains("mui_branch_cancel(h)")
+            && main.contains("let _bcancel = mui_branch_cancel(h)")
             && main.contains("branch_open = false"),
         "Git: Close Branch Switcher must clear both the picker and Mighty-side flag"
     );

@@ -7204,3 +7204,13 @@ dropdown was already gone and gave Mighty no state to consume.
   `Breadcrumb menu closed` or the existing `No breadcrumb menu open`. Mighty
   explicitly discards the return value from keyboard, mouse, and palette cancel
   paths.
+
+L576. Branch switcher cancel should report state like other transient overlays.
+`Git: Close Branch Switcher` is palette-exposed and can be invoked after the
+picker has already closed, so a void cancel ABI makes that no-op look broken.
+
+- **IDE note:** `mui_branch_cancel` now returns `1` when it closes an active
+  branch picker and `0` when no picker is open, reporting
+  `Branch switcher closed` or `No branch picker open`. Mighty explicitly
+  discards the return from Esc, mouse-dismiss, and palette cancel paths, and the
+  feedback stays in the Git toast replacement lane.

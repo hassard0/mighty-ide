@@ -1083,11 +1083,20 @@ pub extern "C" fn mui_branch_accept(handle: i64) -> i32 {
     }
 }
 
-/// Close the branch switcher without acting.
+/// Close the branch switcher without acting. Returns `1` when it closed an open
+/// picker, or `0` when no branch picker was open.
 #[no_mangle]
-pub extern "C" fn mui_branch_cancel(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
+pub extern "C" fn mui_branch_cancel(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.branch_picker.is_active() {
         ctx.branch_picker.cancel();
+        ctx.push_toast(crate::toast::Kind::Info, "Branch switcher closed");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No branch picker open");
+        0
     }
 }
 
