@@ -76,7 +76,7 @@ fn card_rect(
 ) -> (f32, f32, f32, f32) {
     let card_x = region.left + 12.0;
     let mut card_y = layout::row_y_in(region, anchor_row) + row_h + 2.0;
-    let card_w = (visible_w - card_x - 12.0).max(120.0);
+    let card_w = peek_card_width(visible_w, card_x);
 
     if card_y + card_h > visible_h - 30.0 {
         let above = layout::row_y_in(region, anchor_row) - card_h - 2.0;
@@ -86,6 +86,15 @@ fn card_rect(
     }
 
     (card_x, card_y, card_w, card_h)
+}
+
+fn peek_card_width(visible_w: f32, card_x: f32) -> f32 {
+    let available = (visible_w - card_x - 12.0).max(0.0);
+    if available >= 120.0 {
+        available
+    } else {
+        available.max(1.0)
+    }
 }
 
 pub(crate) fn peek_header_hint_for_width(card_w: f32) -> &'static str {
@@ -512,6 +521,28 @@ mod tests {
             "peek card should stay inside the 12px right margin, right={}",
             x + w
         );
+    }
+
+    #[test]
+    fn card_rect_clamps_width_inside_ultra_narrow_surface() {
+        let region = layout::Region {
+            top: 84.0,
+            left: 330.0,
+        };
+        let row_h = 24.0;
+        let card_h = 180.0;
+        let (x, _y, w, _h) = card_rect(region, 390.0, 420.0, 6, row_h, card_h);
+
+        assert_eq!(x, 342.0);
+        assert!(w <= 36.0);
+        assert!(x + w <= 378.0 + 0.5);
+    }
+
+    #[test]
+    fn peek_card_width_preserves_minimum_when_space_allows() {
+        assert_eq!(peek_card_width(860.0, 342.0), 506.0);
+        assert_eq!(peek_card_width(500.0, 342.0), 146.0);
+        assert_eq!(peek_card_width(390.0, 342.0), 36.0);
     }
 
     #[test]
