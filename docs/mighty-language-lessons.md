@@ -6287,3 +6287,12 @@ proportional UI text, so wide glyphs could exceed their row budgets.
 - **IDE note:** AI transcript prose and the composer now wrap against measured
   UI-font widths, and the send hit-test shares the measured composer geometry.
   Code blocks still wrap on the monospace grid where columns are intentional.
+
+L487. Markdown preview inline wrapping should match rendered pieces. Preview
+paragraphs and headings wrapped flattened spans with per-character estimates,
+even though plain text, links, italic text, and inline code chips are drawn with
+measured shaped text.
+
+- **IDE note:** Markdown preview now wraps inline pieces using measured UI/code
+  text widths, including inline-code chip padding. Strike-through and italic
+  advances also follow the rendered glyph width instead of a fixed cell guess.

@@ -178,14 +178,6 @@ struct Painter<'a> {
 const BODY_SIZE: f32 = 14.5;
 /// Body line height (px) — comfortable leading.
 const BODY_LH: f32 = 22.0;
-/// Conservative proportional advance per char for the UI font at a given size,
-/// used for word-wrap width estimation. Headings use the same estimator, so it
-/// intentionally overestimates a little to avoid narrow preview panes clipping
-/// real shaped glyphs.
-fn ui_advance(size: f32) -> f32 {
-    size * 0.62
-}
-
 fn heading_size(level: u8, width: f32) -> f32 {
     let base: f32 = match level {
         1 => 26.0,
@@ -238,7 +230,7 @@ impl Painter<'_> {
         let lh = size * 1.45;
         self.y += if level <= 2 { 14.0 } else { 10.0 }; // space above
         let x = self.x0 + indent;
-        let lines = wrap_spans(spans, avail, size, true);
+        let lines = wrap_spans(self.ctx, spans, avail, size, true);
         for line in &lines {
             self.draw_span_line(line, x, self.y, size, theme::TEXT(), true);
             self.y += lh;
@@ -258,7 +250,7 @@ impl Painter<'_> {
     fn paragraph(&mut self, spans: &[Span], indent: f32) {
         let x = self.x0 + indent;
         let avail = self.width - indent;
-        let lines = wrap_spans(spans, avail, BODY_SIZE, false);
+        let lines = wrap_spans(self.ctx, spans, avail, BODY_SIZE, false);
         for line in &lines {
             self.draw_span_line(line, x, self.y, BODY_SIZE, theme::TEXT_1(), false);
             self.y += BODY_LH;
@@ -281,7 +273,7 @@ impl Painter<'_> {
             // The item content wraps in the remaining width.
             let x = self.x0 + depth_px;
             let avail = (self.width - depth_px).max(40.0);
-            let lines = wrap_spans(&item.spans, avail, BODY_SIZE, false);
+            let lines = wrap_spans(self.ctx, &item.spans, avail, BODY_SIZE, false);
             // Draw the marker aligned with the first wrapped line.
             self.ctx
                 .text
@@ -365,7 +357,7 @@ impl Painter<'_> {
                 Block::Paragraph(spans) => {
                     let x = self.x0 + indent;
                     let avail = self.width - indent;
-                    let lines = wrap_spans(spans, avail, BODY_SIZE, false);
+                    let lines = wrap_spans(self.ctx, spans, avail, BODY_SIZE, false);
                     for line in &lines {
                         self.draw_span_line(line, x, self.y, BODY_SIZE, theme::DIM(), false);
                         self.y += BODY_LH;
@@ -399,7 +391,7 @@ impl Painter<'_> {
         self.ctx.dl_rect(x, self.y, avail, row_h, theme::accent_a(0.10));
         for (c, cell) in header.iter().enumerate() {
             let cx = x + c as f32 * col_w + 8.0;
-            let line = wrap_spans(cell, col_w - 16.0, BODY_SIZE, true)
+            let line = wrap_spans(self.ctx, cell, col_w - 16.0, BODY_SIZE, true)
                 .into_iter()
                 .next()
                 .unwrap_or_default();
@@ -412,7 +404,7 @@ impl Painter<'_> {
             for c in 0..cols {
                 let cx = x + c as f32 * col_w + 8.0;
                 if let Some(cell) = row.get(c) {
-                    let line = wrap_spans(cell, col_w - 16.0, BODY_SIZE, false)
+                    let line = wrap_spans(self.ctx, cell, col_w - 16.0, BODY_SIZE, false)
                         .into_iter()
                         .next()
                         .unwrap_or_default();
@@ -471,7 +463,7 @@ impl Painter<'_> {
             let bold = base_bold || matches!(piece.kind, PieceKind::Bold);
             let italic = matches!(piece.kind, PieceKind::Italic);
             if italic && !bold {
-                let adv = code_draw_advance(&piece.text, size);
+                let adv = code_draw_advance(self.ctx, &piece.text, size);
                 self.ctx.text.queue_styled(
                     px,
                     y,
@@ -547,27 +539,17 @@ fn fit_code_block_text(ctx: &mut MuiContext, text: &str, max_px: f32, size: f32)
     out
 }
 
-fn code_draw_advance(text: &str, size: f32) -> f32 {
-    text.chars().count() as f32 * crate::layout::CHAR_W() * (size / crate::theme::FONT_SIZE())
+fn code_draw_advance(ctx: &mut MuiContext, text: &str, size: f32) -> f32 {
+    ctx.text.measure_sized(text, size).0
 }
 
-/// Per-char advance estimate for a piece at `size` (mono for code, proportional
-/// otherwise).
-fn piece_advance(piece: &Piece, size: f32) -> f32 {
-    match piece.kind {
-        PieceKind::Code => crate::layout::CHAR_W() * (size / crate::theme::FONT_SIZE()),
-        _ => ui_advance(size),
-    }
-}
-
-/// Full estimated width for a piece. Inline code draws as a padded chip, so its
+/// Full measured width for a piece. Inline code draws as a padded chip, so its
 /// wrap width must include the chip padding rather than only the text advance.
-fn piece_width(piece: &Piece, size: f32) -> f32 {
-    let text_w = piece.text.chars().count() as f32 * piece_advance(piece, size);
-    if matches!(piece.kind, PieceKind::Code) {
-        text_w + 10.0
-    } else {
-        text_w
+fn piece_width(ctx: &mut MuiContext, piece: &Piece, size: f32) -> f32 {
+    match piece.kind {
+        PieceKind::Code => inline_code_chip_width(ctx, &piece.text, size),
+        PieceKind::Italic => ctx.text.measure_sized(&piece.text, size).0,
+        _ => ui_draw_advance(ctx, &piece.text, size),
     }
 }
 
@@ -630,7 +612,13 @@ fn push_words(t: &str, kind: PieceKind, out: &mut Vec<Piece>) {
 }
 
 /// Word-wrap flattened spans to `width` px at `size`, returning lines of pieces.
-fn wrap_spans(spans: &[Span], width: f32, size: f32, bold: bool) -> Vec<Vec<Piece>> {
+fn wrap_spans(
+    ctx: &mut MuiContext,
+    spans: &[Span],
+    width: f32,
+    size: f32,
+    bold: bool,
+) -> Vec<Vec<Piece>> {
     let mut pieces = Vec::new();
     let root_kind = if bold { PieceKind::Bold } else { PieceKind::Plain };
     flatten_spans(spans, root_kind, &mut pieces);
@@ -638,14 +626,14 @@ fn wrap_spans(spans: &[Span], width: f32, size: f32, bold: bool) -> Vec<Vec<Piec
     let mut cur: Vec<Piece> = Vec::new();
     let mut cur_w = 0.0f32;
     for p in pieces {
-        let w = piece_width(&p, size);
+        let w = piece_width(ctx, &p, size);
         if cur_w + w > width && !cur.is_empty() {
             lines.push(std::mem::take(&mut cur));
             cur_w = 0.0;
             // Drop a leading space on the wrapped line.
             let trimmed = p.text.trim_start().to_string();
             let trimmed_piece = Piece { text: trimmed, kind: p.kind };
-            let w2 = piece_width(&trimmed_piece, size);
+            let w2 = piece_width(ctx, &trimmed_piece, size);
             cur.push(trimmed_piece);
             cur_w += w2;
         } else {
@@ -677,21 +665,27 @@ mod tests {
 
     #[test]
     fn wrap_breaks_into_multiple_lines() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
         let spans = markdown::parse_inline(
             "one two three four five six seven eight nine ten eleven twelve",
         );
         // A narrow column forces several lines.
-        let lines = wrap_spans(&spans, 80.0, BODY_SIZE, false);
+        let lines = wrap_spans(&mut ctx, &spans, 80.0, BODY_SIZE, false);
         assert!(lines.len() > 1, "expected wrapping, got {} line(s)", lines.len());
         // A very wide column fits everything on one line.
-        let wide = wrap_spans(&spans, 10_000.0, BODY_SIZE, false);
+        let wide = wrap_spans(&mut ctx, &spans, 10_000.0, BODY_SIZE, false);
         assert_eq!(wide.len(), 1);
     }
 
     #[test]
     fn heading_wrap_is_conservative_for_narrow_preview_panes() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
         let spans = markdown::parse_inline("Markdown Preview");
-        let lines = wrap_spans(&spans, 230.0, 26.0, true);
+        let lines = wrap_spans(&mut ctx, &spans, 230.0, 26.0, true);
         assert!(
             lines.len() > 1,
             "large headings should wrap before they clip in narrow split panes"
@@ -716,12 +710,34 @@ mod tests {
 
     #[test]
     fn inline_code_wrap_includes_chip_padding() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
         let spans = markdown::parse_inline("It supports `inline code` chips");
-        let lines = wrap_spans(&spans, 185.0, BODY_SIZE, false);
+        let lines = wrap_spans(&mut ctx, &spans, 185.0, BODY_SIZE, false);
         assert!(
             lines.len() > 1,
             "inline code chips should wrap before their padded background clips"
         );
+    }
+
+    #[test]
+    fn inline_wrap_uses_measured_piece_widths() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+        let spans = markdown::parse_inline("Wide `WWWW` glyphs stay inside rows");
+        let budget = inline_code_chip_width(&mut ctx, "WWWW", BODY_SIZE) + 1.0;
+        let lines = wrap_spans(&mut ctx, &spans, budget, BODY_SIZE, false);
+
+        assert!(lines.len() > 1, "measured inline widths should force wrapping");
+        for line in &lines {
+            let line_w = line.iter().map(|piece| piece_width(&mut ctx, piece, BODY_SIZE)).sum::<f32>();
+            assert!(
+                line_w <= budget + 0.5 || line.len() == 1,
+                "wrapped markdown preview line should fit measured budget: {line_w} > {budget}"
+            );
+        }
     }
 
     #[test]
