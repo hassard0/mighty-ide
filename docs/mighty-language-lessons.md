@@ -7130,3 +7130,14 @@ the typed-path fallback.
   `Save dialog unavailable; use typed path` when an untitled buffer cannot open
   the native save picker. The regression forces that direct Save branch and
   verifies the tab remains dirty, untitled, and ready for typed-path recovery.
+
+L569. Palette close commands should acknowledge Peek state. `Peek: Close View`
+was exposed beside other close commands, but it reused a void Esc helper that
+silently cleared the card or did nothing when no Peek view was open. That makes
+the command palette feel inconsistent with the rest of the panel and popup close
+surface.
+
+- **IDE note:** `mui_peek_close` now returns `1`/`0` and reports
+  `Peek view closed` or `Peek view is already closed`. Those messages share the
+  code-intelligence toast replacement key, and the regression verifies both the
+  active-close and already-closed paths.

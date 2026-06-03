@@ -5746,9 +5746,17 @@ fn peek_close_clears_inline_view() {
     ));
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
     assert_eq!(crate::stickyabi::mui_peek_active(handle), 1);
-    crate::stickyabi::mui_peek_close(handle);
+    assert_eq!(crate::stickyabi::mui_peek_close(handle), 1);
     assert_eq!(crate::stickyabi::mui_peek_active(handle), 0);
     assert_eq!(crate::stickyabi::mui_peek_line_count(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Peek view closed");
+
+    assert_eq!(crate::stickyabi::mui_peek_close(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Peek view is already closed");
 }
 
 #[test]

@@ -844,6 +844,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No hover information"
         || m == "Save the file before Go to Definition"
         || m == "Save the file before Peek Definition"
+        || m == "Peek view closed"
+        || m == "Peek view is already closed"
         || m == "Save the file before signature help"
         || m == "No definition found"
         || m == "No definition target selected"
@@ -1975,6 +1977,18 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Definition target missing: missing.mty");
+
+        q.push_at(Kind::Info, "Peek view closed", t0 + Duration::from_millis(450));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Peek view closed");
+
+        q.push_at(
+            Kind::Info,
+            "Peek view is already closed",
+            t0 + Duration::from_millis(475),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Peek view is already closed");
 
         q.push_at(
             Kind::Warn,

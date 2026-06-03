@@ -325,7 +325,7 @@ extern c {
   fn mui_peek_line_count(handle: I64) -> I32
   fn mui_peek_line_text(handle: I64, i: I32) -> I32
   fn mui_peek_line_kind(handle: I64, i: I32) -> I32
-  fn mui_peek_close(handle: I64)
+  fn mui_peek_close(handle: I64) -> I32
   fn mui_peek_scroll(handle: I64, delta: I32)
   fn mui_peek_goto(handle: I64) -> I32
   fn mui_peek_draw(handle: I64, first: I32, rows: I32)
@@ -2994,7 +2994,7 @@ fn main() {
           // The inline peek card captures keys while it is up: Esc closes it,
           // Enter navigates to the actual definition, Up/Down scroll the preview.
           if k == key_escape() {
-            mui_peek_close(h)
+            let _pc = mui_peek_close(h)
           } else if k == key_enter() {
             let r = mui_peek_goto(h)
             if r >= 0 {
@@ -3008,7 +3008,7 @@ fn main() {
           } else if k == key_down() {
             mui_peek_scroll(h, 1)
           } else {
-            mui_peek_close(h)                                 // any other key dismisses
+            let _pc = mui_peek_close(h)                       // any other key dismisses
           }
         } else if k == key_f12() {
           let kmods = mui_event_mods(h)
@@ -4319,7 +4319,7 @@ fn main() {
         } else if id == cmd_peek_definition() {
           let _p = peek_definition(h)
         } else if id == cmd_peek_close() {
-          mui_peek_close(h)
+          let _pc = mui_peek_close(h)
         } else if id == cmd_welcome() {
           mui_welcome_open(h)
         } else if id == cmd_zen_mode() {

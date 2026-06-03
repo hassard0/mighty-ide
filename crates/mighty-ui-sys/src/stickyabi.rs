@@ -184,11 +184,20 @@ pub extern "C" fn mui_peek_line_kind(handle: i64, i: i32) -> i32 {
     unsafe { ctx(handle) }.map_or(-1, |c| c.peek.line_no(i as usize))
 }
 
-/// Close the peek card (Esc).
+/// Close the peek card (Esc / palette command). Returns `1` when a card was
+/// closed, or `0` when there was no active peek view.
 #[no_mangle]
-pub extern "C" fn mui_peek_close(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
+pub extern "C" fn mui_peek_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.peek.is_active() {
         ctx.peek.close();
+        ctx.push_toast(crate::toast::Kind::Info, "Peek view closed");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Peek view is already closed");
+        0
     }
 }
 
