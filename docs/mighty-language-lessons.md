@@ -5240,3 +5240,14 @@ precondition.
   `Save the file before setting breakpoints` when the active tab has no file
   path. The regression test asserts the panel transition, empty breakpoint set,
   and toast message.
+
+L373. Split Start/Continue APIs need the same unavailable-state contract. The
+user-facing command routes through `mui_dbg_start`, which can start from idle or
+continue from paused, but the lower-level `mui_dbg_continue` ABI only makes
+sense when execution is paused. Direct callers previously got a silent no-op
+from idle or terminated states.
+
+- **IDE note:** `mui_dbg_continue` now preserves the real continue path when
+  paused, reports `Debug session already running` while running, and reports
+  `Continue is available when paused` from idle/terminated states while opening
+  Run and Debug. The direct-debug regression covers the idle no-op.

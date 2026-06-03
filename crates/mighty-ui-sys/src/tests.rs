@@ -3604,6 +3604,12 @@ fn direct_debug_actions_report_unavailable_state() {
         "Pause is available while running"
     );
 
+    assert_eq!(crate::dapabi::mui_dbg_continue(handle), crate::dap::DebugState::Idle.as_i32());
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Continue is available when paused"
+    );
+
     crate::dapabi::mui_dbg_step_over(handle);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,

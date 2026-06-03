@@ -95,7 +95,22 @@ pub extern "C" fn mui_dbg_continue(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    ctx.dbg.continue_();
+    match ctx.dbg.state() {
+        crate::dap::DebugState::Stopped => {
+            ctx.dbg.continue_();
+            crate::abi::trace("dbg_action direct_continue");
+        }
+        crate::dap::DebugState::Running => {
+            open_debug_view(ctx);
+            ctx.push_toast(crate::toast::Kind::Info, "Debug session already running");
+            crate::abi::trace("dbg_action continue_already_running");
+        }
+        crate::dap::DebugState::Idle | crate::dap::DebugState::Terminated => {
+            open_debug_view(ctx);
+            ctx.push_toast(crate::toast::Kind::Info, "Continue is available when paused");
+            crate::abi::trace("dbg_action continue_unavailable");
+        }
+    }
     ctx.dbg.state().as_i32()
 }
 
