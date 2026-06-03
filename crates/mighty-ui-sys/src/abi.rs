@@ -13501,6 +13501,25 @@ pub extern "C" fn mui_replace_close_at_click(handle: i64) -> i32 {
     i32::from(px >= cx && px <= cx + cw && py >= cy && py <= cy + ch)
 }
 
+fn replace_can_current(ctx: &MuiContext) -> bool {
+    let needle = ctx.replace_bar.find_string();
+    !needle.is_empty()
+        && !ctx.tabs.active_read_only()
+        && ctx.tabs.active_model().as_text().contains(&needle)
+}
+
+/// Silent preflight for replace-next. Returns `1` only when Enter can mutate.
+#[no_mangle]
+pub extern "C" fn mui_replace_can_next(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(replace_can_current(c)))
+}
+
+/// Silent preflight for replace-all. Returns `1` only when Enter can mutate.
+#[no_mangle]
+pub extern "C" fn mui_replace_can_all(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(replace_can_current(c)))
+}
+
 /// Replace the next occurrence (at/after the cursor, wrapping) of the find
 /// field with the replace field, in the active model. Returns `1` if a
 /// replacement was made, else `0`.

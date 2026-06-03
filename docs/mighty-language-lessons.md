@@ -7474,3 +7474,14 @@ not add an undo checkpoint before that no-op feedback is shown.
   editable `.mty` preflight. `do_format` saves first, checks that preflight, and
   records the undo snapshot only for real format attempts while still calling
   `mui_format_current` for existing failure toasts.
+
+L601. Replace Enter needs a match preflight before undo. In-file replace actions
+already return replacement counts, but the key path still needs to know whether
+an undo snapshot is warranted before the stateful replace ABI emits no-match or
+read-only feedback.
+
+- **IDE note:** `mui_replace_can_next` and `mui_replace_can_all` now provide
+  silent non-empty, editable, has-match checks. The replace Enter handler records
+  undo only when that preflight is true, while still calling the stateful replace
+  ABI so empty searches, no matches, and read-only previews keep their visible
+  feedback.

@@ -7304,7 +7304,7 @@ fn editor_power_features_via_abi() {
 
 #[test]
 fn in_file_replace_reports_noop_and_success_states() {
-    use crate::{mui_replace_all, mui_replace_next};
+    use crate::{mui_replace_all, mui_replace_can_all, mui_replace_can_next, mui_replace_next};
 
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -7312,18 +7312,25 @@ fn in_file_replace_reports_noop_and_success_states() {
     *ctx.tabs.active_model_mut() = crate::editor::TextModel::from_bytes(b"alpha beta alpha");
 
     ctx.replace_bar.open("");
+    assert_eq!(mui_replace_can_all(h), 0);
+    assert_eq!(mui_replace_can_next(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
     assert_eq!(mui_replace_all(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Enter text to replace");
 
     ctx.replace_bar.open("gamma");
+    assert_eq!(mui_replace_can_all(h), 0);
+    assert_eq!(mui_replace_can_next(h), 0);
     assert_eq!(mui_replace_next(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No matches to replace");
 
     ctx.replace_bar.open("alpha");
+    assert_eq!(mui_replace_can_next(h), 1);
+    assert_eq!(mui_replace_can_all(h), 1);
     assert_eq!(ctx.replace_bar.toggle_focus(), 1);
     for c in "omega".chars() {
         ctx.replace_bar.push(c as u32);
@@ -7348,7 +7355,7 @@ fn in_file_replace_reports_noop_and_success_states() {
 
 #[test]
 fn in_file_replace_reports_read_only_preview() {
-    use crate::mui_replace_all;
+    use crate::{mui_replace_all, mui_replace_can_all, mui_replace_can_next};
 
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_replace_read_only_preview");
@@ -7361,6 +7368,9 @@ fn in_file_replace_reports_read_only_preview() {
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
     ctx.replace_bar.open("foo");
+    assert_eq!(mui_replace_can_all(h), 0);
+    assert_eq!(mui_replace_can_next(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
     assert_eq!(mui_replace_all(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
@@ -8263,8 +8273,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         main.contains("let replaced = mui_replace_all(h)")
             && main.contains("let replaced = mui_replace_next(h)")
+            && main.contains("let can_replace = mui_replace_can_all(h)\n              if can_replace == 1 { mui_ed_undo_record(h) }")
+            && main.contains("let can_replace = mui_replace_can_next(h)\n              if can_replace == 1 { mui_ed_undo_record(h) }")
             && main.contains("if replaced > 0 {\n                mui_tab_set_dirty(h, mui_tab_active(h), 1)"),
-        "in-file replace Enter handling must only dirty the tab after replacements"
+        "in-file replace Enter handling must only record undo/dirty the tab after possible replacements"
     );
     assert!(
         main.contains("let accepted = if mui_snippet_complete_is(h) == 1")

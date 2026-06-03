@@ -138,6 +138,8 @@ extern c {
   fn mui_replace_focus(handle: I64) -> I32
   fn mui_replace_cancel(handle: I64) -> I32
   fn mui_replace_close_at_click(handle: I64) -> I32
+  fn mui_replace_can_next(handle: I64) -> I32
+  fn mui_replace_can_all(handle: I64) -> I32
   fn mui_replace_next(handle: I64) -> I32
   fn mui_replace_all(handle: I64) -> I32
   fn mui_replace_draw(handle: I64)
@@ -2226,13 +2228,15 @@ fn main() {
             // Enter on the replace field replaces all; otherwise replace-next.
             let rf = mui_replace_focus(h)
             if rf == 1 {
-              mui_ed_undo_record(h)
+              let can_replace = mui_replace_can_all(h)
+              if can_replace == 1 { mui_ed_undo_record(h) }
               let replaced = mui_replace_all(h)
               if replaced > 0 {
                 mui_tab_set_dirty(h, mui_tab_active(h), 1)
               }
             } else {
-              mui_ed_undo_record(h)
+              let can_replace = mui_replace_can_next(h)
+              if can_replace == 1 { mui_ed_undo_record(h) }
               let replaced = mui_replace_next(h)
               if replaced > 0 {
                 mui_tab_set_dirty(h, mui_tab_active(h), 1)
