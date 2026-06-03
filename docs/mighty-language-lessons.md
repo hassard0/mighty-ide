@@ -5974,3 +5974,13 @@ descriptions for them.
   secondary row text when present, otherwise it falls back to the palette's
   static command description. This keeps no-shortcut commands like
   `File: Open Recent` informative without duplicating description copy.
+
+L450. Search-result rows need measured text budgets before adding richer
+secondary copy. Quick Open command rows gained fallback descriptions, but the
+renderer still drew row names and secondary text without fitting them to the
+card width.
+
+- **IDE note:** Quick Open rows now fit both the primary name and secondary
+  path/description text against the actual row text budget before drawing. Long
+  command descriptions and deep paths ellipsize instead of spilling past the
+  overlay edge.

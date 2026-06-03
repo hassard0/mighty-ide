@@ -1005,12 +1005,15 @@ impl QuickOpen {
 
             // Bold name with matched chars highlighted in the accent.
             let txt_x = box_x + 58.0;
+            let text_max = quickopen_row_text_budget(box_x, box_w, txt_x);
             let name_y = ry + (row_h - 13.5) * 0.5 - if row.dir.is_empty() { 0.0 } else { 8.0 };
-            self.draw_highlighted(ctx, txt_x, name_y, &row.name, &row.indices, name_adv, selected, clip);
+            let name = crate::palette::fit_palette_text(&mut ctx.text, &row.name, text_max, 13.5);
+            self.draw_highlighted(ctx, txt_x, name_y, &name, &row.indices, name_adv, selected, clip);
 
             // Dim secondary (dir / kind) under the name.
             if !row.dir.is_empty() {
-                ctx.text.queue_ui_sized(txt_x, ry + (row_h - 13.5) * 0.5 + 9.0, &row.dir, theme::TEXT_3(), 11.0, clip);
+                let secondary = crate::palette::fit_palette_text(&mut ctx.text, &row.dir, text_max, 11.0);
+                ctx.text.queue_ui_sized(txt_x, ry + (row_h - 13.5) * 0.5 + 9.0, &secondary, theme::TEXT_3(), 11.0, clip);
             }
         }
 
@@ -1067,6 +1070,10 @@ fn quickopen_search_text_x(base_x: f32, is_placeholder: bool) -> f32 {
 pub(crate) fn quickopen_query_text_budget(text_x: f32, pill_x: f32, is_placeholder: bool) -> f32 {
     let trailing_gap = if is_placeholder { 30.0 } else { 16.0 };
     (pill_x - trailing_gap - text_x).max(0.0)
+}
+
+pub(crate) fn quickopen_row_text_budget(box_x: f32, box_w: f32, text_x: f32) -> f32 {
+    (box_x + box_w - 24.0 - text_x).max(0.0)
 }
 
 pub(crate) fn fit_query_placeholder(
@@ -1533,6 +1540,18 @@ mod tests {
         let base = 320.0;
         assert_eq!(quickopen_search_text_x(base, false), base);
         assert!(quickopen_search_text_x(base, true) >= base + 8.0);
+    }
+
+    #[test]
+    fn row_text_budget_stops_before_card_edge() {
+        let box_x = 100.0;
+        let box_w = 620.0;
+        let text_x = box_x + 58.0;
+        let budget = quickopen_row_text_budget(box_x, box_w, text_x);
+
+        assert_eq!(budget, 538.0);
+        assert!(text_x + budget <= box_x + box_w - 24.0);
+        assert_eq!(quickopen_row_text_budget(box_x, box_w, box_x + box_w), 0.0);
     }
 
     #[test]
