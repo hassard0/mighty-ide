@@ -6892,6 +6892,34 @@ pub extern "C" fn mui_term_send_codepoint(handle: i64, codepoint: i32, mods: i32
     }
 }
 
+/// Paste operating-system clipboard text into the PTY. Honors terminal
+/// bracketed-paste mode when the shell/application enabled it.
+#[no_mangle]
+pub extern "C" fn mui_term_paste(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let text = match read_clipboard_text() {
+        Ok(text) => text,
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, "Terminal paste failed");
+            println!("terminal-paste: failed to read clipboard: {e}");
+            return 0;
+        }
+    };
+    if text.is_empty() {
+        ctx.push_toast(crate::toast::Kind::Info, "Clipboard is empty");
+        return 0;
+    }
+    if let Some(t) = ctx.terminal.as_mut() {
+        t.send_paste(&text);
+        ctx.push_toast(crate::toast::Kind::Success, "Pasted to terminal");
+        1
+    } else {
+        0
+    }
+}
+
 /// Write a single raw byte to the PTY stdin. No-op if not running.
 #[no_mangle]
 pub extern "C" fn mui_term_send_byte(handle: i64, byte: i32) {

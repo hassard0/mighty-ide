@@ -6366,3 +6366,15 @@ pre-tool terminal state users expect to return to.
   cursor on exit. `ESC[?1048h/l` is handled as cursor-only save/restore. Parser
   tests cover alternate-screen restoration, resize-safe snapshot restoration,
   cursor restoration, and escape consumption.
+
+L495. Terminal paste should use the shell paste path, not typed Ctrl+V. When the
+terminal has focus, Ctrl+V should paste clipboard text into the PTY. Shells and
+TUIs that enable bracketed paste with `CSI ?2004h` expect pasted text to be
+framed with `ESC[200~` and `ESC[201~`; sending raw `^V` or unframed multiline
+text makes paste behavior fragile and can execute pasted newlines as commands.
+
+- **IDE note:** Terminal focus now routes Ctrl+V through a terminal paste ABI
+  that reads the OS clipboard and writes to the PTY. The VT parser tracks
+  `ESC[?2004h/l`, and terminal paste wraps clipboard bytes only while bracketed
+  paste is enabled. Parser/helper tests cover mode toggling, escape
+  consumption, plain paste bytes, and bracketed paste framing.

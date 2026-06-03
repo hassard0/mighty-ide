@@ -281,6 +281,7 @@ extern c {
   fn mui_term_running(handle: I64) -> I32
   fn mui_term_key(handle: I64, keycode: I32, mods: I32)
   fn mui_term_send_codepoint(handle: I64, codepoint: I32, mods: I32)
+  fn mui_term_paste(handle: I64) -> I32
   fn mui_term_pump(handle: I64)
   fn mui_term_draw(handle: I64)
   fn mui_log_terminal(handle: I64)
@@ -2366,6 +2367,8 @@ fn main() {
           let mods = mui_event_mods(h)
           if ctrl_held(mods) && cp == 96 {                  // Ctrl+` : unfocus
             term_focus = false
+          } else if ctrl_held(mods) && !shift_held(mods) && (cp == 118 || cp == 86) {
+            let _tp = mui_term_paste(h)
           } else {
             mui_term_send_codepoint(h, cp, mods)
           }

@@ -437,6 +437,8 @@ pub struct VtParser {
     reply: Vec<u8>,
     /// Saved cursor position used by DEC `ESC 7`/`ESC 8` and CSI `s`/`u`.
     saved_cursor: Option<(usize, usize)>,
+    /// Whether the running app asked for bracketed paste (`CSI ?2004 h`).
+    bracketed_paste: bool,
 }
 
 impl Default for VtParser {
@@ -454,6 +456,7 @@ impl VtParser {
             utf8_need: 0,
             reply: Vec::new(),
             saved_cursor: None,
+            bracketed_paste: false,
         }
     }
 
@@ -468,6 +471,10 @@ impl VtParser {
     /// (DSR responses). Empties the internal buffer.
     pub fn take_reply(&mut self) -> Vec<u8> {
         std::mem::take(&mut self.reply)
+    }
+
+    pub fn bracketed_paste_enabled(&self) -> bool {
+        self.bracketed_paste
     }
 
     fn feed_byte(&mut self, grid: &mut Grid, b: u8) {
@@ -737,6 +744,8 @@ impl VtParser {
                 ("47" | "1047" | "1049", b'l') => grid.exit_alternate_screen(),
                 ("1048", b'h') => self.save_cursor(grid),
                 ("1048", b'l') => self.restore_cursor(grid),
+                ("2004", b'h') => self.bracketed_paste = true,
+                ("2004", b'l') => self.bracketed_paste = false,
                 _ => {}
             }
         }
@@ -1083,6 +1092,13 @@ impl Terminal {
         let _ = self.writer.flush();
     }
 
+    /// Send pasted text, wrapping it when the shell/app has enabled bracketed
+    /// paste so pasted newlines are not interpreted as typed Enter presses.
+    pub fn send_paste(&mut self, text: &str) {
+        let bytes = paste_to_bytes(text, self.parser.bracketed_paste_enabled());
+        self.send(&bytes);
+    }
+
     /// Resize the PTY and the grid to `rows`×`cols`.
     pub fn resize(&mut self, rows: usize, cols: usize) {
         let rows = rows.max(1);
@@ -1193,6 +1209,18 @@ pub fn codepoint_to_bytes(codepoint: u32, mods: u32) -> Option<Vec<u8>> {
     }
     let mut buf = [0u8; 4];
     Some(ch.encode_utf8(&mut buf).as_bytes().to_vec())
+}
+
+pub fn paste_to_bytes(text: &str, bracketed: bool) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(text.len() + if bracketed { 12 } else { 0 });
+    if bracketed {
+        bytes.extend_from_slice(b"\x1b[200~");
+    }
+    bytes.extend_from_slice(text.as_bytes());
+    if bracketed {
+        bytes.extend_from_slice(b"\x1b[201~");
+    }
+    bytes
 }
 
 /// Tiny extension so `codepoint_to_bytes` can uppercase a raw u32 codepoint
@@ -1524,6 +1552,21 @@ mod tests {
     }
 
     #[test]
+    fn bracketed_paste_mode_tracks_private_csi() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+        assert!(!p.bracketed_paste_enabled());
+
+        p.feed(&mut g, b"\x1b[?2004h");
+        assert!(p.bracketed_paste_enabled());
+        assert!(!g.contains("2004"));
+
+        p.feed(&mut g, b"\x1b[?2004l");
+        assert!(!p.bracketed_paste_enabled());
+        assert!(!g.contains("2004"));
+    }
+
+    #[test]
     fn cursor_column_and_line_csi_moves_and_clamps() {
         let g = grid_feed(3, 8, b"abcd\x1b[2GZ\x1b[20GX");
         assert_eq!(g.cell(0, 0).ch, 'a');
@@ -1656,6 +1699,15 @@ mod tests {
         assert_eq!(codepoint_to_bytes(b' ' as u32, MUI_MOD_CTRL), Some(vec![0]));
         // Multibyte char -> UTF-8 bytes.
         assert_eq!(codepoint_to_bytes('é' as u32, 0), Some(vec![0xc3, 0xa9]));
+    }
+
+    #[test]
+    fn paste_bytes_wrap_only_when_bracketed() {
+        assert_eq!(paste_to_bytes("a\nb", false), b"a\nb".to_vec());
+        assert_eq!(
+            paste_to_bytes("a\nb", true),
+            b"\x1b[200~a\nb\x1b[201~".to_vec()
+        );
     }
 
     // ---- PTY integration (skips gracefully if spawn fails) ----
