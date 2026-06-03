@@ -112,7 +112,10 @@ pub extern "C" fn mui_peek_open(handle: i64, line: i32, col: i32) -> i32 {
     ctx.peek.close();
     let path = match ctx.file_path.clone() {
         Some(p) => p,
-        None => return 0,
+        None => {
+            ctx.push_toast(crate::toast::Kind::Warn, "Save the file before Peek Definition");
+            return 0;
+        }
     };
     let source = String::from_utf8_lossy(&ctx.nav_buf).into_owned();
     // Resolve the definition target (path + 0-based line/col).
@@ -123,6 +126,7 @@ pub extern "C" fn mui_peek_open(handle: i64, line: i32, col: i32) -> i32 {
     };
     let Some((tpath, tline, tcol)) = target else {
         println!("peek: line={line} col={col} found=0 (no definition)");
+        ctx.push_toast(crate::toast::Kind::Warn, "No definition found");
         return 0;
     };
     // Use the LIVE buffer for the preview when the target is the active file (so

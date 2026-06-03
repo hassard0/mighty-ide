@@ -5315,3 +5315,14 @@ same issue when no file path exists yet.
   for unsupported extensions, while preserving the existing return codes and
   non-`.mty` data-loss guard. The regression verifies both toasts and proves the
   unsupported file remains byte-for-byte unchanged.
+
+L380. Explicit navigation commands should explain empty results. Hover,
+Go to Definition, and Peek Definition are user-invoked actions, so a `0` return
+without visible feedback makes a missing saved path, absent server, or genuine
+no-result response look like a broken shortcut.
+
+- **IDE note:** hover, definition, and peek now toast save-first guidance for
+  untitled buffers; hover reports `No hover information` when no data is
+  available; definition and peek report `No definition found` for empty
+  targets. The regression uses a saved plain-text file to cover deterministic
+  no-result paths without requiring an external language server.

@@ -8270,7 +8270,10 @@ pub extern "C" fn mui_hover_request(handle: i64, line: i32, col: i32) -> i32 {
     ctx.hover.clear();
     let path = match ctx.file_path.clone() {
         Some(p) => p,
-        None => return 0,
+        None => {
+            ctx.push_toast(crate::toast::Kind::Warn, "Save the file before hover");
+            return 0;
+        }
     };
     let source = String::from_utf8_lossy(&ctx.nav_buf).into_owned();
     let raw = lsp_hover_raw(ctx.language, &path, &source, line.max(0) as u32, col.max(0) as u32);
@@ -8285,6 +8288,9 @@ pub extern "C" fn mui_hover_request(handle: i64, line: i32, col: i32) -> i32 {
         available,
         ctx.hover.line_count()
     );
+    if !available {
+        ctx.push_toast(crate::toast::Kind::Info, "No hover information");
+    }
     i32::from(available)
 }
 
@@ -8338,7 +8344,10 @@ pub extern "C" fn mui_def_request(handle: i64, line: i32, col: i32) -> i32 {
     ctx.def.clear();
     let path = match ctx.file_path.clone() {
         Some(p) => p,
-        None => return 0,
+        None => {
+            ctx.push_toast(crate::toast::Kind::Warn, "Save the file before Go to Definition");
+            return 0;
+        }
     };
     let source = String::from_utf8_lossy(&ctx.nav_buf).into_owned();
     let raw = lsp_def_raw(ctx.language, &path, &source, line.max(0) as u32, col.max(0) as u32);

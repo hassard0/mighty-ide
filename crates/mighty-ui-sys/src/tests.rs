@@ -4107,6 +4107,49 @@ fn format_current_reports_missing_or_unsupported_target() {
 }
 
 #[test]
+fn navigation_requests_report_missing_targets() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_hover_request(h, 0, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Save the file before hover");
+
+    assert_eq!(crate::mui_def_request(h, 0, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Save the file before Go to Definition");
+
+    assert_eq!(crate::stickyabi::mui_peek_open(h, 0, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Save the file before Peek Definition");
+
+    let path = std::env::temp_dir().join("mui_nav_plain_text.txt");
+    std::fs::write(&path, b"plain text\n").unwrap();
+    ctx.tabs.open_path(path.clone());
+    crate::sync_active_path(&mut ctx);
+
+    assert_eq!(crate::mui_hover_request(h, 0, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No hover information");
+
+    assert_eq!(crate::mui_def_request(h, 0, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No definition found");
+
+    assert_eq!(crate::stickyabi::mui_peek_open(h, 0, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No definition found");
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn pane_split_focus_close_via_abi() {
     use crate::ffi::MuiEvent;
     use crate::{
