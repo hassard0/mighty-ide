@@ -5922,3 +5922,11 @@ as shortcuts, but hidden from command search.
   Symbol`, and `Code Actions`. Mighty routes them through the same cursor-local
   ABI paths as Ctrl+Shift+Space, F2, and Ctrl+., preserving existing LSP/no-target
   feedback and overlay state.
+
+L444. AI editor actions should be discoverable from the palette. The AI panel
+was visible as a view command, but inline ask and forced ghost completion were
+shortcut-only actions.
+
+- **IDE note:** the command palette now lists `AI: Inline Ask` and `AI: Force
+  Ghost Completion`. Mighty opens the same Ask AI prompt as Ctrl+I and calls
+  `mui_ghost_force` for the same explicit inline-completion path as Alt+\.

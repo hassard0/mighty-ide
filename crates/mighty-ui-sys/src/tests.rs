@@ -6280,6 +6280,11 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_VIEW_RUN_OUTPUT, "cmd_view_run_output"),
         (CMD_VIEW_PROBLEMS, "cmd_view_problems"),
         (CMD_VIEW_AI_COPILOT, "cmd_view_ai_copilot"),
+        (CMD_INLINE_AI_ASK, "cmd_inline_ai_ask"),
+        (
+            CMD_FORCE_GHOST_COMPLETION,
+            "cmd_force_ghost_completion",
+        ),
         (CMD_VIEW_TERMINAL, "cmd_view_terminal"),
         (CMD_VIEW_WEB_PLAYGROUND, "cmd_view_web_playground"),
         (CMD_DEBUG_START_CONTINUE, "cmd_debug_start_continue"),

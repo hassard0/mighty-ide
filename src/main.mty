@@ -741,6 +741,8 @@ fn cmd_find_replace() -> I32 { 129 }
 fn cmd_signature_help() -> I32 { 130 }
 fn cmd_rename_symbol() -> I32 { 131 }
 fn cmd_code_actions() -> I32 { 132 }
+fn cmd_inline_ai_ask() -> I32 { 133 }
+fn cmd_force_ghost_completion() -> I32 { 134 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4170,6 +4172,14 @@ fn main() {
           let _ai = mui_ai_show(h)
           ai_focus = true
           agents_focus = false
+        } else if id == cmd_inline_ai_ask() {
+          mui_prompt_open(h, prompt_ai())
+          prompt_kind = prompt_ai()
+          find_nav = false
+          typing = false
+        } else if id == cmd_force_ghost_completion() {
+          let _gf = mui_ghost_force(h)
+          typing = false
         } else if id == cmd_ai_close() {
           let _aic = mui_ai_close(h)
           ai_focus = false

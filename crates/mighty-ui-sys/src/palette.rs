@@ -292,6 +292,10 @@ pub const CMD_SIGNATURE_HELP: u32 = 130;
 pub const CMD_RENAME_SYMBOL: u32 = 131;
 /// Show code actions and quick fixes at the editor cursor.
 pub const CMD_CODE_ACTIONS: u32 = 132;
+/// Open the inline AI ask prompt for the active selection or file.
+pub const CMD_INLINE_AI_ASK: u32 = 133;
+/// Force an inline AI ghost-text completion at the cursor.
+pub const CMD_FORCE_GHOST_COMPLETION: u32 = 134;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -404,6 +408,8 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_VIEW_RUN_OUTPUT,  label: "View: Run Output",    keybinding: "" },
     Command { id: CMD_VIEW_PROBLEMS,    label: "View: Problems",      keybinding: "" },
     Command { id: CMD_VIEW_AI_COPILOT,  label: "View: AI Copilot",    keybinding: "Ctrl+Shift+A" },
+    Command { id: CMD_INLINE_AI_ASK,    label: "AI: Inline Ask",      keybinding: "Ctrl+I" },
+    Command { id: CMD_FORCE_GHOST_COMPLETION, label: "AI: Force Ghost Completion", keybinding: "Alt+\\" },
     Command { id: CMD_AI_CLOSE,         label: "View: Close AI Copilot", keybinding: "" },
     Command { id: CMD_SIDEBAR_CLOSE,    label: "View: Close Sidebar", keybinding: "" },
     Command { id: CMD_VIEW_TERMINAL,    label: "View: Terminal",      keybinding: "Ctrl+`" },
@@ -822,6 +828,8 @@ impl PaletteEngine {
             CMD_VIEW_RUN_OUTPUT => (icons::RUN, "Open the Run output panel", false),
             CMD_VIEW_PROBLEMS => (icons::ERROR_CIRCLE, "Open diagnostics and build problems", false),
             CMD_VIEW_AI_COPILOT => (icons::AGENTS, "Open the AI copilot panel", false),
+            CMD_INLINE_AI_ASK => (icons::AGENTS, "Ask AI about the active selection or file", false),
+            CMD_FORCE_GHOST_COMPLETION => (icons::AGENTS, "Request an inline AI ghost completion now", false),
             CMD_AI_CLOSE => (icons::CLOSE, "Close the AI copilot panel", false),
             CMD_SIDEBAR_CLOSE => (icons::CLOSE, "Close the left sidebar drawer", false),
             CMD_VIEW_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
