@@ -10119,19 +10119,68 @@ pub extern "C" fn mui_ed_delete(handle: i64) -> i32 {
 /// Delete from the cursor back to the previous word boundary.
 #[no_mangle]
 pub extern "C" fn mui_ed_delete_word_left(handle: i64) -> i32 {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        return i32::from(m.delete_word_left());
-    }
-    0
+    apply_model_edit(handle, |m| {
+        let _ = m.delete_word_left();
+    })
 }
 
 /// Delete from the cursor forward to the next word boundary.
 #[no_mangle]
 pub extern "C" fn mui_ed_delete_word_right(handle: i64) -> i32 {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        return i32::from(m.delete_word_right());
+    apply_model_edit(handle, |m| {
+        let _ = m.delete_word_right();
+    })
+}
+
+fn cloned_model_edit_would_change(ctx: &MuiContext, edit: impl FnOnce(&mut TextModel)) -> i32 {
+    if ctx.tabs.active_read_only() {
+        return 0;
     }
-    0
+    let model = ctx.tabs.active_model();
+    let before = model.as_text();
+    let mut probe = model.clone();
+    edit(&mut probe);
+    i32::from(probe.as_text() != before)
+}
+
+/// `1` when Backspace can mutate the active model.
+/// Pure preflight: no toasts; Backspace keeps read-only feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_backspace(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    cloned_model_edit_would_change(ctx, |m| m.backspace_multi())
+}
+
+/// `1` when Delete can mutate the active model.
+/// Pure preflight: no toasts; Delete keeps read-only feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_delete(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    cloned_model_edit_would_change(ctx, |m| m.delete_multi())
+}
+
+/// `1` when Ctrl+Backspace can mutate the active model.
+/// Pure preflight: no toasts; the delete command keeps read-only feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_delete_word_left(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    cloned_model_edit_would_change(ctx, |m| m.delete_word_left_multi())
+}
+
+/// `1` when Ctrl+Delete can mutate the active model.
+/// Pure preflight: no toasts; the delete command keeps read-only feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_delete_word_right(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    cloned_model_edit_would_change(ctx, |m| m.delete_word_right_multi())
 }
 
 /// Delete the current logical line from the active editor model.

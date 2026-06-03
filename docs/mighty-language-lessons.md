@@ -7526,3 +7526,8 @@ L608. Cut needs a clipboard-free mutation preflight. Empty single-line buffers
 should not gain undo history just because Cut was invoked, and read-only
 previews must reject Cut/Paste before any clipboard access or nonstandard
 feedback.
+
+L609. Boundary deletes need model-clone preflights. Backspace, Delete, and
+word-delete can be valid commands that do nothing at document edges; use a
+silent cloned edit probe for undo routing while the real edit ABI keeps
+read-only feedback and changed-state ownership.
