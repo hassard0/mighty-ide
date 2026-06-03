@@ -349,6 +349,10 @@ pub const CMD_DIFF_CLOSE_VIEW: u32 = 158;
 pub const CMD_GIT_HIDE_BLAME: u32 = 159;
 /// Close the inline Peek Definition card and return to editing.
 pub const CMD_PEEK_CLOSE: u32 = 160;
+/// Close the hover popup without requesting new language-server data.
+pub const CMD_HOVER_CLOSE: u32 = 161;
+/// Close the signature-help popup without requesting new language-server data.
+pub const CMD_SIGNATURE_HELP_CLOSE: u32 = 162;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -387,7 +391,9 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_GOTO_LINE,        label: "Go to Line",         keybinding: "Ctrl+G" },
     Command { id: CMD_GOTO_DEFINITION,  label: "Go to Definition",   keybinding: "F12" },
     Command { id: CMD_HOVER,            label: "Show Hover",         keybinding: "Ctrl+K" },
+    Command { id: CMD_HOVER_CLOSE,      label: "Hover: Close Popup", keybinding: "" },
     Command { id: CMD_SIGNATURE_HELP,   label: "Show Signature Help", keybinding: "Ctrl+Shift+Space" },
+    Command { id: CMD_SIGNATURE_HELP_CLOSE, label: "Signature Help: Close Popup", keybinding: "" },
     Command { id: CMD_RENAME_SYMBOL,    label: "Rename Symbol",      keybinding: "F2" },
     Command { id: CMD_CODE_ACTIONS,     label: "Code Actions",       keybinding: "Ctrl+." },
     Command { id: CMD_TOGGLE_TERMINAL,  label: "Toggle Terminal",    keybinding: "Ctrl+`" },
@@ -908,7 +914,9 @@ impl PaletteEngine {
             CMD_GOTO_LINE => (icons::CHEVRON, "Jump to a specific line number", false),
             CMD_GOTO_DEFINITION => (icons::FN_SYMBOL, "Navigate to the symbol definition", false),
             CMD_HOVER => (icons::INFO_I, "Show type & docs at the cursor", false),
+            CMD_HOVER_CLOSE => (icons::CLOSE, "Close the hover popup without moving the cursor", false),
             CMD_SIGNATURE_HELP => (icons::INFO_I, "Show callable parameters at the cursor", false),
+            CMD_SIGNATURE_HELP_CLOSE => (icons::CLOSE, "Close the signature-help popup without moving the cursor", false),
             CMD_RENAME_SYMBOL => (icons::FN_SYMBOL, "Rename the symbol under the cursor", false),
             CMD_CODE_ACTIONS => (icons::LIGHTBULB, "Show quick fixes and code actions at the cursor", false),
             CMD_TOGGLE_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),

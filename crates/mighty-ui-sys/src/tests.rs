@@ -2954,6 +2954,20 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(peek_close.label, "Peek: Close View");
     assert_eq!(peek_close.keybinding, "");
 
+    let hover_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_HOVER_CLOSE)
+        .unwrap();
+    assert_eq!(hover_close.label, "Hover: Close Popup");
+    assert_eq!(hover_close.keybinding, "");
+
+    let sig_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_SIGNATURE_HELP_CLOSE)
+        .unwrap();
+    assert_eq!(sig_close.label, "Signature Help: Close Popup");
+    assert_eq!(sig_close.keybinding, "");
+
     let web_stop = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_WEB_STOP)
@@ -5037,6 +5051,27 @@ fn peek_close_clears_inline_view() {
 }
 
 #[test]
+fn language_popup_close_commands_clear_active_state() {
+    let mut ctx = ctx_or_skip!();
+    assert!(ctx.hover.set_text("```mty\nfn hover_doc()\n```"));
+    assert!(ctx.sig.set(Some(crate::language::ParsedSignature {
+        label: "fn call(arg: I32) -> I32".to_string(),
+        params: vec!["arg: I32".to_string()],
+        active: 0,
+        doc: "Call documentation".to_string(),
+    })));
+
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    assert_eq!(crate::mui_hover_active(handle), 1);
+    assert_eq!(crate::abi::mui_sig_active(handle), 1);
+
+    crate::mui_hover_clear(handle);
+    crate::abi::mui_sig_clear(handle);
+    assert_eq!(crate::mui_hover_active(handle), 0);
+    assert_eq!(crate::abi::mui_sig_active(handle), 0);
+}
+
+#[test]
 fn visible_surface_size_honors_screenshot_caps() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     std::env::set_var("MUI_SCREENSHOT_W", "560");
@@ -6802,6 +6837,18 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Peek: Close View must reuse the same close path as Esc"
     );
     assert!(
+        main.contains("id == cmd_hover_close()")
+            && main.contains("mui_hover_clear(h)")
+            && main.contains("hovering = false"),
+        "Hover close command must clear shim hover state and Mighty's local hover flag"
+    );
+    assert!(
+        main.contains("id == cmd_signature_help_close()")
+            && main.contains("mui_sig_clear(h)")
+            && main.contains("sig_open = false"),
+        "Signature Help close command must clear shim signature state and Mighty's local signature flag"
+    );
+    assert!(
         main.contains("id == cmd_explorer_collapse_all()")
             && main.contains("let _vp = mui_panel_set(h, panel_explorer())")
             && main.contains("mui_tree_collapse_all(h)"),
@@ -7063,7 +7110,12 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_GOTO_LINE, "cmd_goto_line"),
         (CMD_GOTO_DEFINITION, "cmd_goto_definition"),
         (CMD_HOVER, "cmd_hover"),
+        (CMD_HOVER_CLOSE, "cmd_hover_close"),
         (CMD_SIGNATURE_HELP, "cmd_signature_help"),
+        (
+            CMD_SIGNATURE_HELP_CLOSE,
+            "cmd_signature_help_close",
+        ),
         (CMD_RENAME_SYMBOL, "cmd_rename_symbol"),
         (CMD_CODE_ACTIONS, "cmd_code_actions"),
         (CMD_TOGGLE_TERMINAL, "cmd_toggle_terminal"),

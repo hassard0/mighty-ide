@@ -6760,3 +6760,13 @@ transition as Escape without reopening or navigating anywhere.
 - **IDE note:** The command palette now lists `Peek: Close View`, calling
   `mui_peek_close`. ABI, registry, metadata, dispatcher, and label tests pin
   that Peek Definition has an explicit close path.
+
+L531. Language popups need explicit close commands too.
+Hover and signature help are transient, but they still occupy editor attention.
+Users who drive the IDE through the command palette need one-way dismiss actions
+that clear popup state without making a fresh language-server request.
+
+- **IDE note:** The command palette now lists `Hover: Close Popup` and
+  `Signature Help: Close Popup`, calling `mui_hover_clear` and `mui_sig_clear`
+  while resetting Mighty's local popup flags. ABI, registry, metadata,
+  dispatcher, and label tests pin both close paths.
