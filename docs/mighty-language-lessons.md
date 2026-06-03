@@ -6097,3 +6097,11 @@ still sized and centered key labels from fixed per-character advances.
 - **IDE note:** Command palette shortcut chips now measure each key token before
   sizing pills and centering labels. Alternative shortcuts, long modifier names,
   and narrow glyphs reserve the actual rendered space before row titles are fit.
+
+L464. Header status pills need measured text even when labels are compact. The
+AI Copilot header compacted the model id to a short badge, but still sized the
+badge pill from a fixed per-character estimate.
+
+- **IDE note:** The AI model badge now measures its rendered UI label before
+  sizing the header pill. Future model aliases can vary in glyph width without
+  crowding the titlebar close affordance or leaving uneven padding.

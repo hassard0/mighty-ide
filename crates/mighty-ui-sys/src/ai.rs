@@ -532,6 +532,10 @@ pub fn close_geometry(width: u32) -> (f32, f32, f32, f32) {
     (right - 28.0, layout::TAB_BAR_H + 8.0, 24.0, 24.0)
 }
 
+fn model_pill_width(text: &mut crate::text::Text, label: &str, size: f32) -> f32 {
+    text.measure_ui_sized(label, size).0 + 16.0
+}
+
 /// A simple line of rendered transcript content (already wrapped/segmented).
 enum Seg {
     /// A normal text line for `role`.
@@ -759,7 +763,8 @@ impl AiPanel {
         // Compact model pill on the right, kept out of the native titlebar
         // action/control strip so it never collides with minimize/maximize/close.
         let model_label = model_badge(MODEL);
-        let pill_w = model_label.chars().count() as f32 * (chrome - 3.0) * 0.52 + 16.0;
+        let pill_font = chrome - 3.0;
+        let pill_w = model_pill_width(&mut ctx.text, &model_label, pill_font);
         let header_right = close_x - 10.0;
         let min_pill_x = px + 150.0;
         if header_right - pill_w >= min_pill_x {
@@ -772,7 +777,7 @@ impl AiPanel {
                 pill_y + 4.0,
                 &model_label,
                 theme::ACCENT_BRIGHT(),
-                chrome - 3.0,
+                pill_font,
                 clip,
             );
         }
@@ -1124,6 +1129,30 @@ mod tests {
         assert_eq!(model_badge("claude-sonnet-4-6"), "Sonnet 4.6");
         assert_eq!(model_badge("claude-3-5-sonnet-latest"), "Sonnet 3.5");
         assert_eq!(model_badge("other-model"), "other-model");
+    }
+
+    #[test]
+    fn model_pill_width_uses_measured_label_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let short = model_pill_width(&mut ctx.text, "Haiku", 11.0);
+        let long = model_pill_width(&mut ctx.text, "Sonnet 4.6", 11.0);
+
+        assert!(short > 16.0);
+        assert!(long > short);
+    }
+
+    #[test]
+    fn model_pill_width_contains_measured_label_with_padding() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let label = "Sonnet 4.6";
+        let label_w = ctx.text.measure_ui_sized(label, 11.0).0;
+        let pill_w = model_pill_width(&mut ctx.text, label, 11.0);
+
+        assert!(pill_w >= label_w + 16.0);
     }
 
     #[test]
