@@ -5050,3 +5050,14 @@ contains non-BMP characters before the edit range.
 - **IDE note:** `apply_text_edits` now maps edit ranges with UTF-16 column
   accounting. ASCII and BMP-only files keep the same offsets, while emoji and
   other surrogate-pair characters no longer shift later LSP edits.
+
+L355. `WorkspaceEdit.documentChanges` is a mixed array, not just text edits. LSP
+servers can interleave `TextDocumentEdit` objects with resource operations like
+`create`, `rename`, and `delete`; those resource operations also carry URIs, so
+a parser that scans for the next URI and next edits array can attribute edits
+to the wrong file.
+
+- **IDE note:** `documentChanges` parsing is now object-scoped. Only objects
+  containing both `textDocument` and `edits` produce text edits, resource-only
+  operations are skipped, and field order inside the `TextDocumentEdit` object
+  no longer matters.

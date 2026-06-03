@@ -414,35 +414,74 @@ fn parse_document_changes(bytes: &[u8], dc_at: usize, we: &mut WorkspaceEdit) {
     }
     let arr_end = match_bracket(bytes, i);
     let region = &bytes[i..arr_end.min(bytes.len())];
-    // Each element: {"textDocument":{"uri":...},"edits":[...]}.
-    let mut k = 0usize;
-    while k < region.len() {
-        let Some(uri_rel) = find_sub(&region[k..], b"\"uri\"") else {
-            break;
-        };
-        let uri_at = k + uri_rel;
-        let Some((uri, past)) = read_json_string_at(region, uri_at + b"\"uri\"".len()) else {
-            break;
-        };
-        // The edits array follows.
-        let Some(edits_rel) = find_sub(&region[past..], b"\"edits\"") else {
-            we.files.push((uri, Vec::new()));
-            break;
-        };
-        let edits_key_at = past + edits_rel;
-        let mut j = edits_key_at + b"\"edits\"".len();
-        while j < region.len() && matches!(region[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-            j += 1;
-        }
-        if j >= region.len() || region[j] != b'[' {
-            we.files.push((uri, Vec::new()));
-            k = j;
+    parse_document_change_objects(region, we);
+}
+
+fn parse_document_change_objects(arr: &[u8], we: &mut WorkspaceEdit) {
+    let mut depth = 0i32;
+    let mut obj_start: Option<usize> = None;
+    let mut in_str = false;
+    let mut esc = false;
+    for (k, &c) in arr.iter().enumerate() {
+        if in_str {
+            if esc {
+                esc = false;
+            } else if c == b'\\' {
+                esc = true;
+            } else if c == b'"' {
+                in_str = false;
+            }
             continue;
         }
-        let e_end = match_bracket(region, j);
-        let edits = parse_text_edits(&region[j..e_end.min(region.len())]);
+        match c {
+            b'"' => in_str = true,
+            b'{' => {
+                if depth == 0 {
+                    obj_start = Some(k);
+                }
+                depth += 1;
+            }
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    if let Some(start) = obj_start.take() {
+                        parse_one_document_change(&arr[start..=k], we);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn parse_one_document_change(obj: &[u8], we: &mut WorkspaceEdit) {
+    // ResourceOperation objects (`create`, `rename`, `delete`) also carry URIs,
+    // but no text edit list. Keep this parser scoped to TextDocumentEdit objects
+    // so we never apply edits to the wrong file.
+    let Some(td_at) = find_sub(obj, b"\"textDocument\"") else {
+        return;
+    };
+    let Some(edits_at) = find_sub(obj, b"\"edits\"") else {
+        return;
+    };
+    let Some(uri_rel) = find_sub(&obj[td_at..], b"\"uri\"") else {
+        return;
+    };
+    let uri_at = td_at + uri_rel;
+    let Some((uri, _)) = read_json_string_at(obj, uri_at + b"\"uri\"".len()) else {
+        return;
+    };
+    let mut j = edits_at + b"\"edits\"".len();
+    while j < obj.len() && matches!(obj[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
+        j += 1;
+    }
+    if j >= obj.len() || obj[j] != b'[' {
+        return;
+    }
+    let e_end = match_bracket(obj, j);
+    let edits = parse_text_edits(&obj[j..e_end.min(obj.len())]);
+    if !edits.is_empty() {
         we.files.push((uri, edits));
-        k = e_end;
     }
 }
 
@@ -1692,6 +1731,30 @@ mod tests {
         assert_eq!(we.file_count(), 1);
         assert_eq!(we.files[0].0, "file:///z.mty");
         assert_eq!(we.files[0].1[0], TextEdit { start_line: 2, start_col: 0, end_line: 2, end_col: 1, new_text: "X".into() });
+    }
+
+    #[test]
+    fn parse_workspace_edit_document_changes_ignores_resource_operations() {
+        let json = r#"{"result":{"documentChanges":[{"kind":"create","uri":"file:///created.rs"},{"textDocument":{"uri":"file:///edited.rs","version":2},"edits":[{"newText":"ok","range":{"start":{"line":1,"character":2},"end":{"line":1,"character":5}}}]},{"kind":"rename","oldUri":"file:///old.rs","newUri":"file:///new.rs"}]},"id":4}"#;
+        let we = parse_workspace_edit(json);
+        assert_eq!(we.file_count(), 1);
+        assert_eq!(we.files[0].0, "file:///edited.rs");
+        assert_eq!(we.files[0].1[0], TextEdit { start_line: 1, start_col: 2, end_line: 1, end_col: 5, new_text: "ok".into() });
+    }
+
+    #[test]
+    fn parse_workspace_edit_document_changes_allows_field_reordering() {
+        let json = r#"{"result":{"documentChanges":[{"edits":[{"newText":"ok","range":{"start":{"line":3,"character":1},"end":{"line":3,"character":4}}}],"textDocument":{"version":2,"uri":"file:///edited.rs"}}]},"id":4}"#;
+        let we = parse_workspace_edit(json);
+        assert_eq!(we.file_count(), 1);
+        assert_eq!(we.files[0].0, "file:///edited.rs");
+        assert_eq!(we.files[0].1[0], TextEdit { start_line: 3, start_col: 1, end_line: 3, end_col: 4, new_text: "ok".into() });
+    }
+
+    #[test]
+    fn parse_workspace_edit_document_changes_skips_resource_only_edits() {
+        let json = r#"{"result":{"documentChanges":[{"kind":"delete","uri":"file:///dead.rs"},{"kind":"create","uri":"file:///new.rs"}]},"id":4}"#;
+        assert!(parse_workspace_edit(json).is_empty());
     }
 
     #[test]
