@@ -6219,6 +6219,10 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_DELETE_NEXT_WORD, "cmd_delete_next_word"),
         (CMD_INDENT_LINE_SELECTION, "cmd_indent_line_selection"),
         (CMD_OUTDENT_LINE_SELECTION, "cmd_outdent_line_selection"),
+        (CMD_MOVE_WORD_LEFT, "cmd_move_word_left"),
+        (CMD_MOVE_WORD_RIGHT, "cmd_move_word_right"),
+        (CMD_MOVE_DOCUMENT_START, "cmd_move_document_start"),
+        (CMD_MOVE_DOCUMENT_END, "cmd_move_document_end"),
         (
             CMD_DUPLICATE_LINE_SELECTION,
             "cmd_duplicate_line_selection",

@@ -5876,3 +5876,13 @@ commands give users a direct route to the underlying line indentation operation.
   and `Edit: Outdent Line or Selection`. Mighty dispatches through `mui_ed_indent`
   and `mui_ed_outdent`, preserving the Tab fallback's undo record, no-op-safe
   dirty-tab update, and ghost-text refresh behavior.
+
+L439. Cursor navigation should be palette-reachable too. Word-wise movement and
+document-boundary jumps are not edits, but they are still named editor actions
+that keyboard-first users expect to discover and invoke without memorizing every
+chord.
+
+- **IDE note:** the command palette now lists cursor movement commands for
+  previous/next word and document start/end. Mighty dispatches through the
+  existing multi-caret movement ABI with selection extension disabled, matching
+  Ctrl+Left, Ctrl+Right, Ctrl+Home, and Ctrl+End while dismissing stale ghost text.
