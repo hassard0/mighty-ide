@@ -2968,6 +2968,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(web_clear.label, "Web: Clear Output");
     assert_eq!(web_clear.keybinding, "");
 
+    let diff_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_DIFF_CLOSE_VIEW)
+        .unwrap();
+    assert_eq!(diff_close.label, "Diff: Close View");
+    assert_eq!(diff_close.keybinding, "");
+
     let agents_clear = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_AGENTS_CLEAR_RUN_OUTPUT)
@@ -3232,6 +3239,22 @@ fn diff_open_noops_report_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "No git repository for diff");
+}
+
+#[test]
+fn diff_close_clears_inline_view() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    assert_eq!(
+        ctx.diff.open("src/main.mty", false, "@@ -1 +1 @@\n-old\n+new\n"),
+        3
+    );
+    assert!(ctx.diff.is_active());
+
+    crate::featureabi::mui_diff_close(handle);
+
+    assert!(!ctx.diff.is_active());
+    assert_eq!(ctx.diff.line_count(), 0);
 }
 
 #[test]
@@ -6778,6 +6801,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("web_focus = true"),
         "Web clear-output command must reveal Web Playground before clearing output"
     );
+    assert!(
+        main.contains("id == cmd_diff_close_view()")
+            && main.contains("mui_diff_close(h)")
+            && main.contains("diff_open = false"),
+        "Diff close command must close the shim diff view and clear Mighty's diff-open flag"
+    );
     for (helper, action) in [
         ("cmd_search_run", "mui_search_run(h)"),
         ("cmd_search_replace_all", "mui_search_replace_all(h)"),
@@ -7056,6 +7085,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_WEB_STOP, "cmd_web_stop"),
         (CMD_WEB_OPEN_BROWSER, "cmd_web_open_browser"),
         (CMD_WEB_CLEAR_OUTPUT, "cmd_web_clear_output"),
+        (CMD_DIFF_CLOSE_VIEW, "cmd_diff_close_view"),
         (CMD_KEYBOARD_SHORTCUTS, "cmd_keyboard_shortcuts"),
         (CMD_NEW_PROJECT, "cmd_new_project"),
         (CMD_WINDOW_TOGGLE_MAXIMIZE, "cmd_window_toggle_maximize"),

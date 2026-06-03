@@ -6733,3 +6733,12 @@ model instead of forcing users into the generic Run dock.
   focusing the Mighty Agents panel and calling `mui_agents_clear_run_output`.
   State, ABI, registry, metadata, dispatcher, and feedback tests pin that the
   embedded run transcript clears without rebuilding topology.
+
+L528. Modal editor surfaces need named exit commands.
+Inline diff is not just a transient key mode; it is a read-only editor surface
+that can be opened from Source Control. Command-palette users need an explicit
+way back to editing that updates both shim state and Mighty-side mode flags.
+
+- **IDE note:** The command palette now lists `Diff: Close View`, calling
+  `mui_diff_close` and clearing Mighty's `diff_open` flag. ABI, registry,
+  metadata, dispatcher, and label tests pin the close path.

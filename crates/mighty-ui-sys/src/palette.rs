@@ -343,6 +343,8 @@ pub const CMD_TEST_CLEAR_RESULTS: u32 = 155;
 pub const CMD_WEB_CLEAR_OUTPUT: u32 = 156;
 /// Clear the Mighty Agents run transcript without rebuilding topology.
 pub const CMD_AGENTS_CLEAR_RUN_OUTPUT: u32 = 157;
+/// Close the inline git diff view and return to editing.
+pub const CMD_DIFF_CLOSE_VIEW: u32 = 158;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -481,6 +483,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_SIDEBAR_CLOSE,    label: "View: Close Sidebar", keybinding: "" },
     Command { id: CMD_VIEW_TERMINAL,    label: "View: Terminal",      keybinding: "Ctrl+`" },
     Command { id: CMD_VIEW_WEB_PLAYGROUND, label: "View: Web Playground", keybinding: "" },
+    Command { id: CMD_DIFF_CLOSE_VIEW,  label: "Diff: Close View",    keybinding: "" },
     Command { id: CMD_DOCK_COMPACT,     label: "View: Bottom Dock Compact", keybinding: "" },
     Command { id: CMD_DOCK_RESET,       label: "View: Bottom Dock Default Size", keybinding: "" },
     Command { id: CMD_DOCK_EXPANDED,    label: "View: Bottom Dock Expanded", keybinding: "" },
@@ -999,6 +1002,7 @@ impl PaletteEngine {
             CMD_SIDEBAR_CLOSE => (icons::CLOSE, "Close the left sidebar drawer", false),
             CMD_VIEW_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
             CMD_VIEW_WEB_PLAYGROUND => (icons::GLOBE, "Open the Web Playground output panel", false),
+            CMD_DIFF_CLOSE_VIEW => (icons::CLOSE, "Close the inline git diff view and return to editing", false),
             CMD_DOCK_COMPACT => (icons::ARROW_DOWN, "Use a smaller shared bottom dock", false),
             CMD_DOCK_RESET => (icons::WIN_MIN, "Restore the shared bottom dock to its default height", false),
             CMD_DOCK_EXPANDED => (icons::ARROW_UP, "Use a taller shared bottom dock", false),
