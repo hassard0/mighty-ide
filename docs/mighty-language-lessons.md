@@ -5754,3 +5754,12 @@ copy/cut should operate on the current line so keyboard editing stays fast.
 - **IDE note:** `Ctrl+C`, `Ctrl+X`, and `Ctrl+V` now route to editor clipboard
   ABIs. Copy/cut use the active selection or current line, paste replaces the
   selection, and clipboard feedback shares the Copy toast lane.
+
+L426. Selection replacement is part of the edit contract, not a shortcut bonus.
+Once Select All, Select Line, and clipboard editing exist, typed text, Enter,
+Backspace, and Delete should treat the active selection as the edit target.
+
+- **IDE note:** `TextModel::begin_edit` now deletes active selections before
+  text mutations, Backspace/Delete remove selections, smart insert falls back to
+  plain replacement when a selection is active, and multi-caret replacement
+  treats the selection start as the edit origin.

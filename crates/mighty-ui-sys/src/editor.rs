@@ -302,6 +302,16 @@ impl TextModel {
     /// Marks dirty when it removes text. Used so typing over a tab-stop placeholder
     /// replaces it.
     pub fn delete_selection(&mut self) -> bool {
+        if !self.delete_primary_selection() {
+            return false;
+        }
+        let primary = self.carets[0];
+        self.carets.clear();
+        self.carets.push(primary);
+        true
+    }
+
+    fn delete_primary_selection(&mut self) -> bool {
         let Some(((l0, c0), (l1, c1))) = self.selection_range() else {
             return false;
         };
@@ -320,8 +330,7 @@ impl TextModel {
             self.lines.drain((l0 + 1)..=l1);
             self.lines[l0] = format!("{head}{tail}");
         }
-        self.carets.clear();
-        self.carets.push(Caret::at(l0, c0));
+        self.carets[0] = Caret::at(l0, c0);
         true
     }
 
@@ -366,7 +375,7 @@ impl TextModel {
         if text.is_empty() {
             return false;
         }
-        let changed = self.delete_selection();
+        let changed = self.delete_primary_selection();
         for ch in text.chars() {
             self.insert_char(ch);
         }
@@ -393,11 +402,9 @@ impl TextModel {
         (s[..byte].to_string(), s[byte..].to_string())
     }
 
-    /// Begin a mutation: drop any selection (edits replace it conceptually; we
-    /// don't implement selection-delete-on-type yet, so just clear) and mark
-    /// dirty.
+    /// Begin a mutation: replace any active selection first, then mark dirty.
     fn begin_edit(&mut self) {
-        self.carets[0].anchor = None;
+        let _ = self.delete_primary_selection();
         self.dirty = true;
     }
 
@@ -438,6 +445,9 @@ impl TextModel {
     /// Delete the char before the cursor (joining lines at column 0). No-op at
     /// the very start of the document.
     pub fn backspace(&mut self) {
+        if self.delete_primary_selection() {
+            return;
+        }
         if self.carets[0].col > 0 {
             self.begin_edit();
             let li = self.carets[0].line;
@@ -465,6 +475,9 @@ impl TextModel {
     /// Delete the char at the cursor (joining the next line when at end of
     /// line). No-op at the very end of the document.
     pub fn delete(&mut self) {
+        if self.delete_primary_selection() {
+            return;
+        }
         let li = self.carets[0].line;
         let col = self.carets[0].col;
         let len = self.line_len(li);
@@ -944,6 +957,9 @@ impl TextModel {
     /// Returns `true` if smart handling applied (caller should NOT also insert);
     /// `false` to fall back to a plain [`insert_char`].
     pub fn insert_char_smart(&mut self, ch: char) -> bool {
+        if self.has_selection() {
+            return false;
+        }
         // Skip-over: typing a closer that already sits to the right.
         if Self::is_close_char(ch) && self.char_after() == Some(ch) {
             self.carets[0].col += 1;
@@ -974,6 +990,9 @@ impl TextModel {
     /// of an empty pair (cursor between `()`, `[]`, `{}`, `""`). Returns `true`
     /// if the pair was deleted; `false` to fall back to a plain [`backspace`].
     pub fn backspace_smart(&mut self) -> bool {
+        if self.has_selection() {
+            return false;
+        }
         let (before, after) = (self.char_before(), self.char_after());
         if let (Some(b), Some(a)) = (before, after) {
             if Self::close_for(b) == Some(a) {
@@ -1333,8 +1352,10 @@ impl TextModel {
         for &idx in &order {
             // Install caret `idx` as primary, snapshot pre-op state.
             self.carets.swap(0, idx);
-            let before_line = self.carets[0].line;
-            let before_col = self.carets[0].col;
+            let ((before_line, before_col), _) = self.carets[0].selection_range().unwrap_or((
+                (self.carets[0].line, self.carets[0].col),
+                (self.carets[0].line, self.carets[0].col),
+            ));
             let before_lines = self.lines.len();
             op(self);
             let after_col = self.carets[0].col;
@@ -1726,6 +1747,20 @@ mod tests {
     }
 
     #[test]
+    fn insert_char_replaces_selection() {
+        let mut m = doc("hello world");
+        m.set_selection((0, 6), (0, 11));
+        m.mark_clean();
+
+        m.insert_char('M');
+
+        assert_eq!(m.as_text(), "hello M");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 7));
+        assert!(!m.has_selection());
+        assert!(m.dirty());
+    }
+
+    #[test]
     fn newline_splits_line() {
         let mut m = doc("hello world");
         m.move_to(0, 5);
@@ -1734,6 +1769,20 @@ mod tests {
         assert_eq!(m.line(0), "hello");
         assert_eq!(m.line(1), " world");
         assert_eq!((m.cursor_line(), m.cursor_col()), (1, 0));
+    }
+
+    #[test]
+    fn newline_replaces_selection() {
+        let mut m = doc("hello world");
+        m.set_selection((0, 5), (0, 11));
+        m.mark_clean();
+
+        m.newline();
+
+        assert_eq!(m.as_text(), "hello\n");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (1, 0));
+        assert!(!m.has_selection());
+        assert!(m.dirty());
     }
 
     #[test]
@@ -1837,6 +1886,29 @@ mod tests {
         m.backspace();
         assert_eq!(m.line(0), "ab");
         assert_eq!(m.cursor_col(), 2);
+    }
+
+    #[test]
+    fn backspace_and_delete_replace_selection_with_empty_text() {
+        let mut m = doc("hello world");
+        m.set_selection((0, 5), (0, 11));
+        m.mark_clean();
+
+        m.backspace();
+
+        assert_eq!(m.as_text(), "hello");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 5));
+        assert!(m.dirty());
+
+        let mut m2 = doc("hello world");
+        m2.set_selection((0, 0), (0, 6));
+        m2.mark_clean();
+
+        m2.delete();
+
+        assert_eq!(m2.as_text(), "world");
+        assert_eq!((m2.cursor_line(), m2.cursor_col()), (0, 0));
+        assert!(m2.dirty());
     }
 
     #[test]
@@ -2110,6 +2182,19 @@ mod tests {
         assert!(m.insert_char_smart(')'));
         assert_eq!(m.line(0), "()");
         assert_eq!(m.cursor_col(), 2);
+    }
+
+    #[test]
+    fn smart_insert_replaces_selection_via_plain_insert() {
+        let mut m = doc("hello");
+        m.set_selection((0, 0), (0, 5));
+        assert!(!m.insert_char_smart('('));
+
+        m.insert_char('(');
+
+        assert_eq!(m.as_text(), "(");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 1));
+        assert!(!m.has_selection());
     }
 
     #[test]
@@ -2516,10 +2601,9 @@ mod tests {
         for i in 0..m.caret_count() {
             assert!(m.caret_selection(i).is_some());
         }
-        // Multi-edit: typing replaces conceptually? We only insert; verify all 3
-        // "foo" got a char inserted at the caret (end of each selection).
+        // Multi-edit: typing replaces every selected occurrence.
         m.insert_char_multi('!');
-        assert_eq!(m.line(0), "foo! bar foo! baz foo!");
+        assert_eq!(m.line(0), "! bar ! baz !");
     }
 
     #[test]
