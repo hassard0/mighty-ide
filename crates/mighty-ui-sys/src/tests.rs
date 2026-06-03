@@ -4321,6 +4321,32 @@ fn run_output_line_fits_compact_panel_width() {
 }
 
 #[test]
+fn editor_gutter_number_width_uses_rendered_code_text() {
+    let mut ctx = ctx_or_skip!();
+    let size = crate::theme::CHROME_FONT_SIZE;
+    let short = crate::abi::gutter_number_width(&mut ctx.text, "9", size);
+    let wide = crate::abi::gutter_number_width(&mut ctx.text, "1000", size);
+    let measured = ctx.text.measure_sized("1000", size).0;
+
+    assert!(short > 0.0);
+    assert!(wide > short);
+    assert_eq!(wide, measured);
+}
+
+#[test]
+fn folded_indicator_width_uses_measured_label_text() {
+    let mut ctx = ctx_or_skip!();
+    let size = crate::theme::CHROME_FONT_SIZE - 1.0;
+    let compact = crate::abi::folded_indicator_width(&mut ctx.text, "... 1 line", size);
+    let wide = crate::abi::folded_indicator_width(&mut ctx.text, "... 128 lines", size);
+    let measured = ctx.text.measure_ui_sized("... 128 lines", size).0 + 12.0;
+
+    assert!(compact > 12.0);
+    assert!(wide > compact);
+    assert_eq!(wide, measured);
+}
+
+#[test]
 fn diff_summary_width_uses_measured_ui_text() {
     let mut ctx = ctx_or_skip!();
     let size = crate::theme::CHROME_FONT_SIZE - 1.0;

@@ -3384,6 +3384,14 @@ pub(crate) fn status_resize_grip_rect(width: f32, height: f32) -> (f32, f32, f32
     ((width - size - 8.0).max(0.0), (height - size - 7.0).max(0.0), size, size)
 }
 
+pub(crate) fn gutter_number_width(text: &mut crate::text::Text, num: &str, size: f32) -> f32 {
+    text.measure_sized(num, size).0
+}
+
+pub(crate) fn folded_indicator_width(text: &mut crate::text::Text, label: &str, size: f32) -> f32 {
+    text.measure_ui_sized(label, size).0 + 12.0
+}
+
 fn fit_status_tail(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
     if max_px <= 0.0 {
         return String::new();
@@ -11569,7 +11577,7 @@ fn draw_editor_pane(
         let y = layout::row_y_in(region, row);
         // Right-aligned gutter number; the cursor's line is brighter.
         let num = (li + 1).to_string();
-        let num_w = num.chars().count() as f32 * layout::CHAR_W() * (chrome / theme::FONT_SIZE());
+        let num_w = gutter_number_width(&mut ctx.text, &num, chrome);
         let gx = (gutter_right - num_w).max(region.left + 2.0);
         let mut gcol = if li == cur_line {
             theme::GUTTER_ACTIVE()
@@ -11660,7 +11668,7 @@ fn draw_editor_pane(
                     } else {
                         format!("... {n} lines")
                     };
-                    let pill_w = (label.chars().count() as f32) * (chrome * 0.55) + 12.0;
+                    let pill_w = folded_indicator_width(&mut ctx.text, &label, chrome - 1.0);
                     let pill_h = layout::LINE_H() - 5.0;
                     let py = y - 1.0;
                     ctx.dl_round(px, py, pill_w.min(mm_x - px - 6.0), pill_h, 4.0, theme::accent_a(0.14));

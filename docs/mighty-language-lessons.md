@@ -6229,3 +6229,12 @@ draw with proportional UI text and measured highlight rectangles.
   preview line-number offsets now use measured UI-font widths before drawing.
   Long queries and match previews stay inside the sidebar while highlights stay
   aligned to the rendered text.
+
+L480. Editor chrome should measure rendered labels even when source columns stay
+grid-based. Gutter numbers and folded-region pills still used character-count
+widths, while the actual labels were drawn through text shaping.
+
+- **IDE note:** Editor gutter numbers and folded-code indicator pills now use
+  measured font widths before placement and sizing. Source text remains on the
+  monospace grid, but editor chrome no longer relies on approximate character
+  multipliers.
