@@ -9479,6 +9479,7 @@ pub extern "C" fn mui_format_current(handle: i64) -> i32 {
     };
     let Some(path) = ctx.file_path.clone() else {
         eprintln!("format: no file path configured");
+        ctx.push_toast(crate::toast::Kind::Warn, "Save the file before formatting");
         return -1;
     };
     match crate::format::run_fmt(&path) {
@@ -9489,6 +9490,7 @@ pub extern "C" fn mui_format_current(handle: i64) -> i32 {
         }
         crate::format::FmtOutcome::NotApplicable => {
             println!("format: {} -> skipped (only .mty supported)", path.display());
+            ctx.push_toast(crate::toast::Kind::Info, "Format is available for Mighty files");
             0
         }
         crate::format::FmtOutcome::Failed => {

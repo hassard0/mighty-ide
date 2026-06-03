@@ -5304,3 +5304,14 @@ close or quit can feel like a missed shortcut instead of a protected operation.
   and quit with unsaved work reports the number of unsaved tabs before showing
   the confirmation overlay. The tab ABI regression covers file-backed, scratch,
   repeat-close, and quit confirmation feedback.
+
+L379. Format guards need user-facing explanations. `mty fmt` is intentionally
+blocked for non-`.mty` files because it can corrupt unsupported inputs, but a
+silent `0` return makes Format Document look inert. Untitled buffers have the
+same issue when no file path exists yet.
+
+- **IDE note:** `mui_format_current` now reports `Save the file before
+  formatting` for untitled buffers and `Format is available for Mighty files`
+  for unsupported extensions, while preserving the existing return codes and
+  non-`.mty` data-loss guard. The regression verifies both toasts and proves the
+  unsupported file remains byte-for-byte unchanged.

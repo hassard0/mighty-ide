@@ -4082,6 +4082,31 @@ fn codeaction_command_without_file_toasts_feedback() {
 }
 
 #[test]
+fn format_current_reports_missing_or_unsupported_target() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_format_current(h), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Save the file before formatting");
+
+    let path = std::env::temp_dir().join("mui_format_unsupported.txt");
+    let original = b"plain text that must survive unsupported format\n";
+    std::fs::write(&path, original).unwrap();
+    ctx.tabs.open_path(path.clone());
+    crate::sync_active_path(&mut ctx);
+
+    assert_eq!(crate::mui_format_current(h), 0);
+    assert_eq!(std::fs::read(&path).unwrap(), original);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Format is available for Mighty files");
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn pane_split_focus_close_via_abi() {
     use crate::ffi::MuiEvent;
     use crate::{
