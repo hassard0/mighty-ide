@@ -262,6 +262,34 @@ fn lsp_execute_command_raw(
     )
 }
 
+fn code_action_diagnostics_json(diags: &[diagnostics::Diag], line: u32) -> String {
+    let mut out = String::from("[");
+    let mut first = true;
+    for d in diags.iter().filter(|d| d.line.max(0) as u32 == line) {
+        if !first {
+            out.push(',');
+        }
+        first = false;
+        let line = d.line.max(0) as u32;
+        let start = d.col_start.max(0) as u32;
+        let mut end = d.col_end.max(d.col_start + 1).max(0) as u32;
+        if end <= start {
+            end = start + 1;
+        }
+        let severity = match d.severity {
+            Severity::Error => 1,
+            Severity::Warning => 2,
+        };
+        out.push_str(&format!(
+            r#"{{"range":{{"start":{{"line":{line},"character":{start}}},"end":{{"line":{line},"character":{end}}}}},"severity":{severity},"code":"{}","source":"mighty-ide","message":"{}"}}"#,
+            crate::lspclient::json_escape(&d.code),
+            crate::lspclient::json_escape(&d.message)
+        ));
+    }
+    out.push(']');
+    out
+}
+
 /// Resolve the file to edit: `argv[1]` if given, else a virtual scratch tab.
 /// The scratch tab is not file-backed, so startup does not create `scratch.mty`
 /// in the workspace or make a clean Git repo dirty.
@@ -8808,6 +8836,7 @@ pub(crate) fn compute_line_actions(
         .map(|l| l.chars().count() as u32)
         .unwrap_or(0);
     let end_col = line_len.max(col.max(0) as u32);
+    let diagnostics_json = code_action_diagnostics_json(&ctx.diags, line0);
     let raw = if ctx.language == Language::Mighty {
         crate::language::lsp::request(
             &path,
@@ -8817,6 +8846,7 @@ pub(crate) fn compute_line_actions(
                 start_col: 0,
                 end_line: line0,
                 end_col,
+                diagnostics_json: diagnostics_json.clone(),
             },
         )
     } else if let Some(spec) = crate::lspregistry::server_for(ctx.language) {
@@ -8827,7 +8857,11 @@ pub(crate) fn compute_line_actions(
             &root,
             &path,
             &source,
-            crate::lspclient::Method::CodeAction { end_line: line0, end_col },
+            crate::lspclient::Method::CodeAction {
+                end_line: line0,
+                end_col,
+                diagnostics_json,
+            },
             line0,
             0,
         )

@@ -1508,7 +1508,13 @@ pub mod lsp {
         SignatureHelp { line: u32, col: u32 },
         PrepareRename { line: u32, col: u32 },
         Rename { line: u32, col: u32, new_name: String },
-        CodeAction { start_line: u32, start_col: u32, end_line: u32, end_col: u32 },
+        CodeAction {
+            start_line: u32,
+            start_col: u32,
+            end_line: u32,
+            end_col: u32,
+            diagnostics_json: String,
+        },
         /// `textDocument/documentSymbol` — the Outline panel's preferred source.
         /// (mty-lsp v0.5 answers `-32601`; the shim then falls back to a scanner.)
         DocumentSymbol,
@@ -1536,8 +1542,14 @@ pub mod lsp {
                     r#"{{"textDocument":{{"uri":"{u}"}},"position":{{"line":{line},"character":{col}}},"newName":"{}"}}"#,
                     json_escape(new_name)
                 ),
-                Req::CodeAction { start_line, start_col, end_line, end_col } => format!(
-                    r#"{{"textDocument":{{"uri":"{u}"}},"range":{{"start":{{"line":{start_line},"character":{start_col}}},"end":{{"line":{end_line},"character":{end_col}}}}},"context":{{"diagnostics":[]}}}}"#
+                Req::CodeAction {
+                    start_line,
+                    start_col,
+                    end_line,
+                    end_col,
+                    diagnostics_json,
+                } => format!(
+                    r#"{{"textDocument":{{"uri":"{u}"}},"range":{{"start":{{"line":{start_line},"character":{start_col}}},"end":{{"line":{end_line},"character":{end_col}}}}},"context":{{"diagnostics":{diagnostics_json}}}}}"#
                 ),
             }
         }

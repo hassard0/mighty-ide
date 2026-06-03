@@ -45,6 +45,7 @@ pub enum Method {
     CodeAction {
         end_line: u32,
         end_col: u32,
+        diagnostics_json: String,
     },
     DocumentSymbol,
     ExecuteCommand {
@@ -82,8 +83,12 @@ impl Method {
                 r#"{{"textDocument":{{"uri":"{u}"}},"position":{{"line":{line},"character":{col}}},"newName":"{}"}}"#,
                 json_escape(new_name)
             ),
-            Method::CodeAction { end_line, end_col } => format!(
-                r#"{{"textDocument":{{"uri":"{u}"}},"range":{{"start":{{"line":{line},"character":{col}}},"end":{{"line":{end_line},"character":{end_col}}}}},"context":{{"diagnostics":[]}}}}"#
+            Method::CodeAction {
+                end_line,
+                end_col,
+                diagnostics_json,
+            } => format!(
+                r#"{{"textDocument":{{"uri":"{u}"}},"range":{{"start":{{"line":{line},"character":{col}}},"end":{{"line":{end_line},"character":{end_col}}}}},"context":{{"diagnostics":{diagnostics_json}}}}}"#
             ),
             Method::DocumentSymbol => format!(r#"{{"textDocument":{{"uri":"{u}"}}}}"#),
             Method::ExecuteCommand {
@@ -846,6 +851,7 @@ mod tests {
             &Method::CodeAction {
                 end_line: 4,
                 end_col: 17,
+                diagnostics_json: "[]".to_string(),
             },
             "file:///repo/src/main.rs",
             4,
@@ -856,6 +862,23 @@ mod tests {
             r#""range":{"start":{"line":4,"character":0},"end":{"line":4,"character":17}}"#
         ));
         assert!(msg.contains(r#""context":{"diagnostics":[]}"#));
+    }
+
+    #[test]
+    fn code_action_request_includes_diagnostic_context() {
+        let msg = request_msg(
+            &Method::CodeAction {
+                end_line: 4,
+                end_col: 17,
+                diagnostics_json: r#"[{"severity":1,"message":"missing import"}]"#.to_string(),
+            },
+            "file:///repo/src/main.rs",
+            4,
+            0,
+        );
+        assert!(msg.contains(
+            r#""context":{"diagnostics":[{"severity":1,"message":"missing import"}]}"#
+        ));
     }
 
     #[test]

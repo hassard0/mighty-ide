@@ -5095,3 +5095,14 @@ split/focus/close looked too similar to a missed command.
   `Focused editor pane N`, `Closed editor pane`, or `Only one editor pane` for
   one-pane no-ops. The existing pane ABI regression now checks that direct and
   palette-dispatched pane operations share those visible outcomes.
+
+L359. LSP code actions need diagnostic context, not just a line range. The IDE
+was asking `textDocument/codeAction` with `context.diagnostics: []` even when the
+current line already had parsed diagnostics. Some servers use those diagnostics
+to decide which quick fixes are applicable, so the empty context could hide real
+fixes while completion/hover/rename still worked.
+
+- **IDE note:** code-action requests now serialize the active line's stored
+  diagnostics into the LSP `context.diagnostics` array for both the Mighty and
+  generic LSP clients. Empty/no-diagnostic lines preserve the previous empty
+  array behavior; request-builder tests cover both paths.
