@@ -714,6 +714,9 @@ fn cmd_copy_active_file_directory() -> I32 { 63 }
 fn cmd_delete_line() -> I32 { 103 }
 fn cmd_join_line() -> I32 { 104 }
 fn cmd_select_word() -> I32 { 105 }
+fn cmd_duplicate_line_selection() -> I32 { 106 }
+fn cmd_move_line_up() -> I32 { 107 }
+fn cmd_move_line_down() -> I32 { 108 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -3683,6 +3686,19 @@ fn main() {
           find_nav = false
         } else if id == cmd_select_word() {
           let _sw = mui_ed_select_word(h)
+          find_nav = false
+        } else if id == cmd_duplicate_line_selection() || id == cmd_move_line_up() || id == cmd_move_line_down() {
+          mui_ed_undo_record(h)
+          if id == cmd_duplicate_line_selection() {
+            mui_ed_duplicate(h)
+          } else if id == cmd_move_line_up() {
+            mui_ed_move_lines_up(h)
+          } else {
+            mui_ed_move_lines_down(h)
+          }
+          mui_tab_set_dirty(h, mui_tab_active(h), 1)
+          mui_ghost_dismiss(h)
+          mui_ghost_arm(h)
           find_nav = false
         } else if id == cmd_open_file() {
           let oi = mui_open_file_dialog(h)

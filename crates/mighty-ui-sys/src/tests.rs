@@ -6209,6 +6209,12 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
             "cmd_copy_active_file_directory",
         ),
         (CMD_SELECT_WORD, "cmd_select_word"),
+        (
+            CMD_DUPLICATE_LINE_SELECTION,
+            "cmd_duplicate_line_selection",
+        ),
+        (CMD_MOVE_LINE_UP, "cmd_move_line_up"),
+        (CMD_MOVE_LINE_DOWN, "cmd_move_line_down"),
         (CMD_DELETE_LINE, "cmd_delete_line"),
         (CMD_JOIN_LINE, "cmd_join_line"),
         (CMD_CLEAR_NOTIFICATIONS, "cmd_clear_notifications"),

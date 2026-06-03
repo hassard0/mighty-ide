@@ -5827,3 +5827,14 @@ multi-cursor description made a useful selection command hard to discover.
 - **IDE note:** the command palette now lists `Edit: Select Word` and dispatches
   through the existing `mui_ed_select_word` ABI. The shortcut reference now
   documents Ctrl+D as `Select word / add caret at next occurrence`.
+
+L434. Daily edit commands should be palette-reachable, not shortcut-only.
+Duplicate line/selection and line movement were fully implemented, tested, and
+documented as keyboard shortcuts, but command-palette users could not discover
+or invoke them from the same workflow as delete line, join line, and select word.
+
+- **IDE note:** the command palette now lists `Edit: Duplicate Line or Selection`,
+  `Edit: Move Line Up`, and `Edit: Move Line Down`. Mighty dispatches those
+  commands through the existing `mui_ed_duplicate`, `mui_ed_move_lines_up`, and
+  `mui_ed_move_lines_down` ABI calls with the same undo, dirty-tab, and ghost-text
+  handling used by their keyboard shortcuts.
