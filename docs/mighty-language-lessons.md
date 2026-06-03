@@ -5522,3 +5522,12 @@ out-of-range indices are user-visible misses rather than internal no-ops.
   when the Welcome recent-file picker has no valid row to open. Stale files
   still use `Recent file missing: ...`, prune the missing recent, and keep the
   Welcome surface open.
+
+L401. Branch-switch accepts need visible feedback when no picker is open. Branch
+switching is driven by keyboard and mouse overlay routes, so accepting after the
+overlay has already closed should not disappear as a bare `0` return.
+
+- **IDE note:** `mui_branch_accept` now reports `No branch picker open` when the
+  accept command is routed without an active picker. Existing checkout/create
+  failures still surface git's own error text, and active empty pickers continue
+  to route Enter into the Create Branch flow.

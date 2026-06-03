@@ -944,6 +944,10 @@ pub extern "C" fn mui_branch_accept(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !ctx.branch_picker.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No branch picker open");
+        return 0;
+    }
     let dir = workspace_dir(ctx);
     if ctx.branch_picker.is_creating() {
         let name = ctx.branch_picker.query_string();
@@ -975,6 +979,7 @@ pub extern "C" fn mui_branch_accept(handle: i64) -> i32 {
             0
         }
     } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No branch selected");
         0
     }
 }

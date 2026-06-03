@@ -570,6 +570,7 @@ enum OperationKey {
     Navigation,
     Markdown,
     Layout,
+    Git,
     Ai,
     Agents,
 }
@@ -581,6 +582,18 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Type a message before sending"
     {
         Some(OperationKey::Ai)
+    } else if m.starts_with("Git error:")
+        || m.starts_with("Switched to ")
+        || m.starts_with("Created branch ")
+        || m.starts_with("Pushed:")
+        || m.starts_with("Pulled:")
+        || m.starts_with("Fetched:")
+        || m == "Enter a branch name"
+        || m == "No branch picker open"
+        || m == "No branch selected"
+        || m == "Not a git repository"
+    {
+        Some(OperationKey::Git)
     } else if m == "Open a file before running Agents" || m.starts_with("Agents ") {
         Some(OperationKey::Agents)
     } else if m == "No unsaved files"

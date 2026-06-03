@@ -3890,6 +3890,17 @@ fn branch_picker_geometry_keeps_positive_width_in_narrow_windows() {
 }
 
 #[test]
+fn branch_accept_without_picker_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_branch_accept(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No branch picker open");
+}
+
+#[test]
 fn debug_header_title_fits_before_state_pill() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
