@@ -5348,3 +5348,14 @@ labels should be measured and shortened before drawing.
   the same measured ellipsis path used by other chrome text before centering
   them. The regression keeps current labels unchanged and proves a longer
   destructive-action label cannot spill outside compact modal buttons.
+
+L383. Edge-only editing commands still need visible outcomes. Multi-cursor
+commands like Ctrl+D and Ctrl+Alt+Up/Down are explicit requests, so hitting a
+document edge or an absent next occurrence should not look like a dropped
+shortcut.
+
+- **IDE note:** failed multi-cursor expansion now reports `No word or next
+  occurrence for multi-cursor`, `No line above for another caret`, or `No line
+  below for another caret` while preserving existing return codes. The ABI
+  regression proves successful caret additions stay quiet and only edge failures
+  add feedback.

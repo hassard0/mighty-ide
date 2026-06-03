@@ -82,6 +82,47 @@ macro_rules! ctx_or_skip {
 }
 
 #[test]
+fn multi_cursor_edge_commands_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("unique stuff here");
+    ctx.tabs.active_model_mut().move_to(0, 0);
+    assert_eq!(crate::abi::mui_ed_add_caret_next(handle), 1);
+    assert_eq!(ctx.toasts.toasts().len(), 0, "successful Ctrl+D should stay quiet");
+    assert_eq!(crate::abi::mui_ed_add_caret_next(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No word or next occurrence for multi-cursor");
+
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("top\nbottom");
+    ctx.tabs.active_model_mut().move_to(0, 0);
+    assert_eq!(crate::abi::mui_ed_add_caret_above(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No line above for another caret");
+
+    let before_success = ctx.toasts.toasts().len();
+    assert_eq!(crate::abi::mui_ed_add_caret_below(handle), 1);
+    assert_eq!(
+        ctx.toasts.toasts().len(),
+        before_success,
+        "successful vertical caret addition should stay quiet"
+    );
+
+    ctx.tabs.active_model_mut().collapse_carets();
+    ctx.tabs.active_model_mut().move_to(1, 0);
+    assert_eq!(crate::abi::mui_ed_add_caret_below(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No line below for another caret");
+}
+
+#[test]
 fn fill_rect_produces_red_texels_and_clear_elsewhere() {
     let mut ctx = ctx_or_skip!();
     let p: *mut MuiContext = &mut ctx;

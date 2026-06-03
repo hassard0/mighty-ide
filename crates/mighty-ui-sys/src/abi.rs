@@ -12648,16 +12648,18 @@ pub extern "C" fn mui_ed_caret_n_col(handle: i64, i: i32) -> i32 {
 /// word was selected or a caret added, else `0` (no word / no other match).
 #[no_mangle]
 pub extern "C" fn mui_ed_add_caret_next(handle: i64) -> i32 {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        let ok = m.add_caret_next_occurrence();
-        trace(&format!(
-            "multi_cursor add_next ok={} count={}",
-            i32::from(ok),
-            m.caret_count()
-        ));
-        return i32::from(ok);
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        trace("multi_cursor add_next ok=0 count=0");
+        return 0;
+    };
+    let m = ctx.tabs.active_model_mut();
+    let ok = m.add_caret_next_occurrence();
+    let count = m.caret_count();
+    trace(&format!("multi_cursor add_next ok={} count={count}", i32::from(ok)));
+    if ok {
+        return 1;
     }
-    trace("multi_cursor add_next ok=0 count=0");
+    ctx.push_toast(crate::toast::Kind::Info, "No word or next occurrence for multi-cursor");
     0
 }
 
@@ -12665,16 +12667,18 @@ pub extern "C" fn mui_ed_add_caret_next(handle: i64) -> i32 {
 /// Returns `1` if added, `0` at the top edge.
 #[no_mangle]
 pub extern "C" fn mui_ed_add_caret_above(handle: i64) -> i32 {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        let ok = m.add_caret_vertical(-1);
-        trace(&format!(
-            "multi_cursor add_above ok={} count={}",
-            i32::from(ok),
-            m.caret_count()
-        ));
-        return i32::from(ok);
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        trace("multi_cursor add_above ok=0 count=0");
+        return 0;
+    };
+    let m = ctx.tabs.active_model_mut();
+    let ok = m.add_caret_vertical(-1);
+    let count = m.caret_count();
+    trace(&format!("multi_cursor add_above ok={} count={count}", i32::from(ok)));
+    if ok {
+        return 1;
     }
-    trace("multi_cursor add_above ok=0 count=0");
+    ctx.push_toast(crate::toast::Kind::Info, "No line above for another caret");
     0
 }
 
@@ -12682,16 +12686,18 @@ pub extern "C" fn mui_ed_add_caret_above(handle: i64) -> i32 {
 /// Returns `1` if added, `0` at the bottom edge.
 #[no_mangle]
 pub extern "C" fn mui_ed_add_caret_below(handle: i64) -> i32 {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        let ok = m.add_caret_vertical(1);
-        trace(&format!(
-            "multi_cursor add_below ok={} count={}",
-            i32::from(ok),
-            m.caret_count()
-        ));
-        return i32::from(ok);
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        trace("multi_cursor add_below ok=0 count=0");
+        return 0;
+    };
+    let m = ctx.tabs.active_model_mut();
+    let ok = m.add_caret_vertical(1);
+    let count = m.caret_count();
+    trace(&format!("multi_cursor add_below ok={} count={count}", i32::from(ok)));
+    if ok {
+        return 1;
     }
-    trace("multi_cursor add_below ok=0 count=0");
+    ctx.push_toast(crate::toast::Kind::Info, "No line below for another caret");
     0
 }
 
