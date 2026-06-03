@@ -1123,9 +1123,9 @@ impl RenameState {
         let chrome = theme::CHROME_FONT_SIZE;
         let clip = ctx.clip;
         let w = width as f32;
-        let box_w = (w * 0.42).clamp(280.0, 520.0);
+        let box_w = rename_card_width(w);
         let box_h = 56.0_f32;
-        let box_x = (w - box_w) * 0.5;
+        let box_x = rename_card_x(w, box_w);
         let box_y = layout::TAB_BAR_H + layout::BREADCRUMB_H + 24.0;
         let radius = 10.0;
         ctx.dl_shadow(box_x, box_y + 8.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.7), 26.0);
@@ -1430,6 +1430,14 @@ fn code_action_popup_width(text: &mut crate::text::Text, actions: &[CodeAction],
 
 fn rename_field_text_budget(field_w: f32) -> f32 {
     (field_w - 16.0).max(0.0)
+}
+
+fn rename_card_width(window_w: f32) -> f32 {
+    (window_w * 0.42).clamp(280.0, 520.0).min(window_w.max(1.0))
+}
+
+fn rename_card_x(window_w: f32, card_w: f32) -> f32 {
+    ((window_w - card_w) * 0.5).max(0.0)
 }
 
 fn fit_sized(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
@@ -2012,6 +2020,23 @@ mod tests {
     fn rename_field_text_budget_keeps_border_padding() {
         assert_eq!(rename_field_text_budget(200.0), 184.0);
         assert_eq!(rename_field_text_budget(8.0), 0.0);
+    }
+
+    #[test]
+    fn rename_card_width_clamps_inside_ultra_narrow_windows() {
+        let card_w = rename_card_width(180.0);
+        let card_x = rename_card_x(180.0, card_w);
+
+        assert_eq!(card_w, 180.0);
+        assert!(card_x >= 0.0);
+        assert!(card_x + card_w <= 180.0 + 0.5);
+    }
+
+    #[test]
+    fn rename_card_width_preserves_normal_bounds() {
+        assert_eq!(rename_card_width(400.0), 280.0);
+        assert_eq!(rename_card_width(900.0), 378.0);
+        assert_eq!(rename_card_width(1600.0), 520.0);
     }
 
     #[test]
