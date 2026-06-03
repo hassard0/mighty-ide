@@ -5615,3 +5615,12 @@ attempts should replace stale replacement cards with the latest result.
   `No matches to replace`, `No project replacements`, and `Replaced ...
   occurrence...` messages now share a Replace toast replacement key. Replace
   retries keep the freshest result visible across file and project scopes.
+
+L411. Undo/redo feedback is one history workflow. Users often press undo and
+redo repeatedly at stack boundaries, or while a read-only preview is focused, so
+history explanations should replace each other instead of stacking.
+
+- **IDE note:** `Nothing to undo`, `Nothing to redo`, `Undo is unavailable in
+  read-only previews`, and `Redo is unavailable in read-only previews` now share
+  a History toast replacement key. Repeated undo/redo commands keep only the
+  latest history state visible.

@@ -569,6 +569,7 @@ enum OperationKey {
     Format,
     Fold,
     Replace,
+    History,
     Navigation,
     Markdown,
     Layout,
@@ -772,6 +773,12 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || (m.starts_with("Replaced ") && m.contains(" occurrence"))
     {
         Some(OperationKey::Replace)
+    } else if m == "Nothing to undo"
+        || m == "Nothing to redo"
+        || m == "Undo is unavailable in read-only previews"
+        || m == "Redo is unavailable in read-only previews"
+    {
+        Some(OperationKey::History)
     } else if m == "No definition found"
         || m == "No definition target selected"
         || m.starts_with("Definition target missing")
@@ -1447,6 +1454,40 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No project replacements");
+    }
+
+    #[test]
+    fn newer_history_feedback_replaces_stale_undo_redo_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "Nothing to undo", t0);
+        q.push_at(Kind::Info, "Nothing to redo", t0 + Duration::from_millis(100));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Nothing to redo");
+
+        q.push_at(
+            Kind::Warn,
+            "Undo is unavailable in read-only previews",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Undo is unavailable in read-only previews"
+        );
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
+            Kind::Warn,
+            "Redo is unavailable in read-only previews",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Redo is unavailable in read-only previews"
+        );
     }
 
     #[test]
