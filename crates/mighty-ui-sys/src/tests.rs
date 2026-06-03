@@ -3973,12 +3973,17 @@ fn close_saved_tabs_preserves_dirty_buffers_and_reports_count() {
     let dirty = ctx.tabs.open_path(dirty_b);
     ctx.tabs.set_dirty(dirty, true);
     ctx.tabs.open_path(clean_c);
+    ctx.panes = crate::panes::PaneLayout::new(dirty);
+    ctx.panes.split_right(dirty, 0);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(crate::mui_tab_close_saved(handle), 0);
     assert_eq!(ctx.tabs.count(), 1);
     assert!(ctx.tabs.is_dirty(0));
     assert_eq!(ctx.tabs.get(0).unwrap().basename(), "dirty_b.mty");
+    assert_eq!(ctx.panes.count(), 2);
+    assert_eq!(ctx.panes.tab_at(0), Some(0));
+    assert_eq!(ctx.panes.tab_at(1), Some(0));
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Closed 3 saved tabs");
@@ -4014,6 +4019,8 @@ fn close_other_saved_tabs_keeps_active_and_dirty_buffers() {
     ctx.tabs.set_dirty(dirty, true);
     ctx.tabs.open_path(clean_c);
     ctx.tabs.switch(active);
+    ctx.panes = crate::panes::PaneLayout::new(active);
+    ctx.panes.split_right(dirty, 0);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(crate::mui_tab_close_other_saved(handle), 0);
@@ -4022,6 +4029,9 @@ fn close_other_saved_tabs_keeps_active_and_dirty_buffers() {
     assert_eq!(ctx.tabs.get(0).unwrap().basename(), "active_a.mty");
     assert_eq!(ctx.tabs.get(1).unwrap().basename(), "dirty_b.mty");
     assert!(ctx.tabs.is_dirty(1));
+    assert_eq!(ctx.panes.count(), 2);
+    assert_eq!(ctx.panes.tab_at(0), Some(0), "left pane should keep active_a.mty");
+    assert_eq!(ctx.panes.tab_at(1), Some(1), "right pane should keep dirty_b.mty");
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Closed 2 other saved tabs");
@@ -4057,6 +4067,8 @@ fn close_saved_tabs_to_side_preserves_dirty_buffers() {
     let right_dirty_idx = ctx.tabs.open_path(dirty_right);
     ctx.tabs.set_dirty(right_dirty_idx, true);
     ctx.tabs.switch(active_idx);
+    ctx.panes = crate::panes::PaneLayout::new(left_dirty_idx);
+    ctx.panes.split_right(right_dirty_idx, 0);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(crate::mui_tab_close_saved_to_right(handle), 3);
@@ -4066,6 +4078,9 @@ fn close_saved_tabs_to_side_preserves_dirty_buffers() {
     assert_eq!(ctx.tabs.get(2).unwrap().basename(), "clean_left.mty");
     assert_eq!(ctx.tabs.get(3).unwrap().basename(), "active_mid.mty");
     assert_eq!(ctx.tabs.get(4).unwrap().basename(), "dirty_right.mty");
+    assert_eq!(ctx.panes.count(), 2);
+    assert_eq!(ctx.panes.tab_at(0), Some(1), "left pane should keep dirty_left.mty");
+    assert_eq!(ctx.panes.tab_at(1), Some(4), "right pane should keep dirty_right.mty");
     let right_toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(right_toast.message, "Closed 1 saved tab to the right");
 
@@ -4077,6 +4092,9 @@ fn close_saved_tabs_to_side_preserves_dirty_buffers() {
     assert_eq!(ctx.tabs.get(2).unwrap().basename(), "dirty_right.mty");
     assert!(ctx.tabs.is_dirty(0));
     assert!(ctx.tabs.is_dirty(2));
+    assert_eq!(ctx.panes.count(), 2);
+    assert_eq!(ctx.panes.tab_at(0), Some(0), "left pane should still show dirty_left.mty");
+    assert_eq!(ctx.panes.tab_at(1), Some(2), "right pane should still show dirty_right.mty");
     let left_toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(left_toast.message, "Closed 2 saved tabs to the left");
 

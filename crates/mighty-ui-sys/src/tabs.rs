@@ -541,21 +541,25 @@ impl TabStore {
         tab.path.is_some() || tab.is_dirty() || !tab.model.to_bytes().is_empty() || !tab.bytes.is_empty()
     }
 
-    /// Close every clean tab, preserving all dirty tabs. Returns the number of
-    /// tabs removed. If every tab is clean, leaves a single empty scratch tab.
-    pub fn close_saved(&mut self) -> usize {
+    /// Close every clean tab, preserving all dirty tabs. Returns compaction
+    /// metadata when tabs were removed. If every tab is clean, leaves a single
+    /// empty scratch tab.
+    pub fn close_saved(&mut self) -> Option<TabCompaction> {
         if self.tabs.is_empty() {
             self.ensure_scratch();
-            return 0;
+            return None;
         }
         if self.tabs.len() == 1 && !self.tabs[0].is_dirty() && self.tabs[0].path.is_none() {
-            return 0;
+            return None;
         }
         let old_active = self.active.min(self.tabs.len().saturating_sub(1));
+        let len = self.tabs.len();
+        let mut old_to_new = vec![None; len];
         let mut kept: Vec<(usize, Tab)> = Vec::new();
         let mut removed_tabs: Vec<Tab> = Vec::new();
         for (idx, tab) in self.tabs.drain(..).enumerate() {
             if tab.is_dirty() {
+                old_to_new[idx] = Some(kept.len());
                 kept.push((idx, tab));
             } else {
                 removed_tabs.push(tab);
@@ -566,7 +570,7 @@ impl TabStore {
             self.tabs.push(Tab::default());
             self.active = 0;
             self.remember_closed_many(removed_tabs);
-            return removed;
+            return Some(TabCompaction { removed, old_to_new });
         }
         let new_active = kept
             .iter()
@@ -576,27 +580,36 @@ impl TabStore {
         self.tabs = kept.drain(..).map(|(_, tab)| tab).collect();
         self.active = new_active;
         self.remember_closed_many(removed_tabs);
-        removed
+        Some(TabCompaction { removed, old_to_new })
     }
 
     /// Close every clean tab except the active tab, preserving all dirty tabs.
-    /// Returns the number of tabs removed.
-    pub fn close_other_saved(&mut self) -> usize {
+    /// Returns compaction metadata when tabs were removed.
+    pub fn close_other_saved(&mut self) -> Option<TabCompaction> {
         if self.tabs.is_empty() {
             self.ensure_scratch();
-            return 0;
+            return None;
         }
         let old_active = self.active.min(self.tabs.len().saturating_sub(1));
+        let len = self.tabs.len();
+        let mut old_to_new = vec![None; len];
         let mut kept: Vec<(usize, Tab)> = Vec::new();
         let mut removed_tabs: Vec<Tab> = Vec::new();
         for (idx, tab) in self.tabs.drain(..).enumerate() {
             if idx == old_active || tab.is_dirty() {
+                old_to_new[idx] = Some(kept.len());
                 kept.push((idx, tab));
             } else {
                 removed_tabs.push(tab);
             }
         }
         let removed = removed_tabs.len();
+        if removed == 0 {
+            self.tabs = kept.into_iter().map(|(_, tab)| tab).collect();
+            self.active = old_to_new[old_active].unwrap_or(0);
+            self.ensure_scratch();
+            return None;
+        }
         let new_active = kept
             .iter()
             .position(|(idx, _)| *idx == old_active)
@@ -605,22 +618,24 @@ impl TabStore {
         self.active = new_active;
         self.ensure_scratch();
         self.remember_closed_many(removed_tabs);
-        removed
+        Some(TabCompaction { removed, old_to_new })
     }
 
     /// Close clean tabs to the right of the active tab, preserving dirty tabs.
-    /// Returns the number of tabs removed.
-    pub fn close_saved_to_right(&mut self) -> usize {
+    /// Returns compaction metadata when tabs were removed.
+    pub fn close_saved_to_right(&mut self) -> Option<TabCompaction> {
         if self.tabs.is_empty() {
             self.ensure_scratch();
-            return 0;
+            return None;
         }
         let active = self.active.min(self.tabs.len().saturating_sub(1));
-        let before = self.tabs.len();
+        let len = self.tabs.len();
+        let mut old_to_new = vec![None; len];
         let mut kept: Vec<Tab> = Vec::new();
         let mut removed_tabs: Vec<Tab> = Vec::new();
         for (idx, tab) in self.tabs.drain(..).enumerate() {
             if idx <= active || tab.is_dirty() {
+                old_to_new[idx] = Some(kept.len());
                 kept.push(tab);
             } else {
                 removed_tabs.push(tab);
@@ -628,30 +643,40 @@ impl TabStore {
         }
         self.tabs = kept;
         self.active = active.min(self.tabs.len().saturating_sub(1));
-        let removed = before.saturating_sub(self.tabs.len());
+        let removed = removed_tabs.len();
+        if removed == 0 {
+            return None;
+        }
         self.remember_closed_many(removed_tabs);
-        removed
+        Some(TabCompaction { removed, old_to_new })
     }
 
     /// Close clean tabs to the left of the active tab, preserving dirty tabs.
-    /// Returns the number of tabs removed.
-    pub fn close_saved_to_left(&mut self) -> usize {
+    /// Returns compaction metadata when tabs were removed.
+    pub fn close_saved_to_left(&mut self) -> Option<TabCompaction> {
         if self.tabs.is_empty() {
             self.ensure_scratch();
-            return 0;
+            return None;
         }
         let old_active = self.active.min(self.tabs.len().saturating_sub(1));
-        let before = self.tabs.len();
+        let len = self.tabs.len();
+        let mut old_to_new = vec![None; len];
         let mut kept: Vec<(usize, Tab)> = Vec::new();
         let mut removed_tabs: Vec<Tab> = Vec::new();
         for (idx, tab) in self.tabs.drain(..).enumerate() {
             if idx >= old_active || tab.is_dirty() {
+                old_to_new[idx] = Some(kept.len());
                 kept.push((idx, tab));
             } else {
                 removed_tabs.push(tab);
             }
         }
-        let removed = before.saturating_sub(kept.len());
+        let removed = removed_tabs.len();
+        if removed == 0 {
+            self.tabs = kept.into_iter().map(|(_, tab)| tab).collect();
+            self.active = old_to_new[old_active].unwrap_or(0);
+            return None;
+        }
         let new_active = kept
             .iter()
             .position(|(idx, _)| *idx == old_active)
@@ -659,7 +684,7 @@ impl TabStore {
         self.tabs = kept.drain(..).map(|(_, tab)| tab).collect();
         self.active = new_active;
         self.remember_closed_many(removed_tabs);
-        removed
+        Some(TabCompaction { removed, old_to_new })
     }
 
     /// True when tab `idx` has unsaved edits.
@@ -1013,7 +1038,7 @@ mod tests {
         s.set_dirty(ic, true);
         s.switch(ib);
 
-        assert_eq!(s.close_saved(), 1);
+        assert_eq!(s.close_saved().unwrap().removed, 1);
         assert_eq!(s.count(), 2);
         assert_eq!(s.active(), 1);
         assert!(s.get(0).unwrap().basename().contains("tabs_close_saved_a"));
@@ -1030,11 +1055,11 @@ mod tests {
         s.open_path(a);
         s.open_path(b);
 
-        assert_eq!(s.close_saved(), 2);
+        assert_eq!(s.close_saved().unwrap().removed, 2);
         assert_eq!(s.count(), 1);
         assert!(s.get(0).unwrap().path.is_none());
         assert_eq!(s.active(), 0);
-        assert_eq!(s.close_saved(), 0);
+        assert!(s.close_saved().is_none());
     }
 
     #[test]
@@ -1048,7 +1073,7 @@ mod tests {
         s.set_dirty(dirty, true);
         s.open_path(clean_c);
 
-        assert_eq!(s.close_saved(), 2);
+        assert_eq!(s.close_saved().unwrap().removed, 2);
         assert_eq!(s.closed_count(), 2);
         let reopened = s.reopen_closed().unwrap();
         assert_eq!(s.active(), reopened);
@@ -1070,14 +1095,14 @@ mod tests {
         s.set_dirty(ib, true);
         s.switch(ia);
 
-        assert_eq!(s.close_other_saved(), 1);
+        assert_eq!(s.close_other_saved().unwrap().removed, 1);
         assert_eq!(s.count(), 2);
         assert_eq!(s.active(), 0);
         assert!(s.get(0).unwrap().basename().contains("tabs_close_other_saved_active"));
         assert!(s.get(1).unwrap().basename().contains("tabs_close_other_saved_dirty"));
         assert!(!s.get(0).unwrap().is_dirty());
         assert!(s.get(1).unwrap().is_dirty());
-        assert_eq!(s.close_other_saved(), 0);
+        assert!(s.close_other_saved().is_none());
     }
 
     #[test]
@@ -1092,7 +1117,7 @@ mod tests {
         s.set_dirty(id, true);
         s.switch(ia);
 
-        assert_eq!(s.close_saved_to_right(), 1);
+        assert_eq!(s.close_saved_to_right().unwrap().removed, 1);
         assert_eq!(s.count(), 2);
         assert_eq!(s.active(), 0);
         assert!(s.get(0).unwrap().basename().contains("tabs_close_right_active"));
@@ -1112,7 +1137,7 @@ mod tests {
         s.set_dirty(id, true);
         s.switch(ia);
 
-        assert_eq!(s.close_saved_to_left(), 1);
+        assert_eq!(s.close_saved_to_left().unwrap().removed, 1);
         assert_eq!(s.count(), 2);
         assert_eq!(s.active(), 1);
         assert!(s.get(0).unwrap().basename().contains("tabs_close_left_dirty"));

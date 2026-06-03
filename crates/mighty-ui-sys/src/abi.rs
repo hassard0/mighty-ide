@@ -4235,7 +4235,8 @@ pub extern "C" fn mui_tab_close_duplicate_files(handle: i64) -> i32 {
     };
     match ctx.tabs.close_duplicate_file_tabs() {
         Some(compaction) => {
-            ctx.panes.on_tabs_compacted(&compaction.old_to_new, ctx.tabs.count());
+            ctx.panes
+                .on_tabs_compacted(&compaction.old_to_new, ctx.tabs.count());
             sync_active_path(ctx);
             let active = ctx.tabs.active();
             ensure_tab_visible(ctx, active);
@@ -4316,18 +4317,24 @@ pub extern "C" fn mui_tab_close_saved(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    let removed = ctx.tabs.close_saved();
-    if removed == 0 {
-        ctx.push_toast(crate::toast::Kind::Info, "No saved tabs to close");
-        return -1;
+    match ctx.tabs.close_saved() {
+        Some(compaction) => {
+            ctx.panes.on_tabs_compacted(&compaction.old_to_new, ctx.tabs.count());
+            let active = ctx.tabs.active();
+            sync_active_path(ctx);
+            ensure_tab_visible(ctx, active);
+            let noun = if compaction.removed == 1 { "tab" } else { "tabs" };
+            ctx.push_toast(
+                crate::toast::Kind::Info,
+                format!("Closed {} saved {noun}", compaction.removed),
+            );
+            active as i32
+        }
+        None => {
+            ctx.push_toast(crate::toast::Kind::Info, "No saved tabs to close");
+            -1
+        }
     }
-    let active = ctx.tabs.active();
-    sync_active_path(ctx);
-    ctx.panes = crate::panes::PaneLayout::new(active);
-    ensure_tab_visible(ctx, active);
-    let noun = if removed == 1 { "tab" } else { "tabs" };
-    ctx.push_toast(crate::toast::Kind::Info, format!("Closed {removed} saved {noun}"));
-    active as i32
 }
 
 /// Close every clean tab except the active tab, preserving dirty tabs. Returns
@@ -4337,18 +4344,25 @@ pub extern "C" fn mui_tab_close_other_saved(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    let removed = ctx.tabs.close_other_saved();
-    if removed == 0 {
-        ctx.push_toast(crate::toast::Kind::Info, "No other saved tabs to close");
-        return -1;
+    match ctx.tabs.close_other_saved() {
+        Some(compaction) => {
+            ctx.panes
+                .on_tabs_compacted(&compaction.old_to_new, ctx.tabs.count());
+            let active = ctx.tabs.active();
+            sync_active_path(ctx);
+            ensure_tab_visible(ctx, active);
+            let noun = if compaction.removed == 1 { "tab" } else { "tabs" };
+            ctx.push_toast(
+                crate::toast::Kind::Info,
+                format!("Closed {} other saved {noun}", compaction.removed),
+            );
+            active as i32
+        }
+        None => {
+            ctx.push_toast(crate::toast::Kind::Info, "No other saved tabs to close");
+            -1
+        }
     }
-    let active = ctx.tabs.active();
-    sync_active_path(ctx);
-    ctx.panes = crate::panes::PaneLayout::new(active);
-    ensure_tab_visible(ctx, active);
-    let noun = if removed == 1 { "tab" } else { "tabs" };
-    ctx.push_toast(crate::toast::Kind::Info, format!("Closed {removed} other saved {noun}"));
-    active as i32
 }
 
 /// Close clean tabs to the right of the active tab, preserving dirty tabs.
@@ -4358,18 +4372,25 @@ pub extern "C" fn mui_tab_close_saved_to_right(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    let removed = ctx.tabs.close_saved_to_right();
-    if removed == 0 {
-        ctx.push_toast(crate::toast::Kind::Info, "No saved tabs to the right");
-        return -1;
+    match ctx.tabs.close_saved_to_right() {
+        Some(compaction) => {
+            ctx.panes
+                .on_tabs_compacted(&compaction.old_to_new, ctx.tabs.count());
+            let active = ctx.tabs.active();
+            sync_active_path(ctx);
+            ensure_tab_visible(ctx, active);
+            let noun = if compaction.removed == 1 { "tab" } else { "tabs" };
+            ctx.push_toast(
+                crate::toast::Kind::Info,
+                format!("Closed {} saved {noun} to the right", compaction.removed),
+            );
+            active as i32
+        }
+        None => {
+            ctx.push_toast(crate::toast::Kind::Info, "No saved tabs to the right");
+            -1
+        }
     }
-    let active = ctx.tabs.active();
-    sync_active_path(ctx);
-    ctx.panes = crate::panes::PaneLayout::new(active);
-    ensure_tab_visible(ctx, active);
-    let noun = if removed == 1 { "tab" } else { "tabs" };
-    ctx.push_toast(crate::toast::Kind::Info, format!("Closed {removed} saved {noun} to the right"));
-    active as i32
 }
 
 /// Close clean tabs to the left of the active tab, preserving dirty tabs.
@@ -4379,18 +4400,25 @@ pub extern "C" fn mui_tab_close_saved_to_left(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    let removed = ctx.tabs.close_saved_to_left();
-    if removed == 0 {
-        ctx.push_toast(crate::toast::Kind::Info, "No saved tabs to the left");
-        return -1;
+    match ctx.tabs.close_saved_to_left() {
+        Some(compaction) => {
+            ctx.panes
+                .on_tabs_compacted(&compaction.old_to_new, ctx.tabs.count());
+            let active = ctx.tabs.active();
+            sync_active_path(ctx);
+            ensure_tab_visible(ctx, active);
+            let noun = if compaction.removed == 1 { "tab" } else { "tabs" };
+            ctx.push_toast(
+                crate::toast::Kind::Info,
+                format!("Closed {} saved {noun} to the left", compaction.removed),
+            );
+            active as i32
+        }
+        None => {
+            ctx.push_toast(crate::toast::Kind::Info, "No saved tabs to the left");
+            -1
+        }
     }
-    let active = ctx.tabs.active();
-    sync_active_path(ctx);
-    ctx.panes = crate::panes::PaneLayout::new(active);
-    ensure_tab_visible(ctx, active);
-    let noun = if removed == 1 { "tab" } else { "tabs" };
-    ctx.push_toast(crate::toast::Kind::Info, format!("Closed {removed} saved {noun} to the left"));
-    active as i32
 }
 
 /// Request application exit. If any tab has unsaved edits, opens the
