@@ -171,19 +171,27 @@ pub extern "C" fn mui_scm_open_row(handle: i64, i: i32) -> i32 {
         return -1;
     };
     if i < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No source control row selected");
         return -1;
     }
     let (path, root) = {
         let Some(entry) = ctx.scm.get(i as usize) else {
+            ctx.push_toast(crate::toast::Kind::Info, "No source control row selected");
             return -1;
         };
         let Some(root) = ctx.scm.root.clone() else {
+            ctx.push_toast(crate::toast::Kind::Warn, "Source control root missing");
             return -1;
         };
         (entry.path.clone(), root)
     };
     let full = root.join(&path);
     if !full.exists() {
+        let name = std::path::Path::new(&path)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or(path.as_str());
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Source control target missing: {name}"));
         return -1;
     }
     let idx = ctx.tabs.open_path(full);

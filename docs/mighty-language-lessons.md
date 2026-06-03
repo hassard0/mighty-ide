@@ -5495,3 +5495,12 @@ not just an internal `-1`.
   `Breadcrumb file no longer listed`, `Breadcrumb symbol unavailable`, or
   `Breadcrumb target missing: ...` for failed breadcrumb jumps while keeping
   successful file and symbol jumps unchanged.
+
+L398. Source-control row navigation should explain stale status state. SCM rows
+are cached snapshots of Git status, so invalid rows, missing repo roots, and
+deleted files must not fail as silent `-1` returns.
+
+- **IDE note:** `mui_scm_open_row` now reports
+  `No source control row selected`, `Source control root missing`, or
+  `Source control target missing: ...` for failed Source Control file jumps.
+  Successful changed-file rows still open the file as before.

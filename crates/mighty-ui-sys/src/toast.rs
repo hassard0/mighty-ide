@@ -704,6 +704,11 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Run target missing")
     {
         Some(OperationKey::WebRun)
+    } else if m == "No source control row selected"
+        || m == "Source control root missing"
+        || m.starts_with("Source control target missing")
+    {
+        Some(OperationKey::Open)
     } else if m.starts_with("Theme:") {
         Some(OperationKey::Theme)
     } else if is_mighty_diagnostic_message(m) {

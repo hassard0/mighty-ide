@@ -3742,6 +3742,38 @@ fn scm_row_name_and_dir_fit_before_stage_action() {
 }
 
 #[test]
+fn scm_open_row_misses_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_scm_open_row(handle, -1), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No source control row selected");
+
+    ctx.scm.status.entries.push(crate::scm::ScmEntry {
+        path: "deleted.mty".to_string(),
+        staged: false,
+        status: 'D',
+    });
+    assert_eq!(crate::panels::mui_scm_open_row(handle, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Source control root missing");
+
+    let root = std::env::temp_dir().join(format!("mui_scm_open_missing_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.scm.root = Some(root.clone());
+    assert_eq!(crate::panels::mui_scm_open_row(handle, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Source control target missing: deleted.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn scm_header_fits_before_action_buttons() {
     let mut ctx = ctx_or_skip!();
     let sx = crate::layout::RAIL_W;
