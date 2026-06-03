@@ -383,6 +383,7 @@ extern c {
   fn mui_qo_mode(handle: I64) -> I32
   fn mui_qo_accept(handle: I64, i: I32) -> I32
   fn mui_qo_command_id(handle: I64, i: I32) -> I32
+  fn mui_quickopen_reindex(handle: I64) -> I32
   fn mui_qo_record_active(handle: I64)
   fn mui_qo_cancel(handle: I64)
   fn mui_qo_draw(handle: I64)
@@ -764,6 +765,7 @@ fn cmd_search_run() -> I32 { 146 }
 fn cmd_search_replace_all() -> I32 { 147 }
 fn cmd_search_toggle_replace() -> I32 { 148 }
 fn cmd_git_refresh_source_control() -> I32 { 149 }
+fn cmd_explorer_refresh() -> I32 { 150 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -3695,6 +3697,12 @@ fn main() {
           find_nav = false
         } else if id == cmd_reveal_active_file() {
           let _fr = mui_file_reveal_active(h)
+          find_nav = false
+        } else if id == cmd_explorer_refresh() {
+          let _vp = mui_panel_set(h, panel_explorer())
+          let _tr = mui_tree_refresh(h)
+          let _qr = mui_quickopen_reindex(h)
+          agents_focus = false
           find_nav = false
         } else if id == cmd_explorer_collapse_all() {
           let _vp = mui_panel_set(h, panel_explorer())

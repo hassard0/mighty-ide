@@ -2516,6 +2516,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(tree.label, "File: Reveal Active File in File Tree");
 
+    let refresh_tree = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_EXPLORER_REFRESH)
+        .unwrap();
+    assert_eq!(refresh_tree.label, "Explorer: Refresh");
+    assert_eq!(refresh_tree.keybinding, "");
+
     let collapse_tree = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_EXPLORER_COLLAPSE_ALL)
@@ -6562,6 +6569,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Explorer collapse-all command must reveal Explorer before collapsing the tree"
     );
     assert!(
+        main.contains("id == cmd_explorer_refresh()")
+            && main.contains("let _vp = mui_panel_set(h, panel_explorer())")
+            && main.contains("let _tr = mui_tree_refresh(h)")
+            && main.contains("let _qr = mui_quickopen_reindex(h)"),
+        "Explorer refresh command must reveal Explorer and refresh both tree and Quick Open index"
+    );
+    assert!(
         main.contains("id == cmd_git_refresh_source_control()")
             && main.contains("let _vp = mui_panel_set(h, panel_scm())")
             && main.contains("let _r = mui_scm_refresh(h)"),
@@ -6698,6 +6712,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_NEW_FOLDER, "cmd_new_folder"),
         (CMD_RENAME_ACTIVE_FILE, "cmd_rename_active_file"),
         (CMD_REVEAL_ACTIVE_FILE, "cmd_reveal_active_file"),
+        (CMD_EXPLORER_REFRESH, "cmd_explorer_refresh"),
         (CMD_EXPLORER_COLLAPSE_ALL, "cmd_explorer_collapse_all"),
         (CMD_DELETE_ACTIVE_FILE, "cmd_delete_active_file"),
         (CMD_REVEAL_ACTIVE_FILE_IN_OS, "cmd_reveal_active_file_in_os"),

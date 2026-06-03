@@ -6652,3 +6652,13 @@ refresh path available without aiming at a small icon.
   focusing the Source Control panel before calling the existing `mui_scm_refresh`
   ABI. Registry, metadata, and dispatcher tests pin the id, label, helper, and
   SCM-focus behavior.
+
+L520. Workspace refresh should update every file-navigation surface.
+Refreshing Explorer after external filesystem changes is only half the workflow
+if Quick Open keeps an old file index. A single explicit workspace-tree refresh
+command should keep both navigation surfaces in sync.
+
+- **IDE note:** The command palette now lists `Explorer: Refresh`, focusing the
+  Explorer panel, calling `mui_tree_refresh`, and reindexing Quick Open through
+  `mui_quickopen_reindex`. Registry, metadata, and dispatcher tests pin the id,
+  label, helper, Explorer focus, tree refresh, and file-index refresh.
