@@ -826,16 +826,22 @@ impl ShortcutsEngine {
         let q_text_base_x = box_x + 50.0;
         let q_text_x = search_field_text_x(q_text_base_x, self.query.is_empty());
         let qy = box_y + (search_h - 16.0) * 0.5 - 1.0;
+        let (cx, cy, cw, ch) = self.close_rect(width, height);
         let (q_str, q_color): (&str, _) = if self.query.is_empty() {
             (if box_w < 360.0 { "Search\u{2026}" } else { "Search keyboard shortcuts\u{2026}" }, theme::OVERLAY_SUBTLE())
         } else {
             (self.query.as_str(), theme::TEXT())
         };
-        ctx.text.queue_ui_sized(q_text_x, qy, q_str, q_color, 16.0, clip);
-        let qadv = 16.0 * 0.52;
-        let caret_x = q_text_base_x + self.query.chars().count() as f32 * qadv + 1.0;
+        let query_max = search_query_text_budget(q_text_x, cx, self.query.is_empty());
+        let q_shown = crate::palette::fit_palette_text(&mut ctx.text, q_str, query_max, 16.0);
+        ctx.text.queue_ui_sized(q_text_x, qy, &q_shown, q_color, 16.0, clip);
+        let (q_w, _) = ctx.text.measure_ui_sized(&q_shown, 16.0);
+        let caret_x = if self.query.is_empty() {
+            q_text_base_x + 1.0
+        } else {
+            (q_text_x + q_w + 1.0).min(cx - 14.0)
+        };
         ctx.dl_round(caret_x, box_y + (search_h - 18.0) * 0.5, 2.0, 18.0, 1.0, theme::ACCENT_BRIGHT());
-        let (cx, cy, cw, ch) = self.close_rect(width, height);
         ctx.dl_round(cx, cy, cw, ch, 6.0, theme::BG_2());
         ctx.dl_stroke(cx, cy, cw, ch, 6.0, theme::BORDER_STRONG(), 1.0);
         ctx.dl_icon(cx + 5.0, cy + 5.0, 14.0, 14.0, icons::CLOSE, theme::TEXT_1(), 1.6, false);
@@ -950,6 +956,11 @@ fn search_field_text_x(base_x: f32, is_placeholder: bool) -> f32 {
     } else {
         base_x
     }
+}
+
+fn search_query_text_budget(text_x: f32, close_x: f32, is_placeholder: bool) -> f32 {
+    let trailing_gap = if is_placeholder { 24.0 } else { 14.0 };
+    (close_x - trailing_gap - text_x).max(0.0)
 }
 
 fn shortcut_display_tokens(keys: &str) -> Vec<ShortcutToken> {
@@ -1318,5 +1329,18 @@ mod tests {
         let base = 300.0;
         assert_eq!(search_field_text_x(base, false), base);
         assert!(search_field_text_x(base, true) >= base + 8.0);
+    }
+
+    #[test]
+    fn search_query_text_budget_stops_before_close_button() {
+        let text_x = 150.0;
+        let close_x = 560.0;
+        let placeholder_budget = search_query_text_budget(text_x, close_x, true);
+        let query_budget = search_query_text_budget(text_x, close_x, false);
+
+        assert!(placeholder_budget < query_budget);
+        assert!(text_x + placeholder_budget <= close_x - 24.0);
+        assert!(text_x + query_budget <= close_x - 14.0);
+        assert_eq!(search_query_text_budget(close_x, text_x, false), 0.0);
     }
 }

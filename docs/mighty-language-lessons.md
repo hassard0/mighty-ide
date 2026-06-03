@@ -5994,3 +5994,11 @@ the prompt pill.
   against the available space before the `>_` pill, then places the caret from
   the measured rendered width. Long queries ellipsize before colliding with the
   right-side command prompt.
+
+L452. Every overlay search field needs a real right-side boundary. The keyboard
+shortcuts overlay already fitted row titles and footer text, but its filter
+field still drew long queries until they reached the close button.
+
+- **IDE note:** The shortcuts overlay now fits the filter text against the close
+  button boundary and derives the caret position from the measured fitted text.
+  Long shortcut searches ellipsize before crossing into the overlay controls.
