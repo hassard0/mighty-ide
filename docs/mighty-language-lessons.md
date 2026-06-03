@@ -6933,3 +6933,12 @@ close or toggle semantics.
 - **IDE note:** The command palette now lists `Problems: Close Panel`, calling
   `mui_problems_close`. Problems state, registry, metadata, dispatcher, and label
   tests pin state-aware close feedback for both open and already-closed cases.
+
+L549. Output panels need direct close routes separate from lifecycle controls.
+Run output can be hidden without stopping a process or clearing its transcript,
+so a command named Stop or Clear cannot safely stand in for Close.
+
+- **IDE note:** The command palette now lists `Run: Close Panel`, calling
+  `mui_run_close`. The Run panel reports closed/already-closed feedback while
+  preserving output rows and process state, and routing tests pin that it clears
+  Run focus through the dedicated ABI.

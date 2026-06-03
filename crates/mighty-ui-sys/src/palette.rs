@@ -391,6 +391,8 @@ pub const CMD_SNIPPET_CANCEL: u32 = 179;
 pub const CMD_TERMINAL_CLOSE: u32 = 180;
 /// Close the Problems panel without affecting other bottom-dock tools.
 pub const CMD_PROBLEMS_CLOSE: u32 = 181;
+/// Close the Run panel without stopping the active process or clearing output.
+pub const CMD_RUN_CLOSE: u32 = 182;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -500,6 +502,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_RUN_FILE,         label: "Run File",           keybinding: "Ctrl+Shift+R" },
     Command { id: CMD_RUN_STOP,         label: "Run: Stop Process",  keybinding: "" },
     Command { id: CMD_RUN_CLEAR_OUTPUT, label: "Run: Clear Output",  keybinding: "" },
+    Command { id: CMD_RUN_CLOSE,        label: "Run: Close Panel",   keybinding: "" },
     Command { id: CMD_SETTINGS,         label: "Preferences: Settings", keybinding: "Ctrl+," },
     Command { id: CMD_SETTINGS_CLOSE,   label: "Preferences: Close Settings", keybinding: "" },
     Command { id: CMD_ZOOM_IN,          label: "View: Zoom In",      keybinding: "Ctrl+=" },
@@ -1042,6 +1045,7 @@ impl PaletteEngine {
             CMD_RUN_FILE => (icons::RUN, "Run the active Mighty file", true),
             CMD_RUN_STOP => (icons::CLOSE, "Stop the active Run output process", false),
             CMD_RUN_CLEAR_OUTPUT => (icons::CLOSE, "Clear the Run output without stopping the process", false),
+            CMD_RUN_CLOSE => (icons::CLOSE, "Close the Run panel without stopping a running process", false),
             CMD_SETTINGS => (icons::SETTINGS, "Edit editor preferences", false),
             CMD_SETTINGS_CLOSE => (icons::CLOSE, "Close the Settings panel", false),
             CMD_ZOOM_IN => (icons::PLUS, "Increase the IDE UI scale", false),

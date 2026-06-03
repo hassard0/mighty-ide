@@ -1606,6 +1606,27 @@ fn run_clear_output_reports_feedback_and_preserves_status() {
 }
 
 #[test]
+fn run_close_command_acknowledges_state_without_clearing_output() {
+    let mut ctx = ctx_or_skip!();
+    ctx.run.seed_demo("C:/proj/demo.mty");
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_run_close(h), 1);
+    assert_eq!(crate::featureabi::mui_run_active(h), 0);
+    assert_eq!(ctx.run.line_count(), 8);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Run panel closed"
+    );
+
+    assert_eq!(crate::featureabi::mui_run_close(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Run panel is already closed"
+    );
+}
+
+#[test]
 fn run_output_click_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -3043,6 +3064,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(run_clear.label, "Run: Clear Output");
     assert_eq!(run_clear.keybinding, "");
+
+    let run_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_RUN_CLOSE)
+        .unwrap();
+    assert_eq!(run_close.label, "Run: Close Panel");
+    assert_eq!(run_close.keybinding, "");
 
     let settings_close = crate::palette::COMMANDS
         .iter()
@@ -7397,6 +7425,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Run clear-output command must reveal Run before clearing rendered output"
     );
     assert!(
+        main.contains("id == cmd_run_close()")
+            && main.contains("let _rc = mui_run_close(h)")
+            && main.contains("run_focus = false"),
+        "Run close command must use the Run-specific close ABI and release Run focus"
+    );
+    assert!(
         main.contains("id == cmd_test_clear_results()")
             && main.contains("let _tc = mui_test_clear(h)")
             && main.contains("test_focus = true"),
@@ -7728,6 +7762,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_RUN_FILE, "cmd_run_file"),
         (CMD_RUN_STOP, "cmd_run_stop"),
         (CMD_RUN_CLEAR_OUTPUT, "cmd_run_clear_output"),
+        (CMD_RUN_CLOSE, "cmd_run_close"),
         (CMD_SETTINGS, "cmd_settings"),
         (CMD_SETTINGS_CLOSE, "cmd_settings_close"),
         (CMD_ZOOM_IN, "cmd_zoom_in"),

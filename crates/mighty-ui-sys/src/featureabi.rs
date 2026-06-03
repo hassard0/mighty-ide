@@ -136,6 +136,24 @@ pub extern "C" fn mui_run_open(handle: i64) -> i32 {
     1
 }
 
+/// Close the Run panel without stopping a running process or clearing output.
+/// Returns `1` when it closed an open panel, or `0` when Run was already closed.
+#[no_mangle]
+pub extern "C" fn mui_run_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.run.is_active() {
+        ctx.run.close();
+        ctx.push_toast(crate::toast::Kind::Info, "Run panel closed");
+        crate::abi::trace("run_close");
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "Run panel is already closed");
+    crate::abi::trace("run_close noop");
+    0
+}
+
 /// `1` if the Run panel is open, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_run_active(handle: i64) -> i32 {
