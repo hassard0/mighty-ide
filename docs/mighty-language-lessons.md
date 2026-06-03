@@ -6312,3 +6312,11 @@ longest title's character count times a proportional-font guess.
 - **IDE note:** Code-action menus now size from measured action-title widths,
   stay clamped to the visible work area, and use the same measured geometry for
   drawing and click hit-tests.
+
+L490. Hover popups should size from measured code text. Hover cards render their
+wrapped lines in the code font, but their card width still came from character
+count times the global cell width.
+
+- **IDE note:** Hover popup cards now derive width from measured code-font line
+  extents plus padding, so the card bounds follow the same glyph shaping used
+  for the rendered hover text.

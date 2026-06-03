@@ -79,13 +79,7 @@ impl HoverState {
         }
         let row_h = layout::LINE_H();
         let pad = 4.0;
-        let longest = self
-            .lines
-            .iter()
-            .map(|l| l.chars().count())
-            .max()
-            .unwrap_or(0) as f32;
-        let box_w = (longest * layout::CHAR_W() + 2.0 * layout::CHAR_W()).max(60.0);
+        let box_w = hover_popup_width(&mut ctx.text, &self.lines, theme::FONT_SIZE());
         let box_h = self.lines.len() as f32 * row_h + 2.0 * pad;
 
         let w = width as f32;
@@ -115,6 +109,14 @@ impl HoverState {
             ctx.text.queue(box_x + 6.0, row_y + 1.0, line, fg, clip);
         }
     }
+}
+
+fn hover_popup_width(text: &mut crate::text::Text, lines: &[String], size: f32) -> f32 {
+    let content_w = lines
+        .iter()
+        .map(|line| text.measure_sized(line, size).0)
+        .fold(0.0_f32, f32::max);
+    (content_w + 12.0).max(60.0)
 }
 
 /// Strip markdown noise from an LSP hover `value` and wrap it into at most
@@ -848,6 +850,23 @@ mod tests {
         h.set_text("real");
         h.clear();
         assert!(!h.is_active());
+    }
+
+    #[test]
+    fn hover_popup_width_uses_measured_code_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+        let size = theme::FONT_SIZE();
+        let lines = vec![
+            "short".to_string(),
+            "fn add(a: I32, b: I32) -> I32".to_string(),
+        ];
+
+        let width = hover_popup_width(&mut ctx.text, &lines, size);
+        let expected = (ctx.text.measure_sized(&lines[1], size).0 + 12.0).max(60.0);
+
+        assert_eq!(width, expected);
     }
 
     // ---- hover response parsing ----
