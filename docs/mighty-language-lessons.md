@@ -5262,3 +5262,14 @@ draw breadcrumb text underneath the button.
   icons that no longer fit. The regression measures a compact Markdown filename
   budget and ensures the fitted text stays before the Preview pill while keeping
   the `.md` suffix.
+
+L375. Rename fallback must not turn syntax into symbols. A local identifier scan
+is useful when a language server is unavailable, but if the server explicitly
+rejects `prepareRename` or the token is a language keyword, opening the rename
+input invites a wrong edit that can rewrite syntax words across the buffer.
+
+- **IDE note:** symbol rename now honors explicit `prepareRename` failures,
+  filters keyword-like tokens such as `fn`, `let`, `agent`, and `protocol`, and
+  reports `No rename target` instead of opening the inline rename editor. Unit
+  tests cover server rejection parsing, range parsing, keyword filtering, and
+  local identifier extraction.

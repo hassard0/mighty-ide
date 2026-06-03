@@ -8564,41 +8564,43 @@ pub extern "C" fn mui_sig_draw(handle: i64, row: i32, col: i32, total_lines: i32
 // ---- rename symbol (F2) ----
 
 /// Prepare a rename at the cursor `(line, col)`: derive the symbol under the
-/// cursor (preferring `prepareRename`'s range when the server provides one) and
-/// open the inline rename input prefilled with it. Returns `1` if a renamable
-/// symbol was found, else `0` (input not opened).
+/// cursor, honoring `prepareRename`'s accepted range/rejection when the server
+/// answers, and open the inline rename input prefilled with it. Returns `1` if
+/// a renamable symbol was found, else `0` (input not opened).
 #[no_mangle]
 pub extern "C" fn mui_rename_prepare(handle: i64, line: i32, col: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
     let (source, _, _) = active_source_and_cursor(ctx);
-    // Prefer the identifier under the cursor in the live buffer (robust + matches
-    // what prepareRename would return for mty-lsp). prepareRename is consulted
-    // only to confirm renamability when the local scan is empty.
-    let mut symbol = identifier_at(&source, line.max(0) as u32, col.max(0) as u32);
-    if symbol.is_empty() {
-        if let Some(path) = ctx.file_path.clone() {
-            let raw = lsp_prepare_rename_raw(
-                ctx.language,
-                &path,
-                &source,
-                line.max(0) as u32,
-                col.max(0) as u32,
-            );
-            // prepareRename returns a range; re-derive the symbol from its start.
-            if let Some((sl, sc)) = parse_prepare_rename_start(&raw) {
-                symbol = identifier_at(&source, sl, sc);
-            }
+    let line0 = line.max(0) as u32;
+    let col0 = col.max(0) as u32;
+    let mut symbol = identifier_at(&source, line0, col0);
+    if let Some(path) = ctx.file_path.clone() {
+        let raw = lsp_prepare_rename_raw(ctx.language, &path, &source, line0, col0);
+        if prepare_rename_explicitly_rejected(&raw) {
+            println!("rename: line={line} col={col} prepare-rejected");
+            ctx.push_toast(crate::toast::Kind::Info, "No rename target");
+            return 0;
+        }
+        // prepareRename returns a range; re-derive the symbol from its start.
+        if let Some((sl, sc)) = parse_prepare_rename_start(&raw) {
+            symbol = identifier_at(&source, sl, sc);
         }
     }
-    if symbol.is_empty() {
+    if symbol.is_empty() || is_non_renamable_identifier(&symbol) {
         println!("rename: line={line} col={col} no-symbol");
+        ctx.push_toast(crate::toast::Kind::Info, "No rename target");
         return 0;
     }
     ctx.rename.open(&symbol);
     println!("rename: prepare symbol=\"{symbol}\"");
     1
+}
+
+fn prepare_rename_explicitly_rejected(json: &str) -> bool {
+    let compact: String = json.chars().filter(|c| !c.is_whitespace()).collect();
+    compact.contains("\"error\"") || compact.contains("\"result\":null")
 }
 
 /// Parse the `prepareRename` result's start `(line, character)`. The result is a
@@ -8610,6 +8612,87 @@ fn parse_prepare_rename_start(json: &str) -> Option<(u32, u32)> {
     let line = read_uint_in(region, b"\"line\"")?;
     let col = read_uint_in(region, b"\"character\"")?;
     Some((line, col))
+}
+
+fn is_non_renamable_identifier(symbol: &str) -> bool {
+    matches!(
+        symbol,
+        "agent"
+            | "as"
+            | "async"
+            | "await"
+            | "break"
+            | "const"
+            | "continue"
+            | "else"
+            | "enum"
+            | "false"
+            | "fn"
+            | "for"
+            | "if"
+            | "impl"
+            | "in"
+            | "let"
+            | "loop"
+            | "match"
+            | "mod"
+            | "move"
+            | "mut"
+            | "protocol"
+            | "pub"
+            | "return"
+            | "self"
+            | "struct"
+            | "true"
+            | "type"
+            | "use"
+            | "while"
+    )
+}
+
+#[cfg(test)]
+mod rename_prepare_tests {
+    use super::*;
+
+    #[test]
+    fn prepare_rename_rejects_explicit_lsp_failure() {
+        assert!(prepare_rename_explicitly_rejected(
+            r#"{"jsonrpc":"2.0","result":null,"id":3}"#
+        ));
+        assert!(prepare_rename_explicitly_rejected(
+            r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"not a symbol"},"id":3}"#
+        ));
+        assert!(!prepare_rename_explicitly_rejected(
+            r#"{"jsonrpc":"2.0","result":{"start":{"line":4,"character":8},"end":{"line":4,"character":12}},"id":3}"#
+        ));
+    }
+
+    #[test]
+    fn prepare_rename_start_reads_server_range() {
+        let raw = r#"{"jsonrpc":"2.0","result":{"start":{"line":4,"character":8},"end":{"line":4,"character":12}},"id":3}"#;
+        assert_eq!(parse_prepare_rename_start(raw), Some((4, 8)));
+    }
+
+    #[test]
+    fn rename_prepare_filters_keywords_but_allows_identifiers() {
+        for kw in ["fn", "let", "struct", "agent", "protocol", "self"] {
+            assert!(is_non_renamable_identifier(kw), "{kw} should not open symbol rename");
+        }
+        for ident in ["add", "workspace_root", "EditorAgent"] {
+            assert!(
+                !is_non_renamable_identifier(ident),
+                "{ident} should remain eligible for symbol rename"
+            );
+        }
+    }
+
+    #[test]
+    fn identifier_at_rejects_numeric_literals_and_reads_symbol_edges() {
+        let src = "fn add(value: I32) {\n  let thing_2 = value\n  1234\n}";
+        assert_eq!(identifier_at(src, 0, 4), "add");
+        assert_eq!(identifier_at(src, 1, 13), "thing_2");
+        assert_eq!(identifier_at(src, 2, 2), "");
+    }
 }
 
 /// Open the rename input directly with an explicit `symbol` (used when Mighty
