@@ -5722,3 +5722,11 @@ failures are still outcomes of create commands, not standalone warnings.
   CreateFolder, and `Could not prepare/inspect folder: ...` shares
   CreateProject. Repeated creation attempts keep the latest create outcome
   visible across native and typed flows.
+
+L422. Window and focus-mode feedback is layout state. Minimize, maximize,
+restore, and Zen toggle messages describe the active chrome shape, so they
+should replace stale layout cards instead of stacking beside pane feedback.
+
+- **IDE note:** `Window minimized`, `Window maximized`, `Window restored`,
+  `Zen mode on ...`, and `Zen mode off` now share the Layout toast replacement
+  key. Repeated chrome changes keep the latest window/focus state visible.

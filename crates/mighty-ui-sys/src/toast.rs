@@ -694,6 +694,10 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Focused editor pane ")
         || m == "Closed editor pane"
         || m == "Only one editor pane"
+        || m == "Window minimized"
+        || m == "Window maximized"
+        || m == "Window restored"
+        || m.starts_with("Zen mode ")
     {
         Some(OperationKey::Layout)
     } else if m == "No tab at that position"
@@ -1454,6 +1458,21 @@ mod tests {
         q.push_at(Kind::Info, "Only one editor pane", t0 + Duration::from_millis(300));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Only one editor pane");
+
+        q.push_at(Kind::Info, "Window minimized", t0 + Duration::from_millis(400));
+        q.push_at(Kind::Info, "Window maximized", t0 + Duration::from_millis(500));
+        q.push_at(Kind::Info, "Window restored", t0 + Duration::from_millis(600));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Window restored");
+
+        q.push_at(
+            Kind::Info,
+            "Zen mode on \u{2014} Alt+Z to exit",
+            t0 + Duration::from_millis(700),
+        );
+        q.push_at(Kind::Info, "Zen mode off", t0 + Duration::from_millis(800));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Zen mode off");
     }
 
     #[test]
