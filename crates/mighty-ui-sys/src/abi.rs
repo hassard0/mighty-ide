@@ -13188,16 +13188,20 @@ pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
 
 /// Open a Welcome RECENT-FOLDER row (`i = action - ACTION_RECENT_FOLDER_BASE`) as
 /// the workspace (re-rooting the tree/index/search/git/agents). Returns `1` on
-/// success, `0` if the row/path is invalid.
+/// success, `0` if the row/path is invalid. Invalid selections report the same
+/// feedback as the workspace-recents ABI; stale folders are handled by the
+/// shared recent-folder opener.
 #[no_mangle]
 pub extern "C" fn mui_welcome_open_folder(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
     if i < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No recent folder selected");
         return 0;
     }
     let Some(path) = ctx.welcome.recent_folder(i as usize).cloned() else {
+        ctx.push_toast(crate::toast::Kind::Info, "No recent folder selected");
         return 0;
     };
     let opened = crate::wsabi::mui_ws_open_recent_path(ctx, &path);

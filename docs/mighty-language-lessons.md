@@ -5439,3 +5439,12 @@ location, or the diagnostic points at a file that no longer exists.
   resolving a row and reports `No run output row selected`, `Run output row has
   no file target`, or `Run target missing: ...` for misses. Successful diagnostic
   clicks keep the existing open-tab and jump-target behavior.
+
+L392. Duplicate entry points for the same action should share no-op language.
+Welcome recent folders and workspace recent folders both express "open this
+saved workspace"; missing selections should not feel like different failures.
+
+- **IDE note:** `mui_welcome_open_folder` now reports `No recent folder selected`
+  for negative or out-of-range Welcome rows, matching `mui_ws_open_recent`.
+  Stale Welcome folders still flow through the shared recent-folder opener so
+  pruning and `Recent folder missing: ...` behavior stay centralized.

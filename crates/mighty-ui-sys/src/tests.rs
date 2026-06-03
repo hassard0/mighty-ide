@@ -5230,6 +5230,16 @@ fn welcome_missing_recent_folder_stays_open_and_prunes() {
     ctx.recent_workspaces.set_all(vec![missing]);
     ctx.welcome.open();
 
+    assert_eq!(mui_welcome_open_folder(h, -1), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No recent folder selected");
+
+    assert_eq!(mui_welcome_open_folder(h, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No recent folder selected");
+
     mui_welcome_draw(h);
     assert_eq!(
         mui_ws_recent_count(h),
