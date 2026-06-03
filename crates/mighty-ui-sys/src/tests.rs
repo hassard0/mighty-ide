@@ -4095,6 +4095,22 @@ fn debug_restart_without_target_reports_visible_feedback() {
 }
 
 #[test]
+fn debug_start_without_active_file_opens_visible_debug_view() {
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::dapabi::mui_dbg_start(handle), crate::dap::DebugState::Idle.as_i32());
+    assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(crate::dapabi::mui_dbg_active(handle), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Open a file before starting debug");
+}
+
+#[test]
 fn direct_debug_actions_report_unavailable_state() {
     let mut ctx = ctx_or_skip!();
     ctx.sidebar_visible = false;
@@ -4138,6 +4154,21 @@ fn direct_debug_actions_report_unavailable_state() {
         ctx.toasts.toasts().last().unwrap().message,
         "Step Out is available when paused"
     );
+}
+
+#[test]
+fn debug_step_from_closed_sidebar_reveals_debug_view() {
+    let mut ctx = ctx_or_skip!();
+    ctx.dbg.seed_demo("C:/workspace/src/main.mty");
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::dapabi::mui_dbg_step_over(handle);
+    assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(crate::dapabi::mui_dbg_active(handle), 1);
+    assert!(ctx.toasts.toasts().is_empty());
 }
 
 #[test]

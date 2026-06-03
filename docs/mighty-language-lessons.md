@@ -6554,3 +6554,14 @@ paused.
   `mui_dbg_*` entry points used by function keys and palette commands. Toolbar
   regression coverage pins the unavailable-state toasts for Step Over, Step
   Into, Step Out, and Stop, keeping all debug command surfaces aligned.
+
+L511. User-invoked debug commands should reveal the debug surface first.
+Shortcut-triggered debug actions can otherwise produce the right state change or
+toast while leaving the user on another sidebar panel. Debugging is a stateful
+workflow, so F5/F10/F11/Shift+F5 need to show the Run and Debug view just like
+palette and toolbar commands.
+
+- **IDE note:** The shared `mui_dbg_*` commands now open the Run and Debug panel
+  before applying start, continue, stop, pause, restart, or step behavior.
+  Regression coverage pins F5-without-file feedback and paused-step behavior
+  from a closed sidebar.
