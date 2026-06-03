@@ -3001,15 +3001,16 @@ pub extern "C" fn mui_save_commit(handle: i64) -> i32 {
 }
 
 // ---------------------------------------------------------------------------
-// live diagnostics (scalar getters over the parsed `mty check` result)
+// live diagnostics (scalar getters over the parsed diagnostic result)
 // ---------------------------------------------------------------------------
 
-/// Re-run `mty check` on the currently-configured file path, parse the result,
-/// store it in the context, and return the diagnostic count. Returns `0` (and
-/// clears the stored set) if there is no configured path or the handle is null.
+/// Refresh diagnostics on the currently-configured file path, store the result
+/// in the context, and return the diagnostic count. Returns `0` (and clears the
+/// stored set) if there is no configured path or the handle is null.
 ///
-/// The IDE calls this after the initial load and after each Ctrl+S save (the
-/// on-disk file is current after save), so the markers track the saved file.
+/// Mighty files use saved-file `mty check`; generic LSP-backed languages use
+/// the active tab's live text when available so unsaved edits can surface
+/// diagnostics without waiting for a save.
 #[no_mangle]
 pub extern "C" fn mui_diag_refresh(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -3025,7 +3026,11 @@ pub extern "C" fn mui_diag_refresh(handle: i64) -> i32 {
     if ctx.language == Language::Mighty {
         ctx.diags = diagnostics::run_check(&path);
     } else if let Some(spec) = crate::lspregistry::server_for(ctx.language) {
-        let source = std::fs::read_to_string(&path).unwrap_or_default();
+        let source = if ctx.tabs.active_path().as_ref() == Some(&path) {
+            ctx.tabs.active_model().as_text()
+        } else {
+            std::fs::read_to_string(&path).unwrap_or_default()
+        };
         let root = workspace_root(&path);
         ctx.diags = crate::lspclient::diagnostics(&spec, ctx.language.lsp_id(), &root, &path, &source);
     } else {

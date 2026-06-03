@@ -5001,3 +5001,13 @@ are distinct diagnostic targets and should not collapse under one header.
   keeping the basename for icons and normal compact headers. When duplicate
   basenames are present, the header label expands to the path and remains
   ellipsized by the existing row-fitting code.
+
+L350. Active diagnostics should use the same live source as the editor when the
+language server supports it. Reading disk for non-Mighty diagnostics makes
+unsaved Rust/Python/TypeScript edits look clean until save, even though the IDE
+already owns the edited text in the active tab model.
+
+- **IDE note:** `mui_diag_refresh` now keeps Mighty on saved-file `mty check`,
+  but sends the active tab's live `TextModel` contents to generic LSP
+  `publishDiagnostics` when the configured path is the active tab. Disk fallback
+  remains for non-active paths and missing tab state.
