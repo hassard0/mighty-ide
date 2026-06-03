@@ -284,6 +284,8 @@ pub const CMD_ADD_CARET_ABOVE: u32 = 126;
 pub const CMD_ADD_CARET_BELOW: u32 = 127;
 /// Collapse all editor carets back to the primary caret.
 pub const CMD_COLLAPSE_CARETS: u32 = 128;
+/// Open the in-file find and replace bar.
+pub const CMD_FIND_REPLACE: u32 = 129;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -315,6 +317,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_DELETE_ACTIVE_FILE, label: "File: Delete Active File", keybinding: "" },
     Command { id: CMD_CLEAR_NOTIFICATIONS, label: "Notifications: Clear All Toasts", keybinding: "" },
     Command { id: CMD_FIND,             label: "Find",               keybinding: "Ctrl+F" },
+    Command { id: CMD_FIND_REPLACE,     label: "Find & Replace",     keybinding: "Ctrl+H" },
     Command { id: CMD_GOTO_LINE,        label: "Go to Line",         keybinding: "Ctrl+G" },
     Command { id: CMD_GOTO_DEFINITION,  label: "Go to Definition",   keybinding: "F12" },
     Command { id: CMD_HOVER,            label: "Show Hover",         keybinding: "Ctrl+K" },
@@ -729,6 +732,7 @@ impl PaletteEngine {
             CMD_DELETE_ACTIVE_FILE => (icons::ERROR_CIRCLE, "Delete the active file after confirmation", false),
             CMD_CLEAR_NOTIFICATIONS => (icons::CLOSE, "Dismiss every visible toast notification", false),
             CMD_FIND => (icons::SEARCH, "Search within the current document", false),
+            CMD_FIND_REPLACE => (icons::SEARCH, "Search and replace within the current document", false),
             CMD_GOTO_LINE => (icons::CHEVRON, "Jump to a specific line number", false),
             CMD_GOTO_DEFINITION => (icons::FN_SYMBOL, "Navigate to the symbol definition", false),
             CMD_HOVER => (icons::INFO_I, "Show type & docs at the cursor", false),

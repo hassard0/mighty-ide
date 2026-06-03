@@ -5904,3 +5904,12 @@ exposed Select Word, but not the actions that build and clear multiple cursors.
   `Edit: Collapse Multiple Cursors`. Mighty dispatches through the existing
   multi-caret ABI, preserving Ctrl+D, Ctrl+Alt+Up/Down, and Esc behavior without
   adding new editor key-ladder arms.
+
+L442. Find-and-replace belongs beside find in the command palette. Ctrl+H was
+documented and implemented, but keyboard-first users had no discoverable palette
+entry for opening the in-file replace bar.
+
+- **IDE note:** the command palette now lists `Find & Replace` with `Ctrl+H`.
+  Mighty dispatches it through `mui_replace_open`, matching the existing chord
+  path by opening the replace bar, entering replace mode, and clearing stale
+  find navigation state.

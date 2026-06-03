@@ -6246,6 +6246,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_SAVE_AS, "cmd_save_as"),
         (CMD_SAVE_ALL, "cmd_save_all"),
         (CMD_FIND, "cmd_find"),
+        (CMD_FIND_REPLACE, "cmd_find_replace"),
         (CMD_GOTO_LINE, "cmd_goto_line"),
         (CMD_GOTO_DEFINITION, "cmd_goto_definition"),
         (CMD_HOVER, "cmd_hover"),

@@ -737,6 +737,7 @@ fn cmd_add_caret_next_occurrence() -> I32 { 125 }
 fn cmd_add_caret_above() -> I32 { 126 }
 fn cmd_add_caret_below() -> I32 { 127 }
 fn cmd_collapse_carets() -> I32 { 128 }
+fn cmd_find_replace() -> I32 { 129 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -3878,6 +3879,11 @@ fn main() {
         } else if id == cmd_find() {
           mui_prompt_open(h, prompt_find())
           prompt_kind = prompt_find()
+        } else if id == cmd_find_replace() {
+          mui_replace_open(h)
+          replacing = true
+          find_nav = false
+          typing = false
         } else if id == cmd_goto_line() {
           mui_prompt_open(h, prompt_goto())
           prompt_kind = prompt_goto()
