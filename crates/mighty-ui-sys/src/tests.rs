@@ -4389,6 +4389,26 @@ fn diff_body_line_fits_measured_editor_width() {
 }
 
 #[test]
+fn blame_annotation_fits_measured_window_budget() {
+    let mut ctx = ctx_or_skip!();
+    let chrome = crate::theme::CHROME_FONT_SIZE - 1.5;
+    let budget = 150.0;
+    let shown = crate::featureabi::fit_blame_text(
+        &mut ctx.text,
+        "\u{2022} Very Long Contributor Name \u{00b7} 2026-06-03 \u{00b7} abcdef0",
+        budget,
+        chrome,
+    );
+    let shown_w = ctx.text.measure_ui_sized(&shown, chrome).0;
+
+    assert!(shown.ends_with('\u{2026}'));
+    assert!(
+        shown_w <= budget + 0.5,
+        "blame annotation should fit measured budget: {shown}"
+    );
+}
+
+#[test]
 fn status_problems_chip_hit_tracks_rendered_branch_width() {
     use crate::ffi::MuiEvent;
     use crate::{mui_status_problems_chip_at_click, mui_status_render};

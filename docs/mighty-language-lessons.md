@@ -6196,3 +6196,11 @@ still clipped from fixed character estimates.
 - **IDE note:** Inline diff now fits hunk headers and body text through the
   measured code-font fitter before drawing. Long diff context and changed lines
   reserve actual rendered space before action buttons and the editor edge.
+
+L476. Inline blame annotations need measured UI-font clipping too. Blame labels
+sit at the end of editor lines and still used proportional-width character
+estimates, so long author/date labels could run past the window edge.
+
+- **IDE note:** Inline blame now fits annotation labels with the measured
+  UI-font fitter before drawing. Long author names and commit metadata stay
+  inside the editor width without relying on half-font character estimates.

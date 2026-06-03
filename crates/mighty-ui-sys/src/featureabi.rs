@@ -343,6 +343,15 @@ pub(crate) fn diff_hunk_button_width(text: &mut crate::text::Text, label: &str, 
     feature_ui_text_width(text, label, size) + 18.0
 }
 
+pub(crate) fn fit_blame_text(
+    text: &mut crate::text::Text,
+    s: &str,
+    max_px: f32,
+    size: f32,
+) -> String {
+    fit_ui_text(text, s, max_px, size)
+}
+
 pub(crate) fn fit_diff_code_text(
     text: &mut crate::text::Text,
     s: &str,
@@ -964,7 +973,6 @@ pub extern "C" fn mui_blame_draw(handle: i64, rows: i32) {
         ann_x = (win_w - 220.0).max(text_left + 4.0 * adv);
     }
 
-    let ca = chrome * 0.5;
     for (vis, _len) in line_lens.iter().enumerate() {
         let idx = first + vis;
         let Some(bl) = ctx.blame.line(idx) else { break };
@@ -979,11 +987,8 @@ pub extern "C" fn mui_blame_draw(handle: i64, rows: i32) {
             format!("\u{2022} {} \u{00b7} {} \u{00b7} {}", bl.author, bl.date, sha7)
         };
         // Clip to the window width.
-        let avail = (((win_w - 12.0) - ann_x) / ca).floor() as usize;
-        let mut shown = label;
-        if shown.chars().count() > avail && avail > 1 {
-            shown = shown.chars().take(avail - 1).collect::<String>() + "\u{2026}";
-        }
+        let max_w = (win_w - 12.0 - ann_x).max(0.0);
+        let shown = fit_blame_text(&mut ctx.text, &label, max_w, chrome);
         ctx.text.queue_ui_sized(ann_x, ty, &shown, theme::TEXT_4(), chrome, clip);
     }
 }
