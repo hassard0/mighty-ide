@@ -7235,3 +7235,15 @@ so an active-close toast would compete with the command's real outcome.
   dispatch cleanup; the no-op path reports `No command palette open` in the
   navigation toast lane, and Mighty explicitly discards the returned state from
   Escape, mouse-dismiss, command-selection, and palette command paths.
+
+L579. Quick Open cancel must distinguish close from accept cleanup. Quick Open
+accepts files, symbols, lines, and command rows through paths that close the
+overlay as part of a larger action, so the cancel ABI should report state without
+adding active-close noise.
+
+- **IDE note:** `mui_qo_cancel` now returns `1` when it closes an active Quick
+  Open panel and `0` when no panel is open. Active closes stay silent so accept
+  flows keep their own result feedback; the no-op path reports
+  `No Quick Open panel open` in the navigation toast lane, and Mighty explicitly
+  discards the returned state from Escape, mouse-dismiss, command-selection, and
+  palette command paths.

@@ -6600,8 +6600,12 @@ fn palette_and_quickopen_close_commands_clear_active_overlays() {
 
     crate::mui_quickopen_open(h);
     assert_eq!(crate::mui_qo_active(h), 1);
-    crate::mui_qo_cancel(h);
+    assert_eq!(crate::mui_qo_cancel(h), 1);
     assert_eq!(crate::mui_qo_active(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(crate::mui_qo_cancel(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].message, "No Quick Open panel open");
 }
 
 #[test]
@@ -7995,7 +7999,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_quick_open_close()")
-            && main.contains("mui_qo_cancel(h)")
+            && main.contains("let _qoc = mui_qo_cancel(h)")
             && main.contains("quickopen_open = false"),
         "Quick Open: Close must clear both shim and Mighty-side Quick Open state"
     );

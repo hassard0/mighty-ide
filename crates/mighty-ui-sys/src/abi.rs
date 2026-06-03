@@ -8275,9 +8275,16 @@ pub extern "C" fn mui_qo_mode(handle: i64) -> i32 {
 
 /// Close the finder and clear its transient state (keeps the cached index/MRU).
 #[no_mangle]
-pub extern "C" fn mui_qo_cancel(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
+pub extern "C" fn mui_qo_cancel(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.quickopen.is_active() {
         ctx.quickopen.cancel();
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No Quick Open panel open");
+        0
     }
 }
 

@@ -859,6 +859,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m == "Breadcrumb menu closed"
         || m == "No breadcrumb menu open"
         || m == "No command palette open"
+        || m == "No Quick Open panel open"
         || m == "No breadcrumb row selected"
         || m == "Breadcrumb file no longer listed"
         || m == "Breadcrumb symbol unavailable"
@@ -2111,6 +2112,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No command palette open");
+
+        q.push_at(
+            Kind::Info,
+            "No Quick Open panel open",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No Quick Open panel open");
     }
 
     #[test]
