@@ -7789,6 +7789,15 @@ pub extern "C" fn mui_keys_cancel(handle: i64) {
     }
 }
 
+/// Close the shortcuts overlay even when a remap capture is active.
+#[no_mangle]
+pub extern "C" fn mui_keys_close(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        trace("shortcuts_close");
+        ctx.shortcuts.cancel();
+    }
+}
+
 /// Draw the shortcuts overlay (no-op unless active). Same borrow-split as the
 /// palette draw.
 #[no_mangle]

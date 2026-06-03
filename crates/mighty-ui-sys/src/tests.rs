@@ -2835,6 +2835,10 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
             crate::palette::CMD_MARKDOWN_CLOSE_PREVIEW,
             "Markdown: Close Preview",
         ),
+        (
+            crate::palette::CMD_KEYBOARD_SHORTCUTS_CLOSE,
+            "Help: Close Keyboard Shortcuts",
+        ),
     ];
     for (id, label) in view_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
@@ -5119,6 +5123,26 @@ fn color_theme_close_command_cancels_picker() {
 }
 
 #[test]
+fn keyboard_shortcuts_close_command_exits_capture_and_overlay() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_keys_open(handle);
+    assert_eq!(crate::mui_keys_active(handle), 1);
+    assert_eq!(crate::mui_keys_begin_capture(handle), 1);
+    assert_eq!(crate::mui_keys_capturing(handle), 1);
+
+    crate::mui_keys_cancel(handle);
+    assert_eq!(crate::mui_keys_active(handle), 1);
+    assert_eq!(crate::mui_keys_capturing(handle), 0);
+
+    assert_eq!(crate::mui_keys_begin_capture(handle), 1);
+    crate::mui_keys_close(handle);
+    assert_eq!(crate::mui_keys_active(handle), 0);
+    assert_eq!(crate::mui_keys_capturing(handle), 0);
+}
+
+#[test]
 fn visible_surface_size_honors_screenshot_caps() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     std::env::set_var("MUI_SCREENSHOT_W", "560");
@@ -7002,6 +7026,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Color theme close command must cancel the picker and clear Mighty's local flag"
     );
     assert!(
+        main.contains("id == cmd_keyboard_shortcuts_close()")
+            && main.contains("mui_keys_close(h)"),
+        "Keyboard Shortcuts close command must call the dedicated close ABI"
+    );
+    assert!(
         main.contains("id == cmd_git_hide_blame()")
             && main.contains("let _bc = mui_blame_close(h)"),
         "Git hide-blame command must call the dedicated blame close ABI"
@@ -7299,6 +7328,10 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         ),
         (CMD_GIT_HIDE_BLAME, "cmd_git_hide_blame"),
         (CMD_KEYBOARD_SHORTCUTS, "cmd_keyboard_shortcuts"),
+        (
+            CMD_KEYBOARD_SHORTCUTS_CLOSE,
+            "cmd_keyboard_shortcuts_close",
+        ),
         (CMD_NEW_PROJECT, "cmd_new_project"),
         (CMD_WINDOW_TOGGLE_MAXIMIZE, "cmd_window_toggle_maximize"),
         (CMD_WINDOW_MINIMIZE, "cmd_window_minimize"),

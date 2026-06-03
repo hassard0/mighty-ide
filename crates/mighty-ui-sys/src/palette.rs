@@ -359,6 +359,8 @@ pub const CMD_MARKDOWN_CLOSE_PREVIEW: u32 = 163;
 pub const CMD_SETTINGS_CLOSE: u32 = 164;
 /// Close the color theme picker and revert any uncommitted preview.
 pub const CMD_COLOR_THEME_CLOSE: u32 = 165;
+/// Close the Keyboard Shortcuts overlay even when shortcut capture is active.
+pub const CMD_KEYBOARD_SHORTCUTS_CLOSE: u32 = 166;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -533,6 +535,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_OPEN_FOLDER,      label: "File: Open Folder...", keybinding: "Ctrl+Shift+O" },
     Command { id: CMD_OPEN_RECENT,      label: "File: Open Recent",   keybinding: "" },
     Command { id: CMD_KEYBOARD_SHORTCUTS, label: "Help: Keyboard Shortcuts", keybinding: "Ctrl+Shift+/" },
+    Command { id: CMD_KEYBOARD_SHORTCUTS_CLOSE, label: "Help: Close Keyboard Shortcuts", keybinding: "" },
     Command { id: CMD_FOLD_TOGGLE,      label: "Fold: Toggle at Cursor",  keybinding: "Ctrl+Shift+[" },
     Command { id: CMD_FOLD_ALL,         label: "Fold: Fold All",          keybinding: "" },
     Command { id: CMD_UNFOLD_ALL,       label: "Fold: Unfold All",        keybinding: "" },
@@ -1059,6 +1062,7 @@ impl PaletteEngine {
             CMD_OPEN_FOLDER => (icons::FOLDER, "Open a workspace folder with the native folder picker", false),
             CMD_OPEN_RECENT => (icons::FOLDER, "Open a recent file or workspace folder", false),
             CMD_KEYBOARD_SHORTCUTS => (icons::INFO_I, "List & remap all keyboard shortcuts", false),
+            CMD_KEYBOARD_SHORTCUTS_CLOSE => (icons::CLOSE, "Close the Keyboard Shortcuts overlay", false),
             CMD_FOLD_TOGGLE => (icons::CHEVRON, "Fold or unfold the block at the cursor", false),
             CMD_FOLD_ALL => (icons::CHEVRON_DOWN, "Fold every foldable block in the document", false),
             CMD_UNFOLD_ALL => (icons::CHEVRON_DOWN, "Unfold every block in the document", false),

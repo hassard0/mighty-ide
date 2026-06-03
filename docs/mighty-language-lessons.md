@@ -6799,3 +6799,13 @@ flags stale.
   clearing Mighty's `theme_picker_open` flag. ABI, registry, metadata,
   dispatcher, and label tests pin that closing the picker reverts previewed
   themes.
+
+L535. Close commands should not inherit context-sensitive cancel semantics.
+Keyboard Shortcuts uses Escape to leave remap capture before closing the overlay.
+A command-palette close action should be stronger and close the overlay even
+when capture is active.
+
+- **IDE note:** The command palette now lists `Help: Close Keyboard Shortcuts`,
+  calling a dedicated `mui_keys_close` ABI. ABI, registry, metadata,
+  dispatcher, and label tests pin that close exits both capture and overlay
+  state, while the existing cancel path still only exits capture first.
