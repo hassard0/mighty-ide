@@ -6071,3 +6071,12 @@ character counts after Quick Open moved to measured footer layout.
 - **IDE note:** The command palette now measures footer key pills, labels, and
   the `Mighty Command Palette` tag before drawing, keeping command footer chrome
   aligned with proportional UI text.
+
+L461. Overlay header chips need measured text too. Quick Open had measured rows,
+search input, and footer hints, but its mode chip and result count in the header
+still used fixed character advances.
+
+- **IDE note:** Quick Open now measures the mode label before sizing and
+  centering the header chip, and right-aligns the result count from measured UI
+  text. The top chrome follows the same proportional-font contract as the row
+  and footer surfaces.

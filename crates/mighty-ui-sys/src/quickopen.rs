@@ -929,12 +929,12 @@ impl QuickOpen {
             Mode::Symbols => "SYMS",
             Mode::GotoLine => "LINE",
         };
-        let pill_w = (mode_txt.chars().count() as f32 * 6.2 + 16.0).max(44.0);
+        let mode_lbl_w = quickopen_mode_label_width(&mut ctx.text, mode_txt, 10.5);
+        let pill_w = quickopen_mode_pill_width(&mut ctx.text, mode_txt, 10.5);
         let pill_x = box_x + box_w - pill_w - 18.0;
         let pill_y = box_y + (search_h - 22.0) * 0.5;
         ctx.dl_round(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_FAINT());
         ctx.dl_stroke(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_LINE(), 1.0);
-        let mode_lbl_w = mode_txt.chars().count() as f32 * 6.2;
         ctx.text.queue_ui_sized(pill_x + (pill_w - mode_lbl_w) * 0.5, pill_y + 5.5, mode_txt, theme::ACCENT_BRIGHT(), 10.5, clip);
         let placeholder = "Search files by name\u{2026}  (\u{203A} commands  @ symbols  : line)";
         let (q_str, q_color): (&str, _) = if self.query.is_empty() {
@@ -974,7 +974,8 @@ impl QuickOpen {
         let cat: String = cat_str.chars().flat_map(|c| [c, '\u{2009}']).collect();
         ctx.text.queue_ui_sized(box_x + 18.0, cat_y, &cat, theme::TEXT_3(), chrome - 2.5, clip);
         let cnt = self.rows.len().to_string();
-        ctx.text.queue_ui_sized(box_x + box_w - 18.0 - cnt.chars().count() as f32 * 6.0, cat_y, &cnt, theme::TEXT_3(), chrome - 2.5, clip);
+        let (cnt_w, _) = ctx.text.measure_ui_sized(&cnt, chrome - 2.5);
+        ctx.text.queue_ui_sized(box_x + box_w - 18.0 - cnt_w, cat_y, &cnt, theme::TEXT_3(), chrome - 2.5, clip);
 
         // ---- rows ----
         let list_top = box_y + search_h + cat_h;
@@ -1075,6 +1076,14 @@ pub(crate) fn quickopen_query_text_budget(text_x: f32, pill_x: f32, is_placehold
 
 pub(crate) fn quickopen_row_text_budget(box_x: f32, box_w: f32, text_x: f32) -> f32 {
     (box_x + box_w - 24.0 - text_x).max(0.0)
+}
+
+fn quickopen_mode_label_width(text: &mut crate::text::Text, label: &str, size: f32) -> f32 {
+    text.measure_ui_sized(label, size).0
+}
+
+fn quickopen_mode_pill_width(text: &mut crate::text::Text, label: &str, size: f32) -> f32 {
+    (quickopen_mode_label_width(text, label, size) + 16.0).max(44.0)
 }
 
 fn quickopen_footer_key_width(text: &mut crate::text::Text, key: &str, size: f32) -> f32 {
@@ -1549,6 +1558,31 @@ mod tests {
         let base = 320.0;
         assert_eq!(quickopen_search_text_x(base, false), base);
         assert!(quickopen_search_text_x(base, true) >= base + 8.0);
+    }
+
+    #[test]
+    fn mode_pill_width_uses_measured_label_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let short = quickopen_mode_pill_width(&mut ctx.text, "CMDS", 10.5);
+        let long = quickopen_mode_pill_width(&mut ctx.text, "COMMANDS", 10.5);
+
+        assert!(short >= 44.0);
+        assert!(long > short);
+    }
+
+    #[test]
+    fn mode_pill_width_contains_measured_label_with_padding() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let label = "SYMS";
+        let label_w = quickopen_mode_label_width(&mut ctx.text, label, 10.5);
+        let pill_w = quickopen_mode_pill_width(&mut ctx.text, label, 10.5);
+
+        assert!(pill_w >= label_w + 16.0);
+        assert!(pill_w >= 44.0);
     }
 
     #[test]
