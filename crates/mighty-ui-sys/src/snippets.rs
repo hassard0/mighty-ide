@@ -598,6 +598,13 @@ pub fn load_user_snippets() -> Vec<SnippetDef> {
 /// inserts the expanded body (indented to the call-site line), begins the
 /// `session`, selects the first tab-stop's placeholder, and returns `true`.
 /// Returns `false` (model untouched) when there's no snippet for the word.
+pub fn can_expand(model: &TextModel, lang: Language) -> bool {
+    let line = model.cursor_line();
+    let col = model.cursor_col();
+    let word = prefix_word(model.line(line), col);
+    find_snippet(lang, &word).is_some()
+}
+
 pub fn try_expand(model: &mut TextModel, session: &mut SnippetSession, lang: Language) -> bool {
     let line = model.cursor_line();
     let col = model.cursor_col();

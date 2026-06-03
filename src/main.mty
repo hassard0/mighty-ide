@@ -429,6 +429,7 @@ extern c {
   fn mui_ghost_force(handle: I64) -> I32
   fn mui_ghost_draw(handle: I64)
   // ---- snippets (prefix -> template expansion with navigable tab-stops) ----
+  fn mui_snippet_can_expand(handle: I64) -> I32
   fn mui_snippet_try_expand(handle: I64) -> I32
   fn mui_snippet_active(handle: I64) -> I32
   fn mui_snippet_next_stop(handle: I64) -> I32
@@ -3130,13 +3131,17 @@ fn main() {
             if accepted == 1 {
               mui_tab_set_dirty(h, mui_tab_active(h), 1)
             }
-          } else if mui_snippet_try_expand(h) == 1 {
+          } else if mui_snippet_can_expand(h) == 1 {
             // (4) The word before the cursor is a snippet prefix -> expand it,
             // begin the tab-stop session, select the first stop. (Step (3),
             // completion dropdown, is handled in the `completing` branch above.)
+            mui_ed_undo_record(h)
             typing = false
-            mui_tab_set_dirty(h, mui_tab_active(h), 1)
-            mui_ghost_dismiss(h)
+            let expanded = mui_snippet_try_expand(h)
+            if expanded == 1 {
+              mui_tab_set_dirty(h, mui_tab_active(h), 1)
+              mui_ghost_dismiss(h)
+            }
           } else {
             // (5) Nothing took the Tab -> indent/outdent the editor.
             mui_ed_undo_record(h)

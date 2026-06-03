@@ -7455,3 +7455,13 @@ only after the accept call reports that text was inserted or expanded.
   prefix expand, snippet placeholder replace, and snippet completion expand now
   refuse read-only previews before mutating or consuming suggestions. Mighty
   gates completion and ghost dirtying on the returned accept state.
+
+L599. Direct Tab snippet expansion needs a preflight before mutation. The
+expansion ABI mutates the editor model, so the Tab handler must know that a
+snippet is available before it can record the undo checkpoint for the expansion.
+
+- **IDE note:** `mui_snippet_can_expand` now exposes a pure prefix check for the
+  active cursor. The Tab handler uses it to record undo immediately before
+  `mui_snippet_try_expand`, then marks dirty only when the expansion succeeds.
+  This makes direct snippet expansion undoable as a single edit without adding
+  undo checkpoints to ordinary Tab indentation misses.

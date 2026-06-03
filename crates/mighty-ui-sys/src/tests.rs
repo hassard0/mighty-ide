@@ -6922,6 +6922,27 @@ fn snippet_cancel_command_ends_session_without_removing_expansion() {
 }
 
 #[test]
+fn snippet_tab_expansion_can_be_undone_as_one_edit() {
+    use crate::snippetsabi::{mui_snippet_active, mui_snippet_can_expand, mui_snippet_try_expand};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.language = crate::langdetect::Language::Mighty;
+    ctx.tabs.ensure_scratch();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("fn");
+    ctx.tabs.active_model_mut().move_to(0, 2);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_snippet_can_expand(h), 1);
+    crate::mui_ed_undo_record(h);
+    assert_eq!(mui_snippet_try_expand(h), 1);
+    assert_eq!(mui_snippet_active(h), 1);
+    assert!(ctx.tabs.active_model().as_text().contains("fn name(args) -> I32"));
+
+    assert_eq!(crate::mui_ed_undo(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "fn");
+}
+
+#[test]
 fn breadcrumb_accept_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -8223,6 +8244,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("if accepted > 0 {\n              mui_tab_set_dirty(h, mui_tab_active(h), 1)")
             && main.contains("if accepted == 1 {\n              mui_tab_set_dirty(h, mui_tab_active(h), 1)"),
         "completion and ghost accept paths must only dirty after accepted edits"
+    );
+    assert!(
+        main.contains("mui_snippet_can_expand(h) == 1")
+            && main.contains("mui_ed_undo_record(h)\n            typing = false\n            let expanded = mui_snippet_try_expand(h)"),
+        "direct Tab snippet expansion must record undo before mutating"
     );
     assert!(
         main.contains("Ctrl+S save / Ctrl+Shift+S Save As"),

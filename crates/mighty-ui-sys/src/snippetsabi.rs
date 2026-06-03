@@ -41,6 +41,14 @@ unsafe fn ctx<'a>(handle: i64) -> Option<&'a mut MuiContext> {
 /// snippet expanded (the caller redraws + marks dirty); `0` otherwise (the
 /// caller should fall back to inserting an indent).
 #[no_mangle]
+pub extern "C" fn mui_snippet_can_expand(handle: i64) -> i32 {
+    let Some(c) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    i32::from(snippets::can_expand(c.tabs.active_model(), c.language))
+}
+
+#[no_mangle]
 pub extern "C" fn mui_snippet_try_expand(handle: i64) -> i32 {
     let Some(c) = (unsafe { ctx(handle) }) else {
         return 0;
@@ -222,6 +230,7 @@ mod tests {
 
     #[test]
     fn null_handle_is_safe() {
+        assert_eq!(mui_snippet_can_expand(0), 0);
         assert_eq!(mui_snippet_try_expand(0), 0);
         assert_eq!(mui_snippet_active(0), 0);
         assert_eq!(mui_snippet_next_stop(0), 0);
