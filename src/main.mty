@@ -759,6 +759,7 @@ fn cmd_ai_clear_chat() -> I32 { 141 }
 fn cmd_zoom_in() -> I32 { 142 }
 fn cmd_zoom_out() -> I32 { 143 }
 fn cmd_zoom_reset() -> I32 { 144 }
+fn cmd_explorer_collapse_all() -> I32 { 145 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -3690,6 +3691,11 @@ fn main() {
           find_nav = false
         } else if id == cmd_reveal_active_file() {
           let _fr = mui_file_reveal_active(h)
+          find_nav = false
+        } else if id == cmd_explorer_collapse_all() {
+          let _vp = mui_panel_set(h, panel_explorer())
+          mui_tree_collapse_all(h)
+          agents_focus = false
           find_nav = false
         } else if id == cmd_reveal_active_file_in_os() {
           let _fr_os = mui_file_reveal_active_in_os(h)

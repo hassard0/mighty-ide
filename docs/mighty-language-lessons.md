@@ -6621,3 +6621,14 @@ belongs beside other View commands.
   `mui_zoom_out`, and `mui_zoom_reset` ABIs. `Jump Back` no longer advertises
   the now-reserved `Ctrl+-` chord, and registry/mirror tests pin the command
   labels, keybindings, ids, and Mighty helpers.
+
+L517. Header-only Explorer actions should have command equivalents.
+Explorer toolbar buttons are convenient with a mouse, but the same project-tree
+maintenance actions should be available to keyboard-first users through command
+search. Immediate tree actions are especially easy to miss when they only exist
+as compact header icons.
+
+- **IDE note:** The command palette now lists `Explorer: Collapse All Folders`,
+  dispatching through the existing `mui_tree_collapse_all` ABI after focusing
+  the Explorer panel. Registry, metadata, and dispatcher tests pin the command
+  id, label, helper, and Explorer-focus behavior.

@@ -317,6 +317,8 @@ pub const CMD_ZOOM_IN: u32 = 142;
 pub const CMD_ZOOM_OUT: u32 = 143;
 /// Reset the UI zoom to 100%.
 pub const CMD_ZOOM_RESET: u32 = 144;
+/// Collapse every expanded folder in the Explorer tree.
+pub const CMD_EXPLORER_COLLAPSE_ALL: u32 = 145;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -340,6 +342,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_SAVE_ALL,         label: "File: Save All",     keybinding: "Ctrl+Alt+S" },
     Command { id: CMD_RENAME_ACTIVE_FILE, label: "File: Rename Active File", keybinding: "" },
     Command { id: CMD_REVEAL_ACTIVE_FILE, label: "File: Reveal Active File in File Tree", keybinding: "" },
+    Command { id: CMD_EXPLORER_COLLAPSE_ALL, label: "Explorer: Collapse All Folders", keybinding: "" },
     Command { id: CMD_REVEAL_ACTIVE_FILE_IN_OS, label: "File: Show Active File in File Manager", keybinding: "" },
     Command { id: CMD_COPY_ACTIVE_FILE_PATH, label: "File: Copy Active File Path", keybinding: "" },
     Command { id: CMD_COPY_ACTIVE_FILE_RELATIVE_PATH, label: "File: Copy Active File Relative Path", keybinding: "" },
@@ -845,6 +848,7 @@ impl PaletteEngine {
             CMD_SAVE_ALL => (icons::FILE_MTY, "Write dirty tabs and ask where untitled files should live", false),
             CMD_RENAME_ACTIVE_FILE => (icons::FILE_MTY, "Rename the active file on disk", false),
             CMD_REVEAL_ACTIVE_FILE => (icons::SEARCH, "Show the active file in the IDE file tree", false),
+            CMD_EXPLORER_COLLAPSE_ALL => (icons::COLLAPSE, "Collapse all expanded Explorer folders", false),
             CMD_REVEAL_ACTIVE_FILE_IN_OS => (icons::EXPLORER, "Show the active file in the OS file manager", false),
             CMD_COPY_ACTIVE_FILE_PATH => (icons::FILE_MTY, "Copy the active file path to the clipboard", false),
             CMD_COPY_ACTIVE_FILE_RELATIVE_PATH => (icons::FILE_MTY, "Copy the workspace-relative path", false),

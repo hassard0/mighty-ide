@@ -2516,6 +2516,12 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(tree.label, "File: Reveal Active File in File Tree");
 
+    let collapse_tree = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_EXPLORER_COLLAPSE_ALL)
+        .unwrap();
+    assert_eq!(collapse_tree.label, "Explorer: Collapse All Folders");
+
     let os = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_REVEAL_ACTIVE_FILE_IN_OS)
@@ -6523,6 +6529,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         main.contains("key_page_down()") && main.contains("mui_tab_move_active_right(h)"),
         "Ctrl+Shift+PageDown should route to Move Active Tab Right"
     );
+    assert!(
+        main.contains("id == cmd_explorer_collapse_all()")
+            && main.contains("let _vp = mui_panel_set(h, panel_explorer())")
+            && main.contains("mui_tree_collapse_all(h)"),
+        "Explorer collapse-all command must reveal Explorer before collapsing the tree"
+    );
     for needle in [
         "id >= cmd_pane_first() && id <= cmd_pane_last()",
         "id >= cmd_git_first() && id <= cmd_git_last()",
@@ -6531,6 +6543,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "id >= cmd_sidebar_layout_first() && id <= cmd_sidebar_layout_last()",
         "id == cmd_keyboard_shortcuts()",
         "id == cmd_clear_notifications()",
+        "id == cmd_explorer_collapse_all()",
         "id == cmd_new_project()",
         "id == cmd_new_workspace_file()",
         "mui_prompt_open(h, prompt_new_file())",
@@ -6641,6 +6654,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_NEW_FOLDER, "cmd_new_folder"),
         (CMD_RENAME_ACTIVE_FILE, "cmd_rename_active_file"),
         (CMD_REVEAL_ACTIVE_FILE, "cmd_reveal_active_file"),
+        (CMD_EXPLORER_COLLAPSE_ALL, "cmd_explorer_collapse_all"),
         (CMD_DELETE_ACTIVE_FILE, "cmd_delete_active_file"),
         (CMD_REVEAL_ACTIVE_FILE_IN_OS, "cmd_reveal_active_file_in_os"),
         (CMD_COPY_ACTIVE_FILE_PATH, "cmd_copy_active_file_path"),
