@@ -8553,7 +8553,13 @@ pub extern "C" fn mui_sig_request(handle: i64, line: i32, col: i32) -> i32 {
     ctx.sig.clear();
     let path = match ctx.file_path.clone() {
         Some(p) => p,
-        None => return 0,
+        None => {
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                "Save the file before signature help",
+            );
+            return 0;
+        }
     };
     let (source, _, _) = active_source_and_cursor(ctx);
     let raw = lsp_signature_raw(

@@ -5412,3 +5412,12 @@ leaving the user to infer whether the click registered.
   files, invalid SCM rows, missing repository roots, and clean/no-diff files.
   Empty diff results close any stale diff view so the editor does not retain an
   old inspection surface after a no-op request.
+
+L389. Signature-help requests need the same missing-target feedback as other
+language navigation commands. A shortcut can legitimately produce no signature,
+but an untitled buffer cannot be sent to the language server as a stable file.
+
+- **IDE note:** `mui_sig_request` now preserves its `0` return code for unsaved
+  buffers while showing `Save the file before signature help`, matching hover,
+  definition, peek, and formatting feedback for commands that require a saved
+  file path.

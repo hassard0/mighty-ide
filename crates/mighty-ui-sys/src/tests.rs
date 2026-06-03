@@ -4383,6 +4383,11 @@ fn navigation_requests_report_missing_targets() {
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Save the file before Peek Definition");
 
+    assert_eq!(crate::abi::mui_sig_request(h, 0, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Save the file before signature help");
+
     let path = std::env::temp_dir().join("mui_nav_plain_text.txt");
     std::fs::write(&path, b"plain text\n").unwrap();
     ctx.tabs.open_path(path.clone());
