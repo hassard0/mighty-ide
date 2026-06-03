@@ -6301,9 +6301,10 @@ fn editor_undo_redo_report_read_only_preview() {
 #[test]
 fn editor_mutating_commands_report_read_only_preview() {
     use crate::{
-        mui_ed_backspace, mui_ed_backspace_multi, mui_ed_delete, mui_ed_delete_multi,
-        mui_ed_complete_accept, mui_ed_delete_word_left_multi, mui_ed_delete_word_right_multi,
-        mui_ed_duplicate, mui_ed_insert_char, mui_ed_insert_char_multi, mui_ed_insert_smart_multi,
+        mui_ed_backspace, mui_ed_backspace_multi, mui_ed_delete, mui_ed_delete_current_line,
+        mui_ed_delete_multi, mui_ed_complete_accept, mui_ed_delete_word_left_multi,
+        mui_ed_delete_word_right_multi, mui_ed_duplicate, mui_ed_insert_char,
+        mui_ed_insert_char_multi, mui_ed_insert_smart_multi, mui_ed_join_line,
         mui_ed_move_lines_down, mui_ed_move_lines_up, mui_ed_newline, mui_ed_newline_indent,
         mui_ed_newline_indent_multi, mui_ed_toggle_comment,
     };
@@ -6337,6 +6338,8 @@ fn editor_mutating_commands_report_read_only_preview() {
         mui_ed_newline_indent_multi,
         mui_ed_delete_word_left_multi,
         mui_ed_delete_word_right_multi,
+        mui_ed_delete_current_line,
+        mui_ed_join_line,
         mui_ed_complete_accept,
         crate::ghostabi::mui_ghost_accept,
         crate::ghostabi::mui_ghost_accept_word,
@@ -7406,6 +7409,44 @@ fn move_lines_preflight_tracks_boundaries_and_read_only() {
 }
 
 #[test]
+fn line_command_preflights_track_noop_and_read_only_states() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_ed_can_delete_current_line(0), 0);
+    assert_eq!(crate::mui_ed_can_join_line(0), 0);
+    assert_eq!(crate::mui_ed_can_delete_current_line(h), 0);
+    assert_eq!(crate::mui_ed_can_join_line(h), 0);
+    assert_eq!(crate::mui_ed_delete_current_line(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    *ctx.tabs.active_model_mut() = crate::editor::TextModel::from_bytes(b"one\ntwo");
+    assert_eq!(crate::mui_ed_can_delete_current_line(h), 1);
+    assert_eq!(crate::mui_ed_can_join_line(h), 1);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_ed_join_line(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "one two");
+
+    let root = std::env::temp_dir().join("mui_line_command_preflight");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    assert_eq!(crate::mui_ed_can_delete_current_line(h), 0);
+    assert_eq!(crate::mui_ed_can_join_line(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_ed_delete_current_line(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn editor_power_features_via_abi() {
     use crate::{
         mui_ed_backspace_smart, mui_ed_bracket_match, mui_ed_duplicate, mui_ed_insert_char,
@@ -8462,6 +8503,17 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("id == cmd_move_line_up() && mui_ed_can_move_lines_up(h) == 1")
             && main.contains("id == cmd_move_line_down() && mui_ed_can_move_lines_down(h) == 1"),
         "move-line key and command paths must preflight file-boundary no-ops before recording undo"
+    );
+    assert!(
+        main
+            .matches("if mui_ed_can_delete_current_line(h) == 1 { mui_ed_undo_record(h) }\n          let changed = mui_ed_delete_current_line(h)")
+            .count()
+            >= 2
+            && main
+                .matches("if mui_ed_can_join_line(h) == 1 { mui_ed_undo_record(h) }\n          let changed = mui_ed_join_line(h)")
+                .count()
+                >= 2,
+        "delete-line and join-line paths must preflight known no-op edits before recording undo"
     );
     assert!(
         main.contains("let replaced = mui_replace_all(h)")

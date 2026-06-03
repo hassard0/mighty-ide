@@ -51,7 +51,9 @@ extern c {
   fn mui_ed_delete(handle: I64) -> I32
   fn mui_ed_delete_word_left(handle: I64) -> I32
   fn mui_ed_delete_word_right(handle: I64) -> I32
+  fn mui_ed_can_delete_current_line(handle: I64) -> I32
   fn mui_ed_delete_current_line(handle: I64) -> I32
+  fn mui_ed_can_join_line(handle: I64) -> I32
   fn mui_ed_join_line(handle: I64) -> I32
   fn mui_ed_newline(handle: I64) -> I32
   fn mui_ed_move(handle: I64, dir: I32)
@@ -2779,7 +2781,7 @@ fn main() {
           completing = false
           find_nav = false
           typing = false
-          mui_ed_undo_record(h)
+          if mui_ed_can_delete_current_line(h) == 1 { mui_ed_undo_record(h) }
           let changed = mui_ed_delete_current_line(h)
           if changed == 1 {
             mui_tab_set_dirty(h, mui_tab_active(h), 1)
@@ -2791,7 +2793,7 @@ fn main() {
           completing = false
           find_nav = false
           typing = false
-          mui_ed_undo_record(h)
+          if mui_ed_can_join_line(h) == 1 { mui_ed_undo_record(h) }
           let changed = mui_ed_join_line(h)
           if changed == 1 {
             mui_tab_set_dirty(h, mui_tab_active(h), 1)
@@ -3860,7 +3862,7 @@ fn main() {
           prompt_kind = prompt_delete_file()
           find_nav = false
         } else if id == cmd_delete_line() {
-          mui_ed_undo_record(h)
+          if mui_ed_can_delete_current_line(h) == 1 { mui_ed_undo_record(h) }
           let changed = mui_ed_delete_current_line(h)
           if changed == 1 {
             mui_tab_set_dirty(h, mui_tab_active(h), 1)
@@ -3869,7 +3871,7 @@ fn main() {
           }
           find_nav = false
         } else if id == cmd_join_line() {
-          mui_ed_undo_record(h)
+          if mui_ed_can_join_line(h) == 1 { mui_ed_undo_record(h) }
           let changed = mui_ed_join_line(h)
           if changed == 1 {
             mui_tab_set_dirty(h, mui_tab_active(h), 1)

@@ -10137,19 +10137,45 @@ pub extern "C" fn mui_ed_delete_word_right(handle: i64) -> i32 {
 /// Delete the current logical line from the active editor model.
 #[no_mangle]
 pub extern "C" fn mui_ed_delete_current_line(handle: i64) -> i32 {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        return i32::from(m.delete_current_line());
+    apply_model_edit(handle, |m| {
+        let _ = m.delete_current_line();
+    })
+}
+
+/// `1` when Delete Line can mutate the active model.
+/// Pure preflight: no toasts; the delete command keeps read-only feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_delete_current_line(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only() {
+        return 0;
     }
-    0
+    let model = ctx.tabs.active_model();
+    i32::from(model.line_count() > 1 || !model.line(0).is_empty())
 }
 
 /// Join the current line with the following line.
 #[no_mangle]
 pub extern "C" fn mui_ed_join_line(handle: i64) -> i32 {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        return i32::from(m.join_line());
+    apply_model_edit(handle, |m| {
+        let _ = m.join_line();
+    })
+}
+
+/// `1` when Join Line can merge the current line with a following line.
+/// Pure preflight: no toasts; the join command keeps read-only feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_join_line(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only() {
+        return 0;
     }
-    0
+    let model = ctx.tabs.active_model();
+    i32::from(model.cursor_line() + 1 < model.line_count())
 }
 
 /// Insert a newline at the cursor.

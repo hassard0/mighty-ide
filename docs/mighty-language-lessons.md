@@ -7511,3 +7511,8 @@ L605. Line-range commands need boundary preflights before undo. Move-line up/dow
 can be valid commands that do nothing at the top or bottom of a file; route
 those through a silent range predicate so stateful read-only feedback remains
 intact without adding empty undo snapshots at file edges.
+
+L606. Line deletion and joining need no-op preflights too. Deleting an already
+empty single-line buffer or joining the final line should not create undo
+history, but the stateful edit ABI should still own read-only feedback so all
+mutating editor commands behave consistently.
