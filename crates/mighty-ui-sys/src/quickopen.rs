@@ -845,7 +845,7 @@ impl QuickOpen {
         let h = height as f32;
         let top = self.scroll_top();
         let shown = self.rows.len().saturating_sub(top).min(VISIBLE).clamp(1, 8);
-        let box_w = 620.0_f32.min(w - 80.0);
+        let box_w = quickopen_panel_width(w);
         let search_h = 56.0;
         let cat_h = 25.0;
         let row_h = 46.0;
@@ -1080,6 +1080,10 @@ pub(crate) fn quickopen_query_text_budget(text_x: f32, pill_x: f32, is_placehold
 
 pub(crate) fn quickopen_row_text_budget(box_x: f32, box_w: f32, text_x: f32) -> f32 {
     (box_x + box_w - 24.0 - text_x).max(0.0)
+}
+
+fn quickopen_panel_width(window_w: f32) -> f32 {
+    (window_w - 80.0).max(0.0).clamp(280.0, 620.0).min(window_w.max(1.0))
 }
 
 pub(crate) fn quickopen_match_prefix_width(
@@ -1578,6 +1582,18 @@ mod tests {
     }
 
     #[test]
+    fn geometry_clamps_card_inside_ultra_narrow_windows() {
+        let mut qo = QuickOpen::new();
+        qo.record_mru(PathBuf::from("/a"));
+        qo.open();
+        let (box_x, box_w, _list_top, _row_h, _box_h, _shown) = qo.geometry(180, 560);
+
+        assert!(box_x >= 0.0);
+        assert!(box_w <= 180.0);
+        assert!(box_x + box_w <= 180.0 + 0.5);
+    }
+
+    #[test]
     fn empty_search_placeholder_does_not_overlap_caret() {
         let base = 320.0;
         assert_eq!(quickopen_search_text_x(base, false), base);
@@ -1665,6 +1681,13 @@ mod tests {
         assert_eq!(budget, 538.0);
         assert!(text_x + budget <= box_x + box_w - 24.0);
         assert_eq!(quickopen_row_text_budget(box_x, box_w, box_x + box_w), 0.0);
+    }
+
+    #[test]
+    fn panel_width_preserves_preferred_width_until_viewport_is_tiny() {
+        assert_eq!(quickopen_panel_width(900.0), 620.0);
+        assert_eq!(quickopen_panel_width(360.0), 280.0);
+        assert_eq!(quickopen_panel_width(180.0), 180.0);
     }
 
     #[test]
