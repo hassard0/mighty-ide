@@ -570,6 +570,7 @@ enum OperationKey {
     Format,
     Fold,
     Replace,
+    Snippet,
     History,
     MultiCursor,
     CodeIntel,
@@ -841,6 +842,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || (m.starts_with("Replaced ") && m.contains(" occurrence"))
     {
         Some(OperationKey::Replace)
+    } else if m == "Snippet session cancelled" || m == "No snippet session active" {
+        Some(OperationKey::Snippet)
     } else if m == "Nothing to undo"
         || m == "Nothing to redo"
         || m == "Undo is unavailable in read-only previews"
@@ -2055,6 +2058,29 @@ mod tests {
             q.toasts()[0].message,
             "Redo is unavailable in read-only previews"
         );
+    }
+
+    #[test]
+    fn newer_snippet_feedback_replaces_stale_session_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "Snippet session cancelled", t0);
+        q.push_at(
+            Kind::Info,
+            "No snippet session active",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No snippet session active");
+
+        q.push_at(
+            Kind::Info,
+            "Snippet session cancelled",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Snippet session cancelled");
     }
 
     #[test]

@@ -7313,3 +7313,14 @@ bar or found that the bar was already gone.
   `Find & Replace closed`; no-op close reports `No Find & Replace bar open`;
   both messages stay in the replace toast lane, and Mighty explicitly discards
   the returned state from Escape, close-button, and palette command paths.
+
+L586. Snippet cancel is both an editor cleanup hook and a palette-visible
+command. Generic Escape should not produce a no-op toast on every keypress, but
+the explicit command should still report whether a tab-stop session existed.
+
+- **IDE note:** `mui_snippet_cancel` now returns `1` when it ends an active
+  snippet tab-stop session and `0` when no session is active. Active cancel
+  reports `Snippet session cancelled`; no-op cancel reports
+  `No snippet session active`; both messages share a snippet toast lane. Mighty
+  only calls the ABI from generic Escape/collapse cleanup while a session is
+  active, and explicitly discards the returned state for the palette command.

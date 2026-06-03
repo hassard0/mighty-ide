@@ -430,7 +430,7 @@ extern c {
   fn mui_snippet_active(handle: I64) -> I32
   fn mui_snippet_next_stop(handle: I64) -> I32
   fn mui_snippet_prev_stop(handle: I64) -> I32
-  fn mui_snippet_cancel(handle: I64)
+  fn mui_snippet_cancel(handle: I64) -> I32
   fn mui_snippet_replace_stop(handle: I64) -> I32
   fn mui_snippet_inject_completions(handle: I64)
   fn mui_snippet_complete_is(handle: I64) -> I32
@@ -3075,7 +3075,7 @@ fn main() {
           mui_sig_clear(h)
           sig_open = false
           mui_ghost_dismiss(h)                                 // Esc dismisses the inline ghost
-          mui_snippet_cancel(h)                                // Esc ends the snippet tab-stop session
+          if mui_snippet_active(h) == 1 { let _snc = mui_snippet_cancel(h) } // Esc ends the snippet tab-stop session
           mui_ed_collapse_carets(h)                            // Esc collapses to the primary caret
         } else if k == key_tab() {
           let kmods = mui_event_mods(h)
@@ -3835,7 +3835,7 @@ fn main() {
             mui_sig_clear(h)
             sig_open = false
             mui_ghost_dismiss(h)
-            mui_snippet_cancel(h)
+            if mui_snippet_active(h) == 1 { let _snc = mui_snippet_cancel(h) }
             mui_ed_collapse_carets(h)
           } else if id == cmd_add_caret_next_occurrence() {
             let _cn = mui_ed_add_caret_next(h)
@@ -4497,7 +4497,7 @@ fn main() {
           mui_ghost_dismiss(h)
           typing = false
         } else if id == cmd_snippet_cancel() {
-          mui_snippet_cancel(h)
+          let _snc = mui_snippet_cancel(h)
           typing = false
         } else if id == cmd_ai_clear_chat() {
           let _aic = mui_ai_clear(h)

@@ -10,7 +10,8 @@
 //!   * [`mui_snippet_active`] — `1` while a tab-stop session is in progress.
 //!   * [`mui_snippet_next_stop`] / [`mui_snippet_prev_stop`] — Tab / Shift+Tab
 //!     navigate the stops; the final Tab jumps to `$0` and ends the session.
-//!   * [`mui_snippet_cancel`] — Esc / cursor-left-region ends the session.
+//!   * [`mui_snippet_cancel`] — Esc / cursor-left-region ends the session and
+//!     reports whether anything was active.
 //!   * [`mui_snippet_replace_stop`] — when typing begins on a selected
 //!     placeholder, delete the placeholder first so the typed text replaces it.
 //!   * [`mui_snippet_inject_completions`] — completion-source hook: after a
@@ -97,11 +98,20 @@ pub extern "C" fn mui_snippet_prev_stop(handle: i64) -> i32 {
 }
 
 /// End the tab-stop session (Esc / the cursor left the snippet region). Leaves
-/// the model untouched (the text stays; only navigation stops).
+/// the model untouched (the text stays; only navigation stops). Returns `1`
+/// when it ended an active session and `0` when no session was active.
 #[no_mangle]
-pub extern "C" fn mui_snippet_cancel(handle: i64) {
-    if let Some(c) = unsafe { ctx(handle) } {
+pub extern "C" fn mui_snippet_cancel(handle: i64) -> i32 {
+    let Some(c) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if c.snippet_session.is_active() {
         c.snippet_session.cancel();
+        c.push_toast(crate::toast::Kind::Info, "Snippet session cancelled");
+        1
+    } else {
+        c.push_toast(crate::toast::Kind::Info, "No snippet session active");
+        0
     }
 }
 
@@ -203,7 +213,7 @@ mod tests {
         assert_eq!(mui_snippet_active(0), 0);
         assert_eq!(mui_snippet_next_stop(0), 0);
         assert_eq!(mui_snippet_prev_stop(0), 0);
-        mui_snippet_cancel(0);
+        assert_eq!(mui_snippet_cancel(0), 0);
         assert_eq!(mui_snippet_replace_stop(0), 0);
         mui_snippet_inject_completions(0);
         assert_eq!(mui_snippet_complete_is(0), 0);

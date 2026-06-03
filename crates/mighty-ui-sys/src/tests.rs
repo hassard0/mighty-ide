@@ -6690,9 +6690,17 @@ fn snippet_cancel_command_ends_session_without_removing_expansion() {
     let expanded = ctx.tabs.active_model().as_text();
     assert!(expanded.contains("fn name(args) -> I32"));
 
-    mui_snippet_cancel(h);
+    assert_eq!(mui_snippet_cancel(h), 1);
     assert_eq!(mui_snippet_active(h), 0);
     assert_eq!(ctx.tabs.active_model().as_text(), expanded);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(ctx.toasts.toasts()[0].message, "Snippet session cancelled");
+
+    assert_eq!(mui_snippet_cancel(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(ctx.toasts.toasts()[0].message, "No snippet session active");
 }
 
 #[test]
@@ -8057,7 +8065,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_snippet_cancel()")
-            && main.contains("mui_snippet_cancel(h)"),
+            && main.contains("let _snc = mui_snippet_cancel(h)"),
         "Snippet: Cancel Tab-Stop Session must end snippet navigation without editing text"
     );
     assert!(
