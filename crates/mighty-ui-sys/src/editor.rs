@@ -795,6 +795,67 @@ impl TextModel {
         }
     }
 
+    fn indent_width() -> usize {
+        crate::settings::tab_width().max(1) as usize
+    }
+
+    fn shift_caret_for_line_prefix(caret: &mut Caret, line: usize, delta: isize) {
+        if caret.line == line {
+            caret.col = (caret.col as isize + delta).max(0) as usize;
+        }
+        if let Some((al, ac)) = caret.anchor {
+            if al == line {
+                caret.anchor = Some((al, (ac as isize + delta).max(0) as usize));
+            }
+        }
+    }
+
+    /// Tab behavior: insert configured spaces at a plain caret, or indent every
+    /// selected line as a line-range operation.
+    pub fn indent_or_insert_tab(&mut self) -> bool {
+        let width = Self::indent_width();
+        if !self.has_selection() {
+            return self.insert_text(&" ".repeat(width));
+        }
+        let (l0, l1) = self.affected_line_range();
+        let pad = " ".repeat(width);
+        self.begin_edit_keep_sel();
+        for li in l0..=l1 {
+            self.lines[li].insert_str(0, &pad);
+            Self::shift_caret_for_line_prefix(&mut self.carets[0], li, width as isize);
+        }
+        true
+    }
+
+    /// Shift+Tab behavior: remove one configured indentation level from the
+    /// current line or selected line range. Returns false when nothing changed.
+    pub fn outdent_lines(&mut self) -> bool {
+        let (l0, l1) = self.affected_line_range();
+        let width = Self::indent_width();
+        let mut removed: Vec<(usize, usize)> = Vec::new();
+        for li in l0..=l1 {
+            let line = &self.lines[li];
+            let n = if line.starts_with('\t') {
+                1
+            } else {
+                line.chars().take(width).take_while(|c| *c == ' ').count()
+            };
+            if n > 0 {
+                removed.push((li, n));
+            }
+        }
+        if removed.is_empty() {
+            return false;
+        }
+        self.begin_edit_keep_sel();
+        for (li, n) in removed {
+            self.lines[li].drain(..n);
+            Self::shift_caret_for_line_prefix(&mut self.carets[0], li, -(n as isize));
+        }
+        self.clamp_col();
+        true
+    }
+
     /// Toggle a `// ` line comment on the cursor line or every selected line.
     /// If ALL non-blank lines in the range are already commented, uncomment;
     /// otherwise comment them all. Comment markers are inserted at each line's
@@ -2101,6 +2162,65 @@ mod tests {
         assert_eq!(m.line(0), "// a");
         assert_eq!(m.line(1), ""); // blank stays blank
         assert_eq!(m.line(2), "// b");
+    }
+
+    #[test]
+    fn tab_inserts_configured_spaces_at_plain_caret() {
+        let _g = pin_default_settings();
+        let mut m = doc("ab");
+        m.move_to(0, 1);
+        m.mark_clean();
+
+        assert!(m.indent_or_insert_tab());
+
+        assert_eq!(m.line(0), "a  b");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 3));
+        assert!(m.dirty());
+    }
+
+    #[test]
+    fn tab_indents_selected_line_range_and_preserves_selection() {
+        let _g = pin_default_settings();
+        let mut m = doc("alpha\nbeta\ngamma");
+        m.set_selection((0, 1), (1, 2));
+        m.mark_clean();
+
+        assert!(m.indent_or_insert_tab());
+
+        assert_eq!(m.as_text(), "  alpha\n  beta\ngamma");
+        assert_eq!(m.selection_range(), Some(((0, 3), (1, 4))));
+        assert_eq!(m.selected_text(), "lpha\n  be");
+        assert!(m.dirty());
+    }
+
+    #[test]
+    fn shift_tab_outdents_current_line_or_selected_range() {
+        let _g = pin_default_settings();
+        let mut m = doc("  alpha\n    beta\n\tgamma");
+        m.move_to(1, 4);
+        m.mark_clean();
+
+        assert!(m.outdent_lines());
+        assert_eq!(m.as_text(), "  alpha\n  beta\n\tgamma");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (1, 2));
+
+        m.set_selection((0, 0), (2, 1));
+        assert!(m.outdent_lines());
+        assert_eq!(m.as_text(), "alpha\nbeta\ngamma");
+        assert_eq!(m.selection_range(), Some(((0, 0), (2, 0))));
+    }
+
+    #[test]
+    fn shift_tab_without_indent_is_clean_noop() {
+        let mut m = doc("alpha");
+        m.move_to(0, 3);
+        m.mark_clean();
+
+        assert!(!m.outdent_lines());
+
+        assert_eq!(m.as_text(), "alpha");
+        assert_eq!((m.cursor_line(), m.cursor_col()), (0, 3));
+        assert!(!m.dirty());
     }
 
     // ---- Feature 2: auto-indent on Enter ----

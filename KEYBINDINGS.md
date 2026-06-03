@@ -15,6 +15,7 @@ the `mui_chord` router). This table is the authoritative list.
 | `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | Copy / cut / paste selection or line |
 | `Ctrl+A` | Select all |
 | `Ctrl+L` | Select current line |
+| `Tab` / `Shift+Tab` | Indent / outdent line or selection |
 | `Ctrl+/` | Toggle line comment |
 | `Ctrl+Shift+D` | Duplicate line / selection |
 | `Alt+Up` / `Alt+Down` | Move line up / down |

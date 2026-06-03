@@ -85,6 +85,8 @@ extern c {
   // ---- editor power-features (comment / indent / auto-close / brackets /
   //      duplicate / move-line / word-motion / select) ----
   fn mui_ed_toggle_comment(handle: I64)
+  fn mui_ed_indent(handle: I64) -> I32
+  fn mui_ed_outdent(handle: I64) -> I32
   fn mui_ed_newline_indent(handle: I64)
   fn mui_ed_insert_smart(handle: I64, cp: I32) -> I32
   fn mui_ed_backspace_smart(handle: I64) -> I32
@@ -2925,10 +2927,19 @@ fn main() {
             mui_tab_set_dirty(h, mui_tab_active(h), 1)
             mui_ghost_dismiss(h)
           } else {
-            // (5) Nothing took the Tab -> insert an indent.
-            if !typing { mui_ed_undo_record(h); typing = true }
-            mui_ed_insert_char_multi(h, 9)
-            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            // (5) Nothing took the Tab -> indent/outdent the editor.
+            mui_ed_undo_record(h)
+            typing = false
+            let changed = if shift_held(kmods) {
+              mui_ed_outdent(h)
+            } else {
+              mui_ed_indent(h)
+            }
+            if changed == 1 {
+              mui_tab_set_dirty(h, mui_tab_active(h), 1)
+              mui_ghost_dismiss(h)
+              mui_ghost_arm(h)
+            }
           }
         } else if k == key_left() {
           let kmods = mui_event_mods(h)

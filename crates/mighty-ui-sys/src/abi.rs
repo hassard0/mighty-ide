@@ -2573,6 +2573,9 @@ fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
             if rail_utility_hit(ev.x, ev.y, h) > 0 {
                 return ShimAction::PassThrough;
             }
+            if tab_index_at_point(ctx, ev.x, ev.y).is_some() {
+                return ShimAction::PassThrough;
+            }
             let rc = crate::titlebar::resize_code(ev.x, ev.y, w, h);
             if rc > 0 {
                 if let (Some(dir), Some(host)) =
@@ -12512,6 +12515,24 @@ pub extern "C" fn mui_ed_toggle_comment(handle: i64) {
     if let Some(m) = unsafe { model_mut(handle) } {
         m.toggle_line_comment();
     }
+}
+
+/// Tab: insert configured spaces at a plain caret, or indent selected lines.
+#[no_mangle]
+pub extern "C" fn mui_ed_indent(handle: i64) -> i32 {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        return i32::from(m.indent_or_insert_tab());
+    }
+    0
+}
+
+/// Shift+Tab: outdent the current line or selected line range.
+#[no_mangle]
+pub extern "C" fn mui_ed_outdent(handle: i64) -> i32 {
+    if let Some(m) = unsafe { model_mut(handle) } {
+        return i32::from(m.outdent_lines());
+    }
+    0
 }
 
 // ---- Feature 2: auto-indent on Enter ----

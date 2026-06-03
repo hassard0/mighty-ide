@@ -5763,3 +5763,21 @@ Backspace, and Delete should treat the active selection as the edit target.
   text mutations, Backspace/Delete remove selections, smart insert falls back to
   plain replacement when a selection is active, and multi-caret replacement
   treats the selection start as the edit origin.
+
+L427. Tab should be an editor indentation command when no higher-priority Tab
+workflow is active. Snippet navigation, snippet expansion, and ghost acceptance
+can own Tab first, but the fallback must indent or outdent code instead of
+inserting a raw tab byte.
+
+- **IDE note:** `TextModel` now exposes configured-space indent and outdent for
+  the current line or selected line range, the ABI exports `mui_ed_indent` and
+  `mui_ed_outdent`, and the Mighty key ladder routes plain Tab/Shift+Tab there
+  after snippet and ghost handlers decline the key.
+
+L428. Borderless-window resize zones must not steal visible tab targets. A
+forgiving top resize band is useful on empty chrome, but tab clicks at the top
+edge still need to reach the IDE so switching tabs never feels intermittent.
+
+- **IDE note:** The shim mouse prefilter now lets real tab-slot hits pass
+  through before applying resize-edge interception, while empty caption chrome
+  continues to support OS drag and resize behavior.
