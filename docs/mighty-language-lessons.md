@@ -5391,3 +5391,13 @@ look like a swallowed shortcut.
   or `No folded blocks to unfold` for semantic misses while preserving quiet
   successful fold changes. The regression covers empty documents, success paths,
   and repeated all-document fold commands.
+
+L387. Overlay feedback must yield to reserved chrome. Toast cards are useful
+only when they explain an outcome without covering the sidebar, bottom dock, or
+right-side drawers that provide the next action.
+
+- **IDE note:** toast card width now honors the actual safe lane after left and
+  right reserves instead of forcing a 180px minimum into cramped windows. Cards
+  shrink when a valid lane remains and are skipped from draw/hit-testing when no
+  safe lane exists, while staying queued for expiry or a later wider layout. The
+  regressions cover both compact shrink and over-reserved hide behavior.

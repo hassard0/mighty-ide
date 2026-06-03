@@ -75,6 +75,7 @@ const ANIM: Duration = Duration::from_millis(220);
 pub const MAX_VISIBLE: usize = 3;
 const MARGIN: f32 = 18.0;
 const RIGHT_SAFE_INSET: f32 = 96.0;
+const MIN_CARD_W: f32 = 128.0;
 const CARD_H: f32 = 56.0;
 const GAP: f32 = 12.0;
 
@@ -90,9 +91,12 @@ fn toast_card_width_with_left(window_w: f32, reserve_left: f32) -> f32 {
 fn toast_card_width_with_insets(window_w: f32, reserve_left: f32, reserve_right: f32) -> f32 {
     let left = reserve_left.max(0.0);
     let right = reserve_right.max(0.0);
-    320.0_f32
-        .min(window_w - left - right - MARGIN - RIGHT_SAFE_INSET)
-        .max(180.0)
+    let available = window_w - left - right - MARGIN - RIGHT_SAFE_INSET;
+    if available < MIN_CARD_W {
+        0.0
+    } else {
+        320.0_f32.min(available)
+    }
 }
 
 #[allow(dead_code)]
@@ -306,6 +310,9 @@ impl ToastQueue {
         let w = width as f32;
         let h = height as f32;
         let card_w = toast_card_width_with_insets(w, reserve_left, reserve_right);
+        if card_w < MIN_CARD_W {
+            return None;
+        }
         let bottom = toast_stack_bottom(h, reserve_bottom);
         let visible = visible_toast_count(width, height, reserve_bottom);
         for (rev, t) in self.toasts.iter().rev().take(visible).enumerate() {
@@ -397,6 +404,9 @@ impl ToastQueue {
         let w = width as f32;
         let h = height as f32;
         let card_w = toast_card_width_with_insets(w, reserve_left, reserve_right);
+        if card_w < MIN_CARD_W {
+            return;
+        }
         let card_h = CARD_H;
         let gap = GAP;
         let radius = 12.0_f32;
@@ -1291,6 +1301,47 @@ mod tests {
             t0 + Duration::from_millis(500)
         ));
         assert!(q.is_empty());
+    }
+
+    #[test]
+    fn reserved_lanes_shrink_toasts_without_crossing_chrome() {
+        let w = 520.0;
+        let reserve_left = 270.0;
+        let reserve_right = 0.0;
+        let cw = toast_card_width_with_insets(w, reserve_left, reserve_right);
+        let cx = toast_card_x_with_insets(w, cw, reserve_left, reserve_right);
+
+        assert!(cw >= MIN_CARD_W);
+        assert!(cw < 180.0, "compact toasts should shrink instead of forcing the old minimum");
+        assert!(cx >= reserve_left);
+        assert!(
+            cx + cw <= w - reserve_right - MARGIN - RIGHT_SAFE_INSET + 0.5,
+            "toast right edge must stay inside its safe lane: x={cx} w={cw}"
+        );
+    }
+
+    #[test]
+    fn over_reserved_lanes_hide_toasts_from_draw_and_hit_testing() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+        q.push_at(Kind::Warn, "Set ANTHROPIC_API_KEY to enable AI Copilot", t0);
+
+        let w = 520.0;
+        let h = 360.0;
+        let reserve_left = 320.0;
+        let reserve_right = 30.0;
+        assert_eq!(toast_card_width_with_insets(w, reserve_left, reserve_right), 0.0);
+        assert!(!q.dismiss_at_reserved_insets(
+            w as u32,
+            h as u32,
+            0.0,
+            reserve_left,
+            reserve_right,
+            reserve_left + 24.0,
+            h - 70.0,
+            t0 + Duration::from_millis(500)
+        ));
+        assert_eq!(q.len(), 1, "hidden toasts should remain queued until space returns or they expire");
     }
 
     #[test]
