@@ -109,9 +109,16 @@ fn named_key_code(k: NamedKey) -> Option<u32> {
         NamedKey::End => MUI_KEY_END,
         NamedKey::PageUp => MUI_KEY_PAGE_UP,
         NamedKey::PageDown => MUI_KEY_PAGE_DOWN,
+        NamedKey::F1 => MUI_KEY_F1,
         NamedKey::F12 => MUI_KEY_F12,
         NamedKey::F2 => MUI_KEY_F2,
+        NamedKey::F3 => MUI_KEY_F3,
+        NamedKey::F4 => MUI_KEY_F4,
         NamedKey::F5 => MUI_KEY_F5,
+        NamedKey::F6 => MUI_KEY_F6,
+        NamedKey::F7 => MUI_KEY_F7,
+        NamedKey::F8 => MUI_KEY_F8,
+        NamedKey::F9 => MUI_KEY_F9,
         NamedKey::F10 => MUI_KEY_F10,
         NamedKey::F11 => MUI_KEY_F11,
         _ => return None,
@@ -560,10 +567,13 @@ mod tests {
         assert_eq!(named_key_code(NamedKey::Backspace), Some(MUI_KEY_BACKSPACE));
         assert_eq!(named_key_code(NamedKey::ArrowLeft), Some(MUI_KEY_LEFT));
         assert_eq!(named_key_code(NamedKey::Escape), Some(MUI_KEY_ESCAPE));
+        assert_eq!(named_key_code(NamedKey::F1), Some(MUI_KEY_F1));
+        assert_eq!(named_key_code(NamedKey::F3), Some(MUI_KEY_F3));
         assert_eq!(named_key_code(NamedKey::F5), Some(MUI_KEY_F5));
+        assert_eq!(named_key_code(NamedKey::F9), Some(MUI_KEY_F9));
         // A named key with no IDE binding falls through to None (its text, if
         // any, is surfaced as a Char instead).
-        assert_eq!(named_key_code(NamedKey::F3), None);
+        assert_eq!(named_key_code(NamedKey::F24), None);
     }
 
     #[test]

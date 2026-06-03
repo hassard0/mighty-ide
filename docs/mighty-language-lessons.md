@@ -6494,3 +6494,16 @@ switch modes can miss navigation even though the physical key was captured.
   on full terminal reset, and terminal key dispatch routes through parser state
   before writing to the PTY. Unit coverage pins `?1h/l` tracking, reset behavior,
   normal arrow-key encoding, and application-mode arrow-key encoding.
+
+L506. Terminal function keys must be forwarded end-to-end.
+Capturing a physical key in the window layer is not enough if the flat ABI never
+names it or the terminal mapper has no bytes for it. Shell tools, debuggers,
+pagers, and TUIs use F1 through F12 for help, search, pane movement, and command
+shortcuts; dropping the less-common function keys makes terminal focus feel
+arbitrarily incomplete.
+
+- **IDE note:** The flat key ABI and window named-key mapper now include F1,
+  F3, F4, F6, F7, F8, and F9 in addition to the previously forwarded function
+  keys. Terminal key encoding emits standard sequences for the full forwarded
+  F-key set, with unit coverage at both the window mapping and terminal byte
+  layers.

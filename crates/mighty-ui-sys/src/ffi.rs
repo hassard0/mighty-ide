@@ -72,6 +72,20 @@ pub const MUI_KEY_F5: u32 = 16;
 pub const MUI_KEY_F10: u32 = 17;
 /// F11 — step into (debug); Shift+F11 steps out.
 pub const MUI_KEY_F11: u32 = 18;
+/// F1 — terminal/help key.
+pub const MUI_KEY_F1: u32 = 19;
+/// F3 — terminal/find-next key.
+pub const MUI_KEY_F3: u32 = 20;
+/// F4 — terminal/window key.
+pub const MUI_KEY_F4: u32 = 21;
+/// F6 — terminal pane-navigation key.
+pub const MUI_KEY_F6: u32 = 22;
+/// F7 — terminal function key.
+pub const MUI_KEY_F7: u32 = 23;
+/// F8 — terminal function key.
+pub const MUI_KEY_F8: u32 = 24;
+/// F9 — terminal function key.
+pub const MUI_KEY_F9: u32 = 25;
 
 // ---------------------------------------------------------------------------
 // Mouse button codes (only used when tag == MUI_EVENT_MOUSE_DOWN/UP)

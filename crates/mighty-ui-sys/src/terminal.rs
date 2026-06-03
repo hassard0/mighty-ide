@@ -1486,8 +1486,15 @@ pub fn key_to_bytes(key: u32, _mods: u32, application_cursor_keys: bool) -> Opti
         MUI_KEY_DELETE => vec![0x1b, b'[', b'3', b'~'],
         MUI_KEY_PAGE_UP => vec![0x1b, b'[', b'5', b'~'],
         MUI_KEY_PAGE_DOWN => vec![0x1b, b'[', b'6', b'~'],
+        MUI_KEY_F1 => vec![0x1b, b'O', b'P'],
         MUI_KEY_F2 => vec![0x1b, b'[', b'1', b'2', b'~'],
+        MUI_KEY_F3 => vec![0x1b, b'O', b'R'],
+        MUI_KEY_F4 => vec![0x1b, b'O', b'S'],
         MUI_KEY_F5 => vec![0x1b, b'[', b'1', b'5', b'~'],
+        MUI_KEY_F6 => vec![0x1b, b'[', b'1', b'7', b'~'],
+        MUI_KEY_F7 => vec![0x1b, b'[', b'1', b'8', b'~'],
+        MUI_KEY_F8 => vec![0x1b, b'[', b'1', b'9', b'~'],
+        MUI_KEY_F9 => vec![0x1b, b'[', b'2', b'0', b'~'],
         MUI_KEY_F10 => vec![0x1b, b'[', b'2', b'1', b'~'],
         MUI_KEY_F11 => vec![0x1b, b'[', b'2', b'3', b'~'],
         MUI_KEY_F12 => vec![0x1b, b'[', b'2', b'4', b'~'],
@@ -2226,8 +2233,15 @@ mod tests {
         assert_eq!(key_to_bytes(MUI_KEY_DELETE, 0, false), Some(vec![0x1b, b'[', b'3', b'~']));
         assert_eq!(key_to_bytes(MUI_KEY_PAGE_UP, 0, false), Some(vec![0x1b, b'[', b'5', b'~']));
         assert_eq!(key_to_bytes(MUI_KEY_PAGE_DOWN, 0, false), Some(vec![0x1b, b'[', b'6', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F1, 0, false), Some(vec![0x1b, b'O', b'P']));
         assert_eq!(key_to_bytes(MUI_KEY_F2, 0, false), Some(vec![0x1b, b'[', b'1', b'2', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F3, 0, false), Some(vec![0x1b, b'O', b'R']));
+        assert_eq!(key_to_bytes(MUI_KEY_F4, 0, false), Some(vec![0x1b, b'O', b'S']));
         assert_eq!(key_to_bytes(MUI_KEY_F5, 0, false), Some(vec![0x1b, b'[', b'1', b'5', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F6, 0, false), Some(vec![0x1b, b'[', b'1', b'7', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F7, 0, false), Some(vec![0x1b, b'[', b'1', b'8', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F8, 0, false), Some(vec![0x1b, b'[', b'1', b'9', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F9, 0, false), Some(vec![0x1b, b'[', b'2', b'0', b'~']));
         assert_eq!(key_to_bytes(MUI_KEY_F10, 0, false), Some(vec![0x1b, b'[', b'2', b'1', b'~']));
         assert_eq!(key_to_bytes(MUI_KEY_F11, 0, false), Some(vec![0x1b, b'[', b'2', b'3', b'~']));
         assert_eq!(key_to_bytes(MUI_KEY_F12, 0, false), Some(vec![0x1b, b'[', b'2', b'4', b'~']));
