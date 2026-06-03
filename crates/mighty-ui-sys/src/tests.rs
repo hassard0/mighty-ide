@@ -1544,6 +1544,23 @@ fn run_output_click_misses_report_visible_feedback() {
 }
 
 #[test]
+fn run_and_diff_row_snapshots_skip_missing_rows() {
+    let mut run = crate::run::RunPanel::new();
+    assert!(crate::featureabi::run_line_snapshot(&run, 0).is_none());
+    run.seed_demo("C:/proj/demo.mty");
+    let row = crate::featureabi::run_line_snapshot(&run, 0).expect("demo row");
+    assert!(!row.text.is_empty());
+    assert!(crate::featureabi::run_line_snapshot(&run, run.line_count()).is_none());
+
+    let mut diff = crate::diff::DiffView::new();
+    assert!(crate::featureabi::diff_line_snapshot(&diff, 0).is_none());
+    diff.open("src/main.mty", false, "@@ -1 +1 @@\n-old\n+new\n");
+    let row = crate::featureabi::diff_line_snapshot(&diff, 0).expect("hunk row");
+    assert_eq!(row.kind, crate::diff::LineKind::Hunk);
+    assert!(crate::featureabi::diff_line_snapshot(&diff, diff.line_count()).is_none());
+}
+
+#[test]
 fn test_at_cursor_without_file_reports_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     ctx.sidebar_visible = false;

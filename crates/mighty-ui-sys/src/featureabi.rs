@@ -476,38 +476,50 @@ pub extern "C" fn mui_run_draw(handle: i64) {
     // Output rows.
     let first = ctx.run.first();
     let visible = ((g.panel_h - header_h) / line_h).floor().max(0.0) as usize;
-    let count = ctx.run.line_count();
     for vis in 0..visible {
         let idx = first + vis;
-        if idx >= count {
+        let Some(row) = run_line_snapshot(&ctx.run, idx) else {
             break;
-        }
-        let (text, clickable, is_error) = {
-            let l = ctx.run.line(idx).unwrap();
-            (l.text.clone(), l.clickable, l.is_error)
         };
         let y = g.rows_top + vis as f32 * line_h;
         let ty = y + (line_h - chrome) * 0.5 - 1.0;
-        let col = if clickable {
+        let col = if row.clickable {
             theme::INFO()
-        } else if is_error {
+        } else if row.is_error {
             theme::ERROR()
         } else {
             theme::TEXT_1()
         };
         // Clickable diagnostic rows get a faint underline + hover-able tint.
-        if clickable {
+        if row.clickable {
             ctx.dl_grad_h(g.x0, y, w - 4.0, line_h, 0.0, theme::accent_a(0.08), 0.7);
         }
         let text_x = g.x0 + 12.0;
         let max_w = (g.x1 - 14.0 - text_x).max(0.0);
-        let shown = fit_code_text(&mut ctx.text, &text, max_w, chrome);
+        let shown = fit_code_text(&mut ctx.text, &row.text, max_w, chrome);
         ctx.text.queue_sized(text_x, ty, &shown, col, chrome, clip);
     }
 }
 
 pub(crate) fn run_status_pill_x(preferred_x: f32, min_x: f32, right_edge: f32, pill_w: f32) -> f32 {
     preferred_x.max(min_x).min((right_edge - pill_w).max(min_x))
+}
+
+pub(crate) struct RunLineSnapshot {
+    pub text: String,
+    pub clickable: bool,
+    pub is_error: bool,
+}
+
+pub(crate) fn run_line_snapshot(
+    run: &crate::run::RunPanel,
+    idx: usize,
+) -> Option<RunLineSnapshot> {
+    run.line(idx).map(|l| RunLineSnapshot {
+        text: l.text.clone(),
+        clickable: l.clickable,
+        is_error: l.is_error,
+    })
 }
 
 // ===========================================================================
@@ -765,22 +777,17 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
     let text_x = region.left + gut_w + 8.0;
     let first = ctx.diff.first();
     let visible = ((field_h - head_h - 8.0) / line_h).floor().max(0.0) as usize;
-    let count = ctx.diff.line_count();
 
     for vis in 0..visible {
         let idx = first + vis;
-        if idx >= count {
+        let Some(row) = diff_line_snapshot(&ctx.diff, idx) else {
             break;
-        }
-        let (kind, text, old_no, new_no) = {
-            let l = ctx.diff.line(idx).unwrap();
-            (l.kind, l.text.clone(), l.old_no, l.new_no)
         };
         let y = body_top + vis as f32 * line_h;
         let ty = y + (line_h - chrome) * 0.5 - 1.0;
 
         // Row background tint by kind.
-        let (bg, fg) = match kind {
+        let (bg, fg) = match row.kind {
             LineKind::Add => (Some(theme::green_wash(0.14)), theme::GREEN()),
             LineKind::Remove => (Some(theme::error_wash(0.14)), theme::ERROR()),
             LineKind::Hunk => (Some(theme::accent_a(0.10)), theme::ACCENT_BRIGHT()),
@@ -791,7 +798,7 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
             ctx.dl_rect(region.left, y, w - region.left, line_h, c);
         }
 
-        if kind == LineKind::Hunk {
+        if row.kind == LineKind::Hunk {
             // Per-hunk Stage / Unstage affordance, right-aligned on the header row.
             // "Stage hunk" when viewing the working tree, "Unstage hunk" when
             // viewing the staged side. Clicks land via `mui_diff_hunk_at_click`.
@@ -814,7 +821,7 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
             // optional section text after the second @@.
             let hunk_x = region.left + 8.0;
             let hunk_max_w = (bx - hunk_x - 10.0).max(0.0);
-            let shown = fit_diff_code_text(&mut ctx.text, &text, hunk_max_w, chrome);
+            let shown = fit_diff_code_text(&mut ctx.text, &row.text, hunk_max_w, chrome);
             ctx.text.queue(hunk_x, ty, &shown, fg, clip);
             ctx.dl_round(bx, y + 3.0, lw, bh, 5.0, theme::accent_a(0.10));
             ctx.dl_stroke(bx, y + 3.0, lw, bh, 5.0, theme::BORDER_STRONG(), 1.0);
@@ -823,12 +830,12 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
         }
 
         // Old / new line-number gutter (dim; '·' for the missing side).
-        let old_s = if old_no >= 0 { old_no.to_string() } else { "\u{00b7}".to_string() };
-        let new_s = if new_no >= 0 { new_no.to_string() } else { "\u{00b7}".to_string() };
+        let old_s = if row.old_no >= 0 { row.old_no.to_string() } else { "\u{00b7}".to_string() };
+        let new_s = if row.new_no >= 0 { row.new_no.to_string() } else { "\u{00b7}".to_string() };
         ctx.text.queue_sized(region.left + 6.0, y + 3.0, &old_s, theme::GUTTER(), chrome, clip);
         ctx.text.queue_sized(region.left + 44.0, y + 3.0, &new_s, theme::GUTTER(), chrome, clip);
         // +/- marker glyph in the small gap before the text.
-        let marker = match kind {
+        let marker = match row.kind {
             LineKind::Add => "+",
             LineKind::Remove => "\u{2212}",
             _ => " ",
@@ -837,13 +844,32 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
 
         // Diff line text (clipped to the window width).
         let max_w = (w - 12.0 - text_x).max(0.0);
-        let shown = fit_diff_code_text(&mut ctx.text, &text, max_w, chrome);
-        let text_col = if kind == LineKind::Context { theme::TEXT_1() } else { fg };
+        let shown = fit_diff_code_text(&mut ctx.text, &row.text, max_w, chrome);
+        let text_col = if row.kind == LineKind::Context { theme::TEXT_1() } else { fg };
         ctx.text.queue(text_x, ty, &shown, text_col, clip);
     }
 
     // Gutter divider.
     ctx.dl_rect(region.left + gut_w, body_top, 1.0, field_h - head_h - 8.0, theme::BORDER_SOFT());
+}
+
+pub(crate) struct DiffLineSnapshot {
+    pub kind: crate::diff::LineKind,
+    pub text: String,
+    pub old_no: i32,
+    pub new_no: i32,
+}
+
+pub(crate) fn diff_line_snapshot(
+    diff: &crate::diff::DiffView,
+    idx: usize,
+) -> Option<DiffLineSnapshot> {
+    diff.line(idx).map(|l| DiffLineSnapshot {
+        kind: l.kind,
+        text: l.text.clone(),
+        old_no: l.old_no,
+        new_no: l.new_no,
+    })
 }
 
 // ===========================================================================
