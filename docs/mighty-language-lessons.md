@@ -5127,3 +5127,14 @@ skipping them leaves stale prompt/status text on screen.
   `ESC[2K`, clearing cursor-to-end, start-to-cursor, or the whole current row
   respectively while preserving adjacent rows. Terminal parser tests cover all
   three modes plus row-locality.
+
+L362. Terminal relative cursor movement is core shell behavior, not a full-TUI
+edge case. Prompts, redraw loops, and status renderers use `CSI A/B/C/D` to
+move around the current grid after printable writes have advanced the cursor;
+skipping those sequences leaves visible escape tails or updates in the wrong
+cells.
+
+- **IDE note:** the integrated terminal now handles `ESC[nA`, `ESC[nB`,
+  `ESC[nC`, and `ESC[nD`, defaulting missing counts to one and clamping motion
+  to the terminal grid. Parser tests cover movement after writes, large-count
+  clamping, and consuming the control bytes without printing garbage.

@@ -226,6 +226,13 @@ impl Grid {
         self.cur_col = col.saturating_sub(1).min(self.cols - 1);
     }
 
+    fn move_cursor_relative(&mut self, d_row: isize, d_col: isize) {
+        let row = self.cur_row.saturating_add_signed(d_row).min(self.rows - 1);
+        let col = self.cur_col.saturating_add_signed(d_col).min(self.cols - 1);
+        self.cur_row = row;
+        self.cur_col = col;
+    }
+
     fn tab(&mut self) {
         // Advance to the next multiple-of-8 column (classic tab stops).
         let next = ((self.cur_col / 8) + 1) * 8;
@@ -412,7 +419,8 @@ impl VtParser {
     }
 
     /// Inside a CSI: accumulate until a final byte (0x40..=0x7e). Handles the
-    /// core shell sequences we need (SGR, DSR, erase display/line); others are
+    /// core shell sequences we need (SGR, DSR, erase display/line, cursor
+    /// movement); others are
     /// consumed harmlessly.
     fn csi(&mut self, grid: &mut Grid, b: u8) {
         match b {
@@ -432,8 +440,10 @@ impl VtParser {
                     self.erase_line(grid);
                 } else if b == b'H' || b == b'f' {
                     self.cursor_position(grid);
+                } else if matches!(b, b'A' | b'B' | b'C' | b'D') {
+                    self.cursor_relative(grid, b);
                 }
-                // All other finals (K/A..D/etc.) are intentionally skipped.
+                // All other finals are intentionally skipped.
                 self.csi.clear();
                 self.state = State::Ground;
             }
@@ -534,6 +544,27 @@ impl VtParser {
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or(1);
         grid.move_cursor_1_based(row, col);
+    }
+
+    fn cursor_relative(&mut self, grid: &mut Grid, final_byte: u8) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        if params.starts_with('?') {
+            return;
+        }
+        let amount = params
+            .split(';')
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(1)
+            .max(1) as isize;
+        match final_byte {
+            b'A' => grid.move_cursor_relative(-amount, 0),
+            b'B' => grid.move_cursor_relative(amount, 0),
+            b'C' => grid.move_cursor_relative(0, amount),
+            b'D' => grid.move_cursor_relative(0, -amount),
+            _ => {}
+        }
     }
 
     /// Answer a Device Status Report (`ESC [ Ps n`). `5n` -> "OK" (`ESC[0n`);
@@ -1011,6 +1042,22 @@ mod tests {
 
         let g3 = grid_feed(3, 20, b"\x1b[;4fZ");
         assert_eq!(g3.cell(0, 3).ch, 'Z');
+    }
+
+    #[test]
+    fn cursor_relative_csi_moves_and_clamps() {
+        let g = grid_feed(3, 8, b"\x1b[2;3H@\x1b[AU\x1b[2BZ\x1b[2D<\x1b[20C>");
+        assert_eq!(g.cell(1, 2).ch, '@');
+        assert_eq!(g.cell(0, 3).ch, 'U');
+        assert_eq!(g.cell(2, 4).ch, 'Z');
+        assert_eq!(g.cell(2, 3).ch, '<');
+        assert_eq!(g.cell(2, 7).ch, '>');
+        assert!(!g.contains("20C"));
+
+        let g2 = grid_feed(2, 8, b"\x1b[2;2HX\x1b[D<\x1b[99D[\x1b[99A^");
+        assert_eq!(g2.cell(1, 1).ch, '<');
+        assert_eq!(g2.cell(1, 0).ch, '[');
+        assert_eq!(g2.cell(0, 1).ch, '^');
     }
 
     #[test]
