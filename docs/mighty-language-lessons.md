@@ -5138,3 +5138,13 @@ cells.
   `ESC[nC`, and `ESC[nD`, defaulting missing counts to one and clamping motion
   to the terminal grid. Parser tests cover movement after writes, large-count
   clamping, and consuming the control bytes without printing garbage.
+
+L363. Cursor save/restore needs parser-owned state. Shells often bracket prompt
+or status redraws with DEC `ESC 7`/`ESC 8` or CSI `s`/`u`; treating those as
+unknown escapes means later text lands wherever the redraw happened to leave the
+cursor.
+
+- **IDE note:** the integrated terminal now stores and restores the active grid
+  cursor for both DEC and CSI save/restore sequences. Parser tests cover
+  overwrite behavior after restore and verify the control bytes are consumed
+  instead of leaking into terminal output.

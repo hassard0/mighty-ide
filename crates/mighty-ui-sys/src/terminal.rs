@@ -299,6 +299,8 @@ pub struct VtParser {
     /// Report reply to `ESC [ 6 n`). ConPTY blocks further output until the DSR
     /// it emits at startup is answered, so the terminal must drain + send these.
     reply: Vec<u8>,
+    /// Saved cursor position used by DEC `ESC 7`/`ESC 8` and CSI `s`/`u`.
+    saved_cursor: Option<(usize, usize)>,
 }
 
 impl Default for VtParser {
@@ -315,6 +317,7 @@ impl VtParser {
             utf8: Vec::new(),
             utf8_need: 0,
             reply: Vec::new(),
+            saved_cursor: None,
         }
     }
 
@@ -412,6 +415,14 @@ impl VtParser {
                 grid.clear();
                 self.state = State::Ground;
             }
+            b'7' => {
+                self.save_cursor(grid);
+                self.state = State::Ground;
+            }
+            b'8' => {
+                self.restore_cursor(grid);
+                self.state = State::Ground;
+            }
             // Other two-byte escapes (e.g. `ESC =`, `ESC >`, charset selects):
             // consume the single byte and return to ground.
             _ => self.state = State::Ground,
@@ -442,6 +453,10 @@ impl VtParser {
                     self.cursor_position(grid);
                 } else if matches!(b, b'A' | b'B' | b'C' | b'D') {
                     self.cursor_relative(grid, b);
+                } else if b == b's' {
+                    self.save_cursor(grid);
+                } else if b == b'u' {
+                    self.restore_cursor(grid);
                 }
                 // All other finals are intentionally skipped.
                 self.csi.clear();
@@ -564,6 +579,16 @@ impl VtParser {
             b'C' => grid.move_cursor_relative(0, amount),
             b'D' => grid.move_cursor_relative(0, -amount),
             _ => {}
+        }
+    }
+
+    fn save_cursor(&mut self, grid: &Grid) {
+        self.saved_cursor = Some(grid.cursor());
+    }
+
+    fn restore_cursor(&mut self, grid: &mut Grid) {
+        if let Some((row, col)) = self.saved_cursor {
+            grid.move_cursor_1_based(row + 1, col + 1);
         }
     }
 
@@ -1058,6 +1083,23 @@ mod tests {
         assert_eq!(g2.cell(1, 1).ch, '<');
         assert_eq!(g2.cell(1, 0).ch, '[');
         assert_eq!(g2.cell(0, 1).ch, '^');
+    }
+
+    #[test]
+    fn cursor_save_restore_sequences_return_to_saved_cell() {
+        let g = grid_feed(2, 8, b"A\x1b7BC\x1b8ZD");
+        assert_eq!(g.cell(0, 0).ch, 'A');
+        assert_eq!(g.cell(0, 1).ch, 'Z');
+        assert_eq!(g.cell(0, 2).ch, 'D');
+        assert!(!g.contains("7"));
+        assert!(!g.contains("8"));
+
+        let g2 = grid_feed(3, 8, b"\x1b[2;4H@\x1b[sab\x1b[uX");
+        assert_eq!(g2.cell(1, 3).ch, '@');
+        assert_eq!(g2.cell(1, 4).ch, 'X');
+        assert_eq!(g2.cell(1, 5).ch, 'b');
+        assert!(!g2.contains("[s"));
+        assert!(!g2.contains("[u"));
     }
 
     #[test]
