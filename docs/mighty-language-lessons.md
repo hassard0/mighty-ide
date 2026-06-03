@@ -5913,3 +5913,12 @@ entry for opening the in-file replace bar.
   Mighty dispatches it through `mui_replace_open`, matching the existing chord
   path by opening the replace bar, entering replace mode, and clearing stale
   find navigation state.
+
+L443. Language-service actions need palette entries, not just chords.
+Signature Help, Rename Symbol, and Code Actions were implemented and documented
+as shortcuts, but hidden from command search.
+
+- **IDE note:** the command palette now lists `Show Signature Help`, `Rename
+  Symbol`, and `Code Actions`. Mighty routes them through the same cursor-local
+  ABI paths as Ctrl+Shift+Space, F2, and Ctrl+., preserving existing LSP/no-target
+  feedback and overlay state.

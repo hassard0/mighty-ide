@@ -738,6 +738,9 @@ fn cmd_add_caret_above() -> I32 { 126 }
 fn cmd_add_caret_below() -> I32 { 127 }
 fn cmd_collapse_carets() -> I32 { 128 }
 fn cmd_find_replace() -> I32 { 129 }
+fn cmd_signature_help() -> I32 { 130 }
+fn cmd_rename_symbol() -> I32 { 131 }
+fn cmd_code_actions() -> I32 { 132 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -3901,6 +3904,37 @@ fn main() {
         } else if id == cmd_hover() {
           let ok = do_hover(h)
           if ok == 1 { hovering = true; hover_line = mui_ed_cursor_line(h); hover_col = mui_ed_cursor_col(h) } else { hovering = false }
+        } else if id == cmd_signature_help() || id == cmd_rename_symbol() || id == cmd_code_actions() {
+          if id == cmd_signature_help() {
+            let ok = do_signature_help(h)
+            if ok == 1 {
+              sig_open = true
+              sig_line = mui_ed_cursor_line(h)
+              sig_col = mui_ed_cursor_col(h)
+            } else {
+              sig_open = false
+            }
+          } else if id == cmd_rename_symbol() {
+            let cl = mui_ed_cursor_line(h)
+            let cc = mui_ed_cursor_col(h)
+            let ok = mui_rename_prepare(h, cl, cc)
+            if ok == 1 {
+              renaming = true
+              rename_line = cl
+              rename_col = cc
+              mui_sig_clear(h)
+              sig_open = false
+            }
+          } else {
+            let cnt = mui_codeaction_request(h, mui_ed_cursor_line(h), mui_ed_cursor_col(h))
+            if cnt > 0 {
+              code_action_open = true
+              ca_line = mui_ed_cursor_line(h)
+              ca_col = mui_ed_cursor_col(h)
+            } else {
+              mui_codeaction_cancel(h)
+            }
+          }
         } else if id == cmd_toggle_terminal() {
           if mui_term_is_open(h) == 1 {
             term_focus = true

@@ -286,6 +286,12 @@ pub const CMD_ADD_CARET_BELOW: u32 = 127;
 pub const CMD_COLLAPSE_CARETS: u32 = 128;
 /// Open the in-file find and replace bar.
 pub const CMD_FIND_REPLACE: u32 = 129;
+/// Show signature help at the editor cursor.
+pub const CMD_SIGNATURE_HELP: u32 = 130;
+/// Start symbol rename at the editor cursor.
+pub const CMD_RENAME_SYMBOL: u32 = 131;
+/// Show code actions and quick fixes at the editor cursor.
+pub const CMD_CODE_ACTIONS: u32 = 132;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -321,6 +327,9 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_GOTO_LINE,        label: "Go to Line",         keybinding: "Ctrl+G" },
     Command { id: CMD_GOTO_DEFINITION,  label: "Go to Definition",   keybinding: "F12" },
     Command { id: CMD_HOVER,            label: "Show Hover",         keybinding: "Ctrl+K" },
+    Command { id: CMD_SIGNATURE_HELP,   label: "Show Signature Help", keybinding: "Ctrl+Shift+Space" },
+    Command { id: CMD_RENAME_SYMBOL,    label: "Rename Symbol",      keybinding: "F2" },
+    Command { id: CMD_CODE_ACTIONS,     label: "Code Actions",       keybinding: "Ctrl+." },
     Command { id: CMD_TOGGLE_TERMINAL,  label: "Toggle Terminal",    keybinding: "Ctrl+`" },
     Command { id: CMD_TOGGLE_SIDEBAR,   label: "Toggle Sidebar",     keybinding: "Ctrl+B" },
     Command { id: CMD_NEXT_TAB,         label: "Next Tab",           keybinding: "Ctrl+Tab" },
@@ -736,6 +745,9 @@ impl PaletteEngine {
             CMD_GOTO_LINE => (icons::CHEVRON, "Jump to a specific line number", false),
             CMD_GOTO_DEFINITION => (icons::FN_SYMBOL, "Navigate to the symbol definition", false),
             CMD_HOVER => (icons::INFO_I, "Show type & docs at the cursor", false),
+            CMD_SIGNATURE_HELP => (icons::INFO_I, "Show callable parameters at the cursor", false),
+            CMD_RENAME_SYMBOL => (icons::FN_SYMBOL, "Rename the symbol under the cursor", false),
+            CMD_CODE_ACTIONS => (icons::LIGHTBULB, "Show quick fixes and code actions at the cursor", false),
             CMD_TOGGLE_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
             CMD_TOGGLE_SIDEBAR => (icons::EXPLORER, "Show or hide the file explorer", false),
             CMD_NEXT_TAB => (icons::CHEVRON, "Switch to the next open tab", false),
