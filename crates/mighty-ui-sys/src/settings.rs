@@ -22,7 +22,7 @@
 
 #![allow(dead_code)]
 
-use std::sync::RwLock;
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// Clamp bounds for the editable numeric preferences (kept readable on screen).
 pub const FONT_MIN: f32 = 9.0;
@@ -122,20 +122,28 @@ static ACTIVE: RwLock<Settings> = RwLock::new(Settings {
     autosave: false,
 });
 
+fn active_read() -> RwLockReadGuard<'static, Settings> {
+    ACTIVE.read().unwrap_or_else(|e| e.into_inner())
+}
+
+fn active_write() -> RwLockWriteGuard<'static, Settings> {
+    ACTIVE.write().unwrap_or_else(|e| e.into_inner())
+}
+
 /// The currently-active settings (by value; `Settings` is `Copy`).
 #[inline]
 pub fn active() -> Settings {
-    *ACTIVE.read().unwrap()
+    *active_read()
 }
 
 /// Replace the active settings (clamped). Effective next frame (live re-skin).
 pub fn set_active(s: Settings) {
-    *ACTIVE.write().unwrap() = s.clamped();
+    *active_write() = s.clamped();
 }
 
 /// Mutate the active settings in place via `f`, re-clamping after.
 pub fn update(f: impl FnOnce(&mut Settings)) {
-    let mut g = ACTIVE.write().unwrap();
+    let mut g = active_write();
     f(&mut g);
     *g = g.clamped();
 }
@@ -420,6 +428,32 @@ mod tests {
         assert!(!minimap());
         assert!(!inline_ai());
         // Restore defaults for other tests.
+        set_active(Settings::default());
+    }
+
+    #[test]
+    fn active_settings_recover_from_poisoned_lock() {
+        let _g = guard();
+        let hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let poisoned = std::panic::catch_unwind(|| {
+            let _poison = ACTIVE.write().unwrap_or_else(|e| e.into_inner());
+            panic!("poison settings lock");
+        });
+        std::panic::set_hook(hook);
+        assert!(poisoned.is_err());
+
+        set_active(Settings { font_size: 50.0, tab_width: 0, ..Default::default() });
+        assert_eq!(active().font_size, FONT_MAX);
+        assert_eq!(active().tab_width, TAB_MIN);
+
+        update(|s| {
+            s.font_size = 10.0;
+            s.tab_width = 9;
+        });
+        assert_eq!(font_size(), 10.0);
+        assert_eq!(tab_width(), TAB_MAX);
+
         set_active(Settings::default());
     }
 }
