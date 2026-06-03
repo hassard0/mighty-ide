@@ -619,6 +619,7 @@ fn parse_one_diag(obj: &[u8]) -> Option<Diag> {
     let code = find_sub(obj, b"\"code\"")
         .and_then(|c| read_json_string_at(obj, c + b"\"code\"".len()))
         .map(|(s, _)| s)
+        .or_else(|| read_uint_after(obj, b"\"code\"").map(|n| n.to_string()))
         .unwrap_or_default();
 
     Some(Diag {
@@ -792,6 +793,15 @@ mod tests {
         assert_eq!(diags[1].line, 10);
         assert_eq!(diags[1].severity, Severity::Warning);
         assert_eq!(diags[1].col_end, 2);
+    }
+
+    #[test]
+    fn diagnostics_preserve_numeric_codes() {
+        let stream = r#"{"params":{"diagnostics":[{"range":{"start":{"line":1,"character":2},"end":{"line":1,"character":5}},"severity":1,"code":6133,"message":"declared but never used"}]}}"#;
+        let diags = parse_publish_diagnostics(stream);
+
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].code, "6133");
     }
 
     #[test]
