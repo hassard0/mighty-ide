@@ -2703,6 +2703,20 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(test_at_cursor.label, "Run Test at Cursor");
     assert_eq!(test_at_cursor.keybinding, "");
+
+    let web_stop = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_WEB_STOP)
+        .unwrap();
+    assert_eq!(web_stop.label, "Web: Stop Server");
+    assert_eq!(web_stop.keybinding, "");
+
+    let web_open = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_WEB_OPEN_BROWSER)
+        .unwrap();
+    assert_eq!(web_open.label, "Web: Open in Browser");
+    assert_eq!(web_open.keybinding, "");
 }
 
 #[test]
@@ -6681,6 +6695,8 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_ZEN_MODE, "cmd_zen_mode"),
         (CMD_AGENTS, "cmd_agents"),
         (CMD_RUN_IN_BROWSER, "cmd_run_in_browser"),
+        (CMD_WEB_STOP, "cmd_web_stop"),
+        (CMD_WEB_OPEN_BROWSER, "cmd_web_open_browser"),
         (CMD_KEYBOARD_SHORTCUTS, "cmd_keyboard_shortcuts"),
         (CMD_NEW_PROJECT, "cmd_new_project"),
         (CMD_WINDOW_TOGGLE_MAXIMIZE, "cmd_window_toggle_maximize"),

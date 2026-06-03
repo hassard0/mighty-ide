@@ -749,6 +749,8 @@ fn cmd_quick_open() -> I32 { 135 }
 fn cmd_run_stop() -> I32 { 136 }
 fn cmd_test_stop() -> I32 { 137 }
 fn cmd_run_test_at_cursor() -> I32 { 138 }
+fn cmd_web_stop() -> I32 { 139 }
+fn cmd_web_open_browser() -> I32 { 140 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4158,6 +4160,14 @@ fn main() {
           agents_focus = true
         } else if id == cmd_run_in_browser() {
           let _w = mui_web_run(h)
+          web_focus = true
+          agents_focus = false
+        } else if id == cmd_web_stop() {
+          mui_web_stop(h)
+          web_focus = true
+          agents_focus = false
+        } else if id == cmd_web_open_browser() {
+          let _wb = mui_web_open_browser(h)
           web_focus = true
           agents_focus = false
         } else if id >= cmd_pane_first() && id <= cmd_pane_last() {

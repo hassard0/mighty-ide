@@ -6587,3 +6587,14 @@ cannot discover it from search.
   through the existing `mui_test_run_at_cursor` ABI. Registry/mirror coverage
   pins the stable command id and Mighty helper beside the full-run and stop
   testing commands.
+
+L514. Web lifecycle controls should be searchable beside Run in Browser.
+`Mighty: Run in Browser` starts a long-running Web Playground workflow, but the
+matching Stop and Open-in-Browser actions were only reachable from the panel
+chrome. Palette users need the same lifecycle controls, especially when the URL
+exists but the lower dock is not focused.
+
+- **IDE note:** The command palette now lists `Web: Stop Server` and
+  `Web: Open in Browser`, dispatching through the existing `mui_web_stop` and
+  `mui_web_open_browser` ABIs. Registry/mirror coverage pins the stable command
+  ids and Mighty helpers beside `Mighty: Run in Browser`.

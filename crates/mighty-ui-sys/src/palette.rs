@@ -305,6 +305,10 @@ pub const CMD_RUN_STOP: u32 = 136;
 pub const CMD_TEST_STOP: u32 = 137;
 /// Run the package tests and focus the nearest `fn test_*` around the cursor.
 pub const CMD_RUN_TEST_AT_CURSOR: u32 = 138;
+/// Stop the currently running Web Playground server.
+pub const CMD_WEB_STOP: u32 = 139;
+/// Open the current Web Playground URL in the default browser.
+pub const CMD_WEB_OPEN_BROWSER: u32 = 140;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -445,6 +449,8 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_DEBUG_PAUSE,      label: "Debug: Pause",        keybinding: "" },
     Command { id: CMD_DEBUG_RESTART,    label: "Debug: Restart",      keybinding: "" },
     Command { id: CMD_RUN_IN_BROWSER,   label: "Mighty: Run in Browser", keybinding: "Alt+W" },
+    Command { id: CMD_WEB_STOP,         label: "Web: Stop Server",    keybinding: "" },
+    Command { id: CMD_WEB_OPEN_BROWSER, label: "Web: Open in Browser", keybinding: "" },
     Command { id: CMD_SPLIT_RIGHT,      label: "Split Editor Right", keybinding: "Ctrl+\\" },
     Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
     Command { id: CMD_CLOSE_PANE,       label: "Close Editor Pane",  keybinding: "" },
@@ -944,6 +950,8 @@ impl PaletteEngine {
             CMD_DEBUG_PAUSE => (icons::DBG_PAUSE, "Pause the running debuggee", true),
             CMD_DEBUG_RESTART => (icons::REFRESH, "Restart the last debug target", false),
             CMD_RUN_IN_BROWSER => (icons::GLOBE, "Build and serve the active Mighty file for the browser", false),
+            CMD_WEB_STOP => (icons::CLOSE, "Stop the active Web Playground server", false),
+            CMD_WEB_OPEN_BROWSER => (icons::GLOBE, "Open the active Web Playground URL in the default browser", false),
             CMD_SPLIT_RIGHT => (icons::TEST_BOX, "Split the editor into side-by-side panes", false),
             CMD_FOCUS_NEXT_PANE => (icons::CHEVRON, "Move focus between editor panes", false),
             CMD_CLOSE_PANE => (icons::CLOSE, "Close the focused editor pane", false),
