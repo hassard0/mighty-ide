@@ -484,6 +484,9 @@ impl DebugModel {
     pub fn cur_file(&self) -> &str {
         &self.cur_file
     }
+    pub fn has_program(&self) -> bool {
+        self.program.is_some()
+    }
 
     // ---- breakpoints (pure) ----
 

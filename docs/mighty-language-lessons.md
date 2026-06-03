@@ -5199,3 +5199,13 @@ though the behavior existed.
   metadata and is listed in the direct dispatcher audit. Focused tests cover
   rich row metadata, central Mighty dispatcher routing, and the new
   test-at-cursor unavailable-state feedback.
+
+L369. Restart-style commands need visible no-target feedback too. Debug Restart
+could fail before any target had ever been launched and only log inside the
+debug console, so palette or shortcut users saw no immediate explanation.
+
+- **IDE note:** `mui_dbg_restart` now opens the Run and Debug view and reports
+  `No debug target to restart` when no previous program exists, while failed
+  restarts of an existing target surface `Debug restart failed`. Debug start
+  failures also now toast the active file name. Tests cover the no-target
+  restart panel transition and toast.

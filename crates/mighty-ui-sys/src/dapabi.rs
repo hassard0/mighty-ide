@@ -76,6 +76,13 @@ fn dbg_start_or_continue(ctx: &mut MuiContext) -> i32 {
                 path.to_string_lossy().replace('\\', "/")
             ));
             let ok = ctx.dbg.start(&path);
+            if !ok {
+                let name = path
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("file");
+                ctx.push_toast(crate::toast::Kind::Error, format!("Debug failed to start: {name}"));
+            }
             println!("dbg: start {} -> {ok}", path.display());
         }
     }
@@ -114,7 +121,21 @@ pub extern "C" fn mui_dbg_restart(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    i32::from(ctx.dbg.restart())
+    let had_target = ctx.dbg.has_program();
+    let ok = ctx.dbg.restart();
+    if !ok {
+        ctx.dbg.set_open(true);
+        ctx.active_panel = crate::PANEL_DEBUG;
+        ctx.sidebar_visible = true;
+        if had_target {
+            ctx.push_toast(crate::toast::Kind::Error, "Debug restart failed");
+            crate::abi::trace("dbg_restart failed");
+        } else {
+            ctx.push_toast(crate::toast::Kind::Warn, "No debug target to restart");
+            crate::abi::trace("dbg_restart no_target");
+        }
+    }
+    i32::from(ok)
 }
 
 /// F10 / step over (`next`).
