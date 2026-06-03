@@ -608,6 +608,9 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No source-control row"
         || m == "No git repository for diff"
         || m.starts_with("No diff for ")
+        || m == "No file to blame"
+        || m.starts_with("No blame ")
+        || m.starts_with("Blame on ")
         || m == "Enter a branch name"
         || m == "No branch picker open"
         || m == "No branch selected"
@@ -1293,6 +1296,34 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Staged all changes");
+    }
+
+    #[test]
+    fn newer_git_feedback_replaces_stale_blame_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Warn, "No file to blame", t0);
+        q.push_at(
+            Kind::Warn,
+            "No blame (file not tracked?)",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No blame (file not tracked?)");
+
+        q.push_at(
+            Kind::Info,
+            "Blame on \u{2014} toggle to hide",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Blame on \u{2014} toggle to hide");
+        assert_eq!(q.toasts()[0].kind, Kind::Info);
+
+        q.push_at(Kind::Info, "Nothing to commit", t0 + Duration::from_millis(300));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Nothing to commit");
     }
 
     #[test]

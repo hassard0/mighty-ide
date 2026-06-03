@@ -5586,3 +5586,13 @@ and stale terminal state cards should not stack as the user toggles the panel.
   `Terminal is already closed`, and `Terminal failed to open` now share a
   terminal toast replacement key. Repeated terminal actions keep the latest
   lifecycle state visible without leaving old terminal cards behind.
+
+L408. Blame feedback belongs with source-control status, not generic alerts.
+Blame is a git view layered into the editor gutter, so unavailable-file,
+untracked-file, and blame-enabled outcomes should collapse with other SCM
+feedback.
+
+- **IDE note:** `No file to blame`, `No blame (file not tracked?)`, and
+  `Blame on ... toggle to hide` now share the Git toast replacement key.
+  Repeated blame toggles and follow-up git commands replace stale blame cards
+  with the latest source-control outcome.
