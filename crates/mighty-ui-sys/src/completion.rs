@@ -386,13 +386,13 @@ impl CompletionEngine {
             let bx = box_x + 10.0;
             let by = row_y + (row_h - 18.0) * 0.5;
             ctx.dl_round(bx, by, 18.0, 18.0, 4.0, badge_bg);
-            let lw = letter.chars().count() as f32 * 6.0;
+            let lw = completion_badge_letter_width(&mut ctx.text, letter, 10.0);
             ctx.text.queue_ui_sized(bx + (18.0 - lw) * 0.5, by + 3.0, letter, badge_fg, 10.0, clip);
 
             let ty = row_y + (row_h - chrome) * 0.5 - 0.5;
             let name_x = box_x + 38.0;
             let kind_size = chrome - 1.5;
-            let kind_x = completion_kind_x(box_x, box_w, kind, kind_size);
+            let kind_x = completion_kind_x(&mut ctx.text, box_x, box_w, kind, kind_size);
             let sig_gap = if completion_row_signature_visible(sig) { 2.0 } else { 0.0 };
             let sig_w = if sig_gap > 0.0 {
                 ctx.text.measure_ui_sized(sig, chrome - 1.0).0
@@ -441,8 +441,18 @@ impl CompletionEngine {
     }
 }
 
-fn completion_kind_x(box_x: f32, box_w: f32, kind: &str, size: f32) -> f32 {
-    let kw = kind.chars().count() as f32 * size * 0.55;
+fn completion_badge_letter_width(text: &mut crate::text::Text, letter: &str, size: f32) -> f32 {
+    text.measure_ui_sized(letter, size).0
+}
+
+fn completion_kind_x(
+    text: &mut crate::text::Text,
+    box_x: f32,
+    box_w: f32,
+    kind: &str,
+    size: f32,
+) -> f32 {
+    let kw = text.measure_ui_sized(kind, size).0;
     box_x + box_w - 12.0 - kw
 }
 
@@ -986,6 +996,33 @@ mod tests {
     }
 
     #[test]
+    fn completion_badge_letter_width_uses_measured_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+        let narrow = completion_badge_letter_width(&mut ctx.text, "i", 10.0);
+        let wide = completion_badge_letter_width(&mut ctx.text, "\u{2026}", 10.0);
+
+        assert!(narrow > 0.0);
+        assert!(wide > narrow);
+    }
+
+    #[test]
+    fn completion_kind_x_uses_measured_kind_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+        let box_x = 24.0;
+        let box_w = 280.0;
+        let size = theme::CHROME_FONT_SIZE - 1.5;
+        let short_x = completion_kind_x(&mut ctx.text, box_x, box_w, "var", size);
+        let long_x = completion_kind_x(&mut ctx.text, box_x, box_w, "function", size);
+
+        assert!(long_x < short_x);
+        assert!(short_x < box_x + box_w - 12.0);
+    }
+
+    #[test]
     fn completion_row_label_fits_before_kind_metadata() {
         let mut ctx = match crate::MuiContext::new_offscreen(640, 480) {
             Some(c) => c,
@@ -998,7 +1035,7 @@ mod tests {
         let box_x = 0.0;
         let box_w = 280.0;
         let size = theme::CHROME_FONT_SIZE;
-        let kind_x = completion_kind_x(box_x, box_w, "snippet", size - 1.5);
+        let kind_x = completion_kind_x(&mut ctx.text, box_x, box_w, "snippet", size - 1.5);
         let budget = (kind_x - 10.0 - name_x).max(0.0);
         let shown = fit_completion_text(
             &mut ctx.text,

@@ -6105,3 +6105,11 @@ badge pill from a fixed per-character estimate.
 - **IDE note:** The AI model badge now measures its rendered UI label before
   sizing the header pill. Future model aliases can vary in glyph width without
   crowding the titlebar close affordance or leaving uneven padding.
+
+L465. Completion popup chrome must share measured row budgets. Completion row
+names were fitted against the kind label, but the badge letter and kind label
+positions still came from fixed character advances.
+
+- **IDE note:** Completion rows now measure the badge glyph and right-side kind
+  label before centering or reserving space. Candidate names and signatures fit
+  against the actual rendered kind metadata in the autocomplete popup.
