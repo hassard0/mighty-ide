@@ -6436,3 +6436,15 @@ semantic color information from the terminal output.
   SGR parser applies valid truecolor foreground/background sequences, rejects
   out-of-range RGB components without style side effects, and the draw resolver
   maps encoded RGB values directly to RGBA.
+
+L501. Terminal scroll regions are structural state, not just an escape to skip.
+Full-screen terminal apps use DECSTBM (`CSI top;bottom r`) to reserve headers,
+status bars, prompts, and split panes while only the working area scrolls. If
+the terminal consumes the escape but keeps scrolling the full grid, those fixed
+rows are overwritten and TUIs visibly tear apart during ordinary output.
+
+- **IDE note:** The terminal grid now tracks inclusive scroll margins, snapshots
+  them with screen state, resets them on full resets/alternate-screen entry, and
+  applies them to linefeed, `CSI S/T`, and `CSI L/M`. Parser tests cover
+  margin-preserving linefeed, explicit scroll commands, insert/delete lines
+  inside and outside the region, and bare `CSI r` reset to full-grid scrolling.

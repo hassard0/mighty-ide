@@ -62,6 +62,8 @@ struct ScreenSnapshot {
     cells: Vec<Cell>,
     cur_row: usize,
     cur_col: usize,
+    scroll_top: usize,
+    scroll_bottom: usize,
 }
 
 /// A fixed-size character grid with a cursor. Rows are stored top-to-bottom; the
@@ -79,6 +81,10 @@ pub struct Grid {
     cur_fg: u32,
     /// Current SGR background applied to newly-written cells.
     cur_bg: u32,
+    /// Inclusive scroll-region top row. Defaults to the full grid.
+    scroll_top: usize,
+    /// Inclusive scroll-region bottom row. Defaults to the full grid.
+    scroll_bottom: usize,
     primary_screen: Option<ScreenSnapshot>,
 }
 
@@ -94,6 +100,8 @@ impl Grid {
             cur_col: 0,
             cur_fg: DEFAULT_FG,
             cur_bg: DEFAULT_BG,
+            scroll_top: 0,
+            scroll_bottom: rows - 1,
             primary_screen: None,
         }
     }
@@ -127,6 +135,7 @@ impl Grid {
         if rows == self.rows && cols == self.cols {
             return;
         }
+        let was_full_scroll_region = self.scroll_top == 0 && self.scroll_bottom == self.rows - 1;
         let mut next = vec![Cell::default(); rows * cols];
         let copy_rows = rows.min(self.rows);
         let copy_cols = cols.min(self.cols);
@@ -140,6 +149,12 @@ impl Grid {
         self.cols = cols;
         self.cur_row = self.cur_row.min(rows - 1);
         self.cur_col = self.cur_col.min(cols);
+        if was_full_scroll_region {
+            self.reset_scroll_region();
+        } else {
+            self.scroll_top = self.scroll_top.min(rows - 1);
+            self.scroll_bottom = self.scroll_bottom.min(rows - 1).max(self.scroll_top);
+        }
     }
 
     fn snapshot(&self) -> ScreenSnapshot {
@@ -149,6 +164,8 @@ impl Grid {
             cells: self.cells.clone(),
             cur_row: self.cur_row,
             cur_col: self.cur_col,
+            scroll_top: self.scroll_top,
+            scroll_bottom: self.scroll_bottom,
         }
     }
 
@@ -163,6 +180,8 @@ impl Grid {
         }
         self.cur_row = snapshot.cur_row.min(self.rows - 1);
         self.cur_col = snapshot.cur_col.min(self.cols);
+        self.scroll_top = snapshot.scroll_top.min(self.rows - 1);
+        self.scroll_bottom = snapshot.scroll_bottom.min(self.rows - 1).max(self.scroll_top);
     }
 
     fn enter_alternate_screen(&mut self) {
@@ -172,6 +191,7 @@ impl Grid {
         self.cells.fill(Cell::default());
         self.cur_row = 0;
         self.cur_col = 0;
+        self.reset_scroll_region();
     }
 
     fn exit_alternate_screen(&mut self) {
@@ -187,6 +207,7 @@ impl Grid {
         }
         self.cur_row = 0;
         self.cur_col = 0;
+        self.reset_scroll_region();
     }
 
     fn clear_from_cursor_to_end(&mut self) {
@@ -262,63 +283,90 @@ impl Grid {
     }
 
     fn insert_blank_lines(&mut self, count: usize) {
-        let count = count.max(1).min(self.rows - self.cur_row);
-        for row in (self.cur_row..self.rows - count).rev() {
-            for col in 0..self.cols {
-                self.cells[(row + count) * self.cols + col] = self.cells[row * self.cols + col];
+        if self.cur_row < self.scroll_top || self.cur_row > self.scroll_bottom {
+            return;
+        }
+        let count = count.max(1).min(self.scroll_bottom - self.cur_row + 1);
+        if count <= self.scroll_bottom - self.cur_row {
+            for row in (self.cur_row..=self.scroll_bottom - count).rev() {
+                for col in 0..self.cols {
+                    self.cells[(row + count) * self.cols + col] =
+                        self.cells[row * self.cols + col];
+                }
             }
         }
         for row in self.cur_row..self.cur_row + count {
-            let start = row * self.cols;
-            for cell in &mut self.cells[start..start + self.cols] {
-                *cell = Cell::default();
-            }
+            self.clear_row(row);
         }
     }
 
     fn delete_lines(&mut self, count: usize) {
-        let count = count.max(1).min(self.rows - self.cur_row);
-        for row in self.cur_row..self.rows - count {
-            for col in 0..self.cols {
-                self.cells[row * self.cols + col] = self.cells[(row + count) * self.cols + col];
+        if self.cur_row < self.scroll_top || self.cur_row > self.scroll_bottom {
+            return;
+        }
+        let count = count.max(1).min(self.scroll_bottom - self.cur_row + 1);
+        if count <= self.scroll_bottom - self.cur_row {
+            for row in self.cur_row..=self.scroll_bottom - count {
+                for col in 0..self.cols {
+                    self.cells[row * self.cols + col] =
+                        self.cells[(row + count) * self.cols + col];
+                }
             }
         }
-        for row in self.rows - count..self.rows {
-            let start = row * self.cols;
-            for cell in &mut self.cells[start..start + self.cols] {
-                *cell = Cell::default();
-            }
+        for row in self.scroll_bottom - count + 1..=self.scroll_bottom {
+            self.clear_row(row);
         }
     }
 
-    /// Scroll the whole grid up `count` lines: drop top rows, shift the rest up,
-    /// blank the bottom rows. Used by newline-at-bottom and `CSI S`.
+    fn clear_row(&mut self, row: usize) {
+        let start = row * self.cols;
+        for cell in &mut self.cells[start..start + self.cols] {
+            *cell = Cell::default();
+        }
+    }
+
+    /// Scroll the active region up `count` lines: drop top rows, shift the rest
+    /// up, blank the bottom rows. Used by newline-at-bottom and `CSI S`.
     fn scroll_up(&mut self, count: usize) {
-        let count = count.max(1).min(self.rows);
-        self.cells.rotate_left(count * self.cols);
-        let start = (self.rows - count) * self.cols;
-        for c in &mut self.cells[start..] {
-            *c = Cell::default();
+        let height = self.scroll_bottom - self.scroll_top + 1;
+        let count = count.max(1).min(height);
+        if count < height {
+            for row in self.scroll_top..=self.scroll_bottom - count {
+                for col in 0..self.cols {
+                    self.cells[row * self.cols + col] =
+                        self.cells[(row + count) * self.cols + col];
+                }
+            }
+        }
+        for row in self.scroll_bottom - count + 1..=self.scroll_bottom {
+            self.clear_row(row);
         }
     }
 
-    /// Scroll the whole grid down `count` lines: drop bottom rows, shift the
+    /// Scroll the active region down `count` lines: drop bottom rows, shift the
     /// rest down, blank the top rows. Used by `CSI T`.
     fn scroll_down(&mut self, count: usize) {
-        let count = count.max(1).min(self.rows);
-        self.cells.rotate_right(count * self.cols);
-        let end = count * self.cols;
-        for c in &mut self.cells[..end] {
-            *c = Cell::default();
+        let height = self.scroll_bottom - self.scroll_top + 1;
+        let count = count.max(1).min(height);
+        if count < height {
+            for row in (self.scroll_top + count..=self.scroll_bottom).rev() {
+                for col in 0..self.cols {
+                    self.cells[row * self.cols + col] =
+                        self.cells[(row - count) * self.cols + col];
+                }
+            }
+        }
+        for row in self.scroll_top..self.scroll_top + count {
+            self.clear_row(row);
         }
     }
 
     /// Advance the cursor to the start of the next line, scrolling if needed.
     fn newline(&mut self) {
         self.cur_col = 0;
-        if self.cur_row + 1 >= self.rows {
+        if self.cur_row == self.scroll_bottom {
             self.scroll_up(1);
-        } else {
+        } else if self.cur_row + 1 < self.rows {
             self.cur_row += 1;
         }
     }
@@ -350,6 +398,21 @@ impl Grid {
 
     fn carriage_return(&mut self) {
         self.cur_col = 0;
+    }
+
+    fn set_scroll_region(&mut self, top: usize, bottom: usize) {
+        if top >= bottom || bottom >= self.rows {
+            return;
+        }
+        self.scroll_top = top;
+        self.scroll_bottom = bottom;
+        self.cur_row = 0;
+        self.cur_col = 0;
+    }
+
+    fn reset_scroll_region(&mut self) {
+        self.scroll_top = 0;
+        self.scroll_bottom = self.rows - 1;
     }
 
     fn move_cursor_1_based(&mut self, row: usize, col: usize) {
@@ -617,6 +680,8 @@ impl VtParser {
                     self.erase_chars(grid);
                 } else if b == b'h' || b == b'l' {
                     self.set_mode(grid, b);
+                } else if b == b'r' {
+                    self.set_scroll_region(grid);
                 } else if b == b'H' || b == b'f' {
                     self.cursor_position(grid);
                 } else if matches!(b, b'A' | b'B' | b'C' | b'D') {
@@ -788,6 +853,25 @@ impl VtParser {
         if let Some(count) = self.first_count_param() {
             grid.scroll_down(count);
         }
+    }
+
+    fn set_scroll_region(&mut self, grid: &mut Grid) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        if params.starts_with('?') {
+            return;
+        }
+        let mut parts = params.split(';');
+        let top = parts
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(1);
+        let bottom = parts
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(grid.rows());
+        grid.set_scroll_region(top.saturating_sub(1), bottom.saturating_sub(1));
     }
 
     fn set_mode(&mut self, grid: &mut Grid, final_byte: u8) {
@@ -1675,6 +1759,46 @@ mod tests {
     }
 
     #[test]
+    fn scroll_region_linefeed_preserves_rows_outside_margins() {
+        let g = grid_feed(
+            4,
+            4,
+            b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[3;1HZZZZ\nYYYY",
+        );
+        assert_eq!(g.to_text(), "1111\nZZZZ\nYYYY\n4444");
+        assert_eq!(g.cursor(), (2, 4));
+        assert!(!g.contains("2;3r"));
+    }
+
+    #[test]
+    fn scroll_region_limits_explicit_scroll_commands() {
+        let g = grid_feed(4, 4, b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[S");
+        assert_eq!(g.to_text(), "1111\n3333\n    \n4444");
+
+        let g2 = grid_feed(4, 4, b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[T");
+        assert_eq!(g2.to_text(), "1111\n    \n2222\n4444");
+    }
+
+    #[test]
+    fn scroll_region_limits_insert_and_delete_lines() {
+        let g = grid_feed(4, 4, b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[2;1H\x1b[L");
+        assert_eq!(g.to_text(), "1111\n    \n2222\n4444");
+
+        let g2 = grid_feed(4, 4, b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[2;1H\x1b[M");
+        assert_eq!(g2.to_text(), "1111\n3333\n    \n4444");
+
+        let g3 = grid_feed(4, 4, b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[4;1H\x1b[L");
+        assert_eq!(g3.to_text(), "1111\n2222\n3333\n4444");
+    }
+
+    #[test]
+    fn scroll_region_resets_to_full_grid_with_bare_csi_r() {
+        let g = grid_feed(4, 4, b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[r\x1b[S");
+        assert_eq!(g.to_text(), "2222\n3333\n4444\n    ");
+        assert_eq!(g.cursor(), (0, 0));
+    }
+
+    #[test]
     fn cursor_position_csi_moves_and_clamps() {
         // ESC[5;10H moves to a 1-based row/col and clamps to the visible grid.
         let g = grid_feed(2, 20, b"A\x1b[5;10HB");
@@ -1873,6 +1997,8 @@ mod tests {
         assert_eq!(g.cell(1, 1).ch, 'D');
         assert_eq!(g.rows(), 3);
         assert_eq!(g.cols(), 6);
+        assert_eq!(g.scroll_top, 0);
+        assert_eq!(g.scroll_bottom, 2);
     }
 
     // ---- key/codepoint mapping ----
