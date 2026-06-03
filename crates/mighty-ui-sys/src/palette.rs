@@ -768,7 +768,7 @@ impl PaletteEngine {
         let h = height as f32;
         let top = self.scroll_top();
         let shown = self.filtered.len().saturating_sub(top).min(VISIBLE).min(6);
-        let box_w = 600.0_f32.min(w - 80.0);
+        let box_w = command_palette_width(w);
         let search_h = 56.0;
         let cat_h = 25.0;
         let row_h = 50.0;
@@ -1143,6 +1143,10 @@ fn command_query_text_budget(text_x: f32, pill_x: f32, is_placeholder: bool) -> 
     (pill_x - trailing_gap - text_x).max(0.0)
 }
 
+fn command_palette_width(window_w: f32) -> f32 {
+    (window_w - 80.0).max(0.0).clamp(280.0, 600.0).min(window_w.max(1.0))
+}
+
 fn command_footer_key_width(text: &mut crate::text::Text, key: &str, size: f32) -> f32 {
     (text.measure_ui_sized(key, size).0 + 10.0).max(20.0)
 }
@@ -1497,6 +1501,17 @@ mod tests {
     }
 
     #[test]
+    fn geometry_clamps_card_inside_ultra_narrow_windows() {
+        let mut e = PaletteEngine::new();
+        e.open();
+        let (box_x, box_w, _list_top, _row_h, _box_h, _shown) = e.geometry(180, 560);
+
+        assert!(box_x >= 0.0);
+        assert!(box_w <= 180.0);
+        assert!(box_x + box_w <= 180.0 + 0.5);
+    }
+
+    #[test]
     fn empty_command_placeholder_does_not_overlap_caret() {
         let base = 300.0;
         assert_eq!(command_field_text_x(base, false), base);
@@ -1514,6 +1529,13 @@ mod tests {
         assert!(text_x + placeholder_budget <= pill_x - 24.0);
         assert!(text_x + query_budget <= pill_x - 14.0);
         assert_eq!(command_query_text_budget(pill_x, text_x, false), 0.0);
+    }
+
+    #[test]
+    fn palette_width_preserves_preferred_width_until_viewport_is_tiny() {
+        assert_eq!(command_palette_width(900.0), 600.0);
+        assert_eq!(command_palette_width(360.0), 280.0);
+        assert_eq!(command_palette_width(180.0), 180.0);
     }
 
     #[test]
