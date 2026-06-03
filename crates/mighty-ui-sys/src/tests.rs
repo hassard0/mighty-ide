@@ -4679,6 +4679,22 @@ fn definition_open_target_misses_report_visible_feedback() {
 }
 
 #[test]
+fn rename_prepare_miss_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("fn main() {\n  1\n}");
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_rename_prepare(h, 0, 0), 0);
+    assert_eq!(crate::mui_rename_active(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No rename target");
+}
+
+#[test]
 fn explicit_completion_reports_empty_result_only_when_empty() {
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();

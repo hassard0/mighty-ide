@@ -5655,3 +5655,11 @@ outcomes of the same command and should replace one another as users retry.
   `Format is available for Mighty files`, `Format failed`, and
   `Formatted document` now share the Format toast replacement key. Repeated
   format attempts keep only the latest formatting outcome visible.
+
+L415. Symbol-rename misses are code-intelligence feedback. F2 rename uses the
+same language-service surface as completion, hover, signature help, and
+definition lookup, so its no-target state should collapse with those outcomes.
+
+- **IDE note:** `No rename target` now shares the CodeIntel toast replacement
+  key. Repeated language-intelligence commands, including symbol rename misses,
+  keep the latest editor intelligence outcome visible.

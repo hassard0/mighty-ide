@@ -799,6 +799,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No definition found"
         || m == "No definition target selected"
         || m.starts_with("Definition target missing")
+        || m == "No rename target"
     {
         Some(OperationKey::CodeIntel)
     } else if m == "No breadcrumb menu open"
@@ -1578,6 +1579,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Save the file before signature help");
+
+        q.push_at(
+            Kind::Info,
+            "No rename target",
+            t0 + Duration::from_millis(600),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No rename target");
     }
 
     #[test]
