@@ -6027,3 +6027,12 @@ left-side label budgets depend on rough guesses instead of rendered text.
 - **IDE note:** Settings rows now measure value text and theme-chip width before
   computing the control gutter. Labels and descriptions fit against the real
   right-side controls, keeping the preferences card stable on narrow windows.
+
+L456. Theme picker rows and footers need the same measured fitting as command
+surfaces. The picker drew theme names/descriptions raw and right-aligned its
+footer tag with a character estimate.
+
+- **IDE note:** Theme picker rows now fit names and descriptions before the
+  selected-row check control, and the footer hint fits against a measured
+  `Mighty Themes` tag. Narrow picker cards keep row text and footer chrome from
+  colliding.

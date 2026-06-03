@@ -192,13 +192,17 @@ impl ThemePicker {
 
             // Name + description.
             let txt_x = box_x + 72.0;
-            ctx.text.queue_ui_sized(txt_x, ry + 16.0, id.name(), theme::TEXT(), 14.0, clip);
+            let text_right = theme_row_text_right(box_x, box_w);
+            let text_max = (text_right - txt_x).max(0.0);
+            let name = fit_theme_text(&mut ctx.text, id.name(), text_max, 14.0);
+            ctx.text.queue_ui_sized(txt_x, ry + 16.0, &name, theme::TEXT(), 14.0, clip);
             let desc = match id {
                 ThemeId::Vivid => "Dark · electric indigo",
                 ThemeId::Aurora => "Dark glass · aurora cyan",
                 ThemeId::Warm => "Light · warm paper · ember",
             };
-            ctx.text.queue_ui_sized(txt_x, ry + 36.0, desc, theme::TEXT_3(), 11.5, clip);
+            let desc = fit_theme_text(&mut ctx.text, desc, text_max, 11.5);
+            ctx.text.queue_ui_sized(txt_x, ry + 36.0, &desc, theme::TEXT_3(), 11.5, clip);
 
             // Check on the highlighted row (right edge).
             if selected {
@@ -212,10 +216,42 @@ impl ThemePicker {
         let foot_y = box_y + box_h - foot_h;
         ctx.dl_rect(box_x + 1.0, foot_y, box_w - 2.0, 1.0, theme::BORDER());
         let fty = foot_y + (foot_h - 11.0) * 0.5;
-        ctx.text.queue_ui_sized(box_x + 18.0, fty, "\u{2191}\u{2193} preview   Enter apply   esc revert", theme::TEXT_3(), 11.0, clip);
         let tag = "Mighty Themes";
-        ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
+        let (tag_w, _) = ctx.text.measure_ui_sized(tag, 11.0);
+        let tag_x = box_x + box_w - 18.0 - tag_w;
+        let hint_x = box_x + 18.0;
+        let hint_max = (tag_x - 20.0 - hint_x).max(0.0);
+        let hint = fit_theme_text(&mut ctx.text, "\u{2191}\u{2193} preview   Enter apply   esc revert", hint_max, 11.0);
+        ctx.text.queue_ui_sized(hint_x, fty, &hint, theme::TEXT_3(), 11.0, clip);
+        ctx.text.queue_ui_sized(tag_x, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
     }
+}
+
+fn theme_row_text_right(box_x: f32, box_w: f32) -> f32 {
+    box_x + box_w - 56.0
+}
+
+fn fit_theme_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    if max_px < 8.0 || s.is_empty() {
+        return String::new();
+    }
+    if text.measure_ui_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let suffix = "...";
+    let suffix_w = text.measure_ui_sized(suffix, size).0;
+    if suffix_w > max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    for keep in (1..chars.len()).rev() {
+        let mut candidate: String = chars.iter().take(keep).collect();
+        candidate.push_str(suffix);
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            return candidate;
+        }
+    }
+    suffix.to_string()
 }
 
 fn selected_theme_icon() -> &'static str {
@@ -319,6 +355,33 @@ mod tests {
         assert_eq!(p.click(box_x - 2.0, list_top + 8.0, 900, 700), 0);
         p.cancel();
         reset();
+    }
+
+    #[test]
+    fn row_text_budget_stops_before_check_control() {
+        let (box_x, _box_y, box_w, _box_h, _list_top, _row_h) = ThemePicker::geometry(900, 700);
+        let txt_x = box_x + 72.0;
+        let right = theme_row_text_right(box_x, box_w);
+
+        assert!(right < box_x + box_w - 46.0);
+        assert!(txt_x < right);
+    }
+
+    #[test]
+    fn theme_text_fits_measured_budget() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(320, 220) else {
+            return;
+        };
+        let shown = fit_theme_text(
+            &mut ctx.text,
+            "Light · warm paper · ember with a very long suffix",
+            96.0,
+            11.5,
+        );
+        let (shown_w, _) = ctx.text.measure_ui_sized(&shown, 11.5);
+
+        assert!(shown.ends_with("..."));
+        assert!(shown_w <= 96.0);
     }
 
     #[test]
