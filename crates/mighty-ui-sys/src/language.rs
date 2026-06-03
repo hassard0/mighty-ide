@@ -1263,7 +1263,7 @@ impl CodeActionState {
         let w = width as f32;
         let h = height as f32;
         let min_x = min_x.max(POPUP_MARGIN).min((w - POPUP_MARGIN).max(POPUP_MARGIN));
-        let max_box_w = (w - min_x - POPUP_MARGIN).max(180.0);
+        let max_box_w = popup_available_width(w, min_x, 180.0);
         let wanted_w = code_action_popup_width(text, &self.actions, chrome);
         let box_w = wanted_w.min(max_box_w);
         let box_h = self.actions.len() as f32 * row_h + 2.0 * pad;
@@ -1408,7 +1408,7 @@ fn clamp_popup_x(cx: f32, box_w: f32, window_w: f32, min_x: f32) -> f32 {
 
 fn popup_available_width(window_w: f32, min_x: f32, preferred_min: f32) -> f32 {
     let left = min_x.max(POPUP_MARGIN);
-    let available = (window_w - POPUP_MARGIN - left).max(40.0);
+    let available = (window_w - POPUP_MARGIN - left).max(1.0);
     if available < preferred_min {
         available
     } else {
@@ -2218,6 +2218,29 @@ mod tests {
             c.click_row_inset(&mut ctx.text, min_x - 4.0, box_y + pad + 3.0, 470.0, 120.0, 520, 360, min_x),
             -1
         );
+    }
+
+    #[test]
+    fn code_action_inset_geometry_clamps_inside_tiny_work_area() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(260, 240) else {
+            return;
+        };
+        let mut c = CodeActionState::new();
+        let actions = vec![CodeAction {
+            title: "Replace unresolved symbol".into(),
+            edit: Some(WorkspaceEdit::default()),
+            command_edit: None,
+            command: None,
+            fix_all_mty: false,
+        }];
+        assert_eq!(c.set(actions), 1);
+        let min_x = 210.0;
+        let (box_x, _box_y, box_w, _box_h, _pad, _row_h) =
+            c.geometry_inset(&mut ctx.text, 245.0, 90.0, 260, 240, min_x);
+
+        assert!(box_x >= min_x);
+        assert!(box_w <= 30.0);
+        assert!(box_x + box_w <= 240.0 + 0.5);
     }
 
     // ---- guarded end-to-end LSP integration ----
