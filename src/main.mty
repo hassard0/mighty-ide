@@ -348,6 +348,7 @@ extern c {
   fn mui_rename_push_char(handle: I64, codepoint: I32)
   fn mui_rename_backspace(handle: I64)
   fn mui_rename_active(handle: I64) -> I32
+  fn mui_rename_can_commit(handle: I64) -> I32
   fn mui_rename_cancel(handle: I64) -> I32
   fn mui_rename_commit(handle: I64, line: I32, col: I32) -> I32
   fn mui_rename_draw(handle: I64)
@@ -356,6 +357,7 @@ extern c {
   fn mui_codeaction_active(handle: I64) -> I32
   fn mui_codeaction_count(handle: I64) -> I32
   fn mui_codeaction_sel(handle: I64) -> I32
+  fn mui_codeaction_can_apply(handle: I64) -> I32
   fn mui_codeaction_move(handle: I64, delta: I32)
   fn mui_codeaction_click(handle: I64, row: I32, col: I32, total_lines: I32) -> I32
   fn mui_codeaction_cancel(handle: I64) -> I32
@@ -2591,7 +2593,7 @@ fn main() {
             let _rcancel = mui_rename_cancel(h)
             renaming = false
           } else if k == key_enter() {
-            mui_ed_undo_record(h)
+            if mui_rename_can_commit(h) == 1 { mui_ed_undo_record(h) }
             let nfiles = mui_rename_commit(h, rename_line, rename_col)
             renaming = false
             if nfiles >= 1 {
@@ -2609,7 +2611,7 @@ fn main() {
           } else if k == key_down() {
             mui_codeaction_move(h, 1)
           } else if k == key_enter() {
-            mui_ed_undo_record(h)
+            if mui_codeaction_can_apply(h) == 1 { mui_ed_undo_record(h) }
             let applied = mui_codeaction_apply(h)
             code_action_open = false
             if applied == 1 {
@@ -2630,7 +2632,7 @@ fn main() {
           let total_ca = mui_ed_line_count(h)
           let ch = mui_codeaction_click(h, ca_line - first, ca_col, total_ca)
           if ch >= 0 {
-            mui_ed_undo_record(h)
+            if mui_codeaction_can_apply(h) == 1 { mui_ed_undo_record(h) }
             let applied = mui_codeaction_apply(h)
             code_action_open = false
             if applied == 1 {

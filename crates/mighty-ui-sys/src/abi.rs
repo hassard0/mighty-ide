@@ -9121,6 +9121,20 @@ pub extern "C" fn mui_rename_active(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.rename.is_active()))
 }
 
+/// `1` when committing the open rename input can attempt an edit.
+/// Pure preflight: no toasts; `mui_rename_commit` remains the stateful reporter.
+#[no_mangle]
+pub extern "C" fn mui_rename_can_commit(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only() || ctx.file_path.is_none() || !ctx.rename.is_active() {
+        return 0;
+    }
+    let new_name = ctx.rename.name_string();
+    i32::from(!new_name.is_empty() && new_name != ctx.rename.original())
+}
+
 /// Cancel the rename input (discard the buffer + any staged edit).
 #[no_mangle]
 pub extern "C" fn mui_rename_cancel(handle: i64) -> i32 {
@@ -9460,6 +9474,27 @@ pub extern "C" fn mui_codeaction_count(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_codeaction_sel(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.codeaction.selection() as i32)
+}
+
+/// `1` when applying the selected code action can attempt an edit/command.
+/// Pure preflight: no toasts; `mui_codeaction_apply` reports missing files,
+/// command failures, and no-edit outcomes.
+#[no_mangle]
+pub extern "C" fn mui_codeaction_can_apply(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only() || ctx.file_path.is_none() {
+        return 0;
+    }
+    let Some(action) = ctx.codeaction.selected() else {
+        return 0;
+    };
+    let can_apply = action.fix_all_mty
+        || action.edit.as_ref().is_some_and(|we| !we.is_empty())
+        || action.command_edit.as_ref().is_some_and(|we| !we.is_empty())
+        || action.command.is_some();
+    i32::from(can_apply)
 }
 
 /// Move the code-action selection by `delta` (wraps).

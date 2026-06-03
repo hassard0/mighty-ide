@@ -7500,3 +7500,9 @@ L603. Completion accept needs a dropdown editability preflight. The selected
 candidate can be visible while the focused tab is read-only or otherwise unable
 to change; keep the warning in the stateful accept ABI, but gate undo snapshots
 through a silent `can_accept` predicate.
+
+L604. Language action commits need cheap target preflights. Rename and code
+action apply are stateful because they may call LSP, touch disk, or report
+feedback, but their key paths can still avoid undo snapshots for known no-op
+states such as unchanged names, missing files, read-only previews, or empty
+actions.

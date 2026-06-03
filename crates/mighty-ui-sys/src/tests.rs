@@ -6402,6 +6402,50 @@ fn codeaction_command_without_file_toasts_feedback() {
 }
 
 #[test]
+fn codeaction_apply_preflight_tracks_selected_action_target() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_codeaction_can_apply(0), 0);
+    assert_eq!(crate::mui_codeaction_can_apply(h), 0);
+
+    ctx.codeaction.set(vec![crate::language::CodeAction {
+        title: "Run server command".to_string(),
+        edit: None,
+        command_edit: None,
+        command: Some(crate::language::CommandAction {
+            command: "server.apply".to_string(),
+            arguments_json: None,
+        }),
+        fix_all_mty: false,
+    }]);
+    assert_eq!(crate::mui_codeaction_can_apply(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    let root = std::env::temp_dir().join("mui_codeaction_apply_preflight");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, b"fn main() {}\n").unwrap();
+    ctx.tabs.open_path(path);
+    crate::sync_active_path(&mut ctx);
+    assert_eq!(crate::mui_codeaction_can_apply(h), 1);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    ctx.codeaction.set(vec![crate::language::CodeAction {
+        title: "No-op edit".to_string(),
+        edit: Some(crate::language::WorkspaceEdit::default()),
+        command_edit: None,
+        command: None,
+        fix_all_mty: false,
+    }]);
+    assert_eq!(crate::mui_codeaction_can_apply(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn format_current_reports_missing_or_unsupported_target() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -6542,6 +6586,43 @@ fn rename_prepare_miss_reports_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No rename target");
+}
+
+#[test]
+fn rename_commit_preflight_tracks_changed_editable_name() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_rename_commit_preflight");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, b"fn alpha() {}\n").unwrap();
+    ctx.tabs.open_path(path);
+    crate::sync_active_path(&mut ctx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_rename_can_commit(0), 0);
+    assert_eq!(crate::mui_rename_can_commit(h), 0);
+    ctx.rename.open("alpha");
+    assert_eq!(crate::mui_rename_can_commit(h), 0);
+    for ch in "beta".chars() {
+        ctx.rename.push(ch as u32);
+    }
+    assert_eq!(crate::mui_rename_can_commit(h), 1);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    let binary = root.join("asset.bin");
+    std::fs::write(&binary, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(binary);
+    crate::sync_active_path(&mut ctx);
+    ctx.rename.open("alpha");
+    for ch in "beta".chars() {
+        ctx.rename.push(ch as u32);
+    }
+    assert!(ctx.tabs.active_read_only());
+    assert_eq!(crate::mui_rename_can_commit(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]
@@ -8314,6 +8395,17 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         main.contains("let applied = mui_codeaction_apply(h)"),
         "code action accept must inspect whether anything was actually applied"
+    );
+    assert!(
+        main
+            .matches("if mui_codeaction_can_apply(h) == 1 { mui_ed_undo_record(h) }\n            let applied = mui_codeaction_apply(h)")
+            .count()
+            >= 2,
+        "code action accept must preflight known no-op targets before recording undo"
+    );
+    assert!(
+        main.contains("if mui_rename_can_commit(h) == 1 { mui_ed_undo_record(h) }\n            let nfiles = mui_rename_commit(h, rename_line, rename_col)"),
+        "rename commit must preflight unchanged/read-only input before recording undo"
     );
     assert!(
         !main.contains("let _a = mui_codeaction_apply(h)"),
