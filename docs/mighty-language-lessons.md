@@ -5539,3 +5539,13 @@ or before a repository root is available.
 - **IDE note:** `mui_scm_toggle_stage` now reports `No source control row
   selected`, `Source control root missing`, or `Source control stage/unstage
   failed` instead of silently returning `0` for failed stage-button actions.
+
+L403. Bulk SCM actions should not confuse missing repositories with clean state.
+Palette and header commands can be invoked from any workspace, so `Stage All`,
+`Unstage All`, and `Commit` need to explain when git is unavailable for the
+workspace rather than implying there was merely nothing to do.
+
+- **IDE note:** `mui_scm_stage_all`, `mui_scm_unstage_all`, and
+  `mui_scm_commit` now report `Not a git repository` when no repository root can
+  be discovered. Existing `Nothing to stage`, `Nothing to unstage`, and
+  `Nothing to commit` messages are reserved for real repositories.

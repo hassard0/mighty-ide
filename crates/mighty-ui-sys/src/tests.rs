@@ -2785,6 +2785,34 @@ fn scm_toggle_stage_misses_report_visible_feedback() {
 }
 
 #[test]
+fn scm_bulk_actions_without_repo_report_not_git_repository() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_scm_no_repo_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_scm_stage_all(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Not a git repository");
+
+    assert_eq!(crate::panels::mui_scm_unstage_all(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Not a git repository");
+
+    assert_eq!(crate::panels::mui_scm_commit(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Not a git repository");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn scm_header_refresh_icon_maps_to_refresh_action() {
     use crate::ffi::MuiEvent;
 

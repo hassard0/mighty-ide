@@ -252,6 +252,11 @@ pub extern "C" fn mui_scm_stage_all(handle: i64) -> i32 {
     if ctx.scm.root.is_none() {
         ctx.scm.refresh(&dir);
     }
+    if ctx.scm.root.is_none() {
+        ctx.push_toast(crate::toast::Kind::Warn, "Not a git repository");
+        crate::abi::trace("scm_stage_all ok=0 root=<none>");
+        return 0;
+    }
     let ok = ctx.scm.stage_all(&dir);
     let staged = ctx.scm.status.staged_count();
     let unstaged = ctx.scm.status.unstaged_count();
@@ -278,6 +283,11 @@ pub extern "C" fn mui_scm_unstage_all(handle: i64) -> i32 {
     let dir = workspace_dir(ctx);
     if ctx.scm.root.is_none() {
         ctx.scm.refresh(&dir);
+    }
+    if ctx.scm.root.is_none() {
+        ctx.push_toast(crate::toast::Kind::Warn, "Not a git repository");
+        crate::abi::trace("scm_unstage_all ok=0 root=<none>");
+        return 0;
     }
     let ok = ctx.scm.unstage_all(&dir);
     let staged = ctx.scm.status.staged_count();
@@ -350,6 +360,14 @@ pub extern "C" fn mui_scm_commit(handle: i64) -> i32 {
         return 0;
     };
     let dir = workspace_dir(ctx);
+    if ctx.scm.root.is_none() {
+        ctx.scm.refresh(&dir);
+    }
+    if ctx.scm.root.is_none() {
+        ctx.push_toast(crate::toast::Kind::Warn, "Not a git repository");
+        crate::abi::trace("scm_commit ok=0 root=<none>");
+        return 0;
+    }
     let ok = ctx.scm.commit_message(&dir);
     let staged = ctx.scm.status.staged_count();
     let unstaged = ctx.scm.status.unstaged_count();
