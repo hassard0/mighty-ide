@@ -771,6 +771,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No test run to stop"
         || m == "No test result row selected"
         || m == "Test result row has no file target"
+        || m.starts_with("Test results ")
+        || m.starts_with("Testing panel ")
         || m.starts_with("Test target missing")
     {
         Some(OperationKey::Test)
@@ -786,6 +788,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No run process to stop"
         || m == "No run output row selected"
         || m == "Run output row has no file target"
+        || m.starts_with("Run output ")
+        || m.starts_with("Run panel ")
         || m.starts_with("Run target missing")
     {
         Some(OperationKey::WebRun)
@@ -1720,6 +1724,68 @@ mod tests {
             "Save the file before setting breakpoints"
         );
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
+    }
+
+    #[test]
+    fn newer_run_feedback_replaces_stale_run_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "Run output cleared", t0);
+        q.push_at(
+            Kind::Info,
+            "Run output already empty",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Run output already empty");
+
+        q.push_at(
+            Kind::Info,
+            "Run panel closed",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Run panel closed");
+
+        q.push_at(
+            Kind::Info,
+            "Run panel is already closed",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Run panel is already closed");
+    }
+
+    #[test]
+    fn newer_testing_feedback_replaces_stale_testing_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "Test results cleared", t0);
+        q.push_at(
+            Kind::Info,
+            "Test results already empty",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Test results already empty");
+
+        q.push_at(
+            Kind::Info,
+            "Testing panel closed",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Testing panel closed");
+
+        q.push_at(
+            Kind::Info,
+            "Testing panel is already closed",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Testing panel is already closed");
     }
 
     #[test]

@@ -7087,3 +7087,15 @@ noise and keep the current terminal session alive.
   the shell, preserves terminal focus when the panel remains open, reports
   cleared/already-empty/closed feedback, and routes through the Mighty
   dispatcher.
+
+L565. Output-workflow feedback should replace stale clear/close cards. Run and
+Testing commands now expose Stop, Clear, and Close separately, so their visible
+feedback must behave like one workflow instead of stacking old clear/close
+states beside the latest result.
+
+- **IDE note:** `Run output cleared`, `Run output already empty`,
+  `Run panel closed`, and `Run panel is already closed` now share the Run/Web
+  toast replacement key. `Test results cleared`,
+  `Test results already empty`, `Testing panel closed`, and
+  `Testing panel is already closed` now share the Testing replacement key.
+  Repeated Run and Testing panel actions keep the latest state visible.
