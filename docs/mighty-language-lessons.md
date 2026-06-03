@@ -5663,3 +5663,12 @@ definition lookup, so its no-target state should collapse with those outcomes.
 - **IDE note:** `No rename target` now shares the CodeIntel toast replacement
   key. Repeated language-intelligence commands, including symbol rename misses,
   keep the latest editor intelligence outcome visible.
+
+L416. Name validation feedback is one input workflow. When a user retries an
+invalid project, file, folder, or rename value, each validation failure is a
+new state of the same text-entry task rather than a separate notification.
+
+- **IDE note:** Project-name validator failures, including empty names,
+  path-separator errors, invalid traversal names, bad first characters, and
+  unsupported characters, now share a NameInput toast replacement key. Repeated
+  invalid-name submissions keep only the latest validation reason visible.

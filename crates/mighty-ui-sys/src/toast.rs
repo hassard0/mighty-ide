@@ -553,6 +553,7 @@ fn toast_fill_alpha(presence: f32) -> f32 {
 enum OperationKey {
     Save,
     Open,
+    NameInput,
     CreateFile,
     CreateFolder,
     CreateProject,
@@ -651,6 +652,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No recent folder selected"
     {
         Some(OperationKey::Open)
+    } else if is_name_input_message(m) {
+        Some(OperationKey::NameInput)
     } else if m.starts_with("Created file")
         || m == "New file cancelled"
         || m == "New file dialog unavailable"
@@ -866,6 +869,15 @@ fn is_mighty_diagnostic_message(message: &str) -> bool {
     code.len() == 4
         && code.chars().all(|ch| ch.is_ascii_digit())
         && chars.next() == Some(':')
+}
+
+fn is_name_input_message(message: &str) -> bool {
+    message == "Enter a project name"
+        || message.starts_with("Project name too long")
+        || message == "Invalid project name"
+        || message == "Name must not contain path separators"
+        || message == "Name must start with a letter, digit or underscore"
+        || message == "Use letters, digits, '-', '_' or '.' only"
 }
 
 /// Re-alpha a color (multiplying the existing alpha by `a`).
@@ -1168,6 +1180,43 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Open folder dialog unavailable");
+    }
+
+    #[test]
+    fn newer_name_input_feedback_replaces_stale_validation_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Warn, "Enter a project name", t0);
+        q.push_at(
+            Kind::Warn,
+            "Name must not contain path separators",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Name must not contain path separators");
+
+        q.push_at(
+            Kind::Warn,
+            "Name must start with a letter, digit or underscore",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Name must start with a letter, digit or underscore"
+        );
+
+        q.push_at(
+            Kind::Warn,
+            "Use letters, digits, '-', '_' or '.' only",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Use letters, digits, '-', '_' or '.' only"
+        );
     }
 
     #[test]
