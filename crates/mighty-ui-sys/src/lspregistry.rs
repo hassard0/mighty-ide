@@ -82,29 +82,49 @@ fn parse_command_value(value: &str) -> Option<CommandLine> {
     if v.is_empty() || v.eq_ignore_ascii_case("off") || v.eq_ignore_ascii_case("none") {
         return None;
     }
-    // Preserve a quoted program path so install paths with spaces work.
-    let (program, rest) = split_program_and_args(v)?;
-    let args = rest.split_whitespace().map(|s| s.to_string()).collect();
+    let mut tokens = split_command_line(v)?;
+    if tokens.is_empty() {
+        return None;
+    }
+    let program = tokens.remove(0);
+    if program.is_empty() {
+        return None;
+    }
+    let args = tokens;
     Some((program, args))
 }
 
-fn split_program_and_args(value: &str) -> Option<(String, &str)> {
-    let v = value.trim();
-    if v.is_empty() {
+fn split_command_line(value: &str) -> Option<Vec<String>> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut in_quote = false;
+    let mut token_started = false;
+
+    for ch in value.trim().chars() {
+        match ch {
+            '"' => {
+                in_quote = !in_quote;
+                token_started = true;
+            }
+            ch if ch.is_whitespace() && !in_quote => {
+                if token_started {
+                    out.push(std::mem::take(&mut cur));
+                    token_started = false;
+                }
+            }
+            ch => {
+                cur.push(ch);
+                token_started = true;
+            }
+        }
+    }
+    if in_quote {
         return None;
     }
-    if let Some(rest) = v.strip_prefix('"') {
-        let end = rest.find('"')?;
-        let program = rest[..end].trim().to_string();
-        if program.is_empty() {
-            return None;
-        }
-        return Some((program, rest[end + 1..].trim()));
+    if token_started {
+        out.push(cur);
     }
-    let mut parts = v.splitn(2, char::is_whitespace);
-    let program = parts.next()?.to_string();
-    let rest = parts.next().unwrap_or("").trim();
-    Some((program, rest))
+    Some(out)
 }
 
 /// A parsed command line: `(program, args)`. `None` (in an override) means the
@@ -305,6 +325,26 @@ mod tests {
                 vec!["--stdio".to_string()]
             ))
         );
+    }
+
+    #[test]
+    fn parse_command_value_preserves_quoted_arguments() {
+        assert_eq!(
+            parse_command_value(r#"server --config "C:\Users\me\LSP Config\server.toml" --stdio"#),
+            Some((
+                "server".to_string(),
+                vec![
+                    "--config".to_string(),
+                    r#"C:\Users\me\LSP Config\server.toml"#.to_string(),
+                    "--stdio".to_string(),
+                ]
+            ))
+        );
+    }
+
+    #[test]
+    fn parse_command_value_rejects_unclosed_quotes() {
+        assert_eq!(parse_command_value(r#""C:\Program Files\LSP\server.exe"#), None);
     }
 
     #[test]
