@@ -596,6 +596,9 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Nothing to commit"
         || m == "Source control stage failed"
         || m == "Source control unstage failed"
+        || m == "No source control row selected"
+        || m == "Source control root missing"
+        || m.starts_with("Source control target missing")
         || m == "No hunk selected"
         || m == "Staged hunk"
         || m == "Unstaged hunk"
@@ -734,11 +737,6 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Run target missing")
     {
         Some(OperationKey::WebRun)
-    } else if m == "No source control row selected"
-        || m == "Source control root missing"
-        || m.starts_with("Source control target missing")
-    {
-        Some(OperationKey::Open)
     } else if m.starts_with("Theme:") {
         Some(OperationKey::Theme)
     } else if is_mighty_diagnostic_message(m) {
@@ -1253,6 +1251,41 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No source-control row");
+    }
+
+    #[test]
+    fn newer_git_feedback_replaces_stale_source_control_row_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "No source control row selected", t0);
+        q.push_at(
+            Kind::Warn,
+            "Source control root missing",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Source control root missing");
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
+            Kind::Warn,
+            "Source control target missing: deleted.mty",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Source control target missing: deleted.mty"
+        );
+
+        q.push_at(
+            Kind::Success,
+            "Staged all changes",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Staged all changes");
     }
 
     #[test]

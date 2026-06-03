@@ -5567,3 +5567,13 @@ result is an empty diff or a missing target.
   `No git repository for diff`, and `No diff for ...` now share the Git toast
   replacement key. Repeated diff-open misses replace older source-control cards
   instead of stacking stale explanations beside the latest outcome.
+
+L406. SCM row-target feedback should not be treated like file-open feedback.
+Stage buttons and stale SCM rows are part of source control, so their missing
+row, missing root, and missing target explanations need to replace git status
+cards rather than unrelated open-dialog cards.
+
+- **IDE note:** `No source control row selected`, `Source control root missing`,
+  and `Source control target missing: ...` now share the Git toast replacement
+  key. Source-control row misses now collapse with stage, commit, hunk, branch,
+  and diff feedback instead of occupying the Open toast lane.
