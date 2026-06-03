@@ -559,8 +559,17 @@ impl AgentTopology {
         self.run.line_count()
     }
 
+    pub fn clear_run_output(&mut self) -> usize {
+        self.run.clear_output()
+    }
+
     pub fn run_line_text(&self, i: usize) -> Option<String> {
         self.run.line(i).map(|l| l.text.clone())
+    }
+
+    #[cfg(test)]
+    pub fn seed_run_demo(&mut self, path: &str) {
+        self.run.seed_demo(path);
     }
 
     /// Seed the topology + run output for the screenshot hook (no scan / no
@@ -1069,6 +1078,27 @@ pub extern "C" fn mui_agents_run_line_count(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.agents.run_line_count() as i32)
 }
 
+/// Clear the embedded Agents run transcript without stopping a running process
+/// or rebuilding the topology. Returns how many output lines were removed.
+#[no_mangle]
+pub extern "C" fn mui_agents_clear_run_output(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.active_panel = crate::PANEL_AGENTS_MTY;
+    ctx.sidebar_visible = true;
+    let mut topo = std::mem::take(&mut ctx.agents);
+    let cleared = topo.clear_run_output() as i32;
+    ctx.agents = topo;
+    if cleared > 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "Agents run output cleared");
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Agents run output already empty");
+    }
+    crate::abi::trace(&format!("agents_clear_run_output lines={cleared}"));
+    cleared
+}
+
 /// Attempt a best-effort live inspect (`mty inspect --json`). Returns the live
 /// agent count, or `-1` if unavailable (no socket / command failure / parse fail).
 /// The reason is surfaced in the panel's live-inspect note line.
@@ -1168,6 +1198,21 @@ mod tests {
             t.summary_line(),
             "2 agents \u{00b7} 2 protocols \u{00b7} 1 tool \u{00b7} 1 supervisor"
         );
+    }
+
+    #[test]
+    fn clear_run_output_preserves_topology() {
+        let mut t = seeded();
+        t.seed_run_demo("examples/agents.mty");
+
+        let cleared = t.clear_run_output();
+
+        assert_eq!(cleared, 8);
+        assert_eq!(t.run_line_count(), 0);
+        assert_eq!(t.agent_count(), 2);
+        assert_eq!(t.protocol_count(), 2);
+        assert_eq!(t.tool_count(), 1);
+        assert_eq!(t.supervisor_count(), 1);
     }
 
     #[test]

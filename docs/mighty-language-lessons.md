@@ -6723,3 +6723,13 @@ avoid stopping the active server.
   Web Playground and calling `mui_web_clear`. State, ABI, registry, metadata,
   dispatcher, and feedback tests pin that output lines clear while the URL and
   running session remain intact.
+
+L527. Embedded run transcripts need their own clear command.
+Panels that reuse a shared run model still own user-facing context. Clearing an
+embedded transcript should keep the parent panel focused and preserve its domain
+model instead of forcing users into the generic Run dock.
+
+- **IDE note:** The command palette now lists `Mighty Agents: Clear Run Output`,
+  focusing the Mighty Agents panel and calling `mui_agents_clear_run_output`.
+  State, ABI, registry, metadata, dispatcher, and feedback tests pin that the
+  embedded run transcript clears without rebuilding topology.

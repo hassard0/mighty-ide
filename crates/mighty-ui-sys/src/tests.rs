@@ -1750,6 +1750,31 @@ fn agents_run_without_file_reports_visible_feedback() {
 }
 
 #[test]
+fn agents_clear_run_output_reports_feedback_and_preserves_topology() {
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    ctx.agents.seed_demo();
+    ctx.agents.seed_run_demo("examples/agents.mty");
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::agentsabi::mui_agents_clear_run_output(handle), 8);
+    assert_eq!(ctx.active_panel, crate::PANEL_AGENTS_MTY);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(ctx.agents.run_line_count(), 0);
+    assert_eq!(ctx.agents.agent_count(), 2);
+    assert_eq!(ctx.agents.protocol_count(), 2);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Agents run output cleared");
+
+    assert_eq!(crate::agentsabi::mui_agents_clear_run_output(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Agents run output already empty");
+}
+
+#[test]
 fn agents_open_node_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -2942,6 +2967,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(web_clear.label, "Web: Clear Output");
     assert_eq!(web_clear.keybinding, "");
+
+    let agents_clear = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_AGENTS_CLEAR_RUN_OUTPUT)
+        .unwrap();
+    assert_eq!(agents_clear.label, "Mighty Agents: Clear Run Output");
+    assert_eq!(agents_clear.keybinding, "");
 }
 
 #[test]
@@ -6722,6 +6754,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Agents refresh command must reveal Mighty Agents before refreshing topology"
     );
     assert!(
+        main.contains("id == cmd_agents_clear_run_output()")
+            && main.contains("let _p = mui_panel_set(h, panel_agents_mty())")
+            && main.contains("let _ac = mui_agents_clear_run_output(h)")
+            && main.contains("agents_focus = true"),
+        "Agents clear-run-output command must reveal Mighty Agents before clearing its run transcript"
+    );
+    assert!(
         main.contains("id == cmd_run_clear_output()")
             && main.contains("let _rc = mui_run_clear(h)")
             && main.contains("run_focus = true"),
@@ -7009,6 +7048,10 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_ZEN_MODE, "cmd_zen_mode"),
         (CMD_AGENTS, "cmd_agents"),
         (CMD_AGENTS_REFRESH, "cmd_agents_refresh"),
+        (
+            CMD_AGENTS_CLEAR_RUN_OUTPUT,
+            "cmd_agents_clear_run_output",
+        ),
         (CMD_RUN_IN_BROWSER, "cmd_run_in_browser"),
         (CMD_WEB_STOP, "cmd_web_stop"),
         (CMD_WEB_OPEN_BROWSER, "cmd_web_open_browser"),
