@@ -6255,3 +6255,11 @@ still used a half-font multiplier.
 - **IDE note:** Debug variable rows now derive the compact name budget and
   separator/value offsets from measured UI-font text. Values still reserve room
   for type metadata, and the `name = value` spacing follows the rendered font.
+
+L483. Peek preview gutters should measure rendered line numbers. The editor
+gutter moved to measured number widths, but Peek Definition's inline preview
+still sized its gutter from digit counts and global character cells.
+
+- **IDE note:** Peek Definition now sizes its preview gutter and right-aligns
+  line numbers with measured code-font widths. Preview source remains on the
+  monospace grid, while the card gutter follows the rendered digits.

@@ -135,6 +135,18 @@ pub(crate) fn fit_peek_header_label(
     out
 }
 
+pub(crate) fn peek_gutter_column_width(
+    text: &mut crate::text::Text,
+    max_line_no: usize,
+    size: f32,
+) -> f32 {
+    text.measure_sized(&max_line_no.max(1).to_string(), size).0 + 10.0
+}
+
+pub(crate) fn peek_gutter_number_width(text: &mut crate::text::Text, num: &str, size: f32) -> f32 {
+    text.measure_sized(num, size).0
+}
+
 /// One previewed line: its 0-based source line number + the text.
 #[derive(Debug, Clone)]
 struct PeekLine {
@@ -377,8 +389,7 @@ impl PeekState {
 
         // Gutter for the preview's true line numbers, sized to the widest shown.
         let max_no = self.lines.iter().map(|l| l.line_no + 1).max().unwrap_or(1);
-        let gutter_chars = layout::digit_count(max_no as u64) as f32;
-        let num_col_w = gutter_chars * layout::CHAR_W() + 10.0;
+        let num_col_w = peek_gutter_column_width(&mut ctx.text, max_no as usize, chrome);
         let text_x = card_x + 14.0 + num_col_w;
 
         let start = self.scroll.min(self.lines.len().saturating_sub(1));
@@ -392,7 +403,7 @@ impl PeekState {
             }
             // Line number.
             let num = (pl.line_no + 1).to_string();
-            let num_w = num.chars().count() as f32 * layout::CHAR_W();
+            let num_w = peek_gutter_number_width(&mut ctx.text, &num, chrome);
             let gx = card_x + 14.0 + (num_col_w - 10.0 - num_w).max(0.0);
             ctx.text.queue_sized(gx, y + 3.0, &num, theme::GUTTER(), chrome, Some(body_clip));
 
@@ -510,6 +521,34 @@ mod tests {
         assert_eq!(peek_header_hint_for_width(260.0), "Go / Esc");
         assert_eq!(peek_header_hint_for_width(220.0), "Go/Esc");
         assert_eq!(peek_header_hint_for_width(180.0), "Esc");
+    }
+
+    #[test]
+    fn gutter_column_width_uses_measured_line_number_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+
+        let size = crate::theme::CHROME_FONT_SIZE;
+        let col_w = peek_gutter_column_width(&mut ctx.text, 1000, size);
+        let measured = ctx.text.measure_sized("1000", size).0 + 10.0;
+
+        assert_eq!(col_w, measured);
+    }
+
+    #[test]
+    fn gutter_number_width_uses_measured_code_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+
+        let size = crate::theme::CHROME_FONT_SIZE;
+        let short = peek_gutter_number_width(&mut ctx.text, "9", size);
+        let wide = peek_gutter_number_width(&mut ctx.text, "1000", size);
+        let measured = ctx.text.measure_sized("1000", size).0;
+
+        assert!(wide > short);
+        assert_eq!(wide, measured);
     }
 
     #[test]
