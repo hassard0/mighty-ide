@@ -577,6 +577,7 @@ enum OperationKey {
     Markdown,
     Layout,
     Terminal,
+    Debug,
     Git,
     Ai,
     Agents,
@@ -832,6 +833,20 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Terminal failed to open"
     {
         Some(OperationKey::Terminal)
+    } else if m == "Debug session already running"
+        || m == "Open a file before starting debug"
+        || m.starts_with("Debug failed to start:")
+        || m == "Continue is available when paused"
+        || m == "No debug session to stop"
+        || m == "Pause is available while running"
+        || m == "Debug restart failed"
+        || m == "No debug target to restart"
+        || m == "Step Over is available when paused"
+        || m == "Step Into is available when paused"
+        || m == "Step Out is available when paused"
+        || m == "Save the file before setting breakpoints"
+    {
+        Some(OperationKey::Debug)
     } else if m.starts_with("Dock ")
         || m.starts_with("Bottom dock ")
         || m.starts_with("No bottom dock ")
@@ -1492,6 +1507,64 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Terminal failed to open");
         assert_eq!(q.toasts()[0].kind, Kind::Error);
+    }
+
+    #[test]
+    fn newer_debug_feedback_replaces_stale_debug_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Warn, "Open a file before starting debug", t0);
+        q.push_at(
+            Kind::Info,
+            "Debug session already running",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Debug session already running");
+
+        q.push_at(
+            Kind::Info,
+            "Continue is available when paused",
+            t0 + Duration::from_millis(200),
+        );
+        q.push_at(
+            Kind::Info,
+            "Step Over is available when paused",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Step Over is available when paused");
+
+        q.push_at(
+            Kind::Info,
+            "Step Into is available when paused",
+            t0 + Duration::from_millis(400),
+        );
+        q.push_at(
+            Kind::Info,
+            "Step Out is available when paused",
+            t0 + Duration::from_millis(500),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Step Out is available when paused");
+
+        q.push_at(
+            Kind::Error,
+            "Debug restart failed",
+            t0 + Duration::from_millis(600),
+        );
+        q.push_at(
+            Kind::Warn,
+            "Save the file before setting breakpoints",
+            t0 + Duration::from_millis(700),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Save the file before setting breakpoints"
+        );
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
     }
 
     #[test]

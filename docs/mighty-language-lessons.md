@@ -5683,3 +5683,13 @@ tab-operation toasts instead of stacking around the editor.
   `No file-backed tab to ...`, and no-saved-tabs close messages now share the
   Tab toast replacement key. Repeated tab lifecycle commands keep the latest
   tab state visible.
+
+L418. Debug command feedback should collapse by session workflow. Starting,
+continuing, stepping, pausing, stopping, restarting, and setting breakpoints are
+one debugger surface, so unavailable-state explanations should replace each
+other as the user probes controls.
+
+- **IDE note:** Debug start failures, already-running notices, unavailable
+  continue/pause/step/stop/restart messages, and breakpoint save-first warnings
+  now share a Debug toast replacement key. Repeated debugger commands keep the
+  latest session or breakpoint state visible.
