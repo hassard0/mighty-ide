@@ -570,6 +570,7 @@ enum OperationKey {
     Navigation,
     Markdown,
     Layout,
+    Terminal,
     Git,
     Ai,
     Agents,
@@ -768,6 +769,12 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Navigation)
     } else if m.starts_with("Markdown preview ") || m.starts_with("Markdown Preview ") {
         Some(OperationKey::Markdown)
+    } else if m == "Terminal opened"
+        || m == "Terminal closed"
+        || m == "Terminal is already closed"
+        || m == "Terminal failed to open"
+    {
+        Some(OperationKey::Terminal)
     } else if m.starts_with("Dock ")
         || m.starts_with("Bottom dock ")
         || m.starts_with("No bottom dock ")
@@ -1286,6 +1293,34 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Staged all changes");
+    }
+
+    #[test]
+    fn newer_terminal_feedback_replaces_stale_terminal_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "Terminal opened", t0);
+        q.push_at(Kind::Info, "Terminal closed", t0 + Duration::from_millis(100));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Terminal closed");
+
+        q.push_at(
+            Kind::Info,
+            "Terminal is already closed",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Terminal is already closed");
+
+        q.push_at(
+            Kind::Error,
+            "Terminal failed to open",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Terminal failed to open");
+        assert_eq!(q.toasts()[0].kind, Kind::Error);
     }
 
     #[test]

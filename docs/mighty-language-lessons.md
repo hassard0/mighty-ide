@@ -5577,3 +5577,12 @@ cards rather than unrelated open-dialog cards.
   and `Source control target missing: ...` now share the Git toast replacement
   key. Source-control row misses now collapse with stage, commit, hunk, branch,
   and diff feedback instead of occupying the Open toast lane.
+
+L407. Terminal lifecycle feedback needs its own replacement lane. Opening,
+closing, retrying, and failing to spawn the integrated terminal are one workflow,
+and stale terminal state cards should not stack as the user toggles the panel.
+
+- **IDE note:** `Terminal opened`, `Terminal closed`,
+  `Terminal is already closed`, and `Terminal failed to open` now share a
+  terminal toast replacement key. Repeated terminal actions keep the latest
+  lifecycle state visible without leaving old terminal cards behind.
