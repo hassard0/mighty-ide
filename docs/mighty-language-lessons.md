@@ -7183,3 +7183,14 @@ ABI needs the same stateful feedback contract as other panel close commands.
   `Settings panel closed` or `Settings panel is already closed`. Mighty
   explicitly discards the return from Esc, mouse-dismiss, and palette close
   paths.
+
+L574. Keyboard Shortcuts close should report command state, including capture
+mode. The palette close command is available even when the shortcuts overlay is
+already closed, and the dedicated close path also needs to force-exit remap
+capture when the overlay is open.
+
+- **IDE note:** `mui_keys_close` now returns `1` when it closes the Keyboard
+  Shortcuts overlay and `0` when it is already closed, reporting
+  `Keyboard Shortcuts closed` or `Keyboard Shortcuts is already closed`. The
+  regression verifies that close still exits capture mode and that the feedback
+  uses the layout toast replacement lane.

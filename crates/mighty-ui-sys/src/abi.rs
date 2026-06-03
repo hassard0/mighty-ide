@@ -7821,12 +7821,22 @@ pub extern "C" fn mui_keys_cancel(handle: i64) {
     }
 }
 
-/// Close the shortcuts overlay even when a remap capture is active.
+/// Close the shortcuts overlay even when a remap capture is active. Returns `1`
+/// when it closed the overlay, or `0` when it was already closed.
 #[no_mangle]
-pub extern "C" fn mui_keys_close(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
-        trace("shortcuts_close");
+pub extern "C" fn mui_keys_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.shortcuts.is_active() {
         ctx.shortcuts.cancel();
+        ctx.push_toast(crate::toast::Kind::Info, "Keyboard Shortcuts closed");
+        trace("shortcuts_close");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Keyboard Shortcuts is already closed");
+        trace("shortcuts_close noop");
+        0
     }
 }
 

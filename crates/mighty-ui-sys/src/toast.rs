@@ -895,6 +895,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Problems diagnostics ")
         || m.starts_with("Problems panel ")
         || m.starts_with("Settings panel ")
+        || m.starts_with("Keyboard Shortcuts ")
     {
         Some(OperationKey::Layout)
     } else {
@@ -1550,6 +1551,20 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Settings panel is already closed");
         assert!(!q.toasts().iter().any(|t| t.message == "Settings panel closed"));
+
+        q.push_at(
+            Kind::Info,
+            "Keyboard Shortcuts closed",
+            t0 + Duration::from_millis(1100),
+        );
+        q.push_at(
+            Kind::Info,
+            "Keyboard Shortcuts is already closed",
+            t0 + Duration::from_millis(1200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Keyboard Shortcuts is already closed");
+        assert!(!q.toasts().iter().any(|t| t.message == "Keyboard Shortcuts closed"));
     }
 
     #[test]

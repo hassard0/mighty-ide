@@ -5898,9 +5898,17 @@ fn keyboard_shortcuts_close_command_exits_capture_and_overlay() {
     assert_eq!(crate::mui_keys_capturing(handle), 0);
 
     assert_eq!(crate::mui_keys_begin_capture(handle), 1);
-    crate::mui_keys_close(handle);
+    assert_eq!(crate::mui_keys_close(handle), 1);
     assert_eq!(crate::mui_keys_active(handle), 0);
     assert_eq!(crate::mui_keys_capturing(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Keyboard Shortcuts closed");
+
+    assert_eq!(crate::mui_keys_close(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Keyboard Shortcuts is already closed");
 }
 
 #[test]
@@ -8214,7 +8222,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_keyboard_shortcuts_close()")
-            && main.contains("mui_keys_close(h)"),
+            && main.contains("let _kc = mui_keys_close(h)"),
         "Keyboard Shortcuts close command must call the dedicated close ABI"
     );
     assert!(

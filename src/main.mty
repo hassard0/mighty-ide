@@ -379,7 +379,7 @@ extern c {
   fn mui_keys_reset(handle: I64) -> I32
   fn mui_keys_reset_all(handle: I64)
   fn mui_keys_cancel(handle: I64)
-  fn mui_keys_close(handle: I64)
+  fn mui_keys_close(handle: I64) -> I32
   fn mui_keys_draw(handle: I64)
   // ---- universal Quick-Open (Ctrl+P): files / > cmds / @ syms / : line ----
   fn mui_quickopen_open(handle: I64)
@@ -4602,7 +4602,7 @@ fn main() {
         } else if id == cmd_keyboard_shortcuts() {
           mui_keys_open(h)
         } else if id == cmd_keyboard_shortcuts_close() {
-          mui_keys_close(h)
+          let _kc = mui_keys_close(h)
         } else if id == cmd_new_project() {
           let np = mui_newproj_dialog(h)
           if np == -1 {
