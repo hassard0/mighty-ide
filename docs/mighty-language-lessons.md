@@ -6331,3 +6331,15 @@ stale rows.
   defaulting missing counts to one, clamping at the bottom of the grid, and
   blanking the rows vacated by the shift. Parser tests cover row preservation,
   large-count clamping, default counts, and escape consumption.
+
+L492. Terminal viewport scroll commands should move the visible grid. Some
+shell redraws and lightweight terminal UIs use `CSI S` and `CSI T` to scroll the
+viewport up or down without emitting newlines. Consuming those escapes without
+scrolling leaves old rows in place and makes later output appear detached from
+the intended terminal state.
+
+- **IDE note:** The integrated terminal now handles `ESC[nS` and `ESC[nT`,
+  defaulting missing counts to one, clamping large counts to the visible grid,
+  preserving the cursor, and blanking rows introduced by the scroll. Parser
+  tests cover both directions, default counts, large-count clamping, and escape
+  consumption.

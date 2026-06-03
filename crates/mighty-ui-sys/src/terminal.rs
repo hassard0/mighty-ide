@@ -225,14 +225,24 @@ impl Grid {
         }
     }
 
-    /// Scroll the whole grid up one line: drop row 0, shift the rest up, blank
-    /// the last row. Used when the cursor would advance past the last row.
-    fn scroll_up(&mut self) {
-        // Shift rows [1..rows) into [0..rows-1).
-        self.cells.rotate_left(self.cols);
-        // Blank the now-bottom row.
-        let start = (self.rows - 1) * self.cols;
+    /// Scroll the whole grid up `count` lines: drop top rows, shift the rest up,
+    /// blank the bottom rows. Used by newline-at-bottom and `CSI S`.
+    fn scroll_up(&mut self, count: usize) {
+        let count = count.max(1).min(self.rows);
+        self.cells.rotate_left(count * self.cols);
+        let start = (self.rows - count) * self.cols;
         for c in &mut self.cells[start..] {
+            *c = Cell::default();
+        }
+    }
+
+    /// Scroll the whole grid down `count` lines: drop bottom rows, shift the
+    /// rest down, blank the top rows. Used by `CSI T`.
+    fn scroll_down(&mut self, count: usize) {
+        let count = count.max(1).min(self.rows);
+        self.cells.rotate_right(count * self.cols);
+        let end = count * self.cols;
+        for c in &mut self.cells[..end] {
             *c = Cell::default();
         }
     }
@@ -241,7 +251,7 @@ impl Grid {
     fn newline(&mut self) {
         self.cur_col = 0;
         if self.cur_row + 1 >= self.rows {
-            self.scroll_up();
+            self.scroll_up(1);
         } else {
             self.cur_row += 1;
         }
@@ -525,6 +535,10 @@ impl VtParser {
                     self.delete_lines(grid);
                 } else if b == b'P' {
                     self.delete_chars(grid);
+                } else if b == b'S' {
+                    self.scroll_up(grid);
+                } else if b == b'T' {
+                    self.scroll_down(grid);
                 } else if b == b'H' || b == b'f' {
                     self.cursor_position(grid);
                 } else if matches!(b, b'A' | b'B' | b'C' | b'D') {
@@ -627,6 +641,18 @@ impl VtParser {
     fn delete_lines(&mut self, grid: &mut Grid) {
         if let Some(count) = self.first_count_param() {
             grid.delete_lines(count);
+        }
+    }
+
+    fn scroll_up(&mut self, grid: &mut Grid) {
+        if let Some(count) = self.first_count_param() {
+            grid.scroll_up(count);
+        }
+    }
+
+    fn scroll_down(&mut self, grid: &mut Grid) {
+        if let Some(count) = self.first_count_param() {
+            grid.scroll_down(count);
         }
     }
 
@@ -1293,6 +1319,26 @@ mod tests {
 
         let g2 = grid_feed(3, 4, b"aaaa\nbbbb\ncccc\x1b[2;1H\x1b[99M");
         assert_eq!(g2.to_text(), "aaaa\n    \n    ");
+    }
+
+    #[test]
+    fn scroll_up_csi_shifts_viewport_and_blanks_bottom() {
+        let g = grid_feed(4, 4, b"aaaa\nbbbb\ncccc\ndddd\x1b[2S");
+        assert_eq!(g.to_text(), "cccc\ndddd\n    \n    ");
+        assert!(!g.contains("2S"));
+
+        let g2 = grid_feed(3, 4, b"aaaa\nbbbb\ncccc\x1b[S");
+        assert_eq!(g2.to_text(), "bbbb\ncccc\n    ");
+    }
+
+    #[test]
+    fn scroll_down_csi_shifts_viewport_and_blanks_top() {
+        let g = grid_feed(4, 4, b"aaaa\nbbbb\ncccc\ndddd\x1b[2T");
+        assert_eq!(g.to_text(), "    \n    \naaaa\nbbbb");
+        assert!(!g.contains("2T"));
+
+        let g2 = grid_feed(3, 4, b"aaaa\nbbbb\ncccc\x1b[99T");
+        assert_eq!(g2.to_text(), "    \n    \n    ");
     }
 
     #[test]
