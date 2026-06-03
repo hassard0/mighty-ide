@@ -6263,3 +6263,11 @@ still sized its gutter from digit counts and global character cells.
 - **IDE note:** Peek Definition now sizes its preview gutter and right-aligns
   line numbers with measured code-font widths. Preview source remains on the
   monospace grid, while the card gutter follows the rendered digits.
+
+L484. Sticky Scroll gutter labels should match editor gutter measurement. Sticky
+headers render as code rows, but their line-number labels still used global
+character-cell widths after the editor and Peek gutters moved to measured text.
+
+- **IDE note:** Sticky Scroll now right-aligns pinned header line numbers with
+  measured code-font widths. The sticky source text remains grid-aligned, while
+  the gutter label follows the rendered digits.

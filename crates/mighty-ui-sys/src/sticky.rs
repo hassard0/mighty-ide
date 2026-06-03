@@ -227,7 +227,7 @@ impl StickyState {
             }
             // Right-aligned faint line number (so a header reads like a code row).
             let num = (sym_line + 1).to_string();
-            let num_w = num.chars().count() as f32 * layout::CHAR_W();
+            let num_w = sticky_gutter_number_width(&mut ctx.text, &num, chrome);
             let gx = (text_x - layout::GUTTER_GAP - num_w).max(left + 2.0);
             ctx.text.queue_sized(gx, y + 5.0, &num, theme::GUTTER(), chrome, clip);
 
@@ -256,6 +256,14 @@ impl StickyState {
 #[inline]
 pub fn sticky_row_h() -> f32 {
     layout::LINE_H()
+}
+
+pub(crate) fn sticky_gutter_number_width(
+    text: &mut crate::text::Text,
+    num: &str,
+    size: f32,
+) -> f32 {
+    text.measure_sized(num, size).0
 }
 
 #[cfg(test)]
@@ -383,5 +391,20 @@ mod tests {
         assert_eq!(n, 2);
         assert_eq!(st.text_of(0), "struct Foo");
         assert_eq!(st.text_of(1), "fn bar");
+    }
+
+    #[test]
+    fn gutter_number_width_uses_measured_code_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+
+        let size = crate::theme::CHROME_FONT_SIZE;
+        let short = sticky_gutter_number_width(&mut ctx.text, "9", size);
+        let wide = sticky_gutter_number_width(&mut ctx.text, "1000", size);
+        let measured = ctx.text.measure_sized("1000", size).0;
+
+        assert!(wide > short);
+        assert_eq!(wide, measured);
     }
 }
