@@ -5466,3 +5466,13 @@ without feedback makes the header action feel inert.
   when there is no active file path. The toast is grouped as Agents feedback so
   repeated attempts refresh the same operation instead of stacking unrelated
   notifications.
+
+L395. Agent topology jumps need the same miss contract as other navigators.
+Clicking an empty Agents row, a section header, or a stale source-backed node
+should not preserve an old jump target or fail without visible feedback.
+
+- **IDE note:** `mui_agents_open_node` now clears stale click targets before
+  resolving a row and reports `No agent node selected`,
+  `Agents node has no file target`, or `Agents target missing: ...` for failed
+  topology jumps. Successful source nodes keep the existing open-tab and
+  cursor-jump behavior.

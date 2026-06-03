@@ -1609,6 +1609,35 @@ fn agents_run_without_file_reports_visible_feedback() {
 }
 
 #[test]
+fn agents_open_node_misses_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let missing = std::env::temp_dir()
+        .join(format!("mui_agents_missing_{}", std::process::id()))
+        .join("agent.mty");
+    let model = crate::agents::scan_file(&missing, "agent Worker {}\n");
+    ctx.agents.set_model(model);
+    ctx.agents
+        .set_click_target(Some((std::path::PathBuf::from("stale.mty"), 7)));
+
+    assert_eq!(crate::agentsabi::mui_agents_open_node(handle, -1), -1);
+    assert!(ctx.agents.click_target().is_none());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No agent node selected");
+
+    assert_eq!(crate::agentsabi::mui_agents_open_node(handle, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Agents node has no file target");
+
+    assert_eq!(crate::agentsabi::mui_agents_open_node(handle, 1), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Agents target missing: agent.mty");
+}
+
+#[test]
 fn bottom_dock_resize_uses_visible_mouse_geometry() {
     let _g = crate::settings::TEST_LOCK
         .lock()

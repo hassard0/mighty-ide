@@ -889,19 +889,25 @@ pub extern "C" fn mui_agents_open_node(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    ctx.agents.set_click_target(None);
     if i < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No agent node selected");
         return -1;
     }
     let (file, line) = {
         let Some(n) = ctx.agents.node(i as usize) else {
+            ctx.push_toast(crate::toast::Kind::Info, "No agent node selected");
             return -1;
         };
         if n.line < 0 || n.file.as_os_str().is_empty() {
+            ctx.push_toast(crate::toast::Kind::Info, "Agents node has no file target");
             return -1;
         }
         (n.file.clone(), n.line)
     };
     if !file.exists() {
+        let name = file.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Agents target missing: {name}"));
         return -1;
     }
     let idx = ctx.tabs.open_path(file);
