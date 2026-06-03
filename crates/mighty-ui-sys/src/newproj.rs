@@ -42,7 +42,9 @@ pub fn validate_name(input: &str) -> Result<String, String> {
     if name.contains('/') || name.contains('\\') || name.contains(':') {
         return Err("Name must not contain path separators".to_string());
     }
-    let first = name.chars().next().unwrap();
+    let Some(first) = name.chars().next() else {
+        return Err("Enter a project name".to_string());
+    };
     if !(first.is_ascii_alphanumeric() || first == '_') {
         return Err("Name must start with a letter, digit or underscore".to_string());
     }
