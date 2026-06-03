@@ -5703,3 +5703,12 @@ of one run workflow, so they should not stack as separate notifications.
   warnings, and numeric pass/fail summaries now share the Test toast
   replacement key. Repeated testing commands keep only the latest run state
   visible.
+
+L420. Agents topology navigation feedback should share the Agents lane. Opening
+rows, header rows, missing source targets, and run-without-file prompts all
+belong to the same agent-system panel workflow.
+
+- **IDE note:** `No agent node selected`, `Agents node has no file target`,
+  `Agents target missing: ...`, and `Open a file before running Agents` now
+  share the Agents toast replacement key. Repeated Agents panel actions keep
+  the latest topology/run state visible.

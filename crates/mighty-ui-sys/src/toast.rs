@@ -624,7 +624,10 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Not a git repository"
     {
         Some(OperationKey::Git)
-    } else if m == "Open a file before running Agents" || m.starts_with("Agents ") {
+    } else if m == "Open a file before running Agents"
+        || m == "No agent node selected"
+        || m.starts_with("Agents ")
+    {
         Some(OperationKey::Agents)
     } else if m == "No unsaved files"
         || m == "Save All failed"
@@ -1857,6 +1860,35 @@ mod tests {
         q.push_at(Kind::Info, "AI Copilot closed", t0 + Duration::from_millis(200));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "AI Copilot closed");
+    }
+
+    #[test]
+    fn newer_agents_feedback_replaces_stale_agents_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Warn, "Open a file before running Agents", t0);
+        q.push_at(
+            Kind::Info,
+            "No agent node selected",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No agent node selected");
+
+        q.push_at(
+            Kind::Info,
+            "Agents node has no file target",
+            t0 + Duration::from_millis(200),
+        );
+        q.push_at(
+            Kind::Warn,
+            "Agents target missing: agent.mty",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Agents target missing: agent.mty");
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
     }
 
     #[test]
