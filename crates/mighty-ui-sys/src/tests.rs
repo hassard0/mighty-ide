@@ -6302,10 +6302,10 @@ fn editor_undo_redo_report_read_only_preview() {
 fn editor_mutating_commands_report_read_only_preview() {
     use crate::{
         mui_ed_backspace, mui_ed_backspace_multi, mui_ed_delete, mui_ed_delete_multi,
-        mui_ed_delete_word_left_multi, mui_ed_delete_word_right_multi, mui_ed_duplicate,
-        mui_ed_insert_char, mui_ed_insert_char_multi, mui_ed_insert_smart_multi, mui_ed_move_lines_down,
-        mui_ed_move_lines_up, mui_ed_newline, mui_ed_newline_indent, mui_ed_newline_indent_multi,
-        mui_ed_toggle_comment,
+        mui_ed_complete_accept, mui_ed_delete_word_left_multi, mui_ed_delete_word_right_multi,
+        mui_ed_duplicate, mui_ed_insert_char, mui_ed_insert_char_multi, mui_ed_insert_smart_multi,
+        mui_ed_move_lines_down, mui_ed_move_lines_up, mui_ed_newline, mui_ed_newline_indent,
+        mui_ed_newline_indent_multi, mui_ed_toggle_comment,
     };
 
     let mut ctx = ctx_or_skip!();
@@ -6319,6 +6319,7 @@ fn editor_mutating_commands_report_read_only_preview() {
     let active = ctx.tabs.active();
     let before = ctx.tabs.active_model().as_text();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    ctx.ghost.seed_demo("suggested", (0, 0));
 
     for edit in [
         mui_ed_toggle_comment as extern "C" fn(i64) -> i32,
@@ -6334,6 +6335,12 @@ fn editor_mutating_commands_report_read_only_preview() {
         mui_ed_newline_indent_multi,
         mui_ed_delete_word_left_multi,
         mui_ed_delete_word_right_multi,
+        mui_ed_complete_accept,
+        crate::ghostabi::mui_ghost_accept,
+        crate::ghostabi::mui_ghost_accept_word,
+        crate::snippetsabi::mui_snippet_try_expand,
+        crate::snippetsabi::mui_snippet_replace_stop,
+        crate::snippetsabi::mui_snippet_complete_expand,
     ] {
         assert_eq!(edit(h), 0);
         let toast = ctx.toasts.toasts().last().unwrap();
@@ -8208,6 +8215,14 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let replaced = mui_replace_next(h)")
             && main.contains("if replaced > 0 {\n                mui_tab_set_dirty(h, mui_tab_active(h), 1)"),
         "in-file replace Enter handling must only dirty the tab after replacements"
+    );
+    assert!(
+        main.contains("let accepted = if mui_snippet_complete_is(h) == 1")
+            && main.contains("let accepted = mui_ghost_accept(h)")
+            && main.contains("let accepted = mui_ghost_accept_word(h)")
+            && main.contains("if accepted > 0 {\n              mui_tab_set_dirty(h, mui_tab_active(h), 1)")
+            && main.contains("if accepted == 1 {\n              mui_tab_set_dirty(h, mui_tab_active(h), 1)"),
+        "completion and ghost accept paths must only dirty after accepted edits"
     );
     assert!(
         main.contains("Ctrl+S save / Ctrl+Shift+S Save As"),

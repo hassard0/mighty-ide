@@ -7445,3 +7445,13 @@ tab unless the count is positive.
   `mui_replace_next` / `mui_replace_all` and only calls `mui_tab_set_dirty` when
   that value is greater than zero. This keeps no-match and read-only replace
   attempts from creating false dirty state.
+
+L598. Completion, snippet, and ghost acceptance are edits too. Their ABIs should
+refuse read-only previews before consuming state, and Mighty should dirty the tab
+only after the accept call reports that text was inserted or expanded.
+
+- **IDE note:** Completion accept now reports `0` for unchanged text and uses
+  the shared read-only edit warning. Ghost accept, ghost word-accept, snippet
+  prefix expand, snippet placeholder replace, and snippet completion expand now
+  refuse read-only previews before mutating or consuming suggestions. Mighty
+  gates completion and ghost dirtying on the returned accept state.

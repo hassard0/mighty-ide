@@ -11275,8 +11275,9 @@ pub extern "C" fn mui_ed_complete_accept(handle: i64) -> i32 {
         return 0;
     };
     if ctx.tabs.active_read_only() {
-        return 0;
+        return reject_read_only_edit(ctx);
     }
+    let before = ctx.tabs.active_model().as_text();
     let prefix = ctx.complete.prefix_len();
     let accepted = ctx.complete.accepted_text().to_string();
     let m = ctx.tabs.active_model_mut();
@@ -11285,6 +11286,9 @@ pub extern "C" fn mui_ed_complete_accept(handle: i64) -> i32 {
     }
     for ch in accepted.chars() {
         m.insert_char(ch);
+    }
+    if ctx.tabs.active_model().as_text() == before {
+        return 0;
     }
     accepted.chars().count() as i32
 }

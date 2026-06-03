@@ -2513,12 +2513,14 @@ fn main() {
             // (3) Accept the selected candidate. A snippet entry EXPANDS its body
             // (and begins the tab-stop session); a plain entry inserts its text.
             mui_ed_undo_record(h)
-            if mui_snippet_complete_is(h) == 1 {
-              let _e = mui_snippet_complete_expand(h)
+            let accepted = if mui_snippet_complete_is(h) == 1 {
+              mui_snippet_complete_expand(h)
             } else {
-              let _a = mui_ed_complete_accept(h)
+              mui_ed_complete_accept(h)
             }
-            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            if accepted > 0 {
+              mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            }
             let _cc = mui_complete_cancel(h)
             completing = false
             typing = false
@@ -2550,12 +2552,14 @@ fn main() {
           let ch = mui_complete_click_at(h, c_line - first, c_col, total_c)
           if ch >= 0 {
             mui_ed_undo_record(h)
-            if mui_snippet_complete_is(h) == 1 {
-              let _e = mui_snippet_complete_expand(h)
+            let accepted = if mui_snippet_complete_is(h) == 1 {
+              mui_snippet_complete_expand(h)
             } else {
-              let _a = mui_ed_complete_accept(h)
+              mui_ed_complete_accept(h)
             }
-            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            if accepted > 0 {
+              mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            }
             let _cc = mui_complete_cancel(h)
             completing = false
             typing = false
@@ -3122,8 +3126,10 @@ fn main() {
             // (2) Tab accepts the inline AI ghost suggestion (insert at cursor).
             mui_ed_undo_record(h)
             typing = false
-            let _a = mui_ghost_accept(h)
-            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            let accepted = mui_ghost_accept(h)
+            if accepted == 1 {
+              mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            }
           } else if mui_snippet_try_expand(h) == 1 {
             // (4) The word before the cursor is a snippet prefix -> expand it,
             // begin the tab-stop session, select the first stop. (Step (3),
@@ -3163,8 +3169,10 @@ fn main() {
             // Ctrl+Right with a ghost shown: partial-accept ONE word; the rest of
             // the suggestion stays as the ghost.
             mui_ed_undo_record(h)
-            let _a = mui_ghost_accept_word(h)
-            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            let accepted = mui_ghost_accept_word(h)
+            if accepted == 1 {
+              mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            }
           } else if ctrl_held(kmods) {
             mui_ghost_dismiss(h)
             mui_ed_move_word_multi(h, 1, ext)                 // Ctrl+Right : word right

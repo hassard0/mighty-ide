@@ -22,6 +22,7 @@
 
 use crate::completion::prefix_at;
 use crate::snippets;
+use crate::toast::Kind;
 use crate::MuiContext;
 
 /// Cast an opaque `i64` handle back to a context reference.
@@ -44,6 +45,10 @@ pub extern "C" fn mui_snippet_try_expand(handle: i64) -> i32 {
     let Some(c) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if c.tabs.active_read_only() {
+        c.push_toast(Kind::Warn, "Edit is unavailable in read-only previews");
+        return 0;
+    }
     let lang = c.language;
     // Split the borrow: the session + the active model are distinct fields.
     let session = &mut c.snippet_session;
@@ -124,6 +129,10 @@ pub extern "C" fn mui_snippet_replace_stop(handle: i64) -> i32 {
     let Some(c) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if c.tabs.active_read_only() {
+        c.push_toast(Kind::Warn, "Edit is unavailable in read-only previews");
+        return 0;
+    }
     if !c.snippet_session.is_active() {
         return 0;
     }
@@ -178,6 +187,10 @@ pub extern "C" fn mui_snippet_complete_expand(handle: i64) -> i32 {
     let Some(c) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if c.tabs.active_read_only() {
+        c.push_toast(Kind::Warn, "Edit is unavailable in read-only previews");
+        return 0;
+    }
     // The selected candidate's text is the snippet prefix. Delete what the user
     // typed so far (the completion prefix length), then re-type the full prefix
     // so the cursor is positioned exactly after it, and expand.

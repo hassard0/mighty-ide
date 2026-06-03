@@ -105,6 +105,10 @@ pub extern "C" fn mui_ghost_accept(handle: i64) -> i32 {
     let Some(c) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if c.tabs.active_read_only() {
+        c.push_toast(Kind::Warn, "Edit is unavailable in read-only previews");
+        return 0;
+    }
     let Some(text) = c.ghost.accept() else {
         return 0;
     };
@@ -123,6 +127,10 @@ pub extern "C" fn mui_ghost_accept_word(handle: i64) -> i32 {
     let Some(c) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if c.tabs.active_read_only() {
+        c.push_toast(Kind::Warn, "Edit is unavailable in read-only previews");
+        return 0;
+    }
     let Some(word) = c.ghost.accept_word() else {
         return 0;
     };
