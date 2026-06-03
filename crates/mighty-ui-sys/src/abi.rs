@@ -560,16 +560,19 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
                 crate::language::CodeAction {
                     title: "Replace 'prnt' with 'print'".to_string(),
                     edit: None,
+                    command_edit: None,
                     fix_all_mty: false,
                 },
                 crate::language::CodeAction {
                     title: "Import 'print' from std".to_string(),
                     edit: None,
+                    command_edit: None,
                     fix_all_mty: false,
                 },
                 crate::language::CodeAction {
                     title: "Fix all (mty)".to_string(),
                     edit: None,
+                    command_edit: None,
                     fix_all_mty: true,
                 },
             ];
@@ -8706,6 +8709,7 @@ pub(crate) fn compute_line_actions(
         actions.push(crate::language::CodeAction {
             title: "Fix all (mty)".to_string(),
             edit: None,
+            command_edit: None,
             fix_all_mty: true,
         });
     }
@@ -8839,6 +8843,12 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         let we = we.clone();
         let changed = apply_workspace_edit(ctx, &we, "");
         println!("codeaction: apply edit files={changed}");
+        return i32::from(changed > 0);
+    }
+    if let Some(we) = &action.command_edit {
+        let we = we.clone();
+        let changed = apply_workspace_edit(ctx, &we, "");
+        println!("codeaction: apply command-edit files={changed}");
         return i32::from(changed > 0);
     }
     println!("codeaction: apply (command/no-edit) — no-op");

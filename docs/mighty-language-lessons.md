@@ -4935,7 +4935,7 @@ Mighty-only `mty lsp` code-action request path.
   params, so inline-edit quick fixes from servers such as rust-analyzer can
   appear in the existing quick-fix menu. The Mighty-only `Fix all (mty)` action
   remains limited to Mighty files.
-- **Language note:** no compiler bug surfaced. Mighty should eventually support
-  the full LSP code-action lifecycle, including `workspace/executeCommand` and
-  server-initiated `workspace/applyEdit`, so command-only actions can be applied
-  rather than filtered out.
+- **Language note:** no compiler bug surfaced. Mighty can now apply command-form
+  actions that carry a `WorkspaceEdit` in their arguments, but should eventually
+  support the full LSP code-action lifecycle, including long-lived
+  `workspace/executeCommand` and server-initiated `workspace/applyEdit`.

@@ -663,6 +663,8 @@ pub struct CodeAction {
     pub title: String,
     /// The action's edit, if it carries one inline.
     pub edit: Option<WorkspaceEdit>,
+    /// A workspace edit embedded in a command action's arguments.
+    pub command_edit: Option<WorkspaceEdit>,
     /// `true` if this is the synthetic shim-provided "Fix all (mty)" action that
     /// runs `mty fix --apply` rather than applying an LSP edit.
     pub fix_all_mty: bool,
@@ -670,7 +672,7 @@ pub struct CodeAction {
 
 impl CodeAction {
     fn is_actionable(&self) -> bool {
-        self.edit.is_some() || self.fix_all_mty
+        self.edit.is_some() || self.command_edit.is_some() || self.fix_all_mty
     }
 }
 
@@ -743,7 +745,8 @@ fn parse_action_array(arr: &[u8]) -> Vec<CodeAction> {
     out
 }
 
-/// Parse one code-action object slice. Reads `title` + optional `edit`.
+/// Parse one code-action object slice. Reads `title`, optional inline `edit`,
+/// and command-form edits embedded in `arguments`.
 fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
     let t_key = b"\"title\"";
     let t_at = find_sub(obj, t_key)?;
@@ -760,6 +763,7 @@ fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
     } else {
         None
     };
+    let command_edit = parse_command_edit(obj);
     let fix_all_mty = read_json_field_string(obj, b"\"kind\"")
         .map(|kind| kind == "source.fixAll.mighty")
         .unwrap_or(false)
@@ -769,8 +773,20 @@ fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
     Some(CodeAction {
         title,
         edit,
+        command_edit,
         fix_all_mty,
     })
+}
+
+fn parse_command_edit(obj: &[u8]) -> Option<WorkspaceEdit> {
+    let args_at = find_sub(obj, b"\"arguments\"")?;
+    let sub = &obj[args_at..];
+    let we = parse_workspace_edit(&String::from_utf8_lossy(sub));
+    if we.is_empty() {
+        None
+    } else {
+        Some(we)
+    }
 }
 
 fn read_json_field_string(obj: &[u8], key: &[u8]) -> Option<String> {
@@ -1714,7 +1730,20 @@ mod tests {
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].title, "Run fixer");
         assert!(actions[0].edit.is_none());
+        assert!(actions[0].command_edit.is_none());
         assert!(actions[0].fix_all_mty);
+    }
+
+    #[test]
+    fn parse_code_actions_command_arguments_workspace_edit() {
+        let json = r#"{"result":[{"title":"Apply suggestion","command":"rust-analyzer.applySourceChange","arguments":[{"label":"apply","workspaceEdit":{"changes":{"file:///a.rs":[{"newText":"println!","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":11}}}]}}}]}],"id":5}"#;
+        let actions = parse_code_actions(json);
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].title, "Apply suggestion");
+        assert!(actions[0].edit.is_none());
+        let e = actions[0].command_edit.as_ref().expect("command edit");
+        assert_eq!(e.total_edits(), 1);
+        assert_eq!(e.files[0].1[0].new_text, "println!");
     }
 
     // ---- state types ----
@@ -1761,13 +1790,13 @@ mod tests {
         assert_eq!(c.set(vec![]), 0);
         assert!(!c.is_active());
         assert_eq!(
-            c.set(vec![CodeAction { title: "Inert command".into(), edit: None, fix_all_mty: false }]),
+            c.set(vec![CodeAction { title: "Inert command".into(), edit: None, command_edit: None, fix_all_mty: false }]),
             0,
             "non-actionable code actions are hidden instead of becoming inert menu rows"
         );
         let actions = vec![
-            CodeAction { title: "A".into(), edit: Some(WorkspaceEdit::default()), fix_all_mty: false },
-            CodeAction { title: "B".into(), edit: None, fix_all_mty: true },
+            CodeAction { title: "A".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, fix_all_mty: false },
+            CodeAction { title: "B".into(), edit: None, command_edit: None, fix_all_mty: true },
         ];
         assert_eq!(c.set(actions), 2);
         assert!(c.is_active());
@@ -1790,8 +1819,8 @@ mod tests {
     fn code_action_click_row_selects_action() {
         let mut c = CodeActionState::new();
         let actions = vec![
-            CodeAction { title: "Replace typo".into(), edit: Some(WorkspaceEdit::default()), fix_all_mty: false },
-            CodeAction { title: "Fix all".into(), edit: None, fix_all_mty: true },
+            CodeAction { title: "Replace typo".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, fix_all_mty: false },
+            CodeAction { title: "Fix all".into(), edit: None, command_edit: None, fix_all_mty: true },
         ];
         assert_eq!(c.set(actions), 2);
         let (box_x, box_y, _box_w, _box_h, pad, row_h) = c.geometry(300.0, 120.0, 900, 700);
@@ -1832,9 +1861,10 @@ mod tests {
             CodeAction {
                 title: "Replace extremely long unresolved symbol with imported candidate".into(),
                 edit: Some(WorkspaceEdit::default()),
+                command_edit: None,
                 fix_all_mty: false,
             },
-            CodeAction { title: "Fix all".into(), edit: None, fix_all_mty: true },
+            CodeAction { title: "Fix all".into(), edit: None, command_edit: None, fix_all_mty: true },
         ];
         assert_eq!(c.set(actions), 2);
         let min_x = 220.0;
