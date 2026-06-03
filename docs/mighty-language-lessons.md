@@ -6779,3 +6779,12 @@ accidentally opening it when it is already closed.
 - **IDE note:** The command palette now lists `Markdown: Close Preview`, calling
   `mui_md_close`. ABI, registry, metadata, dispatcher, and label tests pin that
   Markdown preview has a dedicated one-way close path.
+
+L533. Preference overlays need a command-palette dismiss path.
+Settings is a modal preference surface, not just a rail utility. Opening it from
+the palette should be matched by a named close command so keyboard-centric users
+can leave the surface without relying on the mouse or Escape.
+
+- **IDE note:** The command palette now lists `Preferences: Close Settings`,
+  calling `mui_settings_close` and clearing Mighty's `settings_open` flag. ABI,
+  registry, metadata, dispatcher, and label tests pin the close path.

@@ -355,6 +355,8 @@ pub const CMD_HOVER_CLOSE: u32 = 161;
 pub const CMD_SIGNATURE_HELP_CLOSE: u32 = 162;
 /// Close the live Markdown preview pane without toggling it open.
 pub const CMD_MARKDOWN_CLOSE_PREVIEW: u32 = 163;
+/// Close the Settings panel without changing preferences.
+pub const CMD_SETTINGS_CLOSE: u32 = 164;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -452,6 +454,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_RUN_STOP,         label: "Run: Stop Process",  keybinding: "" },
     Command { id: CMD_RUN_CLEAR_OUTPUT, label: "Run: Clear Output",  keybinding: "" },
     Command { id: CMD_SETTINGS,         label: "Preferences: Settings", keybinding: "Ctrl+," },
+    Command { id: CMD_SETTINGS_CLOSE,   label: "Preferences: Close Settings", keybinding: "" },
     Command { id: CMD_ZOOM_IN,          label: "View: Zoom In",      keybinding: "Ctrl+=" },
     Command { id: CMD_ZOOM_OUT,         label: "View: Zoom Out",     keybinding: "Ctrl+-" },
     Command { id: CMD_ZOOM_RESET,       label: "View: Reset Zoom",   keybinding: "Ctrl+0" },
@@ -976,6 +979,7 @@ impl PaletteEngine {
             CMD_RUN_STOP => (icons::CLOSE, "Stop the active Run output process", false),
             CMD_RUN_CLEAR_OUTPUT => (icons::CLOSE, "Clear the Run output without stopping the process", false),
             CMD_SETTINGS => (icons::SETTINGS, "Edit editor preferences", false),
+            CMD_SETTINGS_CLOSE => (icons::CLOSE, "Close the Settings panel", false),
             CMD_ZOOM_IN => (icons::PLUS, "Increase the IDE UI scale", false),
             CMD_ZOOM_OUT => (icons::UNSTAGE_MINUS, "Decrease the IDE UI scale", false),
             CMD_ZOOM_RESET => (icons::WIN_MAX, "Reset the IDE UI scale to 100%", false),

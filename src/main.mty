@@ -785,6 +785,7 @@ fn cmd_peek_close() -> I32 { 160 }
 fn cmd_hover_close() -> I32 { 161 }
 fn cmd_signature_help_close() -> I32 { 162 }
 fn cmd_markdown_close_preview() -> I32 { 163 }
+fn cmd_settings_close() -> I32 { 164 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4193,6 +4194,9 @@ fn main() {
         } else if id == cmd_settings() {
           let _s = mui_settings_open(h)
           settings_open = true
+        } else if id == cmd_settings_close() {
+          mui_settings_close(h)
+          settings_open = false
         } else if id == cmd_zoom_in() {
           let _zi = mui_zoom_in(h)
           typing = false

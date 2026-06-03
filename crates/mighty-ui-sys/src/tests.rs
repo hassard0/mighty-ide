@@ -2930,6 +2930,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(run_clear.label, "Run: Clear Output");
     assert_eq!(run_clear.keybinding, "");
 
+    let settings_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_SETTINGS_CLOSE)
+        .unwrap();
+    assert_eq!(settings_close.label, "Preferences: Close Settings");
+    assert_eq!(settings_close.keybinding, "");
+
     let test_stop = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_TEST_STOP)
@@ -5076,6 +5083,18 @@ fn language_popup_close_commands_clear_active_state() {
 }
 
 #[test]
+fn settings_close_command_clears_active_panel() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_settings_open(handle), 1);
+    assert_eq!(crate::featureabi::mui_settings_active(handle), 1);
+
+    crate::featureabi::mui_settings_close(handle);
+    assert_eq!(crate::featureabi::mui_settings_active(handle), 0);
+}
+
+#[test]
 fn visible_surface_size_honors_screenshot_caps() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     std::env::set_var("MUI_SCREENSHOT_W", "560");
@@ -6947,6 +6966,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Markdown close-preview command must call the dedicated Markdown preview close ABI"
     );
     assert!(
+        main.contains("id == cmd_settings_close()")
+            && main.contains("mui_settings_close(h)")
+            && main.contains("settings_open = false"),
+        "Settings close command must call the dedicated Settings close ABI and clear Mighty's local flag"
+    );
+    assert!(
         main.contains("id == cmd_git_hide_blame()")
             && main.contains("let _bc = mui_blame_close(h)"),
         "Git hide-blame command must call the dedicated blame close ABI"
@@ -7214,6 +7239,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_RUN_STOP, "cmd_run_stop"),
         (CMD_RUN_CLEAR_OUTPUT, "cmd_run_clear_output"),
         (CMD_SETTINGS, "cmd_settings"),
+        (CMD_SETTINGS_CLOSE, "cmd_settings_close"),
         (CMD_ZOOM_IN, "cmd_zoom_in"),
         (CMD_ZOOM_OUT, "cmd_zoom_out"),
         (CMD_ZOOM_RESET, "cmd_zoom_reset"),
