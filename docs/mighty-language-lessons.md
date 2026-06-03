@@ -7270,3 +7270,14 @@ whether they actually cancelled a pending close/quit choice.
   `No unsaved changes confirmation open`; both messages stay in the save toast
   lane, and Mighty explicitly discards the returned state from Escape,
   mouse-button, and palette command paths.
+
+L582. Autocomplete cancel is accept cleanup as well as a close command. Accepting
+suggestions closes the dropdown immediately after inserting text, so active
+cancel should report state without adding a competing toast.
+
+- **IDE note:** `mui_complete_cancel` now returns `1` when it clears an active
+  suggestions dropdown and `0` when no dropdown is open. Active closes stay
+  silent for accept/typing cleanup; the no-op path reports
+  `No autocomplete suggestions open` in the CodeIntel toast lane, and Mighty
+  explicitly discards the returned state from typing, Escape, mouse, undo/redo,
+  and palette command paths.

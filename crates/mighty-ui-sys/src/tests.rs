@@ -6349,9 +6349,14 @@ fn autocomplete_close_command_clears_active_dropdown() {
     assert_eq!(crate::mui_complete_active(h), 1);
     assert!(crate::mui_complete_count(h) > 0);
 
-    crate::mui_complete_cancel(h);
+    assert_eq!(crate::mui_complete_cancel(h), 1);
     assert_eq!(crate::mui_complete_active(h), 0);
     assert_eq!(crate::mui_complete_count(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 0);
+
+    assert_eq!(crate::mui_complete_cancel(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].message, "No autocomplete suggestions open");
 }
 
 #[test]
@@ -8084,7 +8089,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_autocomplete_close()")
-            && main.contains("mui_complete_cancel(h)")
+            && main.contains("let _cc = mui_complete_cancel(h)")
             && main.contains("completing = false"),
         "Autocomplete close command must clear shim completion state and Mighty's local completion flag"
     );

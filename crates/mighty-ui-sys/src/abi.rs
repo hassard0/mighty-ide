@@ -7365,9 +7365,16 @@ pub extern "C" fn mui_complete_accept_char(handle: i64, i: i32) -> i32 {
 
 /// Close the dropdown and clear its state.
 #[no_mangle]
-pub extern "C" fn mui_complete_cancel(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
+pub extern "C" fn mui_complete_cancel(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.complete.is_active() {
         ctx.complete.cancel();
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No autocomplete suggestions open");
+        0
     }
 }
 

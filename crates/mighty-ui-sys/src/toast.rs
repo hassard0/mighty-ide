@@ -848,6 +848,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::MultiCursor)
     } else if m == "No completions available"
+        || m == "No autocomplete suggestions open"
         || m == "Save the file before hover"
         || m == "No hover information"
         || m == "Save the file before Go to Definition"
@@ -2072,6 +2073,14 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Save the file before hover");
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
+            Kind::Info,
+            "No autocomplete suggestions open",
+            t0 + Duration::from_millis(150),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No autocomplete suggestions open");
 
         q.push_at(
             Kind::Info,
