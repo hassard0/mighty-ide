@@ -7536,3 +7536,8 @@ L610. Paste undo routing needs a silent clipboard preflight. Empty or
 unavailable clipboard reads should not create editor undo checkpoints; keep
 the visible clipboard/read-only feedback in Paste itself and gate snapshots
 through a no-toast `can_paste` query.
+
+L611. Snippet expansion preflights must include editability. A prefix match in
+a read-only preview is not enough to justify an undo checkpoint; keep the
+warning in `try_expand`, but make `can_expand` silently return false when the
+active tab cannot be edited.

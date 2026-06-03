@@ -45,6 +45,9 @@ pub extern "C" fn mui_snippet_can_expand(handle: i64) -> i32 {
     let Some(c) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if c.tabs.active_read_only() {
+        return 0;
+    }
     i32::from(snippets::can_expand(c.tabs.active_model(), c.language))
 }
 

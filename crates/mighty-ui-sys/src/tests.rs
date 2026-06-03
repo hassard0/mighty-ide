@@ -7120,6 +7120,32 @@ fn snippet_tab_expansion_can_be_undone_as_one_edit() {
 }
 
 #[test]
+fn snippet_expand_preflight_tracks_read_only_without_toast() {
+    use crate::snippetsabi::{mui_snippet_can_expand, mui_snippet_try_expand};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.language = crate::langdetect::Language::Mighty;
+    let root = std::env::temp_dir().join("mui_snippet_expand_preflight");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"fn\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    ctx.tabs.active_model_mut().move_to(0, 2);
+    assert!(ctx.tabs.active_read_only());
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_snippet_can_expand(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(mui_snippet_try_expand(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn breadcrumb_accept_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -8744,7 +8770,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         main.contains("mui_snippet_can_expand(h) == 1")
             && main.contains("mui_ed_undo_record(h)\n            typing = false\n            let expanded = mui_snippet_try_expand(h)"),
-        "direct Tab snippet expansion must record undo before mutating"
+        "direct Tab snippet expansion must use the read-only-aware preflight before recording undo"
     );
     let format_fn = main
         .split("fn do_format(h: I64) {")
