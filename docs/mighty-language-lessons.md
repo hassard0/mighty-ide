@@ -5371,3 +5371,12 @@ history slot is empty.
   attempts. Ctrl+Minus and the Jump Back command report `No previous location`
   when no target is available. The regression verifies the predefined toast used
   by Mighty's scalar dispatch path.
+
+L385. Empty undo/redo stacks are command outcomes, not no-ops. Undo and redo are
+explicit keyboard and palette actions, so an empty history stack or read-only
+preview should explain why the buffer did not change.
+
+- **IDE note:** live-model `mui_ed_undo` and `mui_ed_redo` now toast `Nothing to
+  undo`, `Nothing to redo`, or read-only preview warnings on misses while keeping
+  successful history moves quiet. The regressions cover empty stacks, read-only
+  binary previews, and the existing successful undo/redo round-trip.

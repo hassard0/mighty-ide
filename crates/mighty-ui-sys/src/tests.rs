@@ -4121,9 +4121,56 @@ fn editor_abi_drives_live_model_and_undo() {
     mui_ed_insert_char(h, '!' as i32);
     let after = mui_ed_cursor_col(h);
     assert_eq!(mui_ed_undo(h), 1);
+    assert!(ctx.toasts.toasts().is_empty(), "successful undo should stay quiet");
     // After undo the '!' edit is gone (line 0 back to "hi").
     assert!(mui_ed_cursor_col(h) <= after);
     assert_eq!(mui_ed_redo(h), 1);
+    assert!(ctx.toasts.toasts().is_empty(), "successful redo should stay quiet");
+}
+
+#[test]
+fn editor_undo_redo_misses_report_visible_feedback() {
+    use crate::{mui_ed_redo, mui_ed_undo};
+
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_ed_undo(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Nothing to undo");
+
+    assert_eq!(mui_ed_redo(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Nothing to redo");
+}
+
+#[test]
+fn editor_undo_redo_report_read_only_preview() {
+    use crate::{mui_ed_redo, mui_ed_undo};
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_undo_redo_read_only_preview");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_ed_undo(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Undo is unavailable in read-only previews");
+
+    assert_eq!(mui_ed_redo(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Redo is unavailable in read-only previews");
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]

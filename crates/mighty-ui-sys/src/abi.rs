@@ -12374,6 +12374,7 @@ pub extern "C" fn mui_ed_undo(handle: i64) -> i32 {
         return 0;
     };
     if ctx.tabs.active_read_only() {
+        ctx.push_toast(crate::toast::Kind::Warn, "Undo is unavailable in read-only previews");
         return 0;
     }
     match ctx.ed_undo.pop() {
@@ -12383,7 +12384,10 @@ pub extern "C" fn mui_ed_undo(handle: i64) -> i32 {
             *ctx.tabs.active_model_mut() = prev;
             1
         }
-        None => 0,
+        None => {
+            ctx.push_toast(crate::toast::Kind::Info, "Nothing to undo");
+            0
+        }
     }
 }
 
@@ -12395,6 +12399,7 @@ pub extern "C" fn mui_ed_redo(handle: i64) -> i32 {
         return 0;
     };
     if ctx.tabs.active_read_only() {
+        ctx.push_toast(crate::toast::Kind::Warn, "Redo is unavailable in read-only previews");
         return 0;
     }
     match ctx.ed_redo.pop() {
@@ -12404,7 +12409,10 @@ pub extern "C" fn mui_ed_redo(handle: i64) -> i32 {
             *ctx.tabs.active_model_mut() = next;
             1
         }
-        None => 0,
+        None => {
+            ctx.push_toast(crate::toast::Kind::Info, "Nothing to redo");
+            0
+        }
     }
 }
 
