@@ -428,15 +428,22 @@ pub extern "C" fn mui_test_open_row(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    ctx.tests_panel.set_click_target(None);
     if i < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No test result row selected");
         return 0;
     }
     let Some((full, line, col)) = ctx.tests_panel.resolve_row_target(i as usize) else {
-        ctx.tests_panel.set_click_target(None);
+        ctx.push_toast(crate::toast::Kind::Info, "Test result row has no file target");
         return 0;
     };
     if !full.exists() {
-        ctx.tests_panel.set_click_target(None);
+        let name = full
+            .file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| full.to_string_lossy().into_owned());
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Test target missing: {name}"));
         return 0;
     }
     let _idx = ctx.tabs.open_path(full.clone());

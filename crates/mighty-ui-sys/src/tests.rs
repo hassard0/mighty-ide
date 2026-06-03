@@ -1571,6 +1571,33 @@ fn test_stop_when_idle_reports_visible_feedback() {
 }
 
 #[test]
+fn test_result_open_misses_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.tests_panel
+        .set_click_target(Some(("stale.mty".to_string(), 3, 2)));
+    assert_eq!(crate::testabi::mui_test_open_row(handle, -1), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No test result row selected");
+    assert_eq!(crate::testabi::mui_test_click_tab(handle), -1);
+
+    ctx.tests_panel.seed_demo("");
+    assert_eq!(crate::testabi::mui_test_open_row(handle, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Test result row has no file target");
+    assert_eq!(crate::testabi::mui_test_click_tab(handle), -1);
+
+    assert_eq!(crate::testabi::mui_test_open_row(handle, 99), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Test result row has no file target");
+    assert_eq!(crate::testabi::mui_test_click_tab(handle), -1);
+}
+
+#[test]
 fn bottom_dock_resize_uses_visible_mouse_geometry() {
     let _g = crate::settings::TEST_LOCK
         .lock()

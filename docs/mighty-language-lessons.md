@@ -5448,3 +5448,12 @@ saved workspace"; missing selections should not feel like different failures.
   for negative or out-of-range Welcome rows, matching `mui_ws_open_recent`.
   Stale Welcome folders still flow through the shared recent-folder opener so
   pruning and `Recent folder missing: ...` behavior stay centralized.
+
+L393. Test-result jump commands should clear stale targets before resolving the
+next row. A miss should not leave the prior successful jump readable through the
+ABI, and the panel should explain whether no row or no file target was available.
+
+- **IDE note:** `mui_test_open_row` now resets its pending click target up front
+  and reports `No test result row selected`, `Test result row has no file target`,
+  or `Test target missing: ...` on failed jumps. Successful result rows keep the
+  existing open-tab and jump behavior.

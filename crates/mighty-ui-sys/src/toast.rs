@@ -680,7 +680,11 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Could not copy")
     {
         Some(OperationKey::Copy)
-    } else if is_test_result_message(m) {
+    } else if is_test_result_message(m)
+        || m == "No test result row selected"
+        || m == "Test result row has no file target"
+        || m.starts_with("Test target missing")
+    {
         Some(OperationKey::Test)
     } else if m.starts_with("Run in Browser:")
         || m.starts_with("Web ")
