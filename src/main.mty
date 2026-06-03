@@ -270,6 +270,7 @@ extern c {
   // ---- autocomplete dropdown (shim-side engine) ----
   fn mui_complete_count(handle: I64) -> I32
   fn mui_complete_sel(handle: I64) -> I32
+  fn mui_complete_report_empty(handle: I64) -> I32
   fn mui_complete_move(handle: I64, delta: I32)
   fn mui_complete_click_at(handle: I64, row: I32, col: I32, total_lines: I32) -> I32
   fn mui_complete_cancel(handle: I64)
@@ -2574,7 +2575,7 @@ fn main() {
           let _c = mui_ed_complete_request(h)
           mui_snippet_inject_completions(h)                 // snippet prefixes appear with a "snippet" badge
           let cnt = mui_complete_count(h)
-          if cnt > 0 { completing = true } else { mui_complete_cancel(h) }
+          if cnt > 0 { completing = true } else { mui_complete_cancel(h); let _ce = mui_complete_report_empty(h) }
         } else if ctrl_held(mods) && (cp == 107 || cp == 75) {  // Ctrl+K : hover
           let ok = do_hover(h)
           if ok == 1 { hovering = true; hover_line = mui_ed_cursor_line(h); hover_col = mui_ed_cursor_col(h) } else { hovering = false }
@@ -3742,7 +3743,7 @@ fn main() {
           let _c = mui_ed_complete_request(h)
           mui_snippet_inject_completions(h)
           let cnt = mui_complete_count(h)
-          if cnt > 0 { completing = true } else { mui_complete_cancel(h) }
+          if cnt > 0 { completing = true } else { mui_complete_cancel(h); let _ce = mui_complete_report_empty(h) }
         } else if id == cmd_jump_back() {
           if have_prev {
             mui_ed_move_to(h, prev_line, prev_col)

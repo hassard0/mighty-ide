@@ -7064,6 +7064,20 @@ pub extern "C" fn mui_complete_count(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.complete.count() as i32)
 }
 
+/// Report an explicit autocomplete request that produced no candidates.
+/// Passive typing paths should stay quiet and avoid calling this helper.
+#[no_mangle]
+pub extern "C" fn mui_complete_report_empty(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.complete.count() > 0 {
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "No completions available");
+    0
+}
+
 /// `1` if the dropdown is open, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_complete_active(handle: i64) -> i32 {

@@ -4150,6 +4150,26 @@ fn navigation_requests_report_missing_targets() {
 }
 
 #[test]
+fn explicit_completion_reports_empty_result_only_when_empty() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_complete_report_empty(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No completions available");
+
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("alpha al");
+    ctx.tabs.active_model_mut().move_to(0, 8);
+    assert!(crate::mui_ed_complete_request(h) > 0);
+    assert!(crate::mui_complete_count(h) > 0);
+    let before = ctx.toasts.toasts().len();
+    assert_eq!(crate::mui_complete_report_empty(h), 1);
+    assert_eq!(ctx.toasts.toasts().len(), before);
+}
+
+#[test]
 fn pane_split_focus_close_via_abi() {
     use crate::ffi::MuiEvent;
     use crate::{

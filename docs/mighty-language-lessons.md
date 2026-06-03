@@ -5326,3 +5326,15 @@ no-result response look like a broken shortcut.
   available; definition and peek report `No definition found` for empty
   targets. The regression uses a saved plain-text file to cover deterministic
   no-result paths without requiring an external language server.
+
+L381. Explicit autocomplete needs a post-merge empty-state hook. The core
+completion request runs during ordinary typing, so it cannot toast on empty
+results without becoming noisy. Snippet candidates are also merged after the
+engine request, so an explicit command must report emptiness only after both
+semantic/buffer and snippet sources have contributed.
+
+- **IDE note:** Mighty now calls `mui_complete_report_empty` only from the
+  Ctrl+Space and palette autocomplete paths after snippet injection still leaves
+  zero candidates. Passive typing remains quiet, while explicit autocomplete
+  reports `No completions available`. The regression covers both an empty
+  engine and a real buffer-word candidate to prevent false empty toasts.
