@@ -3,10 +3,11 @@
 //! [`crate::outline`], [`crate::problems`], and [`crate::crumbmenu`]; this module
 //! is the flat `mui_*` veneer Mighty drives (L17).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::crumbmenu::{CrumbLayout, MenuItem, MenuKind, Segment};
-use crate::langdetect::Language;
+use crate::diagnostics;
+use crate::langdetect::{detect_path, Language};
 use crate::layout;
 use crate::MuiContext;
 
@@ -49,6 +50,14 @@ fn outline_lsp_json(ctx: &MuiContext, path: &std::path::Path, source: &str) -> S
         0,
         0,
     )
+}
+
+fn workspace_root(path: &Path) -> PathBuf {
+    path.parent()
+        .map(|p| p.to_path_buf())
+        .filter(|p| !p.as_os_str().is_empty())
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."))
 }
 
 /// Re-scan the active document's symbols. Tries LSP `documentSymbol` first (when
@@ -222,31 +231,82 @@ pub extern "C" fn mui_outline_draw(handle: i64) {
 // Feature 2 — Problems panel
 // ===========================================================================
 
-/// Open paths to check: the active file first, then every other open `.mty` tab.
-fn problem_paths(ctx: &MuiContext) -> Vec<PathBuf> {
-    let mut paths = Vec::new();
-    if let Some(p) = ctx.tabs.active_path() {
-        paths.push(p);
+/// Open buffers to check: the active file first, then every other open tab.
+/// Source comes from the tab's live model so dirty buffers are reflected in the
+/// Problems panel for LSP-backed languages.
+fn problem_inputs(ctx: &MuiContext) -> Vec<(PathBuf, Language, String)> {
+    let mut inputs: Vec<(PathBuf, Language, String)> = Vec::new();
+    let mut seen: Vec<PathBuf> = Vec::new();
+
+    let active = ctx.tabs.active();
+    if let Some(path) = ctx.tabs.path(active) {
+        if !seen.contains(&path) {
+            let source = ctx.tabs.active_model().as_text();
+            let lang = detect_path(&path);
+            seen.push(path.clone());
+            inputs.push((path, lang, source));
+        }
     }
+
     for i in 0..ctx.tabs.count() {
-        if let Some(p) = ctx.tabs.path(i) {
-            if !paths.contains(&p) {
-                paths.push(p);
+        if i == active {
+            continue;
+        }
+        if let Some(path) = ctx.tabs.path(i) {
+            if seen.contains(&path) {
+                continue;
+            }
+            if let Some(model) = ctx.tabs.model_at(i) {
+                let source = model.as_text();
+                let lang = detect_path(&path);
+                seen.push(path.clone());
+                inputs.push((path, lang, source));
             }
         }
     }
-    paths
+    inputs
 }
 
-/// Re-run `mty check` across the open tabs and aggregate. Returns the total
-/// problem count. The IDE calls this on save + when diagnostics update.
+fn problem_diagnostics_for(path: &Path, lang: Language, source: &str) -> Vec<diagnostics::Diag> {
+    match lang {
+        Language::Mighty => {
+            if path.exists() {
+                diagnostics::run_check(path)
+            } else {
+                Vec::new()
+            }
+        }
+        _ => {
+            let Some(spec) = crate::lspregistry::server_for(lang) else {
+                return Vec::new();
+            };
+            let root = workspace_root(path);
+            crate::lspclient::diagnostics(&spec, lang.lsp_id(), &root, path, source)
+        }
+    }
+}
+
+fn problem_diagnostic_lists(ctx: &MuiContext) -> Vec<(PathBuf, Vec<diagnostics::Diag>)> {
+    let mut lists = Vec::new();
+    for (path, lang, source) in problem_inputs(ctx) {
+        let diags = problem_diagnostics_for(&path, lang, &source);
+        if !diags.is_empty() {
+            lists.push((path, diags));
+        }
+    }
+    lists
+}
+
+/// Refresh diagnostics across open tabs and aggregate. Mighty uses `mty check`;
+/// other languages use their configured LSP server's `publishDiagnostics`.
+/// Returns the total problem count.
 #[no_mangle]
 pub extern "C" fn mui_problems_refresh(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    let paths = problem_paths(ctx);
-    let n = ctx.problems.refresh(&paths);
+    let lists = problem_diagnostic_lists(ctx);
+    let n = ctx.problems.aggregate(lists);
     println!(
         "problems: {n} ({} errors, {} warnings) across {} files",
         ctx.problems.error_count(),
@@ -284,8 +344,8 @@ pub extern "C" fn mui_problems_open(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    let paths = problem_paths(ctx);
-    let _ = ctx.problems.refresh(&paths);
+    let lists = problem_diagnostic_lists(ctx);
+    let _ = ctx.problems.aggregate(lists);
     ctx.problems.set_open(true);
     ctx.term_open = false;
     ctx.run.close();

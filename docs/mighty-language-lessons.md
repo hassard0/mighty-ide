@@ -4981,3 +4981,14 @@ those out unless the command arguments happened to embed a `WorkspaceEdit`.
 - **Remaining LSP gap:** servers that require a long-lived connection and send
   `workspace/applyEdit` as a server-initiated request during command execution
   still need a persistent LSP session with request/response handling.
+
+L348. The Problems panel has to follow the same language routing as editor
+squiggles. It previously aggregated only `.mty` tabs via `mty check`, so Rust,
+Python, TypeScript, and other LSP-backed files could show active editor
+diagnostics while the dock stayed empty.
+
+- **IDE note:** Problems refresh now gathers every open file-backed tab, active
+  tab first, using each tab's live `TextModel` as source. Mighty files still use
+  `mty check`; other languages use the configured generic LSP server's
+  `publishDiagnostics` and feed the resulting diagnostics into the same grouped,
+  click-to-jump dock model.

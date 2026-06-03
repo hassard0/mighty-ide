@@ -1,13 +1,12 @@
-//! Problems panel (shim-side): aggregated `mty check` diagnostics across the
-//! open tabs / workspace, grouped by file, click-to-jump.
+//! Problems panel (shim-side): aggregated diagnostics across the open tabs /
+//! workspace, grouped by file, click-to-jump.
 //!
-//! Reuses [`crate::diagnostics`] (the same `mty check` runner + parser the
-//! editor squiggles use). [`ProblemSet::refresh`] runs `check` on the active
-//! file and any other open `.mty` tabs, collecting one [`Problem`] per
-//! diagnostic with its owning file. The set is then sorted (file, then line,
-//! then col) and the panel renders file-group headers + indented rows. It is a
-//! BOTTOM panel (same band the Run panel uses) so it reads like a problems dock;
-//! clicking the status-bar problems chip opens it (wired in main.mty).
+//! Reuses [`crate::diagnostics`] for Mighty files and accepts already-parsed
+//! diagnostic lists from the generic LSP bridge for other languages. The set is
+//! sorted (file, then line, then col) and the panel renders file-group headers +
+//! indented rows. It is a BOTTOM panel (same band the Run panel uses) so it
+//! reads like a problems dock; clicking the status-bar problems chip opens it
+//! (wired in main.mty).
 //!
 //! Placement note: the Run panel and this panel share the bottom band — only one
 //! is shown at a time (opening Problems closes Run and vice-versa in the IDE),
@@ -144,7 +143,7 @@ impl ProblemSet {
 
     /// Build the aggregated set from already-parsed per-file diagnostic lists.
     /// `lists` is `(path, diags)` per file. Pure (no subprocess) so it is unit
-    /// testable; [`refresh`](Self::refresh) is the side-effecting wrapper.
+    /// testable; callers can feed either Mighty or generic-LSP diagnostics.
     pub fn aggregate(&mut self, lists: Vec<(PathBuf, Vec<diagnostics::Diag>)>) -> usize {
         let mut items: Vec<Problem> = Vec::new();
         for (path, diags) in lists {
@@ -175,30 +174,6 @@ impl ProblemSet {
             self.scroll = 0;
         }
         self.items.len()
-    }
-
-    /// Run `mty check` on every distinct path in `paths` and aggregate. Skips
-    /// duplicates + non-`.mty` files. The active file should be first in `paths`.
-    pub fn refresh(&mut self, paths: &[PathBuf]) -> usize {
-        let mut seen: Vec<PathBuf> = Vec::new();
-        let mut lists: Vec<(PathBuf, Vec<diagnostics::Diag>)> = Vec::new();
-        for p in paths {
-            if seen.contains(p) {
-                continue;
-            }
-            if p.extension().and_then(|e| e.to_str()) != Some("mty") {
-                continue;
-            }
-            if !p.exists() {
-                continue;
-            }
-            seen.push(p.clone());
-            let diags = diagnostics::run_check(p);
-            if !diags.is_empty() {
-                lists.push((p.clone(), diags));
-            }
-        }
-        self.aggregate(lists)
     }
 
     /// The number of distinct files with problems.
