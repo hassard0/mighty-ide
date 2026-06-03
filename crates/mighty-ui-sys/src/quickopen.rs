@@ -1024,19 +1024,20 @@ impl QuickOpen {
         let fty = foot_y + (foot_h - chrome + 1.0) * 0.5 - 1.0;
         let mut fx = box_x + 18.0;
         let foot_seg = |ctx: &mut crate::MuiContext, key: &str, label: &str, fx: &mut f32| {
-            let kw = (key.chars().count() as f32 * 6.0 + 10.0).max(20.0);
+            let kw = quickopen_footer_key_width(&mut ctx.text, key, 10.0);
             ctx.dl_round(*fx, foot_y + (foot_h - 18.0) * 0.5, kw, 18.0, 4.0, theme::BG_1());
             ctx.dl_stroke(*fx, foot_y + (foot_h - 18.0) * 0.5, kw, 18.0, 4.0, theme::BORDER_STRONG(), 1.0);
             ctx.text.queue_ui_sized(*fx + 5.0, foot_y + (foot_h - 10.0) * 0.5, key, theme::TEXT_1(), 10.0, clip);
             *fx += kw + 6.0;
             ctx.text.queue_ui_sized(*fx, fty, label, theme::TEXT_3(), 11.0, clip);
-            *fx += label.chars().count() as f32 * 6.0 + 16.0;
+            *fx += quickopen_footer_label_advance(&mut ctx.text, label, 11.0);
         };
         foot_seg(ctx, "\u{2191}\u{2193}", "navigate", &mut fx);
         foot_seg(ctx, "Enter", "open", &mut fx);
         foot_seg(ctx, "esc", "dismiss", &mut fx);
         let tag = "Quick Open";
-        ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
+        let (tag_w, _) = ctx.text.measure_ui_sized(tag, 11.0);
+        ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag_w, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
     }
 
     /// Draw `name` at (`x`,`y`) as one shaped run so proportional UI text stays
@@ -1074,6 +1075,14 @@ pub(crate) fn quickopen_query_text_budget(text_x: f32, pill_x: f32, is_placehold
 
 pub(crate) fn quickopen_row_text_budget(box_x: f32, box_w: f32, text_x: f32) -> f32 {
     (box_x + box_w - 24.0 - text_x).max(0.0)
+}
+
+fn quickopen_footer_key_width(text: &mut crate::text::Text, key: &str, size: f32) -> f32 {
+    (text.measure_ui_sized(key, size).0 + 10.0).max(20.0)
+}
+
+fn quickopen_footer_label_advance(text: &mut crate::text::Text, label: &str, size: f32) -> f32 {
+    text.measure_ui_sized(label, size).0 + 16.0
 }
 
 pub(crate) fn fit_query_placeholder(
@@ -1540,6 +1549,30 @@ mod tests {
         let base = 320.0;
         assert_eq!(quickopen_search_text_x(base, false), base);
         assert!(quickopen_search_text_x(base, true) >= base + 8.0);
+    }
+
+    #[test]
+    fn footer_key_width_uses_measured_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let short = quickopen_footer_key_width(&mut ctx.text, "esc", 10.0);
+        let long = quickopen_footer_key_width(&mut ctx.text, "Enter", 10.0);
+
+        assert!(short >= 20.0);
+        assert!(long > short);
+    }
+
+    #[test]
+    fn footer_label_advance_uses_measured_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let open = quickopen_footer_label_advance(&mut ctx.text, "open", 11.0);
+        let navigate = quickopen_footer_label_advance(&mut ctx.text, "navigate", 11.0);
+
+        assert!(navigate > open);
+        assert!(open > 16.0);
     }
 
     #[test]

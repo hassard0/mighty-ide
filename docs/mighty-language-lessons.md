@@ -6055,3 +6055,11 @@ computed the minus button from a character-count value width.
   label budgeting, and mouse hit-testing. The rendered value is centered by
   measured width inside that bounded slot, so `-` and `+` click targets match
   what users see.
+
+L459. Footer shortcut hints should use measured text, not fixed advances.
+Quick Open had measured rows and search input, but its footer still advanced
+shortcut labels and right-aligned the surface tag from character counts.
+
+- **IDE note:** Quick Open now measures footer key pills, labels, and the
+  `Quick Open` tag before drawing. The footer stays aligned with proportional UI
+  text just like the newer picker footers.
