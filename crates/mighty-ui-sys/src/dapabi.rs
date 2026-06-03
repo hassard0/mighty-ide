@@ -739,45 +739,26 @@ pub extern "C" fn mui_dbg_click(handle: i64) -> i32 {
 /// return value. No-op for non-toolbar values.
 #[no_mangle]
 pub extern "C" fn mui_dbg_toolbar_action(handle: i64, code: i32) {
-    let Some(ctx) = (unsafe { ctx(handle) }) else {
-        return;
-    };
     match code - TOOLBAR_BASE {
         x if x == TB_CONTINUE => {
             crate::abi::trace("dbg_toolbar action=start_continue");
-            let _ = dbg_start_or_continue(ctx);
+            let _ = mui_dbg_start(handle);
         }
         x if x == TB_STEP_OVER => {
             crate::abi::trace("dbg_toolbar action=step_over");
-            if ctx.dbg.state() == crate::dap::DebugState::Stopped {
-                ctx.dbg.step_over();
-            } else {
-                ctx.push_toast(crate::toast::Kind::Info, "Step Over is available when paused");
-            }
+            mui_dbg_step_over(handle);
         }
         x if x == TB_STEP_INTO => {
             crate::abi::trace("dbg_toolbar action=step_into");
-            if ctx.dbg.state() == crate::dap::DebugState::Stopped {
-                ctx.dbg.step_into();
-            } else {
-                ctx.push_toast(crate::toast::Kind::Info, "Step Into is available when paused");
-            }
+            mui_dbg_step_into(handle);
         }
         x if x == TB_STEP_OUT => {
             crate::abi::trace("dbg_toolbar action=step_out");
-            if ctx.dbg.state() == crate::dap::DebugState::Stopped {
-                ctx.dbg.step_out();
-            } else {
-                ctx.push_toast(crate::toast::Kind::Info, "Step Out is available when paused");
-            }
+            mui_dbg_step_out(handle);
         }
         x if x == TB_STOP => {
             crate::abi::trace("dbg_toolbar action=stop");
-            if matches!(ctx.dbg.state(), crate::dap::DebugState::Running | crate::dap::DebugState::Stopped) {
-                ctx.dbg.stop();
-            } else {
-                ctx.push_toast(crate::toast::Kind::Info, "No debug session to stop");
-            }
+            mui_dbg_stop(handle);
         }
         _ => {}
     }

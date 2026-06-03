@@ -6542,3 +6542,15 @@ already in flight.
   through the toast lane while preserving the silent automatic debounce path.
   The new messages share the existing AI toast replacement key, so repeated AI
   availability feedback updates in place instead of stacking.
+
+L510. Toolbar actions should share command dispatch with shortcuts.
+When a toolbar button reimplements the same state checks as a keyboard shortcut
+or palette command, feedback behavior can drift even if the visible operation is
+nominally the same. Debug controls are especially sensitive because unavailable
+step/stop/continue buttons must explain whether a session is idle, running, or
+paused.
+
+- **IDE note:** Debug toolbar action dispatch now delegates to the same
+  `mui_dbg_*` entry points used by function keys and palette commands. Toolbar
+  regression coverage pins the unavailable-state toasts for Step Over, Step
+  Into, Step Out, and Stop, keeping all debug command surfaces aligned.
