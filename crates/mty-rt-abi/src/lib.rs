@@ -189,6 +189,89 @@ pub extern "C" fn mty_runtime_extern_call(_name_ptr: i64, _name_len: i64, _args:
 }
 
 #[no_mangle]
+pub extern "C" fn mty_runtime_fs_read(_path_ptr: i64, _path_len: i64, _dst: i64) -> i64 {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fs_read_to_string(_path_ptr: i64, _path_len: i64, _dst: i64) -> i64 {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fs_read_dir(_path_ptr: i64, _path_len: i64, _dst: i64) -> i64 {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fs_write(
+    _path_ptr: i64,
+    _path_len: i64,
+    _buf_ptr: i64,
+    _buf_len: i64,
+) -> i64 {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fs_write_string(
+    _path_ptr: i64,
+    _path_len: i64,
+    _buf_ptr: i64,
+    _buf_len: i64,
+) -> i64 {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fs_append(
+    _path_ptr: i64,
+    _path_len: i64,
+    _buf_ptr: i64,
+    _buf_len: i64,
+) -> i64 {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fs_exists(_path_ptr: i64, _path_len: i64) -> i8 {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fs_metadata(_path_ptr: i64, _path_len: i64, _dst: i64) -> i64 {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fs_create_dir_all(_path_ptr: i64, _path_len: i64) -> i64 {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fs_remove_file(_path_ptr: i64, _path_len: i64) -> i64 {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fs_remove_dir_all(_path_ptr: i64, _path_len: i64) -> i64 {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fs_dir_open(_path_ptr: i64, _path_len: i64) -> i64 {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fs_dir_next(_handle: i64, _dst: i64) -> i64 {
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_fs_dir_close(_handle: i64) {}
+
+#[no_mangle]
 pub extern "C" fn mty_runtime_log_i64(v: i64) {
     println!("{v}");
 }
@@ -391,5 +474,80 @@ mod tests {
         );
         let bytes = unsafe { read_bytes(slot[0], slot[1]) };
         assert_eq!(bytes, b"Mighty IDE");
+    }
+
+    #[test]
+    fn filesystem_stubs_export_empty_results() {
+        let mut slot = [0_i64; 2];
+        let path = "missing.mty";
+        let data = "data";
+        assert_eq!(
+            mty_runtime_fs_read(path.as_ptr() as i64, path.len() as i64, slot.as_mut_ptr() as i64),
+            0
+        );
+        assert_eq!(
+            mty_runtime_fs_read_to_string(
+                path.as_ptr() as i64,
+                path.len() as i64,
+                slot.as_mut_ptr() as i64,
+            ),
+            0
+        );
+        assert_eq!(
+            mty_runtime_fs_read_dir(
+                path.as_ptr() as i64,
+                path.len() as i64,
+                slot.as_mut_ptr() as i64,
+            ),
+            0
+        );
+        assert_eq!(
+            mty_runtime_fs_write(
+                path.as_ptr() as i64,
+                path.len() as i64,
+                data.as_ptr() as i64,
+                data.len() as i64,
+            ),
+            0
+        );
+        assert_eq!(
+            mty_runtime_fs_write_string(
+                path.as_ptr() as i64,
+                path.len() as i64,
+                data.as_ptr() as i64,
+                data.len() as i64,
+            ),
+            0
+        );
+        assert_eq!(
+            mty_runtime_fs_append(
+                path.as_ptr() as i64,
+                path.len() as i64,
+                data.as_ptr() as i64,
+                data.len() as i64,
+            ),
+            0
+        );
+        assert_eq!(mty_runtime_fs_exists(path.as_ptr() as i64, path.len() as i64), 0);
+        assert_eq!(
+            mty_runtime_fs_metadata(path.as_ptr() as i64, path.len() as i64, slot.as_mut_ptr() as i64),
+            0
+        );
+        assert_eq!(
+            mty_runtime_fs_create_dir_all(path.as_ptr() as i64, path.len() as i64),
+            0
+        );
+        assert_eq!(
+            mty_runtime_fs_remove_file(path.as_ptr() as i64, path.len() as i64),
+            0
+        );
+        assert_eq!(
+            mty_runtime_fs_remove_dir_all(path.as_ptr() as i64, path.len() as i64),
+            0
+        );
+        let handle = mty_runtime_fs_dir_open(path.as_ptr() as i64, path.len() as i64);
+        assert_eq!(handle, 0);
+        assert_eq!(mty_runtime_fs_dir_next(handle, slot.as_mut_ptr() as i64), 0);
+        mty_runtime_fs_dir_close(handle);
     }
 }

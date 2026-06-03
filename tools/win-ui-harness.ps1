@@ -9,7 +9,7 @@
 
     * launches the actual .exe,
     * finds its top-level HWND,
-    * injects REAL OS input (SetCursorPos + SendInput mouse, SendInput Unicode keys),
+    * injects REAL OS input (SetCursorPos + Win32 mouse buttons, SendInput Unicode keys),
     * screen-captures the window rectangle to PNG (works for GPU surfaces, unlike
       PrintWindow which returns black for DXGI swapchains),
     * probes responsiveness with SendMessageTimeout(WM_NULL, ABORTIFHUNG) to detect
@@ -31,7 +31,8 @@ param(
   [int]$LaunchWaitMs = 2500,
   [switch]$NoCapture,
   [switch]$CaptureSmokeOnly,
-  [switch]$StrictRealMouse
+  [switch]$StrictRealMouse,
+  [switch]$EarlyMouseOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -95,8 +96,9 @@ public static class Win {
             ShowWindow(h, 6); // SW_MINIMIZE
             ShowWindow(h, 9); // SW_RESTORE  (re-activates)
         }
+        // Keep the target above the controlling terminal during the harness run;
+        // otherwise CopyFromScreen and real mouse clicks can exercise the terminal.
         SetWindowPos(h, (IntPtr)(-1), 0, 0, 0, 0, 0x1 | 0x2 | 0x40); // HWND_TOPMOST
-        SetWindowPos(h, (IntPtr)(-2), 0, 0, 0, 0, 0x1 | 0x2 | 0x40); // HWND_NOTOPMOST
         BringWindowToTop(h);
         SetForegroundWindow(h);
         if (GetForegroundWindow() != h) {
@@ -140,6 +142,7 @@ public static class Win {
     // lParam for mouse messages packs (y<<16)|x in CLIENT coordinates.
     public static IntPtr MouseLParam(int x, int y) { return (IntPtr)((y << 16) | (x & 0xFFFF)); }
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] public static extern int GetSystemMetrics(int nIndex);
     [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
     [DllImport("user32.dll")] public static extern IntPtr SendMessageTimeout(
         IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
@@ -161,7 +164,9 @@ public static class Win {
     [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
 
     public const uint INPUT_MOUSE = 0, INPUT_KEYBOARD = 1;
-    public const uint MOUSEEVENTF_LEFTDOWN = 0x0002, MOUSEEVENTF_LEFTUP = 0x0004;
+    public const uint MOUSEEVENTF_MOVE = 0x0001, MOUSEEVENTF_LEFTDOWN = 0x0002, MOUSEEVENTF_LEFTUP = 0x0004;
+    public const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
+    public const uint MOUSEEVENTF_VIRTUALDESK = 0x4000;
     public const uint MOUSEEVENTF_WHEEL = 0x0800;
     public const uint KEYEVENTF_UNICODE = 0x0004, KEYEVENTF_KEYUP = 0x0002;
     public const uint WM_NULL = 0x0000;
@@ -175,7 +180,13 @@ public static class Win {
 [Win]::MakeDpiAware()   # must run before any GetWindowRect / screen-capture calls
 
 function New-Dir($p) { if (-not (Test-Path $p)) { New-Item -ItemType Directory -Force $p | Out-Null } }
-$OutDir = [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $OutDir))
+function Resolve-HarnessPath([string]$Path) {
+  if ([System.IO.Path]::IsPathRooted($Path)) {
+    return [System.IO.Path]::GetFullPath($Path)
+  }
+  return [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $Path))
+}
+$OutDir = Resolve-HarnessPath $OutDir
 New-Dir $OutDir
 $traceWasSet = [bool]$env:MUI_TRACE
 if (-not $traceWasSet) { $env:MUI_TRACE = Join-Path $OutDir "trace.txt" }
@@ -389,7 +400,10 @@ function Click($h, $relX, $relY) {
     }
   }
   $r = Get-WinRect $h
-  [void][Win]::SetCursorPos($r.Left + $relX, $r.Top + $relY)
+  $screenX = $r.Left + $relX
+  $screenY = $r.Top + $relY
+  Log "click target client=($relX,$relY) screen=($screenX,$screenY) rect=$($r.Left),$($r.Top) $($r.Right - $r.Left)x$($r.Bottom - $r.Top)"
+  Send-MouseMoveAbsolute $screenX $screenY
   Start-Sleep -Milliseconds 35
   Send-MouseEvent ([Win]::MOUSEEVENTF_LEFTDOWN)
   Start-Sleep -Milliseconds 55
@@ -408,6 +422,37 @@ function Send-MouseEvent($flags) {
   [Win]::mouse_event([uint32]$flags, 0, 0, 0, [UIntPtr]::Zero)
 }
 
+function Send-MouseMoveAbsolute([int]$screenX, [int]$screenY) {
+  if ([Win]::SetCursorPos($screenX, $screenY)) {
+    Log "mouse-map screen=($screenX,$screenY) via SetCursorPos"
+    return
+  }
+  $vx = [Win]::GetSystemMetrics(76)
+  $vy = [Win]::GetSystemMetrics(77)
+  $vw = [math]::Max([Win]::GetSystemMetrics(78) - 1, 1)
+  $vh = [math]::Max([Win]::GetSystemMetrics(79) - 1, 1)
+  $absX = [int][math]::Round((($screenX - $vx) * 65535.0) / $vw)
+  $absY = [int][math]::Round((($screenY - $vy) * 65535.0) / $vh)
+  Log "mouse-map screen=($screenX,$screenY) virtual=($vx,$vy $($vw + 1)x$($vh + 1)) abs=($absX,$absY)"
+  Send-MouseInput (([Win]::MOUSEEVENTF_MOVE) -bor ([Win]::MOUSEEVENTF_ABSOLUTE) -bor ([Win]::MOUSEEVENTF_VIRTUALDESK)) 0 $absX $absY
+}
+
+function Send-MouseInput($flags, $mouseData, $dx = 0, $dy = 0) {
+  $input = New-Object Win+INPUT
+  $input.type = [Win]::INPUT_MOUSE
+  $input.U.mi.dx = [int]$dx
+  $input.U.mi.dy = [int]$dy
+  $input.U.mi.mouseData = [uint32]$mouseData
+  $input.U.mi.dwFlags = [uint32]$flags
+  $input.U.mi.time = 0
+  $input.U.mi.dwExtraInfo = [IntPtr]::Zero
+  $sent = [Win]::SendInput(1, [Win+INPUT[]]@($input), [Win]::InputSize())
+  if ($sent -ne 1) {
+    Log "SendInput mouse failed flags=$flags sent=$sent"
+    $script:HarnessFailed = $true
+  }
+}
+
 function WheelL($lx, $ly, $delta) {
   $fg = Ensure-Foreground $hwnd
   if (-not $fg) {
@@ -418,9 +463,9 @@ function WheelL($lx, $ly, $delta) {
   $x = [int][math]::Round($lx * $scale)
   $y = [int][math]::Round($ly * $scale)
   $r = Get-WinRect $hwnd
-  [void][Win]::SetCursorPos($r.Left + $x, $r.Top + $y)
+  Send-MouseMoveAbsolute ($r.Left + $x) ($r.Top + $y)
   Start-Sleep -Milliseconds 45
-  [Win]::mouse_event([uint32][Win]::MOUSEEVENTF_WHEEL, 0, 0, [uint32]$delta, [UIntPtr]::Zero)
+  [Win]::mouse_event([Win]::MOUSEEVENTF_WHEEL, 0, 0, [uint32]$delta, [UIntPtr]::Zero)
   Log "wheel (mouse_event) at logical ($lx,$ly) delta=$delta"
 }
 
@@ -590,14 +635,14 @@ function DragL($lx1, $ly1, $lx2, $ly2) {
     }
   }
   $r = Get-WinRect $hwnd
-  [void][Win]::SetCursorPos($r.Left + $x1, $r.Top + $y1)
+  Send-MouseMoveAbsolute ($r.Left + $x1) ($r.Top + $y1)
   Start-Sleep -Milliseconds 45
   Send-MouseEvent ([Win]::MOUSEEVENTF_LEFTDOWN)
   Start-Sleep -Milliseconds 80
   for ($i = 1; $i -le 5; $i++) {
     $x = [int][math]::Round($x1 + (($x2 - $x1) * $i / 5.0))
     $y = [int][math]::Round($y1 + (($y2 - $y1) * $i / 5.0))
-    [void][Win]::SetCursorPos($r.Left + $x, $r.Top + $y)
+    Send-MouseMoveAbsolute ($r.Left + $x) ($r.Top + $y)
     Start-Sleep -Milliseconds 70
   }
   Send-MouseEvent ([Win]::MOUSEEVENTF_LEFTUP)
@@ -1011,6 +1056,12 @@ if (Test-Path $welcomeFilePath) {
 } else {
   Log "WELCOME NEW-FILE: FILE NOT FOUND ($welcomeFilePath)"
   $script:HarnessFailed = $true
+}
+if ($EarlyMouseOnly) {
+  Log "EARLY-MOUSE-ONLY: stopping after command center, run, branch picker, and welcome mouse paths"
+  Finish-Harness $proc
+  if ($script:HarnessFailed) { exit 1 }
+  exit 0
 }
 
 # === FILE OPEN: click RUN.txt in the tree; the editor must show its contents. ===

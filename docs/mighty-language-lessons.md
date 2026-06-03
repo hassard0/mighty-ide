@@ -4884,3 +4884,31 @@ capture technically successful but visually masked the panel being inspected.
 - **Language note:** no compiler bug surfaced. Mighty UI needs a visual-test
   lifecycle primitive that can activate state and acknowledge side effects
   without injecting transient feedback into the frame under audit.
+
+L341. Real mouse UX harnesses need first-class desktop injection evidence. A
+focused strict-mouse run could aim at the right logical targets yet still miss
+the IDE when the controller terminal stayed above the app, and SendInput
+left-button events did not reach winit in this desktop session even after cursor
+movement did.
+
+- **IDE note:** the Windows harness now keeps the target IDE window topmost
+  during the run, logs client/screen cursor mapping, uses `SetCursorPos` for
+  real cursor movement, and uses Win32 mouse button events for clicks/wheels.
+  The focused `-EarlyMouseOnly` gate proves command center, Run, branch picker
+  open/close, Welcome New Project, and Welcome New File with real mouse traces.
+- **Language note:** Mighty still lacks a typed, built-in UI automation harness
+  primitive that can assert z-order, physical-to-logical coordinates, and input
+  delivery as separate facts instead of inferring them from final UI state.
+
+L342. `mty build` can predeclare filesystem runtime imports even when the app
+does not call Mighty-native filesystem APIs. The Windows package gate failed at
+link time on `mty_runtime_fs_*` symbols after the release build emitted a new
+object against a wider runtime ABI than Mighty IDE's staged archive exported.
+
+- **IDE note:** `mty-rt-abi` now exports minimal filesystem ABI stubs so the
+  packaged native binary links again. They return empty/error values because the
+  IDE routes filesystem behavior through `mighty-ui-sys` FFI today, not through
+  Mighty-native fs calls.
+- **Language note:** Mighty needs a versioned runtime ABI manifest or linker
+  helper so applications can ship the exact symbol surface required by the
+  compiler instead of discovering missing imports during packaging.
