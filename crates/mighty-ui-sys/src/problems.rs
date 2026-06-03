@@ -78,8 +78,11 @@ pub(crate) fn problem_message_budget(
 pub struct Problem {
     /// Absolute path of the file the diagnostic belongs to.
     pub path: PathBuf,
-    /// Basename, cached for display + grouping.
+    /// Basename, cached for icon lookup and compact display.
     pub file: String,
+    /// Header label. Usually the basename; expanded to the path when duplicate
+    /// basenames would otherwise collapse distinct files into one group.
+    pub label: String,
     /// 0-based line.
     pub line: i32,
     /// 0-based start column.
@@ -152,6 +155,7 @@ impl ProblemSet {
                 items.push(Problem {
                     path: path.clone(),
                     file: file.clone(),
+                    label: file.clone(),
                     line: d.line,
                     col: d.col_start,
                     severity: d.severity,
@@ -160,10 +164,12 @@ impl ProblemSet {
                 });
             }
         }
-        // Sort: by file, then line, then column (stable grouping for the panel).
+        disambiguate_duplicate_basenames(&mut items);
+        // Sort: by file, then path, then line/column (stable grouping for the panel).
         items.sort_by(|a, b| {
             a.file
                 .cmp(&b.file)
+                .then(a.path.cmp(&b.path))
                 .then(a.line.cmp(&b.line))
                 .then(a.col.cmp(&b.col))
         });
@@ -178,7 +184,7 @@ impl ProblemSet {
 
     /// The number of distinct files with problems.
     pub fn file_count(&self) -> usize {
-        let mut files: Vec<&str> = self.items.iter().map(|p| p.file.as_str()).collect();
+        let mut files: Vec<&Path> = self.items.iter().map(|p| p.path.as_path()).collect();
         files.dedup();
         files.len()
     }
@@ -188,11 +194,11 @@ impl ProblemSet {
     /// agree on geometry.
     fn visual_rows(&self) -> Vec<VisRow> {
         let mut rows = Vec::new();
-        let mut last_file: Option<&str> = None;
+        let mut last_path: Option<&Path> = None;
         for (i, p) in self.items.iter().enumerate() {
-            if last_file != Some(p.file.as_str()) {
+            if last_path != Some(p.path.as_path()) {
                 rows.push(VisRow::FileHeader(i));
-                last_file = Some(p.file.as_str());
+                last_path = Some(p.path.as_path());
             }
             rows.push(VisRow::Problem(i));
         }
@@ -326,7 +332,7 @@ impl ProblemSet {
                     ctx.dl_icon(left + 12.0, y + (row_h - 13.0) * 0.5, 12.0, 12.0, icons::CHEVRON_DOWN, theme::TEXT_3(), 2.0, false);
                     ctx.dl_icon(left + 28.0, y + (row_h - 14.0) * 0.5, 14.0, 14.0, icon, icol, 1.4, false);
                     let file_x = left + 46.0;
-                    let file = fit_ui_text(&mut ctx.text, &p.file, w - file_x - 14.0, chrome);
+                    let file = fit_ui_text(&mut ctx.text, &p.label, w - file_x - 14.0, chrome);
                     if !file.is_empty() {
                         ctx.text.queue_ui_sized(file_x, y + (row_h - chrome) * 0.5 - 1.0, &file, theme::TEXT_1(), chrome, clip);
                     }
@@ -377,6 +383,32 @@ fn basename(p: &Path) -> String {
     p.file_name()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| p.to_string_lossy().into_owned())
+}
+
+fn disambiguate_duplicate_basenames(items: &mut [Problem]) {
+    let mut groups: Vec<(String, Vec<PathBuf>)> = Vec::new();
+    for item in items.iter() {
+        if let Some((_, paths)) = groups.iter_mut().find(|(file, _)| file == &item.file) {
+            if !paths.contains(&item.path) {
+                paths.push(item.path.clone());
+            }
+        } else {
+            groups.push((item.file.clone(), vec![item.path.clone()]));
+        }
+    }
+
+    for item in items.iter_mut() {
+        let duplicate = groups
+            .iter()
+            .find(|(file, _)| file == &item.file)
+            .map(|(_, paths)| paths.len() > 1)
+            .unwrap_or(false);
+        item.label = if duplicate {
+            item.path.to_string_lossy().into_owned()
+        } else {
+            item.file.clone()
+        };
+    }
 }
 
 // ===========================================================================
@@ -450,6 +482,34 @@ mod tests {
         ]);
         assert_eq!(ps.file_count(), 2);
         assert_eq!(ps.count(), 2);
+    }
+
+    #[test]
+    fn aggregate_keeps_duplicate_basenames_as_separate_file_groups() {
+        let mut ps = ProblemSet::new();
+        ps.aggregate(vec![
+            (
+                PathBuf::from("/ws/app/src/main.rs"),
+                vec![diag(0, 0, Severity::Error, "E1", "app error")],
+            ),
+            (
+                PathBuf::from("/ws/tool/src/main.rs"),
+                vec![diag(1, 0, Severity::Warning, "W1", "tool warning")],
+            ),
+        ]);
+
+        assert_eq!(ps.file_count(), 2);
+        assert_eq!(ps.count(), 2);
+        assert_eq!(ps.get(0).unwrap().file, "main.rs");
+        assert!(ps.get(0).unwrap().label.contains("app"));
+        assert!(ps.get(1).unwrap().label.contains("tool"));
+
+        let headers = ps
+            .visual_rows()
+            .into_iter()
+            .filter(|row| matches!(row, VisRow::FileHeader(_)))
+            .count();
+        assert_eq!(headers, 2);
     }
 
     #[test]

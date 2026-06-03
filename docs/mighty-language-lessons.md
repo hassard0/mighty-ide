@@ -4992,3 +4992,12 @@ diagnostics while the dock stayed empty.
   `mty check`; other languages use the configured generic LSP server's
   `publishDiagnostics` and feed the resulting diagnostics into the same grouped,
   click-to-jump dock model.
+
+L349. Problems grouping must key on identity, not presentation. Grouping by
+basename is visually compact, but two open files named `main.rs` or `index.ts`
+are distinct diagnostic targets and should not collapse under one header.
+
+- **IDE note:** the Problems model now groups and counts by full path while
+  keeping the basename for icons and normal compact headers. When duplicate
+  basenames are present, the header label expands to the path and remains
+  ellipsized by the existing row-fitting code.
