@@ -5106,3 +5106,13 @@ fixes while completion/hover/rename still worked.
   diagnostics into the LSP `context.diagnostics` array for both the Mighty and
   generic LSP clients. Empty/no-diagnostic lines preserve the previous empty
   array behavior; request-builder tests cover both paths.
+
+L360. Code-action no-ops need visible feedback. Ctrl+. could return no actions,
+or an LSP command could execute without yielding a workspace edit, and the UI
+looked the same as a missed keystroke.
+
+- **IDE note:** code-action request/apply paths now toast `No code actions
+  available`, `Code action needs a file`, `Code action produced no edit`, or
+  success/failure outcomes for applied actions. The code-action ABI tests cover
+  the no-actions and no-file command paths, and code-action toasts replace stale
+  code-action feedback instead of stacking.

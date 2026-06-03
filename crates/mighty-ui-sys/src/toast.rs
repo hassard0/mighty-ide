@@ -555,6 +555,7 @@ enum OperationKey {
     WebRun,
     Theme,
     Diagnostic,
+    CodeAction,
     Format,
     Navigation,
     Markdown,
@@ -684,6 +685,16 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Theme)
     } else if is_mighty_diagnostic_message(m) {
         Some(OperationKey::Diagnostic)
+    } else if m == "No code actions available"
+        || m == "No code action selected"
+        || m == "Code action needs a file"
+        || m == "Save failed before code action"
+        || m == "Applied Fix all (mty)"
+        || m == "Fix all (mty) failed"
+        || m == "Applied code action"
+        || m == "Code action produced no edit"
+    {
+        Some(OperationKey::CodeAction)
     } else if m == "Formatted document" || m == "Format failed" {
         Some(OperationKey::Format)
     } else if m == "No definition found" {

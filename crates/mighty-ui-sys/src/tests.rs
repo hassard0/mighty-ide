@@ -3879,6 +3879,40 @@ fn editor_abi_drives_live_model_and_undo() {
 }
 
 #[test]
+fn codeaction_no_actions_toasts_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_codeaction_request(h, 0, 0), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No code actions available"
+    );
+}
+
+#[test]
+fn codeaction_command_without_file_toasts_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    ctx.codeaction.set(vec![crate::language::CodeAction {
+        title: "Run server command".to_string(),
+        edit: None,
+        command_edit: None,
+        command: Some(crate::language::CommandAction {
+            command: "server.apply".to_string(),
+            arguments_json: None,
+        }),
+        fix_all_mty: false,
+    }]);
+
+    assert_eq!(crate::mui_codeaction_apply(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Code action needs a file"
+    );
+}
+
+#[test]
 fn pane_split_focus_close_via_abi() {
     use crate::ffi::MuiEvent;
     use crate::{

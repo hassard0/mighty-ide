@@ -8807,6 +8807,7 @@ pub extern "C" fn mui_codeaction_request(handle: i64, line: i32, col: i32) -> i3
     let actions = compute_line_actions(ctx, line, col);
     if actions.is_empty() {
         println!("codeaction: line={line} total=0");
+        ctx.push_toast(crate::toast::Kind::Info, "No code actions available");
         return 0;
     }
     let count = ctx.codeaction.set(actions);
@@ -8972,6 +8973,7 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
     let selected = ctx.codeaction.selected().cloned();
     ctx.codeaction.cancel();
     let Some(action) = selected else {
+        ctx.push_toast(crate::toast::Kind::Info, "No code action selected");
         return 0;
     };
 
@@ -8979,10 +8981,14 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         // Save the live buffer, run `mty fix --apply`, reload.
         let path = match ctx.file_path.clone() {
             Some(p) => p,
-            None => return 0,
+            None => {
+                ctx.push_toast(crate::toast::Kind::Warn, "Code action needs a file");
+                return 0;
+            }
         };
         let bytes = ctx.tabs.active_model().to_bytes();
         if std::fs::write(&path, &bytes).is_err() {
+            ctx.push_toast(crate::toast::Kind::Error, "Save failed before code action");
             return 0;
         }
         mark_active_clean(ctx);
@@ -9001,6 +9007,9 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
             if let Ok(reloaded) = std::fs::read(&path) {
                 ctx.tabs.reload_active(&reloaded);
             }
+            ctx.push_toast(crate::toast::Kind::Success, "Applied Fix all (mty)");
+        } else {
+            ctx.push_toast(crate::toast::Kind::Warn, "Fix all (mty) failed");
         }
         println!("codeaction: apply Fix-all-mty ok={ok}");
         return i32::from(ok);
@@ -9011,17 +9020,28 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         let we = we.clone();
         let changed = apply_workspace_edit(ctx, &we, "");
         println!("codeaction: apply edit files={changed}");
+        if changed > 0 {
+            ctx.push_toast(crate::toast::Kind::Success, "Applied code action");
+        } else {
+            ctx.push_toast(crate::toast::Kind::Info, "Code action produced no edit");
+        }
         return i32::from(changed > 0);
     }
     if let Some(we) = &action.command_edit {
         let we = we.clone();
         let changed = apply_workspace_edit(ctx, &we, "");
         println!("codeaction: apply command-edit files={changed}");
+        if changed > 0 {
+            ctx.push_toast(crate::toast::Kind::Success, "Applied code action");
+        } else {
+            ctx.push_toast(crate::toast::Kind::Info, "Code action produced no edit");
+        }
         return i32::from(changed > 0);
     }
     if let Some(command) = &action.command {
         let Some(path) = ctx.file_path.clone() else {
             println!("codeaction: execute command={} no active path", command.command);
+            ctx.push_toast(crate::toast::Kind::Warn, "Code action needs a file");
             return 0;
         };
         let (source, _, _) = active_source_and_cursor(ctx);
@@ -9030,12 +9050,19 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         if !we.is_empty() {
             let changed = apply_workspace_edit(ctx, &we, "");
             println!("codeaction: execute command={} files={changed}", command.command);
+            if changed > 0 {
+                ctx.push_toast(crate::toast::Kind::Success, "Applied code action");
+            } else {
+                ctx.push_toast(crate::toast::Kind::Info, "Code action produced no edit");
+            }
             return i32::from(changed > 0);
         }
         println!("codeaction: execute command={} no-edit", command.command);
+        ctx.push_toast(crate::toast::Kind::Info, "Code action produced no edit");
         return 0;
     }
     println!("codeaction: apply (command/no-edit) — no-op");
+    ctx.push_toast(crate::toast::Kind::Info, "Code action produced no edit");
     0
 }
 
