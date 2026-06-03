@@ -4087,6 +4087,12 @@ pub extern "C" fn mui_tab_close(handle: i64, idx: i32) -> i32 {
     if ctx.tabs.is_dirty(idx_u) {
         ctx.pending_dirty_close = Some((idx_u, std::time::Instant::now()));
         ctx.pending_quit = None;
+        let name = ctx
+            .tabs
+            .get(idx_u)
+            .map(|t| t.basename())
+            .unwrap_or_else(|| "tab".to_string());
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Review unsaved changes in {name}"));
         trace(&format!("tab_close idx={idx_u} -> dirty-confirm"));
         return -1;
     }
@@ -4385,6 +4391,11 @@ pub extern "C" fn mui_quit_request(handle: i64) -> i32 {
     }
     ctx.pending_dirty_close = None;
     ctx.pending_quit = Some(std::time::Instant::now());
+    let noun = if dirty == 1 { "tab" } else { "tabs" };
+    ctx.push_toast(
+        crate::toast::Kind::Warn,
+        format!("Review {dirty} unsaved {noun} before quitting"),
+    );
     0
 }
 

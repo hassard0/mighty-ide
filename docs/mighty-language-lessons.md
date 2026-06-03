@@ -5294,3 +5294,13 @@ about whether the command was refused or simply found nothing.
   preserving the existing numeric ABI returns. Regression tests cover empty
   queries, no matches, successful next/all replacement, and read-only binary
   previews.
+
+L378. Dirty-close guards should announce the guard. Opening the unsaved-work
+confirmation modal is the correct safety behavior, but the initiating close or
+quit command still returns a refusal-like value. Without a toast, a repeated tab
+close or quit can feel like a missed shortcut instead of a protected operation.
+
+- **IDE note:** dirty tab close now reports the specific tab that needs review,
+  and quit with unsaved work reports the number of unsaved tabs before showing
+  the confirmation overlay. The tab ABI regression covers file-backed, scratch,
+  repeat-close, and quit confirmation feedback.

@@ -400,6 +400,12 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(mui_tab_open_path(handle), 2);
     mui_tab_set_dirty(handle, 2, 1);
     assert_eq!(mui_tab_close(handle, 2), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Review unsaved changes in mui_tababi_save_confirm.txt"
+    );
     assert_eq!(mui_dirty_confirm_save(handle), 1);
     assert_eq!(mui_tab_count(handle), 2);
     assert_eq!(mui_tab_active(handle), 1);
@@ -408,6 +414,9 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     // Dirty tabs require an explicit confirmation choice before closing.
     mui_tab_set_dirty(handle, 1, 1);
     assert_eq!(mui_quit_request(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Review 1 unsaved tab before quitting");
     assert_eq!(mui_dirty_confirm_active(handle), 1);
     mui_dirty_confirm_cancel(handle);
     assert_eq!(mui_dirty_confirm_active(handle), 0);
@@ -415,6 +424,10 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(mui_quit_request(handle), 0, "repeat quit should keep the modal active");
     mui_dirty_confirm_cancel(handle);
     assert_eq!(mui_tab_close(handle, 1), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Review unsaved changes in mui_tababi_open.txt"
+    );
     assert_eq!(mui_tab_close(handle, 1), -1, "repeat close should not discard");
     assert_eq!(mui_dirty_confirm_active(handle), 1);
 
@@ -490,6 +503,10 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     ctx.tabs.active_model_mut().set_text_preserving_cursor("scratch");
     mui_tab_set_dirty(handle, untitled as i32, 1);
     assert_eq!(mui_tab_close(handle, untitled as i32), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Review unsaved changes in (scratch)"
+    );
     std::env::set_var("MUI_SAVE_FILE_PICK", "");
     assert_eq!(mui_dirty_confirm_save(handle), -3);
     std::env::remove_var("MUI_SAVE_FILE_PICK");
