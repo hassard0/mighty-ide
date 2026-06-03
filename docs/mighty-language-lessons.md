@@ -5858,3 +5858,12 @@ could only discover file-path copy commands, not text clipboard commands.
   the existing `mui_ed_copy`, `mui_ed_cut`, and `mui_ed_paste` ABI calls; Cut and
   Paste keep the shortcut path's undo record and dirty-tab update only when the
   ABI reports a real edit.
+
+L437. Word deletion should be discoverable as an edit command. Ctrl+Backspace
+and Ctrl+Delete are fast keyboard paths, but palette users need named commands
+for the same previous-word and next-word editing operations.
+
+- **IDE note:** the command palette now lists `Edit: Delete Previous Word` and
+  `Edit: Delete Next Word`. Mighty dispatches through the existing multi-caret
+  `mui_ed_delete_word_left_multi` and `mui_ed_delete_word_right_multi` ABI calls,
+  preserving the shortcut path's undo, dirty-tab, and ghost-text handling.
