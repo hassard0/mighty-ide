@@ -3,17 +3,18 @@
 //! Like completion, the navigation logic lives here on the Rust side: Mighty can
 //! only drive the shim through a scalar `extern c` ABI (L17) and must keep its
 //! own `Vec` access flat (L21). Mighty asks for hover / definition at the cursor
-//! `(line, col)`; this module spawns `mty lsp`, runs the LSP stdio JSON-RPC
-//! handshake, fires `textDocument/hover` or `textDocument/definition`, and parses
-//! the answer with small hand scanners (no serde dependency).
+//! `(line, col)`; the ABI routes Mighty through `mty lsp` and other languages
+//! through the generic LSP client, then this module parses the answer with small
+//! hand scanners (no serde dependency).
 //!
 //! Two surfaces:
 //!
 //! * **Hover** ([`HoverState`]): the parsed hover text is wrapped to a few short
 //!   lines and drawn as a popup box near the cursor by [`HoverState::draw`].
-//! * **Definition** ([`DefState`]): the parsed `Location` (uri + start position)
-//!   is resolved to a path + 0-based `(line, col)`. Mighty reads it back to move
-//!   the cursor (same file) or open the target as a tab (other file).
+//! * **Definition** ([`DefState`]): the parsed `Location` / `LocationLink` (uri
+//!   + start position) is resolved to a path + 0-based `(line, col)`. Mighty
+//!   reads it back to move the cursor (same file) or open the target as a tab
+//!   (other file).
 //!
 //! Every LSP exchange is short-timeout and failure-tolerant — any error leaves
 //! the state empty so the editor simply does nothing (never blocks).
@@ -246,23 +247,42 @@ pub fn parse_hover_value(json: &str) -> Option<String> {
 
 /// Extract the definition target line/col from a definition JSON-RPC response.
 ///
-/// The result is a `Location`: `{"result":{"range":{"start":{"line":N,
-/// "character":N},"end":{...}},"uri":"file:///..."}}`. We read the FIRST
-/// `"start"` object's `line`/`character` (the definition start) plus the `uri`.
-/// Returns `(uri, line, col)` or `None` for a `null` / missing result.
+/// Supports both `Location` (`uri` + `range.start`) and `LocationLink`
+/// (`targetUri` + `targetSelectionRange.start`, falling back to
+/// `targetRange.start`). Returns `(uri, line, col)` or `None` for a `null` /
+/// missing result.
 pub fn parse_definition(json: &str) -> Option<(String, u32, u32)> {
     let bytes = json.as_bytes();
-    // The uri belongs to the result Location; it appears once.
-    let uri = {
-        let key = b"\"uri\"";
-        let p = find_sub(bytes, key)?;
-        read_json_string_after(bytes, p + key.len())?
-    };
-    // The first `"start"` object holds the definition start position.
+    if let Some(link) = parse_location_link(bytes) {
+        return Some(link);
+    }
+    parse_location(bytes)
+}
+
+fn parse_location_link(bytes: &[u8]) -> Option<(String, u32, u32)> {
+    let uri_key = b"\"targetUri\"";
+    let uri_pos = find_sub(bytes, uri_key)?;
+    let uri = read_json_string_after(bytes, uri_pos + uri_key.len())?;
+    let range_anchor = find_sub(bytes, b"\"targetSelectionRange\"")
+        .or_else(|| find_sub(bytes, b"\"targetRange\""))?;
+    let region = &bytes[range_anchor..];
+    let start_anchor = find_sub(region, b"\"start\"")?;
+    let start_region = &region[start_anchor..];
+    let line = read_uint_after(start_region, b"\"line\"")?;
+    let col = read_uint_after(start_region, b"\"character\"")?;
+    Some((uri, line, col))
+}
+
+fn parse_location(bytes: &[u8]) -> Option<(String, u32, u32)> {
+    // The uri belongs to the result Location; it appears once. This deliberately
+    // does not match `targetUri`; LocationLink is handled first.
+    let uri_key = b"\"uri\"";
+    let uri_pos = find_sub(bytes, uri_key)?;
+    let uri = read_json_string_after(bytes, uri_pos + uri_key.len())?;
     let start_anchor = find_sub(bytes, b"\"start\"")?;
-    let region = &bytes[start_anchor..];
-    let line = read_uint_after(region, b"\"line\"")?;
-    let col = read_uint_after(region, b"\"character\"")?;
+    let start_region = &bytes[start_anchor..];
+    let line = read_uint_after(start_region, b"\"line\"")?;
+    let col = read_uint_after(start_region, b"\"character\"")?;
     Some((uri, line, col))
 }
 
@@ -736,6 +756,24 @@ mod tests {
         assert_eq!(uri, "file:///C:/tmp/probe.mty");
         assert_eq!(line, 7);
         assert_eq!(col, 2);
+    }
+
+    #[test]
+    fn parse_definition_reads_location_link_selection_range() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"originSelectionRange":{"start":{"line":2,"character":4},"end":{"line":2,"character":7}},"targetUri":"file:///C:/tmp/lib.rs","targetRange":{"start":{"line":30,"character":0},"end":{"line":36,"character":1}},"targetSelectionRange":{"start":{"line":32,"character":8},"end":{"line":32,"character":14}}}]}"#;
+        let (uri, line, col) = parse_definition(json).expect("location link");
+        assert_eq!(uri, "file:///C:/tmp/lib.rs");
+        assert_eq!(line, 32);
+        assert_eq!(col, 8);
+    }
+
+    #[test]
+    fn parse_definition_location_link_falls_back_to_target_range() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"targetUri":"file:///C:/tmp/lib.rs","targetRange":{"start":{"line":9,"character":3},"end":{"line":11,"character":0}}}]}"#;
+        let (uri, line, col) = parse_definition(json).expect("location link");
+        assert_eq!(uri, "file:///C:/tmp/lib.rs");
+        assert_eq!(line, 9);
+        assert_eq!(col, 3);
     }
 
     #[test]

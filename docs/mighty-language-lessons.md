@@ -5011,3 +5011,13 @@ already owns the edited text in the active tab model.
   but sends the active tab's live `TextModel` contents to generic LSP
   `publishDiagnostics` when the configured path is the active tab. Disk fallback
   remains for non-active paths and missing tab state.
+
+L351. Go-to-definition has to parse every shape allowed by LSP, not just the
+server shape seen first. Some servers return `LocationLink[]` from
+`textDocument/definition`; parsing only `Location` makes definition navigation
+look broken even when the server answered correctly.
+
+- **IDE note:** definition parsing now handles `LocationLink` results by reading
+  `targetUri` and preferring `targetSelectionRange.start`, with a fallback to
+  `targetRange.start`. The existing `Location` parser remains the fallback, so
+  Mighty and servers returning plain `Location` keep the same behavior.
