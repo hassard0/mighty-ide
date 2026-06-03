@@ -76,18 +76,22 @@ pub extern "C" fn mui_web_run(handle: i64) -> i32 {
     }
 }
 
-/// Stop the running server (best-effort kill). No-op if idle.
+/// Stop the running server (best-effort kill). Returns `1` when a server was
+/// stopped and `0` when Web Playground was already idle.
 #[no_mangle]
-pub extern "C" fn mui_web_stop(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
-        let was_running = ctx.web.is_running();
-        ctx.web.stop();
-        if was_running {
-            let _ = ctx.web.take_just_finished();
-            ctx.push_toast(crate::toast::Kind::Info, "Web server stopped");
-        } else {
-            ctx.push_toast(crate::toast::Kind::Info, "No web server running");
-        }
+pub extern "C" fn mui_web_stop(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let was_running = ctx.web.is_running();
+    ctx.web.stop();
+    if was_running {
+        let _ = ctx.web.take_just_finished();
+        ctx.push_toast(crate::toast::Kind::Info, "Web server stopped");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No web server running");
+        0
     }
 }
 

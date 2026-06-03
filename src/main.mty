@@ -469,7 +469,7 @@ extern c {
   fn mui_run_draw(handle: I64)
   // ---- Web Playground (Run in Browser / Alt+W : wasm32-web + browser) ----
   fn mui_web_run(handle: I64) -> I32
-  fn mui_web_stop(handle: I64)
+  fn mui_web_stop(handle: I64) -> I32
   fn mui_web_open(handle: I64) -> I32
   fn mui_web_clear(handle: I64) -> I32
   fn mui_web_close(handle: I64) -> I32
@@ -1475,7 +1475,7 @@ fn main() {
         test_focus = false
         term_focus = false
         if web_header_click == 1 {
-          mui_web_stop(h)
+          let _wst = mui_web_stop(h)
         } else if web_header_click == 2 {
           let _ob = mui_web_open_browser(h)
         } else if web_header_click == 3 {
@@ -2046,7 +2046,7 @@ fn main() {
             let wc = web_header_click
             if wc == 1 {
               // Stop server.
-              mui_web_stop(h)
+              let _wst = mui_web_stop(h)
             } else if wc == 2 {
               // Open the served URL in the default browser.
               let _ob = mui_web_open_browser(h)
@@ -4350,7 +4350,7 @@ fn main() {
           web_focus = true
           agents_focus = false
         } else if id == cmd_web_stop() {
-          mui_web_stop(h)
+          let _wst = mui_web_stop(h)
           web_focus = true
           agents_focus = false
         } else if id == cmd_web_open_browser() {

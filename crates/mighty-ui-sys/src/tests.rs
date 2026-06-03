@@ -1225,7 +1225,7 @@ fn web_playground_idle_controls_explain_noops() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
-    crate::webabi::mui_web_stop(handle);
+    assert_eq!(crate::webabi::mui_web_stop(handle), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No web server running");
@@ -1234,6 +1234,30 @@ fn web_playground_idle_controls_explain_noops() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Web URL not ready");
+}
+
+#[test]
+fn web_playground_stop_reports_running_state() {
+    let mut ctx = ctx_or_skip!();
+    ctx.term_open = true;
+    ctx.run.open();
+    ctx.problems.set_open(true);
+    ctx.web.seed_demo("examples/webspin/src/main.mty");
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::webabi::mui_web_stop(handle), 1);
+    assert!(!ctx.web.is_running());
+    assert!(ctx.web.is_active());
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Web server stopped"
+    );
+
+    assert_eq!(crate::webabi::mui_web_stop(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No web server running"
+    );
 }
 
 #[test]
@@ -8327,6 +8351,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _tc = mui_test_close(h)")
             && main.contains("test_focus = false"),
         "Test close command must use the Testing-specific close ABI and release Testing focus"
+    );
+    assert!(
+        main.contains("id == cmd_web_stop()")
+            && main.contains("let _wst = mui_web_stop(h)")
+            && main.contains("web_focus = true"),
+        "Web stop command must report stop state while keeping Web Playground focused"
     );
     assert!(
         main.contains("id == cmd_web_clear_output()")

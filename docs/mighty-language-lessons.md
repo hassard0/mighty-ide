@@ -7360,3 +7360,13 @@ outcomes, and both should be visible from the command palette.
   `Test run stopped`; idle stop still opens/focuses Testing and reports
   `No test run to stop`. Both messages stay in the Test toast lane, and Mighty
   explicitly discards the returned state from shortcut and palette paths.
+
+L590. Web stop should expose the same state contract as other stop commands.
+The Web Playground already reported active and idle outcomes, but a void ABI
+still hid the difference from Mighty call sites and source guards.
+
+- **IDE note:** `mui_web_stop` now returns `1` when it stops a running Web
+  Playground server and `0` when no server is running. It keeps the existing
+  `Web server stopped` / `No web server running` messages in the WebRun toast
+  lane, and Mighty explicitly discards the returned state from header and
+  palette command paths.
