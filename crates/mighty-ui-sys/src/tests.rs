@@ -4123,12 +4123,24 @@ fn toast_clear_abi_dismisses_visible_notifications() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
     assert_eq!(crate::mui_toast_clear(handle), 0);
+    assert_eq!(ctx.toasts.len(), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No notifications to clear"
+    );
     ctx.push_toast(crate::toast::Kind::Info, "First");
     ctx.push_toast(crate::toast::Kind::Warn, "Second");
-    assert_eq!(ctx.toasts.len(), 2);
+    assert_eq!(ctx.toasts.len(), 3);
     assert_eq!(crate::mui_toast_clear(handle), 1);
     assert!(ctx.toasts.is_empty());
     assert_eq!(crate::mui_toast_clear(handle), 0);
+    assert_eq!(ctx.toasts.len(), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No notifications to clear"
+    );
+    assert_eq!(crate::mui_toast_clear(handle), 1);
+    assert!(ctx.toasts.is_empty());
 }
 
 #[test]

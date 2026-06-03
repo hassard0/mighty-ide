@@ -13670,6 +13670,9 @@ pub extern "C" fn mui_toast_clear(handle: i64) -> i32 {
         return 0;
     };
     let cleared = ctx.toasts.clear();
+    if !cleared {
+        ctx.push_toast(crate::toast::Kind::Info, "No notifications to clear");
+    }
     trace(&format!("toast_clear removed={}", if cleared { 1 } else { 0 }));
     i32::from(cleared)
 }

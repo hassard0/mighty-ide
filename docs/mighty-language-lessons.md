@@ -7017,3 +7017,12 @@ make room for editing without collapsing or refreshing the file tree.
   `mui_explorer_close`. The close path hides the sidebar, keeps Explorer as the
   active panel, preserves expanded rows, reports closed/already-closed feedback,
   and routes through the Mighty dispatcher.
+
+L558. Empty notification clears should still acknowledge the command. Clearing
+visible toasts must leave the notification stack empty, but invoking the command
+when there is nothing to clear should not feel inert.
+
+- **IDE note:** `mui_toast_clear` now reports `No notifications to clear` only
+  for the empty-stack case. Successful clears stay silent so they do not create
+  a replacement toast immediately after removing notifications, and repeated
+  empty clears share one notification feedback lane.

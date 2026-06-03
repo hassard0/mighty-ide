@@ -581,6 +581,7 @@ enum OperationKey {
     Git,
     Ai,
     Agents,
+    Notifications,
 }
 
 fn operation_key(message: &str) -> Option<OperationKey> {
@@ -590,6 +591,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Type a message before sending"
     {
         Some(OperationKey::Ai)
+    } else if m == "No notifications to clear" {
+        Some(OperationKey::Notifications)
     } else if m.starts_with("Git error:")
         || m.starts_with("Switched to ")
         || m.starts_with("Created branch ")
@@ -2011,6 +2014,22 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Agents target missing: agent.mty");
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
+    }
+
+    #[test]
+    fn newer_notification_feedback_replaces_stale_notification_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "No notifications to clear", t0);
+        q.push_at(
+            Kind::Info,
+            "No notifications to clear",
+            t0 + Duration::from_millis(100),
+        );
+
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No notifications to clear");
     }
 
     #[test]
