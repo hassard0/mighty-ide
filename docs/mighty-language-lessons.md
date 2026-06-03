@@ -7516,3 +7516,8 @@ L606. Line deletion and joining need no-op preflights too. Deleting an already
 empty single-line buffer or joining the final line should not create undo
 history, but the stateful edit ABI should still own read-only feedback so all
 mutating editor commands behave consistently.
+
+L607. Outdent needs an indentation preflight before undo. Shift+Tab is a
+mutating route only when at least one affected line has removable leading
+whitespace; the ABI should still own read-only feedback, while Mighty should
+skip undo snapshots for no-indent ranges.

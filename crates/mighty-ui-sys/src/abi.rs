@@ -12957,17 +12957,54 @@ pub extern "C" fn mui_ed_toggle_comment(handle: i64) -> i32 {
 /// Tab: insert configured spaces at a plain caret, or indent selected lines.
 #[no_mangle]
 pub extern "C" fn mui_ed_indent(handle: i64) -> i32 {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        return i32::from(m.indent_or_insert_tab());
-    }
-    0
+    apply_model_edit(handle, |m| {
+        let _ = m.indent_or_insert_tab();
+    })
 }
 
 /// Shift+Tab: outdent the current line or selected line range.
 #[no_mangle]
 pub extern "C" fn mui_ed_outdent(handle: i64) -> i32 {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        return i32::from(m.outdent_lines());
+    apply_model_edit(handle, |m| {
+        let _ = m.outdent_lines();
+    })
+}
+
+fn active_line_range(ctx: &MuiContext) -> Option<(usize, usize)> {
+    let model = ctx.tabs.active_model();
+    let line_count = model.line_count();
+    if line_count == 0 {
+        return None;
+    }
+    let (l0, l1) = model
+        .selection_range()
+        .map(|((start_line, _), (end_line, _))| (start_line, end_line))
+        .unwrap_or_else(|| {
+            let line = model.cursor_line();
+            (line, line)
+        });
+    Some((l0.min(line_count - 1), l1.min(line_count - 1)))
+}
+
+/// `1` when Shift+Tab / Outdent can remove leading indentation.
+/// Pure preflight: no toasts; the outdent command keeps read-only feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_outdent(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only() {
+        return 0;
+    }
+    let Some((l0, l1)) = active_line_range(ctx) else {
+        return 0;
+    };
+    let model = ctx.tabs.active_model();
+    for li in l0..=l1 {
+        let line = model.line(li);
+        if line.starts_with('\t') || line.starts_with(' ') {
+            return 1;
+        }
     }
     0
 }

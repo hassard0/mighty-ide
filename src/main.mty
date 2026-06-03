@@ -92,6 +92,7 @@ extern c {
   //      duplicate / move-line / word-motion / select) ----
   fn mui_ed_toggle_comment(handle: I64) -> I32
   fn mui_ed_indent(handle: I64) -> I32
+  fn mui_ed_can_outdent(handle: I64) -> I32
   fn mui_ed_outdent(handle: I64) -> I32
   fn mui_ed_newline_indent(handle: I64) -> I32
   fn mui_ed_insert_smart(handle: I64, cp: I32) -> I32
@@ -3157,7 +3158,7 @@ fn main() {
             }
           } else {
             // (5) Nothing took the Tab -> indent/outdent the editor.
-            mui_ed_undo_record(h)
+            if !shift_held(kmods) || mui_ed_can_outdent(h) == 1 { mui_ed_undo_record(h) }
             typing = false
             let changed = if shift_held(kmods) {
               mui_ed_outdent(h)
@@ -3958,7 +3959,9 @@ fn main() {
             mui_ghost_arm(h)
           }
         } else if id == cmd_indent_line_selection() || id == cmd_outdent_line_selection() {
-          mui_ed_undo_record(h)
+          if id == cmd_indent_line_selection() || mui_ed_can_outdent(h) == 1 {
+            mui_ed_undo_record(h)
+          }
           typing = false
           let changed = if id == cmd_outdent_line_selection() {
             mui_ed_outdent(h)
