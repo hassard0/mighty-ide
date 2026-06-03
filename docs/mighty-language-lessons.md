@@ -7066,3 +7066,14 @@ visible.
   `mui_outline_clear_symbols`. The command clears symbol rows and the
   cursor-current symbol, keeps the Outline panel active, reports
   cleared/already-empty feedback, and routes through the Mighty dispatcher.
+
+L563. Debug sessions need a reset that is not close and not restart. Close hides
+the Run and Debug panel, Restart launches the last target again, and Stop leaves
+console/session residue; users need an explicit way to discard the current
+session model while keeping breakpoints and target setup.
+
+- **IDE note:** The command palette now lists `Run and Debug: Clear Session`,
+  calling `mui_dbg_clear_session`. The command disconnects any live adapter,
+  clears state/stack/variables/current stop/console, preserves breakpoints and
+  the last target, keeps Run and Debug open, reports cleared/already-empty
+  feedback, and routes through the Mighty dispatcher.

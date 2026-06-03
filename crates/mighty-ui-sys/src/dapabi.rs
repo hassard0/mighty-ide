@@ -256,6 +256,24 @@ pub extern "C" fn mui_dbg_close(handle: i64) -> i32 {
     0
 }
 
+/// Clear the current debug session model without clearing breakpoints or the
+/// last target. Returns `1` when session state was cleared, or `0` when empty.
+#[no_mangle]
+pub extern "C" fn mui_dbg_clear_session(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    open_debug_view(ctx);
+    if ctx.dbg.clear_session() {
+        ctx.push_toast(crate::toast::Kind::Info, "Debug session cleared");
+        crate::abi::trace("dbg_clear_session");
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "Debug session already empty");
+    crate::abi::trace("dbg_clear_session noop");
+    0
+}
+
 /// Coarse run state: 0 idle, 1 running, 2 stopped, 3 terminated.
 #[no_mangle]
 pub extern "C" fn mui_dbg_state(handle: i64) -> i32 {

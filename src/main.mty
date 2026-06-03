@@ -512,6 +512,7 @@ extern c {
   fn mui_dbg_step_over(handle: I64)
   fn mui_dbg_step_into(handle: I64)
   fn mui_dbg_step_out(handle: I64)
+  fn mui_dbg_clear_session(handle: I64) -> I32
   fn mui_dbg_close(handle: I64) -> I32
   fn mui_dbg_toggle(handle: I64) -> I32
   fn mui_dbg_active(handle: I64) -> I32
@@ -810,6 +811,7 @@ fn cmd_problems_clear() -> I32 { 191 }
 fn cmd_git_clear_commit_message() -> I32 { 192 }
 fn cmd_search_clear_results() -> I32 { 193 }
 fn cmd_outline_clear_symbols() -> I32 { 194 }
+fn cmd_debug_clear_session() -> I32 { 195 }
 fn cmd_diff_close_view() -> I32 { 158 }
 fn cmd_git_hide_blame() -> I32 { 159 }
 fn cmd_peek_close() -> I32 { 160 }
@@ -4449,6 +4451,11 @@ fn main() {
           agents_focus = false
         } else if id == cmd_debug_close() {
           let _dc = mui_dbg_close(h)
+          agents_focus = false
+          find_nav = false
+        } else if id == cmd_debug_clear_session() {
+          let _vp = mui_panel_set(h, panel_debug())
+          let _dcs = mui_dbg_clear_session(h)
           agents_focus = false
           find_nav = false
         } else if id == cmd_view_testing() {

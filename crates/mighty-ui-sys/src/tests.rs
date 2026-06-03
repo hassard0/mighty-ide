@@ -3337,6 +3337,11 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_DEBUG_PAUSE, "Debug: Pause", ""),
         (crate::palette::CMD_DEBUG_RESTART, "Debug: Restart", ""),
         (
+            crate::palette::CMD_DEBUG_CLEAR_SESSION,
+            "Run and Debug: Clear Session",
+            "",
+        ),
+        (
             crate::palette::CMD_DEBUG_CLOSE,
             "Run and Debug: Close Panel",
             "",
@@ -5093,6 +5098,41 @@ fn debug_close_command_preserves_session_state_and_breakpoints() {
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Run and Debug panel is already closed"
+    );
+}
+
+#[test]
+fn debug_clear_session_keeps_panel_open_and_preserves_breakpoints() {
+    let mut ctx = ctx_or_skip!();
+    let path = "C:/p/demo.mty";
+    ctx.dbg.seed_demo(path);
+    ctx.dbg.set_open(false);
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::dapabi::mui_dbg_state(handle), crate::dap::DebugState::Stopped.as_i32());
+    assert!(crate::dapabi::mui_dbg_stack_count(handle) >= 1);
+    assert!(crate::dapabi::mui_dbg_var_count(handle) >= 1);
+    assert!(ctx.dbg.has_breakpoint(path, 2));
+
+    assert_eq!(crate::dapabi::mui_dbg_clear_session(handle), 1);
+    assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(crate::dapabi::mui_dbg_active(handle), 1);
+    assert_eq!(crate::dapabi::mui_dbg_state(handle), crate::dap::DebugState::Idle.as_i32());
+    assert_eq!(crate::dapabi::mui_dbg_stack_count(handle), 0);
+    assert_eq!(crate::dapabi::mui_dbg_var_count(handle), 0);
+    assert!(ctx.dbg.has_breakpoint(path, 2));
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Debug session cleared"
+    );
+
+    assert_eq!(crate::dapabi::mui_dbg_clear_session(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Debug session already empty"
     );
 }
 
@@ -7991,6 +8031,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Debug close command must use the Debug-specific close ABI without stopping or resetting the session"
     );
     assert!(
+        main.contains("id == cmd_debug_clear_session()")
+            && main.contains("let _vp = mui_panel_set(h, panel_debug())")
+            && main.contains("let _dcs = mui_dbg_clear_session(h)")
+            && main.contains("find_nav = false"),
+        "Debug clear-session command must reveal Run and Debug and reset session state"
+    );
+    assert!(
         main.contains("id == cmd_test_clear_results()")
             && main.contains("let _tc = mui_test_clear(h)")
             && main.contains("test_focus = true"),
@@ -8329,6 +8376,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_DEBUG_STEP_OUT, "cmd_debug_step_out"),
         (CMD_DEBUG_PAUSE, "cmd_debug_pause"),
         (CMD_DEBUG_RESTART, "cmd_debug_restart"),
+        (CMD_DEBUG_CLEAR_SESSION, "cmd_debug_clear_session"),
         (CMD_RELOAD_ACTIVE_FILE, "cmd_reload_active_file"),
         (CMD_REVERT_ACTIVE_FILE, "cmd_revert_active_file"),
         (CMD_FORMAT_DOCUMENT, "cmd_format_document"),

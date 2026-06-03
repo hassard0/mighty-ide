@@ -865,7 +865,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Terminal failed to open"
     {
         Some(OperationKey::Terminal)
-    } else if m == "Debug session already running"
+    } else if m.starts_with("Debug session ")
         || m == "Open a file before starting debug"
         || m.starts_with("Debug failed to start:")
         || m == "Run and Debug panel closed"

@@ -575,6 +575,32 @@ impl DebugModel {
         std::mem::take(&mut self.just_stopped)
     }
 
+    /// Clear the current debug session model while preserving breakpoints and
+    /// the last target. Disconnects any live adapter and keeps the panel open.
+    pub fn clear_session(&mut self) -> bool {
+        let changed = self.session.is_some()
+            || self.state != DebugState::Idle
+            || self.cur_line >= 0
+            || !self.cur_file.is_empty()
+            || !self.stack.is_empty()
+            || !self.variables.is_empty()
+            || !self.console.is_empty()
+            || self.just_stopped;
+        if let Some(sess) = self.session.take() {
+            sess.disconnect();
+        }
+        self.state = DebugState::Idle;
+        self.cur_line = -1;
+        self.cur_file.clear();
+        self.stack.clear();
+        self.variables.clear();
+        self.console.clear();
+        self.sel_frame = 0;
+        self.just_stopped = false;
+        self.open = true;
+        changed
+    }
+
     fn log(&mut self, text: impl Into<String>, is_error: bool) {
         self.console.push(ConsoleLine {
             text: text.into(),
@@ -1484,5 +1510,30 @@ mod tests {
         assert!(m.variable_count() >= 1);
         assert!(m.has_breakpoint("C:/p/demo.mty", 2)); // 1-based 3
         assert_eq!(m.cur_line(), 2);
+    }
+
+    #[test]
+    fn clear_session_preserves_target_and_breakpoints() {
+        let mut m = DebugModel::new();
+        let path = "C:/p/demo.mty";
+        m.seed_demo(path);
+        assert_eq!(m.state(), DebugState::Stopped);
+        assert!(m.stack_count() > 0);
+        assert!(m.variable_count() > 0);
+        assert!(m.console_count() > 0);
+        assert!(m.has_program());
+        assert!(m.has_breakpoint(path, 2));
+
+        assert!(m.clear_session());
+        assert_eq!(m.state(), DebugState::Idle);
+        assert_eq!(m.cur_line(), -1);
+        assert!(m.cur_file().is_empty());
+        assert_eq!(m.stack_count(), 0);
+        assert_eq!(m.variable_count(), 0);
+        assert_eq!(m.console_count(), 0);
+        assert!(m.has_program());
+        assert!(m.has_breakpoint(path, 2));
+        assert!(m.is_open());
+        assert!(!m.clear_session());
     }
 }
