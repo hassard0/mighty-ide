@@ -596,6 +596,10 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Nothing to commit"
         || m == "Source control stage failed"
         || m == "Source control unstage failed"
+        || m == "No hunk selected"
+        || m == "Staged hunk"
+        || m == "Unstaged hunk"
+        || m.starts_with("Hunk apply failed:")
         || m == "Enter a branch name"
         || m == "No branch picker open"
         || m == "No branch selected"
@@ -1188,6 +1192,31 @@ mod tests {
         q.push_at(Kind::Info, "Only one editor pane", t0 + Duration::from_millis(300));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Only one editor pane");
+    }
+
+    #[test]
+    fn newer_git_feedback_replaces_stale_hunk_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Warn, "No hunk selected", t0);
+        q.push_at(Kind::Success, "Staged hunk", t0 + Duration::from_millis(100));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Staged hunk");
+        assert_eq!(q.toasts()[0].kind, Kind::Success);
+
+        q.push_at(
+            Kind::Error,
+            "Hunk apply failed: patch does not apply",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Hunk apply failed: patch does not apply");
+        assert_eq!(q.toasts()[0].kind, Kind::Error);
+
+        q.push_at(Kind::Warn, "Not a git repository", t0 + Duration::from_millis(300));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Not a git repository");
     }
 
     #[test]

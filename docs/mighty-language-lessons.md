@@ -5549,3 +5549,12 @@ workspace rather than implying there was merely nothing to do.
   `mui_scm_commit` now report `Not a git repository` when no repository root can
   be discovered. Existing `Nothing to stage`, `Nothing to unstage`, and
   `Nothing to commit` messages are reserved for real repositories.
+
+L404. Inline hunk feedback belongs to the git operation family. Hunk staging is
+part of the same source-control workflow as branch, stage-all, unstage-all, and
+commit commands, so old hunk toasts should be replaced by newer git outcomes.
+
+- **IDE note:** `No hunk selected`, `Staged hunk`, `Unstaged hunk`, and
+  `Hunk apply failed: ...` now share the Git toast replacement key with the rest
+  of the SCM command feedback. Repeated hunk actions no longer leave stale git
+  status cards stacked beside the latest result.
