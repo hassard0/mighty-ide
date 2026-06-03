@@ -227,3 +227,61 @@ impl MuiEvent {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn header_defines() -> HashMap<&'static str, u32> {
+        let header = include_str!("../include/mighty_ui.h");
+        header
+            .lines()
+            .filter_map(|line| {
+                let mut parts = line.split_whitespace();
+                if parts.next()? != "#define" {
+                    return None;
+                }
+                let name = parts.next()?;
+                let raw = parts.next()?;
+                let value = raw.strip_suffix('u')?.parse::<u32>().ok()?;
+                Some((name, value))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn header_key_defines_match_rust_abi() {
+        let header = header_defines();
+        for (name, value) in [
+            ("MUI_KEY_UNKNOWN", MUI_KEY_UNKNOWN),
+            ("MUI_KEY_LEFT", MUI_KEY_LEFT),
+            ("MUI_KEY_RIGHT", MUI_KEY_RIGHT),
+            ("MUI_KEY_UP", MUI_KEY_UP),
+            ("MUI_KEY_DOWN", MUI_KEY_DOWN),
+            ("MUI_KEY_BACKSPACE", MUI_KEY_BACKSPACE),
+            ("MUI_KEY_ENTER", MUI_KEY_ENTER),
+            ("MUI_KEY_TAB", MUI_KEY_TAB),
+            ("MUI_KEY_ESCAPE", MUI_KEY_ESCAPE),
+            ("MUI_KEY_DELETE", MUI_KEY_DELETE),
+            ("MUI_KEY_HOME", MUI_KEY_HOME),
+            ("MUI_KEY_END", MUI_KEY_END),
+            ("MUI_KEY_PAGE_UP", MUI_KEY_PAGE_UP),
+            ("MUI_KEY_PAGE_DOWN", MUI_KEY_PAGE_DOWN),
+            ("MUI_KEY_F1", MUI_KEY_F1),
+            ("MUI_KEY_F2", MUI_KEY_F2),
+            ("MUI_KEY_F3", MUI_KEY_F3),
+            ("MUI_KEY_F4", MUI_KEY_F4),
+            ("MUI_KEY_F5", MUI_KEY_F5),
+            ("MUI_KEY_F6", MUI_KEY_F6),
+            ("MUI_KEY_F7", MUI_KEY_F7),
+            ("MUI_KEY_F8", MUI_KEY_F8),
+            ("MUI_KEY_F9", MUI_KEY_F9),
+            ("MUI_KEY_F10", MUI_KEY_F10),
+            ("MUI_KEY_F11", MUI_KEY_F11),
+            ("MUI_KEY_F12", MUI_KEY_F12),
+        ] {
+            assert_eq!(header.get(name).copied(), Some(value), "{name}");
+        }
+    }
+}

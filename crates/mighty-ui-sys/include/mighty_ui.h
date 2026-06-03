@@ -54,6 +54,18 @@ typedef struct MuiColor {
 #define MUI_KEY_END        11u
 #define MUI_KEY_PAGE_UP    12u
 #define MUI_KEY_PAGE_DOWN  13u
+#define MUI_KEY_F12        14u
+#define MUI_KEY_F2         15u
+#define MUI_KEY_F5         16u
+#define MUI_KEY_F10        17u
+#define MUI_KEY_F11        18u
+#define MUI_KEY_F1         19u
+#define MUI_KEY_F3         20u
+#define MUI_KEY_F4         21u
+#define MUI_KEY_F6         22u
+#define MUI_KEY_F7         23u
+#define MUI_KEY_F8         24u
+#define MUI_KEY_F9         25u
 
 /* ---- mouse button codes (MuiEvent.button) -------------------------------- */
 

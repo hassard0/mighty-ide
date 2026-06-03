@@ -6507,3 +6507,14 @@ arbitrarily incomplete.
   keys. Terminal key encoding emits standard sequences for the full forwarded
   F-key set, with unit coverage at both the window mapping and terminal byte
   layers.
+
+L507. Public flat ABI constants need header parity tests.
+The Rust shim constants and the exported `mighty_ui.h` header are one ABI, not
+two separate documents. Extending the Rust key set without extending the header
+leaves external/generated bindings unable to name the events the window layer
+now emits.
+
+- **IDE note:** `mighty_ui.h` now mirrors the complete `MUI_KEY_*` function-key
+  range, and `ffi.rs` has a unit test that parses the header's unsigned
+  `#define`s and compares them against the Rust constants. Future ABI additions
+  now fail fast when the public header drifts.
