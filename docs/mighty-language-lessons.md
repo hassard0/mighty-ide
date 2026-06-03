@@ -5624,3 +5624,13 @@ history explanations should replace each other instead of stacking.
   read-only previews`, and `Redo is unavailable in read-only previews` now share
   a History toast replacement key. Repeated undo/redo commands keep only the
   latest history state visible.
+
+L412. Multi-cursor edge feedback should collapse as one caret workflow. Adding
+the next occurrence, adding a caret above, and adding a caret below are related
+multi-cursor commands, and their boundary explanations should replace each
+other.
+
+- **IDE note:** `No word or next occurrence for multi-cursor`,
+  `No line above for another caret`, and `No line below for another caret` now
+  share a MultiCursor toast replacement key. Repeated multi-cursor edge commands
+  keep only the latest caret-placement explanation visible.

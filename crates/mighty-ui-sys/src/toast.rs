@@ -570,6 +570,7 @@ enum OperationKey {
     Fold,
     Replace,
     History,
+    MultiCursor,
     Navigation,
     Markdown,
     Layout,
@@ -779,6 +780,11 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Redo is unavailable in read-only previews"
     {
         Some(OperationKey::History)
+    } else if m == "No word or next occurrence for multi-cursor"
+        || m == "No line above for another caret"
+        || m == "No line below for another caret"
+    {
+        Some(OperationKey::MultiCursor)
     } else if m == "No definition found"
         || m == "No definition target selected"
         || m.starts_with("Definition target missing")
@@ -1488,6 +1494,29 @@ mod tests {
             q.toasts()[0].message,
             "Redo is unavailable in read-only previews"
         );
+    }
+
+    #[test]
+    fn newer_multi_cursor_feedback_replaces_stale_multi_cursor_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "No word or next occurrence for multi-cursor", t0);
+        q.push_at(
+            Kind::Info,
+            "No line above for another caret",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No line above for another caret");
+
+        q.push_at(
+            Kind::Info,
+            "No line below for another caret",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No line below for another caret");
     }
 
     #[test]
