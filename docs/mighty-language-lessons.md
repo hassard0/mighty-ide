@@ -6212,3 +6212,11 @@ and language tags moved to measured text widths.
 - **IDE note:** Markdown preview code blocks now fit each rendered monospace
   row with measured code-font budgets before drawing. Long fenced-code lines
   stay inside the card padding without relying on global character estimates.
+
+L478. Outline symbol names need measured sidebar budgets. The Outline panel
+still truncated rows from a half-font character estimate, so long symbols could
+clip or leave inconsistent space in the sidebar.
+
+- **IDE note:** Outline rows now fit symbol names with measured UI-font widths
+  before drawing. Long functions, types, and nested symbols stay inside the
+  sidebar row budget without relying on approximate character counts.

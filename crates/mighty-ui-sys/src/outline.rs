@@ -567,7 +567,6 @@ impl OutlineState {
         let h = ctx.gpu.height as f32;
         let clip = ctx.clip;
         let chrome = theme::CHROME_FONT_SIZE;
-        let adv = chrome * 0.55;
         let sx = layout::RAIL_W;
         let sw = layout::sidebar_w();
 
@@ -616,14 +615,45 @@ impl OutlineState {
             ctx.dl_icon(ix, icon_y, 14.0, 14.0, s.kind.icon(), s.kind.color(), 1.5, false);
             let name_x = ix + 20.0;
             let fg = if Some(i) == self.current { theme::TEXT() } else { theme::TEXT_1() };
-            let avail = (((sx + sw - 12.0) - name_x) / adv).floor() as usize;
-            let mut name = s.name.clone();
-            if name.chars().count() > avail && avail > 1 {
-                name = name.chars().take(avail - 1).collect::<String>() + "\u{2026}";
-            }
+            let max_w = (sx + sw - 12.0 - name_x).max(0.0);
+            let name = fit_symbol_name(ctx, &s.name, max_w, chrome);
             ctx.text.queue_ui_sized(name_x, txt_y, &name, fg, chrome, clip);
         }
     }
+}
+
+fn fit_symbol_name(ctx: &mut crate::MuiContext, name: &str, max_px: f32, size: f32) -> String {
+    let max_px = max_px.max(0.0);
+    if max_px <= 1.0 {
+        return String::new();
+    }
+    if ctx.text.measure_ui_sized(name, size).0 <= max_px {
+        return name.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    let ellipsis_w = ctx.text.measure_ui_sized(ellipsis, size).0;
+    if ellipsis_w >= max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = name.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if ctx.text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        return ellipsis.to_string();
+    }
+    let mut out: String = chars.iter().take(lo).collect();
+    out.push_str(ellipsis);
+    out
 }
 
 // ===========================================================================
@@ -732,6 +762,29 @@ fn b() {}\n";
         let n = st.refresh("fn main() {}\nstruct S {}\n", err);
         assert_eq!(n, 2);
         assert!(!st.used_lsp(), "should fall back to scanner on -32601");
+    }
+
+    #[test]
+    fn symbol_name_fits_measured_sidebar_budget() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+
+        let size = theme::CHROME_FONT_SIZE;
+        let budget = 150.0;
+        let shown = fit_symbol_name(
+            &mut ctx,
+            "render_really_long_outline_symbol_name_that_used_to_clip",
+            budget,
+            size,
+        );
+        let shown_w = ctx.text.measure_ui_sized(&shown, size).0;
+
+        assert!(shown.ends_with('\u{2026}'));
+        assert!(
+            shown_w <= budget + 0.5,
+            "outline symbol name should fit measured budget: {shown}"
+        );
     }
 
     #[test]
