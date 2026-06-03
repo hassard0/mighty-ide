@@ -7435,3 +7435,13 @@ the editor model declined the edit.
   when text changed. The main typing, autocomplete, Backspace/Delete, and Enter
   paths gate dirty/completion/ghost follow-up work on that scalar, and read-only
   previews reuse the same `Edit is unavailable in read-only previews` warning.
+
+L597. In-file Replace Enter handling should consume the replace ABI result.
+`mui_replace_next` and `mui_replace_all` already distinguish replacements from
+empty queries, no matches, and read-only previews; the caller must not dirty the
+tab unless the count is positive.
+
+- **IDE note:** The Find & Replace Enter path now stores the result from
+  `mui_replace_next` / `mui_replace_all` and only calls `mui_tab_set_dirty` when
+  that value is greater than zero. This keeps no-match and read-only replace
+  attempts from creating false dirty state.

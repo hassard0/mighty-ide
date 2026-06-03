@@ -8204,6 +8204,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "mutating editor commands must gate dirty/ghost updates on ABI changed-state"
     );
     assert!(
+        main.contains("let replaced = mui_replace_all(h)")
+            && main.contains("let replaced = mui_replace_next(h)")
+            && main.contains("if replaced > 0 {\n                mui_tab_set_dirty(h, mui_tab_active(h), 1)"),
+        "in-file replace Enter handling must only dirty the tab after replacements"
+    );
+    assert!(
         main.contains("Ctrl+S save / Ctrl+Shift+S Save As"),
         "main editor key routing must keep Ctrl+Shift+S on the Save As path"
     );

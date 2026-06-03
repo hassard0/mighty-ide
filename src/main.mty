@@ -2225,12 +2225,16 @@ fn main() {
             let rf = mui_replace_focus(h)
             if rf == 1 {
               mui_ed_undo_record(h)
-              let _n = mui_replace_all(h)
-              mui_tab_set_dirty(h, mui_tab_active(h), 1)
+              let replaced = mui_replace_all(h)
+              if replaced > 0 {
+                mui_tab_set_dirty(h, mui_tab_active(h), 1)
+              }
             } else {
               mui_ed_undo_record(h)
-              let _r = mui_replace_next(h)
-              mui_tab_set_dirty(h, mui_tab_active(h), 1)
+              let replaced = mui_replace_next(h)
+              if replaced > 0 {
+                mui_tab_set_dirty(h, mui_tab_active(h), 1)
+              }
             }
           }
         } else if tag == ev_mouse_down() {
