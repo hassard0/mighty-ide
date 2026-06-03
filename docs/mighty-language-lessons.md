@@ -6809,3 +6809,13 @@ when capture is active.
   calling a dedicated `mui_keys_close` ABI. ABI, registry, metadata,
   dispatcher, and label tests pin that close exits both capture and overlay
   state, while the existing cancel path still only exits capture first.
+
+L536. Editor-mode popovers need explicit cancel commands.
+Rename and Code Actions are transient editor modes opened from the palette.
+Command-palette users need one-way cancel actions that close the active mode
+without applying a rename or quick fix.
+
+- **IDE note:** The command palette now lists `Rename Symbol: Cancel` and
+  `Code Actions: Close Menu`, calling `mui_rename_cancel` and
+  `mui_codeaction_cancel` while clearing Mighty's local mode flags. ABI,
+  registry, metadata, dispatcher, and label tests pin both close paths.

@@ -2677,6 +2677,20 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(save_all.label, "File: Save All");
 
+    let rename_cancel = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_RENAME_CANCEL)
+        .unwrap();
+    assert_eq!(rename_cancel.label, "Rename Symbol: Cancel");
+    assert_eq!(rename_cancel.keybinding, "");
+
+    let code_actions_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_CODE_ACTIONS_CLOSE)
+        .unwrap();
+    assert_eq!(code_actions_close.label, "Code Actions: Close Menu");
+    assert_eq!(code_actions_close.keybinding, "");
+
     let close_saved = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_SAVED_TABS)
@@ -5094,6 +5108,33 @@ fn language_popup_close_commands_clear_active_state() {
 }
 
 #[test]
+fn rename_and_code_action_close_commands_clear_active_state() {
+    let mut ctx = ctx_or_skip!();
+    ctx.rename.open("old_name");
+    assert!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Replace typo".to_string(),
+            edit: None,
+            command_edit: None,
+            command: Some(crate::language::CommandAction {
+                command: "server.apply".to_string(),
+                arguments_json: None,
+            }),
+            fix_all_mty: false,
+        }]) > 0
+    );
+
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    assert_eq!(crate::abi::mui_rename_active(handle), 1);
+    assert_eq!(crate::abi::mui_codeaction_active(handle), 1);
+
+    crate::abi::mui_rename_cancel(handle);
+    crate::abi::mui_codeaction_cancel(handle);
+    assert_eq!(crate::abi::mui_rename_active(handle), 0);
+    assert_eq!(crate::abi::mui_codeaction_active(handle), 0);
+}
+
+#[test]
 fn settings_close_command_clears_active_panel() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -6940,6 +6981,18 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Signature Help close command must clear shim signature state and Mighty's local signature flag"
     );
     assert!(
+        main.contains("id == cmd_rename_cancel()")
+            && main.contains("mui_rename_cancel(h)")
+            && main.contains("renaming = false"),
+        "Rename cancel command must cancel shim rename state and Mighty's local rename flag"
+    );
+    assert!(
+        main.contains("id == cmd_code_actions_close()")
+            && main.contains("mui_codeaction_cancel(h)")
+            && main.contains("code_action_open = false"),
+        "Code Actions close command must clear shim code action state and Mighty's local menu flag"
+    );
+    assert!(
         main.contains("id == cmd_explorer_collapse_all()")
             && main.contains("let _vp = mui_panel_set(h, panel_explorer())")
             && main.contains("mui_tree_collapse_all(h)"),
@@ -7230,7 +7283,9 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
             "cmd_signature_help_close",
         ),
         (CMD_RENAME_SYMBOL, "cmd_rename_symbol"),
+        (CMD_RENAME_CANCEL, "cmd_rename_cancel"),
         (CMD_CODE_ACTIONS, "cmd_code_actions"),
+        (CMD_CODE_ACTIONS_CLOSE, "cmd_code_actions_close"),
         (CMD_TOGGLE_TERMINAL, "cmd_toggle_terminal"),
         (CMD_TOGGLE_SIDEBAR, "cmd_toggle_sidebar"),
         (CMD_NEXT_TAB, "cmd_next_tab"),
