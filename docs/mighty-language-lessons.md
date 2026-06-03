@@ -6019,3 +6019,11 @@ advance, so a long pasted name could cross the input border.
 - **IDE note:** Rename Symbol now fits the editable name with the same measured
   code-font path used elsewhere and clamps the caret inside the input padding.
   Long rename targets ellipsize instead of bleeding through the inline card.
+
+L455. Settings controls should reserve measured value widths. The Settings panel
+used character-count estimates for numeric values and theme chips, which made
+left-side label budgets depend on rough guesses instead of rendered text.
+
+- **IDE note:** Settings rows now measure value text and theme-chip width before
+  computing the control gutter. Labels and descriptions fit against the real
+  right-side controls, keeping the preferences card stable on narrow windows.

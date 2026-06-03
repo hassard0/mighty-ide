@@ -385,7 +385,7 @@ impl SettingsPanel {
             let txt_x = box_x + 22.0;
             let val = Self::value_str(&cur, row);
             let ctrl_right = box_x + box_w - 22.0;
-            let control_left = control_left_for_row(row, &val, box_x, box_w);
+            let control_left = control_left_for_row(&mut ctx.text, row, &val, box_x, box_w);
             let text_max = (control_left - 14.0 - txt_x).max(0.0);
             let compact_row = row_h < 42.0;
             let label_y = if compact_row {
@@ -421,7 +421,7 @@ impl SettingsPanel {
                 ctx.dl_stroke(plus_x, py, step, step, 6.0, theme::BORDER_STRONG(), 1.0);
                 ctx.dl_icon(plus_x + 4.0, py + 4.0, 14.0, 14.0, icons::STAGE_PLUS, val_col, 1.7, false);
 
-                let val_w = val.chars().count() as f32 * 7.5;
+                let val_w = settings_value_width(&mut ctx.text, &val, 14.0);
                 let val_x = plus_x - 14.0 - val_w;
                 ctx.text.queue_ui_sized(val_x, ry + (row_h - 14.0) * 0.5 - 1.0, &val, val_col, 14.0, clip);
 
@@ -431,7 +431,7 @@ impl SettingsPanel {
                 ctx.dl_icon(minus_x + 4.0, py + 4.0, 14.0, 14.0, icons::UNSTAGE_MINUS, val_col, 1.7, false);
             } else if row == RowId::Theme {
                 // A value chip showing the theme name (cycle on Enter/±).
-                let chip_w = (val.chars().count() as f32 * 7.2 + 24.0).max(60.0);
+                let chip_w = settings_theme_chip_width(&mut ctx.text, &val, 12.5);
                 let chip_x = ctrl_right - chip_w;
                 let cy = ry + (row_h - 24.0) * 0.5;
                 ctx.dl_round(chip_x, cy, chip_w, 24.0, 7.0, theme::accent_a(0.12));
@@ -482,20 +482,28 @@ impl SettingsPanel {
     }
 }
 
-fn control_left_for_row(row: RowId, val: &str, box_x: f32, box_w: f32) -> f32 {
+fn control_left_for_row(text: &mut crate::text::Text, row: RowId, val: &str, box_x: f32, box_w: f32) -> f32 {
     let ctrl_right = box_x + box_w - 22.0;
     if row.is_numeric() {
         let step = 22.0;
         let plus_x = ctrl_right - step;
-        let val_w = val.chars().count() as f32 * 7.5;
+        let val_w = settings_value_width(text, val, 14.0);
         let val_x = plus_x - 14.0 - val_w;
         val_x - 14.0 - step
     } else if row == RowId::Theme {
-        let chip_w = (val.chars().count() as f32 * 7.2 + 24.0).max(60.0);
+        let chip_w = settings_theme_chip_width(text, val, 12.5);
         ctrl_right - chip_w
     } else {
         ctrl_right - 42.0
     }
+}
+
+fn settings_value_width(text: &mut crate::text::Text, val: &str, size: f32) -> f32 {
+    text.measure_ui_sized(val, size).0
+}
+
+fn settings_theme_chip_width(text: &mut crate::text::Text, val: &str, size: f32) -> f32 {
+    (settings_value_width(text, val, size) + 24.0).max(60.0)
 }
 
 fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
@@ -637,15 +645,46 @@ mod tests {
 
     #[test]
     fn row_text_budget_stays_left_of_controls_on_narrow_panels() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(320, 560) else {
+            return;
+        };
         let p = SettingsPanel::new();
         let (box_x, _box_y, box_w, _box_h, _list_top, _row_h, _top, _shown) = p.geometry(320, 560);
         let txt_x = box_x + 22.0;
         for row in RowId::ALL {
             let val = SettingsPanel::value_str(&Settings::default(), row);
-            let control_left = control_left_for_row(row, &val, box_x, box_w);
+            let control_left = control_left_for_row(&mut ctx.text, row, &val, box_x, box_w);
             let text_right = txt_x + (control_left - 14.0 - txt_x).max(0.0);
             assert!(text_right <= control_left - 14.0 + f32::EPSILON);
         }
+    }
+
+    #[test]
+    fn settings_value_controls_use_measured_widths() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(500, 240) else {
+            return;
+        };
+        let narrow = settings_value_width(&mut ctx.text, "1", 14.0);
+        let wide = settings_value_width(&mut ctx.text, "100", 14.0);
+        let chip = settings_theme_chip_width(&mut ctx.text, "Vivid", 12.5);
+
+        assert!(wide > narrow);
+        assert!(chip >= 60.0);
+        assert!(chip >= settings_value_width(&mut ctx.text, "Vivid", 12.5) + 24.0);
+    }
+
+    #[test]
+    fn theme_control_left_tracks_measured_chip_width() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(500, 240) else {
+            return;
+        };
+        let p = SettingsPanel::new();
+        let (box_x, _box_y, box_w, _box_h, _list_top, _row_h, _top, _shown) = p.geometry(500, 560);
+        let ctrl_right = box_x + box_w - 22.0;
+        let control_left = control_left_for_row(&mut ctx.text, RowId::Theme, "Vivid", box_x, box_w);
+        let chip_w = settings_theme_chip_width(&mut ctx.text, "Vivid", 12.5);
+
+        assert_eq!(control_left, ctrl_right - chip_w);
     }
 
     #[test]
