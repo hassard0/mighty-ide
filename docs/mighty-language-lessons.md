@@ -5634,3 +5634,15 @@ other.
   `No line above for another caret`, and `No line below for another caret` now
   share a MultiCursor toast replacement key. Repeated multi-cursor edge commands
   keep only the latest caret-placement explanation visible.
+
+L413. Language-service misses should share one code-intelligence lane. Completion,
+hover, and Go to Definition all describe the same editor intelligence surface,
+so their save-first, no-result, and missing-target feedback should not stack as
+separate stale cards.
+
+- **IDE note:** `No completions available`, hover save/no-info messages,
+  Go to Definition, Peek Definition, and signature-help save-first warnings,
+  plus `No definition found`, `No definition target selected`, and
+  `Definition target missing: ...` now share a CodeIntel toast replacement key.
+  Repeated language-service commands keep the latest intelligence outcome
+  visible.

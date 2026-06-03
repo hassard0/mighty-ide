@@ -571,6 +571,7 @@ enum OperationKey {
     Replace,
     History,
     MultiCursor,
+    CodeIntel,
     Navigation,
     Markdown,
     Layout,
@@ -785,10 +786,18 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No line below for another caret"
     {
         Some(OperationKey::MultiCursor)
-    } else if m == "No definition found"
+    } else if m == "No completions available"
+        || m == "Save the file before hover"
+        || m == "No hover information"
+        || m == "Save the file before Go to Definition"
+        || m == "Save the file before Peek Definition"
+        || m == "Save the file before signature help"
+        || m == "No definition found"
         || m == "No definition target selected"
         || m.starts_with("Definition target missing")
-        || m == "No breadcrumb menu open"
+    {
+        Some(OperationKey::CodeIntel)
+    } else if m == "No breadcrumb menu open"
         || m == "No breadcrumb row selected"
         || m == "Breadcrumb file no longer listed"
         || m == "Breadcrumb symbol unavailable"
@@ -1517,6 +1526,54 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No line below for another caret");
+    }
+
+    #[test]
+    fn newer_code_intelligence_feedback_replaces_stale_language_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "No completions available", t0);
+        q.push_at(
+            Kind::Warn,
+            "Save the file before hover",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Save the file before hover");
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
+            Kind::Info,
+            "No hover information",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No hover information");
+
+        q.push_at(
+            Kind::Warn,
+            "Save the file before Go to Definition",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Save the file before Go to Definition");
+
+        q.push_at(
+            Kind::Warn,
+            "Definition target missing: missing.mty",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Definition target missing: missing.mty");
+
+        q.push_at(
+            Kind::Warn,
+            "Save the file before signature help",
+            t0 + Duration::from_millis(500),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Save the file before signature help");
     }
 
     #[test]
