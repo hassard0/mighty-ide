@@ -6320,3 +6320,14 @@ count times the global cell width.
 - **IDE note:** Hover popup cards now derive width from measured code-font line
   extents plus padding, so the card bounds follow the same glyph shaping used
   for the rendered hover text.
+
+L491. Terminal line insertion/deletion should shift rows, not disappear.
+Prompt redraws and lightweight TUIs use `CSI L` and `CSI M` to insert or delete
+lines below the cursor without clearing the whole terminal grid. Skipping those
+sequences consumes no visible garbage, but leaves later output aligned against
+stale rows.
+
+- **IDE note:** The integrated terminal now handles `ESC[nL` and `ESC[nM`,
+  defaulting missing counts to one, clamping at the bottom of the grid, and
+  blanking the rows vacated by the shift. Parser tests cover row preservation,
+  large-count clamping, default counts, and escape consumption.

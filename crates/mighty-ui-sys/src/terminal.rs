@@ -195,6 +195,36 @@ impl Grid {
         }
     }
 
+    fn insert_blank_lines(&mut self, count: usize) {
+        let count = count.max(1).min(self.rows - self.cur_row);
+        for row in (self.cur_row..self.rows - count).rev() {
+            for col in 0..self.cols {
+                self.cells[(row + count) * self.cols + col] = self.cells[row * self.cols + col];
+            }
+        }
+        for row in self.cur_row..self.cur_row + count {
+            let start = row * self.cols;
+            for cell in &mut self.cells[start..start + self.cols] {
+                *cell = Cell::default();
+            }
+        }
+    }
+
+    fn delete_lines(&mut self, count: usize) {
+        let count = count.max(1).min(self.rows - self.cur_row);
+        for row in self.cur_row..self.rows - count {
+            for col in 0..self.cols {
+                self.cells[row * self.cols + col] = self.cells[(row + count) * self.cols + col];
+            }
+        }
+        for row in self.rows - count..self.rows {
+            let start = row * self.cols;
+            for cell in &mut self.cells[start..start + self.cols] {
+                *cell = Cell::default();
+            }
+        }
+    }
+
     /// Scroll the whole grid up one line: drop row 0, shift the rest up, blank
     /// the last row. Used when the cursor would advance past the last row.
     fn scroll_up(&mut self) {
@@ -489,6 +519,10 @@ impl VtParser {
                     self.erase_display(grid);
                 } else if b == b'K' {
                     self.erase_line(grid);
+                } else if b == b'L' {
+                    self.insert_lines(grid);
+                } else if b == b'M' {
+                    self.delete_lines(grid);
                 } else if b == b'P' {
                     self.delete_chars(grid);
                 } else if b == b'H' || b == b'f' {
@@ -581,6 +615,18 @@ impl VtParser {
     fn delete_chars(&mut self, grid: &mut Grid) {
         if let Some(count) = self.first_count_param() {
             grid.delete_chars(count);
+        }
+    }
+
+    fn insert_lines(&mut self, grid: &mut Grid) {
+        if let Some(count) = self.first_count_param() {
+            grid.insert_blank_lines(count);
+        }
+    }
+
+    fn delete_lines(&mut self, grid: &mut Grid) {
+        if let Some(count) = self.first_count_param() {
+            grid.delete_lines(count);
         }
     }
 
@@ -1225,6 +1271,28 @@ mod tests {
 
         let g2 = grid_feed(1, 8, b"abcdef\x1b[1;5H\x1b[99P");
         assert_eq!(g2.to_text(), "abcd    ");
+    }
+
+    #[test]
+    fn insert_lines_csi_shifts_rows_down_from_cursor() {
+        let g = grid_feed(4, 4, b"aaaa\nbbbb\ncccc\ndddd\x1b[2;1H\x1b[2L");
+        assert_eq!(g.to_text(), "aaaa\n    \n    \nbbbb");
+        assert!(!g.contains("2L"));
+
+        let g2 = grid_feed(3, 4, b"aaaa\nbbbb\ncccc\x1b[2;1H\x1b[LZ");
+        assert_eq!(g2.cell(0, 0).ch, 'a');
+        assert_eq!(g2.cell(1, 0).ch, 'Z');
+        assert_eq!(g2.cell(2, 0).ch, 'b');
+    }
+
+    #[test]
+    fn delete_lines_csi_shifts_rows_up_from_cursor() {
+        let g = grid_feed(4, 4, b"aaaa\nbbbb\ncccc\ndddd\x1b[2;1H\x1b[2M");
+        assert_eq!(g.to_text(), "aaaa\ndddd\n    \n    ");
+        assert!(!g.contains("2M"));
+
+        let g2 = grid_feed(3, 4, b"aaaa\nbbbb\ncccc\x1b[2;1H\x1b[99M");
+        assert_eq!(g2.to_text(), "aaaa\n    \n    ");
     }
 
     #[test]
