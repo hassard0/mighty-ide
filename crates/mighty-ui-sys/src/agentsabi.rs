@@ -136,6 +136,26 @@ fn fit_sidebar_line(text: &mut crate::text::Text, s: &str, sidebar_w: f32, size:
     fit_head_px(text, s, max_px, size)
 }
 
+fn header_run_rect(sidebar_right: f32) -> (f32, f32) {
+    let x0 = (sidebar_right - 34.0).max(layout::RAIL_W);
+    (x0, (sidebar_right - x0).max(0.0))
+}
+
+fn header_inspect_rect(sidebar_right: f32) -> (f32, f32) {
+    let (run_x, _) = header_run_rect(sidebar_right);
+    let x0 = (run_x - 24.0).max(layout::RAIL_W);
+    (x0, (run_x - x0).max(0.0))
+}
+
+fn header_rect_contains(rect: (f32, f32), x: f32, include_right: bool) -> bool {
+    let (x0, w) = rect;
+    if include_right {
+        w > 0.0 && x >= x0 && x <= x0 + w
+    } else {
+        w > 0.0 && x >= x0 && x < x0 + w
+    }
+}
+
 /// One flattened topology row: kind + display name + nesting depth + an optional
 /// jump target (`file` + 0-based `line`). Rows with `line < 0` are not clickable
 /// (section headers, the synthetic "implements" edge that points at a protocol
@@ -637,26 +657,34 @@ impl AgentTopology {
             clip,
         );
         // Small header affordances: Inspect (live runtime snapshot) + Run.
-        ctx.dl_icon(
-            sx + sw - 52.0,
-            (head_h - 15.0) * 0.5,
-            15.0,
-            15.0,
-            crate::icons::INFO_I,
-            theme::ACCENT_BRIGHT(),
-            1.6,
-            true,
-        );
-        ctx.dl_icon(
-            sx + sw - 28.0,
-            (head_h - 15.0) * 0.5,
-            15.0,
-            15.0,
-            crate::icons::RUN,
-            theme::GREEN(),
-            1.6,
-            true,
-        );
+        let sidebar_right = sx + sw;
+        let icon_y = (head_h - 15.0) * 0.5;
+        let (inspect_x, inspect_w) = header_inspect_rect(sidebar_right);
+        if inspect_w >= 15.0 {
+            ctx.dl_icon(
+                inspect_x + (inspect_w - 15.0) * 0.5,
+                icon_y,
+                15.0,
+                15.0,
+                crate::icons::INFO_I,
+                theme::ACCENT_BRIGHT(),
+                1.6,
+                true,
+            );
+        }
+        let (run_x, run_w) = header_run_rect(sidebar_right);
+        if run_w >= 15.0 {
+            ctx.dl_icon(
+                run_x + (run_w - 15.0) * 0.5,
+                icon_y,
+                15.0,
+                15.0,
+                crate::icons::RUN,
+                theme::GREEN(),
+                1.6,
+                true,
+            );
+        }
 
         // Summary line: counts.
         let summary_size = chrome - 2.0;
@@ -953,10 +981,8 @@ pub extern "C" fn mui_agents_click_is_run(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    let run_x0 = layout::sidebar_right() - 34.0;
     if ctx.last_event.y <= 40.0
-        && ctx.last_event.x >= run_x0
-        && ctx.last_event.x <= layout::sidebar_right()
+        && header_rect_contains(header_run_rect(layout::sidebar_right()), ctx.last_event.x, true)
     {
         crate::abi::trace("agents_click run");
         1
@@ -971,11 +997,8 @@ pub extern "C" fn mui_agents_click_is_inspect(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    let inspect_x0 = layout::sidebar_right() - 58.0;
-    let inspect_x1 = layout::sidebar_right() - 34.0;
     if ctx.last_event.y <= 40.0
-        && ctx.last_event.x >= inspect_x0
-        && ctx.last_event.x < inspect_x1
+        && header_rect_contains(header_inspect_rect(layout::sidebar_right()), ctx.last_event.x, false)
     {
         crate::abi::trace("agents_click inspect");
         1
@@ -1385,5 +1408,23 @@ mod tests {
         );
         assert_eq!(mui_agents_click_is_inspect(h), 0);
         assert_eq!(mui_agents_click_is_run(h), 1);
+    }
+
+    #[test]
+    fn header_affordance_rects_clamp_inside_sidebar_band() {
+        let right = layout::RAIL_W + 42.0;
+        let (run_x, run_w) = header_run_rect(right);
+        let (inspect_x, inspect_w) = header_inspect_rect(right);
+
+        assert!(inspect_x >= layout::RAIL_W);
+        assert!(run_x >= layout::RAIL_W);
+        assert!(inspect_x + inspect_w <= run_x + 0.5);
+        assert!(run_x + run_w <= right + 0.5);
+        assert!(header_rect_contains((run_x, run_w), run_x + run_w * 0.5, true));
+        assert!(!header_rect_contains(
+            (inspect_x, inspect_w),
+            run_x + run_w * 0.5,
+            false
+        ));
     }
 }
