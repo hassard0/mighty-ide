@@ -6483,3 +6483,14 @@ precise than a real terminal.
   terminal reset, and exposes it through the terminal draw snapshot. The renderer
   draws the requested block, underline, or bar cursor, and unit tests pin valid
   shape changes plus ignored non-DECSCUSR `q` sequences.
+
+L505. Terminal key encoding is mode state, not a static table.
+Full-screen terminal apps can enable DECCKM (`CSI ?1h`) so arrow keys arrive as
+application cursor-key sequences (`ESC O A/B/C/D`) instead of normal cursor
+sequences (`ESC [ A/B/C/D`). If the IDE always sends the normal form, TUIs that
+switch modes can miss navigation even though the physical key was captured.
+
+- **IDE note:** The VT parser now tracks application cursor-key mode, resets it
+  on full terminal reset, and terminal key dispatch routes through parser state
+  before writing to the PTY. Unit coverage pins `?1h/l` tracking, reset behavior,
+  normal arrow-key encoding, and application-mode arrow-key encoding.

@@ -522,6 +522,8 @@ pub struct VtParser {
     cursor_visible: bool,
     /// Shape requested by DECSCUSR (`CSI Ps SP q`).
     cursor_shape: CursorShape,
+    /// Whether arrow keys should use application cursor-key sequences.
+    application_cursor_keys: bool,
     /// Whether the running app asked for mouse button/drag/all-motion reports.
     mouse_reporting: bool,
     /// Whether mouse reports should use SGR extended coordinates (`CSI ?1006 h`).
@@ -546,6 +548,7 @@ impl VtParser {
             bracketed_paste: false,
             cursor_visible: true,
             cursor_shape: CursorShape::Block,
+            application_cursor_keys: false,
             mouse_reporting: false,
             sgr_mouse: false,
         }
@@ -578,6 +581,10 @@ impl VtParser {
 
     pub fn cursor_shape(&self) -> CursorShape {
         self.cursor_shape
+    }
+
+    pub fn application_cursor_keys(&self) -> bool {
+        self.application_cursor_keys
     }
 
     fn feed_byte(&mut self, grid: &mut Grid, b: u8) {
@@ -919,6 +926,8 @@ impl VtParser {
             match (mode, final_byte) {
                 ("47" | "1047" | "1049", b'h') => grid.enter_alternate_screen(),
                 ("47" | "1047" | "1049", b'l') => grid.exit_alternate_screen(),
+                ("1", b'h') => self.application_cursor_keys = true,
+                ("1", b'l') => self.application_cursor_keys = false,
                 ("1048", b'h') => self.save_cursor(grid),
                 ("1048", b'l') => self.restore_cursor(grid),
                 ("25", b'h') => self.cursor_visible = true,
@@ -939,6 +948,7 @@ impl VtParser {
         self.bracketed_paste = false;
         self.cursor_visible = true;
         self.cursor_shape = CursorShape::Block;
+        self.application_cursor_keys = false;
         self.mouse_reporting = false;
         self.sgr_mouse = false;
     }
@@ -1362,6 +1372,13 @@ impl Terminal {
         let _ = self.writer.flush();
     }
 
+    /// Send a named key, honoring terminal modes that alter key encoding.
+    pub fn send_key(&mut self, key: u32, mods: u32) {
+        if let Some(bytes) = key_to_bytes(key, mods, self.parser.application_cursor_keys()) {
+            self.send(&bytes);
+        }
+    }
+
     /// Send pasted text, wrapping it when the shell/app has enabled bracketed
     /// paste so pasted newlines are not interpreted as typed Enter presses.
     pub fn send_paste(&mut self, text: &str) {
@@ -1449,13 +1466,17 @@ fn default_shell_command() -> CommandBuilder {
 /// expects, or `None` for keys with no terminal meaning. Enter -> CR (`\r`),
 /// Backspace -> DEL (`\x7f`), Tab -> `\t`, Escape -> `\x1b`, arrows -> the usual
 /// `ESC [ A/B/C/D`. Ctrl+letter (handled on the Char path) is mapped separately.
-pub fn key_to_bytes(key: u32, _mods: u32) -> Option<Vec<u8>> {
+pub fn key_to_bytes(key: u32, _mods: u32, application_cursor_keys: bool) -> Option<Vec<u8>> {
     use crate::ffi::*;
     let bytes: Vec<u8> = match key {
         MUI_KEY_ENTER => vec![b'\r'],
         MUI_KEY_BACKSPACE => vec![0x7f],
         MUI_KEY_TAB => vec![b'\t'],
         MUI_KEY_ESCAPE => vec![0x1b],
+        MUI_KEY_LEFT if application_cursor_keys => vec![0x1b, b'O', b'D'],
+        MUI_KEY_RIGHT if application_cursor_keys => vec![0x1b, b'O', b'C'],
+        MUI_KEY_UP if application_cursor_keys => vec![0x1b, b'O', b'A'],
+        MUI_KEY_DOWN if application_cursor_keys => vec![0x1b, b'O', b'B'],
         MUI_KEY_LEFT => vec![0x1b, b'[', b'D'],
         MUI_KEY_RIGHT => vec![0x1b, b'[', b'C'],
         MUI_KEY_UP => vec![0x1b, b'[', b'A'],
@@ -2008,6 +2029,21 @@ mod tests {
     }
 
     #[test]
+    fn application_cursor_key_mode_tracks_private_csi() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+        assert!(!p.application_cursor_keys());
+
+        p.feed(&mut g, b"\x1b[?1h");
+        assert!(p.application_cursor_keys());
+        assert!(!g.contains("?1h"));
+
+        p.feed(&mut g, b"\x1b[?1l");
+        assert!(!p.application_cursor_keys());
+        assert!(!g.contains("?1l"));
+    }
+
+    #[test]
     fn cursor_visibility_mode_tracks_private_csi() {
         let mut g = Grid::new(1, 8);
         let mut p = VtParser::new();
@@ -2058,8 +2094,9 @@ mod tests {
         let mut p = VtParser::new();
         p.feed(
             &mut g,
-            b"\x1b[?25l\x1b[6 q\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1bc",
+            b"\x1b[?1h\x1b[?25l\x1b[6 q\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1bc",
         );
+        assert!(!p.application_cursor_keys());
         assert!(p.cursor_visible());
         assert_eq!(p.cursor_shape(), CursorShape::Block);
         assert!(!p.bracketed_paste_enabled());
@@ -2178,23 +2215,33 @@ mod tests {
     #[test]
     fn key_mapping_enter_backspace_arrows() {
         use crate::ffi::*;
-        assert_eq!(key_to_bytes(MUI_KEY_ENTER, 0), Some(vec![b'\r']));
-        assert_eq!(key_to_bytes(MUI_KEY_BACKSPACE, 0), Some(vec![0x7f]));
-        assert_eq!(key_to_bytes(MUI_KEY_TAB, 0), Some(vec![b'\t']));
-        assert_eq!(key_to_bytes(MUI_KEY_ESCAPE, 0), Some(vec![0x1b]));
-        assert_eq!(key_to_bytes(MUI_KEY_UP, 0), Some(vec![0x1b, b'[', b'A']));
-        assert_eq!(key_to_bytes(MUI_KEY_LEFT, 0), Some(vec![0x1b, b'[', b'D']));
-        assert_eq!(key_to_bytes(MUI_KEY_HOME, 0), Some(vec![0x1b, b'[', b'H']));
-        assert_eq!(key_to_bytes(MUI_KEY_END, 0), Some(vec![0x1b, b'[', b'F']));
-        assert_eq!(key_to_bytes(MUI_KEY_DELETE, 0), Some(vec![0x1b, b'[', b'3', b'~']));
-        assert_eq!(key_to_bytes(MUI_KEY_PAGE_UP, 0), Some(vec![0x1b, b'[', b'5', b'~']));
-        assert_eq!(key_to_bytes(MUI_KEY_PAGE_DOWN, 0), Some(vec![0x1b, b'[', b'6', b'~']));
-        assert_eq!(key_to_bytes(MUI_KEY_F2, 0), Some(vec![0x1b, b'[', b'1', b'2', b'~']));
-        assert_eq!(key_to_bytes(MUI_KEY_F5, 0), Some(vec![0x1b, b'[', b'1', b'5', b'~']));
-        assert_eq!(key_to_bytes(MUI_KEY_F10, 0), Some(vec![0x1b, b'[', b'2', b'1', b'~']));
-        assert_eq!(key_to_bytes(MUI_KEY_F11, 0), Some(vec![0x1b, b'[', b'2', b'3', b'~']));
-        assert_eq!(key_to_bytes(MUI_KEY_F12, 0), Some(vec![0x1b, b'[', b'2', b'4', b'~']));
-        assert_eq!(key_to_bytes(MUI_KEY_UNKNOWN, 0), None);
+        assert_eq!(key_to_bytes(MUI_KEY_ENTER, 0, false), Some(vec![b'\r']));
+        assert_eq!(key_to_bytes(MUI_KEY_BACKSPACE, 0, false), Some(vec![0x7f]));
+        assert_eq!(key_to_bytes(MUI_KEY_TAB, 0, false), Some(vec![b'\t']));
+        assert_eq!(key_to_bytes(MUI_KEY_ESCAPE, 0, false), Some(vec![0x1b]));
+        assert_eq!(key_to_bytes(MUI_KEY_UP, 0, false), Some(vec![0x1b, b'[', b'A']));
+        assert_eq!(key_to_bytes(MUI_KEY_LEFT, 0, false), Some(vec![0x1b, b'[', b'D']));
+        assert_eq!(key_to_bytes(MUI_KEY_HOME, 0, false), Some(vec![0x1b, b'[', b'H']));
+        assert_eq!(key_to_bytes(MUI_KEY_END, 0, false), Some(vec![0x1b, b'[', b'F']));
+        assert_eq!(key_to_bytes(MUI_KEY_DELETE, 0, false), Some(vec![0x1b, b'[', b'3', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_PAGE_UP, 0, false), Some(vec![0x1b, b'[', b'5', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_PAGE_DOWN, 0, false), Some(vec![0x1b, b'[', b'6', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F2, 0, false), Some(vec![0x1b, b'[', b'1', b'2', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F5, 0, false), Some(vec![0x1b, b'[', b'1', b'5', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F10, 0, false), Some(vec![0x1b, b'[', b'2', b'1', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F11, 0, false), Some(vec![0x1b, b'[', b'2', b'3', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F12, 0, false), Some(vec![0x1b, b'[', b'2', b'4', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_UNKNOWN, 0, false), None);
+    }
+
+    #[test]
+    fn key_mapping_honors_application_cursor_mode() {
+        use crate::ffi::*;
+        assert_eq!(key_to_bytes(MUI_KEY_UP, 0, true), Some(vec![0x1b, b'O', b'A']));
+        assert_eq!(key_to_bytes(MUI_KEY_DOWN, 0, true), Some(vec![0x1b, b'O', b'B']));
+        assert_eq!(key_to_bytes(MUI_KEY_RIGHT, 0, true), Some(vec![0x1b, b'O', b'C']));
+        assert_eq!(key_to_bytes(MUI_KEY_LEFT, 0, true), Some(vec![0x1b, b'O', b'D']));
+        assert_eq!(key_to_bytes(MUI_KEY_HOME, 0, true), Some(vec![0x1b, b'[', b'H']));
     }
 
     #[test]

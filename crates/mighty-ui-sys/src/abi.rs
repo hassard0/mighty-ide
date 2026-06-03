@@ -6860,18 +6860,13 @@ pub extern "C" fn mui_term_is_open(handle: i64) -> i32 {
 }
 
 /// Map a named key (`MUI_KEY_*`) + mods to terminal stdin bytes and write them
-/// to the PTY. No-op if the terminal is not running. The key->byte mapping lives
-/// shim-side (see [`crate::terminal::key_to_bytes`]).
+/// to the PTY. No-op if the terminal is not running.
 #[no_mangle]
 pub extern "C" fn mui_term_key(handle: i64, keycode: i32, mods: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         if let Some(t) = ctx.terminal.as_mut() {
             if keycode >= 0 {
-                if let Some(bytes) =
-                    crate::terminal::key_to_bytes(keycode as u32, mods.max(0) as u32)
-                {
-                    t.send(&bytes);
-                }
+                t.send_key(keycode as u32, mods.max(0) as u32);
             }
         }
     }
