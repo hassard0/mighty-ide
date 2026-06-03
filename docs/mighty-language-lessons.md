@@ -4954,3 +4954,15 @@ Ctrl+Shift+Space signature help quietly skipped their configured server.
   `parse_signature_help` and `parse_workspace_edit` application path. The local
   identifier scan/fallback remains as the last resort when a server is missing
   or returns no `WorkspaceEdit`.
+
+L346. Outline parity must route `documentSymbol` through the active language
+server. The Outline panel already had a parser for both `DocumentSymbol[]` and
+`SymbolInformation[]`, but the refresh path always called the Mighty-only
+`mty lsp` helper for any file-backed tab. That meant non-Mighty outlines never
+asked rust-analyzer/pyright/gopls/etc. for their real symbol tree.
+
+- **IDE note:** `mui_outline_refresh` now keeps Mighty on the existing
+  `mty lsp` request, but routes every other language through the registry-backed
+  generic LSP client using `textDocument/documentSymbol`. Missing servers, empty
+  results, or mty-lsp's `-32601` still fall back to the shim scanner, so the
+  panel remains nonblocking and useful even without an installed server.

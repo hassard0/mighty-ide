@@ -6,6 +6,7 @@
 use std::path::PathBuf;
 
 use crate::crumbmenu::{CrumbLayout, MenuItem, MenuKind, Segment};
+use crate::langdetect::Language;
 use crate::layout;
 use crate::MuiContext;
 
@@ -21,6 +22,35 @@ unsafe fn ctx<'a>(handle: i64) -> Option<&'a mut MuiContext> {
 // Feature 1 — Outline / document symbols
 // ===========================================================================
 
+fn outline_lsp_json(ctx: &MuiContext, path: &std::path::Path, source: &str) -> String {
+    if ctx.language == Language::Mighty {
+        return crate::language::lsp::request(
+            path,
+            source,
+            crate::language::lsp::Req::DocumentSymbol,
+        );
+    }
+    let Some(spec) = crate::lspregistry::server_for(ctx.language) else {
+        return String::new();
+    };
+    let root = path
+        .parent()
+        .map(|p| p.to_path_buf())
+        .filter(|p| !p.as_os_str().is_empty())
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."));
+    crate::lspclient::request(
+        &spec,
+        ctx.language.lsp_id(),
+        &root,
+        path,
+        source,
+        crate::lspclient::Method::DocumentSymbol,
+        0,
+        0,
+    )
+}
+
 /// Re-scan the active document's symbols. Tries LSP `documentSymbol` first (when
 /// the server implements it), else the shim-side scanner. Returns the symbol
 /// count. The IDE calls this on open/save/tab-switch.
@@ -30,14 +60,11 @@ pub extern "C" fn mui_outline_refresh(handle: i64) -> i32 {
         return 0;
     };
     let source = ctx.tabs.active_model().as_text();
-    // Try the LSP path when we have a real on-disk path; mty-lsp v0.5 returns
-    // -32601 so this falls through to the scanner (recorded by used_lsp()).
+    // Try the active language server when we have a real on-disk path. mty-lsp
+    // v0.5 returns -32601, and uninstalled generic servers return empty; both
+    // fall through to the scanner (recorded by used_lsp()).
     let lsp_json = if let Some(path) = ctx.tabs.active_path() {
-        crate::language::lsp::request(
-            &path,
-            &source,
-            crate::language::lsp::Req::DocumentSymbol,
-        )
+        outline_lsp_json(ctx, &path, &source)
     } else {
         String::new()
     };

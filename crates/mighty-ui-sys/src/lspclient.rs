@@ -41,6 +41,7 @@ pub enum Method {
     PrepareRename,
     Rename { new_name: String },
     CodeAction { end_line: u32, end_col: u32 },
+    DocumentSymbol,
 }
 
 impl Method {
@@ -53,6 +54,7 @@ impl Method {
             Method::PrepareRename => "textDocument/prepareRename",
             Method::Rename { .. } => "textDocument/rename",
             Method::CodeAction { .. } => "textDocument/codeAction",
+            Method::DocumentSymbol => "textDocument/documentSymbol",
         }
     }
 
@@ -73,6 +75,7 @@ impl Method {
             Method::CodeAction { end_line, end_col } => format!(
                 r#"{{"textDocument":{{"uri":"{u}"}},"range":{{"start":{{"line":{line},"character":{col}}},"end":{{"line":{end_line},"character":{end_col}}}}},"context":{{"diagnostics":[]}}}}"#
             ),
+            Method::DocumentSymbol => format!(r#"{{"textDocument":{{"uri":"{u}"}}}}"#),
         }
     }
 }
@@ -141,7 +144,7 @@ fn initialize_msg(root: &Path) -> String {
     let root_uri = file_uri(root);
     let pid = std::process::id();
     format!(
-        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"processId":{pid},"rootUri":"{}","capabilities":{{"textDocument":{{"completion":{{"completionItem":{{"snippetSupport":false}}}},"hover":{{}},"definition":{{}},"signatureHelp":{{}},"rename":{{}},"codeAction":{{}},"publishDiagnostics":{{}}}}}},"workspaceFolders":null}}}}"#,
+        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"processId":{pid},"rootUri":"{}","capabilities":{{"textDocument":{{"completion":{{"completionItem":{{"snippetSupport":false}}}},"hover":{{}},"definition":{{}},"signatureHelp":{{}},"rename":{{}},"codeAction":{{}},"documentSymbol":{{}},"publishDiagnostics":{{}}}}}},"workspaceFolders":null}}}}"#,
         json_escape(&root_uri)
     )
 }
@@ -695,6 +698,19 @@ mod tests {
         assert!(msg.contains(r#""method":"textDocument/rename""#));
         assert!(msg.contains(r#""position":{"line":3,"character":9}"#));
         assert!(msg.contains(r#""newName":"next_value""#));
+    }
+
+    #[test]
+    fn document_symbol_request_uses_document_params_only() {
+        let msg = request_msg(
+            &Method::DocumentSymbol,
+            "file:///repo/src/main.rs",
+            99,
+            42,
+        );
+        assert!(msg.contains(r#""method":"textDocument/documentSymbol""#));
+        assert!(msg.contains(r#""params":{"textDocument":{"uri":"file:///repo/src/main.rs"}}"#));
+        assert!(!msg.contains(r#""position""#));
     }
 
     /// Guarded integration test: if a real `rust-analyzer` is on PATH, spawn it
