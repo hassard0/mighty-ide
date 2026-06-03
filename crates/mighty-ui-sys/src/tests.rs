@@ -2738,6 +2738,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     );
     assert_eq!(dirty_confirm_cancel.keybinding, "");
 
+    let git_branch_cancel = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_GIT_BRANCH_CANCEL)
+        .unwrap();
+    assert_eq!(git_branch_cancel.label, "Git: Close Branch Switcher");
+    assert_eq!(git_branch_cancel.keybinding, "");
+
     let close_saved = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_SAVED_TABS)
@@ -4409,6 +4416,30 @@ fn branch_picker_geometry_keeps_positive_width_in_narrow_windows() {
     assert!(wide_x >= 0.0);
     assert!(wide_w <= 288.0);
     assert!(wide_x + wide_w <= 320.0);
+}
+
+#[test]
+fn branch_switcher_close_command_clears_active_picker() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    ctx.branch_picker.open(&crate::scm::BranchList {
+        entries: vec![
+            crate::scm::BranchEntry {
+                name: "main".to_string(),
+                current: true,
+                remote: false,
+            },
+            crate::scm::BranchEntry {
+                name: "feature/login".to_string(),
+                current: false,
+                remote: false,
+            },
+        ],
+    });
+
+    assert_eq!(crate::panels::mui_branch_active(h), 1);
+    crate::panels::mui_branch_cancel(h);
+    assert_eq!(crate::panels::mui_branch_active(h), 0);
 }
 
 #[test]
@@ -7066,6 +7097,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Peek: Close View must reuse the same close path as Esc"
     );
     assert!(
+        main.contains("id == cmd_git_branch_cancel()")
+            && main.contains("mui_branch_cancel(h)")
+            && main.contains("branch_open = false"),
+        "Git: Close Branch Switcher must clear both the picker and Mighty-side flag"
+    );
+    assert!(
         main.contains("id == cmd_hover_close()")
             && main.contains("mui_hover_clear(h)")
             && main.contains("hovering = false"),
@@ -7470,6 +7507,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_AUTOCOMPLETE, "cmd_autocomplete"),
         (CMD_AUTOCOMPLETE_CLOSE, "cmd_autocomplete_close"),
         (CMD_DIRTY_CONFIRM_CANCEL, "cmd_dirty_confirm_cancel"),
+        (CMD_GIT_BRANCH_CANCEL, "cmd_git_branch_cancel"),
         (CMD_JUMP_BACK, "cmd_jump_back"),
         (CMD_QUIT, "cmd_quit"),
         (CMD_COLOR_THEME, "cmd_color_theme"),

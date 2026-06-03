@@ -6858,3 +6858,12 @@ never implying a save or discard choice.
   `Unsaved Changes: Cancel Confirmation`, calling `mui_dirty_confirm_cancel`.
   ABI, registry, metadata, dispatcher, and label tests pin that cancellation
   clears the pending confirmation while keeping the dirty tab open.
+
+L541. Git branch pickers need one-way close commands.
+Branch switching can check out existing refs or create new branches, so the
+dismiss action should stay explicit and never route through the switch/create
+path.
+
+- **IDE note:** The command palette now lists `Git: Close Branch Switcher`,
+  calling `mui_branch_cancel` while clearing Mighty's local `branch_open` flag.
+  ABI, registry, metadata, dispatcher, and label tests pin the close path.
