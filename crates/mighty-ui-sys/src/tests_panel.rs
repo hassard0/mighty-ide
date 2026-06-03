@@ -151,6 +151,12 @@ impl TestPanel {
     pub fn is_running(&self) -> bool {
         self.running
     }
+    #[cfg(test)]
+    pub fn mark_running_for_test(&mut self) {
+        self.active = true;
+        self.running = true;
+        self.started = Some(Instant::now());
+    }
     pub fn passed(&self) -> usize {
         self.passed
     }

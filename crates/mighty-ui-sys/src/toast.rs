@@ -779,6 +779,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Open a Mighty file or folder before running tests"
         || m == "Open a Mighty file before running test at cursor"
         || m.starts_with("Test run failed to start:")
+        || m == "Test run stopped"
         || m == "No test run to stop"
         || m == "No test result row selected"
         || m == "Test result row has no file target"
@@ -1537,6 +1538,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No test run to stop");
+
+        q.push_at(
+            Kind::Info,
+            "Test run stopped",
+            t0 + Duration::from_millis(350),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Test run stopped");
 
         q.push_at(Kind::Error, "1 of 3 tests failed", t0 + Duration::from_millis(400));
         q.push_at(Kind::Success, "3 tests passed", t0 + Duration::from_millis(500));

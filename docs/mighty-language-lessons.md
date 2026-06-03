@@ -7350,3 +7350,13 @@ whether visible ghost text was actually present.
   `AI ghost completion dismissed`; the no-op path reports
   `No AI ghost completion visible`; both messages stay in the AI toast lane, and
   Mighty uses the stateful ABI only for `AI: Dismiss Ghost Completion`.
+
+L589. Stop commands should report whether they actually stopped work. A Testing
+stop command that kills a running process and an idle stop command are different
+outcomes, and both should be visible from the command palette.
+
+- **IDE note:** `mui_test_stop` now returns `1` when it stops an active test run
+  and `0` when Testing is idle. Active stop opens/focuses Testing and reports
+  `Test run stopped`; idle stop still opens/focuses Testing and reports
+  `No test run to stop`. Both messages stay in the Test toast lane, and Mighty
+  explicitly discards the returned state from shortcut and palette paths.

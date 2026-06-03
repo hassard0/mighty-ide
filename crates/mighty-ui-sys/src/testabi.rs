@@ -223,20 +223,25 @@ fn nearest_test_fn(ctx: &MuiContext) -> Option<String> {
     None
 }
 
-/// Stop the running `mty test` (best-effort kill). If idle, open Testing and
-/// explain that there is no test run to stop.
+/// Stop the running `mty test` (best-effort kill). Returns `1` when a run was
+/// stopped. If idle, opens Testing, reports the no-op, and returns `0`.
 #[no_mangle]
-pub extern "C" fn mui_test_stop(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
-        if ctx.tests_panel.is_running() {
-            ctx.tests_panel.stop();
-        } else {
-            ctx.tests_panel.open();
-            ctx.active_panel = crate::PANEL_TEST;
-            ctx.sidebar_visible = true;
-            ctx.push_toast(crate::toast::Kind::Info, "No test run to stop");
-            crate::abi::trace("test_stop idle");
-        }
+pub extern "C" fn mui_test_stop(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.tests_panel.open();
+    ctx.active_panel = crate::PANEL_TEST;
+    ctx.sidebar_visible = true;
+    if ctx.tests_panel.is_running() {
+        ctx.tests_panel.stop();
+        ctx.push_toast(crate::toast::Kind::Info, "Test run stopped");
+        crate::abi::trace("test_stop running");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No test run to stop");
+        crate::abi::trace("test_stop idle");
+        0
     }
 }
 

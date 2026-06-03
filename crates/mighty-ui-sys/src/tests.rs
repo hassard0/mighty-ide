@@ -1744,7 +1744,7 @@ fn test_stop_when_idle_reports_visible_feedback() {
     ctx.active_panel = crate::PANEL_EXPLORER;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
-    crate::testabi::mui_test_stop(handle);
+    assert_eq!(crate::testabi::mui_test_stop(handle), 0);
     assert_eq!(ctx.active_panel, crate::PANEL_TEST);
     assert!(ctx.sidebar_visible);
     assert!(ctx.tests_panel.is_active());
@@ -1752,6 +1752,27 @@ fn test_stop_when_idle_reports_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No test run to stop");
+}
+
+#[test]
+fn test_stop_when_running_reports_stopped_state() {
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    ctx.tests_panel.mark_running_for_test();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::testabi::mui_test_stop(handle), 1);
+    assert_eq!(ctx.active_panel, crate::PANEL_TEST);
+    assert!(ctx.sidebar_visible);
+    assert!(ctx.tests_panel.is_active());
+    assert!(!ctx.tests_panel.is_running());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Test run stopped");
+
+    assert_eq!(crate::testabi::mui_test_stop(handle), 0);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "No test run to stop");
 }
 
 #[test]
@@ -8288,6 +8309,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _dcs = mui_dbg_clear_session(h)")
             && main.contains("find_nav = false"),
         "Debug clear-session command must reveal Run and Debug and reset session state"
+    );
+    assert!(
+        main.contains("id == cmd_test_stop()")
+            && main.contains("let _ts = mui_test_stop(h)")
+            && main.contains("test_focus = true"),
+        "Test stop command must report stop state while keeping Testing focused"
     );
     assert!(
         main.contains("id == cmd_test_clear_results()")

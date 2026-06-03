@@ -484,7 +484,7 @@ extern c {
   // ---- Test panel (beaker rail icon / Ctrl+Shift+T : Run Tests) ----
   fn mui_test_run(handle: I64) -> I32
   fn mui_test_run_at_cursor(handle: I64) -> I32
-  fn mui_test_stop(handle: I64)
+  fn mui_test_stop(handle: I64) -> I32
   fn mui_test_clear(handle: I64) -> I32
   fn mui_test_close(handle: I64) -> I32
   fn mui_test_toggle(handle: I64) -> I32
@@ -2165,7 +2165,7 @@ fn main() {
           } else if tb_hit == test_tb_run() {
             let _r = mui_test_run(h)
           } else if tb_hit == test_tb_stop() {
-            mui_test_stop(h)
+            let _ts = mui_test_stop(h)
           } else {
             let trow = mui_test_row_at_click(h)
             if trow >= 0 {
@@ -3582,7 +3582,7 @@ fn main() {
             let _r = mui_test_run(h)
             test_focus = true
           } else if tb_hit == test_tb_stop() {
-            mui_test_stop(h)
+            let _ts = mui_test_stop(h)
           } else {
             let trow = mui_test_row_at_click(h)
             if trow >= 0 {
@@ -4308,7 +4308,7 @@ fn main() {
           test_focus = true
           agents_focus = false
         } else if id == cmd_test_stop() {
-          mui_test_stop(h)
+          let _ts = mui_test_stop(h)
           test_focus = true
           agents_focus = false
         } else if id == cmd_test_clear_results() {
