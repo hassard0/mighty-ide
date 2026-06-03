@@ -5359,3 +5359,15 @@ shortcut.
   below for another caret` while preserving existing return codes. The ABI
   regression proves successful caret additions stay quiet and only edge failures
   add feedback.
+
+L384. Navigation history should be armed by successful navigation, not attempts.
+If Go to Definition fails, Jump Back should not be primed with the current
+cursor position, and invoking Jump Back with no target should explain that the
+history slot is empty.
+
+- **IDE note:** `go_to_definition` now returns the definition request result to
+  Mighty, and both F12 and palette Go to Definition only write the one-slot
+  jump-back target after a real hit, preserving any older target across failed
+  attempts. Ctrl+Minus and the Jump Back command report `No previous location`
+  when no target is available. The regression verifies the predefined toast used
+  by Mighty's scalar dispatch path.

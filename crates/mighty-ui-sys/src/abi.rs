@@ -13189,6 +13189,7 @@ fn toast_message(msg_id: i32) -> &'static str {
         7 => "Zen mode off",
         8 => "Copied",
         9 => "Nothing to undo",
+        10 => "No previous location",
         _ => "Done",
     }
 }

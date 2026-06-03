@@ -2585,6 +2585,8 @@ fn main() {
             have_prev = false
             mui_hover_clear(h)
             hovering = false
+          } else {
+            mui_toast(h, 0, 10)
           }
         } else if ctrl_held(mods) && cp == 96 {             // Ctrl+` : toggle terminal
           if mui_term_is_open(h) == 1 {
@@ -2779,10 +2781,14 @@ fn main() {
           if alt_held(kmods) {                               // Alt+F12 : peek definition
             let _p = peek_definition(h)
           } else {                                           // F12 : go to definition
-            prev_line = mui_ed_cursor_line(h)
-            prev_col = mui_ed_cursor_col(h)
-            go_to_definition(h)
-            have_prev = true
+            let cur_line = mui_ed_cursor_line(h)
+            let cur_col = mui_ed_cursor_col(h)
+            let gok = go_to_definition(h)
+            if gok == 1 {
+              prev_line = cur_line
+              prev_col = cur_col
+              have_prev = true
+            }
             find_nav = false
           }
         } else if k == key_f2() {                            // F2 : rename symbol
@@ -3586,10 +3592,14 @@ fn main() {
           prompt_kind = prompt_goto()
           find_nav = false
         } else if id == cmd_goto_definition() {
-          prev_line = mui_ed_cursor_line(h)
-          prev_col = mui_ed_cursor_col(h)
-          go_to_definition(h)
-          have_prev = true
+          let cur_line = mui_ed_cursor_line(h)
+          let cur_col = mui_ed_cursor_col(h)
+          let gok = go_to_definition(h)
+          if gok == 1 {
+            prev_line = cur_line
+            prev_col = cur_col
+            have_prev = true
+          }
           find_nav = false
         } else if id == cmd_hover() {
           let ok = do_hover(h)
@@ -3750,6 +3760,8 @@ fn main() {
             have_prev = false
             mui_hover_clear(h)
             hovering = false
+          } else {
+            mui_toast(h, 0, 10)
           }
         } else if id == cmd_quit() {
           if mui_quit_request(h) == 1 {
@@ -4232,7 +4244,7 @@ fn do_hover(h: I64) -> I32 {
 
 // Go-to-definition at the cursor. Moves the cursor in place (same file) or opens
 // the target file as a tab and jumps. The shim owns the resolved target.
-fn go_to_definition(h: I64) {
+fn go_to_definition(h: I64) -> I32 {
   mui_ed_nav_stream(h)
   let line = mui_ed_cursor_line(h)
   let col = mui_ed_cursor_col(h)
@@ -4254,6 +4266,7 @@ fn go_to_definition(h: I64) {
       }
     }
   }
+  found
 }
 
 // Peek definition at the cursor: resolve the def (reusing the nav request) and

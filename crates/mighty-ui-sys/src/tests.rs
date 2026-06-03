@@ -123,6 +123,17 @@ fn multi_cursor_edge_commands_report_visible_feedback() {
 }
 
 #[test]
+fn jump_back_empty_target_toast_is_available_to_mighty_dispatch() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::abi::mui_toast(handle, 0, 10);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No previous location");
+}
+
+#[test]
 fn fill_rect_produces_red_texels_and_clear_elsewhere() {
     let mut ctx = ctx_or_skip!();
     let p: *mut MuiContext = &mut ctx;
