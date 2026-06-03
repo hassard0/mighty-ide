@@ -644,6 +644,7 @@ extern c {
   fn mui_welcome_open(handle: I64)
   fn mui_welcome_open_recent_picker(handle: I64)
   fn mui_welcome_dismiss(handle: I64)
+  fn mui_welcome_close(handle: I64) -> I32
   fn mui_welcome_draw(handle: I64)
   fn mui_welcome_click(handle: I64) -> I32
   fn mui_welcome_open_recent(handle: I64, i: I32) -> I32
@@ -3355,7 +3356,7 @@ fn main() {
             }
             find_nav = false
           } else if welcome_act == welcome_close() {
-            mui_welcome_dismiss(h)
+            let _wc = mui_welcome_close(h)
             find_nav = false
           } else if welcome_act == welcome_toggle_theme() {
             mui_theme_picker_open(h)
@@ -4247,7 +4248,7 @@ fn main() {
           let _qoc = mui_qo_cancel(h)
           quickopen_open = false
         } else if id == cmd_welcome_close() {
-          mui_welcome_dismiss(h)
+          let _wc = mui_welcome_close(h)
         } else if id == cmd_jump_back() {
           if have_prev {
             mui_ed_move_to(h, prev_line, prev_col)

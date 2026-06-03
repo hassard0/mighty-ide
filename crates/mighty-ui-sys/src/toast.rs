@@ -667,6 +667,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Recent folder missing")
         || m == "No recent file selected"
         || m == "No recent folder selected"
+        || m.starts_with("Welcome ")
     {
         Some(OperationKey::Open)
     } else if is_name_input_message(m) {
@@ -1418,6 +1419,15 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Open folder dialog unavailable");
+
+        q.push_at(Kind::Info, "Welcome closed", t0 + Duration::from_millis(500));
+        q.push_at(
+            Kind::Info,
+            "Welcome is already closed",
+            t0 + Duration::from_millis(600),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Welcome is already closed");
     }
 
     #[test]

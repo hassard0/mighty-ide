@@ -6760,20 +6760,38 @@ fn palette_and_quickopen_close_commands_clear_active_overlays() {
 
 #[test]
 fn welcome_close_command_dismisses_forced_surfaces() {
-    use crate::{mui_ed_insert_char, mui_welcome_active, mui_welcome_dismiss, mui_welcome_open};
+    use crate::{
+        mui_ed_insert_char, mui_welcome_active, mui_welcome_close, mui_welcome_dismiss,
+        mui_welcome_open,
+    };
 
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_welcome_active(h), 1);
+    assert_eq!(mui_welcome_close(h), 1);
+    assert_eq!(mui_welcome_active(h), 0);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Welcome closed");
+    assert_eq!(mui_welcome_close(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Welcome is already closed"
+    );
 
     mui_ed_insert_char(h, 'x' as i32);
     assert_eq!(mui_welcome_active(h), 0);
 
     mui_welcome_open(h);
     assert_eq!(mui_welcome_active(h), 1);
-    mui_welcome_dismiss(h);
+    assert_eq!(mui_welcome_close(h), 1);
     assert_eq!(mui_welcome_active(h), 0);
 
     ctx.welcome.open_recent_picker();
+    assert_eq!(mui_welcome_active(h), 1);
+    assert_eq!(mui_welcome_close(h), 1);
+    assert_eq!(mui_welcome_active(h), 0);
+
+    mui_welcome_open(h);
     assert_eq!(mui_welcome_active(h), 1);
     mui_welcome_dismiss(h);
     assert_eq!(mui_welcome_active(h), 0);
@@ -8148,7 +8166,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         main.contains("fn welcome_close() -> I32 { 9 }")
             && main.contains("welcome_act == welcome_close()")
-            && main.contains("mui_welcome_dismiss(h)"),
+            && main.contains("let _wc = mui_welcome_close(h)"),
         "Open Recent picker close button must dismiss the forced Welcome surface"
     );
     assert!(
@@ -8188,8 +8206,8 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_welcome_close()")
-            && main.contains("mui_welcome_dismiss(h)"),
-        "Welcome: Close must reuse the visible close affordance's dismiss path"
+            && main.contains("let _wc = mui_welcome_close(h)"),
+        "Welcome: Close must reuse the stateful visible close affordance path"
     );
     assert!(
         main.contains("id == cmd_ghost_completion_dismiss()")

@@ -13635,18 +13635,18 @@ pub extern "C" fn mui_welcome_active(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    i32::from(welcome_is_active(ctx))
+}
+
+fn welcome_is_active(ctx: &MuiContext) -> bool {
     if ctx.welcome.force_open {
-        return 1;
+        return true;
     }
     // "No file open": the active tab has no path and the buffer is empty.
     let no_path = ctx.tabs.active_path().is_none();
     let model = ctx.tabs.active_model();
     let empty = model.line_count() <= 1 && model.line_len(0) == 0;
-    if no_path && empty && !ctx.welcome.hides_empty_auto() {
-        1
-    } else {
-        0
-    }
+    no_path && empty && !ctx.welcome.hides_empty_auto()
 }
 
 /// Force the Welcome screen open (the palette "Welcome" command).
@@ -13672,6 +13672,26 @@ pub extern "C" fn mui_welcome_dismiss(handle: i64) {
     trace("welcome_dismiss");
     if let Some(ctx) = unsafe { ctx(handle) } {
         ctx.welcome.dismiss();
+    }
+}
+
+/// Close the visible Welcome surface. Unlike `mui_welcome_dismiss`, this is the
+/// explicit command/close-affordance path, so it hides both forced Welcome and
+/// the automatic empty-buffer Welcome state and reports whether anything closed.
+#[no_mangle]
+pub extern "C" fn mui_welcome_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if welcome_is_active(ctx) {
+        ctx.welcome.dismiss_empty_auto();
+        ctx.push_toast(crate::toast::Kind::Info, "Welcome closed");
+        trace("welcome_close");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Welcome is already closed");
+        trace("welcome_close noop");
+        0
     }
 }
 

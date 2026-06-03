@@ -7399,3 +7399,14 @@ make the result observable and easy to guard.
   `mui_dbg_step_out` now return the current debug state after the action. Their
   existing unavailable-action messages are unchanged, and Mighty explicitly
   discards the returned state from keyboard and palette paths.
+
+L594. Welcome close needs a command-facing path distinct from silent dismissal.
+Internal transitions should silently leave Welcome, but the visible close button
+and palette command must close both forced Welcome and the automatic empty-buffer
+Welcome state.
+
+- **IDE note:** `mui_welcome_close` now returns `1` when a Welcome surface was
+  visible and `0` when it was already closed. Active close reports
+  `Welcome closed`; no-op close reports `Welcome is already closed`. The helper
+  hides automatic empty-buffer Welcome too, while `mui_welcome_dismiss` remains
+  the silent internal transition for file-opening and typing flows.
