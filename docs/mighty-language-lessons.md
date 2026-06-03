@@ -5867,3 +5867,12 @@ for the same previous-word and next-word editing operations.
   `Edit: Delete Next Word`. Mighty dispatches through the existing multi-caret
   `mui_ed_delete_word_left_multi` and `mui_ed_delete_word_right_multi` ABI calls,
   preserving the shortcut path's undo, dirty-tab, and ghost-text handling.
+
+L438. Indent and outdent should be named edit commands, not only Tab fallback
+behavior. Snippets, completions, and ghost text can own Tab first, so palette
+commands give users a direct route to the underlying line indentation operation.
+
+- **IDE note:** the command palette now lists `Edit: Indent Line or Selection`
+  and `Edit: Outdent Line or Selection`. Mighty dispatches through `mui_ed_indent`
+  and `mui_ed_outdent`, preserving the Tab fallback's undo record, no-op-safe
+  dirty-tab update, and ghost-text refresh behavior.

@@ -260,6 +260,10 @@ pub const CMD_PASTE_IN_EDITOR: u32 = 114;
 pub const CMD_DELETE_PREVIOUS_WORD: u32 = 115;
 /// Delete the word after each active editor caret.
 pub const CMD_DELETE_NEXT_WORD: u32 = 116;
+/// Indent the current editor line or selected line range.
+pub const CMD_INDENT_LINE_SELECTION: u32 = 117;
+/// Outdent the current editor line or selected line range.
+pub const CMD_OUTDENT_LINE_SELECTION: u32 = 118;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -320,6 +324,8 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_PASTE_IN_EDITOR,  label: "Edit: Paste", keybinding: "Ctrl+V" },
     Command { id: CMD_DELETE_PREVIOUS_WORD, label: "Edit: Delete Previous Word", keybinding: "Ctrl+Backspace" },
     Command { id: CMD_DELETE_NEXT_WORD, label: "Edit: Delete Next Word", keybinding: "Ctrl+Delete" },
+    Command { id: CMD_INDENT_LINE_SELECTION, label: "Edit: Indent Line or Selection", keybinding: "Tab" },
+    Command { id: CMD_OUTDENT_LINE_SELECTION, label: "Edit: Outdent Line or Selection", keybinding: "Shift+Tab" },
     Command { id: CMD_DUPLICATE_LINE_SELECTION, label: "Edit: Duplicate Line or Selection", keybinding: "Ctrl+Shift+D" },
     Command { id: CMD_MOVE_LINE_UP,     label: "Edit: Move Line Up", keybinding: "Alt+Up" },
     Command { id: CMD_MOVE_LINE_DOWN,   label: "Edit: Move Line Down", keybinding: "Alt+Down" },
@@ -722,6 +728,8 @@ impl PaletteEngine {
             CMD_PASTE_IN_EDITOR => (icons::PLUS, "Paste clipboard text into the editor", false),
             CMD_DELETE_PREVIOUS_WORD => (icons::CLOSE, "Delete text back to the previous word boundary", false),
             CMD_DELETE_NEXT_WORD => (icons::CLOSE, "Delete text forward to the next word boundary", false),
+            CMD_INDENT_LINE_SELECTION => (icons::ARROW_RIGHT, "Indent the active line or selected line range", false),
+            CMD_OUTDENT_LINE_SELECTION => (icons::ARROW_LEFT, "Outdent the active line or selected line range", false),
             CMD_DUPLICATE_LINE_SELECTION => (icons::PLUS, "Duplicate the active line or selection", false),
             CMD_MOVE_LINE_UP => (icons::ARROW_UP, "Move the active line or selection upward", false),
             CMD_MOVE_LINE_DOWN => (icons::ARROW_DOWN, "Move the active line or selection downward", false),

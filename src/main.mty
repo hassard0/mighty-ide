@@ -725,6 +725,8 @@ fn cmd_cut_selection_or_line() -> I32 { 113 }
 fn cmd_paste_in_editor() -> I32 { 114 }
 fn cmd_delete_previous_word() -> I32 { 115 }
 fn cmd_delete_next_word() -> I32 { 116 }
+fn cmd_indent_line_selection() -> I32 { 117 }
+fn cmd_outdent_line_selection() -> I32 { 118 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -3745,6 +3747,19 @@ fn main() {
           mui_tab_set_dirty(h, mui_tab_active(h), 1)
           mui_ghost_dismiss(h)
           mui_ghost_arm(h)
+        } else if id == cmd_indent_line_selection() || id == cmd_outdent_line_selection() {
+          mui_ed_undo_record(h)
+          typing = false
+          let changed = if id == cmd_outdent_line_selection() {
+            mui_ed_outdent(h)
+          } else {
+            mui_ed_indent(h)
+          }
+          if changed == 1 {
+            mui_tab_set_dirty(h, mui_tab_active(h), 1)
+            mui_ghost_dismiss(h)
+            mui_ghost_arm(h)
+          }
         } else if id == cmd_duplicate_line_selection() || id == cmd_move_line_up() || id == cmd_move_line_down() {
           mui_ed_undo_record(h)
           if id == cmd_duplicate_line_selection() {

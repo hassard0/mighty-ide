@@ -6217,6 +6217,8 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_PASTE_IN_EDITOR, "cmd_paste_in_editor"),
         (CMD_DELETE_PREVIOUS_WORD, "cmd_delete_previous_word"),
         (CMD_DELETE_NEXT_WORD, "cmd_delete_next_word"),
+        (CMD_INDENT_LINE_SELECTION, "cmd_indent_line_selection"),
+        (CMD_OUTDENT_LINE_SELECTION, "cmd_outdent_line_selection"),
         (
             CMD_DUPLICATE_LINE_SELECTION,
             "cmd_duplicate_line_selection",
