@@ -463,6 +463,7 @@ extern c {
   fn mui_web_stop(handle: I64)
   fn mui_web_open(handle: I64) -> I32
   fn mui_web_clear(handle: I64) -> I32
+  fn mui_web_close(handle: I64) -> I32
   fn mui_web_toggle(handle: I64) -> I32
   fn mui_web_active(handle: I64) -> I32
   fn mui_web_running(handle: I64) -> I32
@@ -788,6 +789,7 @@ fn cmd_web_clear_output() -> I32 { 156 }
 fn cmd_agents_clear_run_output() -> I32 { 157 }
 fn cmd_run_close() -> I32 { 182 }
 fn cmd_test_close() -> I32 { 183 }
+fn cmd_web_close() -> I32 { 184 }
 fn cmd_diff_close_view() -> I32 { 158 }
 fn cmd_git_hide_blame() -> I32 { 159 }
 fn cmd_peek_close() -> I32 { 160 }
@@ -4326,6 +4328,9 @@ fn main() {
           run_focus = false
           test_focus = false
           agents_focus = false
+        } else if id == cmd_web_close() {
+          let _wc = mui_web_close(h)
+          web_focus = false
         } else if id == cmd_diff_close_view() {
           mui_diff_close(h)
           diff_open = false

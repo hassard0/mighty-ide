@@ -1254,6 +1254,29 @@ fn web_clear_output_reports_feedback_and_preserves_url() {
 }
 
 #[test]
+fn web_close_command_acknowledges_state_without_clearing_output_or_url() {
+    let mut ctx = ctx_or_skip!();
+    ctx.web.seed_demo("examples/webspin/src/main.mty");
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::webabi::mui_web_close(h), 1);
+    assert_eq!(crate::webabi::mui_web_active(h), 0);
+    assert_eq!(ctx.web.line_count(), 6);
+    assert_eq!(ctx.web.url(), "http://127.0.0.1:8000");
+    assert!(ctx.web.is_running());
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Web Playground closed"
+    );
+
+    assert_eq!(crate::webabi::mui_web_close(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Web Playground is already closed"
+    );
+}
+
+#[test]
 fn web_headless_open_browser_does_not_cover_screenshot_with_success_toast() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let old_screenshot = std::env::var_os("MUI_SCREENSHOT");
@@ -3178,6 +3201,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(web_clear.label, "Web: Clear Output");
     assert_eq!(web_clear.keybinding, "");
+
+    let web_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_WEB_CLOSE)
+        .unwrap();
+    assert_eq!(web_close.label, "Web: Close Panel");
+    assert_eq!(web_close.keybinding, "");
 
     let diff_close = crate::palette::COMMANDS
         .iter()
@@ -7479,6 +7509,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Web clear-output command must reveal Web Playground before clearing output"
     );
     assert!(
+        main.contains("id == cmd_web_close()")
+            && main.contains("let _wc = mui_web_close(h)")
+            && main.contains("web_focus = false"),
+        "Web close command must use the Web-specific close ABI and release Web focus"
+    );
+    assert!(
         main.contains("id == cmd_diff_close_view()")
             && main.contains("mui_diff_close(h)")
             && main.contains("diff_open = false"),
@@ -7823,6 +7859,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_WEB_STOP, "cmd_web_stop"),
         (CMD_WEB_OPEN_BROWSER, "cmd_web_open_browser"),
         (CMD_WEB_CLEAR_OUTPUT, "cmd_web_clear_output"),
+        (CMD_WEB_CLOSE, "cmd_web_close"),
         (CMD_DIFF_CLOSE_VIEW, "cmd_diff_close_view"),
         (
             CMD_MARKDOWN_CLOSE_PREVIEW,

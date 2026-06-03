@@ -6951,3 +6951,12 @@ kill a running test process or discard parsed pass/fail rows.
   `mui_test_close`. The close path switches back to Explorer, preserves parsed
   result rows, reports closed/already-closed feedback, and releases Testing
   focus through the Mighty dispatcher.
+
+L551. Web preview close should not stop the served app. The Web Playground's
+panel, server lifecycle, scraped URL, and transcript are distinct pieces of
+state; hiding the panel must leave the browser session recoverable.
+
+- **IDE note:** The command palette now lists `Web: Close Panel`, calling
+  `mui_web_close`. The close path preserves output, URL, and running state,
+  reports closed/already-closed feedback, and releases Web focus through the
+  Mighty dispatcher.

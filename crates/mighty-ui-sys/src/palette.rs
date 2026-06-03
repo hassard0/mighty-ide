@@ -395,6 +395,8 @@ pub const CMD_PROBLEMS_CLOSE: u32 = 181;
 pub const CMD_RUN_CLOSE: u32 = 182;
 /// Close the Testing panel without stopping a test run or clearing results.
 pub const CMD_TEST_CLOSE: u32 = 183;
+/// Close the Web Playground panel without stopping the server or clearing output.
+pub const CMD_WEB_CLOSE: u32 = 184;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -578,6 +580,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_WEB_STOP,         label: "Web: Stop Server",    keybinding: "" },
     Command { id: CMD_WEB_OPEN_BROWSER, label: "Web: Open in Browser", keybinding: "" },
     Command { id: CMD_WEB_CLEAR_OUTPUT, label: "Web: Clear Output",   keybinding: "" },
+    Command { id: CMD_WEB_CLOSE,        label: "Web: Close Panel",    keybinding: "" },
     Command { id: CMD_SPLIT_RIGHT,      label: "Split Editor Right", keybinding: "Ctrl+\\" },
     Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
     Command { id: CMD_CLOSE_PANE,       label: "Close Editor Pane",  keybinding: "" },
@@ -1122,6 +1125,7 @@ impl PaletteEngine {
             CMD_WEB_STOP => (icons::CLOSE, "Stop the active Web Playground server", false),
             CMD_WEB_OPEN_BROWSER => (icons::GLOBE, "Open the active Web Playground URL in the default browser", false),
             CMD_WEB_CLEAR_OUTPUT => (icons::CLOSE, "Clear Web Playground output without stopping the server", false),
+            CMD_WEB_CLOSE => (icons::CLOSE, "Close the Web Playground panel without stopping the server", false),
             CMD_SPLIT_RIGHT => (icons::TEST_BOX, "Split the editor into side-by-side panes", false),
             CMD_FOCUS_NEXT_PANE => (icons::CHEVRON, "Move focus between editor panes", false),
             CMD_CLOSE_PANE => (icons::CLOSE, "Close the focused editor pane", false),

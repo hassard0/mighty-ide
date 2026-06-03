@@ -142,6 +142,24 @@ pub extern "C" fn mui_web_clear(handle: i64) -> i32 {
     cleared
 }
 
+/// Close the Web Playground panel without stopping the server or clearing output.
+/// Returns `1` when it closed an open panel, or `0` when Web was already closed.
+#[no_mangle]
+pub extern "C" fn mui_web_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.web.is_active() {
+        ctx.web.close();
+        ctx.push_toast(crate::toast::Kind::Info, "Web Playground closed");
+        crate::abi::trace("web_close");
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "Web Playground is already closed");
+    crate::abi::trace("web_close noop");
+    0
+}
+
 /// `1` if the Web panel is open, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_web_active(handle: i64) -> i32 {
