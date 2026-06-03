@@ -760,7 +760,11 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Code action produced no edit"
     {
         Some(OperationKey::CodeAction)
-    } else if m == "Formatted document" || m == "Format failed" {
+    } else if m == "Formatted document"
+        || m == "Format failed"
+        || m == "Save the file before formatting"
+        || m == "Format is available for Mighty files"
+    {
         Some(OperationKey::Format)
     } else if m == "No foldable block at cursor"
         || m == "No foldable blocks"
@@ -1574,6 +1578,38 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Save the file before signature help");
+    }
+
+    #[test]
+    fn newer_format_feedback_replaces_stale_format_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Warn, "Save the file before formatting", t0);
+        q.push_at(
+            Kind::Info,
+            "Format is available for Mighty files",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Format is available for Mighty files"
+        );
+        assert_eq!(q.toasts()[0].kind, Kind::Info);
+
+        q.push_at(Kind::Error, "Format failed", t0 + Duration::from_millis(200));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Format failed");
+        assert_eq!(q.toasts()[0].kind, Kind::Error);
+
+        q.push_at(
+            Kind::Success,
+            "Formatted document",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Formatted document");
     }
 
     #[test]

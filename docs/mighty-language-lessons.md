@@ -5646,3 +5646,12 @@ separate stale cards.
   `Definition target missing: ...` now share a CodeIntel toast replacement key.
   Repeated language-service commands keep the latest intelligence outcome
   visible.
+
+L414. Format command feedback should use one formatting lane. Missing file paths,
+unsupported file types, formatter failures, and successful formatting are all
+outcomes of the same command and should replace one another as users retry.
+
+- **IDE note:** `Save the file before formatting`,
+  `Format is available for Mighty files`, `Format failed`, and
+  `Formatted document` now share the Format toast replacement key. Repeated
+  format attempts keep only the latest formatting outcome visible.
