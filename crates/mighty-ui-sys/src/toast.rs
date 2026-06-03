@@ -641,6 +641,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m == "No unsaved files"
         || m == "Save All failed"
         || m == "Save cancelled; tab is still open"
+        || m == "Unsaved changes confirmation cancelled"
+        || m == "No unsaved changes confirmation open"
         || m == "Save dialog unavailable; use Save As"
         || m.starts_with("Save All cancelled")
         || m.starts_with("Save dialog unavailable")
@@ -1348,6 +1350,28 @@ mod tests {
         assert_eq!(
             q.toasts()[0].message,
             "Save All cancelled; 1 untitled file still unsaved"
+        );
+
+        q.push_at(
+            Kind::Info,
+            "Unsaved changes confirmation cancelled",
+            t0 + Duration::from_millis(350),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Unsaved changes confirmation cancelled"
+        );
+
+        q.push_at(
+            Kind::Info,
+            "No unsaved changes confirmation open",
+            t0 + Duration::from_millis(375),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "No unsaved changes confirmation open"
         );
 
         q.push_at(Kind::Warn, "Use Save As to choose a file path", t0 + Duration::from_millis(400));

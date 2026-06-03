@@ -202,7 +202,7 @@ extern c {
   fn mui_dirty_confirm_click(handle: I64) -> I32
   fn mui_dirty_confirm_discard(handle: I64) -> I32
   fn mui_dirty_confirm_save(handle: I64) -> I32
-  fn mui_dirty_confirm_cancel(handle: I64)
+  fn mui_dirty_confirm_cancel(handle: I64) -> I32
   fn mui_dirty_confirm_draw(handle: I64)
   fn mui_window_minimize(handle: I64)
   fn mui_window_toggle_maximize(handle: I64) -> I32
@@ -1552,7 +1552,7 @@ fn main() {
           if tag == ev_key() {
             let k = mui_event_key(h)
             if k == key_escape() {
-              mui_dirty_confirm_cancel(h)
+              let _dcc = mui_dirty_confirm_cancel(h)
             } else if k == key_enter() {
               let dr = mui_dirty_confirm_save(h)
               if dr == -2 {
@@ -1568,7 +1568,7 @@ fn main() {
           } else if tag == ev_mouse_down() {
             let dc = mui_dirty_confirm_click(h)
             if dc == 1 {
-              mui_dirty_confirm_cancel(h)
+              let _dcc = mui_dirty_confirm_cancel(h)
             } else if dc == 2 {
               let dr = mui_dirty_confirm_discard(h)
               if dr == -2 {
@@ -4231,7 +4231,7 @@ fn main() {
           mui_complete_cancel(h)
           completing = false
         } else if id == cmd_dirty_confirm_cancel() {
-          mui_dirty_confirm_cancel(h)
+          let _dcc = mui_dirty_confirm_cancel(h)
         } else if id == cmd_git_branch_cancel() {
           let _bcancel = mui_branch_cancel(h)
           branch_open = false

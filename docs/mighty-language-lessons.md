@@ -7259,3 +7259,14 @@ report visible state.
   `No color theme picker open`; both messages stay in the theme toast lane, and
   Mighty explicitly discards the returned state from Escape, mouse-dismiss, and
   palette command paths.
+
+L581. Unsaved-work confirmation cancel is a safety decision, not a silent reset.
+The modal protects dirty edits, so command-palette and Escape paths should report
+whether they actually cancelled a pending close/quit choice.
+
+- **IDE note:** `mui_dirty_confirm_cancel` now returns `1` when it clears an
+  active unsaved-work confirmation and `0` when no confirmation is open. Active
+  cancel reports `Unsaved changes confirmation cancelled`; no-op cancel reports
+  `No unsaved changes confirmation open`; both messages stay in the save toast
+  lane, and Mighty explicitly discards the returned state from Escape,
+  mouse-button, and palette command paths.

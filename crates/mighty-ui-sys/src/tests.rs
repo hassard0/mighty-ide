@@ -974,10 +974,20 @@ fn dirty_confirm_cancel_command_clears_pending_choice() {
     assert_eq!(crate::mui_dirty_confirm_active(handle), 1);
     assert_eq!(crate::mui_tab_count(handle), 1);
 
-    crate::mui_dirty_confirm_cancel(handle);
+    assert_eq!(crate::mui_dirty_confirm_cancel(handle), 1);
     assert_eq!(crate::mui_dirty_confirm_active(handle), 0);
     assert_eq!(crate::mui_tab_count(handle), 1);
     assert_eq!(ctx.tabs.is_dirty(0), true);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Unsaved changes confirmation cancelled"
+    );
+
+    assert_eq!(crate::mui_dirty_confirm_cancel(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No unsaved changes confirmation open"
+    );
 }
 
 #[test]
@@ -8080,7 +8090,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_dirty_confirm_cancel()")
-            && main.contains("mui_dirty_confirm_cancel(h)"),
+            && main.contains("let _dcc = mui_dirty_confirm_cancel(h)"),
         "Unsaved Changes cancel command must clear the dirty-confirmation overlay"
     );
     assert!(

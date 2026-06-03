@@ -4453,11 +4453,19 @@ pub extern "C" fn mui_dirty_confirm_active(handle: i64) -> i32 {
 }
 
 #[no_mangle]
-pub extern "C" fn mui_dirty_confirm_cancel(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
+pub extern "C" fn mui_dirty_confirm_cancel(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if dirty_confirm_active(ctx) {
         ctx.pending_dirty_close = None;
         ctx.pending_quit = None;
+        ctx.push_toast(crate::toast::Kind::Info, "Unsaved changes confirmation cancelled");
         trace("dirty_confirm cancel");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No unsaved changes confirmation open");
+        0
     }
 }
 
