@@ -5558,3 +5558,12 @@ commit commands, so old hunk toasts should be replaced by newer git outcomes.
   `Hunk apply failed: ...` now share the Git toast replacement key with the rest
   of the SCM command feedback. Repeated hunk actions no longer leave stale git
   status cards stacked beside the latest result.
+
+L405. Diff-open feedback belongs to the same source-control toast lane. Opening
+a diff from the editor or SCM panel is still a git workflow, even when the
+result is an empty diff or a missing target.
+
+- **IDE note:** `No file to diff`, `No source-control row`,
+  `No git repository for diff`, and `No diff for ...` now share the Git toast
+  replacement key. Repeated diff-open misses replace older source-control cards
+  instead of stacking stale explanations beside the latest outcome.

@@ -600,6 +600,10 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Staged hunk"
         || m == "Unstaged hunk"
         || m.starts_with("Hunk apply failed:")
+        || m == "No file to diff"
+        || m == "No source-control row"
+        || m == "No git repository for diff"
+        || m.starts_with("No diff for ")
         || m == "Enter a branch name"
         || m == "No branch picker open"
         || m == "No branch selected"
@@ -1217,6 +1221,38 @@ mod tests {
         q.push_at(Kind::Warn, "Not a git repository", t0 + Duration::from_millis(300));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Not a git repository");
+    }
+
+    #[test]
+    fn newer_git_feedback_replaces_stale_diff_open_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Warn, "No file to diff", t0);
+        q.push_at(
+            Kind::Warn,
+            "No git repository for diff",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No git repository for diff");
+
+        q.push_at(
+            Kind::Info,
+            "No diff for main.mty",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No diff for main.mty");
+        assert_eq!(q.toasts()[0].kind, Kind::Info);
+
+        q.push_at(
+            Kind::Warn,
+            "No source-control row",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No source-control row");
     }
 
     #[test]
