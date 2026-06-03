@@ -1658,6 +1658,33 @@ fn test_stop_when_idle_reports_visible_feedback() {
 }
 
 #[test]
+fn test_clear_results_reports_feedback_and_preserves_context() {
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    ctx.tests_panel.seed_demo("C:/proj/demo");
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::testabi::mui_test_clear(handle), 8);
+    assert_eq!(ctx.active_panel, crate::PANEL_TEST);
+    assert!(ctx.sidebar_visible);
+    assert!(ctx.tests_panel.is_active());
+    assert_eq!(ctx.tests_panel.row_count(), 0);
+    assert_eq!(ctx.tests_panel.passed(), 0);
+    assert_eq!(ctx.tests_panel.failed(), 0);
+    assert_eq!(ctx.tests_panel.total(), 0);
+    assert_eq!(ctx.tests_panel.pkg(), "C:/proj/demo");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Test results cleared");
+
+    assert_eq!(crate::testabi::mui_test_clear(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Test results already empty");
+}
+
+#[test]
 fn test_result_open_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -2853,6 +2880,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(test_stop.label, "Test: Stop Run");
     assert_eq!(test_stop.keybinding, "");
+
+    let test_clear = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_TEST_CLEAR_RESULTS)
+        .unwrap();
+    assert_eq!(test_clear.label, "Test: Clear Results");
+    assert_eq!(test_clear.keybinding, "");
 
     let test_at_cursor = crate::palette::COMMANDS
         .iter()
@@ -6659,6 +6693,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("run_focus = true"),
         "Run clear-output command must reveal Run before clearing rendered output"
     );
+    assert!(
+        main.contains("id == cmd_test_clear_results()")
+            && main.contains("let _tc = mui_test_clear(h)")
+            && main.contains("test_focus = true"),
+        "Test clear-results command must reveal Testing before clearing parsed results"
+    );
     for (helper, action) in [
         ("cmd_search_run", "mui_search_run(h)"),
         ("cmd_search_replace_all", "mui_search_replace_all(h)"),
@@ -6923,6 +6963,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_RUN_TESTS, "cmd_run_tests"),
         (CMD_RUN_TEST_AT_CURSOR, "cmd_run_test_at_cursor"),
         (CMD_TEST_STOP, "cmd_test_stop"),
+        (CMD_TEST_CLEAR_RESULTS, "cmd_test_clear_results"),
         (CMD_PEEK_DEFINITION, "cmd_peek_definition"),
         (CMD_WELCOME, "cmd_welcome"),
         (CMD_ZEN_MODE, "cmd_zen_mode"),

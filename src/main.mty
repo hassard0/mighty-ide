@@ -471,6 +471,7 @@ extern c {
   fn mui_test_run(handle: I64) -> I32
   fn mui_test_run_at_cursor(handle: I64) -> I32
   fn mui_test_stop(handle: I64)
+  fn mui_test_clear(handle: I64) -> I32
   fn mui_test_toggle(handle: I64) -> I32
   fn mui_test_running(handle: I64) -> I32
   fn mui_test_pump(handle: I64) -> I32
@@ -771,6 +772,7 @@ fn cmd_problems_refresh() -> I32 { 151 }
 fn cmd_outline_refresh() -> I32 { 152 }
 fn cmd_agents_refresh() -> I32 { 153 }
 fn cmd_run_clear_output() -> I32 { 154 }
+fn cmd_test_clear_results() -> I32 { 155 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4193,6 +4195,11 @@ fn main() {
         } else if id == cmd_test_stop() {
           mui_test_stop(h)
           test_focus = true
+          agents_focus = false
+        } else if id == cmd_test_clear_results() {
+          let _tc = mui_test_clear(h)
+          test_focus = true
+          run_focus = false
           agents_focus = false
         } else if id == cmd_peek_definition() {
           let _p = peek_definition(h)

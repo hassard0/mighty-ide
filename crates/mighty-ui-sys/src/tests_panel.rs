@@ -174,6 +174,23 @@ impl TestPanel {
     pub fn row_count(&self) -> usize {
         self.rows.len()
     }
+    /// Clear parsed results while preserving the selected package, focus target,
+    /// and any running `mty test` process.
+    pub fn clear_results(&mut self) -> usize {
+        let n = self.rows.len();
+        self.rows.clear();
+        self.partial.clear();
+        self.first = 0;
+        self.passed = 0;
+        self.failed = 0;
+        self.total = 0;
+        if !self.running {
+            self.duration_ms = 0;
+        }
+        self.last_failed = None;
+        self.click_target = None;
+        n
+    }
     pub fn first(&self) -> usize {
         self.first
     }
@@ -705,6 +722,29 @@ test result: 2 passed; 1 failed; 3 total
         assert_eq!(t.first(), 2);
         t.scroll(-10);
         assert_eq!(t.first(), 0);
+    }
+
+    #[test]
+    fn clear_results_preserves_context_and_resets_rows() {
+        let mut t = TestPanel::new();
+        t.seed_demo("C:/proj/demo");
+        t.focus_test = "test_nested_blocks".to_string();
+        t.scroll(10);
+        t.set_click_target(Some(("C:/proj/demo/tests/parser.test.mty".to_string(), 4, 3)));
+
+        let cleared = t.clear_results();
+
+        assert_eq!(cleared, 8);
+        assert_eq!(t.row_count(), 0);
+        assert_eq!(t.passed(), 0);
+        assert_eq!(t.failed(), 0);
+        assert_eq!(t.total(), 0);
+        assert_eq!(t.duration_ms(), 0);
+        assert_eq!(t.first(), 0);
+        assert_eq!(t.click_target(), None);
+        assert!(t.is_active());
+        assert_eq!(t.pkg(), "C:/proj/demo");
+        assert_eq!(t.focus_test(), "test_nested_blocks");
     }
 
     #[test]

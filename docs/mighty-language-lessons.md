@@ -6703,3 +6703,13 @@ fresh viewport before repeating an interaction or capturing only new output.
   Run dock and calling `mui_run_clear` without stopping the active process or
   resetting the last status. State, ABI, registry, metadata, dispatcher, and
   feedback tests pin the behavior.
+
+L525. Parsed result panels should clear their model, not their process.
+Test results are structured data derived from process output. Clearing them
+should remove rows, counts, summary state, scroll, and stale click targets while
+leaving the selected package and any running `mty test` process alone.
+
+- **IDE note:** The command palette now lists `Test: Clear Results`, focusing
+  Testing and calling `mui_test_clear`. State, ABI, registry, metadata,
+  dispatcher, and feedback tests pin that results are cleared separately from
+  process control.

@@ -240,6 +240,26 @@ pub extern "C" fn mui_test_stop(handle: i64) {
     }
 }
 
+/// Clear parsed Test results without stopping a running `mty test`. Returns how
+/// many result rows were removed.
+#[no_mangle]
+pub extern "C" fn mui_test_clear(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.tests_panel.open();
+    ctx.active_panel = crate::PANEL_TEST;
+    ctx.sidebar_visible = true;
+    let cleared = ctx.tests_panel.clear_results() as i32;
+    if cleared > 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "Test results cleared");
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Test results already empty");
+    }
+    crate::abi::trace(&format!("test_clear rows={cleared}"));
+    cleared
+}
+
 /// Toggle the Testing view open/closed (the beaker rail icon). Returns `1` if
 /// now the active panel.
 #[no_mangle]

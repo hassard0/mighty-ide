@@ -337,6 +337,8 @@ pub const CMD_OUTLINE_REFRESH: u32 = 152;
 pub const CMD_AGENTS_REFRESH: u32 = 153;
 /// Clear the Run panel's rendered output without stopping a process.
 pub const CMD_RUN_CLEAR_OUTPUT: u32 = 154;
+/// Clear the Testing panel's parsed results without stopping a run.
+pub const CMD_TEST_CLEAR_RESULTS: u32 = 155;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -438,6 +440,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_RUN_TESTS,        label: "Run Tests",          keybinding: "Ctrl+Shift+T" },
     Command { id: CMD_RUN_TEST_AT_CURSOR, label: "Run Test at Cursor", keybinding: "" },
     Command { id: CMD_TEST_STOP,        label: "Test: Stop Run",     keybinding: "" },
+    Command { id: CMD_TEST_CLEAR_RESULTS, label: "Test: Clear Results", keybinding: "" },
     Command { id: CMD_PEEK_DEFINITION,  label: "Peek Definition",    keybinding: "Alt+F12" },
     Command { id: CMD_WELCOME,          label: "Welcome",            keybinding: "" },
     Command { id: CMD_ZEN_MODE,         label: "Toggle Zen Mode",    keybinding: "Alt+Z" },
@@ -953,6 +956,7 @@ impl PaletteEngine {
             CMD_RUN_TESTS => (icons::BEAKER, "Run the package's tests (mty test)", false),
             CMD_RUN_TEST_AT_CURSOR => (icons::BEAKER, "Run tests and focus the nearest test at the cursor", false),
             CMD_TEST_STOP => (icons::CLOSE, "Stop the active test run", false),
+            CMD_TEST_CLEAR_RESULTS => (icons::CLOSE, "Clear parsed test results without stopping the run", false),
             CMD_PEEK_DEFINITION => (icons::FN_SYMBOL, "Preview the definition inline (Alt+F12)", false),
             CMD_WELCOME => (icons::LANG_M, "Open the Welcome screen", false),
             CMD_ZEN_MODE => (icons::INFO_I, "Toggle distraction-free focus mode", false),
