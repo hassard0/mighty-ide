@@ -191,7 +191,9 @@ pub fn parse_check_output(raw: &str) -> Vec<Diag> {
                 d.line = l1.saturating_sub(1) as i32;
                 d.col_start = c1.saturating_sub(1) as i32;
                 d.col_end = d.col_start + 1;
-                diags.push(pending.take().unwrap());
+                if let Some(done) = pending.take() {
+                    diags.push(done);
+                }
             }
         }
     }
