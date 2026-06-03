@@ -171,6 +171,30 @@ impl Grid {
         }
     }
 
+    fn insert_blank_chars(&mut self, count: usize) {
+        let col = self.cur_col.min(self.cols - 1);
+        let count = count.max(1).min(self.cols - col);
+        let row_start = self.cur_row * self.cols;
+        for c in (col..self.cols - count).rev() {
+            self.cells[row_start + c + count] = self.cells[row_start + c];
+        }
+        for c in col..col + count {
+            self.cells[row_start + c] = Cell::default();
+        }
+    }
+
+    fn delete_chars(&mut self, count: usize) {
+        let col = self.cur_col.min(self.cols - 1);
+        let count = count.max(1).min(self.cols - col);
+        let row_start = self.cur_row * self.cols;
+        for c in col..self.cols - count {
+            self.cells[row_start + c] = self.cells[row_start + c + count];
+        }
+        for c in self.cols - count..self.cols {
+            self.cells[row_start + c] = Cell::default();
+        }
+    }
+
     /// Scroll the whole grid up one line: drop row 0, shift the rest up, blank
     /// the last row. Used when the cursor would advance past the last row.
     fn scroll_up(&mut self) {
@@ -459,10 +483,14 @@ impl VtParser {
                     // Device Status Report. ConPTY emits `ESC[6n` at startup and
                     // blocks until answered, so we must reply.
                     self.handle_dsr(grid);
+                } else if b == b'@' {
+                    self.insert_chars(grid);
                 } else if b == b'J' {
                     self.erase_display(grid);
                 } else if b == b'K' {
                     self.erase_line(grid);
+                } else if b == b'P' {
+                    self.delete_chars(grid);
                 } else if b == b'H' || b == b'f' {
                     self.cursor_position(grid);
                 } else if matches!(b, b'A' | b'B' | b'C' | b'D') {
@@ -525,6 +553,34 @@ impl VtParser {
                 90..=97 => grid.cur_fg = (n - 90 + 8) as u8, // bright 8..=15
                 _ => {}                              // ignore everything else
             }
+        }
+    }
+
+    fn first_count_param(&self) -> Option<usize> {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        if params.starts_with('?') {
+            return None;
+        }
+        Some(
+            params
+                .split(';')
+                .next()
+                .filter(|s| !s.is_empty())
+                .and_then(|s| s.parse::<usize>().ok())
+                .unwrap_or(1)
+                .max(1),
+        )
+    }
+
+    fn insert_chars(&mut self, grid: &mut Grid) {
+        if let Some(count) = self.first_count_param() {
+            grid.insert_blank_chars(count);
+        }
+    }
+
+    fn delete_chars(&mut self, grid: &mut Grid) {
+        if let Some(count) = self.first_count_param() {
+            grid.delete_chars(count);
         }
     }
 
@@ -1138,6 +1194,37 @@ mod tests {
         assert_eq!(g3.cell(0, 0).ch, ' ');
         assert_eq!(g3.cell(0, 3).ch, 'Z');
         assert_eq!(g3.cell(0, 4).ch, ' ');
+    }
+
+    #[test]
+    fn insert_chars_csi_shifts_current_row_right() {
+        let g = grid_feed(2, 8, b"abcdef\nQRSTUV\x1b[1;3H\x1b[2@XY");
+        assert_eq!(g.cell(0, 0).ch, 'a');
+        assert_eq!(g.cell(0, 1).ch, 'b');
+        assert_eq!(g.cell(0, 2).ch, 'X');
+        assert_eq!(g.cell(0, 3).ch, 'Y');
+        assert_eq!(g.cell(0, 4).ch, 'c');
+        assert_eq!(g.cell(0, 7).ch, 'f');
+        assert_eq!(g.cell(1, 0).ch, 'Q', "row below should not shift");
+        assert!(!g.contains("2@"));
+
+        let g2 = grid_feed(1, 6, b"abcd\x1b[1;3H\x1b[@Z");
+        assert_eq!(g2.to_text(), "abZcd ");
+    }
+
+    #[test]
+    fn delete_chars_csi_shifts_current_row_left() {
+        let g = grid_feed(2, 8, b"abcdef\nQRSTUV\x1b[1;3H\x1b[2P");
+        assert_eq!(g.cell(0, 0).ch, 'a');
+        assert_eq!(g.cell(0, 1).ch, 'b');
+        assert_eq!(g.cell(0, 2).ch, 'e');
+        assert_eq!(g.cell(0, 3).ch, 'f');
+        assert_eq!(g.cell(0, 4).ch, ' ');
+        assert_eq!(g.cell(1, 0).ch, 'Q', "row below should not shift");
+        assert!(!g.contains("2P"));
+
+        let g2 = grid_feed(1, 8, b"abcdef\x1b[1;5H\x1b[99P");
+        assert_eq!(g2.to_text(), "abcd    ");
     }
 
     #[test]
