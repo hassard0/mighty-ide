@@ -215,7 +215,7 @@ impl SettingsPanel {
             .min(preferred_row_h)
             .max(min_row_h);
         let horizontal_margin = if w < 420.0 { 16.0 } else { 40.0 };
-        let box_w = 500.0_f32.min((w - horizontal_margin * 2.0).max(280.0));
+        let box_w = settings_panel_width(w, horizontal_margin);
         let box_h = head_h + shown as f32 * row_h + foot_h + 12.0;
         let box_x = ((w - box_w) * 0.5).max(0.0);
         let box_y = ((h - box_h) * 0.5).max(24.0);
@@ -482,6 +482,11 @@ impl SettingsPanel {
     }
 }
 
+fn settings_panel_width(window_w: f32, horizontal_margin: f32) -> f32 {
+    let available = (window_w - horizontal_margin * 2.0).max(0.0);
+    available.clamp(280.0, 500.0).min(window_w.max(1.0))
+}
+
 fn control_left_for_row(text: &mut crate::text::Text, row: RowId, val: &str, box_x: f32, box_w: f32) -> f32 {
     let ctrl_right = box_x + box_w - 22.0;
     if row.is_numeric() {
@@ -626,6 +631,17 @@ mod tests {
         let (_box_x, _box_y, _box_w, _box_h, _list_top, _row_h, top, shown) = p.geometry(640, 480);
         assert!(top <= p.sel);
         assert!(p.sel < top + shown);
+    }
+
+    #[test]
+    fn geometry_clamps_card_inside_ultra_narrow_windows() {
+        let mut p = SettingsPanel::new();
+        p.open();
+        let (box_x, _box_y, box_w, _box_h, _list_top, _row_h, _top, _shown) = p.geometry(180, 560);
+
+        assert!(box_x >= 0.0);
+        assert!(box_w <= 180.0);
+        assert!(box_x + box_w <= 180.0 + 0.5);
     }
 
     #[test]
