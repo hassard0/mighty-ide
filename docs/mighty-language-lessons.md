@@ -5338,3 +5338,13 @@ semantic/buffer and snippet sources have contributed.
   zero candidates. Passive typing remains quiet, while explicit autocomplete
   reports `No completions available`. The regression covers both an empty
   engine and a real buffer-word candidate to prevent false empty toasts.
+
+L382. Modal button labels need the same measured fit as body copy. Compact
+confirmation dialogs can reserve enough geometry for today's short English
+actions while still being brittle to future copy or localization, so action
+labels should be measured and shortened before drawing.
+
+- **IDE note:** the unsaved-changes confirmation now fits button labels through
+  the same measured ellipsis path used by other chrome text before centering
+  them. The regression keeps current labels unchanged and proves a longer
+  destructive-action label cannot spill outside compact modal buttons.

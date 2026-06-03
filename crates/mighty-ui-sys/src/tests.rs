@@ -490,12 +490,39 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
         "dirty-confirm buttons should fit compact card: row={button_row_w} card={compact_card_w}"
     );
     for label in ["Cancel", "Save", "Discard"] {
-        let (label_w, _) = ctx.text.measure_ui_sized(label, crate::theme::CHROME_FONT_SIZE);
+        let fitted = crate::abi::fit_dirty_confirm_button_label(
+            &mut ctx.text,
+            label,
+            compact_btn_w,
+            crate::theme::CHROME_FONT_SIZE,
+        );
+        assert_eq!(fitted, label);
+        let (label_w, _) = ctx
+            .text
+            .measure_ui_sized(&fitted, crate::theme::CHROME_FONT_SIZE);
         assert!(
             label_w + 12.0 <= compact_btn_w,
             "button label should fit centered compact button: {label}"
         );
     }
+    let long_label = "Discard changes permanently";
+    let fitted_long_label = crate::abi::fit_dirty_confirm_button_label(
+        &mut ctx.text,
+        long_label,
+        compact_btn_w,
+        crate::theme::CHROME_FONT_SIZE,
+    );
+    let (long_label_w, _) = ctx
+        .text
+        .measure_ui_sized(&fitted_long_label, crate::theme::CHROME_FONT_SIZE);
+    assert!(
+        long_label_w + 12.0 <= compact_btn_w + 0.5,
+        "long button label should fit compact button: {fitted_long_label}"
+    );
+    assert!(
+        fitted_long_label.ends_with('…') || fitted_long_label.len() < long_label.len(),
+        "long button label should be visibly shortened: {fitted_long_label}"
+    );
 
     // Dirty untitled tabs keep the confirmation active and explain a cancelled
     // Save dialog instead of failing silently.

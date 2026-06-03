@@ -4609,9 +4609,22 @@ fn queue_centered_button_label(
     chrome: f32,
     clip: Option<(u32, u32, u32, u32)>,
 ) {
-    let (label_w, _) = ctx.text.measure_ui_sized(label, chrome);
+    let label = fit_dirty_confirm_button_label(&mut ctx.text, label, rect.2, chrome);
+    if label.is_empty() {
+        return;
+    }
+    let (label_w, _) = ctx.text.measure_ui_sized(&label, chrome);
     let x = rect.0 + ((rect.2 - label_w) * 0.5).max(6.0);
-    ctx.text.queue_ui_sized(x, rect.1 + 8.0, label, color, chrome, clip);
+    ctx.text.queue_ui_sized(x, rect.1 + 8.0, &label, color, chrome, clip);
+}
+
+pub(crate) fn fit_dirty_confirm_button_label(
+    text: &mut crate::text::Text,
+    label: &str,
+    button_w: f32,
+    chrome: f32,
+) -> String {
+    fit_status_head(text, label, (button_w - 12.0).max(0.0), chrome)
 }
 
 pub(crate) fn fit_dirty_confirm_detail(
