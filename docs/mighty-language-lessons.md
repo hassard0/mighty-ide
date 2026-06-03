@@ -6304,3 +6304,11 @@ still sized from the longest candidate's character count.
 - **IDE note:** Completion popups now compute their natural width from measured
   visible row content and footer text, clamp to the viewport, and use the same
   measured geometry for drawing and click hit-tests.
+
+L489. Code-action popup geometry should measure action titles. Code-action rows
+already fit their labels with measured text, but the menu width still used the
+longest title's character count times a proportional-font guess.
+
+- **IDE note:** Code-action menus now size from measured action-title widths,
+  stay clamped to the visible work area, and use the same measured geometry for
+  drawing and click hit-tests.

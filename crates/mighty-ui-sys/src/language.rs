@@ -1237,12 +1237,20 @@ impl CodeActionState {
     }
 
     #[allow(dead_code)]
-    fn geometry(&self, cx: f32, cy: f32, width: u32, height: u32) -> (f32, f32, f32, f32, f32, f32) {
-        self.geometry_inset(cx, cy, width, height, 0.0)
+    fn geometry(
+        &self,
+        text: &mut crate::text::Text,
+        cx: f32,
+        cy: f32,
+        width: u32,
+        height: u32,
+    ) -> (f32, f32, f32, f32, f32, f32) {
+        self.geometry_inset(text, cx, cy, width, height, 0.0)
     }
 
     fn geometry_inset(
         &self,
+        text: &mut crate::text::Text,
         cx: f32,
         cy: f32,
         width: u32,
@@ -1252,17 +1260,11 @@ impl CodeActionState {
         let row_h = layout::LINE_H();
         let chrome = theme::CHROME_FONT_SIZE;
         let pad = 5.0;
-        let longest = self
-            .actions
-            .iter()
-            .map(|a| a.title.chars().count())
-            .max()
-            .unwrap_or(0) as f32;
         let w = width as f32;
         let h = height as f32;
         let min_x = min_x.max(POPUP_MARGIN).min((w - POPUP_MARGIN).max(POPUP_MARGIN));
         let max_box_w = (w - min_x - POPUP_MARGIN).max(180.0);
-        let wanted_w = (longest * (chrome * 0.56) + 56.0).max(240.0);
+        let wanted_w = code_action_popup_width(text, &self.actions, chrome);
         let box_w = wanted_w.min(max_box_w);
         let box_h = self.actions.len() as f32 * row_h + 2.0 * pad;
 
@@ -1278,13 +1280,23 @@ impl CodeActionState {
     /// Select the action row under a click. Returns the selected index, or -1
     /// when the click missed the active popup.
     #[allow(dead_code)]
-    pub fn click_row(&mut self, x: f32, y: f32, cx: f32, cy: f32, width: u32, height: u32) -> i32 {
-        self.click_row_inset(x, y, cx, cy, width, height, 0.0)
+    pub fn click_row(
+        &mut self,
+        text: &mut crate::text::Text,
+        x: f32,
+        y: f32,
+        cx: f32,
+        cy: f32,
+        width: u32,
+        height: u32,
+    ) -> i32 {
+        self.click_row_inset(text, x, y, cx, cy, width, height, 0.0)
     }
 
     /// Select a row using the same left-safe geometry as [`draw_inset`].
     pub fn click_row_inset(
         &mut self,
+        text: &mut crate::text::Text,
         x: f32,
         y: f32,
         cx: f32,
@@ -1296,7 +1308,8 @@ impl CodeActionState {
         if !self.active || self.actions.is_empty() {
             return -1;
         }
-        let (box_x, box_y, box_w, _box_h, pad, row_h) = self.geometry_inset(cx, cy, width, height, min_x);
+        let (box_x, box_y, box_w, _box_h, pad, row_h) =
+            self.geometry_inset(text, cx, cy, width, height, min_x);
         if x < box_x || x > box_x + box_w {
             return -1;
         }
@@ -1339,7 +1352,8 @@ impl CodeActionState {
         let row_h = layout::LINE_H();
         let chrome = theme::CHROME_FONT_SIZE;
         let pad = 5.0;
-        let (box_x, box_y, box_w, box_h, _pad, _row_h) = self.geometry_inset(cx, cy, width, height, min_x);
+        let (box_x, box_y, box_w, box_h, _pad, _row_h) =
+            self.geometry_inset(&mut ctx.text, cx, cy, width, height, min_x);
 
         let clip = Some((
             box_x.max(0.0) as u32,
@@ -1404,6 +1418,14 @@ fn popup_available_width(window_w: f32, min_x: f32, preferred_min: f32) -> f32 {
 
 fn signature_content_budget(text_w: f32) -> f32 {
     (text_w - 22.0).max(12.0)
+}
+
+fn code_action_popup_width(text: &mut crate::text::Text, actions: &[CodeAction], chrome: f32) -> f32 {
+    let content_w = actions
+        .iter()
+        .map(|a| text.measure_ui_sized(&a.title, chrome).0)
+        .fold(0.0_f32, f32::max);
+    (content_w + 56.0).max(240.0)
 }
 
 fn rename_field_text_budget(field_w: f32) -> f32 {
@@ -2055,17 +2077,24 @@ mod tests {
 
     #[test]
     fn code_action_click_row_selects_action() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(900, 700) else {
+            return;
+        };
         let mut c = CodeActionState::new();
         let actions = vec![
             CodeAction { title: "Replace typo".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, fix_all_mty: false },
             CodeAction { title: "Fix all".into(), edit: None, command_edit: None, command: None, fix_all_mty: true },
         ];
         assert_eq!(c.set(actions), 2);
-        let (box_x, box_y, _box_w, _box_h, pad, row_h) = c.geometry(300.0, 120.0, 900, 700);
-        let idx = c.click_row(box_x + 24.0, box_y + pad + row_h + 3.0, 300.0, 120.0, 900, 700);
+        let (box_x, box_y, _box_w, _box_h, pad, row_h) =
+            c.geometry(&mut ctx.text, 300.0, 120.0, 900, 700);
+        let idx = c.click_row(&mut ctx.text, box_x + 24.0, box_y + pad + row_h + 3.0, 300.0, 120.0, 900, 700);
         assert_eq!(idx, 1);
         assert_eq!(c.selection(), 1);
-        assert_eq!(c.click_row(box_x - 2.0, box_y + pad + 3.0, 300.0, 120.0, 900, 700), -1);
+        assert_eq!(
+            c.click_row(&mut ctx.text, box_x - 2.0, box_y + pad + 3.0, 300.0, 120.0, 900, 700),
+            -1
+        );
     }
 
     #[test]
@@ -2093,7 +2122,43 @@ mod tests {
     }
 
     #[test]
+    fn code_action_popup_width_uses_measured_titles() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(900, 700) else {
+            return;
+        };
+        let chrome = theme::CHROME_FONT_SIZE;
+        let narrow = vec![CodeAction {
+            title: "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii".into(),
+            edit: Some(WorkspaceEdit::default()),
+            command_edit: None,
+            command: None,
+            fix_all_mty: false,
+        }];
+        let wide = vec![CodeAction {
+            title: "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW".into(),
+            edit: Some(WorkspaceEdit::default()),
+            command_edit: None,
+            command: None,
+            fix_all_mty: false,
+        }];
+
+        let narrow_w = code_action_popup_width(&mut ctx.text, &narrow, chrome);
+        let wide_w = code_action_popup_width(&mut ctx.text, &wide, chrome);
+        let measured_delta =
+            ctx.text.measure_ui_sized(&wide[0].title, chrome).0 - ctx.text.measure_ui_sized(&narrow[0].title, chrome).0;
+
+        assert!(measured_delta > 10.0, "test titles should differ in rendered width");
+        assert!(
+            wide_w >= narrow_w + measured_delta.min(200.0) - 1.0,
+            "code action popup should grow with measured title width: narrow={narrow_w} wide={wide_w}"
+        );
+    }
+
+    #[test]
     fn code_action_inset_geometry_and_hit_testing_match() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(520, 360) else {
+            return;
+        };
         let mut c = CodeActionState::new();
         let actions = vec![
             CodeAction {
@@ -2107,15 +2172,25 @@ mod tests {
         ];
         assert_eq!(c.set(actions), 2);
         let min_x = 220.0;
-        let (box_x, box_y, box_w, _box_h, pad, row_h) = c.geometry_inset(470.0, 120.0, 520, 360, min_x);
+        let (box_x, box_y, box_w, _box_h, pad, row_h) =
+            c.geometry_inset(&mut ctx.text, 470.0, 120.0, 520, 360, min_x);
         assert!(box_x >= min_x);
         assert!(box_x + box_w <= 500.0);
         assert_eq!(
-            c.click_row_inset(box_x + 24.0, box_y + pad + row_h + 3.0, 470.0, 120.0, 520, 360, min_x),
+            c.click_row_inset(
+                &mut ctx.text,
+                box_x + 24.0,
+                box_y + pad + row_h + 3.0,
+                470.0,
+                120.0,
+                520,
+                360,
+                min_x
+            ),
             1
         );
         assert_eq!(
-            c.click_row_inset(min_x - 4.0, box_y + pad + 3.0, 470.0, 120.0, 520, 360, min_x),
+            c.click_row_inset(&mut ctx.text, min_x - 4.0, box_y + pad + 3.0, 470.0, 120.0, 520, 360, min_x),
             -1
         );
     }

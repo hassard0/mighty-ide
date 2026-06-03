@@ -9207,13 +9207,15 @@ pub extern "C" fn mui_codeaction_click(handle: i64, row: i32, col: i32, total_li
     let region = layout::region(ctx.sidebar_visible);
     let cx = layout::text_x_in(region, total_lines.max(1) as u64, col);
     let cy = layout::row_y_in(region, row);
+    let (visible_w, visible_h) = visible_surface_size(ctx);
     ctx.codeaction.click_row_inset(
+        &mut ctx.text,
         ctx.last_event.x,
         ctx.last_event.y,
         cx,
         cy,
-        visible_surface_size(ctx).0,
-        visible_surface_size(ctx).1,
+        visible_w,
+        visible_h,
         region.left + 8.0,
     )
 }
