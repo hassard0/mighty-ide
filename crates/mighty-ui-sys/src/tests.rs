@@ -6320,6 +6320,8 @@ fn editor_mutating_commands_report_read_only_preview() {
     let before = ctx.tabs.active_model().as_text();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
     ctx.ghost.seed_demo("suggested", (0, 0));
+    assert_eq!(crate::ghostabi::mui_ghost_can_accept(h), 0);
+    assert_eq!(crate::ghostabi::mui_ghost_has(h), 1);
 
     for edit in [
         mui_ed_toggle_comment as extern "C" fn(i64) -> i32,
@@ -6919,6 +6921,26 @@ fn ghost_completion_dismiss_command_clears_seeded_suggestion() {
         ctx.toasts.toasts()[0].message,
         "No AI ghost completion visible"
     );
+}
+
+#[test]
+fn ghost_accept_preflight_tracks_visible_editable_suggestion() {
+    use crate::ghostabi::{mui_ghost_can_accept, mui_ghost_dismiss, mui_ghost_has};
+
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_ghost_has(h), 0);
+    assert_eq!(mui_ghost_can_accept(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    ctx.ghost.seed_demo(".push(value)", (0, 0));
+    assert_eq!(mui_ghost_has(h), 1);
+    assert_eq!(mui_ghost_can_accept(h), 1);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    mui_ghost_dismiss(h);
+    assert_eq!(mui_ghost_can_accept(h), 0);
 }
 
 #[test]
@@ -8282,9 +8304,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         main.contains("let accepted = if mui_snippet_complete_is(h) == 1")
             && main.contains("let accepted = mui_ghost_accept(h)")
             && main.contains("let accepted = mui_ghost_accept_word(h)")
+            && main.contains("if mui_ghost_can_accept(h) == 1 { mui_ed_undo_record(h) }\n            typing = false\n            let accepted = mui_ghost_accept(h)")
+            && main.contains("if mui_ghost_can_accept(h) == 1 { mui_ed_undo_record(h) }\n            let accepted = mui_ghost_accept_word(h)")
             && main.contains("if accepted > 0 {\n              mui_tab_set_dirty(h, mui_tab_active(h), 1)")
             && main.contains("if accepted == 1 {\n              mui_tab_set_dirty(h, mui_tab_active(h), 1)"),
-        "completion and ghost accept paths must only dirty after accepted edits"
+        "completion and ghost accept paths must only record undo/dirty after accepted edits"
     );
     assert!(
         main.contains("mui_snippet_can_expand(h) == 1")

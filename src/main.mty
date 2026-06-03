@@ -425,6 +425,7 @@ extern c {
   fn mui_ghost_tick(handle: I64) -> I32
   fn mui_ghost_poll(handle: I64) -> I32
   fn mui_ghost_has(handle: I64) -> I32
+  fn mui_ghost_can_accept(handle: I64) -> I32
   fn mui_ghost_accept(handle: I64) -> I32
   fn mui_ghost_accept_word(handle: I64) -> I32
   fn mui_ghost_dismiss(handle: I64)
@@ -3130,7 +3131,7 @@ fn main() {
             }
           } else if mui_ghost_has(h) == 1 {
             // (2) Tab accepts the inline AI ghost suggestion (insert at cursor).
-            mui_ed_undo_record(h)
+            if mui_ghost_can_accept(h) == 1 { mui_ed_undo_record(h) }
             typing = false
             let accepted = mui_ghost_accept(h)
             if accepted == 1 {
@@ -3178,7 +3179,7 @@ fn main() {
           if ctrl_held(kmods) && mui_ghost_has(h) == 1 {
             // Ctrl+Right with a ghost shown: partial-accept ONE word; the rest of
             // the suggestion stays as the ghost.
-            mui_ed_undo_record(h)
+            if mui_ghost_can_accept(h) == 1 { mui_ed_undo_record(h) }
             let accepted = mui_ghost_accept_word(h)
             if accepted == 1 {
               mui_tab_set_dirty(h, mui_tab_active(h), 1)

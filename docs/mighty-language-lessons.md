@@ -7485,3 +7485,13 @@ read-only feedback.
   undo only when that preflight is true, while still calling the stateful replace
   ABI so empty searches, no matches, and read-only previews keep their visible
   feedback.
+
+L602. Ghost completion accept needs an editable-buffer preflight. `mui_ghost_has`
+only means a suggestion is visible; accepting it can still be rejected when a
+read-only preview is focused, so the key path needs a stricter predicate before
+recording undo.
+
+- **IDE note:** `mui_ghost_can_accept` now reports a visible ghost on an editable
+  active tab without emitting feedback. Tab full-accept and Ctrl+Right
+  word-accept use it before `mui_ed_undo_record`, while the existing accept ABIs
+  keep the read-only warning and no-op behavior.

@@ -98,6 +98,15 @@ pub extern "C" fn mui_ghost_has(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.ghost.has_ghost()))
 }
 
+/// Silent accept preflight. Returns `1` only when a visible ghost can mutate the
+/// active buffer; the stateful accept calls still emit feedback on failures.
+#[no_mangle]
+pub extern "C" fn mui_ghost_can_accept(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| {
+        i32::from(c.ghost.has_ghost() && !c.tabs.active_read_only())
+    })
+}
+
 /// Accept the FULL suggestion: insert it at the cursor via the editor model, then
 /// clear the ghost. Returns `1` if a suggestion was accepted, else `0`.
 #[no_mangle]
@@ -262,6 +271,7 @@ mod tests {
         assert_eq!(mui_ghost_tick(0), 0);
         assert_eq!(mui_ghost_poll(0), 0);
         assert_eq!(mui_ghost_has(0), 0);
+        assert_eq!(mui_ghost_can_accept(0), 0);
         assert_eq!(mui_ghost_accept(0), 0);
         assert_eq!(mui_ghost_accept_word(0), 0);
         mui_ghost_dismiss(0);
