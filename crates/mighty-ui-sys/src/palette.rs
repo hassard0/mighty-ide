@@ -1112,18 +1112,19 @@ impl PaletteEngine {
         let fty = foot_y + (foot_h - chrome + 1.0) * 0.5 - 1.0;
         let mut fx = box_x + 18.0;
         let foot_seg = |ctx: &mut crate::MuiContext, key: &str, label: &str, fx: &mut f32| {
-            let kw = (key.chars().count() as f32 * 6.0 + 10.0).max(20.0);
+            let kw = command_footer_key_width(&mut ctx.text, key, 10.0);
             ctx.dl_round(*fx, foot_y + (foot_h - 18.0) * 0.5, kw, 18.0, 4.0, theme::BG_1());
             ctx.dl_stroke(*fx, foot_y + (foot_h - 18.0) * 0.5, kw, 18.0, 4.0, theme::BORDER_STRONG(), 1.0);
             ctx.text.queue_ui_sized(*fx + 5.0, foot_y + (foot_h - 10.0) * 0.5, key, theme::TEXT_1(), 10.0, clip);
             *fx += kw + 6.0;
             ctx.text.queue_ui_sized(*fx, fty, label, theme::OVERLAY_SUBTLE(), 11.0, clip);
-            *fx += label.chars().count() as f32 * 6.0 + 16.0;
+            *fx += command_footer_label_advance(&mut ctx.text, label, 11.0);
         };
         foot_seg(ctx, "Enter", "select", &mut fx);
         foot_seg(ctx, "esc", "dismiss", &mut fx);
         let tag = "Mighty Command Palette";
-        ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag.chars().count() as f32 * 6.3, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
+        let (tag_w, _) = ctx.text.measure_ui_sized(tag, 11.0);
+        ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag_w, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
     }
 }
 
@@ -1138,6 +1139,14 @@ fn command_field_text_x(base_x: f32, is_placeholder: bool) -> f32 {
 fn command_query_text_budget(text_x: f32, pill_x: f32, is_placeholder: bool) -> f32 {
     let trailing_gap = if is_placeholder { 24.0 } else { 14.0 };
     (pill_x - trailing_gap - text_x).max(0.0)
+}
+
+fn command_footer_key_width(text: &mut crate::text::Text, key: &str, size: f32) -> f32 {
+    (text.measure_ui_sized(key, size).0 + 10.0).max(20.0)
+}
+
+fn command_footer_label_advance(text: &mut crate::text::Text, label: &str, size: f32) -> f32 {
+    text.measure_ui_sized(label, size).0 + 16.0
 }
 
 /// Static non-contextual description for command surfaces outside the palette.
@@ -1475,6 +1484,32 @@ mod tests {
         assert!(text_x + placeholder_budget <= pill_x - 24.0);
         assert!(text_x + query_budget <= pill_x - 14.0);
         assert_eq!(command_query_text_budget(pill_x, text_x, false), 0.0);
+    }
+
+    #[test]
+    fn command_footer_key_width_uses_measured_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+
+        let short = command_footer_key_width(&mut ctx.text, "esc", 10.0);
+        let long = command_footer_key_width(&mut ctx.text, "Enter", 10.0);
+
+        assert!(short >= 20.0);
+        assert!(long > short);
+    }
+
+    #[test]
+    fn command_footer_label_advance_uses_measured_text() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+
+        let open = command_footer_label_advance(&mut ctx.text, "open", 11.0);
+        let dismiss = command_footer_label_advance(&mut ctx.text, "dismiss", 11.0);
+
+        assert!(dismiss > open);
+        assert!(open > 16.0);
     }
 
     #[test]

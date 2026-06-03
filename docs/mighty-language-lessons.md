@@ -6063,3 +6063,11 @@ shortcut labels and right-aligned the surface tag from character counts.
 - **IDE note:** Quick Open now measures footer key pills, labels, and the
   `Quick Open` tag before drawing. The footer stays aligned with proportional UI
   text just like the newer picker footers.
+
+L460. Command palette footer hints need measured text like Quick Open. Command
+Palette still advanced footer key pills, labels, and the right-side tag from
+character counts after Quick Open moved to measured footer layout.
+
+- **IDE note:** The command palette now measures footer key pills, labels, and
+  the `Mighty Command Palette` tag before drawing, keeping command footer chrome
+  aligned with proportional UI text.
