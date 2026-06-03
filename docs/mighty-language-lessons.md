@@ -7026,3 +7026,12 @@ when there is nothing to clear should not feel inert.
   for the empty-stack case. Successful clears stay silent so they do not create
   a replacement toast immediately after removing notifications, and repeated
   empty clears share one notification feedback lane.
+
+L559. Problems diagnostics need a clear action separate from close and refresh.
+Refresh recomputes diagnostics, and Close hides the dock; neither means "discard
+the current aggregated rows but keep the Problems surface available."
+
+- **IDE note:** The command palette now lists
+  `Problems: Clear Diagnostics`, calling `mui_problems_clear`. The clear path
+  drops rows, counts, and scroll, keeps the Problems dock open, reports
+  cleared/already-empty feedback, and routes through the Mighty dispatcher.

@@ -3171,6 +3171,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(problems_refresh.label, "Problems: Refresh Diagnostics");
     assert_eq!(problems_refresh.keybinding, "");
 
+    let problems_clear = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_PROBLEMS_CLEAR)
+        .unwrap();
+    assert_eq!(problems_clear.label, "Problems: Clear Diagnostics");
+    assert_eq!(problems_clear.keybinding, "");
+
     let outline_refresh = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_OUTLINE_REFRESH)
@@ -6496,6 +6503,51 @@ fn problems_close_command_acknowledges_state() {
 }
 
 #[test]
+fn problems_clear_command_clears_diagnostics_without_closing_panel() {
+    let mut ctx = ctx_or_skip!();
+    ctx.problems.set_open(true);
+    ctx.problems.aggregate(vec![(
+        std::path::PathBuf::from("C:/proj/main.mty"),
+        vec![
+            crate::diagnostics::Diag {
+                line: 1,
+                col_start: 2,
+                col_end: 3,
+                severity: crate::diagnostics::Severity::Error,
+                code: "MT1".into(),
+                message: "bad type".into(),
+            },
+            crate::diagnostics::Diag {
+                line: 3,
+                col_start: 4,
+                col_end: 5,
+                severity: crate::diagnostics::Severity::Warning,
+                code: "MT2".into(),
+                message: "unused".into(),
+            },
+        ],
+    )]);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::navsurfaces::mui_problems_clear(h), 1);
+    assert_eq!(crate::navsurfaces::mui_problems_is_open(h), 1);
+    assert_eq!(crate::navsurfaces::mui_problems_count(h), 0);
+    assert_eq!(crate::navsurfaces::mui_problems_error_count(h), 0);
+    assert_eq!(crate::navsurfaces::mui_problems_warn_count(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Problems diagnostics cleared"
+    );
+
+    assert_eq!(crate::navsurfaces::mui_problems_clear(h), 0);
+    assert_eq!(crate::navsurfaces::mui_problems_is_open(h), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Problems diagnostics already empty"
+    );
+}
+
+#[test]
 fn markdown_preview_rejects_non_markdown_active_file() {
     let mut ctx = ctx_or_skip!();
     ctx.language = crate::langdetect::Language::Mighty;
@@ -7721,6 +7773,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Problems refresh command must refresh diagnostics, aggregate Problems, and show the panel"
     );
     assert!(
+        main.contains("id == cmd_problems_clear()")
+            && main.contains("let _pc = mui_problems_clear(h)")
+            && main.contains("agents_focus = false"),
+        "Problems clear command must clear the Problems model without closing the panel"
+    );
+    assert!(
         main.contains("id == cmd_problems_close()")
             && main.contains("mui_problems_close(h)"),
         "Problems close command must route through the Problems-specific close ABI"
@@ -8083,6 +8141,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_VIEW_RUN_OUTPUT, "cmd_view_run_output"),
         (CMD_VIEW_PROBLEMS, "cmd_view_problems"),
         (CMD_PROBLEMS_REFRESH, "cmd_problems_refresh"),
+        (CMD_PROBLEMS_CLEAR, "cmd_problems_clear"),
         (CMD_PROBLEMS_CLOSE, "cmd_problems_close"),
         (CMD_VIEW_AI_COPILOT, "cmd_view_ai_copilot"),
         (CMD_INLINE_AI_ASK, "cmd_inline_ai_ask"),

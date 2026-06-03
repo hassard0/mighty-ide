@@ -409,6 +409,8 @@ pub const CMD_GIT_CLOSE_SOURCE_CONTROL: u32 = 188;
 pub const CMD_DEBUG_CLOSE: u32 = 189;
 /// Close the Explorer panel without clearing or collapsing the file tree.
 pub const CMD_EXPLORER_CLOSE: u32 = 190;
+/// Clear the Problems panel diagnostics without closing the panel.
+pub const CMD_PROBLEMS_CLEAR: u32 = 191;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -564,6 +566,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_VIEW_RUN_OUTPUT,  label: "View: Run Output",    keybinding: "" },
     Command { id: CMD_VIEW_PROBLEMS,    label: "View: Problems",      keybinding: "" },
     Command { id: CMD_PROBLEMS_REFRESH, label: "Problems: Refresh Diagnostics", keybinding: "" },
+    Command { id: CMD_PROBLEMS_CLEAR,   label: "Problems: Clear Diagnostics", keybinding: "" },
     Command { id: CMD_PROBLEMS_CLOSE,   label: "Problems: Close Panel", keybinding: "" },
     Command { id: CMD_VIEW_AI_COPILOT,  label: "View: AI Copilot",    keybinding: "Ctrl+Shift+A" },
     Command { id: CMD_INLINE_AI_ASK,    label: "AI: Inline Ask",      keybinding: "Ctrl+I" },
@@ -1115,6 +1118,7 @@ impl PaletteEngine {
             CMD_VIEW_RUN_OUTPUT => (icons::RUN, "Open the Run output panel", false),
             CMD_VIEW_PROBLEMS => (icons::ERROR_CIRCLE, "Open diagnostics and build problems", false),
             CMD_PROBLEMS_REFRESH => (icons::REFRESH, "Refresh diagnostics and show Problems", false),
+            CMD_PROBLEMS_CLEAR => (icons::CLOSE, "Clear Problems diagnostics without closing the panel", false),
             CMD_PROBLEMS_CLOSE => (icons::CLOSE, "Close the Problems panel without affecting other bottom-dock tools", false),
             CMD_VIEW_AI_COPILOT => (icons::AGENTS, "Open the AI copilot panel", false),
             CMD_INLINE_AI_ASK => (icons::AGENTS, "Ask AI about the active selection or file", false),

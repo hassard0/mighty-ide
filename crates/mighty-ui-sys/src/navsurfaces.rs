@@ -399,6 +399,21 @@ pub extern "C" fn mui_problems_close(handle: i64) -> i32 {
     0
 }
 
+/// Clear the aggregated Problems diagnostics without closing the panel. Returns
+/// `1` when rows/counts were cleared, or `0` when the model was already empty.
+#[no_mangle]
+pub extern "C" fn mui_problems_clear(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.problems.clear() {
+        ctx.push_toast(crate::toast::Kind::Info, "Problems diagnostics cleared");
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "Problems diagnostics already empty");
+    0
+}
+
 /// Total problem count.
 #[no_mangle]
 pub extern "C" fn mui_problems_count(handle: i64) -> i32 {

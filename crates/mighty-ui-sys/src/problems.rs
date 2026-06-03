@@ -128,6 +128,18 @@ impl ProblemSet {
         self.items.len()
     }
 
+    /// Clear the aggregated diagnostics while preserving the panel's open/closed
+    /// state. Returns `true` when anything changed.
+    pub fn clear(&mut self) -> bool {
+        let changed =
+            !self.items.is_empty() || self.errors != 0 || self.warnings != 0 || self.scroll != 0;
+        self.items.clear();
+        self.errors = 0;
+        self.warnings = 0;
+        self.scroll = 0;
+        changed
+    }
+
     pub fn error_count(&self) -> i32 {
         self.errors
     }
@@ -570,6 +582,27 @@ mod tests {
         assert_eq!(ps.error_count(), 0);
         assert_eq!(ps.warn_count(), 0);
         assert_eq!(ps.file_count(), 0);
+    }
+
+    #[test]
+    fn clear_drops_items_counts_and_scroll_without_closing() {
+        let mut ps = ProblemSet::new();
+        ps.set_open(true);
+        ps.aggregate(vec![(
+            PathBuf::from("/ws/a.mty"),
+            vec![
+                diag(0, 0, Severity::Error, "MT1", "e"),
+                diag(1, 0, Severity::Warning, "MT2", "w"),
+            ],
+        )]);
+        ps.scroll_by(5);
+
+        assert!(ps.clear());
+        assert!(ps.is_open());
+        assert_eq!(ps.count(), 0);
+        assert_eq!(ps.error_count(), 0);
+        assert_eq!(ps.warn_count(), 0);
+        assert!(!ps.clear());
     }
 
     #[test]
