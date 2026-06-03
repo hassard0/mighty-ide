@@ -661,6 +661,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m.starts_with("Created file")
         || m == "New file cancelled"
         || m == "New file dialog unavailable"
+        || m == "Choose a file inside the workspace"
         || m.starts_with("File already exists")
         || m.starts_with("File create failed")
     {
@@ -669,6 +670,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Folder ready")
         || m == "New folder cancelled"
         || m == "New folder dialog unavailable"
+        || m == "Choose a folder inside the workspace"
         || m.starts_with("Folder already exists")
         || m.starts_with("Folder create failed")
     {
@@ -680,6 +682,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Could not create project"
         || m == "New Project needs the Mighty compiler `mty` on PATH"
         || m.starts_with("Choose an empty folder for")
+        || m.starts_with("Could not prepare folder:")
+        || m.starts_with("Could not inspect folder:")
         || m == "Choose a project folder name"
         || m == "Choose a parent folder"
         || m == "Choose an existing parent folder"
@@ -1110,24 +1114,67 @@ mod tests {
         assert_eq!(q.len(), 2);
         assert_eq!(q.toasts()[1].message, "New file cancelled");
 
-        q.push_at(Kind::Success, "Created project: app", t0 + Duration::from_millis(900));
-        q.push_at(Kind::Info, "New project cancelled", t0 + Duration::from_millis(1000));
+        q.push_at(
+            Kind::Warn,
+            "Choose a file inside the workspace",
+            t0 + Duration::from_millis(900),
+        );
+        q.push_at(Kind::Success, "Created file: lib.mty", t0 + Duration::from_millis(1000));
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[1].message, "Created file: lib.mty");
+        assert!(!q
+            .toasts()
+            .iter()
+            .any(|t| t.message == "Choose a file inside the workspace"));
+
+        q.push_at(
+            Kind::Warn,
+            "Choose a folder inside the workspace",
+            t0 + Duration::from_millis(1100),
+        );
+        q.push_at(Kind::Success, "Created folder: src", t0 + Duration::from_millis(1200));
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Created folder: src");
+        assert!(!q
+            .toasts()
+            .iter()
+            .any(|t| t.message == "Choose a folder inside the workspace"));
+
+        q.push_at(Kind::Success, "Created project: app", t0 + Duration::from_millis(1300));
+        q.push_at(Kind::Info, "New project cancelled", t0 + Duration::from_millis(1400));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "New project cancelled");
         assert!(!q.toasts().iter().any(|t| t.message == "Created project: app"));
 
-        q.push_at(Kind::Info, "Closed 1 saved tab", t0 + Duration::from_millis(1100));
-        q.push_at(Kind::Warn, "No tab at that position", t0 + Duration::from_millis(1200));
+        q.push_at(
+            Kind::Warn,
+            "Could not prepare folder: app",
+            t0 + Duration::from_millis(1500),
+        );
+        q.push_at(
+            Kind::Warn,
+            "Could not inspect folder: app",
+            t0 + Duration::from_millis(1600),
+        );
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Could not inspect folder: app");
+        assert!(!q
+            .toasts()
+            .iter()
+            .any(|t| t.message == "Could not prepare folder: app"));
+
+        q.push_at(Kind::Info, "Closed 1 saved tab", t0 + Duration::from_millis(1700));
+        q.push_at(Kind::Warn, "No tab at that position", t0 + Duration::from_millis(1800));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "No tab at that position");
         assert!(!q.toasts().iter().any(|t| t.message == "Closed 1 saved tab"));
 
-        q.push_at(Kind::Info, "Tab is already first", t0 + Duration::from_millis(1300));
+        q.push_at(Kind::Info, "Tab is already first", t0 + Duration::from_millis(1900));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Tab is already first");
         assert!(!q.toasts().iter().any(|t| t.message == "No tab at that position"));
 
-        q.push_at(Kind::Info, "Tabs already sorted", t0 + Duration::from_millis(1400));
+        q.push_at(Kind::Info, "Tabs already sorted", t0 + Duration::from_millis(2000));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Tabs already sorted");
         assert!(!q.toasts().iter().any(|t| t.message == "Tab is already first"));
@@ -1135,12 +1182,12 @@ mod tests {
         q.push_at(
             Kind::Warn,
             "Review unsaved changes in main.mty",
-            t0 + Duration::from_millis(1500),
+            t0 + Duration::from_millis(2100),
         );
         q.push_at(
             Kind::Warn,
             "Save or discard changes before reloading",
-            t0 + Duration::from_millis(1600),
+            t0 + Duration::from_millis(2200),
         );
         assert_eq!(q.len(), 3);
         assert_eq!(
@@ -1152,8 +1199,8 @@ mod tests {
             .iter()
             .any(|t| t.message == "Review unsaved changes in main.mty"));
 
-        q.push_at(Kind::Info, "Reloaded main.mty", t0 + Duration::from_millis(1700));
-        q.push_at(Kind::Info, "Reverted main.mty", t0 + Duration::from_millis(1800));
+        q.push_at(Kind::Info, "Reloaded main.mty", t0 + Duration::from_millis(2300));
+        q.push_at(Kind::Info, "Reverted main.mty", t0 + Duration::from_millis(2400));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Reverted main.mty");
         assert!(!q.toasts().iter().any(|t| t.message == "Reloaded main.mty"));
@@ -1161,30 +1208,30 @@ mod tests {
         q.push_at(
             Kind::Error,
             "Reload failed: main.mty",
-            t0 + Duration::from_millis(1900),
+            t0 + Duration::from_millis(2500),
         );
         q.push_at(
             Kind::Info,
             "No file-backed tab to reload",
-            t0 + Duration::from_millis(2000),
+            t0 + Duration::from_millis(2600),
         );
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "No file-backed tab to reload");
         assert!(!q.toasts().iter().any(|t| t.message == "Reload failed: main.mty"));
 
-        q.push_at(Kind::Info, "Dock resized to 228px", t0 + Duration::from_millis(2100));
-        q.push_at(Kind::Info, "Sidebar resized to 310px", t0 + Duration::from_millis(2200));
+        q.push_at(Kind::Info, "Dock resized to 228px", t0 + Duration::from_millis(2700));
+        q.push_at(Kind::Info, "Sidebar resized to 310px", t0 + Duration::from_millis(2800));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Sidebar resized to 310px");
         assert!(!q.toasts().iter().any(|t| t.message == "Dock resized to 228px"));
 
-        q.push_at(Kind::Info, "Problems panel closed", t0 + Duration::from_millis(2250));
+        q.push_at(Kind::Info, "Problems panel closed", t0 + Duration::from_millis(2850));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Problems panel closed");
         assert!(!q.toasts().iter().any(|t| t.message == "Sidebar resized to 310px"));
 
-        q.push_at(Kind::Info, "Markdown preview opened", t0 + Duration::from_millis(2300));
-        q.push_at(Kind::Info, "Markdown preview closed", t0 + Duration::from_millis(2400));
+        q.push_at(Kind::Info, "Markdown preview opened", t0 + Duration::from_millis(2900));
+        q.push_at(Kind::Info, "Markdown preview closed", t0 + Duration::from_millis(3000));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Markdown preview closed");
         assert!(!q.toasts().iter().any(|t| t.message == "Markdown preview opened"));

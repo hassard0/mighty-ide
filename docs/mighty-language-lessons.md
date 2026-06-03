@@ -5712,3 +5712,13 @@ belong to the same agent-system panel workflow.
   `Agents target missing: ...`, and `Open a file before running Agents` now
   share the Agents toast replacement key. Repeated Agents panel actions keep
   the latest topology/run state visible.
+
+L421. Native create-pickers need the same creation feedback lanes as typed
+prompts. Workspace-bound file/folder picker rejects and project-folder prepare
+failures are still outcomes of create commands, not standalone warnings.
+
+- **IDE note:** `Choose a file inside the workspace` now shares the CreateFile
+  toast replacement key, `Choose a folder inside the workspace` shares
+  CreateFolder, and `Could not prepare/inspect folder: ...` shares
+  CreateProject. Repeated creation attempts keep the latest create outcome
+  visible across native and typed flows.
