@@ -9237,9 +9237,16 @@ pub extern "C" fn mui_rename_commit(handle: i64, line: i32, col: i32) -> i32 {
         we.files.push((uri, edits));
     }
 
-    let files_changed = apply_workspace_edit(ctx, &we, &new_name);
+    let result = apply_workspace_edit(ctx, &we, &new_name);
     ctx.rename.set_edit(Some(we));
+    if result.skipped_dirty > 0 {
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Skipped dirty file during workspace edit",
+        );
+    }
     ctx.rename.cancel();
+    let files_changed = result.changed;
     println!(
         "rename: commit new=\"{new_name}\" files={files_changed} fallback={fallback}"
     );
@@ -9285,15 +9292,23 @@ fn fallback_rename_edits(source: &str, symbol: &str) -> Vec<crate::language::Tex
 /// Apply a [`WorkspaceEdit`](crate::language::WorkspaceEdit) across files,
 /// substituting `new_name` for any fallback edit whose `new_text` is empty (the
 /// LSP edits already carry their text). The active file's model is mutated
-/// in-place + saved; other files are rewritten on disk and any open tab for them
-/// is reloaded. Returns the count of files actually changed.
+/// in-place + saved; other clean files are rewritten on disk and any open tab
+/// for them is reloaded. Dirty non-active tabs are left untouched.
+struct WorkspaceEditApplyResult {
+    changed: i32,
+    skipped_dirty: i32,
+}
+
 fn apply_workspace_edit(
     ctx: &mut MuiContext,
     we: &crate::language::WorkspaceEdit,
     new_name: &str,
-) -> i32 {
+) -> WorkspaceEditApplyResult {
     let current = ctx.file_path.clone();
-    let mut changed = 0i32;
+    let mut result = WorkspaceEditApplyResult {
+        changed: 0,
+        skipped_dirty: 0,
+    };
     for (uri, edits) in &we.files {
         if edits.is_empty() {
             continue;
@@ -9332,19 +9347,43 @@ fn apply_workspace_edit(
                 let _ = std::fs::write(&p, m.to_bytes());
                 mark_active_clean(ctx);
             }
-            changed += 1;
+            result.changed += 1;
         } else {
-            // Other file: read from disk, apply, write back; refresh an open tab.
+            // Other file: do not rewrite disk underneath an open dirty buffer.
+            if let Some(i) = ctx.tabs.find_by_path(&fpath) {
+                if ctx.tabs.is_dirty(i) {
+                    result.skipped_dirty += 1;
+                    println!(
+                        "workspace edit: skipped dirty non-active tab path={}",
+                        fpath.display()
+                    );
+                    continue;
+                }
+            }
+            // Other clean file: read from disk, apply, write back; refresh an open tab.
             let disk = std::fs::read(&fpath).unwrap_or_default();
             let text = String::from_utf8_lossy(&disk).into_owned();
             let edited = crate::language::apply_text_edits(&text, &edits);
             if std::fs::write(&fpath, edited.as_bytes()).is_ok() {
-                changed += 1;
+                result.changed += 1;
                 let _ = ctx.tabs.reload_clean_path(&fpath, edited.as_bytes());
             }
         }
     }
-    changed
+    result
+}
+
+fn toast_codeaction_workspace_result(ctx: &mut MuiContext, result: &WorkspaceEditApplyResult) {
+    if result.skipped_dirty > 0 {
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Skipped dirty file during workspace edit",
+        );
+    } else if result.changed > 0 {
+        ctx.push_toast(crate::toast::Kind::Success, "Applied code action");
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Code action produced no edit");
+    }
 }
 
 /// Draw the rename inline input. No-op when inactive.
@@ -9626,25 +9665,17 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
     // Inline-edit action.
     if let Some(we) = &action.edit {
         let we = we.clone();
-        let changed = apply_workspace_edit(ctx, &we, "");
-        println!("codeaction: apply edit files={changed}");
-        if changed > 0 {
-            ctx.push_toast(crate::toast::Kind::Success, "Applied code action");
-        } else {
-            ctx.push_toast(crate::toast::Kind::Info, "Code action produced no edit");
-        }
-        return i32::from(changed > 0);
+        let result = apply_workspace_edit(ctx, &we, "");
+        println!("codeaction: apply edit files={}", result.changed);
+        toast_codeaction_workspace_result(ctx, &result);
+        return i32::from(result.changed > 0);
     }
     if let Some(we) = &action.command_edit {
         let we = we.clone();
-        let changed = apply_workspace_edit(ctx, &we, "");
-        println!("codeaction: apply command-edit files={changed}");
-        if changed > 0 {
-            ctx.push_toast(crate::toast::Kind::Success, "Applied code action");
-        } else {
-            ctx.push_toast(crate::toast::Kind::Info, "Code action produced no edit");
-        }
-        return i32::from(changed > 0);
+        let result = apply_workspace_edit(ctx, &we, "");
+        println!("codeaction: apply command-edit files={}", result.changed);
+        toast_codeaction_workspace_result(ctx, &result);
+        return i32::from(result.changed > 0);
     }
     if let Some(command) = &action.command {
         let Some(path) = ctx.file_path.clone() else {
@@ -9656,14 +9687,13 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         let raw = lsp_execute_command_raw(ctx.language, &path, &source, command);
         let we = crate::language::parse_workspace_edit(&raw);
         if !we.is_empty() {
-            let changed = apply_workspace_edit(ctx, &we, "");
-            println!("codeaction: execute command={} files={changed}", command.command);
-            if changed > 0 {
-                ctx.push_toast(crate::toast::Kind::Success, "Applied code action");
-            } else {
-                ctx.push_toast(crate::toast::Kind::Info, "Code action produced no edit");
-            }
-            return i32::from(changed > 0);
+            let result = apply_workspace_edit(ctx, &we, "");
+            println!(
+                "codeaction: execute command={} files={}",
+                command.command, result.changed
+            );
+            toast_codeaction_workspace_result(ctx, &result);
+            return i32::from(result.changed > 0);
         }
         println!("codeaction: execute command={} no-edit", command.command);
         ctx.push_toast(crate::toast::Kind::Info, "Code action produced no edit");
