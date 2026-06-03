@@ -388,6 +388,22 @@ pub extern "C" fn mui_scm_msg_len(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.scm.message.len() as i32)
 }
 
+/// Clear the commit-message draft without refreshing or changing git status.
+/// Returns `1` when a draft was cleared, or `0` when it was already empty.
+#[no_mangle]
+pub extern "C" fn mui_scm_clear_message(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.scm.message.is_empty() {
+        ctx.push_toast(crate::toast::Kind::Info, "Source Control message already empty");
+        return 0;
+    }
+    ctx.scm.message.clear();
+    ctx.push_toast(crate::toast::Kind::Info, "Source Control message cleared");
+    1
+}
+
 /// Commit the staged changes with the current message, then clear it + refresh.
 /// Returns `1` on success, `0` on failure (nothing staged / empty msg / error).
 #[no_mangle]

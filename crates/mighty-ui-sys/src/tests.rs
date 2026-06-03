@@ -3075,6 +3075,16 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(commit_staged.label, "Git: Commit Staged");
 
+    let clear_commit_message = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_GIT_CLEAR_COMMIT_MESSAGE)
+        .unwrap();
+    assert_eq!(
+        clear_commit_message.label,
+        "Source Control: Clear Commit Message"
+    );
+    assert_eq!(clear_commit_message.keybinding, "");
+
     let refresh_scm = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_GIT_REFRESH_SOURCE_CONTROL)
@@ -4693,6 +4703,46 @@ fn scm_close_command_preserves_status_and_message() {
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Source Control panel is already closed"
+    );
+}
+
+#[test]
+fn scm_clear_message_command_preserves_status_and_panel() {
+    let mut ctx = ctx_or_skip!();
+    ctx.active_panel = crate::PANEL_SCM;
+    ctx.sidebar_visible = true;
+    ctx.scm.root = Some(std::path::PathBuf::from("repo"));
+    ctx.scm.status.branch = "feature/source-control".to_string();
+    ctx.scm.status.ahead = 2;
+    ctx.scm.status.behind = 1;
+    ctx.scm.status.entries.push(crate::scm::ScmEntry {
+        path: "src/main.mty".to_string(),
+        staged: true,
+        status: 'M',
+    });
+    for ch in "commit draft".chars() {
+        ctx.scm.message.push(ch);
+    }
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_scm_clear_message(h), 1);
+    assert_eq!(ctx.active_panel, crate::PANEL_SCM);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(ctx.scm.message_string(), "");
+    assert_eq!(ctx.scm.status.branch, "feature/source-control");
+    assert_eq!(ctx.scm.status.ahead, 2);
+    assert_eq!(ctx.scm.status.behind, 1);
+    assert_eq!(ctx.scm.count(), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Source Control message cleared"
+    );
+
+    assert_eq!(crate::panels::mui_scm_clear_message(h), 0);
+    assert_eq!(ctx.scm.count(), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Source Control message already empty"
     );
 }
 
@@ -7766,6 +7816,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Source Control close command must use the SCM-specific close ABI without clearing git state"
     );
     assert!(
+        main.contains("id == cmd_git_clear_commit_message()")
+            && main.contains("let _gcm = mui_scm_clear_message(h)")
+            && main.contains("find_nav = false"),
+        "Source Control clear-message command must clear only the commit draft"
+    );
+    assert!(
         main.contains("id == cmd_problems_refresh()")
             && main.contains("let _dr = mui_diag_refresh(h)")
             && main.contains("let _pr = mui_problems_refresh(h)")
@@ -8121,6 +8177,10 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (
             CMD_GIT_CLOSE_SOURCE_CONTROL,
             "cmd_git_close_source_control",
+        ),
+        (
+            CMD_GIT_CLEAR_COMMIT_MESSAGE,
+            "cmd_git_clear_commit_message",
         ),
         (CMD_VIEW_EXPLORER, "cmd_view_explorer"),
         (CMD_VIEW_SEARCH, "cmd_view_search"),

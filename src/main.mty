@@ -262,6 +262,7 @@ extern c {
   fn mui_scm_msg_push(handle: I64, codepoint: I32)
   fn mui_scm_msg_backspace(handle: I64)
   fn mui_scm_msg_len(handle: I64) -> I32
+  fn mui_scm_clear_message(handle: I64) -> I32
   fn mui_scm_commit(handle: I64) -> I32
   fn mui_scm_draw(handle: I64)
   // Search panel (project-wide find/replace)
@@ -804,6 +805,7 @@ fn cmd_git_close_source_control() -> I32 { 188 }
 fn cmd_debug_close() -> I32 { 189 }
 fn cmd_explorer_close() -> I32 { 190 }
 fn cmd_problems_clear() -> I32 { 191 }
+fn cmd_git_clear_commit_message() -> I32 { 192 }
 fn cmd_diff_close_view() -> I32 { 158 }
 fn cmd_git_hide_blame() -> I32 { 159 }
 fn cmd_peek_close() -> I32 { 160 }
@@ -4375,6 +4377,10 @@ fn main() {
         } else if id == cmd_git_commit_staged() {
           let _gc = mui_scm_commit(h)
           let _r = mui_scm_refresh(h)
+        } else if id == cmd_git_clear_commit_message() {
+          let _gcm = mui_scm_clear_message(h)
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_git_refresh_source_control() {
           let _vp = mui_panel_set(h, panel_scm())
           let _r = mui_scm_refresh(h)

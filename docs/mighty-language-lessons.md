@@ -7035,3 +7035,13 @@ the current aggregated rows but keep the Problems surface available."
   `Problems: Clear Diagnostics`, calling `mui_problems_clear`. The clear path
   drops rows, counts, and scroll, keeps the Problems dock open, reports
   cleared/already-empty feedback, and routes through the Mighty dispatcher.
+
+L560. Source Control draft text needs its own clear command. Refreshing git
+status should not discard a commit message, and closing Source Control should
+preserve it; users still need an explicit way to throw away the draft.
+
+- **IDE note:** The command palette now lists
+  `Source Control: Clear Commit Message`, calling `mui_scm_clear_message`. The
+  command clears only the shim-owned commit-message buffer, preserves git status
+  rows and the active Source Control panel, reports cleared/already-empty
+  feedback, and routes through the Mighty dispatcher.
