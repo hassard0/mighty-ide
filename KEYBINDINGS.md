@@ -37,6 +37,7 @@ the `mui_chord` router). This table is the authoritative list.
 | `Ctrl+D` | Select word / add caret at next occurrence |
 | `Ctrl+Alt+Up` | Add caret above |
 | `Ctrl+Alt+Down` | Add caret below |
+| `Esc` | Collapse to primary caret |
 | `Alt+Click` | Toggle a caret at the click point |
 
 ## Navigation & code-reading

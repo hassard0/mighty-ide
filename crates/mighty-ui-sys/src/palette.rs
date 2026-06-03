@@ -276,6 +276,14 @@ pub const CMD_MOVE_DOCUMENT_END: u32 = 122;
 pub const CMD_MOVE_LINE_START: u32 = 123;
 /// Move each active editor caret to the end of its line.
 pub const CMD_MOVE_LINE_END: u32 = 124;
+/// Add a caret at the next occurrence of the active selection/word.
+pub const CMD_ADD_CARET_NEXT_OCCURRENCE: u32 = 125;
+/// Add a caret on the line above the primary caret.
+pub const CMD_ADD_CARET_ABOVE: u32 = 126;
+/// Add a caret on the line below the primary caret.
+pub const CMD_ADD_CARET_BELOW: u32 = 127;
+/// Collapse all editor carets back to the primary caret.
+pub const CMD_COLLAPSE_CARETS: u32 = 128;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -344,6 +352,10 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_MOVE_DOCUMENT_END, label: "Edit: Move Cursor to Document End", keybinding: "Ctrl+End" },
     Command { id: CMD_MOVE_LINE_START, label: "Edit: Move Cursor to Line Start", keybinding: "Home" },
     Command { id: CMD_MOVE_LINE_END, label: "Edit: Move Cursor to Line End", keybinding: "End" },
+    Command { id: CMD_ADD_CARET_NEXT_OCCURRENCE, label: "Edit: Add Cursor to Next Occurrence", keybinding: "Ctrl+D" },
+    Command { id: CMD_ADD_CARET_ABOVE, label: "Edit: Add Cursor Above", keybinding: "Ctrl+Alt+Up" },
+    Command { id: CMD_ADD_CARET_BELOW, label: "Edit: Add Cursor Below", keybinding: "Ctrl+Alt+Down" },
+    Command { id: CMD_COLLAPSE_CARETS, label: "Edit: Collapse Multiple Cursors", keybinding: "Esc" },
     Command { id: CMD_DUPLICATE_LINE_SELECTION, label: "Edit: Duplicate Line or Selection", keybinding: "Ctrl+Shift+D" },
     Command { id: CMD_MOVE_LINE_UP,     label: "Edit: Move Line Up", keybinding: "Alt+Up" },
     Command { id: CMD_MOVE_LINE_DOWN,   label: "Edit: Move Line Down", keybinding: "Alt+Down" },
@@ -754,6 +766,10 @@ impl PaletteEngine {
             CMD_MOVE_DOCUMENT_END => (icons::ARROW_DOWN, "Move the cursor to the end of the document", false),
             CMD_MOVE_LINE_START => (icons::ARROW_LEFT, "Move the cursor to the smart start of the line", false),
             CMD_MOVE_LINE_END => (icons::ARROW_RIGHT, "Move the cursor to the end of the line", false),
+            CMD_ADD_CARET_NEXT_OCCURRENCE => (icons::PLUS, "Add a cursor at the next matching occurrence", false),
+            CMD_ADD_CARET_ABOVE => (icons::ARROW_UP, "Add another cursor on the line above", false),
+            CMD_ADD_CARET_BELOW => (icons::ARROW_DOWN, "Add another cursor on the line below", false),
+            CMD_COLLAPSE_CARETS => (icons::CLOSE, "Return to a single primary cursor", false),
             CMD_DUPLICATE_LINE_SELECTION => (icons::PLUS, "Duplicate the active line or selection", false),
             CMD_MOVE_LINE_UP => (icons::ARROW_UP, "Move the active line or selection upward", false),
             CMD_MOVE_LINE_DOWN => (icons::ARROW_DOWN, "Move the active line or selection downward", false),

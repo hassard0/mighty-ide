@@ -733,6 +733,10 @@ fn cmd_move_document_start() -> I32 { 121 }
 fn cmd_move_document_end() -> I32 { 122 }
 fn cmd_move_line_start() -> I32 { 123 }
 fn cmd_move_line_end() -> I32 { 124 }
+fn cmd_add_caret_next_occurrence() -> I32 { 125 }
+fn cmd_add_caret_above() -> I32 { 126 }
+fn cmd_add_caret_below() -> I32 { 127 }
+fn cmd_collapse_carets() -> I32 { 128 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -3703,6 +3707,27 @@ fn main() {
         } else if id == cmd_select_word() {
           let _sw = mui_ed_select_word(h)
           find_nav = false
+        } else if id == cmd_add_caret_next_occurrence() || id == cmd_add_caret_above() || id == cmd_add_caret_below() || id == cmd_collapse_carets() {
+          find_nav = false
+          typing = false
+          if id == cmd_collapse_carets() {
+            mui_hover_clear(h)
+            hovering = false
+            mui_sig_clear(h)
+            sig_open = false
+            mui_ghost_dismiss(h)
+            mui_snippet_cancel(h)
+            mui_ed_collapse_carets(h)
+          } else if id == cmd_add_caret_next_occurrence() {
+            let _cn = mui_ed_add_caret_next(h)
+          } else {
+            mui_ghost_dismiss(h)
+            if id == cmd_add_caret_above() {
+              let _ca = mui_ed_add_caret_above(h)
+            } else {
+              let _cb = mui_ed_add_caret_below(h)
+            }
+          }
         } else if id == cmd_select_all() || id == cmd_select_line() {
           mui_complete_cancel(h)
           completing = false

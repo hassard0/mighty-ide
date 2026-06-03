@@ -6226,6 +6226,13 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_MOVE_LINE_START, "cmd_move_line_start"),
         (CMD_MOVE_LINE_END, "cmd_move_line_end"),
         (
+            CMD_ADD_CARET_NEXT_OCCURRENCE,
+            "cmd_add_caret_next_occurrence",
+        ),
+        (CMD_ADD_CARET_ABOVE, "cmd_add_caret_above"),
+        (CMD_ADD_CARET_BELOW, "cmd_add_caret_below"),
+        (CMD_COLLAPSE_CARETS, "cmd_collapse_carets"),
+        (
             CMD_DUPLICATE_LINE_SELECTION,
             "cmd_duplicate_line_selection",
         ),

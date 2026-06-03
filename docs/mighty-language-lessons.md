@@ -5895,3 +5895,12 @@ document-boundary commands leaves the palette navigation set oddly incomplete.
   and `Edit: Move Cursor to Line End`. Mighty dispatches through
   `mui_ed_home_smart_multi` and `mui_ed_move_ext_multi(...dir_end...)`, and the
   shortcut table now documents Home/End next to Ctrl+Home/Ctrl+End.
+
+L441. Multi-cursor commands should be palette-reachable. The command palette
+exposed Select Word, but not the actions that build and clear multiple cursors.
+
+- **IDE note:** the command palette now lists `Edit: Add Cursor to Next
+  Occurrence`, `Edit: Add Cursor Above`, `Edit: Add Cursor Below`, and
+  `Edit: Collapse Multiple Cursors`. Mighty dispatches through the existing
+  multi-caret ABI, preserving Ctrl+D, Ctrl+Alt+Up/Down, and Esc behavior without
+  adding new editor key-ladder arms.
