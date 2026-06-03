@@ -6002,3 +6002,12 @@ field still drew long queries until they reached the close button.
 - **IDE note:** The shortcuts overlay now fits the filter text against the close
   button boundary and derives the caret position from the measured fitted text.
   Long shortcut searches ellipsize before crossing into the overlay controls.
+
+L453. Branch picker text needs pixel budgets, not character-count approximations.
+The branch switcher fitted neither its filter/create input nor branch names
+against the close button and current/remote badges.
+
+- **IDE note:** Branch picker header input now fits measured text before the
+  close button and places the caret from rendered width. Branch row names fit
+  against the badge gutter, so long local or remote branch names ellipsize
+  before touching `current` or `remote` labels.

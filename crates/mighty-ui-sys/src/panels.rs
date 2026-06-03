@@ -914,6 +914,19 @@ fn branch_picker_close_rect(width: u32, height: u32, rows: usize) -> (f32, f32, 
     (box_x + box_w - 38.0, box_y + 13.0, 24.0, 24.0)
 }
 
+fn branch_picker_query_budget(query_x: f32, close_x: f32, is_placeholder: bool) -> f32 {
+    let trailing_gap = if is_placeholder { 24.0 } else { 14.0 };
+    (close_x - trailing_gap - query_x).max(0.0)
+}
+
+fn branch_picker_entry_name_right(box_x: f32, box_w: f32, has_badge: bool) -> f32 {
+    if has_badge {
+        box_x + box_w - 72.0
+    } else {
+        box_x + box_w - 20.0
+    }
+}
+
 /// Select the branch-picker row under the last click. Returns the selected row
 /// index, `-2` for the close button, or `-1` if the click missed the picker rows.
 #[no_mangle]
@@ -1141,17 +1154,24 @@ fn draw_branch_picker(p: &crate::scm::BranchPicker, ctx: &mut MuiContext, width:
     let title = if creating { "Create Branch" } else { "Switch Branch" };
     ctx.text.queue_ui_sized(box_x + 40.0, box_y + 8.0, title, theme::TEXT(), 13.0, clip);
     let q = p.query_string();
+    let (cx, cy, cw, ch) = branch_picker_close_rect(width, height, rows);
     let (qtext, qcol) = if q.is_empty() {
         let ph = if creating { "New branch name\u{2026}" } else { "Filter branches\u{2026}" };
         (ph.to_string(), theme::TEXT_3())
     } else {
         (q.clone(), theme::TEXT())
     };
-    ctx.text.queue_ui_sized(box_x + 40.0, box_y + 26.0, &qtext, qcol, chrome, clip);
-    let qadv = chrome * 0.52;
-    let caret_x = box_x + 40.0 + q.chars().count() as f32 * qadv + 1.0;
+    let query_x = box_x + 40.0;
+    let query_budget = branch_picker_query_budget(query_x, cx, q.is_empty());
+    let qtext = fit_head_px(&mut ctx.text, &qtext, query_budget, chrome);
+    ctx.text.queue_ui_sized(query_x, box_y + 26.0, &qtext, qcol, chrome, clip);
+    let (q_w, _) = ctx.text.measure_ui_sized(&qtext, chrome);
+    let caret_x = if q.is_empty() {
+        query_x + 1.0
+    } else {
+        (query_x + q_w + 1.0).min(cx - 14.0)
+    };
     ctx.dl_round(caret_x, box_y + 25.0, 2.0, 15.0, 1.0, theme::ACCENT_BRIGHT());
-    let (cx, cy, cw, ch) = branch_picker_close_rect(width, height, rows);
     ctx.dl_round(cx, cy, cw, ch, 6.0, theme::BG_2());
     ctx.dl_stroke(cx, cy, cw, ch, 6.0, theme::BORDER_STRONG(), 1.0);
     ctx.dl_icon(cx + 5.0, cy + 5.0, 14.0, 14.0, icons::CLOSE, theme::TEXT_1(), 1.6, false);
@@ -1181,12 +1201,10 @@ fn draw_branch_picker(p: &crate::scm::BranchPicker, ctx: &mut MuiContext, width:
             };
             ctx.dl_icon(box_x + 18.0, ry + (row_h - 14.0) * 0.5, 14.0, 14.0, icon, icol, 1.5, false);
             let name_col = if e.current { theme::GREEN() } else { theme::TEXT_1() };
-            let mut nm = e.name.clone();
-            let avail = ((box_w - 110.0) / qadv).floor() as usize;
-            if nm.chars().count() > avail && avail > 4 {
-                nm = nm.chars().take(avail - 1).collect::<String>() + "\u{2026}";
-            }
-            ctx.text.queue_ui_sized(box_x + 42.0, ry + (row_h - chrome) * 0.5 - 1.0, &nm, name_col, chrome, clip);
+            let name_x = box_x + 42.0;
+            let name_right = branch_picker_entry_name_right(box_x, box_w, e.current || e.remote);
+            let nm = fit_head_px(&mut ctx.text, &e.name, (name_right - name_x).max(0.0), chrome);
+            ctx.text.queue_ui_sized(name_x, ry + (row_h - chrome) * 0.5 - 1.0, &nm, name_col, chrome, clip);
             if e.current {
                 ctx.text.queue_ui_sized(box_x + box_w - 64.0, ry + (row_h - (chrome - 2.0)) * 0.5 - 1.0, "current", theme::GREEN(), chrome - 2.0, clip);
             } else if e.remote {
@@ -1577,7 +1595,10 @@ mod search_panel_tests {
 
 #[cfg(test)]
 mod branch_picker_surface_tests {
-    use super::{branch_picker_close_rect, branch_picker_geometry};
+    use super::{
+        branch_picker_close_rect, branch_picker_entry_name_right, branch_picker_geometry,
+        branch_picker_query_budget,
+    };
 
     #[test]
     fn branch_close_rect_stays_inside_header() {
@@ -1589,6 +1610,34 @@ mod branch_picker_surface_tests {
         assert!(cx + cw <= box_x + box_w);
         assert!(cy >= box_y);
         assert!(cy + ch < list_top);
+    }
+
+    #[test]
+    fn branch_query_budget_stops_before_close_button() {
+        let rows = 6;
+        let (box_x, _box_y, _box_w, _box_h, _list_top, _row_h) =
+            branch_picker_geometry(860, 560, rows);
+        let (close_x, _close_y, _close_w, _close_h) = branch_picker_close_rect(860, 560, rows);
+        let query_x = box_x + 40.0;
+        let placeholder_budget = branch_picker_query_budget(query_x, close_x, true);
+        let query_budget = branch_picker_query_budget(query_x, close_x, false);
+
+        assert!(placeholder_budget < query_budget);
+        assert!(query_x + placeholder_budget <= close_x - 24.0);
+        assert!(query_x + query_budget <= close_x - 14.0);
+        assert_eq!(branch_picker_query_budget(close_x, query_x, false), 0.0);
+    }
+
+    #[test]
+    fn branch_row_name_budget_reserves_badge_space() {
+        let (box_x, _box_y, box_w, _box_h, _list_top, _row_h) =
+            branch_picker_geometry(860, 560, 6);
+        let plain_right = branch_picker_entry_name_right(box_x, box_w, false);
+        let badge_right = branch_picker_entry_name_right(box_x, box_w, true);
+
+        assert!(badge_right < plain_right);
+        assert!(badge_right <= box_x + box_w - 72.0);
+        assert!(plain_right <= box_x + box_w - 20.0);
     }
 }
 
