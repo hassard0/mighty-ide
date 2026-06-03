@@ -347,6 +347,8 @@ pub const CMD_AGENTS_CLEAR_RUN_OUTPUT: u32 = 157;
 pub const CMD_DIFF_CLOSE_VIEW: u32 = 158;
 /// Hide the git blame gutter without toggling it back on.
 pub const CMD_GIT_HIDE_BLAME: u32 = 159;
+/// Close the inline Peek Definition card and return to editing.
+pub const CMD_PEEK_CLOSE: u32 = 160;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -360,165 +362,806 @@ pub const CMD_WINDOW_MINIMIZE: u32 = 98;
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
-    Command { id: CMD_NEW_FILE,         label: "File: New File...", keybinding: "Ctrl+N" },
-    Command { id: CMD_NEW_UNTITLED_FILE, label: "File: New Untitled File", keybinding: "" },
-    Command { id: CMD_NEW_WORKSPACE_FILE, label: "Explorer: New File in Workspace...", keybinding: "" },
-    Command { id: CMD_NEW_FOLDER,       label: "Explorer: New Folder...",   keybinding: "Ctrl+Shift+N" },
-    Command { id: CMD_OPEN_FILE,        label: "File: Open File...", keybinding: "Ctrl+O" },
-    Command { id: CMD_SAVE,             label: "File: Save",         keybinding: "Ctrl+S" },
-    Command { id: CMD_SAVE_AS,          label: "File: Save As...",   keybinding: "Ctrl+Shift+S" },
-    Command { id: CMD_SAVE_ALL,         label: "File: Save All",     keybinding: "Ctrl+Alt+S" },
-    Command { id: CMD_RENAME_ACTIVE_FILE, label: "File: Rename Active File", keybinding: "" },
-    Command { id: CMD_REVEAL_ACTIVE_FILE, label: "File: Reveal Active File in File Tree", keybinding: "" },
-    Command { id: CMD_EXPLORER_REFRESH, label: "Explorer: Refresh",   keybinding: "" },
-    Command { id: CMD_EXPLORER_COLLAPSE_ALL, label: "Explorer: Collapse All Folders", keybinding: "" },
-    Command { id: CMD_REVEAL_ACTIVE_FILE_IN_OS, label: "File: Show Active File in File Manager", keybinding: "" },
-    Command { id: CMD_COPY_ACTIVE_FILE_PATH, label: "File: Copy Active File Path", keybinding: "" },
-    Command { id: CMD_COPY_ACTIVE_FILE_RELATIVE_PATH, label: "File: Copy Active File Relative Path", keybinding: "" },
-    Command { id: CMD_COPY_ACTIVE_FILE_NAME, label: "File: Copy Active File Name", keybinding: "" },
-    Command { id: CMD_COPY_ACTIVE_FILE_DIRECTORY, label: "File: Copy Active File Directory", keybinding: "" },
-    Command { id: CMD_DELETE_ACTIVE_FILE, label: "File: Delete Active File", keybinding: "" },
-    Command { id: CMD_CLEAR_NOTIFICATIONS, label: "Notifications: Clear All Toasts", keybinding: "" },
-    Command { id: CMD_QUICK_OPEN,       label: "Quick Open",          keybinding: "Ctrl+P" },
-    Command { id: CMD_FIND,             label: "Find",               keybinding: "Ctrl+F" },
-    Command { id: CMD_FIND_REPLACE,     label: "Find & Replace",     keybinding: "Ctrl+H" },
-    Command { id: CMD_GOTO_LINE,        label: "Go to Line",         keybinding: "Ctrl+G" },
-    Command { id: CMD_GOTO_DEFINITION,  label: "Go to Definition",   keybinding: "F12" },
-    Command { id: CMD_HOVER,            label: "Show Hover",         keybinding: "Ctrl+K" },
-    Command { id: CMD_SIGNATURE_HELP,   label: "Show Signature Help", keybinding: "Ctrl+Shift+Space" },
-    Command { id: CMD_RENAME_SYMBOL,    label: "Rename Symbol",      keybinding: "F2" },
-    Command { id: CMD_CODE_ACTIONS,     label: "Code Actions",       keybinding: "Ctrl+." },
-    Command { id: CMD_TOGGLE_TERMINAL,  label: "Toggle Terminal",    keybinding: "Ctrl+`" },
-    Command { id: CMD_TOGGLE_SIDEBAR,   label: "Toggle Sidebar",     keybinding: "Ctrl+B" },
-    Command { id: CMD_NEXT_TAB,         label: "Next Tab",           keybinding: "Ctrl+Tab" },
-    Command { id: CMD_PREV_TAB,         label: "Previous Tab",       keybinding: "Ctrl+Shift+Tab" },
-    Command { id: CMD_CLOSE_TAB,        label: "Close Tab",          keybinding: "Ctrl+W" },
-    Command { id: CMD_CLOSE_SAVED_TABS, label: "File: Close Saved Tabs", keybinding: "" },
-    Command { id: CMD_CLOSE_OTHER_SAVED_TABS, label: "File: Close Other Saved Tabs", keybinding: "" },
-    Command { id: CMD_CLOSE_SAVED_TABS_TO_RIGHT, label: "File: Close Saved Tabs to the Right", keybinding: "" },
-    Command { id: CMD_CLOSE_SAVED_TABS_TO_LEFT, label: "File: Close Saved Tabs to the Left", keybinding: "" },
-    Command { id: CMD_REOPEN_CLOSED_TAB, label: "File: Reopen Closed Tab", keybinding: "Ctrl+Alt+T" },
-    Command { id: CMD_DUPLICATE_ACTIVE_TAB, label: "File: Duplicate Active Tab", keybinding: "" },
-    Command { id: CMD_MOVE_ACTIVE_TAB_LEFT, label: "File: Move Active Tab Left", keybinding: "Ctrl+Shift+PageUp" },
-    Command { id: CMD_MOVE_ACTIVE_TAB_RIGHT, label: "File: Move Active Tab Right", keybinding: "Ctrl+Shift+PageDown" },
-    Command { id: CMD_SORT_TABS_BY_NAME, label: "File: Sort Open Tabs by Name", keybinding: "" },
-    Command { id: CMD_CLOSE_DUPLICATE_TABS, label: "File: Close Duplicate Tabs", keybinding: "" },
-    Command { id: CMD_RELOAD_ACTIVE_FILE, label: "File: Reload Active File from Disk", keybinding: "" },
-    Command { id: CMD_REVERT_ACTIVE_FILE, label: "File: Revert Active File from Disk", keybinding: "" },
-    Command { id: CMD_SELECT_ALL,       label: "Edit: Select All", keybinding: "Ctrl+A" },
-    Command { id: CMD_SELECT_LINE,      label: "Edit: Select Line", keybinding: "Ctrl+L" },
-    Command { id: CMD_SELECT_WORD,      label: "Edit: Select Word", keybinding: "Ctrl+D (first press)" },
-    Command { id: CMD_TOGGLE_LINE_COMMENT, label: "Edit: Toggle Line Comment", keybinding: "Ctrl+/" },
-    Command { id: CMD_COPY_SELECTION_OR_LINE, label: "Edit: Copy Selection or Line", keybinding: "Ctrl+C" },
-    Command { id: CMD_CUT_SELECTION_OR_LINE, label: "Edit: Cut Selection or Line", keybinding: "Ctrl+X" },
-    Command { id: CMD_PASTE_IN_EDITOR,  label: "Edit: Paste", keybinding: "Ctrl+V" },
-    Command { id: CMD_DELETE_PREVIOUS_WORD, label: "Edit: Delete Previous Word", keybinding: "Ctrl+Backspace" },
-    Command { id: CMD_DELETE_NEXT_WORD, label: "Edit: Delete Next Word", keybinding: "Ctrl+Delete" },
-    Command { id: CMD_INDENT_LINE_SELECTION, label: "Edit: Indent Line or Selection", keybinding: "Tab" },
-    Command { id: CMD_OUTDENT_LINE_SELECTION, label: "Edit: Outdent Line or Selection", keybinding: "Shift+Tab" },
-    Command { id: CMD_MOVE_WORD_LEFT, label: "Edit: Move Cursor Word Left", keybinding: "Ctrl+Left" },
-    Command { id: CMD_MOVE_WORD_RIGHT, label: "Edit: Move Cursor Word Right", keybinding: "Ctrl+Right" },
-    Command { id: CMD_MOVE_DOCUMENT_START, label: "Edit: Move Cursor to Document Start", keybinding: "Ctrl+Home" },
-    Command { id: CMD_MOVE_DOCUMENT_END, label: "Edit: Move Cursor to Document End", keybinding: "Ctrl+End" },
-    Command { id: CMD_MOVE_LINE_START, label: "Edit: Move Cursor to Line Start", keybinding: "Home" },
-    Command { id: CMD_MOVE_LINE_END, label: "Edit: Move Cursor to Line End", keybinding: "End" },
-    Command { id: CMD_ADD_CARET_NEXT_OCCURRENCE, label: "Edit: Add Cursor to Next Occurrence", keybinding: "Ctrl+D" },
-    Command { id: CMD_ADD_CARET_ABOVE, label: "Edit: Add Cursor Above", keybinding: "Ctrl+Alt+Up" },
-    Command { id: CMD_ADD_CARET_BELOW, label: "Edit: Add Cursor Below", keybinding: "Ctrl+Alt+Down" },
-    Command { id: CMD_COLLAPSE_CARETS, label: "Edit: Collapse Multiple Cursors", keybinding: "Esc" },
-    Command { id: CMD_DUPLICATE_LINE_SELECTION, label: "Edit: Duplicate Line or Selection", keybinding: "Ctrl+Shift+D" },
-    Command { id: CMD_MOVE_LINE_UP,     label: "Edit: Move Line Up", keybinding: "Alt+Up" },
-    Command { id: CMD_MOVE_LINE_DOWN,   label: "Edit: Move Line Down", keybinding: "Alt+Down" },
-    Command { id: CMD_DELETE_LINE,      label: "Edit: Delete Line", keybinding: "Ctrl+Shift+K" },
-    Command { id: CMD_JOIN_LINE,        label: "Edit: Join Line",   keybinding: "Ctrl+J" },
-    Command { id: CMD_FORMAT_DOCUMENT,  label: "Format Document",    keybinding: "Ctrl+Shift+I" },
-    Command { id: CMD_UNDO,             label: "Undo",               keybinding: "Ctrl+Z" },
-    Command { id: CMD_REDO,             label: "Redo",               keybinding: "Ctrl+Y" },
-    Command { id: CMD_AUTOCOMPLETE,     label: "Trigger Autocomplete", keybinding: "Ctrl+Space" },
-    Command { id: CMD_JUMP_BACK,        label: "Jump Back",          keybinding: "" },
-    Command { id: CMD_QUIT,             label: "Quit",               keybinding: "Esc / close" },
-    Command { id: CMD_COLOR_THEME,      label: "Preferences: Color Theme", keybinding: "" },
-    Command { id: CMD_RUN_FILE,         label: "Run File",           keybinding: "Ctrl+Shift+R" },
-    Command { id: CMD_RUN_STOP,         label: "Run: Stop Process",  keybinding: "" },
-    Command { id: CMD_RUN_CLEAR_OUTPUT, label: "Run: Clear Output",  keybinding: "" },
-    Command { id: CMD_SETTINGS,         label: "Preferences: Settings", keybinding: "Ctrl+," },
-    Command { id: CMD_ZOOM_IN,          label: "View: Zoom In",      keybinding: "Ctrl+=" },
-    Command { id: CMD_ZOOM_OUT,         label: "View: Zoom Out",     keybinding: "Ctrl+-" },
-    Command { id: CMD_ZOOM_RESET,       label: "View: Reset Zoom",   keybinding: "Ctrl+0" },
-    Command { id: CMD_RUN_TESTS,        label: "Run Tests",          keybinding: "Ctrl+Shift+T" },
-    Command { id: CMD_RUN_TEST_AT_CURSOR, label: "Run Test at Cursor", keybinding: "" },
-    Command { id: CMD_TEST_STOP,        label: "Test: Stop Run",     keybinding: "" },
-    Command { id: CMD_TEST_CLEAR_RESULTS, label: "Test: Clear Results", keybinding: "" },
-    Command { id: CMD_PEEK_DEFINITION,  label: "Peek Definition",    keybinding: "Alt+F12" },
-    Command { id: CMD_WELCOME,          label: "Welcome",            keybinding: "" },
-    Command { id: CMD_ZEN_MODE,         label: "Toggle Zen Mode",    keybinding: "Alt+Z" },
-    Command { id: CMD_AGENTS,           label: "Mighty: Agents",     keybinding: "Alt+G" },
-    Command { id: CMD_AGENTS_REFRESH,   label: "Mighty Agents: Refresh Topology", keybinding: "" },
-    Command { id: CMD_AGENTS_CLEAR_RUN_OUTPUT, label: "Mighty Agents: Clear Run Output", keybinding: "" },
-    Command { id: CMD_GIT_SWITCH_BRANCH, label: "Git: Switch Branch", keybinding: "" },
-    Command { id: CMD_GIT_PUSH,         label: "Git: Push",          keybinding: "" },
-    Command { id: CMD_GIT_PULL,         label: "Git: Pull",          keybinding: "" },
-    Command { id: CMD_GIT_FETCH,        label: "Git: Fetch",         keybinding: "" },
-    Command { id: CMD_GIT_TOGGLE_BLAME, label: "Git: Toggle Blame",  keybinding: "Alt+B" },
-    Command { id: CMD_GIT_HIDE_BLAME,   label: "Git: Hide Blame",    keybinding: "" },
-    Command { id: CMD_GIT_STAGE_ALL,    label: "Git: Stage All",     keybinding: "" },
-    Command { id: CMD_GIT_UNSTAGE_ALL,  label: "Git: Unstage All",   keybinding: "" },
-    Command { id: CMD_GIT_COMMIT_STAGED, label: "Git: Commit Staged", keybinding: "" },
-    Command { id: CMD_GIT_REFRESH_SOURCE_CONTROL, label: "Git: Refresh Source Control", keybinding: "" },
-    Command { id: CMD_VIEW_EXPLORER,    label: "View: Explorer",      keybinding: "" },
-    Command { id: CMD_VIEW_SEARCH,      label: "View: Search",        keybinding: "Ctrl+Shift+F" },
-    Command { id: CMD_SEARCH_RUN,       label: "Search: Run Search",   keybinding: "" },
-    Command { id: CMD_SEARCH_REPLACE_ALL, label: "Search: Replace All", keybinding: "" },
-    Command { id: CMD_SEARCH_TOGGLE_REPLACE, label: "Search: Toggle Replace Field", keybinding: "" },
-    Command { id: CMD_VIEW_SOURCE_CONTROL, label: "View: Source Control", keybinding: "Ctrl+Shift+G" },
-    Command { id: CMD_VIEW_OUTLINE,     label: "View: Outline",       keybinding: "" },
-    Command { id: CMD_OUTLINE_REFRESH,  label: "Outline: Refresh Symbols", keybinding: "" },
-    Command { id: CMD_VIEW_RUN_DEBUG,   label: "View: Run and Debug", keybinding: "" },
-    Command { id: CMD_VIEW_TESTING,     label: "View: Testing",       keybinding: "" },
-    Command { id: CMD_VIEW_RUN_OUTPUT,  label: "View: Run Output",    keybinding: "" },
-    Command { id: CMD_VIEW_PROBLEMS,    label: "View: Problems",      keybinding: "" },
-    Command { id: CMD_PROBLEMS_REFRESH, label: "Problems: Refresh Diagnostics", keybinding: "" },
-    Command { id: CMD_VIEW_AI_COPILOT,  label: "View: AI Copilot",    keybinding: "Ctrl+Shift+A" },
-    Command { id: CMD_INLINE_AI_ASK,    label: "AI: Inline Ask",      keybinding: "Ctrl+I" },
-    Command { id: CMD_FORCE_GHOST_COMPLETION, label: "AI: Force Ghost Completion", keybinding: "Alt+\\" },
-    Command { id: CMD_AI_CLEAR_CHAT,    label: "AI: Clear Chat",      keybinding: "" },
-    Command { id: CMD_AI_CLOSE,         label: "View: Close AI Copilot", keybinding: "" },
-    Command { id: CMD_SIDEBAR_CLOSE,    label: "View: Close Sidebar", keybinding: "" },
-    Command { id: CMD_VIEW_TERMINAL,    label: "View: Terminal",      keybinding: "Ctrl+`" },
-    Command { id: CMD_VIEW_WEB_PLAYGROUND, label: "View: Web Playground", keybinding: "" },
-    Command { id: CMD_DIFF_CLOSE_VIEW,  label: "Diff: Close View",    keybinding: "" },
-    Command { id: CMD_DOCK_COMPACT,     label: "View: Bottom Dock Compact", keybinding: "" },
-    Command { id: CMD_DOCK_RESET,       label: "View: Bottom Dock Default Size", keybinding: "" },
-    Command { id: CMD_DOCK_EXPANDED,    label: "View: Bottom Dock Expanded", keybinding: "" },
-    Command { id: CMD_DOCK_CLOSE,       label: "View: Close Bottom Dock", keybinding: "" },
-    Command { id: CMD_SIDEBAR_COMPACT,  label: "View: Sidebar Compact", keybinding: "" },
-    Command { id: CMD_SIDEBAR_DEFAULT,  label: "View: Sidebar Default Width", keybinding: "" },
-    Command { id: CMD_SIDEBAR_WIDE,     label: "View: Sidebar Wide", keybinding: "" },
-    Command { id: CMD_SIDEBAR_CYCLE_WIDTH, label: "View: Cycle Sidebar Width", keybinding: "Ctrl+Alt+B" },
-    Command { id: CMD_WINDOW_TOGGLE_MAXIMIZE, label: "Window: Toggle Maximize", keybinding: "" },
-    Command { id: CMD_WINDOW_MINIMIZE,  label: "Window: Minimize", keybinding: "" },
-    Command { id: CMD_DEBUG_START_CONTINUE, label: "Debug: Start / Continue", keybinding: "F5" },
-    Command { id: CMD_DEBUG_STOP,       label: "Debug: Stop",         keybinding: "Shift+F5" },
-    Command { id: CMD_DEBUG_STEP_OVER,  label: "Debug: Step Over",    keybinding: "F10" },
-    Command { id: CMD_DEBUG_STEP_INTO,  label: "Debug: Step Into",    keybinding: "F11" },
-    Command { id: CMD_DEBUG_STEP_OUT,   label: "Debug: Step Out",     keybinding: "Shift+F11" },
-    Command { id: CMD_DEBUG_PAUSE,      label: "Debug: Pause",        keybinding: "" },
-    Command { id: CMD_DEBUG_RESTART,    label: "Debug: Restart",      keybinding: "" },
-    Command { id: CMD_RUN_IN_BROWSER,   label: "Mighty: Run in Browser", keybinding: "Alt+W" },
-    Command { id: CMD_WEB_STOP,         label: "Web: Stop Server",    keybinding: "" },
-    Command { id: CMD_WEB_OPEN_BROWSER, label: "Web: Open in Browser", keybinding: "" },
-    Command { id: CMD_WEB_CLEAR_OUTPUT, label: "Web: Clear Output",   keybinding: "" },
-    Command { id: CMD_SPLIT_RIGHT,      label: "Split Editor Right", keybinding: "Ctrl+\\" },
-    Command { id: CMD_FOCUS_NEXT_PANE,  label: "Focus Next Editor Pane", keybinding: "Ctrl+1 / Ctrl+2" },
-    Command { id: CMD_CLOSE_PANE,       label: "Close Editor Pane",  keybinding: "" },
-    Command { id: CMD_MARKDOWN_PREVIEW, label: "Markdown: Open Preview", keybinding: "Ctrl+Shift+V" },
-    Command { id: CMD_OPEN_FOLDER,      label: "File: Open Folder...", keybinding: "Ctrl+Shift+O" },
-    Command { id: CMD_OPEN_RECENT,      label: "File: Open Recent",   keybinding: "" },
-    Command { id: CMD_KEYBOARD_SHORTCUTS, label: "Help: Keyboard Shortcuts", keybinding: "Ctrl+Shift+/" },
-    Command { id: CMD_FOLD_TOGGLE,      label: "Fold: Toggle at Cursor",  keybinding: "Ctrl+Shift+[" },
-    Command { id: CMD_FOLD_ALL,         label: "Fold: Fold All",          keybinding: "" },
-    Command { id: CMD_UNFOLD_ALL,       label: "Fold: Unfold All",        keybinding: "" },
-    Command { id: CMD_NEW_PROJECT,      label: "Mighty: New Project...",     keybinding: "" },
+    Command {
+        id: CMD_NEW_FILE,
+        label: "File: New File...",
+        keybinding: "Ctrl+N",
+    },
+    Command {
+        id: CMD_NEW_UNTITLED_FILE,
+        label: "File: New Untitled File",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_NEW_WORKSPACE_FILE,
+        label: "Explorer: New File in Workspace...",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_NEW_FOLDER,
+        label: "Explorer: New Folder...",
+        keybinding: "Ctrl+Shift+N",
+    },
+    Command {
+        id: CMD_OPEN_FILE,
+        label: "File: Open File...",
+        keybinding: "Ctrl+O",
+    },
+    Command {
+        id: CMD_SAVE,
+        label: "File: Save",
+        keybinding: "Ctrl+S",
+    },
+    Command {
+        id: CMD_SAVE_AS,
+        label: "File: Save As...",
+        keybinding: "Ctrl+Shift+S",
+    },
+    Command {
+        id: CMD_SAVE_ALL,
+        label: "File: Save All",
+        keybinding: "Ctrl+Alt+S",
+    },
+    Command {
+        id: CMD_RENAME_ACTIVE_FILE,
+        label: "File: Rename Active File",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_REVEAL_ACTIVE_FILE,
+        label: "File: Reveal Active File in File Tree",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_EXPLORER_REFRESH,
+        label: "Explorer: Refresh",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_EXPLORER_COLLAPSE_ALL,
+        label: "Explorer: Collapse All Folders",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_REVEAL_ACTIVE_FILE_IN_OS,
+        label: "File: Show Active File in File Manager",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_COPY_ACTIVE_FILE_PATH,
+        label: "File: Copy Active File Path",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_COPY_ACTIVE_FILE_RELATIVE_PATH,
+        label: "File: Copy Active File Relative Path",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_COPY_ACTIVE_FILE_NAME,
+        label: "File: Copy Active File Name",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_COPY_ACTIVE_FILE_DIRECTORY,
+        label: "File: Copy Active File Directory",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_DELETE_ACTIVE_FILE,
+        label: "File: Delete Active File",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_CLEAR_NOTIFICATIONS,
+        label: "Notifications: Clear All Toasts",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_QUICK_OPEN,
+        label: "Quick Open",
+        keybinding: "Ctrl+P",
+    },
+    Command {
+        id: CMD_FIND,
+        label: "Find",
+        keybinding: "Ctrl+F",
+    },
+    Command {
+        id: CMD_FIND_REPLACE,
+        label: "Find & Replace",
+        keybinding: "Ctrl+H",
+    },
+    Command {
+        id: CMD_GOTO_LINE,
+        label: "Go to Line",
+        keybinding: "Ctrl+G",
+    },
+    Command {
+        id: CMD_GOTO_DEFINITION,
+        label: "Go to Definition",
+        keybinding: "F12",
+    },
+    Command {
+        id: CMD_HOVER,
+        label: "Show Hover",
+        keybinding: "Ctrl+K",
+    },
+    Command {
+        id: CMD_SIGNATURE_HELP,
+        label: "Show Signature Help",
+        keybinding: "Ctrl+Shift+Space",
+    },
+    Command {
+        id: CMD_RENAME_SYMBOL,
+        label: "Rename Symbol",
+        keybinding: "F2",
+    },
+    Command {
+        id: CMD_CODE_ACTIONS,
+        label: "Code Actions",
+        keybinding: "Ctrl+.",
+    },
+    Command {
+        id: CMD_TOGGLE_TERMINAL,
+        label: "Toggle Terminal",
+        keybinding: "Ctrl+`",
+    },
+    Command {
+        id: CMD_TOGGLE_SIDEBAR,
+        label: "Toggle Sidebar",
+        keybinding: "Ctrl+B",
+    },
+    Command {
+        id: CMD_NEXT_TAB,
+        label: "Next Tab",
+        keybinding: "Ctrl+Tab",
+    },
+    Command {
+        id: CMD_PREV_TAB,
+        label: "Previous Tab",
+        keybinding: "Ctrl+Shift+Tab",
+    },
+    Command {
+        id: CMD_CLOSE_TAB,
+        label: "Close Tab",
+        keybinding: "Ctrl+W",
+    },
+    Command {
+        id: CMD_CLOSE_SAVED_TABS,
+        label: "File: Close Saved Tabs",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_CLOSE_OTHER_SAVED_TABS,
+        label: "File: Close Other Saved Tabs",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_CLOSE_SAVED_TABS_TO_RIGHT,
+        label: "File: Close Saved Tabs to the Right",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_CLOSE_SAVED_TABS_TO_LEFT,
+        label: "File: Close Saved Tabs to the Left",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_REOPEN_CLOSED_TAB,
+        label: "File: Reopen Closed Tab",
+        keybinding: "Ctrl+Alt+T",
+    },
+    Command {
+        id: CMD_DUPLICATE_ACTIVE_TAB,
+        label: "File: Duplicate Active Tab",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_MOVE_ACTIVE_TAB_LEFT,
+        label: "File: Move Active Tab Left",
+        keybinding: "Ctrl+Shift+PageUp",
+    },
+    Command {
+        id: CMD_MOVE_ACTIVE_TAB_RIGHT,
+        label: "File: Move Active Tab Right",
+        keybinding: "Ctrl+Shift+PageDown",
+    },
+    Command {
+        id: CMD_SORT_TABS_BY_NAME,
+        label: "File: Sort Open Tabs by Name",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_CLOSE_DUPLICATE_TABS,
+        label: "File: Close Duplicate Tabs",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_RELOAD_ACTIVE_FILE,
+        label: "File: Reload Active File from Disk",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_REVERT_ACTIVE_FILE,
+        label: "File: Revert Active File from Disk",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_SELECT_ALL,
+        label: "Edit: Select All",
+        keybinding: "Ctrl+A",
+    },
+    Command {
+        id: CMD_SELECT_LINE,
+        label: "Edit: Select Line",
+        keybinding: "Ctrl+L",
+    },
+    Command {
+        id: CMD_SELECT_WORD,
+        label: "Edit: Select Word",
+        keybinding: "Ctrl+D (first press)",
+    },
+    Command {
+        id: CMD_TOGGLE_LINE_COMMENT,
+        label: "Edit: Toggle Line Comment",
+        keybinding: "Ctrl+/",
+    },
+    Command {
+        id: CMD_COPY_SELECTION_OR_LINE,
+        label: "Edit: Copy Selection or Line",
+        keybinding: "Ctrl+C",
+    },
+    Command {
+        id: CMD_CUT_SELECTION_OR_LINE,
+        label: "Edit: Cut Selection or Line",
+        keybinding: "Ctrl+X",
+    },
+    Command {
+        id: CMD_PASTE_IN_EDITOR,
+        label: "Edit: Paste",
+        keybinding: "Ctrl+V",
+    },
+    Command {
+        id: CMD_DELETE_PREVIOUS_WORD,
+        label: "Edit: Delete Previous Word",
+        keybinding: "Ctrl+Backspace",
+    },
+    Command {
+        id: CMD_DELETE_NEXT_WORD,
+        label: "Edit: Delete Next Word",
+        keybinding: "Ctrl+Delete",
+    },
+    Command {
+        id: CMD_INDENT_LINE_SELECTION,
+        label: "Edit: Indent Line or Selection",
+        keybinding: "Tab",
+    },
+    Command {
+        id: CMD_OUTDENT_LINE_SELECTION,
+        label: "Edit: Outdent Line or Selection",
+        keybinding: "Shift+Tab",
+    },
+    Command {
+        id: CMD_MOVE_WORD_LEFT,
+        label: "Edit: Move Cursor Word Left",
+        keybinding: "Ctrl+Left",
+    },
+    Command {
+        id: CMD_MOVE_WORD_RIGHT,
+        label: "Edit: Move Cursor Word Right",
+        keybinding: "Ctrl+Right",
+    },
+    Command {
+        id: CMD_MOVE_DOCUMENT_START,
+        label: "Edit: Move Cursor to Document Start",
+        keybinding: "Ctrl+Home",
+    },
+    Command {
+        id: CMD_MOVE_DOCUMENT_END,
+        label: "Edit: Move Cursor to Document End",
+        keybinding: "Ctrl+End",
+    },
+    Command {
+        id: CMD_MOVE_LINE_START,
+        label: "Edit: Move Cursor to Line Start",
+        keybinding: "Home",
+    },
+    Command {
+        id: CMD_MOVE_LINE_END,
+        label: "Edit: Move Cursor to Line End",
+        keybinding: "End",
+    },
+    Command {
+        id: CMD_ADD_CARET_NEXT_OCCURRENCE,
+        label: "Edit: Add Cursor to Next Occurrence",
+        keybinding: "Ctrl+D",
+    },
+    Command {
+        id: CMD_ADD_CARET_ABOVE,
+        label: "Edit: Add Cursor Above",
+        keybinding: "Ctrl+Alt+Up",
+    },
+    Command {
+        id: CMD_ADD_CARET_BELOW,
+        label: "Edit: Add Cursor Below",
+        keybinding: "Ctrl+Alt+Down",
+    },
+    Command {
+        id: CMD_COLLAPSE_CARETS,
+        label: "Edit: Collapse Multiple Cursors",
+        keybinding: "Esc",
+    },
+    Command {
+        id: CMD_DUPLICATE_LINE_SELECTION,
+        label: "Edit: Duplicate Line or Selection",
+        keybinding: "Ctrl+Shift+D",
+    },
+    Command {
+        id: CMD_MOVE_LINE_UP,
+        label: "Edit: Move Line Up",
+        keybinding: "Alt+Up",
+    },
+    Command {
+        id: CMD_MOVE_LINE_DOWN,
+        label: "Edit: Move Line Down",
+        keybinding: "Alt+Down",
+    },
+    Command {
+        id: CMD_DELETE_LINE,
+        label: "Edit: Delete Line",
+        keybinding: "Ctrl+Shift+K",
+    },
+    Command {
+        id: CMD_JOIN_LINE,
+        label: "Edit: Join Line",
+        keybinding: "Ctrl+J",
+    },
+    Command {
+        id: CMD_FORMAT_DOCUMENT,
+        label: "Format Document",
+        keybinding: "Ctrl+Shift+I",
+    },
+    Command {
+        id: CMD_UNDO,
+        label: "Undo",
+        keybinding: "Ctrl+Z",
+    },
+    Command {
+        id: CMD_REDO,
+        label: "Redo",
+        keybinding: "Ctrl+Y",
+    },
+    Command {
+        id: CMD_AUTOCOMPLETE,
+        label: "Trigger Autocomplete",
+        keybinding: "Ctrl+Space",
+    },
+    Command {
+        id: CMD_JUMP_BACK,
+        label: "Jump Back",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_QUIT,
+        label: "Quit",
+        keybinding: "Esc / close",
+    },
+    Command {
+        id: CMD_COLOR_THEME,
+        label: "Preferences: Color Theme",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_RUN_FILE,
+        label: "Run File",
+        keybinding: "Ctrl+Shift+R",
+    },
+    Command {
+        id: CMD_RUN_STOP,
+        label: "Run: Stop Process",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_RUN_CLEAR_OUTPUT,
+        label: "Run: Clear Output",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_SETTINGS,
+        label: "Preferences: Settings",
+        keybinding: "Ctrl+,",
+    },
+    Command {
+        id: CMD_ZOOM_IN,
+        label: "View: Zoom In",
+        keybinding: "Ctrl+=",
+    },
+    Command {
+        id: CMD_ZOOM_OUT,
+        label: "View: Zoom Out",
+        keybinding: "Ctrl+-",
+    },
+    Command {
+        id: CMD_ZOOM_RESET,
+        label: "View: Reset Zoom",
+        keybinding: "Ctrl+0",
+    },
+    Command {
+        id: CMD_RUN_TESTS,
+        label: "Run Tests",
+        keybinding: "Ctrl+Shift+T",
+    },
+    Command {
+        id: CMD_RUN_TEST_AT_CURSOR,
+        label: "Run Test at Cursor",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_TEST_STOP,
+        label: "Test: Stop Run",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_TEST_CLEAR_RESULTS,
+        label: "Test: Clear Results",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_PEEK_DEFINITION,
+        label: "Peek Definition",
+        keybinding: "Alt+F12",
+    },
+    Command {
+        id: CMD_PEEK_CLOSE,
+        label: "Peek: Close View",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_WELCOME,
+        label: "Welcome",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_ZEN_MODE,
+        label: "Toggle Zen Mode",
+        keybinding: "Alt+Z",
+    },
+    Command {
+        id: CMD_AGENTS,
+        label: "Mighty: Agents",
+        keybinding: "Alt+G",
+    },
+    Command {
+        id: CMD_AGENTS_REFRESH,
+        label: "Mighty Agents: Refresh Topology",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_AGENTS_CLEAR_RUN_OUTPUT,
+        label: "Mighty Agents: Clear Run Output",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_GIT_SWITCH_BRANCH,
+        label: "Git: Switch Branch",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_GIT_PUSH,
+        label: "Git: Push",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_GIT_PULL,
+        label: "Git: Pull",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_GIT_FETCH,
+        label: "Git: Fetch",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_GIT_TOGGLE_BLAME,
+        label: "Git: Toggle Blame",
+        keybinding: "Alt+B",
+    },
+    Command {
+        id: CMD_GIT_HIDE_BLAME,
+        label: "Git: Hide Blame",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_GIT_STAGE_ALL,
+        label: "Git: Stage All",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_GIT_UNSTAGE_ALL,
+        label: "Git: Unstage All",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_GIT_COMMIT_STAGED,
+        label: "Git: Commit Staged",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_GIT_REFRESH_SOURCE_CONTROL,
+        label: "Git: Refresh Source Control",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_VIEW_EXPLORER,
+        label: "View: Explorer",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_VIEW_SEARCH,
+        label: "View: Search",
+        keybinding: "Ctrl+Shift+F",
+    },
+    Command {
+        id: CMD_SEARCH_RUN,
+        label: "Search: Run Search",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_SEARCH_REPLACE_ALL,
+        label: "Search: Replace All",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_SEARCH_TOGGLE_REPLACE,
+        label: "Search: Toggle Replace Field",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_VIEW_SOURCE_CONTROL,
+        label: "View: Source Control",
+        keybinding: "Ctrl+Shift+G",
+    },
+    Command {
+        id: CMD_VIEW_OUTLINE,
+        label: "View: Outline",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_OUTLINE_REFRESH,
+        label: "Outline: Refresh Symbols",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_VIEW_RUN_DEBUG,
+        label: "View: Run and Debug",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_VIEW_TESTING,
+        label: "View: Testing",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_VIEW_RUN_OUTPUT,
+        label: "View: Run Output",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_VIEW_PROBLEMS,
+        label: "View: Problems",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_PROBLEMS_REFRESH,
+        label: "Problems: Refresh Diagnostics",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_VIEW_AI_COPILOT,
+        label: "View: AI Copilot",
+        keybinding: "Ctrl+Shift+A",
+    },
+    Command {
+        id: CMD_INLINE_AI_ASK,
+        label: "AI: Inline Ask",
+        keybinding: "Ctrl+I",
+    },
+    Command {
+        id: CMD_FORCE_GHOST_COMPLETION,
+        label: "AI: Force Ghost Completion",
+        keybinding: "Alt+\\",
+    },
+    Command {
+        id: CMD_AI_CLEAR_CHAT,
+        label: "AI: Clear Chat",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_AI_CLOSE,
+        label: "View: Close AI Copilot",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_SIDEBAR_CLOSE,
+        label: "View: Close Sidebar",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_VIEW_TERMINAL,
+        label: "View: Terminal",
+        keybinding: "Ctrl+`",
+    },
+    Command {
+        id: CMD_VIEW_WEB_PLAYGROUND,
+        label: "View: Web Playground",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_DIFF_CLOSE_VIEW,
+        label: "Diff: Close View",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_DOCK_COMPACT,
+        label: "View: Bottom Dock Compact",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_DOCK_RESET,
+        label: "View: Bottom Dock Default Size",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_DOCK_EXPANDED,
+        label: "View: Bottom Dock Expanded",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_DOCK_CLOSE,
+        label: "View: Close Bottom Dock",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_SIDEBAR_COMPACT,
+        label: "View: Sidebar Compact",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_SIDEBAR_DEFAULT,
+        label: "View: Sidebar Default Width",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_SIDEBAR_WIDE,
+        label: "View: Sidebar Wide",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_SIDEBAR_CYCLE_WIDTH,
+        label: "View: Cycle Sidebar Width",
+        keybinding: "Ctrl+Alt+B",
+    },
+    Command {
+        id: CMD_WINDOW_TOGGLE_MAXIMIZE,
+        label: "Window: Toggle Maximize",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_WINDOW_MINIMIZE,
+        label: "Window: Minimize",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_DEBUG_START_CONTINUE,
+        label: "Debug: Start / Continue",
+        keybinding: "F5",
+    },
+    Command {
+        id: CMD_DEBUG_STOP,
+        label: "Debug: Stop",
+        keybinding: "Shift+F5",
+    },
+    Command {
+        id: CMD_DEBUG_STEP_OVER,
+        label: "Debug: Step Over",
+        keybinding: "F10",
+    },
+    Command {
+        id: CMD_DEBUG_STEP_INTO,
+        label: "Debug: Step Into",
+        keybinding: "F11",
+    },
+    Command {
+        id: CMD_DEBUG_STEP_OUT,
+        label: "Debug: Step Out",
+        keybinding: "Shift+F11",
+    },
+    Command {
+        id: CMD_DEBUG_PAUSE,
+        label: "Debug: Pause",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_DEBUG_RESTART,
+        label: "Debug: Restart",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_RUN_IN_BROWSER,
+        label: "Mighty: Run in Browser",
+        keybinding: "Alt+W",
+    },
+    Command {
+        id: CMD_WEB_STOP,
+        label: "Web: Stop Server",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_WEB_OPEN_BROWSER,
+        label: "Web: Open in Browser",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_WEB_CLEAR_OUTPUT,
+        label: "Web: Clear Output",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_SPLIT_RIGHT,
+        label: "Split Editor Right",
+        keybinding: "Ctrl+\\",
+    },
+    Command {
+        id: CMD_FOCUS_NEXT_PANE,
+        label: "Focus Next Editor Pane",
+        keybinding: "Ctrl+1 / Ctrl+2",
+    },
+    Command {
+        id: CMD_CLOSE_PANE,
+        label: "Close Editor Pane",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_MARKDOWN_PREVIEW,
+        label: "Markdown: Open Preview",
+        keybinding: "Ctrl+Shift+V",
+    },
+    Command {
+        id: CMD_OPEN_FOLDER,
+        label: "File: Open Folder...",
+        keybinding: "Ctrl+Shift+O",
+    },
+    Command {
+        id: CMD_OPEN_RECENT,
+        label: "File: Open Recent",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_KEYBOARD_SHORTCUTS,
+        label: "Help: Keyboard Shortcuts",
+        keybinding: "Ctrl+Shift+/",
+    },
+    Command {
+        id: CMD_FOLD_TOGGLE,
+        label: "Fold: Toggle at Cursor",
+        keybinding: "Ctrl+Shift+[",
+    },
+    Command {
+        id: CMD_FOLD_ALL,
+        label: "Fold: Fold All",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_UNFOLD_ALL,
+        label: "Fold: Unfold All",
+        keybinding: "",
+    },
+    Command {
+        id: CMD_NEW_PROJECT,
+        label: "Mighty: New Project...",
+        keybinding: "",
+    },
 ];
 
 /// Match quality for ranking. Lower sorts first.
@@ -542,7 +1185,9 @@ fn score(label: &str, query_lc: &str) -> Option<Rank> {
     let label_lc = label.to_ascii_lowercase();
     score_exact(&label_lc, query_lc).or_else(|| {
         let compact = collapse_repeated_chars(query_lc);
-        (compact != query_lc).then(|| score_exact(&label_lc, &compact)).flatten()
+        (compact != query_lc)
+            .then(|| score_exact(&label_lc, &compact))
+            .flatten()
     })
 }
 
@@ -880,77 +1525,273 @@ impl PaletteEngine {
         use crate::icons;
         // (icon path, description, fill?)
         match id {
-            CMD_NEW_FILE => (icons::NEW_FILE, "Choose a folder and filename before creating the tab", false),
-            CMD_NEW_UNTITLED_FILE => (icons::NEW_FILE, "Start a temporary editor tab with no disk path", false),
-            CMD_NEW_WORKSPACE_FILE => (icons::NEW_FILE, "Use the native picker, starting near the workspace", false),
-            CMD_NEW_FOLDER => (icons::NEW_FOLDER, "Choose or create a folder with the native picker", false),
-            CMD_OPEN_FILE => (icons::NEW_FILE, "Choose an existing file with the native picker", false),
+            CMD_NEW_FILE => (
+                icons::NEW_FILE,
+                "Choose a folder and filename before creating the tab",
+                false,
+            ),
+            CMD_NEW_UNTITLED_FILE => (
+                icons::NEW_FILE,
+                "Start a temporary editor tab with no disk path",
+                false,
+            ),
+            CMD_NEW_WORKSPACE_FILE => (
+                icons::NEW_FILE,
+                "Use the native picker, starting near the workspace",
+                false,
+            ),
+            CMD_NEW_FOLDER => (
+                icons::NEW_FOLDER,
+                "Choose or create a folder with the native picker",
+                false,
+            ),
+            CMD_OPEN_FILE => (
+                icons::NEW_FILE,
+                "Choose an existing file with the native picker",
+                false,
+            ),
             CMD_SAVE => (icons::FILE_MTY, "Write the active file to disk", false),
-            CMD_SAVE_AS => (icons::FILE_MTY, "Save the active file with the native Save As dialog", false),
-            CMD_SAVE_ALL => (icons::FILE_MTY, "Write dirty tabs and ask where untitled files should live", false),
+            CMD_SAVE_AS => (
+                icons::FILE_MTY,
+                "Save the active file with the native Save As dialog",
+                false,
+            ),
+            CMD_SAVE_ALL => (
+                icons::FILE_MTY,
+                "Write dirty tabs and ask where untitled files should live",
+                false,
+            ),
             CMD_RENAME_ACTIVE_FILE => (icons::FILE_MTY, "Rename the active file on disk", false),
-            CMD_REVEAL_ACTIVE_FILE => (icons::SEARCH, "Show the active file in the IDE file tree", false),
-            CMD_EXPLORER_REFRESH => (icons::REFRESH, "Refresh the Explorer tree and file index", false),
-            CMD_EXPLORER_COLLAPSE_ALL => (icons::COLLAPSE, "Collapse all expanded Explorer folders", false),
-            CMD_REVEAL_ACTIVE_FILE_IN_OS => (icons::EXPLORER, "Show the active file in the OS file manager", false),
-            CMD_COPY_ACTIVE_FILE_PATH => (icons::FILE_MTY, "Copy the active file path to the clipboard", false),
-            CMD_COPY_ACTIVE_FILE_RELATIVE_PATH => (icons::FILE_MTY, "Copy the workspace-relative path", false),
+            CMD_REVEAL_ACTIVE_FILE => (
+                icons::SEARCH,
+                "Show the active file in the IDE file tree",
+                false,
+            ),
+            CMD_EXPLORER_REFRESH => (
+                icons::REFRESH,
+                "Refresh the Explorer tree and file index",
+                false,
+            ),
+            CMD_EXPLORER_COLLAPSE_ALL => (
+                icons::COLLAPSE,
+                "Collapse all expanded Explorer folders",
+                false,
+            ),
+            CMD_REVEAL_ACTIVE_FILE_IN_OS => (
+                icons::EXPLORER,
+                "Show the active file in the OS file manager",
+                false,
+            ),
+            CMD_COPY_ACTIVE_FILE_PATH => (
+                icons::FILE_MTY,
+                "Copy the active file path to the clipboard",
+                false,
+            ),
+            CMD_COPY_ACTIVE_FILE_RELATIVE_PATH => {
+                (icons::FILE_MTY, "Copy the workspace-relative path", false)
+            }
             CMD_COPY_ACTIVE_FILE_NAME => (icons::FILE_MTY, "Copy just the active file name", false),
-            CMD_COPY_ACTIVE_FILE_DIRECTORY => (icons::FOLDER, "Copy the active file's containing folder", false),
-            CMD_DELETE_ACTIVE_FILE => (icons::ERROR_CIRCLE, "Delete the active file after confirmation", false),
-            CMD_CLEAR_NOTIFICATIONS => (icons::CLOSE, "Dismiss every visible toast notification", false),
-            CMD_QUICK_OPEN => (icons::SEARCH, "Open files, commands, symbols, or line jumps", false),
+            CMD_COPY_ACTIVE_FILE_DIRECTORY => (
+                icons::FOLDER,
+                "Copy the active file's containing folder",
+                false,
+            ),
+            CMD_DELETE_ACTIVE_FILE => (
+                icons::ERROR_CIRCLE,
+                "Delete the active file after confirmation",
+                false,
+            ),
+            CMD_CLEAR_NOTIFICATIONS => (
+                icons::CLOSE,
+                "Dismiss every visible toast notification",
+                false,
+            ),
+            CMD_QUICK_OPEN => (
+                icons::SEARCH,
+                "Open files, commands, symbols, or line jumps",
+                false,
+            ),
             CMD_FIND => (icons::SEARCH, "Search within the current document", false),
-            CMD_FIND_REPLACE => (icons::SEARCH, "Search and replace within the current document", false),
+            CMD_FIND_REPLACE => (
+                icons::SEARCH,
+                "Search and replace within the current document",
+                false,
+            ),
             CMD_GOTO_LINE => (icons::CHEVRON, "Jump to a specific line number", false),
             CMD_GOTO_DEFINITION => (icons::FN_SYMBOL, "Navigate to the symbol definition", false),
             CMD_HOVER => (icons::INFO_I, "Show type & docs at the cursor", false),
-            CMD_SIGNATURE_HELP => (icons::INFO_I, "Show callable parameters at the cursor", false),
-            CMD_RENAME_SYMBOL => (icons::FN_SYMBOL, "Rename the symbol under the cursor", false),
-            CMD_CODE_ACTIONS => (icons::LIGHTBULB, "Show quick fixes and code actions at the cursor", false),
+            CMD_SIGNATURE_HELP => (
+                icons::INFO_I,
+                "Show callable parameters at the cursor",
+                false,
+            ),
+            CMD_RENAME_SYMBOL => (
+                icons::FN_SYMBOL,
+                "Rename the symbol under the cursor",
+                false,
+            ),
+            CMD_CODE_ACTIONS => (
+                icons::LIGHTBULB,
+                "Show quick fixes and code actions at the cursor",
+                false,
+            ),
             CMD_TOGGLE_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
             CMD_TOGGLE_SIDEBAR => (icons::EXPLORER, "Show or hide the file explorer", false),
             CMD_NEXT_TAB => (icons::CHEVRON, "Switch to the next open tab", false),
             CMD_PREV_TAB => (icons::CHEVRON, "Switch to the previous open tab", false),
             CMD_CLOSE_TAB => (icons::CLOSE, "Close the active editor tab", false),
-            CMD_CLOSE_SAVED_TABS => (icons::CLOSE, "Close clean tabs while preserving unsaved work", false),
-            CMD_CLOSE_OTHER_SAVED_TABS => (icons::CLOSE, "Close other clean tabs while preserving unsaved work", false),
-            CMD_CLOSE_SAVED_TABS_TO_RIGHT => (icons::CLOSE, "Close clean tabs to the right and keep dirty tabs", false),
-            CMD_CLOSE_SAVED_TABS_TO_LEFT => (icons::CLOSE, "Close clean tabs to the left and keep dirty tabs", false),
+            CMD_CLOSE_SAVED_TABS => (
+                icons::CLOSE,
+                "Close clean tabs while preserving unsaved work",
+                false,
+            ),
+            CMD_CLOSE_OTHER_SAVED_TABS => (
+                icons::CLOSE,
+                "Close other clean tabs while preserving unsaved work",
+                false,
+            ),
+            CMD_CLOSE_SAVED_TABS_TO_RIGHT => (
+                icons::CLOSE,
+                "Close clean tabs to the right and keep dirty tabs",
+                false,
+            ),
+            CMD_CLOSE_SAVED_TABS_TO_LEFT => (
+                icons::CLOSE,
+                "Close clean tabs to the left and keep dirty tabs",
+                false,
+            ),
             CMD_REOPEN_CLOSED_TAB => (icons::PLUS, "Restore the last closed editor tab", false),
-            CMD_DUPLICATE_ACTIVE_TAB => (icons::PLUS, "Clone the active editor tab next to itself", false),
-            CMD_MOVE_ACTIVE_TAB_LEFT => (icons::CHEVRON, "Move the active tab one slot left", false),
-            CMD_MOVE_ACTIVE_TAB_RIGHT => (icons::CHEVRON, "Move the active tab one slot right", false),
-            CMD_SORT_TABS_BY_NAME => (icons::CHEVRON, "Sort open tabs alphabetically by name", false),
+            CMD_DUPLICATE_ACTIVE_TAB => (
+                icons::PLUS,
+                "Clone the active editor tab next to itself",
+                false,
+            ),
+            CMD_MOVE_ACTIVE_TAB_LEFT => {
+                (icons::CHEVRON, "Move the active tab one slot left", false)
+            }
+            CMD_MOVE_ACTIVE_TAB_RIGHT => {
+                (icons::CHEVRON, "Move the active tab one slot right", false)
+            }
+            CMD_SORT_TABS_BY_NAME => (
+                icons::CHEVRON,
+                "Sort open tabs alphabetically by name",
+                false,
+            ),
             CMD_CLOSE_DUPLICATE_TABS => (icons::CLOSE, "Close clean duplicate file tabs", false),
             CMD_RELOAD_ACTIVE_FILE => (icons::REFRESH, "Reload the active file from disk", false),
-            CMD_REVERT_ACTIVE_FILE => (icons::REFRESH, "Discard local edits and reload from disk", false),
+            CMD_REVERT_ACTIVE_FILE => (
+                icons::REFRESH,
+                "Discard local edits and reload from disk",
+                false,
+            ),
             CMD_SELECT_ALL => (icons::FN_SYMBOL, "Select the entire active document", false),
             CMD_SELECT_LINE => (icons::FN_SYMBOL, "Select the current editor line", false),
             CMD_SELECT_WORD => (icons::FN_SYMBOL, "Select the word at the cursor", false),
-            CMD_TOGGLE_LINE_COMMENT => (icons::FN_SYMBOL, "Comment or uncomment the active line or selection", false),
-            CMD_COPY_SELECTION_OR_LINE => (icons::FILE_MTY, "Copy the selection or current line to the clipboard", false),
-            CMD_CUT_SELECTION_OR_LINE => (icons::CLOSE, "Cut the selection or current line to the clipboard", false),
+            CMD_TOGGLE_LINE_COMMENT => (
+                icons::FN_SYMBOL,
+                "Comment or uncomment the active line or selection",
+                false,
+            ),
+            CMD_COPY_SELECTION_OR_LINE => (
+                icons::FILE_MTY,
+                "Copy the selection or current line to the clipboard",
+                false,
+            ),
+            CMD_CUT_SELECTION_OR_LINE => (
+                icons::CLOSE,
+                "Cut the selection or current line to the clipboard",
+                false,
+            ),
             CMD_PASTE_IN_EDITOR => (icons::PLUS, "Paste clipboard text into the editor", false),
-            CMD_DELETE_PREVIOUS_WORD => (icons::CLOSE, "Delete text back to the previous word boundary", false),
-            CMD_DELETE_NEXT_WORD => (icons::CLOSE, "Delete text forward to the next word boundary", false),
-            CMD_INDENT_LINE_SELECTION => (icons::ARROW_RIGHT, "Indent the active line or selected line range", false),
-            CMD_OUTDENT_LINE_SELECTION => (icons::ARROW_LEFT, "Outdent the active line or selected line range", false),
-            CMD_MOVE_WORD_LEFT => (icons::ARROW_LEFT, "Move the cursor to the previous word boundary", false),
-            CMD_MOVE_WORD_RIGHT => (icons::ARROW_RIGHT, "Move the cursor to the next word boundary", false),
-            CMD_MOVE_DOCUMENT_START => (icons::ARROW_UP, "Move the cursor to the start of the document", false),
-            CMD_MOVE_DOCUMENT_END => (icons::ARROW_DOWN, "Move the cursor to the end of the document", false),
-            CMD_MOVE_LINE_START => (icons::ARROW_LEFT, "Move the cursor to the smart start of the line", false),
-            CMD_MOVE_LINE_END => (icons::ARROW_RIGHT, "Move the cursor to the end of the line", false),
-            CMD_ADD_CARET_NEXT_OCCURRENCE => (icons::PLUS, "Add a cursor at the next matching occurrence", false),
-            CMD_ADD_CARET_ABOVE => (icons::ARROW_UP, "Add another cursor on the line above", false),
-            CMD_ADD_CARET_BELOW => (icons::ARROW_DOWN, "Add another cursor on the line below", false),
+            CMD_DELETE_PREVIOUS_WORD => (
+                icons::CLOSE,
+                "Delete text back to the previous word boundary",
+                false,
+            ),
+            CMD_DELETE_NEXT_WORD => (
+                icons::CLOSE,
+                "Delete text forward to the next word boundary",
+                false,
+            ),
+            CMD_INDENT_LINE_SELECTION => (
+                icons::ARROW_RIGHT,
+                "Indent the active line or selected line range",
+                false,
+            ),
+            CMD_OUTDENT_LINE_SELECTION => (
+                icons::ARROW_LEFT,
+                "Outdent the active line or selected line range",
+                false,
+            ),
+            CMD_MOVE_WORD_LEFT => (
+                icons::ARROW_LEFT,
+                "Move the cursor to the previous word boundary",
+                false,
+            ),
+            CMD_MOVE_WORD_RIGHT => (
+                icons::ARROW_RIGHT,
+                "Move the cursor to the next word boundary",
+                false,
+            ),
+            CMD_MOVE_DOCUMENT_START => (
+                icons::ARROW_UP,
+                "Move the cursor to the start of the document",
+                false,
+            ),
+            CMD_MOVE_DOCUMENT_END => (
+                icons::ARROW_DOWN,
+                "Move the cursor to the end of the document",
+                false,
+            ),
+            CMD_MOVE_LINE_START => (
+                icons::ARROW_LEFT,
+                "Move the cursor to the smart start of the line",
+                false,
+            ),
+            CMD_MOVE_LINE_END => (
+                icons::ARROW_RIGHT,
+                "Move the cursor to the end of the line",
+                false,
+            ),
+            CMD_ADD_CARET_NEXT_OCCURRENCE => (
+                icons::PLUS,
+                "Add a cursor at the next matching occurrence",
+                false,
+            ),
+            CMD_ADD_CARET_ABOVE => (
+                icons::ARROW_UP,
+                "Add another cursor on the line above",
+                false,
+            ),
+            CMD_ADD_CARET_BELOW => (
+                icons::ARROW_DOWN,
+                "Add another cursor on the line below",
+                false,
+            ),
             CMD_COLLAPSE_CARETS => (icons::CLOSE, "Return to a single primary cursor", false),
-            CMD_DUPLICATE_LINE_SELECTION => (icons::PLUS, "Duplicate the active line or selection", false),
-            CMD_MOVE_LINE_UP => (icons::ARROW_UP, "Move the active line or selection upward", false),
-            CMD_MOVE_LINE_DOWN => (icons::ARROW_DOWN, "Move the active line or selection downward", false),
-            CMD_DELETE_LINE => (icons::CLOSE, "Remove the current line without changing the clipboard", false),
-            CMD_JOIN_LINE => (icons::CHEVRON, "Join the current line with the next line", false),
+            CMD_DUPLICATE_LINE_SELECTION => {
+                (icons::PLUS, "Duplicate the active line or selection", false)
+            }
+            CMD_MOVE_LINE_UP => (
+                icons::ARROW_UP,
+                "Move the active line or selection upward",
+                false,
+            ),
+            CMD_MOVE_LINE_DOWN => (
+                icons::ARROW_DOWN,
+                "Move the active line or selection downward",
+                false,
+            ),
+            CMD_DELETE_LINE => (
+                icons::CLOSE,
+                "Remove the current line without changing the clipboard",
+                false,
+            ),
+            CMD_JOIN_LINE => (
+                icons::CHEVRON,
+                "Join the current line with the next line",
+                false,
+            ),
             CMD_FORMAT_DOCUMENT => (icons::PLUS, "Apply mightyfmt to active file", false),
             CMD_UNDO => (icons::CHEVRON, "Undo the last edit", false),
             CMD_REDO => (icons::CHEVRON, "Redo the last undone edit", false),
@@ -960,85 +1801,234 @@ impl PaletteEngine {
             CMD_COLOR_THEME => (icons::SETTINGS, "Switch the editor color theme", false),
             CMD_RUN_FILE => (icons::RUN, "Run the active Mighty file", true),
             CMD_RUN_STOP => (icons::CLOSE, "Stop the active Run output process", false),
-            CMD_RUN_CLEAR_OUTPUT => (icons::CLOSE, "Clear the Run output without stopping the process", false),
+            CMD_RUN_CLEAR_OUTPUT => (
+                icons::CLOSE,
+                "Clear the Run output without stopping the process",
+                false,
+            ),
             CMD_SETTINGS => (icons::SETTINGS, "Edit editor preferences", false),
             CMD_ZOOM_IN => (icons::PLUS, "Increase the IDE UI scale", false),
             CMD_ZOOM_OUT => (icons::UNSTAGE_MINUS, "Decrease the IDE UI scale", false),
             CMD_ZOOM_RESET => (icons::WIN_MAX, "Reset the IDE UI scale to 100%", false),
             CMD_RUN_TESTS => (icons::BEAKER, "Run the package's tests (mty test)", false),
-            CMD_RUN_TEST_AT_CURSOR => (icons::BEAKER, "Run tests and focus the nearest test at the cursor", false),
+            CMD_RUN_TEST_AT_CURSOR => (
+                icons::BEAKER,
+                "Run tests and focus the nearest test at the cursor",
+                false,
+            ),
             CMD_TEST_STOP => (icons::CLOSE, "Stop the active test run", false),
-            CMD_TEST_CLEAR_RESULTS => (icons::CLOSE, "Clear parsed test results without stopping the run", false),
-            CMD_PEEK_DEFINITION => (icons::FN_SYMBOL, "Preview the definition inline (Alt+F12)", false),
+            CMD_TEST_CLEAR_RESULTS => (
+                icons::CLOSE,
+                "Clear parsed test results without stopping the run",
+                false,
+            ),
+            CMD_PEEK_DEFINITION => (
+                icons::FN_SYMBOL,
+                "Preview the definition inline (Alt+F12)",
+                false,
+            ),
+            CMD_PEEK_CLOSE => (icons::CLOSE, "Close the inline Peek Definition view", false),
             CMD_WELCOME => (icons::LANG_M, "Open the Welcome screen", false),
             CMD_ZEN_MODE => (icons::INFO_I, "Toggle distraction-free focus mode", false),
-            CMD_AGENTS => (icons::AGENTS_NET, "Open the Mighty Agents topology panel", false),
-            CMD_AGENTS_REFRESH => (icons::REFRESH, "Refresh the Mighty Agents topology model", false),
-            CMD_AGENTS_CLEAR_RUN_OUTPUT => (icons::CLOSE, "Clear the Mighty Agents run output without rebuilding topology", false),
+            CMD_AGENTS => (
+                icons::AGENTS_NET,
+                "Open the Mighty Agents topology panel",
+                false,
+            ),
+            CMD_AGENTS_REFRESH => (
+                icons::REFRESH,
+                "Refresh the Mighty Agents topology model",
+                false,
+            ),
+            CMD_AGENTS_CLEAR_RUN_OUTPUT => (
+                icons::CLOSE,
+                "Clear the Mighty Agents run output without rebuilding topology",
+                false,
+            ),
             CMD_GIT_SWITCH_BRANCH => (icons::BRANCH, "Checkout or create a git branch", false),
             CMD_GIT_PUSH => (icons::GIT, "Push commits to the remote", false),
-            CMD_GIT_PULL => (icons::GIT, "Pull (fast-forward only) from the remote", false),
+            CMD_GIT_PULL => (
+                icons::GIT,
+                "Pull (fast-forward only) from the remote",
+                false,
+            ),
             CMD_GIT_FETCH => (icons::GIT, "Fetch refs from the remote", false),
             CMD_GIT_TOGGLE_BLAME => (icons::GIT, "Show git blame in the gutter", false),
             CMD_GIT_HIDE_BLAME => (icons::CLOSE, "Hide the active git blame gutter", false),
             CMD_GIT_STAGE_ALL => (icons::STAGE_PLUS, "Stage every changed path", false),
             CMD_GIT_UNSTAGE_ALL => (icons::UNSTAGE_MINUS, "Unstage every staged path", false),
-            CMD_GIT_COMMIT_STAGED => (icons::GIT, "Commit staged changes with the SCM message", false),
-            CMD_GIT_REFRESH_SOURCE_CONTROL => (icons::REFRESH, "Refresh the Source Control git status", false),
+            CMD_GIT_COMMIT_STAGED => (
+                icons::GIT,
+                "Commit staged changes with the SCM message",
+                false,
+            ),
+            CMD_GIT_REFRESH_SOURCE_CONTROL => (
+                icons::REFRESH,
+                "Refresh the Source Control git status",
+                false,
+            ),
             CMD_VIEW_EXPLORER => (icons::EXPLORER, "Open the file explorer view", false),
             CMD_VIEW_SEARCH => (icons::SEARCH, "Open project-wide search", false),
-            CMD_SEARCH_RUN => (icons::SEARCH, "Run the current project-wide search query", false),
-            CMD_SEARCH_REPLACE_ALL => (icons::REPLACE, "Replace every current project-wide search match", false),
-            CMD_SEARCH_TOGGLE_REPLACE => (icons::REPLACE, "Move Search panel focus between query and replace", false),
+            CMD_SEARCH_RUN => (
+                icons::SEARCH,
+                "Run the current project-wide search query",
+                false,
+            ),
+            CMD_SEARCH_REPLACE_ALL => (
+                icons::REPLACE,
+                "Replace every current project-wide search match",
+                false,
+            ),
+            CMD_SEARCH_TOGGLE_REPLACE => (
+                icons::REPLACE,
+                "Move Search panel focus between query and replace",
+                false,
+            ),
             CMD_VIEW_SOURCE_CONTROL => (icons::GIT, "Open source control", false),
             CMD_VIEW_OUTLINE => (icons::FN_SYMBOL, "Open the symbol outline", false),
-            CMD_OUTLINE_REFRESH => (icons::REFRESH, "Refresh the active document's Outline symbols", false),
+            CMD_OUTLINE_REFRESH => (
+                icons::REFRESH,
+                "Refresh the active document's Outline symbols",
+                false,
+            ),
             CMD_VIEW_RUN_DEBUG => (icons::DEBUG, "Open Run and Debug", false),
             CMD_VIEW_TESTING => (icons::BEAKER, "Open the testing view", false),
             CMD_VIEW_RUN_OUTPUT => (icons::RUN, "Open the Run output panel", false),
-            CMD_VIEW_PROBLEMS => (icons::ERROR_CIRCLE, "Open diagnostics and build problems", false),
-            CMD_PROBLEMS_REFRESH => (icons::REFRESH, "Refresh diagnostics and show Problems", false),
+            CMD_VIEW_PROBLEMS => (
+                icons::ERROR_CIRCLE,
+                "Open diagnostics and build problems",
+                false,
+            ),
+            CMD_PROBLEMS_REFRESH => (
+                icons::REFRESH,
+                "Refresh diagnostics and show Problems",
+                false,
+            ),
             CMD_VIEW_AI_COPILOT => (icons::AGENTS, "Open the AI copilot panel", false),
-            CMD_INLINE_AI_ASK => (icons::AGENTS, "Ask AI about the active selection or file", false),
-            CMD_FORCE_GHOST_COMPLETION => (icons::AGENTS, "Request an inline AI ghost completion now", false),
-            CMD_AI_CLEAR_CHAT => (icons::CLOSE, "Clear the AI transcript and draft composer", false),
+            CMD_INLINE_AI_ASK => (
+                icons::AGENTS,
+                "Ask AI about the active selection or file",
+                false,
+            ),
+            CMD_FORCE_GHOST_COMPLETION => (
+                icons::AGENTS,
+                "Request an inline AI ghost completion now",
+                false,
+            ),
+            CMD_AI_CLEAR_CHAT => (
+                icons::CLOSE,
+                "Clear the AI transcript and draft composer",
+                false,
+            ),
             CMD_AI_CLOSE => (icons::CLOSE, "Close the AI copilot panel", false),
             CMD_SIDEBAR_CLOSE => (icons::CLOSE, "Close the left sidebar drawer", false),
             CMD_VIEW_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
-            CMD_VIEW_WEB_PLAYGROUND => (icons::GLOBE, "Open the Web Playground output panel", false),
-            CMD_DIFF_CLOSE_VIEW => (icons::CLOSE, "Close the inline git diff view and return to editing", false),
+            CMD_VIEW_WEB_PLAYGROUND => {
+                (icons::GLOBE, "Open the Web Playground output panel", false)
+            }
+            CMD_DIFF_CLOSE_VIEW => (
+                icons::CLOSE,
+                "Close the inline git diff view and return to editing",
+                false,
+            ),
             CMD_DOCK_COMPACT => (icons::ARROW_DOWN, "Use a smaller shared bottom dock", false),
-            CMD_DOCK_RESET => (icons::WIN_MIN, "Restore the shared bottom dock to its default height", false),
+            CMD_DOCK_RESET => (
+                icons::WIN_MIN,
+                "Restore the shared bottom dock to its default height",
+                false,
+            ),
             CMD_DOCK_EXPANDED => (icons::ARROW_UP, "Use a taller shared bottom dock", false),
             CMD_DOCK_CLOSE => (icons::CLOSE, "Close the active shared bottom dock", false),
             CMD_SIDEBAR_COMPACT => (icons::ARROW_LEFT, "Use a smaller sidebar drawer", false),
             CMD_SIDEBAR_DEFAULT => (icons::EXPLORER, "Restore responsive sidebar width", false),
             CMD_SIDEBAR_WIDE => (icons::ARROW_RIGHT, "Use a wider sidebar drawer", false),
-            CMD_SIDEBAR_CYCLE_WIDTH => (icons::EXPLORER, "Cycle sidebar width through compact, default, and wide", false),
-            CMD_WINDOW_TOGGLE_MAXIMIZE => (icons::WIN_MAX, "Maximize or restore the IDE window", false),
+            CMD_SIDEBAR_CYCLE_WIDTH => (
+                icons::EXPLORER,
+                "Cycle sidebar width through compact, default, and wide",
+                false,
+            ),
+            CMD_WINDOW_TOGGLE_MAXIMIZE => {
+                (icons::WIN_MAX, "Maximize or restore the IDE window", false)
+            }
             CMD_WINDOW_MINIMIZE => (icons::WIN_MIN, "Minimize the IDE window", false),
-            CMD_DEBUG_START_CONTINUE => (icons::DBG_CONTINUE, "Start debugging or continue the paused session", true),
+            CMD_DEBUG_START_CONTINUE => (
+                icons::DBG_CONTINUE,
+                "Start debugging or continue the paused session",
+                true,
+            ),
             CMD_DEBUG_STOP => (icons::DBG_STOP, "Stop the active debug session", false),
-            CMD_DEBUG_STEP_OVER => (icons::DBG_STEP_OVER, "Run the next line without entering calls", false),
+            CMD_DEBUG_STEP_OVER => (
+                icons::DBG_STEP_OVER,
+                "Run the next line without entering calls",
+                false,
+            ),
             CMD_DEBUG_STEP_INTO => (icons::DBG_STEP_INTO, "Enter the next function call", false),
-            CMD_DEBUG_STEP_OUT => (icons::DBG_STEP_OUT, "Run until the current frame returns", false),
+            CMD_DEBUG_STEP_OUT => (
+                icons::DBG_STEP_OUT,
+                "Run until the current frame returns",
+                false,
+            ),
             CMD_DEBUG_PAUSE => (icons::DBG_PAUSE, "Pause the running debuggee", true),
             CMD_DEBUG_RESTART => (icons::REFRESH, "Restart the last debug target", false),
-            CMD_RUN_IN_BROWSER => (icons::GLOBE, "Build and serve the active Mighty file for the browser", false),
+            CMD_RUN_IN_BROWSER => (
+                icons::GLOBE,
+                "Build and serve the active Mighty file for the browser",
+                false,
+            ),
             CMD_WEB_STOP => (icons::CLOSE, "Stop the active Web Playground server", false),
-            CMD_WEB_OPEN_BROWSER => (icons::GLOBE, "Open the active Web Playground URL in the default browser", false),
-            CMD_WEB_CLEAR_OUTPUT => (icons::CLOSE, "Clear Web Playground output without stopping the server", false),
-            CMD_SPLIT_RIGHT => (icons::TEST_BOX, "Split the editor into side-by-side panes", false),
+            CMD_WEB_OPEN_BROWSER => (
+                icons::GLOBE,
+                "Open the active Web Playground URL in the default browser",
+                false,
+            ),
+            CMD_WEB_CLEAR_OUTPUT => (
+                icons::CLOSE,
+                "Clear Web Playground output without stopping the server",
+                false,
+            ),
+            CMD_SPLIT_RIGHT => (
+                icons::TEST_BOX,
+                "Split the editor into side-by-side panes",
+                false,
+            ),
             CMD_FOCUS_NEXT_PANE => (icons::CHEVRON, "Move focus between editor panes", false),
             CMD_CLOSE_PANE => (icons::CLOSE, "Close the focused editor pane", false),
-            CMD_MARKDOWN_PREVIEW => (icons::FILE_MD, "Open or close the live Markdown preview", false),
-            CMD_OPEN_FOLDER => (icons::FOLDER, "Open a workspace folder with the native folder picker", false),
-            CMD_OPEN_RECENT => (icons::FOLDER, "Open a recent file or workspace folder", false),
+            CMD_MARKDOWN_PREVIEW => (
+                icons::FILE_MD,
+                "Open or close the live Markdown preview",
+                false,
+            ),
+            CMD_OPEN_FOLDER => (
+                icons::FOLDER,
+                "Open a workspace folder with the native folder picker",
+                false,
+            ),
+            CMD_OPEN_RECENT => (
+                icons::FOLDER,
+                "Open a recent file or workspace folder",
+                false,
+            ),
             CMD_KEYBOARD_SHORTCUTS => (icons::INFO_I, "List & remap all keyboard shortcuts", false),
-            CMD_FOLD_TOGGLE => (icons::CHEVRON, "Fold or unfold the block at the cursor", false),
-            CMD_FOLD_ALL => (icons::CHEVRON_DOWN, "Fold every foldable block in the document", false),
-            CMD_UNFOLD_ALL => (icons::CHEVRON_DOWN, "Unfold every block in the document", false),
-            CMD_NEW_PROJECT => (icons::NEW_FOLDER, "Scaffold a new Mighty project (mty new)", false),
+            CMD_FOLD_TOGGLE => (
+                icons::CHEVRON,
+                "Fold or unfold the block at the cursor",
+                false,
+            ),
+            CMD_FOLD_ALL => (
+                icons::CHEVRON_DOWN,
+                "Fold every foldable block in the document",
+                false,
+            ),
+            CMD_UNFOLD_ALL => (
+                icons::CHEVRON_DOWN,
+                "Unfold every block in the document",
+                false,
+            ),
+            CMD_NEW_PROJECT => (
+                icons::NEW_FOLDER,
+                "Scaffold a new Mighty project (mty new)",
+                false,
+            ),
             _ => (icons::CHEVRON, "", false),
         }
     }
@@ -1083,18 +2073,65 @@ impl PaletteEngine {
 
         // Scrim: dim + a faint indigo top wash.
         ctx.dl_rect(0.0, 0.0, w, h, MuiColor::new(0.0, 0.0, 0.0, 0.55));
-        ctx.dl_grad_v(0.0, 0.0, w, h * 0.5, 0.0, theme::accent_a(0.05), theme::accent_a(0.0));
+        ctx.dl_grad_v(
+            0.0,
+            0.0,
+            w,
+            h * 0.5,
+            0.0,
+            theme::accent_a(0.05),
+            theme::accent_a(0.0),
+        );
         // Drop shadow + indigo glow + card + border.
-        ctx.dl_shadow(box_x, box_y + 14.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.85), 40.0);
-        ctx.dl_shadow(box_x, box_y, box_w, box_h, radius, theme::ACCENT_GLOW(), 40.0);
+        ctx.dl_shadow(
+            box_x,
+            box_y + 14.0,
+            box_w,
+            box_h,
+            radius,
+            MuiColor::new(0.0, 0.0, 0.0, 0.85),
+            40.0,
+        );
+        ctx.dl_shadow(
+            box_x,
+            box_y,
+            box_w,
+            box_h,
+            radius,
+            theme::ACCENT_GLOW(),
+            40.0,
+        );
         let mut card = theme::ELEVATED();
         card.a = 1.0;
         ctx.dl_round(box_x, box_y, box_w, box_h, radius, card);
-        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG(), 1.0);
+        ctx.dl_stroke(
+            box_x,
+            box_y,
+            box_w,
+            box_h,
+            radius,
+            theme::BORDER_STRONG(),
+            1.0,
+        );
 
         // ---- search field ----
-        ctx.dl_rect(box_x + 1.0, box_y + search_h - 1.0, box_w - 2.0, 1.0, theme::BORDER());
-        ctx.dl_icon(box_x + 18.0, box_y + (search_h - 20.0) * 0.5, 20.0, 20.0, icons::SEARCH, theme::DIM(), 1.7, false);
+        ctx.dl_rect(
+            box_x + 1.0,
+            box_y + search_h - 1.0,
+            box_w - 2.0,
+            1.0,
+            theme::BORDER(),
+        );
+        ctx.dl_icon(
+            box_x + 18.0,
+            box_y + (search_h - 20.0) * 0.5,
+            20.0,
+            20.0,
+            icons::SEARCH,
+            theme::DIM(),
+            1.7,
+            false,
+        );
         let q_text_base_x = box_x + 50.0;
         let q_text_x = command_field_text_x(q_text_base_x, self.query.is_empty());
         let qy = box_y + (search_h - 16.0) * 0.5 - 1.0;
@@ -1109,24 +2146,46 @@ impl PaletteEngine {
         // Search font is larger (16px) per the mockup.
         let query_max = command_query_text_budget(q_text_x, pill_x, self.query.is_empty());
         let q_shown = fit_palette_text(&mut ctx.text, q_str, query_max, 16.0);
-        ctx.text.queue_ui_sized(q_text_x, qy, &q_shown, q_color, 16.0, clip);
+        ctx.text
+            .queue_ui_sized(q_text_x, qy, &q_shown, q_color, 16.0, clip);
         let (q_w, _) = ctx.text.measure_ui_sized(&q_shown, 16.0);
         let caret_x = if self.query.is_empty() {
             q_text_base_x + 1.0
         } else {
             (q_text_x + q_w + 1.0).min(pill_x - 14.0)
         };
-        ctx.dl_round(caret_x, box_y + (search_h - 18.0) * 0.5, 2.0, 18.0, 1.0, theme::ACCENT_BRIGHT());
+        ctx.dl_round(
+            caret_x,
+            box_y + (search_h - 18.0) * 0.5,
+            2.0,
+            18.0,
+            1.0,
+            theme::ACCENT_BRIGHT(),
+        );
         // Command-mode pill (right). ASCII ">_" prompt motif (the UI font lacks the
         // Mac command glyph, which also rendered as a box on Windows).
         ctx.dl_round(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_FAINT());
         ctx.dl_stroke(pill_x, pill_y, pill_w, 22.0, 5.0, theme::ACCENT_LINE(), 1.0);
-        ctx.text.queue_ui_sized(pill_x + 11.0, pill_y + 4.5, ">_", theme::ACCENT_BRIGHT(), 10.5, clip);
+        ctx.text.queue_ui_sized(
+            pill_x + 11.0,
+            pill_y + 4.5,
+            ">_",
+            theme::ACCENT_BRIGHT(),
+            10.5,
+            clip,
+        );
 
         // ---- category label ----
         let cat_y = box_y + search_h + 9.0;
         let cat: String = "COMMANDS".chars().flat_map(|c| [c, '\u{2009}']).collect();
-        ctx.text.queue_ui_sized(box_x + 18.0, cat_y, &cat, theme::OVERLAY_SUBTLE(), chrome - 2.5, clip);
+        ctx.text.queue_ui_sized(
+            box_x + 18.0,
+            cat_y,
+            &cat,
+            theme::OVERLAY_SUBTLE(),
+            chrome - 2.5,
+            clip,
+        );
 
         // ---- rows ----
         let list_top = box_y + search_h + cat_h;
@@ -1138,9 +2197,33 @@ impl PaletteEngine {
             let (icon, desc, fill) = Self::meta(cmd.id);
             let desc = self.contextual_desc(ctx, cmd.id, desc);
             if selected {
-                ctx.dl_grad_h(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::accent_a(0.22), 0.9);
-                ctx.dl_stroke(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::ACCENT_LINE(), 1.0);
-                ctx.dl_shadow(box_x + 8.0, ry + 2.0, box_w - 16.0, row_h - 4.0, 8.0, theme::ACCENT_GLOW(), 16.0);
+                ctx.dl_grad_h(
+                    box_x + 8.0,
+                    ry + 2.0,
+                    box_w - 16.0,
+                    row_h - 4.0,
+                    8.0,
+                    theme::accent_a(0.22),
+                    0.9,
+                );
+                ctx.dl_stroke(
+                    box_x + 8.0,
+                    ry + 2.0,
+                    box_w - 16.0,
+                    row_h - 4.0,
+                    8.0,
+                    theme::ACCENT_LINE(),
+                    1.0,
+                );
+                ctx.dl_shadow(
+                    box_x + 8.0,
+                    ry + 2.0,
+                    box_w - 16.0,
+                    row_h - 4.0,
+                    8.0,
+                    theme::ACCENT_GLOW(),
+                    16.0,
+                );
             }
             // Leading icon tile (30px rounded, bordered).
             let tile = 30.0;
@@ -1153,8 +2236,21 @@ impl PaletteEngine {
                 ctx.dl_round(tile_x, tile_y, tile, tile, 7.0, theme::BG_2());
                 ctx.dl_stroke(tile_x, tile_y, tile, tile, 7.0, theme::BORDER(), 1.0);
             }
-            let icon_col = if selected { theme::ACCENT_BRIGHT() } else { theme::TEXT_1() };
-            ctx.dl_icon(tile_x + 6.5, tile_y + 6.5, 17.0, 17.0, icon, icon_col, 1.6, fill);
+            let icon_col = if selected {
+                theme::ACCENT_BRIGHT()
+            } else {
+                theme::TEXT_1()
+            };
+            ctx.dl_icon(
+                tile_x + 6.5,
+                tile_y + 6.5,
+                17.0,
+                17.0,
+                icon,
+                icon_col,
+                1.6,
+                fill,
+            );
 
             // Right-aligned kbd pills (commands with no keybinding draw none).
             let gap = 4.0;
@@ -1163,19 +2259,30 @@ impl PaletteEngine {
                 .iter()
                 .map(|p| shortcut_token_width(&mut ctx.text, p, 11.0))
                 .collect();
-            let total_w: f32 = widths.iter().sum::<f32>() + gap * (parts.len().saturating_sub(1)) as f32;
+            let total_w: f32 =
+                widths.iter().sum::<f32>() + gap * (parts.len().saturating_sub(1)) as f32;
             let mut px = box_x + box_w - 20.0 - total_w;
 
             // Title + dim description (two lines), fitted before right chrome.
             let txt_x = box_x + 60.0;
-            let text_right = if parts.is_empty() { box_x + box_w - 24.0 } else { px - 28.0 };
+            let text_right = if parts.is_empty() {
+                box_x + box_w - 24.0
+            } else {
+                px - 28.0
+            };
             let text_max = (text_right - txt_x).max(0.0);
             let title = fit_palette_text(&mut ctx.text, cmd.label, text_max, 13.5);
-            ctx.text.queue_ui_sized(txt_x, ry + 11.0, &title, theme::TEXT(), 13.5, clip);
+            ctx.text
+                .queue_ui_sized(txt_x, ry + 11.0, &title, theme::TEXT(), 13.5, clip);
             if !desc.is_empty() {
-                let desc_col = if selected { theme::TEXT_1() } else { theme::OVERLAY_MUTED() };
+                let desc_col = if selected {
+                    theme::TEXT_1()
+                } else {
+                    theme::OVERLAY_MUTED()
+                };
                 let desc = fit_palette_text(&mut ctx.text, &desc, text_max, 11.5);
-                ctx.text.queue_ui_sized(txt_x, ry + 28.0, &desc, desc_col, 11.5, clip);
+                ctx.text
+                    .queue_ui_sized(txt_x, ry + 28.0, &desc, desc_col, 11.5, clip);
             }
 
             let pill_h = 21.0;
@@ -1183,12 +2290,23 @@ impl PaletteEngine {
             for (k, part) in parts.iter().enumerate() {
                 let pw = widths[k];
                 if matches!(part, ShortcutToken::Separator) {
-                    ctx.text.queue_ui_sized(px + 1.5, py + 4.5, "/", theme::OVERLAY_MUTED(), 11.0, clip);
+                    ctx.text.queue_ui_sized(
+                        px + 1.5,
+                        py + 4.5,
+                        "/",
+                        theme::OVERLAY_MUTED(),
+                        11.0,
+                        clip,
+                    );
                     px += pw + gap;
                     continue;
                 }
                 let (pbg, pborder, pfg) = if selected {
-                    (theme::accent_a(0.10), theme::ACCENT_LINE(), theme::ACCENT_BRIGHT())
+                    (
+                        theme::accent_a(0.10),
+                        theme::ACCENT_LINE(),
+                        theme::ACCENT_BRIGHT(),
+                    )
                 } else {
                     (theme::BG_2(), theme::BORDER_STRONG(), theme::TEXT_1())
                 };
@@ -1198,7 +2316,8 @@ impl PaletteEngine {
                     unreachable!("separator handled before pill draw");
                 };
                 let lbl_w = shortcut_key_label_width(&mut ctx.text, part, 11.0);
-                ctx.text.queue_ui_sized(px + (pw - lbl_w) * 0.5, py + 4.5, part, pfg, 11.0, clip);
+                ctx.text
+                    .queue_ui_sized(px + (pw - lbl_w) * 0.5, py + 4.5, part, pfg, 11.0, clip);
                 px += pw + gap;
             }
         }
@@ -1206,23 +2325,60 @@ impl PaletteEngine {
         // ---- footer hint line ----
         let foot_y = box_y + box_h - foot_h;
         ctx.dl_rect(box_x + 1.0, foot_y, box_w - 2.0, 1.0, theme::BORDER());
-        ctx.dl_round(box_x + 1.0, foot_y, box_w - 2.0, foot_h - 1.0, 0.0, theme::BG_2());
+        ctx.dl_round(
+            box_x + 1.0,
+            foot_y,
+            box_w - 2.0,
+            foot_h - 1.0,
+            0.0,
+            theme::BG_2(),
+        );
         let fty = foot_y + (foot_h - chrome + 1.0) * 0.5 - 1.0;
         let mut fx = box_x + 18.0;
         let foot_seg = |ctx: &mut crate::MuiContext, key: &str, label: &str, fx: &mut f32| {
             let kw = command_footer_key_width(&mut ctx.text, key, 10.0);
-            ctx.dl_round(*fx, foot_y + (foot_h - 18.0) * 0.5, kw, 18.0, 4.0, theme::BG_1());
-            ctx.dl_stroke(*fx, foot_y + (foot_h - 18.0) * 0.5, kw, 18.0, 4.0, theme::BORDER_STRONG(), 1.0);
-            ctx.text.queue_ui_sized(*fx + 5.0, foot_y + (foot_h - 10.0) * 0.5, key, theme::TEXT_1(), 10.0, clip);
+            ctx.dl_round(
+                *fx,
+                foot_y + (foot_h - 18.0) * 0.5,
+                kw,
+                18.0,
+                4.0,
+                theme::BG_1(),
+            );
+            ctx.dl_stroke(
+                *fx,
+                foot_y + (foot_h - 18.0) * 0.5,
+                kw,
+                18.0,
+                4.0,
+                theme::BORDER_STRONG(),
+                1.0,
+            );
+            ctx.text.queue_ui_sized(
+                *fx + 5.0,
+                foot_y + (foot_h - 10.0) * 0.5,
+                key,
+                theme::TEXT_1(),
+                10.0,
+                clip,
+            );
             *fx += kw + 6.0;
-            ctx.text.queue_ui_sized(*fx, fty, label, theme::OVERLAY_SUBTLE(), 11.0, clip);
+            ctx.text
+                .queue_ui_sized(*fx, fty, label, theme::OVERLAY_SUBTLE(), 11.0, clip);
             *fx += command_footer_label_advance(&mut ctx.text, label, 11.0);
         };
         foot_seg(ctx, "Enter", "select", &mut fx);
         foot_seg(ctx, "esc", "dismiss", &mut fx);
         let tag = "Mighty Command Palette";
         let (tag_w, _) = ctx.text.measure_ui_sized(tag, 11.0);
-        ctx.text.queue_ui_sized(box_x + box_w - 18.0 - tag_w, fty, tag, theme::ACCENT_BRIGHT(), 11.0, clip);
+        ctx.text.queue_ui_sized(
+            box_x + box_w - 18.0 - tag_w,
+            fty,
+            tag,
+            theme::ACCENT_BRIGHT(),
+            11.0,
+            clip,
+        );
     }
 }
 
@@ -1240,7 +2396,10 @@ fn command_query_text_budget(text_x: f32, pill_x: f32, is_placeholder: bool) -> 
 }
 
 fn command_palette_width(window_w: f32) -> f32 {
-    (window_w - 80.0).max(0.0).clamp(280.0, 600.0).min(window_w.max(1.0))
+    (window_w - 80.0)
+        .max(0.0)
+        .clamp(280.0, 600.0)
+        .min(window_w.max(1.0))
 }
 
 fn command_footer_key_width(text: &mut crate::text::Text, key: &str, size: f32) -> f32 {
@@ -1265,9 +2424,13 @@ fn command_contextual_desc<'a>(
 ) -> Cow<'a, str> {
     if active_read_only {
         return match id {
-            CMD_SAVE | CMD_SAVE_AS | CMD_REVERT_ACTIVE_FILE => Cow::Borrowed("Read-only preview: saving is unavailable"),
+            CMD_SAVE | CMD_SAVE_AS | CMD_REVERT_ACTIVE_FILE => {
+                Cow::Borrowed("Read-only preview: saving is unavailable")
+            }
             CMD_RELOAD_ACTIVE_FILE => Cow::Borrowed("Reload this read-only preview from disk"),
-            CMD_RENAME_ACTIVE_FILE | CMD_DELETE_ACTIVE_FILE => Cow::Borrowed("Read-only preview: file edits are unavailable"),
+            CMD_RENAME_ACTIVE_FILE | CMD_DELETE_ACTIVE_FILE => {
+                Cow::Borrowed("Read-only preview: file edits are unavailable")
+            }
             _ => Cow::Borrowed(base),
         };
     }
@@ -1275,20 +2438,33 @@ fn command_contextual_desc<'a>(
     match id {
         CMD_SAVE if active_has_path => Cow::Borrowed("Write the active file to disk"),
         CMD_SAVE => Cow::Borrowed("Choose a path before saving this untitled file"),
-        CMD_SAVE_AS if active_has_path => Cow::Borrowed("Choose a new path or filename for this file"),
+        CMD_SAVE_AS if active_has_path => {
+            Cow::Borrowed("Choose a new path or filename for this file")
+        }
         CMD_SAVE_AS => Cow::Borrowed("Choose where this untitled file should live"),
         CMD_SAVE_ALL if dirty_count == 0 => Cow::Borrowed("No unsaved tabs need writing"),
         CMD_SAVE_ALL if dirty_count == 1 => Cow::Borrowed("Write the one unsaved tab"),
         CMD_SAVE_ALL => Cow::Owned(format!("Write {dirty_count} unsaved tabs")),
-        CMD_RELOAD_ACTIVE_FILE if active_has_path => Cow::Borrowed("Reload the active file from disk"),
+        CMD_RELOAD_ACTIVE_FILE if active_has_path => {
+            Cow::Borrowed("Reload the active file from disk")
+        }
         CMD_RELOAD_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
-        CMD_REVERT_ACTIVE_FILE if active_has_path => Cow::Borrowed("Discard local edits and reload from disk"),
+        CMD_REVERT_ACTIVE_FILE if active_has_path => {
+            Cow::Borrowed("Discard local edits and reload from disk")
+        }
         CMD_REVERT_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
-        CMD_RENAME_ACTIVE_FILE if active_has_path => Cow::Borrowed("Rename the active file on disk"),
+        CMD_RENAME_ACTIVE_FILE if active_has_path => {
+            Cow::Borrowed("Rename the active file on disk")
+        }
         CMD_RENAME_ACTIVE_FILE => Cow::Borrowed("Save this untitled file before renaming it"),
-        CMD_DELETE_ACTIVE_FILE if active_has_path => Cow::Borrowed("Delete the active file after confirmation"),
+        CMD_DELETE_ACTIVE_FILE if active_has_path => {
+            Cow::Borrowed("Delete the active file after confirmation")
+        }
         CMD_DELETE_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
-        CMD_COPY_ACTIVE_FILE_PATH | CMD_COPY_ACTIVE_FILE_RELATIVE_PATH | CMD_COPY_ACTIVE_FILE_NAME | CMD_COPY_ACTIVE_FILE_DIRECTORY
+        CMD_COPY_ACTIVE_FILE_PATH
+        | CMD_COPY_ACTIVE_FILE_RELATIVE_PATH
+        | CMD_COPY_ACTIVE_FILE_NAME
+        | CMD_COPY_ACTIVE_FILE_DIRECTORY
             if !active_has_path =>
         {
             Cow::Borrowed("Needs a file-backed tab")
@@ -1420,10 +2596,7 @@ mod tests {
         assert_eq!(got.first().map(|c| c.id), Some(CMD_QUICK_OPEN));
 
         let space_separated = filter_commands(COMMANDS, "ctrl p");
-        assert_eq!(
-            space_separated.first().map(|c| c.id),
-            Some(CMD_QUICK_OPEN)
-        );
+        assert_eq!(space_separated.first().map(|c| c.id), Some(CMD_QUICK_OPEN));
     }
 
     #[test]
@@ -1464,11 +2637,18 @@ mod tests {
         };
 
         let short = shortcut_token_width(&mut ctx.text, &ShortcutToken::Key("/".to_string()), 11.0);
-        let long = shortcut_token_width(&mut ctx.text, &ShortcutToken::Key("Shift".to_string()), 11.0);
+        let long = shortcut_token_width(
+            &mut ctx.text,
+            &ShortcutToken::Key("Shift".to_string()),
+            11.0,
+        );
 
         assert!(short >= 22.0);
         assert!(long > short);
-        assert_eq!(shortcut_token_width(&mut ctx.text, &ShortcutToken::Separator, 11.0), 8.0);
+        assert_eq!(
+            shortcut_token_width(&mut ctx.text, &ShortcutToken::Separator, 11.0),
+            8.0
+        );
     }
 
     #[test]
@@ -1479,7 +2659,8 @@ mod tests {
 
         let label = "Enter";
         let label_w = shortcut_key_label_width(&mut ctx.text, label, 11.0);
-        let pill_w = shortcut_token_width(&mut ctx.text, &ShortcutToken::Key(label.to_string()), 11.0);
+        let pill_w =
+            shortcut_token_width(&mut ctx.text, &ShortcutToken::Key(label.to_string()), 11.0);
 
         assert!(pill_w >= label_w + 14.0);
         assert!(pill_w >= 22.0);

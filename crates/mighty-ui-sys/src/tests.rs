@@ -40,7 +40,8 @@ fn initial_tree_root_uses_file_parent_when_file_is_provided() {
 
 #[test]
 fn initial_tree_root_prefers_packaged_samples_for_no_arg_launch() {
-    let root = std::env::temp_dir().join(format!("mui_initial_tree_samples_{}", std::process::id()));
+    let root =
+        std::env::temp_dir().join(format!("mui_initial_tree_samples_{}", std::process::id()));
     let exe_dir = root.join("dist");
     let samples = exe_dir.join("samples");
     let cwd = root.join("cwd");
@@ -91,7 +92,11 @@ fn multi_cursor_edge_commands_report_visible_feedback() {
         .set_text_preserving_cursor("unique stuff here");
     ctx.tabs.active_model_mut().move_to(0, 0);
     assert_eq!(crate::abi::mui_ed_add_caret_next(handle), 1);
-    assert_eq!(ctx.toasts.toasts().len(), 0, "successful Ctrl+D should stay quiet");
+    assert_eq!(
+        ctx.toasts.toasts().len(),
+        0,
+        "successful Ctrl+D should stay quiet"
+    );
     assert_eq!(crate::abi::mui_ed_add_caret_next(handle), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
@@ -155,7 +160,10 @@ fn fold_commands_report_empty_and_noop_outcomes() {
         crate::abi::mui_fold_dispatch(handle, crate::palette::CMD_FOLD_ALL as i32),
         0
     );
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "No foldable blocks");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No foldable blocks"
+    );
 
     ctx.toasts.clear();
     ctx.tabs
@@ -167,7 +175,10 @@ fn fold_commands_report_empty_and_noop_outcomes() {
         crate::abi::mui_fold_dispatch(handle, crate::palette::CMD_FOLD_TOGGLE as i32),
         1
     );
-    assert!(ctx.toasts.toasts().is_empty(), "successful fold toggle should stay quiet");
+    assert!(
+        ctx.toasts.toasts().is_empty(),
+        "successful fold toggle should stay quiet"
+    );
 
     assert_eq!(
         crate::abi::mui_fold_dispatch(handle, crate::palette::CMD_FOLD_ALL as i32),
@@ -183,7 +194,10 @@ fn fold_commands_report_empty_and_noop_outcomes() {
         crate::abi::mui_fold_dispatch(handle, crate::palette::CMD_UNFOLD_ALL as i32),
         1
     );
-    assert!(ctx.toasts.toasts().is_empty(), "successful unfold all should stay quiet");
+    assert!(
+        ctx.toasts.toasts().is_empty(),
+        "successful unfold all should stay quiet"
+    );
 
     assert_eq!(
         crate::abi::mui_fold_dispatch(handle, crate::palette::CMD_UNFOLD_ALL as i32),
@@ -232,7 +246,14 @@ fn vello_rounded_rect_fills_center_and_softens_corner() {
         mui_begin_frame(p);
         // Push a rounded rect directly via the display-list helper.
         if let Some(c) = p.as_mut() {
-            c.dl_round(8.0, 8.0, 40.0, 40.0, 10.0, MuiColor::new(0.0, 1.0, 0.0, 1.0));
+            c.dl_round(
+                8.0,
+                8.0,
+                40.0,
+                40.0,
+                10.0,
+                MuiColor::new(0.0, 1.0, 0.0, 1.0),
+            );
         }
         mui_end_frame(p);
     }
@@ -294,7 +315,14 @@ fn rendering_a_glyph_yields_non_clear_texels_in_its_box() {
 
     unsafe {
         mui_begin_frame(p);
-        mui_draw_text(p, 2.0, 2.0, s.as_ptr(), s.len(), MuiColor::new(1.0, 1.0, 1.0, 1.0));
+        mui_draw_text(
+            p,
+            2.0,
+            2.0,
+            s.as_ptr(),
+            s.len(),
+            MuiColor::new(1.0, 1.0, 1.0, 1.0),
+        );
         mui_end_frame(p);
     }
     let pixels = ctx.read_pixels();
@@ -314,7 +342,10 @@ fn rendering_a_glyph_yields_non_clear_texels_in_its_box() {
             break;
         }
     }
-    assert!(found, "expected at least one drawn glyph texel in box {bx}x{by}");
+    assert!(
+        found,
+        "expected at least one drawn glyph texel in box {bx}x{by}"
+    );
 }
 
 #[test]
@@ -375,8 +406,13 @@ fn event_queue_returns_pushed_events_fifo_then_empty() {
     };
 
     ctx.queue.push(MuiEvent::char(b'a' as u32, 0));
-    ctx.queue
-        .push(MuiEvent::mouse(MUI_EVENT_MOUSE_DOWN, MUI_MOUSE_LEFT, 3.0, 4.0, 0));
+    ctx.queue.push(MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        3.0,
+        4.0,
+        0,
+    ));
     ctx.queue.push(MuiEvent::key(MUI_KEY_ENTER, MUI_MOD_CTRL));
 
     let p: *mut MuiContext = &mut ctx;
@@ -444,12 +480,12 @@ fn save_staging_writes_then_load_reads_back_round_trip() {
 fn tab_abi_open_switch_close_and_byte_round_trip() {
     use crate::langdetect::Language;
     use crate::{
-        mui_dirty_confirm_active, mui_dirty_confirm_cancel, mui_dirty_confirm_click, mui_dirty_confirm_discard,
-        mui_dirty_confirm_save,
-        mui_ed_set_dirty, mui_path_clear, mui_path_push, mui_quit_request, mui_tab_active,
-        mui_tab_close, mui_tab_count, mui_tab_cursor_col, mui_tab_cursor_line, mui_tab_load,
-        mui_tab_load_byte, mui_tab_open_path, mui_tab_scroll, mui_tab_set_dirty,
-        mui_tab_store_begin, mui_tab_store_byte, mui_tab_store_commit, mui_tab_switch,
+        mui_dirty_confirm_active, mui_dirty_confirm_cancel, mui_dirty_confirm_click,
+        mui_dirty_confirm_discard, mui_dirty_confirm_save, mui_ed_set_dirty, mui_path_clear,
+        mui_path_push, mui_quit_request, mui_tab_active, mui_tab_close, mui_tab_count,
+        mui_tab_cursor_col, mui_tab_cursor_line, mui_tab_load, mui_tab_load_byte,
+        mui_tab_open_path, mui_tab_scroll, mui_tab_set_dirty, mui_tab_store_begin,
+        mui_tab_store_byte, mui_tab_store_commit, mui_tab_switch,
     };
 
     let _g = crate::settings::TEST_LOCK
@@ -535,14 +571,22 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     mui_dirty_confirm_cancel(handle);
     assert_eq!(mui_dirty_confirm_active(handle), 0);
     assert_eq!(mui_quit_request(handle), 0);
-    assert_eq!(mui_quit_request(handle), 0, "repeat quit should keep the modal active");
+    assert_eq!(
+        mui_quit_request(handle),
+        0,
+        "repeat quit should keep the modal active"
+    );
     mui_dirty_confirm_cancel(handle);
     assert_eq!(mui_tab_close(handle, 1), -1);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Review unsaved changes in mui_tababi_open.txt"
     );
-    assert_eq!(mui_tab_close(handle, 1), -1, "repeat close should not discard");
+    assert_eq!(
+        mui_tab_close(handle, 1),
+        -1,
+        "repeat close should not discard"
+    );
     assert_eq!(mui_dirty_confirm_active(handle), 1);
 
     // Scaled-window paths can have raw GPU dimensions wider/taller than the
@@ -556,7 +600,8 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     crate::uiscale::set_user_zoom(1.0);
     let visible_w = crate::layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
     let visible_h = crate::layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height) as f32;
-    let (card_x, card_y, card_w, _card_h) = crate::abi::dirty_confirm_card_rect(visible_w, visible_h);
+    let (card_x, card_y, card_w, _card_h) =
+        crate::abi::dirty_confirm_card_rect(visible_w, visible_h);
     let btn_w = crate::abi::dirty_confirm_button_width(card_w);
     let btn_h = 34.0;
     let by = card_y + _card_h - 54.0;
@@ -588,7 +633,10 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     let (fitted_w, _) = ctx
         .text
         .measure_ui_sized(&fitted_detail, crate::theme::CHROME_FONT_SIZE);
-    assert!(fitted_w <= 312.0, "dirty-confirm detail should fit modal text budget: {fitted_detail}");
+    assert!(
+        fitted_w <= 312.0,
+        "dirty-confirm detail should fit modal text budget: {fitted_detail}"
+    );
     assert!(
         fitted_detail.ends_with("cannot be undone."),
         "tail should preserve the consequence text: {fitted_detail}"
@@ -616,7 +664,8 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
             "button label should fit centered compact button: {label}"
         );
     }
-    let (tiny_x, _tiny_y, tiny_card_w, _tiny_card_h) = crate::abi::dirty_confirm_card_rect(180.0, 360.0);
+    let (tiny_x, _tiny_y, tiny_card_w, _tiny_card_h) =
+        crate::abi::dirty_confirm_card_rect(180.0, 360.0);
     assert!(tiny_x >= 0.0);
     assert!(tiny_card_w <= 180.0);
     assert!(tiny_x + tiny_card_w <= 180.0 + 0.5);
@@ -650,7 +699,9 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     // Dirty untitled tabs keep the confirmation active and explain a cancelled
     // Save dialog instead of failing silently.
     let untitled = ctx.tabs.new_untitled();
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("scratch");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("scratch");
     mui_tab_set_dirty(handle, untitled as i32, 1);
     assert_eq!(mui_tab_close(handle, untitled as i32), -1);
     assert_eq!(
@@ -754,12 +805,12 @@ fn click_routing_tab_bar_sidebar_and_text() {
         .lock()
         .unwrap_or_else(|e| e.into_inner());
     use crate::ffi::MuiEvent;
+    use crate::layout;
+    use crate::panels::mui_ai_click;
     use crate::{
         mui_rail_utility_at_click, mui_tab_close_index_at_click, mui_tab_index_at_click,
         mui_tree_row_at_click, mui_window_resize_at_click,
     };
-    use crate::layout;
-    use crate::panels::mui_ai_click;
 
     let mut ctx = ctx_or_skip!();
     crate::uiscale::set_os_scale(1.0);
@@ -783,7 +834,13 @@ fn click_routing_tab_bar_sidebar_and_text() {
     // Click in the tab bar over tab 1. Tabs start right of the rail AND the
     // sidebar (when shown), matching `mui_tab_bar_draw`.
     let body_left = layout::sidebar_right();
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, body_left + layout::TAB_W + 5.0, 4.0, 0);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        body_left + layout::TAB_W + 5.0,
+        4.0,
+        0,
+    );
     assert_eq!(mui_tab_index_at_click(handle), 1);
     ctx.last_event = MuiEvent::mouse(
         crate::ffi::MUI_EVENT_MOUSE_DOWN,
@@ -795,9 +852,8 @@ fn click_routing_tab_bar_sidebar_and_text() {
     assert_eq!(mui_tab_close_index_at_click(handle), 1);
     // The top-right run/menu/window-control strip is not a tab, even though it
     // shares the tab-bar row.
-    let ai_reserved_x = crate::titlebar::controls_x(ctx.gpu.width as f32)
-        - crate::titlebar::ACTION_STRIP_W
-        + 4.0;
+    let ai_reserved_x =
+        crate::titlebar::controls_x(ctx.gpu.width as f32) - crate::titlebar::ACTION_STRIP_W + 4.0;
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, ai_reserved_x, 4.0, 0);
     assert_eq!(mui_tab_index_at_click(handle), -1);
     assert_eq!(mui_tab_close_index_at_click(handle), -1);
@@ -841,9 +897,8 @@ fn click_routing_tab_bar_sidebar_and_text() {
     ctx.gpu.height = 700;
     ctx.gpu.phys_width = 0;
     ctx.gpu.phys_height = 0;
-    let reserved_x = crate::titlebar::controls_x(ctx.gpu.width as f32)
-        - crate::titlebar::ACTION_STRIP_W
-        + 4.0;
+    let reserved_x =
+        crate::titlebar::controls_x(ctx.gpu.width as f32) - crate::titlebar::ACTION_STRIP_W + 4.0;
     ctx.ai.open = true;
     ctx.ai.input = "ship it".to_string();
     let ai_visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
@@ -1019,9 +1074,8 @@ fn tab_bar_long_dirty_label_keeps_close_affordance_clickable() {
     ctx.gpu.width = 720;
     ctx.gpu.height = 480;
     ctx.sidebar_visible = false;
-    let path = std::env::temp_dir().join(
-        "mighty_tab_label_with_a_very_long_filename_that_must_not_overlap_close_icon.mty",
-    );
+    let path = std::env::temp_dir()
+        .join("mighty_tab_label_with_a_very_long_filename_that_must_not_overlap_close_icon.mty");
     let _ = std::fs::write(&path, b"fn main() -> I32 { 1 }\n");
     let tab = ctx.tabs.open_path(path);
     ctx.tabs.get_mut(tab).unwrap().dirty = true;
@@ -1107,7 +1161,10 @@ fn tab_bar_overflow_scroll_maps_visible_slots_to_real_tabs() {
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     mui_tab_bar_draw(handle);
-    assert!(ctx.tab_scroll > 0, "active overflow tab should be scrolled into view");
+    assert!(
+        ctx.tab_scroll > 0,
+        "active overflow tab should be scrolled into view"
+    );
     let first_visible = ctx.tab_scroll;
     let body_left = crate::layout::body_left(ctx.sidebar_visible);
 
@@ -1148,7 +1205,13 @@ fn activity_rail_all_slots_are_click_targets() {
 
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, 26.0, icon_top - 1.0, 0);
     assert_eq!(mui_rail_panel_at_click(handle), -1);
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, crate::layout::RAIL_W + 1.0, icon_top, 0);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        crate::layout::RAIL_W + 1.0,
+        icon_top,
+        0,
+    );
     assert_eq!(mui_rail_panel_at_click(handle), -1);
 }
 
@@ -1186,7 +1249,10 @@ fn view_commands_open_non_sidebar_surfaces_without_toggling() {
     assert_eq!(crate::panels::mui_ai_is_open(handle), 1);
     assert_eq!(crate::panels::mui_ai_close(handle), 1);
     assert_eq!(crate::panels::mui_ai_is_open(handle), 0);
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "AI Copilot closed");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "AI Copilot closed"
+    );
     assert_eq!(crate::panels::mui_ai_close(handle), 0);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
@@ -1239,7 +1305,9 @@ fn web_clear_output_reports_feedback_and_preserves_url() {
 
 #[test]
 fn web_headless_open_browser_does_not_cover_screenshot_with_success_toast() {
-    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let old_screenshot = std::env::var_os("MUI_SCREENSHOT");
     std::env::set_var("MUI_SCREENSHOT", "target/web-headless-open-browser.png");
 
@@ -1260,7 +1328,9 @@ fn web_headless_open_browser_does_not_cover_screenshot_with_success_toast() {
 
 #[test]
 fn ai_send_idle_controls_explain_noops() {
-    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let old_anthropic = std::env::var_os("ANTHROPIC_API_KEY");
     let old_claude = std::env::var_os("CLAUDE_API_KEY");
     std::env::remove_var("ANTHROPIC_API_KEY");
@@ -1292,7 +1362,9 @@ fn ai_send_idle_controls_explain_noops() {
 
 #[test]
 fn ai_inline_send_reports_unavailable_outcomes() {
-    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let old_anthropic = std::env::var_os("ANTHROPIC_API_KEY");
     let old_claude = std::env::var_os("CLAUDE_API_KEY");
     std::env::remove_var("ANTHROPIC_API_KEY");
@@ -1447,7 +1519,10 @@ fn sidebar_resize_preserves_grab_offset_inside_hit_band() {
         0,
     );
     assert_eq!(crate::abi::mui_sidebar_resize_at_click(handle), 1);
-    assert_eq!(crate::abi::mui_sidebar_resize_to_event_x(handle), start_w.round() as i32);
+    assert_eq!(
+        crate::abi::mui_sidebar_resize_to_event_x(handle),
+        start_w.round() as i32
+    );
 
     ctx.last_event = MuiEvent::mouse_move(right + 34.0, resize_y, 0);
     assert_eq!(
@@ -1477,7 +1552,10 @@ fn sidebar_close_command_is_deterministic() {
     assert_eq!(crate::abi::mui_sidebar_close(handle), 1);
     assert!(!ctx.sidebar_visible);
     assert_eq!(ctx.active_panel, crate::PANEL_SEARCH);
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Sidebar closed");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Sidebar closed"
+    );
 
     assert_eq!(crate::abi::mui_sidebar_close(handle), 0);
     assert_eq!(
@@ -1507,12 +1585,18 @@ fn visible_rows_reserve_space_for_every_bottom_dock_owner() {
 
     assert_eq!(crate::featureabi::mui_run_open(handle), 1);
     let run_rows = crate::abi::mui_visible_rows(handle);
-    assert!(run_rows < base_rows, "run_rows={run_rows} base_rows={base_rows}");
+    assert!(
+        run_rows < base_rows,
+        "run_rows={run_rows} base_rows={base_rows}"
+    );
     assert!(ctx.bottom_dock_open());
 
     assert_eq!(crate::webabi::mui_web_open(handle), 1);
     let web_rows = crate::abi::mui_visible_rows(handle);
-    assert_eq!(web_rows, run_rows, "web dock should reserve the same lower band");
+    assert_eq!(
+        web_rows, run_rows,
+        "web dock should reserve the same lower band"
+    );
     assert!(ctx.bottom_dock_open());
 
     assert_eq!(crate::navsurfaces::mui_problems_open(handle), 1);
@@ -1605,10 +1689,8 @@ fn run_output_click_misses_report_visible_feedback() {
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No run output row selected");
 
-    let missing = std::env::temp_dir().join(format!(
-        "mui_run_missing_target_{}.mty",
-        std::process::id()
-    ));
+    let missing =
+        std::env::temp_dir().join(format!("mui_run_missing_target_{}.mty", std::process::id()));
     let _ = std::fs::remove_file(&missing);
     ctx.run.seed_demo(missing.to_string_lossy().as_ref());
 
@@ -1840,12 +1922,18 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
 
     ctx.last_event = MuiEvent::mouse_move(500.0, 260.0, 0);
     let resized_h = crate::abi::mui_bottom_dock_resize_to_event_y(handle);
-    assert!(resized_h > default_h, "resized_h={resized_h} default_h={default_h}");
+    assert!(
+        resized_h > default_h,
+        "resized_h={resized_h} default_h={default_h}"
+    );
     let rows_after_taller = crate::abi::mui_visible_rows(handle);
 
     ctx.last_event = MuiEvent::mouse_move(500.0, 610.0, 0);
     let shorter_h = crate::abi::mui_bottom_dock_resize_to_event_y(handle);
-    assert!(shorter_h < resized_h, "shorter_h={shorter_h} resized_h={resized_h}");
+    assert!(
+        shorter_h < resized_h,
+        "shorter_h={shorter_h} resized_h={resized_h}"
+    );
     let rows_after_shorter = crate::abi::mui_visible_rows(handle);
     assert!(rows_after_shorter > rows_after_taller);
     assert_eq!(crate::abi::mui_bottom_dock_resize_finish(handle), shorter_h);
@@ -1881,13 +1969,19 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
         crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_COMPACT as i32),
         1
     );
-    assert_eq!(crate::layout::dock_fraction(), crate::layout::TERM_FRACTION_MIN);
+    assert_eq!(
+        crate::layout::dock_fraction(),
+        crate::layout::TERM_FRACTION_MIN
+    );
     assert_eq!(crate::layout::dock_preset_index(), 0);
     assert_eq!(
         crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_EXPANDED as i32),
         3
     );
-    assert_eq!(crate::layout::dock_fraction(), crate::layout::TERM_FRACTION_MAX);
+    assert_eq!(
+        crate::layout::dock_fraction(),
+        crate::layout::TERM_FRACTION_MAX
+    );
     assert_eq!(crate::layout::dock_preset_index(), 2);
     assert_eq!(
         crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_CLOSE as i32),
@@ -2068,7 +2162,9 @@ fn search_replace_all_preserves_dirty_open_tab() {
     std::fs::write(&path, "foo\n").unwrap();
     ctx.tree.set_root(root.clone());
     let idx = ctx.tabs.open_path(path.clone());
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("local unsaved foo\n");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("local unsaved foo\n");
     ctx.tabs.set_dirty(idx, true);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -2176,7 +2272,10 @@ fn new_project_dialog_rejects_non_empty_selected_folder() {
     assert_eq!(crate::mui_newproj_dialog(handle), 0);
     std::env::remove_var("MUI_NEW_PROJECT_PICK");
 
-    assert!(target.join("keep.txt").exists(), "dialog path must not overwrite non-empty folders");
+    assert!(
+        target.join("keep.txt").exists(),
+        "dialog path must not overwrite non-empty folders"
+    );
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Choose an empty folder for chosen_project");
@@ -2370,7 +2469,11 @@ fn new_file_dialog_env_pick_creates_opens_and_records_recent() {
     assert_eq!(mui_tab_active(handle), idx);
     assert_eq!(ctx.tabs.active_path().as_deref(), Some(picked.as_path()));
     assert_eq!(ctx.file_path.as_deref(), Some(picked.as_path()));
-    assert_eq!(mui_quickopen_reindex(handle), 1, "new file should be in the file index");
+    assert_eq!(
+        mui_quickopen_reindex(handle),
+        1,
+        "new file should be in the file index"
+    );
     assert_eq!(ctx.quickopen.recent_paths(), vec![picked.clone()]);
 
     let _ = std::fs::remove_dir_all(&root);
@@ -2423,7 +2526,8 @@ fn new_file_dialog_cancel_and_existing_are_noops() {
         .unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
-    let root = std::env::temp_dir().join(format!("mui_new_file_dialog_noop_{}", std::process::id()));
+    let root =
+        std::env::temp_dir().join(format!("mui_new_file_dialog_noop_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
     ctx.workspace.set_root(root.clone());
@@ -2469,7 +2573,10 @@ fn new_file_dialog_cancel_and_existing_are_noops() {
     assert_eq!(toast.message, "Created file: outside.mty");
 
     let outside_workspace = outside_dir.join("outside-workspace.mty");
-    std::env::set_var("MUI_NEW_FILE_PICK", outside_workspace.to_string_lossy().as_ref());
+    std::env::set_var(
+        "MUI_NEW_FILE_PICK",
+        outside_workspace.to_string_lossy().as_ref(),
+    );
     assert_eq!(mui_newfile_workspace_dialog(handle), -2);
     std::env::remove_var("MUI_NEW_FILE_PICK");
     assert!(!outside_workspace.exists());
@@ -2536,7 +2643,10 @@ fn active_file_rename_updates_tab_path_tree_and_toasts() {
     assert!(!old.exists());
     assert!(new.exists());
     assert_eq!(ctx.tabs.active_path().unwrap(), new);
-    assert_eq!(ctx.file_path.as_ref().unwrap().file_name().unwrap(), "new.mty");
+    assert_eq!(
+        ctx.file_path.as_ref().unwrap().file_name().unwrap(),
+        "new.mty"
+    );
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Success);
     assert_eq!(toast.message, "Renamed to new.mty");
@@ -2591,14 +2701,16 @@ fn delete_prompt_label_names_exact_file_before_confirmation() {
     std::fs::write(&file, "fn doomed() {}\n").unwrap();
     ctx.tabs.open_path(file);
     crate::abi::sync_active_path(&mut ctx);
-    ctx.prompt.open(crate::prompt::PromptKind::DeleteFile as i32);
+    ctx.prompt
+        .open(crate::prompt::PromptKind::DeleteFile as i32);
 
     assert_eq!(
         crate::abi::prompt_draw_label(&ctx),
         "Delete doomed.mty, type name: "
     );
 
-    ctx.prompt.open(crate::prompt::PromptKind::RenameFile as i32);
+    ctx.prompt
+        .open(crate::prompt::PromptKind::RenameFile as i32);
     assert_eq!(
         crate::abi::prompt_draw_label(&ctx),
         "Rename active file to: "
@@ -2791,7 +2903,10 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         ),
     ];
     for (id, label, keybinding) in search_commands {
-        let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
+        let cmd = crate::palette::COMMANDS
+            .iter()
+            .find(|cmd| cmd.id == id)
+            .unwrap();
         assert_eq!(cmd.label, label);
         assert_eq!(cmd.keybinding, keybinding);
     }
@@ -2799,7 +2914,10 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     let view_commands = [
         (crate::palette::CMD_VIEW_EXPLORER, "View: Explorer"),
         (crate::palette::CMD_VIEW_SEARCH, "View: Search"),
-        (crate::palette::CMD_VIEW_SOURCE_CONTROL, "View: Source Control"),
+        (
+            crate::palette::CMD_VIEW_SOURCE_CONTROL,
+            "View: Source Control",
+        ),
         (crate::palette::CMD_VIEW_OUTLINE, "View: Outline"),
         (crate::palette::CMD_VIEW_RUN_DEBUG, "View: Run and Debug"),
         (crate::palette::CMD_VIEW_TESTING, "View: Testing"),
@@ -2809,8 +2927,14 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_AI_CLOSE, "View: Close AI Copilot"),
         (crate::palette::CMD_SIDEBAR_CLOSE, "View: Close Sidebar"),
         (crate::palette::CMD_VIEW_TERMINAL, "View: Terminal"),
-        (crate::palette::CMD_VIEW_WEB_PLAYGROUND, "View: Web Playground"),
-        (crate::palette::CMD_DOCK_COMPACT, "View: Bottom Dock Compact"),
+        (
+            crate::palette::CMD_VIEW_WEB_PLAYGROUND,
+            "View: Web Playground",
+        ),
+        (
+            crate::palette::CMD_DOCK_COMPACT,
+            "View: Bottom Dock Compact",
+        ),
         (
             crate::palette::CMD_DOCK_RESET,
             "View: Bottom Dock Default Size",
@@ -2833,7 +2957,10 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_WINDOW_MINIMIZE, "Window: Minimize"),
     ];
     for (id, label) in view_commands {
-        let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
+        let cmd = crate::palette::COMMANDS
+            .iter()
+            .find(|cmd| cmd.id == id)
+            .unwrap();
         assert_eq!(cmd.label, label);
     }
 
@@ -2852,7 +2979,11 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(outline_refresh.keybinding, "");
 
     let ai_commands = [
-        (crate::palette::CMD_INLINE_AI_ASK, "AI: Inline Ask", "Ctrl+I"),
+        (
+            crate::palette::CMD_INLINE_AI_ASK,
+            "AI: Inline Ask",
+            "Ctrl+I",
+        ),
         (
             crate::palette::CMD_FORCE_GHOST_COMPLETION,
             "AI: Force Ghost Completion",
@@ -2866,7 +2997,10 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         ),
     ];
     for (id, label, keybinding) in ai_commands {
-        let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
+        let cmd = crate::palette::COMMANDS
+            .iter()
+            .find(|cmd| cmd.id == id)
+            .unwrap();
         assert_eq!(cmd.label, label);
         assert_eq!(cmd.keybinding, keybinding);
     }
@@ -2878,8 +3012,16 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
             "F5",
         ),
         (crate::palette::CMD_DEBUG_STOP, "Debug: Stop", "Shift+F5"),
-        (crate::palette::CMD_DEBUG_STEP_OVER, "Debug: Step Over", "F10"),
-        (crate::palette::CMD_DEBUG_STEP_INTO, "Debug: Step Into", "F11"),
+        (
+            crate::palette::CMD_DEBUG_STEP_OVER,
+            "Debug: Step Over",
+            "F10",
+        ),
+        (
+            crate::palette::CMD_DEBUG_STEP_INTO,
+            "Debug: Step Into",
+            "F11",
+        ),
         (
             crate::palette::CMD_DEBUG_STEP_OUT,
             "Debug: Step Out",
@@ -2889,7 +3031,10 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_DEBUG_RESTART, "Debug: Restart", ""),
     ];
     for (id, label, keybinding) in debug_commands {
-        let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
+        let cmd = crate::palette::COMMANDS
+            .iter()
+            .find(|cmd| cmd.id == id)
+            .unwrap();
         assert_eq!(cmd.label, label);
         assert_eq!(cmd.keybinding, keybinding);
     }
@@ -2907,7 +3052,10 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_ZOOM_RESET, "View: Reset Zoom", "Ctrl+0"),
     ];
     for (id, label, keybinding) in zoom_commands {
-        let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
+        let cmd = crate::palette::COMMANDS
+            .iter()
+            .find(|cmd| cmd.id == id)
+            .unwrap();
         assert_eq!(cmd.label, label);
         assert_eq!(cmd.keybinding, keybinding);
     }
@@ -2946,6 +3094,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(test_at_cursor.label, "Run Test at Cursor");
     assert_eq!(test_at_cursor.keybinding, "");
+
+    let peek_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_PEEK_CLOSE)
+        .unwrap();
+    assert_eq!(peek_close.label, "Peek: Close View");
+    assert_eq!(peek_close.keybinding, "");
 
     let web_stop = crate::palette::COMMANDS
         .iter()
@@ -3006,13 +3161,19 @@ fn save_all_prompts_for_dirty_untitled_tabs() {
     std::fs::write(&b, "old b").unwrap();
 
     let ia = ctx.tabs.open_path(a.clone());
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("new a");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("new a");
     ctx.tabs.set_dirty(ia, true);
     let ib = ctx.tabs.open_path(b.clone());
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("new b");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("new b");
     ctx.tabs.set_dirty(ib, true);
     let iu = ctx.tabs.new_untitled();
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("untitled");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("untitled");
     ctx.tabs.set_dirty(iu, true);
 
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -3040,7 +3201,9 @@ fn save_all_cancelled_untitled_picker_preserves_dirty_tab() {
         .unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
     let iu = ctx.tabs.new_untitled();
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("untitled");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("untitled");
     ctx.tabs.set_dirty(iu, true);
 
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -3051,7 +3214,10 @@ fn save_all_cancelled_untitled_picker_preserves_dirty_tab() {
     assert!(ctx.tabs.get(iu).unwrap().path.is_none());
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "Save All cancelled; 1 untitled file still unsaved");
+    assert_eq!(
+        toast.message,
+        "Save All cancelled; 1 untitled file still unsaved"
+    );
 }
 
 #[test]
@@ -3066,7 +3232,12 @@ fn scm_stage_all_and_unstage_all_via_abi_or_skip() {
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
     let git = |args: &[&str]| {
-        Command::new("git").arg("-C").arg(&root).args(args).output().unwrap()
+        Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(args)
+            .output()
+            .unwrap()
     };
     assert!(git(&["init", "-q"]).status.success());
     let _ = git(&["config", "user.email", "t@e.st"]);
@@ -3083,11 +3254,17 @@ fn scm_stage_all_and_unstage_all_via_abi_or_skip() {
     assert_eq!(ctx.scm.status.staged_count(), 0);
     assert_eq!(crate::panels::mui_scm_stage_all(handle), 1);
     assert_eq!(ctx.scm.status.staged_count(), 2);
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Staged all changes");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Staged all changes"
+    );
     assert_eq!(crate::panels::mui_scm_unstage_all(handle), 1);
     assert_eq!(ctx.scm.status.staged_count(), 0);
     assert_eq!(ctx.scm.status.unstaged_count(), 2);
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Unstaged all changes");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Unstaged all changes"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -3150,7 +3327,9 @@ fn scm_bulk_actions_without_repo_report_not_git_repository() {
 fn scm_header_refresh_icon_maps_to_refresh_action() {
     use crate::ffi::MuiEvent;
 
-    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
     crate::layout::reset_sidebar_preset();
     crate::layout::set_window_width(900);
@@ -3184,7 +3363,9 @@ fn scm_header_refresh_icon_maps_to_refresh_action() {
 fn scm_commit_staged_uses_message_buffer_via_abi_or_skip() {
     use std::process::Command;
     if Command::new("git").arg("--version").output().is_err() {
-        eprintln!("scm_commit_staged_uses_message_buffer_via_abi_or_skip: git not found - skipping");
+        eprintln!(
+            "scm_commit_staged_uses_message_buffer_via_abi_or_skip: git not found - skipping"
+        );
         return;
     }
     let mut ctx = ctx_or_skip!();
@@ -3192,7 +3373,12 @@ fn scm_commit_staged_uses_message_buffer_via_abi_or_skip() {
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
     let git = |args: &[&str]| {
-        Command::new("git").arg("-C").arg(&root).args(args).output().unwrap()
+        Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(args)
+            .output()
+            .unwrap()
     };
     assert!(git(&["init", "-q"]).status.success());
     let _ = git(&["config", "user.email", "t@e.st"]);
@@ -3211,7 +3397,10 @@ fn scm_commit_staged_uses_message_buffer_via_abi_or_skip() {
     assert_eq!(crate::panels::mui_scm_commit(handle), 1);
     assert_eq!(ctx.scm.message_string(), "");
     assert_eq!(ctx.scm.count(), 0);
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Committed changes");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Committed changes"
+    );
     let log = String::from_utf8_lossy(&git(&["log", "-1", "--pretty=%s"]).stdout)
         .trim()
         .to_string();
@@ -3253,7 +3442,8 @@ fn diff_close_clears_inline_view() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
     assert_eq!(
-        ctx.diff.open("src/main.mty", false, "@@ -1 +1 @@\n-old\n+new\n"),
+        ctx.diff
+            .open("src/main.mty", false, "@@ -1 +1 @@\n-old\n+new\n"),
         3
     );
     assert!(ctx.diff.is_active());
@@ -3279,7 +3469,12 @@ fn diff_open_empty_blob_reports_clean_file_or_skip() {
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
     let git = |args: &[&str]| {
-        Command::new("git").arg("-C").arg(&root).args(args).output().unwrap()
+        Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(args)
+            .output()
+            .unwrap()
     };
     assert!(git(&["init", "-q"]).status.success());
     let _ = git(&["config", "user.email", "t@e.st"]);
@@ -3335,12 +3530,18 @@ fn close_saved_tabs_preserves_dirty_buffers_and_reports_count() {
     assert_eq!(crate::mui_tab_reopen_closed(handle), 1);
     assert_eq!(ctx.tabs.active(), 1);
     assert_eq!(ctx.tabs.get(1).unwrap().basename(), "clean_c.mty");
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reopened clean_c.mty");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Reopened clean_c.mty"
+    );
 
     assert_eq!(crate::mui_tab_reopen_closed(handle), 2);
     assert_eq!(ctx.tabs.active(), 2);
     assert_eq!(ctx.tabs.get(2).unwrap().basename(), "clean_a.mty");
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reopened clean_a.mty");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Reopened clean_a.mty"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -3378,7 +3579,10 @@ fn close_other_saved_tabs_keeps_active_and_dirty_buffers() {
     assert_eq!(crate::mui_tab_reopen_closed(handle), 2);
     assert_eq!(ctx.tabs.active(), 2);
     assert_eq!(ctx.tabs.get(2).unwrap().basename(), "clean_c.mty");
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reopened clean_c.mty");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Reopened clean_c.mty"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -3394,7 +3598,13 @@ fn close_saved_tabs_to_side_preserves_dirty_buffers() {
     let active_mid = root.join("active_mid.mty");
     let clean_right = root.join("clean_right.mty");
     let dirty_right = root.join("dirty_right.mty");
-    for path in [&dirty_left, &clean_left, &active_mid, &clean_right, &dirty_right] {
+    for path in [
+        &dirty_left,
+        &clean_left,
+        &active_mid,
+        &clean_right,
+        &dirty_right,
+    ] {
         std::fs::write(path, "x").unwrap();
     }
 
@@ -3432,12 +3642,18 @@ fn close_saved_tabs_to_side_preserves_dirty_buffers() {
     assert_eq!(crate::mui_tab_reopen_closed(handle), 3);
     assert_eq!(ctx.tabs.active(), 3);
     assert_eq!(ctx.tabs.get(3).unwrap().basename(), "clean_left.mty");
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reopened clean_left.mty");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Reopened clean_left.mty"
+    );
 
     assert_eq!(crate::mui_tab_reopen_closed(handle), 4);
     assert_eq!(ctx.tabs.active(), 4);
     assert_eq!(ctx.tabs.get(4).unwrap().basename(), "clean_right.mty");
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reopened clean_right.mty");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Reopened clean_right.mty"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -3466,7 +3682,10 @@ fn reopen_closed_tab_restores_last_closed_tab_and_toasts() {
     assert_eq!(toast.message, "Reopened b.mty");
 
     assert_eq!(crate::mui_tab_reopen_closed(handle), -1);
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "No closed tab to reopen");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No closed tab to reopen"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -3483,7 +3702,9 @@ fn duplicate_active_tab_clones_live_state_and_toasts() {
     std::fs::write(&b, "b").unwrap();
     ctx.tabs.open_path(a);
     let b_idx = ctx.tabs.open_path(b);
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("dirty b");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("dirty b");
     ctx.tabs.store_commit(b_idx, 4, 3, 2);
     ctx.tabs.set_dirty(b_idx, true);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -3493,8 +3714,14 @@ fn duplicate_active_tab_clones_live_state_and_toasts() {
     assert_eq!(ctx.tabs.active(), 3);
     assert_eq!(ctx.tabs.get(3).unwrap().basename(), "b.mty");
     assert!(ctx.tabs.is_dirty(3));
-    assert_eq!(String::from_utf8(ctx.tabs.active_model().to_bytes()).unwrap(), "dirty b");
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Duplicated b.mty");
+    assert_eq!(
+        String::from_utf8(ctx.tabs.active_model().to_bytes()).unwrap(),
+        "dirty b"
+    );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Duplicated b.mty"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -3523,53 +3750,107 @@ fn move_active_tab_left_right_preserves_split_pane_documents() {
     assert_eq!(crate::mui_tab_move_active_left(handle), moved_left as i32);
     assert_eq!(ctx.tabs.active(), moved_left);
     assert_eq!(ctx.tabs.get(moved_left).unwrap().basename(), "b.mty");
-    assert_eq!(ctx.panes.tab_at(0), Some(b_idx), "left pane should still show a.mty");
-    assert_eq!(ctx.panes.tab_at(1), Some(moved_left), "right pane should follow b.mty");
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Moved tab left");
+    assert_eq!(
+        ctx.panes.tab_at(0),
+        Some(b_idx),
+        "left pane should still show a.mty"
+    );
+    assert_eq!(
+        ctx.panes.tab_at(1),
+        Some(moved_left),
+        "right pane should follow b.mty"
+    );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Moved tab left"
+    );
 
     while ctx.tabs.active() > 0 {
         let before = ctx.tabs.active();
         assert_eq!(crate::mui_tab_move_active_left(handle), (before - 1) as i32);
         assert_eq!(ctx.tabs.get(ctx.tabs.active()).unwrap().basename(), "b.mty");
-        assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Moved tab left");
+        assert_eq!(
+            ctx.toasts.toasts().last().unwrap().message,
+            "Moved tab left"
+        );
     }
 
     assert_eq!(crate::mui_tab_move_active_left(handle), -1);
     assert_eq!(ctx.tabs.active(), 0);
     assert_eq!(ctx.tabs.get(0).unwrap().basename(), "b.mty");
-    assert_eq!(ctx.toasts.toasts().last().unwrap().kind, crate::toast::Kind::Info);
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Tab is already first");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().kind,
+        crate::toast::Kind::Info
+    );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Tab is already first"
+    );
 
     while ctx.tabs.active() < b_idx {
         let before = ctx.tabs.active();
-        assert_eq!(crate::mui_tab_move_active_right(handle), (before + 1) as i32);
+        assert_eq!(
+            crate::mui_tab_move_active_right(handle),
+            (before + 1) as i32
+        );
         assert_eq!(ctx.tabs.get(ctx.tabs.active()).unwrap().basename(), "b.mty");
-        assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Moved tab right");
+        assert_eq!(
+            ctx.toasts.toasts().last().unwrap().message,
+            "Moved tab right"
+        );
     }
 
     assert_eq!(ctx.tabs.active(), b_idx);
     assert_eq!(ctx.tabs.get(b_idx).unwrap().basename(), "b.mty");
-    assert_eq!(ctx.panes.tab_at(0), Some(a_idx), "left pane should follow a.mty back");
-    assert_eq!(ctx.panes.tab_at(1), Some(b_idx), "right pane should follow b.mty back");
+    assert_eq!(
+        ctx.panes.tab_at(0),
+        Some(a_idx),
+        "left pane should follow a.mty back"
+    );
+    assert_eq!(
+        ctx.panes.tab_at(1),
+        Some(b_idx),
+        "right pane should follow b.mty back"
+    );
 
     while ctx.tabs.active() + 1 < ctx.tabs.count() {
         let before = ctx.tabs.active();
-        assert_eq!(crate::mui_tab_move_active_right(handle), (before + 1) as i32);
+        assert_eq!(
+            crate::mui_tab_move_active_right(handle),
+            (before + 1) as i32
+        );
         assert_eq!(ctx.tabs.get(ctx.tabs.active()).unwrap().basename(), "b.mty");
-        assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Moved tab right");
+        assert_eq!(
+            ctx.toasts.toasts().last().unwrap().message,
+            "Moved tab right"
+        );
     }
 
     let last_idx = ctx.tabs.count() - 1;
     assert_eq!(ctx.tabs.active(), last_idx);
     assert_eq!(ctx.tabs.get(last_idx).unwrap().basename(), "b.mty");
-    assert_eq!(ctx.panes.tab_at(0), Some(a_idx), "left pane should keep a.mty");
-    assert_eq!(ctx.panes.tab_at(1), Some(last_idx), "right pane should follow b.mty to the edge");
+    assert_eq!(
+        ctx.panes.tab_at(0),
+        Some(a_idx),
+        "left pane should keep a.mty"
+    );
+    assert_eq!(
+        ctx.panes.tab_at(1),
+        Some(last_idx),
+        "right pane should follow b.mty to the edge"
+    );
 
     assert_eq!(crate::mui_tab_move_active_right(handle), -1);
     assert_eq!(ctx.tabs.active(), last_idx);
     assert_eq!(ctx.tabs.get(last_idx).unwrap().basename(), "b.mty");
-    assert_eq!(ctx.toasts.toasts().last().unwrap().kind, crate::toast::Kind::Info);
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Tab is already last");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().kind,
+        crate::toast::Kind::Info
+    );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Tab is already last"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -3597,13 +3878,30 @@ fn sort_tabs_by_name_preserves_active_and_split_pane_documents() {
     assert_eq!(crate::mui_tab_sort_by_name(handle), 1);
     assert_eq!(ctx.tabs.active(), 1);
     assert_eq!(ctx.tabs.get(1).unwrap().basename(), "alpha.mty");
-    assert_eq!(ctx.panes.tab_at(0), Some(3), "left pane should still show zeta.mty");
-    assert_eq!(ctx.panes.tab_at(1), Some(1), "right pane should still show alpha.mty");
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Sorted tabs by name");
+    assert_eq!(
+        ctx.panes.tab_at(0),
+        Some(3),
+        "left pane should still show zeta.mty"
+    );
+    assert_eq!(
+        ctx.panes.tab_at(1),
+        Some(1),
+        "right pane should still show alpha.mty"
+    );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Sorted tabs by name"
+    );
 
     assert_eq!(crate::mui_tab_sort_by_name(handle), -1);
-    assert_eq!(ctx.toasts.toasts().last().unwrap().kind, crate::toast::Kind::Info);
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Tabs already sorted");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().kind,
+        crate::toast::Kind::Info
+    );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Tabs already sorted"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -3611,7 +3909,8 @@ fn sort_tabs_by_name_preserves_active_and_split_pane_documents() {
 #[test]
 fn close_duplicate_tabs_preserves_active_dirty_and_valid_panes() {
     let mut ctx = ctx_or_skip!();
-    let root = std::env::temp_dir().join(format!("mui_close_duplicate_tabs_{}", std::process::id()));
+    let root =
+        std::env::temp_dir().join(format!("mui_close_duplicate_tabs_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
     let a = root.join("a.mty");
@@ -3641,7 +3940,10 @@ fn close_duplicate_tabs_preserves_active_dirty_and_valid_panes() {
     );
 
     assert_eq!(crate::mui_tab_close_duplicate_files(handle), -1);
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "No duplicate file tabs");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No duplicate file tabs"
+    );
     assert_eq!(ctx.tabs.get(2).unwrap().basename(), "b.mty");
     assert_ne!(b_idx, duplicate_b);
 
@@ -3661,10 +3963,18 @@ fn reload_active_file_refreshes_clean_file_and_protects_dirty_tab() {
 
     std::fs::write(&path, "new").unwrap();
     assert_eq!(crate::mui_tab_reload_active(handle), idx as i32);
-    assert_eq!(String::from_utf8(ctx.tabs.active_model().to_bytes()).unwrap(), "new");
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reloaded reload_me.mty");
+    assert_eq!(
+        String::from_utf8(ctx.tabs.active_model().to_bytes()).unwrap(),
+        "new"
+    );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Reloaded reload_me.mty"
+    );
 
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("dirty local");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("dirty local");
     ctx.tabs.set_dirty(idx, true);
     std::fs::write(&path, "external").unwrap();
     assert_eq!(crate::mui_tab_reload_active(handle), -1);
@@ -3689,7 +3999,9 @@ fn revert_active_file_discards_dirty_buffer_from_disk() {
     let path = root.join("revert_me.mty");
     std::fs::write(&path, "disk").unwrap();
     let idx = ctx.tabs.open_path(path.clone());
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("dirty local");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("dirty local");
     ctx.tabs.set_dirty(idx, true);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -3701,7 +4013,10 @@ fn revert_active_file_discards_dirty_buffer_from_disk() {
         String::from_utf8(ctx.tabs.active_model().to_bytes()).unwrap(),
         "external"
     );
-    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reverted revert_me.mty");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Reverted revert_me.mty"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -3729,7 +4044,10 @@ fn panel_switch_clears_low_priority_toasts_only() {
     ctx.push_toast(crate::toast::Kind::Warn, "Keep warning");
     ctx.push_toast(crate::toast::Kind::Error, "Keep error");
 
-    assert_eq!(crate::panels::mui_panel_set(handle, crate::PANEL_SEARCH), crate::PANEL_SEARCH);
+    assert_eq!(
+        crate::panels::mui_panel_set(handle, crate::PANEL_SEARCH),
+        crate::PANEL_SEARCH
+    );
 
     let remaining: Vec<_> = ctx
         .toasts
@@ -3749,7 +4067,10 @@ fn panel_switch_clears_low_priority_toasts_only() {
 #[test]
 fn compact_windows_show_at_most_two_toast_cards() {
     assert_eq!(crate::toast::visible_toast_count(560, 520, 0.0), 2);
-    assert_eq!(crate::toast::visible_toast_count(900, 700, 0.0), crate::toast::MAX_VISIBLE);
+    assert_eq!(
+        crate::toast::visible_toast_count(900, 700, 0.0),
+        crate::toast::MAX_VISIBLE
+    );
     assert_eq!(
         crate::toast::visible_toast_count(900, 700, crate::layout::term_panel_height(700)),
         2,
@@ -3979,10 +4300,7 @@ fn active_file_name_and_directory_text_are_clipboard_ready() {
     let path = std::path::Path::new("C:\\workspace\\src\\main.mty");
 
     assert_eq!(crate::abi::active_file_name_text(path), "main.mty");
-    assert_eq!(
-        crate::abi::active_directory_text(path),
-        "C:/workspace/src"
-    );
+    assert_eq!(crate::abi::active_directory_text(path), "C:/workspace/src");
     assert_eq!(
         crate::abi::active_directory_text(std::path::Path::new("scratch.mty")),
         "."
@@ -4014,13 +4332,7 @@ fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
 
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, run_x, 4.0, 0);
     assert_eq!(mui_topbar_action_at_click(handle), 1);
-    ctx.last_event = MuiEvent::mouse(
-        crate::ffi::MUI_EVENT_MOUSE_DOWN,
-        0,
-        strip_x + 3.0,
-        4.0,
-        0,
-    );
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, strip_x + 3.0, 4.0, 0);
     assert_eq!(
         mui_topbar_action_at_click(handle),
         1,
@@ -4034,13 +4346,7 @@ fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
         3,
         "the visible command-center pill should open Quick Open"
     );
-    ctx.last_event = MuiEvent::mouse(
-        crate::ffi::MUI_EVENT_MOUSE_DOWN,
-        0,
-        strip_x + 31.0,
-        4.0,
-        0,
-    );
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, strip_x + 31.0, 4.0, 0);
     assert_eq!(
         mui_topbar_action_at_click(handle),
         2,
@@ -4076,19 +4382,46 @@ fn explorer_header_actions_hit_their_visible_buttons() {
     let mut ctx = ctx_or_skip!();
     ctx.sidebar_visible = true;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
-    let centers = crate::abi::explorer_header_action_centers(crate::layout::RAIL_W, crate::layout::sidebar_w());
+    let centers = crate::abi::explorer_header_action_centers(
+        crate::layout::RAIL_W,
+        crate::layout::sidebar_w(),
+    );
 
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, centers[0].0 + 7.5, 20.0, 0);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        centers[0].0 + 7.5,
+        20.0,
+        0,
+    );
     assert_eq!(mui_explorer_header_at_click(handle), 1);
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, centers[1].0 + 7.5, 20.0, 0);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        centers[1].0 + 7.5,
+        20.0,
+        0,
+    );
     assert_eq!(mui_explorer_header_at_click(handle), 2);
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, centers[2].0 + 7.5, 20.0, 0);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        centers[2].0 + 7.5,
+        20.0,
+        0,
+    );
     assert_eq!(mui_explorer_header_at_click(handle), 3);
     assert!(crate::abi::explorer_header_action_opens_dialog(1));
     assert!(crate::abi::explorer_header_action_opens_dialog(2));
     assert!(!crate::abi::explorer_header_action_opens_dialog(3));
 
-    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, centers[0].0 + 7.5, 42.0, 0);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        centers[0].0 + 7.5,
+        42.0,
+        0,
+    );
     assert_eq!(mui_explorer_header_at_click(handle), 0);
 }
 
@@ -4099,15 +4432,8 @@ fn explorer_row_name_fits_before_git_badge() {
     let sw = crate::layout::sidebar_w();
     let chrome = crate::theme::CHROME_FONT_SIZE - 1.0;
     let name_x = sx + 12.0 + 14.0 + 17.0;
-    let shown = crate::abi::fit_explorer_name(
-        &mut ctx.text,
-        "README.md",
-        name_x,
-        sx,
-        sw,
-        chrome,
-        true,
-    );
+    let shown =
+        crate::abi::fit_explorer_name(&mut ctx.text, "README.md", name_x, sx, sw, chrome, true);
     let (shown_w, _) = ctx.text.measure_ui_sized(&shown, chrome);
     let (badge_w, _) = ctx.text.measure_ui_sized("U", chrome - 2.0);
     assert!(
@@ -4136,8 +4462,7 @@ fn explorer_header_fits_before_action_buttons() {
     let sx = crate::layout::RAIL_W;
     let sw = crate::layout::SIDEBAR_MIN_W;
     let chrome = crate::theme::CHROME_FONT_SIZE - 2.0;
-    let shown =
-        crate::abi::fit_explorer_header(&mut ctx.text, "MIGHTY-IDE-WIN64", sx, sw, chrome);
+    let shown = crate::abi::fit_explorer_header(&mut ctx.text, "MIGHTY-IDE-WIN64", sx, sw, chrome);
     let (shown_w, _) = ctx.text.measure_ui_sized(&shown, chrome);
     let label_x = sx + 14.0;
     let first_button_x = crate::abi::explorer_header_action_centers(sx, sw)[0].0 - 2.5;
@@ -4293,8 +4618,14 @@ fn branch_picker_visible_rows_fit_compact_heights() {
 fn branch_picker_geometry_keeps_positive_width_in_narrow_windows() {
     let (box_x, _box_y, box_w, _box_h, _list_top, _row_h) =
         crate::panels::branch_picker_geometry(120, 220, 3);
-    assert!(box_w > 0.0, "branch picker card width should remain positive");
-    assert!(box_x >= 0.0, "branch picker card should not start offscreen");
+    assert!(
+        box_w > 0.0,
+        "branch picker card width should remain positive"
+    );
+    assert!(
+        box_x >= 0.0,
+        "branch picker card should not start offscreen"
+    );
     assert!(
         box_x + box_w <= 120.0,
         "branch picker card should fit narrow windows: x={box_x} w={box_w}"
@@ -4320,7 +4651,9 @@ fn branch_accept_without_picker_reports_visible_feedback() {
 
 #[test]
 fn debug_header_title_fits_before_state_pill() {
-    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
     crate::layout::reset_sidebar_preset();
     crate::layout::set_window_width(520);
@@ -4331,7 +4664,8 @@ fn debug_header_title_fits_before_state_pill() {
     let pill_w = crate::dapabi::debug_state_pill_width(&mut ctx.text, "running\u{2026}", chrome);
     let pill_x = sx + sw - pill_w - 12.0;
     let title_x = sx + 34.0;
-    let title = crate::dapabi::debug_header_title_for_budget(&mut ctx.text, title_x, pill_x, chrome);
+    let title =
+        crate::dapabi::debug_header_title_for_budget(&mut ctx.text, title_x, pill_x, chrome);
     assert_eq!(title, "DEBUG");
     let shown =
         crate::dapabi::fit_debug_header_title(&mut ctx.text, title, title_x, pill_x, chrome);
@@ -4354,7 +4688,9 @@ fn debug_header_title_fits_before_state_pill() {
 
 #[test]
 fn debug_toolbar_fits_compact_sidebar() {
-    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     crate::layout::reset_sidebar_preset();
     crate::layout::set_window_width(520);
 
@@ -4373,7 +4709,9 @@ fn debug_toolbar_fits_compact_sidebar() {
 fn debug_toolbar_play_starts_or_prompts_from_idle() {
     use crate::ffi::MuiEvent;
 
-    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
     crate::layout::reset_sidebar_preset();
     crate::layout::set_window_width(900);
@@ -4395,7 +4733,10 @@ fn debug_toolbar_play_starts_or_prompts_from_idle() {
 
     crate::dapabi::mui_dbg_toolbar_action(handle, hit);
     assert_eq!(crate::dapabi::mui_dbg_active(handle), 1);
-    assert_eq!(crate::dapabi::mui_dbg_state(handle), crate::dap::DebugState::Idle.as_i32());
+    assert_eq!(
+        crate::dapabi::mui_dbg_state(handle),
+        crate::dap::DebugState::Idle.as_i32()
+    );
 
     crate::layout::reset_sidebar_preset();
 }
@@ -4423,7 +4764,10 @@ fn debug_start_without_active_file_opens_visible_debug_view() {
     ctx.active_panel = crate::PANEL_EXPLORER;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
-    assert_eq!(crate::dapabi::mui_dbg_start(handle), crate::dap::DebugState::Idle.as_i32());
+    assert_eq!(
+        crate::dapabi::mui_dbg_start(handle),
+        crate::dap::DebugState::Idle.as_i32()
+    );
     assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
     assert!(ctx.sidebar_visible);
     assert_eq!(crate::dapabi::mui_dbg_active(handle), 1);
@@ -4453,7 +4797,10 @@ fn direct_debug_actions_report_unavailable_state() {
         "Pause is available while running"
     );
 
-    assert_eq!(crate::dapabi::mui_dbg_continue(handle), crate::dap::DebugState::Idle.as_i32());
+    assert_eq!(
+        crate::dapabi::mui_dbg_continue(handle),
+        crate::dap::DebugState::Idle.as_i32()
+    );
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Continue is available when paused"
@@ -4500,10 +4847,7 @@ fn debug_toolbar_actions_reuse_direct_feedback() {
     ctx.active_panel = crate::PANEL_EXPLORER;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
-    crate::dapabi::mui_dbg_toolbar_action(
-        handle,
-        1000 + crate::dapabi::TB_STEP_OVER,
-    );
+    crate::dapabi::mui_dbg_toolbar_action(handle, 1000 + crate::dapabi::TB_STEP_OVER);
     assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
     assert!(ctx.sidebar_visible);
     assert_eq!(
@@ -4511,28 +4855,19 @@ fn debug_toolbar_actions_reuse_direct_feedback() {
         "Step Over is available when paused"
     );
 
-    crate::dapabi::mui_dbg_toolbar_action(
-        handle,
-        1000 + crate::dapabi::TB_STEP_INTO,
-    );
+    crate::dapabi::mui_dbg_toolbar_action(handle, 1000 + crate::dapabi::TB_STEP_INTO);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Step Into is available when paused"
     );
 
-    crate::dapabi::mui_dbg_toolbar_action(
-        handle,
-        1000 + crate::dapabi::TB_STEP_OUT,
-    );
+    crate::dapabi::mui_dbg_toolbar_action(handle, 1000 + crate::dapabi::TB_STEP_OUT);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Step Out is available when paused"
     );
 
-    crate::dapabi::mui_dbg_toolbar_action(
-        handle,
-        1000 + crate::dapabi::TB_STOP,
-    );
+    crate::dapabi::mui_dbg_toolbar_action(handle, 1000 + crate::dapabi::TB_STOP);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "No debug session to stop"
@@ -4558,7 +4893,9 @@ fn breakpoint_toggle_without_file_reports_visible_feedback() {
 
 #[test]
 fn debug_stack_name_fits_before_location() {
-    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
     crate::layout::reset_sidebar_preset();
     crate::layout::set_window_width(520);
@@ -4566,7 +4903,12 @@ fn debug_stack_name_fits_before_location() {
     let sx = crate::layout::RAIL_W;
     let sw = crate::layout::sidebar_w();
     let chrome = crate::theme::CHROME_FONT_SIZE;
-    let loc = crate::dapabi::fit_debug_stack_location(&mut ctx.text, "demo.mty:300", sw * 0.42, chrome - 1.5);
+    let loc = crate::dapabi::fit_debug_stack_location(
+        &mut ctx.text,
+        "demo.mty:300",
+        sw * 0.42,
+        chrome - 1.5,
+    );
     let loc_w = ctx.text.measure_ui_sized(&loc, chrome - 1.5).0;
     let loc_x = sx + sw - loc_w - 14.0;
     let name_x = sx + 30.0;
@@ -4608,7 +4950,8 @@ fn debug_variable_equals_position_tracks_rendered_name_width() {
     let narrow = "i";
     let wide = "result_value";
     let adv = crate::layout::CHAR_W();
-    let narrow_eq = name_x + crate::dapabi::debug_ui_text_width(&mut ctx.text, narrow, chrome) + adv;
+    let narrow_eq =
+        name_x + crate::dapabi::debug_ui_text_width(&mut ctx.text, narrow, chrome) + adv;
     let wide_eq = name_x + crate::dapabi::debug_ui_text_width(&mut ctx.text, wide, chrome) + adv;
 
     assert!(wide_eq > narrow_eq);
@@ -4629,7 +4972,10 @@ fn debug_variable_name_fits_measured_budget() {
     let shown_w = ctx.text.measure_ui_sized(&shown, chrome).0;
 
     assert!(shown.ends_with('\u{2026}'));
-    assert!(shown_w <= budget + 0.5, "variable name should fit measured budget: {shown}");
+    assert!(
+        shown_w <= budget + 0.5,
+        "variable name should fit measured budget: {shown}"
+    );
 }
 
 #[test]
@@ -4652,7 +4998,8 @@ fn debug_variable_value_reserves_measured_type_label() {
     let sw = crate::layout::sidebar_w();
     let name_x = sx + 16.0;
     let name_budget = crate::dapabi::debug_variable_name_budget(&mut ctx.text, 12, chrome);
-    let name = crate::dapabi::fit_debug_variable_name(&mut ctx.text, "result_value", name_budget, chrome);
+    let name =
+        crate::dapabi::fit_debug_variable_name(&mut ctx.text, "result_value", name_budget, chrome);
     let sep = crate::dapabi::debug_variable_separator_advance(&mut ctx.text, chrome);
     let eq_w = crate::dapabi::debug_ui_text_width(&mut ctx.text, "=", chrome);
     let space_w = ((sep - eq_w) * 0.5).max(0.0);
@@ -4726,7 +5073,10 @@ fn quickopen_search_placeholder_fits_before_mode_pill() {
 
 #[test]
 fn run_status_label_stays_ascii_for_compact_chip() {
-    assert_eq!(crate::featureabi::run_status_label(true, None, 0), "running");
+    assert_eq!(
+        crate::featureabi::run_status_label(true, None, 0),
+        "running"
+    );
     assert_eq!(
         crate::featureabi::run_status_label(false, Some(1), 142),
         "exit 1"
@@ -4763,11 +5113,22 @@ fn run_header_status_pill_leaves_gap_after_run_label() {
 fn run_output_line_fits_compact_panel_width() {
     let mut ctx = ctx_or_skip!();
     let line = "[MT2001] Error: expected `I32` but found a deliberately verbose expression";
-    let shown = crate::featureabi::fit_code_text(&mut ctx.text, line, 210.0, crate::theme::CHROME_FONT_SIZE);
+    let shown = crate::featureabi::fit_code_text(
+        &mut ctx.text,
+        line,
+        210.0,
+        crate::theme::CHROME_FONT_SIZE,
+    );
 
-    assert!(shown.ends_with('\u{2026}'), "long run output should visibly ellipsize: {shown}");
     assert!(
-        ctx.text.measure_sized(&shown, crate::theme::CHROME_FONT_SIZE).0 <= 210.0,
+        shown.ends_with('\u{2026}'),
+        "long run output should visibly ellipsize: {shown}"
+    );
+    assert!(
+        ctx.text
+            .measure_sized(&shown, crate::theme::CHROME_FONT_SIZE)
+            .0
+            <= 210.0,
         "fitted run output must not draw under the dock edge: {shown}"
     );
     assert!(
@@ -4806,7 +5167,8 @@ fn folded_indicator_width_uses_measured_label_text() {
 fn diff_summary_width_uses_measured_ui_text() {
     let mut ctx = ctx_or_skip!();
     let size = crate::theme::CHROME_FONT_SIZE - 1.0;
-    let short = crate::featureabi::feature_ui_text_width(&mut ctx.text, "Staged   +1 \u{2212}0", size);
+    let short =
+        crate::featureabi::feature_ui_text_width(&mut ctx.text, "Staged   +1 \u{2212}0", size);
     let long = crate::featureabi::feature_ui_text_width(
         &mut ctx.text,
         "Working Tree   +128 \u{2212}64   esc to close",
@@ -4822,7 +5184,8 @@ fn diff_hunk_button_width_uses_measured_label_text() {
     let mut ctx = ctx_or_skip!();
     let size = crate::theme::CHROME_FONT_SIZE - 1.0;
     let compact = crate::featureabi::diff_hunk_button_width(&mut ctx.text, "+ Stage", size);
-    let wide = crate::featureabi::diff_hunk_button_width(&mut ctx.text, "\u{2212} Unstage hunk", size);
+    let wide =
+        crate::featureabi::diff_hunk_button_width(&mut ctx.text, "\u{2212} Unstage hunk", size);
 
     assert!(compact > 18.0);
     assert!(wide > compact);
@@ -4932,7 +5295,10 @@ fn status_problems_chip_hit_tracks_rendered_branch_width() {
     let (x, y, w, h) = ctx
         .status_problems_rect
         .expect("status render should record the Problems chip rect");
-    assert!(x > 210.0, "long branch should push chip beyond the old fixed hit range");
+    assert!(
+        x > 210.0,
+        "long branch should push chip beyond the old fixed hit range"
+    );
 
     ctx.last_event = MuiEvent::mouse(
         crate::ffi::MUI_EVENT_MOUSE_DOWN,
@@ -5000,20 +5366,53 @@ fn status_bar_compacts_long_left_cluster_before_right_cluster() {
 fn peek_header_label_fits_measured_budget() {
     let mut ctx = ctx_or_skip!();
     let label = "very_long_nested_file_name_for_peek_header.mty:128";
-    let fitted = crate::peek::fit_peek_header_label(&mut ctx.text, label, 92.0, crate::theme::CHROME_FONT_SIZE);
+    let fitted = crate::peek::fit_peek_header_label(
+        &mut ctx.text,
+        label,
+        92.0,
+        crate::theme::CHROME_FONT_SIZE,
+    );
     assert!(fitted.ends_with('\u{2026}'));
     assert!(
-        ctx.text.measure_ui_sized(&fitted, crate::theme::CHROME_FONT_SIZE).0 <= 92.0,
+        ctx.text
+            .measure_ui_sized(&fitted, crate::theme::CHROME_FONT_SIZE)
+            .0
+            <= 92.0,
         "peek header should fit its measured budget: {fitted}"
     );
 
-    let short = crate::peek::fit_peek_header_label(&mut ctx.text, "main.mty:1", 160.0, crate::theme::CHROME_FONT_SIZE);
+    let short = crate::peek::fit_peek_header_label(
+        &mut ctx.text,
+        "main.mty:1",
+        160.0,
+        crate::theme::CHROME_FONT_SIZE,
+    );
     assert_eq!(short, "main.mty:1");
 }
 
 #[test]
+fn peek_close_clears_inline_view() {
+    let mut ctx = ctx_or_skip!();
+    assert!(ctx.peek.open_at(
+        std::path::PathBuf::from("src/main.mty"),
+        0,
+        0,
+        2,
+        crate::langdetect::Language::Mighty,
+        Some("fn target() {}\n")
+    ));
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    assert_eq!(crate::stickyabi::mui_peek_active(handle), 1);
+    crate::stickyabi::mui_peek_close(handle);
+    assert_eq!(crate::stickyabi::mui_peek_active(handle), 0);
+    assert_eq!(crate::stickyabi::mui_peek_line_count(handle), 0);
+}
+
+#[test]
 fn visible_surface_size_honors_screenshot_caps() {
-    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     std::env::set_var("MUI_SCREENSHOT_W", "560");
     std::env::set_var("MUI_SCREENSHOT_H", "520");
     let size = crate::abi::visible_surface_size_for(640, 0, 600, 0);
@@ -5026,10 +5425,22 @@ fn visible_surface_size_honors_screenshot_caps() {
 fn status_resize_grip_stays_in_bottom_right_corner() {
     let (x, y, w, h) = crate::abi::status_resize_grip_rect(1280.0, 832.0);
 
-    assert!(x >= 1254.0, "grip should be visually anchored at the right edge");
-    assert!(y >= 808.0, "grip should stay inside the status bar, not on top of text");
-    assert!(x + w <= 1273.0, "grip should leave a frame margin for borderless resize");
-    assert!(y + h <= 826.0, "grip should leave a frame margin for borderless resize");
+    assert!(
+        x >= 1254.0,
+        "grip should be visually anchored at the right edge"
+    );
+    assert!(
+        y >= 808.0,
+        "grip should stay inside the status bar, not on top of text"
+    );
+    assert!(
+        x + w <= 1273.0,
+        "grip should leave a frame margin for borderless resize"
+    );
+    assert!(
+        y + h <= 826.0,
+        "grip should leave a frame margin for borderless resize"
+    );
     assert_eq!((w, h), (16.0, 16.0));
 }
 
@@ -5092,7 +5503,10 @@ fn sidebar_cycle_width_dispatch_opens_and_rotates_presets() {
         mui_sidebar_layout_dispatch(handle, crate::palette::CMD_SIDEBAR_CYCLE_WIDTH as i32),
         1
     );
-    assert!(ctx.sidebar_visible, "cycle should reveal the sidebar if it was hidden");
+    assert!(
+        ctx.sidebar_visible,
+        "cycle should reveal the sidebar if it was hidden"
+    );
     assert_eq!(ctx.active_panel, crate::PANEL_EXPLORER);
     assert_eq!(crate::layout::sidebar_preset(), 1);
 
@@ -5123,7 +5537,14 @@ fn screenshot_renders_a_frame_and_writes_a_nonempty_png() {
     unsafe {
         mui_begin_frame(p);
         mui_fill_rect(p, 4.0, 4.0, 20.0, 12.0, MuiColor::new(0.2, 0.5, 0.9, 1.0));
-        mui_draw_text(p, 6.0, 6.0, b"Mi".as_ptr(), 2, MuiColor::new(1.0, 1.0, 1.0, 1.0));
+        mui_draw_text(
+            p,
+            6.0,
+            6.0,
+            b"Mi".as_ptr(),
+            2,
+            MuiColor::new(1.0, 1.0, 1.0, 1.0),
+        );
         mui_end_frame(p);
     }
 
@@ -5188,11 +5609,17 @@ fn editor_abi_drives_live_model_and_undo() {
     mui_ed_insert_char(h, '!' as i32);
     let after = mui_ed_cursor_col(h);
     assert_eq!(mui_ed_undo(h), 1);
-    assert!(ctx.toasts.toasts().is_empty(), "successful undo should stay quiet");
+    assert!(
+        ctx.toasts.toasts().is_empty(),
+        "successful undo should stay quiet"
+    );
     // After undo the '!' edit is gone (line 0 back to "hi").
     assert!(mui_ed_cursor_col(h) <= after);
     assert_eq!(mui_ed_redo(h), 1);
-    assert!(ctx.toasts.toasts().is_empty(), "successful redo should stay quiet");
+    assert!(
+        ctx.toasts.toasts().is_empty(),
+        "successful redo should stay quiet"
+    );
 }
 
 #[test]
@@ -5399,7 +5826,9 @@ fn explicit_completion_reports_empty_result_only_when_empty() {
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No completions available");
 
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("alpha al");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("alpha al");
     ctx.tabs.active_model_mut().move_to(0, 8);
     assert!(crate::mui_ed_complete_request(h) > 0);
     assert!(crate::mui_complete_count(h) > 0);
@@ -5413,8 +5842,7 @@ fn pane_split_focus_close_via_abi() {
     use crate::ffi::MuiEvent;
     use crate::{
         mui_pane_close, mui_pane_count, mui_pane_dispatch, mui_pane_focus_at_click,
-        mui_pane_focus_next, mui_pane_focused, mui_pane_split_right, mui_pane_tab,
-        mui_tab_active,
+        mui_pane_focus_next, mui_pane_focused, mui_pane_split_right, mui_pane_tab, mui_tab_active,
     };
 
     use crate::editor::TextModel;
@@ -5486,7 +5914,11 @@ fn pane_split_focus_close_via_abi() {
     assert_eq!(mui_tab_active(h), 0);
     {
         let ctx = unsafe { &mut *(h as usize as *mut MuiContext) };
-        assert_eq!(ctx.tabs.active_model().first_visible(), 7, "left pane scroll restored");
+        assert_eq!(
+            ctx.tabs.active_model().first_visible(),
+            7,
+            "left pane scroll restored"
+        );
     }
 
     // --- click in the RIGHT pane's column focuses pane 1 + restores scroll --
@@ -5496,15 +5928,24 @@ fn pane_split_focus_close_via_abi() {
         let win_w = ctx.gpu.width as f32;
         let (l1, _r1) = crate::layout::pane_bounds(region, win_w, 2, 1);
         // A click just inside the right column.
-        ctx.last_event =
-            MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, l1 + 1.0, region.top + 5.0, 0);
+        ctx.last_event = MuiEvent::mouse(
+            crate::ffi::MUI_EVENT_MOUSE_DOWN,
+            0,
+            l1 + 1.0,
+            region.top + 5.0,
+            0,
+        );
     }
     assert_eq!(mui_pane_focus_at_click(h), 1);
     assert_eq!(mui_pane_focused(h), 1);
     assert_eq!(mui_tab_active(h), 1);
     {
         let ctx = unsafe { &mut *(h as usize as *mut MuiContext) };
-        assert_eq!(ctx.tabs.active_model().first_visible(), 20, "right pane scroll restored");
+        assert_eq!(
+            ctx.tabs.active_model().first_visible(),
+            20,
+            "right pane scroll restored"
+        );
     }
 
     // --- close the focused pane -> back to the single-pane state -----------
@@ -5520,12 +5961,18 @@ fn pane_split_focus_close_via_abi() {
     assert_eq!(mui_tab_active(h), 0);
 
     // --- palette dispatch routes the same as the direct ops ----------------
-    assert_eq!(mui_pane_dispatch(h, crate::palette::CMD_SPLIT_RIGHT as i32), 2);
+    assert_eq!(
+        mui_pane_dispatch(h, crate::palette::CMD_SPLIT_RIGHT as i32),
+        2
+    );
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Split editor right"
     );
-    assert_eq!(mui_pane_dispatch(h, crate::palette::CMD_CLOSE_PANE as i32), 1);
+    assert_eq!(
+        mui_pane_dispatch(h, crate::palette::CMD_CLOSE_PANE as i32),
+        1
+    );
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Closed editor pane"
@@ -5588,8 +6035,12 @@ fn markdown_breadcrumb_reserves_preview_button_space() {
     crate::layout::set_window_width(520);
 
     let left = crate::layout::body_left(ctx.sidebar_visible);
-    let (bx, _by, bw, _bh) = crate::abi::md_button_rect(520.0, crate::layout::TAB_BAR_H, crate::layout::BREADCRUMB_H);
-    assert!(bx > left, "preview button should remain in the editor breadcrumb band");
+    let (bx, _by, bw, _bh) =
+        crate::abi::md_button_rect(520.0, crate::layout::TAB_BAR_H, crate::layout::BREADCRUMB_H);
+    assert!(
+        bx > left,
+        "preview button should remain in the editor breadcrumb band"
+    );
 
     let text_right = bx - 8.0;
     let parent_x = left + 16.0 + 13.0 + 6.0;
@@ -5600,7 +6051,9 @@ fn markdown_breadcrumb_reserves_preview_button_space() {
         parent_right - parent_x,
         crate::theme::CHROME_FONT_SIZE,
     );
-    let (parent_w, _) = ctx.text.measure_ui_sized(&parent, crate::theme::CHROME_FONT_SIZE);
+    let (parent_w, _) = ctx
+        .text
+        .measure_ui_sized(&parent, crate::theme::CHROME_FONT_SIZE);
     assert!(
         parent_x + parent_w <= parent_right,
         "workspace segment should be capped before it consumes the file budget: {parent}"
@@ -5614,13 +6067,18 @@ fn markdown_breadcrumb_reserves_preview_button_space() {
         file_right - file_x,
         crate::theme::CHROME_FONT_SIZE,
     );
-    let (shown_w, _) = ctx.text.measure_ui_sized(&shown, crate::theme::CHROME_FONT_SIZE);
+    let (shown_w, _) = ctx
+        .text
+        .measure_ui_sized(&shown, crate::theme::CHROME_FONT_SIZE);
 
     assert!(
         file_x + shown_w <= file_right,
         "breadcrumb text should stop before Preview pill: shown={shown}"
     );
-    assert!(shown.ends_with("md"), "Markdown filename should keep its extension: {shown}");
+    assert!(
+        shown.ends_with("md"),
+        "Markdown filename should keep its extension: {shown}"
+    );
     assert!(
         bx + bw <= 520.0 - 12.0,
         "preview pill geometry should stay right-aligned and measurable"
@@ -5706,7 +6164,10 @@ fn markdown_preview_rejects_non_markdown_active_file() {
     assert_eq!(crate::abi::mui_pane_count(h), 1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Markdown Preview is available for Markdown files");
+    assert_eq!(
+        toast.message,
+        "Markdown Preview is available for Markdown files"
+    );
 }
 
 #[test]
@@ -5724,7 +6185,10 @@ fn markdown_preview_hides_sidebar_when_compact_and_restores_on_close() {
 
     assert_eq!(crate::abi::mui_md_open(h), 1);
     assert_eq!(crate::abi::mui_md_active(h), 1);
-    assert!(!ctx.sidebar_visible, "compact preview should give width back to the panes");
+    assert!(
+        !ctx.sidebar_visible,
+        "compact preview should give width back to the panes"
+    );
     let visible_w = crate::layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
     let region = crate::layout::region(ctx.sidebar_visible);
     let (left, right) = crate::layout::pane_bounds(region, visible_w, ctx.panes.count(), 1);
@@ -5735,7 +6199,10 @@ fn markdown_preview_hides_sidebar_when_compact_and_restores_on_close() {
 
     crate::abi::mui_md_close(h);
     assert_eq!(crate::abi::mui_md_active(h), 0);
-    assert!(ctx.sidebar_visible, "closing preview restores the user's sidebar");
+    assert!(
+        ctx.sidebar_visible,
+        "closing preview restores the user's sidebar"
+    );
     crate::layout::reset_sidebar_preset();
     crate::layout::set_window_width(900);
 }
@@ -5772,7 +6239,9 @@ fn minimap_hides_in_narrow_split_panes() {
 #[test]
 fn minimap_autoopen_forces_capture_visibility() {
     let abi = std::fs::read_to_string("src/abi.rs").expect("abi source");
-    let start = abi.find("MUI_MINIMAP_AUTOOPEN").expect("minimap autoopen hook");
+    let start = abi
+        .find("MUI_MINIMAP_AUTOOPEN")
+        .expect("minimap autoopen hook");
     let rest = &abi[start..];
     let next = rest
         .find("handle\n}")
@@ -5793,7 +6262,10 @@ fn minimap_strip_anchors_to_pane_right_edge() {
     assert_eq!(mm_w, crate::abi::MINIMAP_COMPACT_W);
     assert_eq!(mm_x, 520.0);
     assert!(mm_x + mm_w <= x_right);
-    assert_eq!(crate::abi::minimap_width_for_pane(420.0), crate::abi::MINIMAP_W);
+    assert_eq!(
+        crate::abi::minimap_width_for_pane(420.0),
+        crate::abi::MINIMAP_W
+    );
 }
 
 #[test]
@@ -5930,7 +6402,10 @@ fn in_file_replace_reports_read_only_preview() {
     assert_eq!(mui_replace_all(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Replace is unavailable in read-only previews");
+    assert_eq!(
+        toast.message,
+        "Replace is unavailable in read-only previews"
+    );
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -6000,9 +6475,7 @@ fn zen_toggle_flips_active_and_layout_region() {
 
 #[test]
 fn workspace_open_reroots_tree_and_index_and_records_recent() {
-    use crate::wsabi::{
-        mui_ws_name_len, mui_ws_open, mui_ws_recent_count, mui_ws_root_len,
-    };
+    use crate::wsabi::{mui_ws_name_len, mui_ws_open, mui_ws_recent_count, mui_ws_root_len};
     use crate::{mui_path_clear, mui_path_push, mui_quickopen_reindex};
 
     let mut ctx = ctx_or_skip!();
@@ -6024,12 +6497,19 @@ fn workspace_open_reroots_tree_and_index_and_records_recent() {
     assert_eq!(mui_ws_open(h), 1, "open of a valid folder should succeed");
 
     // The tree re-rooted there (its root drives the file list).
-    assert_eq!(ctx.tree.root(), crate::workspace::validate_folder(&root_str).unwrap());
+    assert_eq!(
+        ctx.tree.root(),
+        crate::workspace::validate_folder(&root_str).unwrap()
+    );
     // The workspace name + root are now non-empty.
     assert!(mui_ws_root_len(h) > 0);
     assert!(mui_ws_name_len(h) > 0);
     // The Quick-Open index re-rooted at the workspace finds both files.
-    assert_eq!(mui_quickopen_reindex(h), 2, "index should re-root + see 2 files");
+    assert_eq!(
+        mui_quickopen_reindex(h),
+        2,
+        "index should re-root + see 2 files"
+    );
     // The folder was recorded in the recents MRU.
     assert_eq!(mui_ws_recent_count(h), 1);
 
@@ -6039,17 +6519,19 @@ fn workspace_open_reroots_tree_and_index_and_records_recent() {
         mui_path_push(h, b as u32);
     }
     assert_eq!(mui_ws_open(h), 0, "missing folder should fail");
-    assert_eq!(mui_ws_recent_count(h), 1, "failed open must not record a recent");
+    assert_eq!(
+        mui_ws_recent_count(h),
+        1,
+        "failed open must not record a recent"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
 
 #[test]
 fn workspace_open_dialog_env_pick_reroots_tree_and_records_recent() {
-    use crate::wsabi::{
-        mui_ws_name_len, mui_ws_open_dialog, mui_ws_recent_count, mui_ws_root_len,
-    };
     use crate::mui_quickopen_reindex;
+    use crate::wsabi::{mui_ws_name_len, mui_ws_open_dialog, mui_ws_recent_count, mui_ws_root_len};
 
     let _g = crate::settings::TEST_LOCK
         .lock()
@@ -6069,7 +6551,10 @@ fn workspace_open_dialog_env_pick_reroots_tree_and_records_recent() {
     std::env::remove_var("MUI_OPEN_FOLDER_PICK");
 
     assert_eq!(opened, 1, "dialog pick of a valid folder should succeed");
-    assert_eq!(ctx.tree.root(), crate::workspace::validate_folder(&root_str).unwrap());
+    assert_eq!(
+        ctx.tree.root(),
+        crate::workspace::validate_folder(&root_str).unwrap()
+    );
     assert!(mui_ws_root_len(h) > 0);
     assert!(mui_ws_name_len(h) > 0);
     assert_eq!(mui_quickopen_reindex(h), 2, "index should see both files");
@@ -6108,7 +6593,11 @@ fn workspace_open_recent_prunes_missing_folder() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
-    assert_eq!(mui_ws_open_recent(h, -1), 0, "negative recent row should fail");
+    assert_eq!(
+        mui_ws_open_recent(h, -1),
+        0,
+        "negative recent row should fail"
+    );
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No recent folder selected");
@@ -6122,16 +6611,22 @@ fn workspace_open_recent_prunes_missing_folder() {
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No recent folder selected");
 
-    let missing = std::env::temp_dir().join(format!(
-        "mui_ws_recent_missing_{}",
-        std::process::id()
-    ));
+    let missing =
+        std::env::temp_dir().join(format!("mui_ws_recent_missing_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&missing);
     ctx.recent_workspaces.record(missing.clone());
     assert_eq!(mui_ws_recent_count(h), 1);
 
-    assert_eq!(mui_ws_open_recent(h, 0), 0, "missing recent folder should fail");
-    assert_eq!(mui_ws_recent_count(h), 0, "stale recent folder should be pruned");
+    assert_eq!(
+        mui_ws_open_recent(h, 0),
+        0,
+        "missing recent folder should fail"
+    );
+    assert_eq!(
+        mui_ws_recent_count(h),
+        0,
+        "stale recent folder should be pruned"
+    );
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert!(toast.message.starts_with("Recent folder missing:"));
@@ -6146,7 +6641,8 @@ fn open_recent_available_when_only_recent_files_exist() {
 
     assert_eq!(mui_recent_any(h), 0);
 
-    ctx.quickopen.set_recent_paths(vec![std::path::PathBuf::from("main.mty")]);
+    ctx.quickopen
+        .set_recent_paths(vec![std::path::PathBuf::from("main.mty")]);
     assert_eq!(
         mui_recent_any(h),
         1,
@@ -6240,7 +6736,11 @@ fn welcome_missing_recent_folder_stays_open_and_prunes() {
         0,
         "missing Welcome recent folder should fail"
     );
-    assert_eq!(mui_ws_recent_count(h), 0, "stale Welcome folder should be pruned");
+    assert_eq!(
+        mui_ws_recent_count(h),
+        0,
+        "stale Welcome folder should be pruned"
+    );
     assert_eq!(
         mui_welcome_active(h),
         1,
@@ -6275,8 +6775,15 @@ fn open_file_dialog_env_pick_opens_tab_and_records_recent() {
     assert_eq!(mui_tab_count(h), 2);
     assert_eq!(mui_tab_active(h), 1);
     assert_eq!(ctx.tabs.active_path().as_deref(), Some(picked.as_path()));
-    assert_eq!(ctx.tabs.active_model().as_text(), "fn picked() -> I32 { 7 }");
-    assert_eq!(mui_quickopen_reindex(h), 1, "picked file's folder is still indexed");
+    assert_eq!(
+        ctx.tabs.active_model().as_text(),
+        "fn picked() -> I32 { 7 }"
+    );
+    assert_eq!(
+        mui_quickopen_reindex(h),
+        1,
+        "picked file's folder is still indexed"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -6333,7 +6840,10 @@ fn open_file_dialog_cancel_does_not_open_prompt_signal() {
     let idx = mui_open_file_dialog(h);
     std::env::remove_var("MUI_OPEN_FILE_PICK");
 
-    assert_eq!(idx, -2, "cancelled file picker should not request prompt fallback");
+    assert_eq!(
+        idx, -2,
+        "cancelled file picker should not request prompt fallback"
+    );
     assert_eq!(mui_tab_count(h), 1);
     assert_eq!(mui_tab_active(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
@@ -6382,7 +6892,9 @@ fn save_as_dialog_env_pick_writes_and_binds_untitled_tab() {
 
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("fn main() {   ");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("fn main() {   ");
     ctx.tabs.set_dirty(ctx.tabs.active(), true);
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -6419,7 +6931,9 @@ fn plain_save_on_untitled_uses_native_save_picker() {
 
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("fn main() {   ");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("fn main() {   ");
     ctx.tabs.set_dirty(ctx.tabs.active(), true);
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -6453,7 +6967,9 @@ fn save_as_dialog_cancel_leaves_untitled_dirty() {
 
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("fn main() {}");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("fn main() {}");
     ctx.tabs.set_dirty(ctx.tabs.active(), true);
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -6461,7 +6977,10 @@ fn save_as_dialog_cancel_leaves_untitled_dirty() {
     let saved = mui_save_as_dialog(h);
     std::env::remove_var("MUI_SAVE_FILE_PICK");
 
-    assert_eq!(saved, -2, "cancelled Save As should not request prompt fallback");
+    assert_eq!(
+        saved, -2,
+        "cancelled Save As should not request prompt fallback"
+    );
     assert_eq!(mui_active_has_path(h), 0);
     assert_eq!(mui_ed_dirty(h), 1);
     assert!(ctx.tabs.active_path().is_none());
@@ -6484,7 +7003,9 @@ fn plain_save_on_untitled_cancel_keeps_dirty_and_toasts() {
 
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("fn main() {}");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("fn main() {}");
     ctx.tabs.set_dirty(ctx.tabs.active(), true);
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -6492,7 +7013,10 @@ fn plain_save_on_untitled_cancel_keeps_dirty_and_toasts() {
     let saved = mui_ed_save(h);
     std::env::remove_var("MUI_SAVE_FILE_PICK");
 
-    assert_eq!(saved, -2, "cancelled Save should keep the untitled tab open");
+    assert_eq!(
+        saved, -2,
+        "cancelled Save should keep the untitled tab open"
+    );
     assert_eq!(mui_active_has_path(h), 0);
     assert_eq!(mui_ed_dirty(h), 1);
     assert!(ctx.tabs.active_path().is_none());
@@ -6515,7 +7039,9 @@ fn save_as_prompt_consumes_staged_path() {
 
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();
-    ctx.tabs.active_model_mut().set_text_preserving_cursor("let x = 1");
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("let x = 1");
     ctx.tabs.set_dirty(ctx.tabs.active(), true);
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -6561,7 +7087,11 @@ fn lightbulb_visibility_and_click_open_actions() {
     // default for a fresh scratch buffer).
     let cursor = ctx.tabs.active_model().cursor_line() as i32;
     ctx.lightbulb.set_result(cursor, true);
-    assert_eq!(mui_lightbulb_visible(h), 1, "bulb shows when actions exist for the line");
+    assert_eq!(
+        mui_lightbulb_visible(h),
+        1,
+        "bulb shows when actions exist for the line"
+    );
     assert_eq!(mui_lightbulb_line(h), cursor);
 
     // Draw it so its gutter rect is recorded, then a click on that rect hits.
@@ -6572,7 +7102,11 @@ fn lightbulb_visibility_and_click_open_actions() {
     ctx.last_event = MuiEvent::none();
     ctx.last_event.x = cx;
     ctx.last_event.y = cy;
-    assert_eq!(mui_lightbulb_click(h), 1, "a click on the drawn bulb should hit");
+    assert_eq!(
+        mui_lightbulb_click(h),
+        1,
+        "a click on the drawn bulb should hit"
+    );
 
     // A click far away misses.
     ctx.last_event.x = cx + 400.0;
@@ -6773,6 +7307,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Ctrl+Shift+PageDown should route to Move Active Tab Right"
     );
     assert!(
+        main.contains("id == cmd_peek_close()") && main.contains("mui_peek_close(h)"),
+        "Peek: Close View must reuse the same close path as Esc"
+    );
+    assert!(
         main.contains("id == cmd_explorer_collapse_all()")
             && main.contains("let _vp = mui_panel_set(h, panel_explorer())")
             && main.contains("mui_tree_collapse_all(h)"),
@@ -6888,7 +7426,10 @@ fn screenshot_autoopen_diff_dismisses_welcome_overlay() {
         .map(|i| start + i)
         .unwrap_or(abi.len());
     let block = &abi[start..next];
-    assert!(block.contains("ctx.diff.open"), "diff autoopen hook should open the diff view");
+    assert!(
+        block.contains("ctx.diff.open"),
+        "diff autoopen hook should open the diff view"
+    );
     assert!(
         block.contains("ctx.welcome.dismiss_empty_auto()"),
         "diff autoopen hook must suppress automatic empty-buffer Welcome so captures show the diff body"
@@ -6910,7 +7451,9 @@ fn language_feature_autoopen_captures_dismiss_welcome_overlay() {
             "ctx.ghost.seed_demo",
         ),
     ] {
-        let start = abi.find(marker).expect("language feature autoopen hook should exist");
+        let start = abi
+            .find(marker)
+            .expect("language feature autoopen hook should exist");
         let next = abi[start + marker.len()..]
             .find(next_marker)
             .map(|i| start + marker.len() + i)
@@ -6920,7 +7463,10 @@ fn language_feature_autoopen_captures_dismiss_welcome_overlay() {
             block.contains("TextModel::from_bytes"),
             "{marker} hook must seed code so the capture proves the editor surface"
         );
-        assert!(block.contains(target), "{marker} hook must open the target feature");
+        assert!(
+            block.contains(target),
+            "{marker} hook must open the target feature"
+        );
         assert!(
             block.contains("ctx.welcome.dismiss()"),
             "{marker} hook must dismiss Welcome so captures show the feature over code"
@@ -7015,10 +7561,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_ADD_CARET_ABOVE, "cmd_add_caret_above"),
         (CMD_ADD_CARET_BELOW, "cmd_add_caret_below"),
         (CMD_COLLAPSE_CARETS, "cmd_collapse_carets"),
-        (
-            CMD_DUPLICATE_LINE_SELECTION,
-            "cmd_duplicate_line_selection",
-        ),
+        (CMD_DUPLICATE_LINE_SELECTION, "cmd_duplicate_line_selection"),
         (CMD_MOVE_LINE_UP, "cmd_move_line_up"),
         (CMD_MOVE_LINE_DOWN, "cmd_move_line_down"),
         (CMD_DELETE_LINE, "cmd_delete_line"),
@@ -7044,7 +7587,10 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_CLOSE_TAB, "cmd_close_tab"),
         (CMD_CLOSE_SAVED_TABS, "cmd_close_saved_tabs"),
         (CMD_CLOSE_OTHER_SAVED_TABS, "cmd_close_other_saved_tabs"),
-        (CMD_CLOSE_SAVED_TABS_TO_RIGHT, "cmd_close_saved_tabs_to_right"),
+        (
+            CMD_CLOSE_SAVED_TABS_TO_RIGHT,
+            "cmd_close_saved_tabs_to_right",
+        ),
         (CMD_CLOSE_SAVED_TABS_TO_LEFT, "cmd_close_saved_tabs_to_left"),
         (CMD_REOPEN_CLOSED_TAB, "cmd_reopen_closed_tab"),
         (CMD_DUPLICATE_ACTIVE_TAB, "cmd_duplicate_active_tab"),
@@ -7063,10 +7609,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_VIEW_SEARCH, "cmd_view_search"),
         (CMD_SEARCH_RUN, "cmd_search_run"),
         (CMD_SEARCH_REPLACE_ALL, "cmd_search_replace_all"),
-        (
-            CMD_SEARCH_TOGGLE_REPLACE,
-            "cmd_search_toggle_replace",
-        ),
+        (CMD_SEARCH_TOGGLE_REPLACE, "cmd_search_toggle_replace"),
         (CMD_VIEW_SOURCE_CONTROL, "cmd_view_source_control"),
         (CMD_VIEW_OUTLINE, "cmd_view_outline"),
         (CMD_OUTLINE_REFRESH, "cmd_outline_refresh"),
@@ -7077,10 +7620,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_PROBLEMS_REFRESH, "cmd_problems_refresh"),
         (CMD_VIEW_AI_COPILOT, "cmd_view_ai_copilot"),
         (CMD_INLINE_AI_ASK, "cmd_inline_ai_ask"),
-        (
-            CMD_FORCE_GHOST_COMPLETION,
-            "cmd_force_ghost_completion",
-        ),
+        (CMD_FORCE_GHOST_COMPLETION, "cmd_force_ghost_completion"),
         (CMD_AI_CLEAR_CHAT, "cmd_ai_clear_chat"),
         (CMD_VIEW_TERMINAL, "cmd_view_terminal"),
         (CMD_VIEW_WEB_PLAYGROUND, "cmd_view_web_playground"),
@@ -7112,14 +7652,12 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_TEST_STOP, "cmd_test_stop"),
         (CMD_TEST_CLEAR_RESULTS, "cmd_test_clear_results"),
         (CMD_PEEK_DEFINITION, "cmd_peek_definition"),
+        (CMD_PEEK_CLOSE, "cmd_peek_close"),
         (CMD_WELCOME, "cmd_welcome"),
         (CMD_ZEN_MODE, "cmd_zen_mode"),
         (CMD_AGENTS, "cmd_agents"),
         (CMD_AGENTS_REFRESH, "cmd_agents_refresh"),
-        (
-            CMD_AGENTS_CLEAR_RUN_OUTPUT,
-            "cmd_agents_clear_run_output",
-        ),
+        (CMD_AGENTS_CLEAR_RUN_OUTPUT, "cmd_agents_clear_run_output"),
         (CMD_RUN_IN_BROWSER, "cmd_run_in_browser"),
         (CMD_WEB_STOP, "cmd_web_stop"),
         (CMD_WEB_OPEN_BROWSER, "cmd_web_open_browser"),
@@ -7294,7 +7832,8 @@ mod shim_chrome {
         move_to(&mut ctx, min_x, 8.0);
         press_left(&mut ctx);
         // Caption-strip drag region after the visible tabs but before run/more controls.
-        let drag_x = crate::titlebar::controls_x(WW as f32) - crate::titlebar::ACTION_STRIP_W - 10.0;
+        let drag_x =
+            crate::titlebar::controls_x(WW as f32) - crate::titlebar::ACTION_STRIP_W - 10.0;
         move_to(&mut ctx, drag_x, 8.0);
         press_left(&mut ctx);
         // A resize edge (far right column, mid-height).
@@ -7412,10 +7951,7 @@ mod shim_chrome {
         assert!(crate::uiscale::user_zoom() > 1.0, "Ctrl+wheel-up zoomed in");
         // A PLAIN wheel (no Ctrl) passes through as a normal scroll for the editor.
         let mods = winit::keyboard::ModifiersState::empty();
-        translate_window_event(
-            &mut ctx.queue,
-            &WindowEvent::ModifiersChanged(mods.into()),
-        );
+        translate_window_event(&mut ctx.queue, &WindowEvent::ModifiersChanged(mods.into()));
         wheel(&mut ctx, -1.0);
         assert_eq!(
             mui_poll_event_s(h),

@@ -6751,3 +6751,12 @@ back on by mistake.
 - **IDE note:** The command palette now lists `Git: Hide Blame`, calling
   `mui_blame_close`. ABI, registry, metadata, dispatcher, feedback, and
   idempotency tests pin that hiding blame is separate from toggling it.
+
+L530. Inline preview surfaces need palette-close parity.
+Keyboard dismissals are not enough for command-palette users. A peek preview is
+an editor surface, so it needs a named close action that reaches the same state
+transition as Escape without reopening or navigating anywhere.
+
+- **IDE note:** The command palette now lists `Peek: Close View`, calling
+  `mui_peek_close`. ABI, registry, metadata, dispatcher, and label tests pin
+  that Peek Definition has an explicit close path.
