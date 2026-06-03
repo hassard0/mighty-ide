@@ -5476,3 +5476,12 @@ should not preserve an old jump target or fail without visible feedback.
   `Agents node has no file target`, or `Agents target missing: ...` for failed
   topology jumps. Successful source nodes keep the existing open-tab and
   cursor-jump behavior.
+
+L396. Definition target openers should validate their cached navigation state.
+Even when definition requests report misses, a follow-up open command can still
+be invoked against empty or stale state and should explain the miss itself.
+
+- **IDE note:** `mui_def_open_target` now reports
+  `No definition target selected` when no target is cached, and clears stale
+  cached targets with `Definition target missing: ...` instead of opening a
+  non-existent source path as a tab.

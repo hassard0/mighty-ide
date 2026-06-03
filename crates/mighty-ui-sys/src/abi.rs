@@ -8439,8 +8439,17 @@ pub extern "C" fn mui_def_open_target(handle: i64) -> i32 {
     };
     let target_path = match ctx.def.target() {
         Some(t) => t.path.clone(),
-        None => return -1,
+        None => {
+            ctx.push_toast(crate::toast::Kind::Info, "No definition target selected");
+            return -1;
+        }
     };
+    if !target_path.exists() {
+        let name = target_path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+        ctx.def.clear();
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Definition target missing: {name}"));
+        return -1;
+    }
     let idx = ctx.tabs.open_path(target_path);
     sync_active_path(ctx);
     idx as i32

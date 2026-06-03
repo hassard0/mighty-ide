@@ -720,7 +720,10 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::CodeAction)
     } else if m == "Formatted document" || m == "Format failed" {
         Some(OperationKey::Format)
-    } else if m == "No definition found" {
+    } else if m == "No definition found"
+        || m == "No definition target selected"
+        || m.starts_with("Definition target missing")
+    {
         Some(OperationKey::Navigation)
     } else if m.starts_with("Markdown preview ") || m.starts_with("Markdown Preview ") {
         Some(OperationKey::Markdown)

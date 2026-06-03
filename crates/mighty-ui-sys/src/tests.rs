@@ -4521,6 +4521,31 @@ fn navigation_requests_report_missing_targets() {
 }
 
 #[test]
+fn definition_open_target_misses_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_def_open_target(h), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No definition target selected");
+
+    let root = std::env::temp_dir().join(format!("mui_def_missing_{}", std::process::id()));
+    let missing = root.join("target.mty");
+    ctx.def.set(Some(crate::nav::DefTarget {
+        path: missing,
+        line: 0,
+        col: 0,
+    }));
+
+    assert_eq!(crate::mui_def_open_target(h), -1);
+    assert!(ctx.def.target().is_none());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Definition target missing: target.mty");
+}
+
+#[test]
 fn explicit_completion_reports_empty_result_only_when_empty() {
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();
