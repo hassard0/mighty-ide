@@ -5116,3 +5116,14 @@ looked the same as a missed keystroke.
   success/failure outcomes for applied actions. The code-action ABI tests cover
   the no-actions and no-file command paths, and code-action toasts replace stale
   code-action feedback instead of stacking.
+
+L361. Terminals need row-local erase semantics, not only screen clears. After
+cursor addressing and display erase were working, the VT parser still skipped
+`CSI K` erase-in-line sequences. Shell prompts and progress renderers use line
+erases to repaint the current row without disturbing output above or below;
+skipping them leaves stale prompt/status text on screen.
+
+- **IDE note:** the integrated terminal now handles `ESC[K`, `ESC[1K`, and
+  `ESC[2K`, clearing cursor-to-end, start-to-cursor, or the whole current row
+  respectively while preserving adjacent rows. Terminal parser tests cover all
+  three modes plus row-locality.

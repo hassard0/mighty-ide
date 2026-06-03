@@ -146,6 +146,31 @@ impl Grid {
         }
     }
 
+    fn clear_line_from_cursor_to_end(&mut self) {
+        let row_start = self.cur_row * self.cols;
+        let start = row_start + self.cur_col.min(self.cols - 1);
+        let end = row_start + self.cols;
+        for c in &mut self.cells[start..end] {
+            *c = Cell::default();
+        }
+    }
+
+    fn clear_line_from_start_to_cursor(&mut self) {
+        let row_start = self.cur_row * self.cols;
+        let end = row_start + self.cur_col.min(self.cols - 1);
+        for c in &mut self.cells[row_start..=end] {
+            *c = Cell::default();
+        }
+    }
+
+    fn clear_line(&mut self) {
+        let row_start = self.cur_row * self.cols;
+        let end = row_start + self.cols;
+        for c in &mut self.cells[row_start..end] {
+            *c = Cell::default();
+        }
+    }
+
     /// Scroll the whole grid up one line: drop row 0, shift the rest up, blank
     /// the last row. Used when the cursor would advance past the last row.
     fn scroll_up(&mut self) {
@@ -387,7 +412,7 @@ impl VtParser {
     }
 
     /// Inside a CSI: accumulate until a final byte (0x40..=0x7e). Handles the
-    /// core shell sequences we need (SGR, DSR, erase display); others are
+    /// core shell sequences we need (SGR, DSR, erase display/line); others are
     /// consumed harmlessly.
     fn csi(&mut self, grid: &mut Grid, b: u8) {
         match b {
@@ -403,6 +428,8 @@ impl VtParser {
                     self.handle_dsr(grid);
                 } else if b == b'J' {
                     self.erase_display(grid);
+                } else if b == b'K' {
+                    self.erase_line(grid);
                 } else if b == b'H' || b == b'f' {
                     self.cursor_position(grid);
                 }
@@ -467,6 +494,25 @@ impl VtParser {
             0 => grid.clear_from_cursor_to_end(),
             1 => grid.clear_from_start_to_cursor(),
             2 | 3 => grid.clear(),
+            _ => {}
+        }
+    }
+
+    fn erase_line(&mut self, grid: &mut Grid) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        if params.starts_with('?') {
+            return;
+        }
+        let mode = params
+            .split(';')
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<u32>().ok())
+            .unwrap_or(0);
+        match mode {
+            0 => grid.clear_line_from_cursor_to_end(),
+            1 => grid.clear_line_from_start_to_cursor(),
+            2 => grid.clear_line(),
             _ => {}
         }
     }
@@ -925,6 +971,29 @@ mod tests {
         assert_eq!(g.cell(0, 2).ch, 'c');
         assert_eq!(g.cell(0, 3).ch, 'Z');
         assert_eq!(g.cell(0, 4).ch, ' ');
+    }
+
+    #[test]
+    fn erase_line_modes_are_row_local() {
+        let g = grid_feed(2, 8, b"abcdef\nQRSTUV\x1b[1;4H\x1b[KZ");
+        assert_eq!(g.cell(0, 0).ch, 'a');
+        assert_eq!(g.cell(0, 1).ch, 'b');
+        assert_eq!(g.cell(0, 2).ch, 'c');
+        assert_eq!(g.cell(0, 3).ch, 'Z');
+        assert_eq!(g.cell(0, 4).ch, ' ');
+        assert_eq!(g.cell(1, 0).ch, 'Q', "row below should not be erased");
+
+        let g2 = grid_feed(1, 8, b"abcdef\x1b[1;4H\x1b[1KZ");
+        assert_eq!(g2.cell(0, 0).ch, ' ');
+        assert_eq!(g2.cell(0, 1).ch, ' ');
+        assert_eq!(g2.cell(0, 2).ch, ' ');
+        assert_eq!(g2.cell(0, 3).ch, 'Z');
+        assert_eq!(g2.cell(0, 4).ch, 'e');
+
+        let g3 = grid_feed(1, 8, b"abcdef\x1b[1;4H\x1b[2KZ");
+        assert_eq!(g3.cell(0, 0).ch, ' ');
+        assert_eq!(g3.cell(0, 3).ch, 'Z');
+        assert_eq!(g3.cell(0, 4).ch, ' ');
     }
 
     #[test]
