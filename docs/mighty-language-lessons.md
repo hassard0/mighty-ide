@@ -5032,3 +5032,12 @@ empty early result.
   `publishDiagnostics` notification containing the requested `file://` URI, and
   parsing selects the latest matching notification for that URI. The legacy
   parser entry point remains for tests and single-notification callers.
+
+L353. Hover parsing needs the full LSP `Hover.contents` union, not only
+`MarkupContent`. Some servers return a plain marked string or an array of marked
+strings, so looking only for a nested `value` field can make hover appear empty.
+
+- **IDE note:** hover parsing now accepts `contents: "..."`, `{kind,value}`,
+  `{language,value}`, and arrays mixing strings and marked-string objects. The
+  parsed text still flows through the existing markdown cleanup, wrapping, and
+  popup rendering path.

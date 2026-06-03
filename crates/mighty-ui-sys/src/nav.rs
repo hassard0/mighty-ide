@@ -227,22 +227,70 @@ pub fn paths_equal(a: &std::path::Path, b: &std::path::Path) -> bool {
 // the JSON-RPC response stream without a JSON dependency.
 // ---------------------------------------------------------------------------
 
-/// Extract the hover `value` string from a hover JSON-RPC response blob.
+/// Extract display text from a hover JSON-RPC response blob.
 ///
-/// The hover result is `{"result":{"contents":{"kind":"markdown","value":"..."},
-/// "range":{...}}}`. We scan for the first `"value"` key after a `"contents"`
-/// marker and read its (un-escaped) string. Returns `None` if absent (e.g. a
-/// `null` result).
+/// LSP allows hover contents as `MarkupContent` (`{kind,value}`), a plain
+/// `MarkedString`, or `MarkedString[]`. We normalize all supported shapes into
+/// a newline-joined string for the existing hover popup wrapper. Returns `None`
+/// for `null` / missing / empty contents.
 pub fn parse_hover_value(json: &str) -> Option<String> {
     let bytes = json.as_bytes();
-    // Anchor at `"contents"` so we don't accidentally grab an unrelated value
-    // (the only `value` we want belongs to the hover contents markup).
     let anchor = find_sub(bytes, b"\"contents\"")?;
-    let key = b"\"value\"";
-    let from = anchor + b"\"contents\"".len();
-    let rel = find_sub(&bytes[from..], key)?;
-    let start = from + rel + key.len();
-    read_json_string_after(bytes, start)
+    let value_at = json_value_start(bytes, anchor + b"\"contents\"".len())?;
+    let text = match bytes[value_at] {
+        b'"' => read_json_string_after(bytes, value_at)?,
+        b'{' => parse_hover_object(bytes, value_at)?,
+        b'[' => parse_hover_array(bytes, value_at)?,
+        _ => return None,
+    };
+    if text.trim().is_empty() { None } else { Some(text) }
+}
+
+fn parse_hover_object(bytes: &[u8], object_at: usize) -> Option<String> {
+    let end = match_enclosed(bytes, object_at, b'{', b'}');
+    let obj = &bytes[object_at..end.min(bytes.len())];
+    let language = find_sub(obj, b"\"language\"")
+        .and_then(|p| read_json_string_after(obj, p + b"\"language\"".len()))
+        .filter(|s| !s.trim().is_empty());
+    let value = find_sub(obj, b"\"value\"")
+        .and_then(|p| read_json_string_after(obj, p + b"\"value\"".len()))?;
+    match language {
+        Some(lang) => Some(format!("```{lang}\n{value}\n```")),
+        None => Some(value),
+    }
+}
+
+fn parse_hover_array(bytes: &[u8], array_at: usize) -> Option<String> {
+    let end = match_enclosed(bytes, array_at, b'[', b']');
+    let arr = &bytes[array_at..end.min(bytes.len())];
+    let mut parts: Vec<String> = Vec::new();
+    let mut i = 1usize;
+    while i + 1 < arr.len() {
+        i = skip_json_ws_and_commas(arr, i);
+        if i >= arr.len() || arr[i] == b']' {
+            break;
+        }
+        match arr[i] {
+            b'"' => {
+                if let Some(s) = read_json_string_after(arr, i) {
+                    if !s.trim().is_empty() {
+                        parts.push(s);
+                    }
+                }
+                i = json_value_end(arr, i);
+            }
+            b'{' => {
+                if let Some(s) = parse_hover_object(arr, i) {
+                    if !s.trim().is_empty() {
+                        parts.push(s);
+                    }
+                }
+                i = match_enclosed(arr, i, b'{', b'}');
+            }
+            _ => i += 1,
+        }
+    }
+    if parts.is_empty() { None } else { Some(parts.join("\n")) }
 }
 
 /// Extract the definition target line/col from a definition JSON-RPC response.
@@ -371,6 +419,83 @@ fn read_json_string_after(bytes: &[u8], pos: usize) -> Option<String> {
         j += 1;
     }
     Some(val)
+}
+
+fn json_value_start(bytes: &[u8], pos: usize) -> Option<usize> {
+    let mut j = pos;
+    while j < bytes.len() && matches!(bytes[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
+        j += 1;
+    }
+    (j < bytes.len()).then_some(j)
+}
+
+fn skip_json_ws_and_commas(bytes: &[u8], mut pos: usize) -> usize {
+    while pos < bytes.len()
+        && matches!(bytes[pos], b' ' | b',' | b'\t' | b'\r' | b'\n')
+    {
+        pos += 1;
+    }
+    pos
+}
+
+fn json_value_end(bytes: &[u8], pos: usize) -> usize {
+    match bytes.get(pos).copied() {
+        Some(b'"') => {
+            let mut j = pos + 1;
+            let mut esc = false;
+            while j < bytes.len() {
+                let b = bytes[j];
+                if esc {
+                    esc = false;
+                } else if b == b'\\' {
+                    esc = true;
+                } else if b == b'"' {
+                    return j + 1;
+                }
+                j += 1;
+            }
+            bytes.len()
+        }
+        Some(b'{') => match_enclosed(bytes, pos, b'{', b'}'),
+        Some(b'[') => match_enclosed(bytes, pos, b'[', b']'),
+        _ => {
+            let mut j = pos;
+            while j < bytes.len() && !matches!(bytes[j], b',' | b']' | b'}') {
+                j += 1;
+            }
+            j
+        }
+    }
+}
+
+fn match_enclosed(bytes: &[u8], open_at: usize, open: u8, close: u8) -> usize {
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut esc = false;
+    let mut k = open_at;
+    while k < bytes.len() {
+        let b = bytes[k];
+        if in_str {
+            if esc {
+                esc = false;
+            } else if b == b'\\' {
+                esc = true;
+            } else if b == b'"' {
+                in_str = false;
+            }
+        } else if b == b'"' {
+            in_str = true;
+        } else if b == open {
+            depth += 1;
+        } else if b == close {
+            depth -= 1;
+            if depth == 0 {
+                return k + 1;
+            }
+        }
+        k += 1;
+    }
+    bytes.len()
 }
 
 /// Read the unsigned integer value of `key` somewhere in `region` (scans for the
@@ -744,6 +869,28 @@ mod tests {
     fn parse_hover_handles_escaped_quotes() {
         let json = r#"{"result":{"contents":{"kind":"markdown","value":"a \"q\" b"}}}"#;
         assert_eq!(parse_hover_value(json).unwrap(), "a \"q\" b");
+    }
+
+    #[test]
+    fn parse_hover_accepts_plain_string_contents() {
+        let json = r#"{"jsonrpc":"2.0","result":{"contents":"plain hover text"},"id":2}"#;
+        assert_eq!(parse_hover_value(json).unwrap(), "plain hover text");
+    }
+
+    #[test]
+    fn parse_hover_accepts_marked_string_array() {
+        let json = r#"{"jsonrpc":"2.0","result":{"contents":["first line",{"language":"rust","value":"fn add(a: i32) -> i32"}]},"id":2}"#;
+        let v = parse_hover_value(json).unwrap();
+        assert_eq!(v, "first line\n```rust\nfn add(a: i32) -> i32\n```");
+    }
+
+    #[test]
+    fn parse_hover_accepts_language_value_object() {
+        let json = r#"{"jsonrpc":"2.0","result":{"contents":{"language":"python","value":"def add(a): ..."}},"id":2}"#;
+        assert_eq!(
+            parse_hover_value(json).unwrap(),
+            "```python\ndef add(a): ...\n```"
+        );
     }
 
     // ---- definition response parsing ----
