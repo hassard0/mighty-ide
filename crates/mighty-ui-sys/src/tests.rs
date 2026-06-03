@@ -1316,6 +1316,25 @@ fn run_start_without_file_reports_visible_feedback() {
 }
 
 #[test]
+fn run_stop_when_idle_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    ctx.term_open = true;
+    ctx.web.open();
+    ctx.problems.set_open(true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::featureabi::mui_run_stop(handle);
+    assert!(ctx.run.is_active());
+    assert!(!ctx.run.is_running());
+    assert!(!ctx.term_open);
+    assert!(!ctx.web.is_active());
+    assert!(!ctx.problems.is_open());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No run process to stop");
+}
+
+#[test]
 fn test_at_cursor_without_file_reports_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     ctx.sidebar_visible = false;
@@ -1332,6 +1351,23 @@ fn test_at_cursor_without_file_reports_visible_feedback() {
         toast.message,
         "Open a Mighty file before running test at cursor"
     );
+}
+
+#[test]
+fn test_stop_when_idle_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::testabi::mui_test_stop(handle);
+    assert_eq!(ctx.active_panel, crate::PANEL_TEST);
+    assert!(ctx.sidebar_visible);
+    assert!(ctx.tests_panel.is_active());
+    assert!(!ctx.tests_panel.is_running());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No test run to stop");
 }
 
 #[test]

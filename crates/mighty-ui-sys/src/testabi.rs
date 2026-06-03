@@ -223,11 +223,20 @@ fn nearest_test_fn(ctx: &MuiContext) -> Option<String> {
     None
 }
 
-/// Stop the running `mty test` (best-effort kill). No-op if idle.
+/// Stop the running `mty test` (best-effort kill). If idle, open Testing and
+/// explain that there is no test run to stop.
 #[no_mangle]
 pub extern "C" fn mui_test_stop(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        ctx.tests_panel.stop();
+        if ctx.tests_panel.is_running() {
+            ctx.tests_panel.stop();
+        } else {
+            ctx.tests_panel.open();
+            ctx.active_panel = crate::PANEL_TEST;
+            ctx.sidebar_visible = true;
+            ctx.push_toast(crate::toast::Kind::Info, "No test run to stop");
+            crate::abi::trace("test_stop idle");
+        }
     }
 }
 

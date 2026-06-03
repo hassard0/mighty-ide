@@ -5219,3 +5219,13 @@ but palette and shortcut dispatch called `mui_dbg_step_*`, `mui_dbg_pause`, and
   open the Run and Debug view and show the same unavailable-state messages as
   the toolbar route. Tests cover the idle direct-command path and the broader
   debug command feedback filter.
+
+L371. Stop commands need idle feedback even when the visual button looks
+disabled. Run/Test Stop can be invoked through toolbar hit-tests, ABI calls, and
+future palette bindings; silently doing nothing leaves users unsure whether the
+click missed, the process already exited, or the command failed.
+
+- **IDE note:** idle `mui_run_stop` now opens the Run dock, closes competing
+  lower panels, and reports `No run process to stop`. Idle `mui_test_stop` now
+  opens Testing and reports `No test run to stop`. Tests cover both visible
+  no-op outcomes.
