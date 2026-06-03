@@ -1099,6 +1099,24 @@ pub extern "C" fn mui_agents_clear_run_output(handle: i64) -> i32 {
     cleared
 }
 
+/// Close the Mighty Agents panel without clearing topology or embedded run
+/// output. Returns `1` when it closed Agents, or `0` when already closed.
+#[no_mangle]
+pub extern "C" fn mui_agents_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.active_panel == crate::PANEL_AGENTS_MTY {
+        ctx.active_panel = crate::PANEL_EXPLORER;
+        ctx.push_toast(crate::toast::Kind::Info, "Mighty Agents panel closed");
+        crate::abi::trace("agents_close");
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "Mighty Agents panel is already closed");
+    crate::abi::trace("agents_close noop");
+    0
+}
+
 /// Attempt a best-effort live inspect (`mty inspect --json`). Returns the live
 /// agent count, or `-1` if unavailable (no socket / command failure / parse fail).
 /// The reason is surfaced in the panel's live-inspect note line.

@@ -6960,3 +6960,12 @@ state; hiding the panel must leave the browser session recoverable.
   `mui_web_close`. The close path preserves output, URL, and running state,
   reports closed/already-closed feedback, and releases Web focus through the
   Mighty dispatcher.
+
+L552. Agent topology close should preserve inspection context. The Mighty
+Agents panel owns a discovered topology, live-inspect notes, and embedded run
+output, so closing it from commands should not imply refresh or clearing state.
+
+- **IDE note:** The command palette now lists `Mighty Agents: Close Panel`,
+  calling `mui_agents_close`. The close path switches back to Explorer,
+  preserves topology and run rows, reports closed/already-closed feedback, and
+  releases Agents focus through the Mighty dispatcher.

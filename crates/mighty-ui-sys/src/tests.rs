@@ -1858,6 +1858,33 @@ fn agents_clear_run_output_reports_feedback_and_preserves_topology() {
 }
 
 #[test]
+fn agents_close_command_acknowledges_state_without_clearing_panel_data() {
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_AGENTS_MTY;
+    ctx.agents.seed_demo();
+    ctx.agents.seed_run_demo("examples/agents.mty");
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::agentsabi::mui_agents_close(h), 1);
+    assert_eq!(ctx.active_panel, crate::PANEL_EXPLORER);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(ctx.agents.agent_count(), 2);
+    assert_eq!(ctx.agents.protocol_count(), 2);
+    assert_eq!(ctx.agents.run_line_count(), 8);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Mighty Agents panel closed"
+    );
+
+    assert_eq!(crate::agentsabi::mui_agents_close(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Mighty Agents panel is already closed"
+    );
+}
+
+#[test]
 fn agents_open_node_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -3049,6 +3076,11 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
             "Mighty Agents: Refresh Topology",
             "",
         ),
+        (
+            crate::palette::CMD_AGENTS_CLOSE,
+            "Mighty Agents: Close Panel",
+            "",
+        ),
     ];
     for (id, label, keybinding) in ai_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
@@ -3229,6 +3261,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(agents_clear.label, "Mighty Agents: Clear Run Output");
     assert_eq!(agents_clear.keybinding, "");
+
+    let agents_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_AGENTS_CLOSE)
+        .unwrap();
+    assert_eq!(agents_close.label, "Mighty Agents: Close Panel");
+    assert_eq!(agents_close.keybinding, "");
 }
 
 #[test]
@@ -7479,6 +7518,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Agents clear-run-output command must reveal Mighty Agents before clearing its run transcript"
     );
     assert!(
+        main.contains("id == cmd_agents_close()")
+            && main.contains("let _ac = mui_agents_close(h)")
+            && main.contains("agents_focus = false"),
+        "Agents close command must use the Agents-specific close ABI and release Agents focus"
+    );
+    assert!(
         main.contains("id == cmd_run_clear_output()")
             && main.contains("let _rc = mui_run_clear(h)")
             && main.contains("run_focus = true"),
@@ -7855,6 +7900,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
             CMD_AGENTS_CLEAR_RUN_OUTPUT,
             "cmd_agents_clear_run_output",
         ),
+        (CMD_AGENTS_CLOSE, "cmd_agents_close"),
         (CMD_RUN_IN_BROWSER, "cmd_run_in_browser"),
         (CMD_WEB_STOP, "cmd_web_stop"),
         (CMD_WEB_OPEN_BROWSER, "cmd_web_open_browser"),

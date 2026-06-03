@@ -397,6 +397,8 @@ pub const CMD_RUN_CLOSE: u32 = 182;
 pub const CMD_TEST_CLOSE: u32 = 183;
 /// Close the Web Playground panel without stopping the server or clearing output.
 pub const CMD_WEB_CLOSE: u32 = 184;
+/// Close the Mighty Agents panel without clearing topology or run output.
+pub const CMD_AGENTS_CLOSE: u32 = 185;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -524,6 +526,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_AGENTS,           label: "Mighty: Agents",     keybinding: "Alt+G" },
     Command { id: CMD_AGENTS_REFRESH,   label: "Mighty Agents: Refresh Topology", keybinding: "" },
     Command { id: CMD_AGENTS_CLEAR_RUN_OUTPUT, label: "Mighty Agents: Clear Run Output", keybinding: "" },
+    Command { id: CMD_AGENTS_CLOSE,     label: "Mighty Agents: Close Panel", keybinding: "" },
     Command { id: CMD_GIT_SWITCH_BRANCH, label: "Git: Switch Branch", keybinding: "" },
     Command { id: CMD_GIT_PUSH,         label: "Git: Push",          keybinding: "" },
     Command { id: CMD_GIT_PULL,         label: "Git: Pull",          keybinding: "" },
@@ -1069,6 +1072,7 @@ impl PaletteEngine {
             CMD_AGENTS => (icons::AGENTS_NET, "Open the Mighty Agents topology panel", false),
             CMD_AGENTS_REFRESH => (icons::REFRESH, "Refresh the Mighty Agents topology model", false),
             CMD_AGENTS_CLEAR_RUN_OUTPUT => (icons::CLOSE, "Clear the Mighty Agents run output without rebuilding topology", false),
+            CMD_AGENTS_CLOSE => (icons::CLOSE, "Close the Mighty Agents panel without clearing topology or run output", false),
             CMD_GIT_SWITCH_BRANCH => (icons::BRANCH, "Checkout or create a git branch", false),
             CMD_GIT_PUSH => (icons::GIT, "Push commits to the remote", false),
             CMD_GIT_PULL => (icons::GIT, "Pull (fast-forward only) from the remote", false),
