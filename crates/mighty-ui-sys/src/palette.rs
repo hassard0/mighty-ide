@@ -325,6 +325,8 @@ pub const CMD_SEARCH_RUN: u32 = 146;
 pub const CMD_SEARCH_REPLACE_ALL: u32 = 147;
 /// Move focus between the Search query and replace fields.
 pub const CMD_SEARCH_TOGGLE_REPLACE: u32 = 148;
+/// Refresh the Source Control panel's git status.
+pub const CMD_GIT_REFRESH_SOURCE_CONTROL: u32 = 149;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -436,6 +438,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_GIT_STAGE_ALL,    label: "Git: Stage All",     keybinding: "" },
     Command { id: CMD_GIT_UNSTAGE_ALL,  label: "Git: Unstage All",   keybinding: "" },
     Command { id: CMD_GIT_COMMIT_STAGED, label: "Git: Commit Staged", keybinding: "" },
+    Command { id: CMD_GIT_REFRESH_SOURCE_CONTROL, label: "Git: Refresh Source Control", keybinding: "" },
     Command { id: CMD_VIEW_EXPLORER,    label: "View: Explorer",      keybinding: "" },
     Command { id: CMD_VIEW_SEARCH,      label: "View: Search",        keybinding: "Ctrl+Shift+F" },
     Command { id: CMD_SEARCH_RUN,       label: "Search: Run Search",   keybinding: "" },
@@ -945,6 +948,7 @@ impl PaletteEngine {
             CMD_GIT_STAGE_ALL => (icons::STAGE_PLUS, "Stage every changed path", false),
             CMD_GIT_UNSTAGE_ALL => (icons::UNSTAGE_MINUS, "Unstage every staged path", false),
             CMD_GIT_COMMIT_STAGED => (icons::GIT, "Commit staged changes with the SCM message", false),
+            CMD_GIT_REFRESH_SOURCE_CONTROL => (icons::REFRESH, "Refresh the Source Control git status", false),
             CMD_VIEW_EXPLORER => (icons::EXPLORER, "Open the file explorer view", false),
             CMD_VIEW_SEARCH => (icons::SEARCH, "Open project-wide search", false),
             CMD_SEARCH_RUN => (icons::SEARCH, "Run the current project-wide search query", false),

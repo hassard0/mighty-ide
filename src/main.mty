@@ -763,6 +763,7 @@ fn cmd_explorer_collapse_all() -> I32 { 145 }
 fn cmd_search_run() -> I32 { 146 }
 fn cmd_search_replace_all() -> I32 { 147 }
 fn cmd_search_toggle_replace() -> I32 { 148 }
+fn cmd_git_refresh_source_control() -> I32 { 149 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4210,6 +4211,11 @@ fn main() {
         } else if id == cmd_git_commit_staged() {
           let _gc = mui_scm_commit(h)
           let _r = mui_scm_refresh(h)
+        } else if id == cmd_git_refresh_source_control() {
+          let _vp = mui_panel_set(h, panel_scm())
+          let _r = mui_scm_refresh(h)
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_view_explorer() {
           let _vp = mui_panel_set(h, panel_explorer())
           agents_focus = false

@@ -2657,6 +2657,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(commit_staged.label, "Git: Commit Staged");
 
+    let refresh_scm = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_GIT_REFRESH_SOURCE_CONTROL)
+        .unwrap();
+    assert_eq!(refresh_scm.label, "Git: Refresh Source Control");
+    assert_eq!(refresh_scm.keybinding, "");
+
     let search_commands = [
         (crate::palette::CMD_SEARCH_RUN, "Search: Run Search", ""),
         (
@@ -6554,6 +6561,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("mui_tree_collapse_all(h)"),
         "Explorer collapse-all command must reveal Explorer before collapsing the tree"
     );
+    assert!(
+        main.contains("id == cmd_git_refresh_source_control()")
+            && main.contains("let _vp = mui_panel_set(h, panel_scm())")
+            && main.contains("let _r = mui_scm_refresh(h)"),
+        "Git refresh command must reveal Source Control before refreshing status"
+    );
     for (helper, action) in [
         ("cmd_search_run", "mui_search_run(h)"),
         ("cmd_search_replace_all", "mui_search_replace_all(h)"),
@@ -6762,6 +6775,10 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_GIT_STAGE_ALL, "cmd_git_stage_all"),
         (CMD_GIT_UNSTAGE_ALL, "cmd_git_unstage_all"),
         (CMD_GIT_COMMIT_STAGED, "cmd_git_commit_staged"),
+        (
+            CMD_GIT_REFRESH_SOURCE_CONTROL,
+            "cmd_git_refresh_source_control",
+        ),
         (CMD_VIEW_EXPLORER, "cmd_view_explorer"),
         (CMD_VIEW_SEARCH, "cmd_view_search"),
         (CMD_SEARCH_RUN, "cmd_search_run"),

@@ -6642,3 +6642,13 @@ cannot chain those actions from Quick Open or the palette after entering a query
   `Search: Replace All`, and `Search: Toggle Replace Field`, each focusing the
   Search panel before calling the existing Search ABI. Registry, metadata, and
   dispatcher tests pin the ids, labels, helpers, and Search-focus behavior.
+
+L519. Source-control refresh should not require precise mouse targeting.
+SCM status can stale after external git commands or filesystem changes. A
+compact header refresh button is useful, but command-first users need the same
+refresh path available without aiming at a small icon.
+
+- **IDE note:** The command palette now lists `Git: Refresh Source Control`,
+  focusing the Source Control panel before calling the existing `mui_scm_refresh`
+  ABI. Registry, metadata, and dispatcher tests pin the id, label, helper, and
+  SCM-focus behavior.
