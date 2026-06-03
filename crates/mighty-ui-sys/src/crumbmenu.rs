@@ -234,20 +234,13 @@ impl CrumbMenu {
             return;
         }
         let chrome = theme::CHROME_FONT_SIZE;
-        let adv = chrome * 0.55;
         let clip = ctx.clip;
         let w = ctx.gpu.width as f32;
         let h = ctx.gpu.height as f32;
         let row_h = layout::LINE_H();
         let pad = 5.0;
 
-        let longest = self
-            .items
-            .iter()
-            .map(|i| i.label.chars().count() + i.depth as usize * 2)
-            .max()
-            .unwrap_or(0) as f32;
-        let box_w = (longest * adv + 64.0).clamp(220.0, 460.0);
+        let box_w = crumb_menu_width(&mut ctx.text, &self.items, chrome);
         // Clamp the visible rows so the card never runs off the bottom.
         let max_rows = (((h - 30.0) - Self::card_top() - 2.0 * pad) / row_h).floor() as usize;
         let shown = self.items.len().min(max_rows.max(1));
@@ -283,14 +276,41 @@ impl CrumbMenu {
             let tx = ix + 20.0;
             let ty = row_y + (row_h - chrome) * 0.5 - 1.0;
             let fg = if selected { theme::TEXT() } else { theme::TEXT_1() };
-            let avail = (((box_x + box_w - 10.0) - tx) / adv).floor() as usize;
-            let mut label = it.label.clone();
-            if label.chars().count() > avail && avail > 1 {
-                label = label.chars().take(avail - 1).collect::<String>() + "\u{2026}";
-            }
+            let label = fit_crumb_menu_label(&mut ctx.text, &it.label, ((box_x + box_w - 10.0) - tx).max(0.0), chrome);
             ctx.text.queue_ui_sized(tx, ty, &label, fg, chrome, clip);
         }
     }
+}
+
+fn crumb_menu_width(text: &mut crate::text::Text, items: &[MenuItem], size: f32) -> f32 {
+    let content = items
+        .iter()
+        .map(|i| text.measure_ui_sized(&i.label, size).0 + i.depth as f32 * 12.0)
+        .fold(0.0_f32, f32::max);
+    (content + 64.0).clamp(220.0, 460.0)
+}
+
+fn fit_crumb_menu_label(text: &mut crate::text::Text, label: &str, max_px: f32, size: f32) -> String {
+    if max_px < 8.0 || label.is_empty() {
+        return String::new();
+    }
+    if text.measure_ui_sized(label, size).0 <= max_px {
+        return label.to_string();
+    }
+    let suffix = "\u{2026}";
+    let suffix_w = text.measure_ui_sized(suffix, size).0;
+    if suffix_w > max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = label.chars().collect();
+    for keep in (1..chars.len()).rev() {
+        let mut candidate: String = chars.iter().take(keep).collect();
+        candidate.push_str(suffix);
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            return candidate;
+        }
+    }
+    suffix.to_string()
 }
 
 // ===========================================================================
@@ -382,5 +402,46 @@ mod tests {
         ];
         assert_eq!(m.open(MenuKind::Symbols, items, 200.0), 2);
         assert_eq!(m.kind(), MenuKind::Symbols);
+    }
+
+    #[test]
+    fn menu_width_uses_measured_label_width_and_depth() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 240) else {
+            return;
+        };
+        let shallow = vec![MenuItem {
+            label: "component_navigation_controller.mty".into(),
+            icon: None,
+            icon_color: MuiColor::new(1.0, 1.0, 1.0, 1.0),
+            depth: 0,
+            target: 0,
+        }];
+        let deep = vec![MenuItem {
+            label: "component_navigation_controller.mty".into(),
+            icon: None,
+            icon_color: MuiColor::new(1.0, 1.0, 1.0, 1.0),
+            depth: 3,
+            target: 0,
+        }];
+
+        assert!(crumb_menu_width(&mut ctx.text, &deep, theme::CHROME_FONT_SIZE)
+            > crumb_menu_width(&mut ctx.text, &shallow, theme::CHROME_FONT_SIZE));
+    }
+
+    #[test]
+    fn menu_label_fits_measured_budget() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(360, 240) else {
+            return;
+        };
+        let shown = fit_crumb_menu_label(
+            &mut ctx.text,
+            "very_long_file_name_that_should_fit_before_the_menu_edge.mty",
+            120.0,
+            theme::CHROME_FONT_SIZE,
+        );
+        let (shown_w, _) = ctx.text.measure_ui_sized(&shown, theme::CHROME_FONT_SIZE);
+
+        assert!(shown.ends_with('\u{2026}'));
+        assert!(shown_w <= 120.0);
     }
 }

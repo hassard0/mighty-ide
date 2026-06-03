@@ -6036,3 +6036,13 @@ footer tag with a character estimate.
   selected-row check control, and the footer hint fits against a measured
   `Mighty Themes` tag. Narrow picker cards keep row text and footer chrome from
   colliding.
+
+L457. Breadcrumb dropdowns need measured popup and row widths. The breadcrumb
+menu sized itself from character counts and truncated labels by estimated
+advance, which made long file or symbol names unreliable in a proportional UI
+font.
+
+- **IDE note:** Breadcrumb menus now measure item labels plus symbol depth to
+  choose popup width, then fit each row label against the actual remaining row
+  budget. Deep symbol names and long sibling filenames ellipsize before the card
+  edge.
