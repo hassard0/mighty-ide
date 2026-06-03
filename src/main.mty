@@ -91,6 +91,7 @@ extern c {
   // ---- editor power-features (comment / indent / auto-close / brackets /
   //      duplicate / move-line / word-motion / select) ----
   fn mui_ed_toggle_comment(handle: I64) -> I32
+  fn mui_ed_can_toggle_comment(handle: I64) -> I32
   fn mui_ed_indent(handle: I64) -> I32
   fn mui_ed_can_outdent(handle: I64) -> I32
   fn mui_ed_outdent(handle: I64) -> I32
@@ -99,6 +100,7 @@ extern c {
   fn mui_ed_backspace_smart(handle: I64) -> I32
   fn mui_ed_bracket_match(handle: I64) -> I32
   fn mui_ed_duplicate(handle: I64) -> I32
+  fn mui_ed_can_duplicate(handle: I64) -> I32
   fn mui_ed_can_move_lines_up(handle: I64) -> I32
   fn mui_ed_can_move_lines_down(handle: I64) -> I32
   fn mui_ed_move_lines_up(handle: I64) -> I32
@@ -2949,7 +2951,7 @@ fn main() {
           find_nav = false
           typing = false
           if shift_held(mods) {                                  // Ctrl+Shift+D : duplicate line/sel
-            mui_ed_undo_record(h)
+            if mui_ed_can_duplicate(h) == 1 { mui_ed_undo_record(h) }
             let changed = mui_ed_duplicate(h)
             if changed == 1 {
               mui_tab_set_dirty(h, mui_tab_active(h), 1)
@@ -2964,7 +2966,7 @@ fn main() {
           typing = false
         } else if ctrl_held(mods) && cp == 47 {                  // Ctrl+/ : toggle comment
           find_nav = false
-          mui_ed_undo_record(h)
+          if mui_ed_can_toggle_comment(h) == 1 { mui_ed_undo_record(h) }
           typing = false
           let changed = mui_ed_toggle_comment(h)
           if changed == 1 {
@@ -3932,7 +3934,7 @@ fn main() {
           }
         } else if id == cmd_toggle_line_comment() {
           find_nav = false
-          mui_ed_undo_record(h)
+          if mui_ed_can_toggle_comment(h) == 1 { mui_ed_undo_record(h) }
           typing = false
           let changed = mui_ed_toggle_comment(h)
           if changed == 1 {
@@ -4013,7 +4015,7 @@ fn main() {
             mui_ed_move_ext_multi(h, dir_end(), 0)
           }
         } else if id == cmd_duplicate_line_selection() || id == cmd_move_line_up() || id == cmd_move_line_down() {
-          if id == cmd_duplicate_line_selection() || (id == cmd_move_line_up() && mui_ed_can_move_lines_up(h) == 1) || (id == cmd_move_line_down() && mui_ed_can_move_lines_down(h) == 1) {
+          if (id == cmd_duplicate_line_selection() && mui_ed_can_duplicate(h) == 1) || (id == cmd_move_line_up() && mui_ed_can_move_lines_up(h) == 1) || (id == cmd_move_line_down() && mui_ed_can_move_lines_down(h) == 1) {
             mui_ed_undo_record(h)
           }
           let changed = if id == cmd_duplicate_line_selection() {

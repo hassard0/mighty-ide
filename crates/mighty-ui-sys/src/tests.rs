@@ -7656,6 +7656,44 @@ fn delete_preflights_track_boundaries_selection_and_read_only() {
 }
 
 #[test]
+fn always_mutating_editor_preflights_track_read_only_editability() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_ed_can_toggle_comment(0), 0);
+    assert_eq!(crate::mui_ed_can_duplicate(0), 0);
+    assert_eq!(crate::mui_ed_can_toggle_comment(h), 1);
+    assert_eq!(crate::mui_ed_can_duplicate(h), 1);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    let root = std::env::temp_dir().join("mui_always_edit_preflights");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    assert_eq!(crate::mui_ed_can_toggle_comment(h), 0);
+    assert_eq!(crate::mui_ed_can_duplicate(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_ed_toggle_comment(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Edit is unavailable in read-only previews"
+    );
+
+    ctx.toasts.clear();
+    assert_eq!(crate::mui_ed_duplicate(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Edit is unavailable in read-only previews"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn editor_power_features_via_abi() {
     use crate::{
         mui_ed_backspace_smart, mui_ed_bracket_match, mui_ed_duplicate, mui_ed_insert_char,
@@ -8717,6 +8755,15 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         main.contains("if !shift_held(kmods) || mui_ed_can_outdent(h) == 1 { mui_ed_undo_record(h) }\n            typing = false\n            let changed = if shift_held(kmods)")
             && main.contains("if id == cmd_indent_line_selection() || mui_ed_can_outdent(h) == 1 {\n            mui_ed_undo_record(h)\n          }\n          typing = false\n          let changed = if id == cmd_outdent_line_selection()"),
         "outdent key and command paths must preflight no-indent no-ops before recording undo"
+    );
+    assert!(
+        main.contains("if mui_ed_can_duplicate(h) == 1 { mui_ed_undo_record(h) }\n            let changed = mui_ed_duplicate(h)")
+            && main.contains("id == cmd_duplicate_line_selection() && mui_ed_can_duplicate(h) == 1")
+            && main
+                .matches("if mui_ed_can_toggle_comment(h) == 1 { mui_ed_undo_record(h) }\n          typing = false\n          let changed = mui_ed_toggle_comment(h)")
+                .count()
+                >= 2,
+        "duplicate and toggle-comment paths must preflight read-only targets before recording undo"
     );
     assert!(
         main.contains("if mui_ed_can_cut(h) == 1 { mui_ed_undo_record(h) }\n          let cut_ok = mui_ed_cut(h)")

@@ -13006,6 +13006,16 @@ pub extern "C" fn mui_ed_toggle_comment(handle: i64) -> i32 {
     apply_model_edit(handle, |m| m.toggle_line_comment())
 }
 
+/// `1` when Toggle Comment can mutate the active editor model.
+/// Pure preflight: no toasts; the toggle command keeps read-only feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_toggle_comment(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    i32::from(!ctx.tabs.active_read_only())
+}
+
 /// Tab: insert configured spaces at a plain caret, or indent selected lines.
 #[no_mangle]
 pub extern "C" fn mui_ed_indent(handle: i64) -> i32 {
@@ -13172,6 +13182,16 @@ fn bracket_source_cell(m: &TextModel) -> (i32, i32) {
 #[no_mangle]
 pub extern "C" fn mui_ed_duplicate(handle: i64) -> i32 {
     apply_model_edit(handle, |m| m.duplicate())
+}
+
+/// `1` when Duplicate Line/Selection can mutate the active editor model.
+/// Pure preflight: no toasts; Duplicate keeps read-only feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_duplicate(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    i32::from(!ctx.tabs.active_read_only())
 }
 
 fn active_move_line_range(ctx: &MuiContext) -> Option<(usize, usize, usize)> {

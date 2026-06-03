@@ -7541,3 +7541,8 @@ L611. Snippet expansion preflights must include editability. A prefix match in
 a read-only preview is not enough to justify an undo checkpoint; keep the
 warning in `try_expand`, but make `can_expand` silently return false when the
 active tab cannot be edited.
+
+L612. Some commands only need editability preflights. Duplicate and Toggle
+Comment always mutate editable text buffers, but read-only previews still need
+silent `can_*` gates so shortcut and palette routes do not snapshot undo before
+the stateful ABI reports the warning.
