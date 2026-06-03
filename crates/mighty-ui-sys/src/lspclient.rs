@@ -25,7 +25,7 @@
 use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
 use crate::diagnostics::{Diag, Severity};
@@ -39,8 +39,13 @@ pub enum Method {
     Definition,
     SignatureHelp,
     PrepareRename,
-    Rename { new_name: String },
-    CodeAction { end_line: u32, end_col: u32 },
+    Rename {
+        new_name: String,
+    },
+    CodeAction {
+        end_line: u32,
+        end_col: u32,
+    },
     DocumentSymbol,
     ExecuteCommand {
         command: String,
@@ -86,7 +91,10 @@ impl Method {
                 arguments_json,
             } => {
                 let args = arguments_json.as_deref().unwrap_or("[]");
-                format!(r#"{{"command":"{}","arguments":{args}}}"#, json_escape(command))
+                format!(
+                    r#"{{"command":"{}","arguments":{args}}}"#,
+                    json_escape(command)
+                )
             }
         }
     }
@@ -216,10 +224,12 @@ pub fn request_with_timeout(
     );
     let request_msg = request_msg(&method, &uri, line, col);
 
-    let Some(mut stdin) = child.stdin.take() else {
+    let Some(stdin) = child.stdin.take() else {
         kill(child);
         return String::new();
     };
+    let stdin = Arc::new(Mutex::new(stdin));
+    let writer_stdin = Arc::clone(&stdin);
     let writer = std::thread::spawn(move || {
         // Bigger settle pauses than the Mighty client: heavyweight servers
         // (rust-analyzer/gopls) index on initialize and need the doc open to
@@ -231,14 +241,18 @@ pub fn request_with_timeout(
             (&request_msg, 0),
         ];
         for (msg, pause_ms) in stages {
-            if stdin.write_all(&frame(msg)).is_err() || stdin.flush().is_err() {
+            let framed = frame(msg);
+            let Ok(mut stdin) = writer_stdin.lock() else {
+                return;
+            };
+            if stdin.write_all(&framed).is_err() || stdin.flush().is_err() {
                 return;
             }
+            drop(stdin);
             if pause_ms > 0 {
                 std::thread::sleep(Duration::from_millis(pause_ms));
             }
         }
-        drop(stdin);
     });
 
     let Some(mut stdout) = child.stdout.take() else {
@@ -247,14 +261,27 @@ pub fn request_with_timeout(
     };
 
     let (tx, rx) = mpsc::channel::<Vec<u8>>();
+    let respond_apply_edit = matches!(method, Method::ExecuteCommand { .. });
+    let reader_stdin = Arc::clone(&stdin);
     let reader = std::thread::spawn(move || {
         let mut buf: Vec<u8> = Vec::new();
         let mut chunk = [0u8; 8192];
+        let mut apply_edit_replied = false;
         loop {
             match stdout.read(&mut chunk) {
                 Ok(0) => break,
                 Ok(n) => {
                     buf.extend_from_slice(&chunk[..n]);
+                    if respond_apply_edit && !apply_edit_replied {
+                        if let Some(id) = apply_edit_request_id(&buf) {
+                            let response = apply_edit_response(&id);
+                            if let Ok(mut stdin) = reader_stdin.lock() {
+                                let _ = stdin.write_all(&frame(&response));
+                                let _ = stdin.flush();
+                            }
+                            apply_edit_replied = true;
+                        }
+                    }
                     if find_sub(&buf, b"\"id\":2").is_some() {
                         break;
                     }
@@ -278,7 +305,9 @@ pub fn request_with_timeout(
         Err(_) => {
             let _ = child.kill();
             let _ = child.wait();
-            let bytes = rx.recv_timeout(Duration::from_millis(500)).unwrap_or_default();
+            let bytes = rx
+                .recv_timeout(Duration::from_millis(500))
+                .unwrap_or_default();
             let _ = writer.join();
             let _ = reader.join();
             eprintln!("lspclient: {} timed out after {timeout:?}", method.name());
@@ -287,7 +316,12 @@ pub fn request_with_timeout(
     };
 
     let text = String::from_utf8_lossy(&raw).into_owned();
-    crate::nav::lsp::isolate_response(&text, "\"id\":2")
+    let response = crate::nav::lsp::isolate_response(&text, "\"id\":2");
+    if respond_apply_edit && find_sub(text.as_bytes(), b"workspace/applyEdit").is_some() {
+        format!("{response}\n{text}")
+    } else {
+        response
+    }
 }
 
 fn request_msg(method: &Method, uri: &str, line: u32, col: u32) -> String {
@@ -296,6 +330,22 @@ fn request_msg(method: &Method, uri: &str, line: u32, col: u32) -> String {
         method.name(),
         method.params(uri, line, col)
     )
+}
+
+fn apply_edit_response(id_json: &str) -> String {
+    format!(r#"{{"jsonrpc":"2.0","id":{id_json},"result":{{"applied":true}}}}"#)
+}
+
+fn apply_edit_request_id(stream: &[u8]) -> Option<String> {
+    let method_at = find_sub(stream, b"\"workspace/applyEdit\"")?;
+    let obj_start = stream[..method_at]
+        .iter()
+        .rposition(|&b| b == b'{')
+        .unwrap_or(0);
+    let obj_end = match_brace(stream, obj_start).min(stream.len());
+    let obj = &stream[obj_start..obj_end];
+    let id_at = find_sub(obj, b"\"id\"")?;
+    read_json_id_at(obj, id_at + b"\"id\"".len()).map(|(id, _)| id)
 }
 
 /// Open `source` on the server and collect its `publishDiagnostics` for the
@@ -309,7 +359,14 @@ pub fn diagnostics(
     path: &Path,
     source: &str,
 ) -> Vec<Diag> {
-    diagnostics_with_timeout(spec, language_id, root, path, source, Duration::from_millis(6000))
+    diagnostics_with_timeout(
+        spec,
+        language_id,
+        root,
+        path,
+        source,
+        Duration::from_millis(6000),
+    )
 }
 
 pub fn diagnostics_with_timeout(
@@ -340,11 +397,7 @@ pub fn diagnostics_with_timeout(
         return Vec::new();
     };
     let writer = std::thread::spawn(move || {
-        let stages: [(&str, u64); 3] = [
-            (&initialize, 250),
-            (&initialized, 80),
-            (&did_open, 0),
-        ];
+        let stages: [(&str, u64); 3] = [(&initialize, 250), (&initialized, 80), (&did_open, 0)];
         for (msg, pause_ms) in stages {
             if stdin.write_all(&frame(msg)).is_err() || stdin.flush().is_err() {
                 return;
@@ -404,7 +457,9 @@ pub fn diagnostics_with_timeout(
         Err(_) => {
             let _ = child.kill();
             let _ = child.wait();
-            let bytes = rx.recv_timeout(Duration::from_millis(500)).unwrap_or_default();
+            let bytes = rx
+                .recv_timeout(Duration::from_millis(500))
+                .unwrap_or_default();
             let _ = writer.join();
             let _ = reader.join();
             bytes
@@ -581,7 +636,9 @@ fn read_uint_after(region: &[u8], key: &[u8]) -> Option<u32> {
     let start = j;
     let mut v: u32 = 0;
     while j < region.len() && region[j].is_ascii_digit() {
-        v = v.saturating_mul(10).saturating_add((region[j] - b'0') as u32);
+        v = v
+            .saturating_mul(10)
+            .saturating_add((region[j] - b'0') as u32);
         j += 1;
     }
     if j == start {
@@ -620,6 +677,64 @@ fn read_json_string_at(bytes: &[u8], pos: usize) -> Option<(String, usize)> {
         j += 1;
     }
     Some((val, j + 1))
+}
+
+/// Read a JSON-RPC request id as JSON text (`7` or `"abc"`), beginning at or
+/// after `pos` (skips ws + `:`). Returns the raw id value for an id response.
+fn read_json_id_at(bytes: &[u8], pos: usize) -> Option<(String, usize)> {
+    let mut j = pos;
+    while j < bytes.len() && matches!(bytes[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
+        j += 1;
+    }
+    if j >= bytes.len() {
+        return None;
+    }
+    if bytes[j] == b'"' {
+        let (id, past) = read_json_string_at(bytes, j)?;
+        return Some((format!("\"{}\"", json_escape(&id)), past));
+    }
+    let start = j;
+    if bytes[j] == b'-' {
+        j += 1;
+    }
+    while j < bytes.len() && bytes[j].is_ascii_digit() {
+        j += 1;
+    }
+    if j == start || (bytes[start] == b'-' && j == start + 1) {
+        return None;
+    }
+    Some((String::from_utf8_lossy(&bytes[start..j]).into_owned(), j))
+}
+
+/// Index just past the `}` matching the `{` at `open` (string-aware).
+fn match_brace(bytes: &[u8], open: usize) -> usize {
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut esc = false;
+    let mut k = open;
+    while k < bytes.len() {
+        let b = bytes[k];
+        if in_str {
+            if esc {
+                esc = false;
+            } else if b == b'\\' {
+                esc = true;
+            } else if b == b'"' {
+                in_str = false;
+            }
+        } else if b == b'"' {
+            in_str = true;
+        } else if b == b'{' {
+            depth += 1;
+        } else if b == b'}' {
+            depth -= 1;
+            if depth == 0 {
+                return k + 1;
+            }
+        }
+        k += 1;
+    }
+    bytes.len()
 }
 
 /// Index just past the `]` matching the `[` at `open` (string-aware).
@@ -737,18 +852,15 @@ mod tests {
             0,
         );
         assert!(msg.contains(r#""method":"textDocument/codeAction""#));
-        assert!(msg.contains(r#""range":{"start":{"line":4,"character":0},"end":{"line":4,"character":17}}"#));
+        assert!(msg.contains(
+            r#""range":{"start":{"line":4,"character":0},"end":{"line":4,"character":17}}"#
+        ));
         assert!(msg.contains(r#""context":{"diagnostics":[]}"#));
     }
 
     #[test]
     fn signature_help_request_uses_position_params() {
-        let msg = request_msg(
-            &Method::SignatureHelp,
-            "file:///repo/src/main.rs",
-            7,
-            12,
-        );
+        let msg = request_msg(&Method::SignatureHelp, "file:///repo/src/main.rs", 7, 12);
         assert!(msg.contains(r#""method":"textDocument/signatureHelp""#));
         assert!(msg.contains(
             r#""textDocument":{"uri":"file:///repo/src/main.rs"},"position":{"line":7,"character":12}"#
@@ -757,12 +869,7 @@ mod tests {
 
     #[test]
     fn prepare_rename_request_uses_position_params() {
-        let msg = request_msg(
-            &Method::PrepareRename,
-            "file:///repo/src/main.rs",
-            2,
-            5,
-        );
+        let msg = request_msg(&Method::PrepareRename, "file:///repo/src/main.rs", 2, 5);
         assert!(msg.contains(r#""method":"textDocument/prepareRename""#));
         assert!(msg.contains(
             r#""textDocument":{"uri":"file:///repo/src/main.rs"},"position":{"line":2,"character":5}"#
@@ -786,12 +893,7 @@ mod tests {
 
     #[test]
     fn document_symbol_request_uses_document_params_only() {
-        let msg = request_msg(
-            &Method::DocumentSymbol,
-            "file:///repo/src/main.rs",
-            99,
-            42,
-        );
+        let msg = request_msg(&Method::DocumentSymbol, "file:///repo/src/main.rs", 99, 42);
         assert!(msg.contains(r#""method":"textDocument/documentSymbol""#));
         assert!(msg.contains(r#""params":{"textDocument":{"uri":"file:///repo/src/main.rs"}}"#));
         assert!(!msg.contains(r#""position""#));
@@ -809,8 +911,44 @@ mod tests {
             0,
         );
         assert!(msg.contains(r#""method":"workspace/executeCommand""#));
-        assert!(msg.contains(r#""params":{"command":"rust-analyzer.applySourceChange","arguments":[{"id":1}]}"#));
+        assert!(msg.contains(
+            r#""params":{"command":"rust-analyzer.applySourceChange","arguments":[{"id":1}]}"#
+        ));
         assert!(!msg.contains(r#""textDocument""#));
+    }
+
+    #[test]
+    fn apply_edit_request_id_reads_numeric_id() {
+        let stream = br#"Content-Length: 190
+
+{"jsonrpc":"2.0","id":9,"method":"workspace/applyEdit","params":{"edit":{"changes":{"file:///repo/src/main.rs":[{"newText":"x","range":{"start":{"line":1,"character":2},"end":{"line":1,"character":5}}}]}}}}"#;
+        assert_eq!(apply_edit_request_id(stream), Some("9".to_string()));
+        assert_eq!(
+            apply_edit_response("9"),
+            r#"{"jsonrpc":"2.0","id":9,"result":{"applied":true}}"#
+        );
+    }
+
+    #[test]
+    fn apply_edit_request_id_reads_string_id() {
+        let stream = br#"{"jsonrpc":"2.0","id":"cmd-7","method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}"#;
+        assert_eq!(
+            apply_edit_request_id(stream),
+            Some(r#""cmd-7""#.to_string())
+        );
+        assert_eq!(
+            apply_edit_response(r#""cmd-7""#),
+            r#"{"jsonrpc":"2.0","id":"cmd-7","result":{"applied":true}}"#
+        );
+    }
+
+    #[test]
+    fn apply_edit_request_body_remains_workspace_edit_parseable() {
+        let stream = r#"{"jsonrpc":"2.0","id":4,"method":"workspace/applyEdit","params":{"label":"Apply source change","edit":{"changes":{"file:///repo/src/main.rs":[{"newText":"use std::fmt;\n","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}}]}}}}"#;
+        let we = crate::language::parse_workspace_edit(stream);
+        assert_eq!(we.file_count(), 1);
+        assert_eq!(we.files[0].0, "file:///repo/src/main.rs");
+        assert_eq!(we.files[0].1[0].new_text, "use std::fmt;\n");
     }
 
     /// Guarded integration test: if a real `rust-analyzer` is on PATH, spawn it

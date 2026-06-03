@@ -5061,3 +5061,15 @@ to the wrong file.
   containing both `textDocument` and `edits` produce text edits, resource-only
   operations are skipped, and field order inside the `TextDocumentEdit` object
   no longer matters.
+
+L356. Some LSP commands apply edits as a server request, not as the command
+response. A command such as `workspace/executeCommand` can trigger
+`workspace/applyEdit` and wait for the client to answer before returning its
+own result; a one-shot client that only reads the original request id can hang
+or report "no edit" even though the server sent a valid `WorkspaceEdit`.
+
+- **IDE note:** generic non-Mighty command execution now keeps stdin available
+  while reading, acknowledges `workspace/applyEdit` with `applied:true`, and
+  preserves the request body so the existing workspace-edit application path can
+  apply those edits. Inline edits and command responses continue through the
+  same parser as before.
