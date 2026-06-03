@@ -5693,3 +5693,13 @@ other as the user probes controls.
   continue/pause/step/stop/restart messages, and breakpoint save-first warnings
   now share a Debug toast replacement key. Repeated debugger commands keep the
   latest session or breakpoint state visible.
+
+L419. Test runner lifecycle feedback is part of the testing lane. Missing test
+targets, failed starts, idle stops, and final pass/fail summaries are all states
+of one run workflow, so they should not stack as separate notifications.
+
+- **IDE note:** Test start prompts, `Test run failed to start: ...`,
+  `No test run to stop`, result-row navigation feedback, target-missing
+  warnings, and numeric pass/fail summaries now share the Test toast
+  replacement key. Repeated testing commands keep only the latest run state
+  visible.

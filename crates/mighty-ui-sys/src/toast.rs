@@ -739,6 +739,10 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::Copy)
     } else if is_test_result_message(m)
+        || m == "Open a Mighty file or folder before running tests"
+        || m == "Open a Mighty file before running test at cursor"
+        || m.starts_with("Test run failed to start:")
+        || m == "No test run to stop"
         || m == "No test result row selected"
         || m == "Test result row has no file target"
         || m.starts_with("Test target missing")
@@ -1322,6 +1326,47 @@ mod tests {
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Formatted document");
         assert!(!q.toasts().iter().any(|t| t.message == "Format failed"));
+    }
+
+    #[test]
+    fn newer_test_feedback_replaces_stale_test_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(
+            Kind::Warn,
+            "Open a Mighty file or folder before running tests",
+            t0,
+        );
+        q.push_at(
+            Kind::Warn,
+            "Open a Mighty file before running test at cursor",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Open a Mighty file before running test at cursor"
+        );
+
+        q.push_at(
+            Kind::Error,
+            "Test run failed to start: main.mty",
+            t0 + Duration::from_millis(200),
+        );
+        q.push_at(
+            Kind::Info,
+            "No test run to stop",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No test run to stop");
+
+        q.push_at(Kind::Error, "1 of 3 tests failed", t0 + Duration::from_millis(400));
+        q.push_at(Kind::Success, "3 tests passed", t0 + Duration::from_millis(500));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "3 tests passed");
+        assert_eq!(q.toasts()[0].kind, Kind::Success);
     }
 
     #[test]
