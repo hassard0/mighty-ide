@@ -6848,3 +6848,13 @@ the selected candidate.
   `Autocomplete: Close Suggestions`, calling `mui_complete_cancel` while
   clearing Mighty's local `completing` flag. ABI, registry, metadata,
   dispatcher, and label tests pin the close path.
+
+L540. Destructive confirmations need named non-destructive exits.
+Unsaved-work confirmation offers Save and Discard, so cancel must stay explicit
+and easy to audit: it should dismiss the modal while preserving the dirty tab and
+never implying a save or discard choice.
+
+- **IDE note:** The command palette now lists
+  `Unsaved Changes: Cancel Confirmation`, calling `mui_dirty_confirm_cancel`.
+  ABI, registry, metadata, dispatcher, and label tests pin that cancellation
+  clears the pending confirmation while keeping the dirty tab open.

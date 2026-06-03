@@ -371,6 +371,8 @@ pub const CMD_PROMPT_CANCEL: u32 = 169;
 pub const CMD_FIND_REPLACE_CLOSE: u32 = 170;
 /// Close the autocomplete suggestions dropdown without accepting a candidate.
 pub const CMD_AUTOCOMPLETE_CLOSE: u32 = 171;
+/// Cancel the unsaved-work confirmation overlay without saving or discarding.
+pub const CMD_DIRTY_CONFIRM_CANCEL: u32 = 172;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -466,6 +468,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_REDO,             label: "Redo",               keybinding: "Ctrl+Y" },
     Command { id: CMD_AUTOCOMPLETE,     label: "Trigger Autocomplete", keybinding: "Ctrl+Space" },
     Command { id: CMD_AUTOCOMPLETE_CLOSE, label: "Autocomplete: Close Suggestions", keybinding: "" },
+    Command { id: CMD_DIRTY_CONFIRM_CANCEL, label: "Unsaved Changes: Cancel Confirmation", keybinding: "" },
     Command { id: CMD_JUMP_BACK,        label: "Jump Back",          keybinding: "" },
     Command { id: CMD_QUIT,             label: "Quit",               keybinding: "Esc / close" },
     Command { id: CMD_COLOR_THEME,      label: "Preferences: Color Theme", keybinding: "" },
@@ -998,6 +1001,7 @@ impl PaletteEngine {
             CMD_REDO => (icons::CHEVRON, "Redo the last undone edit", false),
             CMD_AUTOCOMPLETE => (icons::AGENTS, "Suggest completions at the cursor", false),
             CMD_AUTOCOMPLETE_CLOSE => (icons::CLOSE, "Close autocomplete suggestions without accepting one", false),
+            CMD_DIRTY_CONFIRM_CANCEL => (icons::CLOSE, "Cancel the unsaved-work confirmation without saving or discarding", false),
             CMD_JUMP_BACK => (icons::CHEVRON, "Return to the previous location", false),
             CMD_QUIT => (icons::CLOSE, "Close the editor", false),
             CMD_COLOR_THEME => (icons::SETTINGS, "Switch the editor color theme", false),

@@ -965,6 +965,22 @@ fn prompt_hit_test_tracks_visible_bottom_band() {
 }
 
 #[test]
+fn dirty_confirm_cancel_command_clears_pending_choice() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_ed_set_dirty(handle, 1);
+    assert_eq!(crate::mui_tab_close(handle, 0), -1);
+    assert_eq!(crate::mui_dirty_confirm_active(handle), 1);
+    assert_eq!(crate::mui_tab_count(handle), 1);
+
+    crate::mui_dirty_confirm_cancel(handle);
+    assert_eq!(crate::mui_dirty_confirm_active(handle), 0);
+    assert_eq!(crate::mui_tab_count(handle), 1);
+    assert_eq!(ctx.tabs.is_dirty(0), true);
+}
+
+#[test]
 fn replace_bar_close_hit_tracks_visible_button() {
     use crate::ffi::MuiEvent;
     use crate::mui_replace_close_at_click;
@@ -2711,6 +2727,16 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(autocomplete_close.label, "Autocomplete: Close Suggestions");
     assert_eq!(autocomplete_close.keybinding, "");
+
+    let dirty_confirm_cancel = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_DIRTY_CONFIRM_CANCEL)
+        .unwrap();
+    assert_eq!(
+        dirty_confirm_cancel.label,
+        "Unsaved Changes: Cancel Confirmation"
+    );
+    assert_eq!(dirty_confirm_cancel.keybinding, "");
 
     let close_saved = crate::palette::COMMANDS
         .iter()
@@ -7082,6 +7108,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Autocomplete close command must clear shim completion state and Mighty's local completion flag"
     );
     assert!(
+        main.contains("id == cmd_dirty_confirm_cancel()")
+            && main.contains("mui_dirty_confirm_cancel(h)"),
+        "Unsaved Changes cancel command must clear the dirty-confirmation overlay"
+    );
+    assert!(
         main.contains("id == cmd_explorer_collapse_all()")
             && main.contains("let _vp = mui_panel_set(h, panel_explorer())")
             && main.contains("mui_tree_collapse_all(h)"),
@@ -7438,6 +7469,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_REDO, "cmd_redo"),
         (CMD_AUTOCOMPLETE, "cmd_autocomplete"),
         (CMD_AUTOCOMPLETE_CLOSE, "cmd_autocomplete_close"),
+        (CMD_DIRTY_CONFIRM_CANCEL, "cmd_dirty_confirm_cancel"),
         (CMD_JUMP_BACK, "cmd_jump_back"),
         (CMD_QUIT, "cmd_quit"),
         (CMD_COLOR_THEME, "cmd_color_theme"),
