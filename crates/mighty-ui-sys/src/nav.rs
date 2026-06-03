@@ -42,6 +42,17 @@ pub struct HoverState {
     active: bool,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct HoverGeometry {
+    box_x: f32,
+    box_y: f32,
+    box_w: f32,
+    box_h: f32,
+    pad: f32,
+    row_h: f32,
+    visible: usize,
+}
+
 impl HoverState {
     pub fn new() -> Self {
         HoverState::default()
@@ -79,34 +90,28 @@ impl HoverState {
         }
         let row_h = layout::LINE_H();
         let pad = 4.0;
-        let box_w = hover_popup_width(&mut ctx.text, &self.lines, theme::FONT_SIZE());
-        let box_h = self.lines.len() as f32 * row_h + 2.0 * pad;
-
-        let w = width as f32;
-        let h = height as f32;
-        let mut box_x = cx;
-        // Prefer above the cursor line; flip below if it would overflow the top.
-        let mut box_y = cy - box_h - 2.0;
-        if box_y < 0.0 {
-            box_y = cy + row_h;
-        }
-        if box_x + box_w > w {
-            box_x = (w - box_w).max(0.0);
-        }
-        if box_y + box_h > h {
-            box_y = (h - box_h).max(0.0);
+        let g = hover_popup_geometry(&mut ctx.text, &self.lines, cx, cy, width, height, theme::FONT_SIZE(), pad, row_h);
+        if g.visible == 0 {
+            return;
         }
 
-        let clip = ctx.clip;
+        let clip = Some((
+            g.box_x.max(0.0) as u32,
+            g.box_y.max(0.0) as u32,
+            g.box_w.max(0.0) as u32,
+            g.box_h.max(0.0) as u32,
+        ));
         let radius = 9.0_f32;
         // Soft shadow + rounded elevated card + hairline border.
-        ctx.dl_shadow(box_x, box_y + 5.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.6), 18.0);
-        ctx.dl_grad_v(box_x, box_y, box_w, box_h, radius, theme::ELEVATED_2(), theme::ELEVATED());
-        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG(), 1.0);
+        ctx.dl_shadow(g.box_x, g.box_y + 5.0, g.box_w, g.box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.6), 18.0);
+        ctx.dl_grad_v(g.box_x, g.box_y, g.box_w, g.box_h, radius, theme::ELEVATED_2(), theme::ELEVATED());
+        ctx.dl_stroke(g.box_x, g.box_y, g.box_w, g.box_h, radius, theme::BORDER_STRONG(), 1.0);
         let fg = theme::TEXT();
-        for (i, line) in self.lines.iter().enumerate() {
-            let row_y = box_y + pad + i as f32 * row_h;
-            ctx.text.queue(box_x + 6.0, row_y + 1.0, line, fg, clip);
+        let text_w = (g.box_w - 12.0).max(0.0);
+        for (i, line) in self.lines.iter().take(g.visible).enumerate() {
+            let row_y = g.box_y + g.pad + i as f32 * g.row_h;
+            let shown = fit_hover_line(&mut ctx.text, line, text_w, theme::FONT_SIZE());
+            ctx.text.queue(g.box_x + 6.0, row_y + 1.0, &shown, fg, clip);
         }
     }
 }
@@ -117,6 +122,83 @@ fn hover_popup_width(text: &mut crate::text::Text, lines: &[String], size: f32) 
         .map(|line| text.measure_sized(line, size).0)
         .fold(0.0_f32, f32::max);
     (content_w + 12.0).max(60.0)
+}
+
+fn hover_visible_lines(total: usize, window_h: f32, pad: f32, row_h: f32) -> usize {
+    if total == 0 {
+        return 0;
+    }
+    let available = window_h - 2.0 * pad;
+    if available < row_h {
+        return 0;
+    }
+    total.min((available / row_h).floor() as usize)
+}
+
+fn hover_popup_geometry(
+    text: &mut crate::text::Text,
+    lines: &[String],
+    cx: f32,
+    cy: f32,
+    width: u32,
+    height: u32,
+    size: f32,
+    pad: f32,
+    row_h: f32,
+) -> HoverGeometry {
+    let w = width.max(1) as f32;
+    let h = height.max(1) as f32;
+    let visible = hover_visible_lines(lines.len(), h, pad, row_h);
+    let wanted_w = hover_popup_width(text, lines, size);
+    let box_w = wanted_w.min(w).max(1.0);
+    let box_h = (visible as f32 * row_h + 2.0 * pad).min(h).max(0.0);
+    let mut box_x = cx.min((w - box_w).max(0.0)).max(0.0);
+    let mut box_y = cy - box_h - 2.0;
+    if box_y < 0.0 {
+        box_y = cy + row_h;
+    }
+    if box_x + box_w > w {
+        box_x = (w - box_w).max(0.0);
+    }
+    if box_y + box_h > h {
+        box_y = (h - box_h).max(0.0);
+    }
+    HoverGeometry {
+        box_x,
+        box_y,
+        box_w,
+        box_h,
+        pad,
+        row_h,
+        visible,
+    }
+}
+
+fn fit_hover_line(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
+    let max_px = max_px.max(0.0);
+    if text.measure_sized(s, size).0 <= max_px {
+        return s.to_string();
+    }
+    let ellipsis = "\u{2026}";
+    if text.measure_sized(ellipsis, size).0 > max_px {
+        return String::new();
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let mut candidate: String = chars.iter().take(mid).collect();
+        candidate.push_str(ellipsis);
+        if text.measure_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    let mut out: String = chars.iter().take(lo).collect();
+    out.push_str(ellipsis);
+    out
 }
 
 /// Strip markdown noise from an LSP hover `value` and wrap it into at most
@@ -867,6 +949,77 @@ mod tests {
         let expected = (ctx.text.measure_sized(&lines[1], size).0 + 12.0).max(60.0);
 
         assert_eq!(width, expected);
+    }
+
+    #[test]
+    fn hover_popup_geometry_clamps_inside_tiny_width() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(96, 180) else {
+            return;
+        };
+        let size = theme::FONT_SIZE();
+        let pad = 4.0;
+        let row_h = layout::LINE_H();
+        let lines = vec!["fn very_long_symbol_name(a: I32, b: I32) -> I32".to_string()];
+        let g = hover_popup_geometry(&mut ctx.text, &lines, 80.0, 80.0, 96, 180, size, pad, row_h);
+
+        assert!(g.box_x >= 0.0);
+        assert!(g.box_w <= 96.0);
+        assert!(g.box_x + g.box_w <= 96.0 + 0.5);
+        assert_eq!(g.visible, 1);
+    }
+
+    #[test]
+    fn hover_popup_geometry_caps_visible_lines_to_height() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(320, 46) else {
+            return;
+        };
+        let size = theme::FONT_SIZE();
+        let pad = 4.0;
+        let row_h = layout::LINE_H();
+        let lines = vec![
+            "one".to_string(),
+            "two".to_string(),
+            "three".to_string(),
+            "four".to_string(),
+        ];
+        let g = hover_popup_geometry(&mut ctx.text, &lines, 180.0, 38.0, 320, 46, size, pad, row_h);
+
+        assert!(g.visible < lines.len());
+        assert!(g.box_y >= 0.0);
+        assert!(g.box_y + g.box_h <= 46.0 + 0.5);
+    }
+
+    #[test]
+    fn hover_popup_geometry_hides_rows_when_too_short() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(320, 20) else {
+            return;
+        };
+        let size = theme::FONT_SIZE();
+        let pad = 4.0;
+        let row_h = layout::LINE_H();
+        let lines = vec!["one".to_string()];
+        let g = hover_popup_geometry(&mut ctx.text, &lines, 160.0, 12.0, 320, 20, size, pad, row_h);
+
+        assert_eq!(g.visible, 0);
+        assert!(g.box_h <= 20.0);
+    }
+
+    #[test]
+    fn hover_line_fitter_keeps_text_inside_card() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(240, 120) else {
+            return;
+        };
+        let size = theme::FONT_SIZE();
+        let shown = fit_hover_line(
+            &mut ctx.text,
+            "fn very_long_symbol_name(a: I32, b: I32) -> I32",
+            72.0,
+            size,
+        );
+        let (shown_w, _) = ctx.text.measure_sized(&shown, size);
+
+        assert!(shown.ends_with('\u{2026}'));
+        assert!(shown_w <= 72.0 + 0.5);
     }
 
     // ---- hover response parsing ----
