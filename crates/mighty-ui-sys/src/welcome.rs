@@ -399,7 +399,7 @@ impl WelcomeState {
                         let dir = recent_secondary_path(path, true);
                         ctx.dl_icon(left_x, ry + 8.0, 15.0, 15.0, icons::FOLDER, theme::ACCENT_BRIGHT(), 1.6, false);
                         ctx.text.queue_ui_sized(left_x + 25.0, ry + 3.0, &name, theme::TEXT_1(), 13.0, clip);
-                        let dir_short = shorten_dir(&dir, col_w - 30.0);
+                        let dir_short = shorten_dir(&mut ctx.text, &dir, col_w - 30.0, 10.5);
                         ctx.text.queue_ui_sized(left_x + 25.0, ry + 19.0, &dir_short, theme::TEXT_3(), 10.5, clip);
                         self.hits.push(Hit {
                             x: left_x,
@@ -440,7 +440,7 @@ impl WelcomeState {
                         ctx.dl_icon(left_x, ry + 8.0, 15.0, 15.0, file_icon(&name), theme::ACCENT_BRIGHT(), 1.6, false);
                         ctx.text.queue_ui_sized(left_x + 25.0, ry + 3.0, &name, theme::TEXT_1(), 13.0, clip);
                         if !dir.is_empty() {
-                            let dir_short = shorten_dir(&dir, col_w - 30.0);
+                            let dir_short = shorten_dir(&mut ctx.text, &dir, col_w - 30.0, 10.5);
                             ctx.text.queue_ui_sized(left_x + 25.0, ry + 19.0, &dir_short, theme::TEXT_3(), 10.5, clip);
                         }
                         self.hits.push(Hit {
@@ -532,7 +532,7 @@ impl WelcomeState {
                 ctx.dl_icon(right_x, ry + 10.0, 16.0, 16.0, icons::FOLDER, theme::ACCENT_BRIGHT(), 1.6, false);
                 ctx.text
                     .queue_ui_sized(right_x + 26.0, ry + 6.0, &name, theme::TEXT_1(), 13.5, clip);
-                let dir_short = shorten_dir(&dir, half - 30.0);
+                let dir_short = shorten_dir(&mut ctx.text, &dir, half - 30.0, 11.0);
                 ctx.text.queue_ui_sized(
                     right_x + 26.0,
                     ry + 23.0,
@@ -587,7 +587,7 @@ impl WelcomeState {
                 ctx.text
                     .queue_ui_sized(right_x + 26.0, ry + 6.0, &name, theme::TEXT_1(), 13.5, clip);
                 if !dir.is_empty() {
-                    let dir_short = shorten_dir(&dir, half - 30.0);
+                    let dir_short = shorten_dir(&mut ctx.text, &dir, half - 30.0, 11.0);
                     ctx.text.queue_ui_sized(
                         right_x + 26.0,
                         ry + 23.0,
@@ -786,10 +786,10 @@ impl WelcomeState {
             ctx.dl_stroke(x, y, w, 42.0, 7.0, theme::BORDER(), 1.0);
             let icon = if folders { fallback_icon } else { file_icon(&name) };
             ctx.dl_icon(x + 12.0, y + 11.0, 18.0, 18.0, icon, theme::ACCENT_BRIGHT(), 1.7, false);
-            let name_short = shorten_dir(&name, w - 48.0);
+            let name_short = shorten_dir(&mut ctx.text, &name, w - 48.0, 13.0);
             ctx.text.queue_ui_sized(x + 40.0, y + 7.0, &name_short, theme::TEXT_1(), 13.0, clip);
             if !dir.is_empty() {
-                let dir_short = shorten_dir(&dir, w - 48.0);
+                let dir_short = shorten_dir(&mut ctx.text, &dir, w - 48.0, 10.5);
                 ctx.text.queue_ui_sized(x + 40.0, y + 24.0, &dir_short, theme::TEXT_3(), 10.5, clip);
             }
             self.hits.push(Hit {
@@ -860,38 +860,106 @@ fn recent_secondary_path(path: &std::path::Path, folder_row: bool) -> String {
     path.parent().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default()
 }
 
-/// Shorten a directory path to roughly `max_px`, preserving both the root/start
-/// and the meaningful tail. Recent rows otherwise look broken because a
-/// left-only ellipsis hides the drive/user context.
-fn shorten_dir(dir: &str, max_px: f32) -> String {
-    let approx = 6.0_f32;
-    let max_chars = (max_px / approx).floor().max(8.0) as usize;
-    let count = dir.chars().count();
-    if count <= max_chars {
+/// Shorten a directory path to fit `max_px`, preserving both the root/start and
+/// the meaningful tail. Recent rows otherwise look broken because a left-only
+/// ellipsis hides the drive/user context.
+fn shorten_dir(text: &mut crate::text::Text, dir: &str, max_px: f32, size: f32) -> String {
+    if dir.is_empty() || max_px <= 0.0 {
+        return String::new();
+    }
+    if text.measure_ui_sized(dir, size).0 <= max_px {
         return dir.to_string();
     }
 
-    if max_chars <= 12 {
-        let tail: String = dir
-            .chars()
-            .skip(count - max_chars.saturating_sub(1))
-            .collect();
-        return format!("\u{2026}{tail}");
+    let ellipsis = "\u{2026}";
+    if text.measure_ui_sized(ellipsis, size).0 > max_px {
+        return String::new();
     }
 
-    let drive_prefix = {
-        let mut chars = dir.chars();
-        matches!(
-            (chars.next(), chars.next(), chars.next()),
-            (Some(c), Some(':'), Some('\\' | '/')) if c.is_ascii_alphabetic()
-        )
-    };
+    let chars: Vec<char> = dir.chars().collect();
+    let count = chars.len();
+    if count <= 2 {
+        return ellipsis.to_string();
+    }
+
+    let drive_prefix = matches!(
+        (chars.first(), chars.get(1), chars.get(2)),
+        (Some(c), Some(':'), Some('\\' | '/')) if c.is_ascii_alphabetic()
+    );
     let min_prefix = if drive_prefix { 3 } else { 4 };
-    let prefix_len = (max_chars / 3).max(min_prefix).min(max_chars - 8);
-    let tail_len = max_chars.saturating_sub(prefix_len + 1).max(6);
-    let prefix: String = dir.chars().take(prefix_len).collect();
-    let tail: String = dir.chars().skip(count - tail_len.min(count)).collect();
-    format!("{prefix}\u{2026}{tail}")
+    if count <= min_prefix + 2 {
+        return shorten_tail(text, &chars, max_px, size);
+    }
+
+    let mut best: Option<(String, usize, usize)> = None;
+    let max_prefix = (count - 2).min((count / 2).max(min_prefix));
+    for prefix_len in min_prefix..=max_prefix {
+        let mut lo = 1usize;
+        let mut hi = count.saturating_sub(prefix_len + 1);
+        let mut best_tail = 0usize;
+        while lo <= hi {
+            let mid = (lo + hi) / 2;
+            let candidate = shorten_middle_candidate(&chars, prefix_len, mid);
+            if text.measure_ui_sized(&candidate, size).0 <= max_px {
+                best_tail = mid;
+                lo = mid + 1;
+            } else {
+                hi = mid.saturating_sub(1);
+            }
+        }
+        if best_tail == 0 {
+            continue;
+        }
+        let candidate = shorten_middle_candidate(&chars, prefix_len, best_tail);
+        let replace = best
+            .as_ref()
+            .map(|(_, best_kept, best_tail_len)| {
+                best_tail > *best_tail_len || (best_tail == *best_tail_len && prefix_len + best_tail > *best_kept)
+            })
+            .unwrap_or(true);
+        if replace {
+            best = Some((candidate, prefix_len + best_tail, best_tail));
+        }
+    }
+
+    best.map(|(candidate, _, _)| candidate)
+        .unwrap_or_else(|| shorten_tail(text, &chars, max_px, size))
+}
+
+fn shorten_middle_candidate(chars: &[char], prefix_len: usize, tail_len: usize) -> String {
+    chars[..prefix_len]
+        .iter()
+        .copied()
+        .chain(std::iter::once('\u{2026}'))
+        .chain(chars[chars.len().saturating_sub(tail_len)..].iter().copied())
+        .collect()
+}
+
+fn shorten_tail(text: &mut crate::text::Text, chars: &[char], max_px: f32, size: f32) -> String {
+    let ellipsis = "\u{2026}";
+    if text.measure_ui_sized(ellipsis, size).0 > max_px {
+        return String::new();
+    }
+    let mut lo = 0usize;
+    let mut hi = chars.len();
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let candidate: String = std::iter::once('\u{2026}')
+            .chain(chars[chars.len().saturating_sub(mid)..].iter().copied())
+            .collect();
+        if text.measure_ui_sized(&candidate, size).0 <= max_px {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if lo == 0 {
+        ellipsis.to_string()
+    } else {
+        std::iter::once('\u{2026}')
+            .chain(chars[chars.len().saturating_sub(lo)..].iter().copied())
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -1040,8 +1108,12 @@ mod tests {
 
     #[test]
     fn recent_paths_keep_root_and_tail_when_shortened() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
         let path = r"C:\Users\ihass\AppData\Local\Temp\mighty-ide-harnessworkspace-32440";
-        let shown = shorten_dir(path, 180.0);
+        let size = 10.5;
+        let shown = shorten_dir(&mut ctx.text, path, 220.0, size);
 
         assert!(
             shown.starts_with(r"C:\"),
@@ -1054,6 +1126,31 @@ mod tests {
         assert!(
             shown.ends_with("workspace-32440"),
             "shortened recent paths should keep the actionable folder/file tail: {shown}"
+        );
+        let (shown_w, _) = ctx.text.measure_ui_sized(&shown, size);
+        assert!(
+            shown_w <= 220.0 + 0.5,
+            "shortened recent paths should fit the measured row budget: {shown} ({shown_w})"
+        );
+    }
+
+    #[test]
+    fn recent_paths_fall_back_to_measured_tail_when_budget_is_tiny() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+        let path = "/Users/ihass/mighty-ide/examples";
+        let size = 10.5;
+        let shown = shorten_dir(&mut ctx.text, path, 24.0, size);
+        let (shown_w, _) = ctx.text.measure_ui_sized(&shown, size);
+
+        assert!(
+            shown.starts_with('\u{2026}') || shown.is_empty(),
+            "tiny budgets should use a tail-only ellipsis or hide text: {shown}"
+        );
+        assert!(
+            shown_w <= 24.0 + 0.5,
+            "tail fallback should fit the measured row budget: {shown} ({shown_w})"
         );
     }
 

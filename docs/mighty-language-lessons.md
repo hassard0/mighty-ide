@@ -6271,3 +6271,11 @@ character-cell widths after the editor and Peek gutters moved to measured text.
 - **IDE note:** Sticky Scroll now right-aligns pinned header line numbers with
   measured code-font widths. The sticky source text remains grid-aligned, while
   the gutter label follows the rendered digits.
+
+L485. Welcome recents should shorten paths with measured text. Recent rows
+preserved path roots and tails, but converted pixel budgets to fixed character
+counts before drawing proportional UI text.
+
+- **IDE note:** Welcome recents and the Open Recent picker now shorten names and
+  paths with measured UI-font widths. Long workspace paths keep useful root and
+  tail context without overflowing their row budgets.
