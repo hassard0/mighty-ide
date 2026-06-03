@@ -6924,3 +6924,12 @@ close a named tool without depending on which drawer is active.
   `mui_term_close` and clearing terminal focus. Terminal state, registry,
   metadata, dispatcher, and label tests pin that the command uses the
   terminal-specific close path rather than the shared dock fallback.
+
+L548. Diagnostic panels deserve direct close routes.
+Problems is a named tool with its own open state, refresh behavior, and visible
+close button, so closing it from commands should not depend on a generic dock
+close or toggle semantics.
+
+- **IDE note:** The command palette now lists `Problems: Close Panel`, calling
+  `mui_problems_close`. Problems state, registry, metadata, dispatcher, and label
+  tests pin state-aware close feedback for both open and already-closed cases.

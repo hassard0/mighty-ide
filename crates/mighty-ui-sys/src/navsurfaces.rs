@@ -365,6 +365,22 @@ pub extern "C" fn mui_problems_is_open(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| if c.problems.is_open() { 1 } else { 0 })
 }
 
+/// Close the Problems panel explicitly. Returns `1` when it closed an open
+/// panel, or `0` when Problems was already closed.
+#[no_mangle]
+pub extern "C" fn mui_problems_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.problems.is_open() {
+        ctx.problems.set_open(false);
+        ctx.push_toast(crate::toast::Kind::Info, "Problems panel closed");
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "Problems panel is already closed");
+    0
+}
+
 /// Total problem count.
 #[no_mangle]
 pub extern "C" fn mui_problems_count(handle: i64) -> i32 {

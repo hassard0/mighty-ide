@@ -2908,6 +2908,7 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_VIEW_TESTING, "View: Testing"),
         (crate::palette::CMD_VIEW_RUN_OUTPUT, "View: Run Output"),
         (crate::palette::CMD_VIEW_PROBLEMS, "View: Problems"),
+        (crate::palette::CMD_PROBLEMS_CLOSE, "Problems: Close Panel"),
         (crate::palette::CMD_VIEW_AI_COPILOT, "View: AI Copilot"),
         (crate::palette::CMD_AI_CLOSE, "View: Close AI Copilot"),
         (crate::palette::CMD_SIDEBAR_CLOSE, "View: Close Sidebar"),
@@ -6133,6 +6134,26 @@ fn problems_header_close_hit_collapses_panel_with_feedback() {
 }
 
 #[test]
+fn problems_close_command_acknowledges_state() {
+    let mut ctx = ctx_or_skip!();
+    ctx.problems.set_open(true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::navsurfaces::mui_problems_close(h), 1);
+    assert_eq!(crate::navsurfaces::mui_problems_is_open(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Problems panel closed"
+    );
+
+    assert_eq!(crate::navsurfaces::mui_problems_close(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Problems panel is already closed"
+    );
+}
+
+#[test]
 fn markdown_preview_rejects_non_markdown_active_file() {
     let mut ctx = ctx_or_skip!();
     ctx.language = crate::langdetect::Language::Mighty;
@@ -7346,6 +7367,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Problems refresh command must refresh diagnostics, aggregate Problems, and show the panel"
     );
     assert!(
+        main.contains("id == cmd_problems_close()")
+            && main.contains("mui_problems_close(h)"),
+        "Problems close command must route through the Problems-specific close ABI"
+    );
+    assert!(
         main.contains("id == cmd_outline_refresh()")
             && main.contains("let _vp = mui_panel_set(h, panel_outline())")
             && main.contains("let _or = mui_outline_refresh(h)"),
@@ -7653,6 +7679,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_VIEW_RUN_OUTPUT, "cmd_view_run_output"),
         (CMD_VIEW_PROBLEMS, "cmd_view_problems"),
         (CMD_PROBLEMS_REFRESH, "cmd_problems_refresh"),
+        (CMD_PROBLEMS_CLOSE, "cmd_problems_close"),
         (CMD_VIEW_AI_COPILOT, "cmd_view_ai_copilot"),
         (CMD_INLINE_AI_ASK, "cmd_inline_ai_ask"),
         (

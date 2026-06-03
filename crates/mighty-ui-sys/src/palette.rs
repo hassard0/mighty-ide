@@ -389,6 +389,8 @@ pub const CMD_GHOST_COMPLETION_DISMISS: u32 = 178;
 pub const CMD_SNIPPET_CANCEL: u32 = 179;
 /// Close the integrated terminal without affecting other bottom-dock panels.
 pub const CMD_TERMINAL_CLOSE: u32 = 180;
+/// Close the Problems panel without affecting other bottom-dock tools.
+pub const CMD_PROBLEMS_CLOSE: u32 = 181;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -537,6 +539,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_VIEW_RUN_OUTPUT,  label: "View: Run Output",    keybinding: "" },
     Command { id: CMD_VIEW_PROBLEMS,    label: "View: Problems",      keybinding: "" },
     Command { id: CMD_PROBLEMS_REFRESH, label: "Problems: Refresh Diagnostics", keybinding: "" },
+    Command { id: CMD_PROBLEMS_CLOSE,   label: "Problems: Close Panel", keybinding: "" },
     Command { id: CMD_VIEW_AI_COPILOT,  label: "View: AI Copilot",    keybinding: "Ctrl+Shift+A" },
     Command { id: CMD_INLINE_AI_ASK,    label: "AI: Inline Ask",      keybinding: "Ctrl+I" },
     Command { id: CMD_FORCE_GHOST_COMPLETION, label: "AI: Force Ghost Completion", keybinding: "Alt+\\" },
@@ -1078,6 +1081,7 @@ impl PaletteEngine {
             CMD_VIEW_RUN_OUTPUT => (icons::RUN, "Open the Run output panel", false),
             CMD_VIEW_PROBLEMS => (icons::ERROR_CIRCLE, "Open diagnostics and build problems", false),
             CMD_PROBLEMS_REFRESH => (icons::REFRESH, "Refresh diagnostics and show Problems", false),
+            CMD_PROBLEMS_CLOSE => (icons::CLOSE, "Close the Problems panel without affecting other bottom-dock tools", false),
             CMD_VIEW_AI_COPILOT => (icons::AGENTS, "Open the AI copilot panel", false),
             CMD_INLINE_AI_ASK => (icons::AGENTS, "Ask AI about the active selection or file", false),
             CMD_FORCE_GHOST_COMPLETION => (icons::AGENTS, "Request an inline AI ghost completion now", false),

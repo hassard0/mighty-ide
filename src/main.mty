@@ -581,6 +581,7 @@ extern c {
   fn mui_problems_toggle(handle: I64) -> I32
   fn mui_problems_open(handle: I64) -> I32
   fn mui_problems_is_open(handle: I64) -> I32
+  fn mui_problems_close(handle: I64) -> I32
   fn mui_problems_count(handle: I64) -> I32
   fn mui_problems_error_count(handle: I64) -> I32
   fn mui_problems_warn_count(handle: I64) -> I32
@@ -818,6 +819,7 @@ fn cmd_view_run_debug() -> I32 { 75 }
 fn cmd_view_testing() -> I32 { 76 }
 fn cmd_view_run_output() -> I32 { 77 }
 fn cmd_view_problems() -> I32 { 78 }
+fn cmd_problems_close() -> I32 { 181 }
 fn cmd_view_ai_copilot() -> I32 { 79 }
 fn cmd_view_terminal() -> I32 { 80 }
 fn cmd_view_web_playground() -> I32 { 81 }
@@ -4392,6 +4394,8 @@ fn main() {
           let _pr = mui_problems_refresh(h)
           let _po = mui_problems_open(h)
           agents_focus = false
+        } else if id == cmd_problems_close() {
+          let _pc = mui_problems_close(h)
         } else if id == cmd_view_ai_copilot() {
           let _ai = mui_ai_show(h)
           ai_focus = true
