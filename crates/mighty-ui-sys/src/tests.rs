@@ -3190,6 +3190,11 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         ),
         (crate::palette::CMD_DEBUG_PAUSE, "Debug: Pause", ""),
         (crate::palette::CMD_DEBUG_RESTART, "Debug: Restart", ""),
+        (
+            crate::palette::CMD_DEBUG_CLOSE,
+            "Run and Debug: Close Panel",
+            "",
+        ),
     ];
     for (id, label, keybinding) in debug_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
@@ -4858,6 +4863,39 @@ fn debug_start_without_active_file_opens_visible_debug_view() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Open a file before starting debug");
+}
+
+#[test]
+fn debug_close_command_preserves_session_state_and_breakpoints() {
+    let mut ctx = ctx_or_skip!();
+    let path = "C:/p/demo.mty";
+    ctx.dbg.seed_demo(path);
+    ctx.dbg.set_open(true);
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_DEBUG;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::dapabi::mui_dbg_state(handle), crate::dap::DebugState::Stopped.as_i32());
+    assert!(crate::dapabi::mui_dbg_stack_count(handle) >= 1);
+    assert!(crate::dapabi::mui_dbg_var_count(handle) >= 1);
+
+    assert_eq!(crate::dapabi::mui_dbg_close(handle), 1);
+    assert_eq!(ctx.active_panel, crate::PANEL_EXPLORER);
+    assert_eq!(crate::dapabi::mui_dbg_active(handle), 0);
+    assert_eq!(crate::dapabi::mui_dbg_state(handle), crate::dap::DebugState::Stopped.as_i32());
+    assert!(crate::dapabi::mui_dbg_stack_count(handle) >= 1);
+    assert!(crate::dapabi::mui_dbg_var_count(handle) >= 1);
+    assert!(ctx.dbg.has_breakpoint(path, 2));
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Run and Debug panel closed"
+    );
+
+    assert_eq!(crate::dapabi::mui_dbg_close(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Run and Debug panel is already closed"
+    );
 }
 
 #[test]
@@ -7672,6 +7710,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Run close command must use the Run-specific close ABI and release Run focus"
     );
     assert!(
+        main.contains("id == cmd_debug_close()")
+            && main.contains("let _dc = mui_dbg_close(h)")
+            && main.contains("find_nav = false"),
+        "Debug close command must use the Debug-specific close ABI without stopping or resetting the session"
+    );
+    assert!(
         main.contains("id == cmd_test_clear_results()")
             && main.contains("let _tc = mui_test_clear(h)")
             && main.contains("test_focus = true"),
@@ -7974,6 +8018,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_OUTLINE_REFRESH, "cmd_outline_refresh"),
         (CMD_OUTLINE_CLOSE, "cmd_outline_close"),
         (CMD_VIEW_RUN_DEBUG, "cmd_view_run_debug"),
+        (CMD_DEBUG_CLOSE, "cmd_debug_close"),
         (CMD_VIEW_TESTING, "cmd_view_testing"),
         (CMD_VIEW_RUN_OUTPUT, "cmd_view_run_output"),
         (CMD_VIEW_PROBLEMS, "cmd_view_problems"),

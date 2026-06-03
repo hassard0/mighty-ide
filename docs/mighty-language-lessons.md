@@ -6997,3 +6997,14 @@ workflow state; hiding Source Control must not imply refresh, reset, or discard.
   switches back to Explorer, preserves status rows and commit-message text,
   reports closed/already-closed feedback, and routes through the Mighty
   dispatcher.
+
+L556. Debug panel close must not stop debugging. Run and Debug owns visual
+navigation state around breakpoints, stack frames, variables, and console output,
+while Stop is a process lifecycle action. Hiding the panel should leave the
+debug model intact.
+
+- **IDE note:** The command palette now lists
+  `Run and Debug: Close Panel`, calling `mui_dbg_close`. The close path switches
+  back to Explorer, preserves stopped/session state, stack/variable rows, and
+  breakpoints, reports closed/already-closed feedback, and routes through the
+  Mighty dispatcher.

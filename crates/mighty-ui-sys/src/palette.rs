@@ -405,6 +405,8 @@ pub const CMD_SEARCH_CLOSE: u32 = 186;
 pub const CMD_OUTLINE_CLOSE: u32 = 187;
 /// Close the Source Control panel without clearing git status or message state.
 pub const CMD_GIT_CLOSE_SOURCE_CONTROL: u32 = 188;
+/// Close the Run and Debug panel without stopping or resetting the debug model.
+pub const CMD_DEBUG_CLOSE: u32 = 189;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -588,6 +590,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_DEBUG_STEP_OUT,   label: "Debug: Step Out",     keybinding: "Shift+F11" },
     Command { id: CMD_DEBUG_PAUSE,      label: "Debug: Pause",        keybinding: "" },
     Command { id: CMD_DEBUG_RESTART,    label: "Debug: Restart",      keybinding: "" },
+    Command { id: CMD_DEBUG_CLOSE,      label: "Run and Debug: Close Panel", keybinding: "" },
     Command { id: CMD_RUN_IN_BROWSER,   label: "Mighty: Run in Browser", keybinding: "Alt+W" },
     Command { id: CMD_WEB_STOP,         label: "Web: Stop Server",    keybinding: "" },
     Command { id: CMD_WEB_OPEN_BROWSER, label: "Web: Open in Browser", keybinding: "" },
@@ -1137,6 +1140,7 @@ impl PaletteEngine {
             CMD_DEBUG_STEP_OUT => (icons::DBG_STEP_OUT, "Run until the current frame returns", false),
             CMD_DEBUG_PAUSE => (icons::DBG_PAUSE, "Pause the running debuggee", true),
             CMD_DEBUG_RESTART => (icons::REFRESH, "Restart the last debug target", false),
+            CMD_DEBUG_CLOSE => (icons::CLOSE, "Close the Run and Debug panel without stopping or resetting the debug model", false),
             CMD_RUN_IN_BROWSER => (icons::GLOBE, "Build and serve the active Mighty file for the browser", false),
             CMD_WEB_STOP => (icons::CLOSE, "Stop the active Web Playground server", false),
             CMD_WEB_OPEN_BROWSER => (icons::GLOBE, "Open the active Web Playground URL in the default browser", false),

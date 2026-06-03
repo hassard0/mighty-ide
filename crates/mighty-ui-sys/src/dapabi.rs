@@ -235,6 +235,27 @@ pub extern "C" fn mui_dbg_active(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.dbg.is_open()))
 }
 
+/// Close the Run and Debug panel without stopping or resetting the debug model.
+/// Returns `1` when it closed the panel, or `0` when already closed.
+#[no_mangle]
+pub extern "C" fn mui_dbg_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.active_panel == crate::PANEL_DEBUG || ctx.dbg.is_open() {
+        ctx.dbg.set_open(false);
+        if ctx.active_panel == crate::PANEL_DEBUG {
+            ctx.active_panel = crate::PANEL_EXPLORER;
+        }
+        ctx.push_toast(crate::toast::Kind::Info, "Run and Debug panel closed");
+        crate::abi::trace("dbg_close");
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "Run and Debug panel is already closed");
+    crate::abi::trace("dbg_close noop");
+    0
+}
+
 /// Coarse run state: 0 idle, 1 running, 2 stopped, 3 terminated.
 #[no_mangle]
 pub extern "C" fn mui_dbg_state(handle: i64) -> i32 {

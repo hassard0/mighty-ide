@@ -862,6 +862,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m == "Debug session already running"
         || m == "Open a file before starting debug"
         || m.starts_with("Debug failed to start:")
+        || m == "Run and Debug panel closed"
+        || m == "Run and Debug panel is already closed"
         || m == "Continue is available when paused"
         || m == "No debug session to stop"
         || m == "Pause is available while running"
