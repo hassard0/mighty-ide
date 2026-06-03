@@ -5073,3 +5073,15 @@ or report "no edit" even though the server sent a valid `WorkspaceEdit`.
   preserves the request body so the existing workspace-edit application path can
   apply those edits. Inline edits and command responses continue through the
   same parser as before.
+
+L357. Layout controls need a fast path as well as palette discoverability.
+Sidebar width presets were available from the Command Palette and by mouse drag,
+but repeated resize adjustments still required searching commands or aiming at
+the divider, which makes compact-window work feel slower than a best-in-class
+IDE should.
+
+- **IDE note:** `Ctrl+Alt+B` now cycles the sidebar through compact, wide, and
+  responsive default widths using the same `mui_sidebar_layout_dispatch` path as
+  the palette commands. The command is palette-visible, appears in Keyboard
+  Shortcuts, opens the sidebar when needed, and has tests for chord resolution
+  and preset rotation.

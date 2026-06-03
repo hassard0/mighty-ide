@@ -6115,8 +6115,8 @@ pub extern "C" fn mui_sidebar_close(handle: i64) -> i32 {
 }
 
 /// Apply a sidebar width preset from the palette.
-/// `94` = compact, `95` = default/auto, `96` = wide. Returns the preset number
-/// (`1..=3`) or `0` for an unrelated command id.
+/// `94` = compact, `95` = default/auto, `96` = wide, `102` = cycle width.
+/// Returns the preset number (`1..=3`) or `0` for an unrelated command id.
 #[no_mangle]
 pub extern "C" fn mui_sidebar_layout_dispatch(handle: i64, id: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -6126,6 +6126,11 @@ pub extern "C" fn mui_sidebar_layout_dispatch(handle: i64, id: i32) -> i32 {
         crate::palette::CMD_SIDEBAR_COMPACT => (1_u8, "Sidebar compact", 1),
         crate::palette::CMD_SIDEBAR_DEFAULT => (0_u8, "Sidebar default width", 2),
         crate::palette::CMD_SIDEBAR_WIDE => (2_u8, "Sidebar wide", 3),
+        crate::palette::CMD_SIDEBAR_CYCLE_WIDTH => match layout::sidebar_preset() {
+            0 => (1_u8, "Sidebar compact", 1),
+            1 => (2_u8, "Sidebar wide", 3),
+            _ => (0_u8, "Sidebar default width", 2),
+        },
         _ => return 0,
     };
     layout::set_sidebar_preset(preset);
@@ -13087,6 +13092,9 @@ fn router_dispatch(handle: i64, cmd_id: u32) -> i32 {
         }
         x if x == CMD_OPEN_FOLDER => {
             let _ = crate::wsabi::mui_ws_open_dialog(handle);
+        }
+        x if x == CMD_SIDEBAR_CYCLE_WIDTH => {
+            let _ = mui_sidebar_layout_dispatch(handle, CMD_SIDEBAR_CYCLE_WIDTH as i32);
         }
         _ => return 0,
     }

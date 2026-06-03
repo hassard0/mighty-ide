@@ -163,6 +163,7 @@ pub fn default_chord(cmd_id: u32) -> Option<Chord> {
         x if x == CMD_HOVER => c('k' as i32, MOD_CTRL),
         x if x == CMD_TOGGLE_TERMINAL => c('`' as i32, MOD_CTRL),
         x if x == CMD_TOGGLE_SIDEBAR => c('b' as i32, MOD_CTRL),
+        x if x == CMD_SIDEBAR_CYCLE_WIDTH => c('b' as i32, MOD_CTRL | MOD_ALT),
         x if x == CMD_CLOSE_TAB => c('w' as i32, MOD_CTRL),
         x if x == CMD_FORMAT_DOCUMENT => c('i' as i32, MOD_CTRL | MOD_SHIFT),
         x if x == CMD_UNDO => c('z' as i32, MOD_CTRL),
@@ -1086,6 +1087,10 @@ mod tests {
         assert_eq!(
             ov.resolve('t' as i32, MOD_CTRL | MOD_ALT),
             Some(CMD_REOPEN_CLOSED_TAB)
+        );
+        assert_eq!(
+            ov.resolve('b' as i32, MOD_CTRL | MOD_ALT),
+            Some(CMD_SIDEBAR_CYCLE_WIDTH)
         );
     }
 

@@ -102,6 +102,7 @@ the `mui_chord` router). This table is the authoritative list.
 | `Ctrl+Shift+V` | Toggle live Markdown preview (themed split-pane render) |
 | `Alt+G` | Mighty Agents topology panel (rescan workspace) |
 | `Alt+Z` | Toggle Zen / focus mode |
+| `Ctrl+Alt+B` | Cycle sidebar width (compact / wide / default) |
 | `Ctrl+Shift+/` | Keyboard Shortcuts reference + remapping overlay |
 | `Esc` | Dismiss the active overlay / panel / menu |
 

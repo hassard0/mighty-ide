@@ -765,6 +765,7 @@ fn cmd_window_minimize() -> I32 { 98 }
 fn cmd_dock_close() -> I32 { 99 }
 fn cmd_ai_close() -> I32 { 100 }
 fn cmd_sidebar_close() -> I32 { 101 }
+fn cmd_sidebar_cycle_width() -> I32 { 102 }
 
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
@@ -3892,6 +3893,12 @@ fn main() {
           term_focus = false
         } else if id >= cmd_sidebar_layout_first() && id <= cmd_sidebar_layout_last() {
           let _sl = mui_sidebar_layout_dispatch(h, id)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+        } else if id == cmd_sidebar_cycle_width() {
+          let _scw = mui_sidebar_layout_dispatch(h, id)
           run_focus = false
           web_focus = false
           test_focus = false

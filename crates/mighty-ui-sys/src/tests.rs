@@ -3745,6 +3745,10 @@ fn chord_command_id_resolves_palette_commands_for_mighty_dispatch() {
         mui_chord_command_id(handle, 's' as i32, MOD_CTRL | MOD_ALT),
         crate::palette::CMD_SAVE_ALL as i32
     );
+    assert_eq!(
+        mui_chord_command_id(handle, 'b' as i32, MOD_CTRL | MOD_ALT),
+        crate::palette::CMD_SIDEBAR_CYCLE_WIDTH as i32
+    );
     ctx.shortcuts
         .overrides_mut()
         .set(crate::palette::CMD_SAVE, Chord::new('k' as i32, MOD_ALT));
@@ -3757,6 +3761,37 @@ fn chord_command_id_resolves_palette_commands_for_mighty_dispatch() {
         -2,
         "old default should be consumed after remap"
     );
+}
+
+#[test]
+fn sidebar_cycle_width_dispatch_opens_and_rotates_presets() {
+    use crate::mui_sidebar_layout_dispatch;
+
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = false;
+    crate::layout::set_window_width(1280);
+    crate::layout::reset_sidebar_preset();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(
+        mui_sidebar_layout_dispatch(handle, crate::palette::CMD_SIDEBAR_CYCLE_WIDTH as i32),
+        1
+    );
+    assert!(ctx.sidebar_visible, "cycle should reveal the sidebar if it was hidden");
+    assert_eq!(ctx.active_panel, crate::PANEL_EXPLORER);
+    assert_eq!(crate::layout::sidebar_preset(), 1);
+
+    assert_eq!(
+        mui_sidebar_layout_dispatch(handle, crate::palette::CMD_SIDEBAR_CYCLE_WIDTH as i32),
+        3
+    );
+    assert_eq!(crate::layout::sidebar_preset(), 2);
+
+    assert_eq!(
+        mui_sidebar_layout_dispatch(handle, crate::palette::CMD_SIDEBAR_CYCLE_WIDTH as i32),
+        2
+    );
+    assert_eq!(crate::layout::sidebar_preset(), 0);
 }
 
 // ---- offscreen screenshot mode (PNG written, non-empty, correct dims) ----

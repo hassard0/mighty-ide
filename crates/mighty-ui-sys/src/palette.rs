@@ -230,6 +230,8 @@ pub const CMD_SIDEBAR_COMPACT: u32 = 94;
 pub const CMD_SIDEBAR_DEFAULT: u32 = 95;
 /// Set sidebar drawers to a wider review/debug width.
 pub const CMD_SIDEBAR_WIDE: u32 = 96;
+/// Cycle sidebar drawers through compact, default, and wide widths.
+pub const CMD_SIDEBAR_CYCLE_WIDTH: u32 = 102;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -323,6 +325,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_SIDEBAR_COMPACT,  label: "View: Sidebar Compact", keybinding: "" },
     Command { id: CMD_SIDEBAR_DEFAULT,  label: "View: Sidebar Default Width", keybinding: "" },
     Command { id: CMD_SIDEBAR_WIDE,     label: "View: Sidebar Wide", keybinding: "" },
+    Command { id: CMD_SIDEBAR_CYCLE_WIDTH, label: "View: Cycle Sidebar Width", keybinding: "Ctrl+Alt+B" },
     Command { id: CMD_WINDOW_TOGGLE_MAXIMIZE, label: "Window: Toggle Maximize", keybinding: "" },
     Command { id: CMD_WINDOW_MINIMIZE,  label: "Window: Minimize", keybinding: "" },
     Command { id: CMD_DEBUG_START_CONTINUE, label: "Debug: Start / Continue", keybinding: "F5" },
