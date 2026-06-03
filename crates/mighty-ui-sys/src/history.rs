@@ -215,7 +215,7 @@ impl HistoryStore {
         if self.undo.len() < 2 {
             return None;
         }
-        let popped = self.undo.pop().unwrap();
+        let popped = self.undo.pop()?;
         self.redo.push(popped);
         self.run_broken = true;
         self.undo.last().cloned()
