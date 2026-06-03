@@ -4787,6 +4787,42 @@ fn markdown_breadcrumb_reserves_preview_button_space() {
 }
 
 #[test]
+fn breadcrumb_accept_misses_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_accept(h, -1), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No breadcrumb menu open");
+
+    let item = crate::crumbmenu::MenuItem {
+        label: "missing.mty".to_string(),
+        icon: None,
+        icon_color: crate::theme::TEXT(),
+        depth: 0,
+        target: 0,
+    };
+    ctx.crumb_menu
+        .open(crate::crumbmenu::MenuKind::Files, vec![item.clone()], 80.0);
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_accept(h, 3), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No breadcrumb row selected");
+
+    let missing = std::env::temp_dir()
+        .join(format!("mui_crumb_missing_{}", std::process::id()))
+        .join("missing.mty");
+    ctx.crumb_files = vec![missing];
+    ctx.crumb_menu
+        .open(crate::crumbmenu::MenuKind::Files, vec![item], 80.0);
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_accept(h, -1), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Breadcrumb target missing: missing.mty");
+}
+
+#[test]
 fn problems_header_close_hit_collapses_panel_with_feedback() {
     use crate::ffi::MuiEvent;
 

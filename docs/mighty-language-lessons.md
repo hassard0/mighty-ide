@@ -5485,3 +5485,13 @@ be invoked against empty or stale state and should explain the miss itself.
   `No definition target selected` when no target is cached, and clears stale
   cached targets with `Definition target missing: ...` instead of opening a
   non-existent source path as a tab.
+
+L397. Breadcrumb dropdown acceptance should not fail silently after closing the
+menu. A stale row or disappeared sibling file is a user-visible navigation miss,
+not just an internal `-1`.
+
+- **IDE note:** `mui_crumb_menu_accept` now reports
+  `No breadcrumb menu open`, `No breadcrumb row selected`,
+  `Breadcrumb file no longer listed`, `Breadcrumb symbol unavailable`, or
+  `Breadcrumb target missing: ...` for failed breadcrumb jumps while keeping
+  successful file and symbol jumps unchanged.

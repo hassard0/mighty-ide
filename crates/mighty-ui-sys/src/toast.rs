@@ -723,6 +723,11 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m == "No definition found"
         || m == "No definition target selected"
         || m.starts_with("Definition target missing")
+        || m == "No breadcrumb menu open"
+        || m == "No breadcrumb row selected"
+        || m == "Breadcrumb file no longer listed"
+        || m == "Breadcrumb symbol unavailable"
+        || m.starts_with("Breadcrumb target missing")
     {
         Some(OperationKey::Navigation)
     } else if m.starts_with("Markdown preview ") || m.starts_with("Markdown Preview ") {

@@ -690,6 +690,7 @@ pub extern "C" fn mui_crumb_menu_accept(handle: i64, i: i32) -> i32 {
         return -1;
     };
     if !ctx.crumb_menu.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No breadcrumb menu open");
         return -1;
     }
     let target = if i < 0 {
@@ -700,14 +701,18 @@ pub extern "C" fn mui_crumb_menu_accept(handle: i64, i: i32) -> i32 {
     let kind = ctx.crumb_menu.kind();
     ctx.crumb_menu.cancel();
     if target < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No breadcrumb row selected");
         return -1;
     }
     match kind {
         MenuKind::Files => {
             let Some(path) = ctx.crumb_files.get(target as usize).cloned() else {
+                ctx.push_toast(crate::toast::Kind::Info, "Breadcrumb file no longer listed");
                 return -1;
             };
             if !path.exists() {
+                let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+                ctx.push_toast(crate::toast::Kind::Warn, format!("Breadcrumb target missing: {name}"));
                 return -1;
             }
             let idx = ctx.tabs.open_path(path);
@@ -717,6 +722,7 @@ pub extern "C" fn mui_crumb_menu_accept(handle: i64, i: i32) -> i32 {
         MenuKind::Symbols => {
             let line = ctx.outline.line_of(target as usize);
             if line < 0 {
+                ctx.push_toast(crate::toast::Kind::Info, "Breadcrumb symbol unavailable");
                 return -1;
             }
             let model = ctx.tabs.active_model_mut();
