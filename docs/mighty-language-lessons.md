@@ -6713,3 +6713,13 @@ leaving the selected package and any running `mty test` process alone.
   Testing and calling `mui_test_clear`. State, ABI, registry, metadata,
   dispatcher, and feedback tests pin that results are cleared separately from
   process control.
+
+L526. Browser-run output should clear without losing the served URL.
+The Web Playground's transcript, served URL, and server lifecycle are separate
+state. Clearing noisy build/serve lines should leave the URL pill usable and
+avoid stopping the active server.
+
+- **IDE note:** The command palette now lists `Web: Clear Output`, opening the
+  Web Playground and calling `mui_web_clear`. State, ABI, registry, metadata,
+  dispatcher, and feedback tests pin that output lines clear while the URL and
+  running session remain intact.

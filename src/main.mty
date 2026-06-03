@@ -459,6 +459,7 @@ extern c {
   fn mui_web_run(handle: I64) -> I32
   fn mui_web_stop(handle: I64)
   fn mui_web_open(handle: I64) -> I32
+  fn mui_web_clear(handle: I64) -> I32
   fn mui_web_toggle(handle: I64) -> I32
   fn mui_web_active(handle: I64) -> I32
   fn mui_web_running(handle: I64) -> I32
@@ -773,6 +774,7 @@ fn cmd_outline_refresh() -> I32 { 152 }
 fn cmd_agents_refresh() -> I32 { 153 }
 fn cmd_run_clear_output() -> I32 { 154 }
 fn cmd_test_clear_results() -> I32 { 155 }
+fn cmd_web_clear_output() -> I32 { 156 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4227,6 +4229,12 @@ fn main() {
         } else if id == cmd_web_open_browser() {
           let _wb = mui_web_open_browser(h)
           web_focus = true
+          agents_focus = false
+        } else if id == cmd_web_clear_output() {
+          let _wc = mui_web_clear(h)
+          web_focus = true
+          run_focus = false
+          test_focus = false
           agents_focus = false
         } else if id >= cmd_pane_first() && id <= cmd_pane_last() {
           let _pn = mui_pane_dispatch(h, id)

@@ -1211,6 +1211,33 @@ fn web_playground_idle_controls_explain_noops() {
 }
 
 #[test]
+fn web_clear_output_reports_feedback_and_preserves_url() {
+    let mut ctx = ctx_or_skip!();
+    ctx.term_open = true;
+    ctx.run.open();
+    ctx.problems.set_open(true);
+    ctx.web.seed_demo("examples/webspin/src/main.mty");
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::webabi::mui_web_clear(handle), 6);
+    assert!(ctx.web.is_active());
+    assert_eq!(ctx.web.line_count(), 0);
+    assert_eq!(ctx.web.url(), "http://127.0.0.1:8000");
+    assert!(ctx.web.is_running());
+    assert!(!ctx.term_open);
+    assert!(!ctx.run.is_active());
+    assert!(!ctx.problems.is_open());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Web output cleared");
+
+    assert_eq!(crate::webabi::mui_web_clear(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Web output already empty");
+}
+
+#[test]
 fn web_headless_open_browser_does_not_cover_screenshot_with_success_toast() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let old_screenshot = std::env::var_os("MUI_SCREENSHOT");
@@ -2908,6 +2935,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(web_open.label, "Web: Open in Browser");
     assert_eq!(web_open.keybinding, "");
+
+    let web_clear = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_WEB_CLEAR_OUTPUT)
+        .unwrap();
+    assert_eq!(web_clear.label, "Web: Clear Output");
+    assert_eq!(web_clear.keybinding, "");
 }
 
 #[test]
@@ -6699,6 +6733,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("test_focus = true"),
         "Test clear-results command must reveal Testing before clearing parsed results"
     );
+    assert!(
+        main.contains("id == cmd_web_clear_output()")
+            && main.contains("let _wc = mui_web_clear(h)")
+            && main.contains("web_focus = true"),
+        "Web clear-output command must reveal Web Playground before clearing output"
+    );
     for (helper, action) in [
         ("cmd_search_run", "mui_search_run(h)"),
         ("cmd_search_replace_all", "mui_search_replace_all(h)"),
@@ -6972,6 +7012,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_RUN_IN_BROWSER, "cmd_run_in_browser"),
         (CMD_WEB_STOP, "cmd_web_stop"),
         (CMD_WEB_OPEN_BROWSER, "cmd_web_open_browser"),
+        (CMD_WEB_CLEAR_OUTPUT, "cmd_web_clear_output"),
         (CMD_KEYBOARD_SHORTCUTS, "cmd_keyboard_shortcuts"),
         (CMD_NEW_PROJECT, "cmd_new_project"),
         (CMD_WINDOW_TOGGLE_MAXIMIZE, "cmd_window_toggle_maximize"),

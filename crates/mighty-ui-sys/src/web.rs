@@ -134,6 +134,15 @@ impl WebPlayground {
     pub fn line_count(&self) -> usize {
         self.lines.len()
     }
+    /// Clear rendered build/serve output while preserving URL and process state.
+    pub fn clear_output(&mut self) -> usize {
+        let n = self.lines.len();
+        self.lines.clear();
+        self.partial.clear();
+        self.first = 0;
+        self.saw_error = false;
+        n
+    }
     pub fn first(&self) -> usize {
         self.first
     }
@@ -753,6 +762,27 @@ mod tests {
         assert_eq!(w.url(), "http://127.0.0.1:8000");
         assert_eq!(w.mode(), Mode::Serve);
         assert!(w.is_running());
+    }
+
+    #[test]
+    fn clear_output_preserves_url_and_session_state() {
+        let mut w = WebPlayground::new();
+        w.seed_demo("examples/webspin/src/main.mty");
+        w.scroll(10);
+        let url_fresh = w.take_url_fresh();
+
+        let cleared = w.clear_output();
+
+        assert!(url_fresh);
+        assert_eq!(cleared, 6);
+        assert_eq!(w.line_count(), 0);
+        assert_eq!(w.first(), 0);
+        assert_eq!(w.url(), "http://127.0.0.1:8000");
+        assert_eq!(w.mode(), Mode::Serve);
+        assert_eq!(w.path(), "examples/webspin/src/main.mty");
+        assert!(w.is_active());
+        assert!(w.is_running());
+        assert!(!w.take_saw_error());
     }
 
     #[test]

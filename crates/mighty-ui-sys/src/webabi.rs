@@ -121,6 +121,27 @@ pub extern "C" fn mui_web_open(handle: i64) -> i32 {
     1
 }
 
+/// Clear the rendered Web Playground output without stopping the active server.
+/// Returns how many output lines were removed.
+#[no_mangle]
+pub extern "C" fn mui_web_clear(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    ctx.web.open();
+    ctx.term_open = false;
+    ctx.run.close();
+    ctx.problems.set_open(false);
+    let cleared = ctx.web.clear_output() as i32;
+    if cleared > 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "Web output cleared");
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Web output already empty");
+    }
+    crate::abi::trace(&format!("web_clear lines={cleared}"));
+    cleared
+}
+
 /// `1` if the Web panel is open, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_web_active(handle: i64) -> i32 {
