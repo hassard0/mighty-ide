@@ -1749,6 +1749,29 @@ fn test_clear_results_reports_feedback_and_preserves_context() {
 }
 
 #[test]
+fn test_close_command_acknowledges_state_without_clearing_results() {
+    let mut ctx = ctx_or_skip!();
+    ctx.active_panel = crate::PANEL_TEST;
+    ctx.tests_panel.seed_demo("C:/proj/demo");
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::testabi::mui_test_close(h), 1);
+    assert_eq!(ctx.active_panel, crate::PANEL_EXPLORER);
+    assert!(!ctx.tests_panel.is_active());
+    assert_eq!(ctx.tests_panel.row_count(), 8);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Testing panel closed"
+    );
+
+    assert_eq!(crate::testabi::mui_test_close(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Testing panel is already closed"
+    );
+}
+
+#[test]
 fn test_result_open_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -3099,6 +3122,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         .unwrap();
     assert_eq!(test_clear.label, "Test: Clear Results");
     assert_eq!(test_clear.keybinding, "");
+
+    let test_close = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_TEST_CLOSE)
+        .unwrap();
+    assert_eq!(test_close.label, "Test: Close Panel");
+    assert_eq!(test_close.keybinding, "");
 
     let test_at_cursor = crate::palette::COMMANDS
         .iter()
@@ -7437,6 +7467,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Test clear-results command must reveal Testing before clearing parsed results"
     );
     assert!(
+        main.contains("id == cmd_test_close()")
+            && main.contains("let _tc = mui_test_close(h)")
+            && main.contains("test_focus = false"),
+        "Test close command must use the Testing-specific close ABI and release Testing focus"
+    );
+    assert!(
         main.contains("id == cmd_web_clear_output()")
             && main.contains("let _wc = mui_web_clear(h)")
             && main.contains("web_focus = true"),
@@ -7772,6 +7808,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_RUN_TEST_AT_CURSOR, "cmd_run_test_at_cursor"),
         (CMD_TEST_STOP, "cmd_test_stop"),
         (CMD_TEST_CLEAR_RESULTS, "cmd_test_clear_results"),
+        (CMD_TEST_CLOSE, "cmd_test_close"),
         (CMD_PEEK_DEFINITION, "cmd_peek_definition"),
         (CMD_PEEK_CLOSE, "cmd_peek_close"),
         (CMD_WELCOME, "cmd_welcome"),

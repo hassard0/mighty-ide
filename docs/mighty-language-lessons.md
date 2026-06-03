@@ -6942,3 +6942,12 @@ so a command named Stop or Clear cannot safely stand in for Close.
   `mui_run_close`. The Run panel reports closed/already-closed feedback while
   preserving output rows and process state, and routing tests pin that it clears
   Run focus through the dedicated ABI.
+
+L550. Testing close is different from stopping or clearing. Test results are
+navigation state as much as process output: hiding the Testing panel should not
+kill a running test process or discard parsed pass/fail rows.
+
+- **IDE note:** The command palette now lists `Test: Close Panel`, calling
+  `mui_test_close`. The close path switches back to Explorer, preserves parsed
+  result rows, reports closed/already-closed feedback, and releases Testing
+  focus through the Mighty dispatcher.

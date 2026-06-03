@@ -393,6 +393,8 @@ pub const CMD_TERMINAL_CLOSE: u32 = 180;
 pub const CMD_PROBLEMS_CLOSE: u32 = 181;
 /// Close the Run panel without stopping the active process or clearing output.
 pub const CMD_RUN_CLOSE: u32 = 182;
+/// Close the Testing panel without stopping a test run or clearing results.
+pub const CMD_TEST_CLOSE: u32 = 183;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -512,6 +514,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_RUN_TEST_AT_CURSOR, label: "Run Test at Cursor", keybinding: "" },
     Command { id: CMD_TEST_STOP,        label: "Test: Stop Run",     keybinding: "" },
     Command { id: CMD_TEST_CLEAR_RESULTS, label: "Test: Clear Results", keybinding: "" },
+    Command { id: CMD_TEST_CLOSE,       label: "Test: Close Panel",  keybinding: "" },
     Command { id: CMD_PEEK_DEFINITION,  label: "Peek Definition",    keybinding: "Alt+F12" },
     Command { id: CMD_PEEK_CLOSE,       label: "Peek: Close View",   keybinding: "" },
     Command { id: CMD_WELCOME,          label: "Welcome",            keybinding: "" },
@@ -1055,6 +1058,7 @@ impl PaletteEngine {
             CMD_RUN_TEST_AT_CURSOR => (icons::BEAKER, "Run tests and focus the nearest test at the cursor", false),
             CMD_TEST_STOP => (icons::CLOSE, "Stop the active test run", false),
             CMD_TEST_CLEAR_RESULTS => (icons::CLOSE, "Clear parsed test results without stopping the run", false),
+            CMD_TEST_CLOSE => (icons::CLOSE, "Close the Testing panel without stopping a test run", false),
             CMD_PEEK_DEFINITION => (icons::FN_SYMBOL, "Preview the definition inline (Alt+F12)", false),
             CMD_PEEK_CLOSE => (icons::CLOSE, "Close the inline Peek Definition view", false),
             CMD_WELCOME => (icons::LANG_M, "Open the Welcome screen", false),

@@ -279,6 +279,27 @@ pub extern "C" fn mui_test_toggle(handle: i64) -> i32 {
     }
 }
 
+/// Close the Testing panel without stopping a running test process or clearing
+/// parsed results. Returns `1` when it closed Testing, or `0` when already closed.
+#[no_mangle]
+pub extern "C" fn mui_test_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tests_panel.is_active() || ctx.active_panel == crate::PANEL_TEST {
+        ctx.tests_panel.close();
+        if ctx.active_panel == crate::PANEL_TEST {
+            ctx.active_panel = crate::PANEL_EXPLORER;
+        }
+        ctx.push_toast(crate::toast::Kind::Info, "Testing panel closed");
+        crate::abi::trace("test_close");
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "Testing panel is already closed");
+    crate::abi::trace("test_close noop");
+    0
+}
+
 /// `1` while `mty test` is still running, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_test_running(handle: i64) -> i32 {
