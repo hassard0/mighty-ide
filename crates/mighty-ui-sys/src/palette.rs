@@ -333,6 +333,8 @@ pub const CMD_EXPLORER_REFRESH: u32 = 150;
 pub const CMD_PROBLEMS_REFRESH: u32 = 151;
 /// Refresh the active document's Outline symbols.
 pub const CMD_OUTLINE_REFRESH: u32 = 152;
+/// Refresh the Mighty Agents topology model.
+pub const CMD_AGENTS_REFRESH: u32 = 153;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -437,6 +439,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_WELCOME,          label: "Welcome",            keybinding: "" },
     Command { id: CMD_ZEN_MODE,         label: "Toggle Zen Mode",    keybinding: "Alt+Z" },
     Command { id: CMD_AGENTS,           label: "Mighty: Agents",     keybinding: "Alt+G" },
+    Command { id: CMD_AGENTS_REFRESH,   label: "Mighty Agents: Refresh Topology", keybinding: "" },
     Command { id: CMD_GIT_SWITCH_BRANCH, label: "Git: Switch Branch", keybinding: "" },
     Command { id: CMD_GIT_PUSH,         label: "Git: Push",          keybinding: "" },
     Command { id: CMD_GIT_PULL,         label: "Git: Pull",          keybinding: "" },
@@ -950,6 +953,7 @@ impl PaletteEngine {
             CMD_WELCOME => (icons::LANG_M, "Open the Welcome screen", false),
             CMD_ZEN_MODE => (icons::INFO_I, "Toggle distraction-free focus mode", false),
             CMD_AGENTS => (icons::AGENTS_NET, "Open the Mighty Agents topology panel", false),
+            CMD_AGENTS_REFRESH => (icons::REFRESH, "Refresh the Mighty Agents topology model", false),
             CMD_GIT_SWITCH_BRANCH => (icons::BRANCH, "Checkout or create a git branch", false),
             CMD_GIT_PUSH => (icons::GIT, "Push commits to the remote", false),
             CMD_GIT_PULL => (icons::GIT, "Pull (fast-forward only) from the remote", false),

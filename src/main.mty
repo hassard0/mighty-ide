@@ -768,6 +768,7 @@ fn cmd_git_refresh_source_control() -> I32 { 149 }
 fn cmd_explorer_refresh() -> I32 { 150 }
 fn cmd_problems_refresh() -> I32 { 151 }
 fn cmd_outline_refresh() -> I32 { 152 }
+fn cmd_agents_refresh() -> I32 { 153 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4195,6 +4196,11 @@ fn main() {
           let _p = mui_panel_set(h, panel_agents_mty())
           let _a = mui_agents_refresh(h)
           agents_focus = true
+        } else if id == cmd_agents_refresh() {
+          let _p = mui_panel_set(h, panel_agents_mty())
+          let _a = mui_agents_refresh(h)
+          agents_focus = true
+          find_nav = false
         } else if id == cmd_run_in_browser() {
           let _w = mui_web_run(h)
           web_focus = true

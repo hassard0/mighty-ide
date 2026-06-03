@@ -2753,6 +2753,11 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
             "Alt+\\",
         ),
         (crate::palette::CMD_AI_CLEAR_CHAT, "AI: Clear Chat", ""),
+        (
+            crate::palette::CMD_AGENTS_REFRESH,
+            "Mighty Agents: Refresh Topology",
+            "",
+        ),
     ];
     for (id, label, keybinding) in ai_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
@@ -6608,6 +6613,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _or = mui_outline_refresh(h)"),
         "Outline refresh command must reveal Outline before refreshing symbols"
     );
+    assert!(
+        main.contains("id == cmd_agents_refresh()")
+            && main.contains("let _p = mui_panel_set(h, panel_agents_mty())")
+            && main.contains("let _a = mui_agents_refresh(h)"),
+        "Agents refresh command must reveal Mighty Agents before refreshing topology"
+    );
     for (helper, action) in [
         ("cmd_search_run", "mui_search_run(h)"),
         ("cmd_search_replace_all", "mui_search_replace_all(h)"),
@@ -6875,6 +6886,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_WELCOME, "cmd_welcome"),
         (CMD_ZEN_MODE, "cmd_zen_mode"),
         (CMD_AGENTS, "cmd_agents"),
+        (CMD_AGENTS_REFRESH, "cmd_agents_refresh"),
         (CMD_RUN_IN_BROWSER, "cmd_run_in_browser"),
         (CMD_WEB_STOP, "cmd_web_stop"),
         (CMD_WEB_OPEN_BROWSER, "cmd_web_open_browser"),

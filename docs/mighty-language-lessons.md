@@ -6682,3 +6682,14 @@ server recovery, or other state changes that do not pass through save/open.
   focusing the Outline panel before calling `mui_outline_refresh`. Registry,
   metadata, and dispatcher tests pin the id, label, helper, panel focus, and
   symbol refresh call.
+
+L523. Topology views should expose refresh as a named action.
+Panels that summarize project structure can become stale after generated edits
+or external file changes. Opening the panel may refresh it, but once visible the
+same rescan should be command-palette reachable without leaving the current
+keyboard flow.
+
+- **IDE note:** The command palette now lists `Mighty Agents: Refresh Topology`,
+  focusing the Mighty Agents topology panel before calling `mui_agents_refresh`.
+  Registry, metadata, and dispatcher tests pin the id, label, helper, panel
+  focus, and topology refresh call.
