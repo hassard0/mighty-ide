@@ -5948,3 +5948,11 @@ the user forgot the command name.
   keybinding text. Shortcut matching accepts both literal forms like `Ctrl+P`
   and normalized forms like `ctrl p` / `ctrlp`, including slash-separated
   alternatives such as `Ctrl+1 / Ctrl+2`.
+
+L447. Shortcut alternatives should render as alternatives, not accidental key
+names. The command palette drew shortcut chips by splitting only on `+`, so a
+binding like `Ctrl+1 / Ctrl+2` could become a malformed `1 / Ctrl` key pill.
+
+- **IDE note:** palette rows now tokenize shortcut text into key pills plus a
+  lightweight `/` separator. `Ctrl+/` stays a real slash key, while
+  `Ctrl+1 / Ctrl+2` renders as two clear shortcut alternatives.

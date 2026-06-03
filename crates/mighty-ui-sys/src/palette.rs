@@ -542,6 +542,37 @@ fn score_keybinding(keybinding: &str, query_lc: &str) -> Option<Rank> {
         .min()
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ShortcutToken {
+    Key(String),
+    Separator,
+}
+
+fn keybinding_tokens(keybinding: &str) -> Vec<ShortcutToken> {
+    let mut tokens = Vec::new();
+    for (group_idx, group) in keybinding
+        .split(" / ")
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .enumerate()
+    {
+        if group_idx > 0 {
+            tokens.push(ShortcutToken::Separator);
+        }
+        for part in group.split('+').map(str::trim).filter(|s| !s.is_empty()) {
+            tokens.push(ShortcutToken::Key(part.to_string()));
+        }
+    }
+    tokens
+}
+
+fn shortcut_token_width(token: &ShortcutToken, kadv: f32, pill_pad: f32) -> f32 {
+    match token {
+        ShortcutToken::Key(part) => (part.chars().count() as f32 * kadv + 2.0 * pill_pad).max(22.0),
+        ShortcutToken::Separator => 8.0,
+    }
+}
+
 pub(crate) fn fit_palette_text(
     text: &mut crate::text::Text,
     s: &str,
@@ -1019,17 +1050,13 @@ impl PaletteEngine {
             ctx.dl_icon(tile_x + 6.5, tile_y + 6.5, 17.0, 17.0, icon, icon_col, 1.6, fill);
 
             // Right-aligned kbd pills (commands with no keybinding draw none).
-            let parts: Vec<&str> = if cmd.keybinding.is_empty() {
-                Vec::new()
-            } else {
-                cmd.keybinding.split('+').collect()
-            };
             let pill_pad = 7.0;
             let gap = 4.0;
             let kadv = 11.0 * 0.55;
+            let parts = keybinding_tokens(cmd.keybinding);
             let widths: Vec<f32> = parts
                 .iter()
-                .map(|p| (p.chars().count() as f32 * kadv + 2.0 * pill_pad).max(22.0))
+                .map(|p| shortcut_token_width(p, kadv, pill_pad))
                 .collect();
             let total_w: f32 = widths.iter().sum::<f32>() + gap * (parts.len().saturating_sub(1)) as f32;
             let mut px = box_x + box_w - 20.0 - total_w;
@@ -1050,6 +1077,11 @@ impl PaletteEngine {
             let py = ry + (row_h - pill_h) * 0.5;
             for (k, part) in parts.iter().enumerate() {
                 let pw = widths[k];
+                if matches!(part, ShortcutToken::Separator) {
+                    ctx.text.queue_ui_sized(px + 1.5, py + 4.5, "/", theme::OVERLAY_MUTED(), 11.0, clip);
+                    px += pw + gap;
+                    continue;
+                }
                 let (pbg, pborder, pfg) = if selected {
                     (theme::accent_a(0.10), theme::ACCENT_LINE(), theme::ACCENT_BRIGHT())
                 } else {
@@ -1057,6 +1089,9 @@ impl PaletteEngine {
                 };
                 ctx.dl_round(px, py, pw, pill_h, 5.0, pbg);
                 ctx.dl_stroke(px, py, pw, pill_h, 5.0, pborder, 1.0);
+                let ShortcutToken::Key(part) = part else {
+                    unreachable!("separator handled before pill draw");
+                };
                 let lbl_w = part.chars().count() as f32 * kadv;
                 ctx.text.queue_ui_sized(px + (pw - lbl_w) * 0.5, py + 4.5, part, pfg, 11.0, clip);
                 px += pw + gap;
@@ -1267,6 +1302,31 @@ mod tests {
     fn shortcut_alternatives_are_searchable_individually() {
         let got = filter_commands(COMMANDS, "ctrl2");
         assert_eq!(got.first().map(|c| c.id), Some(CMD_FOCUS_NEXT_PANE));
+    }
+
+    #[test]
+    fn shortcut_tokens_split_alternatives_without_merging_keys() {
+        assert_eq!(
+            keybinding_tokens("Ctrl+1 / Ctrl+2"),
+            vec![
+                ShortcutToken::Key("Ctrl".to_string()),
+                ShortcutToken::Key("1".to_string()),
+                ShortcutToken::Separator,
+                ShortcutToken::Key("Ctrl".to_string()),
+                ShortcutToken::Key("2".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn shortcut_tokens_keep_slash_key_inside_pill() {
+        assert_eq!(
+            keybinding_tokens("Ctrl+/"),
+            vec![
+                ShortcutToken::Key("Ctrl".to_string()),
+                ShortcutToken::Key("/".to_string()),
+            ]
+        );
     }
 
     #[test]
