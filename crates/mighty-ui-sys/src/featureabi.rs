@@ -335,6 +335,14 @@ fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) ->
     out
 }
 
+pub(crate) fn feature_ui_text_width(text: &mut crate::text::Text, s: &str, size: f32) -> f32 {
+    text.measure_ui_sized(s, size).0
+}
+
+pub(crate) fn diff_hunk_button_width(text: &mut crate::text::Text, label: &str, size: f32) -> f32 {
+    feature_ui_text_width(text, label, size) + 18.0
+}
+
 pub(crate) fn fit_code_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
     let max_px = max_px.max(0.0);
     if max_px <= 1.0 {
@@ -731,7 +739,7 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
     let adds = ctx.diff.add_count();
     let rems = ctx.diff.remove_count();
     let summary = format!("{side}   +{adds} \u{2212}{rems}   esc to close");
-    let sw = summary.chars().count() as f32 * (chrome * 0.5);
+    let sw = feature_ui_text_width(&mut ctx.text, &summary, chrome - 1.0);
     ctx.text.queue_ui_sized((w - 14.0 - sw).max(region.left + 34.0), hy, &summary, theme::TEXT_3(), chrome - 1.0, clip);
 
     // Diff body. Two-column line-number gutter (old | new) then the text.
@@ -779,7 +787,7 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
             } else {
                 "+ Stage hunk"
             };
-            let lw = label.chars().count() as f32 * (chrome * 0.52) + 18.0;
+            let lw = diff_hunk_button_width(&mut ctx.text, label, chrome - 1.0);
             let bx = w - 14.0 - lw;
             let bh = line_h - 6.0;
             let bcol = if staged { theme::WARNING() } else { theme::GREEN() };

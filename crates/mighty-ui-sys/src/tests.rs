@@ -4224,6 +4224,32 @@ fn run_output_line_fits_compact_panel_width() {
 }
 
 #[test]
+fn diff_summary_width_uses_measured_ui_text() {
+    let mut ctx = ctx_or_skip!();
+    let size = crate::theme::CHROME_FONT_SIZE - 1.0;
+    let short = crate::featureabi::feature_ui_text_width(&mut ctx.text, "Staged   +1 \u{2212}0", size);
+    let long = crate::featureabi::feature_ui_text_width(
+        &mut ctx.text,
+        "Working Tree   +128 \u{2212}64   esc to close",
+        size,
+    );
+
+    assert!(short > 0.0);
+    assert!(long > short);
+}
+
+#[test]
+fn diff_hunk_button_width_uses_measured_label_text() {
+    let mut ctx = ctx_or_skip!();
+    let size = crate::theme::CHROME_FONT_SIZE - 1.0;
+    let compact = crate::featureabi::diff_hunk_button_width(&mut ctx.text, "+ Stage", size);
+    let wide = crate::featureabi::diff_hunk_button_width(&mut ctx.text, "\u{2212} Unstage hunk", size);
+
+    assert!(compact > 18.0);
+    assert!(wide > compact);
+}
+
+#[test]
 fn status_problems_chip_hit_tracks_rendered_branch_width() {
     use crate::ffi::MuiEvent;
     use crate::{mui_status_problems_chip_at_click, mui_status_render};

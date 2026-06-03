@@ -6122,3 +6122,11 @@ location/code cluster from fixed per-character estimates.
   location/code labels before laying out the message budget. Diagnostic messages
   fit against the actual rendered right-side metadata in both compact and wide
   panel modes.
+
+L467. Inline diff action chrome should measure labels before reserving space.
+The diff view fit code lines, but its header summary and hunk stage/unstage
+button still used fixed character estimates for right alignment.
+
+- **IDE note:** Inline diff now measures the header summary and hunk action
+  label before right-aligning those surfaces. Hunk headers reserve the rendered
+  button width, keeping section text out from under stage/unstage actions.
