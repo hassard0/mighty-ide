@@ -7182,6 +7182,7 @@ pub extern "C" fn mui_complete_click_at(handle: i64, row: i32, col: i32, total_l
     let cx = layout::text_x_in(region, total_lines.max(1) as u64, col);
     let cy = layout::row_y_in(region, row);
     ctx.complete.click_row(
+        &mut ctx.text,
         ctx.last_event.x,
         ctx.last_event.y,
         cx,

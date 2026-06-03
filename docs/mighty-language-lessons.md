@@ -6296,3 +6296,11 @@ measured shaped text.
 - **IDE note:** Markdown preview now wraps inline pieces using measured UI/code
   text widths, including inline-code chip padding. Strike-through and italic
   advances also follow the rendered glyph width instead of a fixed cell guess.
+
+L488. Completion popup geometry should start from measured row content. Rows fit
+labels, signatures, and kind metadata with measured text, but the popup itself
+still sized from the longest candidate's character count.
+
+- **IDE note:** Completion popups now compute their natural width from measured
+  visible row content and footer text, clamp to the viewport, and use the same
+  measured geometry for drawing and click hit-tests.

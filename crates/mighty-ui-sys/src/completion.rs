@@ -283,26 +283,33 @@ impl CompletionEngine {
         }
     }
 
-    fn geometry(&self, cx: f32, cy: f32, width: u32, height: u32) -> (f32, f32, f32, f32, f32, f32, usize, usize) {
+    fn geometry(
+        &self,
+        text: &mut crate::text::Text,
+        cx: f32,
+        cy: f32,
+        width: u32,
+        height: u32,
+    ) -> (f32, f32, f32, f32, f32, f32, usize, usize) {
         let top = self.scroll_top();
         let shown = self.candidates.len().saturating_sub(top).min(VISIBLE);
         let row_h = layout::LINE_H();
         let pad = 5.0;
-        let longest = self
-            .candidates
-            .iter()
-            .skip(top)
-            .take(shown)
-            .map(|c| c.text.chars().count())
-            .max()
-            .unwrap_or(0) as f32;
         let hint_h = 30.0_f32;
-        let box_w = (longest * layout::CHAR_W() + 22.0 * layout::CHAR_W()).max(280.0);
+        let w = width as f32;
+        let box_w = completion_popup_width(
+            text,
+            &self.candidates,
+            top,
+            shown,
+            self.sel,
+            w,
+            theme::CHROME_FONT_SIZE,
+        );
         let box_h = shown as f32 * row_h + 2.0 * pad + hint_h;
 
         let mut box_x = cx;
         let mut box_y = cy + row_h;
-        let w = width as f32;
         let h = height as f32;
         if box_x + box_w > w {
             box_x = (w - box_w).max(0.0);
@@ -316,11 +323,20 @@ impl CompletionEngine {
 
     /// Select the completion row under a click. Returns the selected candidate
     /// index, or -1 when the click missed the visible rows.
-    pub fn click_row(&mut self, x: f32, y: f32, cx: f32, cy: f32, width: u32, height: u32) -> i32 {
+    pub fn click_row(
+        &mut self,
+        text: &mut crate::text::Text,
+        x: f32,
+        y: f32,
+        cx: f32,
+        cy: f32,
+        width: u32,
+        height: u32,
+    ) -> i32 {
         if !self.active || self.candidates.is_empty() {
             return -1;
         }
-        let (box_x, box_y, box_w, _box_h, pad, row_h, top, shown) = self.geometry(cx, cy, width, height);
+        let (box_x, box_y, box_w, _box_h, pad, row_h, top, shown) = self.geometry(text, cx, cy, width, height);
         if x < box_x || x > box_x + box_w {
             return -1;
         }
@@ -360,7 +376,8 @@ impl CompletionEngine {
         let pad = 5.0;
         let chrome = theme::CHROME_FONT_SIZE;
         let hint_h = 30.0_f32;
-        let (box_x, box_y, box_w, box_h, _pad, _row_h, _top, _shown) = self.geometry(cx, cy, width, height);
+        let (box_x, box_y, box_w, box_h, _pad, _row_h, _top, _shown) =
+            self.geometry(&mut ctx.text, cx, cy, width, height);
 
         let clip = ctx.clip;
         let radius = 8.0_f32;
@@ -454,6 +471,42 @@ fn completion_kind_x(
 ) -> f32 {
     let kw = text.measure_ui_sized(kind, size).0;
     box_x + box_w - 12.0 - kw
+}
+
+fn completion_popup_width(
+    text: &mut crate::text::Text,
+    candidates: &[Candidate],
+    top: usize,
+    shown: usize,
+    selected: usize,
+    viewport_w: f32,
+    chrome: f32,
+) -> f32 {
+    let name_x = 38.0_f32;
+    let right_pad = 12.0_f32;
+    let kind_gap = 10.0_f32;
+    let row_min = 280.0_f32;
+    let row_max = viewport_w.max(row_min).min(560.0);
+    let kind_size = chrome - 1.5;
+    let mut desired = row_min;
+    for cand in candidates.iter().skip(top).take(shown) {
+        let (_badge_bg, _badge_fg, _letter, kind, sig) = classify_candidate(cand);
+        let name_w = text.measure_ui_sized(&cand.text, chrome).0;
+        let sig_gap = if completion_row_signature_visible(sig) { 2.0 } else { 0.0 };
+        let sig_w = if sig_gap > 0.0 {
+            text.measure_ui_sized(sig, chrome - 1.0).0
+        } else {
+            0.0
+        };
+        let kind_w = text.measure_ui_sized(kind, kind_size).0;
+        desired = desired.max(name_x + name_w + sig_gap + sig_w + kind_gap + kind_w + right_pad);
+    }
+    if let Some(sel) = candidates.get(selected) {
+        let tail = if sel.semantic { "(a: I32, b: I32) \u{2192} I32  \u{00B7} pure" } else { "  \u{00B7} local symbol" };
+        let footer_w = 12.0 + text.measure_ui_sized(&sel.text, chrome - 1.0).0 + text.measure_ui_sized(tail, chrome - 1.0).0 + right_pad;
+        desired = desired.max(footer_w.min(420.0));
+    }
+    desired.min(row_max).max(row_min)
 }
 
 fn fit_completion_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
@@ -1088,6 +1141,54 @@ mod tests {
     }
 
     #[test]
+    fn completion_popup_width_uses_measured_visible_rows() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(900, 700) else {
+            return;
+        };
+        let chrome = theme::CHROME_FONT_SIZE;
+        let narrow = vec![Candidate {
+            text: "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii".to_string(),
+            semantic: false,
+            snippet: false,
+        }];
+        let wide = vec![Candidate {
+            text: "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW".to_string(),
+            semantic: false,
+            snippet: false,
+        }];
+
+        let narrow_w = completion_popup_width(&mut ctx.text, &narrow, 0, 1, 0, 900.0, chrome);
+        let wide_w = completion_popup_width(&mut ctx.text, &wide, 0, 1, 0, 900.0, chrome);
+        let measured_delta =
+            ctx.text.measure_ui_sized(&wide[0].text, chrome).0 - ctx.text.measure_ui_sized(&narrow[0].text, chrome).0;
+
+        assert!(measured_delta > 10.0, "test strings should differ in rendered width");
+        assert!(
+            wide_w >= narrow_w + measured_delta.min(200.0) - 1.0,
+            "popup width should grow with measured row text: narrow={narrow_w} wide={wide_w}"
+        );
+    }
+
+    #[test]
+    fn completion_geometry_clamps_measured_width_to_viewport() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(360, 480) else {
+            return;
+        };
+        let mut e = CompletionEngine::new();
+        e.candidates = vec![Candidate {
+            text: "very_wide_completion_candidate_name_that_should_not_escape_the_viewport".to_string(),
+            semantic: true,
+            snippet: false,
+        }];
+        e.active = true;
+        let (box_x, _box_y, box_w, _box_h, _pad, _row_h, _top, _shown) =
+            e.geometry(&mut ctx.text, 320.0, 120.0, 360, 480);
+
+        assert!(box_w <= 360.0);
+        assert!(box_x + box_w <= 360.0 + 0.5);
+    }
+
+    #[test]
     fn inject_snippets_skips_duplicates() {
         let mut e = CompletionEngine::new();
         // Buffer already contains "for".
@@ -1129,14 +1230,21 @@ mod tests {
 
     #[test]
     fn click_row_selects_visible_completion() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(900, 700) else {
+            return;
+        };
         let mut e = CompletionEngine::new();
         e.request(b"alpha alpine a", 14, &[]);
         assert!(e.count() >= 2);
-        let (box_x, box_y, _box_w, _box_h, pad, row_h, _top, _shown) = e.geometry(250.0, 120.0, 900, 700);
-        let idx = e.click_row(box_x + 24.0, box_y + pad + row_h + 2.0, 250.0, 120.0, 900, 700);
+        let (box_x, box_y, _box_w, _box_h, pad, row_h, _top, _shown) =
+            e.geometry(&mut ctx.text, 250.0, 120.0, 900, 700);
+        let idx = e.click_row(&mut ctx.text, box_x + 24.0, box_y + pad + row_h + 2.0, 250.0, 120.0, 900, 700);
         assert_eq!(idx, 1);
         assert_eq!(e.selection(), 1);
-        assert_eq!(e.click_row(box_x - 2.0, box_y + pad + 2.0, 250.0, 120.0, 900, 700), -1);
+        assert_eq!(
+            e.click_row(&mut ctx.text, box_x - 2.0, box_y + pad + 2.0, 250.0, 120.0, 900, 700),
+            -1
+        );
     }
 
     #[test]
