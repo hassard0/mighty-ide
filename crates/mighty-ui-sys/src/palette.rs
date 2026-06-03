@@ -365,6 +365,8 @@ pub const CMD_KEYBOARD_SHORTCUTS_CLOSE: u32 = 166;
 pub const CMD_RENAME_CANCEL: u32 = 167;
 /// Close the Code Actions menu without applying an action.
 pub const CMD_CODE_ACTIONS_CLOSE: u32 = 168;
+/// Close the active bottom prompt without applying its typed input.
+pub const CMD_PROMPT_CANCEL: u32 = 169;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -410,6 +412,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_RENAME_CANCEL,    label: "Rename Symbol: Cancel", keybinding: "" },
     Command { id: CMD_CODE_ACTIONS,     label: "Code Actions",       keybinding: "Ctrl+." },
     Command { id: CMD_CODE_ACTIONS_CLOSE, label: "Code Actions: Close Menu", keybinding: "" },
+    Command { id: CMD_PROMPT_CANCEL,    label: "Prompt: Cancel Input", keybinding: "" },
     Command { id: CMD_TOGGLE_TERMINAL,  label: "Toggle Terminal",    keybinding: "Ctrl+`" },
     Command { id: CMD_TOGGLE_SIDEBAR,   label: "Toggle Sidebar",     keybinding: "Ctrl+B" },
     Command { id: CMD_NEXT_TAB,         label: "Next Tab",           keybinding: "Ctrl+Tab" },
@@ -939,6 +942,7 @@ impl PaletteEngine {
             CMD_RENAME_CANCEL => (icons::CLOSE, "Cancel the active inline rename", false),
             CMD_CODE_ACTIONS => (icons::LIGHTBULB, "Show quick fixes and code actions at the cursor", false),
             CMD_CODE_ACTIONS_CLOSE => (icons::CLOSE, "Close the Code Actions menu without applying an action", false),
+            CMD_PROMPT_CANCEL => (icons::CLOSE, "Close the active bottom prompt without applying input", false),
             CMD_TOGGLE_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
             CMD_TOGGLE_SIDEBAR => (icons::EXPLORER, "Show or hide the file explorer", false),
             CMD_NEXT_TAB => (icons::CHEVRON, "Switch to the next open tab", false),

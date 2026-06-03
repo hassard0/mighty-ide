@@ -6819,3 +6819,13 @@ without applying a rename or quick fix.
   `Code Actions: Close Menu`, calling `mui_rename_cancel` and
   `mui_codeaction_cancel` while clearing Mighty's local mode flags. ABI,
   registry, metadata, dispatcher, and label tests pin both close paths.
+
+L537. Bottom prompts need command-palette cancellation too.
+Typed fallback prompts collect destructive and file-system inputs, so their
+cancel path should not be reachable only through Escape, mouse hit-testing, or
+outside clicks.
+
+- **IDE note:** The command palette now lists `Prompt: Cancel Input`, calling
+  `mui_prompt_cancel` while clearing Mighty's local `prompt_kind`. ABI,
+  registry, metadata, dispatcher, and label tests pin that prompt cancellation
+  is available as a first-class command.

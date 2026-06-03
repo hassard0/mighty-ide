@@ -791,6 +791,7 @@ fn cmd_color_theme_close() -> I32 { 165 }
 fn cmd_keyboard_shortcuts_close() -> I32 { 166 }
 fn cmd_rename_cancel() -> I32 { 167 }
 fn cmd_code_actions_close() -> I32 { 168 }
+fn cmd_prompt_cancel() -> I32 { 169 }
 fn cmd_move_active_tab_left() -> I32 { 64 }
 fn cmd_move_active_tab_right() -> I32 { 65 }
 fn cmd_sort_tabs_by_name() -> I32 { 66 }
@@ -4022,6 +4023,9 @@ fn main() {
         } else if id == cmd_code_actions_close() {
           mui_codeaction_cancel(h)
           code_action_open = false
+        } else if id == cmd_prompt_cancel() {
+          mui_prompt_cancel(h)
+          prompt_kind = 0
         } else if id == cmd_toggle_terminal() {
           if mui_term_is_open(h) == 1 {
             term_focus = true

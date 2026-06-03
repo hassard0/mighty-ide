@@ -2691,6 +2691,13 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
     assert_eq!(code_actions_close.label, "Code Actions: Close Menu");
     assert_eq!(code_actions_close.keybinding, "");
 
+    let prompt_cancel = crate::palette::COMMANDS
+        .iter()
+        .find(|cmd| cmd.id == crate::palette::CMD_PROMPT_CANCEL)
+        .unwrap();
+    assert_eq!(prompt_cancel.label, "Prompt: Cancel Input");
+    assert_eq!(prompt_cancel.keybinding, "");
+
     let close_saved = crate::palette::COMMANDS
         .iter()
         .find(|cmd| cmd.id == crate::palette::CMD_CLOSE_SAVED_TABS)
@@ -5135,6 +5142,24 @@ fn rename_and_code_action_close_commands_clear_active_state() {
 }
 
 #[test]
+fn prompt_cancel_command_clears_active_prompt() {
+    let mut ctx = ctx_or_skip!();
+    ctx.prompt.open(crate::prompt::PromptKind::NewFile as i32);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::abi::mui_prompt_push(handle, b'm' as i32);
+    crate::abi::mui_prompt_push(handle, b'a' as i32);
+    crate::abi::mui_prompt_push(handle, b'i' as i32);
+    crate::abi::mui_prompt_push(handle, b'n' as i32);
+    assert_eq!(crate::abi::mui_prompt_active(handle), 1);
+    assert_eq!(crate::abi::mui_prompt_len(handle), 4);
+
+    crate::abi::mui_prompt_cancel(handle);
+    assert_eq!(crate::abi::mui_prompt_active(handle), 0);
+    assert_eq!(crate::abi::mui_prompt_len(handle), 0);
+}
+
+#[test]
 fn settings_close_command_clears_active_panel() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -6993,6 +7018,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Code Actions close command must clear shim code action state and Mighty's local menu flag"
     );
     assert!(
+        main.contains("id == cmd_prompt_cancel()")
+            && main.contains("mui_prompt_cancel(h)")
+            && main.contains("prompt_kind = 0"),
+        "Prompt cancel command must clear shim prompt state and Mighty's local prompt kind"
+    );
+    assert!(
         main.contains("id == cmd_explorer_collapse_all()")
             && main.contains("let _vp = mui_panel_set(h, panel_explorer())")
             && main.contains("mui_tree_collapse_all(h)"),
@@ -7286,6 +7317,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_RENAME_CANCEL, "cmd_rename_cancel"),
         (CMD_CODE_ACTIONS, "cmd_code_actions"),
         (CMD_CODE_ACTIONS_CLOSE, "cmd_code_actions_close"),
+        (CMD_PROMPT_CANCEL, "cmd_prompt_cancel"),
         (CMD_TOGGLE_TERMINAL, "cmd_toggle_terminal"),
         (CMD_TOGGLE_SIDEBAR, "cmd_toggle_sidebar"),
         (CMD_NEXT_TAB, "cmd_next_tab"),
