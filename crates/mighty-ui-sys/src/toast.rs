@@ -690,6 +690,11 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Run finished")
         || m.starts_with("Run failed")
         || m.starts_with("Run stopped")
+        || m == "No file to run"
+        || m == "No run process to stop"
+        || m == "No run output row selected"
+        || m == "Run output row has no file target"
+        || m.starts_with("Run target missing")
     {
         Some(OperationKey::WebRun)
     } else if m.starts_with("Theme:") {

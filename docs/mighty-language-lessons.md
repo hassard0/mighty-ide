@@ -5430,3 +5430,12 @@ the selection disappeared or the saved folder no longer exists.
   negative or out-of-range rows while keeping stale-folder pruning on
   `Recent folder missing: ...`. The open-operation toast grouping treats both as
   workspace-open feedback, so repeated open attempts collapse predictably.
+
+L391. Clickable output panels should clear stale targets and explain failed
+jumps. A run-output click can miss because there is no row, the row has no
+location, or the diagnostic points at a file that no longer exists.
+
+- **IDE note:** `mui_run_click_row` now resets the pending click target before
+  resolving a row and reports `No run output row selected`, `Run output row has
+  no file target`, or `Run target missing: ...` for misses. Successful diagnostic
+  clicks keep the existing open-tab and jump-target behavior.

@@ -215,22 +215,31 @@ pub extern "C" fn mui_run_click_row(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    ctx.run.set_click_target(None);
     if i < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No run output row selected");
         return 0;
     }
     let root = ctx.tree.root().to_path_buf();
     let target = {
         let Some(line) = ctx.run.line(i as usize) else {
+            ctx.push_toast(crate::toast::Kind::Info, "No run output row selected");
             return 0;
         };
         if !line.clickable {
+            ctx.push_toast(crate::toast::Kind::Info, "Run output row has no file target");
             return 0;
         }
         crate::run::resolve_target(&root, &line.file, line.line, line.col)
     };
     let (full, l, c) = target;
     if !full.exists() {
-        ctx.run.set_click_target(None);
+        let name = full
+            .file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| full.to_string_lossy().into_owned());
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Run target missing: {name}"));
         return 0;
     }
     // Open the file as a tab now, store the jump target for read-back.
