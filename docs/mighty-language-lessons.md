@@ -6400,3 +6400,15 @@ and terminal UIs feel inert even though the IDE had captured the gesture.
   cursor-up/down VT sequences so shells, pagers, and TUIs receive a predictable
   navigation gesture. Unit coverage pins the emitted bytes and the zero-delta
   no-op case.
+
+L498. Terminal SGR backgrounds are part of text rendering, not decoration.
+Many CLI tools use `40..47`, `100..107`, and `49` background SGR params for
+selection, status bars, warnings, and table emphasis. Treating those params as
+unknown leaves full-screen tools and colored output visibly flatter than the
+source terminal stream intended.
+
+- **IDE note:** Terminal cells now carry foreground and background palette
+  indices. The parser handles basic and bright background SGR colors plus
+  default-background reset, and the terminal draw path paints compact
+  contiguous background runs before glyph runs. Unit coverage pins basic,
+  bright, compound, `49`, and full-reset behavior.

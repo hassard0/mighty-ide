@@ -26,26 +26,30 @@ use std::sync::{mpsc, Arc, Mutex};
 
 use portable_pty::{Child, CommandBuilder, MasterPty, PtySize};
 
-/// One terminal cell: a Unicode scalar value and an 8-bit-ish color index.
+/// One terminal cell: a Unicode scalar value and 8-bit-ish color indices.
 ///
-/// `fg` is a palette index 0..=15 (the 8 basic ANSI colors + 8 bright), or the
-/// sentinel [`DEFAULT_FG`] for "use the default foreground". Keeping color as a
-/// small index (not RGBA) means the draw path resolves it to a concrete color,
-/// and the grid stays compact.
+/// `fg`/`bg` are palette indices 0..=15 (the 8 basic ANSI colors + 8 bright), or
+/// sentinels for "use the default". Keeping color as small indices (not RGBA)
+/// means the draw path resolves them to concrete colors, and the grid stays
+/// compact.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Cell {
     pub ch: char,
     pub fg: u8,
+    pub bg: u8,
 }
 
 /// Sentinel `fg` meaning "default foreground" (SGR 0 / 39).
 pub const DEFAULT_FG: u8 = 0xff;
+/// Sentinel `bg` meaning "transparent/default background" (SGR 0 / 49).
+pub const DEFAULT_BG: u8 = 0xfe;
 
 impl Default for Cell {
     fn default() -> Self {
         Cell {
             ch: ' ',
             fg: DEFAULT_FG,
+            bg: DEFAULT_BG,
         }
     }
 }
@@ -72,6 +76,8 @@ pub struct Grid {
     cur_col: usize,
     /// Current SGR foreground applied to newly-written cells.
     cur_fg: u8,
+    /// Current SGR background applied to newly-written cells.
+    cur_bg: u8,
     primary_screen: Option<ScreenSnapshot>,
 }
 
@@ -86,6 +92,7 @@ impl Grid {
             cur_row: 0,
             cur_col: 0,
             cur_fg: DEFAULT_FG,
+            cur_bg: DEFAULT_BG,
             primary_screen: None,
         }
     }
@@ -326,6 +333,7 @@ impl Grid {
         self.cells[idx] = Cell {
             ch,
             fg: self.cur_fg,
+            bg: self.cur_bg,
         };
         self.cur_col += 1;
     }
@@ -640,14 +648,16 @@ impl VtParser {
     }
 
     /// Apply an `ESC [ … m` SGR sequence: parse `;`-separated numeric params and
-    /// update the grid's current foreground. Handles reset (0), the 8 basic
-    /// colors (30..=37), the 8 bright colors (90..=97), and default-fg (39).
-    /// Unknown params (bold, bg, 256-color, etc.) are ignored.
+    /// update the grid's current colors. Handles reset (0), the 8 basic/bright
+    /// foreground colors (30..=37, 90..=97), the 8 basic/bright background
+    /// colors (40..=47, 100..=107), and default fg/bg (39/49). Unknown params
+    /// (bold, 256-color, etc.) are ignored.
     fn apply_sgr(&mut self, grid: &mut Grid) {
         let params = std::str::from_utf8(&self.csi).unwrap_or("");
         // A bare `ESC [ m` means reset.
         if params.is_empty() {
             grid.cur_fg = DEFAULT_FG;
+            grid.cur_bg = DEFAULT_BG;
             return;
         }
         // `ESC [ ? … m` (private) — not a real SGR; ignore.
@@ -664,10 +674,16 @@ impl VtParser {
                 }
             };
             match n {
-                0 => grid.cur_fg = DEFAULT_FG,      // reset
+                0 => {
+                    grid.cur_fg = DEFAULT_FG;
+                    grid.cur_bg = DEFAULT_BG;
+                }
                 30..=37 => grid.cur_fg = (n - 30) as u8, // basic 0..=7
                 39 => grid.cur_fg = DEFAULT_FG,     // default fg
+                40..=47 => grid.cur_bg = (n - 40) as u8, // basic bg 0..=7
+                49 => grid.cur_bg = DEFAULT_BG,      // default bg
                 90..=97 => grid.cur_fg = (n - 90 + 8) as u8, // bright 8..=15
+                100..=107 => grid.cur_bg = (n - 100 + 8) as u8, // bright bg
                 _ => {}                              // ignore everything else
             }
         }
@@ -961,6 +977,16 @@ pub fn palette_rgba(fg: u8) -> (f32, f32, f32, f32) {
         _ => (0.82, 0.84, 0.88),  // DEFAULT_FG / unknown
     };
     (rgb.0, rgb.1, rgb.2, 1.0)
+}
+
+/// Resolve a palette background index to RGBA. [`DEFAULT_BG`] is transparent so
+/// the terminal panel background shows through when no SGR background is active.
+pub fn background_rgba(bg: u8) -> Option<(f32, f32, f32, f32)> {
+    if bg == DEFAULT_BG {
+        return None;
+    }
+    let (r, g, b, _) = palette_rgba(bg);
+    Some((r, g, b, 0.72))
 }
 
 /// A live PTY-backed terminal: a spawned shell, a reader thread draining its
@@ -1354,11 +1380,30 @@ mod tests {
     }
 
     #[test]
+    fn sgr_background_colors_and_resets() {
+        let g = grid_feed(2, 10, b"\x1b[44mA\x1b[49mB\x1b[104mC\x1b[0mD");
+        assert_eq!(g.cell(0, 0).bg, 4);
+        assert_eq!(g.cell(0, 1).bg, DEFAULT_BG);
+        assert_eq!(g.cell(0, 2).bg, 12);
+        assert_eq!(g.cell(0, 3).bg, DEFAULT_BG);
+
+        let g2 = grid_feed(1, 8, b"\x1b[31;42mX\x1b[0mY");
+        assert_eq!(g2.cell(0, 0).fg, 1);
+        assert_eq!(g2.cell(0, 0).bg, 2);
+        assert_eq!(g2.cell(0, 1).fg, DEFAULT_FG);
+        assert_eq!(g2.cell(0, 1).bg, DEFAULT_BG);
+    }
+
+    #[test]
     fn sgr_compound_params_ignored_safely() {
         // Bold + fg color: "1;33" -> bold ignored, yellow (3) applied.
         let g = grid_feed(2, 10, b"\x1b[1;33mY");
         assert_eq!(g.cell(0, 0).ch, 'Y');
         assert_eq!(g.cell(0, 0).fg, 3);
+
+        let g2 = grid_feed(1, 8, b"\x1b[1;33;45mZ");
+        assert_eq!(g2.cell(0, 0).fg, 3);
+        assert_eq!(g2.cell(0, 0).bg, 5);
     }
 
     #[test]

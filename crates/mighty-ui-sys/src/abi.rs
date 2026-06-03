@@ -6758,6 +6758,8 @@ pub extern "C" fn mui_probe_buf_len(handle: i64, mty_buf_len: i32) {
 
 /// One queued terminal text run: position, string, and resolved RGBA color.
 type TermRun = (f32, f32, String, (f32, f32, f32, f32));
+/// One queued terminal background run: position, width, and resolved RGBA color.
+type TermBgRun = (f32, f32, f32, (f32, f32, f32, f32));
 
 /// Grid dimensions for the terminal panel given the current window + sidebar.
 fn term_dims(ctx: &MuiContext) -> (usize, usize) {
@@ -7018,13 +7020,31 @@ pub extern "C" fn mui_term_draw(handle: i64) {
 
     // Snapshot the grid into owned data so the borrow on `ctx.terminal` ends
     // before we borrow `ctx.text`.
-    let (rows, cols, cursor, glyphs) = {
+    let (rows, cols, cursor, backgrounds, glyphs) = {
         let Some(t) = ctx.terminal.as_ref() else {
             return;
         };
         let g = t.grid();
         let rows = g.rows();
         let cols = g.cols();
+        let mut bg_runs: Vec<TermBgRun> = Vec::new();
+        for r in 0..rows {
+            let y = layout::term_cell_y(height, r);
+            let mut col = 0usize;
+            while col < cols {
+                let bg = g.cell(r, col).bg;
+                let start = col;
+                while col < cols && g.cell(r, col).bg == bg {
+                    col += 1;
+                }
+                if let Some(color) = crate::terminal::background_rgba(bg) {
+                    let x = layout::term_cell_x(region, start);
+                    let w = (col - start) as f32 * layout::CHAR_W();
+                    bg_runs.push((x, y, w, color));
+                }
+            }
+        }
+
         // Build one (x, y, string, color) run per row, splitting on color change
         // to keep the draw-call count modest while preserving per-cell color.
         let mut runs: Vec<TermRun> = Vec::new();
@@ -7046,8 +7066,12 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 }
             }
         }
-        (rows, cols, g.cursor(), runs)
+        (rows, cols, g.cursor(), bg_runs, runs)
     };
+
+    for (x, y, w, (r, gc, b, a)) in &backgrounds {
+        ctx.dl_rect(*x, *y, *w, layout::LINE_H() - 2.0, MuiColor::new(*r, *gc, *b, *a));
+    }
 
     for (x, y, s, (r, gc, b, a)) in &glyphs {
         ctx.text
