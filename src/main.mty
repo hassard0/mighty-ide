@@ -96,6 +96,8 @@ extern c {
   fn mui_ed_backspace_smart(handle: I64) -> I32
   fn mui_ed_bracket_match(handle: I64) -> I32
   fn mui_ed_duplicate(handle: I64) -> I32
+  fn mui_ed_can_move_lines_up(handle: I64) -> I32
+  fn mui_ed_can_move_lines_down(handle: I64) -> I32
   fn mui_ed_move_lines_up(handle: I64) -> I32
   fn mui_ed_move_lines_down(handle: I64) -> I32
   fn mui_ed_move_ext(handle: I64, dir: I32, extend: I32)
@@ -3203,7 +3205,7 @@ fn main() {
             let _a = mui_ed_add_caret_above(h)
           } else if alt_held(kmods) {                          // Alt+Up : move line up
             find_nav = false
-            mui_ed_undo_record(h)
+            if mui_ed_can_move_lines_up(h) == 1 { mui_ed_undo_record(h) }
             let changed = mui_ed_move_lines_up(h)
             if changed == 1 {
               mui_tab_set_dirty(h, mui_tab_active(h), 1)
@@ -3220,7 +3222,7 @@ fn main() {
             let _a = mui_ed_add_caret_below(h)
           } else if alt_held(kmods) {                          // Alt+Down : move line down
             find_nav = false
-            mui_ed_undo_record(h)
+            if mui_ed_can_move_lines_down(h) == 1 { mui_ed_undo_record(h) }
             let changed = mui_ed_move_lines_down(h)
             if changed == 1 {
               mui_tab_set_dirty(h, mui_tab_active(h), 1)
@@ -3983,7 +3985,9 @@ fn main() {
             mui_ed_move_ext_multi(h, dir_end(), 0)
           }
         } else if id == cmd_duplicate_line_selection() || id == cmd_move_line_up() || id == cmd_move_line_down() {
-          mui_ed_undo_record(h)
+          if id == cmd_duplicate_line_selection() || (id == cmd_move_line_up() && mui_ed_can_move_lines_up(h) == 1) || (id == cmd_move_line_down() && mui_ed_can_move_lines_down(h) == 1) {
+            mui_ed_undo_record(h)
+          }
           let changed = if id == cmd_duplicate_line_selection() {
             mui_ed_duplicate(h)
           } else if id == cmd_move_line_up() {

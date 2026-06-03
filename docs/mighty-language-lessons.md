@@ -7506,3 +7506,8 @@ action apply are stateful because they may call LSP, touch disk, or report
 feedback, but their key paths can still avoid undo snapshots for known no-op
 states such as unchanged names, missing files, read-only previews, or empty
 actions.
+
+L605. Line-range commands need boundary preflights before undo. Move-line up/down
+can be valid commands that do nothing at the top or bottom of a file; route
+those through a silent range predicate so stateful read-only feedback remains
+intact without adding empty undo snapshots at file edges.

@@ -7369,6 +7369,43 @@ fn minimap_strip_anchors_to_pane_right_edge() {
 }
 
 #[test]
+fn move_lines_preflight_tracks_boundaries_and_read_only() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    *ctx.tabs.active_model_mut() = crate::editor::TextModel::from_bytes(b"one\ntwo\nthree");
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_ed_can_move_lines_up(0), 0);
+    assert_eq!(crate::mui_ed_can_move_lines_down(0), 0);
+    assert_eq!(crate::mui_ed_can_move_lines_up(h), 0);
+    assert_eq!(crate::mui_ed_can_move_lines_down(h), 1);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    ctx.tabs.active_model_mut().move_to(2, 0);
+    assert_eq!(crate::mui_ed_can_move_lines_up(h), 1);
+    assert_eq!(crate::mui_ed_can_move_lines_down(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    ctx.tabs.active_model_mut().set_selection((0, 0), (2, 5));
+    assert_eq!(crate::mui_ed_can_move_lines_up(h), 0);
+    assert_eq!(crate::mui_ed_can_move_lines_down(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    let root = std::env::temp_dir().join("mui_move_lines_preflight");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    assert_eq!(crate::mui_ed_can_move_lines_up(h), 0);
+    assert_eq!(crate::mui_ed_can_move_lines_down(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn editor_power_features_via_abi() {
     use crate::{
         mui_ed_backspace_smart, mui_ed_bracket_match, mui_ed_duplicate, mui_ed_insert_char,
@@ -8418,6 +8455,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let changed = mui_ed_insert_smart_multi(h, cp)")
             && main.contains("let changed = mui_ed_newline_indent_multi(h)"),
         "mutating editor commands must gate dirty/ghost updates on ABI changed-state"
+    );
+    assert!(
+        main.contains("if mui_ed_can_move_lines_up(h) == 1 { mui_ed_undo_record(h) }\n            let changed = mui_ed_move_lines_up(h)")
+            && main.contains("if mui_ed_can_move_lines_down(h) == 1 { mui_ed_undo_record(h) }\n            let changed = mui_ed_move_lines_down(h)")
+            && main.contains("id == cmd_move_line_up() && mui_ed_can_move_lines_up(h) == 1")
+            && main.contains("id == cmd_move_line_down() && mui_ed_can_move_lines_down(h) == 1"),
+        "move-line key and command paths must preflight file-boundary no-ops before recording undo"
     );
     assert!(
         main.contains("let replaced = mui_replace_all(h)")

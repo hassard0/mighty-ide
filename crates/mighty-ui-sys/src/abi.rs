@@ -13059,6 +13059,54 @@ pub extern "C" fn mui_ed_duplicate(handle: i64) -> i32 {
     apply_model_edit(handle, |m| m.duplicate())
 }
 
+fn active_move_line_range(ctx: &MuiContext) -> Option<(usize, usize, usize)> {
+    let model = ctx.tabs.active_model();
+    let line_count = model.line_count();
+    if line_count == 0 {
+        return None;
+    }
+    let (l0, l1) = model
+        .selection_range()
+        .map(|((start_line, _), (end_line, _))| (start_line, end_line))
+        .unwrap_or_else(|| {
+            let line = model.cursor_line();
+            (line, line)
+        });
+    Some((l0.min(line_count - 1), l1.min(line_count - 1), line_count))
+}
+
+/// `1` when moving the current/selected line range up can mutate the model.
+/// Pure preflight: no toasts; the move command keeps read-only feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_move_lines_up(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only() {
+        return 0;
+    }
+    let Some((l0, _, _)) = active_move_line_range(ctx) else {
+        return 0;
+    };
+    i32::from(l0 > 0)
+}
+
+/// `1` when moving the current/selected line range down can mutate the model.
+/// Pure preflight: no toasts; the move command keeps read-only feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_move_lines_down(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only() {
+        return 0;
+    }
+    let Some((_, l1, line_count)) = active_move_line_range(ctx) else {
+        return 0;
+    };
+    i32::from(l1 + 1 < line_count)
+}
+
 /// Move the current line / selected line range up by one.
 #[no_mangle]
 pub extern "C" fn mui_ed_move_lines_up(handle: i64) -> i32 {
