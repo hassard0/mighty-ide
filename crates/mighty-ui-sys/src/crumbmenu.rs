@@ -240,19 +240,16 @@ impl CrumbMenu {
         let row_h = layout::LINE_H();
         let pad = 5.0;
 
-        let box_w = crumb_menu_width(&mut ctx.text, &self.items, chrome);
+        let box_w = crumb_menu_card_width(
+            w,
+            crumb_menu_width(&mut ctx.text, &self.items, chrome),
+        );
         // Clamp the visible rows so the card never runs off the bottom.
         let max_rows = (((h - 30.0) - Self::card_top() - 2.0 * pad) / row_h).floor() as usize;
         let shown = self.items.len().min(max_rows.max(1));
         let box_h = shown as f32 * row_h + 2.0 * pad;
 
-        let mut box_x = self.anchor_x - 6.0;
-        if box_x + box_w > w {
-            box_x = (w - box_w - 6.0).max(0.0);
-        }
-        if box_x < layout::RAIL_W {
-            box_x = layout::RAIL_W + 4.0;
-        }
+        let box_x = crumb_menu_card_x(w, self.anchor_x, box_w);
         let box_y = Self::card_top();
 
         // Overlay so the card occludes editor glyphs underneath.
@@ -288,6 +285,17 @@ fn crumb_menu_width(text: &mut crate::text::Text, items: &[MenuItem], size: f32)
         .map(|i| text.measure_ui_sized(&i.label, size).0 + i.depth as f32 * 12.0)
         .fold(0.0_f32, f32::max);
     (content + 64.0).clamp(220.0, 460.0)
+}
+
+fn crumb_menu_card_width(window_w: f32, wanted_w: f32) -> f32 {
+    wanted_w.min(window_w.max(1.0))
+}
+
+fn crumb_menu_card_x(window_w: f32, anchor_x: f32, box_w: f32) -> f32 {
+    let rail_x = layout::RAIL_W + 4.0;
+    let min_x = if rail_x + box_w <= window_w { rail_x } else { 0.0 };
+    let max_x = (window_w - box_w).max(min_x);
+    (anchor_x - 6.0).clamp(min_x, max_x)
 }
 
 fn fit_crumb_menu_label(text: &mut crate::text::Text, label: &str, max_px: f32, size: f32) -> String {
@@ -426,6 +434,25 @@ mod tests {
 
         assert!(crumb_menu_width(&mut ctx.text, &deep, theme::CHROME_FONT_SIZE)
             > crumb_menu_width(&mut ctx.text, &shallow, theme::CHROME_FONT_SIZE));
+    }
+
+    #[test]
+    fn menu_card_width_clamps_inside_ultra_narrow_windows() {
+        assert_eq!(crumb_menu_card_width(180.0, 220.0), 180.0);
+        assert_eq!(crumb_menu_card_width(500.0, 220.0), 220.0);
+    }
+
+    #[test]
+    fn menu_card_x_respects_rail_when_space_allows() {
+        let x = crumb_menu_card_x(900.0, 20.0, 220.0);
+        assert_eq!(x, layout::RAIL_W + 4.0);
+    }
+
+    #[test]
+    fn menu_card_x_clamps_to_viewport_edges() {
+        assert_eq!(crumb_menu_card_x(180.0, 300.0, 180.0), 0.0);
+        let x = crumb_menu_card_x(500.0, 490.0, 220.0);
+        assert!(x + 220.0 <= 500.0 + 0.5);
     }
 
     #[test]
