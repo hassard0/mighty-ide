@@ -894,6 +894,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Explorer panel ")
         || m.starts_with("Problems diagnostics ")
         || m.starts_with("Problems panel ")
+        || m.starts_with("Settings panel ")
     {
         Some(OperationKey::Layout)
     } else {
@@ -1539,6 +1540,16 @@ mod tests {
         q.push_at(Kind::Info, "Zen mode off", t0 + Duration::from_millis(800));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Zen mode off");
+
+        q.push_at(Kind::Info, "Settings panel closed", t0 + Duration::from_millis(900));
+        q.push_at(
+            Kind::Info,
+            "Settings panel is already closed",
+            t0 + Duration::from_millis(1000),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Settings panel is already closed");
+        assert!(!q.toasts().iter().any(|t| t.message == "Settings panel closed"));
     }
 
     #[test]

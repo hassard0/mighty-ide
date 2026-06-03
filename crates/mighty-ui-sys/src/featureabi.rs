@@ -1116,12 +1116,22 @@ pub extern "C" fn mui_settings_open_account(handle: i64) -> i32 {
     }
 }
 
-/// Close the Settings panel.
+/// Close the Settings panel. Returns `1` when it closed an open panel, or `0`
+/// when Settings was already closed.
 #[no_mangle]
-pub extern "C" fn mui_settings_close(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
-        crate::abi::trace("settings_close");
+pub extern "C" fn mui_settings_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.settings_panel.is_active() {
         ctx.settings_panel.close();
+        ctx.push_toast(crate::toast::Kind::Info, "Settings panel closed");
+        crate::abi::trace("settings_close");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Settings panel is already closed");
+        crate::abi::trace("settings_close noop");
+        0
     }
 }
 

@@ -2102,6 +2102,27 @@ fn account_utility_opens_settings_on_inline_ai_row() {
 }
 
 #[test]
+fn settings_close_acknowledges_state() {
+    use crate::featureabi::{mui_settings_close, mui_settings_open};
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_settings_open(handle), 1);
+    assert!(ctx.settings_panel.is_active());
+    assert_eq!(mui_settings_close(handle), 1);
+    assert!(!ctx.settings_panel.is_active());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Settings panel closed");
+
+    assert_eq!(mui_settings_close(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Settings panel is already closed");
+}
+
+#[test]
 fn search_panel_clicks_focus_fields_and_return_actions() {
     use crate::ffi::MuiEvent;
 
@@ -8181,7 +8202,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_settings_close()")
-            && main.contains("mui_settings_close(h)")
+            && main.contains("let _sc = mui_settings_close(h)")
             && main.contains("settings_open = false"),
         "Settings close command must call the dedicated Settings close ABI and clear Mighty's local flag"
     );

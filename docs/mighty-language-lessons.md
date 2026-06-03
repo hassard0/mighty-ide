@@ -7173,3 +7173,13 @@ whether it actually closed a view.
   `Diff view is already closed`. Those messages share the Git/diff toast
   replacement lane, and Mighty explicitly discards the return in both Esc and
   palette close paths.
+
+L573. Settings close should not be a silent palette no-op. `Preferences: Close
+Settings` can be invoked when the Settings panel is already closed, so the close
+ABI needs the same stateful feedback contract as other panel close commands.
+
+- **IDE note:** `mui_settings_close` now returns `1` when it closes the Settings
+  panel and `0` when Settings is already closed, reporting
+  `Settings panel closed` or `Settings panel is already closed`. Mighty
+  explicitly discards the return from Esc, mouse-dismiss, and palette close
+  paths.
