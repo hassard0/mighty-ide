@@ -1544,44 +1544,54 @@ pub extern "C" fn mui_search_row_at_click(handle: i64) -> i32 {
     -1
 }
 
-/// Show the rightmost `avail` chars of `s` (used to keep the tail / filename
-/// visible when a path or query is too long for the field).
-fn tail(s: &str, avail: usize) -> String {
-    if s.chars().count() <= avail || avail <= 1 {
-        return s.to_string();
-    }
-    s.chars()
-        .rev()
-        .take(avail - 1)
-        .collect::<Vec<_>>()
-        .into_iter()
-        .rev()
-        .collect()
-}
-
-fn truncate_head(s: &str, avail: usize) -> String {
-    if s.chars().count() <= avail || avail <= 1 {
-        return s.to_string();
-    }
-    s.chars().take(avail - 1).collect::<String>() + "\u{2026}"
-}
-
 #[cfg(test)]
 mod search_panel_tests {
-    use super::{search_replace_button_enabled, tail, truncate_head};
+    use super::{fit_head_px, fit_tail_px, search_replace_button_enabled};
 
     #[test]
-    fn search_preview_truncates_from_head_so_match_columns_stay_stable() {
-        assert_eq!(truncate_head("abcdef", 4), "abc\u{2026}");
-        assert_eq!(truncate_head("abcdef", 1), "abcdef");
-        assert_eq!(truncate_head("abc", 4), "abc");
+    fn search_preview_fits_measured_row_budget() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+
+        let size = crate::theme::CHROME_FONT_SIZE;
+        let budget = 165.0;
+        let shown = fit_head_px(
+            &mut ctx.text,
+            "render_really_long_search_preview_line_that_used_to_clip_in_sidebar",
+            budget,
+            size,
+        );
+        let shown_w = ctx.text.measure_ui_sized(&shown, size).0;
+
+        assert!(shown.ends_with('\u{2026}'));
+        assert!(
+            shown_w <= budget + 0.5,
+            "search preview should fit measured row budget: {shown}"
+        );
     }
 
     #[test]
-    fn search_inputs_keep_tail_when_fields_overflow() {
-        assert_eq!(tail("abcdef", 4), "def");
-        assert_eq!(tail("abcdef", 1), "abcdef");
-        assert_eq!(tail("abc", 4), "abc");
+    fn search_field_tail_fits_measured_input_budget() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+
+        let size = crate::theme::CHROME_FONT_SIZE;
+        let budget = 150.0;
+        let shown = fit_tail_px(
+            &mut ctx.text,
+            "workspace/src/deeply/nested/search_target_with_long_name.mty",
+            budget,
+            size,
+        );
+        let shown_w = ctx.text.measure_ui_sized(&shown, size).0;
+
+        assert!(shown.starts_with('\u{2026}'));
+        assert!(
+            shown_w <= budget + 0.5,
+            "search tail text should fit measured input budget: {shown}"
+        );
     }
 
     #[test]
@@ -1674,7 +1684,6 @@ pub extern "C" fn mui_search_draw(handle: i64) {
     let h = ctx.gpu.height as f32;
     let clip = ctx.clip;
     let chrome = theme::CHROME_FONT_SIZE;
-    let adv = chrome * 0.55;
     let sx = layout::RAIL_W;
     let sw = layout::sidebar_w();
     use crate::icons;
@@ -1707,8 +1716,8 @@ pub extern "C" fn mui_search_draw(handle: i64) {
         (query.clone(), theme::TEXT())
     };
     let (btn_x0, btn_x1) = search_field_button_x(sx, sw);
-    let qavail = ((btn_x0 - (sx + 38.0)) / adv).floor() as usize;
-    let qshown = tail(&q_text, qavail);
+    let field_budget = (btn_x0 - (sx + 38.0)).max(0.0);
+    let qshown = fit_tail_px(&mut ctx.text, &q_text, field_budget, chrome);
     ctx.text.queue_ui_sized(sx + 34.0, qy + (box_h - chrome) * 0.5 - 1.0, &qshown, q_col, chrome, clip);
     ctx.dl_round(btn_x0, qy + 4.0, btn_x1 - btn_x0, box_h - 8.0, 5.0, theme::BG_4());
     ctx.dl_icon(btn_x0 + 6.0, qy + 8.0, 14.0, 14.0, icons::REFRESH, theme::TEXT_1(), 1.4, false);
@@ -1725,7 +1734,7 @@ pub extern "C" fn mui_search_draw(handle: i64) {
     } else {
         (replace.clone(), theme::TEXT())
     };
-    let rshown = tail(&r_text, qavail);
+    let rshown = fit_tail_px(&mut ctx.text, &r_text, field_budget, chrome);
     ctx.text.queue_ui_sized(sx + 34.0, ry + (box_h - chrome) * 0.5 - 1.0, &rshown, r_col, chrome, clip);
     let replace_btn_bg = if replace_ready { theme::accent_a(0.16) } else { theme::BG_4() };
     let replace_btn_border = if replace_ready { theme::ACCENT_LINE() } else { theme::BORDER_STRONG() };
@@ -1767,8 +1776,8 @@ pub extern "C" fn mui_search_draw(handle: i64) {
         ctx.dl_icon(sx + 12.0, y + (row_h - 12.0) * 0.5, 12.0, 12.0, icons::CHEVRON_DOWN, theme::TEXT_3(), 2.0, false);
         let (icon, icol) = crate::abi::file_icon_for(&rel, false);
         ctx.dl_icon(sx + 28.0, y + (row_h - 14.0) * 0.5, 14.0, 14.0, icon, icol, 1.4, false);
-        let ravail = (((sx + sw - 40.0) - (sx + 46.0)) / adv).floor() as usize;
-        let rshown = tail(&rel, ravail);
+        let rel_budget = (sx + sw - 40.0 - (sx + 46.0)).max(0.0);
+        let rshown = fit_tail_px(&mut ctx.text, &rel, rel_budget, chrome);
         ctx.text.queue_ui_sized(sx + 46.0, y + (row_h - chrome) * 0.5 - 1.0, &rshown, theme::TEXT_1(), chrome, clip);
         let cnt = mc.to_string();
         ctx.dl_round(sx + sw - 30.0, y + (row_h - 15.0) * 0.5, 20.0, 15.0, 7.5, theme::BG_4());
@@ -1788,10 +1797,11 @@ pub extern "C" fn mui_search_draw(handle: i64) {
             let trimmed_off = preview.chars().count() as i32 - trimmed.chars().count() as i32;
             let ln = format!("{}", line + 1);
             ctx.text.queue_ui_sized(sx + 30.0, y + (row_h - chrome) * 0.5 - 1.0, &ln, theme::TEXT_4(), chrome - 1.0, clip);
-            let preview_x = sx + 30.0 + (ln.chars().count() as f32) * adv + 8.0;
+            let ln_w = ctx.text.measure_ui_sized(&ln, chrome - 1.0).0;
+            let preview_x = sx + 30.0 + ln_w + 8.0;
             let rel_col = col - trimmed_off;
-            let pavail = (((sx + sw - 14.0) - preview_x) / adv).floor() as usize;
-            let pv = truncate_head(trimmed, pavail);
+            let preview_budget = (sx + sw - 14.0 - preview_x).max(0.0);
+            let pv = fit_head_px(&mut ctx.text, trimmed, preview_budget, chrome);
             if rel_col >= 0 && needle_len > 0 {
                 let start = rel_col as usize;
                 let pv_chars = pv.chars().count();

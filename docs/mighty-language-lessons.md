@@ -6220,3 +6220,12 @@ clip or leave inconsistent space in the sidebar.
 - **IDE note:** Outline rows now fit symbol names with measured UI-font widths
   before drawing. Long functions, types, and nested symbols stay inside the
   sidebar row budget without relying on approximate character counts.
+
+L479. Search panel text needs measured row budgets end to end. Search fields,
+file rows, and match previews still used half-font estimates even though they
+draw with proportional UI text and measured highlight rectangles.
+
+- **IDE note:** Search panel inputs, result file paths, preview rows, and
+  preview line-number offsets now use measured UI-font widths before drawing.
+  Long queries and match previews stay inside the sidebar while highlights stay
+  aligned to the rendered text.
