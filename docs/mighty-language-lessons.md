@@ -7546,3 +7546,8 @@ L612. Some commands only need editability preflights. Duplicate and Toggle
 Comment always mutate editable text buffers, but read-only previews still need
 silent `can_*` gates so shortcut and palette routes do not snapshot undo before
 the stateful ABI reports the warning.
+
+L613. Text entry needs a generic editability preflight. Printable typing and
+Enter always intend to mutate, but read-only previews must not receive undo
+checkpoints before insert/newline ABIs reject the edit; use a silent `can_edit`
+gate for those baseline text-entry routes.

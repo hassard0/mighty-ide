@@ -10068,6 +10068,16 @@ fn apply_model_edit(handle: i64, edit: impl FnOnce(&mut TextModel)) -> i32 {
     i32::from(ctx.tabs.active_model().as_text() != before)
 }
 
+/// `1` when the active editor model can be edited.
+/// Pure preflight: no toasts; stateful edit ABIs keep read-only feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_edit(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    i32::from(!ctx.tabs.active_read_only())
+}
+
 /// Owned snapshot of the model fields [`mui_ed_draw`] needs, taken so the borrow
 /// on the model ends before the rect/text draw calls borrow the context again.
 struct EdDrawSnapshot {

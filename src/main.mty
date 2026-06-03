@@ -88,6 +88,7 @@ extern c {
   fn mui_ed_undo_record(handle: I64)
   fn mui_ed_undo(handle: I64) -> I32
   fn mui_ed_redo(handle: I64) -> I32
+  fn mui_ed_can_edit(handle: I64) -> I32
   // ---- editor power-features (comment / indent / auto-close / brackets /
   //      duplicate / move-line / word-motion / select) ----
   fn mui_ed_toggle_comment(handle: I64) -> I32
@@ -2997,7 +2998,7 @@ fn main() {
           // vanish into the hidden buffer behind the landing.
           if mui_welcome_active(h) == 1 { mui_welcome_dismiss(h) }
           // Record an undo checkpoint at the start of a typing run only.
-          if !typing { mui_ed_undo_record(h); typing = true }
+          if !typing && mui_ed_can_edit(h) == 1 { mui_ed_undo_record(h); typing = true }
           // Snippet mode: typing over a selected tab-stop placeholder replaces it
           // (delete the selection first so the typed char takes its place).
           if mui_snippet_active(h) == 1 { let _r = mui_snippet_replace_stop(h) }
@@ -3310,7 +3311,7 @@ fn main() {
               jump_to_match(h, find_idx)
             }
           } else {
-            mui_ed_undo_record(h)
+            if mui_ed_can_edit(h) == 1 { mui_ed_undo_record(h) }
             typing = false
             let changed = mui_ed_newline_indent_multi(h)
             if changed == 1 {

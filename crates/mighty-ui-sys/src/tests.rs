@@ -7661,8 +7661,10 @@ fn always_mutating_editor_preflights_track_read_only_editability() {
     ctx.tabs.ensure_scratch();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
+    assert_eq!(crate::mui_ed_can_edit(0), 0);
     assert_eq!(crate::mui_ed_can_toggle_comment(0), 0);
     assert_eq!(crate::mui_ed_can_duplicate(0), 0);
+    assert_eq!(crate::mui_ed_can_edit(h), 1);
     assert_eq!(crate::mui_ed_can_toggle_comment(h), 1);
     assert_eq!(crate::mui_ed_can_duplicate(h), 1);
     assert!(ctx.toasts.toasts().is_empty());
@@ -7674,6 +7676,7 @@ fn always_mutating_editor_preflights_track_read_only_editability() {
     std::fs::write(&path, b"\0binary preview").unwrap();
     ctx.tabs.open_path(path);
     assert!(ctx.tabs.active_read_only());
+    assert_eq!(crate::mui_ed_can_edit(h), 0);
     assert_eq!(crate::mui_ed_can_toggle_comment(h), 0);
     assert_eq!(crate::mui_ed_can_duplicate(h), 0);
     assert!(ctx.toasts.toasts().is_empty());
@@ -8743,6 +8746,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let changed = mui_ed_insert_smart_multi(h, cp)")
             && main.contains("let changed = mui_ed_newline_indent_multi(h)"),
         "mutating editor commands must gate dirty/ghost updates on ABI changed-state"
+    );
+    assert!(
+        main.contains("if !typing && mui_ed_can_edit(h) == 1 { mui_ed_undo_record(h); typing = true }")
+            && main.contains("if mui_ed_can_edit(h) == 1 { mui_ed_undo_record(h) }\n            typing = false\n            let changed = mui_ed_newline_indent_multi(h)"),
+        "typing and newline paths must preflight read-only targets before recording undo"
     );
     assert!(
         main.contains("if mui_ed_can_move_lines_up(h) == 1 { mui_ed_undo_record(h) }\n            let changed = mui_ed_move_lines_up(h)")
