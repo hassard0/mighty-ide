@@ -1263,6 +1263,24 @@ pub extern "C" fn mui_search_query_len(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| c.search.query.len() as i32)
 }
 
+/// Close the Search panel without clearing query, replacement text, or results.
+/// Returns `1` when it closed Search, or `0` when Search was already closed.
+#[no_mangle]
+pub extern "C" fn mui_search_close(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.active_panel == crate::PANEL_SEARCH {
+        ctx.active_panel = crate::PANEL_EXPLORER;
+        ctx.push_toast(crate::toast::Kind::Info, "Search panel closed");
+        crate::abi::trace("search_close");
+        return 1;
+    }
+    ctx.push_toast(crate::toast::Kind::Info, "Search panel is already closed");
+    crate::abi::trace("search_close noop");
+    0
+}
+
 /// Run the project-wide search over the workspace root. Returns total matches.
 #[no_mangle]
 pub extern "C" fn mui_search_run(handle: i64) -> i32 {

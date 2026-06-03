@@ -270,6 +270,7 @@ extern c {
   fn mui_search_query_len(handle: I64) -> I32
   fn mui_search_run(handle: I64) -> I32
   fn mui_search_replace_all(handle: I64) -> I32
+  fn mui_search_close(handle: I64) -> I32
   fn mui_search_file_count(handle: I64) -> I32
   fn mui_search_match_count(handle: I64) -> I32
   fn mui_search_open(handle: I64, i: I32) -> I32
@@ -792,6 +793,7 @@ fn cmd_run_close() -> I32 { 182 }
 fn cmd_test_close() -> I32 { 183 }
 fn cmd_web_close() -> I32 { 184 }
 fn cmd_agents_close() -> I32 { 185 }
+fn cmd_search_close() -> I32 { 186 }
 fn cmd_diff_close_view() -> I32 { 158 }
 fn cmd_git_hide_blame() -> I32 { 159 }
 fn cmd_peek_close() -> I32 { 160 }
@@ -4383,6 +4385,10 @@ fn main() {
         } else if id == cmd_search_toggle_replace() {
           let _vp = mui_panel_set(h, panel_search())
           let _f = mui_search_toggle_focus(h)
+          agents_focus = false
+          find_nav = false
+        } else if id == cmd_search_close() {
+          let _sc = mui_search_close(h)
           agents_focus = false
           find_nav = false
         } else if id == cmd_view_source_control() {

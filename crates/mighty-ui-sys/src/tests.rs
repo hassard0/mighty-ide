@@ -2206,6 +2206,43 @@ fn search_replace_all_preserves_dirty_open_tab() {
 }
 
 #[test]
+fn search_close_command_acknowledges_state_without_clearing_query_or_results() {
+    let mut ctx = ctx_or_skip!();
+    ctx.active_panel = crate::PANEL_SEARCH;
+    ctx.sidebar_visible = true;
+    for ch in "needle".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+    ctx.search.results.files.push(crate::search::SearchFile {
+        path: std::path::PathBuf::from("hit.mty"),
+        rel: "hit.mty".to_string(),
+        match_count: 1,
+    });
+    ctx.search.results.matches.push(crate::search::SearchMatch {
+        file: 0,
+        line: 4,
+        col: 2,
+        preview: "let needle = 1".to_string(),
+    });
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_search_close(h), 1);
+    assert_eq!(ctx.active_panel, crate::PANEL_EXPLORER);
+    assert_eq!(ctx.search.query_string(), "needle");
+    assert_eq!(ctx.search.match_count(), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Search panel closed"
+    );
+
+    assert_eq!(crate::panels::mui_search_close(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Search panel is already closed"
+    );
+}
+
+#[test]
 fn search_open_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -2984,6 +3021,11 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (
             crate::palette::CMD_SEARCH_TOGGLE_REPLACE,
             "Search: Toggle Replace Field",
+            "",
+        ),
+        (
+            crate::palette::CMD_SEARCH_CLOSE,
+            "Search: Close Panel",
             "",
         ),
     ];
@@ -7604,6 +7646,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             "Search command `{helper}` must reveal Search before invoking `{action}`"
         );
     }
+    assert!(
+        main.contains("id == cmd_search_close()")
+            && main.contains("let _sc = mui_search_close(h)")
+            && main.contains("find_nav = false"),
+        "Search close command must use the Search-specific close ABI without clearing query/results"
+    );
     for needle in [
         "id >= cmd_pane_first() && id <= cmd_pane_last()",
         "id >= cmd_git_first() && id <= cmd_git_last()",
@@ -7822,6 +7870,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
             CMD_SEARCH_TOGGLE_REPLACE,
             "cmd_search_toggle_replace",
         ),
+        (CMD_SEARCH_CLOSE, "cmd_search_close"),
         (CMD_VIEW_SOURCE_CONTROL, "cmd_view_source_control"),
         (CMD_VIEW_OUTLINE, "cmd_view_outline"),
         (CMD_OUTLINE_REFRESH, "cmd_outline_refresh"),

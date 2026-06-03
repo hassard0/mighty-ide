@@ -399,6 +399,8 @@ pub const CMD_TEST_CLOSE: u32 = 183;
 pub const CMD_WEB_CLOSE: u32 = 184;
 /// Close the Mighty Agents panel without clearing topology or run output.
 pub const CMD_AGENTS_CLOSE: u32 = 185;
+/// Close the Search panel without clearing query or results.
+pub const CMD_SEARCH_CLOSE: u32 = 186;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -542,6 +544,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_SEARCH_RUN,       label: "Search: Run Search",   keybinding: "" },
     Command { id: CMD_SEARCH_REPLACE_ALL, label: "Search: Replace All", keybinding: "" },
     Command { id: CMD_SEARCH_TOGGLE_REPLACE, label: "Search: Toggle Replace Field", keybinding: "" },
+    Command { id: CMD_SEARCH_CLOSE,     label: "Search: Close Panel", keybinding: "" },
     Command { id: CMD_VIEW_SOURCE_CONTROL, label: "View: Source Control", keybinding: "Ctrl+Shift+G" },
     Command { id: CMD_VIEW_OUTLINE,     label: "View: Outline",       keybinding: "" },
     Command { id: CMD_OUTLINE_REFRESH,  label: "Outline: Refresh Symbols", keybinding: "" },
@@ -1088,6 +1091,7 @@ impl PaletteEngine {
             CMD_SEARCH_RUN => (icons::SEARCH, "Run the current project-wide search query", false),
             CMD_SEARCH_REPLACE_ALL => (icons::REPLACE, "Replace every current project-wide search match", false),
             CMD_SEARCH_TOGGLE_REPLACE => (icons::REPLACE, "Move Search panel focus between query and replace", false),
+            CMD_SEARCH_CLOSE => (icons::CLOSE, "Close the Search panel without clearing query or results", false),
             CMD_VIEW_SOURCE_CONTROL => (icons::GIT, "Open source control", false),
             CMD_VIEW_OUTLINE => (icons::FN_SYMBOL, "Open the symbol outline", false),
             CMD_OUTLINE_REFRESH => (icons::REFRESH, "Refresh the active document's Outline symbols", false),

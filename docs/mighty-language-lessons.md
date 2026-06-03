@@ -6969,3 +6969,12 @@ output, so closing it from commands should not imply refresh or clearing state.
   calling `mui_agents_close`. The close path switches back to Explorer,
   preserves topology and run rows, reports closed/already-closed feedback, and
   releases Agents focus through the Mighty dispatcher.
+
+L553. Search close should preserve the active query. Search panels often hold a
+partially composed query, replacement text, and result set. Closing the panel
+should hide it, not discard that work.
+
+- **IDE note:** The command palette now lists `Search: Close Panel`, calling
+  `mui_search_close`. The close path switches back to Explorer, preserves the
+  query/results state, reports closed/already-closed feedback, and routes
+  through the Mighty dispatcher.
