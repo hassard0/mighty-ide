@@ -10029,6 +10029,10 @@ fn breadcrumb_accept_misses_report_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Breadcrumb target missing: missing.mty");
+    assert!(
+        ctx.crumb_files.is_empty(),
+        "missing breadcrumb targets should be pruned from the backing file list"
+    );
 }
 
 #[test]

@@ -841,7 +841,11 @@ pub extern "C" fn mui_crumb_menu_accept(handle: i64, i: i32) -> i32 {
             };
             if !path.exists() {
                 let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
-                ctx.push_toast(crate::toast::Kind::Warn, format!("Breadcrumb target missing: {name}"));
+                ctx.crumb_files.remove(target as usize);
+                ctx.push_toast(
+                    crate::toast::Kind::Warn,
+                    format!("Breadcrumb target missing: {name}"),
+                );
                 return -1;
             }
             let idx = ctx.tabs.open_path(path);

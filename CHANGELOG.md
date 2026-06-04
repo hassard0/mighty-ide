@@ -43,6 +43,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Open Recent clears stale hit rows**: missing Welcome/Open Recent file or
   folder rows now prune their cached hit-test snapshot immediately, so repeated
   clicks cannot keep targeting a removed resource before the next draw.
+- **Breadcrumb file menus prune stale paths**: accepting a breadcrumb file row
+  whose source disappeared now removes that dead path from the menu backing
+  list while reporting the missing target.
 - **Breakpoint rows prune missing targets**: opening a debug breakpoint row
   whose source file was deleted now removes the stale breakpoint entry and keeps
   the inventory from repeatedly targeting a missing file.

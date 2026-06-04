@@ -10868,3 +10868,16 @@ breakpoint in the inventory for repeated failed clicks.
 - **Language note:** no compiler gap surfaced. Navigation rows that are backed
   by mutable model state should clean up stale entries as part of the failed
   activation path.
+
+## L881 - Breadcrumb File Menus Should Prune Missing Row Targets
+
+The breadcrumb file dropdown stores displayed rows separately from the backing
+file paths used when a row is accepted. If a file disappears after the dropdown
+opens, reporting the missing file is not enough; the stale backing path should
+also be removed.
+
+- **IDE note:** accepting a missing breadcrumb file target now removes that
+  path from the cached breadcrumb file list before showing the existing warning.
+- **Language note:** no compiler gap surfaced. Hit-tested menus that resolve
+  through parallel backing vectors need to prune both the visible miss and the
+  backing target when activation proves the resource no longer exists.
