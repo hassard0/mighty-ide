@@ -7896,3 +7896,13 @@ colors and return to the prior drawing style.
   alongside the cursor coordinates. Regression coverage verifies DEC, CSI, and
   private cursor restore forms reinstate the saved colors before subsequent text
   is drawn.
+
+L650. Cursor save/restore also carries VT mode state. Saved cursor snapshots
+need to include DECAWM autowrap and DECOM origin mode, because those modes
+change how the next printable cell or cursor-position command behaves after a
+restore.
+
+- **IDE note:** saved cursor state now records autowrap and origin mode with
+  the coordinates and SGR colors. Regression coverage verifies restore
+  reinstates nowrap before right-margin output and origin mode before a later
+  CUP move.

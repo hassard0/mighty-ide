@@ -651,6 +651,8 @@ struct SavedCursor {
     col: usize,
     fg: u32,
     bg: u32,
+    autowrap: bool,
+    origin_mode: bool,
 }
 
 /// A minimal VT/ANSI parser that drives a [`Grid`].
@@ -1476,6 +1478,8 @@ impl VtParser {
             col,
             fg: grid.cur_fg,
             bg: grid.cur_bg,
+            autowrap: self.autowrap,
+            origin_mode: self.origin_mode,
         });
     }
 
@@ -1484,6 +1488,8 @@ impl VtParser {
             grid.move_cursor_1_based(saved.row + 1, saved.col + 1);
             grid.cur_fg = saved.fg;
             grid.cur_bg = saved.bg;
+            self.autowrap = saved.autowrap;
+            self.origin_mode = saved.origin_mode;
         }
     }
 
@@ -2855,6 +2861,24 @@ mod tests {
         assert_eq!(g3.cell(0, 1).fg, 3);
         assert_eq!(g3.cell(0, 1).bg, 6);
         assert!(!g3.contains("1048"));
+    }
+
+    #[test]
+    fn cursor_save_restore_sequences_restore_terminal_modes() {
+        let g = grid_feed(2, 3, b"\x1b[?7l\x1b7\x1b[?7h\x1b8abcd");
+        assert_eq!(g.to_text(), "abd\n   ");
+        assert_eq!(g.cursor(), (0, 2));
+        assert!(!g.contains("?7"));
+
+        let g2 = grid_feed(
+            5,
+            6,
+            b"aaaaaa\nbbbbbb\ncccccc\ndddddd\neeeeee\x1b[2;4r\x1b[?6h\x1b7\x1b[?6l\x1b8\x1b[1;3HX",
+        );
+        assert_eq!(g2.cell(0, 2).ch, 'a', "absolute row 1 should be untouched");
+        assert_eq!(g2.cell(1, 2).ch, 'X', "CUP should be relative after restore");
+        assert_eq!(g2.cursor(), (1, 3));
+        assert!(!g2.contains("?6"));
     }
 
     #[test]
