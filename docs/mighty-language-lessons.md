@@ -8663,3 +8663,14 @@ less reliable than the app itself.
   `/DEBUG:NONE` during the release packaging build, then restores the caller's
   original `RUSTFLAGS`. The documented package command can recover from the
   PDB failure without manual environment setup.
+
+## L723 - Palette Descriptions Must Not Imply Hidden Toggles
+
+Command descriptions teach users what the command will do before they run it. If
+an open command says it can also close a surface, the palette implies toggle
+behavior even when the app exposes a dedicated close command.
+
+- **IDE note:** `Markdown: Open Preview` now describes only opening the live
+  preview pane, while `Markdown: Close Preview` keeps the dedicated close
+  description. Static-description tests cover both command ids so palette rows
+  and shortcut/help surfaces stay aligned with the one-way dispatch paths.

@@ -1191,7 +1191,7 @@ impl PaletteEngine {
             CMD_SPLIT_RIGHT => (icons::TEST_BOX, "Split the editor into side-by-side panes", false),
             CMD_FOCUS_NEXT_PANE => (icons::CHEVRON, "Move focus between editor panes", false),
             CMD_CLOSE_PANE => (icons::CLOSE, "Close the focused editor pane", false),
-            CMD_MARKDOWN_PREVIEW => (icons::FILE_MD, "Open or close the live Markdown preview", false),
+            CMD_MARKDOWN_PREVIEW => (icons::FILE_MD, "Open the live Markdown preview pane", false),
             CMD_MARKDOWN_CLOSE_PREVIEW => (icons::CLOSE, "Close the live Markdown preview pane", false),
             CMD_OPEN_FOLDER => (icons::FOLDER, "Open a workspace folder with the native folder picker", false),
             CMD_OPEN_RECENT => (icons::FOLDER, "Open a recent file or workspace folder", false),
@@ -1735,6 +1735,14 @@ mod tests {
         assert_eq!(
             command_static_desc(CMD_OPEN_RECENT),
             "Open a recent file or workspace folder"
+        );
+        assert_eq!(
+            command_static_desc(CMD_MARKDOWN_PREVIEW),
+            "Open the live Markdown preview pane"
+        );
+        assert_eq!(
+            command_static_desc(CMD_MARKDOWN_CLOSE_PREVIEW),
+            "Close the live Markdown preview pane"
         );
     }
 

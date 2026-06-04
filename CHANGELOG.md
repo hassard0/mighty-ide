@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Markdown Preview commands describe one-way actions**: palette descriptions
+  now say `Markdown: Open Preview` opens the live preview pane and
+  `Markdown: Close Preview` closes it, matching the dedicated command paths
+  instead of implying a toggle.
 - **Windows packaging avoids linker PDB failures**: `package-win.ps1` now applies
   release-only linker flags that disable PDB emission for the packaging build,
   avoiding `LNK1318` failures while restoring any caller-provided `RUSTFLAGS`.
