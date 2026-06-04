@@ -2643,6 +2643,14 @@ fn main() {
           } else if k == key_escape() {
             let _pc = mui_prompt_cancel(h)
             prompt_kind = 0
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if k == key_enter() {
             if prompt_kind == prompt_goto() {
               let target1 = mui_prompt_goto_target(h)
@@ -2840,9 +2848,25 @@ fn main() {
           if mui_prompt_close_at_click(h) == 1 {
             let _pc = mui_prompt_cancel(h)
             prompt_kind = 0
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if mui_prompt_hit_at_click(h) == 0 {
             let _pc = mui_prompt_cancel(h)
             prompt_kind = 0
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         }
       } else if term_focus && tag != ev_mouse_down() {

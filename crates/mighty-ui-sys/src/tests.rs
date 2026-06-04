@@ -12216,6 +12216,19 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         replace_branch.matches(replace_local_cleanup).count() >= 2,
         "Find & Replace local Escape and close-click routes must release stale focus"
     );
+    let prompt_start = main
+        .find("} else if prompt_kind != 0 {")
+        .expect("prompt branch should exist");
+    let prompt_end = main[prompt_start..]
+        .find("} else if term_focus && tag != ev_mouse_down()")
+        .map(|i| prompt_start + i)
+        .expect("prompt branch should precede terminal focus branch");
+    let prompt_branch = &main[prompt_start..prompt_end];
+    let prompt_local_cleanup = "let _pc = mui_prompt_cancel(h)\n            prompt_kind = 0\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    assert!(
+        prompt_branch.matches(prompt_local_cleanup).count() >= 3,
+        "Prompt local Escape, close-click, and outside-click cancels must release stale focus"
+    );
     assert!(
         main.contains("id == cmd_markdown_close_preview()")
             && main.contains("let _mdc = mui_md_close(h)")

@@ -9314,3 +9314,17 @@ the same ownership cleanup as the command rows.
 - **Language note:** no compiler gap surfaced. The source-contract check should
   slice local overlay event arms separately from command-dispatch branches,
   because both routes can close the same visible UI.
+
+## L771 - Prompt Dismissals Are Local Overlay Exits
+
+Bottom prompts are opened by commands and shortcuts, but Escape, close-button,
+and outside-click dismissal are handled inside the prompt event arm. Those local
+cancel routes must clear stale surface ownership just like command-dispatched
+prompt cancellation.
+
+- **IDE note:** prompt Escape, close-button, and outside-click cancels now
+  release stale Run/Web/Testing/Terminal/AI/Agents/search focus plus transient
+  typing state before returning keyboard input to the editor.
+- **Language note:** no compiler gap surfaced. Reusing a source-slice contract
+  works well for this class of route parity bug because each local event arm is
+  small and structurally distinct from prompt Enter acceptance paths.
