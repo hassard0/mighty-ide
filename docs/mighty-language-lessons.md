@@ -9474,3 +9474,17 @@ the command.
   a flat buffer, dispatch helpers must check both the final byte and any
   intermediate suffix before sharing parameter parsing with ordinary numeric
   commands.
+
+## L782 - Consumed Terminal Modes Still Need State
+
+Some VT modes do not immediately affect visible output, but applications can
+still set and query them. DEC application keypad mode is one of those controls:
+`ESC =`, `ESC >`, and `CSI ?66 h/l` should leave no grid bytes behind, while
+`CSI ?66$p` should report the tracked state.
+
+- **IDE note:** the terminal parser now tracks application keypad mode, resets
+  it on full and soft terminal resets, and answers `?66` mode status queries.
+- **Language note:** no compiler gap surfaced. For parser modes that are
+  consumed before the UI has a concrete input path, add state and query coverage
+  anyway; otherwise "harmlessly consumed" sequences become false negatives for
+  terminal apps that probe feature state.

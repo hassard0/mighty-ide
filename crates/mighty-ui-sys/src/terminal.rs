@@ -886,6 +886,8 @@ pub struct VtParser {
     cursor_shape: CursorShape,
     /// Whether arrow keys should use application cursor-key sequences.
     application_cursor_keys: bool,
+    /// Whether keypad keys should use application keypad sequences.
+    application_keypad: bool,
     /// Enabled xterm mouse event modes (`?1000`, `?1002`, `?1003`).
     mouse_modes: u8,
     /// Whether mouse reports should use SGR extended coordinates (`CSI ?1006 h`).
@@ -951,6 +953,7 @@ impl VtParser {
             cursor_blinking: false,
             cursor_shape: CursorShape::Block,
             application_cursor_keys: false,
+            application_keypad: false,
             mouse_modes: 0,
             sgr_mouse: false,
             insert_mode: false,
@@ -1231,8 +1234,15 @@ impl VtParser {
                 self.restore_cursor(grid);
                 self.state = State::Ground;
             }
-            // Other two-byte escapes (e.g. `ESC =`, `ESC >`): consume the
-            // single byte and return to ground.
+            b'=' => {
+                self.application_keypad = true;
+                self.state = State::Ground;
+            }
+            b'>' => {
+                self.application_keypad = false;
+                self.state = State::Ground;
+            }
+            // Other two-byte escapes: consume the single byte and return to ground.
             _ => self.state = State::Ground,
         }
     }
@@ -1712,6 +1722,8 @@ impl VtParser {
                 }
                 ("7", b'h') => self.autowrap = true,
                 ("7", b'l') => self.autowrap = false,
+                ("66", b'h') => self.application_keypad = true,
+                ("66", b'l') => self.application_keypad = false,
                 ("1048", b'h') => self.save_cursor(grid),
                 ("1048", b'l') => self.restore_cursor(grid),
                 ("12", b'h') => self.cursor_blinking = true,
@@ -1759,6 +1771,7 @@ impl VtParser {
         self.cursor_blinking = false;
         self.cursor_shape = CursorShape::Block;
         self.application_cursor_keys = false;
+        self.application_keypad = false;
         self.mouse_modes = 0;
         self.sgr_mouse = false;
         self.insert_mode = false;
@@ -2164,6 +2177,7 @@ impl VtParser {
                 "7" => Some(self.autowrap),
                 "12" => Some(self.cursor_blinking),
                 "25" => Some(self.cursor_visible),
+                "66" => Some(self.application_keypad),
                 "47" | "1047" | "1049" => Some(grid.alternate_screen_active()),
                 "1000" => Some(self.mouse_modes & MOUSE_MODE_BUTTON != 0),
                 "1002" => Some(self.mouse_modes & MOUSE_MODE_DRAG != 0),
@@ -4862,9 +4876,10 @@ mod tests {
         let mut p = VtParser::new();
         p.feed(
             &mut g,
-            b"\x1b[?1h\x1b[?12h\x1b[?25l\x1b[6 q\x1b[?1004h\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1bc",
+            b"\x1b[?1h\x1b=\x1b[?12h\x1b[?25l\x1b[6 q\x1b[?1004h\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1bc",
         );
         assert!(!p.application_cursor_keys());
+        assert!(!p.application_keypad);
         assert!(!p.cursor_blinking());
         assert!(p.cursor_visible());
         assert_eq!(p.cursor_shape(), CursorShape::Block);
@@ -4941,7 +4956,7 @@ mod tests {
         let mut p = VtParser::new();
         p.feed(
             &mut g,
-            b"aaaaaa\nbbbbbb\ncccccc\ndddddd\x1b[2;3r\x1b[?6h\x1b[?7l\x1b[31;44m\x1b[?12h\x1b[6 q\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1b[!pX",
+            b"aaaaaa\nbbbbbb\ncccccc\ndddddd\x1b[2;3r\x1b[?6h\x1b[?7l\x1b[31;44m\x1b[?12h\x1b[6 q\x1b[?66h\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1b[!pX",
         );
 
         assert_eq!(g.cell(0, 0).ch, 'X');
@@ -4952,6 +4967,7 @@ mod tests {
         assert!(p.cursor_visible());
         assert!(!p.cursor_blinking());
         assert!(!p.application_cursor_keys());
+        assert!(!p.application_keypad);
         assert!(!p.bracketed_paste_enabled());
         assert!(!p.mouse_reporting_enabled());
         assert!(!p.sgr_mouse_enabled());
@@ -5508,6 +5524,27 @@ mod tests {
         assert!(!g.contains("12"));
         assert!(!g.contains("1004"));
         assert!(!g.contains("25"));
+    }
+
+    #[test]
+    fn application_keypad_mode_tracks_escape_and_private_csi() {
+        let mut g = Grid::new(1, 12);
+        let mut p = VtParser::new();
+        assert!(!p.application_keypad);
+
+        p.feed(&mut g, b"\x1b=\x1b[?66$p");
+        assert!(p.application_keypad);
+        assert_eq!(p.take_reply(), b"\x1b[?66;1$y");
+        assert!(!g.contains("="));
+        assert!(!g.contains("?66"));
+
+        p.feed(&mut g, b"\x1b>\x1b[?66$p");
+        assert!(!p.application_keypad);
+        assert_eq!(p.take_reply(), b"\x1b[?66;2$y");
+
+        p.feed(&mut g, b"\x1b[?66h\x1b[?66$p\x1b[?66l\x1b[?66$p");
+        assert_eq!(p.take_reply(), b"\x1b[?66;1$y\x1b[?66;2$y");
+        assert!(!p.application_keypad);
     }
 
     #[test]

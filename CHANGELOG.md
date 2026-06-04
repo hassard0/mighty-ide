@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Terminal reports application keypad mode**: DEC keypad application/numeric
+  mode now tracks `ESC =`, `ESC >`, and `CSI ?66 h/l`, and mode status queries
+  report the current state instead of treating it as unknown.
 - **Terminal handles horizontal scroll CSI**: space-intermediate scroll-left and
   scroll-right sequences now shift the visible scroll region horizontally
   instead of being mistaken for insert-character or cursor-up commands.
