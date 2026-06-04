@@ -7017,6 +7017,27 @@ type TermRun = (f32, f32, String, (f32, f32, f32, f32));
 /// One queued terminal background run: position, width, and resolved RGBA color.
 type TermBgRun = (f32, f32, f32, (f32, f32, f32, f32));
 
+fn terminal_cursor_draw_visible(cursor_visible: bool, cursor_blinking: bool, frame: u64) -> bool {
+    cursor_visible && (!cursor_blinking || (frame / 30) % 2 == 0)
+}
+
+#[cfg(test)]
+mod terminal_cursor_tests {
+    use super::terminal_cursor_draw_visible;
+
+    #[test]
+    fn terminal_cursor_draw_visibility_honors_blink_phase() {
+        assert!(!terminal_cursor_draw_visible(false, false, 0));
+        assert!(!terminal_cursor_draw_visible(false, true, 0));
+        assert!(terminal_cursor_draw_visible(true, false, 30));
+        assert!(terminal_cursor_draw_visible(true, true, 0));
+        assert!(terminal_cursor_draw_visible(true, true, 29));
+        assert!(!terminal_cursor_draw_visible(true, true, 30));
+        assert!(!terminal_cursor_draw_visible(true, true, 59));
+        assert!(terminal_cursor_draw_visible(true, true, 60));
+    }
+}
+
 /// Grid dimensions for the terminal panel given the current window + sidebar.
 fn term_dims(ctx: &MuiContext) -> (usize, usize) {
     let region = layout::region(ctx.sidebar_visible);
@@ -7440,7 +7461,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
 
     // Snapshot the grid into owned data so the borrow on `ctx.terminal` ends
     // before we borrow `ctx.text`.
-    let (rows, cols, cursor, cursor_visible, cursor_shape, backgrounds, glyphs) = {
+    let (rows, cols, cursor, cursor_visible, cursor_blinking, cursor_shape, backgrounds, glyphs) = {
         let Some(t) = ctx.terminal.as_ref() else {
             return;
         };
@@ -7491,6 +7512,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
             cols,
             g.cursor(),
             t.cursor_visible(),
+            t.cursor_blinking(),
             t.cursor_shape(),
             bg_runs,
             runs,
@@ -7508,7 +7530,11 @@ pub extern "C" fn mui_term_draw(handle: i64) {
 
     // Block cursor at the grid cursor position (clamped into the panel).
     let (cr, cc) = cursor;
-    if cursor_visible && cr < rows && cc <= cols {
+    let frame = FRAME_COUNTER.load(std::sync::atomic::Ordering::Relaxed);
+    if terminal_cursor_draw_visible(cursor_visible, cursor_blinking, frame)
+        && cr < rows
+        && cc <= cols
+    {
         let cx = layout::term_cell_x(region, cc);
         let mut cy = layout::term_cell_y(height, cr);
         let mut cw = layout::CHAR_W();

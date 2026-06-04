@@ -902,8 +902,7 @@ impl VtParser {
         self.cursor_visible
     }
 
-    #[cfg(test)]
-    fn cursor_blinking(&self) -> bool {
+    pub fn cursor_blinking(&self) -> bool {
         self.cursor_blinking
     }
 
@@ -2392,6 +2391,10 @@ impl Terminal {
 
     pub fn cursor_visible(&self) -> bool {
         self.parser.cursor_visible()
+    }
+
+    pub fn cursor_blinking(&self) -> bool {
+        self.parser.cursor_blinking()
     }
 
     pub fn cursor_shape(&self) -> CursorShape {

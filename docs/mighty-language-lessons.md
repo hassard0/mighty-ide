@@ -8016,3 +8016,13 @@ look unsupported and loses cursor intent across save/restore boundaries.
   save/restore and alternate-screen snapshots, resets it through RIS/DECSTR, and
   reports it via `CSI ?12 $ p`. Regression coverage pins the toggle, query,
   reset, and cursor snapshot behavior.
+
+L662. Protocol state should reach the visible terminal surface. Tracking cursor
+blink mode is incomplete if the terminal renderer still paints a solid cursor
+every frame; terminal apps request blink or steady modes to communicate focus and
+input state.
+
+- **IDE note:** terminal cursor drawing now includes the tracked `?12` blink
+  mode and uses the existing frame counter for a deterministic visible/hidden
+  phase. A focused helper test pins hidden cursors, steady cursors, and the
+  30-frame blink cadence without requiring a graphics capture.
