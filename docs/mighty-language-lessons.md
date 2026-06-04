@@ -7808,3 +7808,13 @@ standard SGR color update.
   the optional color-space field in truecolor forms. Regression tests cover
   colon 256-color foreground/background, colon truecolor foreground/background,
   reset behavior, and color-space-id forms.
+
+L641. Private DSR cursor probes need private replies. Some terminal programs ask
+for cursor position with DEC private `CSI ?6 n`; answering only standard `CSI 6 n`
+leaves those probes unanswered even though the terminal already knows the cursor
+position.
+
+- **IDE note:** `VtParser` now answers `CSI ?6 n` with the DEC private cursor
+  report form `CSI ?row;col R`, using the same 1-based cursor coordinates as the
+  standard DSR reply. Regression coverage verifies the queued reply and confirms
+  the query bytes do not leak into the visible grid.

@@ -1420,7 +1420,8 @@ impl VtParser {
     }
 
     /// Answer a Device Status Report (`ESC [ Ps n`). `5n` -> "OK" (`ESC[0n`);
-    /// `6n` -> cursor position report `ESC[<row>;<col>R` (1-based). Anything
+    /// `6n` -> cursor position report `ESC[<row>;<col>R`; private `?6n` ->
+    /// DEC cursor position report `ESC[?<row>;<col>R` (all 1-based). Anything
     /// else is ignored. The reply is queued for the terminal to write back.
     fn handle_dsr(&mut self, grid: &Grid) {
         let params = std::str::from_utf8(&self.csi).unwrap_or("");
@@ -1429,6 +1430,11 @@ impl VtParser {
             "6" => {
                 let (r, c) = grid.cursor();
                 let report = format!("\x1b[{};{}R", r + 1, c + 1);
+                self.reply.extend_from_slice(report.as_bytes());
+            }
+            "?6" => {
+                let (r, c) = grid.cursor();
+                let report = format!("\x1b[?{};{}R", r + 1, c + 1);
                 self.reply.extend_from_slice(report.as_bytes());
             }
             _ => {}
@@ -2980,6 +2986,16 @@ mod tests {
         assert!(!g.contains("6n"));
         // A second take yields nothing (buffer drained).
         assert!(p.take_reply().is_empty());
+    }
+
+    #[test]
+    fn private_dsr_cursor_position_report_is_queued() {
+        let mut g = Grid::new(4, 10);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b[3;5HX\x1b[?6n");
+        assert_eq!(p.take_reply(), b"\x1b[?3;6R");
+        assert!(!g.contains("?6n"));
+        assert_eq!(g.cell(2, 4).ch, 'X');
     }
 
     #[test]
