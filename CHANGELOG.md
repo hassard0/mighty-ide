@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Signature help supports offset parameter labels**: LSP signature-help
+  parameters that use the standard `[start,end]` label form now derive the
+  highlighted parameter text from the signature label, so servers that emit
+  offsets still get active-argument highlighting.
 - **Debugger stopped events resolve real threads**: stopped events without a
   body-owned `threadId` now request the adapter's `threads` response and use a
   real returned thread before fetching the stack, instead of assuming thread 1.

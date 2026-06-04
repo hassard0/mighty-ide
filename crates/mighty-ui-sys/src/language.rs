@@ -186,7 +186,7 @@ pub fn parse_signature_help(json: &str) -> Option<ParsedSignature> {
     let idx = active_sig.min(sig_objects.len() - 1);
     let sig_obj = sig_objects[idx];
     let label = top_level_json_string_field(sig_obj, "label")?;
-    let params = parse_signature_params(sig_obj);
+    let params = parse_signature_params(sig_obj, &label);
     let doc = parse_signature_doc(sig_obj);
     Some(ParsedSignature {
         label,
@@ -196,14 +196,41 @@ pub fn parse_signature_help(json: &str) -> Option<ParsedSignature> {
     })
 }
 
-fn parse_signature_params(sig_obj: &[u8]) -> Vec<String> {
+fn parse_signature_params(sig_obj: &[u8], signature_label: &str) -> Vec<String> {
     let Some(params) = top_level_array_field(sig_obj, "parameters") else {
         return Vec::new();
     };
     collect_json_objects(params)
         .into_iter()
-        .filter_map(|param| top_level_json_string_field(param, "label"))
+        .filter_map(|param| parse_parameter_label(param, signature_label))
         .collect()
+}
+
+fn parse_parameter_label(param: &[u8], signature_label: &str) -> Option<String> {
+    let value_at = top_level_field_value_start(param, "label")?;
+    match param.get(value_at).copied() {
+        Some(b'"') => read_json_string_at(param, value_at).map(|(s, _)| s),
+        Some(b'[') => parse_parameter_label_offsets(param, value_at, signature_label),
+        _ => None,
+    }
+}
+
+fn parse_parameter_label_offsets(param: &[u8], value_at: usize, signature_label: &str) -> Option<String> {
+    let end = match_bracket(param, value_at).min(param.len());
+    let arr = &param[value_at..end];
+    let mut i = 1usize;
+    i = skip_json_ws_and_commas(arr, i);
+    let (start, next) = read_uint_at(arr, i)?;
+    i = skip_json_ws_and_commas(arr, next);
+    let (end, _) = read_uint_at(arr, i)?;
+    let start = start as usize;
+    let end = end as usize;
+    if start >= end || end > signature_label.len() {
+        return None;
+    }
+    signature_label
+        .get(start..end)
+        .map(|s| s.to_string())
 }
 
 /// Read the signature `documentation` (string or MarkupContent form) if present.
@@ -258,7 +285,11 @@ fn top_level_json_string_field(obj: &[u8], field: &str) -> Option<String> {
 }
 
 fn top_level_uint_field(obj: &[u8], field: &str) -> Option<u32> {
-    let mut i = top_level_field_value_start(obj, field)?;
+    let i = top_level_field_value_start(obj, field)?;
+    read_uint_at(obj, i).map(|(value, _)| value)
+}
+
+fn read_uint_at(obj: &[u8], mut i: usize) -> Option<(u32, usize)> {
     while i < obj.len() && obj[i].is_ascii_whitespace() {
         i += 1;
     }
@@ -270,7 +301,7 @@ fn top_level_uint_field(obj: &[u8], field: &str) -> Option<u32> {
             .saturating_add((obj[i] - b'0') as u32);
         i += 1;
     }
-    (i > start).then_some(value)
+    (i > start).then_some((value, i))
 }
 
 fn collect_json_objects(arr: &[u8]) -> Vec<&[u8]> {
@@ -1934,6 +1965,23 @@ mod tests {
         let sig = parse_signature_help(json).expect("sig");
         assert_eq!(sig.doc, "right doc");
         assert_eq!(sig.params, vec!["a".to_string()]);
+    }
+
+    #[test]
+    fn parse_signature_help_reads_offset_parameter_labels() {
+        let json = r#"{"result":{"activeSignature":0,"activeParameter":1,"signatures":[{"label":"fn add(a: I32, b: I32) -> I32","parameters":[{"label":[7,13]},{"label":[15,21]}]}]},"id":2}"#;
+        let sig = parse_signature_help(json).expect("sig");
+
+        assert_eq!(sig.params, vec!["a: I32".to_string(), "b: I32".to_string()]);
+        assert_eq!(sig.active, 1);
+    }
+
+    #[test]
+    fn parse_signature_help_ignores_invalid_offset_parameter_labels() {
+        let json = r#"{"result":{"signatures":[{"label":"fn café(x)","parameters":[{"label":[3,2]},{"label":[6,7]},{"label":"x"}]}]},"id":2}"#;
+        let sig = parse_signature_help(json).expect("sig");
+
+        assert_eq!(sig.params, vec!["x".to_string()]);
     }
 
     #[test]

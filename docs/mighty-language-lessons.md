@@ -10315,3 +10315,18 @@ Using a synthetic thread ID turns an unknown stop target into a concrete
 - **Language note:** no compiler gap surfaced. Protocol control flow should
   preserve unknown IDs as unknown and add the missing request step, rather than
   defaulting identity fields into plausible handles.
+
+## L841 - Signature Parameters May Be Offset Labels
+
+LSP `ParameterInformation.label` can be either a string label or a `[start,end]`
+offset pair into the containing signature label. Treating only string labels as
+real parameters drops active-argument highlighting for compliant servers that
+emit offsets.
+
+- **IDE note:** signature-help parsing now accepts offset-form parameter labels
+  and slices the signature label only when the range is ordered, in-bounds, and
+  on UTF-8 character boundaries. String-form parameter labels still use the
+  existing path.
+- **Language note:** no compiler gap surfaced. Protocol unions should be parsed
+  at the owning field's value type rather than assuming the variant currently
+  emitted by one server is the whole contract.
