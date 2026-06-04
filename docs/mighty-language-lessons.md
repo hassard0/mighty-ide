@@ -9976,3 +9976,16 @@ non-symbol child arrays.
 - **Language note:** no compiler gap surfaced. Tree-shaped protocol payloads
   should split complete nodes first and recurse only through the node's own
   child field.
+
+## L817 - Inspect Snapshots Need Root-Scoped Fields
+
+Runtime inspect payloads can include metadata objects with fields named
+`agents`, `worker_count`, or agent row fields. Scanning for the first matching
+field can make metadata replace the live Agents panel rows.
+
+- **IDE note:** agent snapshot parsing now requires the root `agents` array,
+  reads `worker_count` from the root object, and reads each displayed agent
+  value from that agent object's top-level fields.
+- **Language note:** no compiler gap surfaced. Runtime telemetry envelopes
+  should be parsed as owned objects first; repeated field names inside metadata
+  are context, not replacement payloads.

@@ -557,30 +557,28 @@ pub struct RuntimeSnapshot {
 }
 
 /// Parse a `mty inspect --json` payload (the documented `RuntimeSnapshot` v1
-/// shape). Tolerant scalar scan (no serde dep): finds `worker_count` then each
-/// `{ ... }` object inside the `agents` array. Returns `None` on a clearly
-/// non-snapshot / error payload.
+/// shape). Tolerant top-level field scan (no serde dep): reads `worker_count`
+/// from the root object, then each `{ ... }` object inside the root `agents`
+/// array. Returns `None` on a clearly non-snapshot / error payload.
 ///
 /// This is implemented + tested independently of the transport. Unix uses a
 /// Unix-domain socket; current Mighty on Windows maps the same configured path
 /// to a named pipe.
 pub fn parse_snapshot(json: &str) -> Option<RuntimeSnapshot> {
     let bytes = json.as_bytes();
-    // Locate the agents array (also the presence gate for "is this a snapshot").
-    let arr_at = find_sub(bytes, b"\"agents\"")?;
-    let worker_count = read_uint_after(bytes, b"\"worker_count\"").unwrap_or(0);
-    let mut i = arr_at + b"\"agents\"".len();
-    while i < bytes.len() && matches!(bytes[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        i += 1;
-    }
-    if i >= bytes.len() || bytes[i] != b'[' {
+    let worker_count = top_level_uint_field(bytes, b"worker_count").unwrap_or(0);
+    let Some(agents_array) = top_level_array_field(bytes, b"agents") else {
+        // The root agents array is the presence gate for "is this a snapshot".
+        return None;
+    };
+    if agents_array.is_empty() || agents_array[0] != b'[' {
         return Some(RuntimeSnapshot {
             worker_count,
             agents: Vec::new(),
         });
     }
     let mut agents = Vec::new();
-    parse_agent_array(&bytes[i..], &mut agents);
+    parse_agent_array(agents_array, &mut agents);
     Some(RuntimeSnapshot {
         worker_count,
         agents,
@@ -628,29 +626,27 @@ fn parse_agent_array(arr: &[u8], out: &mut Vec<AgentSnapshot>) {
 }
 
 fn parse_one_agent(obj: &[u8]) -> Option<AgentSnapshot> {
-    let agent_type = read_str_after(obj, b"\"agent_type\"")?;
+    let agent_type = top_level_string_field(obj, b"agent_type")?;
     Some(AgentSnapshot {
-        agent_id: read_uint_after(obj, b"\"agent_id\"").unwrap_or(0),
+        agent_id: top_level_uint_field(obj, b"agent_id").unwrap_or(0),
         agent_type,
-        mailbox_depth: read_uint_after(obj, b"\"mailbox_depth\"").unwrap_or(0),
-        mailbox_high_water: read_uint_after(obj, b"\"mailbox_high_water\"").unwrap_or(0),
-        in_flight_handler: read_str_after(obj, b"\"in_flight_handler\"").unwrap_or_default(),
+        mailbox_depth: top_level_uint_field(obj, b"mailbox_depth").unwrap_or(0),
+        mailbox_high_water: top_level_uint_field(obj, b"mailbox_high_water").unwrap_or(0),
+        in_flight_handler: top_level_string_field(obj, b"in_flight_handler").unwrap_or_default(),
     })
 }
 
-fn find_sub(hay: &[u8], needle: &[u8]) -> Option<usize> {
-    if needle.is_empty() || needle.len() > hay.len() {
-        return None;
+fn top_level_array_field<'a>(region: &'a [u8], field: &[u8]) -> Option<&'a [u8]> {
+    let value = top_level_field_value(region, field)?;
+    if value < region.len() && region[value] == b'[' {
+        Some(&region[value..])
+    } else {
+        Some(&[])
     }
-    hay.windows(needle.len()).position(|w| w == needle)
 }
 
-fn read_uint_after(region: &[u8], key: &[u8]) -> Option<u64> {
-    let p = find_sub(region, key)?;
-    let mut j = p + key.len();
-    while j < region.len() && matches!(region[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        j += 1;
-    }
+fn top_level_uint_field(region: &[u8], field: &[u8]) -> Option<u64> {
+    let mut j = top_level_field_value(region, field)?;
     let start = j;
     let mut v: u64 = 0;
     while j < region.len() && region[j].is_ascii_digit() {
@@ -664,12 +660,66 @@ fn read_uint_after(region: &[u8], key: &[u8]) -> Option<u64> {
     }
 }
 
-fn read_str_after(region: &[u8], key: &[u8]) -> Option<String> {
-    let p = find_sub(region, key)?;
-    let mut j = p + key.len();
-    while j < region.len() && matches!(region[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        j += 1;
+fn top_level_string_field(region: &[u8], field: &[u8]) -> Option<String> {
+    let j = top_level_field_value(region, field)?;
+    read_json_string_at(region, j)
+}
+
+fn top_level_field_value(region: &[u8], field: &[u8]) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut i = 0usize;
+    while i < region.len() {
+        match region[i] {
+            b'"' => {
+                if depth == 1 && json_key_matches(region, i, field) {
+                    let key_end = i + field.len() + 2;
+                    let colon = skip_json_ws(region, key_end);
+                    if colon < region.len() && region[colon] == b':' {
+                        return Some(skip_json_ws(region, colon + 1));
+                    }
+                }
+                i = skip_json_string(region, i)?;
+                continue;
+            }
+            b'{' | b'[' => depth += 1,
+            b'}' | b']' => depth -= 1,
+            _ => {}
+        }
+        i += 1;
     }
+    None
+}
+
+fn json_key_matches(region: &[u8], quote: usize, field: &[u8]) -> bool {
+    let start = quote + 1;
+    let end = start + field.len();
+    end < region.len() && &region[start..end] == field && region[end] == b'"'
+}
+
+fn skip_json_ws(region: &[u8], mut i: usize) -> usize {
+    while i < region.len() && matches!(region[i], b' ' | b'\t' | b'\r' | b'\n') {
+        i += 1;
+    }
+    i
+}
+
+fn skip_json_string(region: &[u8], quote: usize) -> Option<usize> {
+    let mut i = quote + 1;
+    let mut esc = false;
+    while i < region.len() {
+        if esc {
+            esc = false;
+        } else if region[i] == b'\\' {
+            esc = true;
+        } else if region[i] == b'"' {
+            return Some(i + 1);
+        }
+        i += 1;
+    }
+    None
+}
+
+fn read_json_string_at(region: &[u8], mut j: usize) -> Option<String> {
     if j >= region.len() || region[j] != b'"' {
         return None;
     }
@@ -967,6 +1017,53 @@ fn main() {
         let s = parse_snapshot(r#"{"worker_count":1,"agents":[]}"#).expect("snapshot");
         assert_eq!(s.worker_count, 1);
         assert!(s.agents.is_empty());
+    }
+
+    #[test]
+    fn parse_snapshot_uses_root_agents_array() {
+        let raw = r#"{
+          "metadata":{"worker_count":99,"agents":[
+            {"agent_id":99,"agent_type":"Wrong","mailbox_depth":99,"mailbox_high_water":99}
+          ]},
+          "worker_count":2,
+          "agents":[
+            {"agent_id":7,"agent_type":"Right","mailbox_depth":1,"mailbox_high_water":3}
+          ]
+        }"#;
+        let s = parse_snapshot(raw).expect("snapshot");
+        assert_eq!(s.worker_count, 2);
+        assert_eq!(s.agents.len(), 1);
+        assert_eq!(s.agents[0].agent_id, 7);
+        assert_eq!(s.agents[0].agent_type, "Right");
+        assert_eq!(s.agents[0].mailbox_depth, 1);
+        assert_eq!(s.agents[0].mailbox_high_water, 3);
+    }
+
+    #[test]
+    fn parse_snapshot_uses_agent_top_level_fields() {
+        let raw = r#"{"worker_count":1,"agents":[
+          {
+            "metadata":{
+              "agent_id":99,
+              "agent_type":"Wrong",
+              "mailbox_depth":99,
+              "mailbox_high_water":99,
+              "in_flight_handler":"WrongHandler"
+            },
+            "agent_id":5,
+            "agent_type":"Right",
+            "mailbox_depth":2,
+            "mailbox_high_water":4,
+            "in_flight_handler":"Submit"
+          }
+        ]}"#;
+        let s = parse_snapshot(raw).expect("snapshot");
+        assert_eq!(s.agents.len(), 1);
+        assert_eq!(s.agents[0].agent_id, 5);
+        assert_eq!(s.agents[0].agent_type, "Right");
+        assert_eq!(s.agents[0].mailbox_depth, 2);
+        assert_eq!(s.agents[0].mailbox_high_water, 4);
+        assert_eq!(s.agents[0].in_flight_handler, "Submit");
     }
 
     #[test]

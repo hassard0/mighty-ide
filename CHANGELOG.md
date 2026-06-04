@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Agents inspect reads top-level snapshot fields**: live agent snapshot parsing
+  now requires the root `agents` array, reads `worker_count` from the root
+  object, and reads each agent row's surfaced fields from that row object, so
+  nested metadata cannot replace the Agents panel contents.
 - **Outline reads result-scoped document symbols**: LSP document-symbol parsing
   now anchors on the top-level JSON-RPC `result` array and reads symbol `name`,
   `kind`, ranges, and `children` from each symbol object, so metadata cannot
