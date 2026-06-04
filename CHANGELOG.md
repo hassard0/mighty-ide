@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Quick Open and terminal commands clear stale focus**: palette Quick Open now
+  releases stale surface focus when opening its overlay, and the legacy
+  Terminal open/focus command now matches the Ctrl+` shortcut and View:
+  Terminal ownership behavior.
 - **Sidebar action commands now claim their panels**: Explorer refresh/collapse,
   Search run/clear/replace/toggle, and Outline refresh/clear now release stale
   Run/Web/Testing/Terminal/AI/Agents/search focus after revealing their sidebar

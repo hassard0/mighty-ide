@@ -4435,6 +4435,9 @@ fn main() {
           web_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_find() {
           mui_prompt_open(h, prompt_find())
           prompt_kind = prompt_find()
@@ -4516,6 +4519,12 @@ fn main() {
             let ok = mui_term_open(h)
             if ok == 1 { term_focus = true; mui_log_terminal(h) }
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_toggle_sidebar() {
           let opened = mui_sidebar_toggle(h)
           if opened == 1 {

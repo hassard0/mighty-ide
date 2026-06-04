@@ -8840,3 +8840,15 @@ action itself is refresh, clear, run, replace, or collapse.
   full stale Run/Web/Testing/Terminal/AI/Agents/search focus set after selecting
   their sidebar panel. The dispatcher test scopes assertions to each affected
   command branch.
+
+## L738 - Overlay Open Commands Should Drop Hidden Surface Focus
+
+An overlay that accepts immediate keyboard input should clear stale panel focus
+when it opens. Otherwise the overlay can appear while an older surface still
+owns subsequent non-overlay routing after the overlay closes or misses input.
+
+- **IDE note:** `File: Quick Open` now clears Run/Web/Testing/Terminal/AI/
+  Agents/search focus after opening the Quick Open overlay. The legacy
+  `Terminal: Open or Focus` command now releases the same competing focus set
+  as Ctrl+` and `View: Terminal`, so all terminal entry points share the same
+  ownership contract.

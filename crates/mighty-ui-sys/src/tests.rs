@@ -10569,6 +10569,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Quick Open: Close must clear both shim and Mighty-side Quick Open state"
     );
     assert!(
+        main.contains(
+            "id == cmd_quick_open() {\n          mui_quickopen_open(h)\n          quickopen_open = true\n          quickopen_ignore_mouse_down = true\n          typing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Quick Open command must open the overlay and release stale surface focus"
+    );
+    assert!(
         main.contains("id == cmd_welcome_close()")
             && main.contains("let _wc = mui_welcome_close(h)"),
         "Welcome: Close must reuse the stateful visible close affordance path"
@@ -10588,6 +10594,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _tclose = mui_term_close(h)")
             && main.contains("term_focus = false"),
         "Terminal: Close must use the terminal-specific close ABI and clear terminal focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_toggle_terminal() {\n          if mui_term_is_open(h) == 1 {\n            term_focus = true\n          } else {\n            let ok = mui_term_open(h)\n            if ok == 1 { term_focus = true; mui_log_terminal(h) }\n          }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Terminal open/focus command must claim Terminal focus and release competing surfaces"
     );
     assert!(
         main.contains(
