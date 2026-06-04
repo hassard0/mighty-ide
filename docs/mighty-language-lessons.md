@@ -9242,3 +9242,17 @@ the shared editor-returning routes.
 - **Language note:** no compiler gap surfaced. This is a route-parity issue:
   local focused-mode exits are independent event branches, so command-level
   cleanup does not protect them.
+
+## L766 - Focused Output Panels Have Their Own Escape Routes
+
+Output panels that mostly scroll still own keyboard focus while active. Their
+Escape handlers are local to the focused-panel arms, so they can bypass the
+command dispatcher and any overlay-specific cleanup.
+
+- **IDE note:** focused Run, Web, and Testing Escape routes now release stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus and clear transient typing
+  state before returning keyboard input to the editor. Source-contract coverage
+  slices Web, Run, and Testing separately.
+- **Language note:** no compiler gap surfaced. The route-parity lesson extends
+  from typed overlays to scroll-focused output panels: every local exit that
+  hands ownership back to the editor needs the full cleanup contract.

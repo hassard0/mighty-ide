@@ -10949,6 +10949,42 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         ),
         "AI-focused Escape must release stale surface and search focus"
     );
+    let bottom_focus_start = main
+        .find("} else if (run_focus || web_focus) && !(")
+        .expect("bottom-band focused branch should exist");
+    let bottom_focus_end = main[bottom_focus_start..]
+        .find("} else if test_focus && !(")
+        .map(|i| bottom_focus_start + i)
+        .expect("bottom-band focused branch should precede Testing focus branch");
+    let bottom_focus_branch = &main[bottom_focus_start..bottom_focus_end];
+    let run_subbranch_start = bottom_focus_branch
+        .find("} else {\n          // -------- Run panel")
+        .expect("bottom-band focused branch should contain Run sub-branch");
+    let web_subbranch = &bottom_focus_branch[..run_subbranch_start];
+    let run_subbranch = &bottom_focus_branch[run_subbranch_start..];
+    let dock_escape_cleanup = "} else if k == key_escape() {\n              run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false\n              typing = false";
+    assert!(
+        web_subbranch.contains(dock_escape_cleanup),
+        "Web-focused Escape must release stale surface and search focus"
+    );
+    assert!(
+        run_subbranch.contains(dock_escape_cleanup),
+        "Run-focused Escape must release stale surface and search focus"
+    );
+    let test_focus_start = main
+        .find("} else if test_focus && !(")
+        .expect("Testing focused branch should exist");
+    let test_focus_end = main[test_focus_start..]
+        .find("} else if diff_open {")
+        .map(|i| test_focus_start + i)
+        .expect("Testing focused branch should precede diff branch");
+    let test_focus_branch = &main[test_focus_start..test_focus_end];
+    assert!(
+        test_focus_branch.contains(
+            "} else if k == key_escape() {\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false"
+        ),
+        "Testing-focused Escape must release stale surface and search focus"
+    );
     assert!(
         main.contains(
             "is_quickopen_chord(cp, mods) {            // Ctrl+P : universal Quick-Open\n          mui_quickopen_open(h)\n          quickopen_open = true\n          quickopen_ignore_mouse_down = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"

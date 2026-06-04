@@ -2146,7 +2146,14 @@ fn main() {
             } else if k == key_down() {
               mui_web_scroll(h, 1)
             } else if k == key_escape() {
+              run_focus = false
               web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             }
           } else if tag == ev_scroll() {
             let dir = mui_event_scroll_dir(h)
@@ -2181,6 +2188,13 @@ fn main() {
               mui_run_scroll(h, 1)
             } else if k == key_escape() {
               run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             }
           } else if tag == ev_scroll() {
             let dir = mui_event_scroll_dir(h)
@@ -2232,7 +2246,14 @@ fn main() {
           } else if k == key_down() {
             mui_test_scroll(h, 1)
           } else if k == key_escape() {
+            run_focus = false
+            web_focus = false
             test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         } else if tag == ev_scroll() {
           let dir = mui_event_scroll_dir(h)
