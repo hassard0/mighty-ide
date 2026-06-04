@@ -7020,6 +7020,8 @@ type TermBgRun = (f32, f32, f32, (f32, f32, f32, f32));
 type TermUnderlineRun = (f32, f32, f32, (f32, f32, f32, f32));
 /// One queued terminal strikethrough run: position, width, and resolved RGBA color.
 type TermStrikethroughRun = (f32, f32, f32, (f32, f32, f32, f32));
+/// One queued terminal overline run: position, width, and resolved RGBA color.
+type TermOverlineRun = (f32, f32, f32, (f32, f32, f32, f32));
 
 fn terminal_cursor_draw_visible(cursor_visible: bool, cursor_blinking: bool, frame: u64) -> bool {
     cursor_visible && (!cursor_blinking || (frame / 30) % 2 == 0)
@@ -7476,6 +7478,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
         backgrounds,
         underlines,
         strikethroughs,
+        overlines,
         glyphs,
     ) = {
         let Some(t) = ctx.terminal.as_ref() else {
@@ -7552,6 +7555,31 @@ pub extern "C" fn mui_term_draw(handle: i64) {
             }
         }
 
+        let mut overline_runs: Vec<TermOverlineRun> = Vec::new();
+        for r in 0..rows {
+            let y = layout::term_cell_y(height, r) + 2.0;
+            let mut col = 0usize;
+            while col < cols {
+                let cell = g.cell(r, col);
+                if !cell.overline {
+                    col += 1;
+                    continue;
+                }
+                let fg = cell.fg;
+                let start = col;
+                while col < cols {
+                    let cell = g.cell(r, col);
+                    if !cell.overline || cell.fg != fg {
+                        break;
+                    }
+                    col += 1;
+                }
+                let x = layout::term_cell_x(region, start);
+                let w = (col - start) as f32 * layout::CHAR_W();
+                overline_runs.push((x, y, w, t.foreground_rgba(fg)));
+            }
+        }
+
         // Build one (x, y, string, color) run per row, splitting on color change
         // to keep the draw-call count modest while preserving per-cell color.
         let mut runs: Vec<TermRun> = Vec::new();
@@ -7591,6 +7619,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
             bg_runs,
             underline_runs,
             strikethrough_runs,
+            overline_runs,
             runs,
         )
     };
@@ -7622,6 +7651,10 @@ pub extern "C" fn mui_term_draw(handle: i64) {
     }
 
     for (x, y, w, (r, gc, b, a)) in &strikethroughs {
+        ctx.dl_rect(*x, *y, *w, 1.5, MuiColor::new(*r, *gc, *b, *a));
+    }
+
+    for (x, y, w, (r, gc, b, a)) in &overlines {
         ctx.dl_rect(*x, *y, *w, 1.5, MuiColor::new(*r, *gc, *b, *a));
     }
 

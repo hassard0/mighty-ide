@@ -8150,3 +8150,13 @@ readable.
   REP and cursor save/restore preserve faint cells, RIS clears stale faint state,
   and terminal glyph runs split on faint state so `mui_term_draw` can dim the
   resolved foreground alpha without changing stored color identity.
+
+L675. Overline is another terminal cell decoration, not an escape to drop.
+Formatters and diagnostics can use `SGR 53` for annotated headers or emphasized
+spans. Ignoring it makes those cues disappear even though nearby underline and
+strikethrough already render correctly.
+
+- **IDE note:** terminal cells now carry an overline flag, `SGR 53/55` updates
+  it for subsequent output, REP and cursor save/restore preserve it, RIS clears
+  stale overline state, and `mui_term_draw` paints overline runs with the
+  resolved foreground color.
