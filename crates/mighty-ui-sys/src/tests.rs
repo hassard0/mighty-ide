@@ -12292,6 +12292,36 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         ),
         "Peek local Escape, Enter, and other-key exits must release stale focus"
     );
+    let overlay_start = main
+        .find("} else if mui_dirty_confirm_active(h) == 1 || mui_keys_active(h) == 1 || mui_crumb_menu_active(h) == 1 || mui_branch_active(h) == 1 {")
+        .expect("shared overlay branch should exist");
+    let overlay_end = main[overlay_start..]
+        .find("} else if palette_open {")
+        .map(|i| overlay_start + i)
+        .expect("shared overlay branch should precede palette branch");
+    let overlay_branch = &main[overlay_start..overlay_end];
+    let branch_start = overlay_branch
+        .find("} else if mui_branch_active(h) == 1 {")
+        .expect("branch picker local branch should exist");
+    let crumb_start = overlay_branch
+        .find("// -------- breadcrumb dropdown: navigate / accept / dismiss ----------")
+        .expect("breadcrumb local branch should exist");
+    let branch_branch = &overlay_branch[branch_start..crumb_start];
+    let nested_cleanup = "run_focus = false\n                web_focus = false\n                test_focus = false\n                term_focus = false\n                ai_focus = false\n                agents_focus = false";
+    let nested_cancel_cleanup = "run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false\n              typing = false";
+    assert!(
+        branch_branch.matches(nested_cleanup).count() >= 2
+            && branch_branch.matches(nested_cancel_cleanup).count() >= 3,
+        "Branch picker local accept/cancel exits must release stale focus"
+    );
+    let breadcrumb_branch = &overlay_branch[crumb_start..];
+    let breadcrumb_nested_cleanup = "run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false";
+    let breadcrumb_outer_cleanup = "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    assert!(
+        breadcrumb_branch.matches(breadcrumb_nested_cleanup).count() >= 3
+            && breadcrumb_branch.contains(breadcrumb_outer_cleanup),
+        "Breadcrumb local accept/cancel exits must release stale focus"
+    );
     assert!(
         main.contains("id == cmd_markdown_close_preview()")
             && main.contains("let _mdc = mui_md_close(h)")

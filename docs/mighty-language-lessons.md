@@ -9370,3 +9370,17 @@ as the command-dispatched close row.
 - **Language note:** no compiler gap surfaced. For keyboard-captured overlays,
   distinguish passive navigation like Up/Down from actual exit routes, then
   assert the ownership contract on only the exit paths.
+
+## L775 - Shared Overlay Arms Need Per-Overlay Exit Slices
+
+The dirty-confirm, keyboard-shortcuts, branch picker, and breadcrumb dropdown
+share one top-level branch to stay under parser nesting limits. Each nested
+overlay still owns separate accept/cancel routes, so source contracts need to
+slice the shared branch by overlay instead of treating it as one path.
+
+- **IDE note:** branch picker accept/cancel and breadcrumb accept/dismiss local
+  routes now release stale Run/Web/Testing/Terminal/AI/Agents/search focus plus
+  transient typing state before editor input resumes.
+- **Language note:** no compiler gap surfaced. In shared overlay arms, assert
+  cleanup at the nested overlay level; otherwise one cleaned direct route can
+  hide stale ownership paths in a sibling overlay.

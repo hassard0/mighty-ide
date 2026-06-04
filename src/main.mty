@@ -1766,16 +1766,39 @@ fn main() {
                 find_nav = false
                 let _r = mui_diag_refresh(h)
                 let _o = mui_outline_refresh(h)
+                run_focus = false
+                web_focus = false
+                test_focus = false
+                term_focus = false
+                ai_focus = false
+                agents_focus = false
+                typing = false
               }
             } else if k == key_escape() {
               let _bcancel = mui_branch_cancel(h)
               branch_open = false
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             }
           } else if tag == ev_mouse_down() {
             let bh = mui_branch_click(h)
             if bh == -2 {
               let _bcancel = mui_branch_cancel(h)
               branch_open = false
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             } else if bh >= 0 {
               let acc = mui_branch_accept(h)
               if acc == 1 {
@@ -1783,10 +1806,25 @@ fn main() {
                 find_nav = false
                 let _r = mui_diag_refresh(h)
                 let _o = mui_outline_refresh(h)
+                run_focus = false
+                web_focus = false
+                test_focus = false
+                term_focus = false
+                ai_focus = false
+                agents_focus = false
+                typing = false
               }
             } else {
               let _bcancel = mui_branch_cancel(h)
               branch_open = false
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             }
           }
         } else {
@@ -1803,12 +1841,35 @@ fn main() {
               find_nav = false
               let _r = mui_diag_refresh(h)
               let _o = mui_outline_refresh(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              typing = false
             } else if k == key_escape() {
               let _cmc = mui_crumb_menu_cancel(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             }
           } else if tag == ev_char() {
             // Any printed char dismisses the dropdown.
             let _cmc = mui_crumb_menu_cancel(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if tag == ev_mouse_down() {
             let ch = mui_crumb_menu_row_at_click(h)
             if ch >= 0 {
@@ -1817,8 +1878,23 @@ fn main() {
               find_nav = false
               let _r = mui_diag_refresh(h)
               let _o = mui_outline_refresh(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              typing = false
             } else {
               let _cmc = mui_crumb_menu_cancel(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             }
           }
         }
