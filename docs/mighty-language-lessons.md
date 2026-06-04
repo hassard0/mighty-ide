@@ -10171,3 +10171,17 @@ not the completion answer.
 - **Language note:** no compiler gap surfaced. Autocomplete needs the same
   transport envelope discipline as hover, definition, signature help, rename,
   and code actions.
+
+## L831 - Apply-Edit Stream Returns Need Real Requests
+
+Some LSP execute-command flows return the command response and then ask the
+client to apply a workspace edit through `workspace/applyEdit`. The shim needs
+the full stream only for that real server request; metadata text mentioning the
+method should not make edit parsing inspect unrelated payloads.
+
+- **IDE note:** generic execute-command handling now isolates its own response
+  with the shared response-owned `id: 2` selector and appends the raw stream only
+  when a top-level `workspace/applyEdit` request object is present.
+- **Language note:** no compiler gap surfaced. Follow-up request detection
+  should use top-level method ownership just like request routing and response
+  readiness.

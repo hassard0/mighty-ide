@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Execute-command streams require real apply-edit requests**: generic LSP
+  command execution now isolates its own response by response-owned `id: 2` and
+  appends the raw stream only when a top-level `workspace/applyEdit` request was
+  actually received, so metadata text cannot trigger edit parsing.
 - **Completion waits for response-owned IDs**: semantic completion now waits for
   a complete top-level response object with `id: 2` before scraping labels, so
   progress metadata or server requests cannot end completion collection early.

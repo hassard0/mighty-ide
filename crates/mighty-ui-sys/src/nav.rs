@@ -1146,74 +1146,6 @@ pub mod lsp {
         stream.to_string()
     }
 
-    /// Return the single JSON object (brace-balanced) that contains `marker`
-    /// (e.g. `"id":2`). LSP frames are concatenated `Content-Length`-prefixed
-    /// objects; we slice out just the one holding our response id so the field
-    /// scanners don't see the initialize result's fields. Falls back to the
-    /// whole input if balancing fails.
-    pub fn isolate_response(stream: &str, marker: &str) -> String {
-        let Some(mpos) = stream.find(marker) else {
-            return stream.to_string();
-        };
-        let bytes = stream.as_bytes();
-        // Walk back to the enclosing object's opening brace.
-        let mut depth = 0i32;
-        let mut start = None;
-        let mut i = mpos as isize;
-        while i >= 0 {
-            match bytes[i as usize] {
-                b'}' => depth += 1,
-                b'{' => {
-                    if depth == 0 {
-                        start = Some(i as usize);
-                        break;
-                    }
-                    depth -= 1;
-                }
-                _ => {}
-            }
-            i -= 1;
-        }
-        let Some(start) = start else {
-            return stream.to_string();
-        };
-        // Walk forward to the matching closing brace.
-        let mut depth = 0i32;
-        let mut end = None;
-        let mut in_str = false;
-        let mut esc = false;
-        let mut k = start;
-        while k < bytes.len() {
-            let c = bytes[k];
-            if in_str {
-                if esc {
-                    esc = false;
-                } else if c == b'\\' {
-                    esc = true;
-                } else if c == b'"' {
-                    in_str = false;
-                }
-            } else {
-                match c {
-                    b'"' => in_str = true,
-                    b'{' => depth += 1,
-                    b'}' => {
-                        depth -= 1;
-                        if depth == 0 {
-                            end = Some(k + 1);
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            k += 1;
-        }
-        match end {
-            Some(e) => stream[start..e].to_string(),
-            None => stream.to_string(),
-        }
-    }
 }
 
 #[cfg(test)]
@@ -1615,7 +1547,7 @@ mod tests {
     #[test]
     fn isolate_response_picks_id2_object() {
         let stream = r#"{"result":{"capabilities":{}},"id":1}{"result":{"contents":{"value":"X"}},"id":2}"#;
-        let one = lsp::isolate_response(stream, "\"id\":2");
+        let one = lsp::isolate_response_id(stream, 2);
         assert!(one.contains("\"value\":\"X\""));
         assert!(!one.contains("capabilities"));
         // The parser then sees only the right object.
@@ -1626,7 +1558,7 @@ mod tests {
     fn isolate_response_handles_braces_in_strings() {
         // A string containing braces must not confuse the balancer.
         let stream = r#"{"result":{"contents":{"value":"a{b}c"}},"id":2}"#;
-        let one = lsp::isolate_response(stream, "\"id\":2");
+        let one = lsp::isolate_response_id(stream, 2);
         assert_eq!(parse_hover_value(&one).unwrap(), "a{b}c");
     }
 

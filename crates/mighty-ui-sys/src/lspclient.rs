@@ -151,13 +151,6 @@ fn kill(mut child: Child) {
     let _ = child.wait();
 }
 
-fn find_sub(hay: &[u8], needle: &[u8]) -> Option<usize> {
-    if needle.is_empty() || needle.len() > hay.len() {
-        return None;
-    }
-    hay.windows(needle.len()).position(|w| w == needle)
-}
-
 /// Spawn the server described by `spec`. Returns `None` on spawn failure (the
 /// caller then silently skips LSP — the binary was found by `server_for` but
 /// could still fail to launch).
@@ -331,8 +324,8 @@ pub fn request_with_timeout(
     };
 
     let text = String::from_utf8_lossy(&raw).into_owned();
-    let response = crate::nav::lsp::isolate_response(&text, "\"id\":2");
-    if respond_apply_edit && find_sub(text.as_bytes(), b"workspace/applyEdit").is_some() {
+    let response = crate::nav::lsp::isolate_response_id(&text, 2);
+    if respond_apply_edit && has_apply_edit_request(text.as_bytes()) {
         format!("{response}\n{text}")
     } else {
         response
@@ -349,6 +342,10 @@ fn request_msg(method: &Method, uri: &str, source: &str, line: u32, col: u32) ->
 
 fn apply_edit_response(id_json: &str) -> String {
     format!(r#"{{"jsonrpc":"2.0","id":{id_json},"result":{{"applied":true}}}}"#)
+}
+
+fn has_apply_edit_request(stream: &[u8]) -> bool {
+    apply_edit_request_id(stream).is_some()
 }
 
 fn has_response_id(stream: &[u8], wanted_id_json: &str) -> bool {
@@ -1407,6 +1404,24 @@ mod tests {
         assert!(!has_response_id(nested_id, "2"));
         assert!(!has_response_id(server_request, "2"));
         assert!(has_response_id(response_error, "2"));
+    }
+
+    #[test]
+    fn response_isolation_skips_progress_metadata_id() {
+        let stream = r#"{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"contents":"wrong"}}}}{"jsonrpc":"2.0","id":2,"result":{"contents":"right"}}"#;
+        let response = crate::nav::lsp::isolate_response_id(stream, 2);
+
+        assert!(response.contains(r#""contents":"right""#));
+        assert!(!response.contains("wrong"));
+    }
+
+    #[test]
+    fn apply_edit_stream_append_requires_top_level_request() {
+        let nested = br#"{"jsonrpc":"2.0","id":2,"result":{"metadata":{"method":"workspace/applyEdit","id":99}}}"#;
+        let request = br#"{"jsonrpc":"2.0","id":7,"method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}"#;
+
+        assert!(!has_apply_edit_request(nested));
+        assert!(has_apply_edit_request(request));
     }
 
     #[test]
