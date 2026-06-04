@@ -1215,10 +1215,12 @@ impl VtParser {
             .filter(|s| !s.is_empty())
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or(grid.rows());
-        if grid.set_scroll_region(top.saturating_sub(1), bottom.saturating_sub(1))
-            && self.origin_mode
-        {
-            grid.move_cursor_origin_1_based(1, 1);
+        if grid.set_scroll_region(top.saturating_sub(1), bottom.saturating_sub(1)) {
+            if self.origin_mode {
+                grid.move_cursor_origin_1_based(1, 1);
+            } else {
+                grid.move_cursor_1_based(1, 1);
+            }
         }
     }
 
@@ -3028,6 +3030,15 @@ mod tests {
         let g = grid_feed(4, 4, b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[r\x1b[S");
         assert_eq!(g.to_text(), "2222\n3333\n4444\n    ");
         assert_eq!(g.cursor(), (0, 0));
+    }
+
+    #[test]
+    fn valid_scroll_region_homes_cursor_in_absolute_mode() {
+        let g = grid_feed(4, 6, b"aaaaaa\nbbbbbb\ncccccc\ndddddd\x1b[4;6H@\x1b[2;3rX");
+        assert_eq!(g.cell(0, 0).ch, 'X');
+        assert_eq!(g.cell(3, 5).ch, '@');
+        assert_eq!(g.cursor(), (0, 1));
+        assert!(!g.contains("2;3r"));
     }
 
     #[test]
