@@ -434,9 +434,9 @@ pub const CMD_WINDOW_MINIMIZE: u32 = 98;
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
-    Command { id: CMD_NEW_FILE,         label: "File: New File...", keybinding: "Ctrl+N" },
+    Command { id: CMD_NEW_FILE,         label: "File: New File", keybinding: "Ctrl+N" },
     Command { id: CMD_NEW_UNTITLED_FILE, label: "File: New Untitled File", keybinding: "" },
-    Command { id: CMD_NEW_WORKSPACE_FILE, label: "Explorer: New File in Workspace...", keybinding: "" },
+    Command { id: CMD_NEW_WORKSPACE_FILE, label: "Explorer: New File in Workspace", keybinding: "" },
     Command { id: CMD_NEW_FOLDER,       label: "Explorer: New Folder...",   keybinding: "Ctrl+Shift+N" },
     Command { id: CMD_OPEN_FILE,        label: "File: Open File...", keybinding: "Ctrl+O" },
     Command { id: CMD_SAVE,             label: "File: Save",         keybinding: "Ctrl+S" },
@@ -1477,11 +1477,11 @@ mod tests {
             .find(|c| c.id == CMD_NEW_WORKSPACE_FILE)
             .expect("workspace new-file command should exist");
 
-        assert_eq!(file_dialog.label, "File: New File...");
+        assert_eq!(file_dialog.label, "File: New File");
         assert_eq!(file_dialog.keybinding, "Ctrl+N");
         assert_eq!(untitled.label, "File: New Untitled File");
         assert_eq!(untitled.keybinding, "");
-        assert_eq!(workspace.label, "Explorer: New File in Workspace...");
+        assert_eq!(workspace.label, "Explorer: New File in Workspace");
         assert_eq!(workspace.keybinding, "");
     }
 

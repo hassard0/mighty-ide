@@ -8193,3 +8193,12 @@ legible but loses a modern navigation affordance.
   metadata, and RIS clears stale link state. `mui_term_draw` underlines linked
   cells with the existing foreground-color decoration path so links are visible
   without painting escape payloads.
+
+L679. Command names should not use punctuation as UI behavior. The file picker
+commands are dialog-backed, but baking `...` into command names made Palette and
+Keyboard Shortcuts rows look pre-truncated even when there was enough room.
+
+- **IDE note:** the live command registry now uses clean action names for
+  `File: New File` and `Explorer: New File in Workspace`. The dialog behavior
+  remains in contextual descriptions and command handling, while tests pin the
+  product wording so command surfaces do not drift back to faux truncation.
