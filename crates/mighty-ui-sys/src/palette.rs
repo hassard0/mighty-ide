@@ -1162,9 +1162,9 @@ impl PaletteEngine {
             CMD_TERMINAL_CLOSE => (icons::CLOSE, "Close the integrated terminal without changing other bottom-dock panels", false),
             CMD_VIEW_WEB_PLAYGROUND => (icons::GLOBE, "Open the Web Playground output panel", false),
             CMD_DIFF_CLOSE_VIEW => (icons::CLOSE, "Close the inline git diff view and return to editing", false),
-            CMD_DOCK_COMPACT => (icons::ARROW_DOWN, "Use a smaller shared bottom dock", false),
-            CMD_DOCK_RESET => (icons::WIN_MIN, "Restore the shared bottom dock to its default height", false),
-            CMD_DOCK_EXPANDED => (icons::ARROW_UP, "Use a taller shared bottom dock", false),
+            CMD_DOCK_COMPACT => (icons::ARROW_DOWN, "Open the shared bottom dock at compact height", false),
+            CMD_DOCK_RESET => (icons::WIN_MIN, "Open the shared bottom dock at its default height", false),
+            CMD_DOCK_EXPANDED => (icons::ARROW_UP, "Open the shared bottom dock at expanded height", false),
             CMD_DOCK_CLOSE => (icons::CLOSE, "Close the active shared bottom dock", false),
             CMD_SIDEBAR_COMPACT => (icons::ARROW_LEFT, "Use a smaller sidebar drawer", false),
             CMD_SIDEBAR_DEFAULT => (icons::EXPLORER, "Restore responsive sidebar width", false),
@@ -1750,6 +1750,18 @@ mod tests {
         assert_eq!(
             command_static_desc(CMD_TOGGLE_TERMINAL),
             "Open the integrated terminal or focus it if already open"
+        );
+        assert_eq!(
+            command_static_desc(CMD_DOCK_COMPACT),
+            "Open the shared bottom dock at compact height"
+        );
+        assert_eq!(
+            command_static_desc(CMD_DOCK_RESET),
+            "Open the shared bottom dock at its default height"
+        );
+        assert_eq!(
+            command_static_desc(CMD_DOCK_EXPANDED),
+            "Open the shared bottom dock at expanded height"
         );
         assert_eq!(
             command_static_desc(CMD_MARKDOWN_PREVIEW),

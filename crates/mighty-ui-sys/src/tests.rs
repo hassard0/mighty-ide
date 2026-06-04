@@ -2286,6 +2286,48 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
 }
 
 #[test]
+fn dock_preset_commands_open_hidden_dock_at_requested_size() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert!(!ctx.bottom_dock_open());
+    assert_eq!(
+        crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_COMPACT as i32),
+        1
+    );
+    assert!(ctx.bottom_dock_open(), "compact preset should reveal a shared dock");
+    assert!(ctx.run.is_active(), "hidden-dock presets reveal the Run panel as the shared dock owner");
+    assert_eq!(crate::layout::dock_fraction(), crate::layout::TERM_FRACTION_MIN);
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Dock compact");
+
+    assert_eq!(
+        crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_CLOSE as i32),
+        4
+    );
+    assert!(!ctx.bottom_dock_open());
+    assert_eq!(
+        crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_RESET as i32),
+        2
+    );
+    assert!(ctx.bottom_dock_open(), "default preset should reveal a shared dock");
+    assert_eq!(crate::layout::dock_fraction(), crate::layout::TERM_FRACTION);
+
+    assert_eq!(
+        crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_CLOSE as i32),
+        4
+    );
+    assert!(!ctx.bottom_dock_open());
+    assert_eq!(
+        crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_EXPANDED as i32),
+        3
+    );
+    assert!(ctx.bottom_dock_open(), "expanded preset should reveal a shared dock");
+    assert_eq!(crate::layout::dock_fraction(), crate::layout::TERM_FRACTION_MAX);
+
+    crate::layout::reset_dock_fraction();
+}
+
+#[test]
 fn terminal_close_acknowledges_state_without_requiring_pty_spawn() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;

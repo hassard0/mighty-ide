@@ -8687,3 +8687,15 @@ current command contract.
   through the same id for compatibility, but `Terminal: Close` remains the only
   close command. Palette label, static-description, and Mighty-dispatch tests
   cover the contract.
+
+## L725 - Layout Presets Can Also Be Reveal Commands
+
+Palette descriptions should mention the whole visible result, not only the
+layout mutation. Bottom-dock compact/default/expanded commands are useful even
+when no lower dock is visible because they reveal the shared dock before sizing
+it.
+
+- **IDE note:** bottom-dock preset descriptions now say they open the shared
+  bottom dock at compact, default, or expanded height. A dispatch test covers
+  the hidden-dock path, where presets reveal the Run panel as the shared lower
+  dock owner and apply the requested fraction.

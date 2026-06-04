@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Bottom-dock preset commands advertise their reveal behavior**: compact,
+  default, and expanded dock commands now describe opening the shared bottom
+  dock at the requested size, matching the existing Run-panel reveal path when
+  no lower dock is active.
 - **Terminal shortcut command no longer promises a close toggle**: the legacy
   Ctrl+` command now appears as `Terminal: Open or Focus`, matching its actual
   behavior of opening the integrated terminal or focusing the existing one while
