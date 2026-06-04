@@ -1976,6 +1976,7 @@ impl VtParser {
         self.capture_osc_title();
         self.capture_osc_clipboard();
         self.capture_osc_color_set();
+        self.capture_osc_color_reset();
         self.capture_osc_palette_set();
         self.capture_osc_palette_reset();
         self.reply_osc_color_query();
@@ -2009,6 +2010,15 @@ impl VtParser {
             "10" => self.default_fg_rgb = color,
             "11" => self.default_bg_rgb = color,
             "12" => self.cursor_rgb = color,
+            _ => {}
+        }
+    }
+
+    fn capture_osc_color_reset(&mut self) {
+        match self.osc.as_slice() {
+            b"110" => self.default_fg_rgb = DEFAULT_FG_RGB,
+            b"111" => self.default_bg_rgb = DEFAULT_BG_RGB,
+            b"112" => self.cursor_rgb = DEFAULT_CURSOR_RGB,
             _ => {}
         }
     }
@@ -4408,6 +4418,28 @@ mod tests {
         assert!(!g.contains("#010203"));
         assert!(!g.contains("rgb:ffff"));
         assert!(!g.contains("10;?"));
+    }
+
+    #[test]
+    fn osc_color_resets_restore_default_query_replies() {
+        let mut g = Grid::new(1, 40);
+        let mut p = VtParser::new();
+        p.feed(
+            &mut g,
+            b"\x1b]10;#010203\x07\x1b]11;#040506\x07\x1b]12;#070809\x07\
+              \x1b]110\x07\x1b]111\x1b\\\x9d112\x9c\
+              \x1b]10;?\x07\x1b]11;?\x07\x1b]12;?\x07done",
+        );
+        assert_eq!(
+            p.take_reply(),
+            b"\x1b]10;rgb:d1d1/d6d6/e0e0\x1b\\\
+              \x1b]11;rgb:1414/1414/1c1c\x1b\\\
+              \x1b]12;rgb:7c7c/5c5c/ffff\x1b\\"
+                .to_vec()
+        );
+        assert!(g.contains("done"));
+        assert!(!g.contains("#010203"));
+        assert!(!g.contains("110"));
     }
 
     #[test]

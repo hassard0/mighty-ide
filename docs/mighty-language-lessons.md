@@ -8055,3 +8055,13 @@ misreports terminals that apps have already customized.
   query replies, updates entries from valid palette setters, and restores one or
   all entries through `OSC 104`. Regression coverage pins multi-entry setters,
   selective reset, full reset, and invalid payload consumption.
+
+L666. Dynamic default colors need their reset controls too. Tracking
+`OSC 10/11/12` setters is incomplete without `OSC 110/111/112`, because terminal
+apps use those paired resets to restore foreground/background/cursor query
+identity after temporary theme changes.
+
+- **IDE note:** the VT parser now consumes `OSC 110/111/112` as foreground,
+  background, and cursor color resets, restoring subsequent `OSC 10/11/12`
+  query replies to Mighty IDE's built-in defaults. Regression coverage verifies
+  the resets across BEL, 7-bit ST, and 8-bit OSC/ST forms.
