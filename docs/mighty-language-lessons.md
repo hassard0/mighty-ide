@@ -10226,3 +10226,22 @@ response an error.
 - **Language note:** no compiler gap surfaced. JSON-RPC control-flow decisions
   must read envelope-owned fields rather than scanning for familiar sentinel
   values.
+
+## L835 - Synthetic Fix-All Must Not Steal Server Commands
+
+The shim's `Fix all (mty)` action is special because it saves the active file,
+runs `mty fix --apply`, and reloads the buffer. LSP servers can also expose
+commands whose identifiers contain `fixAll`, but those commands still belong to
+`workspace/executeCommand`.
+
+- **IDE note:** code-action parsing now marks only Mighty-owned fix-all command
+  identifiers (`mighty.*` / `mty.*`) or `source.fixAll.mighty` as the synthetic
+  shim action. Server commands such as `rust-analyzer.fixAll` and
+  `typescript.applyFixAllCodeAction` remain executable LSP commands. Command
+  arguments also extract only a direct WorkspaceEdit argument or an argument
+  object's top-level `workspaceEdit` field, so metadata-only wrappers do not
+  become edits.
+- **Language note:** no compiler gap surfaced. Command routing should classify
+  synthetic shim commands by exact ownership, not by broad capability words in a
+  server-owned command id, and command argument parsing should preserve the same
+  owner boundary as top-level WorkspaceEdit parsing.

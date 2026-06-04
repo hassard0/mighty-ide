@@ -858,7 +858,7 @@ fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
         .unwrap_or(false)
         || command
             .as_ref()
-            .map(|cmd| cmd.command.contains("fixAll") || cmd.command.contains("fix_all"))
+            .map(|cmd| is_mighty_fix_all_command(&cmd.command))
             .unwrap_or(false);
     Some(CodeAction {
         title,
@@ -867,6 +867,10 @@ fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
         command,
         fix_all_mty,
     })
+}
+
+fn is_mighty_fix_all_command(command: &str) -> bool {
+    matches!(command, "mighty.fixAll" | "mighty.fix_all" | "mty.fixAll" | "mty.fix_all")
 }
 
 fn code_action_disabled(obj: &[u8]) -> bool {
@@ -951,13 +955,67 @@ fn parse_command_edit(obj: &[u8]) -> Option<WorkspaceEdit> {
 
 fn read_arguments_workspace_edit(obj: &[u8]) -> Option<WorkspaceEdit> {
     let args_at = top_level_field_value_start(obj, "arguments")?;
-    let args_end = if obj.get(args_at) == Some(&b'[') {
-        match_bracket(obj, args_at).min(obj.len())
-    } else {
-        args_at
-    };
+    if obj.get(args_at) != Some(&b'[') {
+        return None;
+    }
+    let args_end = match_bracket(obj, args_at).min(obj.len());
     let args = &obj[args_at..args_end];
-    Some(parse_workspace_edit(&String::from_utf8_lossy(args)))
+    first_workspace_edit_argument(args)
+}
+
+fn first_workspace_edit_argument(args: &[u8]) -> Option<WorkspaceEdit> {
+    let mut depth = 0i32;
+    let mut obj_start: Option<usize> = None;
+    let mut in_str = false;
+    let mut esc = false;
+    let mut started = false;
+    for (k, &c) in args.iter().enumerate() {
+        if in_str {
+            if esc {
+                esc = false;
+            } else if c == b'\\' {
+                esc = true;
+            } else if c == b'"' {
+                in_str = false;
+            }
+            continue;
+        }
+        match c {
+            b'[' if !started => started = true,
+            b'"' => in_str = true,
+            b'{' => {
+                if depth == 0 {
+                    obj_start = Some(k);
+                }
+                depth += 1;
+            }
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    if let Some(s) = obj_start.take() {
+                        let arg = &args[s..=k];
+                        if let Some(we) = workspace_edit_from_argument(arg) {
+                            return Some(we);
+                        }
+                    }
+                }
+            }
+            b']' if depth == 0 => break,
+            _ => {}
+        }
+    }
+    None
+}
+
+fn workspace_edit_from_argument(arg: &[u8]) -> Option<WorkspaceEdit> {
+    top_level_object_field(arg, "workspaceEdit")
+        .and_then(parse_workspace_edit_slice)
+        .or_else(|| parse_workspace_edit_slice(arg))
+}
+
+fn parse_workspace_edit_slice(bytes: &[u8]) -> Option<WorkspaceEdit> {
+    let we = parse_workspace_edit(&String::from_utf8_lossy(bytes));
+    (!we.is_empty()).then_some(we)
 }
 
 // ===========================================================================
@@ -2221,6 +2279,25 @@ mod tests {
     }
 
     #[test]
+    fn parse_code_actions_fix_all_command_must_be_mighty_owned() {
+        let json = r#"{"result":[{"title":"Server fix all","command":"rust-analyzer.fixAll"},{"title":"TS source fix all","command":{"title":"Fix all","command":"typescript.applyFixAllCodeAction","arguments":[{"fixId":"fixMissingImport"}]}},{"title":"Mighty fix all","command":"mty.fix_all"}],"id":5}"#;
+        let actions = parse_code_actions(json);
+
+        assert_eq!(actions.len(), 3);
+        assert_eq!(
+            actions[0].command.as_ref().map(|c| c.command.as_str()),
+            Some("rust-analyzer.fixAll")
+        );
+        assert!(!actions[0].fix_all_mty);
+        assert_eq!(
+            actions[1].command.as_ref().map(|c| c.command.as_str()),
+            Some("typescript.applyFixAllCodeAction")
+        );
+        assert!(!actions[1].fix_all_mty);
+        assert!(actions[2].fix_all_mty);
+    }
+
+    #[test]
     fn parse_code_actions_command_arguments_workspace_edit() {
         let json = r#"{"result":[{"title":"Apply suggestion","command":"rust-analyzer.applySourceChange","arguments":[{"label":"apply","workspaceEdit":{"changes":{"file:///a.rs":[{"newText":"println!","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":11}}}]}}}]}],"id":5}"#;
         let actions = parse_code_actions(json);
@@ -2233,6 +2310,20 @@ mod tests {
         let command = actions[0].command.as_ref().expect("command");
         assert_eq!(command.command, "rust-analyzer.applySourceChange");
         assert!(command.arguments_json.as_ref().unwrap().contains("workspaceEdit"));
+    }
+
+    #[test]
+    fn parse_code_actions_command_arguments_require_workspace_edit_owner() {
+        let nested = r#"{"result":[{"title":"Metadata only","command":"server.apply","arguments":[{"metadata":{"workspaceEdit":{"changes":{"file:///wrong.rs":[{"newText":"wrong","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":1}}}]}}}}]}],"id":5}"#;
+        let nested_actions = parse_code_actions(nested);
+        assert!(nested_actions[0].command_edit.is_none());
+
+        let direct = r#"{"result":[{"title":"Direct edit","command":"server.apply","arguments":[{"changes":{"file:///a.rs":[{"newText":"ok","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":6}}}]}}]}],"id":5}"#;
+        let direct_actions = parse_code_actions(direct);
+        let edit = direct_actions[0].command_edit.as_ref().expect("direct edit");
+
+        assert_eq!(edit.total_edits(), 1);
+        assert_eq!(edit.files[0].1[0].new_text, "ok");
     }
 
     #[test]

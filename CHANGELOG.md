@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Code-action fix-all commands require Mighty ownership**: language-server
+  commands such as `rust-analyzer.fixAll` now remain server commands instead of
+  being mistaken for the shim's synthetic `mty fix --apply` action, and
+  command-argument `workspaceEdit` wrappers are extracted without broad nested
+  metadata scans.
 - **Outline errors require owned codes**: document-symbol parsing now treats
   method-not-found as a fallback signal only when the top-level `error` object
   owns `code: -32601`, so nested metadata cannot suppress a valid outline
