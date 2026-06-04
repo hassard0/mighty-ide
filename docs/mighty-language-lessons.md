@@ -9917,3 +9917,18 @@ whole envelope for `contents`, or scanning a hover object for the first nested
 - **Language note:** no compiler gap surfaced. Reusing a payload-boundary helper
   across hover and definition parsing keeps response-envelope fields from
   competing with protocol payload fields.
+
+## L813 - Signature Help Needs Payload-Scoped Signatures
+
+Signature-help responses carry `signatures`, `activeSignature`, and
+`activeParameter` inside the JSON-RPC `result`. Scanning the whole response, or
+guessing signature labels by proximity to nested parameter labels, lets envelope
+metadata and nested documentation fields change the popup contents.
+
+- **IDE note:** signature-help parsing now isolates `result`, collects complete
+  signature objects from the top-level `signatures` array, and reads labels,
+  parameters, active indexes, and documentation from their owning payload
+  objects.
+- **Language note:** no compiler gap surfaced. Array payloads are easier to
+  parse correctly by splitting complete child objects first, then reading
+  top-level fields, instead of inferring ownership from key ordering.

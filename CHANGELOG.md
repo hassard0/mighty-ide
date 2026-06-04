@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Signature help reads result-scoped signatures**: LSP signature-help parsing
+  now isolates the JSON-RPC `result`, reads `activeSignature` /
+  `activeParameter` from that payload, and parses signature labels, parameters,
+  and docs from top-level signature fields.
 - **Hover reads result-scoped contents**: LSP hover parsing now isolates the
   JSON-RPC `result` before reading `contents`, and reads markup `value` fields
   at the hover object's top level so envelope metadata cannot replace hover

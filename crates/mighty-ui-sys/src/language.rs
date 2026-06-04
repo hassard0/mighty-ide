@@ -204,38 +204,19 @@ pub struct ParsedSignature {
 /// or `None` for a `null` / empty result.
 pub fn parse_signature_help(json: &str) -> Option<ParsedSignature> {
     let bytes = json.as_bytes();
-    // Anchor inside the result's signatures array.
-    let sigs_at = find_sub(bytes, b"\"signatures\"")?;
-    // No signatures? `"signatures":[]` -> bail.
-    let after = &bytes[sigs_at..];
-    // Quick empty-array check: first non-ws after `]:[` is `]`.
-    {
-        let mut k = "\"signatures\"".len();
-        while k < after.len() && matches!(after[k], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-            k += 1;
-        }
-        if k < after.len() && after[k] == b'[' {
-            let mut m = k + 1;
-            while m < after.len() && matches!(after[m], b' ' | b'\t' | b'\r' | b'\n') {
-                m += 1;
-            }
-            if m < after.len() && after[m] == b']' {
-                return None;
-            }
-        }
-    }
-
-    let active_sig = read_uint_after(bytes, b"\"activeSignature\"").unwrap_or(0) as usize;
-    let active_param = read_uint_after(bytes, b"\"activeParameter\"").unwrap_or(0);
-
-    // Collect every signature's label (in order). We then index `active_sig`.
-    let labels = collect_signature_labels(json);
-    if labels.is_empty() {
+    let result = json_rpc_result_value(bytes)?;
+    let sigs = top_level_array_field(result, "signatures")?;
+    let sig_objects = collect_json_objects(sigs);
+    if sig_objects.is_empty() {
         return None;
     }
-    let idx = active_sig.min(labels.len() - 1);
-    let (label, params) = labels[idx].clone();
-    let doc = parse_signature_doc(json);
+    let active_sig = top_level_uint_field(result, "activeSignature").unwrap_or(0) as usize;
+    let active_param = top_level_uint_field(result, "activeParameter").unwrap_or(0);
+    let idx = active_sig.min(sig_objects.len() - 1);
+    let sig_obj = sig_objects[idx];
+    let label = top_level_json_string_field(sig_obj, "label")?;
+    let params = parse_signature_params(sig_obj);
+    let doc = parse_signature_doc(sig_obj);
     Some(ParsedSignature {
         label,
         params,
@@ -244,139 +225,113 @@ pub fn parse_signature_help(json: &str) -> Option<ParsedSignature> {
     })
 }
 
-/// Collect `(label, params)` for each signature object in order. A signature
-/// object is `{"label":"...","parameters":[{"label":"..."},...]}`. We walk
-/// `"label"` keys after the `"signatures"` anchor and, for each, read the
-/// parameters that belong to it (up to the next signature `"label"`).
-fn collect_signature_labels(json: &str) -> Vec<(String, Vec<String>)> {
-    let bytes = json.as_bytes();
-    let Some(sigs_at) = find_sub(bytes, b"\"signatures\"") else {
+fn parse_signature_params(sig_obj: &[u8]) -> Vec<String> {
+    let Some(params) = top_level_array_field(sig_obj, "parameters") else {
         return Vec::new();
     };
-    let region = &bytes[sigs_at..];
-    // Find each top-level signature label: the first `"label"` after `"signatures"`,
-    // then the first `"label"` after each `"parameters"` block boundary. Simpler:
-    // a signature label is a `"label"` NOT immediately preceded (within the same
-    // object) by `"parameters"`. We approximate by treating the FIRST `"label"`
-    // after `"signatures"[` or after a `]` (end of a parameters array) as a sig.
-    let mut out: Vec<(String, Vec<String>)> = Vec::new();
-    let mut i = 0usize;
-    let label_key = b"\"label\"";
-    let params_key = b"\"parameters\"";
-    while i < region.len() {
-        if region[i..].starts_with(label_key) {
-            // Is this label a signature label (the next key is "parameters" or
-            // the array closes) or a parameter label? A parameter label sits
-            // inside a `"parameters":[ ... ]` array. We decide by checking whether
-            // a `"parameters"` key appears AFTER this label before the next
-            // `"label"` — if so this is a signature label.
-            let (sig_label, past) = match read_json_string_at(region, i + label_key.len()) {
-                Some(v) => v,
-                None => {
-                    i += label_key.len();
-                    continue;
-                }
-            };
-            // Look ahead: the next `"label"` and next `"parameters"`.
-            let next_label = find_sub(&region[past..], label_key).map(|p| past + p);
-            let next_params = find_sub(&region[past..], params_key).map(|p| past + p);
-            let is_sig = match (next_params, next_label) {
-                (Some(np), Some(nl)) => np < nl,
-                (Some(_), None) => true,
-                _ => false,
-            };
-            if is_sig {
-                // Gather parameter labels from the `"parameters"` array that
-                // follows, up to the next signature `"label"` (next_label after
-                // the params block) — i.e. until the next signature.
-                let params = if let Some(np) = next_params {
-                    collect_param_labels(&region[np..], next_label)
-                } else {
-                    Vec::new()
-                };
-                out.push((sig_label, params));
-            }
-            i = past;
-        } else {
-            i += 1;
-        }
-    }
-    out
+    collect_json_objects(params)
+        .into_iter()
+        .filter_map(|param| top_level_json_string_field(param, "label"))
+        .collect()
 }
 
-/// Collect parameter `"label"` strings from a `"parameters":[...]` slice,
-/// stopping before `stop_at` (relative to the parent region; the absolute index
-/// of the next signature label) when provided. Only string `label`s are read
-/// (mty-lsp emits `{"label":"p0"}`).
-fn collect_param_labels(region: &[u8], _stop_at: Option<usize>) -> Vec<String> {
-    // `region` begins at `"parameters"`. Find its `[` and `]` to bound the scan.
-    let label_key = b"\"label\"";
-    let Some(open) = region.iter().position(|&b| b == b'[') else {
-        return Vec::new();
+/// Read the signature `documentation` (string or MarkupContent form) if present.
+fn parse_signature_doc(sig_obj: &[u8]) -> String {
+    let Some(value_at) = top_level_field_value_start(sig_obj, "documentation") else {
+        return String::new();
     };
-    // Find the matching close bracket (params arrays have no nested brackets in
-    // mty-lsp's output, but be safe and track depth).
-    let mut depth = 0i32;
-    let mut close = region.len();
-    let mut in_str = false;
-    let mut esc = false;
-    for (k, &c) in region.iter().enumerate().skip(open) {
-        if in_str {
-            if esc {
-                esc = false;
-            } else if c == b'\\' {
-                esc = true;
-            } else if c == b'"' {
-                in_str = false;
-            }
-            continue;
+    match sig_obj.get(value_at).copied() {
+        Some(b'"') => read_json_string_at(sig_obj, value_at)
+            .map(|(s, _)| s)
+            .unwrap_or_default(),
+        Some(b'{') => {
+            let end = match_brace(sig_obj, value_at).min(sig_obj.len());
+            let doc_obj = &sig_obj[value_at..end];
+            top_level_json_string_field(doc_obj, "value").unwrap_or_default()
         }
-        match c {
-            b'"' => in_str = true,
-            b'[' => depth += 1,
-            b']' => {
-                depth -= 1;
-                if depth == 0 {
-                    close = k;
-                    break;
-                }
-            }
-            _ => {}
-        }
+        _ => String::new(),
     }
-    let arr = &region[open..close.min(region.len())];
-    let mut out = Vec::new();
-    let mut i = 0usize;
-    while i < arr.len() {
-        if arr[i..].starts_with(label_key) {
-            if let Some((lbl, past)) = read_json_string_at(arr, i + label_key.len()) {
-                out.push(lbl);
-                i = past;
-                continue;
-            }
-        }
+}
+
+fn json_rpc_result_value(bytes: &[u8]) -> Option<&[u8]> {
+    let value_at = top_level_field_value_start(bytes, "result")?;
+    if bytes.get(value_at..value_at + 4) == Some(b"null") {
+        return None;
+    }
+    let end = json_value_end(bytes, value_at).min(bytes.len());
+    Some(&bytes[value_at..end])
+}
+
+fn top_level_array_field<'a>(obj: &'a [u8], field: &str) -> Option<&'a [u8]> {
+    let value_at = top_level_field_value_start(obj, field)?;
+    if obj.get(value_at) != Some(&b'[') {
+        return None;
+    }
+    let end = match_bracket(obj, value_at).min(obj.len());
+    Some(&obj[value_at..end])
+}
+
+fn top_level_json_string_field(obj: &[u8], field: &str) -> Option<String> {
+    top_level_field_value_start(obj, field)
+        .and_then(|value_at| read_json_string_at(obj, value_at))
+        .map(|(s, _)| s)
+}
+
+fn top_level_uint_field(obj: &[u8], field: &str) -> Option<u32> {
+    let mut i = top_level_field_value_start(obj, field)?;
+    while i < obj.len() && obj[i].is_ascii_whitespace() {
         i += 1;
     }
+    let start = i;
+    let mut value = 0u32;
+    while i < obj.len() && obj[i].is_ascii_digit() {
+        value = value
+            .saturating_mul(10)
+            .saturating_add((obj[i] - b'0') as u32);
+        i += 1;
+    }
+    (i > start).then_some(value)
+}
+
+fn collect_json_objects(arr: &[u8]) -> Vec<&[u8]> {
+    let mut out = Vec::new();
+    let mut i = 1usize;
+    while i < arr.len() {
+        i = skip_json_ws_and_commas(arr, i);
+        if i >= arr.len() || arr[i] == b']' {
+            break;
+        }
+        if arr[i] == b'{' {
+            let end = match_brace(arr, i).min(arr.len());
+            out.push(&arr[i..end]);
+            i = end;
+        } else {
+            i = json_value_end(arr, i);
+        }
+    }
     out
 }
 
-/// Read the signature `documentation` (string form) if present.
-fn parse_signature_doc(json: &str) -> String {
-    let bytes = json.as_bytes();
-    let key = b"\"documentation\"";
-    if let Some(p) = find_sub(bytes, key) {
-        // documentation may be a string or `{"kind":..,"value":..}`. Try string
-        // first; fall back to a nested `value`.
-        if let Some((s, _)) = read_json_string_at(bytes, p + key.len()) {
-            return s;
-        }
-        if let Some(vp) = find_sub(&bytes[p..], b"\"value\"") {
-            if let Some((s, _)) = read_json_string_at(&bytes[p..], vp + b"\"value\"".len()) {
-                return s;
+fn skip_json_ws_and_commas(bytes: &[u8], mut i: usize) -> usize {
+    while i < bytes.len() && matches!(bytes[i], b' ' | b',' | b'\t' | b'\r' | b'\n') {
+        i += 1;
+    }
+    i
+}
+
+fn json_value_end(bytes: &[u8], pos: usize) -> usize {
+    match bytes.get(pos).copied() {
+        Some(b'"') => read_json_string_at(bytes, pos).map(|(_, end)| end).unwrap_or(bytes.len()),
+        Some(b'{') => match_brace(bytes, pos),
+        Some(b'[') => match_bracket(bytes, pos),
+        _ => {
+            let mut i = pos;
+            while i < bytes.len() && !matches!(bytes[i], b',' | b'}' | b']') {
+                i += 1;
             }
+            i
         }
     }
-    String::new()
 }
 
 // ---------------------------------------------------------------------------
@@ -1948,10 +1903,27 @@ mod tests {
     }
 
     #[test]
+    fn parse_signature_help_uses_result_signatures_not_envelope_fields() {
+        let json = r#"{"jsonrpc":"2.0","signatures":[{"label":"wrong(x)","parameters":[{"label":"x"}]}],"activeSignature":0,"result":{"activeSignature":0,"activeParameter":1,"signatures":[{"label":"right(a, b)","parameters":[{"label":"a"},{"label":"b"}]}]},"id":2}"#;
+        let sig = parse_signature_help(json).expect("sig");
+        assert_eq!(sig.label, "right(a, b)");
+        assert_eq!(sig.params, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(sig.active, 1);
+    }
+
+    #[test]
     fn parse_signature_help_reads_doc() {
         let json = r#"{"result":{"activeParameter":0,"signatures":[{"label":"f(a)","documentation":"adds a thing","parameters":[{"label":"a"}]}]},"id":2}"#;
         let sig = parse_signature_help(json).expect("sig");
         assert_eq!(sig.doc, "adds a thing");
+    }
+
+    #[test]
+    fn parse_signature_help_reads_markup_doc_value_at_top_level() {
+        let json = r#"{"result":{"signatures":[{"label":"f(a)","documentation":{"metadata":{"value":"wrong nested doc"},"kind":"markdown","value":"right doc"},"parameters":[{"metadata":{"label":"wrong nested param"},"label":"a"}]}],"activeSignature":0,"activeParameter":0},"id":2}"#;
+        let sig = parse_signature_help(json).expect("sig");
+        assert_eq!(sig.doc, "right doc");
+        assert_eq!(sig.params, vec!["a".to_string()]);
     }
 
     #[test]
