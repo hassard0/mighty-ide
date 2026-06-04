@@ -717,42 +717,133 @@ pub mod lsp {
         let mut i = 0;
         while i + key.len() < bytes.len() {
             if &bytes[i..i + key.len()] == key {
-                // Skip whitespace + ':' + whitespace, then expect a '"'.
-                let mut j = i + key.len();
-                while j < bytes.len() && (bytes[j] == b' ' || bytes[j] == b':' || bytes[j] == b'\t')
-                {
-                    j += 1;
-                }
-                if j < bytes.len() && bytes[j] == b'"' {
-                    j += 1;
-                    let mut val = String::new();
-                    while j < bytes.len() && bytes[j] != b'"' {
-                        if bytes[j] == b'\\' && j + 1 < bytes.len() {
-                            // Unescape the common cases; pass others through.
-                            j += 1;
-                            match bytes[j] {
-                                b'n' => val.push('\n'),
-                                b't' => val.push('\t'),
-                                b'r' => val.push('\r'),
-                                b'"' => val.push('"'),
-                                b'\\' => val.push('\\'),
-                                other => val.push(other as char),
-                            }
-                        } else {
-                            val.push(bytes[j] as char);
-                        }
-                        j += 1;
-                    }
+                if let Some((val, past)) = read_json_string_at(bytes, i + key.len()) {
                     if !val.is_empty() && seen.insert(val.clone()) {
                         out.push(val);
                     }
-                    i = j + 1;
+                    i = past;
                     continue;
                 }
             }
             i += 1;
         }
         out
+    }
+
+    fn read_json_string_at(bytes: &[u8], pos: usize) -> Option<(String, usize)> {
+        let mut j = pos;
+        while j < bytes.len() && matches!(bytes[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
+            j += 1;
+        }
+        if j >= bytes.len() || bytes[j] != b'"' {
+            return None;
+        }
+        j += 1;
+        let mut val = String::new();
+        let mut segment_start = j;
+        let mut high_surrogate: Option<u16> = None;
+        while j < bytes.len() {
+            match bytes[j] {
+                b'"' => {
+                    flush_json_segment(bytes, segment_start, j, &mut val, &mut high_surrogate)?;
+                    push_pending_surrogate(&mut val, &mut high_surrogate);
+                    return Some((val, j + 1));
+                }
+                b'\\' if j + 1 < bytes.len() => {
+                    flush_json_segment(bytes, segment_start, j, &mut val, &mut high_surrogate)?;
+                    j += 1;
+                    match bytes[j] {
+                        b'n' => push_escaped_char(&mut val, &mut high_surrogate, '\n'),
+                        b't' => push_escaped_char(&mut val, &mut high_surrogate, '\t'),
+                        b'r' => push_escaped_char(&mut val, &mut high_surrogate, '\r'),
+                        b'b' => push_escaped_char(&mut val, &mut high_surrogate, '\u{0008}'),
+                        b'f' => push_escaped_char(&mut val, &mut high_surrogate, '\u{000c}'),
+                        b'"' => push_escaped_char(&mut val, &mut high_surrogate, '"'),
+                        b'\\' => push_escaped_char(&mut val, &mut high_surrogate, '\\'),
+                        b'/' => push_escaped_char(&mut val, &mut high_surrogate, '/'),
+                        b'u' if j + 4 < bytes.len() => {
+                            let unit = read_hex4(&bytes[j + 1..j + 5])?;
+                            push_json_code_unit(&mut val, &mut high_surrogate, unit);
+                            j += 4;
+                        }
+                        other => push_escaped_char(&mut val, &mut high_surrogate, other as char),
+                    }
+                    j += 1;
+                    segment_start = j;
+                    continue;
+                }
+                _ => {
+                    j += 1;
+                    continue;
+                }
+            }
+        }
+        None
+    }
+
+    fn flush_json_segment(
+        bytes: &[u8],
+        start: usize,
+        end: usize,
+        out: &mut String,
+        high_surrogate: &mut Option<u16>,
+    ) -> Option<()> {
+        if start < end {
+            push_pending_surrogate(out, high_surrogate);
+            out.push_str(std::str::from_utf8(&bytes[start..end]).ok()?);
+        }
+        Some(())
+    }
+
+    fn read_hex4(bytes: &[u8]) -> Option<u16> {
+        if bytes.len() != 4 {
+            return None;
+        }
+        let mut value = 0u16;
+        for &b in bytes {
+            let digit = match b {
+                b'0'..=b'9' => b - b'0',
+                b'a'..=b'f' => b - b'a' + 10,
+                b'A'..=b'F' => b - b'A' + 10,
+                _ => return None,
+            };
+            value = (value << 4) | digit as u16;
+        }
+        Some(value)
+    }
+
+    fn push_escaped_char(out: &mut String, high_surrogate: &mut Option<u16>, ch: char) {
+        push_pending_surrogate(out, high_surrogate);
+        out.push(ch);
+    }
+
+    fn push_pending_surrogate(out: &mut String, high_surrogate: &mut Option<u16>) {
+        if high_surrogate.take().is_some() {
+            out.push('\u{fffd}');
+        }
+    }
+
+    fn push_json_code_unit(out: &mut String, high_surrogate: &mut Option<u16>, unit: u16) {
+        match unit {
+            0xd800..=0xdbff => {
+                push_pending_surrogate(out, high_surrogate);
+                *high_surrogate = Some(unit);
+            }
+            0xdc00..=0xdfff => {
+                if let Some(high) = high_surrogate.take() {
+                    let high = (high as u32) - 0xd800;
+                    let low = (unit as u32) - 0xdc00;
+                    let cp = 0x10000 + ((high << 10) | low);
+                    out.push(char::from_u32(cp).unwrap_or('\u{fffd}'));
+                } else {
+                    out.push('\u{fffd}');
+                }
+            }
+            _ => {
+                push_pending_surrogate(out, high_surrogate);
+                out.push(char::from_u32(unit as u32).unwrap_or('\u{fffd}'));
+            }
+        }
     }
 
     /// Kill a child process, ignoring errors (best-effort teardown).
@@ -1359,6 +1450,21 @@ mod tests {
         let json = r#"[{"label":"a\"b"},{"label":"c\\d"}]"#;
         let labels = super::lsp::scrape_labels(json);
         assert_eq!(labels, vec!["a\"b".to_string(), "c\\d".to_string()]);
+    }
+
+    #[test]
+    fn lsp_scrape_decodes_unicode_labels() {
+        let json = r#"[{"label":"東京"},{"label":"caf\u00e9"},{"label":"\ud83d\ude00 target"},{"label":"\ud83dX"}]"#;
+        let labels = super::lsp::scrape_labels(json);
+        assert_eq!(
+            labels,
+            vec![
+                "東京".to_string(),
+                "café".to_string(),
+                "\u{1f600} target".to_string(),
+                "\u{fffd}X".to_string(),
+            ]
+        );
     }
 
     /// Guarded integration test: spawn the real `mty lsp` and ask for completion
