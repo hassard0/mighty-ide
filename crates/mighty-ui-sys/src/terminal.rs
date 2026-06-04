@@ -664,6 +664,8 @@ pub struct VtParser {
     state: State,
     /// Accumulated CSI parameter/intermediate bytes (between `ESC [` and final).
     csi: Vec<u8>,
+    /// Accumulated OSC payload bytes (between `ESC ]` and BEL/ST), capped.
+    osc: Vec<u8>,
     /// ESC intermediate byte for non-CSI escape sequences such as `ESC ( B`.
     esc_intermediate: u8,
     /// Partial UTF-8 sequence being decoded in Ground state.
@@ -696,6 +698,8 @@ pub struct VtParser {
     autowrap: bool,
     /// Whether CUP/HVP row coordinates are relative to the scroll-region top (`CSI ?6 h/l`).
     origin_mode: bool,
+    /// Last window/icon title reported by OSC 0/1/2.
+    title: String,
 }
 
 impl Default for VtParser {
@@ -709,6 +713,7 @@ impl VtParser {
         VtParser {
             state: State::Ground,
             csi: Vec::new(),
+            osc: Vec::new(),
             esc_intermediate: 0,
             utf8: Vec::new(),
             utf8_need: 0,
@@ -724,6 +729,7 @@ impl VtParser {
             sgr_mouse: false,
             autowrap: true,
             origin_mode: false,
+            title: String::new(),
         }
     }
 
@@ -776,6 +782,10 @@ impl VtParser {
         self.application_cursor_keys
     }
 
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
     fn feed_byte(&mut self, grid: &mut Grid, b: u8) {
         match self.state {
             State::Ground => self.ground(grid, b),
@@ -817,7 +827,7 @@ impl VtParser {
                 self.csi.clear();
                 self.state = State::Csi;
             }
-            0x9d => self.state = State::Osc,
+            0x9d => self.enter_osc(),
             b'\n' => grid.newline(),
             b'\r' => grid.carriage_return(),
             0x08 | 0x7f => grid.backspace(), // BS / DEL
@@ -875,7 +885,7 @@ impl VtParser {
                 self.csi.clear();
                 self.state = State::Csi;
             }
-            b']' => self.state = State::Osc,
+            b']' => self.enter_osc(),
             b'P' | b'X' | b'^' | b'_' => self.state = State::String,
             0x20..=0x2f => {
                 self.esc_intermediate = b;
@@ -963,7 +973,7 @@ impl VtParser {
             }
             0x9d => {
                 self.csi.clear();
-                self.state = State::Osc;
+                self.enter_osc();
             }
             0x00..=0x17 | 0x19 | 0x1c..=0x1f => {}
             // Parameter bytes (0x30..=0x3f) and intermediates (0x20..=0x2f).
@@ -1544,22 +1554,69 @@ impl VtParser {
     /// Inside an OSC: consume until BEL or the start of an ST (`ESC \`).
     fn osc(&mut self, b: u8) {
         match b {
-            0x07 => self.state = State::Ground, // BEL terminates
-            0x18 | 0x1a => self.state = State::Ground, // CAN/SUB abort
+            0x07 => self.finish_osc(), // BEL terminates
+            0x18 | 0x1a => self.abort_osc(), // CAN/SUB abort
             0x1b => self.state = State::OscEsc, // maybe ST
-            0x9c => self.state = State::Ground, // 8-bit ST terminates
-            _ => {}                              // title text etc.: consume
+            0x9c => self.finish_osc(), // 8-bit ST terminates
+            _ => self.push_osc_byte(b),
         }
     }
 
     /// In OSC and saw ESC: a `\` completes ST; anything else re-enters OSC.
     fn osc_esc(&mut self, b: u8) {
         match b {
-            b'\\' => self.state = State::Ground, // ST terminates
-            0x18 | 0x1a => self.state = State::Ground, // CAN/SUB abort
-            0x07 => self.state = State::Ground,  // tolerate stray BEL
-            0x9c => self.state = State::Ground,  // 8-bit ST terminates
-            _ => self.state = State::Osc,        // not ST; keep consuming
+            b'\\' => self.finish_osc(), // ST terminates
+            0x18 | 0x1a => self.abort_osc(), // CAN/SUB abort
+            0x07 => self.finish_osc(),  // tolerate stray BEL
+            0x9c => self.finish_osc(),  // 8-bit ST terminates
+            _ => {
+                self.push_osc_byte(0x1b);
+                self.push_osc_byte(b);
+                self.state = State::Osc;
+            }
+        }
+    }
+
+    fn enter_osc(&mut self) {
+        self.osc.clear();
+        self.state = State::Osc;
+    }
+
+    fn abort_osc(&mut self) {
+        self.osc.clear();
+        self.state = State::Ground;
+    }
+
+    fn push_osc_byte(&mut self, b: u8) {
+        if self.osc.len() < 512 {
+            self.osc.push(b);
+        }
+    }
+
+    fn finish_osc(&mut self) {
+        self.capture_osc_title();
+        self.osc.clear();
+        self.state = State::Ground;
+    }
+
+    fn capture_osc_title(&mut self) {
+        let Some(sep) = self.osc.iter().position(|b| *b == b';') else {
+            return;
+        };
+        let kind = &self.osc[..sep];
+        if kind != b"0" && kind != b"1" && kind != b"2" {
+            return;
+        }
+        let raw = String::from_utf8_lossy(&self.osc[sep + 1..]);
+        let title: String = raw
+            .chars()
+            .filter(|ch| !ch.is_control())
+            .take(160)
+            .collect::<String>()
+            .trim()
+            .to_string();
+        if !title.is_empty() {
+            self.title = title;
         }
     }
 
@@ -1837,6 +1894,10 @@ impl Terminal {
 
     pub fn cursor_shape(&self) -> CursorShape {
         self.parser.cursor_shape()
+    }
+
+    pub fn title(&self) -> &str {
+        self.parser.title()
     }
 
     /// Drain any pending PTY output through the parser into the grid. Cheap when
@@ -3304,6 +3365,11 @@ mod tests {
         assert!(g.contains("done"));
         assert!(!g.contains("my title"));
         assert!(!g.contains("0;"));
+
+        let mut g = Grid::new(1, 20);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b]0;my title\x07done");
+        assert_eq!(p.title(), "my title");
     }
 
     #[test]
@@ -3312,6 +3378,36 @@ mod tests {
         let g = grid_feed(2, 20, b"\x1b]2;t\x1b\\hi");
         assert!(g.contains("hi"));
         assert!(!g.contains("t"));
+
+        let mut g = Grid::new(1, 20);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b]2;project shell\x1b\\hi");
+        assert_eq!(p.title(), "project shell");
+    }
+
+    #[test]
+    fn osc_title_accepts_c1_st_and_ignores_unknown_kinds() {
+        let mut g = Grid::new(1, 20);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x9d2;c1 title\x9cok");
+        assert_eq!(p.title(), "c1 title");
+        assert!(g.contains("ok"));
+        assert!(!g.contains("c1 title"));
+
+        p.feed(&mut g, b"\x1b]9;ignored\x07");
+        assert_eq!(p.title(), "c1 title");
+    }
+
+    #[test]
+    fn osc_title_is_sanitized_and_bounded() {
+        let mut g = Grid::new(1, 20);
+        let mut p = VtParser::new();
+        let long = "x".repeat(200);
+        let seq = format!("\x1b]0;\t  a\nb\r{long}\x07");
+        p.feed(&mut g, seq.as_bytes());
+        assert!(p.title().starts_with("ab"));
+        assert!(p.title().chars().count() <= 160);
+        assert!(!p.title().contains('\n'));
     }
 
     #[test]

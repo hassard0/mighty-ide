@@ -7215,13 +7215,22 @@ pub extern "C" fn mui_term_draw(handle: i64) {
     let panel_w = (width as f32 - panel_left).max(0.0);
 
     // Rounded-top panel (a rounded rect whose bottom corners are off-screen) +
-    // an ember top accent line + a dim "TERMINAL" header (UI family).
+    // an ember top accent line + a dim terminal header (UI family).
     ctx.dl_round(panel_left, panel_top, panel_w, panel_h + 12.0, 10.0, theme::ELEVATED());
     ctx.dl_rect(panel_left, panel_top, panel_w, 1.0, theme::BORDER());
+    let title_text = ctx
+        .terminal
+        .as_ref()
+        .map(|t| t.title())
+        .filter(|title| !title.is_empty())
+        .map_or_else(|| "TERMINAL".to_string(), |title| format!("TERMINAL - {title}"));
+    let title_x = panel_left + layout::PAD + 4.0;
+    let title_max = (layout::dock_header_content_right(width, height) - title_x).max(0.0);
+    let title_text = fit_status_head(&mut ctx.text, &title_text, title_max, theme::CHROME_FONT_SIZE - 1.0);
     ctx.text.queue_ui_sized(
-        panel_left + layout::PAD + 4.0,
+        title_x,
         panel_top + 4.0,
-        "TERMINAL",
+        &title_text,
         theme::DIM(),
         theme::CHROME_FONT_SIZE - 1.0,
         clip,

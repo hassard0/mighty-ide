@@ -7965,3 +7965,13 @@ must reach the terminal even if the editor still has keyboard focus.
   before editor scrolling. A wheel over the terminal focuses the terminal and
   sends the coordinate-aware terminal scroll report/fallback; wheels elsewhere
   keep the editor's existing first-line scroll behavior.
+
+L657. OSC 0/1/2 title payloads are terminal state, not printable content.
+Shells and TUIs use OSC titles to identify the active job or project; consuming
+them protects the grid, but discarding them loses useful context.
+
+- **IDE note:** the VT parser now captures bounded, sanitized OSC window/icon
+  titles terminated by BEL, ST, or C1 ST, ignores unknown OSC kinds, and the
+  terminal header displays the fitted title beside `TERMINAL`. Regression
+  coverage verifies title capture, grid non-leakage, sanitizing, and unknown OSC
+  handling.
