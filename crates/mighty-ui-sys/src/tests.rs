@@ -10549,6 +10549,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Open Recent empty feedback must release stale surface focus"
     );
     assert!(
+        main.contains(
+            "id >= cmd_fold_first() && id <= cmd_fold_last() {\n          let _f = mui_fold_dispatch(h, id)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Fold commands must return ownership to the editor and release stale surface focus"
+    );
+    assert!(
         main.contains("let np = mui_newproj_dialog(h)")
             && main.contains("if np == -1 {\n              mui_prompt_open(h, prompt_new_project())"),
         "New Project should use the native project-folder picker before falling back to the bottom prompt"

@@ -5629,6 +5629,13 @@ fn main() {
           }
         } else if id >= cmd_fold_first() && id <= cmd_fold_last() {
           let _f = mui_fold_dispatch(h, id)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id >= cmd_dock_first() && id <= cmd_dock_last() {
           let _d = mui_dock_dispatch(h, id)
           run_focus = true

@@ -8966,3 +8966,17 @@ left by the previous surface.
 - **Language note:** no compiler gap surfaced. The repeated scalar cleanup is
   still straightforward, but workspace commands would also benefit from shared
   command focus-effect metadata once the language has a convenient path for it.
+
+## L747 - Fold Commands Are Editor Mutations
+
+Code folding changes the editor's visible buffer shape. Even though the fold
+operation is shim-dispatched, the command returns interaction to the editor, so
+stale dock, sidebar, modal, or search focus must not survive the palette action.
+
+- **IDE note:** Fold Toggle, Fold All, and Unfold All now release stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus after the fold dispatcher
+  runs. Runtime fold behavior tests continue to cover no-op and successful fold
+  outcomes, while dispatcher source-contract coverage pins the focus cleanup.
+- **Language note:** no compiler gap surfaced. The range-dispatch ladder stays
+  compact, but the repeated focus cleanup again points toward shared
+  command-effect metadata for editor-owned command groups.
