@@ -1993,11 +1993,26 @@ fn main() {
           } else if k == key_escape() {
             let _palc = mui_palette_cancel(h)
             palette_open = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if k == key_enter() {
             command_click_id = mui_palette_selected_id(h)
             let _palc = mui_palette_cancel(h)
             palette_open = false
             typing = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if tag == ev_mouse_down() {
           if palette_ignore_mouse_down {
@@ -2008,12 +2023,27 @@ fn main() {
             let _palc = mui_palette_cancel(h)
             palette_open = false
             palette_ignore_mouse_down = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else {
             command_click_id = mui_palette_selected_id(h)
             let _palc = mui_palette_cancel(h)
             palette_open = false
             palette_ignore_mouse_down = false
             typing = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
           }
         }
@@ -2039,6 +2069,14 @@ fn main() {
           } else if k == key_escape() {
             let _qoc = mui_qo_cancel(h)
             quickopen_open = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if k == key_enter() {
             let mode = mui_qo_mode(h)
             typing = false
@@ -2048,6 +2086,13 @@ fn main() {
               command_click_id = mui_qo_command_id(h, -1)
               let _qoc = mui_qo_cancel(h)
               quickopen_open = false
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
             } else {
               // Files / Symbols / Go-to-line: the shim performs the action
               // (open the file as a tab, or move the cursor) and returns. We
@@ -2068,6 +2113,12 @@ fn main() {
                 mui_hover_clear(h)
                 hovering = false
               }
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
             }
           }
         } else if tag == ev_mouse_down() {
@@ -2079,6 +2130,14 @@ fn main() {
             let _qoc = mui_qo_cancel(h)
             quickopen_open = false
             quickopen_ignore_mouse_down = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else {
             let mode = mui_qo_mode(h)
             if mode == 1 {
@@ -2087,6 +2146,13 @@ fn main() {
               quickopen_open = false
               quickopen_ignore_mouse_down = false
               typing = false
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
             } else {
               let r = mui_qo_accept(h, qh)
               quickopen_open = false
@@ -2104,6 +2170,13 @@ fn main() {
                 mui_hover_clear(h)
                 hovering = false
               }
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              typing = false
             }
           }
           }

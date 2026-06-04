@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Palette and Quick Open local exits release stale focus**: Escape, Enter,
+  and mouse accept/dismiss routes now clear stale surface/search focus before
+  returning control to the editor or shared command dispatcher.
 - **Dirty-confirm and keyboard-shortcut exits release stale focus**: Unsaved
   Changes save/discard/cancel and Keyboard Shortcuts close/cancel local routes
   now clear stale surface/search focus before returning keyboard input.

@@ -12348,6 +12348,33 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && breadcrumb_branch.contains(breadcrumb_outer_cleanup),
         "Breadcrumb local accept/cancel exits must release stale focus"
     );
+    let palette_start = main
+        .find("} else if palette_open {")
+        .expect("palette branch should exist");
+    let palette_end = main[palette_start..]
+        .find("} else if quickopen_open {")
+        .map(|i| palette_start + i)
+        .expect("palette branch should precede Quick Open branch");
+    let palette_branch = &main[palette_start..palette_end];
+    let palette_cleanup = "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false";
+    assert!(
+        palette_branch.matches(palette_cleanup).count() >= 4,
+        "Command Palette local Escape, Enter, and mouse exits must release stale focus"
+    );
+    let quickopen_start = main
+        .find("} else if quickopen_open {")
+        .expect("Quick Open branch should exist");
+    let quickopen_end = main[quickopen_start..]
+        .find("} else if ai_focus && tag != ev_mouse_down()")
+        .map(|i| quickopen_start + i)
+        .expect("Quick Open branch should precede AI focus branch");
+    let quickopen_branch = &main[quickopen_start..quickopen_end];
+    let quickopen_nested_cleanup = "run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false";
+    assert!(
+        quickopen_branch.matches(palette_cleanup).count() >= 2
+            && quickopen_branch.matches(quickopen_nested_cleanup).count() >= 3,
+        "Quick Open local Escape, Enter, and mouse exits must release stale focus"
+    );
     assert!(
         main.contains("id == cmd_markdown_close_preview()")
             && main.contains("let _mdc = mui_md_close(h)")

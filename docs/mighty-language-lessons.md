@@ -9399,3 +9399,17 @@ editor or another surface.
 - **Language note:** no compiler gap surfaced. Once a shared overlay arm is
   sliced for one nested overlay, audit each sibling with the same exit-route
   lens; shared routing does not imply shared cleanup.
+
+## L777 - Palette Surfaces Exit Locally Before Dispatch
+
+Command Palette and Quick Open can close locally before handing a selected
+command to the shared dispatcher. Those local Escape, Enter, and mouse routes
+must release stale focus even when the selected command runs later in the frame.
+
+- **IDE note:** Command Palette and Quick Open Escape, Enter, and mouse
+  accept/dismiss routes now release stale Run/Web/Testing/Terminal/AI/Agents
+  focus, search navigation, and transient typing state before returning to the
+  editor or shared command dispatcher.
+- **Language note:** no compiler gap surfaced. Palette-style overlays can both
+  close local UI and enqueue a deferred command, so ownership cleanup belongs at
+  the local close point, not only inside the eventual command branch.
