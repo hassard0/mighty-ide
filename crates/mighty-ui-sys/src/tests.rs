@@ -284,6 +284,16 @@ fn text_measure_sized_tracks_requested_size() {
 }
 
 #[test]
+fn syntax_keyword_rest_offset_uses_measured_text_width() {
+    let mut ctx = ctx_or_skip!();
+    let text_x = 42.0;
+    let head = "while";
+    let rest_x = crate::abi::syntax_rest_x(&mut ctx.text, text_x, head);
+    let measured = text_x + ctx.text.measure_sized(head, crate::theme::FONT_SIZE()).0;
+    assert_eq!(rest_x, measured);
+}
+
+#[test]
 fn rendering_a_glyph_yields_non_clear_texels_in_its_box() {
     let mut ctx = ctx_or_skip!();
     let p: *mut MuiContext = &mut ctx;

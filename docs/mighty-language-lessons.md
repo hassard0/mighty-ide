@@ -7975,3 +7975,14 @@ them protects the grid, but discarding them loses useful context.
   terminal header displays the fitted title beside `TERMINAL`. Regression
   coverage verifies title capture, grid non-leakage, sanitizing, and unknown OSC
   handling.
+
+L658. Syntax-highlighted line segments should share the renderer's width model.
+The editor's fallback line drawer split a leading keyword from the rest of the
+line, then positioned the remainder with a fixed cell estimate. Even when the
+current code font is grid-aligned, the safer contract is to place adjacent
+styled segments from the measured width of the text that was actually queued.
+
+- **IDE note:** `mui_draw_buffer_self` now positions the unhighlighted suffix
+  from the measured rendered width of the highlighted keyword token. A focused
+  regression pins the measured-offset helper so future font or shaping changes
+  do not reintroduce fixed-cell segment drift.

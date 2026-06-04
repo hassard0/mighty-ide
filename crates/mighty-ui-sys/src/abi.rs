@@ -2457,7 +2457,7 @@ pub extern "C" fn mui_draw_buffer_self(
         ];
         if !head.is_empty() && KEYWORDS.contains(&head) {
             ctx.text.queue(text_x, y, head, kw, clip);
-            let rest_x = text_x + (head.chars().count() as f32) * layout::CHAR_W();
+            let rest_x = syntax_rest_x(&mut ctx.text, text_x, head);
             ctx.text.queue(rest_x, y, &text[first_word_end..], fg, clip);
         } else {
             ctx.text.queue(text_x, y, text, fg, clip);
@@ -2482,6 +2482,10 @@ pub extern "C" fn mui_draw_buffer_self(
             );
         }
     }
+}
+
+pub(crate) fn syntax_rest_x(text: &mut crate::text::Text, text_x: f32, head: &str) -> f32 {
+    text_x + text.measure_sized(head, theme::FONT_SIZE()).0
 }
 
 /// Draw the staged text as a buffer line at screen row `row` (0-based from the
