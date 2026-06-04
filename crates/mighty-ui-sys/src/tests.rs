@@ -2693,6 +2693,42 @@ fn search_replace_all_skips_dirty_open_tab() {
 }
 
 #[test]
+fn search_replace_all_skips_files_changed_since_search() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_search_replace_changed_since_search");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("a.mty");
+    std::fs::write(&path, "foo\n").unwrap();
+    ctx.tree.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    for ch in "foo".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+    assert_eq!(crate::panels::mui_search_run(handle), 1);
+    std::fs::write(&path, "foo externally changed\n").unwrap();
+    ctx.search.replace_focus = true;
+    for ch in "bar".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+
+    assert_eq!(crate::panels::mui_search_replace_all(handle), 0);
+    assert_eq!(
+        std::fs::read_to_string(&path).unwrap(),
+        "foo externally changed\n"
+    );
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Replaced 0 occurrences; skipped 1 changed file"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn search_replace_all_refreshes_clean_duplicate_tabs() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_search_replace_clean_duplicates");
@@ -2740,6 +2776,7 @@ fn search_close_command_acknowledges_state_without_clearing_query_or_results() {
         path: std::path::PathBuf::from("hit.mty"),
         rel: "hit.mty".to_string(),
         match_count: 1,
+        fingerprint: 0,
     });
     ctx.search.results.matches.push(crate::search::SearchMatch {
         file: 0,
@@ -2781,6 +2818,7 @@ fn search_clear_results_command_preserves_query_replace_and_focus() {
         path: std::path::PathBuf::from("hit.mty"),
         rel: "hit.mty".to_string(),
         match_count: 1,
+        fingerprint: 0,
     });
     ctx.search.results.matches.push(crate::search::SearchMatch {
         file: 0,
@@ -2872,6 +2910,7 @@ fn search_open_misses_report_visible_feedback() {
         path: missing,
         rel: "hit.mty".to_string(),
         match_count: 1,
+        fingerprint: 0,
     });
     ctx.search.results.matches[0].file = 0;
     assert_eq!(crate::panels::mui_search_open(handle, 0), -1);

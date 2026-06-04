@@ -25,6 +25,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Project replace skips dirty open files**: Search Replace All now refuses to
   rewrite files that have any dirty equivalent open tab, and refreshes every
   clean duplicate view after successful replacements.
+- **Project replace skips stale disk files**: Search Replace All now fingerprints
+  matched files and skips any result whose on-disk bytes changed after the
+  search, avoiding writes based on stale result coordinates.
 - **Fix-all code actions protect dirty duplicate tabs**: Fix all (mty) now
   refuses to save or run the external fixer when another equivalent tab for the
   active file has unsaved edits, matching inline workspace-edit safety, and

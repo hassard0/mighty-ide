@@ -1449,21 +1449,28 @@ pub extern "C" fn mui_search_replace_all(handle: i64) -> i32 {
         return 0;
     };
     let dir = workspace_dir(ctx);
-    let (n, changed_paths, dirty_skipped) = ctx
+    let (n, changed_paths, dirty_skipped, stale_skipped) = ctx
         .search
         .replace_all_with_changed_paths_skipping(&dir, |path| ctx.tabs.any_dirty_path(path));
     let (refreshed, stale_dirty) = refresh_replaced_open_tabs(ctx, &changed_paths);
     let dirty_skipped = dirty_skipped + stale_dirty;
+    let skipped = dirty_skipped + stale_skipped;
     println!("search: replaced {n}");
     crate::abi::trace(&format!("search_replace_all replaced={n}"));
-    if n > 0 || dirty_skipped > 0 {
+    if n > 0 || skipped > 0 {
         let suffix = if n == 1 { "" } else { "s" };
-        if dirty_skipped > 0 {
-            let file_suffix = if dirty_skipped == 1 { "" } else { "s" };
+        if skipped > 0 {
+            let file_suffix = if skipped == 1 { "" } else { "s" };
+            let reason = match (dirty_skipped > 0, stale_skipped > 0) {
+                (true, true) => "dirty or changed",
+                (true, false) => "dirty open",
+                (false, true) => "changed",
+                (false, false) => "changed",
+            };
             ctx.push_toast(
                 crate::toast::Kind::Warn,
                 format!(
-                    "Replaced {n} occurrence{suffix}; skipped {dirty_skipped} dirty open file{file_suffix}"
+                    "Replaced {n} occurrence{suffix}; skipped {skipped} {reason} file{file_suffix}"
                 ),
             );
         } else {

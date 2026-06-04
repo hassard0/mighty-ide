@@ -10777,3 +10777,17 @@ signature can be saved immediately without its own idle window.
   active tab is dirty, editable, file-backed, and Auto Save is enabled.
 - **Language note:** no compiler gap surfaced. Time-based mutation guards should
   be scoped to the same resource identity as the write they authorize.
+
+## L874 - Project Replace Must Prove Search Results Are Fresh
+
+Project-wide Search Replace All rewrites files from the last result set. If a
+matched file changes on disk between Search and Replace All, the result row is
+stale even when the query text still appears in the new content.
+
+- **IDE note:** Search results now carry a content fingerprint for each matched
+  file. Replace All skips any file whose current bytes no longer match the
+  fingerprint captured at search time, and reports changed-file skips distinctly
+  from dirty-open-buffer skips.
+- **Language note:** no compiler gap surfaced. Batch mutation commands should
+  validate that their discovery snapshot still describes the resource before
+  writing.

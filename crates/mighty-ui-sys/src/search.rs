@@ -40,6 +40,9 @@ pub struct SearchFile {
     pub rel: String,
     /// Number of matches in this file.
     pub match_count: i32,
+    /// Content fingerprint captured when the search results were produced.
+    /// Replace-all skips the file if this no longer matches the bytes on disk.
+    pub fingerprint: u64,
 }
 
 /// The result of a project-wide search.
@@ -104,6 +107,15 @@ pub fn search_text(text: &str, needle: &str, file: usize, out: &mut Vec<SearchMa
 fn looks_binary(bytes: &[u8]) -> bool {
     let n = bytes.len().min(8192);
     bytes[..n].contains(&0)
+}
+
+fn content_fingerprint(bytes: &[u8]) -> u64 {
+    let mut h: u64 = 0xcbf29ce484222325;
+    for b in bytes {
+        h ^= u64::from(*b);
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    h
 }
 
 /// Project-wide search panel state: query + optional replacement buffers
@@ -199,6 +211,7 @@ impl SearchState {
                     path: path.clone(),
                     rel,
                     match_count: n,
+                    fingerprint: content_fingerprint(&bytes),
                 });
                 self.results.matches.extend(local);
             }
@@ -219,7 +232,8 @@ impl SearchState {
     /// Like [`Self::replace_all`], but also returns the paths that were written.
     /// The UI uses this to refresh clean open tabs after project-wide replaces.
     pub fn replace_all_with_changed_paths(&mut self, root: &Path) -> (i32, Vec<PathBuf>) {
-        let (total, changed, _) = self.replace_all_with_changed_paths_skipping(root, |_| false);
+        let (total, changed, _, _) =
+            self.replace_all_with_changed_paths_skipping(root, |_| false);
         (total, changed)
     }
 
@@ -229,17 +243,23 @@ impl SearchState {
         &mut self,
         root: &Path,
         mut should_skip: impl FnMut(&Path) -> bool,
-    ) -> (i32, Vec<PathBuf>, usize) {
+    ) -> (i32, Vec<PathBuf>, usize, usize) {
         let needle = self.query_string();
         if needle.trim().is_empty() {
-            return (0, Vec::new(), 0);
+            return (0, Vec::new(), 0, 0);
         }
         let replacement = self.replace_string();
         let mut total = 0;
         let mut changed = Vec::new();
         let mut skipped = 0;
-        let files: Vec<PathBuf> = self.results.files.iter().map(|f| f.path.clone()).collect();
-        for path in files {
+        let mut stale = 0;
+        let files: Vec<(PathBuf, u64)> = self
+            .results
+            .files
+            .iter()
+            .map(|f| (f.path.clone(), f.fingerprint))
+            .collect();
+        for (path, fingerprint) in files {
             if should_skip(&path) {
                 skipped += 1;
                 continue;
@@ -251,6 +271,10 @@ impl SearchState {
             if looks_binary(&bytes) {
                 continue;
             }
+            if content_fingerprint(&bytes) != fingerprint {
+                stale += 1;
+                continue;
+            }
             let text = String::from_utf8_lossy(&bytes).into_owned();
             let (rewritten, n) = replace_in_text(&text, &needle, &replacement);
             if n > 0 && std::fs::write(&path, rewritten.as_bytes()).is_ok() {
@@ -260,7 +284,7 @@ impl SearchState {
         }
         // Re-run so the panel reflects the post-replace state.
         self.run(root);
-        (total, changed, skipped)
+        (total, changed, skipped, stale)
     }
 
     // ---- scalar getters ----
@@ -579,6 +603,7 @@ mod tests {
             path: PathBuf::from("hit.mty"),
             rel: "hit.mty".to_string(),
             match_count: 1,
+            fingerprint: 0,
         });
         state.results.matches.push(SearchMatch {
             file: 0,
