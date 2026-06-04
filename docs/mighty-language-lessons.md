@@ -8711,3 +8711,15 @@ only mention sizing understate what the command does.
   sidebar at compact/default/wide width, and cycle says it opens the sidebar
   while cycling widths. Tests cover each hidden-sidebar preset path and the
   static descriptions exposed to command palette surfaces.
+
+## L727 - Sidebar Toggles Should Only Steal Focus On Open
+
+Toggle commands have two different focus meanings. When a toggle opens a new
+surface, that surface should release stale competing owners; when the same
+toggle closes a surface, it should not unexpectedly steal focus from the
+surface the user was already using.
+
+- **IDE note:** Ctrl+B and the palette `Toggle Sidebar` command now inspect the
+  `mui_sidebar_toggle` return value. They clear Run/Web/Testing/Terminal/AI/
+  Agents/search navigation focus only when the toggle opens Explorer, preserving
+  existing focus ownership on the close path.

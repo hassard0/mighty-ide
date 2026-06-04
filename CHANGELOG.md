@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Sidebar toggle now claims focus when it opens Explorer**: Ctrl+B and the
+  palette sidebar toggle now release stale bottom-dock, AI, Agents, and search
+  navigation focus when the toggle opens the sidebar, while preserving current
+  surface focus when it closes the sidebar.
 - **Sidebar width commands advertise their reveal behavior**: compact, default,
   wide, and cycle-width commands now describe opening the sidebar before sizing
   it, matching their hidden-sidebar dispatch path that reveals Explorer.

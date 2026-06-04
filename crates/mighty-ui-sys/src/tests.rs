@@ -11097,6 +11097,18 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains(
+            "ctrl_held(mods) && (cp == 98 || cp == 66) {    // Ctrl+B : toggle sidebar\n          let opened = mui_sidebar_toggle(h)\n          if opened == 1 {\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+        ),
+        "Sidebar keyboard shortcut must release competing focus when it opens Explorer"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_toggle_sidebar() {\n          let opened = mui_sidebar_toggle(h)\n          if opened == 1 {\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+        ),
+        "Sidebar palette toggle must release competing focus when it opens Explorer"
+    );
+    assert!(
+        main.contains(
             "id == cmd_ai_clear_chat() {\n          let _ai = mui_ai_show(h)\n          let _aic = mui_ai_clear(h)"
         )
             && main.contains("ai_focus = true\n          typing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false"),
