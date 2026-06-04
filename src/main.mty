@@ -2211,17 +2211,26 @@ fn main() {
           } else if topbar_act == 1 {
             let opened = mui_run_toggle(h)
             if opened == 1 { run_focus = true; if mui_run_running(h) == 0 { let _r = mui_run_start(h) } }
+            web_focus = false
             test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           } else if topbar_act == 2 {
             mui_palette_open(h)
             palette_open = true
             palette_ignore_mouse_down = true
             test_focus = false
+            agents_focus = false
+            find_nav = false
           } else if topbar_act == 3 {
             mui_quickopen_open(h)
             quickopen_open = true
             quickopen_ignore_mouse_down = true
             test_focus = false
+            agents_focus = false
+            find_nav = false
           } else if rail_hit == rail_test() {
             // Re-clicking the beaker toggles the panel off.
             let _o = mui_test_toggle(h)
@@ -2232,17 +2241,40 @@ fn main() {
             if rail_hit == rail_agents() {
               let opened = mui_ai_open(h)
               if opened == 1 { ai_focus = true }
+              run_focus = false
+              web_focus = false
+              term_focus = false
+              find_nav = false
             } else if rail_hit == rail_run() {
               let opened = mui_run_toggle(h)
               if opened == 1 { run_focus = true; if mui_run_running(h) == 0 { let _r = mui_run_start(h) } }
+              web_focus = false
+              term_focus = false
+              ai_focus = false
+              find_nav = false
             } else if rail_hit == rail_debug() {
               let _p = mui_panel_set(h, panel_debug())
+              run_focus = false
+              web_focus = false
+              term_focus = false
+              ai_focus = false
+              find_nav = false
             } else if rail_hit == rail_agents_mty() {
               let _p = mui_panel_set(h, panel_agents_mty())
               let _a = mui_agents_refresh(h)
               agents_focus = true
+              run_focus = false
+              web_focus = false
+              term_focus = false
+              ai_focus = false
+              find_nav = false
             } else {
               let _p = mui_panel_set(h, rail_hit)
+              run_focus = false
+              web_focus = false
+              term_focus = false
+              ai_focus = false
+              find_nav = false
             }
           } else if tb_hit == test_tb_run() {
             let _r = mui_test_run(h)
@@ -3653,19 +3685,41 @@ fn main() {
           let _aic = mui_ai_clear(h)
           ai_focus = true
           typing = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
           agents_focus = false
+          find_nav = false
         } else if ai_click == 2 {
           let _s = mui_ai_send(h)
           ai_focus = true
           typing = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          agents_focus = false
+          find_nav = false
         } else if ai_click == 1 {
           ai_focus = true
           typing = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          agents_focus = false
+          find_nav = false
         } else if rail_hit == rail_agents() {
           // Agents (sparkles) icon: toggle the AI copilot panel + focus it.
           let opened = mui_ai_open(h)
           if opened == 1 { ai_focus = true } else { ai_focus = false }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
           agents_focus = false
+          find_nav = false
         } else if rail_hit == rail_run() || topbar_act == 1 {
           // Run (play) icon OR the top-right run ▶ button: toggle the Run panel;
           // running the file starts it.
@@ -3676,24 +3730,52 @@ fn main() {
           } else {
             run_focus = false
           }
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if rail_hit == rail_debug() {
           // Debug (bug) icon: switch the sidebar to the Run-and-Debug view.
           let _p = mui_panel_set(h, panel_debug())
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if rail_hit == rail_test() {
           // Testing (beaker) icon: switch the sidebar to the Testing view + focus.
           let _p = mui_panel_set(h, panel_test())
           test_focus = true
+          run_focus = false
+          web_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if rail_hit == rail_agents_mty() {
           // Mighty Agents (nodes) icon: switch to the topology view + rescan.
           let _p = mui_panel_set(h, panel_agents_mty())
           let _a = mui_agents_refresh(h)
           agents_focus = true
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          find_nav = false
         } else if rail_hit >= 0 {
           let _p = mui_panel_set(h, rail_hit)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
           if rail_hit == panel_search() {
             let _q = mui_search_query_len(h)
           }
@@ -3724,6 +3806,7 @@ fn main() {
             test_focus = false
             term_focus = false
             ai_focus = false
+            agents_focus = false
           }
         } else if tab_hit >= 0 {
           let cur_active = mui_tab_active(h)
@@ -3738,6 +3821,7 @@ fn main() {
             test_focus = false
             term_focus = false
             ai_focus = false
+            agents_focus = false
           }
         } else if term_act == 1 {
           let _tc = mui_term_clear(h)
@@ -3746,6 +3830,8 @@ fn main() {
           test_focus = false
           if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }
           ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if mui_term_hit_at_event(h) == 1 {
           let _tmd = mui_term_mouse_button(h, 1)
           run_focus = false
@@ -3753,6 +3839,8 @@ fn main() {
           test_focus = false
           term_focus = true
           ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if cur_panel == panel_agents_mty() {
           // Mighty Agents topology row clicks jump to definitions. Header
           // actions are routed before tab handling because both live at y <= 40.

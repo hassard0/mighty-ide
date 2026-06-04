@@ -8610,3 +8610,14 @@ Testing, Terminal, AI, or Agents focus must not survive as a second input owner.
 - **IDE note:** Run, Testing, Web Playground, and Terminal lifecycle palette
   commands now clear the full competing focus set and transient navigation state
   after they claim their visible surface.
+
+## L718 - Chrome Clicks Need the Same Focus Ownership Rules
+
+Mouse entrypoints are easy to let drift because they live in separate first-click
+routers for focused panels and general chrome. A rail, topbar, AI, tab, or
+terminal click should still leave exactly one visible surface owning input.
+
+- **IDE note:** chrome mouse paths now release stale Run, Web, Testing,
+  Terminal, AI, Agents, and transient navigation focus when they switch or claim
+  a visible surface. The Testing-focused first-click router follows the same
+  cleanup rule as the general mouse router.

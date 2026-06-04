@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Chrome clicks now follow the same focus contract**: rail, topbar, AI, tab,
+  and terminal mouse paths release stale competing surface focus just like
+  palette commands and keyboard shortcuts.
 - **Lifecycle palette commands now own their surfaces**: Run, Testing, Web, and
   Terminal action commands release stale competing focus after revealing or
   mutating their output surfaces.

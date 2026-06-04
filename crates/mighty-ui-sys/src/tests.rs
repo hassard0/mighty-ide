@@ -10967,6 +10967,74 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "AI header clear clicks must route through AI clear before send/body focus handling"
     );
     assert!(
+        main.contains(
+            "ai_click == 4 {\n          let _aic = mui_ai_clear(h)\n          ai_focus = true\n          typing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          agents_focus = false\n          find_nav = false"
+        )
+            && main.contains(
+                "ai_click == 2 {\n          let _s = mui_ai_send(h)\n          ai_focus = true\n          typing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          agents_focus = false\n          find_nav = false"
+            )
+            && main.contains(
+                "ai_click == 1 {\n          ai_focus = true\n          typing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "AI mouse clicks must claim Copilot focus and release competing surfaces"
+    );
+    let rail_mouse_start = main
+        .rfind("rail_hit == rail_agents()")
+        .expect("mouse router should handle Copilot rail clicks");
+    let rail_mouse_end = main[rail_mouse_start..]
+        .find("} else if agents_focus")
+        .map(|p| rail_mouse_start + p)
+        .expect("mouse router rail block should precede Agents panel clicks");
+    let rail_mouse_block = &main[rail_mouse_start..rail_mouse_end];
+    for needle in [
+        "rail_hit == rail_run() || topbar_act == 1",
+        "let opened = mui_run_toggle(h)",
+        "rail_hit == rail_debug()",
+        "let _p = mui_panel_set(h, panel_debug())",
+        "rail_hit == rail_test()",
+        "let _p = mui_panel_set(h, panel_test())",
+        "test_focus = true",
+        "rail_hit == rail_agents_mty()",
+        "let _p = mui_panel_set(h, panel_agents_mty())",
+        "agents_focus = true",
+        "run_focus = false",
+        "web_focus = false",
+        "test_focus = false",
+        "term_focus = false",
+        "ai_focus = false",
+        "agents_focus = false",
+        "find_nav = false",
+    ] {
+        assert!(
+            rail_mouse_block.contains(needle),
+            "Rail and topbar mouse switches must release stale competing surface focus; missing `{needle}`"
+        );
+    }
+    assert!(
+        main.contains(
+            "term_act == 1 {\n          let _tc = mui_term_clear(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        )
+            && main.contains(
+                "mui_term_hit_at_event(h) == 1 {\n          let _tmd = mui_term_mouse_button(h, 1)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = true\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "Terminal mouse clicks must claim Terminal focus and release competing surfaces"
+    );
+    assert!(
+        main.contains(
+            "tab_close_hit >= 0 {\n          let a = mui_tab_close(h, tab_close_hit)"
+        )
+            && main.contains(
+                "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n          }\n        } else if tab_hit >= 0"
+            )
+            && main.contains(
+                "tab_hit >= 0 {\n          let cur_active = mui_tab_active(h)"
+            )
+            && main.contains(
+                "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n          }\n        } else if term_act == 1"
+            ),
+        "Tab mouse switches must release all transient surface focus"
+    );
+    assert!(
         main.contains("id == cmd_diff_close_view()")
             && main.contains("let _dcv = mui_diff_close(h)")
             && main.contains("diff_open = false"),
