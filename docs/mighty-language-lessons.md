@@ -7936,3 +7936,13 @@ release at the event cell.
   chrome/dock controls have priority, and the terminal encoder supports legacy
   X10 and SGR button press/release reports. Regression coverage verifies button
   bytes, unsupported buttons, disabled reporting, and legacy coordinate clamps.
+
+L654. Terminal mouse motion needs a shim-side escape hatch. Mighty normally
+consumes hover moves before script dispatch, so terminal drag/any-motion reports
+must explicitly pass through only while an app has requested them.
+
+- **IDE note:** terminal mouse motion now preserves the pressed button for
+  drag tracking, reports SGR/X10 motion bytes for `?1002`/`?1003`, and lets the
+  shim forward grid moves only when the terminal is actively requesting motion.
+  Regression coverage verifies drag, any-motion, disabled reporting, and
+  coordinate clamping.

@@ -312,6 +312,7 @@ extern c {
   fn mui_term_scroll(handle: I64, dir: I32)
   fn mui_term_hit_at_event(handle: I64) -> I32
   fn mui_term_mouse_button(handle: I64, pressed: I32) -> I32
+  fn mui_term_mouse_move(handle: I64) -> I32
   fn mui_term_focus(handle: I64, focused: I32)
   fn mui_term_pump(handle: I64)
   fn mui_term_draw(handle: I64)
@@ -2506,6 +2507,8 @@ fn main() {
         } else if tag == ev_scroll() {
           let sdir = mui_event_scroll_dir(h)
           mui_term_scroll(h, sdir)
+        } else if tag == ev_mouse_move() {
+          let _tmm = mui_term_mouse_move(h)
         } else if tag == ev_mouse_up() {
           let _tmr = mui_term_mouse_button(h, 0)
         }

@@ -2522,7 +2522,11 @@ fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
         // are consumed here so click-focused routing stays deterministic.
         MUI_EVENT_MOUSE_MOVE if !ctx.bottom_dock_resizing && !ctx.sidebar_resizing => {
             update_hover_cursor(ctx, ev);
-            ShimAction::Consume
+            if term_wants_mouse_motion_at(ctx, ev.x, ev.y) {
+                ShimAction::PassThrough
+            } else {
+                ShimAction::Consume
+            }
         }
         MUI_EVENT_MOUSE_UP if ctx.bottom_dock_resizing || ctx.sidebar_resizing => {
             ctx.bottom_dock_resizing = false;
@@ -6847,7 +6851,7 @@ fn term_event_cell(ctx: &MuiContext) -> (usize, usize) {
     (row, col)
 }
 
-fn term_grid_contains_event(ctx: &MuiContext) -> bool {
+fn term_grid_contains_point(ctx: &MuiContext, x: f32, y: f32) -> bool {
     if !ctx.term_open || ctx.terminal.is_none() {
         return false;
     }
@@ -6859,7 +6863,19 @@ fn term_grid_contains_event(ctx: &MuiContext) -> bool {
         .min(width as f32);
     let bottom = (top + layout::term_grid_rows(height) as f32 * layout::LINE_H())
         .min(height as f32);
-    ctx.last_event.x >= left && ctx.last_event.x < right && ctx.last_event.y >= top && ctx.last_event.y < bottom
+    x >= left && x < right && y >= top && y < bottom
+}
+
+fn term_grid_contains_event(ctx: &MuiContext) -> bool {
+    term_grid_contains_point(ctx, ctx.last_event.x, ctx.last_event.y)
+}
+
+fn term_wants_mouse_motion_at(ctx: &MuiContext, x: f32, y: f32) -> bool {
+    term_grid_contains_point(ctx, x, y)
+        && ctx
+            .terminal
+            .as_ref()
+            .is_some_and(|t| t.mouse_motion_reporting_enabled())
 }
 
 /// Open (spawn if needed) the integrated terminal, sizing its grid/PTY to the
@@ -7070,12 +7086,35 @@ pub extern "C" fn mui_term_mouse_button(handle: i64, pressed: i32) -> i32 {
         return 0;
     };
     if !term_grid_contains_event(ctx) {
+        if pressed == 0 {
+            if let Some(t) = ctx.terminal.as_mut() {
+                t.clear_mouse_button_state();
+            }
+        }
         return 0;
     }
     let (row, col) = term_event_cell(ctx);
     let button = ctx.last_event.button;
     if let Some(t) = ctx.terminal.as_mut() {
         t.send_mouse_button_at(pressed != 0, button, row, col);
+        return 1;
+    }
+    0
+}
+
+/// Send the latest mouse move to the terminal when drag/any-motion reporting
+/// is enabled. Returns `1` when the event is inside the terminal grid.
+#[no_mangle]
+pub extern "C" fn mui_term_mouse_move(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !term_grid_contains_event(ctx) {
+        return 0;
+    }
+    let (row, col) = term_event_cell(ctx);
+    if let Some(t) = ctx.terminal.as_mut() {
+        t.send_mouse_motion_at(row, col);
         return 1;
     }
     0

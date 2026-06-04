@@ -756,6 +756,14 @@ impl VtParser {
         self.mouse_modes != 0
     }
 
+    pub fn mouse_drag_reporting_enabled(&self) -> bool {
+        self.mouse_modes & (MOUSE_MODE_DRAG | MOUSE_MODE_ANY) != 0
+    }
+
+    pub fn mouse_any_reporting_enabled(&self) -> bool {
+        self.mouse_modes & MOUSE_MODE_ANY != 0
+    }
+
     pub fn cursor_visible(&self) -> bool {
         self.cursor_visible
     }
@@ -1716,6 +1724,8 @@ pub struct Terminal {
     focused: bool,
     /// Last focus state reported to the PTY while focus reporting was enabled.
     reported_focus: Option<bool>,
+    /// Currently pressed mouse button for drag/any-motion reporting.
+    mouse_button_down: Option<u32>,
     /// PTY master half — used to write stdin and resize.
     master: Box<dyn MasterPty + Send>,
     /// Writer to the PTY (the child's stdin).
@@ -1790,6 +1800,7 @@ impl Terminal {
             parser: VtParser::new(),
             focused: false,
             reported_focus: None,
+            mouse_button_down: None,
             master: pair.master,
             writer,
             child,
@@ -1911,8 +1922,44 @@ impl Terminal {
         row: usize,
         col: usize,
     ) {
+        let known_button = mouse_button_code(button).is_some();
+        if known_button || !pressed {
+            self.mouse_button_down = if pressed { Some(button) } else { None };
+        }
         if let Some(bytes) = mouse_button_to_bytes(
             pressed,
+            button,
+            self.parser.mouse_reporting_enabled(),
+            self.parser.sgr_mouse_enabled(),
+            row,
+            col,
+        ) {
+            self.send(&bytes);
+        }
+    }
+
+    pub fn clear_mouse_button_state(&mut self) {
+        self.mouse_button_down = None;
+    }
+
+    pub fn mouse_motion_reporting_enabled(&self) -> bool {
+        self.parser.mouse_any_reporting_enabled()
+            || (self.parser.mouse_drag_reporting_enabled() && self.mouse_button_down.is_some())
+    }
+
+    /// Send a mouse motion event at a 1-based terminal cell coordinate.
+    pub fn send_mouse_motion_at(&mut self, row: usize, col: usize) {
+        let button = if self.parser.mouse_any_reporting_enabled() {
+            self.mouse_button_down
+        } else if self.parser.mouse_drag_reporting_enabled() {
+            match self.mouse_button_down {
+                Some(button) => Some(button),
+                None => return,
+            }
+        } else {
+            return;
+        };
+        if let Some(bytes) = mouse_motion_to_bytes(
             button,
             self.parser.mouse_reporting_enabled(),
             self.parser.sgr_mouse_enabled(),
@@ -2191,12 +2238,7 @@ pub fn mouse_button_to_bytes(
 
     let row = row.max(1);
     let col = col.max(1);
-    let code = match button {
-        crate::ffi::MUI_MOUSE_LEFT => 0,
-        crate::ffi::MUI_MOUSE_MIDDLE => 1,
-        crate::ffi::MUI_MOUSE_RIGHT => 2,
-        _ => return None,
-    };
+    let code = mouse_button_code(button)?;
 
     if sgr_mouse {
         let suffix = if pressed { 'M' } else { 'm' };
@@ -2207,6 +2249,42 @@ pub fn mouse_button_to_bytes(
     let x = (col.min(223) as u8) + 32;
     let y = (row.min(223) as u8) + 32;
     Some(vec![0x1b, b'[', b'M', event_code + 32, x, y])
+}
+
+fn mouse_button_code(button: u32) -> Option<u8> {
+    match button {
+        crate::ffi::MUI_MOUSE_LEFT => Some(0),
+        crate::ffi::MUI_MOUSE_MIDDLE => Some(1),
+        crate::ffi::MUI_MOUSE_RIGHT => Some(2),
+        _ => None,
+    }
+}
+
+pub fn mouse_motion_to_bytes(
+    button: Option<u32>,
+    mouse_reporting: bool,
+    sgr_mouse: bool,
+    row: usize,
+    col: usize,
+) -> Option<Vec<u8>> {
+    if !mouse_reporting {
+        return None;
+    }
+
+    let row = row.max(1);
+    let col = col.max(1);
+    let code = match button {
+        Some(button) => mouse_button_code(button)? + 32,
+        None => 35,
+    };
+
+    if sgr_mouse {
+        return Some(format!("\x1b[<{code};{col};{row}M").into_bytes());
+    }
+
+    let x = (col.min(223) as u8) + 32;
+    let y = (row.min(223) as u8) + 32;
+    Some(vec![0x1b, b'[', b'M', code + 32, x, y])
 }
 
 pub fn focus_report_to_bytes(focused: bool) -> &'static [u8] {
@@ -3054,18 +3132,24 @@ mod tests {
         p.feed(&mut g, b"\x1b[?1000h\x1b[?1002h\x1b[?1006h");
         assert!(p.mouse_reporting_enabled());
         assert!(p.sgr_mouse_enabled());
+        assert!(p.mouse_drag_reporting_enabled());
+        assert!(!p.mouse_any_reporting_enabled());
 
         p.feed(&mut g, b"\x1b[?1000l");
         assert!(p.mouse_reporting_enabled());
         assert!(p.sgr_mouse_enabled());
+        assert!(p.mouse_drag_reporting_enabled());
 
         p.feed(&mut g, b"\x1b[?1002l");
         assert!(!p.mouse_reporting_enabled());
         assert!(!p.sgr_mouse_enabled());
+        assert!(!p.mouse_drag_reporting_enabled());
 
         p.feed(&mut g, b"\x1b[?1003h\x1b[?1006l");
         assert!(p.mouse_reporting_enabled());
         assert!(!p.sgr_mouse_enabled());
+        assert!(p.mouse_drag_reporting_enabled());
+        assert!(p.mouse_any_reporting_enabled());
         assert!(!g.contains("1003"));
     }
 
@@ -3674,6 +3758,46 @@ mod tests {
         assert_eq!(
             mouse_button_to_bytes(true, crate::ffi::MUI_MOUSE_OTHER, true, true, 3, 7),
             None
+        );
+    }
+
+    #[test]
+    fn mouse_motion_bytes_send_legacy_drag_and_any_motion() {
+        assert_eq!(
+            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_LEFT), true, false, 3, 7),
+            Some(vec![0x1b, b'[', b'M', 64, 39, 35])
+        );
+        assert_eq!(
+            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_RIGHT), true, false, 999, 999),
+            Some(vec![0x1b, b'[', b'M', 66, 255, 255])
+        );
+        assert_eq!(
+            mouse_motion_to_bytes(None, true, false, 3, 7),
+            Some(vec![0x1b, b'[', b'M', 67, 39, 35])
+        );
+        assert_eq!(
+            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_OTHER), true, false, 3, 7),
+            None
+        );
+        assert_eq!(
+            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_LEFT), false, false, 3, 7),
+            None
+        );
+    }
+
+    #[test]
+    fn mouse_motion_bytes_send_sgr_drag_and_any_motion() {
+        assert_eq!(
+            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_LEFT), true, true, 3, 7),
+            Some(b"\x1b[<32;7;3M".to_vec())
+        );
+        assert_eq!(
+            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_MIDDLE), true, true, 1, 2),
+            Some(b"\x1b[<33;2;1M".to_vec())
+        );
+        assert_eq!(
+            mouse_motion_to_bytes(None, true, true, 3, 7),
+            Some(b"\x1b[<35;7;3M".to_vec())
         );
     }
 
