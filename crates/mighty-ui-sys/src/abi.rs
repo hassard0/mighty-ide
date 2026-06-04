@@ -7016,6 +7016,8 @@ pub extern "C" fn mui_probe_buf_len(handle: i64, mty_buf_len: i32) {
 type TermRun = (f32, f32, String, (f32, f32, f32, f32));
 /// One queued terminal background run: position, width, and resolved RGBA color.
 type TermBgRun = (f32, f32, f32, (f32, f32, f32, f32));
+/// One queued terminal underline run: position, width, and resolved RGBA color.
+type TermUnderlineRun = (f32, f32, f32, (f32, f32, f32, f32));
 
 fn terminal_cursor_draw_visible(cursor_visible: bool, cursor_blinking: bool, frame: u64) -> bool {
     cursor_visible && (!cursor_blinking || (frame / 30) % 2 == 0)
@@ -7461,7 +7463,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
 
     // Snapshot the grid into owned data so the borrow on `ctx.terminal` ends
     // before we borrow `ctx.text`.
-    let (rows, cols, cursor, cursor_visible, cursor_blinking, cursor_shape, cursor_color, backgrounds, glyphs) = {
+    let (rows, cols, cursor, cursor_visible, cursor_blinking, cursor_shape, cursor_color, backgrounds, underlines, glyphs) = {
         let Some(t) = ctx.terminal.as_ref() else {
             return;
         };
@@ -7483,6 +7485,31 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                     let w = (col - start) as f32 * layout::CHAR_W();
                     bg_runs.push((x, y, w, color));
                 }
+            }
+        }
+
+        let mut underline_runs: Vec<TermUnderlineRun> = Vec::new();
+        for r in 0..rows {
+            let y = layout::term_cell_y(height, r) + layout::LINE_H() - 4.0;
+            let mut col = 0usize;
+            while col < cols {
+                let cell = g.cell(r, col);
+                if !cell.underline {
+                    col += 1;
+                    continue;
+                }
+                let fg = cell.fg;
+                let start = col;
+                while col < cols {
+                    let cell = g.cell(r, col);
+                    if !cell.underline || cell.fg != fg {
+                        break;
+                    }
+                    col += 1;
+                }
+                let x = layout::term_cell_x(region, start);
+                let w = (col - start) as f32 * layout::CHAR_W();
+                underline_runs.push((x, y, w, t.foreground_rgba(fg)));
             }
         }
 
@@ -7516,6 +7543,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
             t.cursor_shape(),
             t.cursor_rgba(),
             bg_runs,
+            underline_runs,
             runs,
         )
     };
@@ -7527,6 +7555,10 @@ pub extern "C" fn mui_term_draw(handle: i64) {
     for (x, y, s, (r, gc, b, a)) in &glyphs {
         ctx.text
             .queue(*x, *y, s, MuiColor::new(*r, *gc, *b, *a), clip);
+    }
+
+    for (x, y, w, (r, gc, b, a)) in &underlines {
+        ctx.dl_rect(*x, *y, *w, 1.5, MuiColor::new(*r, *gc, *b, *a));
     }
 
     // Block cursor at the grid cursor position (clamped into the panel).

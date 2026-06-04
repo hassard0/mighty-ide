@@ -8107,3 +8107,13 @@ lose their primary focus affordance.
   `SGR 0`/`27`, and preserves it across cursor save/restore. Rendering also
   resolves the default-background sentinel as a foreground so inverted default
   text paints correctly.
+
+L671. Underline needs to be a terminal cell attribute. Shell prompts, links, and
+TUI diagnostics use `SGR 4`, and dropping it strips useful navigation and
+selection cues even when the text and colors are otherwise correct.
+
+- **IDE note:** terminal cells now carry an underline flag, `SGR 4/24` updates it
+  for subsequent output, REP and cursor save/restore preserve it, and
+  `mui_term_draw` paints underline runs with the resolved foreground color.
+  Regression coverage pins SGR reset, repeated underlined cells, and restored
+  underline state.
