@@ -10073,3 +10073,17 @@ replace the published diagnostics array or move underline coordinates.
 - **Language note:** no compiler gap surfaced. Diagnostics are another nested
   ownership tree: notification params own the diagnostic list, each diagnostic
   owns its range, and each range owns its positions.
+
+## L824 - Definition Targets Need Range-Owned Starts
+
+LSP `Location` and `LocationLink` results can include metadata under `range`,
+`targetRange`, or `targetSelectionRange` with fields named `start`, `line`, or
+`character`. Broad scans can jump to metadata coordinates instead of the real
+definition target.
+
+- **IDE note:** go-to-definition parsing now reads `Location.range.start` and
+  `LocationLink` target starts from the top-level `start` object owned by the
+  selected range.
+- **Language note:** no compiler gap surfaced. Navigation targets should be
+  resolved by descending through the selected result object and its selected
+  range; metadata inside that range is not an alternate target.

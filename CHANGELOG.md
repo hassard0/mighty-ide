@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Definitions read range-owned start positions**: go-to-definition parsing now
+  reads `Location.range.start` and `LocationLink` target starts from their
+  owning range objects, preventing nested metadata from moving jump targets.
 - **Diagnostics read params and range owner fields**: generic LSP diagnostics
   now read `params.diagnostics` and each diagnostic range's top-level
   `start` / `end` positions, so nested metadata cannot replace problem rows or
