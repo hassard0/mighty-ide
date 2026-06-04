@@ -299,17 +299,27 @@ pub struct Expansion {
 pub struct SnippetContext {
     active_path: Option<PathBuf>,
     selected_text: String,
+    workspace_root: Option<PathBuf>,
 }
 
 impl SnippetContext {
     pub fn from_path(path: Option<&Path>) -> Self {
-        SnippetContext::from_path_and_selection(path, "")
+        SnippetContext::from_path_selection_and_workspace(path, "", None)
     }
 
     pub fn from_path_and_selection(path: Option<&Path>, selected_text: &str) -> Self {
+        SnippetContext::from_path_selection_and_workspace(path, selected_text, None)
+    }
+
+    pub fn from_path_selection_and_workspace(
+        path: Option<&Path>,
+        selected_text: &str,
+        workspace_root: Option<&Path>,
+    ) -> Self {
         SnippetContext {
             active_path: path.map(Path::to_path_buf),
             selected_text: selected_text.to_string(),
+            workspace_root: workspace_root.map(Path::to_path_buf),
         }
     }
 }
@@ -457,9 +467,31 @@ fn resolve_snippet_variable(name: &str, context: &SnippetContext) -> Option<Stri
             .active_path
             .as_deref()
             .and_then(|path| path.parent().map(|p| p.to_string_lossy().into_owned())),
-        "TM_FILEPATH" => context.active_path.as_deref().map(|path| path.to_string_lossy().into_owned()),
+        "TM_FILEPATH" => context
+            .active_path
+            .as_deref()
+            .map(|path| path.to_string_lossy().into_owned()),
+        "WORKSPACE_FOLDER" => context
+            .workspace_root
+            .as_deref()
+            .map(|path| path.to_string_lossy().into_owned()),
+        "WORKSPACE_NAME" => context
+            .workspace_root
+            .as_deref()
+            .and_then(|path| path.file_name().map(|s| s.to_string_lossy().into_owned()))
+            .or_else(|| context.workspace_root.as_ref().map(|_| "workspace".to_string())),
+        "RELATIVE_FILEPATH" => relative_filepath(context),
         _ => None,
     }
+}
+
+fn relative_filepath(context: &SnippetContext) -> Option<String> {
+    let path = context.active_path.as_deref()?;
+    let root = context.workspace_root.as_deref()?;
+    path.strip_prefix(root)
+        .ok()
+        .filter(|relative| !relative.as_os_str().is_empty())
+        .map(|relative| relative.to_string_lossy().replace('\\', "/"))
 }
 
 /// An active tab-stop navigation session over an expanded snippet.
@@ -870,6 +902,17 @@ pub fn try_expand_with_path_and_selection(
     active_path: Option<&Path>,
     selected_text: &str,
 ) -> bool {
+    try_expand_with_context(model, session, lang, active_path, selected_text, None)
+}
+
+pub fn try_expand_with_context(
+    model: &mut TextModel,
+    session: &mut SnippetSession,
+    lang: Language,
+    active_path: Option<&Path>,
+    selected_text: &str,
+    workspace_root: Option<&Path>,
+) -> bool {
     let line = model.cursor_line();
     let col = model.cursor_col();
     let word = prefix_word(model.line(line), col);
@@ -889,13 +932,20 @@ pub fn try_expand_with_path_and_selection(
         model.backspace();
     }
     let (cl, cc) = (model.cursor_line(), model.cursor_col());
-    let exp = if active_path.is_none() && selected_text.is_empty() {
+    let exp = if active_path.is_none() && selected_text.is_empty() && workspace_root.is_none() {
         expand(&def.body, &indent, cl, cc)
-    } else if selected_text.is_empty() {
+    } else if selected_text.is_empty() && workspace_root.is_none() {
         let context = SnippetContext::from_path(active_path);
         expand_with_context(&def.body, &indent, cl, cc, &context)
-    } else {
+    } else if workspace_root.is_none() {
         let context = SnippetContext::from_path_and_selection(active_path, selected_text);
+        expand_with_context(&def.body, &indent, cl, cc, &context)
+    } else {
+        let context = SnippetContext::from_path_selection_and_workspace(
+            active_path,
+            selected_text,
+            workspace_root,
+        );
         expand_with_context(&def.body, &indent, cl, cc, &context)
     };
     for ch in exp.text.chars() {
@@ -1164,6 +1214,37 @@ mod tests {
         );
         assert_eq!(exp.text, "selected|selected|selected");
         assert_eq!(exp.stops[0], Stop { num: 1, start: (0, 18), end: (0, 26) });
+    }
+
+    #[test]
+    fn expand_workspace_variables_from_context() {
+        let path = std::path::Path::new("C:/work/app/src/main.mty");
+        let root = std::path::Path::new("C:/work/app");
+        let ctx = SnippetContext::from_path_selection_and_workspace(Some(path), "", Some(root));
+        let exp = expand_with_context(
+            "$WORKSPACE_NAME|${WORKSPACE_FOLDER}|$RELATIVE_FILEPATH",
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(exp.text, "app|C:/work/app|src/main.mty");
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
+    fn expand_relative_filepath_preserves_unmatched_workspace_literal() {
+        let path = std::path::Path::new("C:/other/main.mty");
+        let root = std::path::Path::new("C:/work/app");
+        let ctx = SnippetContext::from_path_selection_and_workspace(Some(path), "", Some(root));
+        let exp = expand_with_context(
+            "${RELATIVE_FILEPATH:fallback}|$RELATIVE_FILEPATH",
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(exp.text, "fallback|$RELATIVE_FILEPATH");
     }
 
     #[test]

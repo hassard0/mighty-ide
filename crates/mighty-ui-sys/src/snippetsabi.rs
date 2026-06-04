@@ -63,15 +63,17 @@ pub extern "C" fn mui_snippet_try_expand(handle: i64) -> i32 {
     let lang = c.language;
     let active_path = c.tabs.active_path();
     let selected_text = c.tabs.active_model().selected_text();
+    let workspace_root = crate::wsabi::effective_root(c);
     // Split the borrow: the session + the active model are distinct fields.
     let session = &mut c.snippet_session;
     let model = c.tabs.active_model_mut();
-    i32::from(snippets::try_expand_with_path_and_selection(
+    i32::from(snippets::try_expand_with_context(
         model,
         session,
         lang,
         active_path.as_deref(),
         &selected_text,
+        Some(workspace_root.as_path()),
     ))
 }
 
@@ -221,6 +223,7 @@ pub extern "C" fn mui_snippet_complete_expand(handle: i64) -> i32 {
     let lang = c.language;
     let active_path = c.tabs.active_path();
     let selected_text = c.tabs.active_model().selected_text();
+    let workspace_root = crate::wsabi::effective_root(c);
     {
         let m = c.tabs.active_model_mut();
         for _ in 0..typed {
@@ -232,12 +235,13 @@ pub extern "C" fn mui_snippet_complete_expand(handle: i64) -> i32 {
     }
     let session = &mut c.snippet_session;
     let model = c.tabs.active_model_mut();
-    i32::from(snippets::try_expand_with_path_and_selection(
+    i32::from(snippets::try_expand_with_context(
         model,
         session,
         lang,
         active_path.as_deref(),
         &selected_text,
+        Some(workspace_root.as_path()),
     ))
 }
 

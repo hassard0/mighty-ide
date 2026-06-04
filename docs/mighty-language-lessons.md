@@ -9607,3 +9607,19 @@ leaves those imported snippets unable to preserve the user's current focus.
   should cover empty context and live context separately; empty selected text is
   a valid variable value, but defaults should still provide useful fallback
   content when the variable resolves to an empty string.
+
+## L791 - Snippets Need Workspace Context
+
+Imported snippets often stamp project-aware paths into generated files, using
+variables such as `$WORKSPACE_NAME`, `$WORKSPACE_FOLDER`, and
+`$RELATIVE_FILEPATH`. Resolving only the active file path still leaves these
+templates detached from the project the user opened.
+
+- **IDE note:** snippet expansion context now carries the effective workspace
+  root. Direct Tab expansion and completion-accepted expansion resolve workspace
+  folder/name variables and derive a forward-slash relative file path when the
+  active file is inside the workspace.
+- **Language note:** no compiler gap surfaced. Workspace variables should be
+  tested with both inside-root and outside-root files; unresolved relative paths
+  should still allow braced default fallbacks without fabricating misleading
+  project-relative paths.

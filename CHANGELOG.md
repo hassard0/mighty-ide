@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Workspace snippet variables resolve**: imported snippets can now use
+  `$WORKSPACE_NAME`, `$WORKSPACE_FOLDER`, and `$RELATIVE_FILEPATH` from the
+  active workspace and file path, including default fallbacks.
 - **Selected-text snippet variables resolve**: imported snippets can now use
   `$TM_SELECTED_TEXT` and `${TM_SELECTED_TEXT:default}` to wrap or reuse the
   active editor selection during direct Tab or completion-driven expansion.
