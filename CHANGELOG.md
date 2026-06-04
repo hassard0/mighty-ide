@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Debugger stack and variable responses read body-scoped fields**: DAP
+  `stackTrace` and `variables` parsing now reads arrays from the response
+  `body` object and row values from each row's top-level fields, so envelope or
+  row metadata cannot replace debugger panel contents.
 - **Agents inspect reads top-level snapshot fields**: live agent snapshot parsing
   now requires the root `agents` array, reads `worker_count` from the root
   object, and reads each agent row's surfaced fields from that row object, so

@@ -205,6 +205,98 @@ fn read_str_after(region: &[u8], key: &[u8]) -> Option<String> {
     read_json_string_at(region, p + key.len()).map(|(s, _)| s)
 }
 
+fn skip_json_ws(bytes: &[u8], mut i: usize) -> usize {
+    while i < bytes.len() && matches!(bytes[i], b' ' | b'\t' | b'\r' | b'\n') {
+        i += 1;
+    }
+    i
+}
+
+fn skip_json_string(bytes: &[u8], quote: usize) -> Option<usize> {
+    let mut i = quote + 1;
+    let mut esc = false;
+    while i < bytes.len() {
+        if esc {
+            esc = false;
+        } else if bytes[i] == b'\\' {
+            esc = true;
+        } else if bytes[i] == b'"' {
+            return Some(i + 1);
+        }
+        i += 1;
+    }
+    None
+}
+
+fn json_key_matches(bytes: &[u8], quote: usize, field: &[u8]) -> bool {
+    let start = quote + 1;
+    let end = start + field.len();
+    end < bytes.len() && &bytes[start..end] == field && bytes[end] == b'"'
+}
+
+fn top_level_field_value(bytes: &[u8], field: &[u8]) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'"' => {
+                if depth == 1 && json_key_matches(bytes, i, field) {
+                    let key_end = i + field.len() + 2;
+                    let colon = skip_json_ws(bytes, key_end);
+                    if colon < bytes.len() && bytes[colon] == b':' {
+                        return Some(skip_json_ws(bytes, colon + 1));
+                    }
+                }
+                i = skip_json_string(bytes, i)?;
+                continue;
+            }
+            b'{' | b'[' => depth += 1,
+            b'}' | b']' => depth -= 1,
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+fn top_level_uint_field(bytes: &[u8], field: &[u8]) -> Option<i64> {
+    let mut j = top_level_field_value(bytes, field)?;
+    let start = j;
+    let mut v: i64 = 0;
+    while j < bytes.len() && bytes[j].is_ascii_digit() {
+        v = v.saturating_mul(10).saturating_add((bytes[j] - b'0') as i64);
+        j += 1;
+    }
+    if j == start {
+        None
+    } else {
+        Some(v)
+    }
+}
+
+fn top_level_string_field(bytes: &[u8], field: &[u8]) -> Option<String> {
+    let j = top_level_field_value(bytes, field)?;
+    read_json_string_at(bytes, j).map(|(s, _)| s)
+}
+
+fn top_level_object_field<'a>(bytes: &'a [u8], field: &[u8]) -> Option<&'a [u8]> {
+    let value = top_level_field_value(bytes, field)?;
+    if value >= bytes.len() || bytes[value] != b'{' {
+        return None;
+    }
+    let end = match_delim(bytes, value, b'{', b'}').min(bytes.len());
+    Some(&bytes[value..end])
+}
+
+fn top_level_array_field<'a>(bytes: &'a [u8], field: &[u8]) -> Option<&'a [u8]> {
+    let value = top_level_field_value(bytes, field)?;
+    if value >= bytes.len() || bytes[value] != b'[' {
+        return None;
+    }
+    let end = match_bracket(bytes, value).min(bytes.len());
+    Some(&bytes[value..end])
+}
+
 /// Index just past the `]` matching the `[` at `open` (string-aware).
 fn match_bracket(bytes: &[u8], open: usize) -> usize {
     match_delim(bytes, open, b'[', b']')
@@ -401,25 +493,21 @@ pub struct StackFrame {
 /// returns them).
 pub fn parse_stack_trace(raw: &str) -> Vec<StackFrame> {
     let bytes = raw.as_bytes();
-    let Some(at) = find_sub(bytes, b"\"stackFrames\"") else {
+    let Some(body) = top_level_object_field(bytes, b"body") else {
         return Vec::new();
     };
-    let mut i = at + b"\"stackFrames\"".len();
-    while i < bytes.len() && matches!(bytes[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        i += 1;
-    }
-    if i >= bytes.len() || bytes[i] != b'[' {
+    let Some(frames) = top_level_array_field(body, b"stackFrames") else {
         return Vec::new();
-    }
-    let end = match_bracket(bytes, i);
-    split_objects(&bytes[i..end.min(bytes.len())])
+    };
+    split_objects(frames)
         .into_iter()
         .filter_map(|obj| {
-            let id = read_uint_after(obj, b"\"id\"")?;
-            let name = read_str_after(obj, b"\"name\"").unwrap_or_default();
-            let line = read_uint_after(obj, b"\"line\"").unwrap_or(0);
-            // The `source.path` is the first "path" after the frame's "source".
-            let file = read_str_after(obj, b"\"path\"").unwrap_or_default();
+            let id = top_level_uint_field(obj, b"id")?;
+            let name = top_level_string_field(obj, b"name").unwrap_or_default();
+            let line = top_level_uint_field(obj, b"line").unwrap_or(0);
+            let file = top_level_object_field(obj, b"source")
+                .and_then(|source| top_level_string_field(source, b"path"))
+                .unwrap_or_default();
             Some(StackFrame {
                 id,
                 name,
@@ -441,23 +529,18 @@ pub struct Variable {
 /// Parse a `variables` response into name/value/type rows.
 pub fn parse_variables(raw: &str) -> Vec<Variable> {
     let bytes = raw.as_bytes();
-    let Some(at) = find_sub(bytes, b"\"variables\":") else {
+    let Some(body) = top_level_object_field(bytes, b"body") else {
         return Vec::new();
     };
-    let mut i = at + b"\"variables\":".len();
-    while i < bytes.len() && matches!(bytes[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        i += 1;
-    }
-    if i >= bytes.len() || bytes[i] != b'[' {
+    let Some(variables) = top_level_array_field(body, b"variables") else {
         return Vec::new();
-    }
-    let end = match_bracket(bytes, i);
-    split_objects(&bytes[i..end.min(bytes.len())])
+    };
+    split_objects(variables)
         .into_iter()
         .filter_map(|obj| {
-            let name = read_str_after(obj, b"\"name\"")?;
-            let value = read_str_after(obj, b"\"value\"").unwrap_or_default();
-            let kind = read_str_after(obj, b"\"type\"").unwrap_or_default();
+            let name = top_level_string_field(obj, b"name")?;
+            let value = top_level_string_field(obj, b"value").unwrap_or_default();
+            let kind = top_level_string_field(obj, b"type").unwrap_or_default();
             Some(Variable { name, value, kind })
         })
         .collect()
@@ -1494,6 +1577,31 @@ mod tests {
     }
 
     #[test]
+    fn parse_stack_trace_uses_body_and_frame_top_level_fields() {
+        let raw = r#"{
+          "type":"response",
+          "command":"stackTrace",
+          "success":true,
+          "metadata":{"stackFrames":[{"id":99,"name":"wrong array","line":99}]},
+          "body":{"stackFrames":[
+            {
+              "metadata":{"id":99,"name":"wrong frame","line":99,"source":{"path":"C:/wrong.mty"}},
+              "id":3,
+              "name":"right frame",
+              "line":8,
+              "source":{"metadata":{"path":"C:/wrong-source.mty"},"path":"C:/right.mty"}
+            }
+          ]}
+        }"#;
+        let frames = parse_stack_trace(&parse_envelope(raw).unwrap().raw);
+        assert_eq!(frames.len(), 1);
+        assert_eq!(frames[0].id, 3);
+        assert_eq!(frames[0].name, "right frame");
+        assert_eq!(frames[0].line, 8);
+        assert_eq!(frames[0].file, "C:/right.mty");
+    }
+
+    #[test]
     fn parse_variables_rows() {
         let raw = r#"{"type":"response","command":"variables","success":true,"body":{"variables":[{"name":"a","value":"21","type":"I32","variablesReference":0},{"name":"label","value":"\"sum\"","type":"Str","variablesReference":0}]}}"#;
         let vars = parse_variables(&parse_envelope(raw).unwrap().raw);
@@ -1513,6 +1621,29 @@ mod tests {
         assert_eq!(vars[0].name, "label_東");
         assert_eq!(vars[0].value, "value 😀");
         assert_eq!(vars[0].kind, "Stré");
+    }
+
+    #[test]
+    fn parse_variables_uses_body_and_variable_top_level_fields() {
+        let raw = r#"{
+          "type":"response",
+          "command":"variables",
+          "success":true,
+          "metadata":{"variables":[{"name":"wrong array","value":"99","type":"Wrong"}]},
+          "body":{"variables":[
+            {
+              "metadata":{"name":"wrong name","value":"wrong value","type":"Wrong"},
+              "name":"right name",
+              "value":"right value",
+              "type":"Right"
+            }
+          ]}
+        }"#;
+        let vars = parse_variables(&parse_envelope(raw).unwrap().raw);
+        assert_eq!(vars.len(), 1);
+        assert_eq!(vars[0].name, "right name");
+        assert_eq!(vars[0].value, "right value");
+        assert_eq!(vars[0].kind, "Right");
     }
 
     #[test]

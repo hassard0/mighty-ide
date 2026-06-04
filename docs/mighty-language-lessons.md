@@ -9989,3 +9989,18 @@ field can make metadata replace the live Agents panel rows.
 - **Language note:** no compiler gap surfaced. Runtime telemetry envelopes
   should be parsed as owned objects first; repeated field names inside metadata
   are context, not replacement payloads.
+
+## L818 - Debugger Responses Need Body-Scoped Rows
+
+DAP responses can carry envelope metadata with fields like `stackFrames` or
+`variables`, and each returned row can carry nested metadata with fields like
+`id`, `name`, `line`, `value`, or `type`. Broad scans can replace debugger
+panel rows with unrelated metadata.
+
+- **IDE note:** DAP stack-trace and variables parsing now reads arrays only from
+  the response `body` object, then reads frame and variable values from each
+  row object's top-level fields. Frame source paths are read from the row's own
+  top-level `source.path`.
+- **Language note:** no compiler gap surfaced. Debugger transport payloads need
+  the same ownership boundary as LSP payloads: envelope fields, response body
+  fields, and row fields are separate scopes.
