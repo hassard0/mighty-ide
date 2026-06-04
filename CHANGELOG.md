@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Bottom-dock view commands now claim focus cleanly**: `View: Terminal`,
+  `View: Web Playground`, and `View: Problems` clear stale Run/Web/Testing/
+  Terminal/Agents navigation focus when they open their surfaces.
 - **Run, Testing, and Web lifecycle commands reveal their panels**: palette
   Stop and Clear commands now open the affected Run output, Testing, or Web
   Playground surface before mutating it, making stop/clear feedback visible.

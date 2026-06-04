@@ -8524,3 +8524,15 @@ Testing, or Web panel that will show the stopped, idle, or cleared state.
   Testing stop/clear reveals the Testing panel with `mui_panel_set`, and Web
   stop/clear calls `mui_web_open` first. The existing focus flags then preserve
   the owning surface for follow-up keyboard and mouse interaction.
+
+## L710 - Bottom Dock View Commands Should Own Focus
+
+Opening a bottom-dock surface from the palette should also make that surface the
+only focused dock owner. Otherwise stale Run, Web, Testing, Terminal, or Agents
+flags can route the next keyboard or mouse event to a surface the user is no
+longer looking at.
+
+- **IDE note:** `View: Terminal`, `View: Web Playground`, and `View: Problems`
+  now clear unrelated dock focus and transient navigation flags after opening
+  their surfaces. This keeps command-palette navigation aligned with the same
+  visible owner model used by direct dock clicks.

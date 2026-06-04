@@ -4727,6 +4727,12 @@ fn main() {
           agents_focus = false
         } else if id == cmd_view_problems() {
           let _po = mui_problems_open(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_problems_refresh() {
           let _dr = mui_diag_refresh(h)
           let _pr = mui_problems_refresh(h)
@@ -4771,6 +4777,11 @@ fn main() {
         } else if id == cmd_view_terminal() {
           let ok = mui_term_open(h)
           if ok == 1 { term_focus = true; mui_log_terminal(h) }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_terminal_clear() {
           let _to = mui_term_open(h)
           let _tc = mui_term_clear(h)
@@ -4783,6 +4794,9 @@ fn main() {
           web_focus = true
           run_focus = false
           test_focus = false
+          term_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_debug_start_continue() {
           let _vp = mui_panel_set(h, panel_debug())
           let _st = mui_dbg_start(h)

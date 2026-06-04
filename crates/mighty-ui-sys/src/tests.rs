@@ -10828,6 +10828,27 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains(
+            "id == cmd_view_terminal() {\n          let ok = mui_term_open(h)\n          if ok == 1 { term_focus = true; mui_log_terminal(h) }\n          run_focus = false\n          web_focus = false\n          test_focus = false"
+        )
+            && main.contains("agents_focus = false\n          find_nav = false"),
+        "Terminal view command must open Terminal and release other bottom-dock focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_view_web_playground() {\n          let _vw = mui_web_open(h)\n          web_focus = true\n          run_focus = false\n          test_focus = false\n          term_focus = false"
+        )
+            && main.contains("agents_focus = false\n          find_nav = false"),
+        "Web Playground view command must open Web and release other bottom-dock focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_view_problems() {\n          let _po = mui_problems_open(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false"
+        )
+            && main.contains("agents_focus = false\n          find_nav = false"),
+        "Problems view command must open Problems and release other bottom-dock focus"
+    );
+    assert!(
+        main.contains(
             "id == cmd_ai_clear_chat() {\n          let _ai = mui_ai_show(h)\n          let _aic = mui_ai_clear(h)"
         )
             && main.contains("ai_focus = true"),
