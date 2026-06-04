@@ -1712,17 +1712,20 @@ fn default_shell_command() -> CommandBuilder {
 
 /// Map a named key code (`MUI_KEY_*`) + modifier bits to the bytes a terminal
 /// expects, or `None` for keys with no terminal meaning. Enter -> CR (`\r`),
-/// Backspace -> DEL (`\x7f`), Alt+Backspace -> Meta-DEL (`ESC DEL`), Tab -> `\t`,
-/// Escape -> `\x1b`, arrows -> the usual `ESC [ A/B/C/D`, Insert -> `ESC [ 2 ~`.
+/// Alt+Enter -> Meta-CR (`ESC CR`), Backspace -> DEL (`\x7f`), Alt+Backspace ->
+/// Meta-DEL (`ESC DEL`), Tab -> `\t`, Alt+Tab -> Meta-HT (`ESC TAB`), Escape ->
+/// `\x1b`, arrows -> the usual `ESC [ A/B/C/D`, Insert -> `ESC [ 2 ~`.
 /// Ctrl+letter (handled on the Char path) is mapped separately.
 pub fn key_to_bytes(key: u32, mods: u32, application_cursor_keys: bool) -> Option<Vec<u8>> {
     use crate::ffi::*;
     let modifier = terminal_modifier_param(mods);
     let bytes: Vec<u8> = match key {
+        MUI_KEY_ENTER if mods & MUI_MOD_ALT != 0 => vec![0x1b, b'\r'],
         MUI_KEY_ENTER => vec![b'\r'],
         MUI_KEY_BACKSPACE if mods & MUI_MOD_ALT != 0 => vec![0x1b, 0x7f],
         MUI_KEY_BACKSPACE => vec![0x7f],
         MUI_KEY_TAB if mods & MUI_MOD_SHIFT != 0 => vec![0x1b, b'[', b'Z'],
+        MUI_KEY_TAB if mods & MUI_MOD_ALT != 0 => vec![0x1b, b'\t'],
         MUI_KEY_TAB => vec![b'\t'],
         MUI_KEY_ESCAPE => vec![0x1b],
         MUI_KEY_LEFT if modifier.is_some() => modified_csi_1(modifier.unwrap(), b'D'),
@@ -2770,12 +2773,20 @@ mod tests {
     fn key_mapping_enter_backspace_arrows() {
         use crate::ffi::*;
         assert_eq!(key_to_bytes(MUI_KEY_ENTER, 0, false), Some(vec![b'\r']));
+        assert_eq!(
+            key_to_bytes(MUI_KEY_ENTER, MUI_MOD_ALT, false),
+            Some(vec![0x1b, b'\r'])
+        );
         assert_eq!(key_to_bytes(MUI_KEY_BACKSPACE, 0, false), Some(vec![0x7f]));
         assert_eq!(
             key_to_bytes(MUI_KEY_BACKSPACE, MUI_MOD_ALT, false),
             Some(vec![0x1b, 0x7f])
         );
         assert_eq!(key_to_bytes(MUI_KEY_TAB, 0, false), Some(vec![b'\t']));
+        assert_eq!(
+            key_to_bytes(MUI_KEY_TAB, MUI_MOD_ALT, false),
+            Some(vec![0x1b, b'\t'])
+        );
         assert_eq!(
             key_to_bytes(MUI_KEY_TAB, MUI_MOD_SHIFT, false),
             Some(vec![0x1b, b'[', b'Z'])

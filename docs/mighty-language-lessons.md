@@ -7731,3 +7731,11 @@ unrepresentable at the FFI boundary.
   `key_to_bytes` sends plain Insert as `CSI 2~` and modified Insert as
   `CSI 2;N~`. Tests cover ABI/header parity, named-key mapping, and terminal
   byte encoding.
+
+L633. Terminal Meta input also applies to control-style named keys. Alt+Enter
+and Alt+Tab should not collapse to plain CR or HT; line editors and terminal
+programs can distinguish those Meta chords only when the ESC prefix is preserved.
+
+- **IDE note:** `key_to_bytes` now maps Alt+Enter to `ESC CR` and Alt+Tab to
+  `ESC TAB`, while plain Enter/Tab and Shift+Tab keep their existing encodings.
+  Regression assertions cover all affected forms.
