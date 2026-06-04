@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Mighty language requests wait for response-owned IDs**: signature help,
+  rename preparation, rename edits, code actions, and document-symbol requests
+  now share the envelope-owned response wait used by navigation, so progress
+  metadata or server requests cannot truncate those language features.
 - **Mighty navigation waits for response-owned IDs**: the built-in Mighty hover
   and go-to-definition client now stops and isolates responses only from
   complete top-level JSON-RPC response objects with `id: 2`, so progress

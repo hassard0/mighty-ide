@@ -1684,13 +1684,6 @@ pub mod lsp {
         let _ = child.wait();
     }
 
-    fn find_sub(hay: &[u8], needle: &[u8]) -> Option<usize> {
-        if needle.is_empty() || needle.len() > hay.len() {
-            return None;
-        }
-        hay.windows(needle.len()).position(|w| w == needle)
-    }
-
     /// Which language-intelligence request to fire (the method + how to build the
     /// `params` body). `line`/`col` are 0-based positions; `extra` carries the
     /// method-specific tail (e.g. `,"newName":"x"` or the codeAction range/context).
@@ -1746,8 +1739,8 @@ pub mod lsp {
     }
 
     /// Run the handshake + one request against a document whose text is `source`,
-    /// identified by `path`. Returns the isolated `"id":2` response object, or an
-    /// empty string on any failure / timeout. Default 2.5s overall deadline.
+    /// identified by `path`. Returns the isolated response object for id 2, or
+    /// an empty string on any failure / timeout. Default 2.5s overall deadline.
     pub fn request(path: &Path, source: &str, req: Req) -> String {
         request_with_timeout(path, source, req, Duration::from_millis(2500))
     }
@@ -1824,7 +1817,7 @@ pub mod lsp {
                     Ok(0) => break,
                     Ok(n) => {
                         buf.extend_from_slice(&chunk[..n]);
-                        if find_sub(&buf, b"\"id\":2").is_some() {
+                        if crate::nav::lsp::has_response_id(&buf, 2) {
                             break;
                         }
                         if buf.len() > 1024 * 1024 {
@@ -1856,7 +1849,7 @@ pub mod lsp {
         };
 
         let text = String::from_utf8_lossy(&raw).into_owned();
-        crate::nav::lsp::isolate_response(&text, "\"id\":2")
+        crate::nav::lsp::isolate_response_id(&text, 2)
     }
 }
 
@@ -1925,6 +1918,27 @@ mod tests {
         assert_eq!(sig.label, "fn 東京(café: Str) -> \u{1f600}");
         assert_eq!(sig.params, vec!["café".to_string()]);
         assert_eq!(sig.doc, "\u{fffd}X");
+    }
+
+    #[test]
+    fn language_lsp_response_wait_uses_response_owned_id() {
+        let stream = br#"Content-Length: 99
+
+{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"signatures":[{"label":"wrong()"}]}}}}Content-Length: 107
+
+{"jsonrpc":"2.0","id":2,"result":{"signatures":[{"label":"right(a)","parameters":[{"label":"a"}]}]}}"#;
+
+        assert!(crate::nav::lsp::has_response_id(stream, 2));
+    }
+
+    #[test]
+    fn language_lsp_isolate_response_id_skips_progress_metadata_id() {
+        let stream = r#"{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"signatures":[{"label":"wrong()"}]}}}}{"jsonrpc":"2.0","id":2,"result":{"signatures":[{"label":"right(a)","parameters":[{"label":"a"}]}]}}"#;
+        let one = crate::nav::lsp::isolate_response_id(stream, 2);
+        let sig = parse_signature_help(&one).expect("sig");
+
+        assert_eq!(sig.label, "right(a)");
+        assert!(!one.contains("wrong"));
     }
 
     // ---- WorkspaceEdit (rename) parsing ----

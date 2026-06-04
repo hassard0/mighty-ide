@@ -10143,3 +10143,17 @@ metadata can also contain `id: 2` and `result` fields.
   whose object owns `result` or `error`.
 - **Language note:** no compiler gap surfaced. Response isolation should be
   envelope-based at every consumer, not just at shared generic clients.
+
+## L829 - Language Feature Requests Share Response Ownership Rules
+
+Signature help, rename, code actions, and document-symbol requests all run over
+the same mixed LSP stream as hover and definition. Progress notifications or
+server requests can carry nested `id` and `result` fields before the response
+for the user's request arrives.
+
+- **IDE note:** the Mighty language request client now uses the shared
+  response-owned `id: 2` wait and isolation logic for signature help, rename,
+  code actions, and document symbols.
+- **Language note:** no compiler gap surfaced. Once a transport invariant is
+  found in one feature client, every sibling client should share that invariant
+  instead of repeating substring readiness checks.

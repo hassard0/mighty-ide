@@ -1106,7 +1106,7 @@ pub mod lsp {
         isolate_response_id(&text, 2)
     }
 
-    pub(super) fn has_response_id(stream: &[u8], wanted_id: u32) -> bool {
+    pub(crate) fn has_response_id(stream: &[u8], wanted_id: u32) -> bool {
         response_object_ranges(stream).into_iter().any(|(start, end)| {
             let obj = &stream[start..end];
             super::top_level_uint_field(obj, b"id") == Some(wanted_id)
@@ -1132,7 +1132,7 @@ pub mod lsp {
         out
     }
 
-    pub(super) fn isolate_response_id(stream: &str, wanted_id: u32) -> String {
+    pub(crate) fn isolate_response_id(stream: &str, wanted_id: u32) -> String {
         let bytes = stream.as_bytes();
         for (start, end) in response_object_ranges(bytes) {
             let obj = &bytes[start..end];
