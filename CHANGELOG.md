@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Prepare rename reads result-owned ranges**: rename preparation now reads the
+  server's accepted `result.range.start` / `result.start` from the owning result
+  object, so metadata coordinates cannot choose the wrong symbol.
 - **Definitions read range-owned start positions**: go-to-definition parsing now
   reads `Location.range.start` and `LocationLink` target starts from their
   owning range objects, preventing nested metadata from moving jump targets.

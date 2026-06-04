@@ -10087,3 +10087,17 @@ definition target.
 - **Language note:** no compiler gap surfaced. Navigation targets should be
   resolved by descending through the selected result object and its selected
   range; metadata inside that range is not an alternate target.
+
+## L825 - Prepare Rename Needs Result-Owned Starts
+
+LSP `prepareRename` can return either a bare `Range` or an object with a
+`range` and placeholder, and either form can carry metadata with fields named
+`start`, `line`, or `character`. Broad scans can select the wrong identifier
+before opening the rename prompt.
+
+- **IDE note:** rename preparation now reads the top-level JSON-RPC `result`,
+  then either `result.range.start` or bare `result.start`, and finally the
+  top-level `line` / `character` fields owned by that start object.
+- **Language note:** no compiler gap surfaced. Feature gates that refine the
+  user's current selection should treat server-returned ranges as owned payloads,
+  not as search regions.

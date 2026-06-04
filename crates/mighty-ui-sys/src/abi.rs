@@ -9813,11 +9813,71 @@ fn read_json_string_at(bytes: &[u8], pos: usize) -> Option<(String, usize)> {
 /// `Range` `{"start":{"line":N,"character":N},"end":{...}}`.
 fn parse_prepare_rename_start(json: &str) -> Option<(u32, u32)> {
     let bytes = json.as_bytes();
-    let start_at = find_subslice(bytes, b"\"start\"")?;
-    let region = &bytes[start_at..];
-    let line = read_uint_in(region, b"\"line\"")?;
-    let col = read_uint_in(region, b"\"character\"")?;
+    let result = top_level_json_object_field(bytes, "result")?;
+    let range = top_level_json_object_field(result, "range").unwrap_or(result);
+    let start = top_level_json_object_field(range, "start")?;
+    let line = top_level_json_uint_field(start, "line")?;
+    let col = top_level_json_uint_field(start, "character")?;
     Some((line, col))
+}
+
+fn top_level_json_object_field<'a>(bytes: &'a [u8], field: &str) -> Option<&'a [u8]> {
+    let value_at = top_level_json_field_value_start(bytes, field)?;
+    if bytes.get(value_at) != Some(&b'{') {
+        return None;
+    }
+    let end = match_json_enclosed(bytes, value_at, b'{', b'}').min(bytes.len());
+    Some(&bytes[value_at..end])
+}
+
+fn top_level_json_uint_field(bytes: &[u8], field: &str) -> Option<u32> {
+    let mut i = top_level_json_field_value_start(bytes, field)?;
+    while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    let start = i;
+    let mut value = 0u32;
+    while i < bytes.len() && bytes[i].is_ascii_digit() {
+        value = value
+            .saturating_mul(10)
+            .saturating_add((bytes[i] - b'0') as u32);
+        i += 1;
+    }
+    if i == start {
+        None
+    } else {
+        Some(value)
+    }
+}
+
+fn match_json_enclosed(bytes: &[u8], open_at: usize, open: u8, close: u8) -> usize {
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut esc = false;
+    let mut i = open_at;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if in_str {
+            if esc {
+                esc = false;
+            } else if b == b'\\' {
+                esc = true;
+            } else if b == b'"' {
+                in_str = false;
+            }
+        } else if b == b'"' {
+            in_str = true;
+        } else if b == open {
+            depth += 1;
+        } else if b == close {
+            depth -= 1;
+            if depth == 0 {
+                return i + 1;
+            }
+        }
+        i += 1;
+    }
+    bytes.len()
 }
 
 fn is_non_renamable_identifier(symbol: &str) -> bool {
@@ -9887,6 +9947,18 @@ mod rename_prepare_tests {
     fn prepare_rename_start_reads_server_range() {
         let raw = r#"{"jsonrpc":"2.0","result":{"start":{"line":4,"character":8},"end":{"line":4,"character":12}},"id":3}"#;
         assert_eq!(parse_prepare_rename_start(raw), Some((4, 8)));
+    }
+
+    #[test]
+    fn prepare_rename_start_reads_result_range_owner() {
+        let raw = r#"{"jsonrpc":"2.0","metadata":{"start":{"line":99,"character":1}},"result":{"metadata":{"start":{"line":98,"character":2}},"range":{"metadata":{"start":{"line":97,"character":3}},"start":{"metadata":{"line":96,"character":4},"line":4,"character":8},"end":{"line":4,"character":12}},"placeholder":"name"},"id":3}"#;
+        assert_eq!(parse_prepare_rename_start(raw), Some((4, 8)));
+    }
+
+    #[test]
+    fn prepare_rename_start_ignores_result_metadata_start() {
+        let raw = r#"{"jsonrpc":"2.0","result":{"metadata":{"start":{"line":99,"character":1}},"start":{"metadata":{"line":98,"character":2},"line":5,"character":9},"end":{"line":5,"character":13}},"id":3}"#;
+        assert_eq!(parse_prepare_rename_start(raw), Some((5, 9)));
     }
 
     #[test]
@@ -10617,35 +10689,6 @@ pub extern "C" fn mui_codeaction_draw(handle: i64, row: i32, col: i32, total_lin
     ctx.overlay = false;
     ctx.text.set_overlay(false);
     ctx.codeaction = menu;
-}
-
-/// `read_uint_after` clone over an explicit region (avoids exporting the nav
-/// helper). Reads the unsigned integer value of `key` in `region`.
-fn read_uint_in(region: &[u8], key: &[u8]) -> Option<u32> {
-    let p = find_subslice(region, key)?;
-    let mut j = p + key.len();
-    while j < region.len() && matches!(region[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        j += 1;
-    }
-    let start = j;
-    let mut v: u32 = 0;
-    while j < region.len() && region[j].is_ascii_digit() {
-        v = v.saturating_mul(10).saturating_add((region[j] - b'0') as u32);
-        j += 1;
-    }
-    if j == start {
-        None
-    } else {
-        Some(v)
-    }
-}
-
-/// Find the first occurrence of `needle` in `hay` (byte substring search).
-fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
-    if needle.is_empty() || needle.len() > hay.len() {
-        return None;
-    }
-    hay.windows(needle.len()).position(|w| w == needle)
 }
 
 // ---------------------------------------------------------------------------
