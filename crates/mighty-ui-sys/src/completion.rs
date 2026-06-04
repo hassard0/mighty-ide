@@ -9,7 +9,7 @@
 //! Two providers feed the same dropdown:
 //!
 //! * **Buffer-word provider (primary, always available):** extract every
-//!   identifier-like word (`[A-Za-z_][A-Za-z0-9_]*`) from the current buffer,
+//!   identifier-like word from the current buffer,
 //!   filter by the prefix at the cursor, dedupe, and sort. Self-contained and
 //!   thoroughly unit-tested ([`buffer_words`], [`filter_by_prefix`]).
 //! * **mty-lsp semantic provider (best-effort):** spawn `mty lsp`, do the LSP
@@ -36,30 +36,64 @@ pub struct Candidate {
     pub snippet: bool,
 }
 
-/// Whether a byte is part of an identifier (`[A-Za-z0-9_]`).
-fn is_ident_byte(b: u8) -> bool {
+/// Whether a char is part of an identifier.
+fn is_ident_char(ch: char) -> bool {
+    ch == '_' || ch.is_alphanumeric()
+}
+
+/// Whether a char can START an identifier.
+fn is_ident_start(ch: char) -> bool {
+    ch == '_' || ch.is_alphabetic()
+}
+
+fn is_ascii_ident_byte(b: u8) -> bool {
     b == b'_' || b.is_ascii_alphanumeric()
 }
 
-/// Whether a byte can START an identifier (`[A-Za-z_]`, not a digit).
-fn is_ident_start(b: u8) -> bool {
+fn is_ascii_ident_start(b: u8) -> bool {
     b == b'_' || b.is_ascii_alphabetic()
 }
 
-/// Extract every identifier-like word (`[A-Za-z_][A-Za-z0-9_]*`) from `bytes`,
-/// in first-appearance order, deduped. Used as the buffer-word candidate pool.
+/// Extract every identifier-like word from `bytes`, in first-appearance order,
+/// deduped. Used as the buffer-word candidate pool.
 pub fn buffer_words(bytes: &[u8]) -> Vec<String> {
+    let Ok(text) = std::str::from_utf8(bytes) else {
+        return buffer_words_ascii(bytes);
+    };
+    let mut words: Vec<String> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let chars: Vec<(usize, char)> = text.char_indices().collect();
+    let mut i = 0usize;
+    while i < chars.len() {
+        if is_ident_start(chars[i].1) {
+            let start = chars[i].0;
+            i += 1;
+            while i < chars.len() && is_ident_char(chars[i].1) {
+                i += 1;
+            }
+            let end = chars.get(i).map_or(text.len(), |(byte, _)| *byte);
+            let w = &text[start..end];
+            if seen.insert(w.to_string()) {
+                words.push(w.to_string());
+            }
+        } else {
+            i += 1;
+        }
+    }
+    words
+}
+
+fn buffer_words_ascii(bytes: &[u8]) -> Vec<String> {
     let mut words: Vec<String> = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut i = 0;
     while i < bytes.len() {
-        if is_ident_start(bytes[i]) {
+        if is_ascii_ident_start(bytes[i]) {
             let start = i;
             i += 1;
-            while i < bytes.len() && is_ident_byte(bytes[i]) {
+            while i < bytes.len() && is_ascii_ident_byte(bytes[i]) {
                 i += 1;
             }
-            // ASCII-only identifier bytes -> always valid UTF-8.
             if let Ok(w) = std::str::from_utf8(&bytes[start..i]) {
                 if seen.insert(w.to_string()) {
                     words.push(w.to_string());
@@ -73,19 +107,41 @@ pub fn buffer_words(bytes: &[u8]) -> Vec<String> {
 }
 
 /// The identifier prefix immediately before byte offset `cursor` in `bytes`:
-/// the run of identifier bytes ending at the cursor (empty if the char before
-/// the cursor is not an identifier byte). Returns the prefix string.
+/// the run of identifier chars ending at the cursor (empty if the char before
+/// the cursor is not an identifier char). Returns the prefix string.
 pub fn prefix_at(bytes: &[u8], cursor: usize) -> String {
+    let Ok(text) = std::str::from_utf8(bytes) else {
+        return prefix_at_ascii(bytes, cursor);
+    };
+    let end = cursor.min(bytes.len());
+    let mut end = end;
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    let chars: Vec<(usize, char)> = text[..end].char_indices().collect();
+    let mut idx = chars.len();
+    while idx > 0 && is_ident_char(chars[idx - 1].1) {
+        idx -= 1;
+    }
+    if idx == chars.len() {
+        return String::new();
+    }
+    if !is_ident_start(chars[idx].1) {
+        return String::new();
+    }
+    text[chars[idx].0..end].to_string()
+}
+
+fn prefix_at_ascii(bytes: &[u8], cursor: usize) -> String {
     let end = cursor.min(bytes.len());
     let mut start = end;
-    while start > 0 && is_ident_byte(bytes[start - 1]) {
+    while start > 0 && is_ascii_ident_byte(bytes[start - 1]) {
         start -= 1;
     }
     // A prefix that begins with a digit (e.g. inside `123abc`) is not a valid
-    // identifier start; trim leading digits so we don't offer completions for a
-    // numeric literal.
-    while start < end && bytes[start].is_ascii_digit() {
-        start += 1;
+    // identifier start.
+    if start < end && !is_ascii_ident_start(bytes[start]) {
+        return String::new();
     }
     String::from_utf8_lossy(&bytes[start..end]).into_owned()
 }
@@ -897,6 +953,21 @@ mod tests {
     }
 
     #[test]
+    fn buffer_words_extracts_unicode_identifiers() {
+        let words = buffer_words("fn café() { let δοκιμή = 東京_2 + café }".as_bytes());
+        assert_eq!(
+            words,
+            vec![
+                "fn".to_string(),
+                "café".to_string(),
+                "let".to_string(),
+                "δοκιμή".to_string(),
+                "東京_2".to_string(),
+            ]
+        );
+    }
+
+    #[test]
     fn prefix_at_reads_identifier_before_cursor() {
         let src = b"let counter = coun";
         // Cursor at end -> prefix "coun".
@@ -911,10 +982,29 @@ mod tests {
 
     #[test]
     fn prefix_at_skips_leading_digits() {
-        // `123abc` is not an identifier; the prefix at the end trims the digits.
-        assert_eq!(prefix_at(b"x = 123abc", 10), "abc");
+        // `123abc` is not an identifier.
+        assert_eq!(prefix_at(b"x = 123abc", 10), "");
         // Pure digits -> empty (a numeric literal).
         assert_eq!(prefix_at(b"x = 1234", 8), "");
+    }
+
+    #[test]
+    fn prefix_at_reads_unicode_identifier_before_cursor() {
+        let src = "let café_value = caf";
+        assert_eq!(prefix_at(src.as_bytes(), src.len()), "caf");
+
+        let src = "let δοκιμή = δοκ";
+        assert_eq!(prefix_at(src.as_bytes(), src.len()), "δοκ");
+
+        let cursor = "let 東京".len();
+        let src = "let 東京_2 = 1";
+        assert_eq!(prefix_at(src.as_bytes(), cursor), "東京");
+    }
+
+    #[test]
+    fn prefix_at_rejects_unicode_numeric_literals() {
+        let src = "let x = １２３abc";
+        assert_eq!(prefix_at(src.as_bytes(), src.len()), "");
     }
 
     #[test]
@@ -963,6 +1053,16 @@ mod tests {
         // prefix "al" -> album, alpha, alphabet (sorted), excludes nothing equal.
         assert_eq!(n, 3);
         assert_eq!(e.accepted_text(), "album");
+    }
+
+    #[test]
+    fn request_offers_unicode_buffer_words() {
+        let mut e = CompletionEngine::new();
+        let src = "let café_value = 1\nlet café_total = caf";
+        let n = e.request(src.as_bytes(), src.len(), &[]);
+        assert_eq!(n, 2);
+        assert_eq!(e.prefix_len(), 3);
+        assert_eq!(e.accepted_text(), "café_total");
     }
 
     #[test]
