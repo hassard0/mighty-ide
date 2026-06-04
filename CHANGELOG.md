@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Source Control palette commits reveal their state**: `Git: Commit Staged`
+  and `Source Control: Clear Commit Message` now switch to the SCM panel before
+  acting, so the visible staged set, draft message, refresh result, and follow-up
+  focus all line up with the command-palette path.
 - **Source Control now follows the folder users actually open**: switching
   workspaces resets git-root discovery before refresh, so the SCM panel no
   longer stages or commits against a stale repository. The Windows harness opens

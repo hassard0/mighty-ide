@@ -4629,9 +4629,13 @@ fn main() {
           let _gua = mui_scm_unstage_all(h)
           let _r = mui_scm_refresh(h)
         } else if id == cmd_git_commit_staged() {
+          let _vp = mui_panel_set(h, panel_scm())
           let _gc = mui_scm_commit(h)
           let _r = mui_scm_refresh(h)
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_git_clear_commit_message() {
+          let _vp = mui_panel_set(h, panel_scm())
           let _gcm = mui_scm_clear_message(h)
           agents_focus = false
           find_nav = false

@@ -8458,3 +8458,15 @@ Bulk staging should be visible in the same header as commit and refresh.
   codes through `mui_scm_stage_all` / `mui_scm_unstage_all` before change-row
   handling, and palette bulk-stage commands now reveal Source Control before
   acting.
+
+## L704 - Stateful Source Control Commands Should Reveal Their State
+
+Palette commands that consume Source Control state should make that state
+visible before acting. Commit and clear-message both depend on the SCM draft and
+staged set, so leaving the user in another panel makes success or failure harder
+to understand.
+
+- **IDE note:** `Git: Commit Staged` and `Source Control: Clear Commit Message`
+  now reveal Source Control before dispatching their SCM ABI calls. Commit still
+  refreshes status afterward, and both commands clear transient panel focus so
+  the visible SCM panel owns the follow-up interaction.

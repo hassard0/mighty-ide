@@ -10538,10 +10538,19 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Source Control close command must use the SCM-specific close ABI without clearing git state"
     );
     assert!(
-        main.contains("id == cmd_git_clear_commit_message()")
-            && main.contains("let _gcm = mui_scm_clear_message(h)")
+        main.contains(
+            "id == cmd_git_clear_commit_message() {\n          let _vp = mui_panel_set(h, panel_scm())\n          let _gcm = mui_scm_clear_message(h)"
+        )
             && main.contains("find_nav = false"),
-        "Source Control clear-message command must clear only the commit draft"
+        "Source Control clear-message command must reveal Source Control and clear only the commit draft"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_git_commit_staged() {\n          let _vp = mui_panel_set(h, panel_scm())\n          let _gc = mui_scm_commit(h)\n          let _r = mui_scm_refresh(h)"
+        )
+            && main.contains("let _r = mui_scm_refresh(h)")
+            && main.contains("find_nav = false"),
+        "Source Control commit command must reveal Source Control before using the commit-message draft"
     );
     assert!(
         main.contains("id == cmd_git_stage_all()")
