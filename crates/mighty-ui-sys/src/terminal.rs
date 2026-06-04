@@ -1336,6 +1336,7 @@ impl VtParser {
     fn osc(&mut self, b: u8) {
         match b {
             0x07 => self.state = State::Ground, // BEL terminates
+            0x18 | 0x1a => self.state = State::Ground, // CAN/SUB abort
             0x1b => self.state = State::OscEsc, // maybe ST
             _ => {}                              // title text etc.: consume
         }
@@ -1345,6 +1346,7 @@ impl VtParser {
     fn osc_esc(&mut self, b: u8) {
         match b {
             b'\\' => self.state = State::Ground, // ST terminates
+            0x18 | 0x1a => self.state = State::Ground, // CAN/SUB abort
             0x07 => self.state = State::Ground,  // tolerate stray BEL
             _ => self.state = State::Osc,        // not ST; keep consuming
         }
@@ -1352,6 +1354,7 @@ impl VtParser {
 
     fn string(&mut self, b: u8) {
         match b {
+            0x18 | 0x1a => self.state = State::Ground, // CAN/SUB abort
             0x1b => self.state = State::StringEsc, // maybe ST
             _ => {}                                // payload: consume
         }
@@ -1360,6 +1363,7 @@ impl VtParser {
     fn string_esc(&mut self, b: u8) {
         match b {
             b'\\' => self.state = State::Ground, // ST terminates
+            0x18 | 0x1a => self.state = State::Ground, // CAN/SUB abort
             _ => self.state = State::String,     // not ST; keep consuming
         }
     }
@@ -2513,6 +2517,27 @@ mod tests {
         assert!(g2.contains("xy"));
         assert!(!g2.contains("privacy"));
         assert!(!g2.contains("guard"));
+    }
+
+    #[test]
+    fn escape_strings_abort_on_can_or_sub() {
+        let g = grid_feed(
+            2,
+            40,
+            b"\x1b]0;title\x18after\x1b]1;icon\x1asub\x1bPpayload\x18dcs",
+        );
+        assert!(g.contains("after"));
+        assert!(g.contains("sub"));
+        assert!(g.contains("dcs"));
+        assert!(!g.contains("title"));
+        assert!(!g.contains("icon"));
+        assert!(!g.contains("payload"));
+
+        let g2 = grid_feed(2, 40, b"\x1b^privacy\x1aguard\x1bXhidden\x18safe");
+        assert!(g2.contains("guard"));
+        assert!(g2.contains("safe"));
+        assert!(!g2.contains("privacy"));
+        assert!(!g2.contains("hidden"));
     }
 
     #[test]

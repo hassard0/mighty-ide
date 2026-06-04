@@ -7620,3 +7620,13 @@ payload bytes draw as visible garbage until ST.
   (`ESC P`), SOS (`ESC X`), PM (`ESC ^`), and APC (`ESC _`). Payload bytes are
   consumed until the `ESC \` string terminator, with parser tests covering DCS,
   APC, PM, and SOS payloads that should not reach the visible grid.
+
+L621. Terminal string cancellation must return to ground. CAN (`0x18`) and SUB
+(`0x1A`) abort in-progress control strings; treating them as ordinary payload
+bytes can swallow all following printable output until a later ST happens to
+arrive.
+
+- **IDE note:** OSC and DCS/PM/APC/SOS string states now abort on CAN/SUB from
+  both their normal and post-ESC substates. Parser tests cover cancelled OSC,
+  DCS, PM, and SOS payloads and assert that the text after cancellation remains
+  visible.
