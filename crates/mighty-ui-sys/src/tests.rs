@@ -10918,6 +10918,36 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             "Debug action `{helper}` must claim the Debug sidebar and release competing focus"
         );
     }
+    for (key, next_key, call) in [
+        (
+            "key_f5",
+            "key_f10",
+            "if shift_held(kmods) {\n            let _ds = mui_dbg_stop(h)\n          } else {\n            let _st = mui_dbg_start(h)\n          }",
+        ),
+        ("key_f10", "key_f11", "let _dso = mui_dbg_step_over(h)"),
+        (
+            "key_f11",
+            "key_page_up",
+            "if shift_held(kmods) { let _dsout = mui_dbg_step_out(h) } else { let _dsi = mui_dbg_step_into(h) }",
+        ),
+    ] {
+        let start = main
+            .find(&format!("k == {key}() {{"))
+            .unwrap_or_else(|| panic!("expected debug keyboard branch for `{key}`"));
+        let end = main[start..]
+            .find(&format!("}} else if k == {next_key}()"))
+            .map(|p| start + p)
+            .unwrap_or_else(|| panic!("expected branch after `{key}` to start `{next_key}`"));
+        let block = &main[start..end];
+        assert!(
+            block.contains("let _vp = mui_panel_set(h, panel_debug())")
+                && block.contains(call)
+                && block.contains(
+                    "run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+                ),
+            "Debug keyboard shortcut `{key}` must reveal Debug and release competing focus"
+        );
+    }
     assert!(
         main.contains("id == cmd_debug_close()")
             && main.contains("let _dc = mui_dbg_close(h)")

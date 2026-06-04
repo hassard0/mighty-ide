@@ -3224,16 +3224,40 @@ fn main() {
           }
         } else if k == key_f5() {                            // F5 / Shift+F5 : start-continue / stop
           let kmods = mui_event_mods(h)
+          let _vp = mui_panel_set(h, panel_debug())
           if shift_held(kmods) {
             let _ds = mui_dbg_stop(h)
           } else {
             let _st = mui_dbg_start(h)
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if k == key_f10() {                           // F10 : step over
+          let _vp = mui_panel_set(h, panel_debug())
           let _dso = mui_dbg_step_over(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if k == key_f11() {                           // F11 / Shift+F11 : step into / out
           let kmods = mui_event_mods(h)
+          let _vp = mui_panel_set(h, panel_debug())
           if shift_held(kmods) { let _dsout = mui_dbg_step_out(h) } else { let _dsi = mui_dbg_step_into(h) }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if k == key_page_up() {
           let kmods = mui_event_mods(h)
           if ctrl_held(kmods) && shift_held(kmods) {

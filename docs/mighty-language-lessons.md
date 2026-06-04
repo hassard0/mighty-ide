@@ -8789,3 +8789,15 @@ debug action from the palette.
   toggle breakpoint, and clear-breakpoints now clear competing surface focus and
   transient search navigation after opening the Debug sidebar. The Mighty
   dispatcher source-contract test covers every Debug action command.
+
+## L734 - Function-key Shortcuts Need The Same Ownership Contract
+
+Raw key handlers can bypass the shared command dispatcher, so shortcut parity is
+not guaranteed just because palette commands are correct. Function-key debug
+shortcuts should reveal Debug and clear competing focus the same way their
+command ids do.
+
+- **IDE note:** F5, Shift+F5, F10, F11, and Shift+F11 now set the Debug panel
+  before invoking start/continue, stop, step-over, step-into, or step-out, then
+  release stale Run/Web/Testing/Terminal/AI/Agents/search focus. The Mighty
+  dispatcher source-contract test scopes assertions to each raw key branch.
