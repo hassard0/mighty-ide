@@ -10442,6 +10442,35 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
                 >= 2,
         "delete-line and join-line paths must preflight known no-op edits before recording undo"
     );
+    let editor_focus_cleanup = "run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false";
+    for marker in [
+        "} else if id == cmd_delete_line()",
+        "} else if id == cmd_join_line()",
+        "} else if id == cmd_select_word()",
+        "} else if id == cmd_add_caret_next_occurrence() || id == cmd_add_caret_above() || id == cmd_add_caret_below() || id == cmd_collapse_carets()",
+        "} else if id == cmd_select_all() || id == cmd_select_line()",
+        "} else if id == cmd_toggle_line_comment()",
+        "} else if id == cmd_copy_selection_or_line()",
+        "} else if id == cmd_cut_selection_or_line() || id == cmd_paste_in_editor()",
+        "} else if id == cmd_delete_previous_word() || id == cmd_delete_next_word()",
+        "} else if id == cmd_indent_line_selection() || id == cmd_outdent_line_selection()",
+        "} else if id == cmd_move_word_left() || id == cmd_move_word_right() || id == cmd_move_document_start() || id == cmd_move_document_end() || id == cmd_move_line_start() || id == cmd_move_line_end()",
+        "} else if id == cmd_duplicate_line_selection() || id == cmd_move_line_up() || id == cmd_move_line_down()",
+    ] {
+        let start = main
+            .find(marker)
+            .unwrap_or_else(|| panic!("missing editor command branch `{marker}`"));
+        let tail = &main[start..];
+        let end = tail[1..]
+            .find("\n        } else if id ==")
+            .map(|p| p + 1)
+            .unwrap_or(tail.len());
+        let branch = &tail[..end];
+        assert!(
+            branch.contains(editor_focus_cleanup),
+            "editor command branch `{marker}` must release stale focus"
+        );
+    }
     assert!(
         main.contains("let replaced = mui_replace_all(h)")
             && main.contains("let replaced = mui_replace_next(h)")

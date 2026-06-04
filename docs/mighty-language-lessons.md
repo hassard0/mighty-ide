@@ -9043,3 +9043,19 @@ visible.
 - **Language note:** no compiler gap surfaced. This broadens the same focus
   effect pattern to ordinary file/edit commands, strengthening the case for a
   reusable command metadata table instead of hand-repeated scalar updates.
+
+## L752 - Editor Operations Are Focus Owners Too
+
+Editor operation commands can be invoked from the palette while another panel
+still has stale keyboard ownership. Once the operation runs, the next key event
+belongs to the editor surface, regardless of whether the command changed text,
+selection, carets, or only movement state.
+
+- **IDE note:** Delete/Join Line, Select Word, Select All/Line, multi-caret,
+  Toggle Comment, Copy/Cut/Paste, Delete Previous/Next Word, Indent/Outdent,
+  word/document/line movement, Duplicate, and Move Line commands now release
+  stale Run/Web/Testing/Terminal/AI/Agents/search focus. Source-contract
+  coverage pins the grouped editor-command branches.
+- **Language note:** no compiler gap surfaced. The grouped branch test keeps
+  the behavior auditable, but the implementation still shows why editor command
+  groups need reusable focus-effect metadata.

@@ -4396,6 +4396,12 @@ fn main() {
             mui_ghost_dismiss(h)
             mui_ghost_arm(h)
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_join_line() {
           if mui_ed_can_join_line(h) == 1 { mui_ed_undo_record(h) }
@@ -4405,11 +4411,29 @@ fn main() {
             mui_ghost_dismiss(h)
             mui_ghost_arm(h)
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_select_word() {
           let _sw = mui_ed_select_word(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_add_caret_next_occurrence() || id == cmd_add_caret_above() || id == cmd_add_caret_below() || id == cmd_collapse_carets() {
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
           typing = false
           if id == cmd_collapse_carets() {
@@ -4440,24 +4464,42 @@ fn main() {
           } else {
             mui_ed_select_line(h)
           }
-        } else if id == cmd_toggle_line_comment() {
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
+        } else if id == cmd_toggle_line_comment() {
           if mui_ed_can_toggle_comment(h) == 1 { mui_ed_undo_record(h) }
           typing = false
           let changed = mui_ed_toggle_comment(h)
           if changed == 1 {
             mui_tab_set_dirty(h, mui_tab_active(h), 1)
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_copy_selection_or_line() {
           let _cc = mui_complete_cancel(h)
           completing = false
-          find_nav = false
           typing = false
           let _copy = mui_ed_copy(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_cut_selection_or_line() || id == cmd_paste_in_editor() {
           let _cc = mui_complete_cancel(h)
           completing = false
-          find_nav = false
           typing = false
           if (id == cmd_paste_in_editor() && mui_ed_can_paste(h) == 1) || (id == cmd_cut_selection_or_line() && mui_ed_can_cut(h) == 1) {
             mui_ed_undo_record(h)
@@ -4472,8 +4514,14 @@ fn main() {
             mui_ghost_dismiss(h)
             mui_ghost_arm(h)
           }
-        } else if id == cmd_delete_previous_word() || id == cmd_delete_next_word() {
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
+        } else if id == cmd_delete_previous_word() || id == cmd_delete_next_word() {
           let can_delete = if id == cmd_delete_previous_word() {
             mui_ed_can_delete_word_left(h)
           } else {
@@ -4491,6 +4539,13 @@ fn main() {
             mui_ghost_dismiss(h)
             mui_ghost_arm(h)
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_indent_line_selection() || id == cmd_outdent_line_selection() {
           if (id == cmd_indent_line_selection() && mui_ed_can_edit(h) == 1) || (id == cmd_outdent_line_selection() && mui_ed_can_outdent(h) == 1) {
             mui_ed_undo_record(h)
@@ -4506,6 +4561,13 @@ fn main() {
             mui_ghost_dismiss(h)
             mui_ghost_arm(h)
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_move_word_left() || id == cmd_move_word_right() || id == cmd_move_document_start() || id == cmd_move_document_end() || id == cmd_move_line_start() || id == cmd_move_line_end() {
           mui_ghost_dismiss(h)
           typing = false
@@ -4522,6 +4584,13 @@ fn main() {
           } else {
             mui_ed_move_ext_multi(h, dir_end(), 0)
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_duplicate_line_selection() || id == cmd_move_line_up() || id == cmd_move_line_down() {
           if (id == cmd_duplicate_line_selection() && mui_ed_can_duplicate(h) == 1) || (id == cmd_move_line_up() && mui_ed_can_move_lines_up(h) == 1) || (id == cmd_move_line_down() && mui_ed_can_move_lines_down(h) == 1) {
             mui_ed_undo_record(h)
@@ -4538,6 +4607,12 @@ fn main() {
             mui_ghost_dismiss(h)
             mui_ghost_arm(h)
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_open_file() {
           let oi = mui_open_file_dialog(h)
