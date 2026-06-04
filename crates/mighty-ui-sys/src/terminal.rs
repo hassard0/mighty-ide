@@ -693,6 +693,9 @@ pub struct VtParser {
     reply: Vec<u8>,
     /// Saved cursor state used by DEC `ESC 7`/`ESC 8` and CSI `s`/`u`.
     saved_cursor: Option<SavedCursor>,
+    /// Cursor state saved by `CSI ?1049 h`; kept separate from app-visible
+    /// cursor save/restore sequences so alternate-screen entry cannot clobber them.
+    alternate_cursor: Option<SavedCursor>,
     /// Last graphic cell written by printable output, used by REP (`CSI Ps b`).
     last_graphic: Option<Cell>,
     /// Whether the running app asked for bracketed paste (`CSI ?2004 h`).
@@ -734,6 +737,7 @@ impl VtParser {
             utf8_need: 0,
             reply: Vec::new(),
             saved_cursor: None,
+            alternate_cursor: None,
             last_graphic: None,
             bracketed_paste: false,
             focus_reporting: false,
@@ -1271,8 +1275,10 @@ impl VtParser {
         let modes: Vec<&str> = private.split(';').collect();
         for mode in modes {
             match (mode, final_byte) {
-                ("47" | "1047" | "1049", b'h') => grid.enter_alternate_screen(),
-                ("47" | "1047" | "1049", b'l') => grid.exit_alternate_screen(),
+                ("1049", b'h') => self.enter_alternate_screen_with_cursor_save(grid),
+                ("1049", b'l') => self.exit_alternate_screen_with_cursor_restore(grid),
+                ("47" | "1047", b'h') => grid.enter_alternate_screen(),
+                ("47" | "1047", b'l') => grid.exit_alternate_screen(),
                 ("1", b'h') => self.application_cursor_keys = true,
                 ("1", b'l') => self.application_cursor_keys = false,
                 ("6", b'h') => {
@@ -1308,6 +1314,7 @@ impl VtParser {
 
     fn reset_modes(&mut self) {
         self.saved_cursor = None;
+        self.alternate_cursor = None;
         self.last_graphic = None;
         self.bracketed_paste = false;
         self.focus_reporting = false;
@@ -1533,9 +1540,9 @@ impl VtParser {
         }
     }
 
-    fn save_cursor(&mut self, grid: &Grid) {
+    fn cursor_snapshot(&self, grid: &Grid) -> SavedCursor {
         let (row, col) = grid.cursor();
-        self.saved_cursor = Some(SavedCursor {
+        SavedCursor {
             row,
             col,
             fg: grid.cur_fg,
@@ -1544,18 +1551,40 @@ impl VtParser {
             origin_mode: self.origin_mode,
             cursor_visible: self.cursor_visible,
             cursor_shape: self.cursor_shape,
-        });
+        }
+    }
+
+    fn restore_cursor_snapshot(&mut self, grid: &mut Grid, saved: SavedCursor) {
+        grid.move_cursor_1_based(saved.row + 1, saved.col + 1);
+        grid.cur_fg = saved.fg;
+        grid.cur_bg = saved.bg;
+        self.autowrap = saved.autowrap;
+        self.origin_mode = saved.origin_mode;
+        self.cursor_visible = saved.cursor_visible;
+        self.cursor_shape = saved.cursor_shape;
+    }
+
+    fn enter_alternate_screen_with_cursor_save(&mut self, grid: &mut Grid) {
+        if !grid.alternate_screen_active() {
+            self.alternate_cursor = Some(self.cursor_snapshot(grid));
+        }
+        grid.enter_alternate_screen();
+    }
+
+    fn exit_alternate_screen_with_cursor_restore(&mut self, grid: &mut Grid) {
+        grid.exit_alternate_screen();
+        if let Some(saved) = self.alternate_cursor.take() {
+            self.restore_cursor_snapshot(grid, saved);
+        }
+    }
+
+    fn save_cursor(&mut self, grid: &Grid) {
+        self.saved_cursor = Some(self.cursor_snapshot(grid));
     }
 
     fn restore_cursor(&mut self, grid: &mut Grid) {
         if let Some(saved) = self.saved_cursor {
-            grid.move_cursor_1_based(saved.row + 1, saved.col + 1);
-            grid.cur_fg = saved.fg;
-            grid.cur_bg = saved.bg;
-            self.autowrap = saved.autowrap;
-            self.origin_mode = saved.origin_mode;
-            self.cursor_visible = saved.cursor_visible;
-            self.cursor_shape = saved.cursor_shape;
+            self.restore_cursor_snapshot(grid, saved);
         }
     }
 
@@ -3304,6 +3333,25 @@ mod tests {
         assert_eq!(g.cell(0, 1).bg, 4);
         assert!(!g.contains("A"));
         assert!(!g.contains("1049"));
+    }
+
+    #[test]
+    fn alternate_screen_1049_restores_cursor_attributes() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+
+        p.feed(&mut g, b"\x1b[?25h\x1b[2 q\x1b[?1049h\x1b[?25l\x1b[6 q\x1b[?1049l");
+        assert!(p.cursor_visible());
+        assert_eq!(p.cursor_shape(), CursorShape::Block);
+        assert!(!g.contains("1049"));
+
+        p.feed(&mut g, b"\x1b[?25l\x1b[6 q\x1b7\x1b[?25h\x1b[2 q\x1b[?1049h\x1b[?25l\x1b[6 q\x1b[?1049l");
+        assert!(p.cursor_visible());
+        assert_eq!(p.cursor_shape(), CursorShape::Block);
+
+        p.feed(&mut g, b"\x1b8");
+        assert!(!p.cursor_visible());
+        assert_eq!(p.cursor_shape(), CursorShape::Bar);
     }
 
     #[test]
