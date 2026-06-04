@@ -9146,6 +9146,18 @@ fn sync_active_path_clears_stale_active_language_ui() {
         crate::langdetect::Language::Mighty,
         Some("fn peek_target() {}\n")
     ));
+    ctx.crumb_files = vec![root.join("first.mty")];
+    ctx.crumb_menu.open(
+        crate::crumbmenu::MenuKind::Files,
+        vec![crate::crumbmenu::MenuItem {
+            label: "first.mty".to_string(),
+            icon: None,
+            icon_color: crate::theme::TEXT(),
+            depth: 0,
+            target: 0,
+        }],
+        80.0,
+    );
 
     assert_eq!(crate::mui_hover_active(h), 1);
     assert_eq!(crate::mui_def_target_line(h), 2);
@@ -9154,6 +9166,8 @@ fn sync_active_path_clears_stale_active_language_ui() {
     assert_eq!(crate::abi::mui_codeaction_active(h), 1);
     assert_eq!(crate::wsabi::mui_lightbulb_visible(h), 1);
     assert_eq!(crate::stickyabi::mui_peek_active(h), 1);
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_active(h), 1);
+    assert_eq!(ctx.crumb_files.len(), 1);
 
     let second_idx = ctx.tabs.open_path(second);
     ctx.tabs.switch(second_idx);
@@ -9166,6 +9180,8 @@ fn sync_active_path_clears_stale_active_language_ui() {
     assert_eq!(crate::abi::mui_codeaction_active(h), 0);
     assert_eq!(crate::wsabi::mui_lightbulb_visible(h), 0);
     assert_eq!(crate::stickyabi::mui_peek_active(h), 0);
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_active(h), 0);
+    assert!(ctx.crumb_files.is_empty());
     assert_eq!(ctx.file_name, "second.mty");
 
     let _ = std::fs::remove_dir_all(root);

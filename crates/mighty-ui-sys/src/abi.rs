@@ -4132,6 +4132,8 @@ pub(crate) fn sync_active_path(ctx: &mut MuiContext) {
     ctx.lightbulb.reset();
     ctx.peek.close();
     ctx.outline.clear_symbols();
+    ctx.crumb_menu.cancel();
+    ctx.crumb_files.clear();
     ctx.file_name = path
         .as_ref()
         .and_then(|p| p.file_name())
