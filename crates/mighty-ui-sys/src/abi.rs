@@ -11134,6 +11134,14 @@ fn save_active_to_path(ctx: &mut MuiContext, target: PathBuf) -> i32 {
     if ctx.tabs.active_read_only() {
         return reject_read_only_save(ctx);
     }
+    if ctx
+        .tabs
+        .find_by_path(&target)
+        .is_some_and(|idx| idx != ctx.tabs.active())
+    {
+        ctx.push_toast(crate::toast::Kind::Warn, "Target file is already open");
+        return -1;
+    }
     if let Some(parent) = target.parent() {
         let _ = std::fs::create_dir_all(parent);
     }

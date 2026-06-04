@@ -8883,6 +8883,50 @@ fn save_as_dialog_env_pick_writes_and_binds_untitled_tab() {
 }
 
 #[test]
+fn save_as_dialog_refuses_target_open_in_another_tab() {
+    use crate::{mui_active_has_path, mui_ed_dirty, mui_save_as_dialog};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    crate::settings::set_active(crate::settings::Settings::default());
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_as_dialog_open_target_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let target = root.join("open.mty");
+    std::fs::write(&target, "already open\n").unwrap();
+    ctx.tabs.open_path(target.clone());
+    let scratch = ctx.tabs.new_untitled();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("new text\n");
+    ctx.tabs.set_dirty(scratch, true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_SAVE_FILE_PICK", target.to_string_lossy().as_ref());
+    let saved = mui_save_as_dialog(h);
+    std::env::remove_var("MUI_SAVE_FILE_PICK");
+
+    assert_eq!(saved, -1);
+    assert_eq!(mui_active_has_path(h), 0);
+    assert_eq!(mui_ed_dirty(h), 1);
+    assert_eq!(ctx.tabs.count(), 3);
+    assert_eq!(ctx.tabs.active(), scratch);
+    assert_eq!(std::fs::read_to_string(&target).unwrap(), "already open\n");
+    assert_eq!(ctx.tabs.active_model().as_text(), "new text\n");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Target file is already open");
+
+    crate::settings::set_active(before);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn plain_save_on_untitled_uses_native_save_picker() {
     use crate::{mui_active_has_path, mui_ed_dirty, mui_ed_save};
 
@@ -9069,6 +9113,51 @@ fn save_as_prompt_consumes_staged_path() {
     assert_eq!(mui_ed_dirty(h), 0);
     assert_eq!(ctx.tabs.active_path().as_deref(), Some(target.as_path()));
     assert_eq!(std::fs::read_to_string(&target).unwrap(), "let x = 1\n");
+
+    crate::settings::set_active(before);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn save_as_prompt_refuses_target_open_in_another_tab() {
+    use crate::{mui_active_has_path, mui_ed_dirty, mui_path_push, mui_save_as};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    crate::settings::set_active(crate::settings::Settings::default());
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_as_prompt_open_target_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let target = root.join("open.mty");
+    std::fs::write(&target, "already open\n").unwrap();
+    ctx.tabs.open_path(target.clone());
+    let scratch = ctx.tabs.new_untitled();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("typed text\n");
+    ctx.tabs.set_dirty(scratch, true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    for b in target.to_string_lossy().as_bytes() {
+        mui_path_push(h, *b as u32);
+    }
+
+    assert_eq!(mui_save_as(h), -1);
+    assert!(ctx.path_stage.is_empty());
+    assert_eq!(mui_active_has_path(h), 0);
+    assert_eq!(mui_ed_dirty(h), 1);
+    assert_eq!(ctx.tabs.count(), 3);
+    assert_eq!(ctx.tabs.active(), scratch);
+    assert_eq!(std::fs::read_to_string(&target).unwrap(), "already open\n");
+    assert_eq!(ctx.tabs.active_model().as_text(), "typed text\n");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Target file is already open");
 
     crate::settings::set_active(before);
     let _ = std::fs::remove_dir_all(&root);
