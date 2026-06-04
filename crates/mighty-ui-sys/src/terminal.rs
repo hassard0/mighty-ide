@@ -1799,23 +1799,31 @@ fn modified_csi_tilde(code: u8, modifier: u8) -> Vec<u8> {
 
 /// Map a typed codepoint + modifier bits to terminal stdin bytes. With Ctrl held
 /// and an ASCII letter, emit the corresponding control code (Ctrl+C -> 0x03,
-/// etc.); otherwise emit the char's UTF-8 bytes.
+/// etc.); otherwise emit the char's UTF-8 bytes. With Alt held, prefix the
+/// resulting payload with ESC for Meta input.
 pub fn codepoint_to_bytes(codepoint: u32, mods: u32) -> Option<Vec<u8>> {
-    use crate::ffi::MUI_MOD_CTRL;
+    use crate::ffi::{MUI_MOD_ALT, MUI_MOD_CTRL};
     let ch = char::from_u32(codepoint)?;
+    let mut bytes = None;
     if mods & MUI_MOD_CTRL != 0 {
         // Ctrl+@..Ctrl+_ -> 0x00..0x1f. Letters are case-insensitive.
         let upper = (ch as u32).to_ascii_uppercase_u32();
         if (0x40..=0x5f).contains(&upper) {
-            return Some(vec![(upper - 0x40) as u8]);
+            bytes = Some(vec![(upper - 0x40) as u8]);
         }
         // Ctrl+space -> NUL.
-        if ch == ' ' {
-            return Some(vec![0]);
+        if bytes.is_none() && ch == ' ' {
+            bytes = Some(vec![0]);
         }
     }
-    let mut buf = [0u8; 4];
-    Some(ch.encode_utf8(&mut buf).as_bytes().to_vec())
+    let mut bytes = bytes.unwrap_or_else(|| {
+        let mut buf = [0u8; 4];
+        ch.encode_utf8(&mut buf).as_bytes().to_vec()
+    });
+    if mods & MUI_MOD_ALT != 0 {
+        bytes.insert(0, 0x1b);
+    }
+    Some(bytes)
 }
 
 pub fn paste_to_bytes(text: &str, bracketed: bool) -> Vec<u8> {
@@ -2880,6 +2888,23 @@ mod tests {
         assert_eq!(codepoint_to_bytes(b' ' as u32, MUI_MOD_CTRL), Some(vec![0]));
         // Multibyte char -> UTF-8 bytes.
         assert_eq!(codepoint_to_bytes('é' as u32, 0), Some(vec![0xc3, 0xa9]));
+    }
+
+    #[test]
+    fn codepoint_mapping_alt_prefixes_meta_escape() {
+        use crate::ffi::{MUI_MOD_ALT, MUI_MOD_CTRL};
+        assert_eq!(
+            codepoint_to_bytes(b'x' as u32, MUI_MOD_ALT),
+            Some(vec![0x1b, b'x'])
+        );
+        assert_eq!(
+            codepoint_to_bytes(b'c' as u32, MUI_MOD_ALT | MUI_MOD_CTRL),
+            Some(vec![0x1b, 0x03])
+        );
+        assert_eq!(
+            codepoint_to_bytes('é' as u32, MUI_MOD_ALT),
+            Some(vec![0x1b, 0xc3, 0xa9])
+        );
     }
 
     #[test]

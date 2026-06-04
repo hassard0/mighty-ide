@@ -7705,3 +7705,11 @@ same xterm modifier parameter scheme as navigation keys.
 - **IDE note:** terminal input now sends plain F2 as `ESC O Q`, modified F1-F4
   as `CSI 1;N P/Q/R/S`, and modified F5-F12 as `CSI code;N~`. Regression tests
   cover the corrected F2 plus representative Shift/Alt/Ctrl combinations.
+
+L630. Terminal Alt text input is Meta, not plain text. Handling Ctrl+letter
+control codes while ignoring Alt makes Alt-modified character chords reach
+terminal apps as ordinary text.
+
+- **IDE note:** `codepoint_to_bytes` now prefixes ESC for Alt-modified character
+  input after computing the Ctrl/control-code or UTF-8 payload. Tests cover
+  Alt+ASCII, Alt+Ctrl, and Alt+multibyte input.
