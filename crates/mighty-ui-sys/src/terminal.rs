@@ -688,6 +688,7 @@ struct SavedCursor {
     g0_charset: Charset,
     g1_charset: Charset,
     active_charset: CharsetSlot,
+    bold: bool,
     autowrap: bool,
     origin_mode: bool,
     insert_mode: bool,
@@ -786,6 +787,8 @@ pub struct VtParser {
     g1_charset: Charset,
     /// Charset currently mapped into GL by SI/SO. Defaults to G0.
     active_charset: CharsetSlot,
+    /// Whether SGR bold/intense is active for subsequently-written cells.
+    bold: bool,
     /// Last graphic cell written by printable output, used by REP (`CSI Ps b`).
     last_graphic: Option<Cell>,
     /// Whether the running app asked for bracketed paste (`CSI ?2004 h`).
@@ -847,6 +850,7 @@ impl VtParser {
             g0_charset: Charset::Ascii,
             g1_charset: Charset::Ascii,
             active_charset: CharsetSlot::G0,
+            bold: false,
             last_graphic: None,
             bracketed_paste: false,
             focus_reporting: false,
@@ -1054,7 +1058,7 @@ impl VtParser {
     fn print_char(&mut self, grid: &mut Grid, ch: char) {
         let cell = Cell {
             ch,
-            fg: grid.cur_fg,
+            fg: effective_sgr_fg(grid.cur_fg, self.bold),
             bg: grid.cur_bg,
         };
         if self.insert_mode {
@@ -1290,6 +1294,7 @@ impl VtParser {
         if params.is_empty() {
             grid.cur_fg = DEFAULT_FG;
             grid.cur_bg = DEFAULT_BG;
+            self.bold = false;
             return;
         }
         // `ESC [ ? … m` (private) — not a real SGR; ignore.
@@ -1308,7 +1313,10 @@ impl VtParser {
                 0 => {
                     grid.cur_fg = DEFAULT_FG;
                     grid.cur_bg = DEFAULT_BG;
+                    self.bold = false;
                 }
+                1 => self.bold = true,
+                22 => self.bold = false,
                 30..=37 => grid.cur_fg = (n - 30) as u32, // basic 0..=7
                 39 => grid.cur_fg = DEFAULT_FG,     // default fg
                 40..=47 => grid.cur_bg = (n - 40) as u32, // basic bg 0..=7
@@ -1554,6 +1562,7 @@ impl VtParser {
         self.g0_charset = Charset::Ascii;
         self.g1_charset = Charset::Ascii;
         self.active_charset = CharsetSlot::G0;
+        self.bold = false;
         self.bracketed_paste = false;
         self.focus_reporting = false;
         self.cursor_visible = true;
@@ -1837,6 +1846,7 @@ impl VtParser {
             g0_charset: self.g0_charset,
             g1_charset: self.g1_charset,
             active_charset: self.active_charset,
+            bold: self.bold,
             autowrap: self.autowrap,
             origin_mode: self.origin_mode,
             insert_mode: self.insert_mode,
@@ -1855,6 +1865,7 @@ impl VtParser {
         self.g0_charset = saved.g0_charset;
         self.g1_charset = saved.g1_charset;
         self.active_charset = saved.active_charset;
+        self.bold = saved.bold;
         self.autowrap = saved.autowrap;
         self.origin_mode = saved.origin_mode;
         self.insert_mode = saved.insert_mode;
@@ -2350,6 +2361,14 @@ fn unit_to_byte(value: f32) -> u8 {
 
 fn rgb8_rgba((r, g, b): (u8, u8, u8), alpha: f32) -> (f32, f32, f32, f32) {
     (r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, alpha)
+}
+
+fn effective_sgr_fg(fg: u32, bold: bool) -> u32 {
+    if bold && fg <= 7 {
+        fg + 8
+    } else {
+        fg
+    }
 }
 
 fn parse_sgr_params(params: &str) -> Vec<Option<i32>> {
@@ -3354,6 +3373,28 @@ mod tests {
     }
 
     #[test]
+    fn sgr_bold_maps_basic_foreground_to_bright_for_later_cells() {
+        let g = grid_feed(1, 12, b"\x1b[31mA\x1b[1mB\x1b[22mC\x1b[1;32mD\x1b[0mE");
+        assert_eq!(g.cell(0, 0).fg, 1);
+        assert_eq!(g.cell(0, 1).fg, 9);
+        assert_eq!(g.cell(0, 2).fg, 1);
+        assert_eq!(g.cell(0, 3).fg, 10);
+        assert_eq!(g.cell(0, 4).fg, DEFAULT_FG);
+    }
+
+    #[test]
+    fn sgr_bold_does_not_rewrite_non_basic_foregrounds() {
+        let g = grid_feed(
+            1,
+            12,
+            b"\x1b[38;5;196m\x1b[1mA\x1b[38;2;1;2;3mB\x1b[39mC",
+        );
+        assert_eq!(g.cell(0, 0).fg, 196);
+        assert_eq!(g.cell(0, 1).fg, encode_truecolor(1, 2, 3));
+        assert_eq!(g.cell(0, 2).fg, DEFAULT_FG);
+    }
+
+    #[test]
     fn sgr_background_colors_and_resets() {
         let g = grid_feed(2, 10, b"\x1b[44mA\x1b[49mB\x1b[104mC\x1b[0mD");
         assert_eq!(g.cell(0, 0).bg, 4);
@@ -3485,13 +3526,13 @@ mod tests {
 
     #[test]
     fn sgr_compound_params_ignored_safely() {
-        // Bold + fg color: "1;33" -> bold ignored, yellow (3) applied.
+        // Bold + fg color: "1;33" -> bright yellow (11) applied.
         let g = grid_feed(2, 10, b"\x1b[1;33mY");
         assert_eq!(g.cell(0, 0).ch, 'Y');
-        assert_eq!(g.cell(0, 0).fg, 3);
+        assert_eq!(g.cell(0, 0).fg, 11);
 
         let g2 = grid_feed(1, 8, b"\x1b[1;33;45mZ");
-        assert_eq!(g2.cell(0, 0).fg, 3);
+        assert_eq!(g2.cell(0, 0).fg, 11);
         assert_eq!(g2.cell(0, 0).bg, 5);
     }
 
@@ -3989,6 +4030,10 @@ mod tests {
         let g5 = grid_feed(3, 8, b"ab\x1b[20l\x1b7\x1b[20h\x1b8\ncd");
         assert_eq!(g5.to_text(), "ab      \n  cd    \n        ");
         assert!(!g5.contains("20"));
+
+        let g6 = grid_feed(1, 8, b"\x1b[31;1m\x1b7\x1b[22m\x1b8X");
+        assert_eq!(g6.cell(0, 0).fg, 9);
+        assert!(!g6.contains("[22"));
     }
 
     #[test]

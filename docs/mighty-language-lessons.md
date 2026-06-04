@@ -8086,3 +8086,14 @@ state leaves the next prompt in a stale terminal personality.
   modes and the visible grid. Regression coverage verifies later text uses
   default attributes and post-reset color queries/render resolution return to
   built-in defaults.
+
+L669. Ignoring SGR bold makes common prompts look under-specified. Many terminal
+themes rely on `SGR 1` with basic ANSI foregrounds, and when the renderer has no
+font-weight path yet, mapping bold basic colors to their bright counterparts is
+the pragmatic compatibility behavior.
+
+- **IDE note:** the VT parser now tracks SGR bold intensity for subsequently
+  written cells, maps basic foreground indices `0..7` to bright `8..15`, resets
+  on `SGR 0`/`22`, and preserves the state across cursor save/restore. Tests pin
+  bold-before-color, bold-after-color, non-basic color boundaries, and restored
+  bold state.
