@@ -6830,8 +6830,8 @@ pub extern "C" fn mui_tree_row_at_click(handle: i64) -> i32 {
     }
 }
 
-/// Open the file at tree row `i` as a tab (no-op for directories / out of
-/// range). Returns the resulting tab index, or -1 if not a file.
+/// Open the file at tree row `i` as a tab, or toggle a directory row. Returns
+/// the resulting tab index, or -1 when no tab was opened.
 #[no_mangle]
 pub extern "C" fn mui_tree_open_row(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -6844,6 +6844,7 @@ pub extern "C" fn mui_tree_open_row(handle: i64, i: i32) -> i32 {
         return -1;
     };
     if row.is_dir {
+        ctx.tree.toggle(i as usize);
         return -1;
     }
     let path = row.path.clone();

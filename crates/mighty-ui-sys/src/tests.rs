@@ -835,8 +835,11 @@ fn tree_abi_scan_toggle_and_open_row() {
     assert!(opened >= 0, "expected a file row to open, got {opened}");
     assert_eq!(mui_tab_count(handle), before + 1);
 
-    // Opening a directory row is a no-op (returns -1).
+    // Opening a directory row toggles it but does not report a tab index.
     assert_eq!(mui_tree_open_row(handle, 0), -1);
+    assert_eq!(mui_tree_count(handle), 2);
+    assert_eq!(mui_tree_open_row(handle, 0), -1);
+    assert_eq!(mui_tree_count(handle), 3);
 
     let _ = std::fs::remove_dir_all(&root);
 }
