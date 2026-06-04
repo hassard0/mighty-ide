@@ -310,6 +310,7 @@ extern c {
   fn mui_term_send_codepoint(handle: I64, codepoint: I32, mods: I32)
   fn mui_term_paste(handle: I64) -> I32
   fn mui_term_scroll(handle: I64, dir: I32)
+  fn mui_term_focus(handle: I64, focused: I32)
   fn mui_term_pump(handle: I64)
   fn mui_term_draw(handle: I64)
   fn mui_log_terminal(handle: I64)
@@ -4799,6 +4800,7 @@ fn main() {
     if term_on == 1 {
       mui_term_pump(h)
       if mui_term_running(h) == 0 { term_focus = false }
+      if term_focus { mui_term_focus(h, 1) } else { mui_term_focus(h, 0) }
     }
 
     // Advance toast timers BEFORE drawing so expired cards disappear this frame.

@@ -7827,3 +7827,14 @@ is not distinguishable from plain Escape if the second escape byte is dropped.
   `ESC ESC [ Z` and Meta-Escape as `ESC ESC`, while preserving the existing plain
   Tab, Shift+Tab, Escape, and Meta-Tab mappings. Regression coverage locks the
   named-key Meta combinations alongside the existing terminal input assertions.
+
+L643. Terminal focus reporting is stateful, not a key event. TUIs can enable
+xterm focus reports with `CSI ?1004 h`; after that, focus changes must arrive as
+`CSI I` and `CSI O` on stdin, and duplicate reports should be suppressed until
+the IDE focus state actually changes.
+
+- **IDE note:** `VtParser` now tracks private mode `?1004`, `Terminal` records
+  the IDE's terminal-focus state and reports it only when the mode is enabled and
+  the reported state changes, and the Mighty frame loop publishes `term_focus`
+  after terminal pump/liveness checks. Tests cover mode tracking, reset behavior,
+  and the exact xterm focus-report byte sequences.

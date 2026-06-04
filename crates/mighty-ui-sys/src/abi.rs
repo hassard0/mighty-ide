@@ -7022,6 +7022,17 @@ pub extern "C" fn mui_term_scroll(handle: i64, dir: i32) {
     }
 }
 
+/// Publish IDE keyboard focus to the terminal so apps that enabled xterm focus
+/// reporting (`CSI ?1004 h`) receive focus-in/focus-out events.
+#[no_mangle]
+pub extern "C" fn mui_term_focus(handle: i64, focused: i32) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        if let Some(t) = ctx.terminal.as_mut() {
+            t.set_focus(focused != 0);
+        }
+    }
+}
+
 /// Write a single raw byte to the PTY stdin. No-op if not running.
 #[no_mangle]
 pub extern "C" fn mui_term_send_byte(handle: i64, byte: i32) {

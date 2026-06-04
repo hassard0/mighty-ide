@@ -642,6 +642,8 @@ pub struct VtParser {
     last_graphic: Option<Cell>,
     /// Whether the running app asked for bracketed paste (`CSI ?2004 h`).
     bracketed_paste: bool,
+    /// Whether the running app asked for focus in/out reports (`CSI ?1004 h`).
+    focus_reporting: bool,
     /// Whether the terminal cursor should be drawn (`CSI ?25 h/l`).
     cursor_visible: bool,
     /// Shape requested by DECSCUSR (`CSI Ps SP q`).
@@ -676,6 +678,7 @@ impl VtParser {
             saved_cursor: None,
             last_graphic: None,
             bracketed_paste: false,
+            focus_reporting: false,
             cursor_visible: true,
             cursor_shape: CursorShape::Block,
             application_cursor_keys: false,
@@ -701,6 +704,10 @@ impl VtParser {
 
     pub fn bracketed_paste_enabled(&self) -> bool {
         self.bracketed_paste
+    }
+
+    pub fn focus_reporting_enabled(&self) -> bool {
+        self.focus_reporting
     }
 
     pub fn sgr_mouse_enabled(&self) -> bool {
@@ -1197,6 +1204,8 @@ impl VtParser {
                 ("1048", b'l') => self.restore_cursor(grid),
                 ("25", b'h') => self.cursor_visible = true,
                 ("25", b'l') => self.cursor_visible = false,
+                ("1004", b'h') => self.focus_reporting = true,
+                ("1004", b'l') => self.focus_reporting = false,
                 ("2004", b'h') => self.bracketed_paste = true,
                 ("2004", b'l') => self.bracketed_paste = false,
                 ("1000" | "1002" | "1003", b'h') => self.mouse_reporting = true,
@@ -1212,6 +1221,7 @@ impl VtParser {
         self.saved_cursor = None;
         self.last_graphic = None;
         self.bracketed_paste = false;
+        self.focus_reporting = false;
         self.cursor_visible = true;
         self.cursor_shape = CursorShape::Block;
         self.application_cursor_keys = false;
@@ -1631,6 +1641,10 @@ pub fn background_rgba(bg: u32) -> Option<(f32, f32, f32, f32)> {
 pub struct Terminal {
     grid: Grid,
     parser: VtParser,
+    /// Current IDE keyboard-focus state for xterm focus-in/focus-out reports.
+    focused: bool,
+    /// Last focus state reported to the PTY while focus reporting was enabled.
+    reported_focus: Option<bool>,
     /// PTY master half — used to write stdin and resize.
     master: Box<dyn MasterPty + Send>,
     /// Writer to the PTY (the child's stdin).
@@ -1703,6 +1717,8 @@ impl Terminal {
         Ok(Terminal {
             grid: Grid::new(rows, cols),
             parser: VtParser::new(),
+            focused: false,
+            reported_focus: None,
             master: pair.master,
             writer,
             child,
@@ -1761,12 +1777,32 @@ impl Terminal {
         if !reply.is_empty() {
             self.send(&reply);
         }
+        self.report_focus_if_needed();
     }
 
     /// Write raw bytes to the PTY stdin (the shell's input).
     pub fn send(&mut self, bytes: &[u8]) {
         let _ = self.writer.write_all(bytes);
         let _ = self.writer.flush();
+    }
+
+    /// Update IDE keyboard focus and send xterm focus in/out reports when the
+    /// running app enabled `CSI ?1004 h`.
+    pub fn set_focus(&mut self, focused: bool) {
+        self.focused = focused;
+        self.report_focus_if_needed();
+    }
+
+    fn report_focus_if_needed(&mut self) {
+        if !self.parser.focus_reporting_enabled() {
+            self.reported_focus = None;
+            return;
+        }
+        if self.reported_focus == Some(self.focused) {
+            return;
+        }
+        self.reported_focus = Some(self.focused);
+        self.send(focus_report_to_bytes(self.focused));
     }
 
     /// Send a named key, honoring terminal modes that alter key encoding.
@@ -2037,6 +2073,14 @@ pub fn scroll_to_bytes(dir: i32, mouse_reporting: bool, sgr_mouse: bool) -> Opti
         bytes.extend_from_slice(&[0x1b, b'[', key]);
     }
     Some(bytes)
+}
+
+pub fn focus_report_to_bytes(focused: bool) -> &'static [u8] {
+    if focused {
+        b"\x1b[I"
+    } else {
+        b"\x1b[O"
+    }
 }
 
 /// Tiny extension so `codepoint_to_bytes` can uppercase a raw u32 codepoint
@@ -2696,6 +2740,21 @@ mod tests {
     }
 
     #[test]
+    fn focus_reporting_mode_tracks_private_csi() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+        assert!(!p.focus_reporting_enabled());
+
+        p.feed(&mut g, b"\x1b[?1004h");
+        assert!(p.focus_reporting_enabled());
+        assert!(!g.contains("1004"));
+
+        p.feed(&mut g, b"\x1b[?1004l");
+        assert!(!p.focus_reporting_enabled());
+        assert!(!g.contains("1004"));
+    }
+
+    #[test]
     fn mouse_reporting_modes_track_private_csi() {
         let mut g = Grid::new(1, 8);
         let mut p = VtParser::new();
@@ -2786,11 +2845,12 @@ mod tests {
         let mut p = VtParser::new();
         p.feed(
             &mut g,
-            b"\x1b[?1h\x1b[?25l\x1b[6 q\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1bc",
+            b"\x1b[?1h\x1b[?25l\x1b[6 q\x1b[?1004h\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1bc",
         );
         assert!(!p.application_cursor_keys());
         assert!(p.cursor_visible());
         assert_eq!(p.cursor_shape(), CursorShape::Block);
+        assert!(!p.focus_reporting_enabled());
         assert!(!p.bracketed_paste_enabled());
         assert!(!p.mouse_reporting_enabled());
         assert!(!p.sgr_mouse_enabled());
@@ -3269,6 +3329,12 @@ mod tests {
             Some(b"\x1b[<65;1;1M".to_vec())
         );
         assert_eq!(scroll_to_bytes(0, true, true), None);
+    }
+
+    #[test]
+    fn focus_report_bytes_match_xterm_focus_events() {
+        assert_eq!(focus_report_to_bytes(true), b"\x1b[I");
+        assert_eq!(focus_report_to_bytes(false), b"\x1b[O");
     }
 
     // ---- PTY integration (skips gracefully if spawn fails) ----
