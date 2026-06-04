@@ -2369,6 +2369,25 @@ fn terminal_clear_acknowledges_closed_state_without_requiring_pty_spawn() {
 }
 
 #[test]
+fn terminal_paste_acknowledges_closed_state_without_requiring_pty_spawn() {
+    let _guard = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_CLIPBOARD_TEXT", "paste me");
+    assert_eq!(crate::abi::mui_term_paste(handle), 0);
+    std::env::remove_var("MUI_CLIPBOARD_TEXT");
+
+    assert!(!ctx.term_open);
+    assert!(ctx.terminal.is_none());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Terminal is not open");
+}
+
+#[test]
 fn terminal_header_clear_action_hits_visible_button() {
     use crate::ffi::{MuiEvent, MUI_EVENT_MOUSE_DOWN, MUI_MOUSE_LEFT};
 

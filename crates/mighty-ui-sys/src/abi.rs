@@ -7303,6 +7303,10 @@ pub extern "C" fn mui_term_paste(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !ctx.term_open || ctx.terminal.is_none() {
+        ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+        return 0;
+    }
     let text = match read_clipboard_text() {
         Ok(text) => text,
         Err(e) => {
@@ -7315,13 +7319,13 @@ pub extern "C" fn mui_term_paste(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, "Clipboard is empty");
         return 0;
     }
-    if let Some(t) = ctx.terminal.as_mut() {
-        t.send_paste(&text);
-        ctx.push_toast(crate::toast::Kind::Success, "Pasted to terminal");
-        1
-    } else {
-        0
-    }
+    let Some(t) = ctx.terminal.as_mut() else {
+        ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+        return 0;
+    };
+    t.send_paste(&text);
+    ctx.push_toast(crate::toast::Kind::Success, "Pasted to terminal");
+    1
 }
 
 /// Send a mouse-wheel scroll gesture to the PTY. When a terminal app enabled

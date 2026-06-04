@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Terminal paste failures are visible**: terminal paste now reports
+  `Terminal is not open` before reading the clipboard when no integrated
+  terminal is available, instead of silently returning from the command.
 - **Source Control commit checks use the live index**: `Git: Commit Staged` now
   refreshes repository status before deciding whether staged changes or a commit
   message are missing, so files staged outside the UI do not produce stale

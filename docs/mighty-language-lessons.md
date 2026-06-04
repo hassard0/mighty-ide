@@ -9131,3 +9131,16 @@ were staged from a terminal, another tool, or a previous command path.
 - **Language note:** no compiler gap surfaced. The lesson is an integration
   boundary one: workflow guards should refresh external state at the moment of
   action instead of trusting a sidebar snapshot.
+
+## L758 - Target Availability Should Precede Secondary IO
+
+Commands with an external dependency can fail for more than one reason. When the
+primary target is unavailable, checking a secondary dependency first produces
+misleading or silent outcomes.
+
+- **IDE note:** terminal paste now checks for an open integrated terminal before
+  reading the clipboard. If no terminal is available it reports
+  `Terminal is not open`, and a regression pins that the path does not require a
+  PTY spawn.
+- **Language note:** no compiler gap surfaced. The useful sequencing rule is to
+  validate the command target before crossing unrelated IO boundaries.
