@@ -4270,6 +4270,12 @@ fn main() {
             mui_prompt_open(h, prompt_new_file())
             prompt_kind = prompt_new_file()
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_new_workspace_file() {
           let nf = mui_newfile_workspace_dialog(h)
@@ -4280,11 +4286,23 @@ fn main() {
             mui_prompt_open(h, prompt_new_file())
             prompt_kind = prompt_new_file()
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_new_untitled_file() {
           let ni = mui_tab_new_untitled(h)
           let _b = mui_ed_tab_switch(h, ni)
           mui_ed_undo_reset(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_new_folder() {
           let nd = mui_newfolder_dialog(h)
@@ -4292,10 +4310,22 @@ fn main() {
             mui_prompt_open(h, prompt_new_folder())
             prompt_kind = prompt_new_folder()
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_rename_active_file() {
           mui_prompt_open(h, prompt_rename_file())
           prompt_kind = prompt_rename_file()
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_reveal_active_file() {
           let _fr = mui_file_reveal_active(h)
@@ -4323,6 +4353,11 @@ fn main() {
           find_nav = false
         } else if id == cmd_explorer_close() {
           let _ec = mui_explorer_close(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_reveal_active_file_in_os() {
@@ -4346,6 +4381,12 @@ fn main() {
         } else if id == cmd_delete_active_file() {
           mui_prompt_open(h, prompt_delete_file())
           prompt_kind = prompt_delete_file()
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_delete_line() {
           if mui_ed_can_delete_current_line(h) == 1 { mui_ed_undo_record(h) }
@@ -4503,6 +4544,12 @@ fn main() {
           if oi >= 0 {
             let _b = mui_ed_tab_switch(h, oi)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
@@ -4510,6 +4557,12 @@ fn main() {
           } else if oi == -1 {
             mui_prompt_open(h, prompt_open())
             prompt_kind = prompt_open()
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
           }
         } else if id == cmd_save() {
@@ -4521,9 +4574,22 @@ fn main() {
               let _g = mui_scm_refresh(h)
               let _o = mui_outline_refresh(h)
               let _pr = mui_problems_refresh(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
             } else if sr == -1 {
               mui_prompt_open(h, prompt_save_as())
               prompt_kind = prompt_save_as()
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
               find_nav = false
             }
           } else {
@@ -4534,6 +4600,13 @@ fn main() {
               let _g = mui_scm_refresh(h)
               let _o = mui_outline_refresh(h)
               let _pr = mui_problems_refresh(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
             }
           }
         } else if id == cmd_save_as() {
@@ -4544,14 +4617,33 @@ fn main() {
             let _g = mui_scm_refresh(h)
             let _o = mui_outline_refresh(h)
             let _pr = mui_problems_refresh(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           } else if sr == -1 {
             mui_prompt_open(h, prompt_save_as())
             prompt_kind = prompt_save_as()
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
           }
         } else if id == cmd_save_all() {
           let _sa = mui_save_all(h)
           let _g = mui_scm_refresh(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_quick_open() {
           mui_quickopen_open(h)
@@ -4918,14 +5010,33 @@ fn main() {
           }
         } else if id == cmd_format_document() {
           do_format(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_undo() {
           let _cc = mui_complete_cancel(h)
           completing = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
           let _u = mui_ed_undo(h)
         } else if id == cmd_redo() {
           let _cc = mui_complete_cancel(h)
           completing = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
           let _u = mui_ed_redo(h)
         } else if id == cmd_autocomplete() {

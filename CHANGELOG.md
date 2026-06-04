@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **File and edit commands release stale focus**: New file/folder prompts,
+  rename/delete prompts, Open File, Save/Save As/Save All, Format Document,
+  Undo/Redo, and Explorer close now clear stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus when returning to editor or
+  prompt ownership.
 - **Welcome, Zen, Diff, and Blame commands release stale focus**: opening or
   closing Welcome, toggling Zen mode, closing inline diff, and hiding blame now
   clear stale Run/Web/Testing/Terminal/AI/Agents/search focus.

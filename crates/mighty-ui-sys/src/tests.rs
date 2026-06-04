@@ -10510,6 +10510,68 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Ctrl+Shift+S should force the native Save As dialog even for file-backed tabs"
     );
     assert!(
+        main.contains(
+            "id == cmd_new_file() {\n          let nf = mui_newfile_dialog(h)"
+        )
+            && main.contains(
+                "mui_prompt_open(h, prompt_new_file())\n            prompt_kind = prompt_new_file()\n          }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            )
+            && main.contains(
+                "id == cmd_new_workspace_file() {\n          let nf = mui_newfile_workspace_dialog(h)"
+            )
+            && main.contains(
+                "id == cmd_new_untitled_file() {\n          let ni = mui_tab_new_untitled(h)\n          let _b = mui_ed_tab_switch(h, ni)\n          mui_ed_undo_reset(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "New file commands must return ownership to editor or prompt and release stale focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_new_folder() {\n          let nd = mui_newfolder_dialog(h)\n          if nd == -1 {\n            mui_prompt_open(h, prompt_new_folder())\n            prompt_kind = prompt_new_folder()\n          }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        )
+            && main.contains(
+                "id == cmd_rename_active_file() {\n          mui_prompt_open(h, prompt_rename_file())\n          prompt_kind = prompt_rename_file()\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            )
+            && main.contains(
+                "id == cmd_delete_active_file() {\n          mui_prompt_open(h, prompt_delete_file())\n          prompt_kind = prompt_delete_file()\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "File prompt commands must release stale focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_open_file() {\n          let oi = mui_open_file_dialog(h)\n          if oi >= 0 {\n            let _b = mui_ed_tab_switch(h, oi)\n            mui_ed_undo_reset(h)\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+        )
+            && main.contains(
+                "mui_prompt_open(h, prompt_open())\n            prompt_kind = prompt_open()\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+            ),
+        "Open File command must release stale focus for dialog success and prompt fallback"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_save_all() {\n          let _sa = mui_save_all(h)\n          let _g = mui_scm_refresh(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        )
+            && main.matches("mui_prompt_open(h, prompt_save_as())\n              prompt_kind = prompt_save_as()\n              run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false").count() >= 2
+            && main.matches("let _pr = mui_problems_refresh(h)\n              run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false").count() >= 2,
+        "Save and Save As command paths must release stale focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_format_document() {\n          do_format(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        )
+            && main.contains(
+                "id == cmd_undo() {\n          let _cc = mui_complete_cancel(h)\n          completing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            )
+            && main.contains(
+                "id == cmd_redo() {\n          let _cc = mui_complete_cancel(h)\n          completing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "Format, Undo, and Redo commands must release stale focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_explorer_close() {\n          let _ec = mui_explorer_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Explorer close command must release stale focus"
+    );
+    assert!(
         main.contains("if mui_recent_any(h) == 1"),
         "File: Open Recent must open the recents picker only when valid recent files or folders exist"
     );

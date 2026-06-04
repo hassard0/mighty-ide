@@ -9027,3 +9027,19 @@ cleared before the next input event is routed.
 - **Language note:** no compiler gap surfaced. This is another example where
   command groups need declarative focus effects rather than repeating scalar
   flag cleanup in every visible-surface branch.
+
+## L751 - File Commands Return To Editor Or Prompt Ownership
+
+File commands often finish by opening an editor tab, writing a file, or falling
+back to a prompt. Those outcomes should not preserve an old panel owner, because
+the next key event belongs to the editor or prompt that the command just made
+visible.
+
+- **IDE note:** New File, New Workspace File, New Untitled File, New Folder,
+  Rename Active File, Delete Active File, Open File, Save, Save As, Save All,
+  Format Document, Undo, Redo, and Explorer close now release stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus. Dispatcher source-contract
+  coverage pins the editor/prompt ownership branches.
+- **Language note:** no compiler gap surfaced. This broadens the same focus
+  effect pattern to ordinary file/edit commands, strengthening the case for a
+  reusable command metadata table instead of hand-repeated scalar updates.
