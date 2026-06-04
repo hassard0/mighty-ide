@@ -7018,6 +7018,8 @@ type TermRun = (f32, f32, String, (f32, f32, f32, f32));
 type TermBgRun = (f32, f32, f32, (f32, f32, f32, f32));
 /// One queued terminal underline run: position, width, and resolved RGBA color.
 type TermUnderlineRun = (f32, f32, f32, (f32, f32, f32, f32));
+/// One queued terminal strikethrough run: position, width, and resolved RGBA color.
+type TermStrikethroughRun = (f32, f32, f32, (f32, f32, f32, f32));
 
 fn terminal_cursor_draw_visible(cursor_visible: bool, cursor_blinking: bool, frame: u64) -> bool {
     cursor_visible && (!cursor_blinking || (frame / 30) % 2 == 0)
@@ -7463,7 +7465,19 @@ pub extern "C" fn mui_term_draw(handle: i64) {
 
     // Snapshot the grid into owned data so the borrow on `ctx.terminal` ends
     // before we borrow `ctx.text`.
-    let (rows, cols, cursor, cursor_visible, cursor_blinking, cursor_shape, cursor_color, backgrounds, underlines, glyphs) = {
+    let (
+        rows,
+        cols,
+        cursor,
+        cursor_visible,
+        cursor_blinking,
+        cursor_shape,
+        cursor_color,
+        backgrounds,
+        underlines,
+        strikethroughs,
+        glyphs,
+    ) = {
         let Some(t) = ctx.terminal.as_ref() else {
             return;
         };
@@ -7513,6 +7527,31 @@ pub extern "C" fn mui_term_draw(handle: i64) {
             }
         }
 
+        let mut strikethrough_runs: Vec<TermStrikethroughRun> = Vec::new();
+        for r in 0..rows {
+            let y = layout::term_cell_y(height, r) + layout::LINE_H() * 0.55;
+            let mut col = 0usize;
+            while col < cols {
+                let cell = g.cell(r, col);
+                if !cell.strikethrough {
+                    col += 1;
+                    continue;
+                }
+                let fg = cell.fg;
+                let start = col;
+                while col < cols {
+                    let cell = g.cell(r, col);
+                    if !cell.strikethrough || cell.fg != fg {
+                        break;
+                    }
+                    col += 1;
+                }
+                let x = layout::term_cell_x(region, start);
+                let w = (col - start) as f32 * layout::CHAR_W();
+                strikethrough_runs.push((x, y, w, t.foreground_rgba(fg)));
+            }
+        }
+
         // Build one (x, y, string, color) run per row, splitting on color change
         // to keep the draw-call count modest while preserving per-cell color.
         let mut runs: Vec<TermRun> = Vec::new();
@@ -7544,6 +7583,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
             t.cursor_rgba(),
             bg_runs,
             underline_runs,
+            strikethrough_runs,
             runs,
         )
     };
@@ -7558,6 +7598,10 @@ pub extern "C" fn mui_term_draw(handle: i64) {
     }
 
     for (x, y, w, (r, gc, b, a)) in &underlines {
+        ctx.dl_rect(*x, *y, *w, 1.5, MuiColor::new(*r, *gc, *b, *a));
+    }
+
+    for (x, y, w, (r, gc, b, a)) in &strikethroughs {
         ctx.dl_rect(*x, *y, *w, 1.5, MuiColor::new(*r, *gc, *b, *a));
     }
 

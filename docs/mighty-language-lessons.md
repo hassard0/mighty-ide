@@ -8117,3 +8117,14 @@ selection cues even when the text and colors are otherwise correct.
   `mui_term_draw` paints underline runs with the resolved foreground color.
   Regression coverage pins SGR reset, repeated underlined cells, and restored
   underline state.
+
+L672. Strikethrough is semantic terminal markup, not just text decoration.
+Diagnostics, diffs, and status-heavy prompts use `SGR 9` to show removed,
+invalidated, or superseded text. If the emulator drops it, the terminal can keep
+the bytes and colors correct while still losing the meaning of the line.
+
+- **IDE note:** terminal cells now carry a strikethrough flag, `SGR 9/29`
+  updates it for subsequent output, REP and cursor save/restore preserve it, and
+  `mui_term_draw` paints strikethrough runs with the resolved foreground color.
+  Regression coverage pins SGR reset, repeated struck cells, and restored
+  strikethrough state.

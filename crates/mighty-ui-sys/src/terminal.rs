@@ -39,6 +39,7 @@ pub struct Cell {
     pub fg: u32,
     pub bg: u32,
     pub underline: bool,
+    pub strikethrough: bool,
 }
 
 /// Sentinel `fg` meaning "default foreground" (SGR 0 / 39).
@@ -70,6 +71,7 @@ impl Default for Cell {
             fg: DEFAULT_FG,
             bg: DEFAULT_BG,
             underline: false,
+            strikethrough: false,
         }
     }
 }
@@ -624,6 +626,7 @@ impl Grid {
                 fg: self.cur_fg,
                 bg: self.cur_bg,
                 underline: false,
+                strikethrough: false,
             };
         }
         self.cur_row = 0;
@@ -694,6 +697,7 @@ struct SavedCursor {
     bold: bool,
     inverse: bool,
     underline: bool,
+    strikethrough: bool,
     autowrap: bool,
     origin_mode: bool,
     insert_mode: bool,
@@ -798,6 +802,8 @@ pub struct VtParser {
     inverse: bool,
     /// Whether SGR underline is active for subsequently-written cells.
     underline: bool,
+    /// Whether SGR strikethrough is active for subsequently-written cells.
+    strikethrough: bool,
     /// Last graphic cell written by printable output, used by REP (`CSI Ps b`).
     last_graphic: Option<Cell>,
     /// Whether the running app asked for bracketed paste (`CSI ?2004 h`).
@@ -862,6 +868,7 @@ impl VtParser {
             bold: false,
             inverse: false,
             underline: false,
+            strikethrough: false,
             last_graphic: None,
             bracketed_paste: false,
             focus_reporting: false,
@@ -1076,6 +1083,7 @@ impl VtParser {
             fg,
             bg,
             underline: self.underline,
+            strikethrough: self.strikethrough,
         };
         if self.insert_mode {
             grid.prepare_insert(self.autowrap);
@@ -1313,6 +1321,7 @@ impl VtParser {
             self.bold = false;
             self.inverse = false;
             self.underline = false;
+            self.strikethrough = false;
             return;
         }
         // `ESC [ ? … m` (private) — not a real SGR; ignore.
@@ -1334,13 +1343,16 @@ impl VtParser {
                     self.bold = false;
                     self.inverse = false;
                     self.underline = false;
+                    self.strikethrough = false;
                 }
                 1 => self.bold = true,
                 4 => self.underline = true,
                 7 => self.inverse = true,
+                9 => self.strikethrough = true,
                 22 => self.bold = false,
                 24 => self.underline = false,
                 27 => self.inverse = false,
+                29 => self.strikethrough = false,
                 30..=37 => grid.cur_fg = (n - 30) as u32, // basic 0..=7
                 39 => grid.cur_fg = DEFAULT_FG,     // default fg
                 40..=47 => grid.cur_bg = (n - 40) as u32, // basic bg 0..=7
@@ -1589,6 +1601,7 @@ impl VtParser {
         self.bold = false;
         self.inverse = false;
         self.underline = false;
+        self.strikethrough = false;
         self.bracketed_paste = false;
         self.focus_reporting = false;
         self.cursor_visible = true;
@@ -1875,6 +1888,7 @@ impl VtParser {
             bold: self.bold,
             inverse: self.inverse,
             underline: self.underline,
+            strikethrough: self.strikethrough,
             autowrap: self.autowrap,
             origin_mode: self.origin_mode,
             insert_mode: self.insert_mode,
@@ -1896,6 +1910,7 @@ impl VtParser {
         self.bold = saved.bold;
         self.inverse = saved.inverse;
         self.underline = saved.underline;
+        self.strikethrough = saved.strikethrough;
         self.autowrap = saved.autowrap;
         self.origin_mode = saved.origin_mode;
         self.insert_mode = saved.insert_mode;
@@ -3475,6 +3490,19 @@ mod tests {
     }
 
     #[test]
+    fn sgr_strikethrough_marks_later_cells_until_reset() {
+        let g = grid_feed(1, 12, b"A\x1b[9mBC\x1b[29mD\x1b[9;31mE\x1b[0mF");
+        assert!(!g.cell(0, 0).strikethrough);
+        assert!(g.cell(0, 1).strikethrough);
+        assert!(g.cell(0, 2).strikethrough);
+        assert!(!g.cell(0, 3).strikethrough);
+        assert!(g.cell(0, 4).strikethrough);
+        assert_eq!(g.cell(0, 4).fg, 1);
+        assert!(!g.cell(0, 5).strikethrough);
+        assert_eq!(g.cell(0, 5).fg, DEFAULT_FG);
+    }
+
+    #[test]
     fn sgr_background_colors_and_resets() {
         let g = grid_feed(2, 10, b"\x1b[44mA\x1b[49mB\x1b[104mC\x1b[0mD");
         assert_eq!(g.cell(0, 0).bg, 4);
@@ -3525,6 +3553,13 @@ mod tests {
             assert!(g7.cell(0, col).underline);
         }
         assert!(!g7.cell(0, 3).underline);
+
+        let g8 = grid_feed(1, 8, b"\x1b[9mA\x1b[2b\x1b[29mZ");
+        assert_eq!(g8.to_text(), "AAAZ    ");
+        for col in 0..3 {
+            assert!(g8.cell(0, col).strikethrough);
+        }
+        assert!(!g8.cell(0, 3).strikethrough);
     }
 
     #[test]
@@ -4130,6 +4165,10 @@ mod tests {
         let g8 = grid_feed(1, 8, b"\x1b[4m\x1b7\x1b[24m\x1b8X");
         assert!(g8.cell(0, 0).underline);
         assert!(!g8.contains("[24"));
+
+        let g9 = grid_feed(1, 8, b"\x1b[9m\x1b7\x1b[29m\x1b8X");
+        assert!(g9.cell(0, 0).strikethrough);
+        assert!(!g9.contains("[29"));
     }
 
     #[test]
