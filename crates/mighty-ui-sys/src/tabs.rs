@@ -552,6 +552,13 @@ impl TabStore {
         if !Self::is_reopenable(&tab) {
             return;
         }
+        if tab
+            .path
+            .as_deref()
+            .is_some_and(|path| self.find_by_path(path).is_some())
+        {
+            return;
+        }
         self.closed.push(tab);
         if self.closed.len() > CLOSED_CAP {
             let overflow = self.closed.len() - CLOSED_CAP;
@@ -1127,7 +1134,8 @@ mod tests {
         assert!(s.get(0).unwrap().basename().contains("tabs_duplicate_clean_a"));
         assert!(s.get(1).unwrap().basename().contains("tabs_duplicate_clean_b"));
         assert!(s.get(2).unwrap().is_dirty());
-        assert_eq!(s.closed_count(), 2);
+        assert_eq!(s.closed_count(), 0);
+        assert!(s.reopen_closed().is_none());
         assert_eq!(compaction.old_to_new[duplicate_a], Some(0));
         assert_eq!(compaction.old_to_new[b_idx + 1], Some(1));
         assert_eq!(compaction.old_to_new[duplicate_b + 1], None);

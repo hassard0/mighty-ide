@@ -4376,6 +4376,12 @@ fn close_duplicate_tabs_preserves_active_dirty_and_valid_panes() {
     assert_eq!(ctx.tabs.get(2).unwrap().basename(), "b.mty");
     assert_ne!(b_idx, duplicate_b);
 
+    assert_eq!(crate::mui_tab_reopen_closed(handle), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No closed tab to reopen"
+    );
+
     let _ = std::fs::remove_dir_all(&root);
 }
 
