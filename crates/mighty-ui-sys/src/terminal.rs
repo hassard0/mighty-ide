@@ -48,6 +48,9 @@ const TRUECOLOR_MASK: u32 = 0x0100_0000;
 const DEFAULT_FG_RGB: (u8, u8, u8) = (0xd1, 0xd6, 0xe0);
 const DEFAULT_BG_RGB: (u8, u8, u8) = (0x14, 0x14, 0x1c);
 const DEFAULT_CURSOR_RGB: (u8, u8, u8) = (0x7c, 0x5c, 0xff);
+const MAX_OSC_BYTES: usize = 8192;
+const MAX_OSC_52_DECODED_BYTES: usize = 6144;
+const MAX_OSC_52_TEXT_CHARS: usize = 4096;
 const MOUSE_MODE_BUTTON: u8 = 1 << 0; // DECSET ?1000
 const MOUSE_MODE_DRAG: u8 = 1 << 1; // DECSET ?1002
 const MOUSE_MODE_ANY: u8 = 1 << 2; // DECSET ?1003
@@ -808,6 +811,8 @@ pub struct VtParser {
     origin_mode: bool,
     /// Last window/icon title reported by OSC 0/1/2.
     title: String,
+    /// Last decoded OSC 52 clipboard write request, drained by the UI bridge.
+    clipboard_write: Option<String>,
 }
 
 impl Default for VtParser {
@@ -844,6 +849,7 @@ impl VtParser {
             autowrap: true,
             origin_mode: false,
             title: String::new(),
+            clipboard_write: None,
         }
     }
 
@@ -858,6 +864,10 @@ impl VtParser {
     /// (DSR responses). Empties the internal buffer.
     pub fn take_reply(&mut self) -> Vec<u8> {
         std::mem::take(&mut self.reply)
+    }
+
+    pub fn take_clipboard_write(&mut self) -> Option<String> {
+        self.clipboard_write.take()
     }
 
     pub fn bracketed_paste_enabled(&self) -> bool {
@@ -1888,13 +1898,14 @@ impl VtParser {
     }
 
     fn push_osc_byte(&mut self, b: u8) {
-        if self.osc.len() < 512 {
+        if self.osc.len() < MAX_OSC_BYTES {
             self.osc.push(b);
         }
     }
 
     fn finish_osc(&mut self) {
         self.capture_osc_title();
+        self.capture_osc_clipboard();
         self.reply_osc_color_query();
         self.reply_osc_palette_query();
         self.osc.clear();
@@ -1961,6 +1972,36 @@ impl VtParser {
         }
     }
 
+    fn capture_osc_clipboard(&mut self) {
+        let mut parts = self.osc.splitn(3, |b| *b == b';');
+        if parts.next() != Some(b"52".as_slice()) {
+            return;
+        }
+        let selector = parts.next().unwrap_or_default();
+        let payload = parts.next().unwrap_or_default();
+        if payload.is_empty() || payload == b"?" {
+            return;
+        }
+        if !selector.is_empty() && !selector.contains(&b'c') {
+            return;
+        }
+
+        let Some(decoded) = decode_osc52_base64(payload) else {
+            return;
+        };
+        let Ok(text) = String::from_utf8(decoded) else {
+            return;
+        };
+        let text: String = text
+            .chars()
+            .filter(|ch| *ch != '\0')
+            .take(MAX_OSC_52_TEXT_CHARS)
+            .collect();
+        if !text.is_empty() {
+            self.clipboard_write = Some(text);
+        }
+    }
+
     fn string(&mut self, b: u8) {
         match b {
             0x18 | 0x1a => self.state = State::Ground, // CAN/SUB abort
@@ -1982,6 +2023,81 @@ impl VtParser {
 
 fn encode_truecolor(r: u8, g: u8, b: u8) -> u32 {
     TRUECOLOR_MASK | ((r as u32) << 16) | ((g as u32) << 8) | b as u32
+}
+
+fn decode_osc52_base64(input: &[u8]) -> Option<Vec<u8>> {
+    fn value(b: u8) -> Option<u8> {
+        match b {
+            b'A'..=b'Z' => Some(b - b'A'),
+            b'a'..=b'z' => Some(b - b'a' + 26),
+            b'0'..=b'9' => Some(b - b'0' + 52),
+            b'+' => Some(62),
+            b'/' => Some(63),
+            b'=' => Some(64),
+            b'\t' | b'\n' | b'\r' | b' ' => Some(65),
+            _ => None,
+        }
+    }
+
+    fn push_quartet(out: &mut Vec<u8>, q: [u8; 4]) -> Option<bool> {
+        if q[0] >= 64 || q[1] >= 64 || (q[2] == 64 && q[3] != 64) {
+            return None;
+        }
+        out.push((q[0] << 2) | (q[1] >> 4));
+        if q[2] != 64 {
+            out.push((q[1] << 4) | (q[2] >> 2));
+        }
+        if q[3] != 64 {
+            out.push((q[2] << 6) | q[3]);
+        }
+        if out.len() > MAX_OSC_52_DECODED_BYTES {
+            return None;
+        }
+        Some(q[2] == 64 || q[3] == 64)
+    }
+
+    let mut out = Vec::with_capacity(input.len().saturating_mul(3) / 4);
+    let mut q = [0u8; 4];
+    let mut q_len = 0;
+    let mut padded = false;
+
+    for &b in input {
+        let v = value(b)?;
+        if v == 65 {
+            continue;
+        }
+        if padded {
+            return None;
+        }
+        q[q_len] = v;
+        q_len += 1;
+        if q_len == 4 {
+            padded = push_quartet(&mut out, q)?;
+            q_len = 0;
+        }
+    }
+
+    match q_len {
+        0 => {}
+        2 => {
+            if q[0] >= 64 || q[1] >= 64 {
+                return None;
+            }
+            out.push((q[0] << 2) | (q[1] >> 4));
+        }
+        3 => {
+            if q[0] >= 64 || q[1] >= 64 || q[2] >= 64 {
+                return None;
+            }
+            out.push((q[0] << 2) | (q[1] >> 4));
+            out.push((q[1] << 4) | (q[2] >> 2));
+        }
+        _ => return None,
+    }
+    if out.len() > MAX_OSC_52_DECODED_BYTES {
+        return None;
+    }
+    Some(out)
 }
 
 fn palette_rgb8(index: u32) -> (u8, u8, u8) {
@@ -2248,6 +2364,10 @@ impl Terminal {
 
     pub fn title(&self) -> &str {
         self.parser.title()
+    }
+
+    pub fn take_clipboard_write(&mut self) -> Option<String> {
+        self.parser.take_clipboard_write()
     }
 
     /// Drain any pending PTY output through the parser into the grid. Cheap when
@@ -3959,6 +4079,45 @@ mod tests {
         assert!(p.title().starts_with("ab"));
         assert!(p.title().chars().count() <= 160);
         assert!(!p.title().contains('\n'));
+    }
+
+    #[test]
+    fn osc_52_clipboard_write_is_captured() {
+        let mut g = Grid::new(1, 24);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b]52;c;aGVsbG8gd29ybGQ=\x07ok");
+
+        assert_eq!(p.take_clipboard_write(), Some("hello world".to_string()));
+        assert!(p.take_clipboard_write().is_none());
+        assert!(g.contains("ok"));
+        assert!(!g.contains("aGVsbG8"));
+        assert!(!g.contains("52;c"));
+    }
+
+    #[test]
+    fn osc_52_ignores_queries_invalid_payloads_and_non_clipboard_targets() {
+        let mut g = Grid::new(1, 40);
+        let mut p = VtParser::new();
+        p.feed(
+            &mut g,
+            b"\x1b]52;c;?\x07\x1b]52;c;###\x07\x1b]52;p;aGVsbG8=\x07done",
+        );
+
+        assert!(p.take_clipboard_write().is_none());
+        assert!(g.contains("done"));
+        assert!(!g.contains("###"));
+        assert!(!g.contains("aGVsbG8"));
+    }
+
+    #[test]
+    fn osc_52_accepts_st_and_unpadded_base64() {
+        let mut g = Grid::new(1, 24);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b]52;;b2s\x1b\\done");
+
+        assert_eq!(p.take_clipboard_write(), Some("ok".to_string()));
+        assert!(g.contains("done"));
+        assert!(!g.contains("b2s"));
     }
 
     #[test]

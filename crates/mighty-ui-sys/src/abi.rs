@@ -7162,11 +7162,25 @@ pub extern "C" fn mui_term_send_byte(handle: i64, byte: i32) {
 #[no_mangle]
 pub extern "C" fn mui_term_pump(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        if let Some(t) = ctx.terminal.as_mut() {
+        let clipboard_text = if let Some(t) = ctx.terminal.as_mut() {
             t.pump();
+            let clipboard_text = t.take_clipboard_write();
             if let Ok(probe) = std::env::var("MUI_TERM_PROBE_TEXT") {
                 if !probe.is_empty() && t.visible_contains(&probe) {
                     crate::abi::trace(&format!("terminal_probe text={probe}"));
+                }
+            }
+            clipboard_text
+        } else {
+            None
+        };
+
+        if let Some(text) = clipboard_text {
+            match write_clipboard_text(&text) {
+                Ok(()) => ctx.push_toast(crate::toast::Kind::Success, "Copied from terminal"),
+                Err(e) => {
+                    ctx.push_toast(crate::toast::Kind::Error, "Could not copy terminal text");
+                    println!("terminal-osc52: failed to write clipboard: {e}");
                 }
             }
         }
