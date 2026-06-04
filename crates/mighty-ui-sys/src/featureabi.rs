@@ -251,6 +251,27 @@ pub extern "C" fn mui_run_row_at_click(handle: i64) -> i32 {
     }
 }
 
+pub const RUN_HEADER_CLICK_NONE: i32 = 0;
+pub const RUN_HEADER_CLICK_CLEAR: i32 = 1;
+
+/// Map the last click to a Run-panel header action: `1` is Clear Output, `0`
+/// is no header action. The IDE dispatches this before row navigation.
+#[no_mangle]
+pub extern "C" fn mui_run_header_action_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return RUN_HEADER_CLICK_NONE;
+    };
+    if !ctx.run.is_active() {
+        return RUN_HEADER_CLICK_NONE;
+    }
+    let (x, y) = (ctx.last_event.x, ctx.last_event.y);
+    let (bx, by, bw, bh) = run_header_clear_rect(ctx);
+    if x >= bx && x <= bx + bw && y >= by && y <= by + bh {
+        return RUN_HEADER_CLICK_CLEAR;
+    }
+    RUN_HEADER_CLICK_NONE
+}
+
 /// Resolve + record the clicked row `i`'s diagnostic target (file:line:col) and
 /// return `1` if it is a clickable line whose file exists; the IDE then reads
 /// `mui_run_click_*` and opens/jumps. `0` if not clickable.
@@ -343,6 +364,15 @@ fn run_geom(ctx: &MuiContext) -> RunGeom {
         row_h: layout::LINE_H(),
         panel_h,
     }
+}
+
+pub(crate) fn run_header_clear_rect(ctx: &MuiContext) -> (f32, f32, f32, f32) {
+    let g = run_geom(ctx);
+    let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
+    let size = 22.0;
+    let x = layout::dock_header_content_right(visible_w, ctx.gpu.height) - size;
+    let y = g.y0 + (layout::term_header_h() - size) * 0.5;
+    (x.max(g.x0 + 86.0), y, size, size)
 }
 
 fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
@@ -511,8 +541,8 @@ pub extern "C" fn mui_run_draw(handle: i64) {
     ctx.text.queue_ui_sized(run_label_x, hy, "RUN", theme::DIM(), run_label_size, clip);
     let (run_label_w, _) = ctx.text.measure_ui_sized("RUN", run_label_size);
 
-    // Status pill (right): running / exit code + duration. Compute this before
-    // the filename so the filename can be measured into the remaining gap.
+    // Header actions + status pill (right). Compute these before the filename
+    // so the filename can be measured into the remaining gap.
     let status = run_status_label(ctx.run.is_running(), ctx.run.exit_code(), ctx.run.duration_ms());
     let scol = if ctx.run.is_running() {
         theme::WARNING()
@@ -523,8 +553,8 @@ pub extern "C" fn mui_run_draw(handle: i64) {
     };
     let (status_text_w, _) = ctx.text.measure_ui_sized(&status, chrome - 2.0);
     let sw = status_text_w + 22.0;
-    let visible_w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width);
-    let status_right = layout::dock_header_content_right(visible_w, ctx.gpu.height);
+    let (clear_x, clear_y, clear_w, clear_h) = run_header_clear_rect(ctx);
+    let status_right = clear_x - 8.0;
     let status_min_x = run_label_x + run_label_w + 12.0;
     let sx = run_status_pill_x(status_right - sw, status_min_x, status_right, sw);
     let sy = g.y0 + (header_h - 18.0) * 0.5;
@@ -546,6 +576,18 @@ pub extern "C" fn mui_run_draw(handle: i64) {
     ctx.dl_stroke(sx, sy, sw, 18.0, 6.0, theme::BORDER_STRONG(), 1.0);
     let status_shown = fit_ui_text(&mut ctx.text, &status, sw - 20.0, chrome - 2.0);
     ctx.text.queue_ui_sized(sx + 10.0, sy + 3.0, &status_shown, scol, chrome - 2.0, clip);
+    ctx.dl_round(clear_x, clear_y, clear_w, clear_h, 5.0, theme::BG_4());
+    ctx.dl_stroke(clear_x, clear_y, clear_w, clear_h, 5.0, theme::BORDER_SOFT(), 1.0);
+    ctx.dl_icon(
+        clear_x + 5.0,
+        clear_y + 4.5,
+        12.0,
+        12.0,
+        icons::TRASH,
+        theme::TEXT_3(),
+        1.4,
+        false,
+    );
 
     // Output rows.
     let first = ctx.run.first();

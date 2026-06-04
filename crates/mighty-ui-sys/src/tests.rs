@@ -1708,6 +1708,46 @@ fn run_clear_output_reports_feedback_and_preserves_status() {
 }
 
 #[test]
+fn run_header_clear_action_hits_visible_button() {
+    use crate::ffi::{MuiEvent, MUI_EVENT_MOUSE_DOWN, MUI_MOUSE_LEFT};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    ctx.run.seed_demo("C:/proj/demo.mty");
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let (x, y, w, hrect) = crate::featureabi::run_header_clear_rect(&ctx);
+
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect * 0.5,
+        0,
+    );
+    assert_eq!(crate::featureabi::mui_run_header_action_at_click(h), 1);
+
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect + 12.0,
+        0,
+    );
+    assert_eq!(crate::featureabi::mui_run_header_action_at_click(h), 0);
+
+    ctx.run.close();
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect * 0.5,
+        0,
+    );
+    assert_eq!(crate::featureabi::mui_run_header_action_at_click(h), 0);
+}
+
+#[test]
 fn run_close_command_acknowledges_state_without_clearing_output() {
     let mut ctx = ctx_or_skip!();
     ctx.run.seed_demo("C:/proj/demo.mty");
@@ -10312,6 +10352,22 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _rc = mui_run_clear(h)")
             && main.contains("run_focus = true"),
         "Run clear-output command must reveal Run before clearing rendered output"
+    );
+    let run_header_pos = main
+        .find("let ract = run_header_click")
+        .expect("Run focus branch should read the cached header action");
+    let run_row_pos = main[run_header_pos..]
+        .find("let rrow = mui_run_row_at_click(h)")
+        .map(|p| run_header_pos + p)
+        .expect("Run focus branch should fall back to output-row hit testing");
+    assert!(
+        main.contains("fn mui_run_header_action_at_click(handle: I64) -> I32")
+            && main.contains("run_header_click = mui_run_header_action_at_click(h)")
+            && main.contains("let ract = run_header_click")
+            && main.contains("if ract == 1 {")
+            && main.contains("let _rc = mui_run_clear(h)")
+            && run_header_pos < run_row_pos,
+        "Run header clear clicks must dispatch before output-row navigation"
     );
     assert!(
         main.contains("id == cmd_run_close()")

@@ -8348,3 +8348,12 @@ is visibly wrong the fastest safe cleanup is a clear affordance in that field.
   text is measured to stop before the button, and Mighty handles that click
   before change-row stage/open actions. Tests cover the button hit/miss behavior
   and dispatcher ordering while keeping the palette command path intact.
+
+L694. Run output needs a local clear affordance in the panel header. The command
+palette path is useful, but clearing a noisy transcript is most discoverable
+when the action sits next to the run status in the visible bottom band.
+
+- **IDE note:** the Run panel header now includes a compact clear-output button
+  that routes through the existing clear ABI without stopping the process or
+  resetting status. The Mighty loop checks that header action before output-row
+  navigation, with tests covering the visible hit target and dispatcher order.

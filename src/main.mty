@@ -492,6 +492,7 @@ extern c {
   fn mui_run_scroll(handle: I64, delta: I32)
   fn mui_run_line_clickable(handle: I64, i: I32) -> I32
   fn mui_run_row_at_click(handle: I64) -> I32
+  fn mui_run_header_action_at_click(handle: I64) -> I32
   fn mui_run_click_row(handle: I64, i: I32) -> I32
   fn mui_run_click_line(handle: I64) -> I32
   fn mui_run_click_col(handle: I64) -> I32
@@ -1489,7 +1490,11 @@ fn main() {
     let mut tag = mui_poll_event_s(h)
     while tag != 0 && running {
       let mut command_click_id: I32 = -1
+      let mut run_header_click: I32 = 0
       let mut web_header_click: I32 = -1
+      if tag == ev_mouse_down() && run_focus {
+        run_header_click = mui_run_header_action_at_click(h)
+      }
       if tag == ev_mouse_down() && web_focus {
         web_header_click = mui_web_click(h)
       }
@@ -2124,25 +2129,34 @@ fn main() {
             let dir = mui_event_scroll_dir(h)
             if dir > 0 { mui_run_scroll(h, -3) } else { mui_run_scroll(h, 3) }
           } else if tag == ev_mouse_down() {
-            let rrow = mui_run_row_at_click(h)
-            if rrow >= 0 {
-              let ok = mui_run_click_row(h, rrow)
-              if ok == 1 {
-                let newtab = mui_run_click_tab(h)
-                if newtab >= 0 {
-                  let _b = mui_ed_tab_switch(h, newtab)
-                  mui_ed_undo_reset(h)
-                  let tl = mui_run_click_line(h)
-                  let tc = mui_run_click_col(h)
-                  if tl >= 0 { mui_ed_move_to(h, tl, tc) }
-                  let _r = mui_diag_refresh(h)
-                  run_focus = false
-                }
-              }
+            let ract = run_header_click
+            if ract == 1 {
+              let _rc = mui_run_clear(h)
+              run_focus = true
+              web_focus = false
+              test_focus = false
+              agents_focus = false
             } else {
-              // Clicked outside the Run output band: release focus so the click
-              // flow recovers (the next click reaches the editor / its target).
-              run_focus = false
+              let rrow = mui_run_row_at_click(h)
+              if rrow >= 0 {
+                let ok = mui_run_click_row(h, rrow)
+                if ok == 1 {
+                  let newtab = mui_run_click_tab(h)
+                  if newtab >= 0 {
+                    let _b = mui_ed_tab_switch(h, newtab)
+                    mui_ed_undo_reset(h)
+                    let tl = mui_run_click_line(h)
+                    let tc = mui_run_click_col(h)
+                    if tl >= 0 { mui_ed_move_to(h, tl, tc) }
+                    let _r = mui_diag_refresh(h)
+                    run_focus = false
+                  }
+                }
+              } else {
+                // Clicked outside the Run output band: release focus so the click
+                // flow recovers (the next click reaches the editor / its target).
+                run_focus = false
+              }
             }
           }
         }
