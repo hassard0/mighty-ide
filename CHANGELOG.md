@@ -37,6 +37,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Quick Open recovers from deleted indexed files**: accepting a file row whose
   target disappeared now reports the missing target, refreshes the file index,
   and keeps Quick Open open with the stale row removed.
+- **Explorer rejects stale file rows**: opening a file row whose target was
+  deleted now reports the missing file, refreshes Explorer and Quick Open, and
+  avoids creating an empty phantom tab for the missing path.
 - **Fix-all code actions protect dirty duplicate tabs**: Fix all (mty) now
   refuses to save or run the external fixer when another equivalent tab for the
   active file has unsaved edits, matching inline workspace-edit safety, and

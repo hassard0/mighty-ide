@@ -10829,3 +10829,16 @@ can no longer be opened.
 - **Language note:** no compiler gap surfaced. Cached picker rows that point at
   workspace resources should refresh their backing snapshot when an accepted
   target is missing.
+
+## L878 - Explorer File Rows Need Missing-Target Guards
+
+Explorer rows are also cached workspace resource pointers. A file can be deleted
+after the tree is refreshed but before the user opens the row, and the generic
+tab opener can otherwise create an empty tab for an unreadable path.
+
+- **IDE note:** Explorer file-row opens now verify the target is still a file
+  before opening it. Missing targets report visible feedback, refresh the tree,
+  and force-refresh the Quick Open index.
+- **Language note:** no compiler gap surfaced. UI rows that represent existing
+  filesystem resources should validate existence at activation time, especially
+  when the downstream opener can legitimately create new empty buffers.

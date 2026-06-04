@@ -6846,6 +6846,17 @@ pub extern "C" fn mui_tree_open_row(handle: i64, i: i32) -> i32 {
         return -1;
     }
     let path = row.path.clone();
+    if !path.is_file() {
+        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+        ctx.tree.refresh();
+        let root = quickopen_root(ctx);
+        let _ = ctx.quickopen.ensure_index(&root, true);
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Explorer target missing: {name}"),
+        );
+        return -1;
+    }
     let idx = ctx.tabs.open_path(path);
     sync_active_path(ctx);
     idx as i32

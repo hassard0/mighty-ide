@@ -831,6 +831,39 @@ fn tree_abi_scan_toggle_and_open_row() {
 }
 
 #[test]
+fn tree_open_row_missing_file_refreshes_and_reports_feedback() {
+    use crate::{
+        mui_quickopen_reindex, mui_tab_count, mui_tree_count, mui_tree_open_row, mui_tree_refresh,
+    };
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir()
+        .join(format!("mui_tree_missing_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("gone.mty");
+    std::fs::write(&file, b"fn gone() {}").unwrap();
+    ctx.tree.set_root(root.clone());
+    ctx.workspace = crate::workspace::Workspace::new(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_tree_refresh(handle), 1);
+    assert_eq!(mui_quickopen_reindex(handle), 1);
+    let before = mui_tab_count(handle);
+    std::fs::remove_file(&file).unwrap();
+
+    assert_eq!(mui_tree_open_row(handle, 0), -1);
+    assert_eq!(mui_tab_count(handle), before);
+    assert_eq!(mui_tree_count(handle), 0);
+    assert_eq!(mui_quickopen_reindex(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Explorer target missing: gone.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn click_routing_tab_bar_sidebar_and_text() {
     let _g = crate::settings::TEST_LOCK
         .lock()
