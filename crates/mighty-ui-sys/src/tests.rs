@@ -11031,6 +11031,32 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         ),
         "direct editor tab-switch shortcuts must release stale surface focus"
     );
+    for (start_marker, end_marker) in [
+        (
+            "ctrl_held(mods) && (cp == 119 || cp == 87)",
+            "} else if find_nav &&",
+        ),
+        ("k == key_page_up()", "} else if k == key_page_down()"),
+        ("k == key_page_down()", "} else if k == key_escape()"),
+        ("} else if tab_close_hit >= 0", "} else if tab_hit >= 0"),
+    ] {
+        let start = main
+            .find(start_marker)
+            .unwrap_or_else(|| panic!("missing direct tab path `{start_marker}`"));
+        let end = main[start..]
+            .find(end_marker)
+            .map(|i| start + i)
+            .unwrap_or_else(|| panic!("missing end marker `{end_marker}` for `{start_marker}`"));
+        let branch = &main[start..end];
+        assert!(
+            branch.contains(
+                "} else {\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+            ) || branch.contains(
+                "} else {\n              run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false"
+            ),
+            "direct tab no-op path `{start_marker}` must release stale surface focus"
+        );
+    }
     for marker in [
         "} else if id == cmd_next_tab()",
         "} else if id == cmd_prev_tab()",
@@ -11739,21 +11765,31 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             ),
         "Terminal mouse clicks must claim Terminal focus and release competing surfaces"
     );
-    assert!(
-        main.contains(
-            "tab_close_hit >= 0 {\n          let a = mui_tab_close(h, tab_close_hit)"
-        )
-            && main.contains(
-                "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n          }\n        } else if tab_hit >= 0"
-            )
-            && main.contains(
-                "tab_hit >= 0 {\n          let cur_active = mui_tab_active(h)"
-            )
-            && main.contains(
-                "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n          }\n        } else if term_act == 1"
+    for (start_marker, end_marker) in [
+        ("} else if tab_close_hit >= 0", "} else if tab_hit >= 0"),
+        ("} else if tab_hit >= 0", "} else if term_act == 1"),
+    ] {
+        let start = main
+            .find(start_marker)
+            .unwrap_or_else(|| panic!("missing tab mouse path `{start_marker}`"));
+        let end = main[start..]
+            .find(end_marker)
+            .map(|i| start + i)
+            .unwrap_or_else(|| panic!("missing end marker `{end_marker}` for `{start_marker}`"));
+        let branch = &main[start..end];
+        assert!(
+            branch.contains(
+                "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
             ),
-        "Tab mouse switches must release all transient surface focus"
-    );
+            "tab mouse path `{start_marker}` must release transient surface focus"
+        );
+        assert!(
+            branch.contains(
+                "} else {\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+            ),
+            "tab mouse no-op path `{start_marker}` must release stale focus"
+        );
+    }
     assert!(
         main.contains(
             "id == cmd_diff_close_view() {\n          let _dcv = mui_diff_close(h)\n          diff_open = false\n          typing = true\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"

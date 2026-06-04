@@ -9171,3 +9171,17 @@ close. Those outcomes still return the user to editor-owned chrome.
 - **Language note:** no compiler gap surfaced. This is another command metadata
   gap: success and no-op result paths need the same ownership effect even when
   their data-plane effects differ.
+
+## L761 - Direct Tab Shortcuts Share The No-op Contract
+
+Command-palette handling is not the only way to reach tab operations. Keyboard
+shortcuts and chrome clicks have their own branches, so a focus fix in the
+palette dispatcher does not automatically cover those paths.
+
+- **IDE note:** Ctrl+W, Ctrl+Shift+PageUp/PageDown, tab close clicks, and
+  same-tab clicks now release stale Run/Web/Testing/Terminal/AI/Agents/search
+  focus even when the tab close, move, or switch is refused. Source-contract
+  coverage pins those direct paths separately.
+- **Language note:** no compiler gap surfaced. The useful distinction is route
+  coverage: every entrypoint to the same user action needs the same ownership
+  effect, even when the branches live far apart.

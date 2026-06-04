@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Direct tab no-ops release stale focus**: Ctrl+W, Ctrl+Shift+PageUp/
+  PageDown, tab close clicks, and same-tab clicks now clear stale panel/search
+  focus even when the close, move, or switch is refused.
 - **Tab command no-ops release stale focus**: tab close/reopen/move/sort/
   duplicate-close/reload/revert commands now clear stale Run/Web/Testing/
   Terminal/AI/Agents focus even when the tab operation is refused or has

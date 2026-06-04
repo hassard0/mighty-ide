@@ -3204,6 +3204,14 @@ fn main() {
             agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
+          } else {
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if find_nav && (cp == 110 || cp == 78) {     // 'n' / 'N' : next match
           let cnt = mui_find_count(h)
@@ -3375,6 +3383,14 @@ fn main() {
               ai_focus = false
               agents_focus = false
               find_nav = false
+            } else {
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
             }
           }
         } else if k == key_page_down() {
@@ -3384,6 +3400,14 @@ fn main() {
             if a >= 0 {
               let _b = mui_ed_tab_switch(h, a)
               mui_ed_undo_reset(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+            } else {
               run_focus = false
               web_focus = false
               test_focus = false
@@ -3987,6 +4011,14 @@ fn main() {
             term_focus = false
             ai_focus = false
             agents_focus = false
+          } else {
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if tab_hit >= 0 {
           let cur_active = mui_tab_active(h)
@@ -4002,6 +4034,15 @@ fn main() {
             term_focus = false
             ai_focus = false
             agents_focus = false
+            find_nav = false
+          } else {
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if term_act == 1 {
           let _tc = mui_term_clear(h)
