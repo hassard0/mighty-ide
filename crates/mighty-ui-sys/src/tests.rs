@@ -878,6 +878,7 @@ fn click_routing_tab_bar_sidebar_and_text() {
     );
     assert_eq!(mui_ai_click(handle), 2);
     let (close_x, close_y, close_w, close_h) = crate::ai::close_geometry(ai_visible_w);
+    let (clear_x, clear_y, clear_w, clear_h) = crate::ai::clear_geometry(ai_visible_w);
     ctx.last_event = MuiEvent::mouse(
         crate::ffi::MUI_EVENT_MOUSE_DOWN,
         0,
@@ -886,6 +887,18 @@ fn click_routing_tab_bar_sidebar_and_text() {
         0,
     );
     assert_eq!(mui_ai_click(handle), 3);
+    assert!(
+        clear_x + clear_w <= close_x,
+        "AI clear button should stay left of close"
+    );
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        clear_x + clear_w * 0.5,
+        clear_y + clear_h * 0.5,
+        0,
+    );
+    assert_eq!(mui_ai_click(handle), crate::panels::AI_CLICK_CLEAR);
     ctx.last_event.x = px + 24.0;
     ctx.last_event.y = input_y + 12.0;
     assert_eq!(mui_ai_click(handle), 1);
@@ -10728,6 +10741,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _wc = mui_web_close(h)")
             && main.contains("web_focus = false"),
         "Web close command must use the Web-specific close ABI and release Web focus"
+    );
+    assert!(
+        main.contains("ai_click == 4")
+            && main.contains("let _aic = mui_ai_clear(h)")
+            && main.find("ai_click == 4") < main.find("} else if ai_click == 2"),
+        "AI header clear clicks must route through AI clear before send/body focus handling"
     );
     assert!(
         main.contains("id == cmd_diff_close_view()")

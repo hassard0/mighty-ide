@@ -8422,3 +8422,14 @@ so it belongs beside the output status and clear control.
   Clear Output. The header hit-test returns a distinct stop action, Mighty routes
   it through `mui_run_stop` before output-row navigation, and the existing stop
   ABI supplies running and idle feedback.
+
+## L701 - AI Chat Cleanup Should Be A Header Action
+
+The AI Copilot already had a command-palette clear-chat action, but stale
+transcripts are most visible in the right-docked chat panel itself. Clearing the
+conversation should be a local header action beside Close, not a command search.
+
+- **IDE note:** the AI Copilot header now includes a compact Clear Chat button
+  to the left of Close. The shared geometry drives drawing and hit-testing,
+  `mui_ai_click` returns a distinct clear action, and Mighty routes it through
+  `mui_ai_clear` before Send/body focus handling.

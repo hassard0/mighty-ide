@@ -555,6 +555,12 @@ pub fn close_geometry(width: u32) -> (f32, f32, f32, f32) {
     (right - 28.0, layout::TAB_BAR_H + 8.0, 24.0, 24.0)
 }
 
+/// Geometry for the header clear-chat affordance, shared by draw and hit-tests.
+pub fn clear_geometry(width: u32) -> (f32, f32, f32, f32) {
+    let (close_x, close_y, close_w, close_h) = close_geometry(width);
+    (close_x - 30.0, close_y, close_w, close_h)
+}
+
 fn model_pill_width(text: &mut crate::text::Text, label: &str, size: f32) -> f32 {
     text.measure_ui_sized(label, size).0 + 16.0
 }
@@ -856,6 +862,19 @@ impl AiPanel {
             clip,
         );
         let (close_x, close_y, close_w, close_h) = close_geometry(width);
+        let (clear_x, clear_y, clear_w, clear_h) = clear_geometry(width);
+        ctx.dl_round(clear_x, clear_y, clear_w, clear_h, 6.0, theme::BG_4());
+        ctx.dl_stroke(clear_x, clear_y, clear_w, clear_h, 6.0, theme::BORDER(), 1.0);
+        ctx.dl_icon(
+            clear_x + 5.0,
+            clear_y + 5.0,
+            14.0,
+            14.0,
+            icons::TRASH,
+            theme::TEXT_3(),
+            1.5,
+            false,
+        );
         ctx.dl_round(close_x, close_y, close_w, close_h, 6.0, theme::BG_4());
         ctx.dl_stroke(close_x, close_y, close_w, close_h, 6.0, theme::BORDER(), 1.0);
         ctx.dl_icon(
@@ -873,7 +892,7 @@ impl AiPanel {
         let model_label = model_badge(MODEL);
         let pill_font = chrome - 3.0;
         let pill_w = model_pill_width(&mut ctx.text, &model_label, pill_font);
-        let header_right = close_x - 10.0;
+        let header_right = clear_x - 10.0;
         let min_pill_x = px + 150.0;
         if header_right - pill_w >= min_pill_x {
             let pill_x = header_right - pill_w;

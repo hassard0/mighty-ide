@@ -2041,8 +2041,11 @@ pub extern "C" fn mui_ai_is_open(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| if c.ai.open { 1 } else { 0 })
 }
 
+pub const AI_CLICK_CLEAR: i32 = 4;
+
 /// Map the last click to the right-docked AI panel:
-/// `0` = miss, `1` = input/body focus, `2` = send button, `3` = close button.
+/// `0` = miss, `1` = input/body focus, `2` = send button, `3` = close button,
+/// `4` = clear chat.
 #[no_mangle]
 pub extern "C" fn mui_ai_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -2071,6 +2074,11 @@ pub extern "C" fn mui_ai_click(handle: i64) -> i32 {
     if x >= close_x && x <= close_x + close_w && y >= close_y && y <= close_y + close_h {
         crate::abi::trace(&format!("ai_click x={x:.1} y={y:.1} -> 3"));
         return 3;
+    }
+    let (clear_x, clear_y, clear_w, clear_h) = crate::ai::clear_geometry(visible_w);
+    if x >= clear_x && x <= clear_x + clear_w && y >= clear_y && y <= clear_y + clear_h {
+        crate::abi::trace(&format!("ai_click x={x:.1} y={y:.1} -> clear"));
+        return AI_CLICK_CLEAR;
     }
     let send_x0 = px + pw - 44.0;
     let send_x1 = px + pw - 12.0;

@@ -3608,6 +3608,11 @@ fn main() {
           let _aic = mui_ai_close(h)
           ai_focus = false
           typing = false
+        } else if ai_click == 4 {
+          let _aic = mui_ai_clear(h)
+          ai_focus = true
+          typing = false
+          agents_focus = false
         } else if ai_click == 2 {
           let _s = mui_ai_send(h)
           ai_focus = true
