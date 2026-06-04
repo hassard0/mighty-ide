@@ -327,6 +327,26 @@ fn source_char_col_to_utf16(source: &str, line: u32, char_col: u32) -> u32 {
         .unwrap_or(0)
 }
 
+fn source_utf16_col_to_char(source: &str, line: u32, utf16_col: u32) -> u32 {
+    let Some(line_text) = source.split('\n').nth(line as usize) else {
+        return 0;
+    };
+    let mut units = 0u32;
+    let mut chars = 0u32;
+    for ch in line_text.chars() {
+        if units >= utf16_col {
+            return chars;
+        }
+        let next = units + ch.len_utf16() as u32;
+        if next > utf16_col {
+            return chars;
+        }
+        units = next;
+        chars += 1;
+    }
+    chars
+}
+
 #[cfg(test)]
 mod code_action_diagnostics_tests {
     use super::*;
@@ -354,6 +374,15 @@ mod code_action_diagnostics_tests {
         let json = code_action_diagnostics_json_lsp_utf16("😀abc", &[diag(1, 4)], 0);
         assert!(json.contains(r#""start":{"line":0,"character":2}"#));
         assert!(json.contains(r#""end":{"line":0,"character":5}"#));
+    }
+
+    #[test]
+    fn source_utf16_col_to_char_converts_lsp_columns() {
+        assert_eq!(source_utf16_col_to_char("😀abc", 0, 0), 0);
+        assert_eq!(source_utf16_col_to_char("😀abc", 0, 1), 0);
+        assert_eq!(source_utf16_col_to_char("😀abc", 0, 2), 1);
+        assert_eq!(source_utf16_col_to_char("😀abc", 0, 5), 4);
+        assert_eq!(source_utf16_col_to_char("😀abc", 9, 5), 0);
     }
 }
 
@@ -9278,6 +9307,11 @@ pub extern "C" fn mui_rename_prepare(handle: i64, line: i32, col: i32) -> i32 {
         }
         // prepareRename returns a range; re-derive the symbol from its start.
         if let Some((sl, sc)) = parse_prepare_rename_start(&raw) {
+            let sc = if ctx.language == Language::Mighty {
+                sc
+            } else {
+                source_utf16_col_to_char(&source, sl, sc)
+            };
             symbol = identifier_at(&source, sl, sc);
         }
     }
@@ -9394,6 +9428,16 @@ mod rename_prepare_tests {
         assert_eq!(identifier_at(src, 0, 10), "δοκιμή");
         assert_eq!(identifier_at(src, 1, 8), "東京_2");
         assert_eq!(identifier_at(src, 1, 17), "δοκιμή");
+    }
+
+    #[test]
+    fn prepare_rename_utf16_start_maps_to_identifier_column() {
+        let src = "😀target";
+        let raw = r#"{"jsonrpc":"2.0","result":{"start":{"line":0,"character":2},"end":{"line":0,"character":8}},"id":3}"#;
+        let (line, utf16_col) = parse_prepare_rename_start(raw).unwrap();
+        let char_col = source_utf16_col_to_char(src, line, utf16_col);
+        assert_eq!(char_col, 1);
+        assert_eq!(identifier_at(src, line, char_col), "target");
     }
 
     #[test]
