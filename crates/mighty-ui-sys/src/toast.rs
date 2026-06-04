@@ -893,6 +893,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Search result file no longer listed"
         || m.starts_with("Search results ")
         || m.starts_with("Search target missing")
+        || m.starts_with("Search result changed")
     {
         Some(OperationKey::Navigation)
     } else if m.starts_with("Markdown preview ") || m.starts_with("Markdown Preview ") {

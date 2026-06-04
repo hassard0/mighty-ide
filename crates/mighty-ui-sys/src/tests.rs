@@ -2920,6 +2920,35 @@ fn search_open_misses_report_visible_feedback() {
 }
 
 #[test]
+fn search_open_skips_files_changed_since_search() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_search_open_changed_since_search");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("hit.mty");
+    std::fs::write(&path, "needle\n").unwrap();
+    ctx.tree.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    for ch in "needle".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+    assert_eq!(crate::panels::mui_search_run(handle), 1);
+    std::fs::write(&path, "needle moved\n").unwrap();
+
+    assert_eq!(crate::panels::mui_search_open(handle, 0), -1);
+    assert_ne!(ctx.tabs.active_path().as_deref(), Some(path.as_path()));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Search result changed: hit.mty; run Search again"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn outline_close_command_preserves_symbols_and_current_row() {
     let mut ctx = ctx_or_skip!();
     ctx.tabs

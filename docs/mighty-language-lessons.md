@@ -10791,3 +10791,15 @@ stale even when the query text still appears in the new content.
 - **Language note:** no compiler gap surfaced. Batch mutation commands should
   validate that their discovery snapshot still describes the resource before
   writing.
+
+## L875 - Search Result Navigation Must Prove Coordinates Are Fresh
+
+Project-wide search result rows store line and column coordinates. If the file
+changes after Search runs, opening that row can move the editor to a stale
+location even when the file still exists and the query still appears somewhere.
+
+- **IDE note:** opening a Search result now compares the current file bytes with
+  the fingerprint captured at search time. Changed targets are rejected with
+  visible feedback telling the user to run Search again.
+- **Language note:** no compiler gap surfaced. Navigation commands that consume
+  cached coordinates need the same freshness guard as mutation commands.

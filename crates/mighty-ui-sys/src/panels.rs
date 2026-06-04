@@ -1557,7 +1557,7 @@ pub extern "C" fn mui_search_open(handle: i64, i: i32) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, "No search result selected");
         return -1;
     }
-    let (path, line, col) = {
+    let (path, line, col, fingerprint) = {
         let Some(m) = ctx.search.match_at(i as usize) else {
             ctx.push_toast(crate::toast::Kind::Info, "No search result selected");
             return -1;
@@ -1566,11 +1566,21 @@ pub extern "C" fn mui_search_open(handle: i64, i: i32) -> i32 {
             ctx.push_toast(crate::toast::Kind::Info, "Search result file no longer listed");
             return -1;
         };
-        (f.path.clone(), m.line, m.col)
+        (f.path.clone(), m.line, m.col, f.fingerprint)
     };
-    if !path.exists() {
-        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Search target missing: {name}"));
+    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+    let bytes = match std::fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(_) => {
+            ctx.push_toast(crate::toast::Kind::Warn, format!("Search target missing: {name}"));
+            return -1;
+        }
+    };
+    if crate::search::content_fingerprint(&bytes) != fingerprint {
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Search result changed: {name}; run Search again"),
+        );
         return -1;
     }
     let opened_path = path.to_string_lossy().replace('\\', "/");

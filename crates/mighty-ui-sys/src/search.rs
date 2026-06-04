@@ -109,7 +109,7 @@ fn looks_binary(bytes: &[u8]) -> bool {
     bytes[..n].contains(&0)
 }
 
-fn content_fingerprint(bytes: &[u8]) -> u64 {
+pub(crate) fn content_fingerprint(bytes: &[u8]) -> u64 {
     let mut h: u64 = 0xcbf29ce484222325;
     for b in bytes {
         h ^= u64::from(*b);
