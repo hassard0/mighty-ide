@@ -11092,6 +11092,34 @@ fn quickopen_open_prunes_missing_recent_files_before_rendering() {
 }
 
 #[test]
+fn quickopen_accept_missing_indexed_file_reindexes_and_stays_open() {
+    use crate::{mui_qo_accept, mui_qo_active, mui_quickopen_open};
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir()
+        .join(format!("mui_qo_missing_index_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("vanish.mty");
+    std::fs::write(&file, b"fn vanish() {}").unwrap();
+    ctx.workspace = crate::workspace::Workspace::new(root.clone());
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_quickopen_open(h);
+    assert_eq!(ctx.quickopen.count(), 1);
+    std::fs::remove_file(&file).unwrap();
+
+    assert_eq!(mui_qo_accept(h, 0), -1);
+    assert_eq!(mui_qo_active(h), 1, "Quick Open should stay open after recovering");
+    assert_eq!(ctx.quickopen.count(), 0, "stale indexed file should be removed");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Quick Open target missing: vanish.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn welcome_open_recent_misses_report_visible_feedback() {
     use crate::mui_welcome_open_recent;
 

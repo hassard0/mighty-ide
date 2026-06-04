@@ -9249,10 +9249,11 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
         return -1;
     }
     let mode = ctx.quickopen.mode();
+    let mut keep_open = false;
     let result: i32 = match mode {
         crate::quickopen::Mode::Files => {
             match ctx.quickopen.accept_file_path(i) {
-                Some(path) if path.exists() => {
+                Some(path) if path.is_file() => {
                     let idx = ctx.tabs.open_path(path.clone());
                     sync_active_path(ctx);
                     record_recent_file(ctx, path);
@@ -9263,7 +9264,14 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
                     if removed {
                         persist_recent_files(ctx);
                     }
-                    ctx.push_toast(crate::toast::Kind::Warn, format!("Recent file missing: {}", basename(&path)));
+                    let root = quickopen_root(ctx);
+                    ctx.quickopen.ensure_index(&root, true);
+                    ctx.quickopen.refresh_file_rows();
+                    ctx.push_toast(
+                        crate::toast::Kind::Warn,
+                        format!("Quick Open target missing: {}", basename(&path)),
+                    );
+                    keep_open = true;
                     -1
                 }
                 _ => -1,
@@ -9304,7 +9312,9 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
         // see `mui_qo_command_id`.
         crate::quickopen::Mode::Commands => -1,
     };
-    ctx.quickopen.cancel();
+    if !keep_open {
+        ctx.quickopen.cancel();
+    }
     result
 }
 

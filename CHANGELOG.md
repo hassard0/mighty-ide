@@ -34,6 +34,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Problems jumps report stale targets**: opening a Problems row now reports
   invalid selections, disappeared rows, and missing target files with visible
   feedback instead of silently failing.
+- **Quick Open recovers from deleted indexed files**: accepting a file row whose
+  target disappeared now reports the missing target, refreshes the file index,
+  and keeps Quick Open open with the stale row removed.
 - **Fix-all code actions protect dirty duplicate tabs**: Fix all (mty) now
   refuses to save or run the external fixer when another equivalent tab for the
   active file has unsaved edits, matching inline workspace-edit safety, and

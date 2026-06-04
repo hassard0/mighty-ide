@@ -10816,3 +10816,16 @@ the open-row command should not fail silently.
 - **Language note:** no compiler gap surfaced. Cached diagnostic navigation can
   be invalidated by ordinary workspace changes, so callers need explicit
   failure feedback even when full snapshot freshness is not available.
+
+## L877 - Quick Open Must Recover From Stale File Index Rows
+
+Quick Open file rows are built from a cached workspace index. If a file is
+deleted after the picker opens but before the row is accepted, the cached target
+can no longer be opened.
+
+- **IDE note:** accepting a missing Quick Open file target now reports visible
+  feedback, force-refreshes the workspace file index, rebuilds visible file
+  rows, and keeps the picker open so the user can choose another result.
+- **Language note:** no compiler gap surfaced. Cached picker rows that point at
+  workspace resources should refresh their backing snapshot when an accepted
+  target is missing.

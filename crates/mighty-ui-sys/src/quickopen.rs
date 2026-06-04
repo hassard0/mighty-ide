@@ -556,6 +556,14 @@ impl QuickOpen {
         changed
     }
 
+    /// Rebuild visible file rows after callers refresh the workspace index.
+    pub fn refresh_file_rows(&mut self) {
+        if self.active && self.mode() == Mode::Files {
+            self.rebuild_files();
+            self.clamp_sel();
+        }
+    }
+
     /// Restore the recent-file MRU from persisted config.
     pub fn set_recent_paths(&mut self, paths: Vec<PathBuf>) {
         self.mru.set_all(paths);
