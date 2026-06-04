@@ -7858,3 +7858,12 @@ reserved viewport.
   when `CSI ?6 h` is active, preserving the current column while clamping rows to
   the active scroll-region margins. Regression coverage verifies top-margin
   mapping and bottom-margin clamping.
+
+L646. ED 3 clears scrollback, not the visible screen. Many shells emit
+`CSI 3 J` as an optional scrollback clear after an ordinary screen clear; in a
+terminal without scrollback storage, the correct behavior is to consume it
+without erasing visible cells.
+
+- **IDE note:** erase-display mode `3` is now a visible no-op instead of an alias
+  for `CSI 2 J`. Regression coverage verifies the escape is consumed while the
+  current grid contents remain intact.

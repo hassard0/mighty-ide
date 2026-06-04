@@ -1290,7 +1290,8 @@ impl VtParser {
         match mode {
             0 => grid.clear_from_cursor_to_end(),
             1 => grid.clear_from_start_to_cursor(),
-            2 | 3 => grid.clear(),
+            2 => grid.clear(),
+            3 => {}
             _ => {}
         }
     }
@@ -2455,6 +2456,13 @@ mod tests {
         assert_eq!(g.cell(0, 2).ch, 'c');
         assert_eq!(g.cell(0, 3).ch, 'Z');
         assert_eq!(g.cell(0, 4).ch, ' ');
+    }
+
+    #[test]
+    fn erase_display_scrollback_mode_does_not_clear_visible_grid() {
+        let g = grid_feed(2, 10, b"abc\x1b[3JZ");
+        assert_eq!(g.to_text(), "abcZ      \n          ");
+        assert!(!g.contains("3J"));
     }
 
     #[test]
