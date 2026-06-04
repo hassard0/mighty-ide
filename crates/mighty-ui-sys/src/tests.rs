@@ -10665,6 +10665,79 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Peek Definition command must open editor-owned UI and release competing focus"
     );
     assert!(
+        main.contains(
+            "is_inline_ask_chord(cp, mods) {           // Ctrl+I : inline ask about selection/file\n          // Reuse the prompt UI to collect an instruction; routed on Enter to\n          // the AI panel (see the prompt_kind == prompt_ai() branch).\n          mui_prompt_open(h, prompt_ai())\n          prompt_kind = prompt_ai()\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Ctrl+I inline ask must open the prompt and release stale surface focus"
+    );
+    assert!(
+        main.contains(
+            "ctrl_held(mods) && shift_held(mods) && cp == 32 {  // Ctrl+Shift+Space : signature help"
+        )
+            && main.contains(
+                "sig_open = false\n          }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n        } else if ctrl_held(mods) && cp == 46"
+            ),
+        "Ctrl+Shift+Space signature help must release stale surface focus"
+    );
+    assert!(
+        main.contains(
+            "ctrl_held(mods) && cp == 46 {              // Ctrl+. : code actions / quick-fix"
+        )
+            && main.contains(
+                "let _cac = mui_codeaction_cancel(h)\n          }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n        } else if ctrl_held(mods) && cp == 32"
+            ),
+        "Ctrl+. code actions must release stale surface focus"
+    );
+    assert!(
+        main.contains(
+            "ctrl_held(mods) && !shift_held(mods) && (cp == 107 || cp == 75) {  // Ctrl+K : hover\n          let ok = do_hover(h)\n          if ok == 1 { hovering = true; hover_line = mui_ed_cursor_line(h); hover_col = mui_ed_cursor_col(h) } else { hovering = false }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Ctrl+K hover must release stale surface focus"
+    );
+    assert!(
+        main.contains(
+            "ctrl_held(mods) && (cp == 103 || cp == 71) {   // Ctrl+G : go to line\n          mui_prompt_open(h, prompt_goto())\n          prompt_kind = prompt_goto()\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        )
+            && main.contains(
+                "ctrl_held(mods) && (cp == 102 || cp == 70) {   // Ctrl+F : find\n          mui_prompt_open(h, prompt_find())\n          prompt_kind = prompt_find()\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            )
+            && main.contains(
+                "is_replace_chord(cp, mods) {                   // Ctrl+H : in-file replace\n          mui_replace_open(h)\n          replacing = true\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "Find, Go to Line, and Replace shortcuts must release stale surface focus like their commands"
+    );
+    assert!(
+        main.contains(
+            "k == key_f12() {\n          let kmods = mui_event_mods(h)\n          if alt_held(kmods) {                               // Alt+F12 : peek definition\n            let _p = peek_definition(h)\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+        )
+            && main.contains(
+                "have_prev = true\n            }\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+            )
+            && main.contains(
+                "k == key_f2() {                            // F2 : rename symbol"
+            )
+            && main.contains(
+                "sig_open = false\n          }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "F12, Alt+F12, and F2 editor-assist shortcuts must release stale surface focus"
+    );
+    assert!(
+        main.contains(
+            "let oi = mui_open_file_dialog(h)\n          if oi >= 0 {\n            let _b = mui_ed_tab_switch(h, oi)\n            mui_ed_undo_reset(h)\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+        )
+            && main.contains(
+                "mui_prompt_open(h, prompt_open())\n            prompt_kind = prompt_open()\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+            )
+            && main.matches("mui_prompt_open(h, prompt_save_as())\n              prompt_kind = prompt_save_as()\n              run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false").count() >= 2,
+        "Open File and Save As shortcut fallbacks must release stale surface focus"
+    );
+    assert!(
+        main.contains(
+            "if a >= 0 {\n            let _b = mui_ed_tab_switch(h, a)\n            mui_ed_undo_reset(h)\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+        ),
+        "direct editor tab-switch shortcuts must release stale surface focus"
+    );
+    assert!(
         main.contains("id == cmd_hover_close()")
             && main.contains("let _hc = mui_hover_close(h)")
             && main.contains("hovering = false"),

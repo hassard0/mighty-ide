@@ -2866,6 +2866,12 @@ fn main() {
           // the AI panel (see the prompt_kind == prompt_ai() branch).
           mui_prompt_open(h, prompt_ai())
           prompt_kind = prompt_ai()
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
           typing = false
         } else if is_search_panel_chord(cp, mods) {         // Ctrl+Shift+F : search panel
@@ -2895,6 +2901,13 @@ fn main() {
           } else {
             sig_open = false
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if ctrl_held(mods) && cp == 46 {              // Ctrl+. : code actions / quick-fix
           let cnt = mui_codeaction_request(h, mui_ed_cursor_line(h), mui_ed_cursor_col(h))
           if cnt > 0 {
@@ -2904,6 +2917,13 @@ fn main() {
           } else {
             let _cac = mui_codeaction_cancel(h)
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if ctrl_held(mods) && cp == 32 {             // Ctrl+Space : autocomplete
           let _c = mui_ed_complete_request(h)
           mui_snippet_inject_completions(h)                 // snippet prefixes appear with a "snippet" badge
@@ -2936,6 +2956,13 @@ fn main() {
         } else if ctrl_held(mods) && !shift_held(mods) && (cp == 107 || cp == 75) {  // Ctrl+K : hover
           let ok = do_hover(h)
           if ok == 1 { hovering = true; hover_line = mui_ed_cursor_line(h); hover_col = mui_ed_cursor_col(h) } else { hovering = false }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if ctrl_held(mods) && cp == 45 {             // Ctrl+Minus : jump back
           if have_prev {
             mui_ed_move_to(h, prev_line, prev_col)
@@ -3014,6 +3041,12 @@ fn main() {
             } else if sr == -1 {
               mui_prompt_open(h, prompt_save_as())
               prompt_kind = prompt_save_as()
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
               find_nav = false
             }
           } else if mui_active_has_path(h) == 0 {
@@ -3027,6 +3060,12 @@ fn main() {
             } else if sr == -1 {
               mui_prompt_open(h, prompt_save_as())
               prompt_kind = prompt_save_as()
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
               find_nav = false
             }
           } else {
@@ -3059,15 +3098,34 @@ fn main() {
         } else if ctrl_held(mods) && (cp == 103 || cp == 71) {   // Ctrl+G : go to line
           mui_prompt_open(h, prompt_goto())
           prompt_kind = prompt_goto()
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if ctrl_held(mods) && (cp == 102 || cp == 70) {   // Ctrl+F : find
           mui_prompt_open(h, prompt_find())
           prompt_kind = prompt_find()
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if ctrl_held(mods) && (cp == 111 || cp == 79) {   // Ctrl+O : open file
           let oi = mui_open_file_dialog(h)
           if oi >= 0 {
             let _b = mui_ed_tab_switch(h, oi)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
@@ -3075,6 +3133,12 @@ fn main() {
           } else if oi == -1 {
             mui_prompt_open(h, prompt_open())
             prompt_kind = prompt_open()
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
           }
         } else if is_d_chord(cp, mods) {                         // Ctrl+D add-caret / Ctrl+Shift+D duplicate
@@ -3092,6 +3156,12 @@ fn main() {
         } else if is_replace_chord(cp, mods) {                   // Ctrl+H : in-file replace
           mui_replace_open(h)
           replacing = true
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
           typing = false
         } else if ctrl_held(mods) && cp == 47 {                  // Ctrl+/ : toggle comment
@@ -3119,6 +3189,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
           }
@@ -3200,6 +3276,13 @@ fn main() {
           let kmods = mui_event_mods(h)
           if alt_held(kmods) {                               // Alt+F12 : peek definition
             let _p = peek_definition(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           } else {                                           // F12 : go to definition
             let cur_line = mui_ed_cursor_line(h)
             let cur_col = mui_ed_cursor_col(h)
@@ -3209,6 +3292,12 @@ fn main() {
               prev_col = cur_col
               have_prev = true
             }
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
           }
         } else if k == key_f2() {                            // F2 : rename symbol
@@ -3222,6 +3311,13 @@ fn main() {
             mui_sig_clear(h)
             sig_open = false
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if k == key_f5() {                            // F5 / Shift+F5 : start-continue / stop
           let kmods = mui_event_mods(h)
           let _vp = mui_panel_set(h, panel_debug())
@@ -3265,6 +3361,12 @@ fn main() {
             if a >= 0 {
               let _b = mui_ed_tab_switch(h, a)
               mui_ed_undo_reset(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
               find_nav = false
             }
           }
@@ -3275,6 +3377,12 @@ fn main() {
             if a >= 0 {
               let _b = mui_ed_tab_switch(h, a)
               mui_ed_undo_reset(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
               find_nav = false
             }
           }
@@ -3296,6 +3404,12 @@ fn main() {
             if shift_held(kmods) { a = mui_tab_prev(h) }
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)

@@ -8873,3 +8873,20 @@ therefore drop stale panel focus just like prompt bars do.
   Actions, and Peek Definition now release Run/Web/Testing/Terminal/AI/Agents/
   search focus after opening or moving through editor-owned assistance UI. The
   dispatcher source-contract test covers the command branches.
+
+## L741 - Direct Editor Shortcuts Must Mirror Command Focus
+
+Keyboard shortcuts that open the same prompt, overlay, assistance UI, or active
+editor target as a palette command need the same focus cleanup. Otherwise users
+can get correct behavior from the palette but stale panel routing from the
+muscle-memory shortcut.
+
+- **IDE note:** Ctrl+I, Ctrl+F, Ctrl+G, Ctrl+H, Ctrl+K, Ctrl+., Ctrl+Shift+
+  Space, F2, F12, Alt+F12, Ctrl+O, Ctrl+Shift+S prompt fallbacks, and direct
+  tab-switch shortcuts now release Run/Web/Testing/Terminal/AI/Agents/search
+  focus when they hand interaction back to editor-owned UI. Source-contract
+  coverage pins the shortcut branches alongside the palette dispatcher.
+- **Language note:** no compiler gap surfaced. The repetition again argues for
+  first-class command/action metadata so Mighty can share focus effects between
+  command IDs and direct shortcut branches instead of spelling out scalar flag
+  updates in each route.

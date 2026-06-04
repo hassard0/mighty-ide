@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Editor shortcuts release stale panel focus**: Ctrl+I, Ctrl+F, Ctrl+G,
+  Ctrl+H, Ctrl+K, Ctrl+., Ctrl+Shift+Space, F2, F12, Alt+F12, Ctrl+O,
+  Ctrl+Shift+S prompt fallbacks, and direct tab-switch shortcuts now clear
+  stale Run/Web/Testing/Terminal/AI/Agents/search focus just like the matching
+  command-palette actions.
 - **Editor assistance commands release stale panel focus**: Go to Definition,
   Hover, Signature Help, Rename Symbol, Code Actions, and Peek Definition now
   clear stale Run/Web/Testing/Terminal/AI/Agents/search focus when they move
