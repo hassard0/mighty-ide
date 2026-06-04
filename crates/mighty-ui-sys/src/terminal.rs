@@ -407,12 +407,16 @@ impl Grid {
         }
     }
 
-    /// Write a printable char at the cursor, advancing it (wrapping at the right
-    /// edge, scrolling at the bottom). Control chars are NOT handled here.
-    pub fn put_char(&mut self, ch: char) {
+    /// Write a printable char at the cursor, honoring the current autowrap mode.
+    /// Control chars are NOT handled here.
+    fn put_char_autowrap(&mut self, ch: char, autowrap: bool) {
         if self.cur_col >= self.cols {
-            // Wrap before writing.
-            self.newline();
+            if autowrap {
+                // Wrap before writing.
+                self.newline();
+            } else {
+                self.cur_col = self.cols - 1;
+            }
         }
         let idx = self.cur_row * self.cols + self.cur_col;
         self.cells[idx] = Cell {
@@ -420,7 +424,11 @@ impl Grid {
             fg: self.cur_fg,
             bg: self.cur_bg,
         };
-        self.cur_col += 1;
+        if autowrap {
+            self.cur_col += 1;
+        } else {
+            self.cur_col = (self.cur_col + 1).min(self.cols - 1);
+        }
     }
 
     fn backspace(&mut self) {
@@ -557,6 +565,8 @@ pub struct VtParser {
     mouse_reporting: bool,
     /// Whether mouse reports should use SGR extended coordinates (`CSI ?1006 h`).
     sgr_mouse: bool,
+    /// Whether printable output should wrap after the right margin (`CSI ?7 h/l`).
+    autowrap: bool,
 }
 
 impl Default for VtParser {
@@ -580,6 +590,7 @@ impl VtParser {
             application_cursor_keys: false,
             mouse_reporting: false,
             sgr_mouse: false,
+            autowrap: true,
         }
     }
 
@@ -651,7 +662,7 @@ impl VtParser {
             b'\t' => grid.tab(),
             0x07 => {} // BEL: ignore
             0x00..=0x06 | 0x0b..=0x1a | 0x1c..=0x1f => {} // other C0: ignore
-            0x20..=0x7e => grid.put_char(b as char), // printable ASCII
+            0x20..=0x7e => grid.put_char_autowrap(b as char, self.autowrap), // printable ASCII
             0xc0..=0xdf => {
                 self.utf8.clear();
                 self.utf8.push(b);
@@ -676,10 +687,10 @@ impl VtParser {
         match std::str::from_utf8(&self.utf8) {
             Ok(s) => {
                 for ch in s.chars() {
-                    grid.put_char(ch);
+                    grid.put_char_autowrap(ch, self.autowrap);
                 }
             }
-            Err(_) => grid.put_char('\u{fffd}'), // replacement char
+            Err(_) => grid.put_char_autowrap('\u{fffd}', self.autowrap), // replacement char
         }
         self.utf8.clear();
     }
@@ -969,6 +980,8 @@ impl VtParser {
                 ("47" | "1047" | "1049", b'l') => grid.exit_alternate_screen(),
                 ("1", b'h') => self.application_cursor_keys = true,
                 ("1", b'l') => self.application_cursor_keys = false,
+                ("7", b'h') => self.autowrap = true,
+                ("7", b'l') => self.autowrap = false,
                 ("1048", b'h') => self.save_cursor(grid),
                 ("1048", b'l') => self.restore_cursor(grid),
                 ("25", b'h') => self.cursor_visible = true,
@@ -992,6 +1005,7 @@ impl VtParser {
         self.application_cursor_keys = false;
         self.mouse_reporting = false;
         self.sgr_mouse = false;
+        self.autowrap = true;
     }
 
     fn set_cursor_shape(&mut self) {
@@ -1691,6 +1705,26 @@ mod tests {
         assert_eq!(g.cell(0, 0).ch, 'a');
         assert_eq!(g.cell(0, 2).ch, 'c');
         assert_eq!(g.cell(1, 0).ch, 'd');
+        assert_eq!(g.cursor(), (1, 1));
+    }
+
+    #[test]
+    fn dec_autowrap_mode_controls_right_margin_behavior() {
+        let g = grid_feed(2, 3, b"\x1b[?7labcd");
+        assert_eq!(g.to_text(), "abd\n   ");
+        assert_eq!(g.cursor(), (0, 2));
+        assert!(!g.contains("?7l"));
+
+        let g2 = grid_feed(2, 3, b"\x1b[?7labcd\x1b[1;1H\x1b[?7hWXYZ");
+        assert_eq!(g2.to_text(), "WXY\nZ  ");
+        assert_eq!(g2.cursor(), (1, 1));
+        assert!(!g2.contains("?7h"));
+    }
+
+    #[test]
+    fn esc_c_resets_autowrap_mode() {
+        let g = grid_feed(2, 3, b"\x1b[?7l\x1bcabcd");
+        assert_eq!(g.to_text(), "abc\nd  ");
         assert_eq!(g.cursor(), (1, 1));
     }
 

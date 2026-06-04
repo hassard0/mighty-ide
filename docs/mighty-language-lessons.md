@@ -7572,3 +7572,12 @@ behind a visible "edit unavailable" warning.
   now call the generic editable-buffer preflight before recording undo, while
   Shift+Tab and Outdent keep their stricter no-indent preflight. The Mighty
   route regression test now asserts both checks.
+
+L616. Terminal autowrap is a mode, not a constant. The parser always wrapped
+printable output at the right margin, even after applications sent `CSI ?7l` to
+disable DEC autowrap. Full-screen terminal UIs use that mode to paint status
+regions and right-edge cells without scrolling or shifting rows unexpectedly.
+
+- **IDE note:** `VtParser` now tracks DEC autowrap mode, honors `CSI ?7 h/l`,
+  and resets it on `ESC c`. Printable UTF-8 output uses the mode-aware grid
+  write path, with tests for disabled wrap, re-enabled wrap, and terminal reset.
