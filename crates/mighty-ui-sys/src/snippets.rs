@@ -983,8 +983,13 @@ fn user_snippets_path() -> Option<std::path::PathBuf> {
 }
 
 /// Parse the user-snippet blob: each non-comment line is
-/// `prefix\tlabel\tbody` (body uses `\n` for newlines, `\t` for tabs).
+/// `prefix\tlabel\tbody` (body uses `\n` for newlines, `\t` for tabs), or a
+/// VS Code-style JSON snippet object.
 pub fn parse_user_snippets(text: &str) -> Vec<SnippetDef> {
+    let trimmed = text.trim_start();
+    if trimmed.starts_with('{') {
+        return parse_vscode_snippets(trimmed).unwrap_or_default();
+    }
     let mut out = Vec::new();
     for line in text.lines() {
         let line = line.trim_end_matches(['\r', '\n']);
@@ -1003,6 +1008,62 @@ pub fn parse_user_snippets(text: &str) -> Vec<SnippetDef> {
         out.push(SnippetDef::new(prefix, parts[1].trim(), &body));
     }
     out
+}
+
+fn parse_vscode_snippets(text: &str) -> Option<Vec<SnippetDef>> {
+    let root = serde_json::from_str::<serde_json::Value>(text).ok()?;
+    let object = root.as_object()?;
+    let mut out = Vec::new();
+    for (name, value) in object {
+        let Some(entry) = value.as_object() else {
+            continue;
+        };
+        let prefixes = snippet_prefixes(entry.get("prefix"));
+        if prefixes.is_empty() {
+            continue;
+        }
+        let Some(body) = snippet_body(entry.get("body")) else {
+            continue;
+        };
+        let label = entry
+            .get("description")
+            .and_then(serde_json::Value::as_str)
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or(name);
+        for prefix in prefixes {
+            out.push(SnippetDef::new(&prefix, label, &body));
+        }
+    }
+    Some(out)
+}
+
+fn snippet_prefixes(value: Option<&serde_json::Value>) -> Vec<String> {
+    match value {
+        Some(serde_json::Value::String(prefix)) if !prefix.trim().is_empty() => {
+            vec![prefix.to_string()]
+        }
+        Some(serde_json::Value::Array(prefixes)) => prefixes
+            .iter()
+            .filter_map(serde_json::Value::as_str)
+            .filter(|prefix| !prefix.trim().is_empty())
+            .map(str::to_string)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn snippet_body(value: Option<&serde_json::Value>) -> Option<String> {
+    match value {
+        Some(serde_json::Value::String(body)) => Some(body.to_string()),
+        Some(serde_json::Value::Array(lines)) => {
+            let mut out = Vec::new();
+            for line in lines {
+                out.push(line.as_str()?.to_string());
+            }
+            Some(out.join("\n"))
+        }
+        _ => None,
+    }
 }
 
 /// Load user snippets from the config file (best-effort; empty on any error).
@@ -1651,6 +1712,35 @@ mod tests {
         assert_eq!(defs[0].prefix, "guard");
         assert_eq!(defs[0].label, "guard clause");
         assert!(defs[0].body.contains('\n'));
+    }
+
+    #[test]
+    fn parse_user_snippets_vscode_json() {
+        let blob = r#"{
+            "Console Log": {
+                "prefix": ["log", "clog"],
+                "body": ["console.log(${1:value});", "$0"],
+                "description": "Log to console"
+            },
+            "Guard": {
+                "prefix": "guard",
+                "body": "if (!${1:cond}) return $0"
+            }
+        }"#;
+        let defs = parse_user_snippets(blob);
+        assert_eq!(defs.len(), 3);
+        assert_eq!(defs[0].prefix, "log");
+        assert_eq!(defs[0].label, "Log to console");
+        assert_eq!(defs[0].body, "console.log(${1:value});\n$0");
+        assert_eq!(defs[1].prefix, "clog");
+        assert_eq!(defs[1].body, "console.log(${1:value});\n$0");
+        assert_eq!(defs[2].prefix, "guard");
+        assert_eq!(defs[2].label, "Guard");
+    }
+
+    #[test]
+    fn parse_user_snippets_invalid_json_is_empty() {
+        assert!(parse_user_snippets("{not json").is_empty());
     }
 
     // ---- end-to-end expansion against the editor model ----

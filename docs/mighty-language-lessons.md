@@ -9653,3 +9653,16 @@ Leaving those literal makes otherwise useful imported snippets look unfinished.
 - **Language note:** no compiler gap surfaced. Time-dependent snippet variables
   should flow through the same explicit context object as file, workspace, and
   cursor variables; deterministic tests should never depend on the wall clock.
+
+## L794 - User Snippets Should Import Existing JSON
+
+Many users already have VS Code snippet files. Requiring them to hand-convert
+those snippets to a tab-separated local format blocks adoption even when the
+snippet body grammar itself is compatible.
+
+- **IDE note:** the user snippet loader now accepts a VS Code-style JSON object
+  with string or array `prefix` values and string or array `body` values. The
+  existing tab-separated format remains supported for lightweight local snippets.
+- **Language note:** no compiler gap surfaced. Import-format tests should cover
+  multi-prefix snippets and array bodies because those are the common cases that
+  turn a compatible snippet engine into a practical migration path.
