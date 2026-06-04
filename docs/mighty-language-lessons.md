@@ -7926,3 +7926,13 @@ views.
   clamped 1-based terminal row/column before encoding legacy X10 or SGR wheel
   reports. Regression coverage verifies coordinate-specific SGR and legacy
   wheel bytes, plus X10 coordinate clamping.
+
+L653. Terminal body clicks should route to mouse-aware TUIs. When the integrated
+terminal is open, a click inside the terminal grid needs to focus the terminal
+and, if the app enabled xterm mouse reporting, emit the matching button press or
+release at the event cell.
+
+- **IDE note:** terminal hit-testing now recognizes grid-body clicks after
+  chrome/dock controls have priority, and the terminal encoder supports legacy
+  X10 and SGR button press/release reports. Regression coverage verifies button
+  bytes, unsupported buttons, disabled reporting, and legacy coordinate clamps.

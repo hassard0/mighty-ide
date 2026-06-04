@@ -6832,6 +6832,36 @@ fn term_dims(ctx: &MuiContext) -> (usize, usize) {
     (rows, cols)
 }
 
+fn term_event_cell(ctx: &MuiContext) -> (usize, usize) {
+    let region = layout::region(ctx.sidebar_visible);
+    let (_, height) = visible_surface_size(ctx);
+    let (rows, cols) = term_dims(ctx);
+    let grid_x = ctx.last_event.x - (layout::term_panel_left(region) + layout::PAD);
+    let grid_y = ctx.last_event.y - (layout::term_panel_top(height) + layout::term_header_h());
+    let col = ((grid_x / layout::CHAR_W()).floor() as isize)
+        .clamp(0, cols.saturating_sub(1) as isize) as usize
+        + 1;
+    let row = ((grid_y / layout::LINE_H()).floor() as isize)
+        .clamp(0, rows.saturating_sub(1) as isize) as usize
+        + 1;
+    (row, col)
+}
+
+fn term_grid_contains_event(ctx: &MuiContext) -> bool {
+    if !ctx.term_open || ctx.terminal.is_none() {
+        return false;
+    }
+    let region = layout::region(ctx.sidebar_visible);
+    let (width, height) = visible_surface_size(ctx);
+    let left = layout::term_panel_left(region) + layout::PAD;
+    let top = layout::term_panel_top(height) + layout::term_header_h();
+    let right = (left + layout::term_grid_cols(width, region) as f32 * layout::CHAR_W())
+        .min(width as f32);
+    let bottom = (top + layout::term_grid_rows(height) as f32 * layout::LINE_H())
+        .min(height as f32);
+    ctx.last_event.x >= left && ctx.last_event.x < right && ctx.last_event.y >= top && ctx.last_event.y < bottom
+}
+
 /// Open (spawn if needed) the integrated terminal, sizing its grid/PTY to the
 /// current panel. Marks the panel open. Returns `1` if a terminal is running
 /// afterwards, `0` on spawn failure or null handle.
@@ -7017,21 +7047,38 @@ pub extern "C" fn mui_term_paste(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_term_scroll(handle: i64, dir: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        let region = layout::region(ctx.sidebar_visible);
-        let (_, height) = visible_surface_size(ctx);
-        let (rows, cols) = term_dims(ctx);
-        let grid_x = ctx.last_event.x - (layout::term_panel_left(region) + layout::PAD);
-        let grid_y = ctx.last_event.y - (layout::term_panel_top(height) + layout::term_header_h());
-        let col = ((grid_x / layout::CHAR_W()).floor() as isize)
-            .clamp(0, cols.saturating_sub(1) as isize) as usize
-            + 1;
-        let row = ((grid_y / layout::LINE_H()).floor() as isize)
-            .clamp(0, rows.saturating_sub(1) as isize) as usize
-            + 1;
+        let (row, col) = term_event_cell(ctx);
         if let Some(t) = ctx.terminal.as_mut() {
             t.send_scroll_at(dir, row, col);
         }
     }
+}
+
+/// `1` when the latest mouse event is inside the terminal grid body.
+#[no_mangle]
+pub extern "C" fn mui_term_hit_at_event(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(term_grid_contains_event(c)))
+}
+
+/// Send the latest mouse button event to the terminal when reporting is enabled.
+/// `pressed != 0` sends a button press; `0` sends release. Returns `1` when the
+/// event was in the terminal grid and was routed to terminal focus, even if the
+/// running app has not enabled mouse reporting.
+#[no_mangle]
+pub extern "C" fn mui_term_mouse_button(handle: i64, pressed: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !term_grid_contains_event(ctx) {
+        return 0;
+    }
+    let (row, col) = term_event_cell(ctx);
+    let button = ctx.last_event.button;
+    if let Some(t) = ctx.terminal.as_mut() {
+        t.send_mouse_button_at(pressed != 0, button, row, col);
+        return 1;
+    }
+    0
 }
 
 /// Publish IDE keyboard focus to the terminal so apps that enabled xterm focus

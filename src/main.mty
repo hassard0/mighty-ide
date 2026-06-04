@@ -310,6 +310,8 @@ extern c {
   fn mui_term_send_codepoint(handle: I64, codepoint: I32, mods: I32)
   fn mui_term_paste(handle: I64) -> I32
   fn mui_term_scroll(handle: I64, dir: I32)
+  fn mui_term_hit_at_event(handle: I64) -> I32
+  fn mui_term_mouse_button(handle: I64, pressed: I32) -> I32
   fn mui_term_focus(handle: I64, focused: I32)
   fn mui_term_pump(handle: I64)
   fn mui_term_draw(handle: I64)
@@ -2484,9 +2486,9 @@ fn main() {
           }
         }
       } else if term_focus && tag != ev_mouse_down() {
-        // -------- terminal has focus: route keystrokes to the shell ---------
-        // mouse_down falls through to the unified router so the rail/tabs stay
-        // clickable while the terminal has keyboard focus.
+        // -------- terminal has focus: route input to the shell ---------------
+        // mouse_down falls through to the unified router so chrome/rail/tabs
+        // stay clickable; mouse_up returns here for terminal button release.
         if tag == ev_char() {
           let cp = mui_event_codepoint(h)
           let mods = mui_event_mods(h)
@@ -2504,6 +2506,8 @@ fn main() {
         } else if tag == ev_scroll() {
           let sdir = mui_event_scroll_dir(h)
           mui_term_scroll(h, sdir)
+        } else if tag == ev_mouse_up() {
+          let _tmr = mui_term_mouse_button(h, 0)
         }
       } else if completing {
         // -------- autocomplete dropdown is open ------------------------------
@@ -3614,6 +3618,13 @@ fn main() {
             term_focus = false
             ai_focus = false
           }
+        } else if mui_term_hit_at_event(h) == 1 {
+          let _tmd = mui_term_mouse_button(h, 1)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = true
+          ai_focus = false
         } else if cur_panel == panel_agents_mty() {
           // Mighty Agents topology row clicks jump to definitions. Header
           // actions are routed before tab handling because both live at y <= 40.
