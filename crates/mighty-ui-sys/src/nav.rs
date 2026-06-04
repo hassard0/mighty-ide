@@ -217,8 +217,8 @@ pub fn wrap_hover(text: &str, wrap: usize, max_lines: usize) -> Vec<String> {
         if trimmed.trim_start().starts_with("```") {
             continue;
         }
-        // Light markdown cleanup: drop surrounding markup emphasis chars.
-        let cleaned = trimmed.replace('`', "");
+        // Light markdown cleanup for a compact plain-text popup.
+        let cleaned = clean_hover_markdown(trimmed);
         let cleaned = cleaned.trim();
         if cleaned.is_empty() {
             continue;
@@ -236,6 +236,88 @@ pub fn wrap_hover(text: &str, wrap: usize, max_lines: usize) -> Vec<String> {
         }
     }
     out
+}
+
+fn clean_hover_markdown(line: &str) -> String {
+    let line = strip_markdown_links(line);
+    let mut out = String::with_capacity(line.len());
+    let chars: Vec<char> = line.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let ch = chars[i];
+        match ch {
+            '`' => {}
+            '*' | '_' => {
+                if chars.get(i + 1) == Some(&ch) {
+                    i += 1;
+                } else if ch == '_' && is_word_internal_underscore(&chars, i) {
+                    out.push(ch);
+                }
+            }
+            '\\' => {
+                if let Some(next) = chars.get(i + 1) {
+                    out.push(*next);
+                    i += 1;
+                }
+            }
+            _ => out.push(ch),
+        }
+        i += 1;
+    }
+    out
+}
+
+fn is_word_internal_underscore(chars: &[char], idx: usize) -> bool {
+    idx > 0
+        && idx + 1 < chars.len()
+        && chars[idx - 1].is_ascii_alphanumeric()
+        && chars[idx + 1].is_ascii_alphanumeric()
+}
+
+fn strip_markdown_links(line: &str) -> String {
+    let chars: Vec<char> = line.chars().collect();
+    let mut out = String::with_capacity(line.len());
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '[' {
+            if let Some((label, consumed)) = parse_markdown_link_label(&chars[i..]) {
+                out.push_str(&label);
+                i += consumed;
+                continue;
+            }
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+fn parse_markdown_link_label(chars: &[char]) -> Option<(String, usize)> {
+    let mut label = String::new();
+    let mut i = 1;
+    while i < chars.len() {
+        match chars[i] {
+            ']' if chars.get(i + 1) == Some(&'(') => {
+                i += 2;
+                while i < chars.len() && chars[i] != ')' {
+                    i += 1;
+                }
+                if chars.get(i) == Some(&')') {
+                    return Some((label, i + 1));
+                }
+                return None;
+            }
+            '\\' if i + 1 < chars.len() => {
+                label.push(chars[i + 1]);
+                i += 2;
+            }
+            ch => {
+                label.push(ch);
+                i += 1;
+            }
+        }
+    }
+    None
 }
 
 // ---------------------------------------------------------------------------
@@ -985,8 +1067,8 @@ mod tests {
             lines,
             vec![
                 "fn add(a: I32, b: I32) -> I32".to_string(),
-                "_node_: NAME_REF".to_string(),
-                "_token_: IDENT".to_string(),
+                "node: NAME_REF".to_string(),
+                "token: IDENT".to_string(),
             ]
         );
     }
@@ -1106,6 +1188,22 @@ mod tests {
 
         assert!(shown.ends_with('\u{2026}'));
         assert!(shown_w <= 72.0 + 0.5);
+    }
+
+    #[test]
+    fn wrap_hover_cleans_common_inline_markdown() {
+        let lines = wrap_hover(
+            "See [`Vec<T>`](https://doc.rust-lang.org) and **Result** _value_ \\*literal\\*",
+            80,
+            4,
+        );
+        assert_eq!(lines, vec!["See Vec<T> and Result value *literal*"]);
+    }
+
+    #[test]
+    fn wrap_hover_leaves_unclosed_markdown_links_readable() {
+        let lines = wrap_hover("See [unfinished](https://example.com", 80, 4);
+        assert_eq!(lines, vec!["See [unfinished](https://example.com"]);
     }
 
     // ---- hover response parsing ----

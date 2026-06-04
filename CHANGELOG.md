@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Hover popups read cleaner markdown**: inline hover text now removes common
+  markdown noise such as link URLs, backticks, emphasis markers, and escaped
+  punctuation before wrapping, making LSP docs easier to scan in the compact
+  popup.
 - **User snippets load from copied VS Code files**: Mighty now reads the legacy
   config `snippets` file, `snippets.json`, `user-snippets.json`, and sorted
   `*.code-snippets` files from the config directory, so existing snippet files

@@ -9739,3 +9739,15 @@ commonly named `*.code-snippets` or `snippets.json`.
 - **Language note:** no compiler gap surfaced. Multi-file config importers
   should expose deterministic ordering in a pure helper so tests do not need to
   mutate process-wide config environment variables.
+
+## L800 - Hover Markdown Should Collapse To Readable Plain Text
+
+LSP hover content is often markdown, but Mighty draws a compact text popup rather
+than a full rich markdown surface. Leaving raw link destinations, emphasis
+markers, and backticks in that small box makes useful docs harder to scan.
+
+- **IDE note:** hover wrapping now performs lightweight inline markdown cleanup:
+  links keep their label but drop the URL, code ticks and emphasis markers are
+  removed, and escaped punctuation is shown as the literal character.
+- **Language note:** no compiler gap surfaced. Keep hover cleanup pure and
+  bounded; malformed markdown should remain readable instead of disappearing.
