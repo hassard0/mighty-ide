@@ -9103,7 +9103,7 @@ fn sync_active_path_clears_stale_active_language_ui() {
     std::fs::create_dir_all(&root).unwrap();
     let first = root.join("first.mty");
     let second = root.join("second.mty");
-    std::fs::write(&first, "fn first() {\n  let alpha = 1\n  al\n}\n").unwrap();
+    std::fs::write(&first, "fn first() {\n  let alpha = 1\n  al\n  if\n}\n").unwrap();
     std::fs::write(&second, "fn second() {}\n").unwrap();
 
     ctx.tabs.open_path(first);
@@ -9124,6 +9124,7 @@ fn sync_active_path_clears_stale_active_language_ui() {
     })));
     ctx.tabs.active_model_mut().move_to(2, 4);
     assert!(crate::mui_ed_complete_request(h) > 0);
+    ctx.tabs.active_model_mut().move_to(3, 4);
     assert!(
         ctx.codeaction.set(vec![crate::language::CodeAction {
             title: "Fix first tab".to_string(),
@@ -9137,6 +9138,7 @@ fn sync_active_path_clears_stale_active_language_ui() {
         }]) > 0
     );
     ctx.rename.open("alpha");
+    assert_eq!(crate::snippetsabi::mui_snippet_try_expand(h), 1);
     let cursor = ctx.tabs.active_model().cursor_line() as i32;
     ctx.lightbulb.set_result(cursor, true);
     assert!(ctx.peek.open_at(
@@ -9166,6 +9168,7 @@ fn sync_active_path_clears_stale_active_language_ui() {
     assert_eq!(crate::mui_complete_active(h), 1);
     assert_eq!(crate::abi::mui_codeaction_active(h), 1);
     assert_eq!(crate::abi::mui_rename_active(h), 1);
+    assert_eq!(crate::snippetsabi::mui_snippet_active(h), 1);
     assert_eq!(crate::wsabi::mui_lightbulb_visible(h), 1);
     assert_eq!(crate::stickyabi::mui_peek_active(h), 1);
     assert_eq!(crate::navsurfaces::mui_crumb_menu_active(h), 1);
@@ -9181,6 +9184,7 @@ fn sync_active_path_clears_stale_active_language_ui() {
     assert_eq!(crate::mui_complete_active(h), 0);
     assert_eq!(crate::abi::mui_codeaction_active(h), 0);
     assert_eq!(crate::abi::mui_rename_active(h), 0);
+    assert_eq!(crate::snippetsabi::mui_snippet_active(h), 0);
     assert_eq!(crate::wsabi::mui_lightbulb_visible(h), 0);
     assert_eq!(crate::stickyabi::mui_peek_active(h), 0);
     assert_eq!(crate::navsurfaces::mui_crumb_menu_active(h), 0);

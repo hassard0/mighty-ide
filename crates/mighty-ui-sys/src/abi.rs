@@ -4130,6 +4130,7 @@ pub(crate) fn sync_active_path(ctx: &mut MuiContext) {
     ctx.complete.cancel();
     ctx.codeaction.cancel();
     ctx.rename.cancel();
+    ctx.snippet_session.cancel();
     ctx.lightbulb.reset();
     ctx.peek.close();
     ctx.outline.clear_symbols();
