@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Source Control commit feedback is specific**: `Git: Commit Staged` now tells
+  users whether they need staged changes or a commit message instead of collapsing
+  both states into `Nothing to commit`.
 - **Git range commands claim visible ownership**: Switch Branch now releases stale
   panel/search focus when the branch picker opens, Push/Pull/Fetch reveal Source
   Control after dispatch, and Toggle Blame returns keyboard ownership to the

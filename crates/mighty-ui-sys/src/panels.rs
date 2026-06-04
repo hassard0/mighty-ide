@@ -420,6 +420,23 @@ pub extern "C" fn mui_scm_commit(handle: i64) -> i32 {
         crate::abi::trace("scm_commit ok=0 root=<none>");
         return 0;
     }
+    if ctx.scm.status.staged_count() == 0 {
+        ctx.push_toast(crate::toast::Kind::Warn, "No staged changes to commit");
+        crate::abi::trace(&format!(
+            "scm_commit ok=0 staged=0 root={}",
+            scm_trace_root(ctx)
+        ));
+        return 0;
+    }
+    if ctx.scm.message_string().trim().is_empty() {
+        ctx.push_toast(crate::toast::Kind::Info, "Enter a commit message");
+        crate::abi::trace(&format!(
+            "scm_commit ok=0 empty-message staged={} root={}",
+            ctx.scm.status.staged_count(),
+            scm_trace_root(ctx)
+        ));
+        return 0;
+    }
     let ok = ctx.scm.commit_message(&dir);
     let staged = ctx.scm.status.staged_count();
     let unstaged = ctx.scm.status.unstaged_count();

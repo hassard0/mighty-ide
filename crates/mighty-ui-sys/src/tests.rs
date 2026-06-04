@@ -4185,6 +4185,33 @@ fn scm_bulk_actions_without_repo_report_not_git_repository() {
 }
 
 #[test]
+fn scm_commit_reports_precise_missing_inputs() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_scm_commit_inputs_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.scm.root = Some(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_scm_commit(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No staged changes to commit");
+
+    ctx.scm.status.entries.push(crate::scm::ScmEntry {
+        path: "tracked.mty".to_string(),
+        staged: true,
+        status: 'M',
+    });
+    assert_eq!(crate::panels::mui_scm_commit(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Enter a commit message");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn scm_header_icons_map_to_visible_actions() {
     use crate::ffi::MuiEvent;
 

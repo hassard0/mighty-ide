@@ -9104,3 +9104,16 @@ Toggle Blame returns to the editor gutter.
   Source-contract coverage pins the one-arm range behavior.
 - **Language note:** no compiler gap surfaced. The pattern reinforces that range
   dispatch needs a result/focus mapping, not just a compact command-id gate.
+
+## L756 - Commit Commands Should Name the Missing Input
+
+A failed Source Control commit can mean different user actions are required. A
+generic `Nothing to commit` message is ambiguous when staged changes exist but
+the commit message is empty.
+
+- **IDE note:** `Git: Commit Staged` now reports `No staged changes to commit`
+  when the index is empty, and `Enter a commit message` when staged files exist
+  but the message box is blank. Focused regressions pin both branches.
+- **Language note:** no compiler gap surfaced. The useful pattern is still
+  command-result specificity: the shim can inspect workflow state before
+  shelling out, while Mighty only needs the scalar command result.
