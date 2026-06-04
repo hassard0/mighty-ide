@@ -4116,13 +4116,19 @@ pub extern "C" fn mui_find_highlight_row(
 // Multi-file workspace — tab store
 // ---------------------------------------------------------------------------
 
-/// Point the shim's file I/O (load / save / diagnostics) at the active tab's
-/// path and update the status-bar basename. Called internally after any tab
-/// open/switch/close so Ctrl+S and `mty check` follow the active file.
+/// Point the shim's file I/O and transient active-file UI at the active tab's
+/// path, then update the status-bar basename. Called internally after any tab
+/// open/switch/close so Ctrl+S, language popups, and `mty check` follow the
+/// active file.
 pub(crate) fn sync_active_path(ctx: &mut MuiContext) {
     let active = ctx.tabs.active();
     let path = ctx.tabs.path(active);
     ctx.diags.clear();
+    ctx.hover.clear();
+    ctx.def.clear();
+    ctx.sig.clear();
+    ctx.complete.cancel();
+    ctx.codeaction.cancel();
     ctx.file_name = path
         .as_ref()
         .and_then(|p| p.file_name())

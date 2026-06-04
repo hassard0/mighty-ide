@@ -10719,3 +10719,17 @@ survive as if they described the new file.
 - **Language note:** no compiler gap surfaced. Cached analysis state should be
   scoped to the resource identity that produced it and invalidated when that
   identity changes.
+
+## L870 - Transient Language Popups Belong To The Active File Context
+
+Hover cards, definition targets, signature help, completion menus, and
+code-action menus are all computed from the current buffer and cursor. If they
+survive an active-file transition, they can point at the previous tab while the
+status bar and editor show a new file.
+
+- **IDE note:** active-file path synchronization now clears transient language
+  UI state alongside diagnostics, so tab switches, opens, closes, and rebinding
+  paths cannot leave stale popups attached to the wrong file.
+- **Language note:** no compiler gap surfaced. Cached interactive language
+  state should be invalidated at the same resource-identity boundary as cached
+  analysis diagnostics.

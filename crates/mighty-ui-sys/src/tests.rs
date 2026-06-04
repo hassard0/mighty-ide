@@ -9093,6 +9093,71 @@ fn sync_active_path_clears_stale_active_diagnostics() {
 }
 
 #[test]
+fn sync_active_path_clears_stale_active_language_popups() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_sync_path_clears_popups_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let first = root.join("first.mty");
+    let second = root.join("second.mty");
+    std::fs::write(&first, "fn first() {\n  let alpha = 1\n  al\n}\n").unwrap();
+    std::fs::write(&second, "fn second() {}\n").unwrap();
+
+    ctx.tabs.open_path(first);
+    crate::sync_active_path(&mut ctx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert!(ctx.hover.set_text("hover from first tab"));
+    ctx.def.set(Some(crate::nav::DefTarget {
+        path: root.join("target.mty"),
+        line: 2,
+        col: 4,
+    }));
+    assert!(ctx.sig.set(Some(crate::language::ParsedSignature {
+        label: "fn first(arg: I32) -> I32".to_string(),
+        params: vec!["arg: I32".to_string()],
+        active: 0,
+        doc: String::new(),
+    })));
+    ctx.tabs.active_model_mut().move_to(2, 4);
+    assert!(crate::mui_ed_complete_request(h) > 0);
+    assert!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Fix first tab".to_string(),
+            edit: None,
+            command_edit: None,
+            command: Some(crate::language::CommandAction {
+                command: "server.apply".to_string(),
+                arguments_json: None,
+            }),
+            fix_all_mty: false,
+        }]) > 0
+    );
+
+    assert_eq!(crate::mui_hover_active(h), 1);
+    assert_eq!(crate::mui_def_target_line(h), 2);
+    assert_eq!(crate::abi::mui_sig_active(h), 1);
+    assert_eq!(crate::mui_complete_active(h), 1);
+    assert_eq!(crate::abi::mui_codeaction_active(h), 1);
+
+    let second_idx = ctx.tabs.open_path(second);
+    ctx.tabs.switch(second_idx);
+    crate::sync_active_path(&mut ctx);
+
+    assert_eq!(crate::mui_hover_active(h), 0);
+    assert_eq!(crate::mui_def_target_line(h), -1);
+    assert_eq!(crate::abi::mui_sig_active(h), 0);
+    assert_eq!(crate::mui_complete_active(h), 0);
+    assert_eq!(crate::abi::mui_codeaction_active(h), 0);
+    assert_eq!(ctx.file_name, "second.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn definition_open_target_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
