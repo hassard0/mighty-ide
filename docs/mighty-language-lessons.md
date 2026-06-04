@@ -10345,3 +10345,17 @@ their own purposes, but they are not completion responses.
 - **Language note:** no compiler gap surfaced. Stream parsers should identify
   the protocol envelope role before interpreting payload-shaped fields inside
   that envelope.
+
+## L843 - Generic LSP Waits Need Response Roles
+
+The generic LSP bridge waits for request id `2` across streams that can also
+include server requests. A matching `id` plus a payload-shaped `result` is still
+not a response when the same envelope owns a `method`.
+
+- **IDE note:** the generic cross-language LSP wait loop now requires matching
+  response-shaped objects: top-level `id`, top-level `result` or `error`, and no
+  top-level `method`. Server requests can no longer terminate hover,
+  completion, signature, rename, or code-action waits by accident.
+- **Language note:** no compiler gap surfaced. JSON-RPC clients should classify
+  message role before checking id/payload fields; requests and responses share
+  `id` but have different control-flow meaning.

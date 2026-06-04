@@ -357,6 +357,7 @@ fn has_response_id(stream: &[u8], wanted_id_json: &str) -> bool {
             return false;
         };
         id == wanted_id_json
+            && top_level_field_value_start(obj, b"method").is_none()
             && (top_level_field_value_start(obj, b"result").is_some()
                 || top_level_field_value_start(obj, b"error").is_some())
     })
@@ -1431,10 +1432,12 @@ mod tests {
     fn response_id_wait_ignores_nested_id_and_requests() {
         let nested_id = br#"{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"contents":"wrong"}}}}"#;
         let server_request = br#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}"#;
+        let request_with_result = br#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","result":{"applied":true}}"#;
         let response_error = br#"{"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"failed"}}"#;
 
         assert!(!has_response_id(nested_id, "2"));
         assert!(!has_response_id(server_request, "2"));
+        assert!(!has_response_id(request_with_result, "2"));
         assert!(has_response_id(response_error, "2"));
     }
 

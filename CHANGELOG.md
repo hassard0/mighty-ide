@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Generic LSP waits require response envelopes**: the cross-language LSP
+  client now ignores objects with a top-level `method` while waiting for request
+  id `2`, even if a server request carries incidental `result` data.
 - **Completion labels require response-owned results**: LSP completion scraping
   now ignores completion-looking `result` payloads on server requests or
   progress notifications in a stream, so only real response results populate the
