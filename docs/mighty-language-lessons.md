@@ -8723,3 +8723,14 @@ surface the user was already using.
   `mui_sidebar_toggle` return value. They clear Run/Web/Testing/Terminal/AI/
   Agents/search navigation focus only when the toggle opens Explorer, preserving
   existing focus ownership on the close path.
+
+## L728 - Whole-sidebar Close Must Clear Sidebar-local Focus
+
+Closing a containing drawer should release the same local focus owners that its
+individual panel close commands release. Otherwise a hidden sidebar workflow can
+continue receiving input after the chrome has been removed.
+
+- **IDE note:** `View: Close Sidebar` now clears `agents_focus` and transient
+  search navigation after calling `mui_sidebar_close`. The Mighty dispatcher
+  source-contract test covers this alongside the individual Explorer/Search/SCM/
+  Agents close paths.

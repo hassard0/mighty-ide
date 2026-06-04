@@ -5028,6 +5028,8 @@ fn main() {
           ai_focus = false
         } else if id == cmd_sidebar_close() {
           let _sc = mui_sidebar_close(h)
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_view_terminal() {
           let ok = mui_term_open(h)
           if ok == 1 { term_focus = true; mui_log_terminal(h) }

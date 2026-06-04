@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Close Sidebar now releases sidebar-local focus**: `View: Close Sidebar`
+  clears stale Agents focus and transient search navigation after closing the
+  drawer, matching the close behavior of individual sidebar panels.
 - **Sidebar toggle now claims focus when it opens Explorer**: Ctrl+B and the
   palette sidebar toggle now release stale bottom-dock, AI, Agents, and search
   navigation focus when the toggle opens the sidebar, while preserving current

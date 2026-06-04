@@ -10826,6 +10826,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains(
+            "id == cmd_sidebar_close() {\n          let _sc = mui_sidebar_close(h)\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Sidebar close command must close the drawer and release sidebar-local focus"
+    );
+    assert!(
+        main.contains(
             "id == cmd_run_file() {\n          let _r = mui_run_start(h)\n          run_focus = true\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
         ),
         "Run file command must focus Run output and release competing surfaces"
