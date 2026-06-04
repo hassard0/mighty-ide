@@ -7697,3 +7697,11 @@ gestures.
   Plain application-cursor arrows still use SS3, while modified arrows use CSI
   modifier sequences. Tests cover Shift, Alt, Ctrl, combined modifiers, and
   application-cursor interaction.
+
+L629. Terminal function keys need the same xterm discipline. Plain F2 is SS3
+`ESC O Q` alongside F1/F3/F4, not `CSI 12~`; modified function keys carry the
+same xterm modifier parameter scheme as navigation keys.
+
+- **IDE note:** terminal input now sends plain F2 as `ESC O Q`, modified F1-F4
+  as `CSI 1;N P/Q/R/S`, and modified F5-F12 as `CSI code;N~`. Regression tests
+  cover the corrected F2 plus representative Shift/Alt/Ctrl combinations.

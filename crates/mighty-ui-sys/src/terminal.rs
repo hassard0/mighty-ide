@@ -1732,6 +1732,18 @@ pub fn key_to_bytes(key: u32, mods: u32, application_cursor_keys: bool) -> Optio
         MUI_KEY_DELETE if modifier.is_some() => modified_csi_tilde(3, modifier.unwrap()),
         MUI_KEY_PAGE_UP if modifier.is_some() => modified_csi_tilde(5, modifier.unwrap()),
         MUI_KEY_PAGE_DOWN if modifier.is_some() => modified_csi_tilde(6, modifier.unwrap()),
+        MUI_KEY_F1 if modifier.is_some() => modified_csi_1(modifier.unwrap(), b'P'),
+        MUI_KEY_F2 if modifier.is_some() => modified_csi_1(modifier.unwrap(), b'Q'),
+        MUI_KEY_F3 if modifier.is_some() => modified_csi_1(modifier.unwrap(), b'R'),
+        MUI_KEY_F4 if modifier.is_some() => modified_csi_1(modifier.unwrap(), b'S'),
+        MUI_KEY_F5 if modifier.is_some() => modified_csi_tilde(15, modifier.unwrap()),
+        MUI_KEY_F6 if modifier.is_some() => modified_csi_tilde(17, modifier.unwrap()),
+        MUI_KEY_F7 if modifier.is_some() => modified_csi_tilde(18, modifier.unwrap()),
+        MUI_KEY_F8 if modifier.is_some() => modified_csi_tilde(19, modifier.unwrap()),
+        MUI_KEY_F9 if modifier.is_some() => modified_csi_tilde(20, modifier.unwrap()),
+        MUI_KEY_F10 if modifier.is_some() => modified_csi_tilde(21, modifier.unwrap()),
+        MUI_KEY_F11 if modifier.is_some() => modified_csi_tilde(23, modifier.unwrap()),
+        MUI_KEY_F12 if modifier.is_some() => modified_csi_tilde(24, modifier.unwrap()),
         MUI_KEY_LEFT if application_cursor_keys => vec![0x1b, b'O', b'D'],
         MUI_KEY_RIGHT if application_cursor_keys => vec![0x1b, b'O', b'C'],
         MUI_KEY_UP if application_cursor_keys => vec![0x1b, b'O', b'A'],
@@ -1746,7 +1758,7 @@ pub fn key_to_bytes(key: u32, mods: u32, application_cursor_keys: bool) -> Optio
         MUI_KEY_PAGE_UP => vec![0x1b, b'[', b'5', b'~'],
         MUI_KEY_PAGE_DOWN => vec![0x1b, b'[', b'6', b'~'],
         MUI_KEY_F1 => vec![0x1b, b'O', b'P'],
-        MUI_KEY_F2 => vec![0x1b, b'[', b'1', b'2', b'~'],
+        MUI_KEY_F2 => vec![0x1b, b'O', b'Q'],
         MUI_KEY_F3 => vec![0x1b, b'O', b'R'],
         MUI_KEY_F4 => vec![0x1b, b'O', b'S'],
         MUI_KEY_F5 => vec![0x1b, b'[', b'1', b'5', b'~'],
@@ -2761,7 +2773,7 @@ mod tests {
         assert_eq!(key_to_bytes(MUI_KEY_PAGE_UP, 0, false), Some(vec![0x1b, b'[', b'5', b'~']));
         assert_eq!(key_to_bytes(MUI_KEY_PAGE_DOWN, 0, false), Some(vec![0x1b, b'[', b'6', b'~']));
         assert_eq!(key_to_bytes(MUI_KEY_F1, 0, false), Some(vec![0x1b, b'O', b'P']));
-        assert_eq!(key_to_bytes(MUI_KEY_F2, 0, false), Some(vec![0x1b, b'[', b'1', b'2', b'~']));
+        assert_eq!(key_to_bytes(MUI_KEY_F2, 0, false), Some(vec![0x1b, b'O', b'Q']));
         assert_eq!(key_to_bytes(MUI_KEY_F3, 0, false), Some(vec![0x1b, b'O', b'R']));
         assert_eq!(key_to_bytes(MUI_KEY_F4, 0, false), Some(vec![0x1b, b'O', b'S']));
         assert_eq!(key_to_bytes(MUI_KEY_F5, 0, false), Some(vec![0x1b, b'[', b'1', b'5', b'~']));
@@ -2823,6 +2835,35 @@ mod tests {
         assert_eq!(
             key_to_bytes(MUI_KEY_UP, MUI_MOD_CTRL, true),
             Some(b"\x1b[1;5A".to_vec())
+        );
+    }
+
+    #[test]
+    fn key_mapping_honors_function_key_modifiers() {
+        use crate::ffi::*;
+        assert_eq!(
+            key_to_bytes(MUI_KEY_F1, MUI_MOD_SHIFT, false),
+            Some(b"\x1b[1;2P".to_vec())
+        );
+        assert_eq!(
+            key_to_bytes(MUI_KEY_F2, MUI_MOD_ALT, false),
+            Some(b"\x1b[1;3Q".to_vec())
+        );
+        assert_eq!(
+            key_to_bytes(MUI_KEY_F4, MUI_MOD_CTRL, false),
+            Some(b"\x1b[1;5S".to_vec())
+        );
+        assert_eq!(
+            key_to_bytes(MUI_KEY_F5, MUI_MOD_SHIFT, false),
+            Some(b"\x1b[15;2~".to_vec())
+        );
+        assert_eq!(
+            key_to_bytes(MUI_KEY_F10, MUI_MOD_ALT | MUI_MOD_CTRL, false),
+            Some(b"\x1b[21;7~".to_vec())
+        );
+        assert_eq!(
+            key_to_bytes(MUI_KEY_F12, MUI_MOD_SHIFT | MUI_MOD_CTRL, false),
+            Some(b"\x1b[24;6~".to_vec())
         );
     }
 
