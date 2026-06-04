@@ -1041,6 +1041,8 @@ impl VtParser {
                     self.save_cursor(grid);
                 } else if b == b'u' {
                     self.restore_cursor(grid);
+                } else if b == b't' {
+                    self.handle_window_ops(grid);
                 }
                 // All other finals are intentionally skipped.
                 self.csi.clear();
@@ -1552,6 +1554,20 @@ impl VtParser {
         match params {
             "" | "0" => self.reply.extend_from_slice(b"\x1b[?1;2c"),
             ">" | ">0" => self.reply.extend_from_slice(b"\x1b[>0;0;0c"),
+            _ => {}
+        }
+    }
+
+    /// Answer xterm window-operation size queries. `18t` asks for the terminal
+    /// text area in characters; `19t` asks for the screen size in characters.
+    /// Mighty has one visible grid, so both report the current grid dimensions.
+    fn handle_window_ops(&mut self, grid: &Grid) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        match params {
+            "18" | "19" => {
+                let report = format!("\x1b[8;{};{}t", grid.rows(), grid.cols());
+                self.reply.extend_from_slice(report.as_bytes());
+            }
             _ => {}
         }
     }
@@ -3651,6 +3667,30 @@ mod tests {
 
         p.feed(&mut g, b"\x1b[>0c");
         assert_eq!(p.take_reply(), b"\x1b[>0;0;0c");
+    }
+
+    #[test]
+    fn window_size_character_queries_are_answered() {
+        let mut g = Grid::new(7, 33);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b[18t");
+        assert_eq!(p.take_reply(), b"\x1b[8;7;33t");
+        assert!(!g.contains("18t"));
+
+        g.resize(12, 80);
+        p.feed(&mut g, b"\x1b[19t");
+        assert_eq!(p.take_reply(), b"\x1b[8;12;80t");
+        assert!(!g.contains("19t"));
+    }
+
+    #[test]
+    fn unsupported_window_ops_are_only_consumed() {
+        let mut g = Grid::new(2, 10);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b[14tok");
+        assert!(p.take_reply().is_empty());
+        assert!(g.contains("ok"));
+        assert!(!g.contains("14t"));
     }
 
     #[test]
