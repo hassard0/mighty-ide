@@ -7797,3 +7797,14 @@ app instead of wheel events.
   reporting from SGR mouse reporting. `CSI ?1000 h` uses legacy X10 wheel bytes,
   `CSI ?1006 h` keeps the SGR wheel form, and ordinary shells still receive the
   repeated cursor-key fallback. Tests cover mode tracking and all three encoders.
+
+L640. SGR truecolor also appears in colon form. Modern terminal programs may emit
+`CSI 38:2::r:g:b m`, `CSI 48:2:r:g:b m`, or `CSI 38:5:n m`; a parser that only
+splits on semicolons silently drops those colors even though the sequence is a
+standard SGR color update.
+
+- **IDE note:** the SGR parser now normalizes colon-delimited extended-color
+  parameters into the existing 256-color and truecolor handling path, including
+  the optional color-space field in truecolor forms. Regression tests cover
+  colon 256-color foreground/background, colon truecolor foreground/background,
+  reset behavior, and color-space-id forms.

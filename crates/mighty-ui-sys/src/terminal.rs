@@ -988,11 +988,11 @@ impl VtParser {
         }
     }
 
-    /// Apply an `ESC [ … m` SGR sequence: parse `;`-separated numeric params and
-    /// update the grid's current colors. Handles reset (0), the basic/bright
-    /// ANSI colors, xterm 256-color `38;5;n` / `48;5;n`, truecolor
-    /// `38;2;r;g;b` / `48;2;r;g;b`, and default fg/bg (39/49). Unknown params
-    /// are ignored.
+    /// Apply an `ESC [ … m` SGR sequence: parse numeric params and update the
+    /// grid's current colors. Handles reset (0), the basic/bright ANSI colors,
+    /// xterm 256-color `38;5;n` / `48;5;n`, truecolor `38;2;r;g;b` /
+    /// `48;2;r;g;b`, colon forms like `38:2::r:g:b`, and default fg/bg (39/49).
+    /// Unknown params are ignored.
     fn apply_sgr(&mut self, grid: &mut Grid) {
         let params = std::str::from_utf8(&self.csi).unwrap_or("");
         // A bare `ESC [ m` means reset.
@@ -1005,16 +1005,7 @@ impl VtParser {
         if params.starts_with('?') {
             return;
         }
-        let params: Vec<Option<i32>> = params
-            .split(';')
-            .map(|part| {
-                if part.is_empty() {
-                    Some(0)
-                } else {
-                    part.parse().ok()
-                }
-            })
-            .collect();
+        let params = parse_sgr_params(params);
 
         let mut i = 0usize;
         while i < params.len() {
@@ -1498,6 +1489,66 @@ impl VtParser {
 
 fn encode_truecolor(r: u8, g: u8, b: u8) -> u32 {
     TRUECOLOR_MASK | ((r as u32) << 16) | ((g as u32) << 8) | b as u32
+}
+
+fn parse_sgr_params(params: &str) -> Vec<Option<i32>> {
+    let mut out = Vec::new();
+    for part in params.split(';') {
+        if part.contains(':') {
+            append_colon_sgr_param(part, &mut out);
+        } else if part.is_empty() {
+            out.push(Some(0));
+        } else {
+            out.push(part.parse().ok());
+        }
+    }
+    out
+}
+
+fn append_colon_sgr_param(part: &str, out: &mut Vec<Option<i32>>) {
+    let pieces: Vec<&str> = part.split(':').collect();
+    let Some(head) = pieces.first().and_then(|s| s.parse::<i32>().ok()) else {
+        out.push(None);
+        return;
+    };
+    let Some(mode) = pieces.get(1).and_then(|s| s.parse::<i32>().ok()) else {
+        out.push(Some(head));
+        return;
+    };
+
+    match (head, mode) {
+        (38 | 48, 5) => {
+            out.push(Some(head));
+            out.push(Some(5));
+            out.push(pieces.get(2).and_then(|s| s.parse::<i32>().ok()));
+        }
+        (38 | 48, 2) => {
+            let rgb: Vec<i32> = pieces
+                .iter()
+                .skip(2)
+                .filter(|s| !s.is_empty())
+                .filter_map(|s| s.parse::<i32>().ok())
+                .collect();
+            out.push(Some(head));
+            out.push(Some(2));
+            if rgb.len() >= 3 {
+                for value in &rgb[rgb.len() - 3..] {
+                    out.push(Some(*value));
+                }
+            } else {
+                out.extend([None, None, None]);
+            }
+        }
+        _ => {
+            for piece in pieces {
+                if piece.is_empty() {
+                    out.push(Some(0));
+                } else {
+                    out.push(piece.parse().ok());
+                }
+            }
+        }
+    }
 }
 
 /// Resolve a terminal color code to RGBA (0.0..=1.0). [`DEFAULT_FG`] -> a light
@@ -2210,6 +2261,17 @@ mod tests {
     }
 
     #[test]
+    fn sgr_colon_256_color_foreground_and_background() {
+        let g = grid_feed(1, 8, b"\x1b[38:5:196mR\x1b[48:5:22mB\x1b[0mZ");
+        assert_eq!(g.cell(0, 0).fg, 196);
+        assert_eq!(g.cell(0, 0).bg, DEFAULT_BG);
+        assert_eq!(g.cell(0, 1).fg, 196);
+        assert_eq!(g.cell(0, 1).bg, 22);
+        assert_eq!(g.cell(0, 2).fg, DEFAULT_FG);
+        assert_eq!(g.cell(0, 2).bg, DEFAULT_BG);
+    }
+
+    #[test]
     fn sgr_256_color_index_255_is_not_a_sentinel() {
         let g = grid_feed(1, 4, b"\x1b[38;5;255mX\x1b[48;5;255mY");
         assert_eq!(g.cell(0, 0).fg, 255);
@@ -2231,6 +2293,24 @@ mod tests {
         assert_eq!(g.cell(0, 1).bg, DEFAULT_BG);
         assert_eq!(g.cell(0, 2).fg, encode_truecolor(1, 2, 3));
         assert_eq!(g.cell(0, 2).bg, encode_truecolor(4, 5, 6));
+    }
+
+    #[test]
+    fn sgr_colon_truecolor_foreground_and_background() {
+        let g = grid_feed(
+            1,
+            8,
+            b"\x1b[38:2::1:2:3mA\x1b[48:2:4:5:6mB\x1b[0mC",
+        );
+        assert_eq!(g.cell(0, 0).fg, encode_truecolor(1, 2, 3));
+        assert_eq!(g.cell(0, 0).bg, DEFAULT_BG);
+        assert_eq!(g.cell(0, 1).fg, encode_truecolor(1, 2, 3));
+        assert_eq!(g.cell(0, 1).bg, encode_truecolor(4, 5, 6));
+        assert_eq!(g.cell(0, 2).fg, DEFAULT_FG);
+        assert_eq!(g.cell(0, 2).bg, DEFAULT_BG);
+
+        let g2 = grid_feed(1, 8, b"\x1b[38:2:1:7:8:9mX");
+        assert_eq!(g2.cell(0, 0).fg, encode_truecolor(7, 8, 9));
     }
 
     #[test]
