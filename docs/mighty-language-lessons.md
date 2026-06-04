@@ -10578,3 +10578,17 @@ write disk underneath another dirty duplicate view.
 - **Language note:** no compiler gap surfaced. Multi-file operations must
   evaluate all open views of a resource before mutating disk; first-match tab
   lookup is not enough when duplicates are allowed.
+
+## L860 - External Fixers Must Preflight Duplicate Views
+
+Fix-all actions that shell out to a formatter or fixer still mutate the active
+file on disk. Saving the active buffer before checking duplicate tabs can
+overwrite unsaved edits in another view of the same file.
+
+- **IDE note:** Fix all (mty) now checks for any dirty equivalent tab before it
+  saves the active buffer or launches the external fixer. A dirty duplicate
+  blocks the action, leaves disk unchanged, and reports the same skipped-dirty
+  workspace-edit warning as inline code actions.
+- **Language note:** no compiler gap surfaced. External tools do not remove the
+  need for editor-side resource preflights; the IDE must prove a path is safe to
+  mutate before handing it to another process.

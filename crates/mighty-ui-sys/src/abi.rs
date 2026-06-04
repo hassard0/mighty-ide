@@ -10607,6 +10607,17 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
                 return 0;
             }
         };
+        if ctx.tabs.any_dirty_path_except(&path, ctx.tabs.active()) {
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                "Skipped dirty file during workspace edit",
+            );
+            println!(
+                "codeaction: fix-all skipped dirty duplicate path={}",
+                path.display()
+            );
+            return 0;
+        }
         let bytes = ctx.tabs.active_model().to_bytes();
         if std::fs::write(&path, &bytes).is_err() {
             ctx.push_toast(crate::toast::Kind::Error, "Save failed before code action");

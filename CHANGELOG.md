@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Fix-all code actions protect dirty duplicate tabs**: Fix all (mty) now
+  refuses to save or run the external fixer when another equivalent tab for the
+  active file has unsaved edits, matching inline workspace-edit safety.
 - **Workspace edits protect dirty duplicate tabs**: code actions and rename
   workspace edits now skip a target path when any equivalent non-active tab is
   dirty, including duplicate views of the active file, avoiding disk writes
