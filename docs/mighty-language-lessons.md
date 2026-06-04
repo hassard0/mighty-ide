@@ -7581,3 +7581,13 @@ regions and right-edge cells without scrolling or shifting rows unexpectedly.
 - **IDE note:** `VtParser` now tracks DEC autowrap mode, honors `CSI ?7 h/l`,
   and resets it on `ESC c`. Printable UTF-8 output uses the mode-aware grid
   write path, with tests for disabled wrap, re-enabled wrap, and terminal reset.
+
+L617. Terminal tab stops are mutable state. The terminal grid advanced every
+Tab to a hard-coded multiple-of-eight column and ignored `ESC H` / `CSI g`,
+which means applications could not set or clear custom tab stops for aligned
+output.
+
+- **IDE note:** the grid now stores horizontal tab stops, defaults them every
+  eight columns, supports HTS (`ESC H`) and TBC (`CSI g` / `CSI 3 g`), and
+  restores default tab stops on full terminal reset. Parser tests cover custom
+  stops, clearing the current stop, clearing all stops, and reset behavior.

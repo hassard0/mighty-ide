@@ -62,6 +62,10 @@ impl Default for Cell {
     }
 }
 
+fn default_tab_stops(cols: usize) -> Vec<bool> {
+    (0..cols).map(|col| col > 0 && col % 8 == 0).collect()
+}
+
 #[derive(Clone, Debug)]
 struct ScreenSnapshot {
     rows: usize,
@@ -92,6 +96,8 @@ pub struct Grid {
     scroll_top: usize,
     /// Inclusive scroll-region bottom row. Defaults to the full grid.
     scroll_bottom: usize,
+    /// Horizontal tab stops. Defaults to every 8 columns, excluding column 0.
+    tab_stops: Vec<bool>,
     primary_screen: Option<ScreenSnapshot>,
 }
 
@@ -109,6 +115,7 @@ impl Grid {
             cur_bg: DEFAULT_BG,
             scroll_top: 0,
             scroll_bottom: rows - 1,
+            tab_stops: default_tab_stops(cols),
             primary_screen: None,
         }
     }
@@ -156,6 +163,11 @@ impl Grid {
         self.cols = cols;
         self.cur_row = self.cur_row.min(rows - 1);
         self.cur_col = self.cur_col.min(cols);
+        let mut tab_stops = vec![false; cols];
+        for (idx, stop) in self.tab_stops.iter().copied().enumerate().take(cols) {
+            tab_stops[idx] = stop;
+        }
+        self.tab_stops = tab_stops;
         if was_full_scroll_region {
             self.reset_scroll_region();
         } else {
@@ -329,7 +341,7 @@ impl Grid {
                 }
             }
         }
-        for row in self.scroll_bottom - count + 1..=self.scroll_bottom {
+        for row in self.scroll_bottom + 1 - count..=self.scroll_bottom {
             self.clear_row(row);
         }
     }
@@ -354,7 +366,7 @@ impl Grid {
                 }
             }
         }
-        for row in self.scroll_bottom - count + 1..=self.scroll_bottom {
+        for row in self.scroll_bottom + 1 - count..=self.scroll_bottom {
             self.clear_row(row);
         }
     }
@@ -459,6 +471,10 @@ impl Grid {
         self.scroll_bottom = self.rows - 1;
     }
 
+    fn reset_tab_stops(&mut self) {
+        self.tab_stops = default_tab_stops(self.cols);
+    }
+
     fn move_cursor_1_based(&mut self, row: usize, col: usize) {
         self.cur_row = row.saturating_sub(1).min(self.rows - 1);
         self.cur_col = col.saturating_sub(1).min(self.cols - 1);
@@ -486,9 +502,30 @@ impl Grid {
     }
 
     fn tab(&mut self) {
-        // Advance to the next multiple-of-8 column (classic tab stops).
-        let next = ((self.cur_col / 8) + 1) * 8;
+        let next = self
+            .tab_stops
+            .iter()
+            .enumerate()
+            .skip(self.cur_col.saturating_add(1))
+            .find_map(|(col, stop)| stop.then_some(col))
+            .unwrap_or(self.cols);
         self.cur_col = next.min(self.cols);
+    }
+
+    fn set_tab_stop(&mut self) {
+        if self.cur_col < self.cols {
+            self.tab_stops[self.cur_col] = true;
+        }
+    }
+
+    fn clear_tab_stop(&mut self) {
+        if self.cur_col < self.cols {
+            self.tab_stops[self.cur_col] = false;
+        }
+    }
+
+    fn clear_all_tab_stops(&mut self) {
+        self.tab_stops.fill(false);
     }
 
     /// All visible cells as text rows joined by '\n' (test/debug helper).
@@ -706,7 +743,12 @@ impl VtParser {
             // `ESC c` full reset — clear the grid.
             b'c' => {
                 grid.clear();
+                grid.reset_tab_stops();
                 self.reset_modes();
+                self.state = State::Ground;
+            }
+            b'H' => {
+                grid.set_tab_stop();
                 self.state = State::Ground;
             }
             b'D' => {
@@ -769,6 +811,8 @@ impl VtParser {
                     self.scroll_down(grid);
                 } else if b == b'X' {
                     self.erase_chars(grid);
+                } else if b == b'g' {
+                    self.clear_tab_stop(grid);
                 } else if b == b'h' || b == b'l' {
                     self.set_mode(grid, b);
                 } else if b == b'r' {
@@ -965,6 +1009,24 @@ impl VtParser {
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or(grid.rows());
         grid.set_scroll_region(top.saturating_sub(1), bottom.saturating_sub(1));
+    }
+
+    fn clear_tab_stop(&mut self, grid: &mut Grid) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        if params.starts_with('?') {
+            return;
+        }
+        let mode = params
+            .split(';')
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(0);
+        match mode {
+            0 => grid.clear_tab_stop(),
+            3 => grid.clear_all_tab_stops(),
+            _ => {}
+        }
     }
 
     fn set_mode(&mut self, grid: &mut Grid, final_byte: u8) {
@@ -1697,6 +1759,30 @@ mod tests {
         // 'a' at col 0, tab -> col 8, 'b' at col 8.
         assert_eq!(g.cell(0, 0).ch, 'a');
         assert_eq!(g.cell(0, 8).ch, 'b');
+    }
+
+    #[test]
+    fn custom_tab_stops_are_set_and_cleared() {
+        let g = grid_feed(1, 16, b"\x1b[1;5H\x1bH\x1b[1;1Ha\tb");
+        assert_eq!(g.cell(0, 0).ch, 'a');
+        assert_eq!(g.cell(0, 4).ch, 'b');
+        assert!(!g.contains("[H"));
+
+        let g2 = grid_feed(1, 16, b"\x1b[1;5H\x1bH\x1b[g\x1b[1;1Ha\tb");
+        assert_eq!(g2.cell(0, 0).ch, 'a');
+        assert_eq!(g2.cell(0, 8).ch, 'b');
+        assert!(!g2.contains("[g"));
+    }
+
+    #[test]
+    fn clearing_all_tab_stops_pins_tab_at_right_edge_until_reset() {
+        let g = grid_feed(1, 12, b"\x1b[3ga\t");
+        assert_eq!(g.cell(0, 0).ch, 'a');
+        assert_eq!(g.cursor(), (0, 12));
+
+        let g2 = grid_feed(1, 12, b"\x1b[3g\x1bca\tb");
+        assert_eq!(g2.cell(0, 0).ch, 'a');
+        assert_eq!(g2.cell(0, 8).ch, 'b');
     }
 
     #[test]
