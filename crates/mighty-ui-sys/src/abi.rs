@@ -9457,6 +9457,26 @@ mod rename_prepare_tests {
             .collect();
         assert_eq!(ranges, vec![(0, 4, 8), (1, 13, 17), (2, 0, 4)]);
     }
+
+    #[test]
+    fn fallback_rename_edits_emit_lsp_utf16_columns() {
+        let src = "\u{1f600} target\nplain target";
+        let edits = fallback_rename_edits(src, "target");
+        let ranges: Vec<(u32, u32, u32)> = edits
+            .iter()
+            .map(|e| (e.start_line, e.start_col, e.end_col))
+            .collect();
+        assert_eq!(ranges, vec![(0, 3, 9), (1, 6, 12)]);
+
+        let mut edits = edits;
+        for edit in &mut edits {
+            edit.new_text = "next".to_string();
+        }
+        assert_eq!(
+            crate::language::apply_text_edits(src, &edits),
+            "\u{1f600} next\nplain next"
+        );
+    }
 }
 
 /// Open the rename input directly with an explicit `symbol` (used when Mighty
@@ -9610,12 +9630,21 @@ fn fallback_rename_edits(source: &str, symbol: &str) -> Vec<crate::language::Tex
                 let after_ok =
                     i + slen == chars.len() || !is_identifier_char(chars[i + slen]);
                 if before_ok && after_ok {
+                    let start_col: u32 = chars[..i]
+                        .iter()
+                        .map(|ch| ch.len_utf16() as u32)
+                        .sum();
+                    let end_col = start_col
+                        + chars[i..i + slen]
+                            .iter()
+                            .map(|ch| ch.len_utf16() as u32)
+                            .sum::<u32>();
                     out.push(crate::language::TextEdit {
                         start_line: li as u32,
-                        start_col: i as u32,
+                        start_col,
                         end_line: li as u32,
-                        end_col: (i + slen) as u32,
-                        new_text: String::new(), // filled by apply via new_name? no:
+                        end_col,
+                        new_text: String::new(), // filled by apply_workspace_edit
                     });
                     i += slen;
                     continue;
