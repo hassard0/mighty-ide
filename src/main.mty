@@ -5642,36 +5642,54 @@ fn main() {
           web_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_dock_close() {
           let _dc = mui_dock_dispatch(h, id)
           run_focus = false
           web_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id >= cmd_sidebar_layout_first() && id <= cmd_sidebar_layout_last() {
           let _sl = mui_sidebar_layout_dispatch(h, id)
           run_focus = false
           web_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_sidebar_cycle_width() {
           let _scw = mui_sidebar_layout_dispatch(h, id)
           run_focus = false
           web_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_window_toggle_maximize() {
           let _wm = mui_window_toggle_maximize(h)
           run_focus = false
           web_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_window_minimize() {
           mui_window_minimize(h)
           run_focus = false
           web_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_keyboard_shortcuts() {
           mui_keys_open(h)
           run_focus = false

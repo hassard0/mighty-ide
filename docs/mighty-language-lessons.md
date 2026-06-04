@@ -8980,3 +8980,18 @@ stale dock, sidebar, modal, or search focus must not survive the palette action.
 - **Language note:** no compiler gap surfaced. The range-dispatch ladder stays
   compact, but the repeated focus cleanup again points toward shared
   command-effect metadata for editor-owned command groups.
+
+## L748 - Chrome Layout Commands Must Drop Hidden Owners
+
+Layout commands can look harmless because they only resize or close chrome, but
+they still change which surface is visible and ready for input. If a right dock,
+Agents drawer, or find navigation flag survives after a dock/sidebar/window
+command, the next keystroke can route to a hidden owner.
+
+- **IDE note:** Dock preset/close commands, sidebar width preset/cycle
+  commands, and window minimize/maximize commands now clear stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus consistently. Dispatcher
+  source-contract coverage pins each branch.
+- **Language note:** no compiler gap surfaced. The repeated explicit flag set
+  remains easy to audit, but chrome layout commands are another fit for
+  eventual command-effect metadata.

@@ -11539,6 +11539,36 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains(
+            "id >= cmd_dock_first() && id <= cmd_dock_last() {\n          let _d = mui_dock_dispatch(h, id)\n          run_focus = true\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Dock layout presets must focus the bottom dock and release stale non-dock focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_dock_close() {\n          let _dc = mui_dock_dispatch(h, id)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Dock close command must release stale surface focus"
+    );
+    assert!(
+        main.contains(
+            "id >= cmd_sidebar_layout_first() && id <= cmd_sidebar_layout_last() {\n          let _sl = mui_sidebar_layout_dispatch(h, id)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        )
+            && main.contains(
+                "id == cmd_sidebar_cycle_width() {\n          let _scw = mui_sidebar_layout_dispatch(h, id)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "Sidebar width commands must release stale surface focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_window_toggle_maximize() {\n          let _wm = mui_window_toggle_maximize(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        )
+            && main.contains(
+                "id == cmd_window_minimize() {\n          mui_window_minimize(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "Window chrome commands must release stale surface focus"
+    );
+    assert!(
+        main.contains(
             "id == cmd_new_project() {\n          let np = mui_newproj_dialog(h)\n          if np == -1 {\n            mui_prompt_open(h, prompt_new_project())\n            prompt_kind = prompt_new_project()\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n          }\n          find_nav = false"
         ),
         "New Project prompt fallback must release stale surface focus"
