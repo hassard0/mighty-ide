@@ -7986,3 +7986,13 @@ styled segments from the measured width of the text that was actually queued.
   from the measured rendered width of the highlighted keyword token. A focused
   regression pins the measured-offset helper so future font or shaping changes
   do not reintroduce fixed-cell segment drift.
+
+L659. Cursor tabulation control is part of the terminal tab-stop contract.
+TUIs can use CSI CTC sequences to set and clear horizontal tab stops without
+falling back to the older ESC HTS/TBC pair. Treating CSI `W` as unknown silently
+drops intent and can leave subsequent tab movement at the default stops.
+
+- **IDE note:** the VT parser now handles CSI `W`, `2W`, and `5W` by setting
+  the current tab stop, clearing the current stop, or clearing all stops.
+  Regression coverage verifies the sequences are consumed and that following
+  tab movement lands on the custom, default, or right-edge positions.

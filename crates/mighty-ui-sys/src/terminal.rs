@@ -1178,6 +1178,8 @@ impl VtParser {
                     self.repeat_previous_graphic(grid);
                 } else if b == b'g' {
                     self.clear_tab_stop(grid);
+                } else if b == b'W' {
+                    self.cursor_tab_control(grid);
                 } else if b == b'h' || b == b'l' {
                     self.set_mode(grid, b);
                 } else if b == b'r' {
@@ -1407,6 +1409,25 @@ impl VtParser {
         match mode {
             0 => grid.clear_tab_stop(),
             3 => grid.clear_all_tab_stops(),
+            _ => {}
+        }
+    }
+
+    fn cursor_tab_control(&mut self, grid: &mut Grid) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        if params.starts_with('?') {
+            return;
+        }
+        let mode = params
+            .split(';')
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(0);
+        match mode {
+            0 => grid.set_tab_stop(),
+            2 => grid.clear_tab_stop(),
+            5 => grid.clear_all_tab_stops(),
             _ => {}
         }
     }
@@ -2975,6 +2996,24 @@ mod tests {
         assert_eq!(g2.cell(0, 0).ch, 'a');
         assert_eq!(g2.cell(0, 8).ch, 'b');
         assert!(!g2.contains("[g"));
+    }
+
+    #[test]
+    fn csi_cursor_tab_control_sets_and_clears_tab_stops() {
+        let g = grid_feed(1, 20, b"\x1b[1;5H\x1b[W\x1b[1;1Ha\tb");
+        assert_eq!(g.cell(0, 0).ch, 'a');
+        assert_eq!(g.cell(0, 4).ch, 'b');
+        assert!(!g.contains("[W"));
+
+        let g2 = grid_feed(1, 20, b"\x1b[1;5H\x1b[W\x1b[2W\x1b[1;1Ha\tb");
+        assert_eq!(g2.cell(0, 0).ch, 'a');
+        assert_eq!(g2.cell(0, 8).ch, 'b');
+        assert!(!g2.contains("2W"));
+
+        let g3 = grid_feed(1, 12, b"\x1b[1;5H\x1b[W\x1b[5W\x1b[1;1Ha\t");
+        assert_eq!(g3.cell(0, 0).ch, 'a');
+        assert_eq!(g3.cursor(), (0, 11));
+        assert!(!g3.contains("5W"));
     }
 
     #[test]
