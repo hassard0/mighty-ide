@@ -6384,6 +6384,49 @@ fn editor_abi_drives_live_model_and_undo() {
 }
 
 #[test]
+fn editor_undo_history_survives_tab_switches_per_tab() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_per_tab_undo_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let a = root.join("a.mty");
+    let b = root.join("b.mty");
+    std::fs::write(&a, "a\n").unwrap();
+    std::fs::write(&b, "b\n").unwrap();
+
+    let a_idx = ctx.tabs.open_path(a);
+    let b_idx = ctx.tabs.open_path(b);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_ed_tab_switch(h, a_idx as i32), a_idx as i32);
+    crate::mui_ed_undo_record(h);
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("a edited\n");
+    ctx.tabs.set_dirty(a_idx, true);
+
+    assert_eq!(crate::mui_ed_tab_switch(h, b_idx as i32), b_idx as i32);
+    crate::mui_ed_undo_reset(h);
+    crate::mui_ed_undo_record(h);
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("b edited\n");
+    ctx.tabs.set_dirty(b_idx, true);
+
+    assert_eq!(crate::mui_ed_tab_switch(h, a_idx as i32), a_idx as i32);
+    crate::mui_ed_undo_reset(h);
+    assert_eq!(crate::mui_ed_undo(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "a\n");
+
+    assert_eq!(crate::mui_ed_tab_switch(h, b_idx as i32), b_idx as i32);
+    crate::mui_ed_undo_reset(h);
+    assert_eq!(crate::mui_ed_undo(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "b\n");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn editor_undo_redo_misses_report_visible_feedback() {
     use crate::{mui_ed_redo, mui_ed_undo};
 

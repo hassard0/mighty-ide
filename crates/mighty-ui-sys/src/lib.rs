@@ -286,12 +286,8 @@ pub struct MuiContext {
     screenshot: Option<screenshot::ScreenshotState>,
 
     // ---- live editor model undo/redo (shim-side; L28 workaround) ----
-    /// Undo/redo of full [`editor::TextModel`] snapshots for the ACTIVE tab.
-    /// Since the editable buffer now lives shim-side (L28), undo also lives
-    /// here: `mui_ed_undo_record` pushes the current model, `mui_ed_undo`/`_redo`
-    /// restore one. Reset on load / tab switch (history is per active buffer).
-    ed_undo: Vec<editor::TextModel>,
-    ed_redo: Vec<editor::TextModel>,
+    /// Undo/redo snapshots live on each tab so history follows tab switches,
+    /// reordering, splits, and reopen operations with the buffer it belongs to.
     /// When set by `MUI_EDIT_PROBE`, [`mui_ed_load`] becomes a no-op so the
     /// scripted-edit model survives the IDE's initial load — letting a headless
     /// screenshot capture the LIVE-edited buffer (screenshots/06-edit.png).
@@ -882,8 +878,6 @@ pub(crate) fn build_context(
         shortcuts: shortcuts::ShortcutsEngine::new(),
         shortcuts_autoopen: false,
         screenshot,
-        ed_undo: Vec::new(),
-        ed_redo: Vec::new(),
         edit_probe_lock: false,
         minimap_geom: None,
         force_minimap_visible: false,
@@ -1549,8 +1543,6 @@ impl MuiContext {
             shortcuts: shortcuts::ShortcutsEngine::new(),
             shortcuts_autoopen: false,
             screenshot: None,
-            ed_undo: Vec::new(),
-            ed_redo: Vec::new(),
             edit_probe_lock: false,
             minimap_geom: None,
             force_minimap_visible: false,

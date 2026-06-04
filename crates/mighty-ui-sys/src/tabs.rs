@@ -89,6 +89,10 @@ pub struct Tab {
     /// True when the tab represents non-text bytes and must never be saved from
     /// the text editor model.
     pub read_only: bool,
+    /// Per-tab undo snapshots for the authoritative text model.
+    pub undo: Vec<TextModel>,
+    /// Per-tab redo snapshots for the authoritative text model.
+    pub redo: Vec<TextModel>,
 }
 
 impl Tab {
@@ -183,6 +187,8 @@ impl TabStore {
             scroll_first: 0,
             dirty: false,
             read_only,
+            undo: Vec::new(),
+            redo: Vec::new(),
         });
         self.active = self.tabs.len() - 1;
         self.active
@@ -202,7 +208,9 @@ impl TabStore {
     pub fn duplicate_active(&mut self) -> usize {
         self.ensure_scratch();
         let active = self.active.min(self.tabs.len().saturating_sub(1));
-        let tab = self.tabs[active].clone();
+        let mut tab = self.tabs[active].clone();
+        tab.undo.clear();
+        tab.redo.clear();
         let insert_at = (active + 1).min(self.tabs.len());
         self.tabs.insert(insert_at, tab);
         self.active = insert_at;
@@ -434,6 +442,8 @@ impl TabStore {
         self.tabs[i].bytes = bytes.to_vec();
         self.tabs[i].dirty = false;
         self.tabs[i].read_only = read_only;
+        self.tabs[i].undo.clear();
+        self.tabs[i].redo.clear();
         // A fresh buffer: recompute folds and drop any stale folded state.
         self.tabs[i].fold = fold;
     }
@@ -928,6 +938,7 @@ mod tests {
         let b_idx = s.open_path(b);
         s.store_commit(b_idx, 3, 2, 1);
         s.set_dirty(b_idx, true);
+        s.get_mut(b_idx).unwrap().undo.push(TextModel::from_bytes(b"b"));
 
         let dup = s.duplicate_active();
         assert_eq!(dup, 2);
@@ -935,6 +946,8 @@ mod tests {
         assert_eq!(s.count(), 3);
         assert!(s.get(2).unwrap().basename().contains("tabs_duplicate_b"));
         assert!(s.get(2).unwrap().is_dirty());
+        assert!(s.get(2).unwrap().undo.is_empty());
+        assert_eq!(s.get(b_idx).unwrap().undo.len(), 1);
         assert_eq!(
             (
                 s.get(2).unwrap().cursor_line,

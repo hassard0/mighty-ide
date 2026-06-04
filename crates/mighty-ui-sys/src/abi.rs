@@ -13026,13 +13026,11 @@ pub extern "C" fn mui_edit_probe(handle: i64) {
 const ED_UNDO_CAP: usize = 256;
 
 /// Reset the editor undo/redo history (called on load / tab switch — history is
-/// per active buffer).
+/// retained only as a compatibility hook; it no longer clears history. Real
+/// load/reload paths clear the active tab stack.
 #[no_mangle]
 pub extern "C" fn mui_ed_undo_reset(handle: i64) {
-    if let Some(ctx) = unsafe { ctx(handle) } {
-        ctx.ed_undo.clear();
-        ctx.ed_redo.clear();
-    }
+    let _ = handle;
 }
 
 /// Push the CURRENT active model as an undo checkpoint (call before an edit
@@ -13040,18 +13038,22 @@ pub extern "C" fn mui_ed_undo_reset(handle: i64) {
 #[no_mangle]
 pub extern "C" fn mui_ed_undo_record(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        let snap = ctx.tabs.active_model().clone();
+        let active = ctx.tabs.active();
+        let Some(tab) = ctx.tabs.get_mut(active) else {
+            return;
+        };
+        let snap = tab.model.clone();
         // Skip if identical to the most recent checkpoint.
-        if let Some(last) = ctx.ed_undo.last() {
+        if let Some(last) = tab.undo.last() {
             if last.as_text() == snap.as_text() {
                 return;
             }
         }
-        ctx.ed_undo.push(snap);
-        if ctx.ed_undo.len() > ED_UNDO_CAP {
-            ctx.ed_undo.remove(0);
+        tab.undo.push(snap);
+        if tab.undo.len() > ED_UNDO_CAP {
+            tab.undo.remove(0);
         }
-        ctx.ed_redo.clear();
+        tab.redo.clear();
     }
 }
 
@@ -13067,11 +13069,15 @@ pub extern "C" fn mui_ed_undo(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Warn, "Undo is unavailable in read-only previews");
         return 0;
     }
-    match ctx.ed_undo.pop() {
+    let active = ctx.tabs.active();
+    let Some(tab) = ctx.tabs.get_mut(active) else {
+        return 0;
+    };
+    match tab.undo.pop() {
         Some(prev) => {
-            let current = ctx.tabs.active_model().clone();
-            ctx.ed_redo.push(current);
-            *ctx.tabs.active_model_mut() = prev;
+            let current = tab.model.clone();
+            tab.redo.push(current);
+            tab.model = prev;
             refresh_active_dirty_from_saved(ctx);
             1
         }
@@ -13093,11 +13099,15 @@ pub extern "C" fn mui_ed_redo(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Warn, "Redo is unavailable in read-only previews");
         return 0;
     }
-    match ctx.ed_redo.pop() {
+    let active = ctx.tabs.active();
+    let Some(tab) = ctx.tabs.get_mut(active) else {
+        return 0;
+    };
+    match tab.redo.pop() {
         Some(next) => {
-            let current = ctx.tabs.active_model().clone();
-            ctx.ed_undo.push(current);
-            *ctx.tabs.active_model_mut() = next;
+            let current = tab.model.clone();
+            tab.undo.push(current);
+            tab.model = next;
             refresh_active_dirty_from_saved(ctx);
             1
         }
