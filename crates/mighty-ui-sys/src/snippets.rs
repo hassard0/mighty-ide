@@ -52,6 +52,7 @@ pub struct SnippetDef {
     pub body: String,
     /// A short human label shown in the completion dropdown / docs.
     pub label: String,
+    scope: Vec<Language>,
 }
 
 impl SnippetDef {
@@ -60,7 +61,17 @@ impl SnippetDef {
             prefix: prefix.to_string(),
             label: label.to_string(),
             body: body.to_string(),
+            scope: Vec::new(),
         }
+    }
+
+    fn with_scope(mut self, scope: Vec<Language>) -> Self {
+        self.scope = scope;
+        self
+    }
+
+    fn applies_to(&self, lang: Language) -> bool {
+        self.scope.is_empty() || self.scope.contains(&lang)
     }
 }
 
@@ -953,7 +964,7 @@ pub fn snippets_for(lang: Language) -> Vec<SnippetDef> {
     };
     // User snippets override / extend the built-ins (same-prefix wins last).
     let user = load_user_snippets();
-    for u in user {
+    for u in user.into_iter().filter(|u| u.applies_to(lang)) {
         if let Some(existing) = defs.iter_mut().find(|d| d.prefix == u.prefix) {
             *existing = u;
         } else {
@@ -1030,13 +1041,14 @@ fn parse_vscode_snippets(text: &str) -> Option<Vec<SnippetDef>> {
         let Some(body) = snippet_body(entry.get("body")) else {
             continue;
         };
+        let scope = snippet_scope(entry.get("scope"));
         let label = entry
             .get("description")
             .and_then(serde_json::Value::as_str)
             .filter(|s| !s.trim().is_empty())
             .unwrap_or(name);
         for prefix in prefixes {
-            out.push(SnippetDef::new(&prefix, label, &body));
+            out.push(SnippetDef::new(&prefix, label, &body).with_scope(scope.clone()));
         }
     }
     Some(out)
@@ -1169,6 +1181,33 @@ fn snippet_body(value: Option<&serde_json::Value>) -> Option<String> {
             Some(out.join("\n"))
         }
         _ => None,
+    }
+}
+
+fn snippet_scope(value: Option<&serde_json::Value>) -> Vec<Language> {
+    match value {
+        Some(serde_json::Value::String(scope)) => scope
+            .split(',')
+            .filter_map(snippet_scope_language)
+            .collect(),
+        Some(serde_json::Value::Array(scopes)) => scopes
+            .iter()
+            .filter_map(serde_json::Value::as_str)
+            .flat_map(|scope| scope.split(','))
+            .filter_map(snippet_scope_language)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn snippet_scope_language(raw: &str) -> Option<Language> {
+    let scope = raw.trim().to_ascii_lowercase();
+    match scope.as_str() {
+        "javascriptreact" | "jsx" => Some(Language::JavaScript),
+        "typescriptreact" | "tsx" => Some(Language::TypeScript),
+        "shellscript" => Some(Language::Shell),
+        "plaintext" | "text" => Some(Language::PlainText),
+        _ => Language::from_slug(&scope),
     }
 }
 
@@ -1866,6 +1905,40 @@ mod tests {
             defs[0].body,
             "let url = \"https://example.com/${1:path}\";\n/* keep this literal block marker */\n$0"
         );
+    }
+
+    #[test]
+    fn parse_user_snippets_vscode_scope_limits_languages() {
+        let blob = r##"{
+            "Console": {
+                "scope": "javascript, typescriptreact",
+                "prefix": "log",
+                "body": "console.log($0)"
+            },
+            "Shell": {
+                "scope": ["shellscript", "plaintext"],
+                "prefix": "bang",
+                "body": "#! /usr/bin/env bash\n$0"
+            },
+            "Global": {
+                "prefix": "todo",
+                "body": "TODO: $0"
+            }
+        }"##;
+        let defs = parse_user_snippets(blob);
+        let log = defs.iter().find(|d| d.prefix == "log").unwrap();
+        assert!(log.applies_to(Language::JavaScript));
+        assert!(log.applies_to(Language::TypeScript));
+        assert!(!log.applies_to(Language::Python));
+
+        let bang = defs.iter().find(|d| d.prefix == "bang").unwrap();
+        assert!(bang.applies_to(Language::Shell));
+        assert!(bang.applies_to(Language::PlainText));
+        assert!(!bang.applies_to(Language::Rust));
+
+        let todo = defs.iter().find(|d| d.prefix == "todo").unwrap();
+        assert!(todo.applies_to(Language::Mighty));
+        assert!(todo.applies_to(Language::Python));
     }
 
     #[test]

@@ -9679,3 +9679,19 @@ importer still feels broken if it fails on files the source editor accepts.
   cleanup does not mutate code users intend to insert.
 - **Language note:** no compiler gap surfaced. Lenient import layers should be
   explicit and localized so the runtime snippet grammar remains deterministic.
+
+## L796 - Imported Snippet Scope Prevents Completion Noise
+
+VS Code snippets can declare a `scope` so language-specific templates do not
+appear everywhere. Ignoring that field makes migration appear successful at
+import time but pollutes completion lists and can override built-ins in unrelated
+languages.
+
+- **IDE note:** imported VS Code snippet definitions now carry language scope
+  metadata. Unscoped snippets remain global, while comma-separated or array
+  scopes filter candidates and Tab expansion to matching Mighty language IDs,
+  including common VS Code aliases such as `javascriptreact`,
+  `typescriptreact`, and `shellscript`.
+- **Language note:** no compiler gap surfaced. Scope filtering belongs at the
+  snippet set boundary so the parser can preserve imported metadata without
+  coupling snippet expansion to file detection details.
