@@ -1197,6 +1197,7 @@ impl PaletteEngine {
             base,
             ctx.tabs.active_has_path(),
             ctx.tabs.active_read_only(),
+            ctx.tabs.is_dirty(ctx.tabs.active()),
             ctx.tabs.dirty_count(),
         )
     }
@@ -1409,6 +1410,7 @@ fn command_contextual_desc<'a>(
     base: &'a str,
     active_has_path: bool,
     active_read_only: bool,
+    active_dirty: bool,
     dirty_count: usize,
 ) -> Cow<'a, str> {
     if active_read_only {
@@ -1428,12 +1430,14 @@ fn command_contextual_desc<'a>(
         CMD_SAVE_ALL if dirty_count == 0 => Cow::Borrowed("No unsaved tabs need writing"),
         CMD_SAVE_ALL if dirty_count == 1 => Cow::Borrowed("Write the one unsaved tab"),
         CMD_SAVE_ALL => Cow::Owned(format!("Write {dirty_count} unsaved tabs")),
+        CMD_RELOAD_ACTIVE_FILE if active_has_path && active_dirty => Cow::Borrowed("Save or discard changes before reloading"),
         CMD_RELOAD_ACTIVE_FILE if active_has_path => Cow::Borrowed("Reload the active file from disk"),
         CMD_RELOAD_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
         CMD_REVERT_ACTIVE_FILE if active_has_path => Cow::Borrowed("Discard local edits and reload from disk"),
         CMD_REVERT_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
         CMD_RENAME_ACTIVE_FILE if active_has_path => Cow::Borrowed("Rename the active file on disk"),
         CMD_RENAME_ACTIVE_FILE => Cow::Borrowed("Save this untitled file before renaming it"),
+        CMD_DELETE_ACTIVE_FILE if active_has_path && active_dirty => Cow::Borrowed("Save or discard changes before deleting"),
         CMD_DELETE_ACTIVE_FILE if active_has_path => Cow::Borrowed("Delete the active file after confirmation"),
         CMD_DELETE_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
         CMD_COPY_ACTIVE_FILE_PATH | CMD_COPY_ACTIVE_FILE_RELATIVE_PATH | CMD_COPY_ACTIVE_FILE_NAME | CMD_COPY_ACTIVE_FILE_DIRECTORY
@@ -1811,35 +1815,43 @@ mod tests {
     #[test]
     fn file_command_descriptions_reflect_document_state() {
         assert_eq!(
-            command_contextual_desc(CMD_SAVE, "base", false, false, 0),
+            command_contextual_desc(CMD_SAVE, "base", false, false, false, 0),
             Cow::Borrowed("Choose a path before saving this untitled file")
         );
         assert_eq!(
-            command_contextual_desc(CMD_SAVE_AS, "base", true, false, 0),
+            command_contextual_desc(CMD_SAVE_AS, "base", true, false, false, 0),
             Cow::Borrowed("Choose a new path or filename for this file")
         );
         assert_eq!(
-            command_contextual_desc(CMD_RENAME_ACTIVE_FILE, "base", false, false, 0),
+            command_contextual_desc(CMD_RENAME_ACTIVE_FILE, "base", false, false, false, 0),
             Cow::Borrowed("Save this untitled file before renaming it")
         );
         assert_eq!(
-            command_contextual_desc(CMD_SAVE, "base", true, true, 1),
+            command_contextual_desc(CMD_SAVE, "base", true, true, true, 1),
             Cow::Borrowed("Read-only preview: saving is unavailable")
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_RELOAD_ACTIVE_FILE, "base", true, false, true, 1),
+            Cow::Borrowed("Save or discard changes before reloading")
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_DELETE_ACTIVE_FILE, "base", true, false, true, 1),
+            Cow::Borrowed("Save or discard changes before deleting")
         );
     }
 
     #[test]
     fn save_all_description_reports_dirty_count() {
         assert_eq!(
-            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, 0),
+            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, false, 0),
             Cow::Borrowed("No unsaved tabs need writing")
         );
         assert_eq!(
-            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, 1),
+            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, true, 1),
             Cow::Borrowed("Write the one unsaved tab")
         );
         assert_eq!(
-            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, 3).as_ref(),
+            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, true, 3).as_ref(),
             "Write 3 unsaved tabs"
         );
     }
