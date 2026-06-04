@@ -682,12 +682,76 @@ struct SavedCursor {
     col: usize,
     fg: u32,
     bg: u32,
+    g0_charset: Charset,
+    g1_charset: Charset,
+    active_charset: CharsetSlot,
     autowrap: bool,
     origin_mode: bool,
     insert_mode: bool,
     newline_mode: bool,
     cursor_visible: bool,
     cursor_shape: CursorShape,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Charset {
+    Ascii,
+    DecSpecialGraphics,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CharsetSlot {
+    G0,
+    G1,
+}
+
+impl Charset {
+    fn from_designator(b: u8) -> Self {
+        match b {
+            b'0' => Charset::DecSpecialGraphics,
+            _ => Charset::Ascii,
+        }
+    }
+
+    fn map_ascii(self, b: u8) -> char {
+        if self != Charset::DecSpecialGraphics {
+            return b as char;
+        }
+        match b {
+            b'`' => '◆',
+            b'a' => '▒',
+            b'b' => '␉',
+            b'c' => '␌',
+            b'd' => '␍',
+            b'e' => '␊',
+            b'f' => '°',
+            b'g' => '±',
+            b'h' => '␤',
+            b'i' => '␋',
+            b'j' => '┘',
+            b'k' => '┐',
+            b'l' => '┌',
+            b'm' => '└',
+            b'n' => '┼',
+            b'o' => '⎺',
+            b'p' => '⎻',
+            b'q' => '─',
+            b'r' => '⎼',
+            b's' => '⎽',
+            b't' => '├',
+            b'u' => '┤',
+            b'v' => '┴',
+            b'w' => '┬',
+            b'x' => '│',
+            b'y' => '≤',
+            b'z' => '≥',
+            b'{' => 'π',
+            b'|' => '≠',
+            b'}' => '£',
+            b'~' => '·',
+            _ => b as char,
+        }
+    }
 }
 
 /// A minimal VT/ANSI parser that drives a [`Grid`].
@@ -713,6 +777,11 @@ pub struct VtParser {
     /// Cursor state saved by `CSI ?1049 h`; kept separate from app-visible
     /// cursor save/restore sequences so alternate-screen entry cannot clobber them.
     alternate_cursor: Option<SavedCursor>,
+    /// G0/G1 charset designations used by legacy TUIs for box drawing.
+    g0_charset: Charset,
+    g1_charset: Charset,
+    /// Charset currently mapped into GL by SI/SO. Defaults to G0.
+    active_charset: CharsetSlot,
     /// Last graphic cell written by printable output, used by REP (`CSI Ps b`).
     last_graphic: Option<Cell>,
     /// Whether the running app asked for bracketed paste (`CSI ?2004 h`).
@@ -759,6 +828,9 @@ impl VtParser {
             reply: Vec::new(),
             saved_cursor: None,
             alternate_cursor: None,
+            g0_charset: Charset::Ascii,
+            g1_charset: Charset::Ascii,
+            active_charset: CharsetSlot::G0,
             last_graphic: None,
             bracketed_paste: false,
             focus_reporting: false,
@@ -874,10 +946,12 @@ impl VtParser {
             b'\r' => grid.carriage_return(),
             0x08 => grid.backspace(), // BS
             b'\t' => grid.tab(),
+            0x0e => self.active_charset = CharsetSlot::G1, // SO / LS1
+            0x0f => self.active_charset = CharsetSlot::G0, // SI / LS0
             0x07 => {} // BEL: ignore
             0x7f => {} // DEL: ignored on the display side
-            0x00..=0x06 | 0x0e..=0x1a | 0x1c..=0x1f => {} // other C0: ignore
-            0x20..=0x7e => self.print_char(grid, b as char), // printable ASCII
+            0x00..=0x06 | 0x10..=0x1a | 0x1c..=0x1f => {} // other C0: ignore
+            0x20..=0x7e => self.print_ascii_byte(grid, b), // printable ASCII
             0xc0..=0xdf => {
                 self.utf8.clear();
                 self.utf8.push(b);
@@ -922,6 +996,14 @@ impl VtParser {
         }
         grid.put_cell_autowrap(cell, self.autowrap);
         self.last_graphic = Some(cell);
+    }
+
+    fn print_ascii_byte(&mut self, grid: &mut Grid, b: u8) {
+        let charset = match self.active_charset {
+            CharsetSlot::G0 => self.g0_charset,
+            CharsetSlot::G1 => self.g1_charset,
+        };
+        self.print_char(grid, charset.map_ascii(b));
     }
 
     fn linefeed(&self, grid: &mut Grid) {
@@ -992,6 +1074,8 @@ impl VtParser {
             0x30..=0x7e => {
                 if self.esc_intermediate == b'#' && b == b'8' {
                     grid.screen_alignment_test();
+                } else if self.esc_intermediate == b'(' || self.esc_intermediate == b')' {
+                    self.designate_charset(self.esc_intermediate, b);
                 }
                 self.esc_intermediate = 0;
                 self.state = State::Ground;
@@ -1000,6 +1084,15 @@ impl VtParser {
                 self.esc_intermediate = 0;
                 self.state = State::Ground;
             }
+        }
+    }
+
+    fn designate_charset(&mut self, slot: u8, designator: u8) {
+        let charset = Charset::from_designator(designator);
+        match slot {
+            b'(' => self.g0_charset = charset,
+            b')' => self.g1_charset = charset,
+            _ => {}
         }
     }
 
@@ -1033,8 +1126,10 @@ impl VtParser {
             b'\t' => grid.tab(),
             b'\n' | 0x0b | 0x0c => self.linefeed(grid),
             b'\r' => grid.carriage_return(),
+            0x0e => self.active_charset = CharsetSlot::G1,
+            0x0f => self.active_charset = CharsetSlot::G0,
             0x07 | 0x7f => {},
-            0x00..=0x06 | 0x0e..=0x17 | 0x19 | 0x1c..=0x1f => {}
+            0x00..=0x06 | 0x10..=0x17 | 0x19 | 0x1c..=0x1f => {}
             // Parameter bytes (0x30..=0x3f) and intermediates (0x20..=0x2f).
             0x20..=0x3f => self.csi.push(b),
             // Final byte: dispatch and return to ground.
@@ -1369,6 +1464,9 @@ impl VtParser {
         self.saved_cursor = None;
         self.alternate_cursor = None;
         self.last_graphic = None;
+        self.g0_charset = Charset::Ascii;
+        self.g1_charset = Charset::Ascii;
+        self.active_charset = CharsetSlot::G0;
         self.bracketed_paste = false;
         self.focus_reporting = false;
         self.cursor_visible = true;
@@ -1605,6 +1703,9 @@ impl VtParser {
             col,
             fg: grid.cur_fg,
             bg: grid.cur_bg,
+            g0_charset: self.g0_charset,
+            g1_charset: self.g1_charset,
+            active_charset: self.active_charset,
             autowrap: self.autowrap,
             origin_mode: self.origin_mode,
             insert_mode: self.insert_mode,
@@ -1619,6 +1720,9 @@ impl VtParser {
         grid.cur_col = saved.col.min(grid.cols);
         grid.cur_fg = saved.fg;
         grid.cur_bg = saved.bg;
+        self.g0_charset = saved.g0_charset;
+        self.g1_charset = saved.g1_charset;
+        self.active_charset = saved.active_charset;
         self.autowrap = saved.autowrap;
         self.origin_mode = saved.origin_mode;
         self.insert_mode = saved.insert_mode;
@@ -3284,6 +3388,37 @@ mod tests {
         let g = grid_feed(1, 8, b"A\x1b(BZ");
         assert_eq!(g.to_text(), "AZ      ");
         assert!(!g.contains("(B"));
+    }
+
+    #[test]
+    fn dec_special_graphics_charset_draws_tui_borders() {
+        let g = grid_feed(2, 12, b"\x1b(0lqk\x1b(B abc");
+        assert_eq!(g.cell(0, 0).ch, '┌');
+        assert_eq!(g.cell(0, 1).ch, '─');
+        assert_eq!(g.cell(0, 2).ch, '┐');
+        assert_eq!(g.cell(0, 4).ch, 'a');
+        assert!(!g.contains("(0"));
+
+        let g2 = grid_feed(1, 12, b"\x1b)0\x0elqk\x0flqk");
+        assert_eq!(g2.cell(0, 0).ch, '┌');
+        assert_eq!(g2.cell(0, 1).ch, '─');
+        assert_eq!(g2.cell(0, 2).ch, '┐');
+        assert_eq!(g2.cell(0, 3).ch, 'l');
+        assert_eq!(g2.cell(0, 4).ch, 'q');
+        assert_eq!(g2.cell(0, 5).ch, 'k');
+    }
+
+    #[test]
+    fn charset_state_is_saved_restored_and_reset() {
+        let g = grid_feed(1, 12, b"\x1b(0\x1b7\x1b(B\x1b8q");
+        assert_eq!(g.cell(0, 0).ch, '─');
+
+        let g2 = grid_feed(1, 12, b"\x1b(0\x1b[!pq");
+        assert_eq!(g2.cell(0, 0).ch, 'q');
+        assert!(!g2.contains("!p"));
+
+        let g3 = grid_feed(1, 12, b"\x1b(0\x1bcq");
+        assert_eq!(g3.cell(0, 0).ch, 'q');
     }
 
     #[test]
