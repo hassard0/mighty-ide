@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Agents commands now own focus cleanly**: `Mighty Agents`, refresh, and
+  clear-run-output palette commands release stale Run/Web/Testing/Terminal/AI
+  focus when they show the Agents panel.
 - **Run Output and Testing view commands claim focus**: `View: Run Output` now
   clears stale Terminal/AI/navigation focus, and `View: Testing` now explicitly
   claims Testing focus while releasing competing output owners.

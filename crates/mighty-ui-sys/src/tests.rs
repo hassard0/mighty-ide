@@ -10652,17 +10652,22 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Outline close command must use the Outline-specific close ABI without clearing symbols"
     );
     assert!(
-        main.contains("id == cmd_agents_refresh()")
-            && main.contains("let _p = mui_panel_set(h, panel_agents_mty())")
-            && main.contains("let _a = mui_agents_refresh(h)"),
-        "Agents refresh command must reveal Mighty Agents before refreshing topology"
+        main.contains(
+            "id == cmd_agents() {\n          let _p = mui_panel_set(h, panel_agents_mty())\n          let _a = mui_agents_refresh(h)\n          agents_focus = true\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          find_nav = false"
+        ),
+        "Agents view command must reveal Mighty Agents and release competing focus"
     );
     assert!(
-        main.contains("id == cmd_agents_clear_run_output()")
-            && main.contains("let _p = mui_panel_set(h, panel_agents_mty())")
-            && main.contains("let _ac = mui_agents_clear_run_output(h)")
-            && main.contains("agents_focus = true"),
-        "Agents clear-run-output command must reveal Mighty Agents before clearing its run transcript"
+        main.contains(
+            "id == cmd_agents_refresh() {\n          let _p = mui_panel_set(h, panel_agents_mty())\n          let _a = mui_agents_refresh(h)\n          agents_focus = true\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          find_nav = false"
+        ),
+        "Agents refresh command must reveal Mighty Agents before refreshing topology and release competing focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_agents_clear_run_output() {\n          let _p = mui_panel_set(h, panel_agents_mty())\n          let _ac = mui_agents_clear_run_output(h)\n          agents_focus = true\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          find_nav = false"
+        ),
+        "Agents clear-run-output command must reveal Mighty Agents before clearing its run transcript and release competing focus"
     );
     assert!(
         main.contains("fn mui_agents_click_is_clear(handle: I64) -> I32")

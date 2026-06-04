@@ -8579,3 +8579,14 @@ view commands should claim the matching focus and release competing dock owners.
   Terminal/AI/transient navigation focus. `View: Testing` now reveals Testing,
   claims `test_focus`, and releases Run, Web, Terminal, AI, Agents, and
   transient navigation state.
+
+## L715 - Agents Commands Should Own Agents Focus
+
+Mighty Agents is a sidebar workflow with its own row navigation and run output.
+Palette commands that reveal, refresh, or clear Agents output should release
+competing output and AI focus so the next interaction lands on Agents.
+
+- **IDE note:** `Mighty Agents`, `Mighty Agents: Refresh Topology`, and
+  `Mighty Agents: Clear Run Output` now set `agents_focus` while clearing Run,
+  Web, Testing, Terminal, AI, and transient navigation focus. Header-click paths
+  already route locally, so palette and visible-surface behavior now match.

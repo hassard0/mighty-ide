@@ -4576,15 +4576,31 @@ fn main() {
           let _p = mui_panel_set(h, panel_agents_mty())
           let _a = mui_agents_refresh(h)
           agents_focus = true
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          find_nav = false
         } else if id == cmd_agents_refresh() {
           let _p = mui_panel_set(h, panel_agents_mty())
           let _a = mui_agents_refresh(h)
           agents_focus = true
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           find_nav = false
         } else if id == cmd_agents_clear_run_output() {
           let _p = mui_panel_set(h, panel_agents_mty())
           let _ac = mui_agents_clear_run_output(h)
           agents_focus = true
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           find_nav = false
         } else if id == cmd_agents_close() {
           let _ac = mui_agents_close(h)
