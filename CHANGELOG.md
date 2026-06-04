@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Windows packaging avoids linker PDB failures**: `package-win.ps1` now applies
+  release-only linker flags that disable PDB emission for the packaging build,
+  avoiding `LNK1318` failures while restoring any caller-provided `RUSTFLAGS`.
 - **New File uses the dialog label everywhere**: the command registry and
   command-label tests now show `File: New File...` for the Ctrl+N native picker
   flow, while `File: New Untitled File` remains the instant scratch-tab action.

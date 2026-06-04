@@ -8652,3 +8652,14 @@ Ctrl+N opens the native path picker.
 - **IDE note:** `File: New File...` now matches the Open File, Save As, Open
   Folder, and New Project dialog labels, while `File: New Untitled File` remains
   the no-picker scratch-tab command.
+
+## L722 - Packaging Scripts Should Own Host Toolchain Workarounds
+
+The Windows release linker can fail with `LNK1318` PDB errors even when source
+tests pass. Requiring a human to remember ad hoc `RUSTFLAGS` makes packaging
+less reliable than the app itself.
+
+- **IDE note:** `package-win.ps1` now applies `-C debuginfo=0` and
+  `/DEBUG:NONE` during the release packaging build, then restores the caller's
+  original `RUSTFLAGS`. The documented package command can recover from the
+  PDB failure without manual environment setup.

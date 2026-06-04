@@ -14,6 +14,13 @@ $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
 
 $env:CARGO_INCREMENTAL = "0"
+$prevRustflags = $env:RUSTFLAGS
+$releaseLinkFlags = "-C debuginfo=0 -C link-arg=/DEBUG:NONE"
+if ([string]::IsNullOrWhiteSpace($prevRustflags)) {
+  $env:RUSTFLAGS = $releaseLinkFlags
+} elseif ($prevRustflags -notlike "*/DEBUG:NONE*") {
+  $env:RUSTFLAGS = "$prevRustflags $releaseLinkFlags"
+}
 try {
   Write-Host "[1/5] release build"
   & "$Root\build-ide.ps1" -Release -Mty $Mty -Clang $Clang
@@ -64,4 +71,9 @@ try {
   Get-Item $zip
 } finally {
   Remove-Item Env:\CARGO_INCREMENTAL -ErrorAction SilentlyContinue
+  if ([string]::IsNullOrWhiteSpace($prevRustflags)) {
+    Remove-Item Env:\RUSTFLAGS -ErrorAction SilentlyContinue
+  } else {
+    $env:RUSTFLAGS = $prevRustflags
+  }
 }
