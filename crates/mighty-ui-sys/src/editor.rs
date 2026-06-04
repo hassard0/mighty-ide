@@ -1802,6 +1802,7 @@ impl TextModel {
         if needle.is_empty() || needle.contains('\n') {
             return false;
         }
+        let whole_word = self.primary_selection_is_whole_word(&needle);
         // Start searching just after the primary selection's end.
         let start = self
             .carets[0]
@@ -1814,8 +1815,8 @@ impl TextModel {
         let needle_chars = needle.chars().count();
         // Search forward from `start`, then wrap to the top.
         let found = self
-            .find_occurrence_from(&needle, start)
-            .or_else(|| self.find_occurrence_from(&needle, (0, 0)));
+            .find_occurrence_from(&needle, start, whole_word)
+            .or_else(|| self.find_occurrence_from(&needle, (0, 0), whole_word));
         let Some((fl, fc)) = found else {
             return false;
         };
@@ -1833,21 +1834,46 @@ impl TextModel {
         true
     }
 
+    fn primary_selection_is_whole_word(&self, needle: &str) -> bool {
+        if needle.is_empty() || !needle.chars().all(is_word_char) {
+            return false;
+        }
+        let Some(((line0, col0), (line1, col1))) = self.carets[0].selection_range() else {
+            return false;
+        };
+        if line0 != line1 {
+            return false;
+        }
+        let chars: Vec<char> = self.lines[line0].chars().collect();
+        is_word_boundary_match(&chars, col0, col1)
+    }
+
     /// Find `needle` at or after `(line, col)` (char coords), returning the match
     /// start. Single-line needles only (callers guarantee no `\n`).
-    fn find_occurrence_from(&self, needle: &str, from: (usize, usize)) -> Option<(usize, usize)> {
+    fn find_occurrence_from(
+        &self,
+        needle: &str,
+        from: (usize, usize),
+        whole_word: bool,
+    ) -> Option<(usize, usize)> {
         let (fl, fc) = from;
+        let needle_chars = needle.chars().count();
         for li in fl..self.lines.len() {
             let line_str = &self.lines[li];
             let start_col = if li == fl { fc } else { 0 };
             let chars: Vec<char> = line_str.chars().collect();
             let search_byte: usize = chars.iter().take(start_col.min(chars.len())).map(|c| c.len_utf8()).sum();
-            if search_byte <= line_str.len() {
-                if let Some(b) = line_str[search_byte..].find(needle) {
-                    let abs = search_byte + b;
-                    let col = line_str[..abs].chars().count();
+            let mut offset = search_byte;
+            while offset <= line_str.len() {
+                let Some(b) = line_str[offset..].find(needle) else {
+                    break;
+                };
+                let abs = offset + b;
+                let col = line_str[..abs].chars().count();
+                if !whole_word || is_word_boundary_match(&chars, col, col + needle_chars) {
                     return Some((li, col));
                 }
+                offset = abs + needle.len().max(1);
             }
         }
         None
@@ -1901,6 +1927,12 @@ fn shift_anchor(
 /// A "word" char for word-motion / select-word: alphanumeric or underscore.
 fn is_word_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_'
+}
+
+fn is_word_boundary_match(chars: &[char], start: usize, end: usize) -> bool {
+    let before_ok = start == 0 || !is_word_char(chars[start - 1]);
+    let after_ok = end >= chars.len() || !is_word_char(chars[end]);
+    before_ok && after_ok
 }
 
 #[cfg(test)]
@@ -3014,6 +3046,37 @@ mod tests {
         // Multi-edit: typing replaces every selected occurrence.
         m.insert_char_multi('!');
         assert_eq!(m.line(0), "! bar ! baz !");
+    }
+
+    #[test]
+    fn ctrl_d_word_selection_skips_larger_identifiers() {
+        let mut m = doc("foo foobar foo café decafé café_2 café");
+        m.move_to(0, 0);
+        assert!(m.add_caret_next_occurrence()); // selects first whole-word "foo"
+        assert_eq!(m.selected_text(), "foo");
+        assert!(m.add_caret_next_occurrence());
+        assert_eq!(m.caret_count(), 2);
+        assert_eq!(caret_positions(&m), vec![(0, 3), (0, 14)]);
+
+        let mut m = doc("foo foobar foo café decafé café_2 café");
+        m.move_to(0, 15);
+        assert!(m.add_caret_next_occurrence()); // selects whole-word "café"
+        assert_eq!(m.selected_text(), "café");
+        assert!(m.add_caret_next_occurrence());
+        assert_eq!(m.caret_count(), 2);
+        assert_eq!(caret_positions(&m), vec![(0, 19), (0, 38)]);
+    }
+
+    #[test]
+    fn ctrl_d_manual_partial_selection_keeps_substring_matching() {
+        let mut m = doc("foo foobar");
+        m.set_selection((0, 0), (0, 2)); // manually selected "fo", not a word
+
+        assert!(m.add_caret_next_occurrence());
+
+        assert_eq!(m.caret_count(), 2);
+        assert_eq!(caret_positions(&m), vec![(0, 2), (0, 6)]);
+        assert_eq!(m.selected_text(), "fo");
     }
 
     #[test]
