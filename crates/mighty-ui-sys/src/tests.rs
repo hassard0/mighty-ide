@@ -3682,6 +3682,7 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_PROBLEMS_CLOSE, "Problems: Close Panel"),
         (crate::palette::CMD_VIEW_AI_COPILOT, "View: AI Copilot"),
         (crate::palette::CMD_AI_CLOSE, "View: Close AI Copilot"),
+        (crate::palette::CMD_TOGGLE_SIDEBAR, "View: Toggle Sidebar"),
         (crate::palette::CMD_SIDEBAR_CLOSE, "View: Close Sidebar"),
         (crate::palette::CMD_VIEW_TERMINAL, "View: Terminal"),
         (

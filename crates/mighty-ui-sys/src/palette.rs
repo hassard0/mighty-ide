@@ -478,7 +478,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_CODE_ACTIONS_CLOSE, label: "Code Actions: Close Menu", keybinding: "" },
     Command { id: CMD_PROMPT_CANCEL,    label: "Prompt: Cancel Input", keybinding: "" },
     Command { id: CMD_TOGGLE_TERMINAL,  label: "Terminal: Open or Focus", keybinding: "Ctrl+`" },
-    Command { id: CMD_TOGGLE_SIDEBAR,   label: "Toggle Sidebar",     keybinding: "Ctrl+B" },
+    Command { id: CMD_TOGGLE_SIDEBAR,   label: "View: Toggle Sidebar", keybinding: "Ctrl+B" },
     Command { id: CMD_NEXT_TAB,         label: "Next Tab",           keybinding: "Ctrl+Tab" },
     Command { id: CMD_PREV_TAB,         label: "Previous Tab",       keybinding: "Ctrl+Shift+Tab" },
     Command { id: CMD_CLOSE_TAB,        label: "Close Tab",          keybinding: "Ctrl+W" },
@@ -1039,7 +1039,7 @@ impl PaletteEngine {
             CMD_CODE_ACTIONS_CLOSE => (icons::CLOSE, "Close the Code Actions menu without applying an action", false),
             CMD_PROMPT_CANCEL => (icons::CLOSE, "Close the active bottom prompt without applying input", false),
             CMD_TOGGLE_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal or focus it if already open", false),
-            CMD_TOGGLE_SIDEBAR => (icons::EXPLORER, "Show or hide the file explorer", false),
+            CMD_TOGGLE_SIDEBAR => (icons::EXPLORER, "Show or hide the left sidebar", false),
             CMD_NEXT_TAB => (icons::CHEVRON, "Switch to the next open tab", false),
             CMD_PREV_TAB => (icons::CHEVRON, "Switch to the previous open tab", false),
             CMD_CLOSE_TAB => (icons::CLOSE, "Close the active editor tab", false),
@@ -1750,6 +1750,10 @@ mod tests {
         assert_eq!(
             command_static_desc(CMD_TOGGLE_TERMINAL),
             "Open the integrated terminal or focus it if already open"
+        );
+        assert_eq!(
+            command_static_desc(CMD_TOGGLE_SIDEBAR),
+            "Show or hide the left sidebar"
         );
         assert_eq!(
             command_static_desc(CMD_GIT_TOGGLE_BLAME),

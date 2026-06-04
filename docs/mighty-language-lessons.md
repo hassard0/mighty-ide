@@ -8755,3 +8755,14 @@ the command is useful from another visible surface.
   then moving focus between query and replace. The Mighty dispatcher already
   calls `mui_panel_set(panel_search())` before `mui_search_toggle_focus`; static
   description coverage now protects that user-facing contract.
+
+## L731 - Sidebar Toggle Is Not Explorer-specific
+
+Visible command names should identify the surface they affect, not whichever
+panel was most common when the shortcut was added. Ctrl+B toggles the whole
+left sidebar, including Search, Source Control, Outline, Debug, or Agents when
+those panels are active.
+
+- **IDE note:** `Toggle Sidebar` is now labeled `View: Toggle Sidebar`, and its
+  static description says it shows or hides the left sidebar instead of the file
+  explorer. Command-label and static-description tests cover the contract.
