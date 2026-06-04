@@ -870,13 +870,13 @@ impl VtParser {
                 self.state = State::Csi;
             }
             0x9d => self.enter_osc(),
-            b'\n' => self.linefeed(grid),
+            b'\n' | 0x0b | 0x0c => self.linefeed(grid),
             b'\r' => grid.carriage_return(),
             0x08 => grid.backspace(), // BS
             b'\t' => grid.tab(),
             0x07 => {} // BEL: ignore
             0x7f => {} // DEL: ignored on the display side
-            0x00..=0x06 | 0x0b..=0x1a | 0x1c..=0x1f => {} // other C0: ignore
+            0x00..=0x06 | 0x0e..=0x1a | 0x1c..=0x1f => {} // other C0: ignore
             0x20..=0x7e => self.print_char(grid, b as char), // printable ASCII
             0xc0..=0xdf => {
                 self.utf8.clear();
@@ -1031,10 +1031,10 @@ impl VtParser {
             }
             0x08 => grid.backspace(),
             b'\t' => grid.tab(),
-            b'\n' => self.linefeed(grid),
+            b'\n' | 0x0b | 0x0c => self.linefeed(grid),
             b'\r' => grid.carriage_return(),
             0x07 | 0x7f => {},
-            0x00..=0x06 | 0x0b..=0x17 | 0x19 | 0x1c..=0x1f => {}
+            0x00..=0x06 | 0x0e..=0x17 | 0x19 | 0x1c..=0x1f => {}
             // Parameter bytes (0x30..=0x3f) and intermediates (0x20..=0x2f).
             0x20..=0x3f => self.csi.push(b),
             // Final byte: dispatch and return to ground.
@@ -2688,6 +2688,12 @@ mod tests {
         let g2 = grid_feed(2, 10, b"abc\rX");
         assert_eq!(g2.cell(0, 0).ch, 'X');
         assert_eq!(g2.cell(0, 1).ch, 'b');
+
+        let g3 = grid_feed(4, 10, b"ab\x0bcd\x0cef");
+        assert_eq!(g3.cell(0, 0).ch, 'a');
+        assert_eq!(g3.cell(1, 0).ch, 'c');
+        assert_eq!(g3.cell(2, 0).ch, 'e');
+        assert_eq!(g3.cursor(), (2, 2));
     }
 
     #[test]
@@ -2721,6 +2727,9 @@ mod tests {
         let g3 = grid_feed(3, 8, b"ab\x1b[20l\ncd\x1b[!p\nef");
         assert_eq!(g3.to_text(), "ab      \nefcd    \n        ");
         assert!(!g3.contains("!p"));
+
+        let g4 = grid_feed(3, 8, b"ab\x1b[20l\x0bcd\rEF");
+        assert_eq!(g4.to_text(), "ab      \nEFcd    \n        ");
     }
 
     #[test]
@@ -4010,6 +4019,12 @@ mod tests {
         assert_eq!(g3.cell(0, 3).ch, 'd');
         assert_eq!(g3.cell(1, 1).ch, 'Z');
         assert!(!g3.contains("2G"));
+
+        let g4 = grid_feed(3, 20, b"abcd\x1b[2\x0cGZ\x1b[4\x0bGX");
+        assert_eq!(g4.cell(1, 1).ch, 'Z');
+        assert_eq!(g4.cell(2, 3).ch, 'X');
+        assert!(!g4.contains("2G"));
+        assert!(!g4.contains("4G"));
     }
 
     #[test]
