@@ -1658,6 +1658,7 @@ impl VtParser {
     fn finish_osc(&mut self) {
         self.capture_osc_title();
         self.reply_osc_color_query();
+        self.reply_osc_palette_query();
         self.osc.clear();
         self.state = State::Ground;
     }
@@ -1670,6 +1671,28 @@ impl VtParser {
             _ => return,
         };
         self.push_osc_color_reply(kind, color);
+    }
+
+    fn reply_osc_palette_query(&mut self) {
+        let payload = String::from_utf8_lossy(&self.osc).into_owned();
+        let mut parts = payload.split(';');
+        if parts.next() != Some("4") {
+            return;
+        }
+
+        while let Some(index) = parts.next() {
+            let Some(value) = parts.next() else {
+                break;
+            };
+            if value != "?" {
+                continue;
+            }
+            let Some(index) = index.parse::<u32>().ok().filter(|n| *n <= 255) else {
+                continue;
+            };
+            let color = palette_rgb8(index);
+            self.push_osc_color_reply(&format!("4;{index}"), color);
+        }
     }
 
     fn push_osc_color_reply(&mut self, kind: &str, (r, g, b): (u8, u8, u8)) {
@@ -1721,6 +1744,15 @@ impl VtParser {
 
 fn encode_truecolor(r: u8, g: u8, b: u8) -> u32 {
     TRUECOLOR_MASK | ((r as u32) << 16) | ((g as u32) << 8) | b as u32
+}
+
+fn palette_rgb8(index: u32) -> (u8, u8, u8) {
+    let (r, g, b, _) = palette_rgba(index);
+    (unit_to_byte(r), unit_to_byte(g), unit_to_byte(b))
+}
+
+fn unit_to_byte(value: f32) -> u8 {
+    (value.clamp(0.0, 1.0) * 255.0).round() as u8
 }
 
 fn parse_sgr_params(params: &str) -> Vec<Option<i32>> {
@@ -3530,6 +3562,42 @@ mod tests {
         assert!(g.contains("done"));
         assert!(!g.contains("#ffffff"));
         assert!(!g.contains("13;?"));
+    }
+
+    #[test]
+    fn osc_palette_queries_are_answered() {
+        let mut g = Grid::new(1, 20);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b]4;1;?\x07ok");
+        assert_eq!(p.take_reply(), b"\x1b]4;1;rgb:cccc/4040/4040\x1b\\");
+        assert!(g.contains("ok"));
+        assert!(!g.contains("4;1;?"));
+    }
+
+    #[test]
+    fn osc_palette_queries_support_multiple_pairs() {
+        let mut g = Grid::new(1, 20);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b]4;196;?;7;?\x1b\\done");
+        assert_eq!(
+            p.take_reply(),
+            b"\x1b]4;196;rgb:ffff/0000/0000\x1b\\\
+              \x1b]4;7;rgb:cccc/d1d1/dbdb\x1b\\"
+                .to_vec()
+        );
+        assert!(g.contains("done"));
+        assert!(!g.contains("196;?"));
+    }
+
+    #[test]
+    fn osc_palette_invalid_queries_are_only_consumed() {
+        let mut g = Grid::new(1, 30);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b]4;256;?\x07\x1b]4;1;#ffffff\x07done");
+        assert!(p.take_reply().is_empty());
+        assert!(g.contains("done"));
+        assert!(!g.contains("256;?"));
+        assert!(!g.contains("#ffffff"));
     }
 
     #[test]
