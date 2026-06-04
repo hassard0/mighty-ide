@@ -7956,3 +7956,12 @@ mouse-aware terminal grid it is also valid xterm mouse input.
   passes through to the terminal when a mouse-reporting terminal app owns the
   grid hit. Regression coverage verifies modified scroll, press, release,
   drag, and any-motion byte sequences.
+
+L656. Terminal wheel routing should be pointer-driven, not only focus-driven.
+After a terminal app requests mouse reporting, a wheel over the terminal grid
+must reach the terminal even if the editor still has keyboard focus.
+
+- **IDE note:** the default Mighty scroll arm now hit-tests the terminal grid
+  before editor scrolling. A wheel over the terminal focuses the terminal and
+  sends the coordinate-aware terminal scroll report/fallback; wheels elsewhere
+  keep the editor's existing first-line scroll behavior.

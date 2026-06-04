@@ -3326,7 +3326,14 @@ fn main() {
         }
       } else if tag == ev_scroll() {
         let dir = mui_event_scroll_dir(h)
-        if dir > 0 {
+        if mui_term_hit_at_event(h) == 1 {
+          mui_term_scroll(h, dir)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = true
+          ai_focus = false
+        } else if dir > 0 {
           if first >= 3 { first = first - 3 } else { first = 0 }
         } else if dir < 0 {
           first = first + 3
