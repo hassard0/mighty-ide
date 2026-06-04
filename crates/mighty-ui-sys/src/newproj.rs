@@ -39,9 +39,7 @@ pub fn validate_name(input: &str) -> Result<String, String> {
     if name == "." || name == ".." {
         return Err("Invalid project name".to_string());
     }
-    if name.ends_with('.') {
-        return Err("Name must not end with a dot".to_string());
-    }
+    validate_platform_segment(name)?;
     if name.contains('/') || name.contains('\\') || name.contains(':') {
         return Err("Name must not contain path separators".to_string());
     }
@@ -57,10 +55,31 @@ pub fn validate_name(input: &str) -> Result<String, String> {
     {
         return Err("Use letters, digits, '-', '_' or '.' only".to_string());
     }
+    Ok(name.to_string())
+}
+
+/// Validate only platform-level basename traps for paths selected by native
+/// dialogs. Dialogs can reasonably choose names outside the prompt's
+/// conservative charset, but still must not hit Windows device basenames or
+/// trailing-dot normalization.
+pub fn validate_platform_segment(input: &str) -> Result<(), String> {
+    let name = input.trim();
+    if name.is_empty() {
+        return Err("Choose a name".to_string());
+    }
+    if name == "." || name == ".." {
+        return Err("Invalid name".to_string());
+    }
+    if name.ends_with('.') {
+        return Err("Name must not end with a dot".to_string());
+    }
+    if name.contains('/') || name.contains('\\') || name.contains(':') {
+        return Err("Name must not contain path separators".to_string());
+    }
     if is_windows_reserved_name(name) {
         return Err("Name is reserved on Windows".to_string());
     }
-    Ok(name.to_string())
+    Ok(())
 }
 
 fn is_windows_reserved_name(name: &str) -> bool {
@@ -159,6 +178,15 @@ mod tests {
         for name in ["COM0", "COM10", "LPT0", "LPT10", "CONSOLE", "AUXILIARY"] {
             assert!(validate_name(name).is_ok(), "{name} should be accepted");
         }
+    }
+
+    #[test]
+    fn platform_segment_allows_dialog_names_but_rejects_filesystem_traps() {
+        assert!(validate_platform_segment("My File.mty").is_ok());
+        assert!(validate_platform_segment("emoji\u{1F600}.mty").is_ok());
+        assert!(validate_platform_segment("CON.txt").is_err());
+        assert!(validate_platform_segment("folder.").is_err());
+        assert!(validate_platform_segment("a/b").is_err());
     }
 
     #[test]

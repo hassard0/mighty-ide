@@ -5912,6 +5912,11 @@ fn create_or_accept_folder_at(
     workspace_root: &std::path::Path,
     name: &str,
 ) -> i32 {
+    if let Err(e) = crate::newproj::validate_platform_segment(name) {
+        ctx.push_toast(crate::toast::Kind::Warn, e.clone());
+        println!("newfolder: invalid selected folder name: {e}");
+        return 0;
+    }
     if !path_is_inside_workspace(workspace_root, &target) {
         ctx.push_toast(crate::toast::Kind::Warn, "Choose a folder inside the workspace");
         println!(
@@ -6037,6 +6042,11 @@ fn create_new_file_at(
     name: &str,
     require_workspace: bool,
 ) -> i32 {
+    if let Err(e) = crate::newproj::validate_platform_segment(name) {
+        ctx.push_toast(crate::toast::Kind::Warn, e.clone());
+        println!("newfile: invalid selected file name: {e}");
+        return -2;
+    }
     if require_workspace && !path_is_inside_workspace(workspace_root, &target) {
         ctx.push_toast(crate::toast::Kind::Warn, "Choose a file inside the workspace");
         println!(

@@ -10441,3 +10441,17 @@ uncreatable or resolve differently from what the user typed.
 - **Language note:** no compiler gap surfaced. Cross-platform IDE workflows need
   validation for the target filesystem's name semantics, not just parser-safe
   characters and path traversal checks.
+
+## L850 - Native Dialog Paths Need Basename Guards
+
+Native file and folder dialogs return full paths, so they bypass the typed
+prompt's conservative charset validation. The selected basename can still hit
+platform-specific filesystem traps.
+
+- **IDE note:** New File and New Folder dialog paths now validate the selected
+  basename for Windows reserved device names and trailing dots before creating
+  anything. The guard is narrower than prompt validation, so native dialogs can
+  still create names with spaces or Unicode characters.
+- **Language note:** no compiler gap surfaced. Dialog APIs reduce traversal
+  risk, but they do not remove filesystem-name semantics; validate the basename
+  closest to the operation that mutates disk.

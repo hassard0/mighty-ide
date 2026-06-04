@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Native creation dialogs reject platform-trap basenames**: dialog-selected
+  New File and New Folder paths now apply the same Windows device-name and
+  trailing-dot safety checks as typed creation before touching the filesystem,
+  while still allowing broader native-dialog filenames.
 - **New project and folder names reject Windows traps**: shared name validation
   now blocks reserved Windows device names such as `CON`, `NUL`, `COM1`, and
   `LPT1`, plus trailing-dot names, before project or folder creation reaches the
