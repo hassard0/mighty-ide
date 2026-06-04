@@ -480,9 +480,9 @@ pub extern "C" fn mui_scm_click_is_stage(handle: i64) -> i32 {
 }
 
 /// Map the last click to a Source-Control HEADER action button:
-/// `1` = commit, `2` = pull, `3` = push, `4` = refresh, `0` = none. Mirrors the
-/// header icon geometry in `mui_scm_draw` (four 15px icons in the right of the
-/// 40px header band).
+/// `1` = commit, `2` = pull, `3` = push, `4` = refresh, `5` = stage all,
+/// `6` = unstage all, `0` = none. Mirrors the header icon geometry in
+/// `mui_scm_draw`.
 #[no_mangle]
 pub extern "C" fn mui_scm_header_action_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -499,24 +499,18 @@ pub extern "C" fn mui_scm_header_action_at_click(handle: i64) -> i32 {
     let sw = layout::sidebar_w();
     // Icon centers at sw-94 (commit), sw-72 (pull), sw-50 (push), sw-28 (fetch),
     // each ~15px wide — use 11px half-windows around each.
-    let hit = |cx: f32| -> bool { (x - cx).abs() <= 11.0 };
-    let action = if hit(sx + sw - 94.0 + 7.0) {
-        1
-    } else if hit(sx + sw - 72.0 + 7.0) {
-        2
-    } else if hit(sx + sw - 50.0 + 7.0) {
-        3
-    } else if hit(sx + sw - 28.0 + 7.0) {
-        4
-    } else {
-        0
-    };
+    let action = scm_header_action_centers(sx, sw)
+        .into_iter()
+        .find_map(|(cx, action)| if (x - cx).abs() <= 9.0 { Some(action) } else { None })
+        .unwrap_or(0);
     if action > 0 {
         let label = match action {
             1 => "commit",
             2 => "pull",
             3 => "push",
-            _ => "refresh",
+            4 => "refresh",
+            5 => "stage_all",
+            _ => "unstage_all",
         };
         crate::abi::trace(&format!("scm_header action={label}"));
     }
@@ -588,10 +582,21 @@ pub(crate) fn fit_scm_header(
     size: f32,
 ) -> String {
     let label_x = sx + 14.0;
-    let first_action_x = sx + sw - 94.0;
+    let first_action_x = scm_header_action_centers(sx, sw)[0].0 - 7.0;
     let max_px = (first_action_x - 8.0 - label_x).max(0.0);
     let tracked: String = title.chars().flat_map(|c| [c, '\u{2009}']).collect();
     fit_head_px(text, &tracked, max_px, size)
+}
+
+pub(crate) fn scm_header_action_centers(sx: f32, sw: f32) -> [(f32, i32); 6] {
+    [
+        (sx + sw - 124.0 + 7.0, 5),
+        (sx + sw - 105.0 + 7.0, 6),
+        (sx + sw - 86.0 + 7.0, 1),
+        (sx + sw - 67.0 + 7.0, 2),
+        (sx + sw - 48.0 + 7.0, 3),
+        (sx + sw - 29.0 + 7.0, 4),
+    ]
 }
 
 pub(crate) fn scm_message_clear_rect(sx: f32, sw: f32) -> (f32, f32, f32, f32) {
@@ -608,7 +613,7 @@ pub(crate) fn scm_header_title_for_budget(
     size: f32,
 ) -> &'static str {
     let label_x = sx + 14.0;
-    let first_action_x = sx + sw - 94.0;
+    let first_action_x = scm_header_action_centers(sx, sw)[0].0 - 7.0;
     let max_px = (first_action_x - 8.0 - label_x).max(0.0);
     let full = "SOURCE CONTROL";
     let tracked: String = full.chars().flat_map(|c| [c, '\u{2009}']).collect();
@@ -734,10 +739,17 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
     // Header action row: commit (check) · pull (down) · push (up) · fetch
     // (refresh). Hit-tested by `mui_scm_header_action_at_click`.
     let act_y = (head_h - 15.0) * 0.5;
-    ctx.dl_icon(sx + sw - 94.0, act_y, 15.0, 15.0, icons::CHECK, theme::GREEN(), 1.8, false);
-    ctx.dl_icon(sx + sw - 72.0, act_y, 15.0, 15.0, icons::ARROW_DOWN, theme::TEXT_3(), 1.7, false);
-    ctx.dl_icon(sx + sw - 50.0, act_y, 15.0, 15.0, icons::ARROW_UP, theme::TEXT_3(), 1.7, false);
-    ctx.dl_icon(sx + sw - 28.0, act_y, 15.0, 15.0, icons::REFRESH, theme::TEXT_3(), 1.5, false);
+    for (cx, action) in scm_header_action_centers(sx, sw) {
+        let (icon, color, stroke) = match action {
+            1 => (icons::CHECK, theme::GREEN(), 1.8),
+            2 => (icons::ARROW_DOWN, theme::TEXT_3(), 1.7),
+            3 => (icons::ARROW_UP, theme::TEXT_3(), 1.7),
+            4 => (icons::REFRESH, theme::TEXT_3(), 1.5),
+            5 => (icons::STAGE_PLUS, theme::GREEN(), 1.7),
+            _ => (icons::UNSTAGE_MINUS, theme::TEXT_3(), 1.7),
+        };
+        ctx.dl_icon(cx - 7.0, act_y, 15.0, 15.0, icon, color, stroke, false);
+    }
 
     // commit-message box
     let box_y = head_h + 8.0;

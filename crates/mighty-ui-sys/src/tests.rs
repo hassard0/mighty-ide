@@ -4136,7 +4136,7 @@ fn scm_bulk_actions_without_repo_report_not_git_repository() {
 }
 
 #[test]
-fn scm_header_refresh_icon_maps_to_refresh_action() {
+fn scm_header_icons_map_to_visible_actions() {
     use crate::ffi::MuiEvent;
 
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -4149,23 +4149,19 @@ fn scm_header_refresh_icon_maps_to_refresh_action() {
     let sx = crate::layout::RAIL_W;
     let sw = crate::layout::sidebar_w();
 
-    ctx.last_event = MuiEvent::mouse(
-        crate::ffi::MUI_EVENT_MOUSE_DOWN,
-        0,
-        sx + sw - 28.0 + 7.0,
-        20.0,
-        0,
-    );
-    assert_eq!(crate::panels::mui_scm_header_action_at_click(handle), 4);
+    for (cx, action) in crate::panels::scm_header_action_centers(sx, sw) {
+        ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, cx, 20.0, 0);
+        assert_eq!(
+            crate::panels::mui_scm_header_action_at_click(handle),
+            action,
+            "SCM header center {cx} should map to action {action}"
+        );
+    }
 
-    ctx.last_event = MuiEvent::mouse(
-        crate::ffi::MUI_EVENT_MOUSE_DOWN,
-        0,
-        sx + sw - 50.0 + 7.0,
-        20.0,
-        0,
-    );
-    assert_eq!(crate::panels::mui_scm_header_action_at_click(handle), 3);
+    let centers = crate::panels::scm_header_action_centers(sx, sw);
+    assert_eq!(centers[0].1, 5);
+    assert_eq!(centers[1].1, 6);
+    assert!(centers[0].0 < centers[1].0 && centers[1].0 < centers[2].0);
     crate::layout::reset_sidebar_preset();
 }
 
@@ -5499,7 +5495,7 @@ fn scm_header_fits_before_action_buttons() {
     let shown = crate::panels::fit_scm_header(&mut ctx.text, title, sx, sw, chrome);
     let (shown_w, _) = ctx.text.measure_ui_sized(&shown, chrome);
     let label_x = sx + 14.0;
-    let first_button_x = sx + sw - 94.0;
+    let first_button_x = crate::panels::scm_header_action_centers(sx, sw)[0].0 - 7.0;
     assert!(
         label_x + shown_w <= first_button_x - 8.0,
         "SCM header should leave a visible gap before actions: {shown}"
@@ -5509,9 +5505,9 @@ fn scm_header_fits_before_action_buttons() {
         "compact SCM header should use a complete title instead of truncating: {shown}"
     );
 
-    let wide_title = crate::panels::scm_header_title_for_budget(&mut ctx.text, sx, 248.0, chrome);
+    let wide_title = crate::panels::scm_header_title_for_budget(&mut ctx.text, sx, 320.0, chrome);
     assert_eq!(wide_title, "SOURCE CONTROL");
-    let wide = crate::panels::fit_scm_header(&mut ctx.text, wide_title, sx, 248.0, chrome);
+    let wide = crate::panels::fit_scm_header(&mut ctx.text, wide_title, sx, 320.0, chrome);
     assert!(!wide.ends_with('\u{2026}'));
 }
 
@@ -10548,11 +10544,28 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Source Control clear-message command must clear only the commit draft"
     );
     assert!(
+        main.contains("id == cmd_git_stage_all()")
+            && main.contains("id == cmd_git_unstage_all()")
+            && main
+                .matches("let _vp = mui_panel_set(h, panel_scm())\n          let _g")
+                .count()
+                >= 2,
+        "Source Control bulk-stage commands must reveal Source Control before acting"
+    );
+    assert!(
         main.contains("fn mui_scm_message_clear_at_click(handle: I64) -> I32")
             && main.contains("let scm_msg_clear = mui_scm_message_clear_at_click(h)")
             && main.contains("let scm_hit = if scm_msg_clear == 1 { 0 - 1 } else { mui_scm_row_at_click(h) }")
             && main.contains("if scm_msg_clear == 1 {\n            let _gcm = mui_scm_clear_message(h)"),
         "Source Control message clear clicks must dispatch before change-row actions"
+    );
+    assert!(
+        main.contains("scm_act == 5")
+            && main.contains("let _gsa = mui_scm_stage_all(h)")
+            && main.contains("scm_act == 6")
+            && main.contains("let _gua = mui_scm_unstage_all(h)")
+            && main.find("} else if scm_act > 0 {") < main.find("} else if scm_hit >= 0 {"),
+        "Source Control bulk-stage header clicks must dispatch before change-row actions"
     );
     assert!(
         main.contains("id == cmd_search_clear_results()")

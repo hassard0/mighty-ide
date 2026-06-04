@@ -3830,6 +3830,12 @@ fn main() {
               let _ps = mui_git_push(h)
             } else if scm_act == 4 {
               let _sr = mui_scm_refresh(h)
+            } else if scm_act == 5 {
+              let _gsa = mui_scm_stage_all(h)
+              let _r = mui_scm_refresh(h)
+            } else if scm_act == 6 {
+              let _gua = mui_scm_unstage_all(h)
+              let _r = mui_scm_refresh(h)
             }
           } else if scm_hit >= 0 {
             let is_stage = mui_scm_click_is_stage(h)
@@ -4615,9 +4621,11 @@ fn main() {
           let _g = mui_git_dispatch(h, id)
           if mui_branch_active(h) == 1 { branch_open = true }
         } else if id == cmd_git_stage_all() {
+          let _vp = mui_panel_set(h, panel_scm())
           let _gsa = mui_scm_stage_all(h)
           let _r = mui_scm_refresh(h)
         } else if id == cmd_git_unstage_all() {
+          let _vp = mui_panel_set(h, panel_scm())
           let _gua = mui_scm_unstage_all(h)
           let _r = mui_scm_refresh(h)
         } else if id == cmd_git_commit_staged() {

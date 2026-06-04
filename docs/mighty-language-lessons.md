@@ -8445,3 +8445,16 @@ inside the overlay where overrides are visible.
   drawing and hit-testing, `mui_keys_click` returns distinct reset actions, and
   Mighty routes those clicks through the existing reset ABIs before remap
   capture handling.
+
+## L703 - Source Control Bulk Staging Belongs In The Panel Header
+
+Stage all and unstage all were command-palette actions, but the Source Control
+panel already shows the full staged/unstaged state and row-level stage buttons.
+Bulk staging should be visible in the same header as commit and refresh.
+
+- **IDE note:** the Source Control header now includes compact Stage All and
+  Unstage All actions before Commit/Pull/Push/Refresh. Shared header action
+  geometry drives drawing and hit-testing, Mighty dispatches the new action
+  codes through `mui_scm_stage_all` / `mui_scm_unstage_all` before change-row
+  handling, and palette bulk-stage commands now reveal Source Control before
+  acting.
