@@ -571,6 +571,9 @@ fn parse_publish_diagnostics_latest(stream: &str, wanted_uri: Option<&str>) -> V
     let mut saw_object = false;
     for object in top_level_json_objects(bytes) {
         saw_object = true;
+        if wanted_uri.is_some() && !is_publish_diagnostics_notification(object) {
+            continue;
+        }
         if publish_chunk_matches_uri(object, wanted_uri) {
             if let Some(diags) = parse_diagnostics_array_from_bytes(object) {
                 latest = Some(diags);
@@ -584,6 +587,10 @@ fn parse_publish_diagnostics_latest(stream: &str, wanted_uri: Option<&str>) -> V
         return parse_diagnostics_array_from_bytes(bytes).unwrap_or_default();
     }
     Vec::new()
+}
+
+fn is_publish_diagnostics_notification(chunk: &[u8]) -> bool {
+    top_level_json_string_field(chunk, b"method").as_deref() == Some("textDocument/publishDiagnostics")
 }
 
 fn publish_chunk_matches_uri(chunk: &[u8], wanted_uri: Option<&str>) -> bool {
@@ -1175,6 +1182,13 @@ mod tests {
             matching_empty_publish,
             "file:///x/main.rs"
         ));
+    }
+
+    #[test]
+    fn diagnostics_for_uri_requires_publish_notification() {
+        let stream = r#"{"jsonrpc":"2.0","id":4,"method":"workspace/applyEdit","params":{"uri":"file:///x/main.rs","diagnostics":[{"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":4}},"severity":1,"message":"wrong request"}]}}"#;
+
+        assert!(parse_publish_diagnostics_for_uri(stream, "file:///x/main.rs").is_empty());
     }
 
     #[test]

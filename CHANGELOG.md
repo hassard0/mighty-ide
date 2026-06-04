@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Diagnostics require publish notifications for URI filters**: URI-specific
+  LSP diagnostics parsing now ignores request-shaped objects with matching
+  `params.uri` and `params.diagnostics`, so only real
+  `textDocument/publishDiagnostics` notifications update Problems.
 - **Prepare rename requires response envelopes**: rename preparation now ignores
   request-shaped JSON-RPC objects with top-level `method` while reading
   `prepareRename` rejection or accepted ranges, so incidental request payloads

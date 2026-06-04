@@ -10373,3 +10373,17 @@ fields named `result` or `error`, but they are not rename-preparation answers.
 - **Language note:** no compiler gap surfaced. Feature-specific response
   parsers should keep the same envelope-role checks as the transport wait loop,
   because direct parser tests and fallback paths can feed them raw stream data.
+
+## L845 - Diagnostics Need Publish Notifications
+
+URI-specific LSP diagnostics come from `textDocument/publishDiagnostics`
+notifications. Other JSON-RPC objects can carry `params.uri` and
+`params.diagnostics`, but they are not Problems updates.
+
+- **IDE note:** `parse_publish_diagnostics_for_uri` now requires matching
+  top-level `method: "textDocument/publishDiagnostics"` before accepting a
+  matching URI's diagnostics array. Direct bare diagnostic arrays and unfiltered
+  parser payloads remain available for tests and compatibility.
+- **Language note:** no compiler gap surfaced. URI filters validate the target,
+  not the envelope role; parsers that consume live protocol streams still need a
+  separate notification/response/request classification step.
