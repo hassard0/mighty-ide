@@ -448,12 +448,11 @@ pub fn diagnostics_with_timeout(
                 Ok(0) => break,
                 Ok(n) => {
                     buf.extend_from_slice(&chunk[..n]);
-                    // Stop once a publishDiagnostics notification for our URI has
-                    // arrived. Other open workspace files can publish first.
-                    if find_sub(&buf, b"publishDiagnostics").is_some()
-                        && find_sub(&buf, b"\"diagnostics\"").is_some()
-                        && find_sub(&buf, uri_for_reader.as_bytes()).is_some()
-                    {
+                    // Stop once a complete publishDiagnostics notification for
+                    // our URI has arrived. Other workspace files can publish
+                    // first, and their messages/relatedInformation may mention
+                    // this URI.
+                    if has_publish_diagnostics_for_uri(&buf, &uri_for_reader) {
                         // Give a brief grace read so the array body is fully buffered.
                         break;
                     }
@@ -503,6 +502,17 @@ pub fn parse_publish_diagnostics(stream: &str) -> Vec<Diag> {
 
 pub fn parse_publish_diagnostics_for_uri(stream: &str, wanted_uri: &str) -> Vec<Diag> {
     parse_publish_diagnostics_latest(stream, Some(wanted_uri))
+}
+
+fn has_publish_diagnostics_for_uri(stream: &[u8], wanted_uri: &str) -> bool {
+    top_level_json_objects(stream).into_iter().any(|object| {
+        top_level_json_string_field(object, b"method").as_deref()
+            == Some("textDocument/publishDiagnostics")
+            && publish_chunk_matches_uri(object, Some(wanted_uri))
+            && top_level_object_field(object, b"params")
+                .and_then(|params| top_level_array_field(params, b"diagnostics"))
+                .is_some()
+    })
 }
 
 fn normalize_lsp_diag_columns(source: &str, diags: &mut [Diag]) {
@@ -1094,6 +1104,33 @@ mod tests {
         let stream = r#"{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"diagnostics":[{"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":4}},"severity":1,"message":"wrong file","relatedInformation":[{"location":{"uri":"file:///x/main.rs","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":1}}},"message":"related"}]}],"uri":"file:///x/other.rs"}}"#;
 
         assert!(parse_publish_diagnostics_for_uri(stream, "file:///x/main.rs").is_empty());
+    }
+
+    #[test]
+    fn diagnostics_reader_match_uses_params_uri_not_related_information_uri() {
+        let stream = br#"{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///x/other.rs","diagnostics":[{"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":4}},"severity":1,"message":"wrong file","relatedInformation":[{"location":{"uri":"file:///x/main.rs","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":1}}},"message":"related"}]}]}}"#;
+
+        assert!(!has_publish_diagnostics_for_uri(stream, "file:///x/main.rs"));
+    }
+
+    #[test]
+    fn diagnostics_reader_match_uses_top_level_method_and_params_array() {
+        let nested_method = br#"{"jsonrpc":"2.0","params":{"uri":"file:///x/main.rs","metadata":{"method":"textDocument/publishDiagnostics","diagnostics":[]},"diagnostics":[]}}"#;
+        let wrong_array_owner = br#"{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///x/main.rs","metadata":{"diagnostics":[]}}}"#;
+        let matching_empty_publish = br#"{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///x/main.rs","diagnostics":[]}}"#;
+
+        assert!(!has_publish_diagnostics_for_uri(
+            nested_method,
+            "file:///x/main.rs"
+        ));
+        assert!(!has_publish_diagnostics_for_uri(
+            wrong_array_owner,
+            "file:///x/main.rs"
+        ));
+        assert!(has_publish_diagnostics_for_uri(
+            matching_empty_publish,
+            "file:///x/main.rs"
+        ));
     }
 
     #[test]

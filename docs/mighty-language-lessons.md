@@ -10101,3 +10101,17 @@ before opening the rename prompt.
 - **Language note:** no compiler gap surfaced. Feature gates that refine the
   user's current selection should treat server-returned ranges as owned payloads,
   not as search regions.
+
+## L826 - Diagnostic Readers Need Notification Ownership
+
+Diagnostic streams can contain notifications for multiple workspace files, and
+unrelated diagnostics can mention the current URI in messages or
+`relatedInformation`. Broad stream searches can stop the reader before the
+opened file's own publish notification arrives.
+
+- **IDE note:** generic LSP diagnostics collection now waits for a complete
+  top-level `textDocument/publishDiagnostics` notification whose `params.uri`
+  matches the opened file and whose `params.diagnostics` array is present.
+- **Language note:** no compiler gap surfaced. Stream readiness checks should
+  use the same envelope ownership rules as payload parsing; text mentions are
+  not delivery evidence.

@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Diagnostics wait for matching publish notifications**: generic LSP
+  diagnostics collection now stops only after a complete top-level
+  `textDocument/publishDiagnostics` notification whose `params.uri` matches the
+  opened file, so other files' diagnostic text or related locations cannot end
+  the read early.
 - **Prepare rename reads result-owned ranges**: rename preparation now reads the
   server's accepted `result.range.start` / `result.start` from the owning result
   object, so metadata coordinates cannot choose the wrong symbol.
