@@ -808,7 +808,8 @@ impl CodeAction {
 /// actions / commands. Each entry is `{"title":"...","kind":"...","edit":{...}}`
 /// (a `CodeAction`) or `{"title":"...","command":"..."}` (a `Command`). We read
 /// the `title` and, if present, the inline `edit` (its first `WorkspaceEdit`).
-/// Returns the actions in order (empty for `[]` / `null`).
+/// Disabled LSP actions are omitted because the current menu has no disabled-row
+/// affordance. Returns the actions in order (empty for `[]` / `null`).
 pub fn parse_code_actions(json: &str) -> Vec<CodeAction> {
     let bytes = json.as_bytes();
     // Find the result array. Anchor at `"result"`.
@@ -876,6 +877,9 @@ fn parse_action_array(arr: &[u8]) -> Vec<CodeAction> {
 /// Parse one code-action object slice. Reads `title`, optional inline `edit`,
 /// and command-form edits embedded in `arguments`.
 fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
+    if code_action_disabled(obj) {
+        return None;
+    }
     let t_key = b"\"title\"";
     let t_at = find_sub(obj, t_key)?;
     let (title, _) = read_json_string_at(obj, t_at + t_key.len())?;
@@ -910,6 +914,17 @@ fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
         command,
         fix_all_mty,
     })
+}
+
+fn code_action_disabled(obj: &[u8]) -> bool {
+    let Some(disabled_at) = find_sub(obj, b"\"disabled\"") else {
+        return false;
+    };
+    let mut i = disabled_at + b"\"disabled\"".len();
+    while i < obj.len() && matches!(obj[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
+        i += 1;
+    }
+    i < obj.len() && matches!(obj[i], b'{' | b't')
 }
 
 fn parse_command_action(obj: &[u8]) -> Option<CommandAction> {
@@ -2129,6 +2144,18 @@ mod tests {
         );
         assert!(actions[0].edit.is_none());
         assert!(actions[0].command_edit.is_none());
+    }
+
+    #[test]
+    fn parse_code_actions_omits_disabled_actions() {
+        let json = r#"{"result":[{"title":"Unavailable fix","disabled":{"reason":"already imported"},"command":"server.fix"},{"title":"Unavailable edit","disabled":true,"edit":{"changes":{"file:///a.rs":[{"newText":"x","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":1}}}]}}},{"title":"Apply fix","command":"server.apply"}],"id":5}"#;
+        let actions = parse_code_actions(json);
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].title, "Apply fix");
+        assert_eq!(
+            actions[0].command.as_ref().map(|c| c.command.as_str()),
+            Some("server.apply")
+        );
     }
 
     // ---- state types ----
