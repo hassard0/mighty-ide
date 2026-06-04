@@ -8267,3 +8267,13 @@ the breakpoint line.
   source tab, syncs the active path, moves the caret to the stored line, and
   scrolls nearby context into view. Tests cover row hit encoding, source opening,
   caret placement, and the Mighty click-dispatch route.
+
+L686. Capped debugger lists should disclose overflow. Showing only the first few
+breakpoints without a count makes it look like the rest were lost, especially
+after a global clear or cross-file setup.
+
+- **IDE note:** the Run and Debug breakpoint section now reserves a non-clickable
+  overflow row when more than four breakpoints exist. It shows three real source
+  rows plus a measured "N more breakpoints" row, keeps the Call Stack geometry
+  stable, and prevents the overflow row from opening a misleading source target.
+  Tests cover row budgets, pluralized overflow labels, and no-op hit behavior.

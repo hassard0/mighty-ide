@@ -5391,6 +5391,13 @@ fn debug_breakpoint_section_offsets_call_stack() {
     assert_eq!(crate::dapabi::debug_breakpoint_visible_rows(0), 1);
     assert_eq!(crate::dapabi::debug_breakpoint_visible_rows(2), 2);
     assert_eq!(crate::dapabi::debug_breakpoint_visible_rows(9), 4);
+    assert_eq!(crate::dapabi::debug_breakpoint_data_rows(0), 0);
+    assert_eq!(crate::dapabi::debug_breakpoint_data_rows(4), 4);
+    assert_eq!(crate::dapabi::debug_breakpoint_data_rows(9), 3);
+    assert_eq!(crate::dapabi::debug_breakpoint_hidden_count(4), 0);
+    assert_eq!(crate::dapabi::debug_breakpoint_hidden_count(5), 2);
+    assert_eq!(crate::dapabi::debug_breakpoint_overflow_label(1), "1 more breakpoint");
+    assert_eq!(crate::dapabi::debug_breakpoint_overflow_label(3), "3 more breakpoints");
 
     let zero = crate::dapabi::debug_stack_label_y(0);
     let three = crate::dapabi::debug_stack_label_y(3);
@@ -5468,6 +5475,43 @@ fn debug_breakpoint_inventory_rows_open_source_location() {
     assert_eq!(ctx.tabs.active_model().first_visible(), 0);
 
     let _ = std::fs::remove_dir_all(root);
+    crate::layout::reset_sidebar_preset();
+}
+
+#[test]
+fn debug_breakpoint_overflow_row_is_not_a_source_click() {
+    use crate::ffi::MuiEvent;
+
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+    for i in 0..5 {
+        ctx.dbg.toggle_breakpoint(&format!("C:/p/file{i}.mty"), i as i32);
+    }
+    ctx.dbg.set_open(true);
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_DEBUG;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let overflow_row = crate::dapabi::debug_breakpoint_data_rows(ctx.dbg.total_breakpoint_count());
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        crate::layout::RAIL_W + 36.0,
+        crate::dapabi::debug_breakpoint_rows_top()
+            + overflow_row as f32 * crate::layout::LINE_H()
+            + crate::layout::LINE_H() * 0.5,
+        0,
+    );
+
+    assert_eq!(crate::dapabi::mui_dbg_click(handle), -1);
+    assert_eq!(crate::dapabi::mui_bp_open_at_hit(handle, 2000 + overflow_row as i32), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No breakpoint row selected"
+    );
+
     crate::layout::reset_sidebar_preset();
 }
 
