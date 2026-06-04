@@ -1415,8 +1415,8 @@ fn command_contextual_desc<'a>(
 ) -> Cow<'a, str> {
     if active_read_only {
         return match id {
-            CMD_SAVE | CMD_SAVE_AS | CMD_REVERT_ACTIVE_FILE => Cow::Borrowed("Read-only preview: saving is unavailable"),
-            CMD_RELOAD_ACTIVE_FILE => Cow::Borrowed("Reload this read-only preview from disk"),
+            CMD_SAVE | CMD_SAVE_AS => Cow::Borrowed("Read-only preview: saving is unavailable"),
+            CMD_RELOAD_ACTIVE_FILE | CMD_REVERT_ACTIVE_FILE => Cow::Borrowed("Reload this read-only preview from disk"),
             CMD_RENAME_ACTIVE_FILE | CMD_DELETE_ACTIVE_FILE => Cow::Borrowed("Read-only preview: file edits are unavailable"),
             _ => Cow::Borrowed(base),
         };
@@ -1829,6 +1829,10 @@ mod tests {
         assert_eq!(
             command_contextual_desc(CMD_SAVE, "base", true, true, true, 1),
             Cow::Borrowed("Read-only preview: saving is unavailable")
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_REVERT_ACTIVE_FILE, "base", true, true, false, 0),
+            Cow::Borrowed("Reload this read-only preview from disk")
         );
         assert_eq!(
             command_contextual_desc(CMD_RELOAD_ACTIVE_FILE, "base", true, false, true, 1),
