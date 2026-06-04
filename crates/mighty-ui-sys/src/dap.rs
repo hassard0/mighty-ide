@@ -73,34 +73,110 @@ fn read_json_string_at(bytes: &[u8], pos: usize) -> Option<(String, usize)> {
     }
     j += 1;
     let mut val = String::new();
-    while j < bytes.len() && bytes[j] != b'"' {
-        if bytes[j] == b'\\' && j + 1 < bytes.len() {
-            j += 1;
-            match bytes[j] {
-                b'n' => val.push('\n'),
-                b't' => val.push('\t'),
-                b'r' => val.push('\r'),
-                b'"' => val.push('"'),
-                b'\\' => val.push('\\'),
-                b'/' => val.push('/'),
-                b'u' if j + 4 < bytes.len() => {
-                    if let Ok(s) = std::str::from_utf8(&bytes[j + 1..j + 5]) {
-                        if let Ok(cp) = u32::from_str_radix(s, 16) {
-                            if let Some(c) = char::from_u32(cp) {
-                                val.push(c);
-                            }
-                            j += 4;
-                        }
-                    }
-                }
-                other => val.push(other as char),
+    let mut segment_start = j;
+    let mut high_surrogate: Option<u16> = None;
+    while j < bytes.len() {
+        match bytes[j] {
+            b'"' => {
+                flush_json_segment(bytes, segment_start, j, &mut val, &mut high_surrogate)?;
+                push_pending_surrogate(&mut val, &mut high_surrogate);
+                return Some((val, j + 1));
             }
-        } else {
-            val.push(bytes[j] as char);
+            b'\\' if j + 1 < bytes.len() => {
+                flush_json_segment(bytes, segment_start, j, &mut val, &mut high_surrogate)?;
+                j += 1;
+                match bytes[j] {
+                    b'n' => push_escaped_char(&mut val, &mut high_surrogate, '\n'),
+                    b't' => push_escaped_char(&mut val, &mut high_surrogate, '\t'),
+                    b'r' => push_escaped_char(&mut val, &mut high_surrogate, '\r'),
+                    b'b' => push_escaped_char(&mut val, &mut high_surrogate, '\u{0008}'),
+                    b'f' => push_escaped_char(&mut val, &mut high_surrogate, '\u{000c}'),
+                    b'"' => push_escaped_char(&mut val, &mut high_surrogate, '"'),
+                    b'\\' => push_escaped_char(&mut val, &mut high_surrogate, '\\'),
+                    b'/' => push_escaped_char(&mut val, &mut high_surrogate, '/'),
+                    b'u' if j + 4 < bytes.len() => {
+                        let unit = read_hex4(&bytes[j + 1..j + 5])?;
+                        push_json_code_unit(&mut val, &mut high_surrogate, unit);
+                        j += 4;
+                    }
+                    other => push_escaped_char(&mut val, &mut high_surrogate, other as char),
+                }
+                j += 1;
+                segment_start = j;
+                continue;
+            }
+            _ => {
+                j += 1;
+                continue;
+            }
         }
-        j += 1;
     }
-    Some((val, j + 1))
+    None
+}
+
+fn flush_json_segment(
+    bytes: &[u8],
+    start: usize,
+    end: usize,
+    out: &mut String,
+    high_surrogate: &mut Option<u16>,
+) -> Option<()> {
+    if start < end {
+        push_pending_surrogate(out, high_surrogate);
+        out.push_str(std::str::from_utf8(&bytes[start..end]).ok()?);
+    }
+    Some(())
+}
+
+fn read_hex4(bytes: &[u8]) -> Option<u16> {
+    if bytes.len() != 4 {
+        return None;
+    }
+    let mut value = 0u16;
+    for &b in bytes {
+        let digit = match b {
+            b'0'..=b'9' => b - b'0',
+            b'a'..=b'f' => b - b'a' + 10,
+            b'A'..=b'F' => b - b'A' + 10,
+            _ => return None,
+        };
+        value = (value << 4) | digit as u16;
+    }
+    Some(value)
+}
+
+fn push_escaped_char(out: &mut String, high_surrogate: &mut Option<u16>, ch: char) {
+    push_pending_surrogate(out, high_surrogate);
+    out.push(ch);
+}
+
+fn push_pending_surrogate(out: &mut String, high_surrogate: &mut Option<u16>) {
+    if high_surrogate.take().is_some() {
+        out.push('\u{fffd}');
+    }
+}
+
+fn push_json_code_unit(out: &mut String, high_surrogate: &mut Option<u16>, unit: u16) {
+    match unit {
+        0xd800..=0xdbff => {
+            push_pending_surrogate(out, high_surrogate);
+            *high_surrogate = Some(unit);
+        }
+        0xdc00..=0xdfff => {
+            if let Some(high) = high_surrogate.take() {
+                let high = (high as u32) - 0xd800;
+                let low = (unit as u32) - 0xdc00;
+                let cp = 0x10000 + ((high << 10) | low);
+                out.push(char::from_u32(cp).unwrap_or('\u{fffd}'));
+            } else {
+                out.push('\u{fffd}');
+            }
+        }
+        _ => {
+            push_pending_surrogate(out, high_surrogate);
+            out.push(char::from_u32(unit as u32).unwrap_or('\u{fffd}'));
+        }
+    }
 }
 
 /// Read an unsigned integer following `key` somewhere in `region`.
@@ -1268,6 +1344,14 @@ mod tests {
     }
 
     #[test]
+    fn parse_envelope_decodes_unicode_strings() {
+        let raw = r#"{"seq":3,"type":"event","event":"initialized-\u6771\ud83d\ude00","body":{}}"#;
+        let env = parse_envelope(raw).unwrap();
+        assert_eq!(env.kind, "event");
+        assert_eq!(env.event.as_deref(), Some("initialized-東😀"));
+    }
+
+    #[test]
     fn parse_framed_envelope() {
         let body = r#"{"seq":1,"type":"event","event":"initialized"}"#;
         let framed = format!("Content-Length: {}\r\n\r\n{}", body.len(), body);
@@ -1294,6 +1378,14 @@ mod tests {
     }
 
     #[test]
+    fn parse_stopped_decodes_unicode_description() {
+        let raw = r#"{"type":"event","event":"stopped","body":{"reason":"exception-\u6771","description":"caf\u00e9 \ud83d\ude00 \ud83dX","threadId":1}}"#;
+        let info = parse_stopped(&parse_envelope(raw).unwrap().raw);
+        assert_eq!(info.reason, "exception-東");
+        assert_eq!(info.description, "café 😀 �X");
+    }
+
+    #[test]
     fn parse_stack_trace_frames() {
         let raw = r#"{"type":"response","command":"stackTrace","success":true,"body":{"stackFrames":[{"id":1,"name":"compute_sum","line":7,"column":1,"source":{"path":"C:/p/demo.mty","name":"demo.mty"}},{"id":2,"name":"main","line":18,"column":1,"source":{"path":"C:/p/demo.mty"}}],"totalFrames":2}}"#;
         let frames = parse_stack_trace(&parse_envelope(raw).unwrap().raw);
@@ -1303,6 +1395,15 @@ mod tests {
         assert_eq!(frames[0].file, "C:/p/demo.mty");
         assert_eq!(frames[1].name, "main");
         assert_eq!(frames[1].id, 2);
+    }
+
+    #[test]
+    fn parse_stack_trace_decodes_unicode_frames() {
+        let raw = r#"{"type":"response","command":"stackTrace","success":true,"body":{"stackFrames":[{"id":1,"name":"compute_\u6771\ud83d\ude00","line":7,"source":{"path":"C:/p/\u6771\ud83d\ude00/demo.mty"}}]}}"#;
+        let frames = parse_stack_trace(&parse_envelope(raw).unwrap().raw);
+        assert_eq!(frames.len(), 1);
+        assert_eq!(frames[0].name, "compute_東😀");
+        assert_eq!(frames[0].file, "C:/p/東😀/demo.mty");
     }
 
     #[test]
@@ -1318,11 +1419,29 @@ mod tests {
     }
 
     #[test]
+    fn parse_variables_decodes_unicode_rows() {
+        let raw = r#"{"type":"response","command":"variables","success":true,"body":{"variables":[{"name":"label_\u6771","value":"value \ud83d\ude00","type":"Str\u00e9","variablesReference":0}]}}"#;
+        let vars = parse_variables(&parse_envelope(raw).unwrap().raw);
+        assert_eq!(vars.len(), 1);
+        assert_eq!(vars[0].name, "label_東");
+        assert_eq!(vars[0].value, "value 😀");
+        assert_eq!(vars[0].kind, "Stré");
+    }
+
+    #[test]
     fn parse_output_event_body() {
         let raw = r#"{"type":"event","event":"output","body":{"category":"stdout","output":"hello\n"}}"#;
         let o = parse_output(&parse_envelope(raw).unwrap().raw);
         assert_eq!(o.category, "stdout");
         assert_eq!(o.output, "hello\n");
+    }
+
+    #[test]
+    fn parse_output_decodes_unicode_text() {
+        let raw = r#"{"type":"event","event":"output","body":{"category":"stdout","output":"hello \u6771\ud83d\ude00\n"}}"#;
+        let o = parse_output(&parse_envelope(raw).unwrap().raw);
+        assert_eq!(o.category, "stdout");
+        assert_eq!(o.output, "hello 東😀\n");
     }
 
     #[test]
