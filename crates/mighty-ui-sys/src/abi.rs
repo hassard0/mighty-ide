@@ -6255,6 +6255,13 @@ pub extern "C" fn mui_file_delete_active_confirm(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Warn, format!("Type {name} to delete"));
         return 0;
     }
+    if ctx.tabs.is_dirty(ctx.tabs.active()) {
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Save or discard changes before deleting",
+        );
+        return 0;
+    }
     match std::fs::remove_file(&path) {
         Ok(()) => {
             let idx = ctx.tabs.active();

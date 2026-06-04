@@ -2992,6 +2992,39 @@ fn active_file_delete_requires_exact_basename_confirmation() {
 }
 
 #[test]
+fn active_file_delete_refuses_dirty_buffer_even_with_exact_confirmation() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_active_file_delete_dirty");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("dirty.mty");
+    std::fs::write(&file, "saved\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let idx = ctx.tabs.open_path(file.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("unsaved\n");
+    ctx.tabs.set_dirty(idx, true);
+    crate::abi::sync_active_path(&mut ctx);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.path_stage.extend_from_slice(b"dirty.mty");
+    assert_eq!(crate::mui_file_delete_active_confirm(handle), 0);
+    assert!(ctx.path_stage.is_empty());
+    assert!(file.exists());
+    assert_eq!(ctx.tabs.count(), 2);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(file.as_path()));
+    assert!(ctx.tabs.is_dirty(ctx.tabs.active()));
+    assert_eq!(ctx.tabs.active_model().as_text(), "unsaved\n");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Save or discard changes before deleting");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn delete_prompt_label_names_exact_file_before_confirmation() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_delete_prompt_label");
