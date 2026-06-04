@@ -6427,6 +6427,34 @@ fn editor_undo_history_survives_tab_switches_per_tab() {
 }
 
 #[test]
+fn editor_load_preserving_undo_keeps_format_checkpoint() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_format_undo_reload_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, "fn main() {   \n").unwrap();
+
+    let idx = ctx.tabs.open_path(path.clone());
+    ctx.tabs.switch(idx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_ed_load(h), "fn main() {   \n".len() as i64);
+    crate::mui_ed_undo_record(h);
+    std::fs::write(&path, "fn main() {\n").unwrap();
+
+    assert_eq!(
+        crate::mui_ed_load_preserving_undo(h),
+        "fn main() {\n".len() as i64
+    );
+    assert_eq!(ctx.tabs.active_model().as_text(), "fn main() {\n");
+    assert_eq!(crate::mui_ed_undo(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "fn main() {   \n");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn editor_undo_redo_misses_report_visible_feedback() {
     use crate::{mui_ed_redo, mui_ed_undo};
 
@@ -9218,9 +9246,16 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     let format_run = format_fn
         .find("let ok = mui_format_current(h)")
         .expect("Format Document must still invoke the stateful format ABI");
+    let format_reload = format_fn
+        .find("mui_ed_load_preserving_undo(h)")
+        .expect("Format Document must preserve the pre-format undo checkpoint when reloading");
     assert!(
         format_can < format_undo && format_undo < format_run,
         "Format Document must preflight before adding an undo checkpoint, then run the formatter"
+    );
+    assert!(
+        format_run < format_reload,
+        "Format Document must reload the formatted buffer with undo history intact"
     );
     assert!(
         main.contains("Ctrl+S save / Ctrl+Shift+S Save As"),

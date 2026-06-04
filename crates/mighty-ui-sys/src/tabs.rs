@@ -420,7 +420,14 @@ impl TabStore {
     /// Replace the active tab's model from raw bytes (load / reload from disk).
     pub fn reload_active(&mut self, bytes: &[u8]) {
         let i = self.active.min(self.tabs.len().saturating_sub(1));
-        self.reload_index(i, bytes);
+        self.reload_index(i, bytes, false);
+    }
+
+    /// Replace the active tab from disk while keeping its undo checkpoint stack.
+    /// Used for formatter-style transformations where the reload is the edit.
+    pub fn reload_active_preserving_history(&mut self, bytes: &[u8]) {
+        let i = self.active.min(self.tabs.len().saturating_sub(1));
+        self.reload_index(i, bytes, true);
     }
 
     /// Replace a clean open file-backed tab from disk. Returns:
@@ -432,17 +439,19 @@ impl TabStore {
         if self.is_dirty(i) {
             return Some(false);
         }
-        self.reload_index(i, bytes);
+        self.reload_index(i, bytes, false);
         Some(true)
     }
 
-    fn reload_index(&mut self, i: usize, bytes: &[u8]) {
+    fn reload_index(&mut self, i: usize, bytes: &[u8], preserve_history: bool) {
         let (model, fold, read_only) = model_for_bytes(self.tabs[i].path.as_deref(), bytes);
         self.tabs[i].model = model;
         self.tabs[i].bytes = bytes.to_vec();
         self.tabs[i].dirty = false;
         self.tabs[i].read_only = read_only;
-        self.tabs[i].undo.clear();
+        if !preserve_history {
+            self.tabs[i].undo.clear();
+        }
         self.tabs[i].redo.clear();
         // A fresh buffer: recompute folds and drop any stale folded state.
         self.tabs[i].fold = fold;

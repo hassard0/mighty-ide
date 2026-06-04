@@ -10574,6 +10574,18 @@ pub extern "C" fn mui_ed_set_dirty(handle: i64, dirty: i32) {
 /// resetting the cursor to the top. Returns the byte length, or `-1` on error.
 #[no_mangle]
 pub extern "C" fn mui_ed_load(handle: i64) -> i64 {
+    mui_ed_load_impl(handle, false)
+}
+
+/// Load the active tab's file from disk while keeping undo checkpoints. This is
+/// for in-place editor transformations such as Format Document, where reload is
+/// the post-edit state and the pre-edit checkpoint must stay undoable.
+#[no_mangle]
+pub extern "C" fn mui_ed_load_preserving_undo(handle: i64) -> i64 {
+    mui_ed_load_impl(handle, true)
+}
+
+fn mui_ed_load_impl(handle: i64, preserve_undo: bool) -> i64 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
@@ -10584,13 +10596,21 @@ pub extern "C" fn mui_ed_load(handle: i64) -> i64 {
     }
     let Some(path) = ctx.tabs.active_path() else {
         // No file (scratch tab): keep the empty model.
-        ctx.tabs.reload_active(b"");
+        if preserve_undo {
+            ctx.tabs.reload_active_preserving_history(b"");
+        } else {
+            ctx.tabs.reload_active(b"");
+        }
         return 0;
     };
     match std::fs::read(&path) {
         Ok(bytes) => {
             let n = bytes.len() as i64;
-            ctx.tabs.reload_active(&bytes);
+            if preserve_undo {
+                ctx.tabs.reload_active_preserving_history(&bytes);
+            } else {
+                ctx.tabs.reload_active(&bytes);
+            }
             println!("mui_ed_load: {} ({} bytes)", path.display(), n);
             n
         }

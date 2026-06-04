@@ -67,6 +67,7 @@ extern c {
   fn mui_ed_dirty(handle: I64) -> I32
   fn mui_ed_set_dirty(handle: I64, dirty: I32)
   fn mui_ed_load(handle: I64) -> I64
+  fn mui_ed_load_preserving_undo(handle: I64) -> I64
   fn mui_ed_save(handle: I64) -> I32
   fn mui_active_has_path(handle: I64) -> I32
   fn mui_save_all(handle: I64) -> I32
@@ -5055,7 +5056,7 @@ fn do_format(h: I64) {
     }
     let ok = mui_format_current(h)
     if ok == 1 {
-      let _n = mui_ed_load(h)
+      let _n = mui_ed_load_preserving_undo(h)
       let _r = mui_diag_refresh(h)
     }
   }
