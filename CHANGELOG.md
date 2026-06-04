@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Debugger events read envelope and body scopes separately**: DAP envelope
+  routing now uses only top-level `type`, `event`, `command`, `request_seq`, and
+  `success` fields, while stopped/output/exited event details come from the
+  event `body` object.
 - **Debugger stack and variable responses read body-scoped fields**: DAP
   `stackTrace` and `variables` parsing now reads arrays from the response
   `body` object and row values from each row's top-level fields, so envelope or

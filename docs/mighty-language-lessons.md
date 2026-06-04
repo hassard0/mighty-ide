@@ -10004,3 +10004,17 @@ panel rows with unrelated metadata.
 - **Language note:** no compiler gap surfaced. Debugger transport payloads need
   the same ownership boundary as LSP payloads: envelope fields, response body
   fields, and row fields are separate scopes.
+
+## L819 - Debugger Events Need Envelope and Body Ownership
+
+DAP event envelopes and event bodies can both contain fields named `type`,
+`event`, `command`, `success`, `reason`, `threadId`, `category`, `output`, or
+`exitCode`. Nested metadata with those names should not route events or replace
+event details.
+
+- **IDE note:** DAP envelope parsing now reads routing fields only from the
+  top-level envelope, while stopped/output/exited details are read from the
+  event `body` object's top-level fields.
+- **Language note:** no compiler gap surfaced. Transport routing and event
+  payload interpretation are separate scopes; metadata can describe either one
+  but should not own either one.

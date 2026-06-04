@@ -279,6 +279,17 @@ fn top_level_string_field(bytes: &[u8], field: &[u8]) -> Option<String> {
     read_json_string_at(bytes, j).map(|(s, _)| s)
 }
 
+fn top_level_bool_field(bytes: &[u8], field: &[u8]) -> Option<bool> {
+    let j = top_level_field_value(bytes, field)?;
+    if bytes.get(j..j + 4) == Some(b"true") {
+        Some(true)
+    } else if bytes.get(j..j + 5) == Some(b"false") {
+        Some(false)
+    } else {
+        None
+    }
+}
+
 fn top_level_object_field<'a>(bytes: &'a [u8], field: &[u8]) -> Option<&'a [u8]> {
     let value = top_level_field_value(bytes, field)?;
     if value >= bytes.len() || bytes[value] != b'{' {
@@ -420,22 +431,12 @@ pub fn parse_envelope(text: &str) -> Option<DapEnvelope> {
         None => text,
     };
     let bytes = body.as_bytes();
-    // Search for the KEY form (`"key":`) so we don't match a value that happens
-    // to be the same literal — e.g. `"type":"event"` must not satisfy a search
-    // for the `"event"` key.
-    let kind = read_str_after(bytes, b"\"type\":")?;
-    let command = read_str_after(bytes, b"\"command\":");
-    let event = read_str_after(bytes, b"\"event\":");
-    let request_seq = read_uint_after(bytes, b"\"request_seq\"")
-        .or_else(|| read_uint_after(bytes, b"\"requestSeq\""));
-    // success: scan for the literal token.
-    let success = if find_sub(bytes, b"\"success\":true").is_some() {
-        Some(true)
-    } else if find_sub(bytes, b"\"success\":false").is_some() {
-        Some(false)
-    } else {
-        None
-    };
+    let kind = top_level_string_field(bytes, b"type")?;
+    let command = top_level_string_field(bytes, b"command");
+    let event = top_level_string_field(bytes, b"event");
+    let request_seq =
+        top_level_uint_field(bytes, b"request_seq").or_else(|| top_level_uint_field(bytes, b"requestSeq"));
+    let success = top_level_bool_field(bytes, b"success");
     Some(DapEnvelope {
         kind,
         command,
@@ -457,10 +458,11 @@ pub struct StoppedInfo {
 /// Parse a `stopped` event's body.
 pub fn parse_stopped(raw: &str) -> StoppedInfo {
     let bytes = raw.as_bytes();
+    let body = top_level_object_field(bytes, b"body").unwrap_or(bytes);
     StoppedInfo {
-        reason: read_str_after(bytes, b"\"reason\"").unwrap_or_default(),
-        description: read_str_after(bytes, b"\"description\"").unwrap_or_default(),
-        thread_id: read_uint_after(bytes, b"\"threadId\"").unwrap_or(1),
+        reason: top_level_string_field(body, b"reason").unwrap_or_default(),
+        description: top_level_string_field(body, b"description").unwrap_or_default(),
+        thread_id: top_level_uint_field(body, b"threadId").unwrap_or(1),
     }
 }
 
@@ -474,10 +476,17 @@ pub struct OutputInfo {
 /// Parse an `output` event's body.
 pub fn parse_output(raw: &str) -> OutputInfo {
     let bytes = raw.as_bytes();
+    let body = top_level_object_field(bytes, b"body").unwrap_or(bytes);
     OutputInfo {
-        category: read_str_after(bytes, b"\"category\":").unwrap_or_else(|| "stdout".into()),
-        output: read_str_after(bytes, b"\"output\":").unwrap_or_default(),
+        category: top_level_string_field(body, b"category").unwrap_or_else(|| "stdout".into()),
+        output: top_level_string_field(body, b"output").unwrap_or_default(),
     }
+}
+
+pub fn parse_exit_code(raw: &str) -> i64 {
+    let bytes = raw.as_bytes();
+    let body = top_level_object_field(bytes, b"body").unwrap_or(bytes);
+    top_level_uint_field(body, b"exitCode").unwrap_or(0)
 }
 
 /// One stack frame from a `stackTrace` response.
@@ -1469,7 +1478,7 @@ fn route_inbound(env: &DapEnvelope, events: &Sender<SessionEvent>) {
                 let _ = events.send(SessionEvent::Output(parse_output(&env.raw)));
             }
             Some("exited") => {
-                let code = read_uint_after(env.raw.as_bytes(), b"\"exitCode\"").unwrap_or(0);
+                let code = parse_exit_code(&env.raw);
                 let _ = events.send(SessionEvent::Exited(code));
             }
             _ => {}
@@ -1530,6 +1539,24 @@ mod tests {
     }
 
     #[test]
+    fn parse_envelope_uses_top_level_protocol_fields() {
+        let raw = r#"{
+          "metadata":{"type":"event","event":"wrong","success":false,"request_seq":99},
+          "type":"response",
+          "command":"initialize",
+          "request_seq":4,
+          "success":true,
+          "body":{"type":"event","event":"also wrong"}
+        }"#;
+        let env = parse_envelope(raw).unwrap();
+        assert_eq!(env.kind, "response");
+        assert_eq!(env.command.as_deref(), Some("initialize"));
+        assert_eq!(env.event, None);
+        assert_eq!(env.success, Some(true));
+        assert_eq!(env.request_seq, Some(4));
+    }
+
+    #[test]
     fn parse_stopped_event_body() {
         let raw = r#"{"seq":9,"type":"event","event":"stopped","body":{"reason":"breakpoint","threadId":1,"allThreadsStopped":true}}"#;
         let env = parse_envelope(raw).unwrap();
@@ -1553,6 +1580,26 @@ mod tests {
         let info = parse_stopped(&parse_envelope(raw).unwrap().raw);
         assert_eq!(info.reason, "exception-東");
         assert_eq!(info.description, "café 😀 �X");
+    }
+
+    #[test]
+    fn parse_stopped_uses_body_top_level_fields() {
+        let raw = r#"{
+          "type":"event",
+          "event":"stopped",
+          "reason":"wrong envelope",
+          "threadId":99,
+          "body":{
+            "metadata":{"reason":"wrong nested","description":"wrong desc","threadId":98},
+            "reason":"breakpoint",
+            "description":"right desc",
+            "threadId":2
+          }
+        }"#;
+        let info = parse_stopped(&parse_envelope(raw).unwrap().raw);
+        assert_eq!(info.reason, "breakpoint");
+        assert_eq!(info.description, "right desc");
+        assert_eq!(info.thread_id, 2);
     }
 
     #[test]
@@ -1660,6 +1707,35 @@ mod tests {
         let o = parse_output(&parse_envelope(raw).unwrap().raw);
         assert_eq!(o.category, "stdout");
         assert_eq!(o.output, "hello 東😀\n");
+    }
+
+    #[test]
+    fn parse_output_uses_body_top_level_fields() {
+        let raw = r#"{
+          "type":"event",
+          "event":"output",
+          "category":"stderr",
+          "output":"wrong envelope",
+          "body":{
+            "metadata":{"category":"console","output":"wrong nested"},
+            "category":"stdout",
+            "output":"right body"
+          }
+        }"#;
+        let o = parse_output(&parse_envelope(raw).unwrap().raw);
+        assert_eq!(o.category, "stdout");
+        assert_eq!(o.output, "right body");
+    }
+
+    #[test]
+    fn parse_exit_code_uses_body_top_level_field() {
+        let raw = r#"{
+          "type":"event",
+          "event":"exited",
+          "exitCode":99,
+          "body":{"metadata":{"exitCode":98},"exitCode":7}
+        }"#;
+        assert_eq!(parse_exit_code(&parse_envelope(raw).unwrap().raw), 7);
     }
 
     #[test]
