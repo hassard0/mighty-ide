@@ -147,6 +147,12 @@ fn header_inspect_rect(sidebar_right: f32) -> (f32, f32) {
     (x0, (run_x - x0).max(0.0))
 }
 
+fn header_clear_rect(sidebar_right: f32) -> (f32, f32) {
+    let (inspect_x, _) = header_inspect_rect(sidebar_right);
+    let x0 = (inspect_x - 24.0).max(layout::RAIL_W);
+    (x0, (inspect_x - x0).max(0.0))
+}
+
 fn header_rect_contains(rect: (f32, f32), x: f32, include_right: bool) -> bool {
     let (x0, w) = rect;
     if include_right {
@@ -665,9 +671,22 @@ impl AgentTopology {
             chrome - 2.0,
             clip,
         );
-        // Small header affordances: Inspect (live runtime snapshot) + Run.
+        // Small header affordances: Clear transcript + Inspect snapshot + Run.
         let sidebar_right = sx + sw;
         let icon_y = (head_h - 15.0) * 0.5;
+        let (clear_x, clear_w) = header_clear_rect(sidebar_right);
+        if clear_w >= 15.0 {
+            ctx.dl_icon(
+                clear_x + (clear_w - 15.0) * 0.5,
+                icon_y,
+                15.0,
+                15.0,
+                crate::icons::TRASH,
+                theme::TEXT_3(),
+                1.5,
+                false,
+            );
+        }
         let (inspect_x, inspect_w) = header_inspect_rect(sidebar_right);
         if inspect_w >= 15.0 {
             ctx.dl_icon(
@@ -1010,6 +1029,22 @@ pub extern "C" fn mui_agents_click_is_inspect(handle: i64) -> i32 {
         && header_rect_contains(header_inspect_rect(layout::sidebar_right()), ctx.last_event.x, false)
     {
         crate::abi::trace("agents_click inspect");
+        1
+    } else {
+        0
+    }
+}
+
+/// `1` if the last click landed on the header "Clear run output" affordance.
+#[no_mangle]
+pub extern "C" fn mui_agents_click_is_clear(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.last_event.y <= 40.0
+        && header_rect_contains(header_clear_rect(layout::sidebar_right()), ctx.last_event.x, false)
+    {
+        crate::abi::trace("agents_click clear");
         1
     } else {
         0
@@ -1455,10 +1490,22 @@ mod tests {
         ctx.last_event = crate::ffi::MuiEvent::mouse(
             crate::ffi::MUI_EVENT_MOUSE_DOWN,
             0,
+            right - 68.0,
+            20.0,
+            0,
+        );
+        assert_eq!(mui_agents_click_is_clear(h), 1);
+        assert_eq!(mui_agents_click_is_inspect(h), 0);
+        assert_eq!(mui_agents_click_is_run(h), 0);
+
+        ctx.last_event = crate::ffi::MuiEvent::mouse(
+            crate::ffi::MUI_EVENT_MOUSE_DOWN,
+            0,
             right - 48.0,
             20.0,
             0,
         );
+        assert_eq!(mui_agents_click_is_clear(h), 0);
         assert_eq!(mui_agents_click_is_inspect(h), 1);
         assert_eq!(mui_agents_click_is_run(h), 0);
 
@@ -1469,20 +1516,30 @@ mod tests {
             20.0,
             0,
         );
+        assert_eq!(mui_agents_click_is_clear(h), 0);
         assert_eq!(mui_agents_click_is_inspect(h), 0);
         assert_eq!(mui_agents_click_is_run(h), 1);
     }
 
     #[test]
     fn header_affordance_rects_clamp_inside_sidebar_band() {
-        let right = layout::RAIL_W + 42.0;
+        let right = layout::RAIL_W + 66.0;
         let (run_x, run_w) = header_run_rect(right);
         let (inspect_x, inspect_w) = header_inspect_rect(right);
+        let (clear_x, clear_w) = header_clear_rect(right);
 
+        assert!(clear_x >= layout::RAIL_W);
         assert!(inspect_x >= layout::RAIL_W);
         assert!(run_x >= layout::RAIL_W);
+        assert!(clear_x + clear_w <= inspect_x + 0.5);
         assert!(inspect_x + inspect_w <= run_x + 0.5);
         assert!(run_x + run_w <= right + 0.5);
+        assert!(header_rect_contains((clear_x, clear_w), clear_x + clear_w * 0.5, false));
+        assert!(!header_rect_contains(
+            (clear_x, clear_w),
+            inspect_x + inspect_w * 0.5,
+            false
+        ));
         assert!(header_rect_contains((run_x, run_w), run_x + run_w * 0.5, true));
         assert!(!header_rect_contains(
             (inspect_x, inspect_w),

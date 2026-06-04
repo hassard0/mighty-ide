@@ -8376,3 +8376,13 @@ toolbar-driven, so cleanup should sit beside Run and Stop before row clicks.
   button. The toolbar ABI returns a dedicated clear code, Mighty routes it
   through `mui_test_clear` before result-row navigation, and tests cover hit/miss
   behavior plus dispatcher wiring while preserving the palette command path.
+
+L697. Mighty Agents run transcripts need the same visible cleanup path as the
+other execution panels. The palette command preserves topology, but the Agents
+header already hosts run/inspect controls, so clearing the embedded run output
+belongs there too.
+
+- **IDE note:** the Agents header now includes a compact clear-run-output
+  affordance to the left of Inspect and Run. Mighty routes that header click
+  through `mui_agents_clear_run_output` before topology row navigation, and tests
+  cover the separated header hit zones plus dispatcher wiring.

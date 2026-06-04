@@ -10418,6 +10418,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Agents clear-run-output command must reveal Mighty Agents before clearing its run transcript"
     );
     assert!(
+        main.contains("fn mui_agents_click_is_clear(handle: I64) -> I32")
+            && main.contains("let agents_clear_hit = mui_agents_click_is_clear(h)")
+            && main.contains("if agents_clear_hit == 1 {\n            let _ac = mui_agents_clear_run_output(h)")
+            && main.contains("let a_hit = if agents_clear_hit == 1 || agents_inspect_hit == 1 || agents_run_hit == 1 { 0 - 1 } else { mui_agents_row_at_click(h) }"),
+        "Agents header clear clicks must dispatch before topology row navigation"
+    );
+    assert!(
         main.contains("id == cmd_agents_close()")
             && main.contains("let _ac = mui_agents_close(h)")
             && main.contains("agents_focus = false"),

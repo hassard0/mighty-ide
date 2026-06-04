@@ -621,6 +621,7 @@ extern c {
   fn mui_agents_row_at_click(handle: I64) -> I32
   fn mui_agents_click_is_run(handle: I64) -> I32
   fn mui_agents_click_is_inspect(handle: I64) -> I32
+  fn mui_agents_click_is_clear(handle: I64) -> I32
   fn mui_agents_run(handle: I64) -> I32
   fn mui_agents_running(handle: I64) -> I32
   fn mui_agents_pump(handle: I64) -> I32
@@ -3643,9 +3644,12 @@ fn main() {
             let _q = mui_search_query_len(h)
           }
         } else if agents_focus {
+          let agents_clear_hit = mui_agents_click_is_clear(h)
           let agents_inspect_hit = mui_agents_click_is_inspect(h)
           let agents_run_hit = mui_agents_click_is_run(h)
-          if agents_inspect_hit == 1 {
+          if agents_clear_hit == 1 {
+            let _ac = mui_agents_clear_run_output(h)
+          } else if agents_inspect_hit == 1 {
             let _i = mui_agents_inspect(h)
           } else if agents_run_hit == 1 {
             let _r = mui_agents_run(h)
@@ -3691,8 +3695,24 @@ fn main() {
         } else if cur_panel == panel_agents_mty() {
           // Mighty Agents topology row clicks jump to definitions. Header
           // actions are routed before tab handling because both live at y <= 40.
-          let a_hit = mui_agents_row_at_click(h)
-          if a_hit >= 0 {
+          let agents_clear_hit = mui_agents_click_is_clear(h)
+          let agents_inspect_hit = mui_agents_click_is_inspect(h)
+          let agents_run_hit = mui_agents_click_is_run(h)
+          let a_hit = if agents_clear_hit == 1 || agents_inspect_hit == 1 || agents_run_hit == 1 { 0 - 1 } else { mui_agents_row_at_click(h) }
+          if agents_clear_hit == 1 {
+            let _ac = mui_agents_clear_run_output(h)
+            typing = false
+            find_nav = false
+          } else if agents_inspect_hit == 1 {
+            let _i = mui_agents_inspect(h)
+            typing = false
+            find_nav = false
+          } else if agents_run_hit == 1 {
+            let _r = mui_agents_run(h)
+            agents_focus = false
+            typing = false
+            find_nav = false
+          } else if a_hit >= 0 {
             let _j = mui_agents_open_node(h, a_hit)
             typing = false
           }
