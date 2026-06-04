@@ -9214,3 +9214,17 @@ overlay appears but the next event can still belong to the old surface.
 - **Language note:** no compiler gap surfaced. This is another route-parity
   issue: remappable command rows, direct shortcuts, and focused-mode escape
   hatches all need the same ownership side effects.
+
+## L764 - Early Chrome Guards Need Full Focus Cleanup
+
+Some chrome clicks intentionally run before the normal mouse router so a first
+click on titlebar/dock controls wins over editor, completion, or panel focus.
+That early path still needs the same focus cleanup as the later router branch.
+
+- **IDE note:** early bottom-dock close/preset/resize, sidebar resize, Web
+  header, and titlebar Run/Palette/Quick Open routes now clear stale
+  AI/Agents/search focus in addition to dock focus. Source-contract coverage
+  pins the early guard separately from the normal mouse router.
+- **Language note:** no compiler gap surfaced. The repeated lesson is that
+  priority guards are separate routes, not just aliases for the main branch, so
+  their ownership effects need separate coverage.

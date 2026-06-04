@@ -10588,6 +10588,89 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("chrome_click_allowed && mui_sidebar_resize_at_click(h) == 1"),
         "manual resize/header controls must not steal clicks while prompts or modal overlays are open"
     );
+    for (start_marker, end_marker) in [
+        (
+            "chrome_click_allowed && mui_bottom_dock_close_at_click(h) == 1",
+            "} else if tag == ev_mouse_down() && chrome_click_allowed && mui_bottom_dock_preset_at_click(h) > 0",
+        ),
+        (
+            "chrome_click_allowed && mui_bottom_dock_preset_at_click(h) > 0",
+            "} else if tag == ev_mouse_down() && chrome_click_allowed && web_header_click > 0",
+        ),
+        (
+            "chrome_click_allowed && mui_bottom_dock_resize_at_click(h) == 1",
+            "} else if tag == ev_mouse_down() && chrome_click_allowed && mui_sidebar_resize_at_click(h) == 1",
+        ),
+        (
+            "chrome_click_allowed && mui_sidebar_resize_at_click(h) == 1",
+            "} else if tag == ev_mouse_down() && chrome_click_allowed && mui_topbar_action_at_click(h) > 0",
+        ),
+        (
+            "topbar_early == 2",
+            "} else if topbar_early == 3",
+        ),
+        (
+            "topbar_early == 3",
+            "\n        }\n      } else if tag == ev_mouse_down() && mui_toast_click(h) == 1",
+        ),
+    ] {
+        let start = main
+            .find(start_marker)
+            .unwrap_or_else(|| panic!("missing early chrome branch `{start_marker}`"));
+        let end = main[start..]
+            .find(end_marker)
+            .map(|i| start + i)
+            .unwrap_or_else(|| panic!("missing end marker for early chrome branch `{start_marker}`"));
+        let branch = &main[start..end];
+        for needle in [
+            "run_focus = false",
+            "web_focus = false",
+            "test_focus = false",
+            "term_focus = false",
+            "ai_focus = false",
+            "agents_focus = false",
+            "find_nav = false",
+        ] {
+            assert!(
+                branch.contains(needle),
+                "early chrome branch `{start_marker}` must include `{needle}`"
+            );
+        }
+    }
+    for (start_marker, end_marker, owned_focus) in [
+        (
+            "chrome_click_allowed && web_header_click > 0",
+            "} else if tag == ev_mouse_down() && chrome_click_allowed && mui_bottom_dock_resize_at_click(h) == 1",
+            "web_focus = true",
+        ),
+        (
+            "topbar_early == 1",
+            "} else if topbar_early == 2",
+            "run_focus = true",
+        ),
+    ] {
+        let start = main
+            .find(start_marker)
+            .unwrap_or_else(|| panic!("missing early chrome branch `{start_marker}`"));
+        let end = main[start..]
+            .find(end_marker)
+            .map(|i| start + i)
+            .unwrap_or_else(|| panic!("missing end marker for early chrome branch `{start_marker}`"));
+        let branch = &main[start..end];
+        for needle in [
+            owned_focus,
+            "test_focus = false",
+            "term_focus = false",
+            "ai_focus = false",
+            "agents_focus = false",
+            "find_nav = false",
+        ] {
+            assert!(
+                branch.contains(needle),
+                "early chrome owner branch `{start_marker}` must include `{needle}`"
+            );
+        }
+    }
     assert!(
         main.contains("if shift_held(mods) {\n            let sr = mui_save_as_dialog(h)"),
         "Ctrl+Shift+S should force the native Save As dialog even for file-backed tabs"

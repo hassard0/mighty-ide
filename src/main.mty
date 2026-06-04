@@ -1520,6 +1520,9 @@ fn main() {
         web_focus = false
         test_focus = false
         term_focus = false
+        ai_focus = false
+        agents_focus = false
+        find_nav = false
       } else if tag == ev_mouse_down() && chrome_click_allowed && mui_bottom_dock_preset_at_click(h) > 0 {
         dock_resizing = false
         sidebar_resizing = false
@@ -1527,12 +1530,18 @@ fn main() {
         web_focus = false
         test_focus = false
         term_focus = false
+        ai_focus = false
+        agents_focus = false
+        find_nav = false
       } else if tag == ev_mouse_down() && chrome_click_allowed && web_header_click > 0 {
         dock_resizing = false
         sidebar_resizing = false
         run_focus = false
         test_focus = false
         term_focus = false
+        ai_focus = false
+        agents_focus = false
+        find_nav = false
         if web_header_click == 1 {
           let _wst = mui_web_stop(h)
         } else if web_header_click == 2 {
@@ -1551,6 +1560,9 @@ fn main() {
         web_focus = false
         test_focus = false
         term_focus = false
+        ai_focus = false
+        agents_focus = false
+        find_nav = false
       } else if tag == ev_mouse_down() && chrome_click_allowed && mui_sidebar_resize_at_click(h) == 1 {
         sidebar_resizing = true
         dock_resizing = false
@@ -1559,6 +1571,9 @@ fn main() {
         web_focus = false
         test_focus = false
         term_focus = false
+        ai_focus = false
+        agents_focus = false
+        find_nav = false
       } else if tag == ev_mouse_down() && chrome_click_allowed && mui_topbar_action_at_click(h) > 0 {
         // Top-bar command access must win over editor/completion/panel focus. A
         // human click on More or the command-center pill should never leave the
@@ -1576,6 +1591,8 @@ fn main() {
           test_focus = false
           term_focus = false
           ai_focus = false
+          agents_focus = false
+          find_nav = false
           typing = false
         } else if topbar_early == 2 {
           mui_palette_open(h)
@@ -1586,6 +1603,9 @@ fn main() {
           web_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if topbar_early == 3 {
           mui_quickopen_open(h)
           quickopen_open = true
@@ -1595,6 +1615,9 @@ fn main() {
           web_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         }
       } else if tag == ev_mouse_down() && mui_toast_click(h) == 1 {
         // Toasts draw on the overlay layer, so a toast click dismisses it before
