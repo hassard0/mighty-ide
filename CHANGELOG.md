@@ -41,9 +41,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   bleed from the previous tab before the next diagnostics refresh.
 - **Tab switches close stale language popups**: active-file sync now also clears
   hover, definition, signature-help, completion, rename, snippet tab-stops,
-  code-action, and quick-fix lightbulb state, closes inline peek cards, and
-  dismisses breadcrumb menus, so transient language UI cannot follow the wrong
-  tab.
+  inline AI ghost text, code-action, and quick-fix lightbulb state, closes
+  inline peek cards, and dismisses breadcrumb menus, so transient language UI
+  cannot follow the wrong tab.
 - **Tab switches clear stale Outline symbols**: active-file sync now invalidates
   the cached document-symbol list so Outline and Sticky Scroll cannot show
   symbol rows from the previous file before the next refresh.
