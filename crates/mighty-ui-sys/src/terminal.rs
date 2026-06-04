@@ -561,6 +561,18 @@ impl Grid {
         self.tab_stops.fill(false);
     }
 
+    fn screen_alignment_test(&mut self) {
+        for cell in &mut self.cells {
+            *cell = Cell {
+                ch: 'E',
+                fg: self.cur_fg,
+                bg: self.cur_bg,
+            };
+        }
+        self.cur_row = 0;
+        self.cur_col = 0;
+    }
+
     /// All visible cells as text rows joined by '\n' (test/debug helper).
     #[cfg(test)]
     pub fn to_text(&self) -> String {
@@ -598,6 +610,9 @@ enum State {
     Ground,
     /// Saw `ESC`; waiting for the next byte to decide CSI / OSC / other.
     Escape,
+    /// Saw `ESC` plus an intermediate byte like `(`, `)`, or `#`; waiting for
+    /// the final byte to consume charset selects and similar two-byte escapes.
+    EscapeIntermediate,
     /// Inside a CSI (`ESC [`); collecting parameter/intermediate bytes until a
     /// final byte (0x40..=0x7e).
     Csi,
@@ -617,6 +632,8 @@ pub struct VtParser {
     state: State,
     /// Accumulated CSI parameter/intermediate bytes (between `ESC [` and final).
     csi: Vec<u8>,
+    /// ESC intermediate byte for non-CSI escape sequences such as `ESC ( B`.
+    esc_intermediate: u8,
     /// Partial UTF-8 sequence being decoded in Ground state.
     utf8: Vec<u8>,
     /// How many continuation bytes remain for the in-progress UTF-8 char.
@@ -656,6 +673,7 @@ impl VtParser {
         VtParser {
             state: State::Ground,
             csi: Vec::new(),
+            esc_intermediate: 0,
             utf8: Vec::new(),
             utf8_need: 0,
             reply: Vec::new(),
@@ -708,6 +726,7 @@ impl VtParser {
         match self.state {
             State::Ground => self.ground(grid, b),
             State::Escape => self.escape(grid, b),
+            State::EscapeIntermediate => self.escape_intermediate(grid, b),
             State::Csi => self.csi(grid, b),
             State::Osc => self.osc(b),
             State::OscEsc => self.osc_esc(b),
@@ -793,6 +812,10 @@ impl VtParser {
             }
             b']' => self.state = State::Osc,
             b'P' | b'X' | b'^' | b'_' => self.state = State::String,
+            0x20..=0x2f => {
+                self.esc_intermediate = b;
+                self.state = State::EscapeIntermediate;
+            }
             // `ESC c` full reset — clear the grid.
             b'c' => {
                 grid.clear();
@@ -824,9 +847,30 @@ impl VtParser {
                 self.restore_cursor(grid);
                 self.state = State::Ground;
             }
-            // Other two-byte escapes (e.g. `ESC =`, `ESC >`, charset selects):
-            // consume the single byte and return to ground.
+            // Other two-byte escapes (e.g. `ESC =`, `ESC >`): consume the
+            // single byte and return to ground.
             _ => self.state = State::Ground,
+        }
+    }
+
+    fn escape_intermediate(&mut self, grid: &mut Grid, b: u8) {
+        match b {
+            0x18 | 0x1a => self.state = State::Ground,
+            0x1b => self.state = State::Escape,
+            0x20..=0x2f => {
+                self.esc_intermediate = b;
+            }
+            0x30..=0x7e => {
+                if self.esc_intermediate == b'#' && b == b'8' {
+                    grid.screen_alignment_test();
+                }
+                self.esc_intermediate = 0;
+                self.state = State::Ground;
+            }
+            _ => {
+                self.esc_intermediate = 0;
+                self.state = State::Ground;
+            }
         }
     }
 
@@ -2321,6 +2365,20 @@ mod tests {
 
         let g3 = grid_feed(3, 6, b"aa\nbb\ncc\x1b[2;3H\x1bMR");
         assert_eq!(g3.to_text(), "aaR   \nbb    \ncc    ");
+    }
+
+    #[test]
+    fn esc_intermediate_charset_selects_do_not_leak_final_bytes() {
+        let g = grid_feed(1, 8, b"A\x1b(BZ");
+        assert_eq!(g.to_text(), "AZ      ");
+        assert!(!g.contains("(B"));
+    }
+
+    #[test]
+    fn esc_screen_alignment_fills_grid_without_leaking_sequence() {
+        let g = grid_feed(2, 4, b"abc\x1b#8");
+        assert_eq!(g.to_text(), "EEEE\nEEEE");
+        assert!(!g.contains("#8"));
     }
 
     #[test]

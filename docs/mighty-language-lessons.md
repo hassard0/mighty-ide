@@ -7739,3 +7739,13 @@ programs can distinguish those Meta chords only when the ESC prefix is preserved
 - **IDE note:** `key_to_bytes` now maps Alt+Enter to `ESC CR` and Alt+Tab to
   `ESC TAB`, while plain Enter/Tab and Shift+Tab keep their existing encodings.
   Regression assertions cover all affected forms.
+
+L634. ESC intermediates must consume their final byte. Charset selectors like
+`ESC ( B` and screen-alignment sequences like `ESC # 8` include an intermediate
+byte before the final. Consuming only the intermediate returns the parser to
+ground too early and leaks the final byte into the visible terminal grid.
+
+- **IDE note:** the VT parser now has an ESC-intermediate state. Charset
+  selectors are consumed without drawing their final byte, and `ESC # 8`
+  performs DEC screen alignment by filling the grid with `E`. Regression tests
+  cover both paths.
