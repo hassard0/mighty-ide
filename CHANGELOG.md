@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **AI clear-chat reveals Copilot before clearing**: `AI: Clear Chat` now opens
+  the AI Copilot panel before resetting the transcript and composer, so the
+  command result is visible immediately.
 - **Problems clearing reveals the diagnostic list**: `Problems: Clear
   Diagnostics` now opens the Problems panel before clearing diagnostics, keeping
   the command result, toast feedback, and next focus target visible.

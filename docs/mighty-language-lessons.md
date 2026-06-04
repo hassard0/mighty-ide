@@ -8492,3 +8492,13 @@ the diagnostic model while leaving the user elsewhere in the IDE.
   before calling `mui_problems_clear`. Mighty also clears transient find/Agents
   focus so the bottom-dock Problems surface owns the next interaction after the
   diagnostics are emptied.
+
+## L707 - AI Transcript Commands Should Reveal Copilot
+
+Clearing an AI conversation changes the transcript and composer state that live
+inside the Copilot drawer. A command-palette clear should make that drawer
+visible before the transcript disappears, matching the local header action.
+
+- **IDE note:** `AI: Clear Chat` now calls `mui_ai_show` before
+  `mui_ai_clear`. The command keeps AI focus and leaves typing disabled so the
+  Copilot surface owns the next input after the transcript reset.

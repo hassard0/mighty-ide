@@ -10820,6 +10820,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Web close command must use the Web-specific close ABI and release Web focus"
     );
     assert!(
+        main.contains(
+            "id == cmd_ai_clear_chat() {\n          let _ai = mui_ai_show(h)\n          let _aic = mui_ai_clear(h)"
+        )
+            && main.contains("ai_focus = true"),
+        "AI clear-chat command must reveal Copilot before clearing the transcript"
+    );
+    assert!(
         main.contains("ai_click == 4")
             && main.contains("let _aic = mui_ai_clear(h)")
             && main.find("ai_click == 4") < main.find("} else if ai_click == 2"),

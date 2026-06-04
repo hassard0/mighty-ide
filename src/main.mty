@@ -4752,6 +4752,7 @@ fn main() {
           let _snc = mui_snippet_cancel(h)
           typing = false
         } else if id == cmd_ai_clear_chat() {
+          let _ai = mui_ai_show(h)
           let _aic = mui_ai_clear(h)
           ai_focus = true
           typing = false
