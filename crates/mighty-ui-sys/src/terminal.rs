@@ -911,6 +911,8 @@ impl VtParser {
                     // Device Status Report. ConPTY emits `ESC[6n` at startup and
                     // blocks until answered, so we must reply.
                     self.handle_dsr(grid);
+                } else if b == b'c' {
+                    self.handle_device_attributes();
                 } else if b == b'@' {
                     self.insert_chars(grid);
                 } else if b == b'J' {
@@ -1403,6 +1405,17 @@ impl VtParser {
                 let report = format!("\x1b[{};{}R", r + 1, c + 1);
                 self.reply.extend_from_slice(report.as_bytes());
             }
+            _ => {}
+        }
+    }
+
+    /// Answer Device Attributes queries (`ESC [ c` / `ESC [ > c`) with minimal
+    /// VT-compatible identity replies so probing terminal apps do not wait.
+    fn handle_device_attributes(&mut self) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        match params {
+            "" | "0" => self.reply.extend_from_slice(b"\x1b[?1;2c"),
+            ">" | ">0" => self.reply.extend_from_slice(b"\x1b[>0;0;0c"),
             _ => {}
         }
     }
@@ -2802,6 +2815,24 @@ mod tests {
         let mut p = VtParser::new();
         p.feed(&mut g, b"\x1b[5n");
         assert_eq!(p.take_reply(), b"\x1b[0n");
+    }
+
+    #[test]
+    fn device_attributes_queries_are_answered() {
+        let mut g = Grid::new(2, 10);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b[c");
+        assert_eq!(p.take_reply(), b"\x1b[?1;2c");
+        assert!(!g.contains("[c"));
+
+        p.feed(&mut g, b"\x1b[0c");
+        assert_eq!(p.take_reply(), b"\x1b[?1;2c");
+
+        p.feed(&mut g, b"\x1b[>c");
+        assert_eq!(p.take_reply(), b"\x1b[>0;0;0c");
+
+        p.feed(&mut g, b"\x1b[>0c");
+        assert_eq!(p.take_reply(), b"\x1b[>0;0;0c");
     }
 
     #[test]

@@ -7749,3 +7749,13 @@ ground too early and leaks the final byte into the visible terminal grid.
   selectors are consumed without drawing their final byte, and `ESC # 8`
   performs DEC screen alignment by filling the grid with `E`. Regression tests
   cover both paths.
+
+L635. Terminal capability probes need replies, not silent consumption. Device
+Attributes queries (`CSI c` and `CSI > c`) are common startup probes; swallowing
+them without a response can leave probing applications waiting or force them
+into degraded fallback behavior.
+
+- **IDE note:** the VT parser now queues minimal primary and secondary DA
+  replies (`CSI ?1;2c` and `CSI >0;0;0c`). Regression tests cover empty/zero
+  primary queries and secondary `>`/`>0` forms without leaking query bytes into
+  the grid.
