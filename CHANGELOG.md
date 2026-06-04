@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Workspace recents compare folder identity**: recent workspace de-duplication
+  and stale-folder removal now canonicalize folder paths and use Windows
+  slash/case fallback, keeping Open Recent from listing equivalent folders twice.
 - **Recent files track rename and delete**: file rename now removes the old path
   before recording the new one, and file delete removes the deleted path
   immediately, so Quick Open and Welcome recents stay actionable.

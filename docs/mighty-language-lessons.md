@@ -10536,3 +10536,17 @@ MRU immediately so Quick Open and Welcome do not offer stale targets.
 - **Language note:** no compiler gap surfaced. Persistence side effects should
   be part of the same state transition as the filesystem mutation; delayed
   pruning is a fallback, not the primary consistency mechanism.
+
+## L857 - Workspace Recents Need Folder Equivalence
+
+Recent workspace folders have the same identity problem as recent files: the
+same directory can be typed or returned by dialogs with dot segments, alternate
+separators, or different Windows casing.
+
+- **IDE note:** recent workspace record and remove operations now compare
+  folders by canonical path, with Windows-only slash/case fallback. Opening or
+  pruning an equivalent folder no longer leaves duplicate or stale Open Recent
+  rows.
+- **Language note:** no compiler gap surfaced. MRU de-duplication should use
+  the identity semantics of the resource being listed, not the display string
+  that happened to reach the API.
