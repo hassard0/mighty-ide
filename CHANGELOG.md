@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Completion labels read result item fields**: semantic completion scraping now
+  reads labels from the JSON-RPC `result` array or `result.items`, and only from
+  each CompletionItem's top-level `label`, so metadata labels cannot pollute the
+  autocomplete dropdown.
 - **Workspace document changes read entry-scoped edits**: LSP
   `documentChanges` parsing now reads `textDocument.uri`, `edits`, `newText`,
   and range coordinates from each owning object, so nested metadata cannot

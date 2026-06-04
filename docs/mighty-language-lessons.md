@@ -10032,3 +10032,16 @@ apply the wrong coordinates.
 - **Language note:** no compiler gap surfaced. Workspace edits are nested
   ownership trees; parsing should descend through the specific owner at each
   level instead of scanning sibling or metadata subtrees.
+
+## L821 - Completion Lists Need Item-Scoped Labels
+
+LSP completion responses can include envelope metadata, `CompletionList`
+metadata, and per-item metadata with fields named `label`. Broad label scans
+can show non-completion metadata in the autocomplete dropdown.
+
+- **IDE note:** semantic completion scraping now reads labels only from the
+  JSON-RPC `result` array or `result.items`, then only from each CompletionItem
+  object's top-level `label` field.
+- **Language note:** no compiler gap surfaced. Even lightweight scrapers need to
+  establish the payload owner first; display rows should come from row objects,
+  not every matching key in the response.

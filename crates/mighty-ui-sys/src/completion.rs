@@ -701,28 +701,213 @@ pub mod lsp {
         crate::nav::path_to_file_uri(path)
     }
 
-    /// Scrape `"label":"..."` values out of a JSON blob. Returns labels in the
-    /// order seen, deduped. A deliberately small scanner: completion responses
-    /// put the insert text in `label`, which is all the dropdown needs.
+    /// Scrape `CompletionItem.label` values out of a JSON blob. Returns labels
+    /// in result order, deduped. Handles both `result: [items...]` and
+    /// `result: { items: [items...] }`, plus a bare item array for tests.
     pub fn scrape_labels(json: &str) -> Vec<String> {
         let mut out: Vec<String> = Vec::new();
         let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
         let bytes = json.as_bytes();
-        let key = b"\"label\"";
-        let mut i = 0;
-        while i + key.len() < bytes.len() {
-            if &bytes[i..i + key.len()] == key {
-                if let Some((val, past)) = read_json_string_at(bytes, i + key.len()) {
-                    if !val.is_empty() && seen.insert(val.clone()) {
-                        out.push(val);
+        for items in completion_items_regions(bytes) {
+            for item in split_top_level_objects(items) {
+                let Some(label_at) = top_level_field_value_start(item, b"label") else {
+                    continue;
+                };
+                let Some((val, _past)) = read_json_string_at(item, label_at) else {
+                    continue;
+                };
+                if !val.is_empty() && seen.insert(val.clone()) {
+                    out.push(val);
+                }
+            }
+        }
+        out
+    }
+
+    fn completion_items_regions(bytes: &[u8]) -> Vec<&[u8]> {
+        if bytes.first() == Some(&b'[') {
+            return vec![bytes];
+        }
+        let mut out = Vec::new();
+        let mut i = 0usize;
+        while i < bytes.len() {
+            if bytes[i] == b'{' {
+                let end = match_delim(bytes, i, b'{', b'}').min(bytes.len());
+                if let Some(items) = completion_items_region(&bytes[i..end]) {
+                    out.push(items);
+                }
+                i = end;
+            } else {
+                i += 1;
+            }
+        }
+        out
+    }
+
+    fn completion_items_region(obj: &[u8]) -> Option<&[u8]> {
+        let payload = if obj.first() == Some(&b'{') {
+            if let Some(result_at) = top_level_field_value_start(obj, b"result") {
+                value_region(obj, result_at)?
+            } else {
+                obj
+            }
+        } else {
+            obj
+        };
+
+        completion_items_from_payload(payload)
+    }
+
+    fn completion_items_from_payload(payload: &[u8]) -> Option<&[u8]> {
+        if payload.first() == Some(&b'[') {
+            return Some(payload);
+        }
+        if payload.first() == Some(&b'{') {
+            let items_at = top_level_field_value_start(payload, b"items")?;
+            let items = value_region(payload, items_at)?;
+            if items.first() == Some(&b'[') {
+                return Some(items);
+            }
+        }
+        None
+    }
+
+    fn value_region(bytes: &[u8], start: usize) -> Option<&[u8]> {
+        if start >= bytes.len() {
+            return None;
+        }
+        let end = match bytes[start] {
+            b'{' => match_delim(bytes, start, b'{', b'}'),
+            b'[' => match_delim(bytes, start, b'[', b']'),
+            b'"' => read_json_string_at(bytes, start).map(|(_, end)| end).unwrap_or(bytes.len()),
+            _ => {
+                let mut i = start;
+                while i < bytes.len() && !matches!(bytes[i], b',' | b'}' | b']') {
+                    i += 1;
+                }
+                i
+            }
+        };
+        Some(&bytes[start..end.min(bytes.len())])
+    }
+
+    fn split_top_level_objects(arr: &[u8]) -> Vec<&[u8]> {
+        let mut out = Vec::new();
+        let mut depth = 0i32;
+        let mut obj_start: Option<usize> = None;
+        let mut in_str = false;
+        let mut esc = false;
+        for (k, &c) in arr.iter().enumerate() {
+            if in_str {
+                if esc {
+                    esc = false;
+                } else if c == b'\\' {
+                    esc = true;
+                } else if c == b'"' {
+                    in_str = false;
+                }
+                continue;
+            }
+            match c {
+                b'"' => in_str = true,
+                b'{' => {
+                    if depth == 0 {
+                        obj_start = Some(k);
+                    }
+                    depth += 1;
+                }
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        if let Some(start) = obj_start.take() {
+                            out.push(&arr[start..=k]);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        out
+    }
+
+    fn top_level_field_value_start(obj: &[u8], field: &[u8]) -> Option<usize> {
+        let mut depth = 0i32;
+        let mut i = 0usize;
+        while i < obj.len() {
+            match obj[i] {
+                b'{' | b'[' => {
+                    depth += 1;
+                    i += 1;
+                }
+                b'}' | b']' => {
+                    depth -= 1;
+                    i += 1;
+                }
+                b'"' => {
+                    let key_start = i + 1;
+                    let past = skip_json_string(obj, i)?;
+                    let key_end = past.checked_sub(1)?;
+                    if depth == 1 && key_end >= key_start && &obj[key_start..key_end] == field {
+                        let mut value_at = past;
+                        while value_at < obj.len()
+                            && matches!(obj[value_at], b' ' | b':' | b'\t' | b'\r' | b'\n')
+                        {
+                            value_at += 1;
+                        }
+                        return Some(value_at);
                     }
                     i = past;
-                    continue;
                 }
+                _ => i += 1,
+            }
+        }
+        None
+    }
+
+    fn skip_json_string(bytes: &[u8], quote: usize) -> Option<usize> {
+        let mut i = quote + 1;
+        let mut esc = false;
+        while i < bytes.len() {
+            if esc {
+                esc = false;
+            } else if bytes[i] == b'\\' {
+                esc = true;
+            } else if bytes[i] == b'"' {
+                return Some(i + 1);
             }
             i += 1;
         }
-        out
+        None
+    }
+
+    fn match_delim(bytes: &[u8], open: usize, o: u8, c: u8) -> usize {
+        let mut depth = 0i32;
+        let mut in_str = false;
+        let mut esc = false;
+        let mut k = open;
+        while k < bytes.len() {
+            let b = bytes[k];
+            if in_str {
+                if esc {
+                    esc = false;
+                } else if b == b'\\' {
+                    esc = true;
+                } else if b == b'"' {
+                    in_str = false;
+                }
+            } else if b == b'"' {
+                in_str = true;
+            } else if b == o {
+                depth += 1;
+            } else if b == c {
+                depth -= 1;
+                if depth == 0 {
+                    return k + 1;
+                }
+            }
+            k += 1;
+        }
+        bytes.len()
     }
 
     fn read_json_string_at(bytes: &[u8], pos: usize) -> Option<(String, usize)> {
@@ -989,9 +1174,8 @@ pub mod lsp {
         };
 
         let text = String::from_utf8_lossy(&raw);
-        // Scrape `label` values from the response stream. The completion result
-        // (id:2) is the only message with `label` fields; the initialize result
-        // has none, so the whole-blob scrape yields exactly the candidate labels.
+        // Scrape labels from the completion result payload only; envelope or
+        // item metadata labels are not completion candidates.
         scrape_labels(&text)
     }
 
@@ -1438,6 +1622,39 @@ mod tests {
         let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"foo","kind":3},{"label":"bar"},{"label":"foo"}]}"#;
         let labels = super::lsp::scrape_labels(json);
         assert_eq!(labels, vec!["foo".to_string(), "bar".to_string()]);
+    }
+
+    #[test]
+    fn lsp_scrape_labels_reads_completion_list_items() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":{"isIncomplete":false,"items":[{"label":"foo"},{"label":"bar"}]}}"#;
+        let labels = super::lsp::scrape_labels(json);
+        assert_eq!(labels, vec!["foo".to_string(), "bar".to_string()]);
+    }
+
+    #[test]
+    fn lsp_scrape_labels_skips_non_completion_results_in_stream() {
+        let json = r#"{"jsonrpc":"2.0","id":1,"result":{"capabilities":{"label":"wrong capability"}}}
+{"jsonrpc":"2.0","id":2,"result":[{"label":"foo"},{"label":"bar"}]}"#;
+        let labels = super::lsp::scrape_labels(json);
+        assert_eq!(labels, vec!["foo".to_string(), "bar".to_string()]);
+    }
+
+    #[test]
+    fn lsp_scrape_labels_uses_result_item_top_level_labels() {
+        let json = r#"{
+          "jsonrpc":"2.0",
+          "metadata":{"result":[{"label":"wrong envelope"}],"items":[{"label":"wrong items"}]},
+          "result":{
+            "metadata":{"items":[{"label":"wrong nested items"}]},
+            "items":[
+              {"metadata":{"label":"wrong item"},"label":"right"},
+              {"labelDetails":{"label":"wrong details"},"label":"next"}
+            ]
+          },
+          "id":2
+        }"#;
+        let labels = super::lsp::scrape_labels(json);
+        assert_eq!(labels, vec!["right".to_string(), "next".to_string()]);
     }
 
     #[test]
