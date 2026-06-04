@@ -40,6 +40,9 @@ pub enum Segment {
     /// A VS Code-style snippet variable such as `$TM_FILENAME` or
     /// `${TM_FILENAME_BASE:default}`.
     Variable { name: String, default: Option<String>, braced: bool },
+    /// A focused VS Code-style variable transform, such as
+    /// `${TM_FILENAME_BASE/(.*)/${1:/pascalcase}/}`.
+    VariableTransform { name: String, modifier: String },
     /// A tab-stop: its number (`0` is the final cursor) and placeholder text
     /// (empty when the body used the bare `$N` form).
     Stop { num: u32, placeholder: String },
@@ -106,6 +109,12 @@ pub fn parse_body(body: &str) -> Vec<Segment> {
                 if let Some((num, placeholder, consumed)) = parse_braced(&chars[i..]) {
                     flush(&mut segs, &mut text);
                     segs.push(Segment::Stop { num, placeholder });
+                    i += consumed;
+                    continue;
+                }
+                if let Some((name, modifier, consumed)) = parse_braced_variable_transform(&chars[i..]) {
+                    flush(&mut segs, &mut text);
+                    segs.push(Segment::VariableTransform { name, modifier });
                     i += consumed;
                     continue;
                 }
@@ -213,6 +222,62 @@ fn parse_braced_variable(chars: &[char]) -> Option<(String, Option<String>, usiz
     }
 }
 
+fn parse_braced_variable_transform(chars: &[char]) -> Option<(String, String, usize)> {
+    debug_assert!(chars[0] == '$' && chars.get(1) == Some(&'{'));
+    let mut j = 2;
+    if j >= chars.len() || !is_variable_start(chars[j]) {
+        return None;
+    }
+    j += 1;
+    while j < chars.len() && is_variable_char(chars[j]) {
+        j += 1;
+    }
+    let name: String = chars[2..j].iter().collect();
+    if chars.get(j) != Some(&'/') {
+        return None;
+    }
+    j += 1;
+    while j < chars.len() {
+        if chars[j] == '\\' && j + 1 < chars.len() {
+            j += 2;
+        } else if chars[j] == '/' {
+            j += 1;
+            break;
+        } else {
+            j += 1;
+        }
+    }
+    if chars.get(j) != Some(&'$') || chars.get(j + 1) != Some(&'{') {
+        return None;
+    }
+    j += 2;
+    let digit_start = j;
+    while j < chars.len() && chars[j].is_ascii_digit() {
+        j += 1;
+    }
+    if j == digit_start || chars.get(j) != Some(&':') || chars.get(j + 1) != Some(&'/') {
+        return None;
+    }
+    j += 2;
+    let modifier_start = j;
+    while j < chars.len() && chars[j].is_ascii_alphabetic() {
+        j += 1;
+    }
+    if j == modifier_start || chars.get(j) != Some(&'}') || chars.get(j + 1) != Some(&'/') {
+        return None;
+    }
+    let modifier: String = chars[modifier_start..j].iter().collect();
+    j += 2;
+    while j < chars.len() && chars[j] != '}' {
+        j += 1;
+    }
+    if chars.get(j) == Some(&'}') {
+        Some((name, modifier, j + 1))
+    } else {
+        None
+    }
+}
+
 fn parse_placeholder_text(chars: &[char]) -> Option<(String, usize)> {
     let mut text = String::new();
     let mut j = 0;
@@ -222,6 +287,9 @@ fn parse_placeholder_text(chars: &[char]) -> Option<(String, usize)> {
             '$' if chars.get(j + 1) == Some(&'{') => {
                 if let Some((_, placeholder, consumed)) = parse_braced(&chars[j..]) {
                     text.push_str(&placeholder);
+                    j += consumed;
+                } else if let Some((_, _, consumed)) = parse_braced_variable_transform(&chars[j..]) {
+                    text.extend(chars[j..j + consumed].iter());
                     j += consumed;
                 } else if let Some((_, _, consumed)) = parse_braced_variable(&chars[j..]) {
                     text.extend(chars[j..j + consumed].iter());
@@ -461,6 +529,12 @@ pub fn expand_with_context(
                     .unwrap_or_else(|| unresolved_variable_literal(name, *braced));
                 emit(&value, &mut text, &mut line, &mut col);
             }
+            Segment::VariableTransform { name, modifier } => {
+                let value = resolve_snippet_variable(name, context)
+                    .map(|value| apply_variable_modifier(&value, modifier))
+                    .unwrap_or_else(|| unresolved_variable_literal(name, true));
+                emit(&value, &mut text, &mut line, &mut col);
+            }
             Segment::Stop { num, placeholder } => {
                 let start = (line, col);
                 let placeholder = resolve_variables_in_text(placeholder, context);
@@ -483,6 +557,17 @@ fn resolve_variables_in_text(text: &str, context: &SnippetContext) -> String {
     let mut i = 0;
     while i < chars.len() {
         if chars[i] == '$' && chars.get(i + 1) == Some(&'{') {
+            if let Some((name, modifier, consumed)) =
+                parse_braced_variable_transform(&chars[i..])
+            {
+                if let Some(value) = resolve_snippet_variable(&name, context) {
+                    out.push_str(&apply_variable_modifier(&value, &modifier));
+                } else {
+                    out.push_str(&unresolved_variable_literal(&name, true));
+                }
+                i += consumed;
+                continue;
+            }
             if let Some((name, default, consumed)) = parse_braced_variable(&chars[i..]) {
                 if let Some(value) =
                     resolve_variable_with_default(&name, default.as_deref(), context)
@@ -510,6 +595,47 @@ fn resolve_variables_in_text(text: &str, context: &SnippetContext) -> String {
         } else {
             out.push(chars[i]);
             i += 1;
+        }
+    }
+    out
+}
+
+fn apply_variable_modifier(value: &str, modifier: &str) -> String {
+    match modifier {
+        "upcase" => value.to_uppercase(),
+        "downcase" => value.to_lowercase(),
+        "capitalize" => capitalize(value),
+        "camelcase" => camel_case(value, false),
+        "pascalcase" => camel_case(value, true),
+        _ => value.to_string(),
+    }
+}
+
+fn capitalize(value: &str) -> String {
+    let mut chars = value.chars();
+    let Some(first) = chars.next() else {
+        return String::new();
+    };
+    let mut out = first.to_uppercase().collect::<String>();
+    out.push_str(chars.as_str());
+    out
+}
+
+fn camel_case(value: &str, pascal: bool) -> String {
+    let mut out = String::new();
+    let mut capitalize_next = pascal;
+    for ch in value.chars() {
+        if ch.is_ascii_alphanumeric() {
+            if out.is_empty() && !pascal {
+                out.push(ch.to_ascii_lowercase());
+            } else if capitalize_next {
+                out.push(ch.to_ascii_uppercase());
+            } else {
+                out.push(ch);
+            }
+            capitalize_next = false;
+        } else {
+            capitalize_next = !out.is_empty();
         }
     }
     out
@@ -1469,6 +1595,22 @@ mod tests {
     }
 
     #[test]
+    fn parse_braced_variable_transform() {
+        let segs = parse_body("class ${TM_FILENAME_BASE/(.*)/${1:/pascalcase}/} {}");
+        assert_eq!(
+            segs,
+            vec![
+                Segment::Text("class ".into()),
+                Segment::VariableTransform {
+                    name: "TM_FILENAME_BASE".into(),
+                    modifier: "pascalcase".into(),
+                },
+                Segment::Text(" {}".into()),
+            ]
+        );
+    }
+
+    #[test]
     fn parse_choice_placeholder_uses_first_choice() {
         let segs = parse_body("color: ${1|red,green,blue|};");
         assert_eq!(
@@ -1595,6 +1737,30 @@ mod tests {
         assert_eq!(
             exp.text,
             "main.test.mty|main.test|C:/work/src|C:/work/src/main.test.mty"
+        );
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
+    fn expand_common_variable_transform_modifiers() {
+        let path = std::path::Path::new("C:/work/src/my-component.test.mty");
+        let ctx = SnippetContext::from_path(Some(path));
+        let exp = expand_with_context(
+            concat!(
+                "${TM_FILENAME_BASE/(.*)/${1:/pascalcase}/}|",
+                "${TM_FILENAME_BASE/(.*)/${1:/camelcase}/}|",
+                "${TM_FILENAME_BASE/(.*)/${1:/upcase}/}|",
+                "${TM_FILENAME_BASE/(.*)/${1:/downcase}/}|",
+                "${TM_FILENAME_BASE/(.*)/${1:/capitalize}/}"
+            ),
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(
+            exp.text,
+            "MyComponentTest|myComponentTest|MY-COMPONENT.TEST|my-component.test|My-component.test"
         );
         assert!(exp.stops.is_empty());
     }

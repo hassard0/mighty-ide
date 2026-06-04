@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Snippet variable transforms cover common filename casing**: imported
+  snippets can now use VS Code-style `${VAR/(.*)/${1:/pascalcase}/}` transforms
+  for `upcase`, `downcase`, `capitalize`, `camelcase`, and `pascalcase`, so
+  filename-derived class and component snippets expand cleanly.
 - **Snippet comment variables resolve by language**: imported snippets can now
   use `$LINE_COMMENT`, `$BLOCK_COMMENT_START`, and `$BLOCK_COMMENT_END`; values
   come from the active language's syntax configuration, with braced defaults

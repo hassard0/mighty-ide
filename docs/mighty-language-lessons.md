@@ -9710,3 +9710,18 @@ would drift from highlighting and comment behavior over time.
 - **Language note:** no compiler gap surfaced. Shared language metadata should
   be read from one existing table when possible; snippets, highlighting, and
   future comment actions should not maintain separate delimiter maps.
+
+## L798 - Filename Snippet Transforms Are A Migration Multiplier
+
+Many imported framework snippets derive class, component, or test names from the
+active filename using VS Code transforms such as
+`${TM_FILENAME_BASE/(.*)/${1:/pascalcase}/}`. Without that subset, imported
+snippets technically load but leave transform syntax in the editor.
+
+- **IDE note:** snippet variables now recognize the common full-value transform
+  shape and apply `upcase`, `downcase`, `capitalize`, `camelcase`, and
+  `pascalcase` modifiers to the resolved value. This intentionally starts with
+  the filename/name casing use case rather than a full regex replacement engine.
+- **Language note:** no compiler gap surfaced. Focused transform support should
+  preserve unknown transform forms as literals until the engine can model their
+  semantics accurately.
