@@ -507,6 +507,24 @@ impl Grid {
     }
 
     fn tab(&mut self) {
+        self.tab_forward(1);
+    }
+
+    fn tab_forward(&mut self, count: usize) {
+        let count = count.max(1);
+        for _ in 0..count {
+            self.cur_col = self.next_tab_stop();
+        }
+    }
+
+    fn tab_backward(&mut self, count: usize) {
+        let count = count.max(1);
+        for _ in 0..count {
+            self.cur_col = self.previous_tab_stop();
+        }
+    }
+
+    fn next_tab_stop(&self) -> usize {
         let next = self
             .tab_stops
             .iter()
@@ -514,7 +532,17 @@ impl Grid {
             .skip(self.cur_col.saturating_add(1))
             .find_map(|(col, stop)| stop.then_some(col))
             .unwrap_or(self.cols);
-        self.cur_col = next.min(self.cols);
+        next.min(self.cols)
+    }
+
+    fn previous_tab_stop(&self) -> usize {
+        self.tab_stops
+            .iter()
+            .enumerate()
+            .take(self.cur_col.min(self.cols))
+            .rev()
+            .find_map(|(col, stop)| stop.then_some(col))
+            .unwrap_or(0)
     }
 
     fn set_tab_stop(&mut self) {
@@ -805,6 +833,8 @@ impl VtParser {
                     self.insert_chars(grid);
                 } else if b == b'J' {
                     self.erase_display(grid);
+                } else if b == b'I' {
+                    self.cursor_forward_tab(grid);
                 } else if b == b'K' {
                     self.erase_line(grid);
                 } else if b == b'L' {
@@ -819,6 +849,8 @@ impl VtParser {
                     self.scroll_down(grid);
                 } else if b == b'X' {
                     self.erase_chars(grid);
+                } else if b == b'Z' {
+                    self.cursor_backward_tab(grid);
                 } else if b == b'g' {
                     self.clear_tab_stop(grid);
                 } else if b == b'h' || b == b'l' {
@@ -973,6 +1005,18 @@ impl VtParser {
     fn erase_chars(&mut self, grid: &mut Grid) {
         if let Some(count) = self.first_count_param() {
             grid.erase_chars(count);
+        }
+    }
+
+    fn cursor_forward_tab(&mut self, grid: &mut Grid) {
+        if let Some(count) = self.first_count_param() {
+            grid.tab_forward(count);
+        }
+    }
+
+    fn cursor_backward_tab(&mut self, grid: &mut Grid) {
+        if let Some(count) = self.first_count_param() {
+            grid.tab_backward(count);
         }
     }
 
@@ -1804,6 +1848,30 @@ mod tests {
         let g2 = grid_feed(1, 12, b"\x1b[3g\x1bca\tb");
         assert_eq!(g2.cell(0, 0).ch, 'a');
         assert_eq!(g2.cell(0, 8).ch, 'b');
+    }
+
+    #[test]
+    fn csi_forward_and_backward_tab_use_tab_stops() {
+        let g = grid_feed(1, 32, b"a\x1b[2Ib");
+        assert_eq!(g.cell(0, 0).ch, 'a');
+        assert_eq!(g.cell(0, 16).ch, 'b');
+        assert!(!g.contains("2I"));
+
+        let g2 = grid_feed(1, 32, b"\x1b[1;20H\x1b[Zx\x1b[2Zy");
+        assert_eq!(g2.cell(0, 16).ch, 'x');
+        assert_eq!(g2.cell(0, 8).ch, 'y');
+        assert!(!g2.contains("[Z"));
+    }
+
+    #[test]
+    fn csi_tabs_honor_custom_tab_stops() {
+        let g = grid_feed(1, 20, b"\x1b[3g\x1b[1;5H\x1bH\x1b[1;12H\x1bH\x1b[1;1Ha\x1b[Ib\x1b[Ic");
+        assert_eq!(g.cell(0, 0).ch, 'a');
+        assert_eq!(g.cell(0, 4).ch, 'b');
+        assert_eq!(g.cell(0, 11).ch, 'c');
+
+        let g2 = grid_feed(1, 20, b"\x1b[3g\x1b[1;5H\x1bH\x1b[1;12H\x1bH\x1b[1;18H\x1b[2Zd");
+        assert_eq!(g2.cell(0, 4).ch, 'd');
     }
 
     #[test]

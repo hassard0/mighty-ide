@@ -7601,3 +7601,13 @@ use origin mode to address rows inside the active scroll region.
   DECSET/DECRST `?6`, and applies margin-relative row coordinates to `CUP`/`HVP`
   while clamping to the scroll-region bottom. Tests cover origin-relative
   positioning, bottom-margin clamping, and returning to absolute coordinates.
+
+L619. Terminal tab-stop commands include CSI movement too. After tab stops
+became mutable, the parser still ignored cursor-forward-tab (`CSI I`) and
+cursor-backward-tab (`CSI Z`), so applications could set stops but not use the
+standard counted movement commands that jump between them.
+
+- **IDE note:** the terminal grid now supports counted forward/backward tab
+  movement through the stored tab stops, and the parser routes `CSI I` / `CSI Z`
+  through those helpers. Tests cover default stops, counted backward movement,
+  and custom-only tab stops after clearing defaults.
