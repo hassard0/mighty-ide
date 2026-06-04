@@ -728,13 +728,29 @@ pub mod lsp {
         if bytes.first() == Some(&b'[') {
             return vec![bytes];
         }
+        if bytes.first() == Some(&b'{') {
+            let first_end = match_delim(bytes, 0, b'{', b'}').min(bytes.len());
+            let rest = &bytes[first_end..];
+            if rest.iter().all(|b| b.is_ascii_whitespace())
+                && top_level_field_value_start(bytes, b"result").is_some()
+                && top_level_field_value_start(bytes, b"method").is_none()
+            {
+                return completion_items_region(bytes).into_iter().collect();
+            }
+        }
         let mut out = Vec::new();
         let mut i = 0usize;
         while i < bytes.len() {
             if bytes[i] == b'{' {
                 let end = match_delim(bytes, i, b'{', b'}').min(bytes.len());
-                if let Some(items) = completion_items_region(&bytes[i..end]) {
-                    out.push(items);
+                let obj = &bytes[i..end];
+                if top_level_field_value_start(obj, b"result").is_some()
+                    && top_level_field_value_start(obj, b"id").is_some()
+                    && top_level_field_value_start(obj, b"method").is_none()
+                {
+                    if let Some(items) = completion_items_region(obj) {
+                        out.push(items);
+                    }
                 }
                 i = end;
             } else {
@@ -1648,6 +1664,16 @@ mod tests {
         }"#;
         let labels = super::lsp::scrape_labels(json);
         assert_eq!(labels, vec!["right".to_string(), "next".to_string()]);
+    }
+
+    #[test]
+    fn lsp_scrape_labels_requires_response_result_in_stream() {
+        let json = r#"{"jsonrpc":"2.0","method":"$/progress","params":{"result":[{"label":"wrong progress"}]}}
+{"jsonrpc":"2.0","id":7,"method":"workspace/applyEdit","result":[{"label":"wrong request"}]}
+{"jsonrpc":"2.0","id":2,"result":{"items":[{"label":"right"}]}}"#;
+        let labels = super::lsp::scrape_labels(json);
+
+        assert_eq!(labels, vec!["right".to_string()]);
     }
 
     #[test]

@@ -10330,3 +10330,18 @@ emit offsets.
 - **Language note:** no compiler gap surfaced. Protocol unions should be parsed
   at the owning field's value type rather than assuming the variant currently
   emitted by one server is the whole contract.
+
+## L842 - Completion Results Belong To Responses
+
+JSON-RPC streams can contain progress notifications and server requests before
+the completion response. Those objects may contain fields named `result` for
+their own purposes, but they are not completion responses.
+
+- **IDE note:** completion label scraping now accepts bare arrays for direct
+  parser payloads and complete response objects with a top-level `result`, but
+  streamed objects also need a response shape: top-level `id` and no top-level
+  `method`. Progress notifications and server requests can no longer leak
+  completion-looking labels into autocomplete.
+- **Language note:** no compiler gap surfaced. Stream parsers should identify
+  the protocol envelope role before interpreting payload-shaped fields inside
+  that envelope.

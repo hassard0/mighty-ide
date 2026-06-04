@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Completion labels require response-owned results**: LSP completion scraping
+  now ignores completion-looking `result` payloads on server requests or
+  progress notifications in a stream, so only real response results populate the
+  autocomplete dropdown.
 - **Signature help supports offset parameter labels**: LSP signature-help
   parameters that use the standard `[start,end]` label form now derive the
   highlighted parameter text from the signature label, so servers that emit
