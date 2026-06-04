@@ -10649,3 +10649,16 @@ without the user noticing.
 - **Language note:** no compiler gap surfaced. Save operations should treat
   multiple dirty views of one resource as a conflict, not as independent files
   that can be written in arbitrary order.
+
+## L865 - Saves Must Refresh Clean Duplicate Views
+
+Saving one dirty tab changes the backing file and the saved tab's clean
+baseline. Any other clean tab for the same file should now show the saved text;
+otherwise the IDE displays stale clean content for a file that was just saved.
+
+- **IDE note:** manual Save, Save All, autosave, and Save As now refresh clean
+  equivalent tabs after a successful write, excluding the tab that performed the
+  save so its undo history and cursor state stay intact.
+- **Language note:** no compiler gap surfaced. Successful writes should fan out
+  to every clean view of the resource, while dirty views remain protected by the
+  conflict preflight.

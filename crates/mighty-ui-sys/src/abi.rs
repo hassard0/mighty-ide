@@ -11728,6 +11728,10 @@ pub extern "C" fn mui_autosave_tick(handle: i64) -> i32 {
     match std::fs::write(&path, &bytes) {
         Ok(()) => {
             mark_active_clean(ctx);
+            let active = ctx.tabs.active();
+            let _ = ctx
+                .tabs
+                .reload_all_clean_path_except(&path, &bytes, active);
             // Re-baseline the signature to the (possibly transformed) saved text
             // so the next tick doesn't see the transform as a fresh edit.
             ctx.autosave_sig = Some(autosave_signature(&ctx.tabs.active_model().as_text()));
@@ -11790,6 +11794,10 @@ fn save_active_current_path(ctx: &mut MuiContext) -> i32 {
     match std::fs::write(&path, &bytes) {
         Ok(()) => {
             mark_active_clean(ctx);
+            let active = ctx.tabs.active();
+            let _ = ctx
+                .tabs
+                .reload_all_clean_path_except(&path, &bytes, active);
             ctx.autosave.disarm();
             println!("mui_ed_save: {} ({} bytes)", path.display(), bytes.len());
             ctx.push_toast(crate::toast::Kind::Success, format!("Saved {name}"));
@@ -11878,6 +11886,7 @@ fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf, toast_succe
             tab.read_only = false;
             tab.dirty = false;
             tab.model.mark_clean();
+            let _ = ctx.tabs.reload_all_clean_path_except(&path, &bytes, idx);
             if idx == ctx.tabs.active() {
                 sync_active_path(ctx);
             }
@@ -11949,6 +11958,7 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
                 Ok(()) => {
                     tab.dirty = false;
                     tab.model.mark_clean();
+                    let _ = ctx.tabs.reload_all_clean_path_except(&path, &bytes, idx);
                     saved += 1;
                 }
                 Err(e) => {
@@ -12161,6 +12171,12 @@ fn save_active_to_path(ctx: &mut MuiContext, target: PathBuf) -> i32 {
             ctx.language = crate::langdetect::detect_path(&target);
             ctx.file_path = Some(target);
             mark_active_clean(ctx);
+            let active = ctx.tabs.active();
+            if let Some(path) = ctx.file_path.clone() {
+                let _ = ctx
+                    .tabs
+                    .reload_all_clean_path_except(&path, &bytes, active);
+            }
             ctx.autosave.disarm();
             ctx.tree.refresh();
             ctx.push_toast(crate::toast::Kind::Success, format!("Saved {name}"));

@@ -12,9 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
-- **Saves skip conflicting dirty duplicate tabs**: manual Save, Save All, and
-  autosave now refuse to write one dirty view of a file while another dirty
-  duplicate view of the same file exists.
+- **Saves handle duplicate tabs coherently**: manual Save, Save All, and
+  autosave now refuse conflicting dirty duplicate views of the same file, and
+  refresh clean duplicate views after successful writes.
 - **Reload and revert refresh clean duplicate tabs**: reloading or reverting a
   file-backed tab now updates every clean duplicate view of the same file while
   leaving dirty duplicate buffers untouched.
