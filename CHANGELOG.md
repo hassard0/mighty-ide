@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Snippet file variables resolve from the active tab**: imported snippets can
+  now use `$TM_FILENAME`, `$TM_FILENAME_BASE`, `$TM_DIRECTORY`, and
+  `$TM_FILEPATH`, including inside editable placeholder defaults.
 - **Nested snippet defaults flatten cleanly**: imported snippets that nest
   defaults such as `${1:${2:name}}` now expand to the default text instead of
   leaving malformed marker fragments in the editor.

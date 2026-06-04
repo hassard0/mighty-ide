@@ -61,10 +61,16 @@ pub extern "C" fn mui_snippet_try_expand(handle: i64) -> i32 {
         return 0;
     }
     let lang = c.language;
+    let active_path = c.tabs.active_path();
     // Split the borrow: the session + the active model are distinct fields.
     let session = &mut c.snippet_session;
     let model = c.tabs.active_model_mut();
-    i32::from(snippets::try_expand(model, session, lang))
+    i32::from(snippets::try_expand_with_path(
+        model,
+        session,
+        lang,
+        active_path.as_deref(),
+    ))
 }
 
 /// `1` while a tab-stop navigation session is active.
@@ -220,9 +226,15 @@ pub extern "C" fn mui_snippet_complete_expand(handle: i64) -> i32 {
             m.insert_char(ch);
         }
     }
+    let active_path = c.tabs.active_path();
     let session = &mut c.snippet_session;
     let model = c.tabs.active_model_mut();
-    i32::from(snippets::try_expand(model, session, lang))
+    i32::from(snippets::try_expand_with_path(
+        model,
+        session,
+        lang,
+        active_path.as_deref(),
+    ))
 }
 
 #[cfg(test)]

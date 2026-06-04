@@ -9562,3 +9562,18 @@ brace and leave malformed marker fragments in the editor.
   pragmatic compatibility step by flattening nested defaults before adding full
   nested-session semantics, but tests should prove both parse output and
   resulting selection ranges.
+
+## L788 - Snippet Variables Need Editor Context
+
+File-scoped snippet variables such as `$TM_FILENAME` and `$TM_FILENAME_BASE`
+are common in imported snippets. Treating them as literal text makes generated
+tests, headers, and guards feel unfinished, even when tab-stops and choices work.
+
+- **IDE note:** direct Tab expansion and completion-accepted snippet expansion
+  now pass the active tab path into the snippet engine, resolving
+  `$TM_FILENAME`, `$TM_FILENAME_BASE`, `$TM_DIRECTORY`, and `$TM_FILEPATH` in
+  both top-level text and placeholder defaults.
+- **Language note:** no compiler gap surfaced. Snippet expansion needs a small
+  explicit context object once variables enter the grammar; keeping the default
+  context empty preserves pure parser tests while letting ABI routes supply live
+  editor state.

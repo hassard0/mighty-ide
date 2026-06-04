@@ -30,12 +30,15 @@
 
 use crate::editor::TextModel;
 use crate::langdetect::Language;
+use std::path::{Path, PathBuf};
 
 /// One parsed piece of a snippet body.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Segment {
     /// Literal text (may contain `\n` for multi-line bodies).
     Text(String),
+    /// A VS Code-style snippet variable such as `$TM_FILENAME`.
+    Variable(String),
     /// A tab-stop: its number (`0` is the final cursor) and placeholder text
     /// (empty when the body used the bare `$N` form).
     Stop { num: u32, placeholder: String },
@@ -104,6 +107,16 @@ pub fn parse_body(body: &str) -> Vec<Segment> {
                 }
                 flush(&mut segs, &mut text);
                 segs.push(Segment::Stop { num: n, placeholder: String::new() });
+                i = j;
+                continue;
+            }
+            if is_variable_start(chars[i + 1]) {
+                let mut j = i + 2;
+                while j < chars.len() && is_variable_char(chars[j]) {
+                    j += 1;
+                }
+                flush(&mut segs, &mut text);
+                segs.push(Segment::Variable(chars[i + 1..j].iter().collect()));
                 i = j;
                 continue;
             }
@@ -211,6 +224,14 @@ fn parse_choice_text(chars: &[char]) -> Option<(String, usize)> {
     None
 }
 
+fn is_variable_start(ch: char) -> bool {
+    ch == '_' || ch.is_ascii_alphabetic()
+}
+
+fn is_variable_char(ch: char) -> bool {
+    is_variable_start(ch) || ch.is_ascii_digit()
+}
+
 /// A resolved tab-stop: its number + the absolute selection range in the
 /// document `((line,col),(line,col))` (start..end). `$0` (num 0) is the final
 /// cursor; placeholder-less stops have a zero-length range.
@@ -232,6 +253,17 @@ pub struct Expansion {
     pub stops: Vec<Stop>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SnippetContext {
+    active_path: Option<PathBuf>,
+}
+
+impl SnippetContext {
+    pub fn from_path(path: Option<&Path>) -> Self {
+        SnippetContext { active_path: path.map(Path::to_path_buf) }
+    }
+}
+
 /// Expand a snippet `body` inserted at document position `(cur_line, cur_col)`,
 /// where `indent` is the leading whitespace of the call-site line (continuation
 /// lines are prefixed with it). Returns the literal insert text + resolved stops.
@@ -240,6 +272,16 @@ pub struct Expansion {
 /// running `(line, col)` offset from the insertion point, accounting for the
 /// per-line indent added to continuation lines.
 pub fn expand(body: &str, indent: &str, cur_line: usize, cur_col: usize) -> Expansion {
+    expand_with_context(body, indent, cur_line, cur_col, &SnippetContext::default())
+}
+
+pub fn expand_with_context(
+    body: &str,
+    indent: &str,
+    cur_line: usize,
+    cur_col: usize,
+    context: &SnippetContext,
+) -> Expansion {
     let segs = parse_body(body);
     let indent_chars = indent.chars().count();
     let mut text = String::new();
@@ -269,9 +311,15 @@ pub fn expand(body: &str, indent: &str, cur_line: usize, cur_col: usize) -> Expa
     for seg in &segs {
         match seg {
             Segment::Text(s) => emit(s, &mut text, &mut line, &mut col),
+            Segment::Variable(name) => {
+                let value = resolve_snippet_variable(name, context)
+                    .unwrap_or_else(|| format!("${name}"));
+                emit(&value, &mut text, &mut line, &mut col);
+            }
             Segment::Stop { num, placeholder } => {
                 let start = (line, col);
-                emit(placeholder, &mut text, &mut line, &mut col);
+                let placeholder = resolve_variables_in_text(placeholder, context);
+                emit(&placeholder, &mut text, &mut line, &mut col);
                 let end = (line, col);
                 stops.push(Stop { num: *num, start, end });
             }
@@ -282,6 +330,42 @@ pub fn expand(body: &str, indent: &str, cur_line: usize, cur_col: usize) -> Expa
     // Stable so equal-numbered stops keep body order.
     stops.sort_by_key(|s| if s.num == 0 { u32::MAX } else { s.num });
     Expansion { text, stops }
+}
+
+fn resolve_variables_in_text(text: &str, context: &SnippetContext) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '$' && i + 1 < chars.len() && is_variable_start(chars[i + 1]) {
+            let mut j = i + 2;
+            while j < chars.len() && is_variable_char(chars[j]) {
+                j += 1;
+            }
+            let name: String = chars[i + 1..j].iter().collect();
+            if let Some(value) = resolve_snippet_variable(&name, context) {
+                out.push_str(&value);
+            } else {
+                out.extend(chars[i..j].iter());
+            }
+            i = j;
+        } else {
+            out.push(chars[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
+fn resolve_snippet_variable(name: &str, context: &SnippetContext) -> Option<String> {
+    let path = context.active_path.as_deref()?;
+    match name {
+        "TM_FILENAME" => path.file_name().map(|s| s.to_string_lossy().into_owned()),
+        "TM_FILENAME_BASE" => path.file_stem().map(|s| s.to_string_lossy().into_owned()),
+        "TM_DIRECTORY" => path.parent().map(|p| p.to_string_lossy().into_owned()),
+        "TM_FILEPATH" => Some(path.to_string_lossy().into_owned()),
+        _ => None,
+    }
 }
 
 /// An active tab-stop navigation session over an expanded snippet.
@@ -673,6 +757,15 @@ pub fn can_expand(model: &TextModel, lang: Language) -> bool {
 }
 
 pub fn try_expand(model: &mut TextModel, session: &mut SnippetSession, lang: Language) -> bool {
+    try_expand_with_path(model, session, lang, None)
+}
+
+pub fn try_expand_with_path(
+    model: &mut TextModel,
+    session: &mut SnippetSession,
+    lang: Language,
+    active_path: Option<&Path>,
+) -> bool {
     let line = model.cursor_line();
     let col = model.cursor_col();
     let word = prefix_word(model.line(line), col);
@@ -692,7 +785,12 @@ pub fn try_expand(model: &mut TextModel, session: &mut SnippetSession, lang: Lan
         model.backspace();
     }
     let (cl, cc) = (model.cursor_line(), model.cursor_col());
-    let exp = expand(&def.body, &indent, cl, cc);
+    let exp = if active_path.is_some() {
+        let context = SnippetContext::from_path(active_path);
+        expand_with_context(&def.body, &indent, cl, cc, &context)
+    } else {
+        expand(&def.body, &indent, cl, cc)
+    };
     for ch in exp.text.chars() {
         model.insert_char(ch);
     }
@@ -761,6 +859,20 @@ mod tests {
                 Segment::Text("(".into()),
                 Segment::Stop { num: 2, placeholder: "args".into() },
                 Segment::Text(")".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_variables() {
+        let segs = parse_body("file $TM_FILENAME base $TM_FILENAME_BASE");
+        assert_eq!(
+            segs,
+            vec![
+                Segment::Text("file ".into()),
+                Segment::Variable("TM_FILENAME".into()),
+                Segment::Text(" base ".into()),
+                Segment::Variable("TM_FILENAME_BASE".into()),
             ]
         );
     }
@@ -858,6 +970,40 @@ mod tests {
         assert_eq!(exp.text, "kind error ");
         assert_eq!(exp.stops[0], Stop { num: 1, start: (0, 5), end: (0, 10) });
         assert_eq!(exp.stops[1], Stop { num: 0, start: (0, 11), end: (0, 11) });
+    }
+
+    #[test]
+    fn expand_file_variables_from_context() {
+        let path = std::path::Path::new("C:/work/src/main.test.mty");
+        let ctx = SnippetContext::from_path(Some(path));
+        let exp = expand_with_context(
+            "$TM_FILENAME|$TM_FILENAME_BASE|$TM_DIRECTORY|$TM_FILEPATH",
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(
+            exp.text,
+            "main.test.mty|main.test|C:/work/src|C:/work/src/main.test.mty"
+        );
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
+    fn expand_unknown_variables_are_preserved() {
+        let exp = expand("$UNKNOWN $TM_FILENAME", "", 0, 0);
+        assert_eq!(exp.text, "$UNKNOWN $TM_FILENAME");
+    }
+
+    #[test]
+    fn expand_variables_inside_placeholders_update_selection_range() {
+        let path = std::path::Path::new("C:/work/src/main.mty");
+        let ctx = SnippetContext::from_path(Some(path));
+        let exp = expand_with_context("${1:$TM_FILENAME_BASE}_test $0", "", 0, 0, &ctx);
+        assert_eq!(exp.text, "main_test ");
+        assert_eq!(exp.stops[0], Stop { num: 1, start: (0, 0), end: (0, 4) });
+        assert_eq!(exp.stops[1], Stop { num: 0, start: (0, 10), end: (0, 10) });
     }
 
     #[test]
