@@ -8590,3 +8590,13 @@ competing output and AI focus so the next interaction lands on Agents.
   `Mighty Agents: Clear Run Output` now set `agents_focus` while clearing Run,
   Web, Testing, Terminal, AI, and transient navigation focus. Header-click paths
   already route locally, so palette and visible-surface behavior now match.
+
+## L716 - Keyboard Shortcuts Should Match View Command Focus
+
+Direct shortcuts are another command entrypoint, not a weaker path. If Ctrl+Shift+R,
+Ctrl+Shift+T, Ctrl+Shift+A, Ctrl+`, Ctrl+Shift+F, or Ctrl+Shift+G opens a surface,
+that surface should own focus exactly as the palette command would.
+
+- **IDE note:** the hard-coded shortcut fallbacks now clear competing Run, Web,
+  Testing, Terminal, AI, Agents, and transient navigation focus while opening the
+  requested Run, Testing, AI, Terminal, Search, or Source Control surface.

@@ -2789,11 +2789,22 @@ fn main() {
         } else if is_run_chord(cp, mods) {                  // Ctrl+Shift+R : run the active file
           let _r = mui_run_start(h)
           run_focus = true
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
           typing = false
         } else if is_run_tests_chord(cp, mods) {            // Ctrl+Shift+T : run the package's tests
           let _t = mui_test_run(h)
           test_focus = true
           run_focus = false
+          web_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
           typing = false
         } else if ctrl_held(mods) && cp == 44 {             // Ctrl+, : Settings
           let _s = mui_settings_open(h)
@@ -2802,6 +2813,12 @@ fn main() {
         } else if is_ai_panel_chord(cp, mods) {             // Ctrl+Shift+A : AI copilot panel
           let opened = mui_ai_open(h)
           if opened == 1 { ai_focus = true } else { ai_focus = false }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          agents_focus = false
+          find_nav = false
           typing = false
         } else if is_router_chord(cp, mods) {               // Alt chords (Alt+\ ghost, Alt+Z zen, …) + split-pane Ctrl chords (Ctrl+\, Ctrl+1/2) via the shim router
           let rid = mui_chord_command_id(h, cp, mods)
@@ -2820,8 +2837,22 @@ fn main() {
           typing = false
         } else if is_search_panel_chord(cp, mods) {         // Ctrl+Shift+F : search panel
           let _p = mui_panel_set(h, panel_search())
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if is_scm_panel_chord(cp, mods) {            // Ctrl+Shift+G : source control
           let _p = mui_panel_set(h, panel_scm())
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if ctrl_held(mods) && shift_held(mods) && cp == 32 {  // Ctrl+Shift+Space : signature help
           let ok = do_signature_help(h)
           if ok == 1 {
@@ -2888,6 +2919,12 @@ fn main() {
             let ok = mui_term_open(h)
             if ok == 1 { term_focus = true; mui_log_terminal(h) }
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if ctrl_held(mods) && (cp == 97 || cp == 65) {   // Ctrl+A : select all
           let _cc = mui_complete_cancel(h)
           completing = false

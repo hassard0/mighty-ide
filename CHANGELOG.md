@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Keyboard shortcuts now release stale surface focus**: Run, Tests, AI,
+  Terminal, Search, and Source Control shortcuts clear competing dock/sidebar
+  focus so the next keystroke lands on the surface the shortcut opened.
 - **Agents commands now own focus cleanly**: `Mighty Agents`, refresh, and
   clear-run-output palette commands release stale Run/Web/Testing/Terminal/AI
   focus when they show the Agents panel.

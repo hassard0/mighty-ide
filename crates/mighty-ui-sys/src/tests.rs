@@ -10892,6 +10892,39 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains(
+            "is_run_chord(cp, mods) {                  // Ctrl+Shift+R : run the active file\n          let _r = mui_run_start(h)\n          run_focus = true\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Run keyboard shortcut must focus Run output and release competing surfaces"
+    );
+    assert!(
+        main.contains(
+            "is_run_tests_chord(cp, mods) {            // Ctrl+Shift+T : run the package's tests\n          let _t = mui_test_run(h)\n          test_focus = true\n          run_focus = false\n          web_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Run Tests keyboard shortcut must focus Testing and release competing surfaces"
+    );
+    assert!(
+        main.contains(
+            "is_ai_panel_chord(cp, mods) {             // Ctrl+Shift+A : AI copilot panel\n          let opened = mui_ai_open(h)\n          if opened == 1 { ai_focus = true } else { ai_focus = false }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "AI keyboard shortcut must release dock and Agents focus when toggling Copilot"
+    );
+    assert!(
+        main.contains(
+            "is_search_panel_chord(cp, mods) {         // Ctrl+Shift+F : search panel\n          let _p = mui_panel_set(h, panel_search())\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        )
+            && main.contains(
+                "is_scm_panel_chord(cp, mods) {            // Ctrl+Shift+G : source control\n          let _p = mui_panel_set(h, panel_scm())\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "Search and SCM keyboard shortcuts must release stale surface focus"
+    );
+    assert!(
+        main.contains(
+            "ctrl_held(mods) && cp == 96 {             // Ctrl+` : toggle terminal\n          if mui_term_is_open(h) == 1 {\n            term_focus = true\n          } else {\n            let ok = mui_term_open(h)\n            if ok == 1 { term_focus = true; mui_log_terminal(h) }\n          }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Terminal keyboard shortcut must focus Terminal and release competing surfaces"
+    );
+    assert!(
+        main.contains(
             "id == cmd_ai_clear_chat() {\n          let _ai = mui_ai_show(h)\n          let _aic = mui_ai_clear(h)"
         )
             && main.contains("ai_focus = true\n          typing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false"),
