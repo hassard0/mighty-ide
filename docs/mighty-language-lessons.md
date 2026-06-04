@@ -8433,3 +8433,15 @@ conversation should be a local header action beside Close, not a command search.
   to the left of Close. The shared geometry drives drawing and hit-testing,
   `mui_ai_click` returns a distinct clear action, and Mighty routes it through
   `mui_ai_clear` before Send/body focus handling.
+
+## L702 - Shortcut Reset Actions Need Visible Controls
+
+Keyboard shortcut reset was available through Ctrl+R / Ctrl+Shift+R and command
+palette entries, but users reviewing keybindings need local reset affordances
+inside the overlay where overrides are visible.
+
+- **IDE note:** the Keyboard Shortcuts overlay header now includes compact reset
+  selected and reset all buttons before Close. The overlay shares geometry for
+  drawing and hit-testing, `mui_keys_click` returns distinct reset actions, and
+  Mighty routes those clicks through the existing reset ABIs before remap
+  capture handling.

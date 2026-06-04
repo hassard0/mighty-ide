@@ -7055,6 +7055,57 @@ fn keyboard_shortcuts_reset_all_command_reports_changed_and_default_states() {
 }
 
 #[test]
+fn keyboard_shortcuts_header_reset_buttons_hit_visible_actions() {
+    use crate::ffi::MuiEvent;
+    use crate::shortcuts::{Chord, MOD_ALT};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    ctx.shortcuts.open();
+    ctx.shortcuts
+        .overrides_mut()
+        .set(crate::palette::CMD_NEW_FILE, Chord::new('q' as i32, MOD_ALT));
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let (rx, ry, rw, rh) = ctx.shortcuts.reset_selected_rect(ctx.gpu.width, ctx.gpu.height);
+    let (ax, ay, aw, ah) = ctx.shortcuts.reset_all_rect(ctx.gpu.width, ctx.gpu.height);
+    let (cx, _cy, _cw, _ch) = ctx.shortcuts.close_rect(ctx.gpu.width, ctx.gpu.height);
+    assert!(
+        ax + aw <= rx && rx + rw <= cx,
+        "Keyboard Shortcuts reset buttons should stay left of Close"
+    );
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        rx + rw * 0.5,
+        ry + rh * 0.5,
+        0,
+    );
+    assert_eq!(
+        crate::mui_keys_click(handle),
+        crate::shortcuts::CLICK_RESET_SELECTED
+    );
+    assert_eq!(crate::mui_keys_reset(handle), 1);
+    assert!(ctx.shortcuts.overrides().get(crate::palette::CMD_NEW_FILE).is_none());
+
+    ctx.shortcuts
+        .overrides_mut()
+        .set(crate::palette::CMD_OPEN_FILE, Chord::new('o' as i32, MOD_ALT));
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        ax + aw * 0.5,
+        ay + ah * 0.5,
+        0,
+    );
+    assert_eq!(crate::mui_keys_click(handle), crate::shortcuts::CLICK_RESET_ALL);
+    crate::mui_keys_reset_all(handle);
+    assert!(ctx.shortcuts.overrides().is_empty());
+}
+
+#[test]
 fn visible_surface_size_honors_screenshot_caps() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     std::env::set_var("MUI_SCREENSHOT_W", "560");
@@ -10785,6 +10836,14 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         main.contains("id == cmd_keyboard_shortcuts_reset_all()")
             && main.contains("let _ksa = mui_keys_reset_all_command(h)"),
         "Keyboard Shortcuts reset-all command must call the dedicated command ABI"
+    );
+    assert!(
+        main.contains("kh == 4")
+            && main.contains("let _r = mui_keys_reset(h)")
+            && main.contains("kh == 5")
+            && main.contains("mui_keys_reset_all(h)")
+            && main.find("kh == 4") < main.find("} else if kh == 2"),
+        "Keyboard Shortcuts header reset clicks must dispatch before remap capture handling"
     );
     assert!(
         main.contains("id == cmd_git_hide_blame()")

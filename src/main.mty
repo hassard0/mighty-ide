@@ -1708,6 +1708,10 @@ fn main() {
             let kh = mui_keys_click(h)
             if kh == 3 {
               mui_keys_cancel(h)
+            } else if kh == 4 {
+              let _r = mui_keys_reset(h)
+            } else if kh == 5 {
+              mui_keys_reset_all(h)
             } else if kh == 2 {
               let _c = mui_keys_begin_capture(h)
             } else if kh == 1 {

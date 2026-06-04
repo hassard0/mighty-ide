@@ -36,6 +36,8 @@ use crate::theme;
 pub const MOD_SHIFT: i32 = 1;
 pub const MOD_CTRL: i32 = 2;
 pub const MOD_ALT: i32 = 4;
+pub const CLICK_RESET_SELECTED: i32 = 4;
+pub const CLICK_RESET_ALL: i32 = 5;
 
 /// A normalized chord: a base codepoint (lowercased ASCII letter, or the literal
 /// key for symbols/digits) plus a modifier mask. The "cp" is stored lowercased so
@@ -735,10 +737,20 @@ impl ShortcutsEngine {
         (box_x, box_y, box_w, list_top, row_h, box_h, top, shown)
     }
 
-    fn close_rect(&self, width: u32, height: u32) -> (f32, f32, f32, f32) {
+    pub fn close_rect(&self, width: u32, height: u32) -> (f32, f32, f32, f32) {
         let (box_x, box_y, box_w, _list_top, _row_h, _box_h, _top, _shown) =
             self.geometry(width, height);
         (box_x + box_w - 38.0, box_y + 16.0, 24.0, 24.0)
+    }
+
+    pub fn reset_selected_rect(&self, width: u32, height: u32) -> (f32, f32, f32, f32) {
+        let (close_x, close_y, close_w, close_h) = self.close_rect(width, height);
+        (close_x - 30.0, close_y, close_w, close_h)
+    }
+
+    pub fn reset_all_rect(&self, width: u32, height: u32) -> (f32, f32, f32, f32) {
+        let (reset_x, reset_y, reset_w, reset_h) = self.reset_selected_rect(width, height);
+        (reset_x - 30.0, reset_y, reset_w, reset_h)
     }
 
     fn default_footer_hint(box_w: f32) -> Option<&'static str> {
@@ -773,8 +785,9 @@ impl ShortcutsEngine {
 
     /// Handle a visible-row click without surprising the user:
     /// `-1` miss, `1` selected a row, `2` clicked the already-selected remappable
-    /// row and should begin capture, `3` clicked the close button. This keeps exploratory clicks from
-    /// immediately entering shortcut capture mode.
+    /// row and should begin capture, `3` clicked the close button, `4` reset
+    /// selected, `5` reset all. This keeps exploratory clicks from immediately
+    /// entering shortcut capture mode.
     pub fn click_action(&mut self, x: f32, y: f32, width: u32, height: u32) -> i32 {
         if !self.active {
             return -1;
@@ -782,6 +795,14 @@ impl ShortcutsEngine {
         let (cx, cy, cw, ch) = self.close_rect(width, height);
         if (cx..=cx + cw).contains(&x) && (cy..=cy + ch).contains(&y) {
             return 3;
+        }
+        let (rx, ry, rw, rh) = self.reset_selected_rect(width, height);
+        if (rx..=rx + rw).contains(&x) && (ry..=ry + rh).contains(&y) {
+            return CLICK_RESET_SELECTED;
+        }
+        let (ax, ay, aw, ah) = self.reset_all_rect(width, height);
+        if (ax..=ax + aw).contains(&x) && (ay..=ay + ah).contains(&y) {
+            return CLICK_RESET_ALL;
         }
         let before = self.sel;
         let idx = self.click_row(x, y, width, height);
@@ -829,21 +850,31 @@ impl ShortcutsEngine {
         let q_text_x = search_field_text_x(q_text_base_x, self.query.is_empty());
         let qy = box_y + (search_h - 16.0) * 0.5 - 1.0;
         let (cx, cy, cw, ch) = self.close_rect(width, height);
+        let (reset_x, reset_y, reset_w, reset_h) = self.reset_selected_rect(width, height);
+        let (all_x, all_y, all_w, all_h) = self.reset_all_rect(width, height);
         let (q_str, q_color): (&str, _) = if self.query.is_empty() {
             (if box_w < 360.0 { "Search\u{2026}" } else { "Search keyboard shortcuts\u{2026}" }, theme::OVERLAY_SUBTLE())
         } else {
             (self.query.as_str(), theme::TEXT())
         };
-        let query_max = search_query_text_budget(q_text_x, cx, self.query.is_empty());
+        let query_max = search_query_text_budget(q_text_x, all_x, self.query.is_empty());
         let q_shown = crate::palette::fit_palette_text(&mut ctx.text, q_str, query_max, 16.0);
         ctx.text.queue_ui_sized(q_text_x, qy, &q_shown, q_color, 16.0, clip);
         let (q_w, _) = ctx.text.measure_ui_sized(&q_shown, 16.0);
         let caret_x = if self.query.is_empty() {
             q_text_base_x + 1.0
         } else {
-            (q_text_x + q_w + 1.0).min(cx - 14.0)
+            (q_text_x + q_w + 1.0).min(all_x - 14.0)
         };
         ctx.dl_round(caret_x, box_y + (search_h - 18.0) * 0.5, 2.0, 18.0, 1.0, theme::ACCENT_BRIGHT());
+        ctx.dl_round(all_x, all_y, all_w, all_h, 6.0, theme::BG_2());
+        ctx.dl_stroke(all_x, all_y, all_w, all_h, 6.0, theme::BORDER_STRONG(), 1.0);
+        ctx.dl_icon(all_x + 5.0, all_y + 5.0, 14.0, 14.0, icons::REFRESH, theme::TEXT_1(), 1.4, false);
+        ctx.text.queue_ui_sized(all_x + 14.0, all_y + 12.5, "A", theme::ACCENT_BRIGHT(), 8.0, clip);
+        ctx.dl_round(reset_x, reset_y, reset_w, reset_h, 6.0, theme::BG_2());
+        ctx.dl_stroke(reset_x, reset_y, reset_w, reset_h, 6.0, theme::BORDER_STRONG(), 1.0);
+        ctx.dl_icon(reset_x + 5.0, reset_y + 5.0, 14.0, 14.0, icons::REFRESH, theme::TEXT_1(), 1.4, false);
+        ctx.text.queue_ui_sized(reset_x + 15.0, reset_y + 12.5, "1", theme::ACCENT_BRIGHT(), 8.0, clip);
         ctx.dl_round(cx, cy, cw, ch, 6.0, theme::BG_2());
         ctx.dl_stroke(cx, cy, cw, ch, 6.0, theme::BORDER_STRONG(), 1.0);
         ctx.dl_icon(cx + 5.0, cy + 5.0, 14.0, 14.0, icons::CLOSE, theme::TEXT_1(), 1.6, false);
