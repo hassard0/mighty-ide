@@ -1548,12 +1548,34 @@ impl VtParser {
             .filter(|s| !s.is_empty())
             .and_then(|s| s.parse::<u32>().ok())
             .unwrap_or(0);
-        self.cursor_shape = match shape {
-            0 | 1 | 2 => CursorShape::Block,
-            3 | 4 => CursorShape::Underline,
-            5 | 6 => CursorShape::Bar,
-            _ => self.cursor_shape,
-        };
+        match shape {
+            0 => self.cursor_shape = CursorShape::Block,
+            1 => {
+                self.cursor_shape = CursorShape::Block;
+                self.cursor_blinking = true;
+            }
+            2 => {
+                self.cursor_shape = CursorShape::Block;
+                self.cursor_blinking = false;
+            }
+            3 => {
+                self.cursor_shape = CursorShape::Underline;
+                self.cursor_blinking = true;
+            }
+            4 => {
+                self.cursor_shape = CursorShape::Underline;
+                self.cursor_blinking = false;
+            }
+            5 => {
+                self.cursor_shape = CursorShape::Bar;
+                self.cursor_blinking = true;
+            }
+            6 => {
+                self.cursor_shape = CursorShape::Bar;
+                self.cursor_blinking = false;
+            }
+            _ => {}
+        }
     }
 
     fn erase_display(&mut self, grid: &mut Grid) {
@@ -3775,7 +3797,7 @@ mod tests {
         let mut g = Grid::new(1, 8);
         let mut p = VtParser::new();
 
-        p.feed(&mut g, b"\x1b[?12h\x1b[2 q\x1b7\x1b[?12l\x1b[?25l\x1b[6 q\x1b8");
+        p.feed(&mut g, b"\x1b[1 q\x1b7\x1b[?12l\x1b[?25l\x1b[6 q\x1b8");
         assert!(p.cursor_blinking());
         assert!(p.cursor_visible());
         assert_eq!(p.cursor_shape(), CursorShape::Block);
@@ -3816,13 +3838,13 @@ mod tests {
         let mut g = Grid::new(1, 8);
         let mut p = VtParser::new();
 
-        p.feed(&mut g, b"\x1b[?12h\x1b[?25h\x1b[2 q\x1b[?1049h\x1b[?12l\x1b[?25l\x1b[6 q\x1b[?1049l");
+        p.feed(&mut g, b"\x1b[?25h\x1b[1 q\x1b[?1049h\x1b[?12l\x1b[?25l\x1b[6 q\x1b[?1049l");
         assert!(p.cursor_blinking());
         assert!(p.cursor_visible());
         assert_eq!(p.cursor_shape(), CursorShape::Block);
         assert!(!g.contains("1049"));
 
-        p.feed(&mut g, b"\x1b[?12l\x1b[?25l\x1b[6 q\x1b7\x1b[?12h\x1b[?25h\x1b[2 q\x1b[?1049h\x1b[?12l\x1b[?25l\x1b[6 q\x1b[?1049l");
+        p.feed(&mut g, b"\x1b[?12l\x1b[?25l\x1b[6 q\x1b7\x1b[?25h\x1b[1 q\x1b[?1049h\x1b[?12l\x1b[?25l\x1b[6 q\x1b[?1049l");
         assert!(p.cursor_blinking());
         assert!(p.cursor_visible());
         assert_eq!(p.cursor_shape(), CursorShape::Block);
@@ -4007,17 +4029,36 @@ mod tests {
         let mut g = Grid::new(1, 8);
         let mut p = VtParser::new();
         assert_eq!(p.cursor_shape(), CursorShape::Block);
+        assert!(!p.cursor_blinking());
+
+        p.feed(&mut g, b"\x1b[3 q");
+        assert_eq!(p.cursor_shape(), CursorShape::Underline);
+        assert!(p.cursor_blinking());
+        assert!(!g.contains("3 q"));
 
         p.feed(&mut g, b"\x1b[4 q");
         assert_eq!(p.cursor_shape(), CursorShape::Underline);
+        assert!(!p.cursor_blinking());
         assert!(!g.contains("4 q"));
+
+        p.feed(&mut g, b"\x1b[5 q");
+        assert_eq!(p.cursor_shape(), CursorShape::Bar);
+        assert!(p.cursor_blinking());
+        assert!(!g.contains("5 q"));
 
         p.feed(&mut g, b"\x1b[6 q");
         assert_eq!(p.cursor_shape(), CursorShape::Bar);
+        assert!(!p.cursor_blinking());
         assert!(!g.contains("6 q"));
+
+        p.feed(&mut g, b"\x1b[1 q");
+        assert_eq!(p.cursor_shape(), CursorShape::Block);
+        assert!(p.cursor_blinking());
+        assert!(!g.contains("1 q"));
 
         p.feed(&mut g, b"\x1b[2 q");
         assert_eq!(p.cursor_shape(), CursorShape::Block);
+        assert!(!p.cursor_blinking());
         assert!(!g.contains("2 q"));
     }
 

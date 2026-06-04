@@ -8026,3 +8026,13 @@ input state.
   mode and uses the existing frame counter for a deterministic visible/hidden
   phase. A focused helper test pins hidden cursors, steady cursors, and the
   30-frame blink cadence without requiring a graphics capture.
+
+L663. DECSCUSR carries blink intent, not only cursor shape. Xterm's cursor-style
+values pair odd numbers with blinking cursors and even numbers with steady
+cursors, so treating `CSI Ps SP q` as shape-only loses app intent even when `?12`
+mode is tracked separately.
+
+- **IDE note:** the VT parser now maps DECSCUSR `1/3/5` to blinking
+  block/underline/bar and `2/4/6` to steady block/underline/bar. Regression
+  coverage asserts both shape and blink state for every supported cursor-style
+  variant.
