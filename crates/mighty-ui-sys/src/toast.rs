@@ -912,6 +912,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Step Into is available when paused"
         || m == "Step Out is available when paused"
         || m == "Save the file before setting breakpoints"
+        || m.starts_with("Breakpoint ")
     {
         Some(OperationKey::Debug)
     } else if m.starts_with("Dock ")

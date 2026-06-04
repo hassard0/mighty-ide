@@ -8223,3 +8223,14 @@ who discover settings through the command palette.
   command-specific ABIs that reveal the shortcuts overlay, report changed versus
   already-default states through the shared Keyboard Shortcuts toast lane, and
   remain covered by registry, dispatcher, and behavior tests.
+
+L682. Breakpoint control belongs beside the rest of Debug. A gutter click is a
+good mouse shortcut, but command-first users expect to set or clear a breakpoint
+without targeting the gutter. Debug lifecycle commands are already searchable,
+so breakpoint toggling should be part of that same command surface.
+
+- **IDE note:** the command palette now lists `Debug: Toggle Breakpoint at
+  Cursor`, dispatching through a cursor-aware breakpoint ABI that opens Run and
+  Debug and reports set, cleared, and unsaved-file outcomes. Tests pin the
+  registry label, Mighty dispatcher route, visible feedback, panel focus, and
+  breakpoint state changes.

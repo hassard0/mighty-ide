@@ -3525,6 +3525,11 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
         (crate::palette::CMD_DEBUG_PAUSE, "Debug: Pause", ""),
         (crate::palette::CMD_DEBUG_RESTART, "Debug: Restart", ""),
         (
+            crate::palette::CMD_DEBUG_TOGGLE_BREAKPOINT,
+            "Debug: Toggle Breakpoint at Cursor",
+            "",
+        ),
+        (
             crate::palette::CMD_DEBUG_CLEAR_SESSION,
             "Run and Debug: Clear Session",
             "",
@@ -5649,6 +5654,38 @@ fn breakpoint_toggle_without_file_reports_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Save the file before setting breakpoints");
+}
+
+#[test]
+fn breakpoint_toggle_at_cursor_command_opens_debug_and_reports_set_clear() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_bp_cursor_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("demo.mty");
+    std::fs::write(&file, "fn main() {\n  let x = 1\n  x\n}\n").unwrap();
+    ctx.tabs.open_path(file.clone());
+    ctx.tabs.active_model_mut().move_to(2, 0);
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let file_key = file.to_string_lossy().to_string();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::dapabi::mui_bp_toggle_at_cursor(handle), 1);
+    assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
+    assert!(ctx.sidebar_visible);
+    assert!(ctx.dbg.has_breakpoint(&file_key, 2));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Breakpoint set on line 3");
+
+    assert_eq!(crate::dapabi::mui_bp_toggle_at_cursor(handle), 0);
+    assert!(!ctx.dbg.has_breakpoint(&file_key, 2));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Breakpoint cleared on line 3");
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]
@@ -9879,6 +9916,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Debug clear-session command must reveal Run and Debug and reset session state"
     );
     assert!(
+        main.contains("id == cmd_debug_toggle_breakpoint()")
+            && main.contains("let _bp = mui_bp_toggle_at_cursor(h)"),
+        "Debug toggle-breakpoint command must call the cursor breakpoint ABI"
+    );
+    assert!(
         main.contains("id == cmd_test_stop()")
             && main.contains("let _ts = mui_test_stop(h)")
             && main.contains("test_focus = true"),
@@ -10240,6 +10282,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_DEBUG_STEP_OUT, "cmd_debug_step_out"),
         (CMD_DEBUG_PAUSE, "cmd_debug_pause"),
         (CMD_DEBUG_RESTART, "cmd_debug_restart"),
+        (CMD_DEBUG_TOGGLE_BREAKPOINT, "cmd_debug_toggle_breakpoint"),
         (CMD_DEBUG_CLEAR_SESSION, "cmd_debug_clear_session"),
         (CMD_RELOAD_ACTIVE_FILE, "cmd_reload_active_file"),
         (CMD_REVERT_ACTIVE_FILE, "cmd_revert_active_file"),

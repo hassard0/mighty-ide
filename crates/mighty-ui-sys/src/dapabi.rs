@@ -364,6 +364,38 @@ pub extern "C" fn mui_bp_toggle(handle: i64, line: i32) -> i32 {
     i32::from(now_on)
 }
 
+/// Palette command: toggle a breakpoint at the active editor cursor. Opens the
+/// Run and Debug view and reports both set and cleared outcomes.
+#[no_mangle]
+pub extern "C" fn mui_bp_toggle_at_cursor(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    open_debug_view(ctx);
+    let file = active_path_str(ctx);
+    if file.is_empty() {
+        ctx.push_toast(crate::toast::Kind::Warn, "Save the file before setting breakpoints");
+        crate::abi::trace("bp_toggle_cursor no_file");
+        return 0;
+    }
+    let line = ctx.tabs.active_model().cursor_line() as i32;
+    let now_on = ctx.dbg.toggle_breakpoint(&file, line);
+    if ctx.dbg.state() != crate::dap::DebugState::Idle
+        && ctx.dbg.state() != crate::dap::DebugState::Terminated
+    {
+        ctx.dbg.resend_breakpoints();
+    }
+    let line1 = line + 1;
+    let msg = if now_on {
+        format!("Breakpoint set on line {line1}")
+    } else {
+        format!("Breakpoint cleared on line {line1}")
+    };
+    ctx.push_toast(crate::toast::Kind::Info, msg);
+    crate::abi::trace(&format!("bp_toggle_cursor line={line1} on={now_on}"));
+    i32::from(now_on)
+}
+
 /// `1` if there's a breakpoint on (0-based) `line` of the active file.
 #[no_mangle]
 pub extern "C" fn mui_bp_has(handle: i64, line: i32) -> i32 {

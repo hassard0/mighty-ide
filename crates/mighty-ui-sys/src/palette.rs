@@ -425,6 +425,8 @@ pub const CMD_TERMINAL_CLEAR: u32 = 196;
 pub const CMD_KEYBOARD_SHORTCUTS_RESET_SELECTED: u32 = 197;
 /// Reset every Keyboard Shortcuts override to default bindings.
 pub const CMD_KEYBOARD_SHORTCUTS_RESET_ALL: u32 = 198;
+/// Toggle a breakpoint at the active editor cursor.
+pub const CMD_DEBUG_TOGGLE_BREAKPOINT: u32 = 199;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -614,6 +616,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_DEBUG_STEP_OUT,   label: "Debug: Step Out",     keybinding: "Shift+F11" },
     Command { id: CMD_DEBUG_PAUSE,      label: "Debug: Pause",        keybinding: "" },
     Command { id: CMD_DEBUG_RESTART,    label: "Debug: Restart",      keybinding: "" },
+    Command { id: CMD_DEBUG_TOGGLE_BREAKPOINT, label: "Debug: Toggle Breakpoint at Cursor", keybinding: "" },
     Command { id: CMD_DEBUG_CLEAR_SESSION, label: "Run and Debug: Clear Session", keybinding: "" },
     Command { id: CMD_DEBUG_CLOSE,      label: "Run and Debug: Close Panel", keybinding: "" },
     Command { id: CMD_RUN_IN_BROWSER,   label: "Mighty: Run in Browser", keybinding: "Alt+W" },
@@ -1173,6 +1176,7 @@ impl PaletteEngine {
             CMD_DEBUG_STEP_OUT => (icons::DBG_STEP_OUT, "Run until the current frame returns", false),
             CMD_DEBUG_PAUSE => (icons::DBG_PAUSE, "Pause the running debuggee", true),
             CMD_DEBUG_RESTART => (icons::REFRESH, "Restart the last debug target", false),
+            CMD_DEBUG_TOGGLE_BREAKPOINT => (icons::BREAKPOINT, "Set or clear a breakpoint on the cursor line", true),
             CMD_DEBUG_CLEAR_SESSION => (icons::CLOSE, "Clear debug session state without clearing breakpoints or target", false),
             CMD_DEBUG_CLOSE => (icons::CLOSE, "Close the Run and Debug panel without stopping or resetting the debug model", false),
             CMD_RUN_IN_BROWSER => (icons::GLOBE, "Build and serve the active Mighty file for the browser", false),

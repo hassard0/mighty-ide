@@ -555,6 +555,7 @@ extern c {
   fn mui_dbg_cur_line(handle: I64) -> I32
   fn mui_dbg_cur_file_matches(handle: I64) -> I32
   fn mui_bp_toggle(handle: I64, line: I32) -> I32
+  fn mui_bp_toggle_at_cursor(handle: I64) -> I32
   fn mui_bp_has(handle: I64, line: I32) -> I32
   fn mui_bp_count(handle: I64) -> I32
   fn mui_bp_line(handle: I64, i: I32) -> I32
@@ -892,6 +893,7 @@ fn cmd_debug_step_into() -> I32 { 85 }
 fn cmd_debug_step_out() -> I32 { 86 }
 fn cmd_debug_pause() -> I32 { 87 }
 fn cmd_debug_restart() -> I32 { 88 }
+fn cmd_debug_toggle_breakpoint() -> I32 { 199 }
 fn cmd_new_workspace_file() -> I32 { 89 }
 fn cmd_new_untitled_file() -> I32 { 90 }
 fn cmd_format_document() -> I32 { 12 }
@@ -4658,6 +4660,8 @@ fn main() {
         } else if id == cmd_debug_restart() {
           let _vp = mui_panel_set(h, panel_debug())
           let _dr = mui_dbg_restart(h)
+        } else if id == cmd_debug_toggle_breakpoint() {
+          let _bp = mui_bp_toggle_at_cursor(h)
         } else if id >= cmd_ws_first() && id <= cmd_ws_last() {
           let wr = mui_ws_dispatch(h, id)
           if wr == 2 {
