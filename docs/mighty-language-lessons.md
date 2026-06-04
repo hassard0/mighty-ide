@@ -7721,3 +7721,13 @@ terminal editing.
 
 - **IDE note:** `key_to_bytes` now maps Alt+Backspace to `ESC DEL` while plain
   Backspace remains DEL. The key-mapping regression test covers both forms.
+
+L632. Terminal named-key coverage must include Insert. Full-screen terminal apps
+and shell line editors expect Insert as `CSI 2~` with the same xterm modifier
+parameters used by Delete and Page keys; omitting the named key makes the chord
+unrepresentable at the FFI boundary.
+
+- **IDE note:** the key ABI/header and winit mapper now expose `MUI_KEY_INSERT`.
+  `key_to_bytes` sends plain Insert as `CSI 2~` and modified Insert as
+  `CSI 2;N~`. Tests cover ABI/header parity, named-key mapping, and terminal
+  byte encoding.

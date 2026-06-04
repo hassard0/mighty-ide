@@ -86,6 +86,8 @@ pub const MUI_KEY_F7: u32 = 23;
 pub const MUI_KEY_F8: u32 = 24;
 /// F9 — terminal function key.
 pub const MUI_KEY_F9: u32 = 25;
+/// Insert — terminal insert/toggle key.
+pub const MUI_KEY_INSERT: u32 = 26;
 
 // ---------------------------------------------------------------------------
 // Mouse button codes (only used when tag == MUI_EVENT_MOUSE_DOWN/UP)
@@ -280,6 +282,7 @@ mod tests {
             ("MUI_KEY_F10", MUI_KEY_F10),
             ("MUI_KEY_F11", MUI_KEY_F11),
             ("MUI_KEY_F12", MUI_KEY_F12),
+            ("MUI_KEY_INSERT", MUI_KEY_INSERT),
         ] {
             assert_eq!(header.get(name).copied(), Some(value), "{name}");
         }

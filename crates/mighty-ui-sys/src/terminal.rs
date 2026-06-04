@@ -1713,8 +1713,8 @@ fn default_shell_command() -> CommandBuilder {
 /// Map a named key code (`MUI_KEY_*`) + modifier bits to the bytes a terminal
 /// expects, or `None` for keys with no terminal meaning. Enter -> CR (`\r`),
 /// Backspace -> DEL (`\x7f`), Alt+Backspace -> Meta-DEL (`ESC DEL`), Tab -> `\t`,
-/// Escape -> `\x1b`, arrows -> the usual `ESC [ A/B/C/D`. Ctrl+letter (handled
-/// on the Char path) is mapped separately.
+/// Escape -> `\x1b`, arrows -> the usual `ESC [ A/B/C/D`, Insert -> `ESC [ 2 ~`.
+/// Ctrl+letter (handled on the Char path) is mapped separately.
 pub fn key_to_bytes(key: u32, mods: u32, application_cursor_keys: bool) -> Option<Vec<u8>> {
     use crate::ffi::*;
     let modifier = terminal_modifier_param(mods);
@@ -1731,6 +1731,7 @@ pub fn key_to_bytes(key: u32, mods: u32, application_cursor_keys: bool) -> Optio
         MUI_KEY_DOWN if modifier.is_some() => modified_csi_1(modifier.unwrap(), b'B'),
         MUI_KEY_HOME if modifier.is_some() => modified_csi_1(modifier.unwrap(), b'H'),
         MUI_KEY_END if modifier.is_some() => modified_csi_1(modifier.unwrap(), b'F'),
+        MUI_KEY_INSERT if modifier.is_some() => modified_csi_tilde(2, modifier.unwrap()),
         MUI_KEY_DELETE if modifier.is_some() => modified_csi_tilde(3, modifier.unwrap()),
         MUI_KEY_PAGE_UP if modifier.is_some() => modified_csi_tilde(5, modifier.unwrap()),
         MUI_KEY_PAGE_DOWN if modifier.is_some() => modified_csi_tilde(6, modifier.unwrap()),
@@ -1756,6 +1757,7 @@ pub fn key_to_bytes(key: u32, mods: u32, application_cursor_keys: bool) -> Optio
         MUI_KEY_DOWN => vec![0x1b, b'[', b'B'],
         MUI_KEY_HOME => vec![0x1b, b'[', b'H'],
         MUI_KEY_END => vec![0x1b, b'[', b'F'],
+        MUI_KEY_INSERT => vec![0x1b, b'[', b'2', b'~'],
         MUI_KEY_DELETE => vec![0x1b, b'[', b'3', b'~'],
         MUI_KEY_PAGE_UP => vec![0x1b, b'[', b'5', b'~'],
         MUI_KEY_PAGE_DOWN => vec![0x1b, b'[', b'6', b'~'],
@@ -2783,6 +2785,7 @@ mod tests {
         assert_eq!(key_to_bytes(MUI_KEY_LEFT, 0, false), Some(vec![0x1b, b'[', b'D']));
         assert_eq!(key_to_bytes(MUI_KEY_HOME, 0, false), Some(vec![0x1b, b'[', b'H']));
         assert_eq!(key_to_bytes(MUI_KEY_END, 0, false), Some(vec![0x1b, b'[', b'F']));
+        assert_eq!(key_to_bytes(MUI_KEY_INSERT, 0, false), Some(vec![0x1b, b'[', b'2', b'~']));
         assert_eq!(key_to_bytes(MUI_KEY_DELETE, 0, false), Some(vec![0x1b, b'[', b'3', b'~']));
         assert_eq!(key_to_bytes(MUI_KEY_PAGE_UP, 0, false), Some(vec![0x1b, b'[', b'5', b'~']));
         assert_eq!(key_to_bytes(MUI_KEY_PAGE_DOWN, 0, false), Some(vec![0x1b, b'[', b'6', b'~']));
@@ -2833,6 +2836,10 @@ mod tests {
         assert_eq!(
             key_to_bytes(MUI_KEY_END, MUI_MOD_ALT, false),
             Some(b"\x1b[1;3F".to_vec())
+        );
+        assert_eq!(
+            key_to_bytes(MUI_KEY_INSERT, MUI_MOD_SHIFT, false),
+            Some(b"\x1b[2;2~".to_vec())
         );
         assert_eq!(
             key_to_bytes(MUI_KEY_DELETE, MUI_MOD_CTRL, false),

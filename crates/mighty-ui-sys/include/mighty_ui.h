@@ -66,6 +66,7 @@ typedef struct MuiColor {
 #define MUI_KEY_F7         23u
 #define MUI_KEY_F8         24u
 #define MUI_KEY_F9         25u
+#define MUI_KEY_INSERT     26u
 
 /* ---- mouse button codes (MuiEvent.button) -------------------------------- */
 

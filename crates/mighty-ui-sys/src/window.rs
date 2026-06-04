@@ -104,6 +104,7 @@ fn named_key_code(k: NamedKey) -> Option<u32> {
         NamedKey::Enter => MUI_KEY_ENTER,
         NamedKey::Tab => MUI_KEY_TAB,
         NamedKey::Escape => MUI_KEY_ESCAPE,
+        NamedKey::Insert => MUI_KEY_INSERT,
         NamedKey::Delete => MUI_KEY_DELETE,
         NamedKey::Home => MUI_KEY_HOME,
         NamedKey::End => MUI_KEY_END,
@@ -567,6 +568,7 @@ mod tests {
         assert_eq!(named_key_code(NamedKey::Backspace), Some(MUI_KEY_BACKSPACE));
         assert_eq!(named_key_code(NamedKey::ArrowLeft), Some(MUI_KEY_LEFT));
         assert_eq!(named_key_code(NamedKey::Escape), Some(MUI_KEY_ESCAPE));
+        assert_eq!(named_key_code(NamedKey::Insert), Some(MUI_KEY_INSERT));
         assert_eq!(named_key_code(NamedKey::F1), Some(MUI_KEY_F1));
         assert_eq!(named_key_code(NamedKey::F3), Some(MUI_KEY_F3));
         assert_eq!(named_key_code(NamedKey::F5), Some(MUI_KEY_F5));
