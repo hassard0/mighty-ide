@@ -9144,3 +9144,16 @@ misleading or silent outcomes.
   PTY spawn.
 - **Language note:** no compiler gap surfaced. The useful sequencing rule is to
   validate the command target before crossing unrelated IO boundaries.
+
+## L759 - File Utilities Still Return To Editor Ownership
+
+Read-only file utilities can look harmless because they do not mutate buffers or
+open prompts. They still decide where the next keystroke lands after the command
+palette closes.
+
+- **IDE note:** active-file reveal and copy path/name/directory commands now
+  release stale Run/Web/Testing/Terminal/AI/Agents/search focus, matching the
+  rest of the file-command family. Source-contract coverage pins each branch.
+- **Language note:** no compiler gap surfaced. The repeated scalar focus writes
+  continue to argue for command metadata, but until that exists every command
+  branch that returns to editor-owned UI needs an explicit cleanup contract.

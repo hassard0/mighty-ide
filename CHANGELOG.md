@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Active-file utility commands release stale focus**: reveal and copy-path/name/
+  directory commands now clear stale Run/Web/Testing/Terminal/AI/Agents focus
+  just like other file commands, so subsequent typing returns to the editor.
 - **Terminal paste failures are visible**: terminal paste now reports
   `Terminal is not open` before reading the clipboard when no integrated
   terminal is available, instead of silently returning from the command.

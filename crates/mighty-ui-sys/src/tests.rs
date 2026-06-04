@@ -10654,6 +10654,45 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         ),
         "Explorer close command must release stale focus"
     );
+    for (marker, call) in [
+        ("} else if id == cmd_reveal_active_file()", "let _fr = mui_file_reveal_active(h)"),
+        (
+            "} else if id == cmd_reveal_active_file_in_os()",
+            "let _fr_os = mui_file_reveal_active_in_os(h)",
+        ),
+        (
+            "} else if id == cmd_copy_active_file_path()",
+            "let _cp = mui_file_copy_active_path(h)",
+        ),
+        (
+            "} else if id == cmd_copy_active_file_relative_path()",
+            "let _crp = mui_file_copy_active_relative_path(h)",
+        ),
+        (
+            "} else if id == cmd_copy_active_file_name()",
+            "let _cfn = mui_file_copy_active_name(h)",
+        ),
+        (
+            "} else if id == cmd_copy_active_file_directory()",
+            "let _cfd = mui_file_copy_active_directory(h)",
+        ),
+    ] {
+        let branch = main
+            .split(marker)
+            .nth(1)
+            .unwrap_or_else(|| panic!("missing active-file command branch {marker}"));
+        let branch = branch
+            .split("} else if id ==")
+            .next()
+            .expect("active-file command branch should have a bounded body");
+        assert!(branch.contains(call), "active-file branch `{marker}` must call its ABI");
+        assert!(
+            branch.contains(
+                "run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+            "active-file command branch `{marker}` must release stale focus"
+        );
+    }
     assert!(
         main.contains("if mui_recent_any(h) == 1"),
         "File: Open Recent must open the recents picker only when valid recent files or folders exist"

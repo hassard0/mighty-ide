@@ -4329,6 +4329,12 @@ fn main() {
           find_nav = false
         } else if id == cmd_reveal_active_file() {
           let _fr = mui_file_reveal_active(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_explorer_refresh() {
           let _vp = mui_panel_set(h, panel_explorer())
@@ -4362,18 +4368,48 @@ fn main() {
           find_nav = false
         } else if id == cmd_reveal_active_file_in_os() {
           let _fr_os = mui_file_reveal_active_in_os(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_copy_active_file_path() {
           let _cp = mui_file_copy_active_path(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_copy_active_file_relative_path() {
           let _crp = mui_file_copy_active_relative_path(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_copy_active_file_name() {
           let _cfn = mui_file_copy_active_name(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_copy_active_file_directory() {
           let _cfd = mui_file_copy_active_directory(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_clear_notifications() {
           let _tc = mui_toast_clear(h)
