@@ -10722,11 +10722,11 @@ survive as if they described the new file.
 
 ## L870 - Transient Language Popups Belong To The Active File Context
 
-Hover cards, definition targets, signature help, completion menus, code-action
-menus, quick-fix lightbulbs, inline peek cards, and breadcrumb dropdowns are
-all computed from the current buffer, current cursor, or current file folder. If
-they survive an active-file transition, they can point at the previous tab while
-the status bar and editor show a new file.
+Hover cards, definition targets, signature help, completion menus, rename
+inputs, code-action menus, quick-fix lightbulbs, inline peek cards, and
+breadcrumb dropdowns are all computed from the current buffer, current cursor,
+or current file folder. If they survive an active-file transition, they can
+point at the previous tab while the status bar and editor show a new file.
 
 - **IDE note:** active-file path synchronization now clears transient language
   UI state alongside diagnostics, so tab switches, opens, closes, and rebinding

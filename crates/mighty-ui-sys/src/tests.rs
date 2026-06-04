@@ -9136,6 +9136,7 @@ fn sync_active_path_clears_stale_active_language_ui() {
             fix_all_mty: false,
         }]) > 0
     );
+    ctx.rename.open("alpha");
     let cursor = ctx.tabs.active_model().cursor_line() as i32;
     ctx.lightbulb.set_result(cursor, true);
     assert!(ctx.peek.open_at(
@@ -9164,6 +9165,7 @@ fn sync_active_path_clears_stale_active_language_ui() {
     assert_eq!(crate::abi::mui_sig_active(h), 1);
     assert_eq!(crate::mui_complete_active(h), 1);
     assert_eq!(crate::abi::mui_codeaction_active(h), 1);
+    assert_eq!(crate::abi::mui_rename_active(h), 1);
     assert_eq!(crate::wsabi::mui_lightbulb_visible(h), 1);
     assert_eq!(crate::stickyabi::mui_peek_active(h), 1);
     assert_eq!(crate::navsurfaces::mui_crumb_menu_active(h), 1);
@@ -9178,6 +9180,7 @@ fn sync_active_path_clears_stale_active_language_ui() {
     assert_eq!(crate::abi::mui_sig_active(h), 0);
     assert_eq!(crate::mui_complete_active(h), 0);
     assert_eq!(crate::abi::mui_codeaction_active(h), 0);
+    assert_eq!(crate::abi::mui_rename_active(h), 0);
     assert_eq!(crate::wsabi::mui_lightbulb_visible(h), 0);
     assert_eq!(crate::stickyabi::mui_peek_active(h), 0);
     assert_eq!(crate::navsurfaces::mui_crumb_menu_active(h), 0);
