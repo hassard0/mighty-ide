@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Hover reads result-scoped contents**: LSP hover parsing now isolates the
+  JSON-RPC `result` before reading `contents`, and reads markup `value` fields
+  at the hover object's top level so envelope metadata cannot replace hover
+  text.
 - **Go-to-definition reads result-scoped targets**: LSP definition parsing now
   isolates the JSON-RPC `result` before reading `Location` or `LocationLink`
   fields, preventing envelope or metadata URI/range fields from hijacking the

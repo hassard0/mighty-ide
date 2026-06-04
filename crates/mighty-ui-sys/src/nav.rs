@@ -444,12 +444,12 @@ fn hex_digit(n: u8) -> char {
 /// for `null` / missing / empty contents.
 pub fn parse_hover_value(json: &str) -> Option<String> {
     let bytes = json.as_bytes();
-    let anchor = find_sub(bytes, b"\"contents\"")?;
-    let value_at = json_value_start(bytes, anchor + b"\"contents\"".len())?;
-    let text = match bytes[value_at] {
-        b'"' => read_json_string_after(bytes, value_at)?,
-        b'{' => parse_hover_object(bytes, value_at)?,
-        b'[' => parse_hover_array(bytes, value_at)?,
+    let result = json_rpc_result_value(bytes)?;
+    let contents_at = top_level_field_value_start(result, b"contents")?;
+    let text = match result[contents_at] {
+        b'"' => read_json_string_after(result, contents_at)?,
+        b'{' => parse_hover_object(result, contents_at)?,
+        b'[' => parse_hover_array(result, contents_at)?,
         _ => return None,
     };
     if text.trim().is_empty() { None } else { Some(text) }
@@ -458,11 +458,9 @@ pub fn parse_hover_value(json: &str) -> Option<String> {
 fn parse_hover_object(bytes: &[u8], object_at: usize) -> Option<String> {
     let end = match_enclosed(bytes, object_at, b'{', b'}');
     let obj = &bytes[object_at..end.min(bytes.len())];
-    let language = find_sub(obj, b"\"language\"")
-        .and_then(|p| read_json_string_after(obj, p + b"\"language\"".len()))
+    let language = top_level_json_string_field(obj, b"language")
         .filter(|s| !s.trim().is_empty());
-    let value = find_sub(obj, b"\"value\"")
-        .and_then(|p| read_json_string_after(obj, p + b"\"value\"".len()))?;
+    let value = top_level_json_string_field(obj, b"value")?;
     match language {
         Some(lang) => Some(format!("```{lang}\n{value}\n```")),
         None => Some(value),
@@ -510,7 +508,7 @@ fn parse_hover_array(bytes: &[u8], array_at: usize) -> Option<String> {
 /// missing result.
 pub fn parse_definition(json: &str) -> Option<(String, u32, u32)> {
     let bytes = json.as_bytes();
-    let result = definition_result_value(bytes)?;
+    let result = json_rpc_result_value(bytes)?;
     let target = first_result_object(result)?;
     if let Some(link) = parse_location_link(target) {
         return Some(link);
@@ -539,7 +537,7 @@ fn parse_location(bytes: &[u8]) -> Option<(String, u32, u32)> {
     Some((uri, line, col))
 }
 
-fn definition_result_value(bytes: &[u8]) -> Option<&[u8]> {
+fn json_rpc_result_value(bytes: &[u8]) -> Option<&[u8]> {
     let value_start = top_level_field_value_start(bytes, b"result")?;
     if bytes.get(value_start..value_start + 4) == Some(b"null") {
         return None;
@@ -827,14 +825,6 @@ fn push_json_code_unit(out: &mut String, high_surrogate: &mut Option<u16>, unit:
             out.push(char::from_u32(unit as u32).unwrap_or('\u{fffd}'));
         }
     }
-}
-
-fn json_value_start(bytes: &[u8], pos: usize) -> Option<usize> {
-    let mut j = pos;
-    while j < bytes.len() && matches!(bytes[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        j += 1;
-    }
-    (j < bytes.len()).then_some(j)
 }
 
 fn skip_json_ws_and_commas(bytes: &[u8], mut pos: usize) -> usize {
@@ -1364,6 +1354,18 @@ mod tests {
         let json = r#"{"jsonrpc":"2.0","result":{"contents":{"kind":"markdown","value":"```mty\nfn add(a: I32, b: I32) -> I32\n```"},"range":{"start":{"line":5,"character":10},"end":{"line":5,"character":13}}},"id":2}"#;
         let v = parse_hover_value(json).expect("hover value");
         assert_eq!(v, "```mty\nfn add(a: I32, b: I32) -> I32\n```");
+    }
+
+    #[test]
+    fn parse_hover_uses_result_contents_not_envelope_fields() {
+        let json = r#"{"jsonrpc":"2.0","contents":"wrong envelope hover","result":{"contents":{"kind":"markdown","value":"right hover"}},"id":2}"#;
+        assert_eq!(parse_hover_value(json).unwrap(), "right hover");
+    }
+
+    #[test]
+    fn parse_hover_object_uses_top_level_value_field() {
+        let json = r#"{"jsonrpc":"2.0","result":{"contents":{"metadata":{"value":"wrong nested value","language":"rust"},"kind":"markdown","value":"right value"}},"id":2}"#;
+        assert_eq!(parse_hover_value(json).unwrap(), "right value");
     }
 
     #[test]

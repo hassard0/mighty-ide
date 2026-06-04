@@ -9904,3 +9904,16 @@ LSP `Location` or `LocationLink` is correct.
 - **Language note:** no compiler gap surfaced. Response parsers should establish
   the semantic payload boundary first, then parse protocol fields inside that
   boundary.
+
+## L812 - Hover Contents Belong To The Result Value
+
+Hover responses are JSON-RPC envelopes around an LSP hover payload. Scanning the
+whole envelope for `contents`, or scanning a hover object for the first nested
+`value`, lets metadata fields replace the documentation text shown to the user.
+
+- **IDE note:** hover parsing now isolates the top-level `result`, reads the
+  result's top-level `contents`, and reads `language` / `value` from the hover
+  object itself before wrapping the popup text.
+- **Language note:** no compiler gap surfaced. Reusing a payload-boundary helper
+  across hover and definition parsing keeps response-envelope fields from
+  competing with protocol payload fields.
