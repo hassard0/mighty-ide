@@ -39,6 +39,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Tab switches clear stale active diagnostics**: syncing the active file now
   invalidates cached diagnostics so underlines and code-action context cannot
   bleed from the previous tab before the next diagnostics refresh.
+- **Tab switches clear stale Find matches**: active-file sync now invalidates
+  cached in-buffer Find match coordinates so highlights and next/previous match
+  navigation cannot point into the previous tab.
 - **Tab switches close stale language popups**: active-file sync now also clears
   hover, definition, signature-help, completion, rename, snippet tab-stops,
   inline AI ghost text, code-action, and quick-fix lightbulb state, closes

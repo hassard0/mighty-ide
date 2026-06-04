@@ -4124,6 +4124,7 @@ pub(crate) fn sync_active_path(ctx: &mut MuiContext) {
     let active = ctx.tabs.active();
     let path = ctx.tabs.path(active);
     ctx.diags.clear();
+    ctx.find.reset();
     ctx.hover.clear();
     ctx.def.clear();
     ctx.sig.clear();

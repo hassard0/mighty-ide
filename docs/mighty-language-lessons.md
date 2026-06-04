@@ -10750,3 +10750,17 @@ editor buffer.
 - **Language note:** no compiler gap surfaced. Document-symbol caches should be
   scoped to the resource identity that produced them; consumers such as sticky
   scroll should see an empty cache until the new file is scanned.
+
+## L872 - In-Buffer Find Matches Belong To The Active File Context
+
+Find matches are cached as line and column coordinates in the streamed active
+buffer. Keeping those coordinates after a tab switch can make highlights and
+next/previous match navigation point into the previous file.
+
+- **IDE note:** active-file path synchronization now clears the cached Find
+  stream and match list. The user's Find prompt can stay open, but match
+  coordinates must be recomputed for the new active buffer before drawing or
+  navigation uses them.
+- **Language note:** no compiler gap surfaced. Cursor-addressed caches should be
+  invalidated whenever the resource identity changes, even when the query text
+  itself is reusable across files.
