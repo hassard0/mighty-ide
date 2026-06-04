@@ -7027,9 +7027,13 @@ fn terminal_cursor_draw_visible(cursor_visible: bool, cursor_blinking: bool, fra
     cursor_visible && (!cursor_blinking || (frame / 30) % 2 == 0)
 }
 
+fn terminal_sgr_blink_visible(frame: u64) -> bool {
+    (frame / 30) % 2 == 0
+}
+
 #[cfg(test)]
 mod terminal_cursor_tests {
-    use super::terminal_cursor_draw_visible;
+    use super::{terminal_cursor_draw_visible, terminal_sgr_blink_visible};
 
     #[test]
     fn terminal_cursor_draw_visibility_honors_blink_phase() {
@@ -7041,6 +7045,15 @@ mod terminal_cursor_tests {
         assert!(!terminal_cursor_draw_visible(true, true, 30));
         assert!(!terminal_cursor_draw_visible(true, true, 59));
         assert!(terminal_cursor_draw_visible(true, true, 60));
+    }
+
+    #[test]
+    fn terminal_sgr_blink_visibility_honors_blink_phase() {
+        assert!(terminal_sgr_blink_visible(0));
+        assert!(terminal_sgr_blink_visible(29));
+        assert!(!terminal_sgr_blink_visible(30));
+        assert!(!terminal_sgr_blink_visible(59));
+        assert!(terminal_sgr_blink_visible(60));
     }
 }
 
@@ -7464,6 +7477,8 @@ pub extern "C" fn mui_term_draw(handle: i64) {
         clip,
     );
     let _ = handle_ptr;
+    let frame = FRAME_COUNTER.load(std::sync::atomic::Ordering::Relaxed);
+    let blink_visible = terminal_sgr_blink_visible(frame);
 
     // Snapshot the grid into owned data so the borrow on `ctx.terminal` ends
     // before we borrow `ctx.text`.
@@ -7511,7 +7526,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
             let mut col = 0usize;
             while col < cols {
                 let cell = g.cell(r, col);
-                if !cell.underline || cell.conceal {
+                if !cell.underline || cell.conceal || (cell.blink && !blink_visible) {
                     col += 1;
                     continue;
                 }
@@ -7519,7 +7534,11 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 let start = col;
                 while col < cols {
                     let cell = g.cell(r, col);
-                    if !cell.underline || cell.conceal || cell.fg != fg {
+                    if !cell.underline
+                        || cell.conceal
+                        || (cell.blink && !blink_visible)
+                        || cell.fg != fg
+                    {
                         break;
                     }
                     col += 1;
@@ -7536,7 +7555,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
             let mut col = 0usize;
             while col < cols {
                 let cell = g.cell(r, col);
-                if !cell.strikethrough || cell.conceal {
+                if !cell.strikethrough || cell.conceal || (cell.blink && !blink_visible) {
                     col += 1;
                     continue;
                 }
@@ -7544,7 +7563,11 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 let start = col;
                 while col < cols {
                     let cell = g.cell(r, col);
-                    if !cell.strikethrough || cell.conceal || cell.fg != fg {
+                    if !cell.strikethrough
+                        || cell.conceal
+                        || (cell.blink && !blink_visible)
+                        || cell.fg != fg
+                    {
                         break;
                     }
                     col += 1;
@@ -7561,7 +7584,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
             let mut col = 0usize;
             while col < cols {
                 let cell = g.cell(r, col);
-                if !cell.overline || cell.conceal {
+                if !cell.overline || cell.conceal || (cell.blink && !blink_visible) {
                     col += 1;
                     continue;
                 }
@@ -7569,7 +7592,11 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 let start = col;
                 while col < cols {
                     let cell = g.cell(r, col);
-                    if !cell.overline || cell.conceal || cell.fg != fg {
+                    if !cell.overline
+                        || cell.conceal
+                        || (cell.blink && !blink_visible)
+                        || cell.fg != fg
+                    {
                         break;
                     }
                     col += 1;
@@ -7592,6 +7619,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 let italic = cell.italic;
                 let faint = cell.faint;
                 let conceal = cell.conceal;
+                let blink_hidden = cell.blink && !blink_visible;
                 let start = col;
                 let mut s = String::new();
                 while col < cols {
@@ -7600,10 +7628,11 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                         || cell.italic != italic
                         || cell.faint != faint
                         || cell.conceal != conceal
+                        || (cell.blink && !blink_visible) != blink_hidden
                     {
                         break;
                     }
-                    s.push(if conceal { ' ' } else { cell.ch });
+                    s.push(if conceal || blink_hidden { ' ' } else { cell.ch });
                     col += 1;
                 }
                 // Trim a trailing run of spaces (don't draw blank tails).
@@ -7665,7 +7694,6 @@ pub extern "C" fn mui_term_draw(handle: i64) {
 
     // Block cursor at the grid cursor position (clamped into the panel).
     let (cr, cc) = cursor;
-    let frame = FRAME_COUNTER.load(std::sync::atomic::Ordering::Relaxed);
     if terminal_cursor_draw_visible(cursor_visible, cursor_blinking, frame)
         && cr < rows
         && cc <= cols

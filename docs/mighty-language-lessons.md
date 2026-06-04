@@ -8171,3 +8171,13 @@ content and breaks alignment assumptions.
   stale conceal state. `mui_term_draw` preserves concealed cell width while
   suppressing glyph, underline, strikethrough, and overline drawing for those
   cells.
+
+L677. Blink is a timed terminal cell attribute. Some prompts and TUI alerts use
+`SGR 5`/`6` for urgency, so parsing it without a draw-time phase still makes the
+terminal miss state that other emulators expose.
+
+- **IDE note:** terminal cells now carry a blink flag, `SGR 5/6` enables it,
+  `SGR 25` disables it, REP and cursor save/restore preserve it, and RIS clears
+  stale blink state. `mui_term_draw` reuses the frame counter's blink phase to
+  suppress glyph and line-decoration drawing during the off phase while keeping
+  cell width stable.
