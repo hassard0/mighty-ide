@@ -9666,3 +9666,16 @@ snippet body grammar itself is compatible.
 - **Language note:** no compiler gap surfaced. Import-format tests should cover
   multi-prefix snippets and array bodies because those are the common cases that
   turn a compatible snippet engine into a practical migration path.
+
+## L795 - Snippet JSON Import Needs JSONC Tolerance
+
+Strict JSON parsing rejects many real user snippet files because editor-managed
+snippet JSON often contains comments or trailing commas. A nominally compatible
+importer still feels broken if it fails on files the source editor accepts.
+
+- **IDE note:** VS Code-style user snippet import now retries with a JSONC
+  normalizer that removes comments and trailing commas outside strings. Tests
+  cover URLs and literal block-comment markers inside snippet bodies so the
+  cleanup does not mutate code users intend to insert.
+- **Language note:** no compiler gap surfaced. Lenient import layers should be
+  explicit and localized so the runtime snippet grammar remains deterministic.

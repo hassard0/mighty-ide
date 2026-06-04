@@ -1011,7 +1011,12 @@ pub fn parse_user_snippets(text: &str) -> Vec<SnippetDef> {
 }
 
 fn parse_vscode_snippets(text: &str) -> Option<Vec<SnippetDef>> {
-    let root = serde_json::from_str::<serde_json::Value>(text).ok()?;
+    let root = serde_json::from_str::<serde_json::Value>(text)
+        .ok()
+        .or_else(|| {
+            let normalized = normalize_jsonc_snippets(text);
+            serde_json::from_str::<serde_json::Value>(&normalized).ok()
+        })?;
     let object = root.as_object()?;
     let mut out = Vec::new();
     for (name, value) in object {
@@ -1035,6 +1040,107 @@ fn parse_vscode_snippets(text: &str) -> Option<Vec<SnippetDef>> {
         }
     }
     Some(out)
+}
+
+fn normalize_jsonc_snippets(text: &str) -> String {
+    remove_json_trailing_commas(&strip_json_comments(text))
+}
+
+fn strip_json_comments(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    let mut in_string = false;
+    let mut escaped = false;
+    while i < chars.len() {
+        let ch = chars[i];
+        if in_string {
+            out.push(ch);
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        if ch == '"' {
+            in_string = true;
+            out.push(ch);
+            i += 1;
+            continue;
+        }
+        if ch == '/' && chars.get(i + 1) == Some(&'/') {
+            i += 2;
+            while i < chars.len() && chars[i] != '\n' {
+                i += 1;
+            }
+            continue;
+        }
+        if ch == '/' && chars.get(i + 1) == Some(&'*') {
+            i += 2;
+            while i < chars.len() {
+                if chars[i] == '\n' {
+                    out.push('\n');
+                    i += 1;
+                    continue;
+                }
+                if chars[i] == '*' && chars.get(i + 1) == Some(&'/') {
+                    i += 2;
+                    break;
+                }
+                i += 1;
+            }
+            continue;
+        }
+        out.push(ch);
+        i += 1;
+    }
+    out
+}
+
+fn remove_json_trailing_commas(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    let mut in_string = false;
+    let mut escaped = false;
+    while i < chars.len() {
+        let ch = chars[i];
+        if in_string {
+            out.push(ch);
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        if ch == '"' {
+            in_string = true;
+            out.push(ch);
+            i += 1;
+            continue;
+        }
+        if ch == ',' {
+            let mut j = i + 1;
+            while j < chars.len() && chars[j].is_whitespace() {
+                j += 1;
+            }
+            if matches!(chars.get(j), Some('}' | ']')) {
+                i += 1;
+                continue;
+            }
+        }
+        out.push(ch);
+        i += 1;
+    }
+    out
 }
 
 fn snippet_prefixes(value: Option<&serde_json::Value>) -> Vec<String> {
@@ -1736,6 +1842,30 @@ mod tests {
         assert_eq!(defs[1].body, "console.log(${1:value});\n$0");
         assert_eq!(defs[2].prefix, "guard");
         assert_eq!(defs[2].label, "Guard");
+    }
+
+    #[test]
+    fn parse_user_snippets_vscode_jsonc_comments_and_trailing_commas() {
+        let blob = r#"{
+            // Existing VS Code snippet files commonly include comments.
+            "Fetch": {
+                "prefix": ["fetch",],
+                "body": [
+                    "let url = \"https://example.com/${1:path}\";",
+                    "/* keep this literal block marker */",
+                    "$0",
+                ],
+                "description": "Fetch URL",
+            },
+        }"#;
+        let defs = parse_user_snippets(blob);
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].prefix, "fetch");
+        assert_eq!(defs[0].label, "Fetch URL");
+        assert_eq!(
+            defs[0].body,
+            "let url = \"https://example.com/${1:path}\";\n/* keep this literal block marker */\n$0"
+        );
     }
 
     #[test]

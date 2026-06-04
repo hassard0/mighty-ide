@@ -14,7 +14,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 ### Editing & layout
 - **User snippets accept VS Code JSON**: the optional user snippet file can now
   be a VS Code-style JSON object with string or array prefixes and string or
-  array bodies, while the existing tab-separated format still works.
+  array bodies, including comments and trailing commas from existing JSONC
+  snippet files, while the existing tab-separated format still works.
 - **Current-date snippet variables resolve**: imported snippets can now use
   `$CURRENT_YEAR`, `$CURRENT_MONTH`, `$CURRENT_DATE`, and related day/time
   variables from the local expansion time.
