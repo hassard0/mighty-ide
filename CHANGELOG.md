@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Go-to-definition accepts case-varied file URIs**: LSP definition targets now
+  accept `FILE://...` schemes and `file://LOCALHOST/...` authorities, matching
+  URI casing rules instead of dropping otherwise valid navigation targets.
 - **Go-to-definition handles UNC file URIs**: LSP definition targets using
   `file://localhost/...` or `file://server/share/...` now resolve to local drive
   paths or UNC paths correctly instead of becoming relative paths.

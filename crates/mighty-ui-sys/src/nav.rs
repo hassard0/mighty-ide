@@ -504,13 +504,16 @@ fn parse_location(bytes: &[u8]) -> Option<(String, u32, u32)> {
 /// `file:///C:/a/b` -> `C:\a\b`, `file:///home/x` -> `/home/x`). Percent-decodes
 /// `%20` etc. Returns `None` for a non-`file:` uri.
 pub fn uri_to_path(uri: &str) -> Option<std::path::PathBuf> {
-    let rest = uri.strip_prefix("file://")?;
+    let rest = strip_file_uri_scheme(uri)?;
     // After `file://` an absolute Windows path looks like `/C:/...`; a POSIX path
     // looks like `/home/...`. A URI authority (`file://server/share/x`) is a UNC
     // path; `localhost` is the local machine and should be ignored.
     let mut rest = percent_decode(rest);
-    if let Some(local) = rest.strip_prefix("localhost/") {
-        rest = format!("/{local}");
+    if rest.len() >= 10
+        && rest.as_bytes()[9] == b'/'
+        && rest[..9].eq_ignore_ascii_case("localhost")
+    {
+        rest = format!("/{}", &rest[10..]);
     }
     let bytes = rest.as_bytes();
     let native = if bytes.len() >= 3
@@ -531,6 +534,16 @@ pub fn uri_to_path(uri: &str) -> Option<std::path::PathBuf> {
         rest.replace('/', std::path::MAIN_SEPARATOR_STR)
     };
     Some(std::path::PathBuf::from(native))
+}
+
+fn strip_file_uri_scheme(uri: &str) -> Option<&str> {
+    let scheme = uri.get(..7)?;
+    let rest = uri.get(7..)?;
+    if scheme.eq_ignore_ascii_case("file://") {
+        Some(rest)
+    } else {
+        None
+    }
 }
 
 /// Minimal percent-decoder for URI paths (`%20` -> space, etc.). Leaves
@@ -1322,8 +1335,20 @@ mod tests {
     }
 
     #[test]
+    fn uri_to_path_accepts_case_insensitive_file_scheme() {
+        let p = uri_to_path("FILE:///C:/Users/me/foo.mty").unwrap();
+        assert_eq!(p, std::path::PathBuf::from(r"C:\Users\me\foo.mty"));
+    }
+
+    #[test]
     fn uri_to_path_localhost_drive() {
         let p = uri_to_path("file://localhost/C:/Users/me/foo.mty").unwrap();
+        assert_eq!(p, std::path::PathBuf::from(r"C:\Users\me\foo.mty"));
+    }
+
+    #[test]
+    fn uri_to_path_accepts_case_insensitive_localhost_authority() {
+        let p = uri_to_path("file://LOCALHOST/C:/Users/me/foo.mty").unwrap();
         assert_eq!(p, std::path::PathBuf::from(r"C:\Users\me\foo.mty"));
     }
 

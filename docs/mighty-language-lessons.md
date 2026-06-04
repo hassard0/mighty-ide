@@ -9763,3 +9763,17 @@ network shares. Treating the authority as ordinary path text breaks navigation.
 - **Language note:** no compiler gap surfaced. URI decoding tests should cover
   drive, localhost, UNC, percent-encoded, and non-file cases because definition
   navigation depends on the path round-trip being exact.
+
+## L802 - File URI Casing Should Not Affect Navigation
+
+URI schemes and hosts are case-insensitive, so definition targets such as
+`FILE:///C:/...` or `file://LOCALHOST/C:/...` are just as valid as their
+lowercase equivalents. Treating those fields as case-sensitive silently drops
+otherwise correct LSP navigation results.
+
+- **IDE note:** `uri_to_path` now checks the `file://` scheme and `localhost`
+  authority case-insensitively while preserving the path text itself for percent
+  decoding and native separator conversion.
+- **Language note:** no compiler gap surfaced. URI parsing helpers should
+  normalize protocol metadata without normalizing path segments, especially on
+  filesystems where case can be meaningful.
