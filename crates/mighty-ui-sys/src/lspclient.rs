@@ -69,27 +69,31 @@ impl Method {
         }
     }
 
-    fn params(&self, uri: &str, line: u32, col: u32) -> String {
+    fn params(&self, uri: &str, source: &str, line: u32, col: u32) -> String {
         let u = json_escape(uri);
+        let lsp_col = lsp_utf16_col(source, line, col);
         match self {
             Method::Completion
             | Method::Hover
             | Method::Definition
             | Method::SignatureHelp
             | Method::PrepareRename => format!(
-                r#"{{"textDocument":{{"uri":"{u}"}},"position":{{"line":{line},"character":{col}}}}}"#
+                r#"{{"textDocument":{{"uri":"{u}"}},"position":{{"line":{line},"character":{lsp_col}}}}}"#
             ),
             Method::Rename { new_name } => format!(
-                r#"{{"textDocument":{{"uri":"{u}"}},"position":{{"line":{line},"character":{col}}},"newName":"{}"}}"#,
+                r#"{{"textDocument":{{"uri":"{u}"}},"position":{{"line":{line},"character":{lsp_col}}},"newName":"{}"}}"#,
                 json_escape(new_name)
             ),
             Method::CodeAction {
                 end_line,
                 end_col,
                 diagnostics_json,
-            } => format!(
-                r#"{{"textDocument":{{"uri":"{u}"}},"range":{{"start":{{"line":{line},"character":{col}}},"end":{{"line":{end_line},"character":{end_col}}}}},"context":{{"diagnostics":{diagnostics_json}}}}}"#
-            ),
+            } => {
+                let lsp_end_col = lsp_utf16_col(source, *end_line, *end_col);
+                format!(
+                    r#"{{"textDocument":{{"uri":"{u}"}},"range":{{"start":{{"line":{line},"character":{lsp_col}}},"end":{{"line":{end_line},"character":{lsp_end_col}}}}},"context":{{"diagnostics":{diagnostics_json}}}}}"#
+                )
+            }
             Method::DocumentSymbol => format!(r#"{{"textDocument":{{"uri":"{u}"}}}}"#),
             Method::ExecuteCommand {
                 command,
@@ -103,6 +107,17 @@ impl Method {
             }
         }
     }
+}
+
+fn lsp_utf16_col(source: &str, line: u32, char_col: u32) -> u32 {
+    let Some(line_text) = source.split('\n').nth(line as usize) else {
+        return 0;
+    };
+    line_text
+        .chars()
+        .take(char_col as usize)
+        .map(|ch| ch.len_utf16() as u32)
+        .sum()
 }
 
 fn frame(json: &str) -> Vec<u8> {
@@ -227,7 +242,7 @@ pub fn request_with_timeout(
         json_escape(language_id),
         json_escape(source)
     );
-    let request_msg = request_msg(&method, &uri, line, col);
+    let request_msg = request_msg(&method, &uri, source, line, col);
 
     let Some(stdin) = child.stdin.take() else {
         kill(child);
@@ -329,11 +344,11 @@ pub fn request_with_timeout(
     }
 }
 
-fn request_msg(method: &Method, uri: &str, line: u32, col: u32) -> String {
+fn request_msg(method: &Method, uri: &str, source: &str, line: u32, col: u32) -> String {
     format!(
         r#"{{"jsonrpc":"2.0","id":2,"method":"{}","params":{}}}"#,
         method.name(),
-        method.params(uri, line, col)
+        method.params(uri, source, line, col)
     )
 }
 
@@ -856,6 +871,43 @@ mod tests {
     }
 
     #[test]
+    fn lsp_utf16_col_converts_editor_character_columns() {
+        let source = "let face = \"😀\";\n😀abc";
+        assert_eq!(lsp_utf16_col(source, 0, 12), 12);
+        assert_eq!(lsp_utf16_col(source, 0, 13), 14);
+        assert_eq!(lsp_utf16_col(source, 1, 0), 0);
+        assert_eq!(lsp_utf16_col(source, 1, 1), 2);
+        assert_eq!(lsp_utf16_col(source, 1, 3), 4);
+        assert_eq!(lsp_utf16_col(source, 99, 7), 0);
+    }
+
+    #[test]
+    fn request_msg_serializes_lsp_utf16_position_columns() {
+        let source = "😀abc";
+        let msg = request_msg(&Method::Hover, "file:///repo/src/main.rs", source, 0, 3);
+        assert!(msg.contains(r#""position":{"line":0,"character":4}"#));
+    }
+
+    #[test]
+    fn code_action_request_serializes_lsp_utf16_range_columns() {
+        let source = "😀abc";
+        let msg = request_msg(
+            &Method::CodeAction {
+                end_line: 0,
+                end_col: 4,
+                diagnostics_json: "[]".to_string(),
+            },
+            "file:///repo/src/main.rs",
+            source,
+            0,
+            1,
+        );
+        assert!(msg.contains(
+            r#""range":{"start":{"line":0,"character":2},"end":{"line":0,"character":5}}"#
+        ));
+    }
+
+    #[test]
     fn code_action_request_uses_range_params() {
         let msg = request_msg(
             &Method::CodeAction {
@@ -864,6 +916,7 @@ mod tests {
                 diagnostics_json: "[]".to_string(),
             },
             "file:///repo/src/main.rs",
+            "line0\nline1\nline2\nline3\nabcdefghijklmnopq",
             4,
             0,
         );
@@ -883,6 +936,7 @@ mod tests {
                 diagnostics_json: r#"[{"severity":1,"message":"missing import"}]"#.to_string(),
             },
             "file:///repo/src/main.rs",
+            "line0\nline1\nline2\nline3\nabcdefghijklmnopq",
             4,
             0,
         );
@@ -893,7 +947,13 @@ mod tests {
 
     #[test]
     fn signature_help_request_uses_position_params() {
-        let msg = request_msg(&Method::SignatureHelp, "file:///repo/src/main.rs", 7, 12);
+        let msg = request_msg(
+            &Method::SignatureHelp,
+            "file:///repo/src/main.rs",
+            "\n\n\n\n\n\n\nabcdefghijkl",
+            7,
+            12,
+        );
         assert!(msg.contains(r#""method":"textDocument/signatureHelp""#));
         assert!(msg.contains(
             r#""textDocument":{"uri":"file:///repo/src/main.rs"},"position":{"line":7,"character":12}"#
@@ -902,7 +962,13 @@ mod tests {
 
     #[test]
     fn prepare_rename_request_uses_position_params() {
-        let msg = request_msg(&Method::PrepareRename, "file:///repo/src/main.rs", 2, 5);
+        let msg = request_msg(
+            &Method::PrepareRename,
+            "file:///repo/src/main.rs",
+            "\n\nabcde",
+            2,
+            5,
+        );
         assert!(msg.contains(r#""method":"textDocument/prepareRename""#));
         assert!(msg.contains(
             r#""textDocument":{"uri":"file:///repo/src/main.rs"},"position":{"line":2,"character":5}"#
@@ -916,6 +982,7 @@ mod tests {
                 new_name: "next_value".to_string(),
             },
             "file:///repo/src/main.rs",
+            "\n\n\nabcdefghi",
             3,
             9,
         );
@@ -926,7 +993,13 @@ mod tests {
 
     #[test]
     fn document_symbol_request_uses_document_params_only() {
-        let msg = request_msg(&Method::DocumentSymbol, "file:///repo/src/main.rs", 99, 42);
+        let msg = request_msg(
+            &Method::DocumentSymbol,
+            "file:///repo/src/main.rs",
+            "",
+            99,
+            42,
+        );
         assert!(msg.contains(r#""method":"textDocument/documentSymbol""#));
         assert!(msg.contains(r#""params":{"textDocument":{"uri":"file:///repo/src/main.rs"}}"#));
         assert!(!msg.contains(r#""position""#));
@@ -940,6 +1013,7 @@ mod tests {
                 arguments_json: Some(r#"[{"id":1}]"#.to_string()),
             },
             "file:///repo/src/main.rs",
+            "",
             0,
             0,
         );
