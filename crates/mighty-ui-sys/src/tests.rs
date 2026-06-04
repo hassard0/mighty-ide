@@ -552,6 +552,17 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert_eq!(mui_tab_count(handle), 2);
     assert_eq!(mui_tab_active(handle), 1);
 
+    // Empty typed Open File submissions should surface feedback instead of
+    // masquerading as a successful switch to the active tab.
+    mui_path_clear(handle);
+    assert_eq!(mui_tab_open_path(handle), -1);
+    assert!(ctx.path_stage.is_empty());
+    assert_eq!(mui_tab_count(handle), 2);
+    assert_eq!(mui_tab_active(handle), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No file path entered");
+
     // Open File should not silently create a file-backed empty tab for a typo.
     mui_path_clear(handle);
     let missing = dir.join("mui_tababi_missing.txt");

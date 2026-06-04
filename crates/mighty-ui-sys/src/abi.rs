@@ -4215,8 +4215,8 @@ pub extern "C" fn mui_tab_active(handle: i64) -> i32 {
 
 /// Open the path staged via `mui_path_*` as a new tab (or switch to it if
 /// already open), reading its bytes from disk. Returns the resulting tab index,
-/// or -1 on a null handle. The staged path is resolved relative to the tree
-/// root when not absolute, so Ctrl+O "foo.mty" opens beside the initial file.
+/// or -1 when no file was opened. The staged path is resolved relative to the
+/// tree root when not absolute, so Ctrl+O "foo.mty" opens beside the initial file.
 #[no_mangle]
 pub extern "C" fn mui_tab_open_path(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -4226,7 +4226,8 @@ pub extern "C" fn mui_tab_open_path(handle: i64) -> i32 {
     let raw = String::from_utf8_lossy(&staged).into_owned();
     let raw = raw.trim();
     if raw.is_empty() {
-        return ctx.tabs.active() as i32;
+        ctx.push_toast(crate::toast::Kind::Info, "No file path entered");
+        return -1;
     }
     let candidate = PathBuf::from(raw);
     let resolved = if candidate.is_absolute() {

@@ -893,6 +893,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Run output rows fit compact docks**: Run panel output now ellipsizes by
   measured code-font width instead of a fixed character estimate, keeping long
   diagnostics inside compact bottom-dock bounds.
+- **Typed Open File rejects blank paths**: pressing Enter on an empty Open File
+  fallback prompt now reports `No file path entered` instead of silently closing
+  the prompt as though the active tab had been opened again.
 - **Save All now has native-picker proof for untitled tabs**: deterministic
   SaveFileDialog sequences let the Windows harness verify Save As and Save All
   in one run, including the exact Save All path used for a dirty untitled tab.

@@ -663,6 +663,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Open file dialog unavailable"
         || m == "Open folder dialog unavailable"
         || m.starts_with("Open failed")
+        || m == "No file path entered"
         || m.starts_with("Recent file missing")
         || m.starts_with("Recent folder missing")
         || m == "No recent file selected"
