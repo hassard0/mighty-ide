@@ -9805,3 +9805,17 @@ JSON-RPC failure makes valid rename targets disappear.
 - **Language note:** no compiler gap surfaced. Hand-rolled LSP scanners should
   separate envelope-level JSON-RPC state from protocol payload fields before
   making UI decisions.
+
+## L805 - WorkspaceEdit URI Keys Need Case-Insensitive Schemes
+
+Fixing `file://` path resolution is not enough if the `WorkspaceEdit.changes`
+parser never sees a URI key whose scheme casing differs from lowercase. LSP
+document URI schemes are case-insensitive, and rename/code-action edits can use
+the `changes` map shape keyed by those URIs.
+
+- **IDE note:** workspace-edit parsing now scans top-level `changes` keys
+  string-safely, accepts case-varied `file` URI schemes such as `FILE:///...`,
+  and ignores URI-looking strings inside edit payloads.
+- **Language note:** no compiler gap surfaced. URI handling needs the same
+  normalization at every parser boundary, not only at the final path conversion
+  step.

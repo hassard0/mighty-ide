@@ -450,14 +450,12 @@ fn parse_changes_map(bytes: &[u8], changes_at: usize, we: &mut WorkspaceEdit) {
     // Find the matching close `}` so we don't read past the changes object.
     let obj_end = match_brace(bytes, obj_start);
     let region = &bytes[obj_start..obj_end.min(bytes.len())];
-    // Each entry: `"uri":[ ...edits... ]`. URIs start with `"file:`.
+    // Each entry: `"uri":[ ...edits... ]`. URI schemes are case-insensitive.
     let mut k = 0usize;
     while k < region.len() {
-        // Find the next `"file` key (a uri).
-        let Some(rel) = find_sub(&region[k..], b"\"file") else {
+        let Some(uri_start) = find_next_file_uri_key(region, k) else {
             break;
         };
-        let uri_start = k + rel;
         let Some((uri, past)) = read_json_string_at(region, uri_start) else {
             k = uri_start + 5;
             continue;
@@ -476,6 +474,46 @@ fn parse_changes_map(bytes: &[u8], changes_at: usize, we: &mut WorkspaceEdit) {
         we.files.push((uri, edits));
         k = arr_end;
     }
+}
+
+fn find_next_file_uri_key(bytes: &[u8], start: usize) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'{' | b'[' => {
+                depth += 1;
+                i += 1;
+            }
+            b'}' | b']' => {
+                depth -= 1;
+                i += 1;
+            }
+            b'"' => {
+                let string_start = i;
+                let (key, past) = read_json_string_at(bytes, i)?;
+                let mut value_at = past;
+                while value_at < bytes.len()
+                    && matches!(bytes[value_at], b' ' | b'\t' | b'\r' | b'\n')
+                {
+                    value_at += 1;
+                }
+                if depth == 1
+                    && string_start >= start
+                    && value_at < bytes.len()
+                    && bytes[value_at] == b':'
+                    && key
+                        .get(..4)
+                        .is_some_and(|scheme| scheme.eq_ignore_ascii_case("file"))
+                {
+                    return Some(string_start);
+                }
+                i = past;
+            }
+            _ => i += 1,
+        }
+    }
+    None
 }
 
 /// Parse the `documentChanges` array shape into `we`.
@@ -1953,6 +1991,24 @@ mod tests {
         assert_eq!(we.files[0].0, "file:///a.mty");
         assert_eq!(we.files[1].0, "file:///b.mty");
         assert_eq!(we.files[1].1[0].new_text, "q");
+    }
+
+    #[test]
+    fn parse_workspace_edit_changes_map_accepts_case_varied_file_uri_keys() {
+        let json = r#"{"result":{"changes":{"FILE:///C:/tmp/probe.mty":[{"newText":"plus","range":{"start":{"line":2,"character":4},"end":{"line":2,"character":7}}}]}},"id":4}"#;
+        let we = parse_workspace_edit(json);
+        assert_eq!(we.file_count(), 1);
+        assert_eq!(we.files[0].0, "FILE:///C:/tmp/probe.mty");
+        assert_eq!(we.files[0].1[0].new_text, "plus");
+    }
+
+    #[test]
+    fn parse_workspace_edit_changes_map_ignores_nested_file_uri_text() {
+        let json = r#"{"result":{"changes":{"metadata":"file:///ignored.rs","file:///edited.rs":[{"newText":"file:///literal.rs","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":1}}}]}},"id":4}"#;
+        let we = parse_workspace_edit(json);
+        assert_eq!(we.file_count(), 1);
+        assert_eq!(we.files[0].0, "file:///edited.rs");
+        assert_eq!(we.files[0].1[0].new_text, "file:///literal.rs");
     }
 
     #[test]

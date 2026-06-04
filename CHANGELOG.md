@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Workspace edits accept case-varied file URI keys**: rename and code-action
+  edits using `FILE:///...` keys in the LSP `changes` map now parse correctly,
+  while nested URI-looking text inside edits is ignored as payload.
 - **Rename prepare ignores nested error text**: valid `prepareRename` responses
   that include placeholder or metadata strings such as `"error"` no longer get
   mistaken for JSON-RPC failures.
