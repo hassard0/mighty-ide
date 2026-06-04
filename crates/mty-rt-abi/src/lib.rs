@@ -78,6 +78,10 @@ unsafe fn read_bytes<'a>(ptr: i64, len: i64) -> &'a [u8] {
     std::slice::from_raw_parts(ptr as usize as *const u8, len as usize)
 }
 
+unsafe fn read_str(ptr: i64, len: i64) -> String {
+    String::from_utf8_lossy(read_bytes(ptr, len)).into_owned()
+}
+
 thread_local! {
     static FMT_STRINGS: RefCell<Vec<Box<str>>> = const { RefCell::new(Vec::new()) };
     static RAW_BYTES: RefCell<Vec<Box<[u8]>>> = const { RefCell::new(Vec::new()) };
@@ -110,6 +114,20 @@ unsafe fn write_str_pair(dst: i64, ptr: i64, len: i64) {
     let p = dst as usize as *mut i64;
     p.write(ptr);
     p.add(1).write(len);
+}
+
+unsafe fn write_str_triple(dst: i64, ptr: i64, len: i64, ok: i64) {
+    if dst == 0 {
+        return;
+    }
+    let p = dst as usize as *mut i64;
+    p.write(ptr);
+    p.add(1).write(len);
+    p.add(2).write(ok);
+}
+
+fn errno_of(err: std::io::Error) -> i32 {
+    -err.raw_os_error().unwrap_or(1)
 }
 
 #[no_mangle]
@@ -200,87 +218,206 @@ pub extern "C" fn mty_runtime_extern_call(_name_ptr: i64, _name_len: i64, _args:
 }
 
 #[no_mangle]
-pub extern "C" fn mty_runtime_fs_read(_path_ptr: i64, _path_len: i64, _dst: i64) -> i64 {
-    0
+pub extern "C" fn mty_runtime_fs_read(path_ptr: i64, path_len: i64, dst: i64) {
+    let path = unsafe { read_str(path_ptr, path_len) };
+    match std::fs::read(std::path::Path::new(&path)) {
+        Ok(bytes) => {
+            let (p, l) = intern_raw_bytes(bytes);
+            unsafe { write_str_triple(dst, p, l, 1) };
+        }
+        Err(_) => unsafe { write_str_triple(dst, 0, 0, 0) },
+    }
 }
 
 #[no_mangle]
-pub extern "C" fn mty_runtime_fs_read_to_string(_path_ptr: i64, _path_len: i64, _dst: i64) -> i64 {
-    0
+pub extern "C" fn mty_runtime_fs_read_to_string(path_ptr: i64, path_len: i64, dst: i64) {
+    mty_runtime_fs_read(path_ptr, path_len, dst);
 }
 
 #[no_mangle]
-pub extern "C" fn mty_runtime_fs_read_dir(_path_ptr: i64, _path_len: i64, _dst: i64) -> i64 {
-    0
+pub extern "C" fn mty_runtime_fs_read_dir(path_ptr: i64, path_len: i64, dst: i64) {
+    let path = unsafe { read_str(path_ptr, path_len) };
+    match std::fs::read_dir(std::path::Path::new(&path)) {
+        Ok(rd) => {
+            let mut entries: Vec<std::path::PathBuf> =
+                rd.filter_map(|e| e.ok().map(|d| d.path())).collect();
+            entries.sort();
+            let joined = entries
+                .iter()
+                .map(|entry| entry.display().to_string())
+                .collect::<Vec<_>>()
+                .join("\n");
+            let (p, l) = intern_fmt(joined);
+            unsafe { write_str_triple(dst, p, l, 1) };
+        }
+        Err(_) => unsafe { write_str_triple(dst, 0, 0, 0) },
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn mty_runtime_fs_write(
-    _path_ptr: i64,
-    _path_len: i64,
-    _buf_ptr: i64,
-    _buf_len: i64,
-) -> i64 {
-    0
+    path_ptr: i64,
+    path_len: i64,
+    buf_ptr: i64,
+    buf_len: i64,
+) -> i32 {
+    let path_str = unsafe { read_str(path_ptr, path_len) };
+    let path = std::path::Path::new(&path_str);
+    let data = unsafe { read_bytes(buf_ptr, buf_len) };
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                return errno_of(e);
+            }
+        }
+    }
+    match std::fs::write(path, data) {
+        Ok(()) => 1,
+        Err(e) => errno_of(e),
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn mty_runtime_fs_write_string(
-    _path_ptr: i64,
-    _path_len: i64,
-    _buf_ptr: i64,
-    _buf_len: i64,
-) -> i64 {
-    0
+    path_ptr: i64,
+    path_len: i64,
+    buf_ptr: i64,
+    buf_len: i64,
+) -> i32 {
+    mty_runtime_fs_write(path_ptr, path_len, buf_ptr, buf_len)
 }
 
 #[no_mangle]
 pub extern "C" fn mty_runtime_fs_append(
-    _path_ptr: i64,
-    _path_len: i64,
-    _buf_ptr: i64,
-    _buf_len: i64,
-) -> i64 {
-    0
+    path_ptr: i64,
+    path_len: i64,
+    buf_ptr: i64,
+    buf_len: i64,
+) -> i32 {
+    let path_str = unsafe { read_str(path_ptr, path_len) };
+    let path = std::path::Path::new(&path_str);
+    let data = unsafe { read_bytes(buf_ptr, buf_len) };
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                return errno_of(e);
+            }
+        }
+    }
+    let mut f = match std::fs::OpenOptions::new().create(true).append(true).open(path) {
+        Ok(f) => f,
+        Err(e) => return errno_of(e),
+    };
+    match f.write_all(data) {
+        Ok(()) => 1,
+        Err(e) => errno_of(e),
+    }
 }
 
 #[no_mangle]
-pub extern "C" fn mty_runtime_fs_exists(_path_ptr: i64, _path_len: i64) -> i8 {
-    0
+pub extern "C" fn mty_runtime_fs_exists(path_ptr: i64, path_len: i64) -> i32 {
+    let path = unsafe { read_str(path_ptr, path_len) };
+    i32::from(std::path::Path::new(&path).exists())
 }
 
 #[no_mangle]
-pub extern "C" fn mty_runtime_fs_metadata(_path_ptr: i64, _path_len: i64, _dst: i64) -> i64 {
-    0
+pub extern "C" fn mty_runtime_fs_metadata(path_ptr: i64, path_len: i64, dst: i64) -> i32 {
+    let path = unsafe { read_str(path_ptr, path_len) };
+    match std::fs::metadata(std::path::Path::new(&path)) {
+        Ok(md) => {
+            let mtime_ms = md
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as i64)
+                .unwrap_or(0);
+            if dst != 0 {
+                unsafe {
+                    (dst as usize as *mut u64).write(md.len());
+                    ((dst as usize + 8) as *mut i64).write(mtime_ms);
+                    ((dst as usize + 16) as *mut i8).write(i8::from(md.is_file()));
+                    ((dst as usize + 17) as *mut i8).write(i8::from(md.is_dir()));
+                }
+            }
+            1
+        }
+        Err(e) => errno_of(e),
+    }
 }
 
 #[no_mangle]
-pub extern "C" fn mty_runtime_fs_create_dir_all(_path_ptr: i64, _path_len: i64) -> i64 {
-    0
+pub extern "C" fn mty_runtime_fs_create_dir_all(path_ptr: i64, path_len: i64) -> i32 {
+    let path = unsafe { read_str(path_ptr, path_len) };
+    match std::fs::create_dir_all(std::path::Path::new(&path)) {
+        Ok(()) => 1,
+        Err(e) => errno_of(e),
+    }
 }
 
 #[no_mangle]
-pub extern "C" fn mty_runtime_fs_remove_file(_path_ptr: i64, _path_len: i64) -> i64 {
-    0
+pub extern "C" fn mty_runtime_fs_remove_file(path_ptr: i64, path_len: i64) -> i32 {
+    let path = unsafe { read_str(path_ptr, path_len) };
+    match std::fs::remove_file(std::path::Path::new(&path)) {
+        Ok(()) => 1,
+        Err(e) => errno_of(e),
+    }
 }
 
 #[no_mangle]
-pub extern "C" fn mty_runtime_fs_remove_dir_all(_path_ptr: i64, _path_len: i64) -> i64 {
-    0
+pub extern "C" fn mty_runtime_fs_remove_dir_all(path_ptr: i64, path_len: i64) -> i32 {
+    let path = unsafe { read_str(path_ptr, path_len) };
+    match std::fs::remove_dir_all(std::path::Path::new(&path)) {
+        Ok(()) => 1,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => 1,
+        Err(e) => errno_of(e),
+    }
+}
+
+#[repr(C)]
+struct DirIterState {
+    entries: Vec<std::path::PathBuf>,
+    cursor: usize,
 }
 
 #[no_mangle]
-pub extern "C" fn mty_runtime_fs_dir_open(_path_ptr: i64, _path_len: i64) -> i64 {
-    0
+pub extern "C" fn mty_runtime_fs_dir_open(path_ptr: i64, path_len: i64) -> i64 {
+    let path = unsafe { read_str(path_ptr, path_len) };
+    let entries = match std::fs::read_dir(std::path::Path::new(&path)) {
+        Ok(rd) => {
+            let mut entries: Vec<std::path::PathBuf> =
+                rd.filter_map(|e| e.ok().map(|d| d.path())).collect();
+            entries.sort();
+            entries
+        }
+        Err(_) => return 0,
+    };
+    Box::into_raw(Box::new(DirIterState { entries, cursor: 0 })) as usize as i64
 }
 
 #[no_mangle]
-pub extern "C" fn mty_runtime_fs_dir_next(_handle: i64, _dst: i64) -> i64 {
-    0
+pub extern "C" fn mty_runtime_fs_dir_next(handle: i64, dst: i64) -> i32 {
+    if handle == 0 {
+        unsafe { write_str_triple(dst, 0, 0, 0) };
+        return 0;
+    }
+    let state = unsafe { &mut *(handle as usize as *mut DirIterState) };
+    if state.cursor >= state.entries.len() {
+        unsafe { write_str_triple(dst, 0, 0, 0) };
+        return 0;
+    }
+    let entry = state.entries[state.cursor].display().to_string();
+    state.cursor += 1;
+    let (p, l) = intern_fmt(entry);
+    unsafe { write_str_triple(dst, p, l, 1) };
+    1
 }
 
 #[no_mangle]
-pub extern "C" fn mty_runtime_fs_dir_close(_handle: i64) {}
+pub extern "C" fn mty_runtime_fs_dir_close(handle: i64) {
+    if handle != 0 {
+        let _ = unsafe { Box::from_raw(handle as usize as *mut DirIterState) };
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn mty_runtime_log_i64(v: i64) {
@@ -522,6 +659,10 @@ mod tests {
         unsafe { read_bytes(slot[0], slot[1]) }.to_vec()
     }
 
+    fn slot_triple_bytes(slot: &[i64; 3]) -> Vec<u8> {
+        unsafe { read_bytes(slot[0], slot[1]) }.to_vec()
+    }
+
     #[test]
     fn alloc_without_frame_uses_global() {
         // No frame pushed: must still hand back a usable pointer.
@@ -633,77 +774,101 @@ mod tests {
     }
 
     #[test]
-    fn filesystem_stubs_export_empty_results() {
-        let mut slot = [0_i64; 2];
-        let path = "missing.mty";
-        let data = "data";
+    fn filesystem_runtime_exports_perform_real_io() {
+        let root = std::env::temp_dir().join(format!(
+            "mty_rt_abi_fs_test_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        let root_s = root.display().to_string();
         assert_eq!(
-            mty_runtime_fs_read(path.as_ptr() as i64, path.len() as i64, slot.as_mut_ptr() as i64),
-            0
+            mty_runtime_fs_create_dir_all(root_s.as_ptr() as i64, root_s.len() as i64),
+            1
         );
-        assert_eq!(
-            mty_runtime_fs_read_to_string(
-                path.as_ptr() as i64,
-                path.len() as i64,
-                slot.as_mut_ptr() as i64,
-            ),
-            0
-        );
-        assert_eq!(
-            mty_runtime_fs_read_dir(
-                path.as_ptr() as i64,
-                path.len() as i64,
-                slot.as_mut_ptr() as i64,
-            ),
-            0
-        );
+
+        let file = root.join("nested").join("data.txt");
+        let file_s = file.display().to_string();
+        let data = b"hello";
         assert_eq!(
             mty_runtime_fs_write(
-                path.as_ptr() as i64,
-                path.len() as i64,
+                file_s.as_ptr() as i64,
+                file_s.len() as i64,
                 data.as_ptr() as i64,
                 data.len() as i64,
             ),
-            0
+            1
         );
-        assert_eq!(
-            mty_runtime_fs_write_string(
-                path.as_ptr() as i64,
-                path.len() as i64,
-                data.as_ptr() as i64,
-                data.len() as i64,
-            ),
-            0
-        );
+        let suffix = b" world";
         assert_eq!(
             mty_runtime_fs_append(
-                path.as_ptr() as i64,
-                path.len() as i64,
-                data.as_ptr() as i64,
-                data.len() as i64,
+                file_s.as_ptr() as i64,
+                file_s.len() as i64,
+                suffix.as_ptr() as i64,
+                suffix.len() as i64,
             ),
-            0
+            1
         );
-        assert_eq!(mty_runtime_fs_exists(path.as_ptr() as i64, path.len() as i64), 0);
+        assert_eq!(mty_runtime_fs_exists(file_s.as_ptr() as i64, file_s.len() as i64), 1);
+
+        let mut read_slot = [0_i64; 3];
+        mty_runtime_fs_read(
+            file_s.as_ptr() as i64,
+            file_s.len() as i64,
+            read_slot.as_mut_ptr() as i64,
+        );
+        assert_eq!(read_slot[2], 1);
+        assert_eq!(slot_triple_bytes(&read_slot), b"hello world");
+
+        let mut read_str_slot = [0_i64; 3];
+        mty_runtime_fs_read_to_string(
+            file_s.as_ptr() as i64,
+            file_s.len() as i64,
+            read_str_slot.as_mut_ptr() as i64,
+        );
+        assert_eq!(read_str_slot[2], 1);
+        assert_eq!(slot_triple_bytes(&read_str_slot), b"hello world");
+
+        let mut md_slot = [0_u8; 24];
         assert_eq!(
-            mty_runtime_fs_metadata(path.as_ptr() as i64, path.len() as i64, slot.as_mut_ptr() as i64),
-            0
+            mty_runtime_fs_metadata(file_s.as_ptr() as i64, file_s.len() as i64, md_slot.as_mut_ptr() as i64),
+            1
         );
-        assert_eq!(
-            mty_runtime_fs_create_dir_all(path.as_ptr() as i64, path.len() as i64),
-            0
+        let size = unsafe { *(md_slot.as_ptr() as *const u64) };
+        assert_eq!(size, 11);
+        assert_eq!(md_slot[16], 1);
+        assert_eq!(md_slot[17], 0);
+
+        let mut read_dir_slot = [0_i64; 3];
+        mty_runtime_fs_read_dir(
+            root_s.as_ptr() as i64,
+            root_s.len() as i64,
+            read_dir_slot.as_mut_ptr() as i64,
         );
-        assert_eq!(
-            mty_runtime_fs_remove_file(path.as_ptr() as i64, path.len() as i64),
-            0
-        );
-        assert_eq!(
-            mty_runtime_fs_remove_dir_all(path.as_ptr() as i64, path.len() as i64),
-            0
-        );
-        let handle = mty_runtime_fs_dir_open(path.as_ptr() as i64, path.len() as i64);
-        assert_eq!(handle, 0);
-        assert_eq!(mty_runtime_fs_dir_next(handle, slot.as_mut_ptr() as i64), 0);
+        assert_eq!(read_dir_slot[2], 1);
+        assert!(String::from_utf8(slot_triple_bytes(&read_dir_slot))
+            .unwrap()
+            .contains("nested"));
+
+        let handle = mty_runtime_fs_dir_open(root_s.as_ptr() as i64, root_s.len() as i64);
+        assert_ne!(handle, 0);
+        let mut next_slot = [0_i64; 3];
+        assert_eq!(mty_runtime_fs_dir_next(handle, next_slot.as_mut_ptr() as i64), 1);
+        let first = String::from_utf8(slot_triple_bytes(&next_slot)).unwrap();
+        assert!(first.ends_with("nested"));
+        assert_eq!(next_slot[2], 1);
+        assert_eq!(mty_runtime_fs_dir_next(handle, next_slot.as_mut_ptr() as i64), 0);
+        assert_eq!(next_slot[2], 0);
         mty_runtime_fs_dir_close(handle);
+
+        assert_eq!(mty_runtime_fs_remove_file(file_s.as_ptr() as i64, file_s.len() as i64), 1);
+        assert_eq!(mty_runtime_fs_exists(file_s.as_ptr() as i64, file_s.len() as i64), 0);
+        assert_eq!(
+            mty_runtime_fs_remove_dir_all(root_s.as_ptr() as i64, root_s.len() as i64),
+            1
+        );
     }
 }
