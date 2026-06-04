@@ -11816,6 +11816,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("find_nav = false"),
         "Search close command must use the Search-specific close ABI without clearing query/results"
     );
+    assert!(
+        main.contains(
+            "id >= cmd_git_first() && id <= cmd_git_last() {\n          let _g = mui_git_dispatch(h, id)\n          if id == cmd_git_push() || id == cmd_git_pull() || id == cmd_git_fetch() {\n            let _vp = mui_panel_set(h, panel_scm())\n            let _r = mui_scm_refresh(h)\n          }\n          if mui_branch_active(h) == 1 { branch_open = true }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Git range commands must reveal SCM for remote actions, preserve branch-picker ownership, and release stale focus"
+    );
     for needle in [
         "id >= cmd_pane_first() && id <= cmd_pane_last()",
         "id >= cmd_git_first() && id <= cmd_git_last()",

@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Git range commands claim visible ownership**: Switch Branch now releases stale
+  panel/search focus when the branch picker opens, Push/Pull/Fetch reveal Source
+  Control after dispatch, and Toggle Blame returns keyboard ownership to the
+  editor instead of leaving stale panel focus behind.
 - **Autocomplete, Jump Back, and Zoom release stale focus**: editor-returning
   palette commands for suggestions, navigation history, and zoom now clear stale
   Run/Web/Testing/Terminal/AI/Agents/search focus before returning keyboard input

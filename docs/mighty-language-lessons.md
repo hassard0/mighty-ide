@@ -9089,3 +9089,18 @@ navigation commands.
 - **Language note:** no compiler gap surfaced. The repeated fix again points at
   the missing command focus-effect table: small commands are easy to overlook
   when every branch hand-writes scalar state transitions.
+
+## L755 - Range Dispatch Still Needs Per-Result Focus
+
+Single-arm range dispatch keeps the Mighty command ladder small, but it can hide
+different focus outcomes behind one branch. Git commands are the example:
+Switch Branch opens a picker, Push/Pull/Fetch should surface Source Control, and
+Toggle Blame returns to the editor gutter.
+
+- **IDE note:** the Git range branch now releases stale Run/Web/Testing/
+  Terminal/AI/Agents/search focus after every dispatch. Push, Pull, and Fetch
+  reveal Source Control and refresh it; Switch Branch preserves branch-picker
+  ownership when the shim opens it; Toggle Blame returns to editor ownership.
+  Source-contract coverage pins the one-arm range behavior.
+- **Language note:** no compiler gap surfaced. The pattern reinforces that range
+  dispatch needs a result/focus mapping, not just a compact command-id gate.
