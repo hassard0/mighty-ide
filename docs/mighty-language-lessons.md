@@ -10045,3 +10045,18 @@ can show non-completion metadata in the autocomplete dropdown.
 - **Language note:** no compiler gap surfaced. Even lightweight scrapers need to
   establish the payload owner first; display rows should come from row objects,
   not every matching key in the response.
+
+## L822 - Apply Edit Requests Need Top-Level Routing Fields
+
+Generic LSP servers can send `workspace/applyEdit` requests while other
+messages or metadata also contain strings named `workspace/applyEdit` or fields
+named `id`. Searching for those strings broadly can acknowledge the wrong
+request id.
+
+- **IDE note:** `workspace/applyEdit` acknowledgement now scans complete
+  top-level JSON objects, requires a top-level `method` of
+  `workspace/applyEdit`, and reads the response id from that request object's
+  top-level `id`.
+- **Language note:** no compiler gap surfaced. Protocol routing should be based
+  on complete message envelopes; nested metadata is descriptive text, not a
+  routable request.

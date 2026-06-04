@@ -352,15 +352,20 @@ fn apply_edit_response(id_json: &str) -> String {
 }
 
 fn apply_edit_request_id(stream: &[u8]) -> Option<String> {
-    let method_at = find_sub(stream, b"\"workspace/applyEdit\"")?;
-    let obj_start = stream[..method_at]
-        .iter()
-        .rposition(|&b| b == b'{')
-        .unwrap_or(0);
-    let obj_end = match_brace(stream, obj_start).min(stream.len());
-    let obj = &stream[obj_start..obj_end];
-    let id_at = find_sub(obj, b"\"id\"")?;
-    read_json_id_at(obj, id_at + b"\"id\"".len()).map(|(id, _)| id)
+    for obj in top_level_json_objects(stream) {
+        let Some(method_at) = top_level_field_value_start(obj, b"method") else {
+            continue;
+        };
+        let Some((method, _)) = read_json_string_at(obj, method_at) else {
+            continue;
+        };
+        if method != "workspace/applyEdit" {
+            continue;
+        }
+        let id_at = top_level_field_value_start(obj, b"id")?;
+        return read_json_id_at(obj, id_at).map(|(id, _)| id);
+    }
+    None
 }
 
 /// Open `source` on the server and collect its `publishDiagnostics` for the
@@ -1356,6 +1361,19 @@ mod tests {
             apply_edit_response(r#""cmd-7""#),
             r#"{"jsonrpc":"2.0","id":"cmd-7","result":{"applied":true}}"#
         );
+    }
+
+    #[test]
+    fn apply_edit_request_id_uses_top_level_method_and_id() {
+        let stream = br#"{"jsonrpc":"2.0","id":1,"method":"client/registerCapability","params":{"metadata":{"method":"workspace/applyEdit","id":99}}}
+{"jsonrpc":"2.0","metadata":{"id":98,"method":"workspace/applyEdit"},"id":7,"method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}"#;
+        assert_eq!(apply_edit_request_id(stream), Some("7".to_string()));
+    }
+
+    #[test]
+    fn apply_edit_request_id_ignores_nested_apply_edit_without_request() {
+        let stream = br#"{"jsonrpc":"2.0","id":1,"method":"client/registerCapability","params":{"metadata":{"method":"workspace/applyEdit","id":99}}}"#;
+        assert_eq!(apply_edit_request_id(stream), None);
     }
 
     #[test]

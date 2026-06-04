@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Apply-edit responses route by top-level request fields**: generic LSP
+  `workspace/applyEdit` acknowledgement now finds complete request objects and
+  reads only top-level `method` / `id`, so nested metadata cannot hijack command
+  response IDs.
 - **Completion labels read result item fields**: semantic completion scraping now
   reads labels from the JSON-RPC `result` array or `result.items`, and only from
   each CompletionItem's top-level `label`, so metadata labels cannot pollute the
