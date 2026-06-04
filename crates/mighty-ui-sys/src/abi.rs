@@ -7012,8 +7012,8 @@ pub extern "C" fn mui_probe_buf_len(handle: i64, mty_buf_len: i32) {
 // Integrated terminal — PTY-backed shell + VT grid (all logic in terminal.rs)
 // ---------------------------------------------------------------------------
 
-/// One queued terminal text run: position, string, resolved RGBA color, and italic state.
-type TermRun = (f32, f32, String, (f32, f32, f32, f32), bool);
+/// One queued terminal text run: position, string, resolved RGBA color, italic state, and faint state.
+type TermRun = (f32, f32, String, (f32, f32, f32, f32), bool, bool);
 /// One queued terminal background run: position, width, and resolved RGBA color.
 type TermBgRun = (f32, f32, f32, (f32, f32, f32, f32));
 /// One queued terminal underline run: position, width, and resolved RGBA color.
@@ -7562,11 +7562,12 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 let cell = g.cell(r, col);
                 let fg = cell.fg;
                 let italic = cell.italic;
+                let faint = cell.faint;
                 let start = col;
                 let mut s = String::new();
                 while col < cols {
                     let cell = g.cell(r, col);
-                    if cell.fg != fg || cell.italic != italic {
+                    if cell.fg != fg || cell.italic != italic || cell.faint != faint {
                         break;
                     }
                     s.push(cell.ch);
@@ -7575,7 +7576,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 // Trim a trailing run of spaces (don't draw blank tails).
                 if !s.trim_end().is_empty() {
                     let x = layout::term_cell_x(region, start);
-                    runs.push((x, y, s, t.foreground_rgba(fg), italic));
+                    runs.push((x, y, s, t.foreground_rgba(fg), italic, faint));
                 }
             }
         }
@@ -7598,8 +7599,9 @@ pub extern "C" fn mui_term_draw(handle: i64) {
         ctx.dl_rect(*x, *y, *w, layout::LINE_H() - 2.0, MuiColor::new(*r, *gc, *b, *a));
     }
 
-    for (x, y, s, (r, gc, b, a), italic) in &glyphs {
-        let color = MuiColor::new(*r, *gc, *b, *a);
+    for (x, y, s, (r, gc, b, a), italic, faint) in &glyphs {
+        let alpha = if *faint { *a * 0.62 } else { *a };
+        let color = MuiColor::new(*r, *gc, *b, alpha);
         if *italic {
             ctx.text.queue_styled(
                 *x,

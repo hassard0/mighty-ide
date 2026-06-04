@@ -8139,3 +8139,14 @@ makes semantic emphasis disappear.
   glyph runs split on italic state so `mui_term_draw` can queue the bundled true
   italic code face. Regression coverage pins SGR reset, repeated italic cells,
   restored italic state, and RIS clearing stale style attributes.
+
+L674. Faint intensity is part of terminal information density. Prompts and CLIs
+often use `SGR 2` for muted paths, inactive hints, and secondary metadata. If it
+is ignored, the terminal loses visual hierarchy even when the text remains
+readable.
+
+- **IDE note:** terminal cells now carry a faint flag, `SGR 2` enables it, and
+  `SGR 22` clears both bold and faint intensity as xterm-compatible terminals do.
+  REP and cursor save/restore preserve faint cells, RIS clears stale faint state,
+  and terminal glyph runs split on faint state so `mui_term_draw` can dim the
+  resolved foreground alpha without changing stored color identity.
