@@ -9396,9 +9396,9 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "move-line key and command paths must preflight file-boundary no-ops before recording undo"
     );
     assert!(
-        main.contains("if !shift_held(kmods) || mui_ed_can_outdent(h) == 1 { mui_ed_undo_record(h) }\n            typing = false\n            let changed = if shift_held(kmods)")
-            && main.contains("if id == cmd_indent_line_selection() || mui_ed_can_outdent(h) == 1 {\n            mui_ed_undo_record(h)\n          }\n          typing = false\n          let changed = if id == cmd_outdent_line_selection()"),
-        "outdent key and command paths must preflight no-indent no-ops before recording undo"
+        main.contains("if (!shift_held(kmods) && mui_ed_can_edit(h) == 1) || (shift_held(kmods) && mui_ed_can_outdent(h) == 1) { mui_ed_undo_record(h) }\n            typing = false\n            let changed = if shift_held(kmods)")
+            && main.contains("if (id == cmd_indent_line_selection() && mui_ed_can_edit(h) == 1) || (id == cmd_outdent_line_selection() && mui_ed_can_outdent(h) == 1) {\n            mui_ed_undo_record(h)\n          }\n          typing = false\n          let changed = if id == cmd_outdent_line_selection()"),
+        "indent/outdent key and command paths must preflight read-only and no-indent no-ops before recording undo"
     );
     assert!(
         main.contains("if mui_ed_can_duplicate(h) == 1 { mui_ed_undo_record(h) }\n            let changed = mui_ed_duplicate(h)")

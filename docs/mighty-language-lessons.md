@@ -7562,3 +7562,13 @@ skipping them can leave alternate-screen layouts with stale or misplaced rows.
   Reverse Index, including scroll-region-aware top/bottom margin behavior.
   Parser tests cover normal movement, row preservation, and margin-local
   scrolling without leaking escape bytes into the visible grid.
+
+L615. Indent undo routing must preflight editability too. Outdent already had a
+no-indent preflight, but the plain indent routes still recorded undo before the
+stateful edit ABI rejected read-only previews. That left a false checkpoint
+behind a visible "edit unavailable" warning.
+
+- **IDE note:** Tab indentation and the palette `Indent Line/Selection` command
+  now call the generic editable-buffer preflight before recording undo, while
+  Shift+Tab and Outdent keep their stricter no-indent preflight. The Mighty
+  route regression test now asserts both checks.

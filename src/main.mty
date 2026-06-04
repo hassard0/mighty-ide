@@ -3162,7 +3162,7 @@ fn main() {
             }
           } else {
             // (5) Nothing took the Tab -> indent/outdent the editor.
-            if !shift_held(kmods) || mui_ed_can_outdent(h) == 1 { mui_ed_undo_record(h) }
+            if (!shift_held(kmods) && mui_ed_can_edit(h) == 1) || (shift_held(kmods) && mui_ed_can_outdent(h) == 1) { mui_ed_undo_record(h) }
             typing = false
             let changed = if shift_held(kmods) {
               mui_ed_outdent(h)
@@ -3980,7 +3980,7 @@ fn main() {
             mui_ghost_arm(h)
           }
         } else if id == cmd_indent_line_selection() || id == cmd_outdent_line_selection() {
-          if id == cmd_indent_line_selection() || mui_ed_can_outdent(h) == 1 {
+          if (id == cmd_indent_line_selection() && mui_ed_can_edit(h) == 1) || (id == cmd_outdent_line_selection() && mui_ed_can_outdent(h) == 1) {
             mui_ed_undo_record(h)
           }
           typing = false
