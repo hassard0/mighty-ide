@@ -49,6 +49,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Breakpoint rows prune missing targets**: opening a debug breakpoint row
   whose source file was deleted now removes the stale breakpoint entry and keeps
   the inventory from repeatedly targeting a missing file.
+- **Testing result jumps distinguish stale rows**: out-of-range Testing result
+  jumps now report `No test result row selected` instead of implying a visible
+  row lacked a file target.
 - **Fix-all code actions protect dirty duplicate tabs**: Fix all (mty) now
   refuses to save or run the external fixer when another equivalent tab for the
   active file has unsaved edits, matching inline workspace-edit safety, and

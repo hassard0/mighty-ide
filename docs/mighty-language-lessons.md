@@ -10881,3 +10881,17 @@ also be removed.
 - **Language note:** no compiler gap surfaced. Hit-tested menus that resolve
   through parallel backing vectors need to prune both the visible miss and the
   backing target when activation proves the resource no longer exists.
+
+## L882 - Testing Row Misses Need Row-Existence Checks First
+
+Testing result jumps resolve a selected row into a test function declaration. If
+the row index is stale or out of range, that is different from a real row whose
+test declaration cannot be located.
+
+- **IDE note:** `mui_test_open_row` now checks that the requested result row
+  still exists before resolving its file target, so stale indices report `No test
+  result row selected` while real targetless rows still report `Test result row
+  has no file target`.
+- **Language note:** no compiler gap surfaced. Row activation code should
+  validate row identity before resolving secondary resources, otherwise stale
+  indices get mislabeled as content-level failures.

@@ -479,6 +479,10 @@ pub extern "C" fn mui_test_open_row(handle: i64, i: i32) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, "No test result row selected");
         return 0;
     }
+    if ctx.tests_panel.row(i as usize).is_none() {
+        ctx.push_toast(crate::toast::Kind::Info, "No test result row selected");
+        return 0;
+    }
     let Some((full, line, col)) = ctx.tests_panel.resolve_row_target(i as usize) else {
         ctx.push_toast(crate::toast::Kind::Info, "Test result row has no file target");
         return 0;
