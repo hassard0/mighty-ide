@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Workspace edits require top-level edit owners**: rename and code-action edit
+  parsing now ignores nested metadata-only `changes` or `documentChanges`
+  fields when the owning WorkspaceEdit lacks those top-level edit containers.
 - **Execute-command streams require real apply-edit requests**: generic LSP
   command execution now isolates its own response by response-owned `id: 2` and
   appends the raw stream only when a top-level `workspace/applyEdit` request was

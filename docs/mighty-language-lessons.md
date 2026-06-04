@@ -10185,3 +10185,17 @@ method should not make edit parsing inspect unrelated payloads.
 - **Language note:** no compiler gap surfaced. Follow-up request detection
   should use top-level method ownership just like request routing and response
   readiness.
+
+## L832 - WorkspaceEdit Containers Must Be Owned
+
+`WorkspaceEdit` payloads own either a top-level `changes` map or a top-level
+`documentChanges` array. Metadata inside the result can use the same field names
+for explanations or snapshots, but those nested containers are not edits to
+apply to the user's files.
+
+- **IDE note:** rename and code-action edit parsing now reads only top-level
+  `changes` or `documentChanges` from the selected WorkspaceEdit payload and
+  ignores nested metadata-only containers.
+- **Language note:** no compiler gap surfaced. Once an owning payload has been
+  selected, fallback broad scans reintroduce the same metadata ambiguity the
+  selection was meant to remove.

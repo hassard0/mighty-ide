@@ -30,14 +30,6 @@ const POPUP_MARGIN: f32 = 20.0;
 // Pure parsers + edit model (no GPU/context; exhaustively unit-tested)
 // ===========================================================================
 
-/// First occurrence of `needle` in `hay` (byte substring search).
-fn find_sub(hay: &[u8], needle: &[u8]) -> Option<usize> {
-    if needle.is_empty() || needle.len() > hay.len() {
-        return None;
-    }
-    hay.windows(needle.len()).position(|w| w == needle)
-}
-
 /// Read a JSON string literal beginning at or after `pos` (skips whitespace + a
 /// leading `:`, then expects `"`). Un-escapes the common cases. Returns the
 /// decoded string + the byte index just past the closing quote, or `None`.
@@ -374,12 +366,6 @@ pub fn parse_workspace_edit(json: &str) -> WorkspaceEdit {
         parse_changes_map_at_value(bytes, changes_at, &mut we);
     } else if let Some(dc_at) = top_level_field_value_start(bytes, "documentChanges") {
         parse_document_changes_at_value(bytes, dc_at, &mut we);
-    } else if let Some(changes_at) = find_sub(bytes, b"\"changes\"") {
-        // Walk URI keys inside the changes object. Each key is a `"file://..."`
-        // string immediately followed by `:[` and a list of edits up to `]`.
-        parse_changes_map(bytes, changes_at, &mut we);
-    } else if let Some(dc_at) = find_sub(bytes, b"\"documentChanges\"") {
-        parse_document_changes(bytes, dc_at, &mut we);
     }
     we
 }
@@ -395,16 +381,6 @@ fn workspace_edit_payload(bytes: &[u8]) -> &[u8] {
         }
     }
     bytes
-}
-
-/// Parse the `changes` map shape into `we`.
-fn parse_changes_map(bytes: &[u8], changes_at: usize, we: &mut WorkspaceEdit) {
-    // Find the opening `{` of the changes object.
-    let mut i = changes_at + b"\"changes\"".len();
-    while i < bytes.len() && matches!(bytes[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        i += 1;
-    }
-    parse_changes_map_at_value(bytes, i, we);
 }
 
 fn parse_changes_map_at_value(bytes: &[u8], i: usize, we: &mut WorkspaceEdit) {
@@ -479,15 +455,6 @@ fn find_next_file_uri_key(bytes: &[u8], start: usize) -> Option<usize> {
         }
     }
     None
-}
-
-/// Parse the `documentChanges` array shape into `we`.
-fn parse_document_changes(bytes: &[u8], dc_at: usize, we: &mut WorkspaceEdit) {
-    let mut i = dc_at + b"\"documentChanges\"".len();
-    while i < bytes.len() && matches!(bytes[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        i += 1;
-    }
-    parse_document_changes_at_value(bytes, i, we);
 }
 
 fn parse_document_changes_at_value(bytes: &[u8], i: usize, we: &mut WorkspaceEdit) {
@@ -1994,6 +1961,12 @@ mod tests {
     }
 
     #[test]
+    fn parse_workspace_edit_ignores_nested_changes_without_owner() {
+        let json = r#"{"result":{"metadata":{"changes":{"file:///wrong.mty":[{"newText":"wrong","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":1}}}]}}},"id":4}"#;
+        assert!(parse_workspace_edit(json).is_empty());
+    }
+
+    #[test]
     fn parse_workspace_edit_document_changes_shape() {
         let json = r#"{"result":{"documentChanges":[{"textDocument":{"uri":"file:///z.mty","version":1},"edits":[{"newText":"X","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":1}}}]}]},"id":4}"#;
         let we = parse_workspace_edit(json);
@@ -2009,6 +1982,12 @@ mod tests {
         assert_eq!(we.file_count(), 1);
         assert_eq!(we.files[0].0, "file:///right.mty");
         assert_eq!(we.files[0].1[0], TextEdit { start_line: 3, start_col: 4, end_line: 3, end_col: 8, new_text: "right".into() });
+    }
+
+    #[test]
+    fn parse_workspace_edit_ignores_nested_document_changes_without_owner() {
+        let json = r#"{"result":{"metadata":{"documentChanges":[{"textDocument":{"uri":"file:///wrong.mty"},"edits":[{"newText":"wrong","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":1}}}]}]}},"id":4}"#;
+        assert!(parse_workspace_edit(json).is_empty());
     }
 
     #[test]
