@@ -480,7 +480,7 @@ pub fn parse_stack_trace(raw: &str) -> Vec<StackFrame> {
         .filter_map(|obj| {
             let id = top_level_uint_field(obj, b"id")?;
             let name = top_level_string_field(obj, b"name").unwrap_or_default();
-            let line = top_level_uint_field(obj, b"line").unwrap_or(0);
+            let line = top_level_uint_field(obj, b"line")?;
             let file = top_level_object_field(obj, b"source")
                 .and_then(|source| top_level_string_field(source, b"path"))
                 .unwrap_or_default();
@@ -1622,6 +1622,35 @@ mod tests {
         assert_eq!(frames[0].id, 3);
         assert_eq!(frames[0].name, "right frame");
         assert_eq!(frames[0].line, 8);
+        assert_eq!(frames[0].file, "C:/right.mty");
+    }
+
+    #[test]
+    fn parse_stack_trace_requires_frame_owned_line() {
+        let raw = r#"{
+          "type":"response",
+          "command":"stackTrace",
+          "success":true,
+          "body":{"stackFrames":[
+            {
+              "id":1,
+              "name":"metadata only line",
+              "metadata":{"line":99},
+              "source":{"path":"C:/wrong.mty"}
+            },
+            {
+              "id":2,
+              "name":"right frame",
+              "line":12,
+              "source":{"path":"C:/right.mty"}
+            }
+          ]}
+        }"#;
+        let frames = parse_stack_trace(&parse_envelope(raw).unwrap().raw);
+
+        assert_eq!(frames.len(), 1);
+        assert_eq!(frames[0].id, 2);
+        assert_eq!(frames[0].line, 12);
         assert_eq!(frames[0].file, "C:/right.mty");
     }
 

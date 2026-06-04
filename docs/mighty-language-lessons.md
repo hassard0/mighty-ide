@@ -10259,3 +10259,17 @@ agent identity; nested metadata can mention IDs for explanations or history.
 - **Language note:** no compiler gap surfaced. Runtime-inspection UIs should
   distinguish required identity fields from optional metric fields instead of
   defaulting every missing number into a plausible live value.
+
+## L837 - DAP Stack Frames Need Owned Locations
+
+The debugger uses stack-frame rows as source navigation targets. A frame with an
+`id` but no row-owned `line` is not a safe editor jump target, even if nested
+metadata mentions a line number.
+
+- **IDE note:** DAP stack-trace parsing now admits a frame only when the frame
+  owns both `id` and `line`. Display-only fields such as `name` and `source.path`
+  can still be missing, but incomplete location rows no longer default to line
+  zero.
+- **Language note:** no compiler gap surfaced. Navigation-producing protocol
+  rows should require their own identity and location fields; defaulting missing
+  locations into plausible coordinates creates misleading jumps.

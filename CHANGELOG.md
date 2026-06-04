@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Debugger stack frames require owned lines**: DAP stack-trace rows now need
+  both a frame-owned `id` and `line`, so metadata-only line fields cannot jump
+  the editor to the top of a source file.
 - **Agents live rows require owned identity**: live `mty inspect --json` agent
   rows now require a top-level numeric `agent_id` plus `agent_type`, so nested
   metadata cannot fabricate an agent `0` in the topology panel.
