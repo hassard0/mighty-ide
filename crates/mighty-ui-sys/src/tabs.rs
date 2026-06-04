@@ -177,9 +177,14 @@ impl TabStore {
         }
         let bytes = std::fs::read(&path).unwrap_or_default();
         let (model, fold, read_only) = model_for_bytes(Some(&path), &bytes);
+        let saved_bytes = if read_only {
+            bytes
+        } else {
+            model.to_bytes()
+        };
         self.tabs.push(Tab {
             path: Some(path),
-            bytes,
+            bytes: saved_bytes,
             model,
             fold,
             cursor_line: 0,
@@ -446,7 +451,11 @@ impl TabStore {
     fn reload_index(&mut self, i: usize, bytes: &[u8], preserve_history: bool) {
         let (model, fold, read_only) = model_for_bytes(self.tabs[i].path.as_deref(), bytes);
         self.tabs[i].model = model;
-        self.tabs[i].bytes = bytes.to_vec();
+        self.tabs[i].bytes = if read_only {
+            bytes.to_vec()
+        } else {
+            self.tabs[i].model.to_bytes()
+        };
         self.tabs[i].dirty = false;
         self.tabs[i].read_only = read_only;
         if !preserve_history {
@@ -878,6 +887,20 @@ mod tests {
         assert!(tab.model.as_text().contains("tabs_binary_asset.ico"));
         assert!(!tab.is_dirty());
         assert!(s.active_read_only());
+    }
+
+    #[test]
+    fn text_tabs_store_normalized_clean_baseline_on_reload() {
+        let p = write_tmp("tabs_crlf_reload.mty", b"one\r\ntwo\r\n");
+
+        let mut s = TabStore::new();
+        let idx = s.open_path(p);
+        let tab = s.get(idx).unwrap();
+
+        assert!(!tab.read_only);
+        assert_eq!(tab.model.as_text(), "one\ntwo\n");
+        assert_eq!(tab.bytes, b"one\ntwo\n");
+        assert!(!tab.is_dirty());
     }
 
     #[test]

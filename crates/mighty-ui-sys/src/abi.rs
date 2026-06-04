@@ -9652,7 +9652,7 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
             .unwrap_or(false);
         if ok {
             if let Ok(reloaded) = std::fs::read(&path) {
-                ctx.tabs.reload_active(&reloaded);
+                ctx.tabs.reload_active_preserving_history(&reloaded);
             }
             ctx.push_toast(crate::toast::Kind::Success, "Applied Fix all (mty)");
         } else {

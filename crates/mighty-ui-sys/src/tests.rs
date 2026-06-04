@@ -6775,6 +6775,66 @@ fn codeaction_active_workspace_edit_remains_undoable() {
 }
 
 #[test]
+fn codeaction_fix_all_reload_remains_undoable() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let old_mty = std::env::var_os("MIGHTY_MTY");
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_codeaction_fix_all_undo_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, "old_symbol\n").unwrap();
+    let fake_mty = root.join("fake-mty.cmd");
+    std::fs::write(
+        &fake_mty,
+        "@echo off\r\nif \"%1\"==\"fix\" if \"%2\"==\"--apply\" (\r\n  > \"%3\" echo fixed_symbol\r\n  exit /b 0\r\n)\r\nexit /b 1\r\n",
+    )
+    .unwrap();
+    std::env::set_var("MIGHTY_MTY", &fake_mty);
+
+    ctx.tabs.open_path(path.clone());
+    crate::sync_active_path(&mut ctx);
+    assert_eq!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Fix all (mty)".to_string(),
+            edit: None,
+            command_edit: None,
+            command: None,
+            fix_all_mty: true,
+        }]),
+        1
+    );
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_ed_undo_record(h);
+    assert_eq!(crate::mui_codeaction_apply(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "fixed_symbol\n");
+    assert!(!ctx.tabs.is_dirty(ctx.tabs.active()));
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "fixed_symbol\r\n");
+
+    assert_eq!(crate::mui_ed_undo(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "old_symbol\n");
+    assert!(ctx.tabs.is_dirty(ctx.tabs.active()));
+
+    assert_eq!(crate::mui_ed_redo(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "fixed_symbol\n");
+    assert!(!ctx.tabs.is_dirty(ctx.tabs.active()));
+
+    if let Some(v) = old_mty {
+        std::env::set_var("MIGHTY_MTY", v);
+    } else {
+        std::env::remove_var("MIGHTY_MTY");
+    }
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn codeaction_workspace_edit_skips_dirty_non_active_split_tab() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!(
