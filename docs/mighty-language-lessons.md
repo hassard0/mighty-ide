@@ -8995,3 +8995,20 @@ command, the next keystroke can route to a hidden owner.
 - **Language note:** no compiler gap surfaced. The repeated explicit flag set
   remains easy to audit, but chrome layout commands are another fit for
   eventual command-effect metadata.
+
+## L749 - Close Commands Return Ownership Explicitly
+
+Closing a panel is an ownership change, not just a visibility toggle. Likewise,
+transient editor actions such as ghost-completion force/dismiss and snippet
+cancel should return keyboard ownership to the editor or prompt instead of
+leaving stale dock/sidebar flags alive.
+
+- **IDE note:** Run, Testing, Web, Agents, Search, Source Control, Outline,
+  Debug, Problems, AI, Sidebar, and Terminal close commands now release stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus. Inline AI Ask opens its
+  prompt with the same cleanup, while ghost-completion force/dismiss and
+  snippet cancel return to editor ownership. Dispatcher source-contract tests
+  pin each branch.
+- **Language note:** no compiler gap surfaced. The pattern remains simple but
+  verbose, reinforcing that close/transient commands should eventually share
+  declarative focus-effect metadata.

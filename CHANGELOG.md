@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Close and transient commands release stale focus**: Run, Testing, Web,
+  Agents, Search, Source Control, Outline, Debug, Problems, AI, Sidebar, and
+  Terminal close paths plus inline AI, ghost-completion, and snippet-cancel
+  commands now clear stale surface focus before returning input.
 - **Layout and window commands clear hidden focus**: Dock presets/close,
   sidebar width presets/cycle, and window minimize/maximize now release stale
   AI/Agents/search focus in addition to bottom-dock focus.

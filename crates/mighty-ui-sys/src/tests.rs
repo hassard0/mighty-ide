@@ -10630,20 +10630,28 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Welcome: Close must reuse the stateful visible close affordance path"
     );
     assert!(
-        main.contains("id == cmd_ghost_completion_dismiss()")
-            && main.contains("let _gcd = mui_ghost_dismiss_command(h)"),
-        "AI: Dismiss Ghost Completion must clear the inline suggestion without accepting it"
+        main.contains(
+            "id == cmd_force_ghost_completion() {\n          let _gf = mui_ghost_force(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
+        ),
+        "AI: Force Ghost Completion must return to editor ownership and release stale focus"
     );
     assert!(
-        main.contains("id == cmd_snippet_cancel()")
-            && main.contains("let _snc = mui_snippet_cancel(h)"),
-        "Snippet: Cancel Tab-Stop Session must end snippet navigation without editing text"
+        main.contains(
+            "id == cmd_ghost_completion_dismiss() {\n          let _gcd = mui_ghost_dismiss_command(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
+        ),
+        "AI: Dismiss Ghost Completion must clear the inline suggestion without accepting it and release stale focus"
     );
     assert!(
-        main.contains("id == cmd_terminal_close()")
-            && main.contains("let _tclose = mui_term_close(h)")
-            && main.contains("term_focus = false"),
-        "Terminal: Close must use the terminal-specific close ABI and clear terminal focus"
+        main.contains(
+            "id == cmd_snippet_cancel() {\n          let _snc = mui_snippet_cancel(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
+        ),
+        "Snippet: Cancel Tab-Stop Session must end snippet navigation without editing text and release stale focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_terminal_close() {\n          let _tclose = mui_term_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Terminal: Close must use the terminal-specific close ABI and release stale focus"
     );
     assert!(
         main.contains(
@@ -10657,6 +10665,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         )
             && main.contains("if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }"),
         "Terminal: Clear Buffer must reveal Terminal before clearing and preserve focus when terminal remains open"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_inline_ai_ask() {\n          mui_prompt_open(h, prompt_ai())\n          prompt_kind = prompt_ai()\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
+        ),
+        "Inline AI Ask command must open the prompt and release stale focus"
     );
     assert!(
         main.contains("fn mui_term_header_action_at_click(handle: I64) -> I32")
@@ -10980,9 +10994,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Problems chip and header buttons must dispatch before rows and release competing focus"
     );
     assert!(
-        main.contains("id == cmd_problems_close()")
-            && main.contains("mui_problems_close(h)"),
-        "Problems close command must route through the Problems-specific close ABI"
+        main.contains(
+            "id == cmd_problems_close() {\n          let _pc = mui_problems_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Problems close command must route through the Problems-specific close ABI and release stale focus"
     );
     assert!(
         main.contains(
@@ -10997,10 +11012,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Outline clear command must clear symbols while keeping Outline visible and release competing focus"
     );
     assert!(
-        main.contains("id == cmd_outline_close()")
-            && main.contains("let _oc = mui_outline_close(h)")
-            && main.contains("find_nav = false"),
-        "Outline close command must use the Outline-specific close ABI without clearing symbols"
+        main.contains(
+            "id == cmd_outline_close() {\n          let _oc = mui_outline_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Outline close command must use the Outline-specific close ABI without clearing symbols and release stale focus"
     );
     assert!(
         main.contains(
@@ -11028,16 +11043,16 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Agents header clear clicks must dispatch before topology row navigation"
     );
     assert!(
-        main.contains("id == cmd_agents_close()")
-            && main.contains("let _ac = mui_agents_close(h)")
-            && main.contains("agents_focus = false"),
-        "Agents close command must use the Agents-specific close ABI and release Agents focus"
+        main.contains(
+            "id == cmd_agents_close() {\n          let _ac = mui_agents_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Agents close command must use the Agents-specific close ABI and release stale focus"
     );
     assert!(
         main.contains(
-            "id == cmd_sidebar_close() {\n          let _sc = mui_sidebar_close(h)\n          agents_focus = false\n          find_nav = false"
+            "id == cmd_sidebar_close() {\n          let _sc = mui_sidebar_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
         ),
-        "Sidebar close command must close the drawer and release sidebar-local focus"
+        "Sidebar close command must close the drawer and release stale focus"
     );
     assert!(
         main.contains(
@@ -11075,10 +11090,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Run header actions must dispatch before output-row navigation"
     );
     assert!(
-        main.contains("id == cmd_run_close()")
-            && main.contains("let _rc = mui_run_close(h)")
-            && main.contains("run_focus = false"),
-        "Run close command must use the Run-specific close ABI and release Run focus"
+        main.contains(
+            "id == cmd_run_close() {\n          let _rc = mui_run_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Run close command must use the Run-specific close ABI and release stale focus"
     );
     assert!(
         main.contains(
@@ -11157,17 +11172,16 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         );
     }
     assert!(
-        main.contains("id == cmd_debug_close()")
-            && main.contains("let _dc = mui_dbg_close(h)")
-            && main.contains("find_nav = false"),
-        "Debug close command must use the Debug-specific close ABI without stopping or resetting the session"
+        main.contains(
+            "id == cmd_debug_close() {\n          let _dc = mui_dbg_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Debug close command must use the Debug-specific close ABI without stopping or resetting the session and release stale focus"
     );
     assert!(
-        main.contains("id == cmd_debug_clear_session()")
-            && main.contains("let _vp = mui_panel_set(h, panel_debug())")
-            && main.contains("let _dcs = mui_dbg_clear_session(h)")
-            && main.contains("find_nav = false"),
-        "Debug clear-session command must reveal Run and Debug and reset session state"
+        main.contains(
+            "id == cmd_debug_clear_session() {\n          let _vp = mui_panel_set(h, panel_debug())\n          let _dcs = mui_dbg_clear_session(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Debug clear-session command must reveal Run and Debug, reset session state, and release stale focus"
     );
     assert!(
         main.contains(
@@ -11244,10 +11258,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Testing toolbar clear clicks must dispatch before result-row navigation"
     );
     assert!(
-        main.contains("id == cmd_test_close()")
-            && main.contains("let _tc = mui_test_close(h)")
-            && main.contains("test_focus = false"),
-        "Test close command must use the Testing-specific close ABI and release Testing focus"
+        main.contains(
+            "id == cmd_test_close() {\n          let _tc = mui_test_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Test close command must use the Testing-specific close ABI and release stale focus"
     );
     assert!(
         main.contains(
@@ -11286,10 +11300,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Web header clear clicks must route through the Web clear-output ABI"
     );
     assert!(
-        main.contains("id == cmd_web_close()")
-            && main.contains("let _wc = mui_web_close(h)")
-            && main.contains("web_focus = false"),
-        "Web close command must use the Web-specific close ABI and release Web focus"
+        main.contains(
+            "id == cmd_web_close() {\n          let _wc = mui_web_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Web close command must use the Web-specific close ABI and release stale focus"
     );
     assert!(
         main.contains(
@@ -11374,8 +11388,8 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         main.contains(
             "id == cmd_ai_clear_chat() {\n          let _ai = mui_ai_show(h)\n          let _aic = mui_ai_clear(h)"
         )
-            && main.contains("ai_focus = true\n          typing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false"),
-        "AI clear-chat command must reveal Copilot, clear the transcript, and release bottom-dock focus"
+            && main.contains("ai_focus = true\n          typing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          agents_focus = false\n          find_nav = false"),
+        "AI clear-chat command must reveal Copilot, clear the transcript, and release competing focus"
     );
     assert!(
         main.contains("ai_click == 4")
@@ -11392,8 +11406,20 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             )
             && main.contains(
                 "ai_click == 1 {\n          ai_focus = true\n          typing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          agents_focus = false\n          find_nav = false"
-            ),
+        ),
         "AI mouse clicks must claim Copilot focus and release competing surfaces"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_ai_close() {\n          let _aic = mui_ai_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "AI close command must release stale focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_sidebar_close() {\n          let _sc = mui_sidebar_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Sidebar close command must release stale focus"
     );
     let rail_mouse_start = main
         .rfind("rail_hit == rail_agents()")
@@ -11616,6 +11642,18 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             "Search command `{helper}` must reveal Search before invoking `{action}` and release competing focus"
         );
     }
+    assert!(
+        main.contains(
+            "id == cmd_search_close() {\n          let _sc = mui_search_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Search close command must release stale focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_git_close_source_control() {\n          let _gc = mui_scm_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Source Control close command must release stale focus"
+    );
     assert!(
         main.contains("id == cmd_search_close()")
             && main.contains("let _sc = mui_search_close(h)")
