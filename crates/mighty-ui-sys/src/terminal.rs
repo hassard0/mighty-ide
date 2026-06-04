@@ -735,6 +735,10 @@ impl VtParser {
 
         match b {
             0x1b => self.state = State::Escape, // ESC
+            0x84 => grid.index(),               // IND
+            0x85 => grid.newline(),             // NEL
+            0x88 => grid.set_tab_stop(),        // HTS
+            0x8d => grid.reverse_index(),       // RI
             0x90 | 0x98 | 0x9e | 0x9f => self.state = State::String, // DCS/SOS/PM/APC
             0x9b => {
                 self.csi.clear();
@@ -2567,6 +2571,21 @@ mod tests {
         assert!(!g2.contains("sos"));
         assert!(!g2.contains("pm"));
         assert!(!g2.contains("apc"));
+    }
+
+    #[test]
+    fn eight_bit_c1_movement_controls_match_single_escape_forms() {
+        let g = grid_feed(3, 8, b"AA\x85BB\x84C");
+        assert_eq!(g.cell(0, 0).ch, 'A');
+        assert_eq!(g.cell(1, 0).ch, 'B');
+        assert_eq!(g.cell(2, 2).ch, 'C');
+
+        let g2 = grid_feed(3, 8, b"\x1b[2;3H@\x8dR");
+        assert_eq!(g2.cell(0, 3).ch, 'R');
+        assert_eq!(g2.cell(1, 2).ch, '@');
+
+        let g3 = grid_feed(1, 12, b"\x1b[3g\x1b[1;7H\x88\x1b[1;1H\tZ");
+        assert_eq!(g3.cell(0, 6).ch, 'Z');
     }
 
     #[test]

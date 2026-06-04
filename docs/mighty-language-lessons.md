@@ -7640,3 +7640,12 @@ single-byte CSI/OSC/DCS/SOS/PM/APC/ST controls directly.
   same states as their 7-bit introducers, and OSC/non-OSC string states accept
   8-bit ST (`0x9C`) as a terminator. Tests cover cursor movement and swallowed
   string payloads through the C1 forms.
+
+L623. Terminal C1 movement controls need the same aliases as C1 strings. IND,
+NEL, HTS, and RI can arrive as single-byte C1 controls (`0x84`, `0x85`,
+`0x88`, `0x8D`), not only as `ESC D`, `ESC E`, `ESC H`, and `ESC M`.
+
+- **IDE note:** ground-state parsing now routes those C1 bytes through the
+  existing index, next-line, horizontal-tab-stop, and reverse-index helpers.
+  Parser tests cover newline/index placement, reverse-index movement, and a
+  custom C1-created tab stop.
