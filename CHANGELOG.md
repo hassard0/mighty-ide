@@ -36,6 +36,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Format preflight protects dirty open tabs**: the formatter ABI now refuses
   to run when the target file has unsaved open edits, including dirty duplicate
   views, so direct callers cannot format disk underneath live buffers.
+- **Tab switches clear stale active diagnostics**: syncing the active file now
+  invalidates cached diagnostics so underlines and code-action context cannot
+  bleed from the previous tab before the next diagnostics refresh.
 - **Workspace edits protect dirty duplicate tabs**: code actions and rename
   workspace edits now skip a target path when any equivalent non-active tab is
   dirty, including duplicate views of the active file, avoiding disk writes

@@ -4122,6 +4122,7 @@ pub extern "C" fn mui_find_highlight_row(
 pub(crate) fn sync_active_path(ctx: &mut MuiContext) {
     let active = ctx.tabs.active();
     let path = ctx.tabs.path(active);
+    ctx.diags.clear();
     ctx.file_name = path
         .as_ref()
         .and_then(|p| p.file_name())

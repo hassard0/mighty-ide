@@ -10706,3 +10706,16 @@ unsaved edits.
 - **Language note:** no compiler gap surfaced. External mutation APIs should
   enforce their own resource-safety preflight instead of relying solely on the
   current UI command sequence.
+
+## L869 - Active Diagnostics Belong To The Active File Context
+
+Diagnostics are cached in the UI context for fast drawing and code-action
+requests. When the active tab changes, those cached diagnostics should not
+survive as if they described the new file.
+
+- **IDE note:** active-file path synchronization now clears cached diagnostics
+  before updating file name, language, and path state. The next diagnostics
+  refresh repopulates them for the new active file.
+- **Language note:** no compiler gap surfaced. Cached analysis state should be
+  scoped to the resource identity that produced it and invalidated when that
+  identity changes.

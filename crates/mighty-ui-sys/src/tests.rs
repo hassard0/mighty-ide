@@ -9057,6 +9057,42 @@ fn navigation_requests_report_missing_targets() {
 }
 
 #[test]
+fn sync_active_path_clears_stale_active_diagnostics() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_sync_path_clears_diags_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let first = root.join("first.mty");
+    let second = root.join("second.mty");
+    std::fs::write(&first, "fn first() {}\n").unwrap();
+    std::fs::write(&second, "fn second() {}\n").unwrap();
+
+    ctx.tabs.open_path(first);
+    crate::sync_active_path(&mut ctx);
+    ctx.diags.push(crate::diagnostics::Diag {
+        line: 12,
+        col_start: 1,
+        col_end: 3,
+        severity: crate::diagnostics::Severity::Error,
+        code: "old".to_string(),
+        message: "stale diagnostic".to_string(),
+    });
+    assert_eq!(ctx.diags.len(), 1);
+
+    let second_idx = ctx.tabs.open_path(second);
+    ctx.tabs.switch(second_idx);
+    crate::sync_active_path(&mut ctx);
+
+    assert!(ctx.diags.is_empty());
+    assert_eq!(ctx.file_name, "second.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn definition_open_target_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
