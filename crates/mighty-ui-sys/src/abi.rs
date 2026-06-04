@@ -9029,30 +9029,36 @@ pub(crate) fn active_source_and_cursor(ctx: &MuiContext) -> (String, u32, u32) {
     )
 }
 
-/// Extract the identifier (`[A-Za-z_][A-Za-z0-9_]*`) that contains or ends at the
-/// char `col` on `line` of `text`. Returns `""` if the cursor isn't on an
-/// identifier (used to prefill the rename input).
+fn is_identifier_char(ch: char) -> bool {
+    ch == '_' || ch.is_alphanumeric()
+}
+
+fn is_identifier_start(ch: char) -> bool {
+    ch == '_' || ch.is_alphabetic()
+}
+
+/// Extract the identifier that contains or ends at the char `col` on `line` of
+/// `text`. Returns `""` if the cursor isn't on an identifier (used to prefill
+/// the rename input).
 fn identifier_at(text: &str, line: u32, col: u32) -> String {
     let line_str = text.split('\n').nth(line as usize).unwrap_or("");
     let chars: Vec<char> = line_str.chars().collect();
-    let is_id = |c: char| c == '_' || c.is_ascii_alphanumeric();
     let n = chars.len();
     let c = (col as usize).min(n);
     // Find an identifier covering the cursor: scan left for the start, right for
     // the end, allowing the cursor to sit just after the identifier too.
     let mut start = c;
-    while start > 0 && is_id(chars[start - 1]) {
+    while start > 0 && is_identifier_char(chars[start - 1]) {
         start -= 1;
     }
     let mut end = c;
-    while end < n && is_id(chars[end]) {
+    while end < n && is_identifier_char(chars[end]) {
         end += 1;
     }
     if start == end {
         return String::new();
     }
-    // Reject a leading digit (numeric literal).
-    if chars[start].is_ascii_digit() {
+    if !is_identifier_start(chars[start]) {
         return String::new();
     }
     chars[start..end].iter().collect()
@@ -9266,7 +9272,7 @@ mod rename_prepare_tests {
         for kw in ["fn", "let", "struct", "agent", "protocol", "self"] {
             assert!(is_non_renamable_identifier(kw), "{kw} should not open symbol rename");
         }
-        for ident in ["add", "workspace_root", "EditorAgent"] {
+        for ident in ["add", "workspace_root", "EditorAgent", "café", "δοκιμή"] {
             assert!(
                 !is_non_renamable_identifier(ident),
                 "{ident} should remain eligible for symbol rename"
@@ -9280,6 +9286,33 @@ mod rename_prepare_tests {
         assert_eq!(identifier_at(src, 0, 4), "add");
         assert_eq!(identifier_at(src, 1, 13), "thing_2");
         assert_eq!(identifier_at(src, 2, 2), "");
+    }
+
+    #[test]
+    fn identifier_at_supports_unicode_symbols() {
+        let src = "fn café(δοκιμή: I32) {\n  let 東京_2 = δοκιμή\n}";
+        assert_eq!(identifier_at(src, 0, 5), "café");
+        assert_eq!(identifier_at(src, 0, 10), "δοκιμή");
+        assert_eq!(identifier_at(src, 1, 8), "東京_2");
+        assert_eq!(identifier_at(src, 1, 17), "δοκιμή");
+    }
+
+    #[test]
+    fn identifier_at_rejects_unicode_numeric_literals() {
+        let src = "let x = １２３\nlet y = 2fast";
+        assert_eq!(identifier_at(src, 0, 9), "");
+        assert_eq!(identifier_at(src, 1, 10), "");
+    }
+
+    #[test]
+    fn fallback_rename_edits_respect_unicode_identifier_boundaries() {
+        let src = "let café = 1\nlet decafé = café + café_2\ncafé\n";
+        let edits = fallback_rename_edits(src, "café");
+        let ranges: Vec<(u32, u32, u32)> = edits
+            .iter()
+            .map(|e| (e.start_line, e.start_col, e.end_col))
+            .collect();
+        assert_eq!(ranges, vec![(0, 4, 8), (1, 13, 17), (2, 0, 4)]);
     }
 }
 
@@ -9423,7 +9456,6 @@ fn fallback_rename_edits(source: &str, symbol: &str) -> Vec<crate::language::Tex
     if symbol.is_empty() {
         return out;
     }
-    let is_id = |c: char| c == '_' || c.is_ascii_alphanumeric();
     let sym_chars: Vec<char> = symbol.chars().collect();
     let slen = sym_chars.len();
     for (li, raw_line) in source.split('\n').enumerate() {
@@ -9431,8 +9463,9 @@ fn fallback_rename_edits(source: &str, symbol: &str) -> Vec<crate::language::Tex
         let mut i = 0usize;
         while i + slen <= chars.len() {
             if chars[i..i + slen] == sym_chars[..] {
-                let before_ok = i == 0 || !is_id(chars[i - 1]);
-                let after_ok = i + slen == chars.len() || !is_id(chars[i + slen]);
+                let before_ok = i == 0 || !is_identifier_char(chars[i - 1]);
+                let after_ok =
+                    i + slen == chars.len() || !is_identifier_char(chars[i + slen]);
                 if before_ok && after_ok {
                     out.push(crate::language::TextEdit {
                         start_line: li as u32,
