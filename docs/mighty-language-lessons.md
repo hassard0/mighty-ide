@@ -8600,3 +8600,13 @@ that surface should own focus exactly as the palette command would.
 - **IDE note:** the hard-coded shortcut fallbacks now clear competing Run, Web,
   Testing, Terminal, AI, Agents, and transient navigation focus while opening the
   requested Run, Testing, AI, Terminal, Search, or Source Control surface.
+
+## L717 - Lifecycle Commands Should Clear Competing Surface Focus
+
+Action commands such as Stop, Clear, Run in Browser, and Terminal Clear are also
+surface-selection moments. After they reveal or mutate a panel, hidden Run, Web,
+Testing, Terminal, AI, or Agents focus must not survive as a second input owner.
+
+- **IDE note:** Run, Testing, Web Playground, and Terminal lifecycle palette
+  commands now clear the full competing focus set and transient navigation state
+  after they claim their visible surface.

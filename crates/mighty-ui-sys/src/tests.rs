@@ -10684,17 +10684,21 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains(
-            "id == cmd_run_stop() {\n          let _ro = mui_run_open(h)\n          let _rst = mui_run_stop(h)"
-        )
-            && main.contains("run_focus = true"),
-        "Run stop command must reveal Run before reporting stop state"
+            "id == cmd_run_file() {\n          let _r = mui_run_start(h)\n          run_focus = true\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Run file command must focus Run output and release competing surfaces"
     );
     assert!(
         main.contains(
-            "id == cmd_run_clear_output() {\n          let _ro = mui_run_open(h)\n          let _rc = mui_run_clear(h)"
-        )
-            && main.contains("run_focus = true"),
-        "Run clear-output command must reveal Run before clearing rendered output"
+            "id == cmd_run_stop() {\n          let _ro = mui_run_open(h)\n          let _rst = mui_run_stop(h)\n          run_focus = true\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Run stop command must reveal Run before reporting stop state and release competing surfaces"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_run_clear_output() {\n          let _ro = mui_run_open(h)\n          let _rc = mui_run_clear(h)\n          run_focus = true\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Run clear-output command must reveal Run before clearing rendered output and release competing surfaces"
     );
     let run_header_pos = main
         .find("let ract = run_header_click")
@@ -10804,17 +10808,27 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains(
-            "id == cmd_test_stop() {\n          let _vp = mui_panel_set(h, panel_test())\n          let _ts = mui_test_stop(h)"
-        )
-            && main.contains("test_focus = true"),
-        "Test stop command must reveal Testing before reporting stop state"
+            "id == cmd_run_tests() {\n          let _t = mui_test_run(h)\n          test_focus = true\n          run_focus = false\n          web_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Run Tests command must focus Testing and release competing surfaces"
     );
     assert!(
         main.contains(
-            "id == cmd_test_clear_results() {\n          let _vp = mui_panel_set(h, panel_test())\n          let _tc = mui_test_clear(h)"
-        )
-            && main.contains("test_focus = true"),
-        "Test clear-results command must reveal Testing before clearing parsed results"
+            "id == cmd_run_test_at_cursor() {\n          let _t = mui_test_run_at_cursor(h)\n          test_focus = true\n          run_focus = false\n          web_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Run Test at Cursor command must focus Testing and release competing surfaces"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_test_stop() {\n          let _vp = mui_panel_set(h, panel_test())\n          let _ts = mui_test_stop(h)\n          test_focus = true\n          run_focus = false\n          web_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Test stop command must reveal Testing before reporting stop state and release competing surfaces"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_test_clear_results() {\n          let _vp = mui_panel_set(h, panel_test())\n          let _tc = mui_test_clear(h)\n          test_focus = true\n          run_focus = false\n          web_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Test clear-results command must reveal Testing before clearing parsed results and release competing surfaces"
     );
     assert!(
         main.contains("fn test_tb_clear() -> I32 { 3 }")
@@ -10838,17 +10852,27 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains(
-            "id == cmd_web_stop() {\n          let _wo = mui_web_open(h)\n          let _wst = mui_web_stop(h)"
-        )
-            && main.contains("web_focus = true"),
-        "Web stop command must reveal Web Playground before reporting stop state"
+            "id == cmd_run_in_browser() {\n          let _w = mui_web_run(h)\n          web_focus = true\n          run_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Run in Browser command must focus Web Playground and release competing surfaces"
     );
     assert!(
         main.contains(
-            "id == cmd_web_clear_output() {\n          let _wo = mui_web_open(h)\n          let _wc = mui_web_clear(h)"
-        )
-            && main.contains("web_focus = true"),
-        "Web clear-output command must reveal Web Playground before clearing output"
+            "id == cmd_web_stop() {\n          let _wo = mui_web_open(h)\n          let _wst = mui_web_stop(h)\n          web_focus = true\n          run_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Web stop command must reveal Web Playground before reporting stop state and release competing surfaces"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_web_open_browser() {\n          let _wb = mui_web_open_browser(h)\n          web_focus = true\n          run_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Web open-browser command must focus Web Playground and release competing surfaces"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_web_clear_output() {\n          let _wo = mui_web_open(h)\n          let _wc = mui_web_clear(h)\n          web_focus = true\n          run_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Web clear-output command must reveal Web Playground before clearing output and release competing surfaces"
     );
     assert!(
         main.contains("web_header_click == 4")
@@ -10866,14 +10890,20 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         main.contains(
             "id == cmd_view_terminal() {\n          let ok = mui_term_open(h)\n          if ok == 1 { term_focus = true; mui_log_terminal(h) }\n          run_focus = false\n          web_focus = false\n          test_focus = false"
         )
-            && main.contains("agents_focus = false\n          find_nav = false"),
+            && main.contains("ai_focus = false\n          agents_focus = false\n          find_nav = false"),
         "Terminal view command must open Terminal and release other bottom-dock focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_terminal_clear() {\n          let _to = mui_term_open(h)\n          let _tc = mui_term_clear(h)\n          if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Terminal clear command must reveal Terminal and release competing surfaces"
     );
     assert!(
         main.contains(
             "id == cmd_view_web_playground() {\n          let _vw = mui_web_open(h)\n          web_focus = true\n          run_focus = false\n          test_focus = false\n          term_focus = false"
         )
-            && main.contains("agents_focus = false\n          find_nav = false"),
+            && main.contains("ai_focus = false\n          agents_focus = false\n          find_nav = false"),
         "Web Playground view command must open Web and release other bottom-dock focus"
     );
     assert!(

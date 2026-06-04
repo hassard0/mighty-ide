@@ -4548,19 +4548,32 @@ fn main() {
         } else if id == cmd_run_file() {
           let _r = mui_run_start(h)
           run_focus = true
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_run_stop() {
           let _ro = mui_run_open(h)
           let _rst = mui_run_stop(h)
           run_focus = true
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_run_clear_output() {
           let _ro = mui_run_open(h)
           let _rc = mui_run_clear(h)
           run_focus = true
           web_focus = false
           test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_run_close() {
           let _rc = mui_run_close(h)
           run_focus = false
@@ -4582,22 +4595,41 @@ fn main() {
         } else if id == cmd_run_tests() {
           let _t = mui_test_run(h)
           test_focus = true
+          run_focus = false
+          web_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_run_test_at_cursor() {
           let _t = mui_test_run_at_cursor(h)
           test_focus = true
+          run_focus = false
+          web_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_test_stop() {
           let _vp = mui_panel_set(h, panel_test())
           let _ts = mui_test_stop(h)
           test_focus = true
+          run_focus = false
+          web_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_test_clear_results() {
           let _vp = mui_panel_set(h, panel_test())
           let _tc = mui_test_clear(h)
           test_focus = true
           run_focus = false
+          web_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_test_close() {
           let _tc = mui_test_close(h)
           test_focus = false
@@ -4646,23 +4678,41 @@ fn main() {
         } else if id == cmd_run_in_browser() {
           let _w = mui_web_run(h)
           web_focus = true
+          run_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_web_stop() {
           let _wo = mui_web_open(h)
           let _wst = mui_web_stop(h)
           web_focus = true
+          run_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_web_open_browser() {
           let _wb = mui_web_open_browser(h)
           web_focus = true
+          run_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_web_clear_output() {
           let _wo = mui_web_open(h)
           let _wc = mui_web_clear(h)
           web_focus = true
           run_focus = false
           test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_web_close() {
           let _wc = mui_web_close(h)
           web_focus = false
@@ -4877,12 +4927,19 @@ fn main() {
           run_focus = false
           web_focus = false
           test_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_terminal_clear() {
           let _to = mui_term_open(h)
           let _tc = mui_term_clear(h)
           if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_terminal_close() {
           let _tclose = mui_term_close(h)
           term_focus = false
@@ -4892,6 +4949,7 @@ fn main() {
           run_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_debug_start_continue() {
