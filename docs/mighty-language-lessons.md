@@ -9185,3 +9185,18 @@ palette dispatcher does not automatically cover those paths.
 - **Language note:** no compiler gap surfaced. The useful distinction is route
   coverage: every entrypoint to the same user action needs the same ownership
   effect, even when the branches live far apart.
+
+## L762 - Chrome Clicks Are Focus Transitions Too
+
+Some focus changes happen outside command rows and keyboard shortcuts: status
+bar chips, breadcrumbs, preview buttons, utility icons, topbar actions, and the
+editor body itself all make the next keystroke belong somewhere specific.
+
+- **IDE note:** direct chrome routes for branch switcher, breadcrumb accept/
+  dismiss, Markdown preview open/close, Problems close, Explorer header actions,
+  account/settings utilities, topbar Palette/Quick Open, terminal scroll, and
+  editor body clicks now release stale Run/Web/Testing/Terminal/AI/Agents/search
+  focus. Source-contract coverage pins each route separately.
+- **Language note:** no compiler gap surfaced. The route-coverage lesson
+  broadened from tab commands to chrome: mouse-only branches need the same
+  ownership effects as their palette equivalents.

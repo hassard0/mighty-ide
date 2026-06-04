@@ -2204,11 +2204,23 @@ fn main() {
           if rail_util == 1 {
             let _a = mui_settings_open_account(h)
             settings_open = true
+            run_focus = false
+            web_focus = false
             test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           } else if rail_util == 2 {
             let _s = mui_settings_open(h)
             settings_open = true
+            run_focus = false
+            web_focus = false
             test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           } else if topbar_act == 1 {
             let opened = mui_run_toggle(h)
             if opened == 1 { run_focus = true; if mui_run_running(h) == 0 { let _r = mui_run_start(h) } }
@@ -2222,14 +2234,22 @@ fn main() {
             mui_palette_open(h)
             palette_open = true
             palette_ignore_mouse_down = true
+            run_focus = false
+            web_focus = false
             test_focus = false
+            term_focus = false
+            ai_focus = false
             agents_focus = false
             find_nav = false
           } else if topbar_act == 3 {
             mui_quickopen_open(h)
             quickopen_open = true
             quickopen_ignore_mouse_down = true
+            run_focus = false
+            web_focus = false
             test_focus = false
+            term_focus = false
+            ai_focus = false
             agents_focus = false
             find_nav = false
           } else if rail_hit == rail_test() {
@@ -3637,6 +3657,8 @@ fn main() {
           test_focus = false
           term_focus = true
           ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if mui_bp_scroll_inventory_at_event(h, if dir > 0 { -3 } else { 3 }) == 1 {
         } else if dir > 0 {
           if first >= 3 { first = first - 3 } else { first = 0 }
@@ -3695,6 +3717,13 @@ fn main() {
           // Status-bar branch segment: open the branch switcher overlay.
           let n = mui_git_branches(h)
           if n >= 0 { branch_open = true }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if welcome_act >= 0 {
           if welcome_act == welcome_open_file() {
             let oi = mui_open_file_dialog(h)
@@ -3781,20 +3810,52 @@ fn main() {
           if crumb_hit >= 0 {
             let _acc = mui_crumb_menu_accept(h, crumb_hit)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
           } else {
             let _cmc = mui_crumb_menu_cancel(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if md_close == 1 {
           // Preview pane header close: the shim already collapsed the preview.
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if md_btn == 1 {
           // Breadcrumb "Preview" pill: the shim already opened the split preview.
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if bc_seg >= 0 {
           // Clicked a breadcrumb segment: open its dropdown (file / symbol).
           let _seg = mui_breadcrumb_click(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if chip_hit == 1 {
           // Status-bar problems chip: open + refresh the Problems panel.
           let _po = mui_problems_open(h)
@@ -3826,6 +3887,13 @@ fn main() {
           find_nav = false
         } else if prob_on == 1 && prob_close == 1 {
           let _pc = mui_problems_toggle(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if prob_on == 1 && prob_hit >= 0 {
           // Problems panel row: open the file + jump to the diagnostic.
           let newidx = mui_problems_open_row(h, prob_hit)
@@ -3839,9 +3907,23 @@ fn main() {
         } else if rail_util == 1 {
           let _a = mui_settings_open_account(h)
           settings_open = true
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if rail_util == 2 {
           let _s = mui_settings_open(h)
           settings_open = true
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if explorer_hit == 1 {
           // Explorer header: New File -> native workspace picker, typed-name fallback only if unavailable.
           let nf = mui_newfile_workspace_dialog(h)
@@ -3852,6 +3934,12 @@ fn main() {
             mui_prompt_open(h, prompt_new_file())
             prompt_kind = prompt_new_file()
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if explorer_hit == 2 {
           // Explorer header: New Folder -> native folder picker, typed-name fallback only if unavailable.
@@ -3860,21 +3948,48 @@ fn main() {
             mui_prompt_open(h, prompt_new_folder())
             prompt_kind = prompt_new_folder()
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if explorer_hit == 3 {
           // Explorer header: Collapse all expanded folders in the tree.
           mui_tree_collapse_all(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if topbar_act == 2 {
           // Top-right more-actions (⋯) button: open the command palette.
           mui_palette_open(h)
           palette_open = true
           palette_ignore_mouse_down = true
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if topbar_act == 3 {
           // Titlebar command-center pill: open Quick Open without stealing the
           // whole empty titlebar drag strip.
           mui_quickopen_open(h)
           quickopen_open = true
           quickopen_ignore_mouse_down = true
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if ai_click == 3 {
           let _aic = mui_ai_close(h)
           ai_focus = false
@@ -4296,6 +4411,8 @@ fn main() {
               test_focus = false
               term_focus = false
               ai_focus = false
+              agents_focus = false
+              find_nav = false
             }
           }
         }

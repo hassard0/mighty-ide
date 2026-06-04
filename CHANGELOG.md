@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Direct chrome clicks release stale focus**: branch, breadcrumb, Markdown
+  preview, Problems close, Explorer header, Settings utility, topbar Palette/
+  Quick Open, terminal scroll, and editor body mouse routes now clear stale
+  surface/search focus before handing keyboard input to the new owner.
 - **Direct tab no-ops release stale focus**: Ctrl+W, Ctrl+Shift+PageUp/
   PageDown, tab close clicks, and same-tab clicks now clear stale panel/search
   focus even when the close, move, or switch is refused.

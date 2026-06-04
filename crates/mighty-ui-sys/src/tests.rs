@@ -11762,8 +11762,63 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         )
             && main.contains(
                 "mui_term_hit_at_event(h) == 1 {\n          let _tmd = mui_term_mouse_button(h, 1)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = true\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
-            ),
+        ),
         "Terminal mouse clicks must claim Terminal focus and release competing surfaces"
+    );
+    assert!(
+        main.contains(
+            "if mui_term_hit_at_event(h) == 1 {\n          mui_term_scroll(h, dir)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = true\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Terminal wheel events must claim Terminal focus and release competing surfaces"
+    );
+    for (start_marker, end_marker) in [
+        ("} else if branch_seg == 1", "} else if welcome_act >= 0"),
+        ("} else if md_close == 1", "} else if md_btn == 1"),
+        ("} else if md_btn == 1", "} else if bc_seg >= 0"),
+        ("} else if bc_seg >= 0", "} else if chip_hit == 1"),
+        (
+            "} else if prob_on == 1 && prob_close == 1",
+            "} else if prob_on == 1 && prob_hit >= 0",
+        ),
+        ("} else if rail_util == 1", "} else if rail_util == 2"),
+        ("} else if rail_util == 2", "} else if explorer_hit == 1"),
+        ("} else if explorer_hit == 1", "} else if explorer_hit == 2"),
+        ("} else if explorer_hit == 2", "} else if explorer_hit == 3"),
+        ("} else if explorer_hit == 3", "} else if topbar_act == 2"),
+        ("} else if topbar_act == 2", "} else if topbar_act == 3"),
+        ("} else if topbar_act == 3", "} else if ai_click == 3"),
+    ] {
+        let start = main
+            .find(start_marker)
+            .unwrap_or_else(|| panic!("missing direct chrome route `{start_marker}`"));
+        let end = main[start..]
+            .find(end_marker)
+            .map(|i| start + i)
+            .unwrap_or_else(|| panic!("missing end marker `{end_marker}` for `{start_marker}`"));
+        let branch = &main[start..end];
+        assert!(
+            branch.contains(
+                "run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ) || branch.contains(
+                "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+            ),
+            "direct chrome route `{start_marker}` must release stale focus"
+        );
+    }
+    assert!(
+        main.contains(
+            "let _cmc = mui_crumb_menu_cancel(h)\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+        ),
+        "Breadcrumb dismiss clicks must release stale focus"
+    );
+    assert!(
+        main.contains(
+            "let _l = mui_ed_click(h)                       // plain click: place the single caret\n              }\n              typing = false\n              // Clicking into the editor body restores editor keyboard focus:"
+        )
+            && main.contains(
+                "run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false"
+            ),
+        "Editor body clicks must release every transient surface focus owner"
     );
     for (start_marker, end_marker) in [
         ("} else if tab_close_hit >= 0", "} else if tab_hit >= 0"),
