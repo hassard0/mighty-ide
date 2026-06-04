@@ -297,7 +297,7 @@ pub fn request_with_timeout(
                             apply_edit_replied = true;
                         }
                     }
-                    if find_sub(&buf, b"\"id\":2").is_some() {
+                    if has_response_id(&buf, "2") {
                         break;
                     }
                     if buf.len() > 4 * 1024 * 1024 {
@@ -349,6 +349,20 @@ fn request_msg(method: &Method, uri: &str, source: &str, line: u32, col: u32) ->
 
 fn apply_edit_response(id_json: &str) -> String {
     format!(r#"{{"jsonrpc":"2.0","id":{id_json},"result":{{"applied":true}}}}"#)
+}
+
+fn has_response_id(stream: &[u8], wanted_id_json: &str) -> bool {
+    top_level_json_objects(stream).into_iter().any(|obj| {
+        let Some(id_at) = top_level_field_value_start(obj, b"id") else {
+            return false;
+        };
+        let Some((id, _)) = read_json_id_at(obj, id_at) else {
+            return false;
+        };
+        id == wanted_id_json
+            && (top_level_field_value_start(obj, b"result").is_some()
+                || top_level_field_value_start(obj, b"error").is_some())
+    })
 }
 
 fn apply_edit_request_id(stream: &[u8]) -> Option<String> {
@@ -1374,6 +1388,25 @@ mod tests {
             r#""params":{"command":"rust-analyzer.applySourceChange","arguments":[{"id":1}]}"#
         ));
         assert!(!msg.contains(r#""textDocument""#));
+    }
+
+    #[test]
+    fn response_id_wait_uses_top_level_response_id() {
+        let stream = br#"{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"contents":"wrong"}}}}
+{"jsonrpc":"2.0","id":2,"result":{"contents":"right"}}"#;
+
+        assert!(has_response_id(stream, "2"));
+    }
+
+    #[test]
+    fn response_id_wait_ignores_nested_id_and_requests() {
+        let nested_id = br#"{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"contents":"wrong"}}}}"#;
+        let server_request = br#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}"#;
+        let response_error = br#"{"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"failed"}}"#;
+
+        assert!(!has_response_id(nested_id, "2"));
+        assert!(!has_response_id(server_request, "2"));
+        assert!(has_response_id(response_error, "2"));
     }
 
     #[test]

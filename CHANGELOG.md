@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **LSP requests wait for response-owned IDs**: generic hover, completion,
+  definition, signature, rename, and code-action requests now stop reading only
+  after a complete response object with top-level `id: 2` and a `result` or
+  `error`, so progress metadata or server requests cannot truncate responses.
 - **Diagnostics wait for matching publish notifications**: generic LSP
   diagnostics collection now stops only after a complete top-level
   `textDocument/publishDiagnostics` notification whose `params.uri` matches the

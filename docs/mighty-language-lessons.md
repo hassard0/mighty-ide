@@ -10115,3 +10115,18 @@ opened file's own publish notification arrives.
 - **Language note:** no compiler gap surfaced. Stream readiness checks should
   use the same envelope ownership rules as payload parsing; text mentions are
   not delivery evidence.
+
+## L827 - Request Readers Need Response-Owned IDs
+
+Generic LSP request streams can include progress notifications, server requests,
+or metadata objects with fields named `id`, `result`, or `error` before the
+actual response arrives. A broad `"id":2` search can stop the reader on the
+wrong object.
+
+- **IDE note:** generic hover, completion, definition, signature, rename, and
+  code-action collection now stops only after a complete top-level JSON-RPC
+  response whose `id` matches the request and whose object owns `result` or
+  `error`.
+- **Language note:** no compiler gap surfaced. Request readiness belongs to the
+  JSON-RPC response envelope, not to a matching key string anywhere in the
+  stream.
