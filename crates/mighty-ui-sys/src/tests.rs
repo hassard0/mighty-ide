@@ -5124,6 +5124,32 @@ fn reload_active_file_refreshes_clean_file_and_protects_dirty_tab() {
 }
 
 #[test]
+fn reload_active_file_refreshes_clean_duplicate_tabs() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_reload_file_clean_duplicates_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("reload_me.mty");
+    std::fs::write(&path, "old").unwrap();
+    let active = ctx.tabs.open_path(path.clone());
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs.switch(active);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::fs::write(&path, "new").unwrap();
+    assert_eq!(crate::mui_tab_reload_active(handle), active as i32);
+    assert_eq!(ctx.tabs.active_model().as_text(), "new");
+    assert_eq!(ctx.tabs.get(duplicate).unwrap().model.as_text(), "new");
+    assert!(!ctx.tabs.is_dirty(active));
+    assert!(!ctx.tabs.is_dirty(duplicate));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn revert_active_file_discards_dirty_buffer_from_disk() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_revert_file_{}", std::process::id()));
@@ -5145,6 +5171,55 @@ fn revert_active_file_discards_dirty_buffer_from_disk() {
         "external"
     );
     assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reverted revert_me.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn revert_active_file_refreshes_clean_duplicates_and_preserves_dirty_duplicates() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_revert_file_duplicate_tabs_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("revert_me.mty");
+    std::fs::write(&path, "disk").unwrap();
+    let active = ctx.tabs.open_path(path.clone());
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("dirty active");
+    ctx.tabs.set_dirty(active, true);
+    let clean_duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs
+        .get_mut(clean_duplicate)
+        .unwrap()
+        .model
+        .set_text_preserving_cursor("disk");
+    ctx.tabs.set_dirty(clean_duplicate, false);
+    let dirty_duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs
+        .get_mut(dirty_duplicate)
+        .unwrap()
+        .model
+        .set_text_preserving_cursor("dirty duplicate");
+    ctx.tabs.set_dirty(dirty_duplicate, true);
+    ctx.tabs.switch(active);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::fs::write(&path, "external").unwrap();
+    assert_eq!(crate::mui_tab_revert_active(handle), active as i32);
+    assert_eq!(ctx.tabs.active_model().as_text(), "external");
+    assert_eq!(
+        ctx.tabs.get(clean_duplicate).unwrap().model.as_text(),
+        "external"
+    );
+    assert_eq!(
+        ctx.tabs.get(dirty_duplicate).unwrap().model.as_text(),
+        "dirty duplicate"
+    );
+    assert!(!ctx.tabs.is_dirty(active));
+    assert!(!ctx.tabs.is_dirty(clean_duplicate));
+    assert!(ctx.tabs.is_dirty(dirty_duplicate));
 
     let _ = std::fs::remove_dir_all(&root);
 }

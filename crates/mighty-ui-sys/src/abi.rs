@@ -4498,6 +4498,9 @@ fn reload_active_from_disk(ctx: &mut MuiContext, allow_dirty: bool) -> i32 {
         }
     };
     ctx.tabs.reload_active(&bytes);
+    let _ = ctx
+        .tabs
+        .reload_all_clean_path_except(&path, &bytes, active);
     sync_active_path(ctx);
     ensure_tab_visible(ctx, active);
     let name = basename(&path);

@@ -2043,13 +2043,13 @@ mod tests {
 
         q.push_at(
             Kind::Warn,
-            "Replaced 1 occurrence; 1 dirty open tab not refreshed",
+            "Replaced 1 occurrence; skipped 1 dirty open file",
             t0 + Duration::from_millis(300),
         );
         assert_eq!(q.len(), 1);
         assert_eq!(
             q.toasts()[0].message,
-            "Replaced 1 occurrence; 1 dirty open tab not refreshed"
+            "Replaced 1 occurrence; skipped 1 dirty open file"
         );
 
         q.push_at(

@@ -10622,3 +10622,15 @@ though the disk and one editor model were updated.
 - **Language note:** no compiler gap surfaced. Post-write refresh should use
   the same resource-identity set as write preflights; otherwise safety checks
   can be correct while visible editor state is still inconsistent.
+
+## L863 - Reload And Revert Must Update All Clean Views
+
+Reloading from disk and reverting local edits are read-side state transitions,
+but they still change editor models. When the same file has duplicate clean
+views, updating only the active tab leaves the other clean views stale.
+
+- **IDE note:** active-file reload and revert now reload every clean equivalent
+  tab from the same disk bytes after updating the active tab. Dirty duplicate
+  views remain untouched so unsaved buffers are preserved.
+- **Language note:** no compiler gap surfaced. Read-side file operations still
+  need resource-identity fanout when the UI allows multiple views of one path.
