@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Go-to-definition handles UNC file URIs**: LSP definition targets using
+  `file://localhost/...` or `file://server/share/...` now resolve to local drive
+  paths or UNC paths correctly instead of becoming relative paths.
 - **Hover popups read cleaner markdown**: inline hover text now removes common
   markdown noise such as link URLs, backticks, emphasis markers, and escaped
   punctuation before wrapping, making LSP docs easier to scan in the compact

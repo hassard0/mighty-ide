@@ -506,20 +506,30 @@ fn parse_location(bytes: &[u8]) -> Option<(String, u32, u32)> {
 pub fn uri_to_path(uri: &str) -> Option<std::path::PathBuf> {
     let rest = uri.strip_prefix("file://")?;
     // After `file://` an absolute Windows path looks like `/C:/...`; a POSIX path
-    // looks like `/home/...`. Strip a single leading slash IFF it precedes a
-    // drive letter (`/C:` -> `C:`), else keep it (POSIX absolute).
-    let rest = percent_decode(rest);
+    // looks like `/home/...`. A URI authority (`file://server/share/x`) is a UNC
+    // path; `localhost` is the local machine and should be ignored.
+    let mut rest = percent_decode(rest);
+    if let Some(local) = rest.strip_prefix("localhost/") {
+        rest = format!("/{local}");
+    }
     let bytes = rest.as_bytes();
-    let stripped = if bytes.len() >= 3
+    let native = if bytes.len() >= 3
         && bytes[0] == b'/'
         && bytes[1].is_ascii_alphabetic()
         && bytes[2] == b':'
     {
-        &rest[1..]
+        rest[1..].replace('/', std::path::MAIN_SEPARATOR_STR)
+    } else if !rest.starts_with('/') && !rest.starts_with('\\') {
+        let body = rest.replace('/', std::path::MAIN_SEPARATOR_STR);
+        format!(
+            "{}{}{}",
+            std::path::MAIN_SEPARATOR,
+            std::path::MAIN_SEPARATOR,
+            body
+        )
     } else {
-        &rest[..]
+        rest.replace('/', std::path::MAIN_SEPARATOR_STR)
     };
-    let native = stripped.replace('/', std::path::MAIN_SEPARATOR_STR);
     Some(std::path::PathBuf::from(native))
 }
 
@@ -1309,6 +1319,18 @@ mod tests {
     fn uri_to_path_windows_drive() {
         let p = uri_to_path("file:///C:/Users/me/foo.mty").unwrap();
         assert_eq!(p, std::path::PathBuf::from(r"C:\Users\me\foo.mty"));
+    }
+
+    #[test]
+    fn uri_to_path_localhost_drive() {
+        let p = uri_to_path("file://localhost/C:/Users/me/foo.mty").unwrap();
+        assert_eq!(p, std::path::PathBuf::from(r"C:\Users\me\foo.mty"));
+    }
+
+    #[test]
+    fn uri_to_path_unc_authority() {
+        let p = uri_to_path("file://server/share/folder/foo.mty").unwrap();
+        assert_eq!(p, std::path::PathBuf::from(r"\\server\share\folder\foo.mty"));
     }
 
     #[test]

@@ -9751,3 +9751,15 @@ markers, and backticks in that small box makes useful docs harder to scan.
   removed, and escaped punctuation is shown as the literal character.
 - **Language note:** no compiler gap surfaced. Keep hover cleanup pure and
   bounded; malformed markdown should remain readable instead of disappearing.
+
+## L801 - File URI Authorities Are Not Relative Paths
+
+Generic language servers may return definition targets with a `file://` authority:
+`file://localhost/C:/...` for local files or `file://server/share/...` for UNC
+network shares. Treating the authority as ordinary path text breaks navigation.
+
+- **IDE note:** `uri_to_path` now ignores the `localhost` authority and maps
+  non-local authorities to UNC-style paths before separator normalization.
+- **Language note:** no compiler gap surfaced. URI decoding tests should cover
+  drive, localhost, UNC, percent-encoded, and non-file cases because definition
+  navigation depends on the path round-trip being exact.
