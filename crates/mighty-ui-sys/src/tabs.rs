@@ -775,6 +775,22 @@ impl TabStore {
         }
     }
 
+    /// Discard unsaved edits by restoring the tab from its last clean baseline.
+    /// Used before a destructive close so reopen-closed cannot resurrect edits
+    /// the user explicitly chose to discard.
+    pub fn discard_edits(&mut self, idx: usize) {
+        if let Some(t) = self.tabs.get_mut(idx) {
+            let bytes = t.bytes.clone();
+            let (model, fold, read_only) = model_for_bytes(t.path.as_deref(), &bytes);
+            t.model = model;
+            t.fold = fold;
+            t.read_only = read_only;
+            t.dirty = false;
+            t.undo.clear();
+            t.redo.clear();
+        }
+    }
+
     /// Byte length of slot `idx`'s buffer (the count Mighty pulls), or -1.
     pub fn load_len(&self, idx: usize) -> i64 {
         match self.tabs.get(idx) {
@@ -924,6 +940,30 @@ mod tests {
         assert_eq!(tab.bytes, b"new\n");
         assert!(!tab.model.dirty());
         assert!(!tab.is_dirty());
+    }
+
+    #[test]
+    fn discard_edits_restores_last_clean_baseline_and_clears_history() {
+        let p = write_tmp("tabs_discard_baseline.mty", b"saved\n");
+
+        let mut s = TabStore::new();
+        let idx = s.open_path(p);
+        {
+            let tab = s.get_mut(idx).unwrap();
+            tab.model.set_text_preserving_cursor("discard me\n");
+            tab.undo.push(TextModel::from_bytes(b"saved\n"));
+            tab.redo.push(TextModel::from_bytes(b"redo\n"));
+        }
+        s.set_dirty(idx, true);
+
+        s.discard_edits(idx);
+
+        let tab = s.get(idx).unwrap();
+        assert_eq!(tab.model.as_text(), "saved\n");
+        assert_eq!(tab.bytes, b"saved\n");
+        assert!(!tab.is_dirty());
+        assert!(tab.undo.is_empty());
+        assert!(tab.redo.is_empty());
     }
 
     #[test]

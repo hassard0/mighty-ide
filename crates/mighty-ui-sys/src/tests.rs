@@ -4176,6 +4176,33 @@ fn reopen_closed_tab_restores_last_closed_tab_and_toasts() {
 }
 
 #[test]
+fn dirty_discard_reopen_restores_saved_baseline_not_discarded_edits() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_discard_reopen_baseline_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, "saved\n").unwrap();
+    let idx = ctx.tabs.open_path(path);
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("discarded local edit\n");
+    ctx.tabs.set_dirty(idx, true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_tab_close(handle, idx as i32), -1);
+    assert_eq!(crate::mui_dirty_confirm_discard(handle), 0);
+    assert_eq!(crate::mui_tab_reopen_closed(handle), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "saved\n");
+    assert!(!ctx.tabs.is_dirty(ctx.tabs.active()));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn duplicate_active_tab_clones_live_state_and_toasts() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_duplicate_tab_{}", std::process::id()));

@@ -4515,7 +4515,7 @@ pub extern "C" fn mui_dirty_confirm_discard(handle: i64) -> i32 {
         return -1;
     };
     trace(&format!("dirty_confirm discard tab={idx_u}"));
-    ctx.tabs.mark_clean(idx_u);
+    ctx.tabs.discard_edits(idx_u);
     close_tab_unchecked(ctx, idx_u)
 }
 
