@@ -80,6 +80,8 @@ struct ScreenSnapshot {
     cells: Vec<Cell>,
     cur_row: usize,
     cur_col: usize,
+    cur_fg: u32,
+    cur_bg: u32,
     scroll_top: usize,
     scroll_bottom: usize,
 }
@@ -190,6 +192,8 @@ impl Grid {
             cells: self.cells.clone(),
             cur_row: self.cur_row,
             cur_col: self.cur_col,
+            cur_fg: self.cur_fg,
+            cur_bg: self.cur_bg,
             scroll_top: self.scroll_top,
             scroll_bottom: self.scroll_bottom,
         }
@@ -206,6 +210,8 @@ impl Grid {
         }
         self.cur_row = snapshot.cur_row.min(self.rows - 1);
         self.cur_col = snapshot.cur_col.min(self.cols);
+        self.cur_fg = snapshot.cur_fg;
+        self.cur_bg = snapshot.cur_bg;
         self.scroll_top = snapshot.scroll_top.min(self.rows - 1);
         self.scroll_bottom = snapshot.scroll_bottom.min(self.rows - 1).max(self.scroll_top);
     }
@@ -3263,6 +3269,19 @@ mod tests {
         assert_eq!(g.cell(0, 6).ch, '!');
         assert_eq!(g.cursor(), (0, 7));
         assert!(!g.contains("ALT"));
+        assert!(!g.contains("1049"));
+    }
+
+    #[test]
+    fn alternate_screen_restores_primary_sgr_colors() {
+        let g = grid_feed(1, 12, b"\x1b[31;44mP\x1b[?1049h\x1b[32;45mA\x1b[?1049lX");
+        assert_eq!(g.cell(0, 0).ch, 'P');
+        assert_eq!(g.cell(0, 0).fg, 1);
+        assert_eq!(g.cell(0, 0).bg, 4);
+        assert_eq!(g.cell(0, 1).ch, 'X');
+        assert_eq!(g.cell(0, 1).fg, 1);
+        assert_eq!(g.cell(0, 1).bg, 4);
+        assert!(!g.contains("A"));
         assert!(!g.contains("1049"));
     }
 
