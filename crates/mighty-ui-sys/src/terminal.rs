@@ -716,6 +716,8 @@ pub struct VtParser {
     mouse_modes: u8,
     /// Whether mouse reports should use SGR extended coordinates (`CSI ?1006 h`).
     sgr_mouse: bool,
+    /// Whether printable output inserts at the cursor before writing (`CSI 4 h/l`).
+    insert_mode: bool,
     /// Whether printable output should wrap after the right margin (`CSI ?7 h/l`).
     autowrap: bool,
     /// Whether CUP/HVP row coordinates are relative to the scroll-region top (`CSI ?6 h/l`).
@@ -750,6 +752,7 @@ impl VtParser {
             application_cursor_keys: false,
             mouse_modes: 0,
             sgr_mouse: false,
+            insert_mode: false,
             autowrap: true,
             origin_mode: false,
             title: String::new(),
@@ -897,6 +900,9 @@ impl VtParser {
             fg: grid.cur_fg,
             bg: grid.cur_bg,
         };
+        if self.insert_mode {
+            grid.insert_blank_chars(1);
+        }
         grid.put_cell_autowrap(cell, self.autowrap);
         self.last_graphic = Some(cell);
     }
@@ -1272,6 +1278,17 @@ impl VtParser {
 
     fn set_mode(&mut self, grid: &mut Grid, final_byte: u8) {
         let params = std::str::from_utf8(&self.csi).unwrap_or("").to_string();
+        if !params.starts_with('?') {
+            let modes: Vec<&str> = params.split(';').collect();
+            for mode in modes {
+                match (mode, final_byte) {
+                    ("4", b'h') => self.insert_mode = true,
+                    ("4", b'l') => self.insert_mode = false,
+                    _ => {}
+                }
+            }
+            return;
+        }
         let Some(private) = params.strip_prefix('?') else {
             return;
         };
@@ -1327,6 +1344,7 @@ impl VtParser {
         self.application_cursor_keys = false;
         self.mouse_modes = 0;
         self.sgr_mouse = false;
+        self.insert_mode = false;
         self.autowrap = true;
         self.origin_mode = false;
     }
@@ -2945,6 +2963,23 @@ mod tests {
 
         let g2 = grid_feed(1, 6, b"abcd\x1b[1;3H\x1b[@Z");
         assert_eq!(g2.to_text(), "abZcd ");
+    }
+
+    #[test]
+    fn insert_mode_shifts_printable_output_until_reset() {
+        let g = grid_feed(2, 8, b"abcdef\nQRSTUV\x1b[1;3H\x1b[4hXY\x1b[4lZ");
+        assert_eq!(g.to_text(), "abXYZdef\nQRSTUV  ");
+        assert_eq!(g.cursor(), (0, 5));
+        assert_eq!(g.cell(1, 0).ch, 'Q', "row below should not shift");
+        assert!(!g.contains("[4h"));
+        assert!(!g.contains("[4l"));
+
+        let g2 = grid_feed(1, 8, b"abcd\x1b[1;3H\x1b[4h\xc3\xa9!");
+        assert_eq!(g2.to_text(), "abé!cd  ");
+
+        let g3 = grid_feed(1, 8, b"abcdef\x1b[1;3H\x1b[4hX\x1b[!p\x1b[1;4HY");
+        assert_eq!(g3.to_text(), "abXYdef ");
+        assert!(!g3.contains("!p"));
     }
 
     #[test]
