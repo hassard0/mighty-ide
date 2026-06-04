@@ -649,6 +649,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Save All cancelled")
         || m.starts_with("Save dialog unavailable")
         || m == "Use Save As to choose a file path"
+        || m == "No save path entered"
         || m.starts_with("Saved ")
         || m.starts_with("Save failed")
         || m.starts_with("Auto-saved ")

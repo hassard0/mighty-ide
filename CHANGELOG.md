@@ -896,6 +896,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Typed Open File rejects blank paths**: pressing Enter on an empty Open File
   fallback prompt now reports `No file path entered` instead of silently closing
   the prompt as though the active tab had been opened again.
+- **Typed Save As rejects blank paths**: pressing Enter on an empty Save As
+  fallback prompt now reports `No save path entered` while keeping the dirty
+  untitled tab untouched.
 - **Save All now has native-picker proof for untitled tabs**: deterministic
   SaveFileDialog sequences let the Windows harness verify Save As and Save All
   in one run, including the exact Save All path used for a dirty untitled tab.

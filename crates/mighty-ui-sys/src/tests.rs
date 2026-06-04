@@ -12022,6 +12022,15 @@ fn save_as_prompt_consumes_staged_path() {
     ctx.tabs.set_dirty(ctx.tabs.active(), true);
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
+    assert_eq!(mui_save_as(h), -1);
+    assert!(ctx.path_stage.is_empty());
+    assert_eq!(mui_active_has_path(h), 0);
+    assert_eq!(mui_ed_dirty(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "let x = 1");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No save path entered");
+
     let root = std::env::temp_dir().join(format!("mui_save_as_prompt_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     let target = root.join("typed.mty");

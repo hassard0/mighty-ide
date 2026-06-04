@@ -12176,6 +12176,7 @@ pub extern "C" fn mui_save_as(handle: i64) -> i32 {
     let raw = String::from_utf8_lossy(&staged).into_owned();
     let raw = raw.trim();
     if raw.is_empty() {
+        ctx.push_toast(crate::toast::Kind::Info, "No save path entered");
         return -1;
     }
     let base = crate::wsabi::effective_root(ctx);
