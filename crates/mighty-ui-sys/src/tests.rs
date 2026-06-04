@@ -3312,6 +3312,69 @@ fn active_file_rename_updates_tab_path_tree_and_toasts() {
 }
 
 #[test]
+fn active_file_rename_rebinds_duplicate_tabs() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_active_file_rename_duplicates");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    let old = root.join("src").join("old.mty");
+    let new = root.join("src").join("new.mty");
+    std::fs::write(&old, "fn main() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let original = ctx.tabs.open_path(old.clone());
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs.switch(original);
+    crate::abi::sync_active_path(&mut ctx);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.path_stage.extend_from_slice(b"new.mty");
+    assert_eq!(crate::mui_file_rename_active(handle), 1);
+
+    assert!(!old.exists());
+    assert!(new.exists());
+    assert_eq!(ctx.tabs.get(original).unwrap().path.as_deref(), Some(new.as_path()));
+    assert_eq!(ctx.tabs.get(duplicate).unwrap().path.as_deref(), Some(new.as_path()));
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(new.as_path()));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn active_file_rename_rebinds_dirty_duplicate_tabs() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_active_file_rename_dirty_duplicates");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    let old = root.join("src").join("old.mty");
+    let new = root.join("src").join("new.mty");
+    std::fs::write(&old, "fn main() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let original = ctx.tabs.open_path(old.clone());
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("unsaved duplicate\n");
+    ctx.tabs.set_dirty(duplicate, true);
+    ctx.tabs.switch(original);
+    crate::abi::sync_active_path(&mut ctx);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.path_stage.extend_from_slice(b"new.mty");
+    assert_eq!(crate::mui_file_rename_active(handle), 1);
+
+    assert!(!old.exists());
+    assert!(new.exists());
+    assert_eq!(ctx.tabs.get(original).unwrap().path.as_deref(), Some(new.as_path()));
+    assert_eq!(ctx.tabs.get(duplicate).unwrap().path.as_deref(), Some(new.as_path()));
+    assert!(ctx.tabs.is_dirty(duplicate));
+    assert_eq!(ctx.tabs.get(duplicate).unwrap().model.as_text(), "unsaved duplicate\n");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn active_file_delete_requires_exact_basename_confirmation() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_active_file_delete");

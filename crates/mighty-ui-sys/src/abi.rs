@@ -6118,7 +6118,10 @@ pub extern "C" fn mui_file_rename_active(handle: i64) -> i32 {
     }
     match std::fs::rename(&old_path, &new_path) {
         Ok(()) => {
-            ctx.tabs.set_active_path(new_path.clone());
+            let rebound = ctx.tabs.rebind_path(&old_path, new_path.clone());
+            if rebound == 0 {
+                ctx.tabs.set_active_path(new_path.clone());
+            }
             sync_active_path(ctx);
             ctx.tree.refresh();
             let root = crate::wsabi::effective_root(ctx);

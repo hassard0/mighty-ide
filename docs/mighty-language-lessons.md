@@ -10509,3 +10509,16 @@ pointing at a deleted path or bypass unsaved edits in a dirty duplicate.
 - **Language note:** no compiler gap surfaced. State transitions that mutate
   disk should operate on the whole UI identity set for that file, not just the
   selected view that initiated the command.
+
+## L855 - File Renames Must Rebind Duplicate Tabs
+
+Renaming a backing file changes the identity path for every open view of that
+file. Updating only the active tab leaves duplicate tabs pointed at a path that
+no longer exists.
+
+- **IDE note:** active-file rename now rebinds all equivalent open tabs from the
+  old path to the new path after the filesystem move. Dirty duplicate views keep
+  their unsaved buffers and dirty flags while tracking the renamed backing file.
+- **Language note:** no compiler gap surfaced. A filesystem rename is a
+  path-identity transition; duplicate UI views need rebinding, not compaction,
+  because their editing state should survive the move.

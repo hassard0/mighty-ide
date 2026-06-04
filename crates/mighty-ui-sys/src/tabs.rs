@@ -444,6 +444,23 @@ impl TabStore {
         self.tabs[i].read_only = false;
     }
 
+    /// Rebind all open tabs that point at `old_path` to `new_path`. Used after a
+    /// filesystem rename so duplicate views do not keep stale old paths.
+    pub fn rebind_path(&mut self, old_path: &Path, new_path: PathBuf) -> usize {
+        let mut changed = 0;
+        for tab in &mut self.tabs {
+            if tab
+                .path
+                .as_deref()
+                .is_some_and(|p| tab_paths_equal(p, old_path))
+            {
+                tab.path = Some(new_path.clone());
+                changed += 1;
+            }
+        }
+        changed
+    }
+
     /// `true` when the active tab is backed by a file path (vs an untitled buffer).
     pub fn active_has_path(&self) -> bool {
         self.tabs
@@ -1344,6 +1361,31 @@ mod tests {
         s.set_dirty(duplicate, true);
 
         assert!(s.any_dirty_path(&p));
+    }
+
+    #[test]
+    fn rebind_path_updates_all_equivalent_tabs() {
+        let old = write_tmp("tabs_rebind_old.txt", b"same");
+        let equivalent = old
+            .parent()
+            .unwrap()
+            .join(".")
+            .join(old.file_name().unwrap());
+        let new = old.parent().unwrap().join("tabs_rebind_new.txt");
+        let model = TextModel::from_bytes(b"same");
+
+        let mut s = TabStore::new();
+        s.open_path(old.clone());
+        s.tabs.push(Tab {
+            path: Some(equivalent),
+            bytes: b"same".to_vec(),
+            model,
+            ..Default::default()
+        });
+
+        assert_eq!(s.rebind_path(&old, new.clone()), 2);
+        assert_eq!(s.get(0).unwrap().path.as_deref(), Some(new.as_path()));
+        assert_eq!(s.get(1).unwrap().path.as_deref(), Some(new.as_path()));
     }
 
     #[test]

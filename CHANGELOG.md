@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Rename rebinds duplicate open tabs**: renaming an active file now updates
+  every equivalent open tab for that file, including dirty duplicate views, so
+  no tab remains pointed at the old on-disk path after the move.
 - **Delete accounts for duplicate open tabs**: deleting an active file now
   refuses the operation if any equivalent open tab for that file is dirty, and
   closes all clean duplicate tabs without adding deleted files to reopen history.
