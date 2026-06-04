@@ -298,11 +298,19 @@ pub struct Expansion {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SnippetContext {
     active_path: Option<PathBuf>,
+    selected_text: String,
 }
 
 impl SnippetContext {
     pub fn from_path(path: Option<&Path>) -> Self {
-        SnippetContext { active_path: path.map(Path::to_path_buf) }
+        SnippetContext::from_path_and_selection(path, "")
+    }
+
+    pub fn from_path_and_selection(path: Option<&Path>, selected_text: &str) -> Self {
+        SnippetContext {
+            active_path: path.map(Path::to_path_buf),
+            selected_text: selected_text.to_string(),
+        }
     }
 }
 
@@ -417,9 +425,13 @@ fn resolve_variable_with_default(
     default: Option<&str>,
     context: &SnippetContext,
 ) -> Option<String> {
-    resolve_snippet_variable(name, context).or_else(|| {
-        default.map(|value| resolve_variables_in_text(value, context))
-    })
+    match resolve_snippet_variable(name, context) {
+        Some(value) if value.is_empty() => {
+            default.map(|value| resolve_variables_in_text(value, context)).or(Some(value))
+        }
+        Some(value) => Some(value),
+        None => default.map(|value| resolve_variables_in_text(value, context)),
+    }
 }
 
 fn unresolved_variable_literal(name: &str, braced: bool) -> String {
@@ -431,12 +443,21 @@ fn unresolved_variable_literal(name: &str, braced: bool) -> String {
 }
 
 fn resolve_snippet_variable(name: &str, context: &SnippetContext) -> Option<String> {
-    let path = context.active_path.as_deref()?;
     match name {
-        "TM_FILENAME" => path.file_name().map(|s| s.to_string_lossy().into_owned()),
-        "TM_FILENAME_BASE" => path.file_stem().map(|s| s.to_string_lossy().into_owned()),
-        "TM_DIRECTORY" => path.parent().map(|p| p.to_string_lossy().into_owned()),
-        "TM_FILEPATH" => Some(path.to_string_lossy().into_owned()),
+        "TM_SELECTED_TEXT" => Some(context.selected_text.clone()),
+        "TM_FILENAME" => context
+            .active_path
+            .as_deref()
+            .and_then(|path| path.file_name().map(|s| s.to_string_lossy().into_owned())),
+        "TM_FILENAME_BASE" => context
+            .active_path
+            .as_deref()
+            .and_then(|path| path.file_stem().map(|s| s.to_string_lossy().into_owned())),
+        "TM_DIRECTORY" => context
+            .active_path
+            .as_deref()
+            .and_then(|path| path.parent().map(|p| p.to_string_lossy().into_owned())),
+        "TM_FILEPATH" => context.active_path.as_deref().map(|path| path.to_string_lossy().into_owned()),
         _ => None,
     }
 }
@@ -839,6 +860,16 @@ pub fn try_expand_with_path(
     lang: Language,
     active_path: Option<&Path>,
 ) -> bool {
+    try_expand_with_path_and_selection(model, session, lang, active_path, "")
+}
+
+pub fn try_expand_with_path_and_selection(
+    model: &mut TextModel,
+    session: &mut SnippetSession,
+    lang: Language,
+    active_path: Option<&Path>,
+    selected_text: &str,
+) -> bool {
     let line = model.cursor_line();
     let col = model.cursor_col();
     let word = prefix_word(model.line(line), col);
@@ -858,11 +889,14 @@ pub fn try_expand_with_path(
         model.backspace();
     }
     let (cl, cc) = (model.cursor_line(), model.cursor_col());
-    let exp = if active_path.is_some() {
+    let exp = if active_path.is_none() && selected_text.is_empty() {
+        expand(&def.body, &indent, cl, cc)
+    } else if selected_text.is_empty() {
         let context = SnippetContext::from_path(active_path);
         expand_with_context(&def.body, &indent, cl, cc, &context)
     } else {
-        expand(&def.body, &indent, cl, cc)
+        let context = SnippetContext::from_path_and_selection(active_path, selected_text);
+        expand_with_context(&def.body, &indent, cl, cc, &context)
     };
     for ch in exp.text.chars() {
         model.insert_char(ch);
@@ -1119,9 +1153,35 @@ mod tests {
     }
 
     #[test]
+    fn expand_selected_text_variables_from_context() {
+        let ctx = SnippetContext::from_path_and_selection(None, "selected");
+        let exp = expand_with_context(
+            "$TM_SELECTED_TEXT|${TM_SELECTED_TEXT}|${1:$TM_SELECTED_TEXT}",
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(exp.text, "selected|selected|selected");
+        assert_eq!(exp.stops[0], Stop { num: 1, start: (0, 18), end: (0, 26) });
+    }
+
+    #[test]
+    fn expand_empty_selected_text_uses_default() {
+        let exp = expand("${TM_SELECTED_TEXT:fallback}|$TM_SELECTED_TEXT", "", 0, 0);
+        assert_eq!(exp.text, "fallback|");
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
     fn expand_unknown_variables_are_preserved() {
-        let exp = expand("$UNKNOWN ${UNKNOWN} $TM_FILENAME ${TM_FILENAME}", "", 0, 0);
-        assert_eq!(exp.text, "$UNKNOWN ${UNKNOWN} $TM_FILENAME ${TM_FILENAME}");
+        let exp = expand(
+            "$UNKNOWN ${UNKNOWN} $TM_FILENAME ${TM_FILENAME} $TM_SELECTED_TEXT",
+            "",
+            0,
+            0,
+        );
+        assert_eq!(exp.text, "$UNKNOWN ${UNKNOWN} $TM_FILENAME ${TM_FILENAME} ");
     }
 
     #[test]

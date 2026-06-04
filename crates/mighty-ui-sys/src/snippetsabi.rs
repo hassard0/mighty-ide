@@ -62,14 +62,16 @@ pub extern "C" fn mui_snippet_try_expand(handle: i64) -> i32 {
     }
     let lang = c.language;
     let active_path = c.tabs.active_path();
+    let selected_text = c.tabs.active_model().selected_text();
     // Split the borrow: the session + the active model are distinct fields.
     let session = &mut c.snippet_session;
     let model = c.tabs.active_model_mut();
-    i32::from(snippets::try_expand_with_path(
+    i32::from(snippets::try_expand_with_path_and_selection(
         model,
         session,
         lang,
         active_path.as_deref(),
+        &selected_text,
     ))
 }
 
@@ -217,6 +219,8 @@ pub extern "C" fn mui_snippet_complete_expand(handle: i64) -> i32 {
         return 0;
     }
     let lang = c.language;
+    let active_path = c.tabs.active_path();
+    let selected_text = c.tabs.active_model().selected_text();
     {
         let m = c.tabs.active_model_mut();
         for _ in 0..typed {
@@ -226,14 +230,14 @@ pub extern "C" fn mui_snippet_complete_expand(handle: i64) -> i32 {
             m.insert_char(ch);
         }
     }
-    let active_path = c.tabs.active_path();
     let session = &mut c.snippet_session;
     let model = c.tabs.active_model_mut();
-    i32::from(snippets::try_expand_with_path(
+    i32::from(snippets::try_expand_with_path_and_selection(
         model,
         session,
         lang,
         active_path.as_deref(),
+        &selected_text,
     ))
 }
 

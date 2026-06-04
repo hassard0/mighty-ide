@@ -9592,3 +9592,18 @@ unfinished.
 - **Language note:** no compiler gap surfaced. Once snippet variables support
   defaults, parser tests should include both syntax shape and expansion
   fallback behavior; defaults are an expansion concern, not just a parse concern.
+
+## L790 - Snippets Need Selection Context Too
+
+Wrap-style snippets commonly reference `$TM_SELECTED_TEXT` so a selected range
+can become the body of a generated construct. Resolving only file variables
+leaves those imported snippets unable to preserve the user's current focus.
+
+- **IDE note:** snippet expansion context now carries the active editor
+  selection as well as the active path. `$TM_SELECTED_TEXT` and
+  `${TM_SELECTED_TEXT:default}` resolve during direct Tab expansion and
+  completion-accepted expansion, including inside editable placeholder defaults.
+- **Language note:** no compiler gap surfaced. Context-bearing expansion tests
+  should cover empty context and live context separately; empty selected text is
+  a valid variable value, but defaults should still provide useful fallback
+  content when the variable resolves to an empty string.
