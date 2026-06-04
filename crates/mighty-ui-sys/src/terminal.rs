@@ -1485,6 +1485,9 @@ impl VtParser {
             .unwrap_or(1)
             .max(1);
         for _ in 0..count {
+            if self.insert_mode {
+                grid.insert_blank_chars(1);
+            }
             grid.put_cell_autowrap(cell, self.autowrap);
         }
     }
@@ -2816,6 +2819,12 @@ mod tests {
         let g4 = grid_feed(1, 8, b"A\x1bc\x1b[2bZ");
         assert_eq!(g4.to_text(), "Z       ");
         assert!(!g4.contains("2b"));
+
+        let g5 = grid_feed(1, 8, b"abcdef\x1b[1;3HA\x1b[4h\x1b[2b");
+        assert_eq!(g5.to_text(), "abAAAdef");
+        for col in 2..5 {
+            assert_eq!(g5.cell(0, col).fg, DEFAULT_FG);
+        }
     }
 
     #[test]
