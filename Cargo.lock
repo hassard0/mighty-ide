@@ -1322,6 +1322,7 @@ dependencies = [
  "bumpalo",
  "hex",
  "hmac",
+ "libloading",
  "sha2",
 ]
 

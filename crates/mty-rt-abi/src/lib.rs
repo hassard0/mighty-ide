@@ -23,8 +23,11 @@
 //! All symbols are `#[no_mangle] pub extern "C"`.
 
 use bumpalo::Bump;
+use libloading::{Library, Symbol};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::io::Write;
+use std::sync::{Arc, Mutex, OnceLock};
 
 // ---- arena ----------------------------------------------------------
 
@@ -85,6 +88,89 @@ unsafe fn read_str(ptr: i64, len: i64) -> String {
 thread_local! {
     static FMT_STRINGS: RefCell<Vec<Box<str>>> = const { RefCell::new(Vec::new()) };
     static RAW_BYTES: RefCell<Vec<Box<[u8]>>> = const { RefCell::new(Vec::new()) };
+}
+
+struct ExternRegistry {
+    libs: Vec<Arc<Library>>,
+    cache: HashMap<String, *const ()>,
+}
+
+unsafe impl Send for ExternRegistry {}
+unsafe impl Sync for ExternRegistry {}
+
+impl ExternRegistry {
+    fn with_libc() -> Self {
+        let mut this = Self {
+            libs: Vec::new(),
+            cache: HashMap::new(),
+        };
+        if let Some(lib) = open_libc() {
+            this.libs.push(Arc::new(lib));
+        }
+        this
+    }
+
+    fn resolve(&mut self, name: &str) -> Option<*const ()> {
+        if let Some(&ptr) = self.cache.get(name) {
+            return Some(ptr);
+        }
+        for lib in &self.libs {
+            if let Some(ptr) = sym_in(lib, name) {
+                self.cache.insert(name.to_string(), ptr);
+                return Some(ptr);
+            }
+        }
+        None
+    }
+
+    fn call_i64(&mut self, name: &str) -> Option<i64> {
+        let ptr = self.resolve(name)?;
+        let f: extern "C" fn() -> i64 = unsafe { std::mem::transmute(ptr) };
+        Some(f())
+    }
+}
+
+static EXTERN_REGISTRY: OnceLock<Mutex<ExternRegistry>> = OnceLock::new();
+
+fn extern_registry() -> &'static Mutex<ExternRegistry> {
+    EXTERN_REGISTRY.get_or_init(|| Mutex::new(ExternRegistry::with_libc()))
+}
+
+#[allow(clippy::transmute_ptr_to_ptr)]
+fn sym_in(lib: &Library, name: &str) -> Option<*const ()> {
+    let cstr = std::ffi::CString::new(name).ok()?;
+    let sym: Result<Symbol<unsafe extern "C" fn()>, _> =
+        unsafe { lib.get(cstr.as_bytes_with_nul()) };
+    sym.ok()
+        .map(|s| unsafe { std::mem::transmute(s.into_raw().into_raw()) })
+}
+
+#[cfg(target_os = "linux")]
+fn open_libc() -> Option<Library> {
+    unsafe {
+        Library::new("libc.so.6")
+            .or_else(|_| Library::new("libc.so"))
+            .ok()
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn open_libc() -> Option<Library> {
+    unsafe { Library::new("libSystem.dylib").ok() }
+}
+
+#[cfg(target_os = "windows")]
+fn open_libc() -> Option<Library> {
+    unsafe {
+        Library::new("msvcrt.dll")
+            .or_else(|_| Library::new("ucrtbase.dll"))
+            .ok()
+    }
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+fn open_libc() -> Option<Library> {
+    None
 }
 
 fn intern_fmt(s: String) -> (i64, i64) {
@@ -213,8 +299,13 @@ pub extern "C" fn mty_runtime_spawn(_agent_id: i64) -> i64 {
 }
 
 #[no_mangle]
-pub extern "C" fn mty_runtime_extern_call(_name_ptr: i64, _name_len: i64, _args: i64) -> i64 {
-    0
+pub extern "C" fn mty_runtime_extern_call(name_ptr: i64, name_len: i64, _args: i64) -> i64 {
+    let name = unsafe { read_str(name_ptr, name_len) };
+    extern_registry()
+        .lock()
+        .ok()
+        .and_then(|mut registry| registry.call_i64(&name))
+        .unwrap_or_default()
 }
 
 #[no_mangle]
@@ -661,6 +752,26 @@ mod tests {
 
     fn slot_triple_bytes(slot: &[i64; 3]) -> Vec<u8> {
         unsafe { read_bytes(slot[0], slot[1]) }.to_vec()
+    }
+
+    #[test]
+    fn extern_call_resolves_platform_libc_symbol() {
+        #[cfg(target_os = "windows")]
+        let name = b"_getpid";
+        #[cfg(not(target_os = "windows"))]
+        let name = b"getpid";
+
+        let pid = mty_runtime_extern_call(name.as_ptr() as i64, name.len() as i64, 0);
+        assert_eq!(pid, std::process::id() as i64);
+    }
+
+    #[test]
+    fn extern_call_returns_zero_for_missing_symbol() {
+        let name = b"mighty_missing_extern_symbol_";
+        assert_eq!(
+            mty_runtime_extern_call(name.as_ptr() as i64, name.len() as i64, 0),
+            0
+        );
     }
 
     #[test]
