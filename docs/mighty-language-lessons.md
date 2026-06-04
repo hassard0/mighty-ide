@@ -9228,3 +9228,17 @@ That early path still needs the same focus cleanup as the later router branch.
 - **Language note:** no compiler gap surfaced. The repeated lesson is that
   priority guards are separate routes, not just aliases for the main branch, so
   their ownership effects need separate coverage.
+
+## L765 - Focused Overlay Exits Need Full Cleanup
+
+Focused overlay/input modes have local escape hatches that can bypass both the
+central command dispatcher and the normal mouse router. Those exits still return
+keyboard ownership to the editor, so they need the same stale-focus cleanup as
+the shared editor-returning routes.
+
+- **IDE note:** AI-focused Ctrl+Shift+A and Escape now release stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus before returning keyboard
+  input to the editor. Source-contract coverage pins both focused exits.
+- **Language note:** no compiler gap surfaced. This is a route-parity issue:
+  local focused-mode exits are independent event branches, so command-level
+  cleanup does not protect them.

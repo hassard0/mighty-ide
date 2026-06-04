@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **AI focus exits release stale focus**: Ctrl+Shift+A and Escape from the
+  focused AI Copilot input now clear stale Run/Web/Testing/Terminal/Agents/search
+  focus before returning keyboard input to the editor.
 - **Early chrome clicks release stale focus**: first-click titlebar, bottom-dock,
   Web header, and resize/preset routes now clear stale AI/Agents/search focus
   before the normal mouse router runs.

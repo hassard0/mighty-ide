@@ -10909,6 +10909,46 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             assert!(branch.contains(needle), "{label} must include `{needle}`");
         }
     }
+    let start = main
+        .find(
+            "} else if is_ai_panel_chord(cp, mods) {           // Ctrl+Shift+A : close/unfocus",
+        )
+        .expect("AI-focused Ctrl+Shift+A branch should exist");
+    let end = main[start..]
+        .find("} else if cp >= 32 && cp < 127")
+        .map(|i| start + i)
+        .expect("AI-focused Ctrl+Shift+A branch should precede text input");
+    let branch = &main[start..end];
+    for needle in [
+        "let _o = mui_ai_open(h)",
+        "run_focus = false",
+        "web_focus = false",
+        "test_focus = false",
+        "term_focus = false",
+        "ai_focus = false",
+        "agents_focus = false",
+        "find_nav = false",
+        "typing = false",
+    ] {
+        assert!(
+            branch.contains(needle),
+            "AI-focused Ctrl+Shift+A must include `{needle}`"
+        );
+    }
+    let ai_focus_start = main
+        .find("} else if ai_focus && tag != ev_mouse_down() {")
+        .expect("AI-focused input branch should exist");
+    let ai_focus_end = main[ai_focus_start..]
+        .find("} else if theme_picker_open {")
+        .map(|i| ai_focus_start + i)
+        .expect("AI-focused input branch should precede theme picker");
+    let ai_focus_branch = &main[ai_focus_start..ai_focus_end];
+    assert!(
+        ai_focus_branch.contains(
+            "} else if k == key_escape() {\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false                                 // Escape : back to editor (panel stays open)\n            agents_focus = false\n            find_nav = false\n            typing = false"
+        ),
+        "AI-focused Escape must release stale surface and search focus"
+    );
     assert!(
         main.contains(
             "is_quickopen_chord(cp, mods) {            // Ctrl+P : universal Quick-Open\n          mui_quickopen_open(h)\n          quickopen_open = true\n          quickopen_ignore_mouse_down = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
