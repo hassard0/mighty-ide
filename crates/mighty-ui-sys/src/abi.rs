@@ -7031,9 +7031,21 @@ fn terminal_sgr_blink_visible(frame: u64) -> bool {
     (frame / 30) % 2 == 0
 }
 
+fn terminal_header_title(title: &str, current_dir: &str) -> String {
+    let title = title.trim();
+    if !title.is_empty() {
+        return format!("TERMINAL - {title}");
+    }
+    let current_dir = current_dir.trim();
+    if !current_dir.is_empty() {
+        return format!("TERMINAL - {current_dir}");
+    }
+    "TERMINAL".to_string()
+}
+
 #[cfg(test)]
 mod terminal_cursor_tests {
-    use super::{terminal_cursor_draw_visible, terminal_sgr_blink_visible};
+    use super::{terminal_cursor_draw_visible, terminal_header_title, terminal_sgr_blink_visible};
 
     #[test]
     fn terminal_cursor_draw_visibility_honors_blink_phase() {
@@ -7054,6 +7066,19 @@ mod terminal_cursor_tests {
         assert!(!terminal_sgr_blink_visible(30));
         assert!(!terminal_sgr_blink_visible(59));
         assert!(terminal_sgr_blink_visible(60));
+    }
+
+    #[test]
+    fn terminal_header_title_falls_back_to_current_dir() {
+        assert_eq!(terminal_header_title("", ""), "TERMINAL");
+        assert_eq!(
+            terminal_header_title("shell", "C:/repo"),
+            "TERMINAL - shell"
+        );
+        assert_eq!(
+            terminal_header_title("", "C:/repo"),
+            "TERMINAL - C:/repo"
+        );
     }
 }
 
@@ -7495,9 +7520,9 @@ pub extern "C" fn mui_term_draw(handle: i64) {
     let title_text = ctx
         .terminal
         .as_ref()
-        .map(|t| t.title())
-        .filter(|title| !title.is_empty())
-        .map_or_else(|| "TERMINAL".to_string(), |title| format!("TERMINAL - {title}"));
+        .map_or_else(|| "TERMINAL".to_string(), |t| {
+            terminal_header_title(t.title(), t.current_dir())
+        });
     let title_x = panel_left + layout::PAD + 4.0;
     let (clear_x, clear_y, clear_w, clear_h) = terminal_header_clear_rect(ctx);
     let title_max = (clear_x - title_x - 8.0).max(0.0);

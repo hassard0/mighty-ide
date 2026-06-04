@@ -916,6 +916,8 @@ pub struct VtParser {
     palette_rgb: [(u8, u8, u8); 256],
     /// Last window/icon title reported by OSC 0/1/2.
     title: String,
+    /// Last current working directory reported by OSC 7.
+    current_dir: String,
     /// Last decoded OSC 52 clipboard write request, drained by the UI bridge.
     clipboard_write: Option<String>,
 }
@@ -971,6 +973,7 @@ impl VtParser {
             cursor_rgb: DEFAULT_CURSOR_RGB,
             palette_rgb: std::array::from_fn(|index| palette_rgb8(index as u32)),
             title: String::new(),
+            current_dir: String::new(),
             clipboard_write: None,
         }
     }
@@ -1073,6 +1076,10 @@ impl VtParser {
 
     pub fn title(&self) -> &str {
         &self.title
+    }
+
+    pub fn current_dir(&self) -> &str {
+        &self.current_dir
     }
 
     fn feed_byte(&mut self, grid: &mut Grid, b: u8) {
@@ -1801,6 +1808,7 @@ impl VtParser {
         self.reset_modes();
         self.reset_color_state();
         self.title.clear();
+        self.current_dir.clear();
         self.osc.clear();
         self.csi.clear();
         self.utf8.clear();
@@ -2280,6 +2288,7 @@ impl VtParser {
     fn finish_osc(&mut self) {
         self.capture_osc_hyperlink();
         self.capture_osc_title();
+        self.capture_osc_current_dir();
         self.capture_osc_clipboard();
         self.capture_osc_color_set();
         self.capture_osc_color_reset();
@@ -2457,6 +2466,19 @@ impl VtParser {
         }
     }
 
+    fn capture_osc_current_dir(&mut self) {
+        let Some(raw) = self.osc.strip_prefix(b"7;") else {
+            return;
+        };
+        let raw = String::from_utf8_lossy(raw);
+        let Some(path) = decode_osc7_file_path(&raw) else {
+            return;
+        };
+        if !path.is_empty() {
+            self.current_dir = path;
+        }
+    }
+
     fn capture_osc_clipboard(&mut self) {
         let mut parts = self.osc.splitn(3, |b| *b == b';');
         if parts.next() != Some(b"52".as_slice()) {
@@ -2588,6 +2610,72 @@ fn decode_osc52_base64(input: &[u8]) -> Option<Vec<u8>> {
 fn palette_rgb8(index: u32) -> (u8, u8, u8) {
     let (r, g, b, _) = palette_rgba(index);
     (unit_to_byte(r), unit_to_byte(g), unit_to_byte(b))
+}
+
+fn decode_osc7_file_path(raw: &str) -> Option<String> {
+    let mut value = raw.trim();
+    if value.is_empty() {
+        return None;
+    }
+    if let Some(rest) = value.strip_prefix("file://") {
+        value = rest;
+        if !value.starts_with('/') {
+            let slash = value.find('/')?;
+            value = &value[slash..];
+        }
+    } else if value.contains("://") {
+        return None;
+    }
+
+    let decoded = percent_decode_bytes(value);
+    let decoded = String::from_utf8_lossy(&decoded);
+    let mut path = decoded.as_ref();
+    if path.len() >= 3 {
+        let bytes = path.as_bytes();
+        if bytes[0] == b'/' && bytes[1].is_ascii_alphabetic() && bytes[2] == b':' {
+            path = &path[1..];
+        }
+    }
+
+    let path: String = path
+        .chars()
+        .filter(|ch| !ch.is_control())
+        .take(512)
+        .collect::<String>()
+        .trim()
+        .to_string();
+    if path.is_empty() {
+        None
+    } else {
+        Some(path)
+    }
+}
+
+fn percent_decode_bytes(input: &str) -> Vec<u8> {
+    fn hex_value(b: u8) -> Option<u8> {
+        match b {
+            b'0'..=b'9' => Some(b - b'0'),
+            b'a'..=b'f' => Some(b - b'a' + 10),
+            b'A'..=b'F' => Some(b - b'A' + 10),
+            _ => None,
+        }
+    }
+
+    let bytes = input.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let (Some(hi), Some(lo)) = (hex_value(bytes[i + 1]), hex_value(bytes[i + 2])) {
+                out.push((hi << 4) | lo);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    out
 }
 
 fn parse_osc_rgb(value: &str) -> Option<(u8, u8, u8)> {
@@ -2926,6 +3014,10 @@ impl Terminal {
 
     pub fn title(&self) -> &str {
         self.parser.title()
+    }
+
+    pub fn current_dir(&self) -> &str {
+        self.parser.current_dir()
     }
 
     pub fn take_clipboard_write(&mut self) -> Option<String> {
@@ -5083,6 +5175,49 @@ mod tests {
         assert!(p.title().starts_with("ab"));
         assert!(p.title().chars().count() <= 160);
         assert!(!p.title().contains('\n'));
+    }
+
+    #[test]
+    fn osc_7_current_directory_is_captured_and_decoded() {
+        let mut g = Grid::new(1, 24);
+        let mut p = VtParser::new();
+        p.feed(
+            &mut g,
+            b"\x1b]7;file://host/C:/Users/me/My%20Project\x07done",
+        );
+
+        assert_eq!(p.current_dir(), "C:/Users/me/My Project");
+        assert!(g.contains("done"));
+        assert!(!g.contains("My%20Project"));
+        assert!(!g.contains("7;"));
+    }
+
+    #[test]
+    fn osc_7_current_directory_is_sanitized_bounded_and_reset() {
+        let mut g = Grid::new(1, 40);
+        let mut p = VtParser::new();
+        let long = "x".repeat(700);
+        let seq = format!("\x1b]7;file:///C:/repo/\n{long}\x07");
+        p.feed(&mut g, seq.as_bytes());
+
+        assert!(p.current_dir().starts_with("C:/repo/"));
+        assert!(p.current_dir().chars().count() <= 512);
+        assert!(!p.current_dir().contains('\n'));
+
+        p.feed(&mut g, b"\x1bc");
+        assert!(p.current_dir().is_empty());
+    }
+
+    #[test]
+    fn osc_7_ignores_unsupported_uri_schemes() {
+        let mut g = Grid::new(1, 40);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b]7;file:///C:/repo\x07");
+        p.feed(&mut g, b"\x1b]7;https://example.com/repo\x07ok");
+
+        assert_eq!(p.current_dir(), "C:/repo");
+        assert!(g.contains("ok"));
+        assert!(!g.contains("https://"));
     }
 
     #[test]

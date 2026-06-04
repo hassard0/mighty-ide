@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Terminal tracks OSC 7 working directories**: shells that report their current
+  directory with OSC 7 now update terminal metadata without leaking URI bytes
+  into the grid, and the terminal header can fall back to that path when no
+  explicit OSC title is available.
 - **Terminal answers pixel window-size probes**: xterm `14t` and `16t`
   window-operation queries now report grid pixel size and character-cell pixel
   size from Mighty's live terminal metrics, alongside the existing character

@@ -9503,3 +9503,18 @@ queries without a reply leaves them guessing.
 - **Language note:** no compiler gap surfaced. Size-query tests should derive
   expected values from the same layout helpers as the implementation, so future
   font or line-height settings remain testable without hard-coded pixel drift.
+
+## L784 - Terminal Identity Includes Working Directory Metadata
+
+Modern shells can report their current directory through OSC 7, separately from
+the window title. Consuming that sequence without storing the decoded `file://`
+path loses useful shell context, while not consuming it cleanly risks leaking URI
+bytes into the visible terminal grid.
+
+- **IDE note:** the terminal parser now captures OSC 7 working-directory paths,
+  decodes percent escapes, strips control characters, bounds stored metadata,
+  clears it on full reset, and lets the terminal header fall back to the path
+  when no OSC title has been reported.
+- **Language note:** no compiler gap surfaced. Terminal metadata parsers should
+  keep small, protocol-specific decoders near the control sequence they support
+  so UI bridges can expose shell context without depending on grid text.
