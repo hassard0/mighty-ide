@@ -8621,3 +8621,13 @@ terminal click should still leave exactly one visible surface owning input.
   Terminal, AI, Agents, and transient navigation focus when they switch or claim
   a visible surface. The Testing-focused first-click router follows the same
   cleanup rule as the general mouse router.
+
+## L719 - Availability Checks Should Prune Stale Recents First
+
+Command enablement should reflect what the next surface can actually display.
+If File: Open Recent checks raw MRU length before pruning, a stale-only MRU can
+route users into a picker with nothing actionable.
+
+- **IDE note:** `mui_recent_any` now prunes missing recent files and workspace
+  folders, persists the cleaned lists, and only then reports whether Open Recent
+  should open the focused recents picker.

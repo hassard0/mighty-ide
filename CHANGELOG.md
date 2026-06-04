@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Open Recent now preflights stale entries**: `File: Open Recent` prunes
+  missing recent files and folders before deciding whether the focused recent
+  picker is available, avoiding empty picker detours.
 - **Chrome clicks now follow the same focus contract**: rail, topbar, AI, tab,
   and terminal mouse paths release stale competing surface focus just like
   palette commands and keyboard shortcuts.

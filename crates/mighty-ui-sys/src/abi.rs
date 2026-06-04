@@ -8985,9 +8985,12 @@ pub extern "C" fn mui_qo_count(handle: i64) -> i32 {
 /// `1` when either recent files or recent workspace folders exist.
 #[no_mangle]
 pub extern "C" fn mui_recent_any(handle: i64) -> i32 {
-    unsafe { ctx(handle) }.map_or(0, |c| {
-        i32::from(!c.quickopen.recent_paths().is_empty() || c.recent_workspaces.len() > 0)
-    })
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    prune_missing_recent_files(ctx);
+    prune_missing_recent_workspaces(ctx);
+    i32::from(!ctx.quickopen.recent_paths().is_empty() || ctx.recent_workspaces.len() > 0)
 }
 
 /// Move the selection by `delta` (positive = down), wrapping.

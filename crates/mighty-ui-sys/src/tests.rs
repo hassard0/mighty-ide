@@ -9476,17 +9476,70 @@ fn workspace_open_recent_prunes_missing_folder() {
 fn open_recent_available_when_only_recent_files_exist() {
     use crate::mui_recent_any;
 
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(mui_recent_any(h), 0);
 
-    ctx.quickopen.set_recent_paths(vec![std::path::PathBuf::from("main.mty")]);
+    let root = std::env::temp_dir().join(format!("mui_recent_any_file_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let recent = root.join("main.mty");
+    std::fs::write(&recent, b"fn main() {}").unwrap();
+
+    ctx.quickopen.set_recent_paths(vec![recent]);
     assert_eq!(
         mui_recent_any(h),
         1,
         "Open Recent should use the recents picker when only recent files exist"
     );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn open_recent_availability_prunes_stale_entries_before_routing() {
+    use crate::mui_recent_any;
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let root = std::env::temp_dir().join(format!("mui_recent_any_prune_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let keep_file = root.join("keep.mty");
+    let missing_file = root.join("missing.mty");
+    let missing_folder = root.join("missing-folder");
+    std::fs::write(&keep_file, b"fn main() {}").unwrap();
+    let _ = std::fs::remove_file(&missing_file);
+    let _ = std::fs::remove_dir_all(&missing_folder);
+
+    ctx.quickopen.set_recent_paths(vec![missing_file.clone()]);
+    ctx.recent_workspaces.set_all(vec![missing_folder.clone()]);
+    assert_eq!(
+        mui_recent_any(h),
+        0,
+        "only stale file/folder recents should not route to Open Recent"
+    );
+    assert!(ctx.quickopen.recent_paths().is_empty());
+    assert_eq!(ctx.recent_workspaces.len(), 0);
+
+    ctx.quickopen.set_recent_paths(vec![missing_file, keep_file.clone()]);
+    assert_eq!(
+        mui_recent_any(h),
+        1,
+        "a valid recent file should keep Open Recent available after pruning stale rows"
+    );
+    assert_eq!(ctx.quickopen.recent_paths(), vec![keep_file]);
+    assert_eq!(ctx.recent_workspaces.len(), 0);
+
+    let _ = std::fs::remove_dir_all(&root);
 }
 
 #[test]
@@ -10373,7 +10426,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("if mui_recent_any(h) == 1"),
-        "File: Open Recent must open the recents picker when either recent files or folders exist"
+        "File: Open Recent must open the recents picker only when valid recent files or folders exist"
     );
     assert!(
         main.contains("mui_welcome_open_recent_picker(h)"),
