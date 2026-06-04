@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Debugger events require body-owned details**: DAP stopped, output, and
+  exited events now read details only from the event `body`, so top-level
+  envelope fields cannot masquerade as debugger state.
 - **Workspace edits require top-level edit owners**: rename and code-action edit
   parsing now ignores nested metadata-only `changes` or `documentChanges`
   fields when the owning WorkspaceEdit lacks those top-level edit containers.

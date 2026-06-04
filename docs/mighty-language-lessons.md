@@ -10199,3 +10199,16 @@ apply to the user's files.
 - **Language note:** no compiler gap surfaced. Once an owning payload has been
   selected, fallback broad scans reintroduce the same metadata ambiguity the
   selection was meant to remove.
+
+## L833 - DAP Event Details Need Body Ownership
+
+DAP events wrap user-visible details in the event `body`. Envelope-level fields
+can share names such as `reason`, `output`, `category`, or `exitCode`, but those
+fields are not the stopped reason, console line, or process exit code.
+
+- **IDE note:** debugger stopped, output, and exited event parsing now reads
+  details only from the event `body`; missing bodies produce safe defaults
+  instead of reading envelope fields.
+- **Language note:** no compiler gap surfaced. Event parsers should require the
+  protocol's payload owner even when a fallback would make malformed messages
+  appear useful.

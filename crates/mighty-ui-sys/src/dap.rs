@@ -54,13 +54,6 @@ use std::time::Duration;
 // Pure helpers — minimal JSON scanning (no serde, matching the LSP client).
 // ===========================================================================
 
-fn find_sub(hay: &[u8], needle: &[u8]) -> Option<usize> {
-    if needle.is_empty() || needle.len() > hay.len() {
-        return None;
-    }
-    hay.windows(needle.len()).position(|w| w == needle)
-}
-
 /// Read a JSON string value that begins at/after `pos` (skips ws + a leading
 /// `:`, expects `"`). Decodes the common escapes. Returns `(value, idx-past)`.
 fn read_json_string_at(bytes: &[u8], pos: usize) -> Option<(String, usize)> {
@@ -177,32 +170,6 @@ fn push_json_code_unit(out: &mut String, high_surrogate: &mut Option<u16>, unit:
             out.push(char::from_u32(unit as u32).unwrap_or('\u{fffd}'));
         }
     }
-}
-
-/// Read an unsigned integer following `key` somewhere in `region`.
-fn read_uint_after(region: &[u8], key: &[u8]) -> Option<i64> {
-    let p = find_sub(region, key)?;
-    let mut j = p + key.len();
-    while j < region.len() && matches!(region[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        j += 1;
-    }
-    let start = j;
-    let mut v: i64 = 0;
-    while j < region.len() && region[j].is_ascii_digit() {
-        v = v.saturating_mul(10).saturating_add((region[j] - b'0') as i64);
-        j += 1;
-    }
-    if j == start {
-        None
-    } else {
-        Some(v)
-    }
-}
-
-/// Read a string value following `key` somewhere in `region`.
-fn read_str_after(region: &[u8], key: &[u8]) -> Option<String> {
-    let p = find_sub(region, key)?;
-    read_json_string_at(region, p + key.len()).map(|(s, _)| s)
 }
 
 fn skip_json_ws(bytes: &[u8], mut i: usize) -> usize {
@@ -458,7 +425,7 @@ pub struct StoppedInfo {
 /// Parse a `stopped` event's body.
 pub fn parse_stopped(raw: &str) -> StoppedInfo {
     let bytes = raw.as_bytes();
-    let body = top_level_object_field(bytes, b"body").unwrap_or(bytes);
+    let body = top_level_object_field(bytes, b"body").unwrap_or(&[]);
     StoppedInfo {
         reason: top_level_string_field(body, b"reason").unwrap_or_default(),
         description: top_level_string_field(body, b"description").unwrap_or_default(),
@@ -476,7 +443,7 @@ pub struct OutputInfo {
 /// Parse an `output` event's body.
 pub fn parse_output(raw: &str) -> OutputInfo {
     let bytes = raw.as_bytes();
-    let body = top_level_object_field(bytes, b"body").unwrap_or(bytes);
+    let body = top_level_object_field(bytes, b"body").unwrap_or(&[]);
     OutputInfo {
         category: top_level_string_field(body, b"category").unwrap_or_else(|| "stdout".into()),
         output: top_level_string_field(body, b"output").unwrap_or_default(),
@@ -485,7 +452,7 @@ pub fn parse_output(raw: &str) -> OutputInfo {
 
 pub fn parse_exit_code(raw: &str) -> i64 {
     let bytes = raw.as_bytes();
-    let body = top_level_object_field(bytes, b"body").unwrap_or(bytes);
+    let body = top_level_object_field(bytes, b"body").unwrap_or(&[]);
     top_level_uint_field(body, b"exitCode").unwrap_or(0)
 }
 
@@ -1603,6 +1570,16 @@ mod tests {
     }
 
     #[test]
+    fn parse_stopped_requires_body_owned_fields() {
+        let raw = r#"{"type":"event","event":"stopped","reason":"wrong","description":"wrong desc","threadId":99}"#;
+        let info = parse_stopped(&parse_envelope(raw).unwrap().raw);
+
+        assert_eq!(info.reason, "");
+        assert_eq!(info.description, "");
+        assert_eq!(info.thread_id, 1);
+    }
+
+    #[test]
     fn parse_stack_trace_frames() {
         let raw = r#"{"type":"response","command":"stackTrace","success":true,"body":{"stackFrames":[{"id":1,"name":"compute_sum","line":7,"column":1,"source":{"path":"C:/p/demo.mty","name":"demo.mty"}},{"id":2,"name":"main","line":18,"column":1,"source":{"path":"C:/p/demo.mty"}}],"totalFrames":2}}"#;
         let frames = parse_stack_trace(&parse_envelope(raw).unwrap().raw);
@@ -1728,6 +1705,15 @@ mod tests {
     }
 
     #[test]
+    fn parse_output_requires_body_owned_fields() {
+        let raw = r#"{"type":"event","event":"output","category":"stderr","output":"wrong"}"#;
+        let o = parse_output(&parse_envelope(raw).unwrap().raw);
+
+        assert_eq!(o.category, "stdout");
+        assert_eq!(o.output, "");
+    }
+
+    #[test]
     fn parse_exit_code_uses_body_top_level_field() {
         let raw = r#"{
           "type":"event",
@@ -1736,6 +1722,12 @@ mod tests {
           "body":{"metadata":{"exitCode":98},"exitCode":7}
         }"#;
         assert_eq!(parse_exit_code(&parse_envelope(raw).unwrap().raw), 7);
+    }
+
+    #[test]
+    fn parse_exit_code_requires_body_owned_field() {
+        let raw = r#"{"type":"event","event":"exited","exitCode":7}"#;
+        assert_eq!(parse_exit_code(&parse_envelope(raw).unwrap().raw), 0);
     }
 
     #[test]
