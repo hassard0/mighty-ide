@@ -396,6 +396,30 @@ pub extern "C" fn mui_bp_toggle_at_cursor(handle: i64) -> i32 {
     i32::from(now_on)
 }
 
+/// Palette command: clear every stored line breakpoint. Opens the Run and Debug
+/// view and, if a session is live, sends an empty breakpoint set to the adapter.
+#[no_mangle]
+pub extern "C" fn mui_bp_clear_all(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    open_debug_view(ctx);
+    if ctx.dbg.clear_breakpoints() {
+        if ctx.dbg.state() != crate::dap::DebugState::Idle
+            && ctx.dbg.state() != crate::dap::DebugState::Terminated
+        {
+            ctx.dbg.resend_breakpoints();
+        }
+        ctx.push_toast(crate::toast::Kind::Info, "Breakpoints cleared");
+        crate::abi::trace("bp_clear_all");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No breakpoints to clear");
+        crate::abi::trace("bp_clear_all noop");
+        0
+    }
+}
+
 /// `1` if there's a breakpoint on (0-based) `line` of the active file.
 #[no_mangle]
 pub extern "C" fn mui_bp_has(handle: i64, line: i32) -> i32 {

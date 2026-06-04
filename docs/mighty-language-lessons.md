@@ -8234,3 +8234,15 @@ so breakpoint toggling should be part of that same command surface.
   Debug and reports set, cleared, and unsaved-file outcomes. Tests pin the
   registry label, Mighty dispatcher route, visible feedback, panel focus, and
   breakpoint state changes.
+
+L683. Breakpoint cleanup should not require per-line hunting. Once breakpoint
+toggling is command-visible, users still need a safe way to remove all stored
+breakpoints without revisiting every file and gutter marker. Clearing
+breakpoints is separate from clearing the debug session, which intentionally
+preserves breakpoints.
+
+- **IDE note:** the command palette now lists `Debug: Clear Breakpoints`,
+  dispatching through a dedicated breakpoint-clear ABI that opens Run and Debug,
+  clears every stored breakpoint across files, resends the empty set to live
+  debug sessions, and reports changed versus already-empty outcomes. Model, ABI,
+  registry, and dispatcher tests pin the behavior.

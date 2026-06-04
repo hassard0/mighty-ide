@@ -3530,6 +3530,11 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
             "",
         ),
         (
+            crate::palette::CMD_DEBUG_CLEAR_BREAKPOINTS,
+            "Debug: Clear Breakpoints",
+            "",
+        ),
+        (
             crate::palette::CMD_DEBUG_CLEAR_SESSION,
             "Run and Debug: Clear Session",
             "",
@@ -5686,6 +5691,32 @@ fn breakpoint_toggle_at_cursor_command_opens_debug_and_reports_set_clear() {
     assert_eq!(toast.message, "Breakpoint cleared on line 3");
 
     let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn breakpoint_clear_all_command_opens_debug_and_reports_empty_state() {
+    let mut ctx = ctx_or_skip!();
+    let path_a = "C:/p/a.mty";
+    let path_b = "C:/p/b.mty";
+    ctx.dbg.toggle_breakpoint(path_a, 1);
+    ctx.dbg.toggle_breakpoint(path_b, 4);
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::dapabi::mui_bp_clear_all(handle), 1);
+    assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
+    assert!(ctx.sidebar_visible);
+    assert!(ctx.dbg.breakpoint_lines0(path_a).is_empty());
+    assert!(ctx.dbg.breakpoint_lines0(path_b).is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Breakpoints cleared");
+
+    assert_eq!(crate::dapabi::mui_bp_clear_all(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No breakpoints to clear");
 }
 
 #[test]
@@ -9921,6 +9952,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Debug toggle-breakpoint command must call the cursor breakpoint ABI"
     );
     assert!(
+        main.contains("id == cmd_debug_clear_breakpoints()")
+            && main.contains("let _bpc = mui_bp_clear_all(h)"),
+        "Debug clear-breakpoints command must call the breakpoint clear ABI"
+    );
+    assert!(
         main.contains("id == cmd_test_stop()")
             && main.contains("let _ts = mui_test_stop(h)")
             && main.contains("test_focus = true"),
@@ -10283,6 +10319,7 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (CMD_DEBUG_PAUSE, "cmd_debug_pause"),
         (CMD_DEBUG_RESTART, "cmd_debug_restart"),
         (CMD_DEBUG_TOGGLE_BREAKPOINT, "cmd_debug_toggle_breakpoint"),
+        (CMD_DEBUG_CLEAR_BREAKPOINTS, "cmd_debug_clear_breakpoints"),
         (CMD_DEBUG_CLEAR_SESSION, "cmd_debug_clear_session"),
         (CMD_RELOAD_ACTIVE_FILE, "cmd_reload_active_file"),
         (CMD_REVERT_ACTIVE_FILE, "cmd_revert_active_file"),

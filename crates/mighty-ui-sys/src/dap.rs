@@ -625,6 +625,14 @@ impl DebugModel {
             .unwrap_or(-1)
     }
 
+    /// Clear every stored line breakpoint across files. Returns `true` when any
+    /// breakpoint was removed.
+    pub fn clear_breakpoints(&mut self) -> bool {
+        let changed = self.breakpoints.values().any(|lines| !lines.is_empty());
+        self.breakpoints.clear();
+        changed
+    }
+
     // ---- call stack / variables read-back (for the ABI) ----
     pub fn stack_count(&self) -> usize {
         self.stack.len()
@@ -1476,6 +1484,19 @@ mod tests {
         assert_eq!(m.breakpoint_lines0("a.mty"), vec![2, 6, 10]);
         assert_eq!(m.breakpoint_lines0("b.mty"), vec![1]);
         assert!(!m.has_breakpoint("b.mty", 6));
+    }
+
+    #[test]
+    fn clear_breakpoints_removes_all_files_and_reports_change() {
+        let mut m = DebugModel::new();
+        assert!(!m.clear_breakpoints());
+        m.toggle_breakpoint("a.mty", 2);
+        m.toggle_breakpoint("b.mty", 4);
+
+        assert!(m.clear_breakpoints());
+        assert!(m.breakpoint_lines0("a.mty").is_empty());
+        assert!(m.breakpoint_lines0("b.mty").is_empty());
+        assert!(!m.clear_breakpoints());
     }
 
     #[test]
