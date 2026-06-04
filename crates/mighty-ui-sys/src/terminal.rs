@@ -878,9 +878,10 @@ impl VtParser {
                 }
             }
             b'\r' => grid.carriage_return(),
-            0x08 | 0x7f => grid.backspace(), // BS / DEL
+            0x08 => grid.backspace(), // BS
             b'\t' => grid.tab(),
             0x07 => {} // BEL: ignore
+            0x7f => {} // DEL: ignored on the display side
             0x00..=0x06 | 0x0b..=0x1a | 0x1c..=0x1f => {} // other C0: ignore
             0x20..=0x7e => self.print_char(grid, b as char), // printable ASCII
             0xc0..=0xdf => {
@@ -2690,6 +2691,13 @@ mod tests {
         // Writing now overwrites the 'c'.
         let g2 = grid_feed(2, 10, b"abc\x08X");
         assert_eq!(g2.cell(0, 2).ch, 'X');
+    }
+
+    #[test]
+    fn del_output_byte_is_ignored() {
+        let g = grid_feed(2, 10, b"abc\x7fX");
+        assert_eq!(g.to_text(), "abcX      \n          ");
+        assert_eq!(g.cursor(), (0, 4));
     }
 
     #[test]
