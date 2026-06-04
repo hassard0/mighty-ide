@@ -12020,6 +12020,83 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         ),
         "Sidebar close command must release stale focus"
     );
+    let panel_command_cleanup = "find_nav = false\n          typing = false";
+    for helper in [
+        "cmd_explorer_refresh",
+        "cmd_explorer_collapse_all",
+        "cmd_explorer_close",
+        "cmd_run_file",
+        "cmd_run_stop",
+        "cmd_run_clear_output",
+        "cmd_run_close",
+        "cmd_run_tests",
+        "cmd_run_test_at_cursor",
+        "cmd_test_stop",
+        "cmd_test_clear_results",
+        "cmd_test_close",
+        "cmd_agents",
+        "cmd_agents_refresh",
+        "cmd_agents_clear_run_output",
+        "cmd_agents_close",
+        "cmd_run_in_browser",
+        "cmd_web_stop",
+        "cmd_web_open_browser",
+        "cmd_web_clear_output",
+        "cmd_web_close",
+        "cmd_git_stage_all",
+        "cmd_git_unstage_all",
+        "cmd_git_commit_staged",
+        "cmd_git_clear_commit_message",
+        "cmd_git_refresh_source_control",
+        "cmd_view_explorer",
+        "cmd_view_search",
+        "cmd_search_run",
+        "cmd_search_clear_results",
+        "cmd_search_replace_all",
+        "cmd_search_toggle_replace",
+        "cmd_search_close",
+        "cmd_view_source_control",
+        "cmd_git_close_source_control",
+        "cmd_view_outline",
+        "cmd_outline_refresh",
+        "cmd_outline_clear_symbols",
+        "cmd_outline_close",
+        "cmd_view_run_debug",
+        "cmd_debug_close",
+        "cmd_debug_clear_session",
+        "cmd_view_testing",
+        "cmd_view_run_output",
+        "cmd_view_problems",
+        "cmd_problems_refresh",
+        "cmd_problems_clear",
+        "cmd_problems_close",
+        "cmd_view_ai_copilot",
+        "cmd_ai_close",
+        "cmd_sidebar_close",
+        "cmd_view_web_playground",
+        "cmd_debug_start_continue",
+        "cmd_debug_stop",
+        "cmd_debug_step_over",
+        "cmd_debug_step_into",
+        "cmd_debug_step_out",
+        "cmd_debug_pause",
+        "cmd_debug_restart",
+        "cmd_debug_toggle_breakpoint",
+        "cmd_debug_clear_breakpoints",
+    ] {
+        let start = main
+            .find(&format!("id == {helper}() {{"))
+            .unwrap_or_else(|| panic!("expected panel command branch for `{helper}`"));
+        let end = main[start..]
+            .find("} else if ")
+            .map(|p| start + p)
+            .unwrap_or(main.len());
+        let block = &main[start..end];
+        assert!(
+            block.contains(panel_command_cleanup),
+            "Panel command `{helper}` must clear transient typing state"
+        );
+    }
     let focused_test_rail_start = main
         .find("} else if topbar_act == 1 {\n            let opened = mui_run_toggle(h)")
         .expect("Testing-focused topbar Run branch should exist");

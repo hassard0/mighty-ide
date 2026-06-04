@@ -9443,3 +9443,18 @@ not inherit stale edit state.
   same ownership contract as keyboard exits: source contracts should check both
   the general chrome router and focused-panel subrouters when they duplicate
   rail handling.
+
+## L780 - Panel Commands Also Bound Typing Runs
+
+Palette, shortcut, and command-dispatched panel actions can switch ownership
+without a rail click. Those commands already release competing focus, but they
+also need to end transient editor typing state before the next key event lands
+in a panel, dock, Copilot, or Web surface.
+
+- **IDE note:** panel open, refresh, clear, close, and action commands for
+  Explorer, Search, Source Control, Outline, Debug, Testing, Problems, Run, Web,
+  Copilot, Sidebar, and Mighty Agents now clear transient typing state while
+  transferring visible ownership.
+- **Language note:** no compiler gap surfaced. Route-parity checks should cover
+  command dispatch independently from rail and local overlay routes, because all
+  three paths can move visible focus to the same surface.
