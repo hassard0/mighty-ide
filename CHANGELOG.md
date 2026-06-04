@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Preference overlays release stale panel focus**: Preferences: Settings,
+  Preferences: Color Theme, their close commands, and the Ctrl+, Settings
+  shortcut now clear stale Run/Web/Testing/Terminal/AI/Agents/search focus when
+  the Preferences overlay owns the next interaction.
 - **Modal command focus is consistent**: Keyboard Shortcuts open/reset/close
   commands and the New Project prompt fallback now clear stale
   Run/Web/Testing/Terminal/AI/Agents/search focus when they move interaction

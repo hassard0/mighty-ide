@@ -11393,14 +11393,38 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         main.contains("id == cmd_settings_close()")
             && main.contains("let _sc = mui_settings_close(h)")
-            && main.contains("settings_open = false"),
-        "Settings close command must call the dedicated Settings close ABI and clear Mighty's local flag"
+            && main.contains("settings_open = false")
+            && main.contains(
+                "let _sc = mui_settings_close(h)\n          settings_open = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "Settings close command must call the dedicated Settings close ABI, clear Mighty's local flag, and release stale focus"
     );
     assert!(
         main.contains("id == cmd_color_theme_close()")
             && main.contains("let _thc = mui_theme_picker_cancel(h)")
-            && main.contains("theme_picker_open = false"),
-        "Color theme close command must cancel the picker and clear Mighty's local flag"
+            && main.contains("theme_picker_open = false")
+            && main.contains(
+                "let _thc = mui_theme_picker_cancel(h)\n          theme_picker_open = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "Color theme close command must cancel the picker, clear Mighty's local flag, and release stale focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_settings() {\n          let _s = mui_settings_open(h)\n          settings_open = true\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Settings open command must release stale surface focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_color_theme() {\n          mui_theme_picker_open(h)\n          theme_picker_open = true\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Color Theme open command must release stale surface focus"
+    );
+    assert!(
+        main.contains(
+            "ctrl_held(mods) && cp == 44 {             // Ctrl+, : Settings\n          let _s = mui_settings_open(h)\n          settings_open = true\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Ctrl+, Settings shortcut must release stale surface focus"
     );
     assert!(
         main.contains("id == cmd_keyboard_shortcuts_close()")

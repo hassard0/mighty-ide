@@ -2842,6 +2842,13 @@ fn main() {
         } else if ctrl_held(mods) && cp == 44 {             // Ctrl+, : Settings
           let _s = mui_settings_open(h)
           settings_open = true
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
           typing = false
         } else if is_ai_panel_chord(cp, mods) {             // Ctrl+Shift+A : AI copilot panel
           let opened = mui_ai_open(h)
@@ -4864,9 +4871,23 @@ fn main() {
         } else if id == cmd_color_theme() {
           mui_theme_picker_open(h)
           theme_picker_open = true
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_color_theme_close() {
           let _thc = mui_theme_picker_cancel(h)
           theme_picker_open = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_run_file() {
           let _r = mui_run_start(h)
           run_focus = true
@@ -4902,9 +4923,23 @@ fn main() {
         } else if id == cmd_settings() {
           let _s = mui_settings_open(h)
           settings_open = true
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_settings_close() {
           let _sc = mui_settings_close(h)
           settings_open = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_zoom_in() {
           let _zi = mui_zoom_in(h)
           typing = false

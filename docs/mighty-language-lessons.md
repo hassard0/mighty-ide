@@ -8905,3 +8905,17 @@ depend on stale state instead of the visible UI.
 - **Language note:** no compiler gap surfaced. This is another case where
   command metadata should eventually carry focus effects so modal ownership is
   declared once instead of repeated in command-specific branches.
+
+## L743 - Preference Overlays Are Modal Owners
+
+Preferences panels are not passive decoration. Settings and Color Theme take
+keyboard and mouse input while open, so opening or closing them should release
+the same stale surface focus that other modal overlays clear.
+
+- **IDE note:** Preferences: Settings, Preferences: Color Theme, their close
+  commands, and the Ctrl+, Settings shortcut now clear stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus when the Preferences overlay
+  becomes the visible interaction owner.
+- **Language note:** no compiler gap surfaced. The current scalar flag model is
+  workable, but a shared focus-effect declaration for modal commands would make
+  these ownership contracts less repetitive.
