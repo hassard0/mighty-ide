@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Outline errors require owned codes**: document-symbol parsing now treats
+  method-not-found as a fallback signal only when the top-level `error` object
+  owns `code: -32601`, so nested metadata cannot suppress a valid outline
+  result.
 - **Debugger events require body-owned details**: DAP stopped, output, and
   exited events now read details only from the event `body`, so top-level
   envelope fields cannot masquerade as debugger state.

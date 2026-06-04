@@ -305,13 +305,6 @@ fn decl_name(kind: SymKind, rest: &str) -> Option<String> {
 // LSP documentSymbol parsing (kept ready for when mty-lsp implements it)
 // ===========================================================================
 
-fn find_sub(hay: &[u8], needle: &[u8]) -> Option<usize> {
-    if needle.is_empty() || needle.len() > hay.len() {
-        return None;
-    }
-    hay.windows(needle.len()).position(|w| w == needle)
-}
-
 /// Parse a `textDocument/documentSymbol` response. Handles both the hierarchical
 /// `DocumentSymbol[]` (with nested `children`) and the flat `SymbolInformation[]`
 /// (`{name, kind, location:{range}}`) shapes, flattening to a pre-order list with
@@ -319,7 +312,10 @@ fn find_sub(hay: &[u8], needle: &[u8]) -> Option<usize> {
 /// caller can fall back to the scanner.
 pub fn parse_document_symbols(json: &str) -> Option<Vec<Symbol>> {
     let bytes = json.as_bytes();
-    if top_level_field_value_start(bytes, "error").is_some() && find_sub(bytes, b"-32601").is_some() {
+    if top_level_object_field(bytes, "error")
+        .and_then(|error| top_level_i32_field(error, "code"))
+        == Some(-32601)
+    {
         return None; // method not found
     }
     let i = top_level_field_value_start(bytes, "result")?;
@@ -438,6 +434,24 @@ fn top_level_uint_field(obj: &[u8], field: &str) -> Option<u32> {
         i += 1;
     }
     (i > start).then_some(v)
+}
+
+fn top_level_i32_field(obj: &[u8], field: &str) -> Option<i32> {
+    let mut i = top_level_field_value_start(obj, field)?;
+    while i < obj.len() && obj[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    let negative = obj.get(i) == Some(&b'-');
+    if negative {
+        i += 1;
+    }
+    let start = i;
+    let mut v = 0i32;
+    while i < obj.len() && obj[i].is_ascii_digit() {
+        v = v.saturating_mul(10).saturating_add((obj[i] - b'0') as i32);
+        i += 1;
+    }
+    (i > start).then_some(if negative { v.saturating_neg() } else { v })
 }
 
 fn top_level_object_field<'a>(obj: &'a [u8], field: &str) -> Option<&'a [u8]> {
@@ -1031,6 +1045,20 @@ fn b() {}\n";
         assert_eq!(syms.len(), 1);
         assert_eq!(syms[0].name, "Right");
         assert_eq!(syms[0].line, 3);
+    }
+
+    #[test]
+    fn parse_document_symbols_error_code_must_be_error_owned() {
+        let nested_code = r#"{"jsonrpc":"2.0","error":{"metadata":{"code":-32601},"message":"not the owner"},"result":[{"name":"Right","kind":12,"range":{"start":{"line":8,"character":0},"end":{"line":8,"character":1}},"selectionRange":{"start":{"line":8,"character":0},"end":{"line":8,"character":1}}}],"id":2}"#;
+        let syms = parse_document_symbols(nested_code).expect("symbols");
+
+        let result_with_metadata = r#"{"jsonrpc":"2.0","metadata":{"error":{"code":-32601}},"result":[{"name":"Right","kind":12,"range":{"start":{"line":8,"character":0},"end":{"line":8,"character":1}},"selectionRange":{"start":{"line":8,"character":0},"end":{"line":8,"character":1}}}],"id":2}"#;
+        let syms_from_metadata = parse_document_symbols(result_with_metadata).expect("symbols");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Right");
+        assert_eq!(syms[0].line, 8);
+        assert_eq!(syms_from_metadata, syms);
     }
 
     #[test]

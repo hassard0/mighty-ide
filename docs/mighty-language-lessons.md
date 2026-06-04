@@ -10212,3 +10212,17 @@ fields are not the stopped reason, console line, or process exit code.
 - **Language note:** no compiler gap surfaced. Event parsers should require the
   protocol's payload owner even when a fallback would make malformed messages
   appear useful.
+
+## L834 - JSON-RPC Error Codes Need Error Ownership
+
+`textDocument/documentSymbol` falls back to the shim scanner when the server
+returns JSON-RPC method-not-found. That signal belongs to the top-level `error`
+object's `code`; nested metadata can mention the same number without making the
+response an error.
+
+- **IDE note:** outline document-symbol parsing now treats `-32601` as
+  method-not-found only when it is the top-level `error.code`, so metadata inside
+  otherwise valid responses cannot disable the LSP outline path.
+- **Language note:** no compiler gap surfaced. JSON-RPC control-flow decisions
+  must read envelope-owned fields rather than scanning for familiar sentinel
+  values.
