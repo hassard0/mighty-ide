@@ -7996,3 +7996,13 @@ drops intent and can leave subsequent tab movement at the default stops.
   the current tab stop, clearing the current stop, or clearing all stops.
   Regression coverage verifies the sequences are consumed and that following
   tab movement lands on the custom, default, or right-edge positions.
+
+L660. Terminal scroll-down aliases should share one behavior path. ECMA-48 and
+xterm-compatible apps can emit both CSI `T` and CSI `^` for scroll-down; handling
+only one leaves the other as a consumed no-op, so viewport history appears to
+ignore a valid terminal command.
+
+- **IDE note:** CSI `^` now routes through the same scroll-down implementation
+  as CSI `T`, including parameter parsing and active scroll-region clipping.
+  Regression coverage verifies full-screen and margin-limited scroll-down output
+  and confirms the alias bytes do not leak into the grid.

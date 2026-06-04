@@ -1168,7 +1168,7 @@ impl VtParser {
                     self.delete_chars(grid);
                 } else if b == b'S' {
                     self.scroll_up(grid);
-                } else if b == b'T' {
+                } else if b == b'T' || b == b'^' {
                     self.scroll_down(grid);
                 } else if b == b'X' {
                     self.erase_chars(grid);
@@ -3414,6 +3414,10 @@ mod tests {
 
         let g2 = grid_feed(3, 4, b"aaaa\nbbbb\ncccc\x1b[99T");
         assert_eq!(g2.to_text(), "    \n    \n    ");
+
+        let g3 = grid_feed(4, 4, b"aaaa\nbbbb\ncccc\ndddd\x1b[2^");
+        assert_eq!(g3.to_text(), "    \n    \naaaa\nbbbb");
+        assert!(!g3.contains("2^"));
     }
 
     #[test]
@@ -3435,6 +3439,9 @@ mod tests {
 
         let g2 = grid_feed(4, 4, b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[T");
         assert_eq!(g2.to_text(), "1111\n    \n2222\n4444");
+
+        let g3 = grid_feed(4, 4, b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[^");
+        assert_eq!(g3.to_text(), "1111\n    \n2222\n4444");
     }
 
     #[test]
