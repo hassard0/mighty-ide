@@ -10400,3 +10400,17 @@ payload fields named `result`.
 - **Language note:** no compiler gap surfaced. Feature parsers that can receive
   raw protocol text need the same request/response role guard as the stream
   wait loop; matching `id` and payload names are necessary but not sufficient.
+
+## L847 - Language Feature Parsers Need Response Roles
+
+Signature help, rename workspace edits, and code actions all start from LSP
+response `result` payloads. A server request can still carry a top-level
+`method` plus incidental `result` data, but that envelope is not an answer to
+the editor's pending language request.
+
+- **IDE note:** the language feature parsers now reject request-shaped envelopes
+  before unwrapping `result`, while preserving direct bare-array or bare-edit
+  parsing for already-isolated payloads.
+- **Language note:** no compiler gap surfaced. Sharing a hardened wait loop is
+  not enough when tests and fallback paths can call parsers directly; parser
+  entry points need the same envelope-role invariant.

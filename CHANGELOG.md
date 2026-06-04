@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Language features require response envelopes**: signature help, rename
+  workspace edits, and code actions now ignore request-shaped JSON-RPC objects
+  with top-level `method` even when those objects carry incidental `result`
+  payloads, keeping server requests out of editor actions.
 - **Mighty navigation requires response envelopes**: built-in Mighty hover and
   go-to-definition now ignore request-shaped JSON-RPC objects with top-level
   `method` even when they carry matching `id` and incidental `result` fields,

@@ -252,6 +252,9 @@ fn parse_signature_doc(sig_obj: &[u8]) -> String {
 }
 
 fn json_rpc_result_value(bytes: &[u8]) -> Option<&[u8]> {
+    if top_level_field_value_start(bytes, "method").is_some() {
+        return None;
+    }
     let value_at = top_level_field_value_start(bytes, "result")?;
     if bytes.get(value_at..value_at + 4) == Some(b"null") {
         return None;
@@ -403,6 +406,9 @@ pub fn parse_workspace_edit(json: &str) -> WorkspaceEdit {
 
 fn workspace_edit_payload(bytes: &[u8]) -> &[u8] {
     if bytes.first() == Some(&b'{') {
+        if top_level_field_value_start(bytes, "method").is_some() {
+            return &[];
+        }
         if let Some(result_at) = top_level_field_value_start(bytes, "result") {
             if bytes.get(result_at..result_at + 4) == Some(b"null") {
                 return &[];
@@ -798,6 +804,9 @@ impl CodeAction {
 /// affordance. Returns the actions in order (empty for `[]` / `null`).
 pub fn parse_code_actions(json: &str) -> Vec<CodeAction> {
     let bytes = json.as_bytes();
+    if bytes.first() == Some(&b'{') && top_level_field_value_start(bytes, "method").is_some() {
+        return Vec::new();
+    }
     let Some(result_at) = top_level_field_value_start(bytes, "result") else {
         // Some servers omit the wrapper in our isolated slice; try whole input as
         // an array of actions.
@@ -1953,6 +1962,12 @@ mod tests {
     }
 
     #[test]
+    fn parse_signature_help_ignores_request_shaped_result_envelopes() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","result":{"signatures":[{"label":"wrong(a)","parameters":[{"label":"a"}]}]}}"#;
+        assert!(parse_signature_help(json).is_none());
+    }
+
+    #[test]
     fn parse_signature_help_reads_doc() {
         let json = r#"{"result":{"activeParameter":0,"signatures":[{"label":"f(a)","documentation":"adds a thing","parameters":[{"label":"a"}]}]},"id":2}"#;
         let sig = parse_signature_help(json).expect("sig");
@@ -2064,6 +2079,12 @@ mod tests {
         assert_eq!(we.file_count(), 1);
         assert_eq!(we.files[0].0, "file:///right.mty");
         assert_eq!(we.files[0].1[0].new_text, "right");
+    }
+
+    #[test]
+    fn parse_workspace_edit_ignores_request_shaped_result_envelopes() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","result":{"changes":{"file:///wrong.mty":[{"newText":"wrong","range":{"start":{"line":1,"character":2},"end":{"line":1,"character":5}}}]}}}"#;
+        assert!(parse_workspace_edit(json).is_empty());
     }
 
     #[test]
@@ -2292,6 +2313,12 @@ mod tests {
         assert_eq!(actions[0].title, "Right");
         assert_eq!(actions[0].command.as_ref().map(|c| c.command.as_str()), Some("server.apply"));
         assert!(!actions[0].fix_all_mty);
+    }
+
+    #[test]
+    fn parse_code_actions_ignores_request_shaped_result_envelopes() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","result":[{"title":"Wrong","command":"server.apply"}]}"#;
+        assert!(parse_code_actions(json).is_empty());
     }
 
     #[test]
