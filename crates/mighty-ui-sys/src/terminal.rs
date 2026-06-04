@@ -311,6 +311,17 @@ impl Grid {
         }
     }
 
+    fn prepare_insert(&mut self, autowrap: bool) {
+        if self.cur_col >= self.cols {
+            if autowrap {
+                self.newline();
+            } else {
+                self.cur_col = self.cols - 1;
+            }
+        }
+        self.insert_blank_chars(1);
+    }
+
     fn delete_chars(&mut self, count: usize) {
         let col = self.cur_col.min(self.cols - 1);
         let count = count.max(1).min(self.cols - col);
@@ -902,7 +913,7 @@ impl VtParser {
             bg: grid.cur_bg,
         };
         if self.insert_mode {
-            grid.insert_blank_chars(1);
+            grid.prepare_insert(self.autowrap);
         }
         grid.put_cell_autowrap(cell, self.autowrap);
         self.last_graphic = Some(cell);
@@ -1486,7 +1497,7 @@ impl VtParser {
             .max(1);
         for _ in 0..count {
             if self.insert_mode {
-                grid.insert_blank_chars(1);
+                grid.prepare_insert(self.autowrap);
             }
             grid.put_cell_autowrap(cell, self.autowrap);
         }
@@ -2825,6 +2836,9 @@ mod tests {
         for col in 2..5 {
             assert_eq!(g5.cell(0, col).fg, DEFAULT_FG);
         }
+
+        let g6 = grid_feed(2, 3, b"\x1b[4habc\x1b[b");
+        assert_eq!(g6.to_text(), "abc\nc  ");
     }
 
     #[test]
@@ -3005,6 +3019,10 @@ mod tests {
         let g3 = grid_feed(1, 8, b"abcdef\x1b[1;3H\x1b[4hX\x1b[!p\x1b[1;4HY");
         assert_eq!(g3.to_text(), "abXYdef ");
         assert!(!g3.contains("!p"));
+
+        let g4 = grid_feed(2, 3, b"\x1b[4habcX");
+        assert_eq!(g4.to_text(), "abc\nX  ");
+        assert_eq!(g4.cursor(), (1, 1));
     }
 
     #[test]
