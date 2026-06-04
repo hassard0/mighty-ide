@@ -34,8 +34,8 @@ pub struct BlameLine {
 #[derive(Debug, Clone, Default)]
 struct Commit {
     author: String,
-    author_time: i64,
-    author_tz: String,
+    author_time: Option<i64>,
+    author_tz_seconds: Option<i64>,
 }
 
 /// Parse `git blame --porcelain` output into one [`BlameLine`] per source line,
@@ -59,8 +59,12 @@ pub fn parse_porcelain(out: &str) -> Vec<BlameLine> {
             // refresh the cached entry with it.
             if !cur.author.is_empty() {
                 commit.author = cur.author.clone();
-                commit.author_time = cur.author_time;
-                commit.author_tz = cur.author_tz.clone();
+            }
+            if let Some(author_time) = cur.author_time {
+                commit.author_time = Some(author_time);
+            }
+            if let Some(author_tz_seconds) = cur.author_tz_seconds {
+                commit.author_tz_seconds = Some(author_tz_seconds);
             }
             let uncommitted = cur_sha.chars().all(|c| c == '0') && !cur_sha.is_empty();
             let sha = if uncommitted {
@@ -76,7 +80,10 @@ pub fn parse_porcelain(out: &str) -> Vec<BlameLine> {
             lines.push(BlameLine {
                 sha,
                 author,
-                date: short_date(commit.author_time, &commit.author_tz),
+                date: commit
+                    .author_time
+                    .map(|unix| short_date(unix, commit.author_tz_seconds.unwrap_or(0)))
+                    .unwrap_or_default(),
                 uncommitted,
             });
             in_entry = false;
@@ -108,9 +115,9 @@ pub fn parse_porcelain(out: &str) -> Vec<BlameLine> {
         if let Some(v) = raw.strip_prefix("author ") {
             cur.author = v.trim().to_string();
         } else if let Some(v) = raw.strip_prefix("author-time ") {
-            cur.author_time = v.trim().parse().unwrap_or(0);
+            cur.author_time = v.trim().parse().ok();
         } else if let Some(v) = raw.strip_prefix("author-tz ") {
-            cur.author_tz = v.trim().to_string();
+            cur.author_tz_seconds = parse_tz_seconds(v);
         }
         // Other headers (committer*, summary, filename, previous, boundary) ignored.
     }
@@ -122,14 +129,13 @@ fn is_sha_token(tok: &str) -> bool {
     tok.len() == 40 && tok.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
-/// Format a Unix `author-time` (+ tz like "+0200") into a short `YYYY-MM-DD`
+/// Format a Unix `author-time` plus a parsed tz offset into a short `YYYY-MM-DD`
 /// date. Self-contained civil-date conversion (no chrono dep). Applies the tz
 /// offset so the date matches the author's local day.
-fn short_date(unix: i64, tz: &str) -> String {
+fn short_date(unix: i64, offset: i64) -> String {
     if unix <= 0 {
         return String::new();
     }
-    let offset = parse_tz_seconds(tz);
     let local = unix + offset;
     let days = local.div_euclid(86_400);
     let (y, m, d) = civil_from_days(days);
@@ -137,16 +143,25 @@ fn short_date(unix: i64, tz: &str) -> String {
 }
 
 /// Parse a git tz offset "+HHMM" / "-HHMM" into seconds.
-fn parse_tz_seconds(tz: &str) -> i64 {
+fn parse_tz_seconds(tz: &str) -> Option<i64> {
     let t = tz.trim();
-    if t.len() < 5 {
-        return 0;
+    if t.len() != 5 {
+        return None;
     }
-    let sign = if t.starts_with('-') { -1 } else { 1 };
+    let sign = if t.starts_with('-') {
+        -1
+    } else if t.starts_with('+') {
+        1
+    } else {
+        return None;
+    };
     let digits = &t[1..];
-    let hh: i64 = digits.get(0..2).and_then(|s| s.parse().ok()).unwrap_or(0);
-    let mm: i64 = digits.get(2..4).and_then(|s| s.parse().ok()).unwrap_or(0);
-    sign * (hh * 3600 + mm * 60)
+    let hh: i64 = digits.get(0..2).and_then(|s| s.parse().ok())?;
+    let mm: i64 = digits.get(2..4).and_then(|s| s.parse().ok())?;
+    if hh > 23 || mm > 59 {
+        return None;
+    }
+    Some(sign * (hh * 3600 + mm * 60))
 }
 
 /// Convert a count of days since the Unix epoch (1970-01-01) into a civil
@@ -334,11 +349,42 @@ filename src/main.rs
         // 1136239445 = 2006-01-02 21:24:05 UTC; +0500 pushes past midnight? no,
         // still the 3rd at +0500 (02:24). Use a near-midnight time.
         // 1136246400 = 2006-01-03 00:00:00 UTC.
-        let utc = short_date(1136246400, "+0000");
+        let utc = short_date(1136246400, 0);
         assert_eq!(utc, "2006-01-03");
         // Same instant at -0100 is still 2006-01-02 (23:00 prev day).
-        let minus = short_date(1136246400, "-0100");
+        let minus = short_date(1136246400, -3600);
         assert_eq!(minus, "2006-01-02");
+    }
+
+    #[test]
+    fn malformed_repeat_metadata_preserves_cached_date() {
+        let blob = "\
+3333333333333333333333333333333333333333 1 1 1
+author Katherine Johnson
+author-time 1700000000
+author-tz +0000
+summary first sighting
+filename src/main.rs
+\tlet first = true;
+3333333333333333333333333333333333333333 2 2 1
+author Katherine Johnson
+author-time not-a-timestamp
+author-tz +9999
+summary malformed repeat
+filename src/main.rs
+\tlet second = true;
+3333333333333333333333333333333333333333 3 3
+\tlet third = true;
+";
+        let lines = parse_porcelain(blob);
+
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0].date, "2023-11-14");
+        assert_eq!(
+            lines[1].date, "2023-11-14",
+            "malformed repeat headers must not clear cached commit dates"
+        );
+        assert_eq!(lines[2].date, "2023-11-14");
     }
 
     #[test]

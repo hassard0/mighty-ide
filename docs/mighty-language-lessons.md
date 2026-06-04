@@ -10287,3 +10287,17 @@ payload, even if that array happens to look parseable.
 - **Language note:** no compiler gap surfaced. Notification parsers should keep
   compatibility fallbacks structurally distinct from complete protocol objects
   so convenience parsing does not weaken the live transport contract.
+
+## L839 - Blame Dates Need Parsed Metadata
+
+Git blame porcelain output can omit commit metadata on repeat groups, so the IDE
+keeps a per-commit cache. Missing or malformed metadata on a later sighting is
+not a valid replacement for a previously parsed timestamp or timezone.
+
+- **IDE note:** blame parsing now stores author timestamps and timezone offsets
+  only when they parse successfully. Repeat headers can refresh valid fields,
+  but malformed timestamp or timezone text no longer clears the cached blame
+  date, and rows with no date render without an empty separator.
+- **Language note:** no compiler gap surfaced. Cache-refresh parsers should
+  model optional parsed fields explicitly, then merge only known-good values
+  instead of defaulting bad input into plausible state.

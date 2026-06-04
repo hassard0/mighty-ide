@@ -1203,7 +1203,11 @@ pub extern "C" fn mui_blame_draw(handle: i64, rows: i32) {
             continue;
         } else {
             let sha7: String = bl.sha.chars().take(7).collect();
-            format!("\u{2022} {} \u{00b7} {} \u{00b7} {}", bl.author, bl.date, sha7)
+            if bl.date.is_empty() {
+                format!("\u{2022} {} \u{00b7} {}", bl.author, sha7)
+            } else {
+                format!("\u{2022} {} \u{00b7} {} \u{00b7} {}", bl.author, bl.date, sha7)
+            }
         };
         // Clip to the window width.
         let max_w = (win_w - 12.0 - ann_x).max(0.0);
