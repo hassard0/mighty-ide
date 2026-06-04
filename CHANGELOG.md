@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Debug breakpoint clearing reveals the inventory first**: `Debug: Clear
+  Breakpoints` now switches to Run and Debug before clearing stored
+  breakpoints, so the visible breakpoint list, toast feedback, and follow-up
+  focus match the command result.
 - **Source Control palette commits reveal their state**: `Git: Commit Staged`
   and `Source Control: Clear Commit Message` now switch to the SCM panel before
   acting, so the visible staged set, draft message, refresh result, and follow-up

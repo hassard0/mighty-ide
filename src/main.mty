@@ -4797,7 +4797,10 @@ fn main() {
         } else if id == cmd_debug_toggle_breakpoint() {
           let _bp = mui_bp_toggle_at_cursor(h)
         } else if id == cmd_debug_clear_breakpoints() {
+          let _vp = mui_panel_set(h, panel_debug())
           let _bpc = mui_bp_clear_all(h)
+          agents_focus = false
+          find_nav = false
         } else if id >= cmd_ws_first() && id <= cmd_ws_last() {
           let wr = mui_ws_dispatch(h, id)
           if wr == 2 {

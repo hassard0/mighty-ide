@@ -8470,3 +8470,14 @@ to understand.
   now reveal Source Control before dispatching their SCM ABI calls. Commit still
   refreshes status afterward, and both commands clear transient panel focus so
   the visible SCM panel owns the follow-up interaction.
+
+## L705 - Debug Breakpoint Commands Should Reveal The Inventory
+
+Breakpoint cleanup changes a persistent debugger inventory, not just a hidden
+mode flag. When a palette command clears every breakpoint, the user should land
+on the panel that shows the cleared list and any follow-up debug state.
+
+- **IDE note:** `Debug: Clear Breakpoints` now reveals Run and Debug before
+  calling `mui_bp_clear_all`. The command also clears transient panel focus so
+  the Debug surface owns the next interaction and the toast is grounded in the
+  visible breakpoint inventory.

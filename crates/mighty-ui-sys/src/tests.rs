@@ -10732,9 +10732,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Debug toggle-breakpoint command must call the cursor breakpoint ABI"
     );
     assert!(
-        main.contains("id == cmd_debug_clear_breakpoints()")
-            && main.contains("let _bpc = mui_bp_clear_all(h)"),
-        "Debug clear-breakpoints command must call the breakpoint clear ABI"
+        main.contains(
+            "id == cmd_debug_clear_breakpoints() {\n          let _vp = mui_panel_set(h, panel_debug())\n          let _bpc = mui_bp_clear_all(h)"
+        )
+            && main.contains("find_nav = false"),
+        "Debug clear-breakpoints command must reveal Run and Debug before clearing the breakpoint inventory"
     );
     assert!(
         main.contains("fn dbg_breakpoint_base() -> I32 { 2000 }")
