@@ -4129,6 +4129,7 @@ pub(crate) fn sync_active_path(ctx: &mut MuiContext) {
     ctx.sig.clear();
     ctx.complete.cancel();
     ctx.codeaction.cancel();
+    ctx.lightbulb.reset();
     ctx.file_name = path
         .as_ref()
         .and_then(|p| p.file_name())
@@ -12678,9 +12679,6 @@ pub extern "C" fn mui_ed_tab_switch(handle: i64, idx: i32) -> i32 {
         sync_active_path(ctx);
         // Opening / switching to any tab leaves the forced Welcome landing.
         ctx.welcome.dismiss();
-        // The quick-fix lightbulb tracked the OLD buffer's line; reset it so it
-        // re-probes against the new active buffer rather than lingering.
-        ctx.lightbulb.reset();
     }
     trace(&format!("tab_switch idx={idx} -> active={}", ctx.tabs.active()));
     ctx.tabs.active() as i32

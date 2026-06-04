@@ -9093,7 +9093,7 @@ fn sync_active_path_clears_stale_active_diagnostics() {
 }
 
 #[test]
-fn sync_active_path_clears_stale_active_language_popups() {
+fn sync_active_path_clears_stale_active_language_ui() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!(
         "mui_sync_path_clears_popups_{}",
@@ -9136,12 +9136,15 @@ fn sync_active_path_clears_stale_active_language_popups() {
             fix_all_mty: false,
         }]) > 0
     );
+    let cursor = ctx.tabs.active_model().cursor_line() as i32;
+    ctx.lightbulb.set_result(cursor, true);
 
     assert_eq!(crate::mui_hover_active(h), 1);
     assert_eq!(crate::mui_def_target_line(h), 2);
     assert_eq!(crate::abi::mui_sig_active(h), 1);
     assert_eq!(crate::mui_complete_active(h), 1);
     assert_eq!(crate::abi::mui_codeaction_active(h), 1);
+    assert_eq!(crate::wsabi::mui_lightbulb_visible(h), 1);
 
     let second_idx = ctx.tabs.open_path(second);
     ctx.tabs.switch(second_idx);
@@ -9152,6 +9155,7 @@ fn sync_active_path_clears_stale_active_language_popups() {
     assert_eq!(crate::abi::mui_sig_active(h), 0);
     assert_eq!(crate::mui_complete_active(h), 0);
     assert_eq!(crate::abi::mui_codeaction_active(h), 0);
+    assert_eq!(crate::wsabi::mui_lightbulb_visible(h), 0);
     assert_eq!(ctx.file_name, "second.mty");
 
     let _ = std::fs::remove_dir_all(root);
