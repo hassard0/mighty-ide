@@ -10634,3 +10634,18 @@ views, updating only the active tab leaves the other clean views stale.
   views remain untouched so unsaved buffers are preserved.
 - **Language note:** no compiler gap surfaced. Read-side file operations still
   need resource-identity fanout when the UI allows multiple views of one path.
+
+## L864 - Saves Must Not Resolve Dirty Duplicate Conflicts Implicitly
+
+When two tabs for the same file both have unsaved edits, saving one of them
+chooses one buffer as the new disk truth and leaves the other dirty buffer
+stale against that new baseline. Batch or background saves can make that choice
+without the user noticing.
+
+- **IDE note:** manual Save, Save All, and autosave now preflight dirty
+  equivalent tabs before writing a file-backed tab. Conflicting duplicate views
+  are skipped and left dirty so the user can resolve which buffer should become
+  the saved version.
+- **Language note:** no compiler gap surfaced. Save operations should treat
+  multiple dirty views of one resource as a conflict, not as independent files
+  that can be written in arbitrary order.

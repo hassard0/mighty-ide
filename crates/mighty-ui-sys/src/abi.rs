@@ -11715,6 +11715,13 @@ pub extern "C" fn mui_autosave_tick(handle: i64) -> i32 {
     if !ctx.autosave.due() {
         return 0;
     }
+    if ctx.tabs.any_dirty_path_except(&path, ctx.tabs.active()) {
+        println!(
+            "mui_autosave: skipped dirty duplicate path={}",
+            path.display()
+        );
+        return 0;
+    }
     let bytes = save_bytes_for_active(ctx);
     let name = basename(&path);
     trace(&format!("save path={} bytes={}", path.display(), bytes.len()));
@@ -11766,6 +11773,18 @@ fn save_active_current_path(ctx: &mut MuiContext) -> i32 {
         };
         return save_active_to_path(ctx, target);
     };
+    if ctx.tabs.any_dirty_path_except(&path, ctx.tabs.active()) {
+        ctx.autosave.disarm();
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Save skipped: duplicate edits",
+        );
+        println!(
+            "mui_ed_save: skipped dirty duplicate path={}",
+            path.display()
+        );
+        return -1;
+    }
     let bytes = save_bytes_for_active(ctx);
     let name = basename(&path);
     match std::fs::write(&path, &bytes) {
@@ -11815,6 +11834,18 @@ fn save_confirm_tab(ctx: &mut MuiContext, idx: usize) -> bool {
 }
 
 fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf, toast_success: bool) -> i32 {
+    if ctx.tabs.any_dirty_path_except(&path, idx) {
+        ctx.autosave.disarm();
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Save skipped: duplicate edits",
+        );
+        println!(
+            "mui_ed_save: skipped dirty duplicate path={}",
+            path.display()
+        );
+        return -1;
+    }
     let Some(tab) = ctx.tabs.get_mut(idx) else {
         return -1;
     };
@@ -11894,8 +11925,17 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
     let mut untitled_cancelled = 0_i32;
     let mut untitled_unavailable = 0_i32;
     let mut read_only = 0_i32;
+    let mut dirty_conflicts = 0_i32;
     let original_active = ctx.tabs.active();
     for idx in dirty {
+        let path_conflict = ctx
+            .tabs
+            .path(idx)
+            .is_some_and(|path| ctx.tabs.any_dirty_path_except(&path, idx));
+        if path_conflict {
+            dirty_conflicts += 1;
+            continue;
+        }
         let Some(tab) = ctx.tabs.get_mut(idx) else {
             continue;
         };
@@ -11949,10 +11989,13 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
     }
     ctx.autosave.disarm();
     ctx.tree.refresh();
-    match (saved, failed, untitled, read_only) {
-        (0, 0, 0, r) if r > 0 => {
-            let noun = if r == 1 { "binary file" } else { "binary files" };
-            ctx.push_toast(crate::toast::Kind::Warn, format!("{r} {noun} skipped"));
+    match (saved, failed, untitled, read_only + dirty_conflicts) {
+        (0, 0, 0, skipped) if skipped > 0 => {
+            let noun = if skipped == 1 { "file" } else { "files" };
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                format!("{skipped} {noun} skipped"),
+            );
             0
         }
         (0, 0, u, 0) if u > 0 && untitled_cancelled > 0 => {
@@ -12008,19 +12051,19 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
         }
         (s, 0, u, r) => {
             let noun = if u == 1 { "untitled file" } else { "untitled files" };
-            let bin = if r == 1 { "binary file" } else { "binary files" };
+            let skipped = if r == 1 { "file" } else { "files" };
             ctx.push_toast(
                 crate::toast::Kind::Warn,
-                format!("Saved {s}; {u} {noun} need Save As; {r} {bin} skipped"),
+                format!("Saved {s}; {u} {noun} need Save As; {r} {skipped} skipped"),
             );
             s
         }
         (s, f, _, r) => {
             if r > 0 {
-                let bin = if r == 1 { "binary file" } else { "binary files" };
+                let skipped = if r == 1 { "file" } else { "files" };
                 ctx.push_toast(
                     crate::toast::Kind::Warn,
-                    format!("Saved {s}; {f} failed; {r} {bin} skipped"),
+                    format!("Saved {s}; {f} failed; {r} {skipped} skipped"),
                 );
             } else {
                 ctx.push_toast(crate::toast::Kind::Warn, format!("Saved {s}; {f} failed"));

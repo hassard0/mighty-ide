@@ -4613,6 +4613,47 @@ fn diff_open_empty_blob_reports_clean_file_or_skip() {
 }
 
 #[test]
+fn save_all_skips_conflicting_dirty_duplicate_tabs() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_all_dirty_duplicates_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("same.mty");
+    std::fs::write(&path, "saved\n").unwrap();
+
+    let first = ctx.tabs.open_path(path.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("first dirty\n");
+    ctx.tabs.set_dirty(first, true);
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("second dirty\n");
+    ctx.tabs.set_dirty(duplicate, true);
+    ctx.tabs.switch(first);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_save_all(handle), 0);
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "saved\n");
+    assert_eq!(ctx.tabs.get(first).unwrap().model.as_text(), "first dirty\n");
+    assert_eq!(
+        ctx.tabs.get(duplicate).unwrap().model.as_text(),
+        "second dirty\n"
+    );
+    assert!(ctx.tabs.is_dirty(first));
+    assert!(ctx.tabs.is_dirty(duplicate));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "2 files skipped");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn close_saved_tabs_preserves_dirty_buffers_and_reports_count() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_close_saved_{}", std::process::id()));
@@ -10796,6 +10837,99 @@ fn plain_save_on_untitled_unavailable_reports_typed_path_fallback() {
     assert_eq!(toast.message, "Save dialog unavailable; use typed path");
 
     crate::settings::set_active(before);
+}
+
+#[test]
+fn plain_save_skips_conflicting_dirty_duplicate_tab() {
+    use crate::{mui_ed_dirty, mui_ed_save};
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_plain_save_dirty_duplicate_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("same.mty");
+    std::fs::write(&path, "saved\n").unwrap();
+    let active = ctx.tabs.open_path(path.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("active dirty\n");
+    ctx.tabs.set_dirty(active, true);
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("duplicate dirty\n");
+    ctx.tabs.set_dirty(duplicate, true);
+    ctx.tabs.switch(active);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_ed_save(h), -1);
+    assert_eq!(mui_ed_dirty(h), 1);
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "saved\n");
+    assert_eq!(ctx.tabs.active_model().as_text(), "active dirty\n");
+    assert_eq!(
+        ctx.tabs.get(duplicate).unwrap().model.as_text(),
+        "duplicate dirty\n"
+    );
+    assert!(ctx.tabs.is_dirty(duplicate));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Save skipped: duplicate edits");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn autosave_skips_conflicting_dirty_duplicate_tab() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    let mut settings = before;
+    settings.autosave = true;
+    crate::settings::set_active(settings);
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_autosave_dirty_duplicate_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("same.mty");
+    std::fs::write(&path, "saved\n").unwrap();
+    let active = ctx.tabs.open_path(path.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("active dirty\n");
+    ctx.tabs.set_dirty(active, true);
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("duplicate dirty\n");
+    ctx.tabs.set_dirty(duplicate, true);
+    ctx.tabs.switch(active);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_autosave_touch(h);
+    assert_eq!(crate::mui_autosave_tick(h), 0);
+    std::thread::sleep(std::time::Duration::from_millis(
+        crate::savefmt::AUTOSAVE_IDLE_MS as u64 + 50,
+    ));
+    assert_eq!(crate::mui_autosave_tick(h), 0);
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "saved\n");
+    assert_eq!(ctx.tabs.active_model().as_text(), "active dirty\n");
+    assert_eq!(
+        ctx.tabs.get(duplicate).unwrap().model.as_text(),
+        "duplicate dirty\n"
+    );
+    assert!(ctx.tabs.is_dirty(active));
+    assert!(ctx.tabs.is_dirty(duplicate));
+
+    crate::settings::set_active(before);
+    let _ = std::fs::remove_dir_all(&root);
 }
 
 #[test]
