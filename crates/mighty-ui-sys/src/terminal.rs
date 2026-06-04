@@ -1644,38 +1644,51 @@ impl VtParser {
         }
     }
 
-    /// Answer DEC private mode status queries (`CSI ? Ps $ p`). The reply uses
-    /// xterm's `CSI ? Ps ; Pm $ y` form where `1` means set, `2` reset, and `0`
-    /// not recognized.
+    /// Answer ANSI/DEC mode status queries (`CSI Ps $ p` / `CSI ? Ps $ p`).
+    /// The reply uses xterm's `CSI Ps ; Pm $ y` form, preserving the private
+    /// `?` marker when present. `1` means set, `2` reset, and `0` not recognized.
     fn handle_mode_status_query(&mut self, grid: &Grid) {
         let params = std::str::from_utf8(&self.csi).unwrap_or("");
-        let Some(mode) = params.strip_prefix('?').and_then(|s| s.strip_suffix('$')) else {
+        let Some(query) = params.strip_suffix('$') else {
             return;
+        };
+        let (private, mode) = if let Some(mode) = query.strip_prefix('?') {
+            (true, mode)
+        } else {
+            (false, query)
         };
         if mode.is_empty() || mode.contains(';') {
             return;
         }
 
-        let status = match mode {
-            "1" => Some(self.application_cursor_keys),
-            "6" => Some(self.origin_mode),
-            "7" => Some(self.autowrap),
-            "25" => Some(self.cursor_visible),
-            "47" | "1047" | "1049" => Some(grid.alternate_screen_active()),
-            "1000" => Some(self.mouse_modes & MOUSE_MODE_BUTTON != 0),
-            "1002" => Some(self.mouse_modes & MOUSE_MODE_DRAG != 0),
-            "1003" => Some(self.mouse_modes & MOUSE_MODE_ANY != 0),
-            "1004" => Some(self.focus_reporting),
-            "1006" => Some(self.sgr_mouse),
-            "2004" => Some(self.bracketed_paste),
-            _ => None,
+        let status = if private {
+            match mode {
+                "1" => Some(self.application_cursor_keys),
+                "6" => Some(self.origin_mode),
+                "7" => Some(self.autowrap),
+                "25" => Some(self.cursor_visible),
+                "47" | "1047" | "1049" => Some(grid.alternate_screen_active()),
+                "1000" => Some(self.mouse_modes & MOUSE_MODE_BUTTON != 0),
+                "1002" => Some(self.mouse_modes & MOUSE_MODE_DRAG != 0),
+                "1003" => Some(self.mouse_modes & MOUSE_MODE_ANY != 0),
+                "1004" => Some(self.focus_reporting),
+                "1006" => Some(self.sgr_mouse),
+                "2004" => Some(self.bracketed_paste),
+                _ => None,
+            }
+        } else {
+            match mode {
+                "4" => Some(self.insert_mode),
+                _ => None,
+            }
         };
         let status_code = match status {
             Some(true) => 1,
             Some(false) => 2,
             None => 0,
         };
-        let report = format!("\x1b[?{mode};{status_code}$y");
+        let private_marker = if private { "?" } else { "" };
+        let report = format!("\x1b[{private_marker}{mode};{status_code}$y");
         self.reply.extend_from_slice(report.as_bytes());
     }
 
@@ -3972,6 +3985,25 @@ mod tests {
         assert!(!g.contains("2004"));
         assert!(!g.contains("1004"));
         assert!(!g.contains("25"));
+    }
+
+    #[test]
+    fn ansi_mode_status_queries_report_insert_mode() {
+        let mut g = Grid::new(2, 16);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b[4$p");
+        assert_eq!(p.take_reply(), b"\x1b[4;2$y");
+
+        p.feed(&mut g, b"\x1b[4h\x1b[4$p\x1b[4l\x1b[4$p");
+        assert_eq!(p.take_reply(), b"\x1b[4;1$y\x1b[4;2$y");
+        assert!(!g.contains("4$p"));
+        assert!(!g.contains("[4h"));
+
+        p.feed(&mut g, b"\x1b[9999$px\x1b[1;2$py");
+        assert_eq!(p.take_reply(), b"\x1b[9999;0$y");
+        assert!(g.contains("xy"));
+        assert!(!g.contains("9999"));
+        assert!(!g.contains("1;2"));
     }
 
     #[test]
