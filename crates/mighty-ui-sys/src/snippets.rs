@@ -62,8 +62,9 @@ impl SnippetDef {
 
 /// Parse a snippet `body` into an ordered list of [`Segment`]s.
 ///
-/// Recognizes `$N`, `${N:placeholder}`, and `$0`. A literal dollar sign is
-/// written `\$`. Anything else is literal text (newlines preserved).
+/// Recognizes `$N`, `${N:placeholder}`, `${N|one,two|}`, and `$0`. A literal
+/// dollar sign is written `\$`. Anything else is literal text (newlines
+/// preserved).
 pub fn parse_body(body: &str) -> Vec<Segment> {
     let mut segs: Vec<Segment> = Vec::new();
     let mut text = String::new();
@@ -128,20 +129,69 @@ fn parse_braced(chars: &[char]) -> Option<(u32, String, usize)> {
     if j == start_digits {
         return None; // no digits -> not a tab-stop
     }
-    let mut placeholder = String::new();
     if j < chars.len() && chars[j] == ':' {
         j += 1;
-        while j < chars.len() && chars[j] != '}' {
-            placeholder.push(chars[j]);
-            j += 1;
-        }
+        let (placeholder, consumed) = parse_placeholder_text(&chars[j..])?;
+        j += consumed;
+        return Some((n, placeholder, j));
+    }
+    if j < chars.len() && chars[j] == '|' {
+        j += 1;
+        let (placeholder, consumed) = parse_choice_text(&chars[j..])?;
+        j += consumed;
+        return Some((n, placeholder, j));
     }
     if j < chars.len() && chars[j] == '}' {
         j += 1;
-        Some((n, placeholder, j))
+        Some((n, String::new(), j))
     } else {
         None
     }
+}
+
+fn parse_placeholder_text(chars: &[char]) -> Option<(String, usize)> {
+    let mut text = String::new();
+    let mut j = 0;
+    while j < chars.len() {
+        match chars[j] {
+            '}' => return Some((text, j + 1)),
+            '\\' if j + 1 < chars.len() && matches!(chars[j + 1], '}' | '$' | '\\') => {
+                text.push(chars[j + 1]);
+                j += 2;
+            }
+            ch => {
+                text.push(ch);
+                j += 1;
+            }
+        }
+    }
+    None
+}
+
+fn parse_choice_text(chars: &[char]) -> Option<(String, usize)> {
+    let mut choices = vec![String::new()];
+    let mut j = 0;
+    while j < chars.len() {
+        match chars[j] {
+            '|' if chars.get(j + 1) == Some(&'}') => {
+                let first = choices.into_iter().next().unwrap_or_default();
+                return Some((first, j + 2));
+            }
+            ',' => {
+                choices.push(String::new());
+                j += 1;
+            }
+            '\\' if j + 1 < chars.len() && matches!(chars[j + 1], ',' | '|' | '\\') => {
+                choices.last_mut().unwrap().push(chars[j + 1]);
+                j += 2;
+            }
+            ch => {
+                choices.last_mut().unwrap().push(ch);
+                j += 1;
+            }
+        }
+    }
+    None
 }
 
 /// A resolved tab-stop: its number + the absolute selection range in the
@@ -699,6 +749,37 @@ mod tests {
     }
 
     #[test]
+    fn parse_choice_placeholder_uses_first_choice() {
+        let segs = parse_body("color: ${1|red,green,blue|};");
+        assert_eq!(
+            segs,
+            vec![
+                Segment::Text("color: ".into()),
+                Segment::Stop { num: 1, placeholder: "red".into() },
+                Segment::Text(";".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_choice_placeholder_honors_escaped_separators() {
+        let segs = parse_body("${1|one\\, two,pipe\\|value,slash\\\\value|}");
+        assert_eq!(segs, vec![Segment::Stop { num: 1, placeholder: "one, two".into() }]);
+    }
+
+    #[test]
+    fn parse_placeholder_honors_escaped_brace_dollar_and_backslash() {
+        let segs = parse_body("${1:a\\}b \\$c \\\\ d}!");
+        assert_eq!(
+            segs,
+            vec![
+                Segment::Stop { num: 1, placeholder: "a}b $c \\ d".into() },
+                Segment::Text("!".into()),
+            ]
+        );
+    }
+
+    #[test]
     fn parse_escaped_dollar_is_literal() {
         assert_eq!(parse_body("cost \\$5"), vec![Segment::Text("cost $5".into())]);
     }
@@ -734,6 +815,14 @@ mod tests {
         assert_eq!(exp.stops.len(), 2);
         assert_eq!(exp.stops[0], Stop { num: 1, start: (0, 4), end: (0, 8) });
         assert_eq!(exp.stops[1], Stop { num: 0, start: (0, 11), end: (0, 16) });
+    }
+
+    #[test]
+    fn expand_choice_placeholder_selects_inserted_first_choice() {
+        let exp = expand("kind ${1|error,warning,info|} $0", "", 0, 0);
+        assert_eq!(exp.text, "kind error ");
+        assert_eq!(exp.stops[0], Stop { num: 1, start: (0, 5), end: (0, 10) });
+        assert_eq!(exp.stops[1], Stop { num: 0, start: (0, 11), end: (0, 11) });
     }
 
     #[test]

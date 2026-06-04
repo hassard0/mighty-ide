@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Snippet choices expand as editable placeholders**: VS Code-style choice
+  stops such as `${1|red,green,blue|}` now insert and select the first choice
+  instead of leaving the marker literal, with escaped separators handled.
 - **Terminal restores saved xterm titles**: window-operation title stack
   controls (`CSI 22 t` / `CSI 23 t`) now save and restore OSC titles, keeping
   full-screen terminal apps from leaving stale panel titles behind.

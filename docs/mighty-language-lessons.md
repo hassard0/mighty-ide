@@ -9532,3 +9532,18 @@ title can stay stuck on the application after it exits.
 - **Language note:** no compiler gap surfaced. Metadata-affecting CSI controls
   deserve the same stateful tests as printable-grid controls because their bugs
   show up in chrome and focus context rather than in terminal cell text.
+
+## L786 - Imported Snippets Use Choice Placeholders
+
+VS Code snippets often use choice placeholders like `${1|error,warning,info|}`.
+Leaving that syntax literal makes imported snippets feel broken even when the
+IDE has tab-stop navigation, because users expect a selected default value they
+can immediately overwrite.
+
+- **IDE note:** the snippet parser now treats choice placeholders as tab-stops,
+  inserts/selects the first choice, and honors escaped commas, pipes, braces,
+  dollars, and backslashes in placeholder text.
+- **Language note:** no compiler gap surfaced. Snippet compatibility work should
+  test parser output and expanded cursor ranges together; syntax that parses
+  correctly can still be unusable if the selected range lands on the marker
+  instead of the inserted default text.
