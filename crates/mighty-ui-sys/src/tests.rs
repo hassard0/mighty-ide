@@ -11154,9 +11154,11 @@ fn quickopen_accept_missing_indexed_file_reindexes_and_stays_open() {
 
 #[test]
 fn welcome_open_recent_misses_report_visible_feedback() {
-    use crate::mui_welcome_open_recent;
+    use crate::{mui_welcome_active, mui_welcome_draw, mui_welcome_open_recent};
 
     let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(mui_welcome_open_recent(h, -1), -1);
@@ -11168,6 +11170,31 @@ fn welcome_open_recent_misses_report_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No recent file selected");
+
+    let root = std::env::temp_dir()
+        .join(format!("mui_welcome_recent_file_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let missing = root.join("missing.mty");
+    std::fs::write(&missing, b"fn recent() {}").unwrap();
+    ctx.quickopen.set_recent_paths(vec![missing.clone()]);
+    ctx.welcome.open();
+    mui_welcome_draw(h);
+    std::fs::remove_file(&missing).unwrap();
+
+    assert_eq!(mui_welcome_open_recent(h, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Recent file missing: missing.mty");
+    assert!(ctx.quickopen.recent_paths().is_empty());
+    assert_eq!(mui_welcome_active(h), 1);
+
+    assert_eq!(mui_welcome_open_recent(h, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No recent file selected");
+
+    let _ = std::fs::remove_dir_all(&root);
 }
 
 #[test]
@@ -11219,6 +11246,14 @@ fn welcome_missing_recent_folder_stays_open_and_prunes() {
         1,
         "failed Welcome recent-folder open should not dismiss the forced Welcome screen"
     );
+    assert_eq!(
+        mui_welcome_open_folder(h, 0),
+        0,
+        "stale Welcome recent-folder hit snapshot should be cleared after failure"
+    );
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No recent folder selected");
 
     let _ = std::fs::remove_dir_all(&root);
 }

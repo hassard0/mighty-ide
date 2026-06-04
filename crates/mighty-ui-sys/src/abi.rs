@@ -15324,7 +15324,11 @@ pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
         if removed {
             persist_recent_files(ctx);
         }
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Recent file missing: {}", basename(&path)));
+        ctx.welcome.clear_recent_file_hits();
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Recent file missing: {}", basename(&path)),
+        );
         return -1;
     }
     let idx = ctx.tabs.open_path(path.clone());
@@ -15355,6 +15359,8 @@ pub extern "C" fn mui_welcome_open_folder(handle: i64, i: i32) -> i32 {
     let opened = crate::wsabi::mui_ws_open_recent_path(ctx, &path);
     if opened == 1 {
         ctx.welcome.dismiss();
+    } else if !path.is_dir() {
+        ctx.welcome.clear_recent_folder_hits();
     }
     opened
 }

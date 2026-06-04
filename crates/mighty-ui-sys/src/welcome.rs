@@ -210,6 +210,20 @@ impl WelcomeState {
         self.recent_folders.get(i)
     }
 
+    /// Clear file-recent hit snapshots after a stale row is pruned.
+    pub fn clear_recent_file_hits(&mut self) {
+        self.recents.clear();
+        self.hits.retain(|h| {
+            h.action < ACTION_RECENT_BASE || h.action >= ACTION_RECENT_FOLDER_BASE
+        });
+    }
+
+    /// Clear folder-recent hit snapshots after a stale row is pruned.
+    pub fn clear_recent_folder_hits(&mut self) {
+        self.recent_folders.clear();
+        self.hits.retain(|h| h.action < ACTION_RECENT_FOLDER_BASE);
+    }
+
     /// Hit-test a window-space click against the last drawn layout. Returns the
     /// action id, or [`ACTION_NONE`].
     pub fn click(&self, px: f32, py: f32) -> i32 {

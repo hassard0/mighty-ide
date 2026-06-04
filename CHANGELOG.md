@@ -40,6 +40,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Explorer rejects stale file rows**: opening a file row whose target was
   deleted now reports the missing file, refreshes Explorer and Quick Open, and
   avoids creating an empty phantom tab for the missing path.
+- **Open Recent clears stale hit rows**: missing Welcome/Open Recent file or
+  folder rows now prune their cached hit-test snapshot immediately, so repeated
+  clicks cannot keep targeting a removed resource before the next draw.
 - **Fix-all code actions protect dirty duplicate tabs**: Fix all (mty) now
   refuses to save or run the external fixer when another equivalent tab for the
   active file has unsaved edits, matching inline workspace-edit safety, and

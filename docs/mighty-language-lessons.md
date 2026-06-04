@@ -10842,3 +10842,16 @@ tab opener can otherwise create an empty tab for an unreadable path.
 - **Language note:** no compiler gap surfaced. UI rows that represent existing
   filesystem resources should validate existence at activation time, especially
   when the downstream opener can legitimately create new empty buffers.
+
+## L879 - Open Recent Hit Snapshots Must Be Invalidated With MRU Prunes
+
+The Welcome/Open Recent surface stores hit-test rows separately from the recent
+file and folder MRUs. When a stale recent is pruned after activation, the MRU is
+correct but the last drawn hit snapshot can still contain the dead row until the
+next draw.
+
+- **IDE note:** stale recent-file and recent-folder activations now clear the
+  matching Welcome hit snapshot immediately after pruning, while leaving the
+  forced Welcome/Open Recent surface visible.
+- **Language note:** no compiler gap surfaced. Render-time hit snapshots should
+  be invalidated at the same time as the backing list they resolve into.
