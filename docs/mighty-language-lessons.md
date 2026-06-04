@@ -10692,3 +10692,17 @@ state change for every clean view of the same file.
 - **Language note:** no compiler gap surfaced. Preserving undo history for one
   view should not make the reload a one-view operation when the UI exposes
   multiple clean views of the same resource.
+
+## L868 - Formatter Entry Points Must Preflight Dirty Views
+
+The normal Format Document command saves before formatting, but the formatter
+ABI is still callable on its own. Without its own guard, a direct caller could
+run the external formatter on disk while the active tab or a duplicate view has
+unsaved edits.
+
+- **IDE note:** the format preflight and formatter ABI now reject any dirty open
+  view of the target file before invoking `mty fmt`, covering both active dirty
+  buffers and dirty duplicate tabs.
+- **Language note:** no compiler gap surfaced. External mutation APIs should
+  enforce their own resource-safety preflight instead of relying solely on the
+  current UI command sequence.

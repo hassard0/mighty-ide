@@ -10940,7 +10940,7 @@ pub extern "C" fn mui_format_can_current(handle: i64) -> i32 {
     let Some(path) = ctx.file_path.as_deref() else {
         return 0;
     };
-    i32::from(crate::format::is_mty_path(path))
+    i32::from(crate::format::is_mty_path(path) && !ctx.tabs.any_dirty_path(path))
 }
 
 /// Format the currently-configured file in place via `mty fmt <path>`. The
@@ -10968,6 +10968,14 @@ pub extern "C" fn mui_format_current(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Warn, "Save the file before formatting");
         return -1;
     };
+    if ctx.tabs.any_dirty_path(&path) {
+        println!("format: {} -> skipped dirty open tab", path.display());
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Save or discard changes before formatting",
+        );
+        return -1;
+    }
     match crate::format::run_fmt(&path) {
         crate::format::FmtOutcome::Formatted => {
             println!("format: {} -> ok", path.display());

@@ -8864,6 +8864,77 @@ fn format_preflight_reports_only_safe_mutating_targets() {
 }
 
 #[test]
+fn format_current_refuses_dirty_active_tab() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_format_dirty_active_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, "fn main() {}\n").unwrap();
+    let idx = ctx.tabs.open_path(path.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("fn changed() {}\n");
+    ctx.tabs.set_dirty(idx, true);
+    crate::sync_active_path(&mut ctx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_format_can_current(h), 0);
+    assert_eq!(crate::mui_format_current(h), -1);
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "fn main() {}\n");
+    assert_eq!(ctx.tabs.active_model().as_text(), "fn changed() {}\n");
+    assert!(ctx.tabs.is_dirty(idx));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Save or discard changes before formatting");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn format_current_refuses_dirty_duplicate_tab() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_format_dirty_duplicate_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, "fn main() {}\n").unwrap();
+    let active_idx = ctx.tabs.open_path(path.clone());
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs
+        .get_mut(duplicate)
+        .unwrap()
+        .model
+        .set_text_preserving_cursor("fn dirty_duplicate() {}\n");
+    ctx.tabs.set_dirty(duplicate, true);
+    ctx.tabs.switch(active_idx);
+    crate::sync_active_path(&mut ctx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_format_can_current(h), 0);
+    assert_eq!(crate::mui_format_current(h), -1);
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "fn main() {}\n");
+    assert_eq!(ctx.tabs.active_model().as_text(), "fn main() {}\n");
+    assert_eq!(
+        ctx.tabs.get(duplicate).unwrap().model.as_text(),
+        "fn dirty_duplicate() {}\n"
+    );
+    assert!(!ctx.tabs.is_dirty(active_idx));
+    assert!(ctx.tabs.is_dirty(duplicate));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Save or discard changes before formatting");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn preserving_load_refreshes_clean_duplicate_without_losing_active_undo() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!(
