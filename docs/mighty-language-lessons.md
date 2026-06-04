@@ -7877,3 +7877,12 @@ the reset.
   screen snapshot. Regression coverage enters the alternate screen, performs RIS,
   exits alternate mode, and verifies neither stale primary nor alternate content
   returns.
+
+L648. DECSTBM homes relative to origin mode. Setting a scroll region with
+`CSI top;bottom r` homes the cursor; when DECOM (`CSI ?6 h`) is active, that home
+position is the top margin of the scroll region, not absolute screen row 1.
+
+- **IDE note:** scroll-region updates now report whether the margins were valid,
+  and `VtParser` rehomes to origin-mode row 1 only after an accepted update.
+  Regression coverage verifies valid DECOM margin changes land at the top margin
+  and invalid margins do not move the cursor.

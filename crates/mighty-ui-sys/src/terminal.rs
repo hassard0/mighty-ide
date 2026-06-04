@@ -452,14 +452,15 @@ impl Grid {
         self.cur_col = 0;
     }
 
-    fn set_scroll_region(&mut self, top: usize, bottom: usize) {
+    fn set_scroll_region(&mut self, top: usize, bottom: usize) -> bool {
         if top >= bottom || bottom >= self.rows {
-            return;
+            return false;
         }
         self.scroll_top = top;
         self.scroll_bottom = bottom;
         self.cur_row = 0;
         self.cur_col = 0;
+        true
     }
 
     fn reset_scroll_region(&mut self) {
@@ -1180,7 +1181,11 @@ impl VtParser {
             .filter(|s| !s.is_empty())
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or(grid.rows());
-        grid.set_scroll_region(top.saturating_sub(1), bottom.saturating_sub(1));
+        if grid.set_scroll_region(top.saturating_sub(1), bottom.saturating_sub(1))
+            && self.origin_mode
+        {
+            grid.move_cursor_origin_1_based(1, 1);
+        }
     }
 
     fn clear_tab_stop(&mut self, grid: &mut Grid) {
@@ -2608,6 +2613,31 @@ mod tests {
 
         let g2 = grid_feed(5, 6, b"aaaaaa\nbbbbbb\ncccccc\ndddddd\neeeeee\x1b[2;4r\x1b[?6h\x1b[99;2HY");
         assert_eq!(g2.cell(3, 1).ch, 'Y', "origin-mode rows clamp to bottom margin");
+    }
+
+    #[test]
+    fn origin_mode_scroll_region_changes_home_to_top_margin() {
+        let g = grid_feed(
+            5,
+            6,
+            b"aaaaaa\nbbbbbb\ncccccc\ndddddd\neeeeee\x1b[?6h\x1b[2;4rX",
+        );
+        assert_eq!(g.cell(1, 0).ch, 'X');
+        assert_eq!(g.cursor(), (1, 1));
+        assert!(!g.contains("2;4r"));
+    }
+
+    #[test]
+    fn invalid_scroll_region_does_not_rehome_origin_mode_cursor() {
+        let g = grid_feed(
+            5,
+            6,
+            b"aaaaaa\nbbbbbb\ncccccc\ndddddd\neeeeee\x1b[2;4r\x1b[?6h\x1b[2;3HX\x1b[4;2rY",
+        );
+        assert_eq!(g.cell(2, 2).ch, 'X');
+        assert_eq!(g.cell(2, 3).ch, 'Y');
+        assert_eq!(g.cursor(), (2, 4));
+        assert!(!g.contains("4;2r"));
     }
 
     #[test]
