@@ -856,6 +856,7 @@ impl VtParser {
                 self.csi.clear();
                 self.state = State::Osc;
             }
+            0x00..=0x17 | 0x19 | 0x1c..=0x1f => {}
             // Parameter bytes (0x30..=0x3f) and intermediates (0x20..=0x2f).
             0x20..=0x3f => self.csi.push(b),
             // Final byte: dispatch and return to ground.
@@ -2624,6 +2625,19 @@ mod tests {
         assert!(g3.contains("ok"));
         assert!(!g3.contains("999"));
         assert!(!g3.contains("title"));
+    }
+
+    #[test]
+    fn csi_tolerates_embedded_c0_controls_without_leaking_final_bytes() {
+        let g = grid_feed(2, 20, b"abcd\x1b[2\x07GZ");
+        assert_eq!(g.cell(0, 1).ch, 'Z');
+        assert!(!g.contains("GZ"));
+        assert!(!g.contains("2G"));
+
+        let g2 = grid_feed(2, 20, b"abcd\x1b[3\rGQ");
+        assert_eq!(g2.cell(0, 2).ch, 'Q');
+        assert!(!g2.contains("GQ"));
+        assert!(!g2.contains("3G"));
     }
 
     #[test]

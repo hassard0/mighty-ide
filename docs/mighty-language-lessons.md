@@ -7659,3 +7659,13 @@ instead of honoring the replacement control sequence.
   `Escape`, `Csi`, `Osc`, or the non-OSC string state when those introducers
   arrive during CSI parsing; CAN/SUB still abort to ground. Tests cover
   interrupted 7-bit CSI, interrupted 8-bit CSI, and CSI replaced by C1 OSC.
+
+L625. CSI parsing must tolerate embedded C0 controls. BEL, CR, LF, and the
+other non-cancel C0 bytes can appear while a CSI is being parsed; treating them
+as malformed sequence bytes drops to ground and can leak the final CSI byte as
+visible text.
+
+- **IDE note:** `VtParser` now consumes non-cancel C0 controls inside CSI
+  without clearing the partial parameters. CAN/SUB still abort, ESC and C1
+  introducers still replace the sequence, and parser tests cover BEL/CR inside
+  cursor-column commands without leaking the final `G`.
