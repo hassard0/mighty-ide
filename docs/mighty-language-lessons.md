@@ -8160,3 +8160,14 @@ strikethrough already render correctly.
   it for subsequent output, REP and cursor save/restore preserve it, RIS clears
   stale overline state, and `mui_term_draw` paints overline runs with the
   resolved foreground color.
+
+L676. Conceal changes terminal visibility, not terminal storage. CLIs use
+`SGR 8` for hidden prompts, masked tokens, and UI state that should occupy cells
+without painting readable glyphs. Treating it as ordinary text leaks visual
+content and breaks alignment assumptions.
+
+- **IDE note:** terminal cells now carry a conceal flag, `SGR 8/28` updates it
+  for subsequent output, REP and cursor save/restore preserve it, and RIS clears
+  stale conceal state. `mui_term_draw` preserves concealed cell width while
+  suppressing glyph, underline, strikethrough, and overline drawing for those
+  cells.

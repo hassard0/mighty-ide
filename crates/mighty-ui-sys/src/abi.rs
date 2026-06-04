@@ -7511,7 +7511,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
             let mut col = 0usize;
             while col < cols {
                 let cell = g.cell(r, col);
-                if !cell.underline {
+                if !cell.underline || cell.conceal {
                     col += 1;
                     continue;
                 }
@@ -7519,7 +7519,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 let start = col;
                 while col < cols {
                     let cell = g.cell(r, col);
-                    if !cell.underline || cell.fg != fg {
+                    if !cell.underline || cell.conceal || cell.fg != fg {
                         break;
                     }
                     col += 1;
@@ -7536,7 +7536,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
             let mut col = 0usize;
             while col < cols {
                 let cell = g.cell(r, col);
-                if !cell.strikethrough {
+                if !cell.strikethrough || cell.conceal {
                     col += 1;
                     continue;
                 }
@@ -7544,7 +7544,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 let start = col;
                 while col < cols {
                     let cell = g.cell(r, col);
-                    if !cell.strikethrough || cell.fg != fg {
+                    if !cell.strikethrough || cell.conceal || cell.fg != fg {
                         break;
                     }
                     col += 1;
@@ -7561,7 +7561,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
             let mut col = 0usize;
             while col < cols {
                 let cell = g.cell(r, col);
-                if !cell.overline {
+                if !cell.overline || cell.conceal {
                     col += 1;
                     continue;
                 }
@@ -7569,7 +7569,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 let start = col;
                 while col < cols {
                     let cell = g.cell(r, col);
-                    if !cell.overline || cell.fg != fg {
+                    if !cell.overline || cell.conceal || cell.fg != fg {
                         break;
                     }
                     col += 1;
@@ -7591,14 +7591,19 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 let fg = cell.fg;
                 let italic = cell.italic;
                 let faint = cell.faint;
+                let conceal = cell.conceal;
                 let start = col;
                 let mut s = String::new();
                 while col < cols {
                     let cell = g.cell(r, col);
-                    if cell.fg != fg || cell.italic != italic || cell.faint != faint {
+                    if cell.fg != fg
+                        || cell.italic != italic
+                        || cell.faint != faint
+                        || cell.conceal != conceal
+                    {
                         break;
                     }
-                    s.push(cell.ch);
+                    s.push(if conceal { ' ' } else { cell.ch });
                     col += 1;
                 }
                 // Trim a trailing run of spaces (don't draw blank tails).

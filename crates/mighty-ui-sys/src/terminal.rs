@@ -43,6 +43,7 @@ pub struct Cell {
     pub italic: bool,
     pub faint: bool,
     pub overline: bool,
+    pub conceal: bool,
 }
 
 /// Sentinel `fg` meaning "default foreground" (SGR 0 / 39).
@@ -78,6 +79,7 @@ impl Default for Cell {
             italic: false,
             faint: false,
             overline: false,
+            conceal: false,
         }
     }
 }
@@ -636,6 +638,7 @@ impl Grid {
                 italic: false,
                 faint: false,
                 overline: false,
+                conceal: false,
             };
         }
         self.cur_row = 0;
@@ -710,6 +713,7 @@ struct SavedCursor {
     italic: bool,
     faint: bool,
     overline: bool,
+    conceal: bool,
     autowrap: bool,
     origin_mode: bool,
     insert_mode: bool,
@@ -822,6 +826,8 @@ pub struct VtParser {
     faint: bool,
     /// Whether SGR overline is active for subsequently-written cells.
     overline: bool,
+    /// Whether SGR conceal/hidden text is active for subsequently-written cells.
+    conceal: bool,
     /// Last graphic cell written by printable output, used by REP (`CSI Ps b`).
     last_graphic: Option<Cell>,
     /// Whether the running app asked for bracketed paste (`CSI ?2004 h`).
@@ -890,6 +896,7 @@ impl VtParser {
             italic: false,
             faint: false,
             overline: false,
+            conceal: false,
             last_graphic: None,
             bracketed_paste: false,
             focus_reporting: false,
@@ -1108,6 +1115,7 @@ impl VtParser {
             italic: self.italic,
             faint: self.faint,
             overline: self.overline,
+            conceal: self.conceal,
         };
         if self.insert_mode {
             grid.prepare_insert(self.autowrap);
@@ -1349,6 +1357,7 @@ impl VtParser {
             self.italic = false;
             self.faint = false;
             self.overline = false;
+            self.conceal = false;
             return;
         }
         // `ESC [ ? … m` (private) — not a real SGR; ignore.
@@ -1374,12 +1383,14 @@ impl VtParser {
                     self.italic = false;
                     self.faint = false;
                     self.overline = false;
+                    self.conceal = false;
                 }
                 1 => self.bold = true,
                 2 => self.faint = true,
                 3 => self.italic = true,
                 4 => self.underline = true,
                 7 => self.inverse = true,
+                8 => self.conceal = true,
                 9 => self.strikethrough = true,
                 22 => {
                     self.bold = false;
@@ -1388,6 +1399,7 @@ impl VtParser {
                 23 => self.italic = false,
                 24 => self.underline = false,
                 27 => self.inverse = false,
+                28 => self.conceal = false,
                 29 => self.strikethrough = false,
                 30..=37 => grid.cur_fg = (n - 30) as u32, // basic 0..=7
                 39 => grid.cur_fg = DEFAULT_FG,     // default fg
@@ -1643,6 +1655,7 @@ impl VtParser {
         self.italic = false;
         self.faint = false;
         self.overline = false;
+        self.conceal = false;
         self.bracketed_paste = false;
         self.focus_reporting = false;
         self.cursor_visible = true;
@@ -1933,6 +1946,7 @@ impl VtParser {
             italic: self.italic,
             faint: self.faint,
             overline: self.overline,
+            conceal: self.conceal,
             autowrap: self.autowrap,
             origin_mode: self.origin_mode,
             insert_mode: self.insert_mode,
@@ -1958,6 +1972,7 @@ impl VtParser {
         self.italic = saved.italic;
         self.faint = saved.faint;
         self.overline = saved.overline;
+        self.conceal = saved.conceal;
         self.autowrap = saved.autowrap;
         self.origin_mode = saved.origin_mode;
         self.insert_mode = saved.insert_mode;
@@ -3589,6 +3604,21 @@ mod tests {
     }
 
     #[test]
+    fn sgr_conceal_marks_later_cells_until_reset() {
+        let g = grid_feed(1, 16, b"A\x1b[8mSECRET\x1b[28mB\x1b[8;31mC\x1b[0mD");
+        assert_eq!(g.to_text(), "ASECRETBCD      ");
+        assert!(!g.cell(0, 0).conceal);
+        for col in 1..7 {
+            assert!(g.cell(0, col).conceal);
+        }
+        assert!(!g.cell(0, 7).conceal);
+        assert!(g.cell(0, 8).conceal);
+        assert_eq!(g.cell(0, 8).fg, 1);
+        assert!(!g.cell(0, 9).conceal);
+        assert_eq!(g.cell(0, 9).fg, DEFAULT_FG);
+    }
+
+    #[test]
     fn sgr_intensity_reset_clears_bold_and_faint() {
         let g = grid_feed(1, 8, b"\x1b[31;1;2mA\x1b[22mB");
         assert_eq!(g.cell(0, 0).fg, 9);
@@ -3676,6 +3706,13 @@ mod tests {
             assert!(g11.cell(0, col).overline);
         }
         assert!(!g11.cell(0, 3).overline);
+
+        let g12 = grid_feed(1, 8, b"\x1b[8mA\x1b[2b\x1b[28mZ");
+        assert_eq!(g12.to_text(), "AAAZ    ");
+        for col in 0..3 {
+            assert!(g12.cell(0, col).conceal);
+        }
+        assert!(!g12.cell(0, 3).conceal);
     }
 
     #[test]
@@ -4297,6 +4334,10 @@ mod tests {
         let g12 = grid_feed(1, 8, b"\x1b[53m\x1b7\x1b[55m\x1b8X");
         assert!(g12.cell(0, 0).overline);
         assert!(!g12.contains("[55"));
+
+        let g13 = grid_feed(1, 8, b"\x1b[8m\x1b7\x1b[28m\x1b8X");
+        assert!(g13.cell(0, 0).conceal);
+        assert!(!g13.contains("[28"));
     }
 
     #[test]
@@ -4602,7 +4643,7 @@ mod tests {
     fn esc_c_resets_sgr_attributes_for_later_text() {
         let mut g = Grid::new(1, 8);
         let mut p = VtParser::new();
-        p.feed(&mut g, b"\x1b[31;44;3;4;9;53mA\x1bcZ");
+        p.feed(&mut g, b"\x1b[31;44;3;4;8;9;53mA\x1bcZ");
 
         assert_eq!(g.cell(0, 0).ch, 'Z');
         assert_eq!(g.cell(0, 0).fg, DEFAULT_FG);
@@ -4612,6 +4653,7 @@ mod tests {
         assert!(!g.cell(0, 0).strikethrough);
         assert!(!g.cell(0, 0).faint);
         assert!(!g.cell(0, 0).overline);
+        assert!(!g.cell(0, 0).conceal);
         assert!(!g.contains("A"));
     }
 
