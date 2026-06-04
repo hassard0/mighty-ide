@@ -4951,6 +4951,13 @@ fn main() {
           quickopen_open = false
         } else if id == cmd_welcome_close() {
           let _wc = mui_welcome_close(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_jump_back() {
           if have_prev {
             mui_ed_move_to(h, prev_line, prev_col)
@@ -5111,8 +5118,22 @@ fn main() {
           let _pc = mui_peek_close(h)
         } else if id == cmd_welcome() {
           mui_welcome_open(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_zen_mode() {
           let _z = mui_zen_toggle(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_agents() {
           let _p = mui_panel_set(h, panel_agents_mty())
           let _a = mui_agents_refresh(h)
@@ -5203,6 +5224,13 @@ fn main() {
           let _dcv = mui_diff_close(h)
           diff_open = false
           typing = true
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_markdown_close_preview() {
           let _mdc = mui_md_close(h)
           run_focus = false
@@ -5214,6 +5242,13 @@ fn main() {
           find_nav = false
         } else if id == cmd_git_hide_blame() {
           let _bc = mui_blame_close(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id >= cmd_pane_first() && id <= cmd_pane_last() {
           let _pn = mui_pane_dispatch(h, id)
           run_focus = false

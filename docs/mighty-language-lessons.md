@@ -9012,3 +9012,18 @@ leaving stale dock/sidebar flags alive.
 - **Language note:** no compiler gap surfaced. The pattern remains simple but
   verbose, reinforcing that close/transient commands should eventually share
   declarative focus-effect metadata.
+
+## L750 - Global Overlays And Editor Chrome Need Focus Cleanup
+
+Global overlays and editor chrome commands can cross ownership boundaries
+without looking like panel commands. Welcome, Zen mode, inline diff, and blame
+all change what surface is visible or interactive, so stale focus flags must be
+cleared before the next input event is routed.
+
+- **IDE note:** Welcome open/close, Zen mode toggle, Diff: Close View, and
+  Git: Hide Blame now release stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus. Dispatcher source-contract
+  coverage pins these explicit branches.
+- **Language note:** no compiler gap surfaced. This is another example where
+  command groups need declarative focus effects rather than repeating scalar
+  flag cleanup in every visible-surface branch.

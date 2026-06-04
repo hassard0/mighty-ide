@@ -10625,9 +10625,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Go to Line command must open the prompt and release stale surface focus"
     );
     assert!(
-        main.contains("id == cmd_welcome_close()")
-            && main.contains("let _wc = mui_welcome_close(h)"),
-        "Welcome: Close must reuse the stateful visible close affordance path"
+        main.contains(
+            "id == cmd_welcome_close() {\n          let _wc = mui_welcome_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Welcome: Close must reuse the stateful visible close affordance path and release stale focus"
     );
     assert!(
         main.contains(
@@ -10665,6 +10666,18 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         )
             && main.contains("if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }"),
         "Terminal: Clear Buffer must reveal Terminal before clearing and preserve focus when terminal remains open"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_welcome() {\n          mui_welcome_open(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Welcome open command must release stale focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_zen_mode() {\n          let _z = mui_zen_toggle(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Zen Mode command must release stale focus"
     );
     assert!(
         main.contains(
@@ -11478,10 +11491,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Tab mouse switches must release all transient surface focus"
     );
     assert!(
-        main.contains("id == cmd_diff_close_view()")
-            && main.contains("let _dcv = mui_diff_close(h)")
-            && main.contains("diff_open = false"),
-        "Diff close command must close the shim diff view and clear Mighty's diff-open flag"
+        main.contains(
+            "id == cmd_diff_close_view() {\n          let _dcv = mui_diff_close(h)\n          diff_open = false\n          typing = true\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Diff close command must close the shim diff view, clear Mighty's diff-open flag, and release stale focus"
     );
     assert!(
         main.contains("id == cmd_markdown_close_preview()")
@@ -11608,9 +11621,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Keyboard Shortcuts header reset clicks must dispatch before remap capture handling"
     );
     assert!(
-        main.contains("id == cmd_git_hide_blame()")
-            && main.contains("let _bc = mui_blame_close(h)"),
-        "Git hide-blame command must call the dedicated blame close ABI"
+        main.contains(
+            "id == cmd_git_hide_blame() {\n          let _bc = mui_blame_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Git hide-blame command must call the dedicated blame close ABI and release stale focus"
     );
     for (helper, next_helper, action) in [
         ("cmd_search_run", "cmd_search_clear_results", "mui_search_run(h)"),

@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Welcome, Zen, Diff, and Blame commands release stale focus**: opening or
+  closing Welcome, toggling Zen mode, closing inline diff, and hiding blame now
+  clear stale Run/Web/Testing/Terminal/AI/Agents/search focus.
 - **Close and transient commands release stale focus**: Run, Testing, Web,
   Agents, Search, Source Control, Outline, Debug, Problems, AI, Sidebar, and
   Terminal close paths plus inline AI, ghost-completion, and snippet-cancel
