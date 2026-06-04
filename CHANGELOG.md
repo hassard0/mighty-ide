@@ -27,7 +27,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   clean duplicate view after successful replacements.
 - **Fix-all code actions protect dirty duplicate tabs**: Fix all (mty) now
   refuses to save or run the external fixer when another equivalent tab for the
-  active file has unsaved edits, matching inline workspace-edit safety.
+  active file has unsaved edits, matching inline workspace-edit safety, and
+  refreshes clean duplicate views after both the pre-fix save and the fixer
+  reload.
 - **Workspace edits protect dirty duplicate tabs**: code actions and rename
   workspace edits now skip a target path when any equivalent non-active tab is
   dirty, including duplicate views of the active file, avoiding disk writes

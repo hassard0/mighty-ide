@@ -10641,6 +10641,10 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
             return 0;
         }
         mark_active_clean(ctx);
+        let active = ctx.tabs.active();
+        let _ = ctx
+            .tabs
+            .reload_all_clean_path_except(&path, &bytes, active);
         let mty = mty_default();
         let ok = std::process::Command::new(&mty)
             .arg("fix")
@@ -10655,6 +10659,10 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         if ok {
             if let Ok(reloaded) = std::fs::read(&path) {
                 ctx.tabs.reload_active_preserving_history(&reloaded);
+                let active = ctx.tabs.active();
+                let _ = ctx
+                    .tabs
+                    .reload_all_clean_path_except(&path, &reloaded, active);
             }
             ctx.push_toast(crate::toast::Kind::Success, "Applied Fix all (mty)");
         } else {

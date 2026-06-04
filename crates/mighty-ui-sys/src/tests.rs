@@ -8392,6 +8392,140 @@ fn codeaction_fix_all_reload_remains_undoable() {
 }
 
 #[test]
+fn codeaction_fix_all_refreshes_clean_duplicate_tab_after_fix() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let old_mty = std::env::var_os("MIGHTY_MTY");
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_codeaction_fix_all_clean_duplicate_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, "old_symbol\n").unwrap();
+    let fake_mty = root.join("fake-mty.cmd");
+    std::fs::write(
+        &fake_mty,
+        "@echo off\r\nif \"%1\"==\"fix\" if \"%2\"==\"--apply\" (\r\n  > \"%3\" echo fixed_symbol\r\n  exit /b 0\r\n)\r\nexit /b 1\r\n",
+    )
+    .unwrap();
+    std::env::set_var("MIGHTY_MTY", &fake_mty);
+
+    let active_idx = ctx.tabs.open_path(path.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("live_symbol\n");
+    ctx.tabs.set_dirty(active_idx, true);
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs
+        .get_mut(duplicate)
+        .unwrap()
+        .model
+        .set_text_preserving_cursor("old_symbol\n");
+    ctx.tabs.set_dirty(duplicate, false);
+    ctx.tabs.switch(active_idx);
+    crate::sync_active_path(&mut ctx);
+    assert_eq!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Fix all (mty)".to_string(),
+            edit: None,
+            command_edit: None,
+            command: None,
+            fix_all_mty: true,
+        }]),
+        1
+    );
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_ed_undo_record(h);
+    assert_eq!(crate::mui_codeaction_apply(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "fixed_symbol\n");
+    assert_eq!(ctx.tabs.get(duplicate).unwrap().model.as_text(), "fixed_symbol\n");
+    assert!(!ctx.tabs.is_dirty(active_idx));
+    assert!(!ctx.tabs.is_dirty(duplicate));
+
+    assert_eq!(crate::mui_ed_undo(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "live_symbol\n");
+    assert!(ctx.tabs.is_dirty(active_idx));
+    assert_eq!(ctx.tabs.get(duplicate).unwrap().model.as_text(), "fixed_symbol\n");
+
+    if let Some(v) = old_mty {
+        std::env::set_var("MIGHTY_MTY", v);
+    } else {
+        std::env::remove_var("MIGHTY_MTY");
+    }
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn codeaction_fix_all_refreshes_clean_duplicate_when_fixer_fails_after_pre_fix_save() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let old_mty = std::env::var_os("MIGHTY_MTY");
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_codeaction_fix_all_failed_clean_duplicate_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, "old_symbol\n").unwrap();
+    let fake_mty = root.join("fake-mty.cmd");
+    std::fs::write(&fake_mty, "@echo off\r\nexit /b 1\r\n").unwrap();
+    std::env::set_var("MIGHTY_MTY", &fake_mty);
+
+    let active_idx = ctx.tabs.open_path(path.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("live_symbol\n");
+    ctx.tabs.set_dirty(active_idx, true);
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs
+        .get_mut(duplicate)
+        .unwrap()
+        .model
+        .set_text_preserving_cursor("old_symbol\n");
+    ctx.tabs.set_dirty(duplicate, false);
+    ctx.tabs.switch(active_idx);
+    crate::sync_active_path(&mut ctx);
+    assert_eq!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Fix all (mty)".to_string(),
+            edit: None,
+            command_edit: None,
+            command: None,
+            fix_all_mty: true,
+        }]),
+        1
+    );
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_codeaction_apply(h), 0);
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "live_symbol\n");
+    assert_eq!(ctx.tabs.active_model().as_text(), "live_symbol\n");
+    assert_eq!(ctx.tabs.get(duplicate).unwrap().model.as_text(), "live_symbol\n");
+    assert!(!ctx.tabs.is_dirty(active_idx));
+    assert!(!ctx.tabs.is_dirty(duplicate));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Fix all (mty) failed");
+
+    if let Some(v) = old_mty {
+        std::env::set_var("MIGHTY_MTY", v);
+    } else {
+        std::env::remove_var("MIGHTY_MTY");
+    }
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn codeaction_fix_all_skips_dirty_duplicate_tab() {
     let _g = crate::settings::TEST_LOCK
         .lock()

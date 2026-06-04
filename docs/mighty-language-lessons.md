@@ -10664,3 +10664,17 @@ otherwise the IDE displays stale clean content for a file that was just saved.
 - **Language note:** no compiler gap surfaced. Successful writes should fan out
   to every clean view of the resource, while dirty views remain protected by the
   conflict preflight.
+
+## L866 - External Fixers Still Need Duplicate-View Fanout
+
+Code actions that shell out to an external fixer can write the same file more
+than once: first saving the live buffer, then reloading the fixed result. Clean
+duplicate tabs need to follow both transitions, including the failure path where
+the pre-fix save succeeded but the external fixer did not.
+
+- **IDE note:** Fix all (mty) now refreshes clean equivalent tabs after the
+  pre-fix save and again after a successful fixer reload, while still refusing
+  to run when any duplicate view is dirty.
+- **Language note:** no compiler gap surfaced. Any feature that delegates file
+  mutation to an external command should still centralize editor-state fanout
+  around every write boundary it controls.
