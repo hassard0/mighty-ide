@@ -7100,6 +7100,18 @@ fn term_grid_contains_event(ctx: &MuiContext) -> bool {
     term_grid_contains_point(ctx, ctx.last_event.x, ctx.last_event.y)
 }
 
+pub(crate) const TERM_HEADER_CLICK_NONE: i32 = 0;
+pub(crate) const TERM_HEADER_CLICK_CLEAR: i32 = 1;
+
+pub(crate) fn terminal_header_clear_rect(ctx: &MuiContext) -> (f32, f32, f32, f32) {
+    let region = layout::region(ctx.sidebar_visible);
+    let (width, height) = visible_surface_size(ctx);
+    let size = 22.0;
+    let x = layout::dock_header_content_right(width, height) - size;
+    let y = layout::term_panel_top(height) + (layout::term_header_h() - size) * 0.5;
+    (x.max(layout::term_panel_left(region) + 86.0), y, size, size)
+}
+
 fn term_wants_mouse_motion_at(ctx: &MuiContext, x: f32, y: f32) -> bool {
     term_grid_contains_point(ctx, x, y)
         && ctx
@@ -7235,6 +7247,23 @@ pub extern "C" fn mui_term_running(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_term_is_open(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| if c.term_open { 1 } else { 0 })
+}
+
+/// Header action at the latest mouse event. Returns `1` for Clear, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_term_header_action_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return TERM_HEADER_CLICK_NONE;
+    };
+    if !ctx.term_open || ctx.terminal.is_none() {
+        return TERM_HEADER_CLICK_NONE;
+    }
+    let (x, y) = (ctx.last_event.x, ctx.last_event.y);
+    let (bx, by, bw, bh) = terminal_header_clear_rect(ctx);
+    if x >= bx && x <= bx + bw && y >= by && y <= by + bh {
+        return TERM_HEADER_CLICK_CLEAR;
+    }
+    TERM_HEADER_CLICK_NONE
 }
 
 /// Map a named key (`MUI_KEY_*`) + mods to terminal stdin bytes and write them
@@ -7466,7 +7495,8 @@ pub extern "C" fn mui_term_draw(handle: i64) {
         .filter(|title| !title.is_empty())
         .map_or_else(|| "TERMINAL".to_string(), |title| format!("TERMINAL - {title}"));
     let title_x = panel_left + layout::PAD + 4.0;
-    let title_max = (layout::dock_header_content_right(width, height) - title_x).max(0.0);
+    let (clear_x, clear_y, clear_w, clear_h) = terminal_header_clear_rect(ctx);
+    let title_max = (clear_x - title_x - 8.0).max(0.0);
     let title_text = fit_status_head(&mut ctx.text, &title_text, title_max, theme::CHROME_FONT_SIZE - 1.0);
     ctx.text.queue_ui_sized(
         title_x,
@@ -7475,6 +7505,18 @@ pub extern "C" fn mui_term_draw(handle: i64) {
         theme::DIM(),
         theme::CHROME_FONT_SIZE - 1.0,
         clip,
+    );
+    ctx.dl_round(clear_x, clear_y, clear_w, clear_h, 5.0, theme::BG_4());
+    ctx.dl_stroke(clear_x, clear_y, clear_w, clear_h, 5.0, theme::BORDER_SOFT(), 1.0);
+    ctx.dl_icon(
+        clear_x + 5.0,
+        clear_y + 4.5,
+        12.0,
+        12.0,
+        crate::icons::TRASH,
+        theme::TEXT_3(),
+        1.4,
+        false,
     );
     let _ = handle_ptr;
     let frame = FRAME_COUNTER.load(std::sync::atomic::Ordering::Relaxed);

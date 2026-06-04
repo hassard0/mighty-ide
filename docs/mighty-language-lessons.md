@@ -8386,3 +8386,15 @@ belongs there too.
   affordance to the left of Inspect and Run. Mighty routes that header click
   through `mui_agents_clear_run_output` before topology row navigation, and tests
   cover the separated header hit zones plus dispatcher wiring.
+
+## L698 - Terminal Header Actions Should Stay Local
+
+The integrated Terminal already had palette commands for clearing and closing,
+but high-frequency output cleanup should also live where the output is read.
+Treat the terminal header like Run/Web: draw local action icons before the
+shared dock controls and route those clicks before grid mouse reporting.
+
+- **IDE note:** the Terminal header now exposes a compact Clear Buffer action.
+  Mighty hit-tests that header action before PTY grid routing, then reuses
+  `mui_term_clear` so focus and toast behavior stay aligned with the command
+  palette path.

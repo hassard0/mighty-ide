@@ -305,6 +305,7 @@ extern c {
   fn mui_term_open(handle: I64) -> I32
   fn mui_term_close(handle: I64) -> I32
   fn mui_term_clear(handle: I64) -> I32
+  fn mui_term_header_action_at_click(handle: I64) -> I32
   fn mui_term_is_open(handle: I64) -> I32
   fn mui_term_running(handle: I64) -> I32
   fn mui_term_key(handle: I64, keycode: I32, mods: I32)
@@ -3406,6 +3407,7 @@ fn main() {
         let prob_act = mui_problems_header_action_at_click(h)
         let prob_close = mui_problems_close_at_click(h)
         let prob_hit = if prob_act > 0 { 0 - 1 } else { mui_problems_row_at_click(h) }
+        let term_act = mui_term_header_action_at_click(h)
         // Git click targets (computed up-front so the dispatch ladder stays flat):
         // the status-bar branch segment opens the switcher; a click on an inline-
         // diff hunk header stages/unstages that hunk.
@@ -3685,6 +3687,13 @@ fn main() {
             term_focus = false
             ai_focus = false
           }
+        } else if term_act == 1 {
+          let _tc = mui_term_clear(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }
+          ai_focus = false
         } else if mui_term_hit_at_event(h) == 1 {
           let _tmd = mui_term_mouse_button(h, 1)
           run_focus = false

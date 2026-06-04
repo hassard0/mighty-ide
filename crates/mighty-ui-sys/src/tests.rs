@@ -2288,6 +2288,67 @@ fn terminal_clear_acknowledges_closed_state_without_requiring_pty_spawn() {
 }
 
 #[test]
+fn terminal_header_clear_action_hits_visible_button() {
+    use crate::ffi::{MuiEvent, MUI_EVENT_MOUSE_DOWN, MUI_MOUSE_LEFT};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    ctx.gpu.phys_width = 900;
+    ctx.gpu.phys_height = 700;
+    let region = crate::layout::region(ctx.sidebar_visible);
+    let rows = crate::layout::term_grid_rows(ctx.gpu.height);
+    let cols = crate::layout::term_grid_cols(ctx.gpu.width, region);
+    ctx.terminal = match crate::terminal::Terminal::spawn(rows, cols) {
+        Ok(t) => Some(t),
+        Err(e) => {
+            eprintln!("SKIP: PTY spawn failed in this environment: {e}");
+            return;
+        }
+    };
+    ctx.term_open = true;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let (x, y, w, hrect) = crate::abi::terminal_header_clear_rect(&ctx);
+
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect * 0.5,
+        0,
+    );
+    assert_eq!(
+        crate::abi::mui_term_header_action_at_click(handle),
+        crate::abi::TERM_HEADER_CLICK_CLEAR
+    );
+
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect + 12.0,
+        0,
+    );
+    assert_eq!(
+        crate::abi::mui_term_header_action_at_click(handle),
+        crate::abi::TERM_HEADER_CLICK_NONE
+    );
+
+    ctx.term_open = false;
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect * 0.5,
+        0,
+    );
+    assert_eq!(
+        crate::abi::mui_term_header_action_at_click(handle),
+        crate::abi::TERM_HEADER_CLICK_NONE
+    );
+}
+
+#[test]
 fn terminal_open_failure_reports_visible_feedback() {
     let _g = crate::settings::TEST_LOCK
         .lock()
@@ -10253,6 +10314,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("mui_term_clear(h)")
             && main.contains("if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }"),
         "Terminal: Clear Buffer must clear through the terminal ABI and preserve focus when terminal remains open"
+    );
+    assert!(
+        main.contains("fn mui_term_header_action_at_click(handle: I64) -> I32")
+            && main.contains("let term_act = mui_term_header_action_at_click(h)")
+            && main.contains("} else if term_act == 1 {\n          let _tc = mui_term_clear(h)")
+            && main.contains("} else if mui_term_hit_at_event(h) == 1 {"),
+        "Terminal header Clear must dispatch before terminal grid mouse routing"
     );
     assert!(
         main.contains("id == cmd_hover_close()")
