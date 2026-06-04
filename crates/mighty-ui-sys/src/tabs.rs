@@ -767,6 +767,9 @@ impl TabStore {
     /// Mark slot `idx` clean in both the chrome flag and authoritative model.
     pub fn mark_clean(&mut self, idx: usize) {
         if let Some(t) = self.tabs.get_mut(idx) {
+            if !t.read_only {
+                t.bytes = t.model.to_bytes();
+            }
             t.dirty = false;
             t.model.mark_clean();
         }
@@ -900,6 +903,26 @@ mod tests {
         assert!(!tab.read_only);
         assert_eq!(tab.model.as_text(), "one\ntwo\n");
         assert_eq!(tab.bytes, b"one\ntwo\n");
+        assert!(!tab.is_dirty());
+    }
+
+    #[test]
+    fn mark_clean_advances_editable_tab_baseline_to_current_model() {
+        let p = write_tmp("tabs_mark_clean_baseline.mty", b"old\n");
+
+        let mut s = TabStore::new();
+        let idx = s.open_path(p);
+        s.get_mut(idx)
+            .unwrap()
+            .model
+            .set_text_preserving_cursor("new\n");
+        s.set_dirty(idx, true);
+
+        s.mark_clean(idx);
+
+        let tab = s.get(idx).unwrap();
+        assert_eq!(tab.bytes, b"new\n");
+        assert!(!tab.model.dirty());
         assert!(!tab.is_dirty());
     }
 
