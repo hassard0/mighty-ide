@@ -10427,3 +10427,17 @@ meaning when paired with the expected top-level `event` or `command`.
 - **Language note:** no compiler gap surfaced. Protocol body ownership is a
   two-part invariant: fields must be owned by `body`, and `body` must be owned
   by the envelope role the parser was written for.
+
+## L849 - Creation Names Need Platform Guards
+
+Project and folder names are single path segments, but Windows has additional
+reserved device basenames and trailing-dot normalization that can make a name
+uncreatable or resolve differently from what the user typed.
+
+- **IDE note:** the shared New Project/New Folder name validator now rejects
+  Windows reserved device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`,
+  `LPT1`-`LPT9`) even with an extension, and rejects names ending in `.` before
+  filesystem creation.
+- **Language note:** no compiler gap surfaced. Cross-platform IDE workflows need
+  validation for the target filesystem's name semantics, not just parser-safe
+  characters and path traversal checks.

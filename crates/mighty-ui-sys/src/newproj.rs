@@ -24,10 +24,10 @@ pub const MAX_NAME_LEN: usize = 64;
 ///
 /// Rules: after trimming, the name must be non-empty, at most [`MAX_NAME_LEN`]
 /// chars, a SINGLE path segment (no `/`, `\`, or `:` so it can't escape the
-/// parent dir or name a drive), not a `.`/`..` traversal token, and built from
-/// a conservative charset (ASCII alphanumerics plus `-`, `_`, `.`). The first
-/// char must be alphanumeric or `_` so the result is a usable identifier-ish
-/// directory name.
+/// parent dir or name a drive), not a `.`/`..` traversal token, not a Windows
+/// reserved device name, and built from a conservative charset (ASCII
+/// alphanumerics plus `-`, `_`, `.`). The first char must be alphanumeric or
+/// `_` so the result is a usable identifier-ish directory name.
 pub fn validate_name(input: &str) -> Result<String, String> {
     let name = input.trim();
     if name.is_empty() {
@@ -38,6 +38,9 @@ pub fn validate_name(input: &str) -> Result<String, String> {
     }
     if name == "." || name == ".." {
         return Err("Invalid project name".to_string());
+    }
+    if name.ends_with('.') {
+        return Err("Name must not end with a dot".to_string());
     }
     if name.contains('/') || name.contains('\\') || name.contains(':') {
         return Err("Name must not contain path separators".to_string());
@@ -54,7 +57,31 @@ pub fn validate_name(input: &str) -> Result<String, String> {
     {
         return Err("Use letters, digits, '-', '_' or '.' only".to_string());
     }
+    if is_windows_reserved_name(name) {
+        return Err("Name is reserved on Windows".to_string());
+    }
     Ok(name.to_string())
+}
+
+fn is_windows_reserved_name(name: &str) -> bool {
+    let stem = name.split('.').next().unwrap_or(name);
+    let upper = stem.to_ascii_uppercase();
+    matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || upper
+            .strip_prefix("COM")
+            .and_then(single_reserved_digit)
+            .is_some()
+        || upper
+            .strip_prefix("LPT")
+            .and_then(single_reserved_digit)
+            .is_some()
+}
+
+fn single_reserved_digit(rest: &str) -> Option<()> {
+    match rest.as_bytes() {
+        [b'1'..=b'9'] => Some(()),
+        _ => None,
+    }
 }
 
 /// Choose the directory to create the new project UNDER. Prefers `workspace`
@@ -118,9 +145,20 @@ mod tests {
     fn rejects_bad_first_char_and_charset() {
         assert!(validate_name("-leading").is_err());
         assert!(validate_name(".hidden").is_err());
+        assert!(validate_name("trailing.").is_err());
         assert!(validate_name("has space").is_err());
         assert!(validate_name("emoji\u{1F600}").is_err());
         assert!(validate_name("semi;colon").is_err());
+    }
+
+    #[test]
+    fn rejects_windows_reserved_device_names() {
+        for name in ["CON", "con", "con.txt", "PRN", "AUX", "NUL", "COM1", "com9.log", "LPT1", "lpt9.txt"] {
+            assert!(validate_name(name).is_err(), "{name} should be rejected");
+        }
+        for name in ["COM0", "COM10", "LPT0", "LPT10", "CONSOLE", "AUXILIARY"] {
+            assert!(validate_name(name).is_ok(), "{name} should be accepted");
+        }
     }
 
     #[test]

@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **New project and folder names reject Windows traps**: shared name validation
+  now blocks reserved Windows device names such as `CON`, `NUL`, `COM1`, and
+  `LPT1`, plus trailing-dot names, before project or folder creation reaches the
+  filesystem.
 - **Debugger payloads require matching DAP roles**: debugger event and response
   parsers now verify the expected DAP `event` or `command` before reading a
   `body`, so wrong-command responses and wrong-event payloads cannot update the
