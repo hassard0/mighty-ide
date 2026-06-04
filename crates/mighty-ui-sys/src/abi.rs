@@ -7011,13 +7011,25 @@ pub extern "C" fn mui_term_paste(handle: i64) -> i32 {
     }
 }
 
-/// Send a mouse-wheel scroll gesture to the PTY as repeated cursor movement.
-/// Positive dir scrolls up; negative dir scrolls down. No-op if not running.
+/// Send a mouse-wheel scroll gesture to the PTY. When a terminal app enabled
+/// mouse reporting, use the last scroll event's terminal cell coordinate;
+/// otherwise this falls back to repeated cursor movement for ordinary shells.
 #[no_mangle]
 pub extern "C" fn mui_term_scroll(handle: i64, dir: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        let region = layout::region(ctx.sidebar_visible);
+        let (_, height) = visible_surface_size(ctx);
+        let (rows, cols) = term_dims(ctx);
+        let grid_x = ctx.last_event.x - (layout::term_panel_left(region) + layout::PAD);
+        let grid_y = ctx.last_event.y - (layout::term_panel_top(height) + layout::term_header_h());
+        let col = ((grid_x / layout::CHAR_W()).floor() as isize)
+            .clamp(0, cols.saturating_sub(1) as isize) as usize
+            + 1;
+        let row = ((grid_y / layout::LINE_H()).floor() as isize)
+            .clamp(0, rows.saturating_sub(1) as isize) as usize
+            + 1;
         if let Some(t) = ctx.terminal.as_mut() {
-            t.send_scroll(dir);
+            t.send_scroll_at(dir, row, col);
         }
     }
 }

@@ -7916,3 +7916,13 @@ mode is active.
   drag, and any-motion reporting. Regression coverage verifies overlapping mouse
   modes survive independent disables and SGR encoding follows the aggregate
   reporting state.
+
+L652. Mouse wheel reports need the event cell. Xterm wheel events encode the
+terminal cell under the pointer; hardcoding `1;1` makes full-screen TUIs receive
+scrolls at the wrong location, especially in split panes and mouse-sensitive
+views.
+
+- **IDE note:** terminal scroll routing now maps the last scroll pixel to a
+  clamped 1-based terminal row/column before encoding legacy X10 or SGR wheel
+  reports. Regression coverage verifies coordinate-specific SGR and legacy
+  wheel bytes, plus X10 coordinate clamping.

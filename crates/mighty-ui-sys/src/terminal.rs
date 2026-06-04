@@ -1890,13 +1890,14 @@ impl Terminal {
         self.send(&bytes);
     }
 
-    /// Send a wheel gesture using mouse reporting when the running app requested
-    /// it; otherwise fall back to repeated cursor movement for ordinary shells.
-    pub fn send_scroll(&mut self, dir: i32) {
+    /// Send a wheel gesture at a 1-based terminal cell coordinate.
+    pub fn send_scroll_at(&mut self, dir: i32, row: usize, col: usize) {
         if let Some(bytes) = scroll_to_bytes(
             dir,
             self.parser.mouse_reporting_enabled(),
             self.parser.sgr_mouse_enabled(),
+            row,
+            col,
         ) {
             self.send(&bytes);
         }
@@ -2111,11 +2112,19 @@ pub fn paste_to_bytes(text: &str, bracketed: bool) -> Vec<u8> {
     bytes
 }
 
-pub fn scroll_to_bytes(dir: i32, mouse_reporting: bool, sgr_mouse: bool) -> Option<Vec<u8>> {
+pub fn scroll_to_bytes(
+    dir: i32,
+    mouse_reporting: bool,
+    sgr_mouse: bool,
+    row: usize,
+    col: usize,
+) -> Option<Vec<u8>> {
+    let row = row.max(1);
+    let col = col.max(1);
     if sgr_mouse {
         return match dir {
-            d if d > 0 => Some(b"\x1b[<64;1;1M".to_vec()),
-            d if d < 0 => Some(b"\x1b[<65;1;1M".to_vec()),
+            d if d > 0 => Some(format!("\x1b[<64;{col};{row}M").into_bytes()),
+            d if d < 0 => Some(format!("\x1b[<65;{col};{row}M").into_bytes()),
             _ => None,
         };
     }
@@ -2128,7 +2137,9 @@ pub fn scroll_to_bytes(dir: i32, mouse_reporting: bool, sgr_mouse: bool) -> Opti
         } else {
             return None;
         };
-        return Some(vec![0x1b, b'[', b'M', 32 + button, 33, 33]);
+        let x = (col.min(223) as u8) + 32;
+        let y = (row.min(223) as u8) + 32;
+        return Some(vec![0x1b, b'[', b'M', 32 + button, x, y]);
     }
 
     let key = if dir > 0 {
@@ -3522,40 +3533,56 @@ mod tests {
     #[test]
     fn scroll_bytes_send_repeated_cursor_moves() {
         assert_eq!(
-            scroll_to_bytes(1, false, false),
+            scroll_to_bytes(1, false, false, 1, 1),
             Some(b"\x1b[A\x1b[A\x1b[A".to_vec())
         );
         assert_eq!(
-            scroll_to_bytes(-1, false, false),
+            scroll_to_bytes(-1, false, false, 1, 1),
             Some(b"\x1b[B\x1b[B\x1b[B".to_vec())
         );
-        assert_eq!(scroll_to_bytes(0, false, false), None);
+        assert_eq!(scroll_to_bytes(0, false, false, 1, 1), None);
     }
 
     #[test]
     fn scroll_bytes_send_legacy_mouse_wheel_when_reporting_enabled() {
         assert_eq!(
-            scroll_to_bytes(1, true, false),
+            scroll_to_bytes(1, true, false, 1, 1),
             Some(vec![0x1b, b'[', b'M', 96, 33, 33])
         );
         assert_eq!(
-            scroll_to_bytes(-1, true, false),
-            Some(vec![0x1b, b'[', b'M', 97, 33, 33])
+            scroll_to_bytes(-1, true, false, 3, 7),
+            Some(vec![0x1b, b'[', b'M', 97, 39, 35])
         );
-        assert_eq!(scroll_to_bytes(0, true, false), None);
+        assert_eq!(
+            scroll_to_bytes(1, true, false, 999, 999),
+            Some(vec![0x1b, b'[', b'M', 96, 255, 255])
+        );
+        assert_eq!(scroll_to_bytes(0, true, false, 1, 1), None);
     }
 
     #[test]
-    fn scroll_bytes_send_sgr_mouse_wheel_when_enabled() {
+    fn scroll_bytes_send_sgr_mouse_wheel_at_event_cell_when_enabled() {
         assert_eq!(
-            scroll_to_bytes(1, true, true),
+            scroll_to_bytes(1, true, true, 1, 1),
             Some(b"\x1b[<64;1;1M".to_vec())
         );
         assert_eq!(
-            scroll_to_bytes(-1, true, true),
-            Some(b"\x1b[<65;1;1M".to_vec())
+            scroll_to_bytes(-1, true, true, 3, 7),
+            Some(b"\x1b[<65;7;3M".to_vec())
         );
-        assert_eq!(scroll_to_bytes(0, true, true), None);
+        assert_eq!(scroll_to_bytes(0, true, true, 1, 1), None);
+    }
+
+    #[test]
+    fn scroll_bytes_can_still_encode_origin_cell() {
+        assert_eq!(
+            scroll_to_bytes(-1, true, false, 1, 1),
+            Some(vec![0x1b, b'[', b'M', 97, 33, 33])
+        );
+        assert_eq!(
+            scroll_to_bytes(1, true, true, 1, 1),
+            Some(b"\x1b[<64;1;1M".to_vec())
+        );
     }
 
     #[test]
