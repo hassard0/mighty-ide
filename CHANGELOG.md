@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Debug action commands now own Debug focus**: start/continue, stop, pause,
+  step, restart, toggle breakpoint, and clear-breakpoints now release stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus after revealing Run and Debug.
 - **Search replace-focus source docs match the palette**: the command constant
   now documents that it opens Search before moving focus, and stale sidebar
   toggle wording in palette-ranking comments was updated.

@@ -8777,3 +8777,15 @@ wording by trusting the source comment instead of the palette row.
   before moving focus between query and replace, matching the static palette
   description. The palette ranking comment was also updated from the old
   `Toggle Sidebar` label to `View: Toggle Sidebar`.
+
+## L733 - Debug Actions Are Sidebar Ownership Changes
+
+Action commands that reveal Run and Debug should claim the same focus ownership
+as the plain Debug view command. Otherwise a hidden Run, Web, Testing, Terminal,
+AI, or Agents surface can keep handling the next input after the user triggers a
+debug action from the palette.
+
+- **IDE note:** Debug start/continue, stop, pause, step over/into/out, restart,
+  toggle breakpoint, and clear-breakpoints now clear competing surface focus and
+  transient search navigation after opening the Debug sidebar. The Mighty
+  dispatcher source-contract test covers every Debug action command.

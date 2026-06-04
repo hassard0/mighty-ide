@@ -10901,6 +10901,23 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _dp = mui_dbg_pause(h)"),
         "Debug pause and step commands must explicitly discard returned debug state"
     );
+    for (helper, call) in [
+        ("cmd_debug_start_continue", "let _st = mui_dbg_start(h)"),
+        ("cmd_debug_stop", "let _ds = mui_dbg_stop(h)"),
+        ("cmd_debug_step_over", "let _dso = mui_dbg_step_over(h)"),
+        ("cmd_debug_step_into", "let _dsi = mui_dbg_step_into(h)"),
+        ("cmd_debug_step_out", "let _dsout = mui_dbg_step_out(h)"),
+        ("cmd_debug_pause", "let _dp = mui_dbg_pause(h)"),
+        ("cmd_debug_restart", "let _dr = mui_dbg_restart(h)"),
+        ("cmd_debug_clear_breakpoints", "let _bpc = mui_bp_clear_all(h)"),
+    ] {
+        assert!(
+            main.contains(&format!(
+                "id == {helper}() {{\n          let _vp = mui_panel_set(h, panel_debug())\n          {call}\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            )),
+            "Debug action `{helper}` must claim the Debug sidebar and release competing focus"
+        );
+    }
     assert!(
         main.contains("id == cmd_debug_close()")
             && main.contains("let _dc = mui_dbg_close(h)")
@@ -10915,9 +10932,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Debug clear-session command must reveal Run and Debug and reset session state"
     );
     assert!(
-        main.contains("id == cmd_debug_toggle_breakpoint()")
-            && main.contains("let _bp = mui_bp_toggle_at_cursor(h)"),
-        "Debug toggle-breakpoint command must call the cursor breakpoint ABI"
+        main.contains(
+            "id == cmd_debug_toggle_breakpoint() {\n          let _bp = mui_bp_toggle_at_cursor(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Debug toggle-breakpoint command must call the cursor breakpoint ABI and release competing focus"
     );
     assert!(
         main.contains(

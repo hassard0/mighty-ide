@@ -5064,29 +5064,90 @@ fn main() {
         } else if id == cmd_debug_start_continue() {
           let _vp = mui_panel_set(h, panel_debug())
           let _st = mui_dbg_start(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_debug_stop() {
           let _vp = mui_panel_set(h, panel_debug())
           let _ds = mui_dbg_stop(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_debug_step_over() {
           let _vp = mui_panel_set(h, panel_debug())
           let _dso = mui_dbg_step_over(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_debug_step_into() {
           let _vp = mui_panel_set(h, panel_debug())
           let _dsi = mui_dbg_step_into(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_debug_step_out() {
           let _vp = mui_panel_set(h, panel_debug())
           let _dsout = mui_dbg_step_out(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_debug_pause() {
           let _vp = mui_panel_set(h, panel_debug())
           let _dp = mui_dbg_pause(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_debug_restart() {
           let _vp = mui_panel_set(h, panel_debug())
           let _dr = mui_dbg_restart(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_debug_toggle_breakpoint() {
           let _bp = mui_bp_toggle_at_cursor(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_debug_clear_breakpoints() {
           let _vp = mui_panel_set(h, panel_debug())
           let _bpc = mui_bp_clear_all(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id >= cmd_ws_first() && id <= cmd_ws_last() {
