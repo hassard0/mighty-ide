@@ -8338,3 +8338,13 @@ the Search panel header should expose that cleanup next to the local run action.
   dedicated clear action code, Mighty routes it before result-row hit-testing,
   and regression coverage verifies focus behavior, action codes, and dispatcher
   ordering while preserving the command-palette clear path.
+
+L693. Source Control drafts should be locally clearable from the message box.
+The palette command preserves status and panel state, but when a commit message
+is visibly wrong the fastest safe cleanup is a clear affordance in that field.
+
+- **IDE note:** the Source Control commit-message box now includes a compact
+  clear button that routes through the existing message-clear ABI. The message
+  text is measured to stop before the button, and Mighty handles that click
+  before change-row stage/open actions. Tests cover the button hit/miss behavior
+  and dispatcher ordering while keeping the palette command path intact.

@@ -594,6 +594,13 @@ pub(crate) fn fit_scm_header(
     fit_head_px(text, &tracked, max_px, size)
 }
 
+pub(crate) fn scm_message_clear_rect(sx: f32, sw: f32) -> (f32, f32, f32, f32) {
+    let head_h = 40.0;
+    let box_y = head_h + 8.0;
+    let size = 24.0;
+    (sx + sw - 38.0, box_y + 7.0, size, size)
+}
+
 pub(crate) fn scm_header_title_for_budget(
     text: &mut crate::text::Text,
     sx: f32,
@@ -669,6 +676,26 @@ pub(crate) fn scm_section_branch_budget(
     branch_right - branch_left - 16.0 - ab_w
 }
 
+/// `1` if the last click landed on the Source Control commit-message clear
+/// affordance, else `0`.
+#[no_mangle]
+pub extern "C" fn mui_scm_message_clear_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_SCM {
+        return 0;
+    }
+    let (x, y) = (ctx.last_event.x, ctx.last_event.y);
+    let (rx, ry, rw, rh) = scm_message_clear_rect(layout::RAIL_W, layout::sidebar_w());
+    if x >= rx && x <= rx + rw && y >= ry && y <= ry + rh {
+        crate::abi::trace("scm_message_clear hit");
+        1
+    } else {
+        0
+    }
+}
+
 /// Draw the Source Control panel (header + branch/ahead-behind, commit-message
 /// box + Commit affordance, changes list with colored status badges + file
 /// icons). No-op when the sidebar is hidden or this panel isn't active.
@@ -723,8 +750,12 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
     } else {
         (msg, theme::TEXT())
     };
-    let shown = fit_tail_px(&mut ctx.text, &msg_text, sw - 36.0, chrome);
+    let (clear_x, clear_y, clear_w, clear_h) = scm_message_clear_rect(sx, sw);
+    let clear_col = if ctx.scm.message.is_empty() { theme::TEXT_4() } else { theme::TEXT_3() };
+    let shown = fit_tail_px(&mut ctx.text, &msg_text, (clear_x - 8.0 - (sx + 18.0)).max(0.0), chrome);
     ctx.text.queue_ui_sized(sx + 18.0, box_y + (box_h - chrome) * 0.5 - 1.0, &shown, msg_col, chrome, clip);
+    ctx.dl_stroke(clear_x, clear_y, clear_w, clear_h, 5.0, theme::BORDER_SOFT(), 1.0);
+    ctx.dl_icon(clear_x + 4.5, clear_y + 4.5, 15.0, 15.0, icons::TRASH, clear_col, 1.5, false);
 
     // section header + branch pill
     let branch = ctx.scm.status.branch.clone();

@@ -5235,6 +5235,44 @@ fn scm_clear_message_command_preserves_status_and_panel() {
 }
 
 #[test]
+fn scm_message_clear_button_hits_commit_message_box() {
+    use crate::ffi::MuiEvent;
+
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+    ctx.active_panel = crate::PANEL_SCM;
+    ctx.sidebar_visible = true;
+    ctx.scm.message = "draft commit".chars().collect();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let sx = crate::layout::RAIL_W;
+    let sw = crate::layout::sidebar_w();
+    let (x, y, w, hrect) = crate::panels::scm_message_clear_rect(sx, sw);
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect * 0.5,
+        0,
+    );
+    assert_eq!(crate::panels::mui_scm_message_clear_at_click(h), 1);
+    assert_eq!(crate::panels::mui_scm_clear_message(h), 1);
+    assert_eq!(ctx.scm.message_string(), "");
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect + 12.0,
+        0,
+    );
+    assert_eq!(crate::panels::mui_scm_message_clear_at_click(h), 0);
+    crate::layout::reset_sidebar_preset();
+}
+
+#[test]
 fn scm_header_fits_before_action_buttons() {
     let mut ctx = ctx_or_skip!();
     let sx = crate::layout::RAIL_W;
@@ -10177,6 +10215,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _gcm = mui_scm_clear_message(h)")
             && main.contains("find_nav = false"),
         "Source Control clear-message command must clear only the commit draft"
+    );
+    assert!(
+        main.contains("fn mui_scm_message_clear_at_click(handle: I64) -> I32")
+            && main.contains("let scm_msg_clear = mui_scm_message_clear_at_click(h)")
+            && main.contains("let scm_hit = if scm_msg_clear == 1 { 0 - 1 } else { mui_scm_row_at_click(h) }")
+            && main.contains("if scm_msg_clear == 1 {\n            let _gcm = mui_scm_clear_message(h)"),
+        "Source Control message clear clicks must dispatch before change-row actions"
     );
     assert!(
         main.contains("id == cmd_search_clear_results()")

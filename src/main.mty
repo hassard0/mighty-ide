@@ -280,6 +280,7 @@ extern c {
   fn mui_scm_msg_backspace(handle: I64)
   fn mui_scm_msg_len(handle: I64) -> I32
   fn mui_scm_clear_message(handle: I64) -> I32
+  fn mui_scm_message_clear_at_click(handle: I64) -> I32
   fn mui_scm_commit(handle: I64) -> I32
   fn mui_scm_draw(handle: I64)
   // Search panel (project-wide find/replace)
@@ -3746,8 +3747,12 @@ fn main() {
           // then stage/unstage (right-edge action button) or — on the row body —
           // open the file as a tab AND show its inline diff.
           let scm_act = mui_scm_header_action_at_click(h)
-          let scm_hit = mui_scm_row_at_click(h)
-          if scm_act > 0 {
+          let scm_msg_clear = mui_scm_message_clear_at_click(h)
+          let scm_hit = if scm_msg_clear == 1 { 0 - 1 } else { mui_scm_row_at_click(h) }
+          if scm_msg_clear == 1 {
+            let _gcm = mui_scm_clear_message(h)
+            find_nav = false
+          } else if scm_act > 0 {
             if scm_act == 1 {
               let _c = mui_scm_commit(h)
             } else if scm_act == 2 {
