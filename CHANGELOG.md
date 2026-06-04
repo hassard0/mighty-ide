@@ -41,7 +41,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   bleed from the previous tab before the next diagnostics refresh.
 - **Tab switches close stale language popups**: active-file sync now also clears
   hover, definition, signature-help, completion, code-action, and quick-fix
-  lightbulb state so transient language UI cannot follow the wrong tab.
+  lightbulb state, and closes inline peek cards, so transient language UI cannot
+  follow the wrong tab.
 - **Workspace edits protect dirty duplicate tabs**: code actions and rename
   workspace edits now skip a target path when any equivalent non-active tab is
   dirty, including duplicate views of the active file, avoiding disk writes
