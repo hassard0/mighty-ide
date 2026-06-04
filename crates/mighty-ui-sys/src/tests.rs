@@ -1955,6 +1955,45 @@ fn test_clear_results_reports_feedback_and_preserves_context() {
 }
 
 #[test]
+fn test_toolbar_clear_action_hits_visible_button() {
+    use crate::ffi::{MuiEvent, MUI_EVENT_MOUSE_DOWN, MUI_MOUSE_LEFT};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_TEST;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let (x, y, w, hrect) = crate::testabi::test_toolbar_clear_rect();
+
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect * 0.5,
+        0,
+    );
+    assert_eq!(crate::testabi::mui_test_toolbar_at_click(handle), crate::testabi::TB_CLEAR);
+
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect + 12.0,
+        0,
+    );
+    assert_eq!(crate::testabi::mui_test_toolbar_at_click(handle), -1);
+
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect * 0.5,
+        0,
+    );
+    assert_eq!(crate::testabi::mui_test_toolbar_at_click(handle), -1);
+}
+
+#[test]
 fn test_close_command_acknowledges_state_without_clearing_results() {
     let mut ctx = ctx_or_skip!();
     ctx.active_panel = crate::PANEL_TEST;
@@ -10498,6 +10537,14 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _tc = mui_test_clear(h)")
             && main.contains("test_focus = true"),
         "Test clear-results command must reveal Testing before clearing parsed results"
+    );
+    assert!(
+        main.contains("fn test_tb_clear() -> I32 { 3 }")
+            && main.contains("tb_hit == test_tb_clear()")
+            && main.contains("let _tc = mui_test_clear(h)")
+            && main.find("tb_hit == test_tb_clear()")
+                < main.find("let trow = mui_test_row_at_click(h)"),
+        "Testing toolbar clear clicks must dispatch before result-row navigation"
     );
     assert!(
         main.contains("id == cmd_test_close()")

@@ -8367,3 +8367,12 @@ place.
   beside the existing run/stop/open controls. The Web click ABI returns a
   dedicated clear code, Mighty routes it through `mui_web_clear`, and tests cover
   hit/miss behavior plus dispatcher wiring while preserving the command path.
+
+L696. Testing results need a local clear action in the toolbar. The command
+palette can clear parsed rows, but the Testing panel's visible workflow is
+toolbar-driven, so cleanup should sit beside Run and Stop before row clicks.
+
+- **IDE note:** the Testing toolbar now includes an icon-only clear-results
+  button. The toolbar ABI returns a dedicated clear code, Mighty routes it
+  through `mui_test_clear` before result-row navigation, and tests cover hit/miss
+  behavior plus dispatcher wiring while preserving the palette command path.

@@ -1058,9 +1058,10 @@ fn outline_tb_clear() -> I32 { 2 }
 fn problems_tb_refresh() -> I32 { 1 }
 fn problems_tb_clear() -> I32 { 2 }
 fn search_tb_clear() -> I32 { 3 }
-// Test toolbar click codes (mirror TB_RUN/TB_STOP in testabi.rs).
+// Test toolbar click codes (mirror TB_RUN/TB_STOP/TB_CLEAR in testabi.rs).
 fn test_tb_run() -> I32 { 1 }
 fn test_tb_stop() -> I32 { 2 }
+fn test_tb_clear() -> I32 { 3 }
 
 // Chord predicates spelled as flat boolean expressions (no juxtaposed parens,
 // L20) so native codegen accepts them.
@@ -2235,6 +2236,8 @@ fn main() {
             let _r = mui_test_run(h)
           } else if tb_hit == test_tb_stop() {
             let _ts = mui_test_stop(h)
+          } else if tb_hit == test_tb_clear() {
+            let _tc = mui_test_clear(h)
           } else {
             let trow = mui_test_row_at_click(h)
             if trow >= 0 {
@@ -3744,6 +3747,9 @@ fn main() {
             test_focus = true
           } else if tb_hit == test_tb_stop() {
             let _ts = mui_test_stop(h)
+          } else if tb_hit == test_tb_clear() {
+            let _tc = mui_test_clear(h)
+            test_focus = true
           } else {
             let trow = mui_test_row_at_click(h)
             if trow >= 0 {

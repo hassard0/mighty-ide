@@ -705,12 +705,14 @@ fn testing_state_label(running: bool, final_summary: bool, total: usize, failed:
     }
 }
 
-/// Geometry of the toolbar Run/Re-run + Stop buttons (under the header).
+/// Geometry of the toolbar Run/Re-run + Stop + Clear buttons (under the header).
 struct ToolbarGeom {
     run_x: f32,
     stop_x: f32,
+    clear_x: f32,
     y: f32,
     btn_w: f32,
+    clear_w: f32,
     btn_h: f32,
     compact: bool,
 }
@@ -719,13 +721,18 @@ fn toolbar_geom() -> ToolbarGeom {
     let sx = layout::RAIL_W;
     let sw = layout::sidebar_w();
     let gap = 8.0;
-    let btn_w = ((sw - 24.0 - gap) / 2.0).clamp(72.0, 96.0);
+    let clear_w = 32.0;
+    let btn_w = ((sw - 24.0 - clear_w - gap * 2.0) / 2.0).clamp(72.0, 96.0);
     let compact = btn_w < 90.0;
+    let run_x = sx + 12.0;
+    let stop_x = run_x + btn_w + gap;
     ToolbarGeom {
-        run_x: sx + 12.0,
-        stop_x: sx + 12.0 + btn_w + gap,
+        run_x,
+        stop_x,
+        clear_x: stop_x + btn_w + gap,
         y: HEAD_H + 8.0,
         btn_w,
+        clear_w,
         btn_h: 30.0,
         compact,
     }
@@ -734,8 +741,9 @@ fn toolbar_geom() -> ToolbarGeom {
 /// Toolbar action codes returned by [`mui_test_toolbar_at_click`].
 pub const TB_RUN: i32 = 1;
 pub const TB_STOP: i32 = 2;
+pub const TB_CLEAR: i32 = 3;
 
-/// Map the last click to a Test toolbar action (`TB_RUN` / `TB_STOP`), or `-1`.
+/// Map the last click to a Test toolbar action, or `-1`.
 #[no_mangle]
 pub extern "C" fn mui_test_toolbar_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -755,7 +763,16 @@ pub extern "C" fn mui_test_toolbar_at_click(handle: i64) -> i32 {
     if x >= tb.stop_x && x <= tb.stop_x + tb.btn_w {
         return TB_STOP;
     }
+    if x >= tb.clear_x && x <= tb.clear_x + tb.clear_w {
+        return TB_CLEAR;
+    }
     -1
+}
+
+#[cfg(test)]
+pub(crate) fn test_toolbar_clear_rect() -> (f32, f32, f32, f32) {
+    let tb = toolbar_geom();
+    (tb.clear_x, tb.y, tb.clear_w, tb.btn_h)
 }
 
 /// Draw the Testing view sidebar panel (toolbar + summary bar + results tree).
@@ -813,7 +830,7 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     ctx.dl_round(pill_x, pill_y, pill_w, 17.0, 6.0, theme::BG_4());
     ctx.text.queue_ui_sized(pill_x + 9.0, pill_y + 2.5, state_label, state_col, chrome - 2.0, clip);
 
-    // Toolbar: Run/Re-run + Stop buttons.
+    // Toolbar: Run/Re-run + Stop + Clear buttons.
     let tb = toolbar_geom();
     let ran = ctx.tests_panel.total() > 0 || ctx.tests_panel.row_count() > 0;
     let run_label = testing_run_label(ran, tb.compact);
@@ -833,6 +850,19 @@ pub extern "C" fn mui_test_draw(handle: i64) {
     ctx.dl_icon(tb.stop_x + 9.0, tb.y + (tb.btn_h - 12.0) * 0.5, 12.0, 12.0, icons::DBG_STOP, stop_col, 1.4, true);
     let stop_label_size = testing_stop_label_size(tb.compact);
     ctx.text.queue_ui_sized(tb.stop_x + 28.0, tb.y + (tb.btn_h - stop_label_size) * 0.5 - 1.0, "Stop", stop_col, stop_label_size, clip);
+    // Clear button (icon-only): clears parsed results without stopping a run.
+    ctx.dl_round(tb.clear_x, tb.y, tb.clear_w, tb.btn_h, 7.0, theme::BG_4());
+    ctx.dl_stroke(tb.clear_x, tb.y, tb.clear_w, tb.btn_h, 7.0, theme::BORDER_STRONG(), 1.0);
+    ctx.dl_icon(
+        tb.clear_x + (tb.clear_w - 13.0) * 0.5,
+        tb.y + (tb.btn_h - 13.0) * 0.5,
+        13.0,
+        13.0,
+        icons::TRASH,
+        theme::TEXT_3(),
+        1.4,
+        false,
+    );
 
     // Summary line + a proportional pass/fail bar.
     let sum_y = tb.y + tb.btn_h + 8.0;
