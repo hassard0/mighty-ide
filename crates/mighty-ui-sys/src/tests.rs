@@ -448,6 +448,70 @@ fn save_staging_writes_then_load_reads_back_round_trip() {
     let _ = std::fs::remove_file(&path);
 }
 
+#[test]
+fn save_staging_refreshes_clean_open_tabs() {
+    use crate::{mui_path_commit, mui_path_push, mui_save_commit, mui_save_push};
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let dir = std::env::temp_dir();
+    let path = dir.join("mui_save_staging_clean_open.txt");
+    let _ = std::fs::remove_file(&path);
+    std::fs::write(&path, b"old\n").unwrap();
+
+    let idx = ctx.tabs.open_path(path.clone());
+    assert_eq!(ctx.tabs.get(idx).unwrap().model.as_text(), "old\n");
+    assert!(!ctx.tabs.is_dirty(idx));
+    for b in path.to_string_lossy().as_bytes() {
+        mui_path_push(handle, *b as u32);
+    }
+    mui_path_commit(handle);
+    for b in b"new staged\n" {
+        mui_save_push(handle, *b as u32);
+    }
+
+    assert_eq!(mui_save_commit(handle), 0);
+    assert_eq!(std::fs::read(&path).unwrap(), b"new staged\n");
+    assert_eq!(ctx.tabs.get(idx).unwrap().model.as_text(), "new staged\n");
+    assert!(!ctx.tabs.is_dirty(idx));
+
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn save_staging_refuses_dirty_open_tab() {
+    use crate::{mui_path_commit, mui_path_push, mui_save_commit, mui_save_push};
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let dir = std::env::temp_dir();
+    let path = dir.join("mui_save_staging_dirty_open.txt");
+    let _ = std::fs::remove_file(&path);
+    std::fs::write(&path, b"old\n").unwrap();
+
+    let idx = ctx.tabs.open_path(path.clone());
+    ctx.tabs
+        .get_mut(idx)
+        .unwrap()
+        .model
+        .set_text_preserving_cursor("dirty local\n");
+    ctx.tabs.set_dirty(idx, true);
+    for b in path.to_string_lossy().as_bytes() {
+        mui_path_push(handle, *b as u32);
+    }
+    mui_path_commit(handle);
+    for b in b"staged overwrite\n" {
+        mui_save_push(handle, *b as u32);
+    }
+
+    assert_eq!(mui_save_commit(handle), -1);
+    assert_eq!(std::fs::read(&path).unwrap(), b"old\n");
+    assert_eq!(ctx.tabs.get(idx).unwrap().model.as_text(), "dirty local\n");
+    assert!(ctx.tabs.is_dirty(idx));
+
+    let _ = std::fs::remove_file(&path);
+}
+
 // ---- multi-file workspace ABI (tabs + tree + click routing) ----
 
 #[test]

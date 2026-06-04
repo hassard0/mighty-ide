@@ -3222,8 +3222,15 @@ pub extern "C" fn mui_save_commit(handle: i64) -> i32 {
         eprintln!("mui_save_commit: no file path set");
         return -1;
     };
+    if ctx.tabs.any_dirty_path(&path) {
+        eprintln!("mui_save_commit({}): skipped dirty open tab", path.display());
+        return -1;
+    }
     match std::fs::write(&path, &ctx.save_buf) {
-        Ok(()) => 0,
+        Ok(()) => {
+            let _ = ctx.tabs.reload_all_clean_path(&path, &ctx.save_buf);
+            0
+        }
         Err(e) => {
             eprintln!("mui_save_commit({}): {e}", path.display());
             -1

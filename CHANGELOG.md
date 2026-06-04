@@ -14,7 +14,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 ### Editing & layout
 - **Saves handle duplicate tabs coherently**: manual Save, Save All, and
   autosave now refuse conflicting dirty duplicate views of the same file, and
-  refresh clean duplicate views after successful writes.
+  refresh clean duplicate views after successful writes. The scalar staged-save
+  ABI now follows the same dirty-open-tab guard and clean-tab refresh rule.
 - **Reload and revert refresh clean duplicate tabs**: reloading or reverting a
   file-backed tab now updates every clean duplicate view of the same file while
   leaving dirty duplicate buffers untouched.

@@ -10658,7 +10658,9 @@ otherwise the IDE displays stale clean content for a file that was just saved.
 
 - **IDE note:** manual Save, Save All, autosave, and Save As now refresh clean
   equivalent tabs after a successful write, excluding the tab that performed the
-  save so its undo history and cursor state stay intact.
+  save so its undo history and cursor state stay intact. The scalar staged-save
+  ABI also refuses writes when the target file is dirty in any open tab and
+  refreshes clean open views after a successful staged write.
 - **Language note:** no compiler gap surfaced. Successful writes should fan out
   to every clean view of the resource, while dirty views remain protected by the
   conflict preflight.
