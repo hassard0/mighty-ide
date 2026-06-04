@@ -59,6 +59,7 @@ const DEFAULT_CURSOR_RGB: (u8, u8, u8) = (0x7c, 0x5c, 0xff);
 const MAX_OSC_BYTES: usize = 8192;
 const MAX_OSC_52_DECODED_BYTES: usize = 6144;
 const MAX_OSC_52_TEXT_CHARS: usize = 4096;
+const MAX_TITLE_STACK_DEPTH: usize = 16;
 const MOUSE_MODE_BUTTON: u8 = 1 << 0; // DECSET ?1000
 const MOUSE_MODE_DRAG: u8 = 1 << 1; // DECSET ?1002
 const MOUSE_MODE_ANY: u8 = 1 << 2; // DECSET ?1003
@@ -916,6 +917,8 @@ pub struct VtParser {
     palette_rgb: [(u8, u8, u8); 256],
     /// Last window/icon title reported by OSC 0/1/2.
     title: String,
+    /// Saved xterm title stack entries from window ops `CSI 22 t` / `CSI 23 t`.
+    title_stack: Vec<String>,
     /// Last current working directory reported by OSC 7.
     current_dir: String,
     /// Last decoded OSC 52 clipboard write request, drained by the UI bridge.
@@ -973,6 +976,7 @@ impl VtParser {
             cursor_rgb: DEFAULT_CURSOR_RGB,
             palette_rgb: std::array::from_fn(|index| palette_rgb8(index as u32)),
             title: String::new(),
+            title_stack: Vec::new(),
             current_dir: String::new(),
             clipboard_write: None,
         }
@@ -1808,6 +1812,7 @@ impl VtParser {
         self.reset_modes();
         self.reset_color_state();
         self.title.clear();
+        self.title_stack.clear();
         self.current_dir.clear();
         self.osc.clear();
         self.csi.clear();
@@ -2239,7 +2244,22 @@ impl VtParser {
                 let report = format!("\x1b[8;{};{}t", grid.rows(), grid.cols());
                 self.reply.extend_from_slice(report.as_bytes());
             }
+            "22" | "22;0" | "22;1" | "22;2" => self.save_title(),
+            "23" | "23;0" | "23;1" | "23;2" => self.restore_title(),
             _ => {}
+        }
+    }
+
+    fn save_title(&mut self) {
+        if self.title_stack.len() == MAX_TITLE_STACK_DEPTH {
+            self.title_stack.remove(0);
+        }
+        self.title_stack.push(self.title.clone());
+    }
+
+    fn restore_title(&mut self) {
+        if let Some(title) = self.title_stack.pop() {
+            self.title = title;
         }
     }
 
@@ -5038,7 +5058,9 @@ mod tests {
               \x1b]11;#040506\x07\
               \x1b]12;#070809\x07\
               \x1b]4;1;#0a0b0c\x07\
+              \x1b[22t\
               \x1bc\
+              \x1b[23t\
               \x1b]10;?\x07\x1b]11;?\x07\x1b]12;?\x07\x1b]4;1;?\x07Z",
         );
 
@@ -5057,6 +5079,8 @@ mod tests {
         assert_eq!(p.foreground_rgba(1), rgb8_rgba((0xcc, 0x40, 0x40), 1.0));
         assert!(g.contains("Z"));
         assert!(!g.contains("custom title"));
+        assert!(!g.contains("22t"));
+        assert!(!g.contains("23t"));
     }
 
     #[test]
@@ -5773,6 +5797,45 @@ mod tests {
         p.feed(&mut g, b"\x1b[19t");
         assert_eq!(p.take_reply(), b"\x1b[8;12;80t");
         assert!(!g.contains("19t"));
+    }
+
+    #[test]
+    fn window_title_stack_ops_save_and_restore_title() {
+        let mut g = Grid::new(2, 32);
+        let mut p = VtParser::new();
+        p.feed(
+            &mut g,
+            b"\x1b]0;outer\x07\x1b[22t\x1b]0;inner\x07\x1b[23tdone",
+        );
+
+        assert_eq!(p.title(), "outer");
+        assert!(g.contains("done"));
+        assert!(!g.contains("outer"));
+        assert!(!g.contains("inner"));
+        assert!(!g.contains("22t"));
+        assert!(!g.contains("23t"));
+    }
+
+    #[test]
+    fn window_title_stack_restores_empty_titles_and_bounds_depth() {
+        let mut g = Grid::new(2, 48);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b[22t\x1b]0;inner\x07\x1b[23t");
+        assert_eq!(p.title(), "");
+
+        for i in 0..20 {
+            let seq = format!("\x1b]0;t{i}\x07\x1b[22t");
+            p.feed(&mut g, seq.as_bytes());
+        }
+        p.feed(&mut g, b"\x1b]0;active\x07");
+        for _ in 0..16 {
+            p.feed(&mut g, b"\x1b[23t");
+        }
+
+        assert_eq!(p.title(), "t4");
+        p.feed(&mut g, b"\x1b[23t");
+        assert_eq!(p.title(), "t4");
+        assert!(!g.contains("active"));
     }
 
     #[test]

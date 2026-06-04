@@ -9518,3 +9518,17 @@ bytes into the visible terminal grid.
 - **Language note:** no compiler gap surfaced. Terminal metadata parsers should
   keep small, protocol-specific decoders near the control sequence they support
   so UI bridges can expose shell context without depending on grid text.
+
+## L785 - Window Ops Can Own Terminal Metadata
+
+Some terminal applications save the current title before taking over the screen
+and restore it on exit with xterm window operations, not OSC title strings. If a
+parser only consumes those `CSI 22 t` and `CSI 23 t` controls, the visible panel
+title can stay stuck on the application after it exits.
+
+- **IDE note:** the terminal parser now keeps a bounded xterm title stack,
+  handles title save/restore window operations, restores empty titles correctly,
+  and clears the stack on full terminal reset.
+- **Language note:** no compiler gap surfaced. Metadata-affecting CSI controls
+  deserve the same stateful tests as printable-grid controls because their bugs
+  show up in chrome and focus context rather than in terminal cell text.

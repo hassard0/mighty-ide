@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Terminal restores saved xterm titles**: window-operation title stack
+  controls (`CSI 22 t` / `CSI 23 t`) now save and restore OSC titles, keeping
+  full-screen terminal apps from leaving stale panel titles behind.
 - **Terminal tracks OSC 7 working directories**: shells that report their current
   directory with OSC 7 now update terminal metadata without leaking URI bytes
   into the grid, and the terminal header can fall back to that path when no
