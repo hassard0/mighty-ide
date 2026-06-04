@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Sidebar action commands now claim their panels**: Explorer refresh/collapse,
+  Search run/clear/replace/toggle, and Outline refresh/clear now release stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus after revealing their sidebar
+  panel.
 - **Sidebar view and Source Control actions release stale focus**: Explorer,
   Search, Source Control, and Outline view commands now drop stale AI focus, and
   Source Control refresh/stage/unstage/commit/clear-message commands release

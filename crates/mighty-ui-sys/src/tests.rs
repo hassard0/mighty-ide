@@ -10651,17 +10651,16 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Unsaved Changes cancel command must clear the dirty-confirmation overlay"
     );
     assert!(
-        main.contains("id == cmd_explorer_collapse_all()")
-            && main.contains("let _vp = mui_panel_set(h, panel_explorer())")
-            && main.contains("mui_tree_collapse_all(h)"),
-        "Explorer collapse-all command must reveal Explorer before collapsing the tree"
+        main.contains(
+            "id == cmd_explorer_collapse_all() {\n          let _vp = mui_panel_set(h, panel_explorer())\n          mui_tree_collapse_all(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Explorer collapse-all command must reveal Explorer before collapsing the tree and release competing focus"
     );
     assert!(
-        main.contains("id == cmd_explorer_refresh()")
-            && main.contains("let _vp = mui_panel_set(h, panel_explorer())")
-            && main.contains("let _tr = mui_tree_refresh(h)")
-            && main.contains("let _qr = mui_quickopen_reindex(h)"),
-        "Explorer refresh command must reveal Explorer and refresh both tree and Quick Open index"
+        main.contains(
+            "id == cmd_explorer_refresh() {\n          let _vp = mui_panel_set(h, panel_explorer())\n          let _tr = mui_tree_refresh(h)\n          let _qr = mui_quickopen_reindex(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Explorer refresh command must reveal Explorer, refresh tree/Quick Open, and release competing focus"
     );
     assert!(
         main.contains("id == cmd_explorer_close()")
@@ -10733,11 +10732,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Source Control bulk-stage header clicks must dispatch before change-row actions"
     );
     assert!(
-        main.contains("id == cmd_search_clear_results()")
-            && main.contains("let _vp = mui_panel_set(h, panel_search())")
-            && main.contains("let _scr = mui_search_clear_results(h)")
-            && main.contains("find_nav = false"),
-        "Search clear-results command must clear only result rows while keeping Search visible"
+        main.contains(
+            "id == cmd_search_clear_results() {\n          let _vp = mui_panel_set(h, panel_search())\n          let _scr = mui_search_clear_results(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Search clear-results command must keep Search visible and release competing focus"
     );
     assert!(
         main.contains("fn search_tb_clear() -> I32 { 3 }")
@@ -10781,17 +10779,16 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Problems close command must route through the Problems-specific close ABI"
     );
     assert!(
-        main.contains("id == cmd_outline_refresh()")
-            && main.contains("let _vp = mui_panel_set(h, panel_outline())")
-            && main.contains("let _or = mui_outline_refresh(h)"),
-        "Outline refresh command must reveal Outline before refreshing symbols"
+        main.contains(
+            "id == cmd_outline_refresh() {\n          let _vp = mui_panel_set(h, panel_outline())\n          let _or = mui_outline_refresh(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Outline refresh command must reveal Outline before refreshing symbols and release competing focus"
     );
     assert!(
-        main.contains("id == cmd_outline_clear_symbols()")
-            && main.contains("let _vp = mui_panel_set(h, panel_outline())")
-            && main.contains("let _ocs = mui_outline_clear_symbols(h)")
-            && main.contains("find_nav = false"),
-        "Outline clear command must clear symbols while keeping Outline visible"
+        main.contains(
+            "id == cmd_outline_clear_symbols() {\n          let _vp = mui_panel_set(h, panel_outline())\n          let _ocs = mui_outline_clear_symbols(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Outline clear command must clear symbols while keeping Outline visible and release competing focus"
     );
     assert!(
         main.contains("id == cmd_outline_close()")
@@ -11299,16 +11296,34 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _bc = mui_blame_close(h)"),
         "Git hide-blame command must call the dedicated blame close ABI"
     );
-    for (helper, action) in [
-        ("cmd_search_run", "mui_search_run(h)"),
-        ("cmd_search_replace_all", "mui_search_replace_all(h)"),
-        ("cmd_search_toggle_replace", "mui_search_toggle_focus(h)"),
+    for (helper, next_helper, action) in [
+        ("cmd_search_run", "cmd_search_clear_results", "mui_search_run(h)"),
+        (
+            "cmd_search_replace_all",
+            "cmd_search_toggle_replace",
+            "mui_search_replace_all(h)",
+        ),
+        (
+            "cmd_search_toggle_replace",
+            "cmd_search_close",
+            "mui_search_toggle_focus(h)",
+        ),
     ] {
+        let start = main
+            .find(&format!("id == {helper}() {{"))
+            .unwrap_or_else(|| panic!("expected Search command branch for `{helper}`"));
+        let end = main[start..]
+            .find(&format!("}} else if id == {next_helper}()"))
+            .map(|p| start + p)
+            .unwrap_or_else(|| panic!("expected branch after `{helper}` to start `{next_helper}`"));
+        let block = &main[start..end];
         assert!(
-            main.contains(&format!("id == {helper}()"))
-                && main.contains("let _vp = mui_panel_set(h, panel_search())")
-                && main.contains(action),
-            "Search command `{helper}` must reveal Search before invoking `{action}`"
+            block.contains("let _vp = mui_panel_set(h, panel_search())")
+                && block.contains(action)
+                && block.contains(
+                    "run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+                ),
+            "Search command `{helper}` must reveal Search before invoking `{action}` and release competing focus"
         );
     }
     assert!(

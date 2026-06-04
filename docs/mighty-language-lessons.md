@@ -8828,3 +8828,15 @@ the visible sidebar.
   clear-message commands also release the full competing-focus set after
   revealing SCM. The dispatcher source-contract test checks each local command
   branch.
+
+## L737 - Sidebar Action Commands Are View Selections Too
+
+Commands that mutate a sidebar panel often begin by revealing that panel. They
+should therefore own focus like the corresponding `View:` command, even if the
+action itself is refresh, clear, run, replace, or collapse.
+
+- **IDE note:** Explorer refresh/collapse-all, Search run/clear-results/
+  replace-all/toggle-replace, and Outline refresh/clear-symbols now release the
+  full stale Run/Web/Testing/Terminal/AI/Agents/search focus set after selecting
+  their sidebar panel. The dispatcher test scopes assertions to each affected
+  command branch.

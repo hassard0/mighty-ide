@@ -4177,11 +4177,21 @@ fn main() {
           let _vp = mui_panel_set(h, panel_explorer())
           let _tr = mui_tree_refresh(h)
           let _qr = mui_quickopen_reindex(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_explorer_collapse_all() {
           let _vp = mui_panel_set(h, panel_explorer())
           mui_tree_collapse_all(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_explorer_close() {
@@ -4953,21 +4963,41 @@ fn main() {
         } else if id == cmd_search_run() {
           let _vp = mui_panel_set(h, panel_search())
           let _c = mui_search_run(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_search_clear_results() {
           let _vp = mui_panel_set(h, panel_search())
           let _scr = mui_search_clear_results(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_search_replace_all() {
           let _vp = mui_panel_set(h, panel_search())
           let _r = mui_search_replace_all(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_search_toggle_replace() {
           let _vp = mui_panel_set(h, panel_search())
           let _f = mui_search_toggle_focus(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_search_close() {
@@ -4999,11 +5029,21 @@ fn main() {
         } else if id == cmd_outline_refresh() {
           let _vp = mui_panel_set(h, panel_outline())
           let _or = mui_outline_refresh(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_outline_clear_symbols() {
           let _vp = mui_panel_set(h, panel_outline())
           let _ocs = mui_outline_clear_symbols(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_outline_close() {
