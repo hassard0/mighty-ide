@@ -11619,6 +11619,65 @@ fn autosave_refreshes_clean_duplicate_tab() {
 }
 
 #[test]
+fn autosave_debounce_resets_when_active_path_changes() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    let mut settings = before;
+    settings.autosave = true;
+    crate::settings::set_active(settings);
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_autosave_path_sync_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let first = root.join("first.mty");
+    let second = root.join("second.mty");
+    std::fs::write(&first, "first saved\n").unwrap();
+    std::fs::write(&second, "second saved\n").unwrap();
+
+    let first_idx = ctx.tabs.open_path(first.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("same dirty text\n");
+    ctx.tabs.set_dirty(first_idx, true);
+    let second_idx = ctx.tabs.open_path(second.clone());
+    ctx.tabs.switch(second_idx);
+    crate::sync_active_path(&mut ctx);
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("same dirty text\n");
+    ctx.tabs.set_dirty(second_idx, true);
+
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    crate::mui_autosave_touch(h);
+    assert_eq!(crate::mui_autosave_tick(h), 0);
+    std::thread::sleep(std::time::Duration::from_millis(
+        crate::savefmt::AUTOSAVE_IDLE_MS as u64 + 50,
+    ));
+
+    ctx.tabs.switch(first_idx);
+    crate::sync_active_path(&mut ctx);
+    assert_eq!(crate::mui_autosave_tick(h), 0);
+    assert_eq!(std::fs::read_to_string(&first).unwrap(), "first saved\n");
+    assert!(ctx.tabs.is_dirty(first_idx));
+
+    std::thread::sleep(std::time::Duration::from_millis(
+        crate::savefmt::AUTOSAVE_IDLE_MS as u64 + 50,
+    ));
+    assert_eq!(crate::mui_autosave_tick(h), 1);
+    assert_eq!(std::fs::read_to_string(&first).unwrap(), "same dirty text\n");
+    assert!(!ctx.tabs.is_dirty(first_idx));
+
+    crate::settings::set_active(before);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn save_as_typed_refreshes_clean_duplicate_when_saving_current_path() {
     use crate::{mui_path_push, mui_save_as};
 

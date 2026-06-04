@@ -4151,6 +4151,15 @@ pub(crate) fn sync_active_path(ctx: &mut MuiContext) {
         ctx.welcome.allow_empty_auto();
     }
     ctx.file_path = path;
+    ctx.autosave.disarm();
+    ctx.autosave_sig = None;
+    if crate::settings::autosave()
+        && !ctx.tabs.active_read_only()
+        && ctx.file_path.is_some()
+        && ctx.tabs.is_dirty(active)
+    {
+        ctx.autosave.touch();
+    }
 }
 
 fn prune_missing_recent_files(ctx: &mut MuiContext) {

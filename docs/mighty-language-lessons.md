@@ -10764,3 +10764,16 @@ next/previous match navigation point into the previous file.
 - **Language note:** no compiler gap surfaced. Cursor-addressed caches should be
   invalidated whenever the resource identity changes, even when the query text
   itself is reusable across files.
+
+## L873 - Auto Save Debounce Belongs To The Active File Context
+
+Auto Save uses a context-level debounce clock and content signature, but the
+thing being saved is the active file-backed tab. If a due debounce from one
+dirty tab survives a tab switch, another dirty tab with the same content
+signature can be saved immediately without its own idle window.
+
+- **IDE note:** active-file path synchronization now disarms the old autosave
+  clock, clears the old signature, and starts a fresh debounce only when the new
+  active tab is dirty, editable, file-backed, and Auto Save is enabled.
+- **Language note:** no compiler gap surfaced. Time-based mutation guards should
+  be scoped to the same resource identity as the write they authorize.

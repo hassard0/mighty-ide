@@ -42,6 +42,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Tab switches clear stale Find matches**: active-file sync now invalidates
   cached in-buffer Find match coordinates so highlights and next/previous match
   navigation cannot point into the previous tab.
+- **Tab switches re-scope Auto Save debounce**: active-file sync now resets the
+  autosave timer and content signature, then starts a fresh debounce for the new
+  dirty file-backed tab, so a due timer from one tab cannot immediately save a
+  different tab after switching.
 - **Tab switches close stale language popups**: active-file sync now also clears
   hover, definition, signature-help, completion, rename, snippet tab-stops,
   inline AI ghost text, code-action, and quick-fix lightbulb state, closes
