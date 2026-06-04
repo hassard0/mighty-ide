@@ -10387,3 +10387,16 @@ notifications. Other JSON-RPC objects can carry `params.uri` and
 - **Language note:** no compiler gap surfaced. URI filters validate the target,
   not the envelope role; parsers that consume live protocol streams still need a
   separate notification/response/request classification step.
+
+## L846 - Navigation Parses Responses Only
+
+Mighty hover and go-to-definition consume JSON-RPC responses, while server
+requests can share the same numeric `id` namespace and may contain incidental
+payload fields named `result`.
+
+- **IDE note:** built-in Mighty navigation now ignores request-shaped envelopes
+  with a top-level `method` while waiting for and parsing hover/definition
+  answers. Only response-shaped objects can populate hover text or jump targets.
+- **Language note:** no compiler gap surfaced. Feature parsers that can receive
+  raw protocol text need the same request/response role guard as the stream
+  wait loop; matching `id` and payload names are necessary but not sufficient.

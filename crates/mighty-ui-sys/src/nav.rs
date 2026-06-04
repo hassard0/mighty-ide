@@ -536,6 +536,9 @@ fn parse_location(bytes: &[u8]) -> Option<(String, u32, u32)> {
 }
 
 fn json_rpc_result_value(bytes: &[u8]) -> Option<&[u8]> {
+    if top_level_field_value_start(bytes, b"method").is_some() {
+        return None;
+    }
     let value_start = top_level_field_value_start(bytes, b"result")?;
     if bytes.get(value_start..value_start + 4) == Some(b"null") {
         return None;
@@ -1110,6 +1113,7 @@ pub mod lsp {
         response_object_ranges(stream).into_iter().any(|(start, end)| {
             let obj = &stream[start..end];
             super::top_level_uint_field(obj, b"id") == Some(wanted_id)
+                && super::top_level_field_value_start(obj, b"method").is_none()
                 && (super::top_level_field_value_start(obj, b"result").is_some()
                     || super::top_level_field_value_start(obj, b"error").is_some())
         })
@@ -1137,6 +1141,7 @@ pub mod lsp {
         for (start, end) in response_object_ranges(bytes) {
             let obj = &bytes[start..end];
             if super::top_level_uint_field(obj, b"id") == Some(wanted_id)
+                && super::top_level_field_value_start(obj, b"method").is_none()
                 && (super::top_level_field_value_start(obj, b"result").is_some()
                     || super::top_level_field_value_start(obj, b"error").is_some())
             {
@@ -1317,6 +1322,12 @@ mod tests {
     }
 
     #[test]
+    fn parse_hover_ignores_request_shaped_result_envelopes() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","result":{"contents":{"kind":"markdown","value":"wrong hover"}}}"#;
+        assert_eq!(parse_hover_value(json), None);
+    }
+
+    #[test]
     fn parse_hover_object_uses_top_level_value_field() {
         let json = r#"{"jsonrpc":"2.0","result":{"contents":{"metadata":{"value":"wrong nested value","language":"rust"},"kind":"markdown","value":"right value"}},"id":2}"#;
         assert_eq!(parse_hover_value(json).unwrap(), "right value");
@@ -1393,6 +1404,12 @@ mod tests {
         assert_eq!(uri, "file:///C:/tmp/right.mty");
         assert_eq!(line, 4);
         assert_eq!(col, 6);
+    }
+
+    #[test]
+    fn parse_definition_ignores_request_shaped_result_envelopes() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","result":{"uri":"file:///C:/tmp/wrong.mty","range":{"start":{"line":4,"character":6},"end":{"line":4,"character":12}}}}"#;
+        assert_eq!(parse_definition(json), None);
     }
 
     #[test]
@@ -1577,10 +1594,12 @@ mod tests {
     fn nav_lsp_response_wait_ignores_nested_id_and_requests() {
         let nested_id = br#"{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"contents":"wrong"}}}}"#;
         let server_request = br#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}"#;
+        let server_request_with_result = br#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","result":{"contents":"wrong"}}"#;
         let response_error = br#"{"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"failed"}}"#;
 
         assert!(!lsp::has_response_id(nested_id, 2));
         assert!(!lsp::has_response_id(server_request, 2));
+        assert!(!lsp::has_response_id(server_request_with_result, 2));
         assert!(lsp::has_response_id(response_error, 2));
     }
 
@@ -1591,6 +1610,15 @@ mod tests {
 
         assert_eq!(parse_hover_value(&one).unwrap(), "right hover");
         assert!(!one.contains("wrong"));
+    }
+
+    #[test]
+    fn nav_lsp_isolate_response_id_skips_request_shaped_results() {
+        let stream = r#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","result":{"contents":"wrong"}}{"jsonrpc":"2.0","id":2,"result":{"contents":{"value":"right hover"}}}"#;
+        let one = lsp::isolate_response_id(stream, 2);
+
+        assert_eq!(parse_hover_value(&one).unwrap(), "right hover");
+        assert!(!one.contains("workspace/applyEdit"));
     }
 
     // ---- guarded LSP integration test ----

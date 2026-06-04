@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Mighty navigation requires response envelopes**: built-in Mighty hover and
+  go-to-definition now ignore request-shaped JSON-RPC objects with top-level
+  `method` even when they carry matching `id` and incidental `result` fields,
+  so server requests cannot replace the real navigation answer.
 - **Diagnostics require publish notifications for URI filters**: URI-specific
   LSP diagnostics parsing now ignores request-shaped objects with matching
   `params.uri` and `params.diagnostics`, so only real
