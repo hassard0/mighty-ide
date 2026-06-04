@@ -7787,3 +7787,13 @@ repeat-character output.
   `CSI b` by replaying that cell with its original foreground/background colors
   under the current autowrap mode. Regression coverage checks count defaults,
   color preservation after later SGR changes, and the no-previous-character case.
+
+L639. Mouse reporting modes need a non-SGR wheel path. Full-screen terminal apps
+can enable mouse reporting with `CSI ?1000 h` without also enabling SGR extended
+coordinates; treating that as ordinary shell scroll sends arrow keys into the
+app instead of wheel events.
+
+- **IDE note:** terminal scroll encoding now distinguishes generic mouse
+  reporting from SGR mouse reporting. `CSI ?1000 h` uses legacy X10 wheel bytes,
+  `CSI ?1006 h` keeps the SGR wheel form, and ordinary shells still receive the
+  repeated cursor-key fallback. Tests cover mode tracking and all three encoders.
