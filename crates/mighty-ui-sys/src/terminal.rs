@@ -818,6 +818,8 @@ pub struct VtParser {
     default_bg_rgb: (u8, u8, u8),
     /// Cursor color reported by OSC 12 color queries.
     cursor_rgb: (u8, u8, u8),
+    /// Mutable palette entries reported by OSC 4 color queries.
+    palette_rgb: [(u8, u8, u8); 256],
     /// Last window/icon title reported by OSC 0/1/2.
     title: String,
     /// Last decoded OSC 52 clipboard write request, drained by the UI bridge.
@@ -861,6 +863,7 @@ impl VtParser {
             default_fg_rgb: DEFAULT_FG_RGB,
             default_bg_rgb: DEFAULT_BG_RGB,
             cursor_rgb: DEFAULT_CURSOR_RGB,
+            palette_rgb: std::array::from_fn(|index| palette_rgb8(index as u32)),
             title: String::new(),
             clipboard_write: None,
         }
@@ -1973,6 +1976,8 @@ impl VtParser {
         self.capture_osc_title();
         self.capture_osc_clipboard();
         self.capture_osc_color_set();
+        self.capture_osc_palette_set();
+        self.capture_osc_palette_reset();
         self.reply_osc_color_query();
         self.reply_osc_palette_query();
         self.osc.clear();
@@ -2025,8 +2030,52 @@ impl VtParser {
             let Some(index) = index.parse::<u32>().ok().filter(|n| *n <= 255) else {
                 continue;
             };
-            let color = palette_rgb8(index);
+            let color = self.palette_rgb[index as usize];
             self.push_osc_color_reply(&format!("4;{index}"), color);
+        }
+    }
+
+    fn capture_osc_palette_set(&mut self) {
+        let payload = String::from_utf8_lossy(&self.osc);
+        let mut parts = payload.split(';');
+        if parts.next() != Some("4") {
+            return;
+        }
+
+        while let Some(index) = parts.next() {
+            let Some(value) = parts.next() else {
+                break;
+            };
+            if value == "?" {
+                continue;
+            }
+            let Some(index) = index.parse::<usize>().ok().filter(|n| *n <= 255) else {
+                continue;
+            };
+            let Some(color) = parse_osc_rgb(value) else {
+                continue;
+            };
+            self.palette_rgb[index] = color;
+        }
+    }
+
+    fn capture_osc_palette_reset(&mut self) {
+        let payload = String::from_utf8_lossy(&self.osc);
+        let mut parts = payload.split(';');
+        if parts.next() != Some("104") {
+            return;
+        }
+
+        let mut saw_index = false;
+        for index in parts {
+            saw_index = true;
+            let Some(index) = index.parse::<usize>().ok().filter(|n| *n <= 255) else {
+                continue;
+            };
+            self.palette_rgb[index] = palette_rgb8(index as u32);
+        }
+        if !saw_index {
+            self.palette_rgb = std::array::from_fn(|index| palette_rgb8(index as u32));
         }
     }
 
@@ -4398,14 +4447,60 @@ mod tests {
     }
 
     #[test]
-    fn osc_palette_invalid_queries_are_only_consumed() {
+    fn osc_palette_setters_update_query_replies() {
+        let mut g = Grid::new(1, 40);
+        let mut p = VtParser::new();
+        p.feed(
+            &mut g,
+            b"\x1b]4;1;#010203;2;rgb:ffff/8000/0000\x07\
+              \x1b]4;1;?;2;?\x1b\\done",
+        );
+        assert_eq!(
+            p.take_reply(),
+            b"\x1b]4;1;rgb:0101/0202/0303\x1b\\\
+              \x1b]4;2;rgb:ffff/8080/0000\x1b\\"
+                .to_vec()
+        );
+        assert!(g.contains("done"));
+        assert!(!g.contains("#010203"));
+        assert!(!g.contains("rgb:ffff"));
+    }
+
+    #[test]
+    fn osc_palette_resets_restore_default_query_replies() {
+        let mut g = Grid::new(1, 50);
+        let mut p = VtParser::new();
+        p.feed(
+            &mut g,
+            b"\x1b]4;1;#010203;2;#040506\x07\
+              \x1b]104;invalid\x07\
+              \x1b]4;2;?\x07\
+              \x1b]104;1\x07\
+              \x1b]4;1;?;2;?\x07\
+              \x1b]104\x07\
+              \x1b]4;2;?\x1b\\done",
+        );
+        assert_eq!(
+            p.take_reply(),
+            b"\x1b]4;2;rgb:0404/0505/0606\x1b\\\
+              \x1b]4;1;rgb:cccc/4040/4040\x1b\\\
+              \x1b]4;2;rgb:0404/0505/0606\x1b\\\
+              \x1b]4;2;rgb:4d4d/b8b8/5959\x1b\\"
+                .to_vec()
+        );
+        assert!(g.contains("done"));
+        assert!(!g.contains("104"));
+    }
+
+    #[test]
+    fn osc_palette_invalid_queries_and_setters_are_only_consumed() {
         let mut g = Grid::new(1, 30);
         let mut p = VtParser::new();
-        p.feed(&mut g, b"\x1b]4;256;?\x07\x1b]4;1;#ffffff\x07done");
+        p.feed(&mut g, b"\x1b]4;256;?\x07\x1b]4;1;not-a-color\x07done");
         assert!(p.take_reply().is_empty());
         assert!(g.contains("done"));
         assert!(!g.contains("256;?"));
-        assert!(!g.contains("#ffffff"));
+        assert!(!g.contains("not-a-color"));
     }
 
     #[test]

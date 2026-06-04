@@ -8046,3 +8046,12 @@ identity.
   subsequent query replies, accepting both `#rrggbb` and `rgb:` component forms.
   Invalid setters and unknown OSC color queries are still consumed without
   leaking payload text into the terminal grid.
+
+L665. Palette queries need palette state. `OSC 4` can update indexed colors and
+`OSC 104` can reset them, so answering every palette query from a static table
+misreports terminals that apps have already customized.
+
+- **IDE note:** the VT parser now keeps a mutable 256-color palette for `OSC 4`
+  query replies, updates entries from valid palette setters, and restores one or
+  all entries through `OSC 104`. Regression coverage pins multi-entry setters,
+  selective reset, full reset, and invalid payload consumption.
