@@ -4918,7 +4918,12 @@ pub extern "C" fn mui_tab_store_commit(
 pub extern "C" fn mui_tab_set_dirty(handle: i64, idx: i32, dirty: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         if idx >= 0 {
-            ctx.tabs.set_dirty(idx as usize, dirty != 0);
+            let idx = idx as usize;
+            if dirty != 0 {
+                ctx.tabs.set_dirty(idx, true);
+            } else {
+                ctx.tabs.mark_clean(idx);
+            }
         }
     }
 }

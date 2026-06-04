@@ -669,10 +669,17 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     );
     mui_dirty_confirm_cancel(handle);
     mui_tab_set_dirty(handle, untitled as i32, 0);
+    assert!(!ctx.tabs.is_dirty(untitled));
     assert!(mui_tab_close(handle, untitled as i32) >= 0);
     assert_eq!(mui_tab_count(handle), 2);
 
+    ctx.tabs
+        .get_mut(1)
+        .unwrap()
+        .model
+        .set_text_preserving_cursor("model-only dirty");
     mui_tab_set_dirty(handle, 1, 0);
+    assert!(!ctx.tabs.is_dirty(1));
     assert_eq!(mui_quit_request(handle), 1);
     mui_ed_set_dirty(handle, 1);
     assert_eq!(mui_quit_request(handle), 0);
