@@ -10678,3 +10678,17 @@ the pre-fix save succeeded but the external fixer did not.
 - **Language note:** no compiler gap surfaced. Any feature that delegates file
   mutation to an external command should still centralize editor-state fanout
   around every write boundary it controls.
+
+## L867 - Undo-Preserving Loads Still Need Resource Fanout
+
+Format Document reloads the active tab with undo history preserved so the
+format can be undone. That special active-tab path still represents a disk
+state change for every clean view of the same file.
+
+- **IDE note:** the active-file load ABI now refreshes clean equivalent tabs
+  from the same loaded bytes after updating the active tab, including the
+  undo-preserving path used by Format Document. Dirty duplicate views stay
+  untouched.
+- **Language note:** no compiler gap surfaced. Preserving undo history for one
+  view should not make the reload a one-view operation when the UI exposes
+  multiple clean views of the same resource.

@@ -30,6 +30,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   active file has unsaved edits, matching inline workspace-edit safety, and
   refreshes clean duplicate views after both the pre-fix save and the fixer
   reload.
+- **Format reloads refresh clean duplicate tabs**: the undo-preserving load path
+  used after Format Document now updates every clean duplicate view from the
+  formatted disk bytes while leaving dirty duplicate buffers untouched.
 - **Workspace edits protect dirty duplicate tabs**: code actions and rename
   workspace edits now skip a target path when any equivalent non-active tab is
   dirty, including duplicate views of the active file, avoiding disk writes

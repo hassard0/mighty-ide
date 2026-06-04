@@ -11592,6 +11592,10 @@ fn mui_ed_load_impl(handle: i64, preserve_undo: bool) -> i64 {
             } else {
                 ctx.tabs.reload_active(&bytes);
             }
+            let active = ctx.tabs.active();
+            let _ = ctx
+                .tabs
+                .reload_all_clean_path_except(&path, &bytes, active);
             println!("mui_ed_load: {} ({} bytes)", path.display(), n);
             n
         }

@@ -8864,6 +8864,80 @@ fn format_preflight_reports_only_safe_mutating_targets() {
 }
 
 #[test]
+fn preserving_load_refreshes_clean_duplicate_without_losing_active_undo() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_preserving_load_clean_duplicate_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, "before_format\n").unwrap();
+
+    let active_idx = ctx.tabs.open_path(path.clone());
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs.switch(active_idx);
+    crate::sync_active_path(&mut ctx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_ed_undo_record(h);
+    std::fs::write(&path, "after_format\n").unwrap();
+    assert_eq!(
+        crate::mui_ed_load_preserving_undo(h),
+        "after_format\n".len() as i64
+    );
+    assert_eq!(ctx.tabs.active_model().as_text(), "after_format\n");
+    assert_eq!(ctx.tabs.get(duplicate).unwrap().model.as_text(), "after_format\n");
+    assert!(!ctx.tabs.is_dirty(active_idx));
+    assert!(!ctx.tabs.is_dirty(duplicate));
+
+    assert_eq!(crate::mui_ed_undo(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "before_format\n");
+    assert!(ctx.tabs.is_dirty(active_idx));
+    assert_eq!(ctx.tabs.get(duplicate).unwrap().model.as_text(), "after_format\n");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn preserving_load_skips_dirty_duplicate_tab() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_preserving_load_dirty_duplicate_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, "before_format\n").unwrap();
+
+    let active_idx = ctx.tabs.open_path(path.clone());
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs
+        .get_mut(duplicate)
+        .unwrap()
+        .model
+        .set_text_preserving_cursor("local_dirty\n");
+    ctx.tabs.set_dirty(duplicate, true);
+    ctx.tabs.switch(active_idx);
+    crate::sync_active_path(&mut ctx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::fs::write(&path, "after_format\n").unwrap();
+    assert_eq!(
+        crate::mui_ed_load_preserving_undo(h),
+        "after_format\n".len() as i64
+    );
+    assert_eq!(ctx.tabs.active_model().as_text(), "after_format\n");
+    assert_eq!(ctx.tabs.get(duplicate).unwrap().model.as_text(), "local_dirty\n");
+    assert!(!ctx.tabs.is_dirty(active_idx));
+    assert!(ctx.tabs.is_dirty(duplicate));
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn navigation_requests_report_missing_targets() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
