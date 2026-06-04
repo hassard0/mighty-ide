@@ -263,6 +263,24 @@ fn lsp_execute_command_raw(
 }
 
 fn code_action_diagnostics_json(diags: &[diagnostics::Diag], line: u32) -> String {
+    code_action_diagnostics_json_with_mapper(diags, line, |_, col| col)
+}
+
+fn code_action_diagnostics_json_lsp_utf16(
+    source: &str,
+    diags: &[diagnostics::Diag],
+    line: u32,
+) -> String {
+    code_action_diagnostics_json_with_mapper(diags, line, |line, col| {
+        source_char_col_to_utf16(source, line, col)
+    })
+}
+
+fn code_action_diagnostics_json_with_mapper(
+    diags: &[diagnostics::Diag],
+    line: u32,
+    mut map_col: impl FnMut(u32, u32) -> u32,
+) -> String {
     let mut out = String::from("[");
     let mut first = true;
     for d in diags.iter().filter(|d| d.line.max(0) as u32 == line) {
@@ -273,6 +291,11 @@ fn code_action_diagnostics_json(diags: &[diagnostics::Diag], line: u32) -> Strin
         let line = d.line.max(0) as u32;
         let start = d.col_start.max(0) as u32;
         let mut end = d.col_end.max(d.col_start + 1).max(0) as u32;
+        if end <= start {
+            end = start + 1;
+        }
+        let start = map_col(line, start);
+        let mut end = map_col(line, end);
         if end <= start {
             end = start + 1;
         }
@@ -288,6 +311,50 @@ fn code_action_diagnostics_json(diags: &[diagnostics::Diag], line: u32) -> Strin
     }
     out.push(']');
     out
+}
+
+fn source_char_col_to_utf16(source: &str, line: u32, char_col: u32) -> u32 {
+    source
+        .split('\n')
+        .nth(line as usize)
+        .map(|line_text| {
+            line_text
+                .chars()
+                .take(char_col as usize)
+                .map(|ch| ch.len_utf16() as u32)
+                .sum()
+        })
+        .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod code_action_diagnostics_tests {
+    use super::*;
+
+    fn diag(start: i32, end: i32) -> diagnostics::Diag {
+        diagnostics::Diag {
+            line: 0,
+            col_start: start,
+            col_end: end,
+            severity: Severity::Error,
+            code: "E".to_string(),
+            message: "bad".to_string(),
+        }
+    }
+
+    #[test]
+    fn code_action_diagnostics_json_keeps_editor_character_columns() {
+        let json = code_action_diagnostics_json(&[diag(1, 4)], 0);
+        assert!(json.contains(r#""start":{"line":0,"character":1}"#));
+        assert!(json.contains(r#""end":{"line":0,"character":4}"#));
+    }
+
+    #[test]
+    fn code_action_diagnostics_json_lsp_utf16_converts_columns() {
+        let json = code_action_diagnostics_json_lsp_utf16("😀abc", &[diag(1, 4)], 0);
+        assert!(json.contains(r#""start":{"line":0,"character":2}"#));
+        assert!(json.contains(r#""end":{"line":0,"character":5}"#));
+    }
 }
 
 /// Resolve the file to edit: `argv[1]` if given, else a virtual scratch tab.
@@ -9681,8 +9748,8 @@ pub(crate) fn compute_line_actions(
         .map(|l| l.chars().count() as u32)
         .unwrap_or(0);
     let end_col = line_len.max(col.max(0) as u32);
-    let diagnostics_json = code_action_diagnostics_json(&ctx.diags, line0);
     let raw = if ctx.language == Language::Mighty {
+        let diagnostics_json = code_action_diagnostics_json(&ctx.diags, line0);
         crate::language::lsp::request(
             &path,
             &source,
@@ -9696,6 +9763,8 @@ pub(crate) fn compute_line_actions(
         )
     } else if let Some(spec) = crate::lspregistry::server_for(ctx.language) {
         let root = workspace_root(&path);
+        let diagnostics_json =
+            code_action_diagnostics_json_lsp_utf16(&source, &ctx.diags, line0);
         crate::lspclient::request(
             &spec,
             ctx.language.lsp_id(),
