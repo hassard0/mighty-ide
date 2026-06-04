@@ -7611,3 +7611,12 @@ standard counted movement commands that jump between them.
   movement through the stored tab stops, and the parser routes `CSI I` / `CSI Z`
   through those helpers. Tests cover default stops, counted backward movement,
   and custom-only tab stops after clearing defaults.
+
+L620. Terminal escape strings must be swallowed as strings. OSC was protected,
+but DCS/PM/APC/SOS introducers fell back to ordinary ESC handling, which let
+payload bytes draw as visible garbage until ST.
+
+- **IDE note:** `VtParser` now has a shared non-OSC string state for DCS
+  (`ESC P`), SOS (`ESC X`), PM (`ESC ^`), and APC (`ESC _`). Payload bytes are
+  consumed until the `ESC \` string terminator, with parser tests covering DCS,
+  APC, PM, and SOS payloads that should not reach the visible grid.

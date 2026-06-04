@@ -605,6 +605,10 @@ enum State {
     Osc,
     /// Inside OSC and just saw an `ESC`; an immediate `\` (0x5c) terminates (ST).
     OscEsc,
+    /// Inside a non-OSC escape string (DCS/PM/APC/SOS); consuming until ST.
+    String,
+    /// Inside a non-OSC string and just saw ESC; an immediate `\` terminates.
+    StringEsc,
 }
 
 /// A minimal VT/ANSI parser that drives a [`Grid`].
@@ -707,6 +711,8 @@ impl VtParser {
             State::Csi => self.csi(grid, b),
             State::Osc => self.osc(b),
             State::OscEsc => self.osc_esc(b),
+            State::String => self.string(b),
+            State::StringEsc => self.string_esc(b),
         }
     }
 
@@ -776,6 +782,7 @@ impl VtParser {
                 self.state = State::Csi;
             }
             b']' => self.state = State::Osc,
+            b'P' | b'X' | b'^' | b'_' => self.state = State::String,
             // `ESC c` full reset — clear the grid.
             b'c' => {
                 grid.clear();
@@ -1340,6 +1347,20 @@ impl VtParser {
             b'\\' => self.state = State::Ground, // ST terminates
             0x07 => self.state = State::Ground,  // tolerate stray BEL
             _ => self.state = State::Osc,        // not ST; keep consuming
+        }
+    }
+
+    fn string(&mut self, b: u8) {
+        match b {
+            0x1b => self.state = State::StringEsc, // maybe ST
+            _ => {}                                // payload: consume
+        }
+    }
+
+    fn string_esc(&mut self, b: u8) {
+        match b {
+            b'\\' => self.state = State::Ground, // ST terminates
+            _ => self.state = State::String,     // not ST; keep consuming
         }
     }
 }
@@ -2473,6 +2494,25 @@ mod tests {
         let g = grid_feed(2, 20, b"\x1b]2;t\x1b\\hi");
         assert!(g.contains("hi"));
         assert!(!g.contains("t"));
+    }
+
+    #[test]
+    fn non_osc_escape_strings_are_consumed_until_st() {
+        let g = grid_feed(
+            2,
+            40,
+            b"\x1bP1+rpayload\x1b\\ok\x1b_hidden\x1b\\done",
+        );
+        assert!(g.contains("ok"));
+        assert!(g.contains("done"));
+        assert!(!g.contains("payload"));
+        assert!(!g.contains("hidden"));
+        assert!(!g.contains("1+r"));
+
+        let g2 = grid_feed(2, 40, b"\x1b^privacy\x1b\\x\x1bXguard\x1b\\y");
+        assert!(g2.contains("xy"));
+        assert!(!g2.contains("privacy"));
+        assert!(!g2.contains("guard"));
     }
 
     #[test]
