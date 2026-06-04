@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Focused output clicks release stale focus**: Run/Web/Testing focused header,
+  row-jump, and outside-click routes now explicitly clear competing focus before
+  keeping panel ownership or returning keyboard input to the editor.
 - **Bottom-band Escape exits release stale focus**: Escape from focused Run,
   Web, and Testing output now clears stale panel/AI/Agents/search focus before
   returning keyboard input to the editor.

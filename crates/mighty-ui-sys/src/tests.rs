@@ -10971,6 +10971,34 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         run_subbranch.contains(dock_escape_cleanup),
         "Run-focused Escape must release stale surface and search focus"
     );
+    let web_owned_click_cleanup = "run_focus = false\n              web_focus = true\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false\n              typing = false";
+    assert!(
+        web_subbranch.matches(web_owned_click_cleanup).count() >= 4,
+        "Web focused header clicks must keep Web ownership and release stale focus"
+    );
+    assert!(
+        web_subbranch.contains(
+            "Clicked outside the Web band: release focus so the click flow\n              // recovers (the next click reaches the editor / its target).\n              run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false\n              typing = false"
+        ),
+        "Web focused outside click must release stale focus"
+    );
+    let run_owned_click_cleanup = "run_focus = true\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false\n              typing = false";
+    assert!(
+        run_subbranch.matches(run_owned_click_cleanup).count() >= 2,
+        "Run focused header clicks must keep Run ownership and release stale focus"
+    );
+    assert!(
+        run_subbranch.contains(
+            "let _r = mui_diag_refresh(h)\n                    run_focus = false\n                    web_focus = false\n                    test_focus = false\n                    term_focus = false\n                    ai_focus = false\n                    agents_focus = false\n                    find_nav = false\n                    typing = false"
+        ),
+        "Run focused row jump must return editor ownership and release stale focus"
+    );
+    assert!(
+        run_subbranch.contains(
+            "Clicked outside the Run output band: release focus so the click\n                // flow recovers (the next click reaches the editor / its target).\n                run_focus = false\n                web_focus = false\n                test_focus = false\n                term_focus = false\n                ai_focus = false\n                agents_focus = false\n                find_nav = false\n                typing = false"
+        ),
+        "Run focused outside click must release stale focus"
+    );
     let test_focus_start = main
         .find("} else if test_focus && !(")
         .expect("Testing focused branch should exist");
@@ -10984,6 +11012,23 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             "} else if k == key_escape() {\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false"
         ),
         "Testing-focused Escape must release stale surface and search focus"
+    );
+    let test_owned_click_cleanup = "run_focus = false\n            web_focus = false\n            test_focus = true\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    assert!(
+        test_focus_branch.matches(test_owned_click_cleanup).count() >= 3,
+        "Testing focused toolbar clicks must keep Testing ownership and release stale focus"
+    );
+    assert!(
+        test_focus_branch.contains(
+            "let _r = mui_diag_refresh(h)\n                  run_focus = false\n                  web_focus = false\n                  test_focus = false\n                  term_focus = false\n                  ai_focus = false\n                  agents_focus = false\n                  find_nav = false\n                  typing = false"
+        ),
+        "Testing focused row jump must return editor ownership and release stale focus"
+    );
+    assert!(
+        test_focus_branch.contains(
+            "Clicked outside the Test results: release focus so the click flow\n              // recovers (the next click reaches the editor / its target).\n              run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false\n              typing = false"
+        ),
+        "Testing focused outside click must release stale focus"
     );
     assert!(
         main.contains(

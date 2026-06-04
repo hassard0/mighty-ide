@@ -2163,19 +2163,56 @@ fn main() {
             if wc == 1 {
               // Stop server.
               let _wst = mui_web_stop(h)
+              run_focus = false
+              web_focus = true
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             } else if wc == 2 {
               // Open the served URL in the default browser.
               let _ob = mui_web_open_browser(h)
+              run_focus = false
+              web_focus = true
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             } else if wc == 3 {
               let _wr = mui_web_run(h)
+              run_focus = false
               web_focus = true
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             } else if wc == 4 {
               let _wc = mui_web_clear(h)
+              run_focus = false
               web_focus = true
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             } else {
               // Clicked outside the Web band: release focus so the click flow
               // recovers (the next click reaches the editor / its target).
+              run_focus = false
               web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             }
           }
         } else {
@@ -2206,13 +2243,21 @@ fn main() {
               run_focus = true
               web_focus = false
               test_focus = false
+              term_focus = false
+              ai_focus = false
               agents_focus = false
+              find_nav = false
+              typing = false
             } else if ract == 2 {
               let _rst = mui_run_stop(h)
               run_focus = true
               web_focus = false
               test_focus = false
+              term_focus = false
+              ai_focus = false
               agents_focus = false
+              find_nav = false
+              typing = false
             } else {
               let rrow = mui_run_row_at_click(h)
               if rrow >= 0 {
@@ -2227,12 +2272,26 @@ fn main() {
                     if tl >= 0 { mui_ed_move_to(h, tl, tc) }
                     let _r = mui_diag_refresh(h)
                     run_focus = false
+                    web_focus = false
+                    test_focus = false
+                    term_focus = false
+                    ai_focus = false
+                    agents_focus = false
+                    find_nav = false
+                    typing = false
                   }
                 }
               } else {
                 // Clicked outside the Run output band: release focus so the click
                 // flow recovers (the next click reaches the editor / its target).
                 run_focus = false
+                web_focus = false
+                test_focus = false
+                term_focus = false
+                ai_focus = false
+                agents_focus = false
+                find_nav = false
+                typing = false
               }
             }
           }
@@ -2364,10 +2423,34 @@ fn main() {
             }
           } else if tb_hit == test_tb_run() {
             let _r = mui_test_run(h)
+            run_focus = false
+            web_focus = false
+            test_focus = true
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if tb_hit == test_tb_stop() {
             let _ts = mui_test_stop(h)
+            run_focus = false
+            web_focus = false
+            test_focus = true
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if tb_hit == test_tb_clear() {
             let _tc = mui_test_clear(h)
+            run_focus = false
+            web_focus = false
+            test_focus = true
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else {
             let trow = mui_test_row_at_click(h)
             if trow >= 0 {
@@ -2381,13 +2464,27 @@ fn main() {
                   let tc = mui_test_click_col(h)
                   if tl >= 0 { mui_ed_move_to(h, tl, tc) }
                   let _r = mui_diag_refresh(h)
+                  run_focus = false
+                  web_focus = false
                   test_focus = false
+                  term_focus = false
+                  ai_focus = false
+                  agents_focus = false
+                  find_nav = false
+                  typing = false
                 }
               }
             } else {
               // Clicked outside the Test results: release focus so the click flow
               // recovers (the next click reaches the editor / its target).
+              run_focus = false
+              web_focus = false
               test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             }
           }
         }

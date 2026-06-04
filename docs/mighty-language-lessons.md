@@ -9256,3 +9256,19 @@ command dispatcher and any overlay-specific cleanup.
 - **Language note:** no compiler gap surfaced. The route-parity lesson extends
   from typed overlays to scroll-focused output panels: every local exit that
   hands ownership back to the editor needs the full cleanup contract.
+
+## L767 - Focused Output Clicks Need Explicit Ownership
+
+Focused output panels also handle their own mouse routes. Header buttons keep
+ownership inside the panel, row jumps return ownership to the editor, and
+outside clicks intentionally drop panel focus; all three need explicit cleanup
+instead of relying on the panel's current focus bit.
+
+- **IDE note:** focused Web header/outside clicks, Run header/row/outside clicks,
+  and Testing toolbar/row/outside clicks now clear stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus and transient typing state
+  before preserving panel ownership or returning keyboard input to the editor.
+  Source-contract coverage pins each focused output-panel mouse route.
+- **Language note:** no compiler gap surfaced. The route-parity lesson now
+  covers mouse ownership transitions too: the event arm that consumes the click
+  must write the full ownership contract.
