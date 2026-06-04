@@ -8299,3 +8299,13 @@ should not require jumping to the source gutter first.
   through the scrolled breakpoint window, resends live-session breakpoints, and
   reports the removed file/line. Tests cover exact-location removal, scrolled
   row mapping, no-row feedback, and Mighty dispatch ordering.
+
+L689. Bulk breakpoint cleanup should be visible in the inventory itself. A
+palette command is useful, but when users are already reviewing the Breakpoints
+section, clearing all entries should be a local panel action.
+
+- **IDE note:** the Breakpoints header now shows a compact trash action when
+  breakpoints exist. The header action uses a dedicated click ABI, clears the
+  model through the same live-session resend path as the palette command, and
+  the title text is measured to fit before the button. Tests cover button
+  hit/miss behavior and Mighty dispatch ordering before row hit-testing.

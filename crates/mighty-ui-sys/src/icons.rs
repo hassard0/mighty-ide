@@ -65,6 +65,8 @@ pub const FILE_TXT: &str = "M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v1
 pub const CHEVRON: &str = "M9 6l6 6-6 6";
 /// Tab close ×.
 pub const CLOSE: &str = "M6 6l12 12M18 6 6 18";
+/// Trash / clear action.
+pub const TRASH: &str = "M4 6h16M9 6V4h6v2M7 6l1 14h8l1-14M10.5 10v7M13.5 10v7";
 /// Window minimize (a single horizontal bar near the middle).
 pub const WIN_MIN: &str = "M6 12h12";
 /// Window maximize (a square outline).

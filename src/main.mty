@@ -557,6 +557,7 @@ extern c {
   fn mui_bp_toggle(handle: I64, line: I32) -> I32
   fn mui_bp_toggle_at_cursor(handle: I64) -> I32
   fn mui_bp_clear_all(handle: I64) -> I32
+  fn mui_bp_clear_inventory_at_click(handle: I64) -> I32
   fn mui_bp_has(handle: I64, line: I32) -> I32
   fn mui_bp_count(handle: I64) -> I32
   fn mui_bp_line(handle: I64, i: I32) -> I32
@@ -3666,9 +3667,11 @@ fn main() {
           }
         } else if cur_panel == panel_debug() {
           // Debug view: a toolbar button (continue/step/stop), a breakpoint
-          // inventory row, or a call-stack frame row.
-          let d_hit = mui_dbg_click(h)
-          if d_hit >= dbg_breakpoint_remove_base() {
+          // inventory header action/row, or a call-stack frame row.
+          let bp_clear_hit = mui_bp_clear_inventory_at_click(h)
+          let d_hit = if bp_clear_hit >= 0 { 0 - 1 } else { mui_dbg_click(h) }
+          if bp_clear_hit >= 0 {
+          } else if d_hit >= dbg_breakpoint_remove_base() {
             let _rm = mui_bp_remove_at_hit(h, d_hit)
           } else if d_hit >= dbg_breakpoint_base() {
             let newidx = mui_bp_open_at_hit(h, d_hit)

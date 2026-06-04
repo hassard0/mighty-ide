@@ -682,6 +682,13 @@ pub(crate) fn debug_breakpoint_rows_top() -> f32 {
     debug_breakpoint_label_y() + 20.0
 }
 
+pub(crate) fn debug_breakpoint_clear_button_rect() -> (f32, f32, f32, f32) {
+    let size = 22.0;
+    let x = layout::sidebar_right() - size - 10.0;
+    let y = debug_breakpoint_label_y() - 4.0;
+    (x, y, size, size)
+}
+
 pub(crate) fn debug_breakpoint_remove_target_left() -> f32 {
     layout::RAIL_W + 8.0
 }
@@ -923,6 +930,42 @@ pub extern "C" fn mui_dbg_click(handle: i64) -> i32 {
         }
     }
     -1
+}
+
+/// Clear the visible Breakpoints header button if the last click hit it. Returns
+/// `-1` when not hit, `1` when breakpoints were cleared, or `0` for the visible
+/// button's no-op state.
+#[no_mangle]
+pub extern "C" fn mui_bp_clear_inventory_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_DEBUG || !ctx.dbg.is_open() {
+        return -1;
+    }
+    if ctx.dbg.total_breakpoint_count() == 0 {
+        return -1;
+    }
+    let (x, y, w, h) = debug_breakpoint_clear_button_rect();
+    let px = ctx.last_event.x;
+    let py = ctx.last_event.y;
+    if px < x || px > x + w || py < y || py > y + h {
+        return -1;
+    }
+    if ctx.dbg.clear_breakpoints() {
+        if ctx.dbg.state() != crate::dap::DebugState::Idle
+            && ctx.dbg.state() != crate::dap::DebugState::Terminated
+        {
+            ctx.dbg.resend_breakpoints();
+        }
+        ctx.push_toast(crate::toast::Kind::Info, "Breakpoints cleared");
+        crate::abi::trace("bp_clear_inventory");
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "No breakpoints to clear");
+        crate::abi::trace("bp_clear_inventory noop");
+        0
+    }
 }
 
 fn breakpoint_location_at_code(ctx: &MuiContext, code: i32, base: i32) -> Option<crate::dap::BreakpointLocation> {
@@ -1226,7 +1269,21 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
     } else {
         format!("BREAKPOINTS {bp_count}")
     };
-    ctx.text.queue_ui_sized(sx + 14.0, bp_label_y, &bp_title, theme::DIM(), chrome - 2.0, clip);
+    let clear_rect = if bp_count > 0 {
+        Some(debug_breakpoint_clear_button_rect())
+    } else {
+        None
+    };
+    let title_right = clear_rect.map_or(sx + sw - 14.0, |(x, _, _, _)| x - 8.0);
+    let title_x = sx + 14.0;
+    let bp_title = fit_head_px(&mut ctx.text, &bp_title, (title_right - title_x).max(0.0), chrome - 2.0);
+    ctx.text.queue_ui_sized(title_x, bp_label_y, &bp_title, theme::DIM(), chrome - 2.0, clip);
+    if bp_count > 0 {
+        let (cx, cy, cw, ch) = clear_rect.unwrap();
+        ctx.dl_round(cx, cy, cw, ch, 5.0, theme::BG_4());
+        ctx.dl_stroke(cx, cy, cw, ch, 5.0, theme::BORDER_SOFT(), 1.0);
+        ctx.dl_icon(cx + 5.0, cy + 5.0, 12.0, 12.0, icons::TRASH, theme::TEXT_3(), 1.5, false);
+    }
     let bp_top = debug_breakpoint_rows_top();
     if breakpoints.is_empty() {
         ctx.text.queue_ui_sized(sx + 14.0, bp_top + 2.0, "No breakpoints", theme::TEXT_3(), chrome, clip);

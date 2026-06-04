@@ -5577,6 +5577,44 @@ fn debug_breakpoint_inventory_dot_removes_visible_breakpoint() {
 }
 
 #[test]
+fn debug_breakpoint_header_clear_button_clears_inventory() {
+    use crate::ffi::MuiEvent;
+
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+    ctx.dbg.toggle_breakpoint("C:/p/a.mty", 1);
+    ctx.dbg.toggle_breakpoint("C:/p/b.mty", 4);
+    ctx.dbg.set_open(true);
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_DEBUG;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let (x, y, w, h) = crate::dapabi::debug_breakpoint_clear_button_rect();
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        x + w * 0.5,
+        y + h * 0.5,
+        0,
+    );
+    assert_eq!(crate::dapabi::mui_bp_clear_inventory_at_click(handle), 1);
+    assert_eq!(ctx.dbg.total_breakpoint_count(), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Breakpoints cleared"
+    );
+
+    ctx.dbg.toggle_breakpoint("C:/p/a.mty", 1);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, x - 4.0, y + h * 0.5, 0);
+    assert_eq!(crate::dapabi::mui_bp_clear_inventory_at_click(handle), -1);
+    assert_eq!(ctx.dbg.total_breakpoint_count(), 1);
+
+    crate::layout::reset_sidebar_preset();
+}
+
+#[test]
 fn debug_breakpoint_overflow_row_is_not_a_source_click() {
     use crate::ffi::MuiEvent;
 
@@ -10202,6 +10240,14 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.find("if d_hit >= dbg_breakpoint_remove_base()")
                 < main.find("else if d_hit >= dbg_breakpoint_base()"),
         "Debug breakpoint dot clicks must remove before generic breakpoint row opens"
+    );
+    assert!(
+        main.contains("fn mui_bp_clear_inventory_at_click(handle: I64) -> I32")
+            && main.contains("let bp_clear_hit = mui_bp_clear_inventory_at_click(h)")
+            && main.contains("let d_hit = if bp_clear_hit >= 0 { 0 - 1 } else { mui_dbg_click(h) }")
+            && main.find("let bp_clear_hit = mui_bp_clear_inventory_at_click(h)")
+                < main.find("else if d_hit >= dbg_breakpoint_base()"),
+        "Debug breakpoint header clear clicks must be handled before row hit-testing"
     );
     assert!(
         main.contains("fn mui_bp_scroll_inventory_at_event(handle: I64, delta: I32) -> I32")
