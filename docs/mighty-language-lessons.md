@@ -7713,3 +7713,11 @@ terminal apps as ordinary text.
 - **IDE note:** `codepoint_to_bytes` now prefixes ESC for Alt-modified character
   input after computing the Ctrl/control-code or UTF-8 payload. Tests cover
   Alt+ASCII, Alt+Ctrl, and Alt+multibyte input.
+
+L631. Terminal Meta input includes named editing keys, not just printable text.
+Alt+Backspace is the common Meta-DEL chord that shell line editors use for
+backward word deletion; sending plain DEL drops the modifier and degrades
+terminal editing.
+
+- **IDE note:** `key_to_bytes` now maps Alt+Backspace to `ESC DEL` while plain
+  Backspace remains DEL. The key-mapping regression test covers both forms.
