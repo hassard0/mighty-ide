@@ -315,6 +315,7 @@ pub struct SnippetContext {
     line_index: Option<usize>,
     current_word: String,
     date: Option<DateParts>,
+    language: Option<Language>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -335,14 +336,17 @@ impl DateParts {
 }
 
 impl SnippetContext {
+    #[allow(dead_code)]
     pub fn from_path(path: Option<&Path>) -> Self {
         SnippetContext::from_path_selection_and_workspace(path, "", None)
     }
 
+    #[allow(dead_code)]
     pub fn from_path_and_selection(path: Option<&Path>, selected_text: &str) -> Self {
         SnippetContext::from_path_selection_and_workspace(path, selected_text, None)
     }
 
+    #[allow(dead_code)]
     pub fn from_path_selection_and_workspace(
         path: Option<&Path>,
         selected_text: &str,
@@ -376,7 +380,31 @@ impl SnippetContext {
             line_index,
             current_word: current_word.to_string(),
             date,
+            language: None,
         }
+    }
+
+    pub fn from_editor_context_with_language(
+        path: Option<&Path>,
+        selected_text: &str,
+        workspace_root: Option<&Path>,
+        current_line: Option<&str>,
+        line_index: Option<usize>,
+        current_word: &str,
+        date: Option<DateParts>,
+        language: Language,
+    ) -> Self {
+        let mut context = SnippetContext::from_editor_context(
+            path,
+            selected_text,
+            workspace_root,
+            current_line,
+            line_index,
+            current_word,
+            date,
+        );
+        context.language = Some(language);
+        context
     }
 }
 
@@ -387,6 +415,7 @@ impl SnippetContext {
 /// Tab-stop positions are computed by walking the body segments and tracking the
 /// running `(line, col)` offset from the insertion point, accounting for the
 /// per-line indent added to continuation lines.
+#[allow(dead_code)]
 pub fn expand(body: &str, indent: &str, cur_line: usize, cur_col: usize) -> Expansion {
     expand_with_context(body, indent, cur_line, cur_col, &SnippetContext::default())
 }
@@ -515,6 +544,9 @@ fn resolve_snippet_variable(name: &str, context: &SnippetContext) -> Option<Stri
         "TM_CURRENT_WORD" => Some(context.current_word.clone()),
         "TM_LINE_INDEX" => context.line_index.map(|line| line.to_string()),
         "TM_LINE_NUMBER" => context.line_index.map(|line| (line + 1).to_string()),
+        "LINE_COMMENT" => Some(comment_tokens(context).line.to_string()),
+        "BLOCK_COMMENT_START" => Some(comment_tokens(context).block_start.to_string()),
+        "BLOCK_COMMENT_END" => Some(comment_tokens(context).block_end.to_string()),
         "CURRENT_YEAR" => Some(date_parts(context).year.to_string()),
         "CURRENT_YEAR_SHORT" => Some(format!("{:02}", date_parts(context).year % 100)),
         "CURRENT_MONTH" => Some(format!("{:02}", date_parts(context).month)),
@@ -553,6 +585,26 @@ fn resolve_snippet_variable(name: &str, context: &SnippetContext) -> Option<Stri
             .or_else(|| context.workspace_root.as_ref().map(|_| "workspace".to_string())),
         "RELATIVE_FILEPATH" => relative_filepath(context),
         _ => None,
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CommentTokens {
+    line: &'static str,
+    block_start: &'static str,
+    block_end: &'static str,
+}
+
+fn comment_tokens(context: &SnippetContext) -> CommentTokens {
+    let Some(language) = context.language else {
+        return CommentTokens { line: "", block_start: "", block_end: "" };
+    };
+    let cfg = crate::syntax::config_for(language);
+    let (block_start, block_end) = cfg.block_comment.unwrap_or(("", ""));
+    CommentTokens {
+        line: cfg.line_comments.first().copied().unwrap_or(""),
+        block_start,
+        block_end,
     }
 }
 
@@ -1289,26 +1341,17 @@ pub fn try_expand_with_context(
         model.backspace();
     }
     let (cl, cc) = (model.cursor_line(), model.cursor_col());
-    let exp = if active_path.is_none() && selected_text.is_empty() && workspace_root.is_none() {
-        expand(&def.body, &indent, cl, cc)
-    } else if selected_text.is_empty() && workspace_root.is_none() {
-        let context = SnippetContext::from_path(active_path);
-        expand_with_context(&def.body, &indent, cl, cc, &context)
-    } else if workspace_root.is_none() {
-        let context = SnippetContext::from_path_and_selection(active_path, selected_text);
-        expand_with_context(&def.body, &indent, cl, cc, &context)
-    } else {
-        let context = SnippetContext::from_editor_context(
-            active_path,
-            selected_text,
-            workspace_root,
-            Some(&current_line),
-            Some(line),
-            &word,
-            None,
-        );
-        expand_with_context(&def.body, &indent, cl, cc, &context)
-    };
+    let context = SnippetContext::from_editor_context_with_language(
+        active_path,
+        selected_text,
+        workspace_root,
+        Some(&current_line),
+        Some(line),
+        &word,
+        None,
+        lang,
+    );
+    let exp = expand_with_context(&def.body, &indent, cl, cc, &context);
     for ch in exp.text.chars() {
         model.insert_char(ch);
     }
@@ -1628,6 +1671,47 @@ mod tests {
         );
         let exp = expand_with_context("${TM_CURRENT_WORD:name}|$TM_CURRENT_WORD", "", 0, 0, &ctx);
         assert_eq!(exp.text, "name|");
+    }
+
+    #[test]
+    fn expand_comment_variables_from_language_context() {
+        let rust_ctx = SnippetContext::from_editor_context_with_language(
+            None,
+            "",
+            None,
+            None,
+            None,
+            "",
+            None,
+            Language::Rust,
+        );
+        let rust = expand_with_context(
+            "$LINE_COMMENT ${1:todo}\n$BLOCK_COMMENT_START ${2:note} $BLOCK_COMMENT_END",
+            "",
+            0,
+            0,
+            &rust_ctx,
+        );
+        assert_eq!(rust.text, "// todo\n/* note */");
+
+        let python_ctx = SnippetContext::from_editor_context_with_language(
+            None,
+            "",
+            None,
+            None,
+            None,
+            "",
+            None,
+            Language::Python,
+        );
+        let python = expand_with_context(
+            "$LINE_COMMENT ${1:todo}|${BLOCK_COMMENT_START:#}|$BLOCK_COMMENT_START",
+            "",
+            0,
+            0,
+            &python_ctx,
+        );
+        assert_eq!(python.text, "# todo|#|");
     }
 
     #[test]

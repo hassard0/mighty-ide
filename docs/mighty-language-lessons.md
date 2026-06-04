@@ -9695,3 +9695,18 @@ languages.
 - **Language note:** no compiler gap surfaced. Scope filtering belongs at the
   snippet set boundary so the parser can preserve imported metadata without
   coupling snippet expansion to file detection details.
+
+## L797 - Snippet Comment Variables Should Reuse Syntax Tokens
+
+Imported snippets often use `$LINE_COMMENT`, `$BLOCK_COMMENT_START`, and
+`$BLOCK_COMMENT_END` to stay language-neutral. Leaving those variables literal
+breaks otherwise portable snippets, while hard-coding them in the snippet engine
+would drift from highlighting and comment behavior over time.
+
+- **IDE note:** snippet expansion now carries the active language in its context
+  and resolves comment variables from `syntax::config_for`. Languages without a
+  line or block comment delimiter resolve the missing token to an empty string,
+  which keeps braced defaults useful.
+- **Language note:** no compiler gap surfaced. Shared language metadata should
+  be read from one existing table when possible; snippets, highlighting, and
+  future comment actions should not maintain separate delimiter maps.

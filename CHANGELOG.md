@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Snippet comment variables resolve by language**: imported snippets can now
+  use `$LINE_COMMENT`, `$BLOCK_COMMENT_START`, and `$BLOCK_COMMENT_END`; values
+  come from the active language's syntax configuration, with braced defaults
+  still honored for languages without block comments.
 - **User snippets accept VS Code JSON**: the optional user snippet file can now
   be a VS Code-style JSON object with string or array prefixes and string or
   array bodies, including comments and trailing commas from existing JSONC
