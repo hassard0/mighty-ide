@@ -685,6 +685,7 @@ struct SavedCursor {
     autowrap: bool,
     origin_mode: bool,
     insert_mode: bool,
+    newline_mode: bool,
     cursor_visible: bool,
     cursor_shape: CursorShape,
 }
@@ -730,6 +731,8 @@ pub struct VtParser {
     sgr_mouse: bool,
     /// Whether printable output inserts at the cursor before writing (`CSI 4 h/l`).
     insert_mode: bool,
+    /// Whether LF also returns to column 0 (`CSI 20 h/l`).
+    newline_mode: bool,
     /// Whether printable output should wrap after the right margin (`CSI ?7 h/l`).
     autowrap: bool,
     /// Whether CUP/HVP row coordinates are relative to the scroll-region top (`CSI ?6 h/l`).
@@ -765,6 +768,7 @@ impl VtParser {
             mouse_modes: 0,
             sgr_mouse: false,
             insert_mode: false,
+            newline_mode: true,
             autowrap: true,
             origin_mode: false,
             title: String::new(),
@@ -866,7 +870,13 @@ impl VtParser {
                 self.state = State::Csi;
             }
             0x9d => self.enter_osc(),
-            b'\n' => grid.newline(),
+            b'\n' => {
+                if self.newline_mode {
+                    grid.newline();
+                } else {
+                    grid.index();
+                }
+            }
             b'\r' => grid.carriage_return(),
             0x08 | 0x7f => grid.backspace(), // BS / DEL
             b'\t' => grid.tab(),
@@ -1296,6 +1306,8 @@ impl VtParser {
                 match (mode, final_byte) {
                     ("4", b'h') => self.insert_mode = true,
                     ("4", b'l') => self.insert_mode = false,
+                    ("20", b'h') => self.newline_mode = true,
+                    ("20", b'l') => self.newline_mode = false,
                     _ => {}
                 }
             }
@@ -1357,6 +1369,7 @@ impl VtParser {
         self.mouse_modes = 0;
         self.sgr_mouse = false;
         self.insert_mode = false;
+        self.newline_mode = true;
         self.autowrap = true;
         self.origin_mode = false;
     }
@@ -1587,6 +1600,7 @@ impl VtParser {
             autowrap: self.autowrap,
             origin_mode: self.origin_mode,
             insert_mode: self.insert_mode,
+            newline_mode: self.newline_mode,
             cursor_visible: self.cursor_visible,
             cursor_shape: self.cursor_shape,
         }
@@ -1600,6 +1614,7 @@ impl VtParser {
         self.autowrap = saved.autowrap;
         self.origin_mode = saved.origin_mode;
         self.insert_mode = saved.insert_mode;
+        self.newline_mode = saved.newline_mode;
         self.cursor_visible = saved.cursor_visible;
         self.cursor_shape = saved.cursor_shape;
     }
@@ -1696,6 +1711,7 @@ impl VtParser {
         } else {
             match mode {
                 "4" => Some(self.insert_mode),
+                "20" => Some(self.newline_mode),
                 _ => None,
             }
         };
@@ -2677,6 +2693,22 @@ mod tests {
     }
 
     #[test]
+    fn ansi_newline_mode_controls_linefeed_column() {
+        let g = grid_feed(3, 8, b"ab\x1b[20lcd\x1b[20h\nef");
+        assert_eq!(g.to_text(), "abcd    \nef      \n        ");
+        assert_eq!(g.cursor(), (1, 2));
+        assert!(!g.contains("20l"));
+        assert!(!g.contains("20h"));
+
+        let g2 = grid_feed(3, 8, b"ab\x1b[20l\ncd\rEF");
+        assert_eq!(g2.to_text(), "ab      \nEFcd    \n        ");
+
+        let g3 = grid_feed(3, 8, b"ab\x1b[20l\ncd\x1b[!p\nef");
+        assert_eq!(g3.to_text(), "ab      \nefcd    \n        ");
+        assert!(!g3.contains("!p"));
+    }
+
+    #[test]
     fn tab_advances_to_next_stop() {
         let g = grid_feed(2, 40, b"a\tb");
         // 'a' at col 0, tab -> col 8, 'b' at col 8.
@@ -3389,6 +3421,10 @@ mod tests {
         let g4 = grid_feed(1, 8, b"abcdef\x1b[1;3H\x1b[4l\x1b[s\x1b[4h\x1b[uX");
         assert_eq!(g4.to_text(), "abXdef  ");
         assert!(!g4.contains("[4"));
+
+        let g5 = grid_feed(3, 8, b"ab\x1b[20l\x1b7\x1b[20h\x1b8\ncd");
+        assert_eq!(g5.to_text(), "ab      \n  cd    \n        ");
+        assert!(!g5.contains("20"));
     }
 
     #[test]
@@ -4043,10 +4079,11 @@ mod tests {
         p.feed(&mut g, b"\x1b[4$p");
         assert_eq!(p.take_reply(), b"\x1b[4;2$y");
 
-        p.feed(&mut g, b"\x1b[4h\x1b[4$p\x1b[4l\x1b[4$p");
-        assert_eq!(p.take_reply(), b"\x1b[4;1$y\x1b[4;2$y");
+        p.feed(&mut g, b"\x1b[4h\x1b[4$p\x1b[4l\x1b[4$p\x1b[20$p\x1b[20l\x1b[20$p");
+        assert_eq!(p.take_reply(), b"\x1b[4;1$y\x1b[4;2$y\x1b[20;1$y\x1b[20;2$y");
         assert!(!g.contains("4$p"));
         assert!(!g.contains("[4h"));
+        assert!(!g.contains("20$p"));
 
         p.feed(&mut g, b"\x1b[9999$px\x1b[1;2$py");
         assert_eq!(p.take_reply(), b"\x1b[9999;0$y");
