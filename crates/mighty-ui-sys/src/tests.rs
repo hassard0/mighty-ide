@@ -10849,10 +10849,17 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains(
+            "id == cmd_view_ai_copilot() {\n          let _ai = mui_ai_show(h)\n          ai_focus = true\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false"
+        )
+            && main.contains("agents_focus = false\n          find_nav = false"),
+        "AI Copilot view command must reveal Copilot and release bottom-dock focus"
+    );
+    assert!(
+        main.contains(
             "id == cmd_ai_clear_chat() {\n          let _ai = mui_ai_show(h)\n          let _aic = mui_ai_clear(h)"
         )
-            && main.contains("ai_focus = true"),
-        "AI clear-chat command must reveal Copilot before clearing the transcript"
+            && main.contains("ai_focus = true\n          typing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false"),
+        "AI clear-chat command must reveal Copilot, clear the transcript, and release bottom-dock focus"
     );
     assert!(
         main.contains("ai_click == 4")

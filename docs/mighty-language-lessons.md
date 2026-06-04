@@ -8536,3 +8536,13 @@ longer looking at.
   now clear unrelated dock focus and transient navigation flags after opening
   their surfaces. This keeps command-palette navigation aligned with the same
   visible owner model used by direct dock clicks.
+
+## L711 - Right Dock Commands Should Release Bottom Dock Focus
+
+The AI Copilot lives outside the bottom dock, but it still competes for the next
+keyboard interaction. Palette commands that reveal or mutate Copilot should clear
+stale Run, Web, Testing, and Terminal focus so input follows the visible drawer.
+
+- **IDE note:** `View: AI Copilot` and `AI: Clear Chat` now clear bottom-dock
+  focus flags after showing Copilot. The clear-chat command still disables
+  editor typing while preserving AI focus for the next composer interaction.

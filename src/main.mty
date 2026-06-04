@@ -4748,7 +4748,12 @@ fn main() {
         } else if id == cmd_view_ai_copilot() {
           let _ai = mui_ai_show(h)
           ai_focus = true
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_inline_ai_ask() {
           mui_prompt_open(h, prompt_ai())
           prompt_kind = prompt_ai()
@@ -4768,6 +4773,10 @@ fn main() {
           let _aic = mui_ai_clear(h)
           ai_focus = true
           typing = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
           agents_focus = false
         } else if id == cmd_ai_close() {
           let _aic = mui_ai_close(h)
