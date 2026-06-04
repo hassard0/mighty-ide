@@ -8097,3 +8097,13 @@ the pragmatic compatibility behavior.
   on `SGR 0`/`22`, and preserves the state across cursor save/restore. Tests pin
   bold-before-color, bold-after-color, non-basic color boundaries, and restored
   bold state.
+
+L670. Reverse-video is selection UI, not decoration. TUIs use `SGR 7` for active
+rows, menus, and selections, so ignoring it makes interactive terminal programs
+lose their primary focus affordance.
+
+- **IDE note:** the VT parser now tracks SGR inverse state, materializes it by
+  swapping effective foreground/background for newly-written cells, resets it on
+  `SGR 0`/`27`, and preserves it across cursor save/restore. Rendering also
+  resolves the default-background sentinel as a foreground so inverted default
+  text paints correctly.

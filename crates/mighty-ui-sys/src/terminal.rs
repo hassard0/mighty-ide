@@ -689,6 +689,7 @@ struct SavedCursor {
     g1_charset: Charset,
     active_charset: CharsetSlot,
     bold: bool,
+    inverse: bool,
     autowrap: bool,
     origin_mode: bool,
     insert_mode: bool,
@@ -789,6 +790,8 @@ pub struct VtParser {
     active_charset: CharsetSlot,
     /// Whether SGR bold/intense is active for subsequently-written cells.
     bold: bool,
+    /// Whether SGR reverse-video swaps foreground/background for new cells.
+    inverse: bool,
     /// Last graphic cell written by printable output, used by REP (`CSI Ps b`).
     last_graphic: Option<Cell>,
     /// Whether the running app asked for bracketed paste (`CSI ?2004 h`).
@@ -851,6 +854,7 @@ impl VtParser {
             g1_charset: Charset::Ascii,
             active_charset: CharsetSlot::G0,
             bold: false,
+            inverse: false,
             last_graphic: None,
             bracketed_paste: false,
             focus_reporting: false,
@@ -929,6 +933,9 @@ impl VtParser {
     fn foreground_rgba(&self, fg: u32) -> (f32, f32, f32, f32) {
         if fg == DEFAULT_FG {
             return rgb8_rgba(self.default_fg_rgb, 1.0);
+        }
+        if fg == DEFAULT_BG {
+            return rgb8_rgba(self.default_bg_rgb, 1.0);
         }
 
         if fg & TRUECOLOR_MASK != 0 {
@@ -1056,10 +1063,11 @@ impl VtParser {
     }
 
     fn print_char(&mut self, grid: &mut Grid, ch: char) {
+        let (fg, bg) = effective_sgr_cell_colors(grid.cur_fg, grid.cur_bg, self.bold, self.inverse);
         let cell = Cell {
             ch,
-            fg: effective_sgr_fg(grid.cur_fg, self.bold),
-            bg: grid.cur_bg,
+            fg,
+            bg,
         };
         if self.insert_mode {
             grid.prepare_insert(self.autowrap);
@@ -1295,6 +1303,7 @@ impl VtParser {
             grid.cur_fg = DEFAULT_FG;
             grid.cur_bg = DEFAULT_BG;
             self.bold = false;
+            self.inverse = false;
             return;
         }
         // `ESC [ ? … m` (private) — not a real SGR; ignore.
@@ -1314,9 +1323,12 @@ impl VtParser {
                     grid.cur_fg = DEFAULT_FG;
                     grid.cur_bg = DEFAULT_BG;
                     self.bold = false;
+                    self.inverse = false;
                 }
                 1 => self.bold = true,
+                7 => self.inverse = true,
                 22 => self.bold = false,
+                27 => self.inverse = false,
                 30..=37 => grid.cur_fg = (n - 30) as u32, // basic 0..=7
                 39 => grid.cur_fg = DEFAULT_FG,     // default fg
                 40..=47 => grid.cur_bg = (n - 40) as u32, // basic bg 0..=7
@@ -1563,6 +1575,7 @@ impl VtParser {
         self.g1_charset = Charset::Ascii;
         self.active_charset = CharsetSlot::G0;
         self.bold = false;
+        self.inverse = false;
         self.bracketed_paste = false;
         self.focus_reporting = false;
         self.cursor_visible = true;
@@ -1847,6 +1860,7 @@ impl VtParser {
             g1_charset: self.g1_charset,
             active_charset: self.active_charset,
             bold: self.bold,
+            inverse: self.inverse,
             autowrap: self.autowrap,
             origin_mode: self.origin_mode,
             insert_mode: self.insert_mode,
@@ -1866,6 +1880,7 @@ impl VtParser {
         self.g1_charset = saved.g1_charset;
         self.active_charset = saved.active_charset;
         self.bold = saved.bold;
+        self.inverse = saved.inverse;
         self.autowrap = saved.autowrap;
         self.origin_mode = saved.origin_mode;
         self.insert_mode = saved.insert_mode;
@@ -2368,6 +2383,15 @@ fn effective_sgr_fg(fg: u32, bold: bool) -> u32 {
         fg + 8
     } else {
         fg
+    }
+}
+
+fn effective_sgr_cell_colors(fg: u32, bg: u32, bold: bool, inverse: bool) -> (u32, u32) {
+    let fg = effective_sgr_fg(fg, bold);
+    if inverse {
+        (bg, fg)
+    } else {
+        (fg, bg)
     }
 }
 
@@ -3395,6 +3419,34 @@ mod tests {
     }
 
     #[test]
+    fn sgr_inverse_swaps_effective_foreground_and_background() {
+        let g = grid_feed(1, 12, b"\x1b[31;44mA\x1b[7mB\x1b[27mC\x1b[1;32;47;7mD\x1b[0mE");
+        assert_eq!(g.cell(0, 0).fg, 1);
+        assert_eq!(g.cell(0, 0).bg, 4);
+        assert_eq!(g.cell(0, 1).fg, 4);
+        assert_eq!(g.cell(0, 1).bg, 1);
+        assert_eq!(g.cell(0, 2).fg, 1);
+        assert_eq!(g.cell(0, 2).bg, 4);
+        assert_eq!(g.cell(0, 3).fg, 7);
+        assert_eq!(g.cell(0, 3).bg, 10);
+        assert_eq!(g.cell(0, 4).fg, DEFAULT_FG);
+        assert_eq!(g.cell(0, 4).bg, DEFAULT_BG);
+    }
+
+    #[test]
+    fn sgr_inverse_handles_default_colors_for_drawing() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b[7mA\x1b[27mB");
+
+        assert_eq!(g.cell(0, 0).fg, DEFAULT_BG);
+        assert_eq!(g.cell(0, 0).bg, DEFAULT_FG);
+        assert_eq!(g.cell(0, 1).fg, DEFAULT_FG);
+        assert_eq!(g.cell(0, 1).bg, DEFAULT_BG);
+        assert_eq!(p.foreground_rgba(DEFAULT_BG), rgb8_rgba(DEFAULT_BG_RGB, 1.0));
+    }
+
+    #[test]
     fn sgr_background_colors_and_resets() {
         let g = grid_feed(2, 10, b"\x1b[44mA\x1b[49mB\x1b[104mC\x1b[0mD");
         assert_eq!(g.cell(0, 0).bg, 4);
@@ -4034,6 +4086,11 @@ mod tests {
         let g6 = grid_feed(1, 8, b"\x1b[31;1m\x1b7\x1b[22m\x1b8X");
         assert_eq!(g6.cell(0, 0).fg, 9);
         assert!(!g6.contains("[22"));
+
+        let g7 = grid_feed(1, 8, b"\x1b[31;44;7m\x1b7\x1b[27m\x1b8X");
+        assert_eq!(g7.cell(0, 0).fg, 4);
+        assert_eq!(g7.cell(0, 0).bg, 1);
+        assert!(!g7.contains("[27"));
     }
 
     #[test]
