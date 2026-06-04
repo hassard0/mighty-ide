@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Outline reads result-scoped document symbols**: LSP document-symbol parsing
+  now anchors on the top-level JSON-RPC `result` array and reads symbol `name`,
+  `kind`, ranges, and `children` from each symbol object, so metadata cannot
+  hijack the Outline panel.
 - **Code actions read top-level action fields**: LSP code-action parsing now
   anchors on the top-level JSON-RPC `result` array and reads each action's
   `title`, `edit`, `command`, `kind`, and `arguments` from that action object,

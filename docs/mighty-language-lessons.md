@@ -9962,3 +9962,17 @@ metadata look like the executable action.
 - **Language note:** no compiler gap surfaced. Menu actions are protocol
   objects, not bags of strings; action ownership should be established before
   deciding what command or edit a user can trigger.
+
+## L816 - Document Symbols Need Symbol-Scoped Fields
+
+LSP `documentSymbol` responses can include envelope metadata and nested symbol
+metadata with fields named `result`, `name`, `kind`, `range`, or `children`.
+Scanning broadly can put metadata rows in the Outline panel or recurse into
+non-symbol child arrays.
+
+- **IDE note:** outline parsing now reads only the top-level JSON-RPC `result`
+  array, then reads each symbol object's top-level `name`, `kind`,
+  `selectionRange` / `range` / `location.range`, and `children`.
+- **Language note:** no compiler gap surfaced. Tree-shaped protocol payloads
+  should split complete nodes first and recurse only through the node's own
+  child field.

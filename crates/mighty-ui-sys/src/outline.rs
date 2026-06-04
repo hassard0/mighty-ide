@@ -319,16 +319,11 @@ fn find_sub(hay: &[u8], needle: &[u8]) -> Option<usize> {
 /// caller can fall back to the scanner.
 pub fn parse_document_symbols(json: &str) -> Option<Vec<Symbol>> {
     let bytes = json.as_bytes();
-    if find_sub(bytes, b"\"error\"").is_some() && find_sub(bytes, b"-32601").is_some() {
+    if top_level_field_value_start(bytes, "error").is_some() && find_sub(bytes, b"-32601").is_some() {
         return None; // method not found
     }
-    // Find the result array start.
-    let res_at = find_sub(bytes, b"\"result\"")?;
-    let mut i = res_at + b"\"result\"".len();
-    while i < bytes.len() && matches!(bytes[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        i += 1;
-    }
-    if i >= bytes.len() {
+    let i = top_level_field_value_start(bytes, "result")?;
+    if i >= bytes.len() || bytes.get(i..i + 4) == Some(b"null") {
         return None;
     }
     if bytes[i] == b'[' {
@@ -393,28 +388,112 @@ fn parse_symbol_array(arr: &[u8], depth: u32, out: &mut Vec<Symbol>) {
     }
 }
 
-fn read_uint_after(region: &[u8], key: &[u8]) -> Option<u32> {
-    let p = find_sub(region, key)?;
-    let mut j = p + key.len();
-    while j < region.len() && matches!(region[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        j += 1;
+fn top_level_field_value_start(obj: &[u8], field: &str) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut i = 0usize;
+    while i < obj.len() {
+        match obj[i] {
+            b'{' | b'[' => {
+                depth += 1;
+                i += 1;
+            }
+            b'}' | b']' => {
+                depth -= 1;
+                i += 1;
+            }
+            b'"' => {
+                let (key, past) = read_json_string_at(obj, i)?;
+                if depth == 1 && key == field {
+                    let mut value_at = past;
+                    while value_at < obj.len()
+                        && matches!(obj[value_at], b' ' | b':' | b'\t' | b'\r' | b'\n')
+                    {
+                        value_at += 1;
+                    }
+                    return Some(value_at);
+                }
+                i = past;
+            }
+            _ => i += 1,
+        }
     }
-    let start = j;
-    let mut v: u32 = 0;
-    while j < region.len() && region[j].is_ascii_digit() {
-        v = v.saturating_mul(10).saturating_add((region[j] - b'0') as u32);
-        j += 1;
-    }
-    if j == start {
-        None
-    } else {
-        Some(v)
-    }
+    None
 }
 
-fn read_str_after(region: &[u8], key: &[u8]) -> Option<String> {
-    let p = find_sub(region, key)?;
-    read_json_string_at(region, p + key.len()).map(|(s, _)| s)
+fn top_level_json_string_field(obj: &[u8], field: &str) -> Option<String> {
+    top_level_field_value_start(obj, field)
+        .and_then(|value_at| read_json_string_at(obj, value_at))
+        .map(|(s, _)| s)
+}
+
+fn top_level_uint_field(obj: &[u8], field: &str) -> Option<u32> {
+    let mut i = top_level_field_value_start(obj, field)?;
+    while i < obj.len() && obj[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    let start = i;
+    let mut v = 0u32;
+    while i < obj.len() && obj[i].is_ascii_digit() {
+        v = v.saturating_mul(10).saturating_add((obj[i] - b'0') as u32);
+        i += 1;
+    }
+    (i > start).then_some(v)
+}
+
+fn top_level_object_field<'a>(obj: &'a [u8], field: &str) -> Option<&'a [u8]> {
+    let value_at = top_level_field_value_start(obj, field)?;
+    if obj.get(value_at) != Some(&b'{') {
+        return None;
+    }
+    let end = match_brace(obj, value_at).min(obj.len());
+    Some(&obj[value_at..end])
+}
+
+fn top_level_array_field<'a>(obj: &'a [u8], field: &str) -> Option<&'a [u8]> {
+    let value_at = top_level_field_value_start(obj, field)?;
+    if obj.get(value_at) != Some(&b'[') {
+        return None;
+    }
+    let end = match_bracket(obj, value_at).min(obj.len());
+    Some(&obj[value_at..end])
+}
+
+fn match_brace(bytes: &[u8], open: usize) -> usize {
+    match_delim(bytes, open, b'{', b'}')
+}
+
+fn match_bracket(bytes: &[u8], open: usize) -> usize {
+    match_delim(bytes, open, b'[', b']')
+}
+
+fn match_delim(bytes: &[u8], open: usize, o: u8, c: u8) -> usize {
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut esc = false;
+    let mut k = open;
+    while k < bytes.len() {
+        let b = bytes[k];
+        if in_str {
+            if esc {
+                esc = false;
+            } else if b == b'\\' {
+                esc = true;
+            } else if b == b'"' {
+                in_str = false;
+            }
+        } else if b == b'"' {
+            in_str = true;
+        } else if b == o {
+            depth += 1;
+        } else if b == c {
+            depth -= 1;
+            if depth == 0 {
+                return k + 1;
+            }
+        }
+        k += 1;
+    }
+    bytes.len()
 }
 
 fn read_json_string_at(bytes: &[u8], pos: usize) -> Option<(String, usize)> {
@@ -533,21 +612,27 @@ fn push_json_code_unit(out: &mut String, high_surrogate: &mut Option<u16>, unit:
     }
 }
 
-fn read_range_start_line_after(region: &[u8], key: &[u8]) -> Option<u32> {
-    let p = find_sub(region, key)?;
-    read_uint_after(&region[p..], b"\"line\"")
+fn range_start_line(range: &[u8]) -> Option<u32> {
+    let start = top_level_object_field(range, "start")?;
+    top_level_uint_field(start, "line")
 }
 
 /// Parse one symbol object (`{...}`) into `out`, then recurse into `children`.
 fn parse_one_symbol(obj: &[u8], depth: u32, out: &mut Vec<Symbol>) {
-    let name = match read_str_after(obj, b"\"name\"") {
+    let name = match top_level_json_string_field(obj, "name") {
         Some(n) => n,
         None => return,
     };
-    let kind_n = read_uint_after(obj, b"\"kind\"").unwrap_or(14);
+    let kind_n = top_level_uint_field(obj, "kind").unwrap_or(14);
     // selectionRange (DocumentSymbol) preferred, else range, else location.range.
-    let line = read_range_start_line_after(obj, b"\"selectionRange\"")
-        .or_else(|| read_range_start_line_after(obj, b"\"range\""))
+    let line = top_level_object_field(obj, "selectionRange")
+        .and_then(range_start_line)
+        .or_else(|| top_level_object_field(obj, "range").and_then(range_start_line))
+        .or_else(|| {
+            top_level_object_field(obj, "location")
+                .and_then(|location| top_level_object_field(location, "range"))
+                .and_then(range_start_line)
+        })
         .unwrap_or(0);
     out.push(Symbol {
         name,
@@ -555,15 +640,8 @@ fn parse_one_symbol(obj: &[u8], depth: u32, out: &mut Vec<Symbol>) {
         line,
         depth,
     });
-    // children: a nested array.
-    if let Some(ch_at) = find_sub(obj, b"\"children\"") {
-        let mut i = ch_at + b"\"children\"".len();
-        while i < obj.len() && matches!(obj[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-            i += 1;
-        }
-        if i < obj.len() && obj[i] == b'[' {
-            parse_symbol_array(&obj[i..], depth + 1, out);
-        }
+    if let Some(children) = top_level_array_field(obj, "children") {
+        parse_symbol_array(children, depth + 1, out);
     }
 }
 
@@ -943,6 +1021,27 @@ fn b() {}\n";
         assert_eq!(syms.len(), 1);
         assert_eq!(syms[0].name, "method");
         assert_eq!(syms[0].line, 12);
+    }
+
+    #[test]
+    fn parse_document_symbols_uses_top_level_result_array() {
+        let json = r#"{"jsonrpc":"2.0","metadata":{"result":[{"name":"Wrong","kind":12,"range":{"start":{"line":99,"character":0},"end":{"line":99,"character":1}}}]},"result":[{"name":"Right","kind":12,"range":{"start":{"line":2,"character":0},"end":{"line":2,"character":1}},"selectionRange":{"start":{"line":3,"character":0},"end":{"line":3,"character":1}}}],"id":2}"#;
+        let syms = parse_document_symbols(json).expect("symbols");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Right");
+        assert_eq!(syms[0].line, 3);
+    }
+
+    #[test]
+    fn parse_document_symbols_use_symbol_top_level_fields() {
+        let json = r#"{"result":[{"metadata":{"name":"Wrong","kind":12,"selectionRange":{"start":{"line":99,"character":0},"end":{"line":99,"character":1}},"children":[{"name":"WrongChild","kind":12,"range":{"start":{"line":98,"character":0},"end":{"line":98,"character":1}}}]},"name":"Right","kind":23,"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":1}},"selectionRange":{"start":{"line":4,"character":0},"end":{"line":4,"character":1}}}],"id":2}"#;
+        let syms = parse_document_symbols(json).expect("symbols");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Right");
+        assert_eq!(syms[0].kind, SymKind::Struct);
+        assert_eq!(syms[0].line, 4);
     }
 
     #[test]
