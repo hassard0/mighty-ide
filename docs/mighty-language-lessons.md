@@ -7838,3 +7838,13 @@ the IDE focus state actually changes.
   the reported state changes, and the Mighty frame loop publishes `term_focus`
   after terminal pump/liveness checks. Tests cover mode tracking, reset behavior,
   and the exact xterm focus-report byte sequences.
+
+L644. Origin mode must constrain relative vertical cursor motion. With a scroll
+region active and DECOM (`CSI ?6 h`) enabled, full-screen TUIs expect CUU/CUD,
+VPR, CNL, and CPL to stay inside the top/bottom margins instead of escaping into
+rows reserved outside the viewport.
+
+- **IDE note:** origin-mode relative vertical moves now clamp to the active
+  scroll region while horizontal motion still spans the full row. Regression
+  tests cover large upward/downward CUU/CUD/VPR motions and CNL/CPL line motions
+  at both margins.

@@ -487,6 +487,16 @@ impl Grid {
         self.cur_col = col;
     }
 
+    fn move_cursor_relative_origin(&mut self, d_row: isize, d_col: isize) {
+        let row = self
+            .cur_row
+            .saturating_add_signed(d_row)
+            .clamp(self.scroll_top, self.scroll_bottom);
+        let col = self.cur_col.saturating_add_signed(d_col).min(self.cols - 1);
+        self.cur_row = row;
+        self.cur_col = col;
+    }
+
     fn move_cursor_col_1_based(&mut self, col: usize) {
         self.cur_col = col.saturating_sub(1).min(self.cols - 1);
     }
@@ -497,6 +507,15 @@ impl Grid {
 
     fn move_cursor_line_relative(&mut self, d_row: isize) {
         let row = self.cur_row.saturating_add_signed(d_row).min(self.rows - 1);
+        self.cur_row = row;
+        self.cur_col = 0;
+    }
+
+    fn move_cursor_line_relative_origin(&mut self, d_row: isize) {
+        let row = self
+            .cur_row
+            .saturating_add_signed(d_row)
+            .clamp(self.scroll_top, self.scroll_bottom);
         self.cur_row = row;
         self.cur_col = 0;
     }
@@ -1327,7 +1346,9 @@ impl VtParser {
             .unwrap_or(1)
             .max(1) as isize;
         match final_byte {
+            b'A' | b'k' if self.origin_mode => grid.move_cursor_relative_origin(-amount, 0),
             b'A' | b'k' => grid.move_cursor_relative(-amount, 0),
+            b'B' if self.origin_mode => grid.move_cursor_relative_origin(amount, 0),
             b'B' => grid.move_cursor_relative(amount, 0),
             b'C' | b'a' => grid.move_cursor_relative(0, amount),
             b'D' | b'j' => grid.move_cursor_relative(0, -amount),
@@ -1397,7 +1418,11 @@ impl VtParser {
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or(1)
             .max(1) as isize;
-        grid.move_cursor_relative(amount, 0);
+        if self.origin_mode {
+            grid.move_cursor_relative_origin(amount, 0);
+        } else {
+            grid.move_cursor_relative(amount, 0);
+        }
     }
 
     fn cursor_line_relative(&mut self, grid: &mut Grid, final_byte: u8) {
@@ -1413,7 +1438,9 @@ impl VtParser {
             .unwrap_or(1)
             .max(1) as isize;
         match final_byte {
+            b'E' if self.origin_mode => grid.move_cursor_line_relative_origin(amount),
             b'E' => grid.move_cursor_line_relative(amount),
+            b'F' if self.origin_mode => grid.move_cursor_line_relative_origin(-amount),
             b'F' => grid.move_cursor_line_relative(-amount),
             _ => {}
         }
@@ -2573,6 +2600,40 @@ mod tests {
         assert_eq!(g.cell(1, 2).ch, 'b');
         assert_eq!(g.cursor(), (0, 3));
         assert!(!g.contains("?6l"));
+    }
+
+    #[test]
+    fn origin_mode_clamps_relative_vertical_moves_to_scroll_region() {
+        let g = grid_feed(
+            5,
+            6,
+            b"aaaaaa\nbbbbbb\ncccccc\ndddddd\neeeeee\x1b[2;4r\x1b[?6h\x1b[1;1HX\x1b[99AY\x1b[99BZ",
+        );
+        assert_eq!(g.cell(1, 1).ch, 'Y', "CUU clamps to the top margin");
+        assert_eq!(g.cell(3, 2).ch, 'Z', "CUD clamps to the bottom margin");
+        assert!(!g.contains("99A"));
+        assert!(!g.contains("99B"));
+
+        let g2 = grid_feed(
+            5,
+            6,
+            b"aaaaaa\nbbbbbb\ncccccc\ndddddd\neeeeee\x1b[2;4r\x1b[?6h\x1b[2;4HX\x1b[99eY",
+        );
+        assert_eq!(g2.cell(3, 4).ch, 'Y', "VPR clamps to the bottom margin");
+        assert!(!g2.contains("99e"));
+    }
+
+    #[test]
+    fn origin_mode_clamps_relative_line_moves_to_scroll_region() {
+        let g = grid_feed(
+            5,
+            6,
+            b"aaaaaa\nbbbbbb\ncccccc\ndddddd\neeeeee\x1b[2;4r\x1b[?6h\x1b[2;4HX\x1b[99EY\x1b[99FZ",
+        );
+        assert_eq!(g.cell(3, 0).ch, 'Y', "CNL clamps to the bottom margin");
+        assert_eq!(g.cell(1, 0).ch, 'Z', "CPL clamps to the top margin");
+        assert!(!g.contains("99E"));
+        assert!(!g.contains("99F"));
     }
 
     #[test]
