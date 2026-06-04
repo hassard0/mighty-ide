@@ -10359,3 +10359,17 @@ not a response when the same envelope owns a `method`.
 - **Language note:** no compiler gap surfaced. JSON-RPC clients should classify
   message role before checking id/payload fields; requests and responses share
   `id` but have different control-flow meaning.
+
+## L844 - Prepare Rename Parses Responses Only
+
+`prepareRename` uses a JSON-RPC response to communicate either rejection
+(`error` or `result: null`) or an accepted range. Server requests can also carry
+fields named `result` or `error`, but they are not rename-preparation answers.
+
+- **IDE note:** prepare-rename rejection and accepted-range parsing now ignores
+  request-shaped envelopes with a top-level `method`. Only response-shaped
+  objects can reject a rename or move the seed symbol to the server-provided
+  range start.
+- **Language note:** no compiler gap surfaced. Feature-specific response
+  parsers should keep the same envelope-role checks as the transport wait loop,
+  because direct parser tests and fallback paths can feed them raw stream data.

@@ -9749,6 +9749,9 @@ pub extern "C" fn mui_rename_prepare(handle: i64, line: i32, col: i32) -> i32 {
 
 fn prepare_rename_explicitly_rejected(json: &str) -> bool {
     let bytes = json.as_bytes();
+    if top_level_json_field_value_start(bytes, "method").is_some() {
+        return false;
+    }
     top_level_json_field_value_start(bytes, "error").is_some()
         || top_level_json_field_value_start(bytes, "result")
             .is_some_and(|i| bytes.get(i..i + 4) == Some(b"null"))
@@ -9813,6 +9816,9 @@ fn read_json_string_at(bytes: &[u8], pos: usize) -> Option<(String, usize)> {
 /// `Range` `{"start":{"line":N,"character":N},"end":{...}}`.
 fn parse_prepare_rename_start(json: &str) -> Option<(u32, u32)> {
     let bytes = json.as_bytes();
+    if top_level_json_field_value_start(bytes, "method").is_some() {
+        return None;
+    }
     let result = top_level_json_object_field(bytes, "result")?;
     let range = top_level_json_object_field(result, "range").unwrap_or(result);
     let start = top_level_json_object_field(range, "start")?;
@@ -9941,6 +9947,9 @@ mod rename_prepare_tests {
         assert!(!prepare_rename_explicitly_rejected(
             r#"{"jsonrpc":"2.0","result":{"start":{"line":4,"character":8},"end":{"line":4,"character":12},"metadata":{"error":{"message":"not json-rpc failure"}}},"id":3}"#
         ));
+        assert!(!prepare_rename_explicitly_rejected(
+            r#"{"jsonrpc":"2.0","id":3,"method":"workspace/applyEdit","result":null}"#
+        ));
     }
 
     #[test]
@@ -9959,6 +9968,12 @@ mod rename_prepare_tests {
     fn prepare_rename_start_ignores_result_metadata_start() {
         let raw = r#"{"jsonrpc":"2.0","result":{"metadata":{"start":{"line":99,"character":1}},"start":{"metadata":{"line":98,"character":2},"line":5,"character":9},"end":{"line":5,"character":13}},"id":3}"#;
         assert_eq!(parse_prepare_rename_start(raw), Some((5, 9)));
+    }
+
+    #[test]
+    fn prepare_rename_start_requires_response_envelope() {
+        let raw = r#"{"jsonrpc":"2.0","id":3,"method":"workspace/applyEdit","result":{"start":{"line":9,"character":1},"end":{"line":9,"character":4}}}"#;
+        assert_eq!(parse_prepare_rename_start(raw), None);
     }
 
     #[test]

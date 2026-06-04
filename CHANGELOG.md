@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Prepare rename requires response envelopes**: rename preparation now ignores
+  request-shaped JSON-RPC objects with top-level `method` while reading
+  `prepareRename` rejection or accepted ranges, so incidental request payloads
+  cannot block or redirect symbol rename.
 - **Generic LSP waits require response envelopes**: the cross-language LSP
   client now ignores objects with a top-level `method` while waiting for request
   id `2`, even if a server request carries incidental `result` data.
