@@ -43,6 +43,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   hover, definition, signature-help, completion, code-action, and quick-fix
   lightbulb state, and closes inline peek cards, so transient language UI cannot
   follow the wrong tab.
+- **Tab switches clear stale Outline symbols**: active-file sync now invalidates
+  the cached document-symbol list so Outline and Sticky Scroll cannot show
+  symbol rows from the previous file before the next refresh.
 - **Workspace edits protect dirty duplicate tabs**: code actions and rename
   workspace edits now skip a target path when any equivalent non-active tab is
   dirty, including duplicate views of the active file, avoiding disk writes

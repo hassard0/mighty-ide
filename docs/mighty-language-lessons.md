@@ -10733,3 +10733,18 @@ point at the previous tab while the status bar and editor show a new file.
 - **Language note:** no compiler gap surfaced. Cached interactive language
   state should be invalidated at the same resource-identity boundary as cached
   analysis diagnostics.
+
+## L871 - Document Symbol Caches Belong To The Active File Context
+
+Outline rows and Sticky Scroll headers are derived from the active document's
+symbol list. If that list survives an active-file transition, the sidebar and
+sticky header band can present symbols from the previous file against a new
+editor buffer.
+
+- **IDE note:** active-file path synchronization now clears cached Outline
+  symbols and current-symbol state. Existing UI paths can still refresh symbols
+  immediately after switching, while forgotten refresh paths fail empty instead
+  of showing stale rows.
+- **Language note:** no compiler gap surfaced. Document-symbol caches should be
+  scoped to the resource identity that produced them; consumers such as sticky
+  scroll should see an empty cache until the new file is scanned.

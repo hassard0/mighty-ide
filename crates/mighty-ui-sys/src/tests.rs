@@ -9172,6 +9172,45 @@ fn sync_active_path_clears_stale_active_language_ui() {
 }
 
 #[test]
+fn sync_active_path_clears_stale_outline_and_sticky_state() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_sync_path_clears_outline_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let first = root.join("first.mty");
+    let second = root.join("second.mty");
+    std::fs::write(
+        &first,
+        "fn alpha() {\n  let one = 1\n  let two = 2\n}\n\nfn beta() {}\n",
+    )
+    .unwrap();
+    std::fs::write(&second, "let plain = 1\n").unwrap();
+
+    ctx.tabs.open_path(first);
+    crate::sync_active_path(&mut ctx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::navsurfaces::mui_outline_refresh(h), 2);
+    assert_eq!(crate::navsurfaces::mui_outline_set_cursor(h, 2), 0);
+    ctx.tabs.active_model_mut().set_first_visible(2);
+    assert_eq!(crate::stickyabi::mui_sticky_count(h), 1);
+
+    let second_idx = ctx.tabs.open_path(second);
+    ctx.tabs.switch(second_idx);
+    crate::sync_active_path(&mut ctx);
+
+    assert_eq!(crate::navsurfaces::mui_outline_count(h), 0);
+    assert_eq!(crate::navsurfaces::mui_outline_current(h), -1);
+    assert_eq!(crate::stickyabi::mui_sticky_count(h), 0);
+    assert_eq!(ctx.file_name, "second.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn definition_open_target_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
