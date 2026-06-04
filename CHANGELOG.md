@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Mighty navigation waits for response-owned IDs**: the built-in Mighty hover
+  and go-to-definition client now stops and isolates responses only from
+  complete top-level JSON-RPC response objects with `id: 2`, so progress
+  metadata or server requests cannot replace the actual hover/definition result.
 - **LSP requests wait for response-owned IDs**: generic hover, completion,
   definition, signature, rename, and code-action requests now stop reading only
   after a complete response object with top-level `id: 2` and a `result` or

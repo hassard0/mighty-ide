@@ -10130,3 +10130,16 @@ wrong object.
 - **Language note:** no compiler gap surfaced. Request readiness belongs to the
   JSON-RPC response envelope, not to a matching key string anywhere in the
   stream.
+
+## L828 - Navigation Response Isolation Needs Envelope Ownership
+
+Mighty's built-in hover and definition client receives the same mixed LSP
+stream as the generic client: initialize responses, progress notifications, and
+possibly server requests can arrive before the requested response. Nested
+metadata can also contain `id: 2` and `result` fields.
+
+- **IDE note:** the Mighty navigation LSP path now waits for and isolates only a
+  complete top-level JSON-RPC response object whose top-level `id` is `2` and
+  whose object owns `result` or `error`.
+- **Language note:** no compiler gap surfaced. Response isolation should be
+  envelope-based at every consumer, not just at shared generic clients.

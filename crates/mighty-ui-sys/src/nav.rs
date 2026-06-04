@@ -966,13 +966,6 @@ pub mod lsp {
         let _ = child.wait();
     }
 
-    fn find_sub(hay: &[u8], needle: &[u8]) -> Option<usize> {
-        if needle.is_empty() || needle.len() > hay.len() {
-            return None;
-        }
-        hay.windows(needle.len()).position(|w| w == needle)
-    }
-
     /// Which navigation request to fire.
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     pub enum Req {
@@ -992,8 +985,8 @@ pub mod lsp {
     ///
     /// Same robustness model as the completion client: read on a worker thread,
     /// bound the wait with `recv_timeout`, KILL the child on timeout to close the
-    /// pipe and unblock the reader. The reader stops early once the response id
-    /// (`"id":2`) is seen so the happy path returns promptly.
+    /// pipe and unblock the reader. The reader stops early once the complete
+    /// response object for id 2 is seen so the happy path returns promptly.
     pub fn request_with_timeout(
         path: &Path,
         source: &str,
@@ -1074,7 +1067,7 @@ pub mod lsp {
                     Ok(0) => break,
                     Ok(n) => {
                         buf.extend_from_slice(&chunk[..n]);
-                        if find_sub(&buf, b"\"id\":2").is_some() {
+                        if has_response_id(&buf, 2) {
                             break;
                         }
                         if buf.len() > 1024 * 1024 {
@@ -1110,7 +1103,47 @@ pub mod lsp {
         // the hover-`value` / definition-`uri` parsers from matching the wrong
         // payload (e.g. the server's own `serverInfo` or capability strings).
         let text = String::from_utf8_lossy(&raw).into_owned();
-        isolate_response(&text, "\"id\":2")
+        isolate_response_id(&text, 2)
+    }
+
+    pub(super) fn has_response_id(stream: &[u8], wanted_id: u32) -> bool {
+        response_object_ranges(stream).into_iter().any(|(start, end)| {
+            let obj = &stream[start..end];
+            super::top_level_uint_field(obj, b"id") == Some(wanted_id)
+                && (super::top_level_field_value_start(obj, b"result").is_some()
+                    || super::top_level_field_value_start(obj, b"error").is_some())
+        })
+    }
+
+    fn response_object_ranges(stream: &[u8]) -> Vec<(usize, usize)> {
+        let mut out = Vec::new();
+        let mut k = 0usize;
+        while k < stream.len() {
+            if stream[k] == b'{' {
+                let end = super::match_enclosed(stream, k, b'{', b'}').min(stream.len());
+                if end > k {
+                    out.push((k, end));
+                    k = end;
+                    continue;
+                }
+            }
+            k += 1;
+        }
+        out
+    }
+
+    pub(super) fn isolate_response_id(stream: &str, wanted_id: u32) -> String {
+        let bytes = stream.as_bytes();
+        for (start, end) in response_object_ranges(bytes) {
+            let obj = &bytes[start..end];
+            if super::top_level_uint_field(obj, b"id") == Some(wanted_id)
+                && (super::top_level_field_value_start(obj, b"result").is_some()
+                    || super::top_level_field_value_start(obj, b"error").is_some())
+            {
+                return stream[start..end].to_string();
+            }
+        }
+        stream.to_string()
     }
 
     /// Return the single JSON object (brace-balanced) that contains `marker`
@@ -1595,6 +1628,37 @@ mod tests {
         let stream = r#"{"result":{"contents":{"value":"a{b}c"}},"id":2}"#;
         let one = lsp::isolate_response(stream, "\"id\":2");
         assert_eq!(parse_hover_value(&one).unwrap(), "a{b}c");
+    }
+
+    #[test]
+    fn nav_lsp_response_wait_uses_top_level_response_id() {
+        let stream = br#"Content-Length: 99
+
+{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"contents":"wrong"}}}}Content-Length: 61
+
+{"jsonrpc":"2.0","id":2,"result":{"contents":"right"}}"#;
+
+        assert!(lsp::has_response_id(stream, 2));
+    }
+
+    #[test]
+    fn nav_lsp_response_wait_ignores_nested_id_and_requests() {
+        let nested_id = br#"{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"contents":"wrong"}}}}"#;
+        let server_request = br#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}"#;
+        let response_error = br#"{"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"failed"}}"#;
+
+        assert!(!lsp::has_response_id(nested_id, 2));
+        assert!(!lsp::has_response_id(server_request, 2));
+        assert!(lsp::has_response_id(response_error, 2));
+    }
+
+    #[test]
+    fn nav_lsp_isolate_response_id_skips_nested_metadata_id() {
+        let stream = r#"{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"contents":"wrong"}}}}{"jsonrpc":"2.0","id":2,"result":{"contents":{"value":"right hover"}}}"#;
+        let one = lsp::isolate_response_id(stream, 2);
+
+        assert_eq!(parse_hover_value(&one).unwrap(), "right hover");
+        assert!(!one.contains("wrong"));
     }
 
     // ---- guarded LSP integration test ----
