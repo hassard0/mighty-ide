@@ -73,6 +73,34 @@ impl Mode {
     }
 }
 
+fn recent_paths_equal(a: &Path, b: &Path) -> bool {
+    if a == b {
+        return true;
+    }
+    if let (Ok(ca), Ok(cb)) = (a.canonicalize(), b.canonicalize()) {
+        if ca == cb {
+            return true;
+        }
+        #[cfg(windows)]
+        {
+            return normalize_windows_path(&ca) == normalize_windows_path(&cb);
+        }
+    }
+    #[cfg(windows)]
+    {
+        return normalize_windows_path(a) == normalize_windows_path(b);
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
+#[cfg(windows)]
+fn normalize_windows_path(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/").to_lowercase()
+}
+
 // ===========================================================================
 // Fuzzy matcher (with matched-index output for highlighting)
 // ===========================================================================
@@ -341,7 +369,7 @@ impl Mru {
     /// Remove `path` from the MRU, returning true when a row was removed.
     pub fn remove(&mut self, path: &Path) -> bool {
         let before = self.paths.len();
-        self.paths.retain(|p| p != path);
+        self.paths.retain(|p| !recent_paths_equal(p, path));
         self.paths.len() != before
     }
 
@@ -1328,6 +1356,23 @@ mod tests {
         assert!(mru.remove(Path::new("/a.mty")));
         assert_eq!(mru.entries(), &[PathBuf::from("/b.mty")]);
         assert!(!mru.remove(Path::new("/missing.mty")));
+    }
+
+    #[test]
+    fn mru_remove_drops_canonical_equivalent_path() {
+        let root = std::env::temp_dir().join(format!("mui_qo_mru_remove_eq_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("same.mty");
+        std::fs::write(&path, b"same").unwrap();
+        let equivalent = root.join(".").join("same.mty");
+
+        let mut mru = Mru::new();
+        mru.record(equivalent);
+        assert!(mru.remove(&path));
+        assert!(mru.entries().is_empty());
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

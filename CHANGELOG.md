@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Recent files track rename and delete**: file rename now removes the old path
+  before recording the new one, and file delete removes the deleted path
+  immediately, so Quick Open and Welcome recents stay actionable.
 - **Rename rebinds duplicate open tabs**: renaming an active file now updates
   every equivalent open tab for that file, including dirty duplicate views, so
   no tab remains pointed at the old on-disk path after the move.

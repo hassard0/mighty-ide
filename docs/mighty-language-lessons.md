@@ -10522,3 +10522,17 @@ no longer exists.
 - **Language note:** no compiler gap surfaced. A filesystem rename is a
   path-identity transition; duplicate UI views need rebinding, not compaction,
   because their editing state should survive the move.
+
+## L856 - Recent Files Must Follow Disk Mutations
+
+Recent-file lists are user-facing navigation state, not just a passive cache.
+Rename and delete operations that change the filesystem should also update the
+MRU immediately so Quick Open and Welcome do not offer stale targets.
+
+- **IDE note:** file rename now removes the old path from recent files before
+  recording the new path, and file delete removes the deleted path as soon as the
+  delete succeeds. Recent removal uses canonical path equivalence, with a
+  Windows-only slash/case fallback, so alternate spellings are cleaned too.
+- **Language note:** no compiler gap surfaced. Persistence side effects should
+  be part of the same state transition as the filesystem mutation; delayed
+  pruning is a fallback, not the primary consistency mechanism.

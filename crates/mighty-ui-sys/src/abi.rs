@@ -41,6 +41,12 @@ fn record_recent_file(ctx: &mut MuiContext, path: PathBuf) {
     persist_recent_files(ctx);
 }
 
+fn remove_recent_file(ctx: &mut MuiContext, path: &std::path::Path) {
+    if ctx.quickopen.remove_recent_path(path) {
+        persist_recent_files(ctx);
+    }
+}
+
 fn persist_recent_files(ctx: &MuiContext) {
     let _ = crate::config::save_recent_files(&ctx.quickopen.recent_blob());
 }
@@ -6126,6 +6132,7 @@ pub extern "C" fn mui_file_rename_active(handle: i64) -> i32 {
             ctx.tree.refresh();
             let root = crate::wsabi::effective_root(ctx);
             let _ = ctx.quickopen.ensure_index(&root, true);
+            ctx.quickopen.remove_recent_path(&old_path);
             record_recent_file(ctx, new_path.clone());
             ctx.push_toast(crate::toast::Kind::Success, format!("Renamed to {name}"));
             println!("file-rename: {} -> {}", old_path.display(), new_path.display());
@@ -6482,6 +6489,7 @@ pub extern "C" fn mui_file_delete_active_confirm(handle: i64) -> i32 {
             ctx.tree.refresh();
             let root = crate::wsabi::effective_root(ctx);
             let _ = ctx.quickopen.ensure_index(&root, true);
+            remove_recent_file(ctx, &path);
             ctx.push_toast(crate::toast::Kind::Success, format!("Deleted {name}"));
             println!("file-delete: {}", path.display());
             1

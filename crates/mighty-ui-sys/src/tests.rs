@@ -3294,6 +3294,7 @@ fn active_file_rename_updates_tab_path_tree_and_toasts() {
     ctx.workspace.set_root(root.clone());
     ctx.tree.set_root(root.clone());
     ctx.tabs.open_path(old.clone());
+    ctx.quickopen.set_recent_paths(vec![old.clone()]);
     crate::abi::sync_active_path(&mut ctx);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -3304,6 +3305,7 @@ fn active_file_rename_updates_tab_path_tree_and_toasts() {
     assert!(new.exists());
     assert_eq!(ctx.tabs.active_path().unwrap(), new);
     assert_eq!(ctx.file_path.as_ref().unwrap().file_name().unwrap(), "new.mty");
+    assert_eq!(ctx.quickopen.recent_paths(), vec![new.clone()]);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Success);
     assert_eq!(toast.message, "Renamed to new.mty");
@@ -3388,6 +3390,7 @@ fn active_file_delete_requires_exact_basename_confirmation() {
     ctx.tree.set_root(root.clone());
     ctx.tabs.open_path(keep.clone());
     ctx.tabs.open_path(doomed.clone());
+    ctx.quickopen.set_recent_paths(vec![doomed.clone(), keep.clone()]);
     crate::abi::sync_active_path(&mut ctx);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -3404,6 +3407,7 @@ fn active_file_delete_requires_exact_basename_confirmation() {
     assert!(!doomed.exists());
     assert_eq!(ctx.tabs.count(), 2);
     assert_eq!(ctx.tabs.active_path().unwrap(), keep);
+    assert_eq!(ctx.quickopen.recent_paths(), vec![keep.clone()]);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Success);
     assert_eq!(toast.message, "Deleted doomed.mty");
