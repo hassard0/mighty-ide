@@ -9287,3 +9287,17 @@ commands still need explicit ownership cleanup.
 - **Language note:** no compiler gap surfaced. This is the same route-parity
   contract applied to a mixed input surface: only ownership transitions get the
   cleanup writes; ordinary key/character forwarding remains data-plane routing.
+
+## L769 - Settings-style Overlays Have Local Exit Contracts
+
+Settings and picker overlays are not only command-dispatched surfaces. Once
+open, their Enter/Escape/click handlers close or apply locally, so those event
+arms need the same cleanup as the palette command rows that open or close them.
+
+- **IDE note:** Color Theme Enter/Escape/click apply/cancel exits and Settings
+  Escape/close/outside-click exits now clear stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus plus transient typing state
+  before returning keyboard input to the editor.
+- **Language note:** no compiler gap surfaced. The route-parity lesson extends
+  to modal-style in-app settings surfaces: command rows and local overlay exits
+  are separate routes and both must write the ownership contract.

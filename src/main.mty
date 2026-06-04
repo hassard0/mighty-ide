@@ -2067,21 +2067,61 @@ fn main() {
           } else if k == key_enter() {
             let _t = mui_theme_picker_apply(h)
             theme_picker_open = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if k == key_escape() {
             let _thc = mui_theme_picker_cancel(h)
             theme_picker_open = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         } else if tag == ev_mouse_down() {
           let th = mui_theme_picker_click(h)
           if th == 2 {
             let _thc = mui_theme_picker_cancel(h)
             theme_picker_open = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if th == 0 {
             let _thc = mui_theme_picker_cancel(h)
             theme_picker_open = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else {
             let _t = mui_theme_picker_apply(h)
             theme_picker_open = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         }
       } else if settings_open {
@@ -2111,15 +2151,39 @@ fn main() {
           } else if k == key_escape() {
             let _sc = mui_settings_close(h)
             settings_open = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         } else if tag == ev_mouse_down() {
           let sc = mui_settings_click(h)
           if sc == 5 {
             let _sc = mui_settings_close(h)
             settings_open = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if sc == 0 {
             let _sc = mui_settings_close(h)
             settings_open = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if sc == 2 {
             mui_settings_adjust(h, -1)
           } else if sc == 3 {

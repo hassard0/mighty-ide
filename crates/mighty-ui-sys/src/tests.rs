@@ -12067,6 +12067,48 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         ),
         "Terminal wheel events must claim Terminal focus and release competing surfaces"
     );
+    let theme_focus_cleanup = "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    let theme_start = main
+        .find("} else if theme_picker_open {")
+        .expect("theme picker branch should exist");
+    let theme_end = main[theme_start..]
+        .find("} else if settings_open {")
+        .map(|i| theme_start + i)
+        .expect("theme picker branch should precede settings branch");
+    let theme_branch = &main[theme_start..theme_end];
+    assert!(
+        theme_branch.matches(theme_focus_cleanup).count() >= 5,
+        "Theme picker Enter/Escape/click exits must release stale focus"
+    );
+    for needle in [
+        "let _t = mui_theme_picker_apply(h)\n            theme_picker_open = false",
+        "let _thc = mui_theme_picker_cancel(h)\n            theme_picker_open = false",
+        "if th == 2",
+        "} else if th == 0",
+        "} else {\n            let _t = mui_theme_picker_apply(h)",
+    ] {
+        assert!(theme_branch.contains(needle), "Theme picker branch must include `{needle}`");
+    }
+    let settings_focus_cleanup = "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    let settings_start = main
+        .find("} else if settings_open {")
+        .expect("settings branch should exist");
+    let settings_end = main[settings_start..]
+        .find("} else if (run_focus || web_focus)")
+        .map(|i| settings_start + i)
+        .expect("settings branch should precede bottom dock focus branch");
+    let settings_branch = &main[settings_start..settings_end];
+    assert!(
+        settings_branch.matches(settings_focus_cleanup).count() >= 3,
+        "Settings Escape/close/outside-click exits must release stale focus"
+    );
+    for needle in [
+        "let _sc = mui_settings_close(h)\n            settings_open = false",
+        "if sc == 5",
+        "} else if sc == 0",
+    ] {
+        assert!(settings_branch.contains(needle), "Settings branch must include `{needle}`");
+    }
     for (start_marker, end_marker) in [
         ("} else if branch_seg == 1", "} else if welcome_act >= 0"),
         ("} else if md_close == 1", "} else if md_btn == 1"),
