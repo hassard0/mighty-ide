@@ -7678,3 +7678,11 @@ followed by 8-bit ST could therefore keep swallowing later terminal output.
 - **IDE note:** OSC-ESC and DCS/PM/APC/SOS-ESC substates now treat `0x9C` as
   string termination too. Parser tests cover OSC, DCS, and APC payloads ending
   through `ESC 0x9C` with following printable output preserved.
+
+L627. Terminal input mapping needs modifier-aware special keys. Plain Tab is a
+literal HT byte, but Shift+Tab is BackTab (`CSI Z`) for shells and full-screen
+terminal apps that navigate fields or panes in reverse.
+
+- **IDE note:** `key_to_bytes` now uses the existing modifier argument for Tab:
+  plain Tab remains `\t`, while Shift+Tab emits `ESC [ Z`. The terminal
+  key-mapping regression test pins both forms.

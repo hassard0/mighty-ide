@@ -1714,11 +1714,12 @@ fn default_shell_command() -> CommandBuilder {
 /// expects, or `None` for keys with no terminal meaning. Enter -> CR (`\r`),
 /// Backspace -> DEL (`\x7f`), Tab -> `\t`, Escape -> `\x1b`, arrows -> the usual
 /// `ESC [ A/B/C/D`. Ctrl+letter (handled on the Char path) is mapped separately.
-pub fn key_to_bytes(key: u32, _mods: u32, application_cursor_keys: bool) -> Option<Vec<u8>> {
+pub fn key_to_bytes(key: u32, mods: u32, application_cursor_keys: bool) -> Option<Vec<u8>> {
     use crate::ffi::*;
     let bytes: Vec<u8> = match key {
         MUI_KEY_ENTER => vec![b'\r'],
         MUI_KEY_BACKSPACE => vec![0x7f],
+        MUI_KEY_TAB if mods & MUI_MOD_SHIFT != 0 => vec![0x1b, b'[', b'Z'],
         MUI_KEY_TAB => vec![b'\t'],
         MUI_KEY_ESCAPE => vec![0x1b],
         MUI_KEY_LEFT if application_cursor_keys => vec![0x1b, b'O', b'D'],
@@ -2714,6 +2715,10 @@ mod tests {
         assert_eq!(key_to_bytes(MUI_KEY_ENTER, 0, false), Some(vec![b'\r']));
         assert_eq!(key_to_bytes(MUI_KEY_BACKSPACE, 0, false), Some(vec![0x7f]));
         assert_eq!(key_to_bytes(MUI_KEY_TAB, 0, false), Some(vec![b'\t']));
+        assert_eq!(
+            key_to_bytes(MUI_KEY_TAB, MUI_MOD_SHIFT, false),
+            Some(vec![0x1b, b'[', b'Z'])
+        );
         assert_eq!(key_to_bytes(MUI_KEY_ESCAPE, 0, false), Some(vec![0x1b]));
         assert_eq!(key_to_bytes(MUI_KEY_UP, 0, false), Some(vec![0x1b, b'[', b'A']));
         assert_eq!(key_to_bytes(MUI_KEY_LEFT, 0, false), Some(vec![0x1b, b'[', b'D']));
