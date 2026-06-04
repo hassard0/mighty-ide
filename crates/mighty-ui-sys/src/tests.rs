@@ -3429,6 +3429,14 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
             crate::palette::CMD_KEYBOARD_SHORTCUTS_CLOSE,
             "Help: Close Keyboard Shortcuts",
         ),
+        (
+            crate::palette::CMD_KEYBOARD_SHORTCUTS_RESET_SELECTED,
+            "Keyboard Shortcuts: Reset Selected",
+        ),
+        (
+            crate::palette::CMD_KEYBOARD_SHORTCUTS_RESET_ALL,
+            "Keyboard Shortcuts: Reset All",
+        ),
     ];
     for (id, label) in view_commands {
         let cmd = crate::palette::COMMANDS.iter().find(|cmd| cmd.id == id).unwrap();
@@ -6317,6 +6325,59 @@ fn keyboard_shortcuts_close_command_exits_capture_and_overlay() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Keyboard Shortcuts is already closed");
+}
+
+#[test]
+fn keyboard_shortcuts_reset_selected_command_opens_overlay_and_reports_outcomes() {
+    use crate::shortcuts::{Chord, MOD_ALT};
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    ctx.shortcuts
+        .overrides_mut()
+        .set(crate::palette::CMD_NEW_FILE, Chord::new('q' as i32, MOD_ALT));
+
+    assert_eq!(crate::mui_keys_active(handle), 0);
+    assert_eq!(crate::mui_keys_reset_selected_command(handle), 1);
+    assert_eq!(crate::mui_keys_active(handle), 1);
+    assert!(ctx.shortcuts.overrides().get(crate::palette::CMD_NEW_FILE).is_none());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Keyboard Shortcuts reset selected to default");
+
+    assert_eq!(crate::mui_keys_reset_selected_command(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(
+        toast.message,
+        "Keyboard Shortcuts selection already uses default"
+    );
+}
+
+#[test]
+fn keyboard_shortcuts_reset_all_command_reports_changed_and_default_states() {
+    use crate::shortcuts::{Chord, MOD_ALT};
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    ctx.shortcuts
+        .overrides_mut()
+        .set(crate::palette::CMD_SAVE, Chord::new('k' as i32, MOD_ALT));
+    ctx.shortcuts
+        .overrides_mut()
+        .set(crate::palette::CMD_OPEN_FILE, Chord::new('o' as i32, MOD_ALT));
+
+    assert_eq!(crate::mui_keys_reset_all_command(handle), 1);
+    assert_eq!(crate::mui_keys_active(handle), 1);
+    assert!(ctx.shortcuts.overrides().is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Keyboard Shortcuts reset all to defaults");
+
+    assert_eq!(crate::mui_keys_reset_all_command(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Keyboard Shortcuts already use defaults");
 }
 
 #[test]
@@ -9882,6 +9943,16 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Keyboard Shortcuts close command must call the dedicated close ABI"
     );
     assert!(
+        main.contains("id == cmd_keyboard_shortcuts_reset_selected()")
+            && main.contains("let _ksr = mui_keys_reset_selected_command(h)"),
+        "Keyboard Shortcuts reset-selected command must call the dedicated command ABI"
+    );
+    assert!(
+        main.contains("id == cmd_keyboard_shortcuts_reset_all()")
+            && main.contains("let _ksa = mui_keys_reset_all_command(h)"),
+        "Keyboard Shortcuts reset-all command must call the dedicated command ABI"
+    );
+    assert!(
         main.contains("id == cmd_git_hide_blame()")
             && main.contains("let _bc = mui_blame_close(h)"),
         "Git hide-blame command must call the dedicated blame close ABI"
@@ -10233,6 +10304,14 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
         (
             CMD_KEYBOARD_SHORTCUTS_CLOSE,
             "cmd_keyboard_shortcuts_close",
+        ),
+        (
+            CMD_KEYBOARD_SHORTCUTS_RESET_SELECTED,
+            "cmd_keyboard_shortcuts_reset_selected",
+        ),
+        (
+            CMD_KEYBOARD_SHORTCUTS_RESET_ALL,
+            "cmd_keyboard_shortcuts_reset_all",
         ),
         (CMD_NEW_PROJECT, "cmd_new_project"),
         (CMD_WINDOW_TOGGLE_MAXIMIZE, "cmd_window_toggle_maximize"),

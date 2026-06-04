@@ -8212,3 +8212,14 @@ budgets.
   columns before rendering body rows, deriving the marker, divider, and code
   column from those widths. Focused geometry tests pin both measured label widths
   and expansion for large line numbers.
+
+L681. Shortcut reset workflows should be command-visible. Keyboard shortcut
+remapping exposes reset-selected and reset-all from inside the overlay, but
+burying those actions behind overlay-local chords makes recovery hard for users
+who discover settings through the command palette.
+
+- **IDE note:** the command palette now lists `Keyboard Shortcuts: Reset
+  Selected` and `Keyboard Shortcuts: Reset All`. Both dispatch through
+  command-specific ABIs that reveal the shortcuts overlay, report changed versus
+  already-default states through the shared Keyboard Shortcuts toast lane, and
+  remain covered by registry, dispatcher, and behavior tests.

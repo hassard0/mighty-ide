@@ -8483,7 +8483,54 @@ pub extern "C" fn mui_keys_reset(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_keys_reset_all(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        ctx.shortcuts.reset_all();
+        let _ = ctx.shortcuts.reset_all();
+    }
+}
+
+/// Palette command: reset the selected shortcut override and make the shortcuts
+/// overlay visible so the target row and status are inspectable.
+#[no_mangle]
+pub extern "C" fn mui_keys_reset_selected_command(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.shortcuts.is_active() {
+        ctx.shortcuts.open();
+    }
+    if ctx.shortcuts.reset_selected() {
+        ctx.push_toast(
+            crate::toast::Kind::Success,
+            "Keyboard Shortcuts reset selected to default",
+        );
+        1
+    } else {
+        ctx.push_toast(
+            crate::toast::Kind::Info,
+            "Keyboard Shortcuts selection already uses default",
+        );
+        0
+    }
+}
+
+/// Palette command: reset every shortcut override and make the shortcuts overlay
+/// visible so the resulting defaults are inspectable.
+#[no_mangle]
+pub extern "C" fn mui_keys_reset_all_command(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.shortcuts.is_active() {
+        ctx.shortcuts.open();
+    }
+    if ctx.shortcuts.reset_all() {
+        ctx.push_toast(
+            crate::toast::Kind::Success,
+            "Keyboard Shortcuts reset all to defaults",
+        );
+        1
+    } else {
+        ctx.push_toast(crate::toast::Kind::Info, "Keyboard Shortcuts already use defaults");
+        0
     }
 }
 

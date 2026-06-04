@@ -672,11 +672,13 @@ impl ShortcutsEngine {
     }
 
     /// Clear every override and persist.
-    pub fn reset_all(&mut self) {
+    pub fn reset_all(&mut self) -> bool {
+        let had_overrides = !self.overrides.is_empty();
         self.overrides.reset_all();
         let _ = save_overrides(&self.overrides);
         self.status = "All shortcuts reset to defaults".to_string();
         self.refilter();
+        had_overrides
     }
 
     /// Cancel capture mode (keeps the overlay open).

@@ -405,6 +405,8 @@ extern c {
   fn mui_keys_capture_chord(handle: I64, cp: I32, mods: I32) -> I32
   fn mui_keys_reset(handle: I64) -> I32
   fn mui_keys_reset_all(handle: I64)
+  fn mui_keys_reset_selected_command(handle: I64) -> I32
+  fn mui_keys_reset_all_command(handle: I64) -> I32
   fn mui_keys_cancel(handle: I64)
   fn mui_keys_close(handle: I64) -> I32
   fn mui_keys_draw(handle: I64)
@@ -940,6 +942,8 @@ fn cmd_sidebar_close() -> I32 { 101 }
 fn cmd_sidebar_cycle_width() -> I32 { 102 }
 fn cmd_terminal_close() -> I32 { 180 }
 fn cmd_terminal_clear() -> I32 { 196 }
+fn cmd_keyboard_shortcuts_reset_selected() -> I32 { 197 }
+fn cmd_keyboard_shortcuts_reset_all() -> I32 { 198 }
 
 // Welcome screen action ids (mirror welcome.rs ACTION_*).
 fn welcome_open_file() -> I32 { 1 }
@@ -4711,6 +4715,10 @@ fn main() {
           term_focus = false
         } else if id == cmd_keyboard_shortcuts() {
           mui_keys_open(h)
+        } else if id == cmd_keyboard_shortcuts_reset_selected() {
+          let _ksr = mui_keys_reset_selected_command(h)
+        } else if id == cmd_keyboard_shortcuts_reset_all() {
+          let _ksa = mui_keys_reset_all_command(h)
         } else if id == cmd_keyboard_shortcuts_close() {
           let _kc = mui_keys_close(h)
         } else if id == cmd_new_project() {

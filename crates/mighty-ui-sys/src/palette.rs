@@ -421,6 +421,10 @@ pub const CMD_OUTLINE_CLEAR_SYMBOLS: u32 = 194;
 pub const CMD_DEBUG_CLEAR_SESSION: u32 = 195;
 /// Clear the integrated terminal's visible buffer without closing the shell.
 pub const CMD_TERMINAL_CLEAR: u32 = 196;
+/// Reset the selected Keyboard Shortcuts override to its default binding.
+pub const CMD_KEYBOARD_SHORTCUTS_RESET_SELECTED: u32 = 197;
+/// Reset every Keyboard Shortcuts override to default bindings.
+pub const CMD_KEYBOARD_SHORTCUTS_RESET_ALL: u32 = 198;
 /// First/last sidebar layout command id.
 #[allow(dead_code)]
 pub const CMD_SIDEBAR_FIRST: u32 = CMD_SIDEBAR_COMPACT;
@@ -625,6 +629,8 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_OPEN_FOLDER,      label: "File: Open Folder...", keybinding: "Ctrl+Shift+O" },
     Command { id: CMD_OPEN_RECENT,      label: "File: Open Recent",   keybinding: "" },
     Command { id: CMD_KEYBOARD_SHORTCUTS, label: "Help: Keyboard Shortcuts", keybinding: "Ctrl+Shift+/" },
+    Command { id: CMD_KEYBOARD_SHORTCUTS_RESET_SELECTED, label: "Keyboard Shortcuts: Reset Selected", keybinding: "" },
+    Command { id: CMD_KEYBOARD_SHORTCUTS_RESET_ALL, label: "Keyboard Shortcuts: Reset All", keybinding: "" },
     Command { id: CMD_KEYBOARD_SHORTCUTS_CLOSE, label: "Help: Close Keyboard Shortcuts", keybinding: "" },
     Command { id: CMD_FOLD_TOGGLE,      label: "Fold: Toggle at Cursor",  keybinding: "Ctrl+Shift+[" },
     Command { id: CMD_FOLD_ALL,         label: "Fold: Fold All",          keybinding: "" },
@@ -1182,6 +1188,8 @@ impl PaletteEngine {
             CMD_OPEN_FOLDER => (icons::FOLDER, "Open a workspace folder with the native folder picker", false),
             CMD_OPEN_RECENT => (icons::FOLDER, "Open a recent file or workspace folder", false),
             CMD_KEYBOARD_SHORTCUTS => (icons::INFO_I, "List & remap all keyboard shortcuts", false),
+            CMD_KEYBOARD_SHORTCUTS_RESET_SELECTED => (icons::REFRESH, "Reset the selected shortcut override to its default", false),
+            CMD_KEYBOARD_SHORTCUTS_RESET_ALL => (icons::REFRESH, "Reset every shortcut override to defaults", false),
             CMD_KEYBOARD_SHORTCUTS_CLOSE => (icons::CLOSE, "Close the Keyboard Shortcuts overlay", false),
             CMD_FOLD_TOGGLE => (icons::CHEVRON, "Fold or unfold the block at the cursor", false),
             CMD_FOLD_ALL => (icons::CHEVRON_DOWN, "Fold every foldable block in the document", false),
