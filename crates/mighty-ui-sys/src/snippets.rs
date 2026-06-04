@@ -1161,14 +1161,46 @@ pub fn find_snippet(lang: Language, word: &str) -> Option<SnippetDef> {
 }
 
 // ---------------------------------------------------------------------------
-// User snippets (optional): loaded from a tiny config file
+// User snippets (optional): loaded from config-side snippet files
 // ---------------------------------------------------------------------------
 
-/// Path to the user snippet file (same dir as the IDE config): `snippets`.
-/// Format: one snippet per stanza, `prefix<TAB>label<TAB>body` with literal `\n`
-/// in the body for newlines. Blank lines and `#` comments are ignored.
-fn user_snippets_path() -> Option<std::path::PathBuf> {
-    crate::config::config_path().and_then(|p| p.parent().map(|d| d.join("snippets")))
+/// Candidate user snippet files in the IDE config dir.
+///
+/// Load order is stable: the legacy TSV `snippets` file first, then common
+/// single-file JSON names, then copied VS Code `*.code-snippets` files sorted by
+/// filename. Later files can override earlier same-prefix definitions.
+fn user_snippets_paths() -> Vec<std::path::PathBuf> {
+    let Some(dir) = crate::config::config_path().and_then(|p| p.parent().map(Path::to_path_buf))
+    else {
+        return Vec::new();
+    };
+    user_snippets_paths_in_dir(&dir)
+}
+
+fn user_snippets_paths_in_dir(dir: &Path) -> Vec<std::path::PathBuf> {
+    let mut paths = vec![
+        dir.join("snippets"),
+        dir.join("snippets.json"),
+        dir.join("user-snippets.json"),
+    ];
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        let mut code_snippets: Vec<std::path::PathBuf> = entries
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.extension()
+                    .and_then(|ext| ext.to_str())
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("code-snippets"))
+            })
+            .collect();
+        code_snippets.sort_by_key(|path| {
+            path.file_name()
+                .map(|name| name.to_string_lossy().to_ascii_lowercase())
+                .unwrap_or_default()
+        });
+        paths.extend(code_snippets);
+    }
+    paths
 }
 
 /// Parse the user-snippet blob: each non-comment line is
@@ -1389,15 +1421,19 @@ fn snippet_scope_language(raw: &str) -> Option<Language> {
     }
 }
 
-/// Load user snippets from the config file (best-effort; empty on any error).
+/// Load user snippets from config-side files (best-effort; empty on any error).
 pub fn load_user_snippets() -> Vec<SnippetDef> {
-    let Some(path) = user_snippets_path() else {
-        return Vec::new();
-    };
-    match std::fs::read_to_string(&path) {
-        Ok(text) => parse_user_snippets(&text),
-        Err(_) => Vec::new(),
+    load_user_snippets_from_paths(user_snippets_paths())
+}
+
+fn load_user_snippets_from_paths(paths: Vec<std::path::PathBuf>) -> Vec<SnippetDef> {
+    let mut out = Vec::new();
+    for path in paths {
+        if let Ok(text) = std::fs::read_to_string(&path) {
+            out.extend(parse_user_snippets(&text));
+        }
     }
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -2194,6 +2230,64 @@ mod tests {
     #[test]
     fn parse_user_snippets_invalid_json_is_empty() {
         assert!(parse_user_snippets("{not json").is_empty());
+    }
+
+    #[test]
+    fn user_snippets_paths_include_vscode_files_in_stable_order() {
+        let dir = std::env::temp_dir().join(format!(
+            "mui-snippet-paths-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("z.code-snippets"), "{}").unwrap();
+        std::fs::write(dir.join("a.code-snippets"), "{}").unwrap();
+        std::fs::write(dir.join("ignore.txt"), "{}").unwrap();
+
+        let files: Vec<String> = user_snippets_paths_in_dir(&dir)
+            .into_iter()
+            .filter_map(|path| path.file_name().map(|name| name.to_string_lossy().into_owned()))
+            .collect();
+        assert_eq!(
+            files,
+            vec![
+                "snippets",
+                "snippets.json",
+                "user-snippets.json",
+                "a.code-snippets",
+                "z.code-snippets",
+            ]
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_user_snippets_merges_legacy_json_and_code_snippets() {
+        let dir = std::env::temp_dir().join(format!(
+            "mui-snippet-load-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let legacy = dir.join("snippets");
+        let json = dir.join("snippets.json");
+        let vscode = dir.join("react.code-snippets");
+        std::fs::write(&legacy, "guard\tguard\tif ${1:cond} {\\n  return\\n}$0\n").unwrap();
+        std::fs::write(
+            &json,
+            r#"{"Console": {"prefix": "log", "body": "console.log($0)"}}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            &vscode,
+            r#"{"Component": {"prefix": "comp", "body": "class $0"}}"#,
+        )
+        .unwrap();
+
+        let defs = load_user_snippets_from_paths(vec![legacy, json, vscode]);
+        let prefixes: Vec<&str> = defs.iter().map(|def| def.prefix.as_str()).collect();
+        assert_eq!(prefixes, vec!["guard", "log", "comp"]);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     // ---- end-to-end expansion against the editor model ----

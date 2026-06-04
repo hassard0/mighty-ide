@@ -9725,3 +9725,17 @@ snippets technically load but leave transform syntax in the editor.
 - **Language note:** no compiler gap surfaced. Focused transform support should
   preserve unknown transform forms as literals until the engine can model their
   semantics accurately.
+
+## L799 - Snippet Import Should Accept Native File Names
+
+Supporting VS Code snippet JSON is less useful if users still have to rename
+their files to a Mighty-specific `snippets` filename. Existing snippet files are
+commonly named `*.code-snippets` or `snippets.json`.
+
+- **IDE note:** user snippets now load from the legacy `snippets` file,
+  `snippets.json`, `user-snippets.json`, and sorted `*.code-snippets` files in
+  the config directory. The stable order keeps overrides predictable while
+  making copied VS Code files work without hand-conversion.
+- **Language note:** no compiler gap surfaced. Multi-file config importers
+  should expose deterministic ordering in a pure helper so tests do not need to
+  mutate process-wide config environment variables.

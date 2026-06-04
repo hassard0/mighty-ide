@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **User snippets load from copied VS Code files**: Mighty now reads the legacy
+  config `snippets` file, `snippets.json`, `user-snippets.json`, and sorted
+  `*.code-snippets` files from the config directory, so existing snippet files
+  can be dropped in without renaming.
 - **Snippet variable transforms cover common filename casing**: imported
   snippets can now use VS Code-style `${VAR/(.*)/${1:/pascalcase}/}` transforms
   for `upcase`, `downcase`, `capitalize`, `camelcase`, and `pascalcase`, so
