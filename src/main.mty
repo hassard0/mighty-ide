@@ -3653,12 +3653,31 @@ fn main() {
         } else if chip_hit == 1 {
           // Status-bar problems chip: open + refresh the Problems panel.
           let _po = mui_problems_open(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if prob_on == 1 && prob_act == problems_tb_refresh() {
           let _dr = mui_diag_refresh(h)
           let _pr = mui_problems_refresh(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if prob_on == 1 && prob_act == problems_tb_clear() {
           let _pc = mui_problems_clear(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if prob_on == 1 && prob_close == 1 {
           let _pc = mui_problems_toggle(h)
@@ -5000,16 +5019,28 @@ fn main() {
           web_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_problems_refresh() {
           let _dr = mui_diag_refresh(h)
           let _pr = mui_problems_refresh(h)
           let _po = mui_problems_open(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_problems_clear() {
           let _po = mui_problems_open(h)
           let _pc = mui_problems_clear(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_problems_close() {

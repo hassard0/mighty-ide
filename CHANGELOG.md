@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Problems commands now own their visible panel**: opening, refreshing, or
+  clearing Problems from the palette or status-bar/header controls now releases
+  stale Run/Web/Testing/Terminal/AI/Agents/search focus before returning input.
 - **Debug keyboard shortcuts now own Debug focus**: F5, Shift+F5, F10, F11,
   and Shift+F11 now reveal Run and Debug and release stale
   Run/Web/Testing/Terminal/AI/Agents/search focus before running their debug

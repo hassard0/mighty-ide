@@ -10748,27 +10748,33 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Search header clear clicks must dispatch before result row navigation"
     );
     assert!(
-        main.contains("id == cmd_problems_refresh()")
-            && main.contains("let _dr = mui_diag_refresh(h)")
-            && main.contains("let _pr = mui_problems_refresh(h)")
-            && main.contains("let _po = mui_problems_open(h)"),
-        "Problems refresh command must refresh diagnostics, aggregate Problems, and show the panel"
+        main.contains(
+            "id == cmd_problems_refresh() {\n          let _dr = mui_diag_refresh(h)\n          let _pr = mui_problems_refresh(h)\n          let _po = mui_problems_open(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Problems refresh command must refresh diagnostics, show Problems, and release competing focus"
     );
     assert!(
         main.contains(
-            "id == cmd_problems_clear() {\n          let _po = mui_problems_open(h)\n          let _pc = mui_problems_clear(h)"
-        )
-            && main.contains("agents_focus = false")
-            && main.contains("find_nav = false"),
-        "Problems clear command must reveal Problems before clearing diagnostics"
+            "id == cmd_problems_clear() {\n          let _po = mui_problems_open(h)\n          let _pc = mui_problems_clear(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Problems clear command must reveal Problems before clearing diagnostics and release competing focus"
     );
     assert!(
         main.contains("fn mui_problems_header_action_at_click(handle: I64) -> I32")
             && main.contains("let prob_act = mui_problems_header_action_at_click(h)")
             && main.contains("let prob_hit = if prob_act > 0 { 0 - 1 } else { mui_problems_row_at_click(h) }")
             && main.contains("prob_on == 1 && prob_act == problems_tb_refresh()")
-            && main.contains("prob_on == 1 && prob_act == problems_tb_clear()"),
-        "Problems header buttons must dispatch before diagnostic row navigation"
+            && main.contains("prob_on == 1 && prob_act == problems_tb_clear()")
+            && main.contains(
+                "chip_hit == 1 {\n          // Status-bar problems chip: open + refresh the Problems panel.\n          let _po = mui_problems_open(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            )
+            && main.contains(
+                "prob_on == 1 && prob_act == problems_tb_refresh() {\n          let _dr = mui_diag_refresh(h)\n          let _pr = mui_problems_refresh(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            )
+            && main.contains(
+                "prob_on == 1 && prob_act == problems_tb_clear() {\n          let _pc = mui_problems_clear(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "Problems chip and header buttons must dispatch before rows and release competing focus"
     );
     assert!(
         main.contains("id == cmd_problems_close()")
@@ -11107,7 +11113,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         main.contains(
             "id == cmd_view_problems() {\n          let _po = mui_problems_open(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false"
         )
-            && main.contains("agents_focus = false\n          find_nav = false"),
+            && main.contains("ai_focus = false\n          agents_focus = false\n          find_nav = false"),
         "Problems view command must open Problems and release other bottom-dock focus"
     );
     assert!(

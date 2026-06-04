@@ -8801,3 +8801,16 @@ command ids do.
   before invoking start/continue, stop, step-over, step-into, or step-out, then
   release stale Run/Web/Testing/Terminal/AI/Agents/search focus. The Mighty
   dispatcher source-contract test scopes assertions to each raw key branch.
+
+## L735 - Shared Lower-dock Panels Still Need Explicit Ownership
+
+A panel without its own text-input focus flag can still be the visible owner of
+the next interaction. If commands or chrome clicks reveal that panel but leave
+another surface focused, subsequent keys can route to an invisible or unrelated
+consumer.
+
+- **IDE note:** `View: Problems`, `Problems: Refresh Diagnostics`,
+  `Problems: Clear Diagnostics`, the status Problems chip, and Problems header
+  refresh/clear now release stale Run/Web/Testing/Terminal/AI/Agents/search
+  focus after showing or acting on Problems. Source-contract tests cover the
+  palette and mouse paths.
