@@ -8852,3 +8852,13 @@ owns subsequent non-overlay routing after the overlay closes or misses input.
   `Terminal: Open or Focus` command now releases the same competing focus set
   as Ctrl+` and `View: Terminal`, so all terminal entry points share the same
   ownership contract.
+
+## L739 - Prompt Bars Are Keyboard Owners
+
+Small prompt bars can feel less modal than full overlays, but they still take
+immediate keyboard input. Opening them should release stale surface focus so the
+next key does not route to a hidden dock, sidebar, or right-dock panel.
+
+- **IDE note:** Find, Go to Line, and Find & Replace now clear stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus after opening their prompt or
+  replace bar. The dispatcher source-contract test covers each command branch.

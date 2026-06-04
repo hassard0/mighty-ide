@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Find-style overlays release stale focus**: Find, Go to Line, and Find &
+  Replace now clear stale Run/Web/Testing/Terminal/AI/Agents/search focus when
+  opening their keyboard-focused prompt bars.
 - **Quick Open and terminal commands clear stale focus**: palette Quick Open now
   releases stale surface focus when opening its overlay, and the legacy
   Terminal open/focus command now matches the Ctrl+` shortcut and View:

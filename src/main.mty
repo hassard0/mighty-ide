@@ -4441,17 +4441,36 @@ fn main() {
         } else if id == cmd_find() {
           mui_prompt_open(h, prompt_find())
           prompt_kind = prompt_find()
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_find_replace() {
           mui_replace_open(h)
           replacing = true
           find_nav = false
           typing = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
         } else if id == cmd_find_replace_close() {
           let _repc = mui_replace_cancel(h)
           replacing = false
         } else if id == cmd_goto_line() {
           mui_prompt_open(h, prompt_goto())
           prompt_kind = prompt_goto()
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_goto_definition() {
           let cur_line = mui_ed_cursor_line(h)

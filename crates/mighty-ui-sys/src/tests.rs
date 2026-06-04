@@ -10575,6 +10575,24 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Quick Open command must open the overlay and release stale surface focus"
     );
     assert!(
+        main.contains(
+            "id == cmd_find() {\n          mui_prompt_open(h, prompt_find())\n          prompt_kind = prompt_find()\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Find command must open the prompt and release stale surface focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_find_replace() {\n          mui_replace_open(h)\n          replacing = true\n          find_nav = false\n          typing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false"
+        ),
+        "Find & Replace command must open the replace bar and release stale surface focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_goto_line() {\n          mui_prompt_open(h, prompt_goto())\n          prompt_kind = prompt_goto()\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Go to Line command must open the prompt and release stale surface focus"
+    );
+    assert!(
         main.contains("id == cmd_welcome_close()")
             && main.contains("let _wc = mui_welcome_close(h)"),
         "Welcome: Close must reuse the stateful visible close affordance path"
