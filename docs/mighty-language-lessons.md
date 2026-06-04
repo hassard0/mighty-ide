@@ -9876,3 +9876,17 @@ display secondary text instead of the diagnostic itself.
 - **Language note:** no compiler gap surfaced. Hand-written JSON scanners need
   field-scope helpers for object-shaped protocols; payload-order assumptions are
   too fragile for LSP responses.
+
+## L810 - LSP Stream Splitting Needs Message Boundaries
+
+Searching a raw stream for `publishDiagnostics` is not the same as finding
+`publishDiagnostics` notifications. Diagnostic messages can mention that method
+name, and related-information payloads can contain their own `uri` fields before
+the owning `params.uri`.
+
+- **IDE note:** diagnostic ingestion now scans complete top-level JSON objects,
+  keeps the latest matching object with a diagnostics array, and filters document
+  identity through the notification's top-level `params.uri`.
+- **Language note:** no compiler gap surfaced. Protocol streams need
+  boundary-aware object parsing before payload searches; substring delimiters
+  make ordinary text capable of changing parser state.

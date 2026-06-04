@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Diagnostics parse complete LSP objects**: generic LSP diagnostics now scan
+  complete JSON messages instead of splitting on the raw `publishDiagnostics`
+  text, so diagnostic messages can mention the method name without corrupting
+  latest-notification selection.
 - **Diagnostics ignore related-information ranges**: generic LSP diagnostics now
   read the diagnostic's own top-level `range`, `severity`, `code`, and
   `message` fields, so related-information locations cannot move the underline

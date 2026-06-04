@@ -537,28 +537,20 @@ fn utf16_to_char_col(line_text: &str, utf16_col: u32) -> u32 {
 
 fn parse_publish_diagnostics_latest(stream: &str, wanted_uri: Option<&str>) -> Vec<Diag> {
     let bytes = stream.as_bytes();
-    let mut cursor = 0usize;
     let mut latest: Option<Vec<Diag>> = None;
-    while cursor < bytes.len() {
-        let Some(rel) = find_sub(&bytes[cursor..], b"publishDiagnostics") else {
-            break;
-        };
-        let start = cursor + rel;
-        let next = find_sub(&bytes[start + 1..], b"publishDiagnostics")
-            .map(|n| start + 1 + n)
-            .unwrap_or(bytes.len());
-        let chunk = &bytes[start..next];
-        if publish_chunk_matches_uri(chunk, wanted_uri) {
-            if let Some(diags) = parse_diagnostics_array_from_bytes(chunk) {
+    let mut saw_object = false;
+    for object in top_level_json_objects(bytes) {
+        saw_object = true;
+        if publish_chunk_matches_uri(object, wanted_uri) {
+            if let Some(diags) = parse_diagnostics_array_from_bytes(object) {
                 latest = Some(diags);
             }
         }
-        cursor = next;
     }
     if let Some(diags) = latest {
         return diags;
     }
-    if wanted_uri.is_none() {
+    if wanted_uri.is_none() && !saw_object {
         return parse_diagnostics_array_from_bytes(bytes).unwrap_or_default();
     }
     Vec::new()
@@ -568,9 +560,9 @@ fn publish_chunk_matches_uri(chunk: &[u8], wanted_uri: Option<&str>) -> bool {
     let Some(wanted) = wanted_uri else {
         return true;
     };
-    find_sub(chunk, b"\"uri\"")
-        .and_then(|u| read_json_string_at(chunk, u + b"\"uri\"".len()))
-        .map(|(uri, _)| diagnostics_uri_matches(&uri, wanted))
+    top_level_object_field(chunk, b"params")
+        .and_then(|params| top_level_json_string_field(params, b"uri"))
+        .map(|uri| diagnostics_uri_matches(&uri, wanted))
         .unwrap_or(false)
 }
 
@@ -694,6 +686,21 @@ fn top_level_object_field<'a>(obj: &'a [u8], field: &[u8]) -> Option<&'a [u8]> {
     }
     let value_end = match_brace(obj, value_start);
     Some(&obj[value_start..value_end])
+}
+
+fn top_level_json_objects(stream: &[u8]) -> Vec<&[u8]> {
+    let mut out = Vec::new();
+    let mut k = 0usize;
+    while k < stream.len() {
+        if stream[k] == b'{' {
+            let end = match_brace(stream, k).min(stream.len());
+            out.push(&stream[k..end]);
+            k = end;
+        } else {
+            k += 1;
+        }
+    }
+    out
 }
 
 fn top_level_json_string_field(obj: &[u8], field: &[u8]) -> Option<String> {
@@ -1061,8 +1068,25 @@ mod tests {
     }
 
     #[test]
+    fn diagnostics_message_can_contain_publish_diagnostics_text() {
+        let stream = r#"{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///x/main.rs","diagnostics":[{"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":4}},"severity":1,"message":"mentions publishDiagnostics in text"}]}}{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///x/main.rs","diagnostics":[{"range":{"start":{"line":2,"character":1},"end":{"line":2,"character":5}},"severity":1,"message":"later error"}]}}"#;
+        let diags = parse_publish_diagnostics_for_uri(stream, "file:///x/main.rs");
+
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].line, 2);
+        assert_eq!(diags[0].message, "later error");
+    }
+
+    #[test]
     fn diagnostics_for_uri_returns_empty_when_only_other_uri_publishes() {
         let stream = r#"{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///x/other.rs","diagnostics":[{"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":4}},"severity":1,"message":"wrong file"}]}}"#;
+        assert!(parse_publish_diagnostics_for_uri(stream, "file:///x/main.rs").is_empty());
+    }
+
+    #[test]
+    fn diagnostics_uri_filter_uses_params_uri_not_related_information_uri() {
+        let stream = r#"{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"diagnostics":[{"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":4}},"severity":1,"message":"wrong file","relatedInformation":[{"location":{"uri":"file:///x/main.rs","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":1}}},"message":"related"}]}],"uri":"file:///x/other.rs"}}"#;
+
         assert!(parse_publish_diagnostics_for_uri(stream, "file:///x/main.rs").is_empty());
     }
 
