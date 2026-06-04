@@ -253,9 +253,11 @@ pub extern "C" fn mui_run_row_at_click(handle: i64) -> i32 {
 
 pub const RUN_HEADER_CLICK_NONE: i32 = 0;
 pub const RUN_HEADER_CLICK_CLEAR: i32 = 1;
+pub const RUN_HEADER_CLICK_STOP: i32 = 2;
 
-/// Map the last click to a Run-panel header action: `1` is Clear Output, `0`
-/// is no header action. The IDE dispatches this before row navigation.
+/// Map the last click to a Run-panel header action: `1` is Clear Output, `2`
+/// is Stop Process, `0` is no header action. The IDE dispatches this before row
+/// navigation.
 #[no_mangle]
 pub extern "C" fn mui_run_header_action_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -268,6 +270,10 @@ pub extern "C" fn mui_run_header_action_at_click(handle: i64) -> i32 {
     let (bx, by, bw, bh) = run_header_clear_rect(ctx);
     if x >= bx && x <= bx + bw && y >= by && y <= by + bh {
         return RUN_HEADER_CLICK_CLEAR;
+    }
+    let (bx, by, bw, bh) = run_header_stop_rect(ctx);
+    if x >= bx && x <= bx + bw && y >= by && y <= by + bh {
+        return RUN_HEADER_CLICK_STOP;
     }
     RUN_HEADER_CLICK_NONE
 }
@@ -373,6 +379,13 @@ pub(crate) fn run_header_clear_rect(ctx: &MuiContext) -> (f32, f32, f32, f32) {
     let x = layout::dock_header_content_right(visible_w, ctx.gpu.height) - size;
     let y = g.y0 + (layout::term_header_h() - size) * 0.5;
     (x.max(g.x0 + 86.0), y, size, size)
+}
+
+pub(crate) fn run_header_stop_rect(ctx: &MuiContext) -> (f32, f32, f32, f32) {
+    let g = run_geom(ctx);
+    let (clear_x, clear_y, clear_w, clear_h) = run_header_clear_rect(ctx);
+    let x = clear_x - layout::DOCK_ACTION_GAP - clear_w;
+    (x.max(g.x0 + 58.0), clear_y, clear_w, clear_h)
 }
 
 fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
@@ -554,7 +567,8 @@ pub extern "C" fn mui_run_draw(handle: i64) {
     let (status_text_w, _) = ctx.text.measure_ui_sized(&status, chrome - 2.0);
     let sw = status_text_w + 22.0;
     let (clear_x, clear_y, clear_w, clear_h) = run_header_clear_rect(ctx);
-    let status_right = clear_x - 8.0;
+    let (stop_x, stop_y, stop_w, stop_h) = run_header_stop_rect(ctx);
+    let status_right = stop_x - 8.0;
     let status_min_x = run_label_x + run_label_w + 12.0;
     let sx = run_status_pill_x(status_right - sw, status_min_x, status_right, sw);
     let sy = g.y0 + (header_h - 18.0) * 0.5;
@@ -587,6 +601,19 @@ pub extern "C" fn mui_run_draw(handle: i64) {
         theme::TEXT_3(),
         1.4,
         false,
+    );
+    let stop_col = if ctx.run.is_running() { theme::ERROR() } else { theme::TEXT_4() };
+    ctx.dl_round(stop_x, stop_y, stop_w, stop_h, 5.0, theme::BG_4());
+    ctx.dl_stroke(stop_x, stop_y, stop_w, stop_h, 5.0, theme::BORDER_SOFT(), 1.0);
+    ctx.dl_icon(
+        stop_x + 5.0,
+        stop_y + 4.5,
+        12.0,
+        12.0,
+        icons::DBG_STOP,
+        stop_col,
+        1.4,
+        true,
     );
 
     // Output rows.

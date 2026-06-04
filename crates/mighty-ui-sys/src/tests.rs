@@ -1760,6 +1760,7 @@ fn run_header_clear_action_hits_visible_button() {
     ctx.run.seed_demo("C:/proj/demo.mty");
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
     let (x, y, w, hrect) = crate::featureabi::run_header_clear_rect(&ctx);
+    let (sx, sy, sw, sh) = crate::featureabi::run_header_stop_rect(&ctx);
 
     ctx.last_event = MuiEvent::mouse(
         MUI_EVENT_MOUSE_DOWN,
@@ -1768,7 +1769,26 @@ fn run_header_clear_action_hits_visible_button() {
         y + hrect * 0.5,
         0,
     );
-    assert_eq!(crate::featureabi::mui_run_header_action_at_click(h), 1);
+    assert_eq!(
+        crate::featureabi::mui_run_header_action_at_click(h),
+        crate::featureabi::RUN_HEADER_CLICK_CLEAR
+    );
+
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        sx + sw * 0.5,
+        sy + sh * 0.5,
+        0,
+    );
+    assert_eq!(
+        crate::featureabi::mui_run_header_action_at_click(h),
+        crate::featureabi::RUN_HEADER_CLICK_STOP
+    );
+    assert!(
+        sx + sw <= x - crate::layout::DOCK_ACTION_GAP + 0.5,
+        "Run Stop button should stay left of Clear"
+    );
 
     ctx.last_event = MuiEvent::mouse(
         MUI_EVENT_MOUSE_DOWN,
@@ -10580,8 +10600,9 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let ract = run_header_click")
             && main.contains("if ract == 1 {")
             && main.contains("let _rc = mui_run_clear(h)")
+            && main.contains("} else if ract == 2 {\n              let _rst = mui_run_stop(h)")
             && run_header_pos < run_row_pos,
-        "Run header clear clicks must dispatch before output-row navigation"
+        "Run header actions must dispatch before output-row navigation"
     );
     assert!(
         main.contains("id == cmd_run_close()")

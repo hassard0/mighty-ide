@@ -8410,3 +8410,15 @@ without requiring a palette search.
   after Stop. The shared toolbar geometry drives drawing, hit-testing, and
   compact-fit tests, and the toolbar action reuses `mui_dbg_clear_session` so
   breakpoints and last target are preserved exactly like the command path.
+
+## L700 - Run Processes Need Local Stop Controls
+
+The Run panel had command-palette stop support and local clear-output support,
+but a running process still required a palette search or shortcut memory to
+stop from the panel where its output was visible. Stop is a lifecycle action,
+so it belongs beside the output status and clear control.
+
+- **IDE note:** the Run header now includes a compact Stop Process button before
+  Clear Output. The header hit-test returns a distinct stop action, Mighty routes
+  it through `mui_run_stop` before output-row navigation, and the existing stop
+  ABI supplies running and idle feedback.

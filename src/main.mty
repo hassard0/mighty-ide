@@ -2144,6 +2144,12 @@ fn main() {
               web_focus = false
               test_focus = false
               agents_focus = false
+            } else if ract == 2 {
+              let _rst = mui_run_stop(h)
+              run_focus = true
+              web_focus = false
+              test_focus = false
+              agents_focus = false
             } else {
               let rrow = mui_run_row_at_click(h)
               if rrow >= 0 {
