@@ -10942,6 +10942,16 @@ fn workspace_open_reroots_tree_and_index_and_records_recent() {
     // The folder was recorded in the recents MRU.
     assert_eq!(mui_ws_recent_count(h), 1);
 
+    // Empty typed Open Folder submissions should explain the no-op and avoid
+    // recording a bogus recent workspace.
+    mui_path_clear(h);
+    assert_eq!(mui_ws_open(h), 0, "blank folder path should fail visibly");
+    assert_eq!(ctx.tree.root(), crate::workspace::validate_folder(&root_str).unwrap());
+    assert_eq!(mui_ws_recent_count(h), 1, "blank open must not record a recent");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Enter a folder path");
+
     // Opening a non-existent folder fails (and doesn't grow recents).
     mui_path_clear(h);
     for b in root.join("nope-missing").to_string_lossy().bytes() {
