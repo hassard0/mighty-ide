@@ -10495,3 +10495,17 @@ variants can all describe the same target while bypassing literal equality.
 - **Language note:** no compiler gap surfaced. Any UI invariant that protects a
   file identity should use path equivalence at the boundary; string equality is
   only suitable after paths have already been normalized into a stable key.
+
+## L854 - File Deletes Must Account For Duplicate Tabs
+
+Deleting a backing file is a path-scoped operation. If the same file is open in
+multiple tabs, checking only the active tab can leave a stale clean duplicate
+pointing at a deleted path or bypass unsaved edits in a dirty duplicate.
+
+- **IDE note:** active-file delete now preflights every equivalent open tab for
+  unsaved edits before touching disk. After a successful delete it closes all
+  clean matching tabs as one compaction, remaps split panes, and keeps deleted
+  file tabs out of reopen-closed history.
+- **Language note:** no compiler gap surfaced. State transitions that mutate
+  disk should operate on the whole UI identity set for that file, not just the
+  selected view that initiated the command.

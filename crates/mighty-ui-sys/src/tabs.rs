@@ -381,6 +381,61 @@ impl TabStore {
         Some(TabCompaction { removed, old_to_new })
     }
 
+    /// True when any open tab for `path` has unsaved edits.
+    pub fn any_dirty_path(&self, path: &Path) -> bool {
+        self.tabs.iter().any(|tab| {
+            tab.path
+                .as_deref()
+                .is_some_and(|p| tab_paths_equal(p, path) && tab.is_dirty())
+        })
+    }
+
+    /// Close all clean tabs pointing at `path` without adding them to
+    /// reopen-closed history. Used after the backing file itself was deleted.
+    /// Dirty matching tabs are preserved; callers should usually preflight with
+    /// [`Self::any_dirty_path`].
+    pub fn close_clean_path_forget(&mut self, path: &Path) -> Option<TabCompaction> {
+        if self.tabs.is_empty() {
+            self.ensure_scratch();
+            return None;
+        }
+        let old_active = self.active.min(self.tabs.len().saturating_sub(1));
+        let len = self.tabs.len();
+        let mut old_to_new = vec![None; len];
+        let mut kept: Vec<(usize, Tab)> = Vec::new();
+        let mut removed = 0;
+        for (idx, tab) in self.tabs.drain(..).enumerate() {
+            let matches_path = tab
+                .path
+                .as_deref()
+                .is_some_and(|p| tab_paths_equal(p, path));
+            if matches_path && !tab.is_dirty() {
+                removed += 1;
+            } else {
+                old_to_new[idx] = Some(kept.len());
+                kept.push((idx, tab));
+            }
+        }
+
+        if removed == 0 {
+            self.tabs = kept.into_iter().map(|(_, tab)| tab).collect();
+            return None;
+        }
+        if kept.is_empty() {
+            self.tabs.push(Tab::default());
+            self.active = 0;
+        } else {
+            let new_active = old_to_new
+                .get(old_active)
+                .and_then(|v| *v)
+                .or_else(|| kept.iter().position(|(idx, _)| *idx > old_active))
+                .unwrap_or_else(|| kept.len().saturating_sub(1));
+            self.tabs = kept.into_iter().map(|(_, tab)| tab).collect();
+            self.active = new_active;
+        }
+        Some(TabCompaction { removed, old_to_new })
+    }
+
     /// Set the active tab's file path (Save As on an untitled buffer binds it to a
     /// real path so subsequent saves write there).
     pub fn set_active_path(&mut self, path: PathBuf) {
@@ -542,7 +597,8 @@ impl TabStore {
     }
 
     /// Close tab `idx` without making it recoverable through reopen-closed.
-    /// Used when the backing file itself was deleted.
+    /// Kept for the targeted reopen-history regression test.
+    #[cfg(test)]
     pub fn close_forget(&mut self, idx: usize) -> usize {
         self.close_inner(idx, false)
     }
@@ -1232,6 +1288,62 @@ mod tests {
         assert_eq!(s.count(), 1);
         assert_eq!(s.active(), 0);
         assert_eq!(compaction.old_to_new, vec![None, Some(0)]);
+    }
+
+    #[test]
+    fn close_clean_path_forget_removes_all_clean_equivalents_without_history() {
+        let p = write_tmp("tabs_delete_equivalent.txt", b"same");
+        let equivalent = p
+            .parent()
+            .unwrap()
+            .join(".")
+            .join(p.file_name().unwrap());
+        let keep = write_tmp("tabs_delete_keep.txt", b"keep");
+        let model = TextModel::from_bytes(b"same");
+
+        let mut s = TabStore::new();
+        s.open_path(keep.clone());
+        s.tabs.push(Tab {
+            path: Some(p.clone()),
+            bytes: b"same".to_vec(),
+            model: model.clone(),
+            ..Default::default()
+        });
+        s.tabs.push(Tab {
+            path: Some(equivalent),
+            bytes: b"same".to_vec(),
+            model,
+            ..Default::default()
+        });
+        s.active = 2;
+
+        assert!(!s.any_dirty_path(&p));
+        let compaction = s.close_clean_path_forget(&p).unwrap();
+
+        assert_eq!(compaction.removed, 2);
+        assert_eq!(compaction.old_to_new, vec![Some(0), None, None]);
+        assert_eq!(s.count(), 1);
+        assert_eq!(s.active_path().as_deref(), Some(keep.as_path()));
+        assert_eq!(s.closed_count(), 0);
+        assert!(s.reopen_closed().is_none());
+    }
+
+    #[test]
+    fn any_dirty_path_sees_dirty_equivalent_tabs() {
+        let p = write_tmp("tabs_dirty_equivalent.txt", b"same");
+        let equivalent = p
+            .parent()
+            .unwrap()
+            .join(".")
+            .join(p.file_name().unwrap());
+
+        let mut s = TabStore::new();
+        s.open_path(p.clone());
+        let duplicate = s.duplicate_active();
+        s.get_mut(duplicate).unwrap().path = Some(equivalent);
+        s.set_dirty(duplicate, true);
+
+        assert!(s.any_dirty_path(&p));
     }
 
     #[test]

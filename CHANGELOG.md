@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Delete accounts for duplicate open tabs**: deleting an active file now
+  refuses the operation if any equivalent open tab for that file is dirty, and
+  closes all clean duplicate tabs without adding deleted files to reopen history.
 - **Open tabs compare equivalent file paths**: tab lookup now canonicalizes
   file-backed paths and applies Windows slash/case fallback, preventing
   duplicate tabs and Save As target misses when the same file is referenced by

@@ -6459,7 +6459,7 @@ pub extern "C" fn mui_file_delete_active_confirm(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Warn, format!("Type {name} to delete"));
         return 0;
     }
-    if ctx.tabs.is_dirty(ctx.tabs.active()) {
+    if ctx.tabs.any_dirty_path(&path) {
         ctx.push_toast(
             crate::toast::Kind::Warn,
             "Save or discard changes before deleting",
@@ -6468,11 +6468,13 @@ pub extern "C" fn mui_file_delete_active_confirm(handle: i64) -> i32 {
     }
     match std::fs::remove_file(&path) {
         Ok(()) => {
-            let idx = ctx.tabs.active();
             ctx.pending_dirty_close = None;
-            let a = ctx.tabs.close_forget(idx);
-            ctx.panes.on_tab_closed(idx, ctx.tabs.count());
+            let compaction = ctx.tabs.close_clean_path_forget(&path);
+            if let Some(compaction) = compaction {
+                ctx.panes.on_tabs_compacted(&compaction.old_to_new, ctx.tabs.count());
+            }
             sync_active_path(ctx);
+            let a = ctx.tabs.active();
             ensure_tab_visible(ctx, a);
             ctx.tree.refresh();
             let root = crate::wsabi::effective_root(ctx);

@@ -3390,6 +3390,76 @@ fn active_file_delete_refuses_dirty_buffer_even_with_exact_confirmation() {
 }
 
 #[test]
+fn active_file_delete_refuses_dirty_duplicate_tab() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_active_file_delete_dirty_duplicate");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("dupe.mty");
+    std::fs::write(&file, "saved\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let clean = ctx.tabs.open_path(file.clone());
+    let dirty_duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("unsaved duplicate\n");
+    ctx.tabs.set_dirty(dirty_duplicate, true);
+    ctx.tabs.switch(clean);
+    crate::abi::sync_active_path(&mut ctx);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.path_stage.extend_from_slice(b"dupe.mty");
+    assert_eq!(crate::mui_file_delete_active_confirm(handle), 0);
+
+    assert!(file.exists());
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(file.as_path()));
+    assert!(ctx.tabs.any_dirty_path(&file));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Save or discard changes before deleting");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn active_file_delete_closes_all_clean_duplicate_tabs() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_active_file_delete_clean_duplicates");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let keep = root.join("keep.mty");
+    let doomed = root.join("doomed.mty");
+    std::fs::write(&keep, "fn keep() {}\n").unwrap();
+    std::fs::write(&doomed, "fn doomed() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tabs.open_path(keep.clone());
+    let doomed_idx = ctx.tabs.open_path(doomed.clone());
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.panes = crate::panes::PaneLayout::new(doomed_idx);
+    ctx.panes.split_right(duplicate, 0);
+    ctx.tabs.switch(doomed_idx);
+    crate::abi::sync_active_path(&mut ctx);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.path_stage.extend_from_slice(b"doomed.mty");
+    assert_eq!(crate::mui_file_delete_active_confirm(handle), 1);
+
+    assert!(!doomed.exists());
+    assert_eq!(ctx.tabs.count(), 2);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(keep.as_path()));
+    assert_eq!(ctx.panes.tab_at(0), Some(1));
+    assert_eq!(ctx.panes.tab_at(1), Some(1));
+    assert_eq!(crate::mui_tab_reopen_closed(handle), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No closed tab to reopen");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn delete_prompt_label_names_exact_file_before_confirmation() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_delete_prompt_label");
