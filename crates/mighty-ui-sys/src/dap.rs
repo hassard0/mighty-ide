@@ -425,7 +425,7 @@ pub struct StoppedInfo {
 /// Parse a `stopped` event's body.
 pub fn parse_stopped(raw: &str) -> StoppedInfo {
     let bytes = raw.as_bytes();
-    let body = top_level_object_field(bytes, b"body").unwrap_or(&[]);
+    let body = dap_event_body(bytes, "stopped").unwrap_or(&[]);
     StoppedInfo {
         reason: top_level_string_field(body, b"reason").unwrap_or_default(),
         description: top_level_string_field(body, b"description").unwrap_or_default(),
@@ -436,7 +436,7 @@ pub fn parse_stopped(raw: &str) -> StoppedInfo {
 /// Parse a `threads` response into thread IDs.
 pub fn parse_threads(raw: &str) -> Vec<i64> {
     let bytes = raw.as_bytes();
-    let Some(body) = top_level_object_field(bytes, b"body") else {
+    let Some(body) = dap_response_body(bytes, "threads") else {
         return Vec::new();
     };
     let Some(threads) = top_level_array_field(body, b"threads") else {
@@ -458,7 +458,7 @@ pub struct OutputInfo {
 /// Parse an `output` event's body.
 pub fn parse_output(raw: &str) -> OutputInfo {
     let bytes = raw.as_bytes();
-    let body = top_level_object_field(bytes, b"body").unwrap_or(&[]);
+    let body = dap_event_body(bytes, "output").unwrap_or(&[]);
     OutputInfo {
         category: top_level_string_field(body, b"category").unwrap_or_else(|| "stdout".into()),
         output: top_level_string_field(body, b"output").unwrap_or_default(),
@@ -467,7 +467,7 @@ pub fn parse_output(raw: &str) -> OutputInfo {
 
 pub fn parse_exit_code(raw: &str) -> i64 {
     let bytes = raw.as_bytes();
-    let body = top_level_object_field(bytes, b"body").unwrap_or(&[]);
+    let body = dap_event_body(bytes, "exited").unwrap_or(&[]);
     top_level_uint_field(body, b"exitCode").unwrap_or(0)
 }
 
@@ -484,7 +484,7 @@ pub struct StackFrame {
 /// returns them).
 pub fn parse_stack_trace(raw: &str) -> Vec<StackFrame> {
     let bytes = raw.as_bytes();
-    let Some(body) = top_level_object_field(bytes, b"body") else {
+    let Some(body) = dap_response_body(bytes, "stackTrace") else {
         return Vec::new();
     };
     let Some(frames) = top_level_array_field(body, b"stackFrames") else {
@@ -520,7 +520,7 @@ pub struct Variable {
 /// Parse a `variables` response into name/value/type rows.
 pub fn parse_variables(raw: &str) -> Vec<Variable> {
     let bytes = raw.as_bytes();
-    let Some(body) = top_level_object_field(bytes, b"body") else {
+    let Some(body) = dap_response_body(bytes, "variables") else {
         return Vec::new();
     };
     let Some(variables) = top_level_array_field(body, b"variables") else {
@@ -535,6 +535,29 @@ pub fn parse_variables(raw: &str) -> Vec<Variable> {
             Some(Variable { name, value, kind })
         })
         .collect()
+}
+
+fn dap_response_body<'a>(bytes: &'a [u8], command: &str) -> Option<&'a [u8]> {
+    if top_level_string_field(bytes, b"type").as_deref() != Some("response") {
+        return None;
+    }
+    if top_level_string_field(bytes, b"command").as_deref() != Some(command) {
+        return None;
+    }
+    if top_level_bool_field(bytes, b"success") == Some(false) {
+        return None;
+    }
+    top_level_object_field(bytes, b"body")
+}
+
+fn dap_event_body<'a>(bytes: &'a [u8], event: &str) -> Option<&'a [u8]> {
+    if top_level_string_field(bytes, b"type").as_deref() != Some("event") {
+        return None;
+    }
+    if top_level_string_field(bytes, b"event").as_deref() != Some(event) {
+        return None;
+    }
+    top_level_object_field(bytes, b"body")
 }
 
 // ===========================================================================
@@ -1618,6 +1641,14 @@ mod tests {
     }
 
     #[test]
+    fn parse_stopped_requires_stopped_event() {
+        let raw = r#"{"type":"event","event":"output","body":{"reason":"wrong","description":"wrong desc","threadId":99}}"#;
+        let info = parse_stopped(&parse_envelope(raw).unwrap().raw);
+
+        assert_eq!(info, StoppedInfo::default());
+    }
+
+    #[test]
     fn parse_stopped_without_thread_id_requests_thread_lookup() {
         let raw = r#"{"type":"event","event":"stopped","body":{"reason":"entry","allThreadsStopped":true}}"#;
         let info = parse_stopped(&parse_envelope(raw).unwrap().raw);
@@ -1644,6 +1675,15 @@ mod tests {
         let threads = parse_threads(&parse_envelope(raw).unwrap().raw);
 
         assert_eq!(threads, vec![7, 9]);
+    }
+
+    #[test]
+    fn parse_threads_requires_threads_response() {
+        let wrong_command = r#"{"type":"response","command":"variables","success":true,"body":{"threads":[{"id":7}]}}"#;
+        let failed = r#"{"type":"response","command":"threads","success":false,"body":{"threads":[{"id":7}]}}"#;
+
+        assert!(parse_threads(&parse_envelope(wrong_command).unwrap().raw).is_empty());
+        assert!(parse_threads(&parse_envelope(failed).unwrap().raw).is_empty());
     }
 
     #[test]
@@ -1722,6 +1762,14 @@ mod tests {
     }
 
     #[test]
+    fn parse_stack_trace_requires_stack_trace_response() {
+        let raw = r#"{"type":"response","command":"variables","success":true,"body":{"stackFrames":[{"id":1,"name":"wrong","line":7,"source":{"path":"C:/wrong.mty"}}]}}"#;
+        let frames = parse_stack_trace(&parse_envelope(raw).unwrap().raw);
+
+        assert!(frames.is_empty());
+    }
+
+    #[test]
     fn parse_variables_rows() {
         let raw = r#"{"type":"response","command":"variables","success":true,"body":{"variables":[{"name":"a","value":"21","type":"I32","variablesReference":0},{"name":"label","value":"\"sum\"","type":"Str","variablesReference":0}]}}"#;
         let vars = parse_variables(&parse_envelope(raw).unwrap().raw);
@@ -1764,6 +1812,14 @@ mod tests {
         assert_eq!(vars[0].name, "right name");
         assert_eq!(vars[0].value, "right value");
         assert_eq!(vars[0].kind, "Right");
+    }
+
+    #[test]
+    fn parse_variables_requires_variables_response() {
+        let raw = r#"{"type":"response","command":"stackTrace","success":true,"body":{"variables":[{"name":"wrong","value":"99","type":"I32"}]}}"#;
+        let vars = parse_variables(&parse_envelope(raw).unwrap().raw);
+
+        assert!(vars.is_empty());
     }
 
     #[test]
@@ -1810,6 +1866,15 @@ mod tests {
     }
 
     #[test]
+    fn parse_output_requires_output_event() {
+        let raw = r#"{"type":"event","event":"stopped","body":{"category":"stderr","output":"wrong"}}"#;
+        let o = parse_output(&parse_envelope(raw).unwrap().raw);
+
+        assert_eq!(o.category, "stdout");
+        assert_eq!(o.output, "");
+    }
+
+    #[test]
     fn parse_exit_code_uses_body_top_level_field() {
         let raw = r#"{
           "type":"event",
@@ -1823,6 +1888,12 @@ mod tests {
     #[test]
     fn parse_exit_code_requires_body_owned_field() {
         let raw = r#"{"type":"event","event":"exited","exitCode":7}"#;
+        assert_eq!(parse_exit_code(&parse_envelope(raw).unwrap().raw), 0);
+    }
+
+    #[test]
+    fn parse_exit_code_requires_exited_event() {
+        let raw = r#"{"type":"event","event":"output","body":{"exitCode":7}}"#;
         assert_eq!(parse_exit_code(&parse_envelope(raw).unwrap().raw), 0);
     }
 

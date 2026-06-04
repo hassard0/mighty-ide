@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Debugger payloads require matching DAP roles**: debugger event and response
+  parsers now verify the expected DAP `event` or `command` before reading a
+  `body`, so wrong-command responses and wrong-event payloads cannot update the
+  stack, threads, variables, console, exit state, or stopped location.
 - **Language features require response envelopes**: signature help, rename
   workspace edits, and code actions now ignore request-shaped JSON-RPC objects
   with top-level `method` even when those objects carry incidental `result`

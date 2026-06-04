@@ -10414,3 +10414,16 @@ the editor's pending language request.
 - **Language note:** no compiler gap surfaced. Sharing a hardened wait loop is
   not enough when tests and fallback paths can call parsers directly; parser
   entry points need the same envelope-role invariant.
+
+## L848 - DAP Payloads Need Matching Roles
+
+DAP events and responses all carry a `body`, but the shape of that body only has
+meaning when paired with the expected top-level `event` or `command`.
+
+- **IDE note:** debugger parsers for stopped, output, exited, threads,
+  stackTrace, and variables now verify the envelope role before reading body
+  fields. Failed responses and wrong-command or wrong-event payloads are ignored
+  instead of updating debugger UI state.
+- **Language note:** no compiler gap surfaced. Protocol body ownership is a
+  two-part invariant: fields must be owned by `body`, and `body` must be owned
+  by the envelope role the parser was written for.
