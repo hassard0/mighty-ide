@@ -45,6 +45,9 @@ pub const DEFAULT_FG: u32 = 0xffff_ffff;
 /// Sentinel `bg` meaning "transparent/default background" (SGR 0 / 49).
 pub const DEFAULT_BG: u32 = 0xffff_fffe;
 const TRUECOLOR_MASK: u32 = 0x0100_0000;
+const MOUSE_MODE_BUTTON: u8 = 1 << 0; // DECSET ?1000
+const MOUSE_MODE_DRAG: u8 = 1 << 1; // DECSET ?1002
+const MOUSE_MODE_ANY: u8 = 1 << 2; // DECSET ?1003
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CursorShape {
@@ -685,8 +688,8 @@ pub struct VtParser {
     cursor_shape: CursorShape,
     /// Whether arrow keys should use application cursor-key sequences.
     application_cursor_keys: bool,
-    /// Whether the running app asked for mouse button/drag/all-motion reports.
-    mouse_reporting: bool,
+    /// Enabled xterm mouse event modes (`?1000`, `?1002`, `?1003`).
+    mouse_modes: u8,
     /// Whether mouse reports should use SGR extended coordinates (`CSI ?1006 h`).
     sgr_mouse: bool,
     /// Whether printable output should wrap after the right margin (`CSI ?7 h/l`).
@@ -717,7 +720,7 @@ impl VtParser {
             cursor_visible: true,
             cursor_shape: CursorShape::Block,
             application_cursor_keys: false,
-            mouse_reporting: false,
+            mouse_modes: 0,
             sgr_mouse: false,
             autowrap: true,
             origin_mode: false,
@@ -746,11 +749,11 @@ impl VtParser {
     }
 
     pub fn sgr_mouse_enabled(&self) -> bool {
-        self.mouse_reporting && self.sgr_mouse
+        self.mouse_reporting_enabled() && self.sgr_mouse
     }
 
     pub fn mouse_reporting_enabled(&self) -> bool {
-        self.mouse_reporting
+        self.mouse_modes != 0
     }
 
     pub fn cursor_visible(&self) -> bool {
@@ -1247,8 +1250,12 @@ impl VtParser {
                 ("1004", b'l') => self.focus_reporting = false,
                 ("2004", b'h') => self.bracketed_paste = true,
                 ("2004", b'l') => self.bracketed_paste = false,
-                ("1000" | "1002" | "1003", b'h') => self.mouse_reporting = true,
-                ("1000" | "1002" | "1003", b'l') => self.mouse_reporting = false,
+                ("1000", b'h') => self.mouse_modes |= MOUSE_MODE_BUTTON,
+                ("1000", b'l') => self.mouse_modes &= !MOUSE_MODE_BUTTON,
+                ("1002", b'h') => self.mouse_modes |= MOUSE_MODE_DRAG,
+                ("1002", b'l') => self.mouse_modes &= !MOUSE_MODE_DRAG,
+                ("1003", b'h') => self.mouse_modes |= MOUSE_MODE_ANY,
+                ("1003", b'l') => self.mouse_modes &= !MOUSE_MODE_ANY,
                 ("1006", b'h') => self.sgr_mouse = true,
                 ("1006", b'l') => self.sgr_mouse = false,
                 _ => {}
@@ -1264,7 +1271,7 @@ impl VtParser {
         self.cursor_visible = true;
         self.cursor_shape = CursorShape::Block;
         self.application_cursor_keys = false;
-        self.mouse_reporting = false;
+        self.mouse_modes = 0;
         self.sgr_mouse = false;
         self.autowrap = true;
         self.origin_mode = false;
@@ -2974,6 +2981,29 @@ mod tests {
         p.feed(&mut g, b"\x1b[?1006h\x1b[?1000l");
         assert!(!p.mouse_reporting_enabled());
         assert!(!p.sgr_mouse_enabled());
+    }
+
+    #[test]
+    fn mouse_reporting_modes_are_tracked_independently() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+
+        p.feed(&mut g, b"\x1b[?1000h\x1b[?1002h\x1b[?1006h");
+        assert!(p.mouse_reporting_enabled());
+        assert!(p.sgr_mouse_enabled());
+
+        p.feed(&mut g, b"\x1b[?1000l");
+        assert!(p.mouse_reporting_enabled());
+        assert!(p.sgr_mouse_enabled());
+
+        p.feed(&mut g, b"\x1b[?1002l");
+        assert!(!p.mouse_reporting_enabled());
+        assert!(!p.sgr_mouse_enabled());
+
+        p.feed(&mut g, b"\x1b[?1003h\x1b[?1006l");
+        assert!(p.mouse_reporting_enabled());
+        assert!(!p.sgr_mouse_enabled());
+        assert!(!g.contains("1003"));
     }
 
     #[test]

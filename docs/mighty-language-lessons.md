@@ -7906,3 +7906,13 @@ restore.
   the coordinates and SGR colors. Regression coverage verifies restore
   reinstates nowrap before right-margin output and origin mode before a later
   CUP move.
+
+L651. Xterm mouse modes are independent private modes. `?1000`, `?1002`, and
+`?1003` can overlap, so disabling one must not clear mouse reporting while
+another remains enabled. `?1006` only selects SGR mouse encoding when a reporting
+mode is active.
+
+- **IDE note:** terminal mouse tracking now keeps separate mode bits for button,
+  drag, and any-motion reporting. Regression coverage verifies overlapping mouse
+  modes survive independent disables and SGR encoding follows the aggregate
+  reporting state.
