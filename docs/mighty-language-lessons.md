@@ -8862,3 +8862,14 @@ next key does not route to a hidden dock, sidebar, or right-dock panel.
 - **IDE note:** Find, Go to Line, and Find & Replace now clear stale
   Run/Web/Testing/Terminal/AI/Agents/search focus after opening their prompt or
   replace bar. The dispatcher source-contract test covers each command branch.
+
+## L740 - Editor Assistance Commands Return Ownership To The Editor
+
+Commands like hover, rename, code actions, and peek may not look like panel
+switches, but they make editor-owned UI the next interaction target. They should
+therefore drop stale panel focus just like prompt bars do.
+
+- **IDE note:** Go to Definition, Hover, Signature Help, Rename Symbol, Code
+  Actions, and Peek Definition now release Run/Web/Testing/Terminal/AI/Agents/
+  search focus after opening or moving through editor-owned assistance UI. The
+  dispatcher source-contract test covers the command branches.

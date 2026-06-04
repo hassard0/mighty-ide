@@ -10634,6 +10634,37 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Terminal header Clear must dispatch before terminal grid mouse routing"
     );
     assert!(
+        main.contains(
+            "id == cmd_goto_definition() {\n          let cur_line = mui_ed_cursor_line(h)\n          let cur_col = mui_ed_cursor_col(h)"
+        )
+            && main.contains(
+                "run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n        } else if id == cmd_hover()"
+            ),
+        "Go to Definition command must return ownership to the editor and release competing focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_hover() {\n          let ok = do_hover(h)\n          if ok == 1 { hovering = true; hover_line = mui_ed_cursor_line(h); hover_col = mui_ed_cursor_col(h) } else { hovering = false }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Hover command must open editor-owned UI and release competing focus"
+    );
+    assert!(
+        main.contains("id == cmd_signature_help() || id == cmd_rename_symbol() || id == cmd_code_actions()")
+            && main.contains("if id == cmd_signature_help()")
+            && main.contains("} else if id == cmd_rename_symbol()")
+            && main.contains("let cnt = mui_codeaction_request")
+            && main.contains(
+                "run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n        } else if id == cmd_signature_help_close()"
+            ),
+        "Signature Help, Rename Symbol, and Code Actions commands must release competing focus after opening editor-owned UI"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_peek_definition() {\n          let _p = peek_definition(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Peek Definition command must open editor-owned UI and release competing focus"
+    );
+    assert!(
         main.contains("id == cmd_hover_close()")
             && main.contains("let _hc = mui_hover_close(h)")
             && main.contains("hovering = false"),

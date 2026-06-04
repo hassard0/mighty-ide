@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Editor assistance commands release stale panel focus**: Go to Definition,
+  Hover, Signature Help, Rename Symbol, Code Actions, and Peek Definition now
+  clear stale Run/Web/Testing/Terminal/AI/Agents/search focus when they move
+  interaction back to editor-owned UI.
 - **Find-style overlays release stale focus**: Find, Go to Line, and Find &
   Replace now clear stale Run/Web/Testing/Terminal/AI/Agents/search focus when
   opening their keyboard-focused prompt bars.

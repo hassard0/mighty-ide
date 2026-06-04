@@ -4481,10 +4481,23 @@ fn main() {
             prev_col = cur_col
             have_prev = true
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
         } else if id == cmd_hover() {
           let ok = do_hover(h)
           if ok == 1 { hovering = true; hover_line = mui_ed_cursor_line(h); hover_col = mui_ed_cursor_col(h) } else { hovering = false }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_hover_close() {
           let _hc = mui_hover_close(h)
           hovering = false
@@ -4519,6 +4532,13 @@ fn main() {
               let _cac = mui_codeaction_cancel(h)
             }
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_signature_help_close() {
           let _sc = mui_sig_close(h)
           sig_open = false
@@ -4823,6 +4843,13 @@ fn main() {
           test_focus = false
         } else if id == cmd_peek_definition() {
           let _p = peek_definition(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_peek_close() {
           let _pc = mui_peek_close(h)
         } else if id == cmd_welcome() {
