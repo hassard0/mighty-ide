@@ -9748,8 +9748,65 @@ pub extern "C" fn mui_rename_prepare(handle: i64, line: i32, col: i32) -> i32 {
 }
 
 fn prepare_rename_explicitly_rejected(json: &str) -> bool {
-    let compact: String = json.chars().filter(|c| !c.is_whitespace()).collect();
-    compact.contains("\"error\"") || compact.contains("\"result\":null")
+    let bytes = json.as_bytes();
+    top_level_json_field_value_start(bytes, "error").is_some()
+        || top_level_json_field_value_start(bytes, "result")
+            .is_some_and(|i| bytes.get(i..i + 4) == Some(b"null"))
+}
+
+fn top_level_json_field_value_start(bytes: &[u8], field: &str) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'{' | b'[' => {
+                depth += 1;
+                i += 1;
+            }
+            b'}' | b']' => {
+                depth -= 1;
+                i += 1;
+            }
+            b'"' => {
+                let (key, past) = read_json_string_at(bytes, i)?;
+                if depth == 1 && key == field {
+                    let mut value_at = past;
+                    while value_at < bytes.len()
+                        && matches!(bytes[value_at], b' ' | b':' | b'\t' | b'\r' | b'\n')
+                    {
+                        value_at += 1;
+                    }
+                    return Some(value_at);
+                }
+                i = past;
+            }
+            _ => i += 1,
+        }
+    }
+    None
+}
+
+fn read_json_string_at(bytes: &[u8], pos: usize) -> Option<(String, usize)> {
+    if bytes.get(pos) != Some(&b'"') {
+        return None;
+    }
+    let mut val = String::new();
+    let mut i = pos + 1;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'"' => return Some((val, i + 1)),
+            b'\\' if i + 1 < bytes.len() => {
+                i += 1;
+                val.push(bytes[i] as char);
+                i += 1;
+            }
+            b => {
+                val.push(b as char);
+                i += 1;
+            }
+        }
+    }
+    None
 }
 
 /// Parse the `prepareRename` result's start `(line, character)`. The result is a
@@ -9813,6 +9870,16 @@ mod rename_prepare_tests {
         ));
         assert!(!prepare_rename_explicitly_rejected(
             r#"{"jsonrpc":"2.0","result":{"start":{"line":4,"character":8},"end":{"line":4,"character":12}},"id":3}"#
+        ));
+    }
+
+    #[test]
+    fn prepare_rename_rejection_only_reads_top_level_jsonrpc_fields() {
+        assert!(!prepare_rename_explicitly_rejected(
+            r#"{"jsonrpc":"2.0","result":{"range":{"start":{"line":4,"character":8},"end":{"line":4,"character":12}},"placeholder":"error"},"id":3}"#
+        ));
+        assert!(!prepare_rename_explicitly_rejected(
+            r#"{"jsonrpc":"2.0","result":{"start":{"line":4,"character":8},"end":{"line":4,"character":12},"metadata":{"error":{"message":"not json-rpc failure"}}},"id":3}"#
         ));
     }
 

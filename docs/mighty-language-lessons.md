@@ -9792,3 +9792,16 @@ the server already marked unavailable.
 - **Language note:** no compiler gap surfaced. When an LSP shape includes UI
   state that Mighty cannot currently represent directly, the shim should either
   model that state explicitly or filter it before it crosses the scalar menu ABI.
+
+## L804 - JSON-RPC Failure Checks Must Stay Top-Level
+
+LSP responses can legitimately contain strings or metadata fields named
+`error` inside a successful `result`. Treating any nested `"error"` text as a
+JSON-RPC failure makes valid rename targets disappear.
+
+- **IDE note:** `prepareRename` rejection now checks only top-level JSON-RPC
+  `error` and top-level `result:null`, so placeholder text and nested metadata
+  do not cancel an otherwise valid rename preparation.
+- **Language note:** no compiler gap surfaced. Hand-rolled LSP scanners should
+  separate envelope-level JSON-RPC state from protocol payload fields before
+  making UI decisions.

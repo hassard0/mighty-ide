@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Rename prepare ignores nested error text**: valid `prepareRename` responses
+  that include placeholder or metadata strings such as `"error"` no longer get
+  mistaken for JSON-RPC failures.
 - **Code actions hide unavailable server fixes**: LSP actions marked with
   `disabled` are now omitted from the quick-fix menu instead of appearing as
   selectable rows that the server says cannot run, while nested command
