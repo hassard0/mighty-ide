@@ -7946,3 +7946,13 @@ must explicitly pass through only while an app has requested them.
   shim forward grid moves only when the terminal is actively requesting motion.
   Regression coverage verifies drag, any-motion, disabled reporting, and
   coordinate clamping.
+
+L655. Terminal mouse reports must preserve keyboard modifiers before global
+gestures claim the event. Ctrl+wheel is an IDE zoom gesture, but inside a
+mouse-aware terminal grid it is also valid xterm mouse input.
+
+- **IDE note:** terminal wheel, button, and motion encoders now add xterm
+  Shift/Meta/Ctrl modifier bits to SGR and legacy X10 reports, and Ctrl+wheel
+  passes through to the terminal when a mouse-reporting terminal app owns the
+  grid hit. Regression coverage verifies modified scroll, press, release,
+  drag, and any-motion byte sequences.

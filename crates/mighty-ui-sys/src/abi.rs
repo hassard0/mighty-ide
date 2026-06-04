@@ -2610,6 +2610,9 @@ fn shim_intercept(ctx: &mut MuiContext, ev: &MuiEvent) -> ShimAction {
         // --- Ctrl+wheel zooms the whole UI; a plain wheel passes through to the
         // IDE as a normal scroll. ---
         MUI_EVENT_SCROLL if (ev.mods & MUI_MOD_CTRL) != 0 => {
+            if term_wants_mouse_reporting_at(ctx, ev.x, ev.y) {
+                return ShimAction::PassThrough;
+            }
             if ev.scroll_y > 0.0 {
                 let _ = mui_zoom_in(ctx as *mut MuiContext as i64);
                 ShimAction::Consume
@@ -6878,6 +6881,14 @@ fn term_wants_mouse_motion_at(ctx: &MuiContext, x: f32, y: f32) -> bool {
             .is_some_and(|t| t.mouse_motion_reporting_enabled())
 }
 
+fn term_wants_mouse_reporting_at(ctx: &MuiContext, x: f32, y: f32) -> bool {
+    term_grid_contains_point(ctx, x, y)
+        && ctx
+            .terminal
+            .as_ref()
+            .is_some_and(|t| t.mouse_reporting_enabled())
+}
+
 /// Open (spawn if needed) the integrated terminal, sizing its grid/PTY to the
 /// current panel. Marks the panel open. Returns `1` if a terminal is running
 /// afterwards, `0` on spawn failure or null handle.
@@ -7064,8 +7075,9 @@ pub extern "C" fn mui_term_paste(handle: i64) -> i32 {
 pub extern "C" fn mui_term_scroll(handle: i64, dir: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         let (row, col) = term_event_cell(ctx);
+        let mods = ctx.last_event.mods;
         if let Some(t) = ctx.terminal.as_mut() {
-            t.send_scroll_at(dir, row, col);
+            t.send_scroll_at(dir, row, col, mods);
         }
     }
 }
@@ -7095,8 +7107,9 @@ pub extern "C" fn mui_term_mouse_button(handle: i64, pressed: i32) -> i32 {
     }
     let (row, col) = term_event_cell(ctx);
     let button = ctx.last_event.button;
+    let mods = ctx.last_event.mods;
     if let Some(t) = ctx.terminal.as_mut() {
-        t.send_mouse_button_at(pressed != 0, button, row, col);
+        t.send_mouse_button_at(pressed != 0, button, row, col, mods);
         return 1;
     }
     0
@@ -7113,8 +7126,9 @@ pub extern "C" fn mui_term_mouse_move(handle: i64) -> i32 {
         return 0;
     }
     let (row, col) = term_event_cell(ctx);
+    let mods = ctx.last_event.mods;
     if let Some(t) = ctx.terminal.as_mut() {
-        t.send_mouse_motion_at(row, col);
+        t.send_mouse_motion_at(row, col, mods);
         return 1;
     }
     0

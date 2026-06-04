@@ -1902,13 +1902,14 @@ impl Terminal {
     }
 
     /// Send a wheel gesture at a 1-based terminal cell coordinate.
-    pub fn send_scroll_at(&mut self, dir: i32, row: usize, col: usize) {
+    pub fn send_scroll_at(&mut self, dir: i32, row: usize, col: usize, mods: u32) {
         if let Some(bytes) = scroll_to_bytes(
             dir,
             self.parser.mouse_reporting_enabled(),
             self.parser.sgr_mouse_enabled(),
             row,
             col,
+            mods,
         ) {
             self.send(&bytes);
         }
@@ -1921,6 +1922,7 @@ impl Terminal {
         button: u32,
         row: usize,
         col: usize,
+        mods: u32,
     ) {
         let known_button = mouse_button_code(button).is_some();
         if known_button || !pressed {
@@ -1933,6 +1935,7 @@ impl Terminal {
             self.parser.sgr_mouse_enabled(),
             row,
             col,
+            mods,
         ) {
             self.send(&bytes);
         }
@@ -1948,7 +1951,11 @@ impl Terminal {
     }
 
     /// Send a mouse motion event at a 1-based terminal cell coordinate.
-    pub fn send_mouse_motion_at(&mut self, row: usize, col: usize) {
+    pub fn mouse_reporting_enabled(&self) -> bool {
+        self.parser.mouse_reporting_enabled()
+    }
+
+    pub fn send_mouse_motion_at(&mut self, row: usize, col: usize, mods: u32) {
         let button = if self.parser.mouse_any_reporting_enabled() {
             self.mouse_button_down
         } else if self.parser.mouse_drag_reporting_enabled() {
@@ -1965,6 +1972,7 @@ impl Terminal {
             self.parser.sgr_mouse_enabled(),
             row,
             col,
+            mods,
         ) {
             self.send(&bytes);
         }
@@ -2185,13 +2193,15 @@ pub fn scroll_to_bytes(
     sgr_mouse: bool,
     row: usize,
     col: usize,
+    mods: u32,
 ) -> Option<Vec<u8>> {
     let row = row.max(1);
     let col = col.max(1);
     if sgr_mouse {
+        let modifier = mouse_modifier_code(mods);
         return match dir {
-            d if d > 0 => Some(format!("\x1b[<64;{col};{row}M").into_bytes()),
-            d if d < 0 => Some(format!("\x1b[<65;{col};{row}M").into_bytes()),
+            d if d > 0 => Some(format!("\x1b[<{};{col};{row}M", 64 + modifier).into_bytes()),
+            d if d < 0 => Some(format!("\x1b[<{};{col};{row}M", 65 + modifier).into_bytes()),
             _ => None,
         };
     }
@@ -2206,7 +2216,7 @@ pub fn scroll_to_bytes(
         };
         let x = (col.min(223) as u8) + 32;
         let y = (row.min(223) as u8) + 32;
-        return Some(vec![0x1b, b'[', b'M', 32 + button, x, y]);
+        return Some(vec![0x1b, b'[', b'M', 32 + button + mouse_modifier_code(mods), x, y]);
     }
 
     let key = if dir > 0 {
@@ -2231,6 +2241,7 @@ pub fn mouse_button_to_bytes(
     sgr_mouse: bool,
     row: usize,
     col: usize,
+    mods: u32,
 ) -> Option<Vec<u8>> {
     if !mouse_reporting {
         return None;
@@ -2238,14 +2249,15 @@ pub fn mouse_button_to_bytes(
 
     let row = row.max(1);
     let col = col.max(1);
-    let code = mouse_button_code(button)?;
+    let modifier = mouse_modifier_code(mods);
+    let code = mouse_button_code(button)? + modifier;
 
     if sgr_mouse {
         let suffix = if pressed { 'M' } else { 'm' };
         return Some(format!("\x1b[<{code};{col};{row}{suffix}").into_bytes());
     }
 
-    let event_code = if pressed { code } else { 3 };
+    let event_code = if pressed { code } else { 3 + modifier };
     let x = (col.min(223) as u8) + 32;
     let y = (row.min(223) as u8) + 32;
     Some(vec![0x1b, b'[', b'M', event_code + 32, x, y])
@@ -2266,6 +2278,7 @@ pub fn mouse_motion_to_bytes(
     sgr_mouse: bool,
     row: usize,
     col: usize,
+    mods: u32,
 ) -> Option<Vec<u8>> {
     if !mouse_reporting {
         return None;
@@ -2276,7 +2289,7 @@ pub fn mouse_motion_to_bytes(
     let code = match button {
         Some(button) => mouse_button_code(button)? + 32,
         None => 35,
-    };
+    } + mouse_modifier_code(mods);
 
     if sgr_mouse {
         return Some(format!("\x1b[<{code};{col};{row}M").into_bytes());
@@ -2285,6 +2298,21 @@ pub fn mouse_motion_to_bytes(
     let x = (col.min(223) as u8) + 32;
     let y = (row.min(223) as u8) + 32;
     Some(vec![0x1b, b'[', b'M', code + 32, x, y])
+}
+
+fn mouse_modifier_code(mods: u32) -> u8 {
+    use crate::ffi::{MUI_MOD_ALT, MUI_MOD_CTRL, MUI_MOD_SHIFT};
+    let mut code = 0;
+    if mods & MUI_MOD_SHIFT != 0 {
+        code += 4;
+    }
+    if mods & MUI_MOD_ALT != 0 {
+        code += 8;
+    }
+    if mods & MUI_MOD_CTRL != 0 {
+        code += 16;
+    }
+    code
 }
 
 pub fn focus_report_to_bytes(focused: bool) -> &'static [u8] {
@@ -3669,54 +3697,54 @@ mod tests {
     #[test]
     fn scroll_bytes_send_repeated_cursor_moves() {
         assert_eq!(
-            scroll_to_bytes(1, false, false, 1, 1),
+            scroll_to_bytes(1, false, false, 1, 1, 0),
             Some(b"\x1b[A\x1b[A\x1b[A".to_vec())
         );
         assert_eq!(
-            scroll_to_bytes(-1, false, false, 1, 1),
+            scroll_to_bytes(-1, false, false, 1, 1, 0),
             Some(b"\x1b[B\x1b[B\x1b[B".to_vec())
         );
-        assert_eq!(scroll_to_bytes(0, false, false, 1, 1), None);
+        assert_eq!(scroll_to_bytes(0, false, false, 1, 1, 0), None);
     }
 
     #[test]
     fn scroll_bytes_send_legacy_mouse_wheel_when_reporting_enabled() {
         assert_eq!(
-            scroll_to_bytes(1, true, false, 1, 1),
+            scroll_to_bytes(1, true, false, 1, 1, 0),
             Some(vec![0x1b, b'[', b'M', 96, 33, 33])
         );
         assert_eq!(
-            scroll_to_bytes(-1, true, false, 3, 7),
+            scroll_to_bytes(-1, true, false, 3, 7, 0),
             Some(vec![0x1b, b'[', b'M', 97, 39, 35])
         );
         assert_eq!(
-            scroll_to_bytes(1, true, false, 999, 999),
+            scroll_to_bytes(1, true, false, 999, 999, 0),
             Some(vec![0x1b, b'[', b'M', 96, 255, 255])
         );
-        assert_eq!(scroll_to_bytes(0, true, false, 1, 1), None);
+        assert_eq!(scroll_to_bytes(0, true, false, 1, 1, 0), None);
     }
 
     #[test]
     fn scroll_bytes_send_sgr_mouse_wheel_at_event_cell_when_enabled() {
         assert_eq!(
-            scroll_to_bytes(1, true, true, 1, 1),
+            scroll_to_bytes(1, true, true, 1, 1, 0),
             Some(b"\x1b[<64;1;1M".to_vec())
         );
         assert_eq!(
-            scroll_to_bytes(-1, true, true, 3, 7),
+            scroll_to_bytes(-1, true, true, 3, 7, 0),
             Some(b"\x1b[<65;7;3M".to_vec())
         );
-        assert_eq!(scroll_to_bytes(0, true, true, 1, 1), None);
+        assert_eq!(scroll_to_bytes(0, true, true, 1, 1, 0), None);
     }
 
     #[test]
     fn scroll_bytes_can_still_encode_origin_cell() {
         assert_eq!(
-            scroll_to_bytes(-1, true, false, 1, 1),
+            scroll_to_bytes(-1, true, false, 1, 1, 0),
             Some(vec![0x1b, b'[', b'M', 97, 33, 33])
         );
         assert_eq!(
-            scroll_to_bytes(1, true, true, 1, 1),
+            scroll_to_bytes(1, true, true, 1, 1, 0),
             Some(b"\x1b[<64;1;1M".to_vec())
         );
     }
@@ -3724,19 +3752,27 @@ mod tests {
     #[test]
     fn mouse_button_bytes_send_legacy_press_and_release() {
         assert_eq!(
-            mouse_button_to_bytes(true, crate::ffi::MUI_MOUSE_LEFT, true, false, 3, 7),
+            mouse_button_to_bytes(true, crate::ffi::MUI_MOUSE_LEFT, true, false, 3, 7, 0),
             Some(vec![0x1b, b'[', b'M', 32, 39, 35])
         );
         assert_eq!(
-            mouse_button_to_bytes(false, crate::ffi::MUI_MOUSE_LEFT, true, false, 3, 7),
+            mouse_button_to_bytes(false, crate::ffi::MUI_MOUSE_LEFT, true, false, 3, 7, 0),
             Some(vec![0x1b, b'[', b'M', 35, 39, 35])
         );
         assert_eq!(
-            mouse_button_to_bytes(true, crate::ffi::MUI_MOUSE_RIGHT, true, false, 999, 999),
+            mouse_button_to_bytes(
+                true,
+                crate::ffi::MUI_MOUSE_RIGHT,
+                true,
+                false,
+                999,
+                999,
+                0,
+            ),
             Some(vec![0x1b, b'[', b'M', 34, 255, 255])
         );
         assert_eq!(
-            mouse_button_to_bytes(true, crate::ffi::MUI_MOUSE_LEFT, false, false, 3, 7),
+            mouse_button_to_bytes(true, crate::ffi::MUI_MOUSE_LEFT, false, false, 3, 7, 0),
             None
         );
     }
@@ -3744,19 +3780,19 @@ mod tests {
     #[test]
     fn mouse_button_bytes_send_sgr_press_and_release() {
         assert_eq!(
-            mouse_button_to_bytes(true, crate::ffi::MUI_MOUSE_LEFT, true, true, 3, 7),
+            mouse_button_to_bytes(true, crate::ffi::MUI_MOUSE_LEFT, true, true, 3, 7, 0),
             Some(b"\x1b[<0;7;3M".to_vec())
         );
         assert_eq!(
-            mouse_button_to_bytes(false, crate::ffi::MUI_MOUSE_LEFT, true, true, 3, 7),
+            mouse_button_to_bytes(false, crate::ffi::MUI_MOUSE_LEFT, true, true, 3, 7, 0),
             Some(b"\x1b[<0;7;3m".to_vec())
         );
         assert_eq!(
-            mouse_button_to_bytes(true, crate::ffi::MUI_MOUSE_MIDDLE, true, true, 1, 2),
+            mouse_button_to_bytes(true, crate::ffi::MUI_MOUSE_MIDDLE, true, true, 1, 2, 0),
             Some(b"\x1b[<1;2;1M".to_vec())
         );
         assert_eq!(
-            mouse_button_to_bytes(true, crate::ffi::MUI_MOUSE_OTHER, true, true, 3, 7),
+            mouse_button_to_bytes(true, crate::ffi::MUI_MOUSE_OTHER, true, true, 3, 7, 0),
             None
         );
     }
@@ -3764,23 +3800,23 @@ mod tests {
     #[test]
     fn mouse_motion_bytes_send_legacy_drag_and_any_motion() {
         assert_eq!(
-            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_LEFT), true, false, 3, 7),
+            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_LEFT), true, false, 3, 7, 0),
             Some(vec![0x1b, b'[', b'M', 64, 39, 35])
         );
         assert_eq!(
-            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_RIGHT), true, false, 999, 999),
+            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_RIGHT), true, false, 999, 999, 0),
             Some(vec![0x1b, b'[', b'M', 66, 255, 255])
         );
         assert_eq!(
-            mouse_motion_to_bytes(None, true, false, 3, 7),
+            mouse_motion_to_bytes(None, true, false, 3, 7, 0),
             Some(vec![0x1b, b'[', b'M', 67, 39, 35])
         );
         assert_eq!(
-            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_OTHER), true, false, 3, 7),
+            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_OTHER), true, false, 3, 7, 0),
             None
         );
         assert_eq!(
-            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_LEFT), false, false, 3, 7),
+            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_LEFT), false, false, 3, 7, 0),
             None
         );
     }
@@ -3788,16 +3824,68 @@ mod tests {
     #[test]
     fn mouse_motion_bytes_send_sgr_drag_and_any_motion() {
         assert_eq!(
-            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_LEFT), true, true, 3, 7),
+            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_LEFT), true, true, 3, 7, 0),
             Some(b"\x1b[<32;7;3M".to_vec())
         );
         assert_eq!(
-            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_MIDDLE), true, true, 1, 2),
+            mouse_motion_to_bytes(Some(crate::ffi::MUI_MOUSE_MIDDLE), true, true, 1, 2, 0),
             Some(b"\x1b[<33;2;1M".to_vec())
         );
         assert_eq!(
-            mouse_motion_to_bytes(None, true, true, 3, 7),
+            mouse_motion_to_bytes(None, true, true, 3, 7, 0),
             Some(b"\x1b[<35;7;3M".to_vec())
+        );
+    }
+
+    #[test]
+    fn mouse_bytes_include_xterm_modifier_bits() {
+        use crate::ffi::{MUI_MOD_ALT, MUI_MOD_CTRL, MUI_MOD_SHIFT};
+        assert_eq!(
+            scroll_to_bytes(1, true, true, 3, 7, MUI_MOD_SHIFT | MUI_MOD_CTRL),
+            Some(b"\x1b[<84;7;3M".to_vec())
+        );
+        assert_eq!(
+            scroll_to_bytes(-1, true, false, 3, 7, MUI_MOD_ALT),
+            Some(vec![0x1b, b'[', b'M', 105, 39, 35])
+        );
+        assert_eq!(
+            mouse_button_to_bytes(
+                true,
+                crate::ffi::MUI_MOUSE_LEFT,
+                true,
+                true,
+                3,
+                7,
+                MUI_MOD_SHIFT | MUI_MOD_ALT,
+            ),
+            Some(b"\x1b[<12;7;3M".to_vec())
+        );
+        assert_eq!(
+            mouse_button_to_bytes(
+                false,
+                crate::ffi::MUI_MOUSE_LEFT,
+                true,
+                false,
+                3,
+                7,
+                MUI_MOD_CTRL,
+            ),
+            Some(vec![0x1b, b'[', b'M', 51, 39, 35])
+        );
+        assert_eq!(
+            mouse_motion_to_bytes(
+                Some(crate::ffi::MUI_MOUSE_LEFT),
+                true,
+                true,
+                3,
+                7,
+                MUI_MOD_CTRL,
+            ),
+            Some(b"\x1b[<48;7;3M".to_vec())
+        );
+        assert_eq!(
+            mouse_motion_to_bytes(None, true, false, 3, 7, MUI_MOD_SHIFT),
+            Some(vec![0x1b, b'[', b'M', 71, 39, 35])
         );
     }
 
