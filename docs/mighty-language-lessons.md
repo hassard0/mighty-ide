@@ -8256,3 +8256,14 @@ breakpoints exist?" without hunting through open files or trusting a toast.
   locations, the sidebar lists file and line rows with a capped height, and click
   geometry keeps call-stack frame hit testing aligned below that section. Tests
   cover global sorting, section row budgeting, and click offset behavior.
+
+L685. A breakpoint inventory should be navigable, not just visible. Once the
+Run and Debug panel lists breakpoints, rows need to behave like other source
+locations in the IDE: clicking a row should open the file and move the caret to
+the breakpoint line.
+
+- **IDE note:** breakpoint inventory rows now have their own encoded click range
+  and activation ABI. Clicking a listed breakpoint opens or switches to the
+  source tab, syncs the active path, moves the caret to the stored line, and
+  scrolls nearby context into view. Tests cover row hit encoding, source opening,
+  caret placement, and the Mighty click-dispatch route.

@@ -560,6 +560,7 @@ extern c {
   fn mui_bp_has(handle: I64, line: I32) -> I32
   fn mui_bp_count(handle: I64) -> I32
   fn mui_bp_line(handle: I64, i: I32) -> I32
+  fn mui_bp_open_at_hit(handle: I64, code: I32) -> I32
   fn mui_bp_gutter_click(handle: I64, first_line: I32, total_lines: I32) -> I32
   fn mui_dbg_stack_count(handle: I64) -> I32
   fn mui_dbg_sel_frame(handle: I64) -> I32
@@ -1043,6 +1044,7 @@ fn rail_test() -> I32 { 7 }     // Testing rail slot (beaker icon)
 fn rail_agents_mty() -> I32 { 8 } // Mighty Agents topology rail slot (nodes icon)
 // Debug toolbar click codes (mirror TOOLBAR_BASE in dapabi.rs).
 fn dbg_toolbar_base() -> I32 { 1000 }
+fn dbg_breakpoint_base() -> I32 { 2000 }
 // Test toolbar click codes (mirror TB_RUN/TB_STOP in testabi.rs).
 fn test_tb_run() -> I32 { 1 }
 fn test_tb_stop() -> I32 { 2 }
@@ -3659,10 +3661,18 @@ fn main() {
             typing = false
           }
         } else if cur_panel == panel_debug() {
-          // Debug view: a toolbar button (continue/step/stop) or a call-stack
-          // frame row. The shim encodes toolbar hits as >= dbg_toolbar_base().
+          // Debug view: a toolbar button (continue/step/stop), a breakpoint
+          // inventory row, or a call-stack frame row.
           let d_hit = mui_dbg_click(h)
-          if d_hit >= dbg_toolbar_base() {
+          if d_hit >= dbg_breakpoint_base() {
+            let newidx = mui_bp_open_at_hit(h, d_hit)
+            if newidx >= 0 {
+              let _b = mui_ed_tab_switch(h, newidx)
+              mui_ed_undo_reset(h)
+              find_nav = false
+              let _r = mui_diag_refresh(h)
+            }
+          } else if d_hit >= dbg_toolbar_base() {
             mui_dbg_toolbar_action(h, d_hit)
           } else if d_hit >= 0 {
             // Select the frame -> updates variables + the editor jump target.

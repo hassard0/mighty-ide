@@ -596,9 +596,11 @@ pub extern "C" fn mui_dbg_var_value_char(handle: i64, i: i32, j: i32) -> i32 {
 // ===========================================================================
 
 /// What the last click hit inside the debug view, encoded for Mighty:
-///   `-1` nothing, `0..` a call-stack frame index, or one of the toolbar codes
-///   (`TOOLBAR_*` below) returned as `1000 + code`.
+///   `-1` nothing, `0..` a call-stack frame index, breakpoint rows as
+///   `BREAKPOINT_BASE + index`, or one of the toolbar codes (`TOOLBAR_*` below)
+///   returned as `TOOLBAR_BASE + code`.
 const TOOLBAR_BASE: i32 = 1000;
+const BREAKPOINT_BASE: i32 = 2000;
 /// Toolbar action codes (added to `TOOLBAR_BASE`).
 pub const TB_CONTINUE: i32 = 0;
 pub const TB_STEP_OVER: i32 = 1;
@@ -817,8 +819,9 @@ fn fit_tail_px(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) ->
     }
 }
 
-/// Map the last click in the debug view: a toolbar button (`TOOLBAR_BASE + code`)
-/// or a call-stack frame index (`0..`), else `-1`.
+/// Map the last click in the debug view: a toolbar button (`TOOLBAR_BASE + code`),
+/// breakpoint row (`BREAKPOINT_BASE + index`), or call-stack frame index (`0..`),
+/// else `-1`.
 #[no_mangle]
 pub extern "C" fn mui_dbg_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -844,6 +847,16 @@ pub extern "C" fn mui_dbg_click(handle: i64) -> i32 {
             }
         }
     }
+    // Breakpoint rows.
+    let breakpoints = ctx.dbg.breakpoint_locations();
+    let bp_top = debug_breakpoint_rows_top();
+    let bp_rows = debug_breakpoint_visible_rows(breakpoints.len());
+    if !breakpoints.is_empty() && y >= bp_top && y < bp_top + bp_rows as f32 * layout::LINE_H() {
+        let idx = ((y - bp_top) / layout::LINE_H()).floor() as i32;
+        if idx >= 0 && (idx as usize) < breakpoints.len() && (idx as usize) < bp_rows {
+            return BREAKPOINT_BASE + idx;
+        }
+    }
     // Call-stack rows.
     let top = stack_rows_top(ctx.dbg.total_breakpoint_count());
     if y >= top {
@@ -853,6 +866,43 @@ pub extern "C" fn mui_dbg_click(handle: i64) -> i32 {
         }
     }
     -1
+}
+
+/// Open the source location for a breakpoint click code returned by
+/// [`mui_dbg_click`]. Returns the active tab index, or `-1` if the row/path is
+/// unavailable.
+#[no_mangle]
+pub extern "C" fn mui_bp_open_at_hit(handle: i64, code: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let idx = code - BREAKPOINT_BASE;
+    if idx < 0 {
+        return -1;
+    }
+    let target = {
+        let locations = ctx.dbg.breakpoint_locations();
+        let visible = debug_breakpoint_visible_rows(locations.len());
+        if (idx as usize) >= locations.len() || (idx as usize) >= visible {
+            ctx.push_toast(crate::toast::Kind::Info, "No breakpoint row selected");
+            return -1;
+        }
+        locations[idx as usize].clone()
+    };
+    let path = std::path::PathBuf::from(&target.file);
+    if !path.exists() {
+        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Breakpoint target missing: {name}"));
+        return -1;
+    }
+    let tab = ctx.tabs.open_path(path);
+    crate::abi::sync_active_path(ctx);
+    let line0 = target.line.saturating_sub(1) as i32;
+    let model = ctx.tabs.active_model_mut();
+    model.move_to(line0, 0);
+    model.set_first_visible(line0.saturating_sub(2) as usize);
+    crate::abi::trace(&format!("bp_open line={}", target.line));
+    tab as i32
 }
 
 /// Decode a [`mui_dbg_click`] toolbar code and perform the action. Mighty calls

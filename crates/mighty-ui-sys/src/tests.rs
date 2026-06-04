@@ -5432,6 +5432,46 @@ fn debug_click_accounts_for_breakpoint_section_above_call_stack() {
 }
 
 #[test]
+fn debug_breakpoint_inventory_rows_open_source_location() {
+    use crate::ffi::MuiEvent;
+
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+    let root = std::env::temp_dir().join(format!("mui_bp_open_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("target.mty");
+    std::fs::write(&file, b"one\ntwo\nthree\nfour\n").unwrap();
+    let key = file.to_string_lossy().to_string();
+    ctx.dbg.toggle_breakpoint(&key, 2);
+    ctx.dbg.set_open(true);
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_DEBUG;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        crate::layout::RAIL_W + 36.0,
+        crate::dapabi::debug_breakpoint_rows_top() + crate::layout::LINE_H() * 0.5,
+        0,
+    );
+
+    let hit = crate::dapabi::mui_dbg_click(handle);
+    assert_eq!(hit, 2000);
+    let tab = crate::dapabi::mui_bp_open_at_hit(handle, hit);
+    assert_eq!(tab, ctx.tabs.active() as i32);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(file.as_path()));
+    assert_eq!(ctx.tabs.active_model().cursor_line(), 2);
+    assert_eq!(ctx.tabs.active_model().first_visible(), 0);
+
+    let _ = std::fs::remove_dir_all(root);
+    crate::layout::reset_sidebar_preset();
+}
+
+#[test]
 fn debug_toolbar_play_starts_or_prompts_from_idle() {
     use crate::ffi::MuiEvent;
 
@@ -10004,6 +10044,14 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         main.contains("id == cmd_debug_clear_breakpoints()")
             && main.contains("let _bpc = mui_bp_clear_all(h)"),
         "Debug clear-breakpoints command must call the breakpoint clear ABI"
+    );
+    assert!(
+        main.contains("fn dbg_breakpoint_base() -> I32 { 2000 }")
+            && main.contains("if d_hit >= dbg_breakpoint_base()")
+            && main.contains("let newidx = mui_bp_open_at_hit(h, d_hit)")
+            && main.contains("let _b = mui_ed_tab_switch(h, newidx)")
+            && main.contains("let _r = mui_diag_refresh(h)"),
+        "Debug breakpoint inventory clicks must open the source tab through the breakpoint ABI"
     );
     assert!(
         main.contains("id == cmd_test_stop()")
