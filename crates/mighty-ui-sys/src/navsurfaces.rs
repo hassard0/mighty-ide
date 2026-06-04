@@ -60,6 +60,10 @@ fn workspace_root(path: &Path) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
+pub(crate) fn outline_header_action_centers(sx: f32, sw: f32) -> [(f32, i32); 2] {
+    [(sx + sw - 57.5, 1), (sx + sw - 27.5, 2)]
+}
+
 /// Re-scan the active document's symbols. Tries LSP `documentSymbol` first (when
 /// the server implements it), else the shim-side scanner. Returns the symbol
 /// count. The IDE calls this on open/save/tab-switch.
@@ -217,6 +221,31 @@ pub extern "C" fn mui_outline_set_cursor(handle: i64, line: i32) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_outline_current(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(-1, |c| c.outline.current())
+}
+
+/// Map the last click to an Outline header action:
+/// `1` = refresh, `2` = clear symbols, `0` = none.
+#[no_mangle]
+pub extern "C" fn mui_outline_header_action_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_OUTLINE {
+        return 0;
+    }
+    let x = ctx.last_event.x;
+    let y = ctx.last_event.y;
+    if !(0.0..=40.0).contains(&y) {
+        return 0;
+    }
+    for (cx, action) in outline_header_action_centers(layout::RAIL_W, layout::sidebar_w()) {
+        if x >= cx - 3.0 && x < cx + 18.0 {
+            let label = if action == 1 { "refresh" } else { "clear" };
+            crate::abi::trace(&format!("outline_header action={label}"));
+            return action;
+        }
+    }
+    0
 }
 
 /// Map the last click's pixel y to an outline row index, or `-1` if not on a row

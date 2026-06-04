@@ -602,6 +602,7 @@ extern c {
   fn mui_outline_open_row(handle: I64, i: I32) -> I32
   fn mui_outline_set_cursor(handle: I64, line: I32) -> I32
   fn mui_outline_current(handle: I64) -> I32
+  fn mui_outline_header_action_at_click(handle: I64) -> I32
   fn mui_outline_row_at_click(handle: I64) -> I32
   fn mui_outline_draw(handle: I64)
   // ---- Mighty Agents panel (rail slot 8) — agent-system topology ----
@@ -1049,6 +1050,8 @@ fn rail_agents_mty() -> I32 { 8 } // Mighty Agents topology rail slot (nodes ico
 fn dbg_toolbar_base() -> I32 { 1000 }
 fn dbg_breakpoint_base() -> I32 { 2000 }
 fn dbg_breakpoint_remove_base() -> I32 { 3000 }
+fn outline_tb_refresh() -> I32 { 1 }
+fn outline_tb_clear() -> I32 { 2 }
 // Test toolbar click codes (mirror TB_RUN/TB_STOP in testabi.rs).
 fn test_tb_run() -> I32 { 1 }
 fn test_tb_stop() -> I32 { 2 }
@@ -3659,9 +3662,18 @@ fn main() {
             typing = false
           }
         } else if cur_panel == panel_outline() {
-          // Outline panel: click a symbol row to jump the editor to it.
-          let o_hit = mui_outline_row_at_click(h)
-          if o_hit >= 0 {
+          // Outline panel: header actions first, else click a symbol row to jump.
+          let o_act = mui_outline_header_action_at_click(h)
+          let o_hit = if o_act > 0 { 0 - 1 } else { mui_outline_row_at_click(h) }
+          if o_act == outline_tb_refresh() {
+            let _or = mui_outline_refresh(h)
+            typing = false
+            find_nav = false
+          } else if o_act == outline_tb_clear() {
+            let _oc = mui_outline_clear_symbols(h)
+            typing = false
+            find_nav = false
+          } else if o_hit >= 0 {
             let _j = mui_outline_open_row(h, o_hit)
             typing = false
           }

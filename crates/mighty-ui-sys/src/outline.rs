@@ -22,6 +22,7 @@
 //! line are handled), which is enough for an editor outline.
 
 use crate::ffi::MuiColor;
+use crate::icons;
 use crate::layout;
 use crate::theme;
 
@@ -685,6 +686,9 @@ impl OutlineState {
         ctx.dl_rect(sx, head_h - 1.0, sw, 1.0, theme::BORDER_SOFT());
         let title = "OUTLINE";
         let tracked: String = title.chars().flat_map(|c| [c, '\u{2009}']).collect();
+        let count_x = sx + 78.0;
+        let first_action_x = crate::navsurfaces::outline_header_action_centers(sx, sw)[0].0 - 2.5;
+        let count_budget = (first_action_x - 8.0 - count_x).max(0.0);
         ctx.text.queue_ui_sized(
             sx + 14.0,
             (head_h - (chrome - 2.0)) * 0.5 - 1.0,
@@ -694,7 +698,15 @@ impl OutlineState {
             clip,
         );
         let cnt = self.syms.len().to_string();
-        ctx.text.queue_ui_sized(sx + 78.0, (head_h - (chrome - 2.0)) * 0.5 - 1.0, &cnt, theme::TEXT_3(), chrome - 2.0, clip);
+        let shown_cnt = fit_symbol_name(ctx, &cnt, count_budget, chrome - 2.0);
+        ctx.text.queue_ui_sized(count_x, (head_h - (chrome - 2.0)) * 0.5 - 1.0, &shown_cnt, theme::TEXT_3(), chrome - 2.0, clip);
+        let act_y = (head_h - 15.0) * 0.5;
+        for (x, action) in crate::navsurfaces::outline_header_action_centers(sx, sw) {
+            let icon = if action == 1 { icons::REFRESH } else { icons::TRASH };
+            let color = if action == 1 || !self.syms.is_empty() { theme::TEXT_3() } else { theme::TEXT_4() };
+            ctx.dl_stroke(x - 2.5, 8.0, 24.0, 24.0, 5.0, theme::BORDER_SOFT(), 1.0);
+            ctx.dl_icon(x + 2.0, act_y, 15.0, 15.0, icon, color, 1.5, false);
+        }
 
         if self.syms.is_empty() {
             ctx.text.queue_ui_sized(sx + 14.0, head_h + 12.0, "No symbols", theme::TEXT_3(), chrome, clip);

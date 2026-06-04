@@ -8309,3 +8309,13 @@ section, clearing all entries should be a local panel action.
   model through the same live-session resend path as the palette command, and
   the title text is measured to fit before the button. Tests cover button
   hit/miss behavior and Mighty dispatch ordering before row hit-testing.
+
+L690. Panel-local maintenance commands should be surfaced where the user is
+already working. The Outline palette commands are useful, but symbol refresh and
+clear are faster and more discoverable as local header actions.
+
+- **IDE note:** the Outline header now exposes compact refresh and clear-symbols
+  buttons. A dedicated click ABI mirrors the painted button geometry, Mighty
+  dispatches those actions before row navigation, and the symbol count is
+  measured to fit ahead of the controls. Tests cover header hit/miss behavior
+  and event ordering before symbol row hit-testing.

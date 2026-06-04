@@ -2552,6 +2552,27 @@ fn outline_clear_symbols_command_keeps_panel_open_and_clears_current_row() {
 }
 
 #[test]
+fn outline_header_actions_hit_visible_buttons() {
+    use crate::ffi::MuiEvent;
+
+    let mut ctx = ctx_or_skip!();
+    ctx.active_panel = crate::PANEL_OUTLINE;
+    ctx.sidebar_visible = true;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let centers = crate::navsurfaces::outline_header_action_centers(
+        crate::layout::RAIL_W,
+        crate::layout::sidebar_w(),
+    );
+
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, centers[0].0 + 7.5, 20.0, 0);
+    assert_eq!(crate::navsurfaces::mui_outline_header_action_at_click(handle), 1);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, centers[1].0 + 7.5, 20.0, 0);
+    assert_eq!(crate::navsurfaces::mui_outline_header_action_at_click(handle), 2);
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, centers[0].0 + 7.5, 42.0, 0);
+    assert_eq!(crate::navsurfaces::mui_outline_header_action_at_click(handle), 0);
+}
+
+#[test]
 fn new_project_invalid_and_existing_names_toast_without_shelling_out() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_new_project_guards");
@@ -9802,6 +9823,14 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         !main.contains("let _a = mui_codeaction_apply(h)"),
         "code action accept must not blindly reload after a no-op action"
+    );
+    assert!(
+        main.contains("fn mui_outline_header_action_at_click(handle: I64) -> I32")
+            && main.contains("let o_act = mui_outline_header_action_at_click(h)")
+            && main.contains("let o_hit = if o_act > 0 { 0 - 1 } else { mui_outline_row_at_click(h) }")
+            && main.contains("if o_act == outline_tb_refresh()")
+            && main.contains("} else if o_act == outline_tb_clear()"),
+        "Outline header buttons must dispatch before symbol row navigation"
     );
     assert!(
         !main.contains(
