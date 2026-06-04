@@ -7818,3 +7818,12 @@ position.
   report form `CSI ?row;col R`, using the same 1-based cursor coordinates as the
   standard DSR reply. Regression coverage verifies the queued reply and confirms
   the query bytes do not leak into the visible grid.
+
+L642. Meta named keys must keep both their semantic key sequence and the Meta
+prefix. `Alt+Shift+Tab` is not the same as plain `Shift+Tab`, and `Alt+Escape`
+is not distinguishable from plain Escape if the second escape byte is dropped.
+
+- **IDE note:** terminal key encoding now emits Meta-Shift-Tab as
+  `ESC ESC [ Z` and Meta-Escape as `ESC ESC`, while preserving the existing plain
+  Tab, Shift+Tab, Escape, and Meta-Tab mappings. Regression coverage locks the
+  named-key Meta combinations alongside the existing terminal input assertions.
