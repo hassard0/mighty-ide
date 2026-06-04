@@ -1449,18 +1449,21 @@ pub extern "C" fn mui_search_replace_all(handle: i64) -> i32 {
         return 0;
     };
     let dir = workspace_dir(ctx);
-    let (n, changed_paths) = ctx.search.replace_all_with_changed_paths(&dir);
-    let (refreshed, dirty_skipped) = refresh_replaced_open_tabs(ctx, &changed_paths);
+    let (n, changed_paths, dirty_skipped) = ctx
+        .search
+        .replace_all_with_changed_paths_skipping(&dir, |path| ctx.tabs.any_dirty_path(path));
+    let (refreshed, stale_dirty) = refresh_replaced_open_tabs(ctx, &changed_paths);
+    let dirty_skipped = dirty_skipped + stale_dirty;
     println!("search: replaced {n}");
     crate::abi::trace(&format!("search_replace_all replaced={n}"));
-    if n > 0 {
+    if n > 0 || dirty_skipped > 0 {
         let suffix = if n == 1 { "" } else { "s" };
         if dirty_skipped > 0 {
-            let tab_suffix = if dirty_skipped == 1 { "" } else { "s" };
+            let file_suffix = if dirty_skipped == 1 { "" } else { "s" };
             ctx.push_toast(
                 crate::toast::Kind::Warn,
                 format!(
-                    "Replaced {n} occurrence{suffix}; {dirty_skipped} dirty open tab{tab_suffix} not refreshed"
+                    "Replaced {n} occurrence{suffix}; skipped {dirty_skipped} dirty open file{file_suffix}"
                 ),
             );
         } else {
@@ -1489,11 +1492,9 @@ fn refresh_replaced_open_tabs(
             Ok(bytes) => bytes,
             Err(_) => continue,
         };
-        match ctx.tabs.reload_clean_path(path, &bytes) {
-            Some(true) => refreshed += 1,
-            Some(false) => dirty_skipped += 1,
-            None => {}
-        }
+        let (path_refreshed, path_dirty_skipped) = ctx.tabs.reload_all_clean_path(path, &bytes);
+        refreshed += path_refreshed;
+        dirty_skipped += path_dirty_skipped;
     }
     (refreshed, dirty_skipped)
 }

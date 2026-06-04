@@ -563,6 +563,33 @@ impl TabStore {
         Some(true)
     }
 
+    /// Replace every clean open file-backed tab matching `path` from disk.
+    /// Returns `(refreshed, dirty_skipped)`.
+    pub fn reload_all_clean_path(&mut self, path: &Path, bytes: &[u8]) -> (usize, usize) {
+        let mut refreshed = 0usize;
+        let mut dirty_skipped = 0usize;
+        let matching: Vec<usize> = self
+            .tabs
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, tab)| {
+                tab.path
+                    .as_deref()
+                    .is_some_and(|p| tab_paths_equal(p, path))
+                    .then_some(idx)
+            })
+            .collect();
+        for idx in matching {
+            if self.is_dirty(idx) {
+                dirty_skipped += 1;
+            } else {
+                self.reload_index(idx, bytes, false);
+                refreshed += 1;
+            }
+        }
+        (refreshed, dirty_skipped)
+    }
+
     fn reload_index(&mut self, i: usize, bytes: &[u8], preserve_history: bool) {
         let (model, fold, read_only) = model_for_bytes(self.tabs[i].path.as_deref(), bytes);
         self.tabs[i].model = model;
@@ -1413,6 +1440,34 @@ mod tests {
         assert_eq!(s.rebind_path(&old, new.clone()), 2);
         assert_eq!(s.get(0).unwrap().path.as_deref(), Some(new.as_path()));
         assert_eq!(s.get(1).unwrap().path.as_deref(), Some(new.as_path()));
+    }
+
+    #[test]
+    fn reload_all_clean_path_refreshes_equivalent_clean_tabs() {
+        let p = write_tmp("tabs_reload_all_clean.txt", b"old\n");
+        let equivalent = p
+            .parent()
+            .unwrap()
+            .join(".")
+            .join(p.file_name().unwrap());
+
+        let mut s = TabStore::new();
+        let first = s.open_path(p.clone());
+        let dirty = s.duplicate_active();
+        s.get_mut(dirty)
+            .unwrap()
+            .model
+            .set_text_preserving_cursor("dirty\n");
+        s.set_dirty(dirty, true);
+        let other_clean = s.duplicate_active();
+        s.get_mut(other_clean).unwrap().path = Some(equivalent);
+        s.set_dirty(other_clean, false);
+
+        assert_eq!(s.reload_all_clean_path(&p, b"new\n"), (2, 1));
+        assert_eq!(s.get(first).unwrap().model.as_text(), "new\n");
+        assert_eq!(s.get(other_clean).unwrap().model.as_text(), "new\n");
+        assert_eq!(s.get(dirty).unwrap().model.as_text(), "dirty\n");
+        assert!(s.is_dirty(dirty));
     }
 
     #[test]

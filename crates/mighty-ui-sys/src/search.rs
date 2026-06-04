@@ -219,15 +219,31 @@ impl SearchState {
     /// Like [`Self::replace_all`], but also returns the paths that were written.
     /// The UI uses this to refresh clean open tabs after project-wide replaces.
     pub fn replace_all_with_changed_paths(&mut self, root: &Path) -> (i32, Vec<PathBuf>) {
+        let (total, changed, _) = self.replace_all_with_changed_paths_skipping(root, |_| false);
+        (total, changed)
+    }
+
+    /// Like [`Self::replace_all_with_changed_paths`], but lets the caller skip
+    /// paths that are unsafe to rewrite, such as dirty open editor buffers.
+    pub fn replace_all_with_changed_paths_skipping(
+        &mut self,
+        root: &Path,
+        mut should_skip: impl FnMut(&Path) -> bool,
+    ) -> (i32, Vec<PathBuf>, usize) {
         let needle = self.query_string();
         if needle.trim().is_empty() {
-            return (0, Vec::new());
+            return (0, Vec::new(), 0);
         }
         let replacement = self.replace_string();
         let mut total = 0;
         let mut changed = Vec::new();
+        let mut skipped = 0;
         let files: Vec<PathBuf> = self.results.files.iter().map(|f| f.path.clone()).collect();
         for path in files {
+            if should_skip(&path) {
+                skipped += 1;
+                continue;
+            }
             let bytes = match std::fs::read(&path) {
                 Ok(b) => b,
                 Err(_) => continue,
@@ -244,7 +260,7 @@ impl SearchState {
         }
         // Re-run so the panel reflects the post-replace state.
         self.run(root);
-        (total, changed)
+        (total, changed, skipped)
     }
 
     // ---- scalar getters ----

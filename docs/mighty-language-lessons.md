@@ -10592,3 +10592,17 @@ overwrite unsaved edits in another view of the same file.
 - **Language note:** no compiler gap surfaced. External tools do not remove the
   need for editor-side resource preflights; the IDE must prove a path is safe to
   mutate before handing it to another process.
+
+## L861 - Project Replace Must Skip Dirty Open Files
+
+Project-wide replace writes files from search results, which can include files
+that are also open in one or more editor tabs. Preserving the dirty buffer in
+the UI is not enough if the replace still rewrites that file on disk.
+
+- **IDE note:** Search Replace All now skips any result path that has a dirty
+  equivalent open tab before attempting the filesystem write. Successful
+  replacements refresh every clean duplicate view of the changed file, so split
+  or duplicated clean tabs do not display stale text after disk changes.
+- **Language note:** no compiler gap surfaced. Batch operations need a
+  write-preflight stage, not just a post-write refresh stage, whenever their
+  targets can overlap live editor resources.
