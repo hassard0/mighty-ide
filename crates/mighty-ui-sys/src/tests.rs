@@ -10598,10 +10598,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Problems refresh command must refresh diagnostics, aggregate Problems, and show the panel"
     );
     assert!(
-        main.contains("id == cmd_problems_clear()")
-            && main.contains("let _pc = mui_problems_clear(h)")
-            && main.contains("agents_focus = false"),
-        "Problems clear command must clear the Problems model without closing the panel"
+        main.contains(
+            "id == cmd_problems_clear() {\n          let _po = mui_problems_open(h)\n          let _pc = mui_problems_clear(h)"
+        )
+            && main.contains("agents_focus = false")
+            && main.contains("find_nav = false"),
+        "Problems clear command must reveal Problems before clearing diagnostics"
     );
     assert!(
         main.contains("fn mui_problems_header_action_at_click(handle: I64) -> I32")

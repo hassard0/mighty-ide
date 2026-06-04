@@ -8481,3 +8481,14 @@ on the panel that shows the cleared list and any follow-up debug state.
   calling `mui_bp_clear_all`. The command also clears transient panel focus so
   the Debug surface owns the next interaction and the toast is grounded in the
   visible breakpoint inventory.
+
+## L706 - Problems Mutations Should Reveal The Problems Panel
+
+Diagnostics are easiest to trust when refresh, clear, and row navigation all
+resolve against the same visible panel. A palette clear command should not empty
+the diagnostic model while leaving the user elsewhere in the IDE.
+
+- **IDE note:** `Problems: Clear Diagnostics` now opens the Problems panel
+  before calling `mui_problems_clear`. Mighty also clears transient find/Agents
+  focus so the bottom-dock Problems surface owns the next interaction after the
+  diagnostics are emptied.
