@@ -80,11 +80,22 @@ unsafe fn read_bytes<'a>(ptr: i64, len: i64) -> &'a [u8] {
 
 thread_local! {
     static FMT_STRINGS: RefCell<Vec<Box<str>>> = const { RefCell::new(Vec::new()) };
+    static RAW_BYTES: RefCell<Vec<Box<[u8]>>> = const { RefCell::new(Vec::new()) };
 }
 
 fn intern_fmt(s: String) -> (i64, i64) {
     FMT_STRINGS.with(|t| {
         let boxed = s.into_boxed_str();
+        let ptr = boxed.as_ptr() as i64;
+        let len = boxed.len() as i64;
+        t.borrow_mut().push(boxed);
+        (ptr, len)
+    })
+}
+
+fn intern_raw_bytes(bytes: Vec<u8>) -> (i64, i64) {
+    RAW_BYTES.with(|t| {
+        let boxed = bytes.into_boxed_slice();
         let ptr = boxed.as_ptr() as i64;
         let len = boxed.len() as i64;
         t.borrow_mut().push(boxed);
@@ -429,9 +440,87 @@ pub extern "C" fn mty_runtime_str_concat(aptr: i64, alen: i64, bptr: i64, blen: 
     unsafe { write_str_pair(dst, p, l) };
 }
 
+#[no_mangle]
+pub extern "C" fn mty_runtime_crypto_sha256(data_ptr: i64, data_len: i64, dst: i64) {
+    use sha2::Digest;
+    let data = unsafe { read_bytes(data_ptr, data_len) };
+    let digest = sha2::Sha256::digest(data);
+    let (p, l) = intern_raw_bytes(digest.to_vec());
+    unsafe { write_str_pair(dst, p, l) };
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_crypto_sha512(data_ptr: i64, data_len: i64, dst: i64) {
+    use sha2::Digest;
+    let data = unsafe { read_bytes(data_ptr, data_len) };
+    let digest = sha2::Sha512::digest(data);
+    let (p, l) = intern_raw_bytes(digest.to_vec());
+    unsafe { write_str_pair(dst, p, l) };
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_crypto_blake3(data_ptr: i64, data_len: i64, dst: i64) {
+    let data = unsafe { read_bytes(data_ptr, data_len) };
+    let hash = blake3::hash(data);
+    let (p, l) = intern_raw_bytes(hash.as_bytes().to_vec());
+    unsafe { write_str_pair(dst, p, l) };
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_crypto_hmac_sha256(
+    key_ptr: i64,
+    key_len: i64,
+    msg_ptr: i64,
+    msg_len: i64,
+    dst: i64,
+) {
+    use hmac::Mac;
+    let key = unsafe { read_bytes(key_ptr, key_len) };
+    let msg = unsafe { read_bytes(msg_ptr, msg_len) };
+    let mut mac =
+        <hmac::Hmac<sha2::Sha256> as hmac::Mac>::new_from_slice(key).expect("hmac key any size");
+    mac.update(msg);
+    let tag = mac.finalize().into_bytes();
+    let (p, l) = intern_raw_bytes(tag.to_vec());
+    unsafe { write_str_pair(dst, p, l) };
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_encoding_hex_encode(data_ptr: i64, data_len: i64, dst: i64) {
+    let data = unsafe { read_bytes(data_ptr, data_len) };
+    let (p, l) = intern_fmt(hex::encode(data));
+    unsafe { write_str_pair(dst, p, l) };
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_encoding_base64_encode(data_ptr: i64, data_len: i64, dst: i64) {
+    use base64::Engine;
+    let data = unsafe { read_bytes(data_ptr, data_len) };
+    let s = base64::engine::general_purpose::STANDARD.encode(data);
+    let (p, l) = intern_fmt(s);
+    unsafe { write_str_pair(dst, p, l) };
+}
+
+#[no_mangle]
+pub extern "C" fn mty_runtime_encoding_base64_encode_url_no_pad(
+    data_ptr: i64,
+    data_len: i64,
+    dst: i64,
+) {
+    use base64::Engine;
+    let data = unsafe { read_bytes(data_ptr, data_len) };
+    let s = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(data);
+    let (p, l) = intern_fmt(s);
+    unsafe { write_str_pair(dst, p, l) };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn slot_bytes(slot: &[i64; 2]) -> Vec<u8> {
+        unsafe { read_bytes(slot[0], slot[1]) }.to_vec()
+    }
 
     #[test]
     fn alloc_without_frame_uses_global() {
@@ -474,6 +563,73 @@ mod tests {
         );
         let bytes = unsafe { read_bytes(slot[0], slot[1]) };
         assert_eq!(bytes, b"Mighty IDE");
+    }
+
+    #[test]
+    fn crypto_sha256_and_hex_encode_known_vector() {
+        let data = b"hello";
+        let mut digest_slot = [0_i64; 2];
+        mty_runtime_crypto_sha256(
+            data.as_ptr() as i64,
+            data.len() as i64,
+            digest_slot.as_mut_ptr() as i64,
+        );
+        assert_eq!(digest_slot[1], 32);
+
+        let mut hex_slot = [0_i64; 2];
+        mty_runtime_encoding_hex_encode(
+            digest_slot[0],
+            digest_slot[1],
+            hex_slot.as_mut_ptr() as i64,
+        );
+        let hex = String::from_utf8(slot_bytes(&hex_slot)).unwrap();
+        assert_eq!(
+            hex,
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        );
+    }
+
+    #[test]
+    fn crypto_hmac_sha256_known_vector() {
+        let key = b"Jefe";
+        let msg = b"what do ya want for nothing?";
+        let mut tag_slot = [0_i64; 2];
+        mty_runtime_crypto_hmac_sha256(
+            key.as_ptr() as i64,
+            key.len() as i64,
+            msg.as_ptr() as i64,
+            msg.len() as i64,
+            tag_slot.as_mut_ptr() as i64,
+        );
+
+        let mut hex_slot = [0_i64; 2];
+        mty_runtime_encoding_hex_encode(tag_slot[0], tag_slot[1], hex_slot.as_mut_ptr() as i64);
+        let hex = String::from_utf8(slot_bytes(&hex_slot)).unwrap();
+        assert_eq!(
+            hex,
+            "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843"
+        );
+    }
+
+    #[test]
+    fn encoding_base64_variants_known_vectors() {
+        let plain = b"hello";
+        let mut standard_slot = [0_i64; 2];
+        mty_runtime_encoding_base64_encode(
+            plain.as_ptr() as i64,
+            plain.len() as i64,
+            standard_slot.as_mut_ptr() as i64,
+        );
+        assert_eq!(String::from_utf8(slot_bytes(&standard_slot)).unwrap(), "aGVsbG8=");
+
+        let data = [0xfb_u8, 0xff, 0xbf];
+        let mut url_slot = [0_i64; 2];
+        mty_runtime_encoding_base64_encode_url_no_pad(
+            data.as_ptr() as i64,
+            data.len() as i64,
+            url_slot.as_mut_ptr() as i64,
+        );
+        assert_eq!(String::from_utf8(slot_bytes(&url_slot)).unwrap(), "-_-_");
     }
 
     #[test]

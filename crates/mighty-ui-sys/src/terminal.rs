@@ -870,13 +870,7 @@ impl VtParser {
                 self.state = State::Csi;
             }
             0x9d => self.enter_osc(),
-            b'\n' => {
-                if self.newline_mode {
-                    grid.newline();
-                } else {
-                    grid.index();
-                }
-            }
+            b'\n' => self.linefeed(grid),
             b'\r' => grid.carriage_return(),
             0x08 => grid.backspace(), // BS
             b'\t' => grid.tab(),
@@ -928,6 +922,14 @@ impl VtParser {
         }
         grid.put_cell_autowrap(cell, self.autowrap);
         self.last_graphic = Some(cell);
+    }
+
+    fn linefeed(&self, grid: &mut Grid) {
+        if self.newline_mode {
+            grid.newline();
+        } else {
+            grid.index();
+        }
     }
 
     /// Just saw ESC: decide CSI / OSC / single-char escape.
@@ -1027,7 +1029,12 @@ impl VtParser {
                 self.csi.clear();
                 self.enter_osc();
             }
-            0x00..=0x17 | 0x19 | 0x1c..=0x1f => {}
+            0x08 => grid.backspace(),
+            b'\t' => grid.tab(),
+            b'\n' => self.linefeed(grid),
+            b'\r' => grid.carriage_return(),
+            0x07 | 0x7f => {},
+            0x00..=0x06 | 0x0b..=0x17 | 0x19 | 0x1c..=0x1f => {}
             // Parameter bytes (0x30..=0x3f) and intermediates (0x20..=0x2f).
             0x20..=0x3f => self.csi.push(b),
             // Final byte: dispatch and return to ground.
@@ -3997,6 +4004,12 @@ mod tests {
         assert_eq!(g2.cell(0, 2).ch, 'Q');
         assert!(!g2.contains("GQ"));
         assert!(!g2.contains("3G"));
+
+        let g3 = grid_feed(2, 20, b"abcd\x1b[2\nGZ");
+        assert_eq!(g3.cell(0, 0).ch, 'a');
+        assert_eq!(g3.cell(0, 3).ch, 'd');
+        assert_eq!(g3.cell(1, 1).ch, 'Z');
+        assert!(!g3.contains("2G"));
     }
 
     #[test]
