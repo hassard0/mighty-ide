@@ -5383,6 +5383,55 @@ fn debug_toolbar_fits_compact_sidebar() {
 }
 
 #[test]
+fn debug_breakpoint_section_offsets_call_stack() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+
+    assert_eq!(crate::dapabi::debug_breakpoint_visible_rows(0), 1);
+    assert_eq!(crate::dapabi::debug_breakpoint_visible_rows(2), 2);
+    assert_eq!(crate::dapabi::debug_breakpoint_visible_rows(9), 4);
+
+    let zero = crate::dapabi::debug_stack_label_y(0);
+    let three = crate::dapabi::debug_stack_label_y(3);
+    let many = crate::dapabi::debug_stack_label_y(12);
+    let line_h = crate::layout::LINE_H();
+
+    assert_eq!(three, zero + 2.0 * line_h);
+    assert_eq!(many, zero + 3.0 * line_h);
+
+    crate::layout::reset_sidebar_preset();
+}
+
+#[test]
+fn debug_click_accounts_for_breakpoint_section_above_call_stack() {
+    use crate::ffi::MuiEvent;
+
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+    ctx.dbg.seed_demo("C:/p/demo.mty");
+    ctx.dbg.set_open(true);
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_DEBUG;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let stack_top = crate::dapabi::debug_stack_label_y(ctx.dbg.total_breakpoint_count()) + 20.0;
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        crate::layout::RAIL_W + 32.0,
+        stack_top + crate::layout::LINE_H() * 0.5,
+        0,
+    );
+
+    assert_eq!(crate::dapabi::mui_dbg_click(handle), 0);
+
+    crate::layout::reset_sidebar_preset();
+}
+
+#[test]
 fn debug_toolbar_play_starts_or_prompts_from_idle() {
     use crate::ffi::MuiEvent;
 

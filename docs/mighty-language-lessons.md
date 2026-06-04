@@ -8246,3 +8246,13 @@ preserves breakpoints.
   clears every stored breakpoint across files, resends the empty set to live
   debug sessions, and reports changed versus already-empty outcomes. Model, ABI,
   registry, and dispatcher tests pin the behavior.
+
+L684. Breakpoint management needs a visible inventory. Commands can create and
+clear breakpoints, but users need the Run and Debug view itself to answer "what
+breakpoints exist?" without hunting through open files or trusting a toast.
+
+- **IDE note:** the Run and Debug sidebar now includes a compact Breakpoints
+  section above Call Stack. The debug model exposes sorted cross-file breakpoint
+  locations, the sidebar lists file and line rows with a capped height, and click
+  geometry keeps call-stack frame hit testing aligned below that section. Tests
+  cover global sorting, section row budgeting, and click offset behavior.

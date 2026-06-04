@@ -499,6 +499,13 @@ pub struct ConsoleLine {
     pub is_error: bool,
 }
 
+/// One stored line breakpoint location, sorted for display in the debug view.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BreakpointLocation {
+    pub file: String,
+    pub line: u32,
+}
+
 /// Shim-owned debugger model: breakpoints per file, the live session, the
 /// current stop position, the call stack + selected frame, and the variables.
 ///
@@ -602,6 +609,32 @@ impl DebugModel {
             .get(file)
             .map(|s| s.iter().map(|&l| l as i32 - 1).collect())
             .unwrap_or_default()
+    }
+
+    /// Total breakpoint count across every file.
+    pub fn total_breakpoint_count(&self) -> usize {
+        self.breakpoints.values().map(Vec::len).sum()
+    }
+
+    /// Every stored breakpoint, sorted by normalized file path and line.
+    pub fn breakpoint_locations(&self) -> Vec<BreakpointLocation> {
+        let mut out = self
+            .breakpoints
+            .iter()
+            .flat_map(|(file, lines)| {
+                let file = file.clone();
+                lines.iter().map(move |&line| BreakpointLocation {
+                    file: file.clone(),
+                    line,
+                })
+            })
+            .collect::<Vec<_>>();
+        out.sort_by(|a, b| {
+            let af = a.file.replace('\\', "/").to_ascii_lowercase();
+            let bf = b.file.replace('\\', "/").to_ascii_lowercase();
+            af.cmp(&bf).then(a.line.cmp(&b.line))
+        });
+        out
     }
 
     /// Total breakpoint count for the program (across the program file).
@@ -1484,6 +1517,25 @@ mod tests {
         assert_eq!(m.breakpoint_lines0("a.mty"), vec![2, 6, 10]);
         assert_eq!(m.breakpoint_lines0("b.mty"), vec![1]);
         assert!(!m.has_breakpoint("b.mty", 6));
+    }
+
+    #[test]
+    fn breakpoint_locations_are_global_and_sorted_for_display() {
+        let mut m = DebugModel::new();
+        m.toggle_breakpoint("C:/p/z.mty", 9);
+        m.toggle_breakpoint("C:/p/a.mty", 4);
+        m.toggle_breakpoint("C:/p/a.mty", 1);
+
+        let locations = m.breakpoint_locations();
+        assert_eq!(m.total_breakpoint_count(), 3);
+        assert_eq!(
+            locations,
+            vec![
+                BreakpointLocation { file: "C:/p/a.mty".into(), line: 2 },
+                BreakpointLocation { file: "C:/p/a.mty".into(), line: 5 },
+                BreakpointLocation { file: "C:/p/z.mty".into(), line: 10 },
+            ]
+        );
     }
 
     #[test]

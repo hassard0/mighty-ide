@@ -628,10 +628,28 @@ pub(crate) fn toolbar_geom() -> ToolbarGeom {
     }
 }
 
-/// Y pixel (top) of the first Call-Stack row.
-fn stack_rows_top() -> f32 {
+pub(crate) fn debug_breakpoint_visible_rows(count: usize) -> usize {
+    count.clamp(1, 4)
+}
+
+pub(crate) fn debug_breakpoint_label_y() -> f32 {
     let tb = toolbar_geom();
-    tb.y + tb.btn + 10.0 + 20.0 // toolbar + gap + section label
+    tb.y + tb.btn + 10.0
+}
+
+pub(crate) fn debug_breakpoint_rows_top() -> f32 {
+    debug_breakpoint_label_y() + 20.0
+}
+
+pub(crate) fn debug_stack_label_y(breakpoint_count: usize) -> f32 {
+    debug_breakpoint_rows_top()
+        + debug_breakpoint_visible_rows(breakpoint_count) as f32 * layout::LINE_H()
+        + 10.0
+}
+
+/// Y pixel (top) of the first Call-Stack row.
+fn stack_rows_top(breakpoint_count: usize) -> f32 {
+    debug_stack_label_y(breakpoint_count) + 20.0
 }
 
 pub(crate) fn debug_state_pill_width(
@@ -827,7 +845,7 @@ pub extern "C" fn mui_dbg_click(handle: i64) -> i32 {
         }
     }
     // Call-stack rows.
-    let top = stack_rows_top();
+    let top = stack_rows_top(ctx.dbg.total_breakpoint_count());
     if y >= top {
         let idx = ((y - top) / layout::LINE_H()).floor() as i32;
         if idx >= 0 && (idx as usize) < ctx.dbg.stack_count() {
@@ -1016,11 +1034,40 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
         let off = (tb.btn - isz) * 0.5;
         ctx.dl_icon(bx + off, tb.y + off, isz, isz, path, col, *stroke, *fill);
     }
-    // ---- Call Stack section ----
-    let label_y = tb.y + tb.btn + 10.0;
-    ctx.text.queue_ui_sized(sx + 14.0, label_y, "CALL STACK", theme::DIM(), chrome - 2.0, clip);
+    // ---- Breakpoints section ----
     let row_h = layout::LINE_H();
-    let top = stack_rows_top();
+    let breakpoints = ctx.dbg.breakpoint_locations();
+    let bp_count = breakpoints.len();
+    let bp_label_y = debug_breakpoint_label_y();
+    let bp_title = if bp_count == 1 {
+        "BREAKPOINTS 1".to_string()
+    } else {
+        format!("BREAKPOINTS {bp_count}")
+    };
+    ctx.text.queue_ui_sized(sx + 14.0, bp_label_y, &bp_title, theme::DIM(), chrome - 2.0, clip);
+    let bp_top = debug_breakpoint_rows_top();
+    if breakpoints.is_empty() {
+        ctx.text.queue_ui_sized(sx + 14.0, bp_top + 2.0, "No breakpoints", theme::TEXT_3(), chrome, clip);
+    } else {
+        for (i, bp) in breakpoints.iter().take(debug_breakpoint_visible_rows(bp_count)).enumerate() {
+            let y = bp_top + i as f32 * row_h;
+            let ty = y + (row_h - chrome) * 0.5 - 1.0;
+            ctx.dl_icon(sx + 13.0, y + (row_h - 10.0) * 0.5, 10.0, 10.0, icons::BREAKPOINT, theme::ERROR(), 0.0, true);
+            let file = bp.file.rsplit(['/', '\\']).next().unwrap_or("").to_string();
+            let loc = format!(":{}", bp.line);
+            let loc_w = ctx.text.measure_ui_sized(&loc, chrome - 1.5).0;
+            let loc_x = sx + sw - loc_w - 14.0;
+            let name_x = sx + 30.0;
+            let name = fit_debug_stack_name(&mut ctx.text, &file, name_x, loc_x, chrome);
+            ctx.text.queue_ui_sized(name_x, ty, &name, theme::TEXT_1(), chrome, clip);
+            ctx.text.queue_ui_sized(loc_x, ty, &loc, theme::TEXT_4(), chrome - 1.5, clip);
+        }
+    }
+
+    // ---- Call Stack section ----
+    let label_y = debug_stack_label_y(bp_count);
+    ctx.text.queue_ui_sized(sx + 14.0, label_y, "CALL STACK", theme::DIM(), chrome - 2.0, clip);
+    let top = stack_rows_top(bp_count);
     let sel = ctx.dbg.selected_frame();
     let stack_n = ctx.dbg.stack_count();
     let mut next_y = top;
