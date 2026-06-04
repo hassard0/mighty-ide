@@ -836,6 +836,26 @@ impl VtParser {
     /// consumed harmlessly.
     fn csi(&mut self, grid: &mut Grid, b: u8) {
         match b {
+            0x18 | 0x1a => {
+                self.csi.clear();
+                self.state = State::Ground;
+            }
+            0x1b => {
+                self.csi.clear();
+                self.state = State::Escape;
+            }
+            0x90 | 0x98 | 0x9e | 0x9f => {
+                self.csi.clear();
+                self.state = State::String;
+            }
+            0x9b => {
+                self.csi.clear();
+                self.state = State::Csi;
+            }
+            0x9d => {
+                self.csi.clear();
+                self.state = State::Osc;
+            }
             // Parameter bytes (0x30..=0x3f) and intermediates (0x20..=0x2f).
             0x20..=0x3f => self.csi.push(b),
             // Final byte: dispatch and return to ground.
@@ -2586,6 +2606,24 @@ mod tests {
 
         let g3 = grid_feed(1, 12, b"\x1b[3g\x1b[1;7H\x88\x1b[1;1H\tZ");
         assert_eq!(g3.cell(0, 6).ch, 'Z');
+    }
+
+    #[test]
+    fn csi_can_be_interrupted_by_new_escape_controls() {
+        let g = grid_feed(2, 20, b"abcd\x1b[31\x1b[2GZ");
+        assert_eq!(g.cell(0, 1).ch, 'Z');
+        assert!(!g.contains("[2G"));
+        assert!(!g.contains("31"));
+
+        let g2 = grid_feed(2, 20, b"abcd\x9b31\x9b3GX");
+        assert_eq!(g2.cell(0, 2).ch, 'X');
+        assert!(!g2.contains("31"));
+        assert!(!g2.contains("3G"));
+
+        let g3 = grid_feed(2, 30, b"\x1b[999\x9d0;title\x9cok");
+        assert!(g3.contains("ok"));
+        assert!(!g3.contains("999"));
+        assert!(!g3.contains("title"));
     }
 
     #[test]

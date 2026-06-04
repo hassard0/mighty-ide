@@ -7649,3 +7649,13 @@ NEL, HTS, and RI can arrive as single-byte C1 controls (`0x84`, `0x85`,
   existing index, next-line, horizontal-tab-stop, and reverse-index helpers.
   Parser tests cover newline/index placement, reverse-index movement, and a
   custom C1-created tab stop.
+
+L624. CSI parsing must recover into replacement controls, not just ground.
+When an incomplete CSI is interrupted by a new ESC or C1 introducer, dropping
+straight to ground makes the next bytes printable (`[` / digits / payload)
+instead of honoring the replacement control sequence.
+
+- **IDE note:** `VtParser` now clears the partial CSI and transitions to
+  `Escape`, `Csi`, `Osc`, or the non-OSC string state when those introducers
+  arrive during CSI parsing; CAN/SUB still abort to ground. Tests cover
+  interrupted 7-bit CSI, interrupted 8-bit CSI, and CSI replaced by C1 OSC.
