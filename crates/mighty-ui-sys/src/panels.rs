@@ -412,9 +412,7 @@ pub extern "C" fn mui_scm_commit(handle: i64) -> i32 {
         return 0;
     };
     let dir = workspace_dir(ctx);
-    if ctx.scm.root.is_none() {
-        ctx.scm.refresh(&dir);
-    }
+    ctx.scm.refresh(&dir);
     if ctx.scm.root.is_none() {
         ctx.push_toast(crate::toast::Kind::Warn, "Not a git repository");
         crate::abi::trace("scm_commit ok=0 root=<none>");

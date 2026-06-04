@@ -4186,10 +4186,19 @@ fn scm_bulk_actions_without_repo_report_not_git_repository() {
 
 #[test]
 fn scm_commit_reports_precise_missing_inputs() {
+    use std::process::Command;
+    if Command::new("git").arg("--version").output().is_err() {
+        eprintln!("scm_commit_reports_precise_missing_inputs: git not found - skipping");
+        return;
+    }
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_scm_commit_inputs_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
+    let git = |args: &[&str]| {
+        Command::new("git").arg("-C").arg(&root).args(args).output().unwrap()
+    };
+    assert!(git(&["init", "-q"]).status.success());
     ctx.scm.root = Some(root.clone());
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
@@ -4198,15 +4207,14 @@ fn scm_commit_reports_precise_missing_inputs() {
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "No staged changes to commit");
 
-    ctx.scm.status.entries.push(crate::scm::ScmEntry {
-        path: "tracked.mty".to_string(),
-        staged: true,
-        status: 'M',
-    });
+    std::fs::write(root.join("tracked.mty"), "tracked\n").unwrap();
+    assert!(git(&["add", "tracked.mty"]).status.success());
+    assert_eq!(ctx.scm.status.staged_count(), 0);
     assert_eq!(crate::panels::mui_scm_commit(handle), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Enter a commit message");
+    assert_eq!(ctx.scm.status.staged_count(), 1);
 
     let _ = std::fs::remove_dir_all(&root);
 }

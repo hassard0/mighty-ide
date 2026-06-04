@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Source Control commit checks use the live index**: `Git: Commit Staged` now
+  refreshes repository status before deciding whether staged changes or a commit
+  message are missing, so files staged outside the UI do not produce stale
+  prerequisite feedback.
 - **Source Control commit feedback is specific**: `Git: Commit Staged` now tells
   users whether they need staged changes or a commit message instead of collapsing
   both states into `Nothing to commit`.

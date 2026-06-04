@@ -9117,3 +9117,17 @@ the commit message is empty.
 - **Language note:** no compiler gap surfaced. The useful pattern is still
   command-result specificity: the shim can inspect workflow state before
   shelling out, while Mighty only needs the scalar command result.
+
+## L757 - Commit Prerequisites Need A Live Index
+
+Prerequisite checks are only as good as the state they inspect. Source Control
+can have a known repository root while its cached status is stale because files
+were staged from a terminal, another tool, or a previous command path.
+
+- **IDE note:** `Git: Commit Staged` now refreshes Source Control status before
+  checking for staged changes or an empty commit message. A regression pins the
+  case where Git has a staged file but the UI cache still reports zero staged
+  entries.
+- **Language note:** no compiler gap surfaced. The lesson is an integration
+  boundary one: workflow guards should refresh external state at the moment of
+  action instead of trusting a sidebar snapshot.
