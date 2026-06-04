@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Save As rejects platform-trap filenames**: typed and native Save As targets
+  now reject reserved Windows device names and trailing-dot/space basenames
+  before binding the tab or writing to disk.
 - **Native creation catches trailing-space basenames**: New File and New Folder
   dialog paths now reject basenames ending in spaces as well as dots before
   Windows can normalize them to a different on-disk name.

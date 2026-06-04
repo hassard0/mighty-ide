@@ -11791,6 +11791,14 @@ fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf, toast_succe
         );
         return -1;
     }
+    if tab.path.as_ref() != Some(&path) {
+        if let Err(e) = validate_save_target_basename(&path) {
+            ctx.autosave.disarm();
+            ctx.push_toast(crate::toast::Kind::Warn, e.clone());
+            println!("mui_ed_save: invalid target filename: {e}");
+            return -1;
+        }
+    }
     let bytes = save_bytes_for_tab(tab);
     let name = basename(&path);
     match std::fs::write(&path, &bytes) {
@@ -12044,6 +12052,12 @@ fn save_active_to_path(ctx: &mut MuiContext, target: PathBuf) -> i32 {
     if ctx.tabs.active_read_only() {
         return reject_read_only_save(ctx);
     }
+    if let Err(e) = validate_save_target_basename(&target) {
+        ctx.autosave.disarm();
+        ctx.push_toast(crate::toast::Kind::Warn, e.clone());
+        println!("mui_save_as: invalid target filename: {e}");
+        return -1;
+    }
     if ctx
         .tabs
         .find_by_path(&target)
@@ -12075,6 +12089,13 @@ fn save_active_to_path(ctx: &mut MuiContext, target: PathBuf) -> i32 {
             -1
         }
     }
+}
+
+fn validate_save_target_basename(path: &std::path::Path) -> Result<(), String> {
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+        return Err("Choose a file name".to_string());
+    };
+    crate::newproj::validate_platform_segment(name)
 }
 
 enum FileDialogPick {

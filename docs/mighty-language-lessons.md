@@ -10468,3 +10468,16 @@ exact basename selected by a native dialog.
 - **Language note:** no compiler gap surfaced. Validation that protects a
   filesystem operation should check raw path text for normalization hazards
   before applying user-input cleanup such as `trim`.
+
+## L852 - Save Targets Need Basename Validation
+
+Save As and untitled-tab saves bind an editor tab to a newly chosen path, so they
+need the same platform-name checks as file creation.
+
+- **IDE note:** typed and native Save As targets now validate the chosen basename
+  for Windows reserved device names and trailing dot/space hazards before
+  writing bytes, binding the tab path, or marking the buffer clean. Existing
+  file-backed in-place saves keep writing their current path.
+- **Language note:** no compiler gap surfaced. Save and create flows share the
+  same filesystem mutation risk once a new path is chosen; centralize validation
+  at the path-binding boundary, not only at creation prompts.
