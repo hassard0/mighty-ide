@@ -5398,6 +5398,9 @@ fn debug_breakpoint_section_offsets_call_stack() {
     assert_eq!(crate::dapabi::debug_breakpoint_hidden_count(5), 2);
     assert_eq!(crate::dapabi::debug_breakpoint_overflow_label(1), "1 more breakpoint");
     assert_eq!(crate::dapabi::debug_breakpoint_overflow_label(3), "3 more breakpoints");
+    assert_eq!(crate::dapabi::debug_breakpoint_scroll_label(0, 6, 3), "3 more breakpoints");
+    assert_eq!(crate::dapabi::debug_breakpoint_scroll_label(2, 6, 3), "1 more breakpoint");
+    assert_eq!(crate::dapabi::debug_breakpoint_scroll_label(3, 6, 3), "3 earlier breakpoints");
 
     let zero = crate::dapabi::debug_stack_label_y(0);
     let three = crate::dapabi::debug_stack_label_y(3);
@@ -5434,6 +5437,54 @@ fn debug_click_accounts_for_breakpoint_section_above_call_stack() {
     );
 
     assert_eq!(crate::dapabi::mui_dbg_click(handle), 0);
+
+    crate::layout::reset_sidebar_preset();
+}
+
+#[test]
+fn debug_breakpoint_inventory_scrolls_visible_window() {
+    use crate::ffi::MuiEvent;
+
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+    for i in 0..6 {
+        ctx.dbg.toggle_breakpoint(&format!("C:/p/file{i}.mty"), i as i32);
+    }
+    ctx.dbg.set_open(true);
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_DEBUG;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        crate::layout::RAIL_W + 36.0,
+        crate::dapabi::debug_breakpoint_rows_top() + crate::layout::LINE_H() * 0.5,
+        0,
+    );
+    assert_eq!(crate::dapabi::mui_dbg_click(handle), 2000);
+    assert_eq!(ctx.dbg.breakpoint_window_first(3), 0);
+
+    assert_eq!(crate::dapabi::mui_bp_scroll_inventory_at_event(handle, 2), 1);
+    assert_eq!(ctx.dbg.breakpoint_window_first(3), 2);
+
+    assert_eq!(crate::dapabi::mui_bp_scroll_inventory_at_event(handle, 99), 1);
+    assert_eq!(ctx.dbg.breakpoint_window_first(3), 3);
+
+    assert_eq!(crate::dapabi::mui_bp_scroll_inventory_at_event(handle, 99), 0);
+    assert_eq!(ctx.dbg.breakpoint_window_first(3), 3);
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        crate::layout::RAIL_W - 4.0,
+        crate::dapabi::debug_breakpoint_rows_top() + crate::layout::LINE_H() * 0.5,
+        0,
+    );
+    assert_eq!(crate::dapabi::mui_bp_scroll_inventory_at_event(handle, -3), 0);
+    assert_eq!(ctx.dbg.breakpoint_window_first(3), 3);
 
     crate::layout::reset_sidebar_preset();
 }
@@ -10096,6 +10147,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _b = mui_ed_tab_switch(h, newidx)")
             && main.contains("let _r = mui_diag_refresh(h)"),
         "Debug breakpoint inventory clicks must open the source tab through the breakpoint ABI"
+    );
+    assert!(
+        main.contains("fn mui_bp_scroll_inventory_at_event(handle: I64, delta: I32) -> I32")
+            && main.contains("mui_bp_scroll_inventory_at_event(h, if dir > 0 { -3 } else { 3 }) == 1"),
+        "Debug breakpoint inventory wheel events must route through the breakpoint scroll ABI"
     );
     assert!(
         main.contains("id == cmd_test_stop()")

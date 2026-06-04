@@ -517,6 +517,8 @@ pub struct BreakpointLocation {
 pub struct DebugModel {
     /// Per-file breakpoint line sets (1-based DAP lines), keyed by absolute path.
     breakpoints: std::collections::HashMap<String, Vec<u32>>,
+    /// First global breakpoint shown in the sidebar inventory window.
+    breakpoint_first: usize,
     /// The file the debug controls operate on (the program under debug).
     program: Option<PathBuf>,
     /// The live adapter session, if one is running.
@@ -637,6 +639,31 @@ impl DebugModel {
         out
     }
 
+    /// First global breakpoint visible in the sidebar inventory window.
+    pub fn breakpoint_window_first(&self, data_rows: usize) -> usize {
+        let count = self.total_breakpoint_count();
+        self.breakpoint_first.min(count.saturating_sub(data_rows))
+    }
+
+    /// Scroll the sidebar breakpoint inventory. Positive `delta` moves toward
+    /// later breakpoints, negative toward earlier breakpoints.
+    pub fn scroll_breakpoints(&mut self, delta: i32, data_rows: usize) -> bool {
+        let count = self.total_breakpoint_count();
+        if data_rows == 0 || count <= data_rows {
+            self.breakpoint_first = 0;
+            return false;
+        }
+        let max_first = count - data_rows;
+        let current = self.breakpoint_first.min(max_first);
+        let next = if delta < 0 {
+            current.saturating_sub(delta.unsigned_abs() as usize)
+        } else {
+            current.saturating_add(delta as usize).min(max_first)
+        };
+        self.breakpoint_first = next;
+        next != current
+    }
+
     /// Total breakpoint count for the program (across the program file).
     pub fn breakpoint_count(&self) -> usize {
         self.program
@@ -663,6 +690,7 @@ impl DebugModel {
     pub fn clear_breakpoints(&mut self) -> bool {
         let changed = self.breakpoints.values().any(|lines| !lines.is_empty());
         self.breakpoints.clear();
+        self.breakpoint_first = 0;
         changed
     }
 
@@ -1536,6 +1564,26 @@ mod tests {
                 BreakpointLocation { file: "C:/p/z.mty".into(), line: 10 },
             ]
         );
+    }
+
+    #[test]
+    fn breakpoint_inventory_scroll_clamps_to_available_window() {
+        let mut m = DebugModel::new();
+        for i in 0..6 {
+            m.toggle_breakpoint(&format!("C:/p/file{i}.mty"), i);
+        }
+
+        assert_eq!(m.breakpoint_window_first(3), 0);
+        assert!(m.scroll_breakpoints(2, 3));
+        assert_eq!(m.breakpoint_window_first(3), 2);
+        assert!(m.scroll_breakpoints(99, 3));
+        assert_eq!(m.breakpoint_window_first(3), 3);
+        assert!(m.scroll_breakpoints(-1, 3));
+        assert_eq!(m.breakpoint_window_first(3), 2);
+        assert!(m.scroll_breakpoints(-99, 3));
+        assert_eq!(m.breakpoint_window_first(3), 0);
+        assert!(!m.scroll_breakpoints(3, 6));
+        assert_eq!(m.breakpoint_window_first(6), 0);
     }
 
     #[test]

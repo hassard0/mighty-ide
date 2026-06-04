@@ -561,6 +561,7 @@ extern c {
   fn mui_bp_count(handle: I64) -> I32
   fn mui_bp_line(handle: I64, i: I32) -> I32
   fn mui_bp_open_at_hit(handle: I64, code: I32) -> I32
+  fn mui_bp_scroll_inventory_at_event(handle: I64, delta: I32) -> I32
   fn mui_bp_gutter_click(handle: I64, first_line: I32, total_lines: I32) -> I32
   fn mui_dbg_stack_count(handle: I64) -> I32
   fn mui_dbg_sel_frame(handle: I64) -> I32
@@ -3343,6 +3344,7 @@ fn main() {
           test_focus = false
           term_focus = true
           ai_focus = false
+        } else if mui_bp_scroll_inventory_at_event(h, if dir > 0 { -3 } else { 3 }) == 1 {
         } else if dir > 0 {
           if first >= 3 { first = first - 3 } else { first = 0 }
         } else if dir < 0 {

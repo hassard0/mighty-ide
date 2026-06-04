@@ -654,6 +654,23 @@ pub(crate) fn debug_breakpoint_overflow_label(hidden: usize) -> String {
     }
 }
 
+pub(crate) fn debug_breakpoint_scroll_label(first: usize, count: usize, data_rows: usize) -> String {
+    let below = if first == 0 {
+        debug_breakpoint_hidden_count(count)
+    } else {
+        count.saturating_sub(first.saturating_add(data_rows))
+    };
+    if below > 0 {
+        debug_breakpoint_overflow_label(below)
+    } else if first == 1 {
+        "1 earlier breakpoint".to_string()
+    } else if first > 1 {
+        format!("{first} earlier breakpoints")
+    } else {
+        String::new()
+    }
+}
+
 pub(crate) fn debug_breakpoint_label_y() -> f32 {
     let tb = toolbar_geom();
     tb.y + tb.btn + 10.0
@@ -874,7 +891,11 @@ pub extern "C" fn mui_dbg_click(handle: i64) -> i32 {
     let bp_data_rows = debug_breakpoint_data_rows(breakpoints.len());
     if !breakpoints.is_empty() && y >= bp_top && y < bp_top + bp_rows as f32 * layout::LINE_H() {
         let idx = ((y - bp_top) / layout::LINE_H()).floor() as i32;
-        if idx >= 0 && (idx as usize) < breakpoints.len() && (idx as usize) < bp_data_rows {
+        let first = ctx.dbg.breakpoint_window_first(bp_data_rows);
+        if idx >= 0
+            && first + (idx as usize) < breakpoints.len()
+            && (idx as usize) < bp_data_rows
+        {
             return BREAKPOINT_BASE + idx;
         }
     }
@@ -904,11 +925,13 @@ pub extern "C" fn mui_bp_open_at_hit(handle: i64, code: i32) -> i32 {
     let target = {
         let locations = ctx.dbg.breakpoint_locations();
         let data_rows = debug_breakpoint_data_rows(locations.len());
-        if (idx as usize) >= locations.len() || (idx as usize) >= data_rows {
+        let first = ctx.dbg.breakpoint_window_first(data_rows);
+        let source_idx = first + idx as usize;
+        if source_idx >= locations.len() || (idx as usize) >= data_rows {
             ctx.push_toast(crate::toast::Kind::Info, "No breakpoint row selected");
             return -1;
         }
-        locations[idx as usize].clone()
+        locations[source_idx].clone()
     };
     let path = std::path::PathBuf::from(&target.file);
     if !path.exists() {
@@ -924,6 +947,38 @@ pub extern "C" fn mui_bp_open_at_hit(handle: i64, code: i32) -> i32 {
     model.set_first_visible(line0.saturating_sub(2) as usize);
     crate::abi::trace(&format!("bp_open line={}", target.line));
     tab as i32
+}
+
+/// Scroll the debug sidebar breakpoint inventory if the last wheel event is
+/// over its rows. Returns 1 when the event was consumed.
+#[no_mangle]
+pub extern "C" fn mui_bp_scroll_inventory_at_event(handle: i64, delta: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if !ctx.sidebar_visible
+        || ctx.active_panel != crate::PANEL_DEBUG
+        || !ctx.dbg.is_open()
+    {
+        return 0;
+    }
+    let x = ctx.last_event.x;
+    let y = ctx.last_event.y;
+    if x < layout::RAIL_W || x > layout::sidebar_right() {
+        return 0;
+    }
+    let count = ctx.dbg.total_breakpoint_count();
+    let rows = debug_breakpoint_visible_rows(count);
+    let top = debug_breakpoint_rows_top();
+    if count == 0 || y < top || y >= top + rows as f32 * layout::LINE_H() {
+        return 0;
+    }
+    let data_rows = debug_breakpoint_data_rows(count);
+    if ctx.dbg.scroll_breakpoints(delta, data_rows) {
+        1
+    } else {
+        0
+    }
 }
 
 /// Decode a [`mui_dbg_click`] toolbar code and perform the action. Mighty calls
@@ -1121,7 +1176,8 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
         ctx.text.queue_ui_sized(sx + 14.0, bp_top + 2.0, "No breakpoints", theme::TEXT_3(), chrome, clip);
     } else {
         let data_rows = debug_breakpoint_data_rows(bp_count);
-        for (i, bp) in breakpoints.iter().take(data_rows).enumerate() {
+        let first = ctx.dbg.breakpoint_window_first(data_rows);
+        for (i, bp) in breakpoints.iter().skip(first).take(data_rows).enumerate() {
             let y = bp_top + i as f32 * row_h;
             let ty = y + (row_h - chrome) * 0.5 - 1.0;
             ctx.dl_icon(sx + 13.0, y + (row_h - 10.0) * 0.5, 10.0, 10.0, icons::BREAKPOINT, theme::ERROR(), 0.0, true);
@@ -1134,12 +1190,11 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
             ctx.text.queue_ui_sized(name_x, ty, &name, theme::TEXT_1(), chrome, clip);
             ctx.text.queue_ui_sized(loc_x, ty, &loc, theme::TEXT_4(), chrome - 1.5, clip);
         }
-        let hidden = debug_breakpoint_hidden_count(bp_count);
-        if hidden > 0 {
+        let scroll_label = debug_breakpoint_scroll_label(first, bp_count, data_rows);
+        if !scroll_label.is_empty() {
             let y = bp_top + data_rows as f32 * row_h;
             let ty = y + (row_h - chrome) * 0.5 - 1.0;
-            let label = debug_breakpoint_overflow_label(hidden);
-            let shown = fit_head_px(&mut ctx.text, &label, (sx + sw - 16.0 - (sx + 30.0)).max(0.0), chrome);
+            let shown = fit_head_px(&mut ctx.text, &scroll_label, (sx + sw - 16.0 - (sx + 30.0)).max(0.0), chrome);
             ctx.text.queue_ui_sized(sx + 30.0, ty, &shown, theme::TEXT_4(), chrome, clip);
         }
     }

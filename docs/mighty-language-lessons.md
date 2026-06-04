@@ -8277,3 +8277,14 @@ after a global clear or cross-file setup.
   rows plus a measured "N more breakpoints" row, keeps the Call Stack geometry
   stable, and prevents the overflow row from opening a misleading source target.
   Tests cover row budgets, pluralized overflow labels, and no-op hit behavior.
+
+L687. Overflow disclosure should lead to browsing. A capped Breakpoints section
+that says more items exist still leaves users stuck on the first window unless
+the list itself can move.
+
+- **IDE note:** the Run and Debug breakpoint inventory now wheel-scrolls when
+  the pointer is over its rows. The model keeps a clamped global breakpoint
+  window, click/open and drawing translate visible rows through that window, and
+  the fourth row reports either remaining breakpoints below or earlier
+  breakpoints above. Tests cover model clamping, wheel hit routing, scroll
+  labels, and Mighty event dispatch.
