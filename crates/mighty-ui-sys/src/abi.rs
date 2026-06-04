@@ -8993,6 +8993,24 @@ pub extern "C" fn mui_recent_any(handle: i64) -> i32 {
     i32::from(!ctx.quickopen.recent_paths().is_empty() || ctx.recent_workspaces.len() > 0)
 }
 
+/// Report that Open Recent has nothing actionable after stale entries were
+/// pruned. Kept separate from [`mui_recent_any`] so pure availability checks do
+/// not emit toasts.
+#[no_mangle]
+pub extern "C" fn mui_recent_empty(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    prune_missing_recent_files(ctx);
+    prune_missing_recent_workspaces(ctx);
+    if ctx.quickopen.recent_paths().is_empty() && ctx.recent_workspaces.len() == 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No recent files or folders");
+        1
+    } else {
+        0
+    }
+}
+
 /// Move the selection by `delta` (positive = down), wrapping.
 #[no_mangle]
 pub extern "C" fn mui_qo_move(handle: i64, delta: i32) {

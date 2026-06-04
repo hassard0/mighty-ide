@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Open Recent empty state is explicit**: when no valid recent files or folders
+  remain after pruning, `File: Open Recent` now reports that directly instead of
+  opening an unrelated Open Folder prompt.
 - **Open Recent now preflights stale entries**: `File: Open Recent` prunes
   missing recent files and folders before deciding whether the focused recent
   picker is available, avoiding empty picker detours.

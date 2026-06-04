@@ -741,6 +741,7 @@ extern c {
   fn mui_ws_open_recent(handle: I64, i: I32) -> I32
   fn mui_ws_recent_count(handle: I64) -> I32
   fn mui_recent_any(handle: I64) -> I32
+  fn mui_recent_empty(handle: I64) -> I32
   fn mui_ws_dispatch(handle: I64, cmd_id: I32) -> I32
   // ---- New Project (Mighty: New Project): native picker, prompt fallback ----
   fn mui_newproj_dialog(handle: I64) -> I32
@@ -5080,8 +5081,7 @@ fn main() {
               // to the branded first-run landing.
               mui_welcome_open_recent_picker(h)
             } else {
-              mui_prompt_open(h, prompt_open_folder())
-              prompt_kind = prompt_open_folder()
+              let _re = mui_recent_empty(h)
               find_nav = false
             }
           }

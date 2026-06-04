@@ -9543,6 +9543,42 @@ fn open_recent_availability_prunes_stale_entries_before_routing() {
 }
 
 #[test]
+fn open_recent_empty_reports_actionable_feedback_after_pruning() {
+    use crate::{mui_recent_any, mui_recent_empty};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let root = std::env::temp_dir().join(format!("mui_recent_empty_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let keep_file = root.join("keep.mty");
+    let missing_file = root.join("missing.mty");
+    let missing_folder = root.join("missing-folder");
+    std::fs::write(&keep_file, b"fn main() {}").unwrap();
+    ctx.quickopen.set_recent_paths(vec![missing_file]);
+    ctx.recent_workspaces.set_all(vec![missing_folder]);
+
+    assert_eq!(mui_recent_empty(h), 1);
+    assert_eq!(mui_recent_any(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No recent files or folders");
+
+    ctx.quickopen.set_recent_paths(vec![keep_file]);
+    assert_eq!(
+        mui_recent_empty(h),
+        0,
+        "valid recents should open the picker instead of reporting empty feedback"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn quickopen_open_prunes_missing_recent_files_before_rendering() {
     use crate::mui_quickopen_open;
 
@@ -10431,6 +10467,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         main.contains("mui_welcome_open_recent_picker(h)"),
         "File: Open Recent should use the focused recent picker, not the branded Welcome landing"
+    );
+    assert!(
+        main.contains("let _re = mui_recent_empty(h)")
+            && !main.contains("} else {\n              mui_prompt_open(h, prompt_open_folder())\n              prompt_kind = prompt_open_folder()\n              find_nav = false\n            }\n          }\n        } else if id >= cmd_fold_first()"),
+        "File: Open Recent empty state should report no recents instead of opening the Open Folder prompt"
     );
     assert!(
         main.contains("let np = mui_newproj_dialog(h)")

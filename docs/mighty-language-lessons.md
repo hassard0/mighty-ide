@@ -8631,3 +8631,13 @@ route users into a picker with nothing actionable.
 - **IDE note:** `mui_recent_any` now prunes missing recent files and workspace
   folders, persists the cleaned lists, and only then reports whether Open Recent
   should open the focused recents picker.
+
+## L720 - Empty Command Results Should Stay On Intent
+
+When a user invokes File: Open Recent and there are no valid recents, opening an
+Open Folder prompt is technically useful but semantically wrong. The command
+should explain the empty state and let the user choose a different command.
+
+- **IDE note:** Open Recent now calls `mui_recent_empty` for the no-valid-recents
+  path, producing `No recent files or folders` instead of falling through to the
+  Open Folder typed-path prompt.
