@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Sidebar width commands advertise their reveal behavior**: compact, default,
+  wide, and cycle-width commands now describe opening the sidebar before sizing
+  it, matching their hidden-sidebar dispatch path that reveals Explorer.
 - **Bottom-dock preset commands advertise their reveal behavior**: compact,
   default, and expanded dock commands now describe opening the shared bottom
   dock at the requested size, matching the existing Run-panel reveal path when

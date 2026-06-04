@@ -225,13 +225,13 @@ pub const CMD_SIDEBAR_CLOSE: u32 = 101;
 pub const CMD_DOCK_FIRST: u32 = CMD_DOCK_COMPACT;
 #[allow(dead_code)]
 pub const CMD_DOCK_LAST: u32 = CMD_DOCK_EXPANDED;
-/// Set sidebar drawers to a compact width.
+/// Open the sidebar drawer at a compact width.
 pub const CMD_SIDEBAR_COMPACT: u32 = 94;
-/// Restore sidebar drawers to the responsive default width.
+/// Open the sidebar drawer at the responsive default width.
 pub const CMD_SIDEBAR_DEFAULT: u32 = 95;
-/// Set sidebar drawers to a wider review/debug width.
+/// Open the sidebar drawer at a wider review/debug width.
 pub const CMD_SIDEBAR_WIDE: u32 = 96;
-/// Cycle sidebar drawers through compact, default, and wide widths.
+/// Open the sidebar drawer and cycle through compact, default, and wide widths.
 pub const CMD_SIDEBAR_CYCLE_WIDTH: u32 = 102;
 /// Delete the current editor line without touching the clipboard.
 pub const CMD_DELETE_LINE: u32 = 103;
@@ -1166,10 +1166,10 @@ impl PaletteEngine {
             CMD_DOCK_RESET => (icons::WIN_MIN, "Open the shared bottom dock at its default height", false),
             CMD_DOCK_EXPANDED => (icons::ARROW_UP, "Open the shared bottom dock at expanded height", false),
             CMD_DOCK_CLOSE => (icons::CLOSE, "Close the active shared bottom dock", false),
-            CMD_SIDEBAR_COMPACT => (icons::ARROW_LEFT, "Use a smaller sidebar drawer", false),
-            CMD_SIDEBAR_DEFAULT => (icons::EXPLORER, "Restore responsive sidebar width", false),
-            CMD_SIDEBAR_WIDE => (icons::ARROW_RIGHT, "Use a wider sidebar drawer", false),
-            CMD_SIDEBAR_CYCLE_WIDTH => (icons::EXPLORER, "Cycle sidebar width through compact, default, and wide", false),
+            CMD_SIDEBAR_COMPACT => (icons::ARROW_LEFT, "Open the sidebar at compact width", false),
+            CMD_SIDEBAR_DEFAULT => (icons::EXPLORER, "Open the sidebar at its default responsive width", false),
+            CMD_SIDEBAR_WIDE => (icons::ARROW_RIGHT, "Open the sidebar at wide width", false),
+            CMD_SIDEBAR_CYCLE_WIDTH => (icons::EXPLORER, "Open the sidebar and cycle compact, default, and wide width", false),
             CMD_WINDOW_TOGGLE_MAXIMIZE => (icons::WIN_MAX, "Maximize or restore the IDE window", false),
             CMD_WINDOW_MINIMIZE => (icons::WIN_MIN, "Minimize the IDE window", false),
             CMD_DEBUG_START_CONTINUE => (icons::DBG_CONTINUE, "Start debugging or continue the paused session", true),
@@ -1762,6 +1762,22 @@ mod tests {
         assert_eq!(
             command_static_desc(CMD_DOCK_EXPANDED),
             "Open the shared bottom dock at expanded height"
+        );
+        assert_eq!(
+            command_static_desc(CMD_SIDEBAR_COMPACT),
+            "Open the sidebar at compact width"
+        );
+        assert_eq!(
+            command_static_desc(CMD_SIDEBAR_DEFAULT),
+            "Open the sidebar at its default responsive width"
+        );
+        assert_eq!(
+            command_static_desc(CMD_SIDEBAR_WIDE),
+            "Open the sidebar at wide width"
+        );
+        assert_eq!(
+            command_static_desc(CMD_SIDEBAR_CYCLE_WIDTH),
+            "Open the sidebar and cycle compact, default, and wide width"
         );
         assert_eq!(
             command_static_desc(CMD_MARKDOWN_PREVIEW),

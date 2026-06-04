@@ -8699,3 +8699,15 @@ it.
   bottom dock at compact, default, or expanded height. A dispatch test covers
   the hidden-dock path, where presets reveal the Run panel as the shared lower
   dock owner and apply the requested fraction.
+
+## L726 - Sidebar Width Presets Also Reveal Explorer
+
+Commands that resize a hidden surface should describe the reveal side effect as
+part of the primary action. Sidebar compact/default/wide/cycle commands reveal
+the Explorer sidebar before applying the requested width, so descriptions that
+only mention sizing understate what the command does.
+
+- **IDE note:** sidebar width command descriptions now say they open the
+  sidebar at compact/default/wide width, and cycle says it opens the sidebar
+  while cycling widths. Tests cover each hidden-sidebar preset path and the
+  static descriptions exposed to command palette surfaces.

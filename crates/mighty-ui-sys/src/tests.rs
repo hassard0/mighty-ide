@@ -1498,7 +1498,7 @@ fn ai_clear_chat_reports_state_and_resets_panel() {
 }
 
 #[test]
-fn sidebar_layout_commands_open_and_resize_sidebar() {
+fn sidebar_preset_commands_open_hidden_sidebar_at_requested_width() {
     let mut ctx = ctx_or_skip!();
     ctx.gpu.width = 1200;
     ctx.sidebar_visible = false;
@@ -1516,17 +1516,23 @@ fn sidebar_layout_commands_open_and_resize_sidebar() {
     assert_eq!(crate::layout::sidebar_preset(), 1);
     assert_eq!(crate::layout::sidebar_w(), crate::layout::SIDEBAR_MIN_W);
 
+    ctx.sidebar_visible = false;
     assert_eq!(
         crate::abi::mui_sidebar_layout_dispatch(handle, crate::palette::CMD_SIDEBAR_WIDE as i32),
         3
     );
+    assert!(ctx.sidebar_visible);
+    assert_eq!(ctx.active_panel, crate::PANEL_EXPLORER);
     assert_eq!(crate::layout::sidebar_preset(), 2);
     assert_eq!(crate::layout::sidebar_w(), 360.0);
 
+    ctx.sidebar_visible = false;
     assert_eq!(
         crate::abi::mui_sidebar_layout_dispatch(handle, crate::palette::CMD_SIDEBAR_DEFAULT as i32),
         2
     );
+    assert!(ctx.sidebar_visible);
+    assert_eq!(ctx.active_panel, crate::PANEL_EXPLORER);
     assert_eq!(crate::layout::sidebar_preset(), 0);
     assert_eq!(crate::layout::sidebar_w(), crate::layout::SIDEBAR_W);
     crate::layout::reset_sidebar_preset();
