@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Workspace edits protect dirty duplicate tabs**: code actions and rename
+  workspace edits now skip a target path when any equivalent non-active tab is
+  dirty, including duplicate views of the active file, avoiding disk writes
+  underneath unsaved buffers.
 - **Recent files de-duplicate equivalent paths**: Quick Open now removes
   canonical-equivalent prior file entries when recording a recent file, matching
   the stale-row removal path and avoiding duplicate MRU rows for the same file.

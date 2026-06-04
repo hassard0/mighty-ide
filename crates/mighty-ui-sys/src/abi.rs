@@ -10300,6 +10300,14 @@ fn apply_workspace_edit(
             .unwrap_or(false);
 
         if is_current {
+            if ctx.tabs.any_dirty_path_except(&fpath, ctx.tabs.active()) {
+                result.skipped_dirty += 1;
+                println!(
+                    "workspace edit: skipped active path with dirty duplicate path={}",
+                    fpath.display()
+                );
+                continue;
+            }
             // Apply to the active model in-place (preserves the live edit state),
             // then save it to disk.
             let m = ctx.tabs.active_model_mut();
@@ -10316,15 +10324,13 @@ fn apply_workspace_edit(
             result.changed += 1;
         } else {
             // Other file: do not rewrite disk underneath an open dirty buffer.
-            if let Some(i) = ctx.tabs.find_by_path(&fpath) {
-                if ctx.tabs.is_dirty(i) {
-                    result.skipped_dirty += 1;
-                    println!(
-                        "workspace edit: skipped dirty non-active tab path={}",
-                        fpath.display()
-                    );
-                    continue;
-                }
+            if ctx.tabs.any_dirty_path(&fpath) {
+                result.skipped_dirty += 1;
+                println!(
+                    "workspace edit: skipped dirty non-active tab path={}",
+                    fpath.display()
+                );
+                continue;
             }
             // Other clean file: read from disk, apply, write back; refresh an open tab.
             let disk = std::fs::read(&fpath).unwrap_or_default();

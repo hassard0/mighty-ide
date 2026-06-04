@@ -10563,3 +10563,18 @@ two Quick Open MRU rows for the same resource.
 - **Language note:** no compiler gap surfaced. Add and remove operations for the
   same MRU must share identity semantics; otherwise the list can accumulate
   duplicates that its own cleanup logic would later treat as one resource.
+
+## L859 - Workspace Edits Must Protect Dirty Duplicate Views
+
+Workspace edits are file-scoped, but users can have multiple tabs viewing the
+same backing file. Checking only the active tab or the first matching tab can
+write disk underneath another dirty duplicate view.
+
+- **IDE note:** workspace edit application now skips a target when any
+  equivalent open tab for that path is dirty, excluding only the active tab when
+  the edit is intentionally applying to the active buffer. Dirty duplicate views
+  of the active file therefore block the disk write just like dirty non-active
+  files do.
+- **Language note:** no compiler gap surfaced. Multi-file operations must
+  evaluate all open views of a resource before mutating disk; first-match tab
+  lookup is not enough when duplicates are allowed.

@@ -390,6 +390,17 @@ impl TabStore {
         })
     }
 
+    /// True when any open tab for `path`, except `except_idx`, has unsaved edits.
+    pub fn any_dirty_path_except(&self, path: &Path, except_idx: usize) -> bool {
+        self.tabs.iter().enumerate().any(|(idx, tab)| {
+            idx != except_idx
+                && tab
+                    .path
+                    .as_deref()
+                    .is_some_and(|p| tab_paths_equal(p, path) && tab.is_dirty())
+        })
+    }
+
     /// Close all clean tabs pointing at `path` without adding them to
     /// reopen-closed history. Used after the backing file itself was deleted.
     /// Dirty matching tabs are preserved; callers should usually preflight with
@@ -1361,6 +1372,22 @@ mod tests {
         s.set_dirty(duplicate, true);
 
         assert!(s.any_dirty_path(&p));
+    }
+
+    #[test]
+    fn any_dirty_path_except_ignores_only_requested_tab() {
+        let p = write_tmp("tabs_dirty_except.txt", b"same");
+
+        let mut s = TabStore::new();
+        let original = s.open_path(p.clone());
+        let duplicate = s.duplicate_active();
+        s.set_dirty(original, true);
+        s.set_dirty(duplicate, true);
+
+        assert!(s.any_dirty_path_except(&p, original));
+        assert!(s.any_dirty_path_except(&p, duplicate));
+        s.set_dirty(duplicate, false);
+        assert!(!s.any_dirty_path_except(&p, original));
     }
 
     #[test]

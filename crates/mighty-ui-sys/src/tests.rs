@@ -8093,6 +8093,145 @@ fn codeaction_workspace_edit_skips_dirty_non_active_split_tab() {
 }
 
 #[test]
+fn codeaction_workspace_edit_skips_active_path_with_dirty_duplicate() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_codeaction_workspace_dirty_duplicate_active_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, "old_symbol\n").unwrap();
+
+    let active_idx = ctx.tabs.open_path(path.clone());
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs
+        .get_mut(duplicate)
+        .unwrap()
+        .model
+        .set_text_preserving_cursor("local_dirty_symbol\n");
+    ctx.tabs.set_dirty(duplicate, true);
+    ctx.tabs.switch(active_idx);
+    crate::sync_active_path(&mut ctx);
+
+    let uri_path = path.to_string_lossy().replace('\\', "/");
+    let uri = if uri_path.starts_with('/') {
+        format!("file://{uri_path}")
+    } else {
+        format!("file:///{uri_path}")
+    };
+    assert_eq!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Rename active file with dirty duplicate".to_string(),
+            edit: Some(crate::language::WorkspaceEdit {
+                files: vec![(
+                    uri,
+                    vec![crate::language::TextEdit {
+                        start_line: 0,
+                        start_col: 0,
+                        end_line: 0,
+                        end_col: 10,
+                        new_text: "new_symbol".to_string(),
+                    }],
+                )],
+            }),
+            command_edit: None,
+            command: None,
+            fix_all_mty: false,
+        }]),
+        1
+    );
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_codeaction_apply(h), 0);
+    assert_eq!(ctx.tabs.active_model().as_text(), "old_symbol\n");
+    assert_eq!(
+        ctx.tabs.get(duplicate).unwrap().model.as_text(),
+        "local_dirty_symbol\n"
+    );
+    assert!(ctx.tabs.is_dirty(duplicate));
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "old_symbol\n");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Skipped dirty file during workspace edit");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn codeaction_workspace_edit_skips_dirty_duplicate_when_clean_tab_matches_first() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_codeaction_workspace_dirty_duplicate_other_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let left = root.join("left.mty");
+    let right = root.join("right.mty");
+    std::fs::write(&left, "left_symbol\n").unwrap();
+    std::fs::write(&right, "right_symbol\n").unwrap();
+
+    let left_idx = ctx.tabs.open_path(left);
+    let right_idx = ctx.tabs.open_path(right.clone());
+    let dirty_duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs
+        .get_mut(dirty_duplicate)
+        .unwrap()
+        .model
+        .set_text_preserving_cursor("local_dirty_symbol\n");
+    ctx.tabs.set_dirty(dirty_duplicate, true);
+    ctx.tabs.switch(left_idx);
+    crate::sync_active_path(&mut ctx);
+    assert_eq!(ctx.tabs.find_by_path(&right), Some(right_idx));
+
+    let uri_path = right.to_string_lossy().replace('\\', "/");
+    let uri = if uri_path.starts_with('/') {
+        format!("file://{uri_path}")
+    } else {
+        format!("file:///{uri_path}")
+    };
+    assert_eq!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Rename other file with dirty duplicate".to_string(),
+            edit: Some(crate::language::WorkspaceEdit {
+                files: vec![(
+                    uri,
+                    vec![crate::language::TextEdit {
+                        start_line: 0,
+                        start_col: 0,
+                        end_line: 0,
+                        end_col: 12,
+                        new_text: "updated_symbol".to_string(),
+                    }],
+                )],
+            }),
+            command_edit: None,
+            command: None,
+            fix_all_mty: false,
+        }]),
+        1
+    );
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_codeaction_apply(h), 0);
+    assert_eq!(ctx.tabs.active(), left_idx);
+    assert_eq!(ctx.tabs.get(right_idx).unwrap().model.as_text(), "right_symbol\n");
+    assert_eq!(
+        ctx.tabs.get(dirty_duplicate).unwrap().model.as_text(),
+        "local_dirty_symbol\n"
+    );
+    assert!(ctx.tabs.is_dirty(dirty_duplicate));
+    assert_eq!(std::fs::read_to_string(&right).unwrap(), "right_symbol\n");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Skipped dirty file during workspace edit");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn format_current_reports_missing_or_unsupported_target() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
