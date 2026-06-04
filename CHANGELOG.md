@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Terminal handles horizontal scroll CSI**: space-intermediate scroll-left and
+  scroll-right sequences now shift the visible scroll region horizontally
+  instead of being mistaken for insert-character or cursor-up commands.
 - **Panel commands stop stale typing state**: command-dispatched panel open,
   refresh, clear, close, and action routes now clear transient editor typing
   state while transferring ownership to sidebar, dock, Copilot, or Web surfaces.

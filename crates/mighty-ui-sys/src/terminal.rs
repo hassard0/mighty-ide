@@ -441,6 +441,36 @@ impl Grid {
         }
     }
 
+    fn scroll_left(&mut self, count: usize) {
+        let count = count.max(1).min(self.cols);
+        for row in self.scroll_top..=self.scroll_bottom {
+            let row_start = row * self.cols;
+            if count < self.cols {
+                for col in 0..self.cols - count {
+                    self.cells[row_start + col] = self.cells[row_start + col + count];
+                }
+            }
+            for col in self.cols - count..self.cols {
+                self.cells[row_start + col] = Cell::default();
+            }
+        }
+    }
+
+    fn scroll_right(&mut self, count: usize) {
+        let count = count.max(1).min(self.cols);
+        for row in self.scroll_top..=self.scroll_bottom {
+            let row_start = row * self.cols;
+            if count < self.cols {
+                for col in (count..self.cols).rev() {
+                    self.cells[row_start + col] = self.cells[row_start + col - count];
+                }
+            }
+            for col in 0..count {
+                self.cells[row_start + col] = Cell::default();
+            }
+        }
+    }
+
     /// Advance the cursor to the start of the next line, scrolling if needed.
     fn newline(&mut self) {
         self.cur_col = 0;
@@ -1286,7 +1316,11 @@ impl VtParser {
                 } else if b == b'c' {
                     self.handle_device_attributes();
                 } else if b == b'@' {
-                    self.insert_chars(grid);
+                    if self.has_space_intermediate() {
+                        self.scroll_left_horizontal(grid);
+                    } else {
+                        self.insert_chars(grid);
+                    }
                 } else if b == b'J' {
                     self.erase_display(grid);
                 } else if b == b'I' {
@@ -1321,6 +1355,8 @@ impl VtParser {
                     self.set_cursor_shape();
                 } else if b == b'H' || b == b'f' {
                     self.cursor_position(grid);
+                } else if b == b'A' && self.has_space_intermediate() {
+                    self.scroll_right_horizontal(grid);
                 } else if matches!(b, b'A' | b'B' | b'C' | b'D' | b'a' | b'j' | b'k') {
                     self.cursor_relative(grid, b);
                 } else if b == b'G' {
@@ -1487,6 +1523,29 @@ impl VtParser {
         )
     }
 
+    fn has_space_intermediate(&self) -> bool {
+        self.csi.last() == Some(&b' ')
+    }
+
+    fn first_count_param_before_space_intermediate(&self) -> Option<usize> {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        let Some(params) = params.strip_suffix(' ') else {
+            return None;
+        };
+        if params.starts_with('?') {
+            return None;
+        }
+        Some(
+            params
+                .split(';')
+                .next()
+                .filter(|s| !s.is_empty())
+                .and_then(|s| s.parse::<usize>().ok())
+                .unwrap_or(1)
+                .max(1),
+        )
+    }
+
     fn insert_chars(&mut self, grid: &mut Grid) {
         if let Some(count) = self.first_count_param() {
             grid.insert_blank_chars(count);
@@ -1538,6 +1597,18 @@ impl VtParser {
     fn scroll_down(&mut self, grid: &mut Grid) {
         if let Some(count) = self.first_count_param() {
             grid.scroll_down(count);
+        }
+    }
+
+    fn scroll_left_horizontal(&mut self, grid: &mut Grid) {
+        if let Some(count) = self.first_count_param_before_space_intermediate() {
+            grid.scroll_left(count);
+        }
+    }
+
+    fn scroll_right_horizontal(&mut self, grid: &mut Grid) {
+        if let Some(count) = self.first_count_param_before_space_intermediate() {
+            grid.scroll_right(count);
         }
     }
 
@@ -4104,6 +4175,21 @@ mod tests {
     }
 
     #[test]
+    fn horizontal_scroll_csi_shifts_viewport_and_blanks_edges() {
+        let g = grid_feed(3, 5, b"abcde\nFGHIJ\nklmno\x1b[2 @");
+        assert_eq!(g.to_text(), "cde  \nHIJ  \nmno  ");
+        assert!(!g.contains("2 @"));
+
+        let g2 = grid_feed(2, 5, b"abcde\nFGHIJ\x1b[ A");
+        assert_eq!(g2.to_text(), " abcd\n FGHI");
+        assert!(!g2.contains("[ A"));
+
+        let g3 = grid_feed(1, 5, b"abcde\x1b[99 @");
+        assert_eq!(g3.to_text(), "     ");
+        assert!(!g3.contains("99 @"));
+    }
+
+    #[test]
     fn scroll_region_linefeed_preserves_rows_outside_margins() {
         let g = grid_feed(
             4,
@@ -4125,6 +4211,15 @@ mod tests {
 
         let g3 = grid_feed(4, 4, b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[^");
         assert_eq!(g3.to_text(), "1111\n    \n2222\n4444");
+    }
+
+    #[test]
+    fn scroll_region_limits_horizontal_scroll_commands() {
+        let g = grid_feed(4, 5, b"aaaaa\nbcdef\nghijk\nzzzzz\x1b[2;3r\x1b[2 @");
+        assert_eq!(g.to_text(), "aaaaa\ndef  \nijk  \nzzzzz");
+
+        let g2 = grid_feed(4, 5, b"aaaaa\nbcdef\nghijk\nzzzzz\x1b[2;3r\x1b[ A");
+        assert_eq!(g2.to_text(), "aaaaa\n bcde\n ghij\nzzzzz");
     }
 
     #[test]

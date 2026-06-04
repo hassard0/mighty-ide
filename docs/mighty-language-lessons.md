@@ -9458,3 +9458,19 @@ in a panel, dock, Copilot, or Web surface.
 - **Language note:** no compiler gap surfaced. Route-parity checks should cover
   command dispatch independently from rail and local overlay routes, because all
   three paths can move visible focus to the same surface.
+
+## L781 - CSI Intermediates Are Part Of The Command
+
+Horizontal terminal scrolling uses the same final bytes as more common CSI
+commands, but with a space intermediate: `CSI Ps SP @` scrolls left while
+`CSI Ps @` inserts characters, and `CSI Ps SP A` scrolls right while `CSI Ps A`
+moves the cursor up. Treating the intermediate as parse noise silently changes
+the command.
+
+- **IDE note:** the terminal parser now recognizes space-intermediate
+  scroll-left and scroll-right commands, shifts only the active scroll region,
+  clamps large counts, and leaves no sequence bytes in the visible grid.
+- **Language note:** no compiler gap surfaced. When a parser stores CSI bytes in
+  a flat buffer, dispatch helpers must check both the final byte and any
+  intermediate suffix before sharing parameter parsing with ordinary numeric
+  commands.
