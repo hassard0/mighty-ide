@@ -2267,6 +2267,11 @@ fn search_panel_clicks_focus_fields_and_return_actions() {
     assert_eq!(crate::panels::mui_search_action_at_click(handle), 1);
     assert!(!ctx.search.replace_focus);
 
+    ctx.search.replace_focus = true;
+    ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, sx + sw - 50.0, 20.0, 0);
+    assert_eq!(crate::panels::mui_search_action_at_click(handle), 3);
+    assert!(!ctx.search.replace_focus);
+
     ctx.active_panel = crate::PANEL_EXPLORER;
     assert_eq!(crate::panels::mui_search_action_at_click(handle), 0);
 }
@@ -10179,6 +10184,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _scr = mui_search_clear_results(h)")
             && main.contains("find_nav = false"),
         "Search clear-results command must clear only result rows while keeping Search visible"
+    );
+    assert!(
+        main.contains("fn search_tb_clear() -> I32 { 3 }")
+            && main.contains("} else if s_act == search_tb_clear() {\n            let _scr = mui_search_clear_results(h)")
+            && main.find("let s_act = mui_search_action_at_click(h)")
+                < main.find("let s_hit = mui_search_row_at_click(h)"),
+        "Search header clear clicks must dispatch before result row navigation"
     );
     assert!(
         main.contains("id == cmd_problems_refresh()")

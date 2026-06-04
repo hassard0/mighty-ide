@@ -1545,12 +1545,16 @@ fn search_field_button_x(sx: f32, sw: f32) -> (f32, f32) {
     (sx + sw - 46.0, sx + sw - 8.0)
 }
 
+pub(crate) fn search_header_action_centers(sx: f32, sw: f32) -> [(f32, i32); 2] {
+    [(sx + sw - 57.5, 3), (sx + sw - 27.5, 1)]
+}
+
 fn search_replace_button_enabled(query: &str, matches: i32) -> bool {
     !query.trim().is_empty() && matches > 0
 }
 
 /// Search-panel mouse action for the last click:
-/// `0` = no action, `1` = run search, `2` = replace all.
+/// `0` = no action, `1` = run search, `2` = replace all, `3` = clear results.
 ///
 /// Clicking either input also moves keyboard focus to that field, so the panel
 /// no longer depends on Tab-only field switching.
@@ -1575,12 +1579,15 @@ pub extern "C" fn mui_search_action_at_click(handle: i64) -> i32 {
     let box_x0 = sx + 10.0;
     let (btn_x0, btn_x1) = search_field_button_x(sx, sw);
     let box_x1 = (sx + sw - 10.0).max(btn_x1);
-    let header_btn_x0 = sx + sw - 36.0;
-    let header_btn_x1 = sx + sw - 8.0;
-    if (header_btn_x0..=header_btn_x1).contains(&x) && (0.0..=40.0).contains(&y) {
-        ctx.search.replace_focus = false;
-        crate::abi::trace(&format!("search_action x={x:.1} y={y:.1} -> header_run"));
-        return 1;
+    if (0.0..=40.0).contains(&y) {
+        for (cx, action) in search_header_action_centers(sx, sw) {
+            if x >= cx - 3.0 && x < cx + 18.0 {
+                ctx.search.replace_focus = false;
+                let label = if action == 1 { "header_run" } else { "header_clear" };
+                crate::abi::trace(&format!("search_action x={x:.1} y={y:.1} -> {label}"));
+                return action;
+            }
+        }
     }
     if (box_x0..=box_x1).contains(&x) && (qy..=qy + box_h).contains(&y) {
         ctx.search.replace_focus = false;
@@ -1794,7 +1801,13 @@ pub extern "C" fn mui_search_draw(handle: i64) {
     let title = "SEARCH";
     let tracked: String = title.chars().flat_map(|c| [c, '\u{2009}']).collect();
     ctx.text.queue_ui_sized(sx + 14.0, (head_h - (chrome - 2.0)) * 0.5 - 1.0, &tracked, theme::DIM(), chrome - 2.0, clip);
-    ctx.dl_icon(sx + sw - 28.0, (head_h - 15.0) * 0.5, 15.0, 15.0, icons::REFRESH, theme::TEXT_3(), 1.5, false);
+    let act_y = (head_h - 15.0) * 0.5;
+    for (x, action) in search_header_action_centers(sx, sw) {
+        let icon = if action == 1 { icons::REFRESH } else { icons::TRASH };
+        let color = if action == 1 || ctx.search.match_count() > 0 { theme::TEXT_3() } else { theme::TEXT_4() };
+        ctx.dl_stroke(x - 2.5, 8.0, 24.0, 24.0, 5.0, theme::BORDER_SOFT(), 1.0);
+        ctx.dl_icon(x + 2.0, act_y, 15.0, 15.0, icon, color, 1.5, false);
+    }
 
     let replace_focus = ctx.search.replace_focus;
     let query = ctx.search.query_string();

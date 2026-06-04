@@ -1055,6 +1055,7 @@ fn outline_tb_refresh() -> I32 { 1 }
 fn outline_tb_clear() -> I32 { 2 }
 fn problems_tb_refresh() -> I32 { 1 }
 fn problems_tb_clear() -> I32 { 2 }
+fn search_tb_clear() -> I32 { 3 }
 // Test toolbar click codes (mirror TB_RUN/TB_STOP in testabi.rs).
 fn test_tb_run() -> I32 { 1 }
 fn test_tb_stop() -> I32 { 2 }
@@ -3781,6 +3782,9 @@ fn main() {
             let _c = mui_search_run(h)
           } else if s_act == 2 {
             let _r = mui_search_replace_all(h)
+          } else if s_act == search_tb_clear() {
+            let _scr = mui_search_clear_results(h)
+            find_nav = false
           } else {
             let s_hit = mui_search_row_at_click(h)
             if s_hit >= 0 {

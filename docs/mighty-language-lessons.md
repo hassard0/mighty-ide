@@ -8328,3 +8328,13 @@ discover stale or noisy diagnostics while already looking at the Problems dock.
   buttons before the shared dock size/close controls. A dedicated header action
   ABI mirrors the painted geometry, Mighty refreshes or clears before diagnostic
   row hit-testing, and tests cover hit/miss behavior plus dispatcher ordering.
+
+L692. Search results should be locally disposable without losing the search
+draft. `Search: Clear Results` already preserves query and replacement text, so
+the Search panel header should expose that cleanup next to the local run action.
+
+- **IDE note:** the Search header now includes a compact clear-results button
+  beside the existing run-search action. The existing search click ABI returns a
+  dedicated clear action code, Mighty routes it before result-row hit-testing,
+  and regression coverage verifies focus behavior, action codes, and dispatcher
+  ordering while preserving the command-palette clear path.
