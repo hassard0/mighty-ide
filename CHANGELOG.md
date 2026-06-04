@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Search replace-focus source docs match the palette**: the command constant
+  now documents that it opens Search before moving focus, and stale sidebar
+  toggle wording in palette-ranking comments was updated.
 - **Sidebar toggle is labeled as a view command**: Ctrl+B now appears as
   `View: Toggle Sidebar`, and its description says it shows or hides the left
   sidebar rather than only the file explorer.

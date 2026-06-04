@@ -8766,3 +8766,14 @@ those panels are active.
 - **IDE note:** `Toggle Sidebar` is now labeled `View: Toggle Sidebar`, and its
   static description says it shows or hides the left sidebar instead of the file
   explorer. Command-label and static-description tests cover the contract.
+
+## L732 - Source Comments Are Also Command Contracts
+
+When command metadata changes, Rustdoc comments and nearby ranking/test comments
+need the same treatment. Otherwise future contributors can reintroduce stale
+wording by trusting the source comment instead of the palette row.
+
+- **IDE note:** `CMD_SEARCH_TOGGLE_REPLACE` now documents that it opens Search
+  before moving focus between query and replace, matching the static palette
+  description. The palette ranking comment was also updated from the old
+  `Toggle Sidebar` label to `View: Toggle Sidebar`.

@@ -323,7 +323,7 @@ pub const CMD_EXPLORER_COLLAPSE_ALL: u32 = 145;
 pub const CMD_SEARCH_RUN: u32 = 146;
 /// Replace all project-wide Search panel matches.
 pub const CMD_SEARCH_REPLACE_ALL: u32 = 147;
-/// Move focus between the Search query and replace fields.
+/// Open Search and move focus between the query and replace fields.
 pub const CMD_SEARCH_TOGGLE_REPLACE: u32 = 148;
 /// Refresh the Source Control panel's git status.
 pub const CMD_GIT_REFRESH_SOURCE_CONTROL: u32 = 149;
@@ -1570,7 +1570,7 @@ mod tests {
 
     #[test]
     fn prefix_beats_substring_in_order() {
-        // "ta": "Terminal: Open or Focus"/"Toggle Sidebar"? No. Use "t": prefixes nothing
+        // "ta": "Terminal: Open or Focus"/"View: Toggle Sidebar"? No. Use "t": prefixes nothing
         // but matches many. Use a query where a prefix and a substring coexist.
         // "g" prefixes "Go to Line"/"Go to Definition" (Prefix) and is a substring
         // of "Toggle ..." (Substring) — prefixes must come first.
