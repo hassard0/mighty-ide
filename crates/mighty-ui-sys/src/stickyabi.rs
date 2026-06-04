@@ -123,7 +123,15 @@ pub extern "C" fn mui_peek_open(handle: i64, line: i32, col: i32) -> i32 {
     // Resolve the definition target (path + 0-based line/col).
     let raw = crate::abi::lsp_def_raw(ctx.language, &path, &source, line.max(0) as u32, col.max(0) as u32);
     let target = match crate::nav::parse_definition(&raw) {
-        Some((uri, tline, tcol)) => crate::nav::uri_to_path(&uri).map(|p| (p, tline, tcol)),
+        Some((uri, tline, tcol)) => crate::abi::definition_target_from_lsp(
+            ctx.language,
+            &path,
+            &source,
+            &uri,
+            tline,
+            tcol,
+        )
+        .map(|t| (t.path, t.line, t.col)),
         None => None,
     };
     let Some((tpath, tline, tcol)) = target else {

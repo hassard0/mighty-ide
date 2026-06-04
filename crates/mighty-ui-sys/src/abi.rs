@@ -347,6 +347,27 @@ fn source_utf16_col_to_char(source: &str, line: u32, utf16_col: u32) -> u32 {
     chars
 }
 
+pub(crate) fn definition_target_from_lsp(
+    lang: Language,
+    current_path: &std::path::Path,
+    current_source: &str,
+    uri: &str,
+    line: u32,
+    col: u32,
+) -> Option<crate::nav::DefTarget> {
+    let path = crate::nav::uri_to_path(uri)?;
+    let col = if lang == Language::Mighty {
+        col
+    } else if crate::nav::paths_equal(&path, current_path) {
+        source_utf16_col_to_char(current_source, line, col)
+    } else {
+        std::fs::read_to_string(&path)
+            .map(|target_source| source_utf16_col_to_char(&target_source, line, col))
+            .unwrap_or(col)
+    };
+    Some(crate::nav::DefTarget { path, line, col })
+}
+
 #[cfg(test)]
 mod code_action_diagnostics_tests {
     use super::*;
@@ -383,6 +404,72 @@ mod code_action_diagnostics_tests {
         assert_eq!(source_utf16_col_to_char("😀abc", 0, 2), 1);
         assert_eq!(source_utf16_col_to_char("😀abc", 0, 5), 4);
         assert_eq!(source_utf16_col_to_char("😀abc", 9, 5), 0);
+    }
+}
+
+#[cfg(test)]
+mod definition_target_tests {
+    use super::*;
+
+    #[test]
+    fn generic_definition_target_maps_same_file_utf16_columns() {
+        let path = std::path::Path::new("C:/tmp/main.rs");
+        let target = definition_target_from_lsp(
+            Language::Rust,
+            path,
+            "\u{1f600} target",
+            "file:///C:/tmp/main.rs",
+            0,
+            3,
+        )
+        .expect("target");
+
+        assert_eq!(target.line, 0);
+        assert_eq!(target.col, 2);
+    }
+
+    #[test]
+    fn mighty_definition_target_keeps_server_columns() {
+        let path = std::path::Path::new("C:/tmp/main.mty");
+        let target = definition_target_from_lsp(
+            Language::Mighty,
+            path,
+            "\u{1f600} target",
+            "file:///C:/tmp/main.mty",
+            0,
+            3,
+        )
+        .expect("target");
+
+        assert_eq!(target.col, 3);
+    }
+
+    #[test]
+    fn generic_definition_target_maps_cross_file_utf16_columns() {
+        let dir = std::env::temp_dir().join(format!(
+            "mighty_ide_def_target_{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let current_path = dir.join("main.rs");
+        let target_path = dir.join("lib.rs");
+        std::fs::write(&target_path, "\u{1f600} target").expect("target source");
+        let uri = crate::language::lsp::file_uri(&target_path);
+
+        let target = definition_target_from_lsp(
+            Language::Rust,
+            &current_path,
+            "",
+            &uri,
+            0,
+            3,
+        )
+        .expect("target");
+
+        assert_eq!(target.path, target_path);
+        assert_eq!(target.col, 2);
+        let _ = std::fs::remove_file(&target.path);
+        let _ = std::fs::remove_dir(&dir);
     }
 }
 
@@ -9016,17 +9103,15 @@ pub extern "C" fn mui_def_request(handle: i64, line: i32, col: i32) -> i32 {
     let source = String::from_utf8_lossy(&ctx.nav_buf).into_owned();
     let raw = lsp_def_raw(ctx.language, &path, &source, line.max(0) as u32, col.max(0) as u32);
     let found = match crate::nav::parse_definition(&raw) {
-        Some((uri, tline, tcol)) => match crate::nav::uri_to_path(&uri) {
-            Some(tpath) => {
-                ctx.def.set(Some(crate::nav::DefTarget {
-                    path: tpath,
-                    line: tline,
-                    col: tcol,
-                }));
-                true
+        Some((uri, tline, tcol)) => {
+            match definition_target_from_lsp(ctx.language, &path, &source, &uri, tline, tcol) {
+                Some(target) => {
+                    ctx.def.set(Some(target));
+                    true
+                }
+                None => false,
             }
-            None => false,
-        },
+        }
         None => false,
     };
     println!("def: line={line} col={col} found={found}");
