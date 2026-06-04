@@ -7551,3 +7551,14 @@ L613. Text entry needs a generic editability preflight. Printable typing and
 Enter always intend to mutate, but read-only previews must not receive undo
 checkpoints before insert/newline ABIs reject the edit; use a silent `can_edit`
 gate for those baseline text-entry routes.
+
+L614. Terminal reverse-index escapes must honor scroll margins. The VT parser
+already handled CSI scrolling and line erases, but single-byte `ESC D`, `ESC E`,
+and especially `ESC M` were consumed as no-ops. Full-screen terminal programs
+use these index and reverse-index controls to move within active margins, so
+skipping them can leave alternate-screen layouts with stale or misplaced rows.
+
+- **IDE note:** the terminal grid now implements VT Index, Next Line, and
+  Reverse Index, including scroll-region-aware top/bottom margin behavior.
+  Parser tests cover normal movement, row preservation, and margin-local
+  scrolling without leaking escape bytes into the visible grid.

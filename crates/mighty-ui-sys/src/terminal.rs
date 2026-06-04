@@ -387,6 +387,26 @@ impl Grid {
         }
     }
 
+    /// VT Index (IND): move down one row without changing the column, scrolling
+    /// the active region when already at the bottom margin.
+    fn index(&mut self) {
+        if self.cur_row == self.scroll_bottom {
+            self.scroll_up(1);
+        } else if self.cur_row + 1 < self.rows {
+            self.cur_row += 1;
+        }
+    }
+
+    /// VT Reverse Index (RI): move up one row without changing the column,
+    /// scrolling the active region down when already at the top margin.
+    fn reverse_index(&mut self) {
+        if self.cur_row == self.scroll_top {
+            self.scroll_down(1);
+        } else if self.cur_row > 0 {
+            self.cur_row -= 1;
+        }
+    }
+
     /// Write a printable char at the cursor, advancing it (wrapping at the right
     /// edge, scrolling at the bottom). Control chars are NOT handled here.
     pub fn put_char(&mut self, ch: char) {
@@ -676,6 +696,18 @@ impl VtParser {
             b'c' => {
                 grid.clear();
                 self.reset_modes();
+                self.state = State::Ground;
+            }
+            b'D' => {
+                grid.index();
+                self.state = State::Ground;
+            }
+            b'E' => {
+                grid.newline();
+                self.state = State::Ground;
+            }
+            b'M' => {
+                grid.reverse_index();
                 self.state = State::Ground;
             }
             b'7' => {
@@ -1925,6 +1957,28 @@ mod tests {
 
         let g2 = grid_feed(4, 4, b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[T");
         assert_eq!(g2.to_text(), "1111\n    \n2222\n4444");
+    }
+
+    #[test]
+    fn single_escape_index_sequences_move_cursor_without_garbage() {
+        let g = grid_feed(3, 6, b"aa\nbb\ncc\x1b[1;3H\x1bDID");
+        assert_eq!(g.to_text(), "aa    \nbbID  \ncc    ");
+        assert!(!g.contains("[D"));
+
+        let g2 = grid_feed(3, 6, b"aa\nbb\ncc\x1b[1;5H\x1bEN");
+        assert_eq!(g2.to_text(), "aa    \nNb    \ncc    ");
+
+        let g3 = grid_feed(3, 6, b"aa\nbb\ncc\x1b[2;3H\x1bMR");
+        assert_eq!(g3.to_text(), "aaR   \nbb    \ncc    ");
+    }
+
+    #[test]
+    fn single_escape_index_sequences_respect_scroll_region_margins() {
+        let g = grid_feed(4, 4, b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[2;1H\x1bMZ");
+        assert_eq!(g.to_text(), "1111\nZ   \n2222\n4444");
+
+        let g2 = grid_feed(4, 4, b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[3;2H\x1bDq");
+        assert_eq!(g2.to_text(), "1111\n3333\n q  \n4444");
     }
 
     #[test]
