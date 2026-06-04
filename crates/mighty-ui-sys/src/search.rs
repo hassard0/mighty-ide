@@ -55,8 +55,8 @@ impl SearchResults {
     }
 }
 
-/// Case-insensitive (ASCII-fold) substring search of `needle` in one file's
-/// `text`. Appends matches (with the given `file` index) to `out`. Pure.
+/// Case-insensitive substring search of `needle` in one file's `text`.
+/// Appends matches (with the given `file` index) to `out`. Pure.
 ///
 /// Columns are char offsets (so the highlight aligns with how the editor counts
 /// columns). Matches within a line do not overlap.
@@ -64,22 +64,26 @@ pub fn search_text(text: &str, needle: &str, file: usize, out: &mut Vec<SearchMa
     if needle.is_empty() {
         return 0;
     }
-    let needle_lower = needle.to_lowercase();
+    let needle_folded = fold_needle(needle);
+    if needle_folded.is_empty() {
+        return 0;
+    }
     let mut found = 0;
     for (line_idx, raw) in text.split('\n').enumerate() {
         let line = raw.strip_suffix('\r').unwrap_or(raw);
-        let lower = line.to_lowercase();
-        // Search on the lowercased line; map byte hits back to char columns.
-        let mut byte = 0usize;
-        let lb = lower.as_bytes();
-        let nb = needle_lower.as_bytes();
-        if nb.len() > lb.len() {
+        let folded = fold_haystack(line);
+        if needle_folded.len() > folded.len() {
             continue;
         }
-        let last = lb.len() - nb.len();
-        while byte <= last {
-            if &lb[byte..byte + nb.len()] == nb {
-                let col = lower[..byte].chars().count() as i32;
+        let mut idx = 0usize;
+        let last = folded.len() - needle_folded.len();
+        while idx <= last {
+            if folded[idx..idx + needle_folded.len()]
+                .iter()
+                .map(|f| f.ch)
+                .eq(needle_folded.iter().copied())
+            {
+                let col = folded[idx].char_idx as i32;
                 out.push(SearchMatch {
                     file,
                     line: line_idx as i32,
@@ -87,9 +91,9 @@ pub fn search_text(text: &str, needle: &str, file: usize, out: &mut Vec<SearchMa
                     preview: line.to_string(),
                 });
                 found += 1;
-                byte += nb.len().max(1);
+                idx += needle_folded.len().max(1);
             } else {
-                byte += 1;
+                idx += 1;
             }
         }
     }
@@ -220,7 +224,6 @@ impl SearchState {
             return (0, Vec::new());
         }
         let replacement = self.replace_string();
-        let needle_lower = needle.to_lowercase();
         let mut total = 0;
         let mut changed = Vec::new();
         let files: Vec<PathBuf> = self.results.files.iter().map(|f| f.path.clone()).collect();
@@ -233,7 +236,7 @@ impl SearchState {
                 continue;
             }
             let text = String::from_utf8_lossy(&bytes).into_owned();
-            let (rewritten, n) = replace_in_text(&text, &needle_lower, &replacement);
+            let (rewritten, n) = replace_in_text(&text, &needle, &replacement);
             if n > 0 && std::fs::write(&path, rewritten.as_bytes()).is_ok() {
                 total += n;
                 changed.push(path);
@@ -259,41 +262,85 @@ impl SearchState {
     }
 }
 
-/// Case-insensitive replace of every non-overlapping occurrence of `needle_lower`
-/// (already lowercased) in `text` with `replacement`. Returns the new text + the
-/// number of replacements. Pure.
-fn replace_in_text(text: &str, needle_lower: &str, replacement: &str) -> (String, i32) {
-    if needle_lower.is_empty() {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FoldedChar {
+    ch: char,
+    byte_start: usize,
+    byte_end: usize,
+    char_idx: usize,
+}
+
+fn fold_needle(needle: &str) -> Vec<char> {
+    needle.chars().flat_map(char::to_lowercase).collect()
+}
+
+fn fold_haystack(text: &str) -> Vec<FoldedChar> {
+    let mut out = Vec::new();
+    for (char_idx, (byte_start, ch)) in text.char_indices().enumerate() {
+        let byte_end = byte_start + ch.len_utf8();
+        for folded in ch.to_lowercase() {
+            out.push(FoldedChar {
+                ch: folded,
+                byte_start,
+                byte_end,
+                char_idx,
+            });
+        }
+    }
+    out
+}
+
+fn folded_match_ranges(text: &str, needle: &str) -> Vec<(usize, usize)> {
+    let needle_folded = fold_needle(needle);
+    if needle_folded.is_empty() {
+        return Vec::new();
+    }
+    let folded = fold_haystack(text);
+    if needle_folded.len() > folded.len() {
+        return Vec::new();
+    }
+
+    let mut ranges = Vec::new();
+    let mut idx = 0usize;
+    let last = folded.len() - needle_folded.len();
+    while idx <= last {
+        if folded[idx..idx + needle_folded.len()]
+            .iter()
+            .map(|f| f.ch)
+            .eq(needle_folded.iter().copied())
+        {
+            let start = folded[idx].byte_start;
+            let end = folded[idx + needle_folded.len() - 1].byte_end;
+            if ranges.last().map_or(true, |&(_, prev_end)| start >= prev_end) {
+                ranges.push((start, end));
+            }
+            idx += needle_folded.len().max(1);
+        } else {
+            idx += 1;
+        }
+    }
+    ranges
+}
+
+/// Case-insensitive replace of every non-overlapping occurrence of `needle` in
+/// `text` with `replacement`. Returns the new text + replacement count. Pure.
+fn replace_in_text(text: &str, needle: &str, replacement: &str) -> (String, i32) {
+    if needle.is_empty() {
         return (text.to_string(), 0);
     }
-    let lower = text.to_lowercase();
-    let lb = lower.as_bytes();
-    let nb = needle_lower.as_bytes();
-    if nb.len() > lb.len() {
-        return (text.to_string(), 0);
-    }
-    // NOTE: `to_lowercase` can change byte length for non-ASCII; to keep byte
-    // offsets aligned we only substitute when the needle is pure ASCII (the
-    // common code-search case). Otherwise we bail (0 replacements) to stay SAFE.
-    if !needle_lower.is_ascii() || !text.is_ascii() {
+    let ranges = folded_match_ranges(text, needle);
+    if ranges.is_empty() {
         return (text.to_string(), 0);
     }
     let mut out = String::with_capacity(text.len());
-    let bytes = text.as_bytes();
-    let mut i = 0;
-    let mut count = 0;
-    let last = lb.len().saturating_sub(nb.len());
-    while i < bytes.len() {
-        if i <= last && &lb[i..i + nb.len()] == nb {
-            out.push_str(replacement);
-            i += nb.len();
-            count += 1;
-        } else {
-            out.push(bytes[i] as char);
-            i += 1;
-        }
+    let mut cursor = 0usize;
+    for (start, end) in &ranges {
+        out.push_str(&text[cursor..*start]);
+        out.push_str(replacement);
+        cursor = *end;
     }
-    (out, count)
+    out.push_str(&text[cursor..]);
+    (out, ranges.len() as i32)
 }
 
 /// Collect text files under `root` depth-first, skipping [`SKIP_DIRS`] and
@@ -420,6 +467,15 @@ mod tests {
     }
 
     #[test]
+    fn unicode_case_insensitive_search_maps_to_original_columns() {
+        let m = matches("α β CAFÉ café", "café");
+        assert_eq!(m.len(), 2);
+        assert_eq!(m[0].col, 4);
+        assert_eq!(m[1].col, 9);
+        assert_eq!(m[0].preview, "α β CAFÉ café");
+    }
+
+    #[test]
     fn replace_basic() {
         let (out, n) = replace_in_text("foo bar foo", "foo", "X");
         assert_eq!(n, 2);
@@ -441,11 +497,17 @@ mod tests {
     }
 
     #[test]
-    fn replace_non_ascii_bails_safely() {
-        // Non-ASCII text -> we refuse to risk a misaligned substitution.
-        let (out, n) = replace_in_text("héllo héllo", "héllo", "x");
-        assert_eq!(n, 0);
-        assert_eq!(out, "héllo héllo");
+    fn replace_non_ascii_matches_original_byte_ranges() {
+        let (out, n) = replace_in_text("héllo HÉLLO héllo", "héllo", "x");
+        assert_eq!(n, 3);
+        assert_eq!(out, "x x x");
+    }
+
+    #[test]
+    fn replace_non_ascii_preserves_surrounding_text() {
+        let (out, n) = replace_in_text("pre café post CAFÉ", "café", "tea");
+        assert_eq!(n, 2);
+        assert_eq!(out, "pre tea post tea");
     }
 
     #[test]
