@@ -7767,3 +7767,13 @@ leaves later text at the old column.
 - **IDE note:** `VtParser` now routes `CSI a` through the same clamped relative
   cursor movement as `CSI C`. The cursor movement regression test covers normal
   HPR movement and right-edge clamping without leaking the sequence bytes.
+
+L637. Backward cursor movement has ECMA CSI aliases too. `CSI Ps j` (HPB) and
+`CSI Ps k` (VPB) are legacy horizontal/vertical backward movement forms; a
+terminal that consumes them as unknown finals leaves subsequent text at the
+wrong position.
+
+- **IDE note:** `VtParser` now maps `CSI j` to Cursor Backward and `CSI k` to
+  Cursor Up using the existing clamped relative movement helper. Regression
+  coverage verifies both aliases and confirms their bytes do not leak into the
+  visible grid.

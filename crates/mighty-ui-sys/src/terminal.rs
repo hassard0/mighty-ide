@@ -945,7 +945,7 @@ impl VtParser {
                     self.set_cursor_shape();
                 } else if b == b'H' || b == b'f' {
                     self.cursor_position(grid);
-                } else if matches!(b, b'A' | b'B' | b'C' | b'D' | b'a') {
+                } else if matches!(b, b'A' | b'B' | b'C' | b'D' | b'a' | b'j' | b'k') {
                     self.cursor_relative(grid, b);
                 } else if b == b'G' {
                     self.cursor_column(grid);
@@ -1311,10 +1311,10 @@ impl VtParser {
             .unwrap_or(1)
             .max(1) as isize;
         match final_byte {
-            b'A' => grid.move_cursor_relative(-amount, 0),
+            b'A' | b'k' => grid.move_cursor_relative(-amount, 0),
             b'B' => grid.move_cursor_relative(amount, 0),
             b'C' | b'a' => grid.move_cursor_relative(0, amount),
-            b'D' => grid.move_cursor_relative(0, -amount),
+            b'D' | b'j' => grid.move_cursor_relative(0, -amount),
             _ => {}
         }
     }
@@ -2459,6 +2459,13 @@ mod tests {
         assert_eq!(g3.cell(0, 4).ch, 'B');
         assert_eq!(g3.cell(0, 7).ch, 'C');
         assert!(!g3.contains("3a"));
+
+        let g4 = grid_feed(3, 8, b"\x1b[3;6H@\x1b[2jL\x1b[2kU");
+        assert_eq!(g4.cell(2, 5).ch, '@');
+        assert_eq!(g4.cell(2, 4).ch, 'L');
+        assert_eq!(g4.cell(0, 5).ch, 'U');
+        assert!(!g4.contains("2j"));
+        assert!(!g4.contains("2k"));
     }
 
     #[test]
