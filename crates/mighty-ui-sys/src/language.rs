@@ -271,6 +271,15 @@ fn top_level_array_field<'a>(obj: &'a [u8], field: &str) -> Option<&'a [u8]> {
     Some(&obj[value_at..end])
 }
 
+fn top_level_object_field<'a>(obj: &'a [u8], field: &str) -> Option<&'a [u8]> {
+    let value_at = top_level_field_value_start(obj, field)?;
+    if obj.get(value_at) != Some(&b'{') {
+        return None;
+    }
+    let end = match_brace(obj, value_at).min(obj.len());
+    Some(&obj[value_at..end])
+}
+
 fn top_level_json_string_field(obj: &[u8], field: &str) -> Option<String> {
     top_level_field_value_start(obj, field)
         .and_then(|value_at| read_json_string_at(obj, value_at))
@@ -831,21 +840,19 @@ impl CodeAction {
 /// affordance. Returns the actions in order (empty for `[]` / `null`).
 pub fn parse_code_actions(json: &str) -> Vec<CodeAction> {
     let bytes = json.as_bytes();
-    // Find the result array. Anchor at `"result"`.
-    let Some(res_at) = find_sub(bytes, b"\"result\"") else {
+    let Some(result_at) = top_level_field_value_start(bytes, "result") else {
         // Some servers omit the wrapper in our isolated slice; try whole input as
         // an array of actions.
         return parse_action_array(bytes);
     };
-    let mut i = res_at + b"\"result\"".len();
-    while i < bytes.len() && matches!(bytes[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        i += 1;
-    }
-    if i >= bytes.len() || bytes[i] != b'[' {
+    if bytes.get(result_at..result_at + 4) == Some(b"null") {
         return Vec::new();
     }
-    let end = match_bracket(bytes, i);
-    parse_action_array(&bytes[i..end.min(bytes.len())])
+    if result_at >= bytes.len() || bytes[result_at] != b'[' {
+        return Vec::new();
+    }
+    let end = match_bracket(bytes, result_at);
+    parse_action_array(&bytes[result_at..end.min(bytes.len())])
 }
 
 /// Parse a `[ {title,..}, ... ]` array slice into code actions (splits the
@@ -899,12 +906,15 @@ fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
     if code_action_disabled(obj) {
         return None;
     }
-    let t_key = b"\"title\"";
-    let t_at = find_sub(obj, t_key)?;
-    let (title, _) = read_json_string_at(obj, t_at + t_key.len())?;
+    let title = top_level_json_string_field(obj, "title")?;
     // Inline edit, if any: a nested WorkspaceEdit under "edit".
-    let edit = if let Some(e_at) = find_sub(obj, b"\"edit\"") {
-        let sub = &obj[e_at..];
+    let edit = if let Some(e_at) = top_level_field_value_start(obj, "edit") {
+        let end = if obj.get(e_at) == Some(&b'{') {
+            match_brace(obj, e_at).min(obj.len())
+        } else {
+            e_at
+        };
+        let sub = &obj[e_at..end];
         let we = parse_workspace_edit(&String::from_utf8_lossy(sub));
         if we.is_empty() {
             None
@@ -916,15 +926,12 @@ fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
     };
     let command = parse_command_action(obj);
     let command_edit = parse_command_edit(obj);
-    let fix_all_mty = read_json_field_string(obj, b"\"kind\"")
+    let fix_all_mty = top_level_json_string_field(obj, "kind")
         .map(|kind| kind == "source.fixAll.mighty")
         .unwrap_or(false)
         || command
             .as_ref()
             .map(|cmd| cmd.command.contains("fixAll") || cmd.command.contains("fix_all"))
-            .unwrap_or(false)
-        || read_json_field_string(obj, b"\"command\"")
-            .map(|cmd| cmd.contains("fixAll") || cmd.contains("fix_all"))
             .unwrap_or(false);
     Some(CodeAction {
         title,
@@ -973,37 +980,30 @@ fn top_level_field_value_start(obj: &[u8], field: &str) -> Option<usize> {
 }
 
 fn parse_command_action(obj: &[u8]) -> Option<CommandAction> {
-    let cmd_at = find_sub(obj, b"\"command\"")?;
-    if let Some((command, past)) = read_json_string_at(obj, cmd_at + b"\"command\"".len()) {
+    let cmd_at = top_level_field_value_start(obj, "command")?;
+    if let Some((command, _past)) = read_json_string_at(obj, cmd_at) {
         return Some(CommandAction {
             command,
-            arguments_json: read_arguments_json(&obj[past..]).or_else(|| read_arguments_json(obj)),
+            arguments_json: read_arguments_json(obj),
         });
     }
 
-    let mut i = cmd_at + b"\"command\"".len();
-    while i < obj.len() && matches!(obj[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        i += 1;
-    }
+    let i = cmd_at;
     if i >= obj.len() || obj[i] != b'{' {
         return None;
     }
     let end = match_brace(obj, i).min(obj.len());
     let command_obj = &obj[i..end];
-    let inner_at = find_sub(command_obj, b"\"command\"")?;
-    let (command, past) = read_json_string_at(command_obj, inner_at + b"\"command\"".len())?;
+    let inner_at = top_level_field_value_start(command_obj, "command")?;
+    let (command, _past) = read_json_string_at(command_obj, inner_at)?;
     Some(CommandAction {
         command,
-        arguments_json: read_arguments_json(&command_obj[past..]).or_else(|| read_arguments_json(command_obj)),
+        arguments_json: read_arguments_json(command_obj).or_else(|| read_arguments_json(obj)),
     })
 }
 
 fn read_arguments_json(obj: &[u8]) -> Option<String> {
-    let args_at = find_sub(obj, b"\"arguments\"")?;
-    let mut i = args_at + b"\"arguments\"".len();
-    while i < obj.len() && matches!(obj[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        i += 1;
-    }
+    let i = top_level_field_value_start(obj, "arguments")?;
     if i >= obj.len() || obj[i] != b'[' {
         return None;
     }
@@ -1012,9 +1012,9 @@ fn read_arguments_json(obj: &[u8]) -> Option<String> {
 }
 
 fn parse_command_edit(obj: &[u8]) -> Option<WorkspaceEdit> {
-    let args_at = find_sub(obj, b"\"arguments\"")?;
-    let sub = &obj[args_at..];
-    let we = parse_workspace_edit(&String::from_utf8_lossy(sub));
+    let we = read_arguments_workspace_edit(obj).or_else(|| {
+        top_level_object_field(obj, "command").and_then(read_arguments_workspace_edit)
+    })?;
     if we.is_empty() {
         None
     } else {
@@ -1022,9 +1022,15 @@ fn parse_command_edit(obj: &[u8]) -> Option<WorkspaceEdit> {
     }
 }
 
-fn read_json_field_string(obj: &[u8], key: &[u8]) -> Option<String> {
-    let at = find_sub(obj, key)?;
-    read_json_string_at(obj, at + key.len()).map(|(s, _)| s)
+fn read_arguments_workspace_edit(obj: &[u8]) -> Option<WorkspaceEdit> {
+    let args_at = top_level_field_value_start(obj, "arguments")?;
+    let args_end = if obj.get(args_at) == Some(&b'[') {
+        match_bracket(obj, args_at).min(obj.len())
+    } else {
+        args_at
+    };
+    let args = &obj[args_at..args_end];
+    Some(parse_workspace_edit(&String::from_utf8_lossy(args)))
 }
 
 // ===========================================================================
@@ -2189,6 +2195,28 @@ mod tests {
     }
 
     #[test]
+    fn parse_code_actions_uses_top_level_result_array() {
+        let json = r#"{"jsonrpc":"2.0","metadata":{"result":[{"title":"Wrong","command":"wrong.fixAll"}]},"result":[{"title":"Right","command":"server.apply"}],"id":5}"#;
+        let actions = parse_code_actions(json);
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].title, "Right");
+        assert_eq!(actions[0].command.as_ref().map(|c| c.command.as_str()), Some("server.apply"));
+        assert!(!actions[0].fix_all_mty);
+    }
+
+    #[test]
+    fn parse_code_actions_use_action_top_level_fields() {
+        let json = r#"{"result":[{"metadata":{"title":"Wrong","command":"wrong.fixAll","edit":{"changes":{"file:///wrong.rs":[{"newText":"wrong","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":1}}}]}}},"title":"Right","command":"server.apply"}],"id":5}"#;
+        let actions = parse_code_actions(json);
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].title, "Right");
+        assert!(actions[0].edit.is_none());
+        assert!(actions[0].command_edit.is_none());
+        assert_eq!(actions[0].command.as_ref().map(|c| c.command.as_str()), Some("server.apply"));
+        assert!(!actions[0].fix_all_mty);
+    }
+
+    #[test]
     fn parse_code_actions_decodes_unicode_titles() {
         let json = r#"{"result":[{"title":"Fix 東京 caf\u00e9 \ud83d\ude00","kind":"quickfix"}],"id":5}"#;
         let actions = parse_code_actions(json);
@@ -2237,6 +2265,15 @@ mod tests {
         );
         assert!(actions[0].edit.is_none());
         assert!(actions[0].command_edit.is_none());
+    }
+
+    #[test]
+    fn parse_code_actions_nested_command_object_uses_top_level_command() {
+        let json = r#"{"result":[{"title":"Apply import","command":{"metadata":{"command":"wrong.fixAll"},"command":"typescript.applyCodeActionCommand","arguments":[{"file":"a.ts"}]}}],"id":5}"#;
+        let actions = parse_code_actions(json);
+        let command = actions[0].command.as_ref().expect("command");
+        assert_eq!(command.command, "typescript.applyCodeActionCommand");
+        assert!(!actions[0].fix_all_mty);
     }
 
     #[test]

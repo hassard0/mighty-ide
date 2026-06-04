@@ -9947,3 +9947,18 @@ metadata instead.
 - **Language note:** no compiler gap surfaced. Protocol parsers that accept both
   wrapped and bare payloads should explicitly choose the wrapped payload when it
   exists, then fall back only for known embedded forms.
+
+## L815 - Code Actions Need Action-Scoped Fields
+
+CodeAction objects can carry arbitrary metadata, nested command objects, and
+arguments with fields named `title`, `edit`, `command`, or `result`. Reading the
+first matching key in the whole response or whole action can make nested
+metadata look like the executable action.
+
+- **IDE note:** code-action parsing now anchors on the top-level JSON-RPC
+  `result` array, then reads each action's top-level `title`, `edit`, `command`,
+  `kind`, and `arguments`; nested command objects are parsed from their own
+  top-level fields.
+- **Language note:** no compiler gap surfaced. Menu actions are protocol
+  objects, not bags of strings; action ownership should be established before
+  deciding what command or edit a user can trigger.

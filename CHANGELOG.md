@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Code actions read top-level action fields**: LSP code-action parsing now
+  anchors on the top-level JSON-RPC `result` array and reads each action's
+  `title`, `edit`, `command`, `kind`, and `arguments` from that action object,
+  so nested metadata cannot hijack menu rows or command execution.
 - **Workspace edits read result-scoped edits**: rename and code-action edit
   parsing now prefers the JSON-RPC `result` payload before reading `changes` or
   `documentChanges`, preventing envelope metadata from hiding the real
