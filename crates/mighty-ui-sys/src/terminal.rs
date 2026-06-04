@@ -92,6 +92,12 @@ fn default_tab_stops(cols: usize) -> Vec<bool> {
     (0..cols).map(|col| col > 0 && col % 8 == 0).collect()
 }
 
+fn terminal_cell_pixel_size() -> (usize, usize) {
+    let height = crate::layout::LINE_H().round().max(1.0) as usize;
+    let width = crate::layout::CHAR_W().round().max(1.0) as usize;
+    (height, width)
+}
+
 #[derive(Clone, Debug)]
 struct ScreenSnapshot {
     rows: usize,
@@ -2204,12 +2210,23 @@ impl VtParser {
         self.reply.extend_from_slice(report.as_bytes());
     }
 
-    /// Answer xterm window-operation size queries. `18t` asks for the terminal
-    /// text area in characters; `19t` asks for the screen size in characters.
-    /// Mighty has one visible grid, so both report the current grid dimensions.
+    /// Answer xterm window-operation size queries. `14t` asks for the text area
+    /// in pixels, `16t` asks for the character-cell size in pixels, and
+    /// `18t`/`19t` ask for the text/screen size in characters. Mighty has one
+    /// visible fixed-cell grid, so screen/text-area queries share dimensions.
     fn handle_window_ops(&mut self, grid: &Grid) {
         let params = std::str::from_utf8(&self.csi).unwrap_or("");
         match params {
+            "14" => {
+                let (cell_h, cell_w) = terminal_cell_pixel_size();
+                let report = format!("\x1b[4;{};{}t", grid.rows() * cell_h, grid.cols() * cell_w);
+                self.reply.extend_from_slice(report.as_bytes());
+            }
+            "16" => {
+                let (cell_h, cell_w) = terminal_cell_pixel_size();
+                let report = format!("\x1b[6;{cell_h};{cell_w}t");
+                self.reply.extend_from_slice(report.as_bytes());
+            }
             "18" | "19" => {
                 let report = format!("\x1b[8;{};{}t", grid.rows(), grid.cols());
                 self.reply.extend_from_slice(report.as_bytes());
@@ -5600,6 +5617,19 @@ mod tests {
     fn window_size_character_queries_are_answered() {
         let mut g = Grid::new(7, 33);
         let mut p = VtParser::new();
+        let (cell_h, cell_w) = terminal_cell_pixel_size();
+
+        p.feed(&mut g, b"\x1b[14t");
+        assert_eq!(
+            p.take_reply(),
+            format!("\x1b[4;{};{}t", 7 * cell_h, 33 * cell_w).into_bytes()
+        );
+        assert!(!g.contains("14t"));
+
+        p.feed(&mut g, b"\x1b[16t");
+        assert_eq!(p.take_reply(), format!("\x1b[6;{cell_h};{cell_w}t").into_bytes());
+        assert!(!g.contains("16t"));
+
         p.feed(&mut g, b"\x1b[18t");
         assert_eq!(p.take_reply(), b"\x1b[8;7;33t");
         assert!(!g.contains("18t"));
@@ -5614,10 +5644,10 @@ mod tests {
     fn unsupported_window_ops_are_only_consumed() {
         let mut g = Grid::new(2, 10);
         let mut p = VtParser::new();
-        p.feed(&mut g, b"\x1b[14tok");
+        p.feed(&mut g, b"\x1b[15tok");
         assert!(p.take_reply().is_empty());
         assert!(g.contains("ok"));
-        assert!(!g.contains("14t"));
+        assert!(!g.contains("15t"));
     }
 
     #[test]

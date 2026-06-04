@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Terminal answers pixel window-size probes**: xterm `14t` and `16t`
+  window-operation queries now report grid pixel size and character-cell pixel
+  size from Mighty's live terminal metrics, alongside the existing character
+  dimension replies.
 - **Terminal reports application keypad mode**: DEC keypad application/numeric
   mode now tracks `ESC =`, `ESC >`, and `CSI ?66 h/l`, and mode status queries
   report the current state instead of treating it as unknown.

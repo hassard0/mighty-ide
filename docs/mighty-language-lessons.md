@@ -9488,3 +9488,18 @@ still set and query them. DEC application keypad mode is one of those controls:
   consumed before the UI has a concrete input path, add state and query coverage
   anyway; otherwise "harmlessly consumed" sequences become false negatives for
   terminal apps that probe feature state.
+
+## L783 - Terminal Size Queries Need Pixel And Cell Answers
+
+Terminal applications do not only ask for row and column counts. Some also probe
+xterm window operations for pixel text-area size (`CSI 14 t`) and per-cell size
+(`CSI 16 t`) before choosing layouts or image protocols, so consuming those
+queries without a reply leaves them guessing.
+
+- **IDE note:** the terminal parser now answers `14t` with grid pixel
+  dimensions and `16t` with character-cell pixel dimensions derived from the
+  live Mighty layout metrics, while continuing to consume unsupported window
+  operations without leaking sequence bytes.
+- **Language note:** no compiler gap surfaced. Size-query tests should derive
+  expected values from the same layout helpers as the implementation, so future
+  font or line-height settings remain testable without hard-coded pixel drift.
