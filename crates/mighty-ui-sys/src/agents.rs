@@ -675,14 +675,110 @@ fn read_str_after(region: &[u8], key: &[u8]) -> Option<String> {
     }
     j += 1;
     let mut s = String::new();
-    while j < region.len() && region[j] != b'"' {
-        if region[j] == b'\\' && j + 1 < region.len() {
-            j += 1;
+    let mut segment_start = j;
+    let mut high_surrogate: Option<u16> = None;
+    while j < region.len() {
+        match region[j] {
+            b'"' => {
+                flush_json_segment(region, segment_start, j, &mut s, &mut high_surrogate)?;
+                push_pending_surrogate(&mut s, &mut high_surrogate);
+                return Some(s);
+            }
+            b'\\' if j + 1 < region.len() => {
+                flush_json_segment(region, segment_start, j, &mut s, &mut high_surrogate)?;
+                j += 1;
+                match region[j] {
+                    b'n' => push_escaped_char(&mut s, &mut high_surrogate, '\n'),
+                    b't' => push_escaped_char(&mut s, &mut high_surrogate, '\t'),
+                    b'r' => push_escaped_char(&mut s, &mut high_surrogate, '\r'),
+                    b'b' => push_escaped_char(&mut s, &mut high_surrogate, '\u{0008}'),
+                    b'f' => push_escaped_char(&mut s, &mut high_surrogate, '\u{000c}'),
+                    b'"' => push_escaped_char(&mut s, &mut high_surrogate, '"'),
+                    b'\\' => push_escaped_char(&mut s, &mut high_surrogate, '\\'),
+                    b'/' => push_escaped_char(&mut s, &mut high_surrogate, '/'),
+                    b'u' if j + 4 < region.len() => {
+                        let unit = read_hex4(&region[j + 1..j + 5])?;
+                        push_json_code_unit(&mut s, &mut high_surrogate, unit);
+                        j += 4;
+                    }
+                    other => push_escaped_char(&mut s, &mut high_surrogate, other as char),
+                }
+                j += 1;
+                segment_start = j;
+                continue;
+            }
+            _ => {
+                j += 1;
+                continue;
+            }
         }
-        s.push(region[j] as char);
-        j += 1;
     }
-    Some(s)
+    None
+}
+
+fn flush_json_segment(
+    bytes: &[u8],
+    start: usize,
+    end: usize,
+    out: &mut String,
+    high_surrogate: &mut Option<u16>,
+) -> Option<()> {
+    if start < end {
+        push_pending_surrogate(out, high_surrogate);
+        out.push_str(std::str::from_utf8(&bytes[start..end]).ok()?);
+    }
+    Some(())
+}
+
+fn read_hex4(bytes: &[u8]) -> Option<u16> {
+    if bytes.len() != 4 {
+        return None;
+    }
+    let mut value = 0u16;
+    for &b in bytes {
+        let digit = match b {
+            b'0'..=b'9' => b - b'0',
+            b'a'..=b'f' => b - b'a' + 10,
+            b'A'..=b'F' => b - b'A' + 10,
+            _ => return None,
+        };
+        value = (value << 4) | digit as u16;
+    }
+    Some(value)
+}
+
+fn push_escaped_char(out: &mut String, high_surrogate: &mut Option<u16>, ch: char) {
+    push_pending_surrogate(out, high_surrogate);
+    out.push(ch);
+}
+
+fn push_pending_surrogate(out: &mut String, high_surrogate: &mut Option<u16>) {
+    if high_surrogate.take().is_some() {
+        out.push('\u{fffd}');
+    }
+}
+
+fn push_json_code_unit(out: &mut String, high_surrogate: &mut Option<u16>, unit: u16) {
+    match unit {
+        0xd800..=0xdbff => {
+            push_pending_surrogate(out, high_surrogate);
+            *high_surrogate = Some(unit);
+        }
+        0xdc00..=0xdfff => {
+            if let Some(high) = high_surrogate.take() {
+                let high = (high as u32) - 0xd800;
+                let low = (unit as u32) - 0xdc00;
+                let cp = 0x10000 + ((high << 10) | low);
+                out.push(char::from_u32(cp).unwrap_or('\u{fffd}'));
+            } else {
+                out.push('\u{fffd}');
+            }
+        }
+        _ => {
+            push_pending_surrogate(out, high_surrogate);
+            out.push(char::from_u32(unit as u32).unwrap_or('\u{fffd}'));
+        }
+    }
 }
 
 #[cfg(test)]
@@ -850,6 +946,20 @@ fn main() {
         assert_eq!(s.agents[0].in_flight_handler, "Submit");
         assert_eq!(s.agents[1].agent_type, "agents_demo::Summarizer");
         assert_eq!(s.agents[1].in_flight_handler, "");
+    }
+
+    #[test]
+    fn parse_snapshot_decodes_unicode_agent_strings() {
+        let raw = r#"{"worker_count":1,"agents":[
+          {"agent_id":9,"agent_type":"agents_demo::東\u00e9\ud83d\ude00",
+           "mailbox_depth":1,"mailbox_high_water":2,
+           "in_flight_handler":"Submit_\u6771\ud83d\ude00 \ud83dX"}
+        ]}"#;
+        let s = parse_snapshot(raw).expect("snapshot");
+        assert_eq!(s.worker_count, 1);
+        assert_eq!(s.agents.len(), 1);
+        assert_eq!(s.agents[0].agent_type, "agents_demo::東é😀");
+        assert_eq!(s.agents[0].in_flight_handler, "Submit_東😀 �X");
     }
 
     #[test]
