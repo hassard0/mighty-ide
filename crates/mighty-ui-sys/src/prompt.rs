@@ -226,7 +226,7 @@ pub struct FindMatch {
     pub offset: usize,
     /// 0-based line of the match start.
     pub line: i32,
-    /// 0-based column (bytes since the previous '\n') of the match start.
+    /// 0-based character column of the match start.
     pub col: i32,
 }
 
@@ -235,9 +235,11 @@ pub struct FindMatch {
 /// Usage: [`reset`](FindState::reset), then [`push_byte`](FindState::push_byte)
 /// for each buffer byte, then [`run`](FindState::run) with the needle to compute
 /// the match list. Matches are reported in buffer order with their `(offset,
-/// line, col)`. The search is plain byte-substring (the editor buffer is a flat
-/// byte stream), case-sensitive, and finds **overlapping**-free, left-to-right
-/// non-overlapping matches (advance past each hit).
+/// line, col)`. Offsets are byte offsets, while columns are character offsets
+/// to match the editor cursor model. The search is plain byte-substring (the
+/// editor buffer is a flat byte stream), case-sensitive, and finds
+/// **overlapping**-free, left-to-right non-overlapping matches (advance past
+/// each hit).
 #[derive(Debug, Default)]
 pub struct FindState {
     buf: Vec<u8>,
@@ -288,18 +290,22 @@ impl FindState {
         self.matches.len() as i32
     }
 
-    /// 0-based (line, col) of byte offset `at` in the buffer.
+    /// 0-based (line, character-column) of byte offset `at` in the buffer.
     fn line_col_at(&self, at: usize) -> (i32, i32) {
         let mut line = 0i32;
-        let mut col = 0i32;
-        for &b in &self.buf[..at.min(self.buf.len())] {
+        let mut line_start = 0usize;
+        let end = at.min(self.buf.len());
+        for (i, &b) in self.buf[..end].iter().enumerate() {
             if b == b'\n' {
                 line += 1;
-                col = 0;
-            } else {
-                col += 1;
+                line_start = i + 1;
             }
         }
+
+        let line_bytes = &self.buf[line_start..end];
+        let col = std::str::from_utf8(line_bytes)
+            .map(|s| s.chars().count() as i32)
+            .unwrap_or(line_bytes.len() as i32);
         (line, col)
     }
 
@@ -585,6 +591,17 @@ mod tests {
         let m2 = f.get(2).unwrap();
         // line 1, after the leading 'x' -> col 1, offset 8 + 1 = 9
         assert_eq!((m2.line, m2.col, m2.offset), (1, 1, 9));
+    }
+
+    #[test]
+    fn find_unicode_columns_are_character_offsets() {
+        let text = "éé needle\nαβ café";
+        let f = search(text, "café");
+        assert_eq!(f.count(), 1);
+        let m = f.get(0).unwrap();
+        assert_eq!(m.line, 1);
+        assert_eq!(m.col, 3);
+        assert_eq!(m.offset, "éé needle\nαβ ".as_bytes().len());
     }
 
     #[test]
