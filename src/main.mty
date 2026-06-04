@@ -2950,6 +2950,14 @@ fn main() {
           } else if k == key_escape() {
             let _cc = mui_complete_cancel(h)
             completing = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if k == key_backspace() {
             let kmods = mui_event_mods(h)
             let changed = if ctrl_held(kmods) {
@@ -2967,6 +2975,14 @@ fn main() {
           } else {
             let _cc = mui_complete_cancel(h)
             completing = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         } else if tag == ev_mouse_down() {
           let c_line = mui_ed_cursor_line(h)
@@ -2989,6 +3005,14 @@ fn main() {
           } else {
             let _cc = mui_complete_cancel(h)
             completing = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         }
       } else if renaming {

@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Autocomplete local dismissals release stale focus**: suggestion Escape,
+  unhandled-key, and mouse-miss closes now clear stale surface/search focus
+  before returning keyboard input to the editor.
 - **Prompt local cancels release stale focus**: prompt Escape, close-button,
   and outside-click cancels now clear stale surface/search focus before
   returning keyboard input to the editor.

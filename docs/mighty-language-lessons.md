@@ -9328,3 +9328,16 @@ prompt cancellation.
 - **Language note:** no compiler gap surfaced. Reusing a source-slice contract
   works well for this class of route parity bug because each local event arm is
   small and structurally distinct from prompt Enter acceptance paths.
+
+## L772 - Autocomplete Dismissals Are Editor-Ownership Exits
+
+Autocomplete is editor-owned while it filters and accepts suggestions, but some
+local dismiss routes close the dropdown without editing. Those explicit exits
+should clear stale surface focus before normal editor input resumes.
+
+- **IDE note:** autocomplete Escape, unhandled-key, and mouse-miss dismissals
+  now release stale Run/Web/Testing/Terminal/AI/Agents/search focus plus
+  transient typing state before returning keyboard input to the editor.
+- **Language note:** no compiler gap surfaced. For mixed editor overlays, keep
+  filter/edit paths separate from pure dismiss paths when applying ownership
+  cleanup, because typed characters may need to preserve the active undo run.

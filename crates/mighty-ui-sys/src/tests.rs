@@ -12229,6 +12229,19 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         prompt_branch.matches(prompt_local_cleanup).count() >= 3,
         "Prompt local Escape, close-click, and outside-click cancels must release stale focus"
     );
+    let completion_start = main
+        .find("} else if completing {")
+        .expect("autocomplete branch should exist");
+    let completion_end = main[completion_start..]
+        .find("} else if renaming {")
+        .map(|i| completion_start + i)
+        .expect("autocomplete branch should precede rename branch");
+    let completion_branch = &main[completion_start..completion_end];
+    let completion_local_cleanup = "let _cc = mui_complete_cancel(h)\n            completing = false\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    assert!(
+        completion_branch.matches(completion_local_cleanup).count() >= 3,
+        "Autocomplete local Escape, unhandled-key, and mouse-miss dismissals must release stale focus"
+    );
     assert!(
         main.contains("id == cmd_markdown_close_preview()")
             && main.contains("let _mdc = mui_md_close(h)")
