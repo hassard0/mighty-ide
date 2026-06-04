@@ -506,11 +506,23 @@ impl TabStore {
     /// replaces it with an empty scratch tab. The active index is adjusted to
     /// stay in range and follow a sensible neighbor. Returns the new active idx.
     pub fn close(&mut self, idx: usize) -> usize {
+        self.close_inner(idx, true)
+    }
+
+    /// Close tab `idx` without making it recoverable through reopen-closed.
+    /// Used when the backing file itself was deleted.
+    pub fn close_forget(&mut self, idx: usize) -> usize {
+        self.close_inner(idx, false)
+    }
+
+    fn close_inner(&mut self, idx: usize, remember: bool) -> usize {
         if idx >= self.tabs.len() {
             return self.active;
         }
         let closed = self.tabs.remove(idx);
-        self.remember_closed(closed);
+        if remember {
+            self.remember_closed(closed);
+        }
         if self.tabs.is_empty() {
             self.tabs.push(Tab::default());
             self.active = 0;
@@ -1279,6 +1291,20 @@ mod tests {
         assert_eq!(s.active(), 1);
         assert_eq!(s.count(), 2);
         assert!(s.get(1).unwrap().basename().contains("tabs_reopen_b"));
+        assert_eq!(s.closed_count(), 0);
+        assert!(s.reopen_closed().is_none());
+    }
+
+    #[test]
+    fn close_forget_does_not_enter_reopen_history() {
+        let mut s = TabStore::new();
+        let a = write_tmp("tabs_close_forget_a.txt", b"a");
+        let b = write_tmp("tabs_close_forget_b.txt", b"b");
+        s.open_path(a);
+        let ib = s.open_path(b);
+
+        assert_eq!(s.close_forget(ib), 0);
+        assert_eq!(s.count(), 1);
         assert_eq!(s.closed_count(), 0);
         assert!(s.reopen_closed().is_none());
     }

@@ -2988,6 +2988,14 @@ fn active_file_delete_requires_exact_basename_confirmation() {
     assert_eq!(toast.kind, crate::toast::Kind::Success);
     assert_eq!(toast.message, "Deleted doomed.mty");
 
+    assert_eq!(crate::mui_tab_reopen_closed(handle), -1);
+    assert_eq!(ctx.tabs.count(), 2);
+    assert_eq!(ctx.tabs.active_path().unwrap(), keep);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No closed tab to reopen"
+    );
+
     let _ = std::fs::remove_dir_all(&root);
 }
 

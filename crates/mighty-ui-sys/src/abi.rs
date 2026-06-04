@@ -6265,7 +6265,11 @@ pub extern "C" fn mui_file_delete_active_confirm(handle: i64) -> i32 {
     match std::fs::remove_file(&path) {
         Ok(()) => {
             let idx = ctx.tabs.active();
-            let _ = close_tab_unchecked(ctx, idx);
+            ctx.pending_dirty_close = None;
+            let a = ctx.tabs.close_forget(idx);
+            ctx.panes.on_tab_closed(idx, ctx.tabs.count());
+            sync_active_path(ctx);
+            ensure_tab_visible(ctx, a);
             ctx.tree.refresh();
             let root = crate::wsabi::effective_root(ctx);
             let _ = ctx.quickopen.ensure_index(&root, true);
