@@ -8641,3 +8641,14 @@ should explain the empty state and let the user choose a different command.
 - **IDE note:** Open Recent now calls `mui_recent_empty` for the no-valid-recents
   path, producing `No recent files or folders` instead of falling through to the
   Open Folder typed-path prompt.
+
+## L721 - Dialog Labels Must Cover Every Picker-backed Entrypoint
+
+Command labels are part of the action contract. If a command opens a native
+picker, the palette should use the standard `...` convention consistently;
+otherwise `File: New File` reads like the instant scratch-tab action even though
+Ctrl+N opens the native path picker.
+
+- **IDE note:** `File: New File...` now matches the Open File, Save As, Open
+  Folder, and New Project dialog labels, while `File: New Untitled File` remains
+  the no-picker scratch-tab command.

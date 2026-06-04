@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **New File uses the dialog label everywhere**: the command registry and
+  command-label tests now show `File: New File...` for the Ctrl+N native picker
+  flow, while `File: New Untitled File` remains the instant scratch-tab action.
 - **Open Recent empty state is explicit**: when no valid recent files or folders
   remain after pruning, `File: Open Recent` now reports that directly instead of
   opening an unrelated Open Folder prompt.

@@ -442,7 +442,7 @@ pub const CMD_WINDOW_MINIMIZE: u32 = 98;
 /// The static command registry. Every action the editor exposes appears here
 /// with its keybinding label. Registry order is the default (empty-query) order.
 pub const COMMANDS: &[Command] = &[
-    Command { id: CMD_NEW_FILE,         label: "File: New File", keybinding: "Ctrl+N" },
+    Command { id: CMD_NEW_FILE,         label: "File: New File...", keybinding: "Ctrl+N" },
     Command { id: CMD_NEW_UNTITLED_FILE, label: "File: New Untitled File", keybinding: "" },
     Command { id: CMD_NEW_WORKSPACE_FILE, label: "Explorer: New File in Workspace", keybinding: "" },
     Command { id: CMD_NEW_FOLDER,       label: "Explorer: New Folder...",   keybinding: "Ctrl+Shift+N" },
@@ -1493,7 +1493,7 @@ mod tests {
             .find(|c| c.id == CMD_NEW_WORKSPACE_FILE)
             .expect("workspace new-file command should exist");
 
-        assert_eq!(file_dialog.label, "File: New File");
+        assert_eq!(file_dialog.label, "File: New File...");
         assert_eq!(file_dialog.keybinding, "Ctrl+N");
         assert_eq!(untitled.label, "File: New Untitled File");
         assert_eq!(untitled.keybinding, "");
@@ -1504,6 +1504,7 @@ mod tests {
     #[test]
     fn dialog_commands_use_standard_ellipsis_labels() {
         for (id, expected) in [
+            (CMD_NEW_FILE, "File: New File..."),
             (CMD_OPEN_FILE, "File: Open File..."),
             (CMD_SAVE_AS, "File: Save As..."),
             (CMD_OPEN_FOLDER, "File: Open Folder..."),
