@@ -226,6 +226,10 @@ impl Grid {
         }
     }
 
+    fn alternate_screen_active(&self) -> bool {
+        self.primary_screen.is_some()
+    }
+
     /// Clear all cells to blanks and home the cursor.
     pub fn clear(&mut self) {
         for c in &mut self.cells {
@@ -1041,6 +1045,8 @@ impl VtParser {
                     self.save_cursor(grid);
                 } else if b == b'u' {
                     self.restore_cursor(grid);
+                } else if b == b'p' {
+                    self.handle_mode_status_query(grid);
                 } else if b == b't' {
                     self.handle_window_ops(grid);
                 }
@@ -1556,6 +1562,41 @@ impl VtParser {
             ">" | ">0" => self.reply.extend_from_slice(b"\x1b[>0;0;0c"),
             _ => {}
         }
+    }
+
+    /// Answer DEC private mode status queries (`CSI ? Ps $ p`). The reply uses
+    /// xterm's `CSI ? Ps ; Pm $ y` form where `1` means set, `2` reset, and `0`
+    /// not recognized.
+    fn handle_mode_status_query(&mut self, grid: &Grid) {
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        let Some(mode) = params.strip_prefix('?').and_then(|s| s.strip_suffix('$')) else {
+            return;
+        };
+        if mode.is_empty() || mode.contains(';') {
+            return;
+        }
+
+        let status = match mode {
+            "1" => Some(self.application_cursor_keys),
+            "6" => Some(self.origin_mode),
+            "7" => Some(self.autowrap),
+            "25" => Some(self.cursor_visible),
+            "47" | "1047" | "1049" => Some(grid.alternate_screen_active()),
+            "1000" => Some(self.mouse_modes & MOUSE_MODE_BUTTON != 0),
+            "1002" => Some(self.mouse_modes & MOUSE_MODE_DRAG != 0),
+            "1003" => Some(self.mouse_modes & MOUSE_MODE_ANY != 0),
+            "1004" => Some(self.focus_reporting),
+            "1006" => Some(self.sgr_mouse),
+            "2004" => Some(self.bracketed_paste),
+            _ => None,
+        };
+        let status_code = match status {
+            Some(true) => 1,
+            Some(false) => 2,
+            None => 0,
+        };
+        let report = format!("\x1b[?{mode};{status_code}$y");
+        self.reply.extend_from_slice(report.as_bytes());
     }
 
     /// Answer xterm window-operation size queries. `18t` asks for the terminal
@@ -3667,6 +3708,55 @@ mod tests {
 
         p.feed(&mut g, b"\x1b[>0c");
         assert_eq!(p.take_reply(), b"\x1b[>0;0;0c");
+    }
+
+    #[test]
+    fn private_mode_status_queries_report_tracked_state() {
+        let mut g = Grid::new(2, 10);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b[?2004$p");
+        assert_eq!(p.take_reply(), b"\x1b[?2004;2$y");
+
+        p.feed(&mut g, b"\x1b[?2004h\x1b[?2004$p");
+        assert_eq!(p.take_reply(), b"\x1b[?2004;1$y");
+        assert!(p.bracketed_paste_enabled());
+
+        p.feed(&mut g, b"\x1b[?1004h\x1b[?1004$p\x1b[?25l\x1b[?25$p");
+        assert_eq!(p.take_reply(), b"\x1b[?1004;1$y\x1b[?25;2$y");
+        assert!(p.focus_reporting_enabled());
+        assert!(!p.cursor_visible());
+        assert!(!g.contains("2004"));
+        assert!(!g.contains("1004"));
+        assert!(!g.contains("25"));
+    }
+
+    #[test]
+    fn private_mode_status_queries_report_mouse_and_alternate_modes() {
+        let mut g = Grid::new(2, 10);
+        let mut p = VtParser::new();
+        p.feed(
+            &mut g,
+            b"\x1b[?1000h\x1b[?1006h\x1b[?1049h\x1b[?1000$p\x1b[?1006$p\x1b[?1049$p",
+        );
+        assert_eq!(p.take_reply(), b"\x1b[?1000;1$y\x1b[?1006;1$y\x1b[?1049;1$y");
+
+        p.feed(&mut g, b"\x1b[?1000l\x1b[?1049l\x1b[?1000$p\x1b[?1049$p");
+        assert_eq!(p.take_reply(), b"\x1b[?1000;2$y\x1b[?1049;2$y");
+    }
+
+    #[test]
+    fn private_mode_status_unknown_and_malformed_queries_are_safe() {
+        let mut g = Grid::new(2, 20);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b[?9999$pok");
+        assert_eq!(p.take_reply(), b"\x1b[?9999;0$y");
+        assert!(g.contains("ok"));
+        assert!(!g.contains("9999"));
+
+        p.feed(&mut g, b"\x1b[?1;2$pdone");
+        assert!(p.take_reply().is_empty());
+        assert!(g.contains("done"));
+        assert!(!g.contains("1;2"));
     }
 
     #[test]
