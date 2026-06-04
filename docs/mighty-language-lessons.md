@@ -9413,3 +9413,17 @@ must release stale focus even when the selected command runs later in the frame.
 - **Language note:** no compiler gap surfaced. Palette-style overlays can both
   close local UI and enqueue a deferred command, so ownership cleanup belongs at
   the local close point, not only inside the eventual command branch.
+
+## L778 - Focused Side Panels Have Local Escape Routes
+
+Search and Source Control can own keyboard input directly after their panels
+are focused. Escape does not go through the command dispatcher there; it locally
+switches back to Explorer, so it also needs to return ownership before editor or
+sidebar input resumes.
+
+- **IDE note:** focused Search and Source Control Escape-to-Explorer routes now
+  release stale Run/Web/Testing/Terminal/AI/Agents focus, search navigation, and
+  transient typing state before returning keyboard input.
+- **Language note:** no compiler gap surfaced. Focused side panels have local
+  input branches just like overlays; source contracts should slice those
+  branches separately from command-dispatched open and close actions.

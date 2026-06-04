@@ -12272,6 +12272,34 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && code_action_branch.contains(local_editor_cleanup_outer),
         "Code Actions local apply, Escape, printed-char, and mouse exits must release stale focus"
     );
+    let search_focus_start = main
+        .find("} else if mui_panel_active(h) == panel_search() && tag != ev_mouse_down() {")
+        .expect("focused Search panel branch should exist");
+    let search_focus_end = main[search_focus_start..]
+        .find("} else if mui_panel_active(h) == panel_scm() && tag != ev_mouse_down() {")
+        .map(|i| search_focus_start + i)
+        .expect("focused Search panel branch should precede SCM focus branch");
+    let search_focus_branch = &main[search_focus_start..search_focus_end];
+    assert!(
+        search_focus_branch.contains(
+            "let _p = mui_panel_set(h, panel_explorer())\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false"
+        ),
+        "Focused Search panel Escape must release stale focus"
+    );
+    let scm_focus_start = main
+        .find("} else if mui_panel_active(h) == panel_scm() && tag != ev_mouse_down() {")
+        .expect("focused Source Control branch should exist");
+    let scm_focus_end = main[scm_focus_start..]
+        .find("} else if tag == ev_char()")
+        .map(|i| scm_focus_start + i)
+        .expect("focused Source Control branch should precede editor char branch");
+    let scm_focus_branch = &main[scm_focus_start..scm_focus_end];
+    assert!(
+        scm_focus_branch.contains(
+            "let _p = mui_panel_set(h, panel_explorer())\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false"
+        ),
+        "Focused Source Control Escape must release stale focus"
+    );
     let peek_start = main
         .find("if mui_peek_active(h) == 1 {")
         .expect("peek key branch should exist");

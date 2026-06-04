@@ -3382,6 +3382,14 @@ fn main() {
             }
           } else if k == key_escape() {
             let _p = mui_panel_set(h, panel_explorer())
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         }
       } else if mui_panel_active(h) == panel_scm() && tag != ev_mouse_down() {
@@ -3400,6 +3408,14 @@ fn main() {
             if ok == 1 { log("mighty-ide: committed") }
           } else if k == key_escape() {
             let _p = mui_panel_set(h, panel_explorer())
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         }
       } else if tag == ev_char() {
