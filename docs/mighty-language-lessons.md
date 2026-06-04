@@ -8357,3 +8357,13 @@ when the action sits next to the run status in the visible bottom band.
   that routes through the existing clear ABI without stopping the process or
   resetting status. The Mighty loop checks that header action before output-row
   navigation, with tests covering the visible hit target and dispatcher order.
+
+L695. Web Playground output should be clearable where the transcript is shown.
+The palette command preserves the running server and URL, but the visible panel
+needs the same cleanup affordance as Run so noisy build logs can be reset in
+place.
+
+- **IDE note:** the Web Playground header now has a compact clear-output button
+  beside the existing run/stop/open controls. The Web click ABI returns a
+  dedicated clear code, Mighty routes it through `mui_web_clear`, and tests cover
+  hit/miss behavior plus dispatcher wiring while preserving the command path.

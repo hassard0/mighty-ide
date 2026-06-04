@@ -1306,6 +1306,49 @@ fn web_clear_output_reports_feedback_and_preserves_url() {
 }
 
 #[test]
+fn web_header_clear_action_hits_visible_button() {
+    use crate::ffi::{MuiEvent, MUI_EVENT_MOUSE_DOWN, MUI_MOUSE_LEFT};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    ctx.gpu.phys_width = 900;
+    ctx.gpu.phys_height = 700;
+    ctx.web.seed_demo("examples/webspin/src/main.mty");
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let (x, y, w, hrect) =
+        crate::webabi::web_header_clear_rect(&mut ctx).expect("clear button should fit");
+
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect * 0.5,
+        0,
+    );
+    assert_eq!(crate::webabi::mui_web_click(handle), crate::webabi::WEB_CLICK_CLEAR);
+
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect + 12.0,
+        0,
+    );
+    assert_eq!(crate::webabi::mui_web_click(handle), crate::webabi::WEB_CLICK_NONE);
+
+    ctx.web.close();
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        x + w * 0.5,
+        y + hrect * 0.5,
+        0,
+    );
+    assert_eq!(crate::webabi::mui_web_click(handle), crate::webabi::WEB_CLICK_NONE);
+}
+
+#[test]
 fn web_close_command_acknowledges_state_without_clearing_output_or_url() {
     let mut ctx = ctx_or_skip!();
     ctx.web.seed_demo("examples/webspin/src/main.mty");
@@ -10473,6 +10516,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _wc = mui_web_clear(h)")
             && main.contains("web_focus = true"),
         "Web clear-output command must reveal Web Playground before clearing output"
+    );
+    assert!(
+        main.contains("web_header_click == 4")
+            && main.contains("wc == 4")
+            && main.contains("let _wc = mui_web_clear(h)"),
+        "Web header clear clicks must route through the Web clear-output ABI"
     );
     assert!(
         main.contains("id == cmd_web_close()")

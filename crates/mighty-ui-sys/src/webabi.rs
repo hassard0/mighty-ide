@@ -286,11 +286,12 @@ pub extern "C" fn mui_web_scroll(handle: i64, delta: i32) {
 
 /// Map the last click to a Web-panel click code: `-1` none, `1` the "Stop
 /// server" button, `2` the "Open in browser" pill (the URL), `3` the Run
-/// button. The IDE dispatches the action.
+/// button, `4` the Clear Output button. The IDE dispatches the action.
 pub const WEB_CLICK_NONE: i32 = -1;
 pub const WEB_CLICK_STOP: i32 = 1;
 pub const WEB_CLICK_OPEN: i32 = 2;
 pub const WEB_CLICK_RUN: i32 = 3;
+pub const WEB_CLICK_CLEAR: i32 = 4;
 
 #[no_mangle]
 pub extern "C" fn mui_web_click(handle: i64) -> i32 {
@@ -304,6 +305,11 @@ pub extern "C" fn mui_web_click(handle: i64) -> i32 {
     let g = web_geom(ctx);
     // Hit-test the header action buttons (right-aligned).
     if y >= g.y0 && y <= g.y0 + g.header_h {
+        if let Some(r) = g.clear_btn {
+            if x >= r.0 && x <= r.0 + r.2 && y >= r.1 && y <= r.1 + r.3 {
+                return WEB_CLICK_CLEAR;
+            }
+        }
         if let Some(r) = g.run_btn {
             if x >= r.0 && x <= r.0 + r.2 && y >= r.1 && y <= r.1 + r.3 {
                 crate::abi::trace("web_click run");
@@ -338,6 +344,8 @@ struct WebGeom {
     stop_icon_only: bool,
     /// (x, y, w, h) of the Run button, when idle.
     run_btn: Option<(f32, f32, f32, f32)>,
+    /// (x, y, w, h) of the Clear Output button.
+    clear_btn: Option<(f32, f32, f32, f32)>,
     /// (x, y, w, h) of the Open-in-browser pill, when a URL exists.
     open_btn: Option<(f32, f32, f32, f32)>,
 }
@@ -370,9 +378,10 @@ fn web_geom(ctx: &mut MuiContext) -> WebGeom {
     let y0 = layout::term_panel_top(h);
     let header_h = layout::term_header_h();
     let x1 = w;
-    // Right-aligned header buttons: [Stop] then the URL pill. Keep the action
-    // zone from invading the left label area in compact panes; the URL pill can
-    // shrink, and disappears if there is not enough room for a useful target.
+    // Right-aligned header buttons: [Clear], [Stop/Run], then the URL pill.
+    // Keep the action zone from invading the left label area in compact panes;
+    // the URL pill can shrink, and disappears if there is not enough room for a
+    // useful target.
     let chrome = theme::CHROME_FONT_SIZE;
     let btn_h = 18.0;
     let by = y0 + (header_h - btn_h) * 0.5;
@@ -382,7 +391,15 @@ fn web_geom(ctx: &mut MuiContext) -> WebGeom {
     let mut stop_btn = None;
     let mut stop_icon_only = false;
     let mut run_btn = None;
+    let mut clear_btn = None;
     let mut open_btn = None;
+    let clear_w = 28.0;
+    let min_clear_x = region.left + 96.0;
+    if cursor - clear_w >= min_clear_x {
+        cursor -= clear_w;
+        clear_btn = Some((cursor, by, clear_w, btn_h));
+        cursor -= 8.0;
+    }
     if ctx.web.is_running() {
         let min_stop_x = region.left + 96.0;
         let stop_label_w = ctx.text.measure_ui_sized("Stop", chrome - 2.0).0;
@@ -419,8 +436,14 @@ fn web_geom(ctx: &mut MuiContext) -> WebGeom {
         stop_btn,
         stop_icon_only,
         run_btn,
+        clear_btn,
         open_btn,
     }
+}
+
+#[cfg(test)]
+pub(crate) fn web_header_clear_rect(ctx: &mut MuiContext) -> Option<(f32, f32, f32, f32)> {
+    web_geom(ctx).clear_btn
 }
 
 /// Draw the Web Playground as a lower band: header (globe icon + "WEB" + the
@@ -473,7 +496,7 @@ pub extern "C" fn mui_web_draw(handle: i64) {
         Mode::Build => "wasm32-web + static",
         Mode::Idle => "",
     };
-    let text_right = [g.open_btn, g.stop_btn]
+    let text_right = [g.open_btn, g.stop_btn, g.run_btn, g.clear_btn]
         .into_iter()
         .flatten()
         .map(|r| r.0)
@@ -522,6 +545,22 @@ pub extern "C" fn mui_web_draw(handle: i64) {
         } else {
             ctx.text.queue_ui_sized(bx + 10.0, by + 3.0, "Stop", theme::ERROR(), chrome - 2.0, clip);
         }
+    }
+
+    // Clear output button: preserves the active server/build state and URL.
+    if let Some((bx, by, bw, bh)) = g.clear_btn {
+        ctx.dl_round(bx, by, bw, bh, 6.0, theme::BG_4());
+        ctx.dl_stroke(bx, by, bw, bh, 6.0, theme::BORDER_SOFT(), 1.0);
+        ctx.dl_icon(
+            bx + (bw - 12.0) * 0.5,
+            by + (bh - 12.0) * 0.5,
+            12.0,
+            12.0,
+            icons::TRASH,
+            theme::TEXT_3(),
+            1.4,
+            false,
+        );
     }
 
     // Run button (when idle): lets the Web panel start a session without leaving
