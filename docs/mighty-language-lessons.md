@@ -7886,3 +7886,13 @@ position is the top margin of the scroll region, not absolute screen row 1.
   and `VtParser` rehomes to origin-mode row 1 only after an accepted update.
   Regression coverage verifies valid DECOM margin changes land at the top margin
   and invalid margins do not move the cursor.
+
+L649. Cursor save/restore includes rendition state. DEC `ESC 7`/`ESC 8`, CSI
+`s`/`u`, and private `?1048` save/restore flows are expected to restore the
+active SGR colors along with row and column, so a TUI can temporarily change
+colors and return to the prior drawing style.
+
+- **IDE note:** saved cursor state now records foreground and background color
+  alongside the cursor coordinates. Regression coverage verifies DEC, CSI, and
+  private cursor restore forms reinstate the saved colors before subsequent text
+  is drawn.

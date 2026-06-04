@@ -645,6 +645,14 @@ enum State {
     StringEsc,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct SavedCursor {
+    row: usize,
+    col: usize,
+    fg: u32,
+    bg: u32,
+}
+
 /// A minimal VT/ANSI parser that drives a [`Grid`].
 #[derive(Debug)]
 pub struct VtParser {
@@ -661,8 +669,8 @@ pub struct VtParser {
     /// Report reply to `ESC [ 6 n`). ConPTY blocks further output until the DSR
     /// it emits at startup is answered, so the terminal must drain + send these.
     reply: Vec<u8>,
-    /// Saved cursor position used by DEC `ESC 7`/`ESC 8` and CSI `s`/`u`.
-    saved_cursor: Option<(usize, usize)>,
+    /// Saved cursor state used by DEC `ESC 7`/`ESC 8` and CSI `s`/`u`.
+    saved_cursor: Option<SavedCursor>,
     /// Last graphic cell written by printable output, used by REP (`CSI Ps b`).
     last_graphic: Option<Cell>,
     /// Whether the running app asked for bracketed paste (`CSI ?2004 h`).
@@ -1462,12 +1470,20 @@ impl VtParser {
     }
 
     fn save_cursor(&mut self, grid: &Grid) {
-        self.saved_cursor = Some(grid.cursor());
+        let (row, col) = grid.cursor();
+        self.saved_cursor = Some(SavedCursor {
+            row,
+            col,
+            fg: grid.cur_fg,
+            bg: grid.cur_bg,
+        });
     }
 
     fn restore_cursor(&mut self, grid: &mut Grid) {
-        if let Some((row, col)) = self.saved_cursor {
-            grid.move_cursor_1_based(row + 1, col + 1);
+        if let Some(saved) = self.saved_cursor {
+            grid.move_cursor_1_based(saved.row + 1, saved.col + 1);
+            grid.cur_fg = saved.fg;
+            grid.cur_bg = saved.bg;
         }
     }
 
@@ -2811,6 +2827,34 @@ mod tests {
         assert_eq!(g2.cell(1, 5).ch, 'b');
         assert!(!g2.contains("[s"));
         assert!(!g2.contains("[u"));
+    }
+
+    #[test]
+    fn cursor_save_restore_sequences_restore_sgr_colors() {
+        let g = grid_feed(1, 8, b"\x1b[31mA\x1b7\x1b[32mB\x1b8C");
+        assert_eq!(g.cell(0, 0).ch, 'A');
+        assert_eq!(g.cell(0, 0).fg, 1);
+        assert_eq!(g.cell(0, 1).ch, 'C');
+        assert_eq!(g.cell(0, 1).fg, 1);
+
+        let g2 = grid_feed(1, 8, b"\x1b[44mA\x1b[s\x1b[45mB\x1b[uC");
+        assert_eq!(g2.cell(0, 0).ch, 'A');
+        assert_eq!(g2.cell(0, 0).bg, 4);
+        assert_eq!(g2.cell(0, 1).ch, 'C');
+        assert_eq!(g2.cell(0, 1).bg, 4);
+
+        let g3 = grid_feed(
+            1,
+            8,
+            b"\x1b[33;46mA\x1b[?1048h\x1b[31;44mB\x1b[?1048lC",
+        );
+        assert_eq!(g3.cell(0, 0).ch, 'A');
+        assert_eq!(g3.cell(0, 0).fg, 3);
+        assert_eq!(g3.cell(0, 0).bg, 6);
+        assert_eq!(g3.cell(0, 1).ch, 'C');
+        assert_eq!(g3.cell(0, 1).fg, 3);
+        assert_eq!(g3.cell(0, 1).bg, 6);
+        assert!(!g3.contains("1048"));
     }
 
     #[test]
