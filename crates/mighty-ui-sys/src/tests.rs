@@ -10665,14 +10665,16 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Agents close command must use the Agents-specific close ABI and release Agents focus"
     );
     assert!(
-        main.contains("id == cmd_run_stop()")
-            && main.contains("let _rst = mui_run_stop(h)")
+        main.contains(
+            "id == cmd_run_stop() {\n          let _ro = mui_run_open(h)\n          let _rst = mui_run_stop(h)"
+        )
             && main.contains("run_focus = true"),
-        "Run stop command must report stop state while keeping Run focused"
+        "Run stop command must reveal Run before reporting stop state"
     );
     assert!(
-        main.contains("id == cmd_run_clear_output()")
-            && main.contains("let _rc = mui_run_clear(h)")
+        main.contains(
+            "id == cmd_run_clear_output() {\n          let _ro = mui_run_open(h)\n          let _rc = mui_run_clear(h)"
+        )
             && main.contains("run_focus = true"),
         "Run clear-output command must reveal Run before clearing rendered output"
     );
@@ -10771,14 +10773,16 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Debug breakpoint inventory wheel events must route through the breakpoint scroll ABI"
     );
     assert!(
-        main.contains("id == cmd_test_stop()")
-            && main.contains("let _ts = mui_test_stop(h)")
+        main.contains(
+            "id == cmd_test_stop() {\n          let _vp = mui_panel_set(h, panel_test())\n          let _ts = mui_test_stop(h)"
+        )
             && main.contains("test_focus = true"),
-        "Test stop command must report stop state while keeping Testing focused"
+        "Test stop command must reveal Testing before reporting stop state"
     );
     assert!(
-        main.contains("id == cmd_test_clear_results()")
-            && main.contains("let _tc = mui_test_clear(h)")
+        main.contains(
+            "id == cmd_test_clear_results() {\n          let _vp = mui_panel_set(h, panel_test())\n          let _tc = mui_test_clear(h)"
+        )
             && main.contains("test_focus = true"),
         "Test clear-results command must reveal Testing before clearing parsed results"
     );
@@ -10797,14 +10801,16 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Test close command must use the Testing-specific close ABI and release Testing focus"
     );
     assert!(
-        main.contains("id == cmd_web_stop()")
-            && main.contains("let _wst = mui_web_stop(h)")
+        main.contains(
+            "id == cmd_web_stop() {\n          let _wo = mui_web_open(h)\n          let _wst = mui_web_stop(h)"
+        )
             && main.contains("web_focus = true"),
-        "Web stop command must report stop state while keeping Web Playground focused"
+        "Web stop command must reveal Web Playground before reporting stop state"
     );
     assert!(
-        main.contains("id == cmd_web_clear_output()")
-            && main.contains("let _wc = mui_web_clear(h)")
+        main.contains(
+            "id == cmd_web_clear_output() {\n          let _wo = mui_web_open(h)\n          let _wc = mui_web_clear(h)"
+        )
             && main.contains("web_focus = true"),
         "Web clear-output command must reveal Web Playground before clearing output"
     );

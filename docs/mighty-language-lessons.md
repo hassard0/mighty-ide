@@ -8513,3 +8513,14 @@ looking at another dock owner or a closed terminal.
   `mui_term_clear`. Mighty then derives terminal focus from the open state, so a
   successful clear lands on the integrated Terminal and open failures still
   report through the terminal ABI.
+
+## L709 - Output Lifecycle Commands Should Reveal Output Surfaces
+
+Stop and clear actions are lifecycle mutations for concrete output surfaces.
+When they are triggered from the palette, the user should land on the Run,
+Testing, or Web panel that will show the stopped, idle, or cleared state.
+
+- **IDE note:** Run stop/clear now call `mui_run_open` before their action,
+  Testing stop/clear reveals the Testing panel with `mui_panel_set`, and Web
+  stop/clear calls `mui_web_open` first. The existing focus flags then preserve
+  the owning surface for follow-up keyboard and mouse interaction.

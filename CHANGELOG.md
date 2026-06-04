@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Run, Testing, and Web lifecycle commands reveal their panels**: palette
+  Stop and Clear commands now open the affected Run output, Testing, or Web
+  Playground surface before mutating it, making stop/clear feedback visible.
 - **Terminal clear reveals the buffer first**: `Terminal: Clear Buffer` now
   opens the integrated Terminal before clearing, so palette cleanup happens on
   the same visible surface as the local header action.

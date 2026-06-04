@@ -4513,10 +4513,12 @@ fn main() {
           run_focus = true
           agents_focus = false
         } else if id == cmd_run_stop() {
+          let _ro = mui_run_open(h)
           let _rst = mui_run_stop(h)
           run_focus = true
           agents_focus = false
         } else if id == cmd_run_clear_output() {
+          let _ro = mui_run_open(h)
           let _rc = mui_run_clear(h)
           run_focus = true
           web_focus = false
@@ -4549,10 +4551,12 @@ fn main() {
           test_focus = true
           agents_focus = false
         } else if id == cmd_test_stop() {
+          let _vp = mui_panel_set(h, panel_test())
           let _ts = mui_test_stop(h)
           test_focus = true
           agents_focus = false
         } else if id == cmd_test_clear_results() {
+          let _vp = mui_panel_set(h, panel_test())
           let _tc = mui_test_clear(h)
           test_focus = true
           run_focus = false
@@ -4591,6 +4595,7 @@ fn main() {
           web_focus = true
           agents_focus = false
         } else if id == cmd_web_stop() {
+          let _wo = mui_web_open(h)
           let _wst = mui_web_stop(h)
           web_focus = true
           agents_focus = false
@@ -4599,6 +4604,7 @@ fn main() {
           web_focus = true
           agents_focus = false
         } else if id == cmd_web_clear_output() {
+          let _wo = mui_web_open(h)
           let _wc = mui_web_clear(h)
           web_focus = true
           run_focus = false
