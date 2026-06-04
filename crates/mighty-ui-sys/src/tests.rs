@@ -10763,6 +10763,27 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         ),
         "AI: Dismiss Ghost Completion must clear the inline suggestion without accepting it and release stale focus"
     );
+    for marker in [
+        "} else if id == cmd_autocomplete()",
+        "} else if id == cmd_jump_back()",
+        "} else if id == cmd_zoom_in()",
+        "} else if id == cmd_zoom_out()",
+        "} else if id == cmd_zoom_reset()",
+    ] {
+        let start = main
+            .find(marker)
+            .unwrap_or_else(|| panic!("missing editor-return command branch `{marker}`"));
+        let tail = &main[start..];
+        let end = tail[1..]
+            .find("\n        } else if id ==")
+            .map(|p| p + 1)
+            .unwrap_or(tail.len());
+        let branch = &tail[..end];
+        assert!(
+            branch.contains(close_focus_cleanup),
+            "editor-return command branch `{marker}` must release stale focus"
+        );
+    }
     assert!(
         main.contains(
             "id == cmd_snippet_cancel() {\n          let _snc = mui_snippet_cancel(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"

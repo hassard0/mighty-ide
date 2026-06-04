@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Autocomplete, Jump Back, and Zoom release stale focus**: editor-returning
+  palette commands for suggestions, navigation history, and zoom now clear stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus before returning keyboard input
+  to the editor.
 - **Transient close commands release stale focus**: Find & Replace, Hover,
   Signature Help, Rename, Code Actions, prompt, autocomplete, dirty-confirm,
   Git branch picker, breadcrumb menu, Command Palette, Quick Open, and Peek

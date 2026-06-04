@@ -9075,3 +9075,17 @@ and editor-operation commands.
 - **Language note:** no compiler gap surfaced. This is more duplicated scalar
   state management in the command dispatcher, reinforcing the need for reusable
   command focus-effect metadata.
+
+## L754 - Small Editor-Return Commands Still Need Ownership
+
+Commands that feel cosmetic or auxiliary can still decide the next keyboard
+owner. Autocomplete, Jump Back, and Zoom all return interaction to the editor
+surface, so they must release stale panel/search focus just like larger edit and
+navigation commands.
+
+- **IDE note:** Autocomplete, Jump Back, Zoom In, Zoom Out, and Reset Zoom now
+  clear stale Run/Web/Testing/Terminal/AI/Agents/search focus. Source-contract
+  coverage pins these editor-return command branches.
+- **Language note:** no compiler gap surfaced. The repeated fix again points at
+  the missing command focus-effect table: small commands are easy to overlook
+  when every branch hand-writes scalar state transitions.

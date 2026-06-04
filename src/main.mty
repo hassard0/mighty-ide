@@ -5161,6 +5161,13 @@ fn main() {
           mui_snippet_inject_completions(h)
           let cnt = mui_complete_count(h)
           if cnt > 0 { completing = true } else { let _cc = mui_complete_cancel(h); let _ce = mui_complete_report_empty(h) }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_autocomplete_close() {
           let _cc = mui_complete_cancel(h)
           completing = false
@@ -5237,6 +5244,13 @@ fn main() {
           } else {
             mui_toast(h, 0, 10)
           }
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_quit() {
           if mui_quit_request(h) == 1 {
             running = false
@@ -5322,12 +5336,33 @@ fn main() {
         } else if id == cmd_zoom_in() {
           let _zi = mui_zoom_in(h)
           typing = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_zoom_out() {
           let _zo = mui_zoom_out(h)
           typing = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_zoom_reset() {
           let _zr = mui_zoom_reset(h)
           typing = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_run_tests() {
           let _t = mui_test_run(h)
           test_focus = true
