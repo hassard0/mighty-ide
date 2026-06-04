@@ -7,9 +7,10 @@
 //! * [`Grid`] — a rows×cols matrix of [`Cell`]s (codepoint + fg color) plus a
 //!   cursor; the only stateful UI surface, drawn shim-side.
 //! * [`VtParser`] — a deliberately small VT/ANSI interpreter that feeds bytes
-//!   into the grid: printable UTF-8, `\n`/`\r`/`\b`/`\t`, and SGR color escapes
-//!   (`ESC [ … m`). Other CSI/OSC sequences are consumed (skipped) so they never
-//!   corrupt the grid. This is NOT a full xterm — just enough to run a shell.
+//!   into the grid: printable UTF-8, common C0/C1 controls, SGR colors, cursor
+//!   movement, erase/scroll/editing CSI sequences, and terminal query replies.
+//!   Unsupported CSI/OSC/string sequences are consumed so they never corrupt the
+//!   grid. This is NOT a full xterm — just enough to run a shell.
 //! * [`Terminal`] — spawns a real shell with `portable-pty` (ConPTY on Windows),
 //!   pumps its output on a background thread into a shared byte buffer, and on
 //!   [`Terminal::pump`] drains that buffer through the parser into the grid.
@@ -419,9 +420,7 @@ impl Grid {
         }
     }
 
-    /// Write a printable char at the cursor, honoring the current autowrap mode.
-    /// Control chars are NOT handled here.
-    fn put_char_autowrap(&mut self, ch: char, autowrap: bool) {
+    fn put_cell_autowrap(&mut self, cell: Cell, autowrap: bool) {
         if self.cur_col >= self.cols {
             if autowrap {
                 // Wrap before writing.
@@ -431,11 +430,7 @@ impl Grid {
             }
         }
         let idx = self.cur_row * self.cols + self.cur_col;
-        self.cells[idx] = Cell {
-            ch,
-            fg: self.cur_fg,
-            bg: self.cur_bg,
-        };
+        self.cells[idx] = cell;
         if autowrap {
             self.cur_col += 1;
         } else {
@@ -600,10 +595,9 @@ impl Grid {
     }
 }
 
-/// Parser state machine. The VT parser is intentionally tiny: it recognizes a
-/// handful of control bytes and the `ESC [ … m` (SGR) escape; every other
-/// escape (CSI ending in a non-`m` final byte, or an OSC `ESC ] … BEL/ST`) is
-/// consumed without touching the grid.
+/// Parser state machine for the shell-focused subset of VT/xterm control bytes
+/// this terminal supports. Unknown CSI/OSC/string sequences are consumed without
+/// touching the grid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum State {
     /// Normal: bytes are decoded as UTF-8 and printed (or handled as controls).
@@ -644,6 +638,8 @@ pub struct VtParser {
     reply: Vec<u8>,
     /// Saved cursor position used by DEC `ESC 7`/`ESC 8` and CSI `s`/`u`.
     saved_cursor: Option<(usize, usize)>,
+    /// Last graphic cell written by printable output, used by REP (`CSI Ps b`).
+    last_graphic: Option<Cell>,
     /// Whether the running app asked for bracketed paste (`CSI ?2004 h`).
     bracketed_paste: bool,
     /// Whether the terminal cursor should be drawn (`CSI ?25 h/l`).
@@ -678,6 +674,7 @@ impl VtParser {
             utf8_need: 0,
             reply: Vec::new(),
             saved_cursor: None,
+            last_graphic: None,
             bracketed_paste: false,
             cursor_visible: true,
             cursor_shape: CursorShape::Block,
@@ -770,7 +767,7 @@ impl VtParser {
             b'\t' => grid.tab(),
             0x07 => {} // BEL: ignore
             0x00..=0x06 | 0x0b..=0x1a | 0x1c..=0x1f => {} // other C0: ignore
-            0x20..=0x7e => grid.put_char_autowrap(b as char, self.autowrap), // printable ASCII
+            0x20..=0x7e => self.print_char(grid, b as char), // printable ASCII
             0xc0..=0xdf => {
                 self.utf8.clear();
                 self.utf8.push(b);
@@ -794,13 +791,24 @@ impl VtParser {
     fn flush_utf8(&mut self, grid: &mut Grid) {
         match std::str::from_utf8(&self.utf8) {
             Ok(s) => {
-                for ch in s.chars() {
-                    grid.put_char_autowrap(ch, self.autowrap);
+                let chars: Vec<char> = s.chars().collect();
+                for ch in chars {
+                    self.print_char(grid, ch);
                 }
             }
-            Err(_) => grid.put_char_autowrap('\u{fffd}', self.autowrap), // replacement char
+            Err(_) => self.print_char(grid, '\u{fffd}'), // replacement char
         }
         self.utf8.clear();
+    }
+
+    fn print_char(&mut self, grid: &mut Grid, ch: char) {
+        let cell = Cell {
+            ch,
+            fg: grid.cur_fg,
+            bg: grid.cur_bg,
+        };
+        grid.put_cell_autowrap(cell, self.autowrap);
+        self.last_graphic = Some(cell);
     }
 
     /// Just saw ESC: decide CSI / OSC / single-char escape.
@@ -935,6 +943,8 @@ impl VtParser {
                     self.erase_chars(grid);
                 } else if b == b'Z' {
                     self.cursor_backward_tab(grid);
+                } else if b == b'b' {
+                    self.repeat_previous_graphic(grid);
                 } else if b == b'g' {
                     self.clear_tab_stop(grid);
                 } else if b == b'h' || b == b'l' {
@@ -1205,6 +1215,7 @@ impl VtParser {
 
     fn reset_modes(&mut self) {
         self.saved_cursor = None;
+        self.last_graphic = None;
         self.bracketed_paste = false;
         self.cursor_visible = true;
         self.cursor_shape = CursorShape::Block;
@@ -1316,6 +1327,26 @@ impl VtParser {
             b'C' | b'a' => grid.move_cursor_relative(0, amount),
             b'D' | b'j' => grid.move_cursor_relative(0, -amount),
             _ => {}
+        }
+    }
+
+    fn repeat_previous_graphic(&mut self, grid: &mut Grid) {
+        let Some(cell) = self.last_graphic else {
+            return;
+        };
+        let params = std::str::from_utf8(&self.csi).unwrap_or("");
+        if params.starts_with('?') {
+            return;
+        }
+        let count = params
+            .split(';')
+            .next()
+            .filter(|s| !s.is_empty())
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(1)
+            .max(1);
+        for _ in 0..count {
+            grid.put_cell_autowrap(cell, self.autowrap);
         }
     }
 
@@ -2124,6 +2155,28 @@ mod tests {
         assert_eq!(g2.cell(0, 0).bg, 2);
         assert_eq!(g2.cell(0, 1).fg, DEFAULT_FG);
         assert_eq!(g2.cell(0, 1).bg, DEFAULT_BG);
+    }
+
+    #[test]
+    fn csi_rep_repeats_previous_graphic_cell() {
+        let g = grid_feed(1, 10, b"\x1b[31mA\x1b[32m\x1b[3bZ");
+        assert_eq!(g.to_text(), "AAAAZ     ");
+        for col in 0..4 {
+            assert_eq!(g.cell(0, col).fg, 1, "REP should preserve previous cell fg");
+        }
+        assert_eq!(g.cell(0, 4).fg, 2, "current SGR should still affect later text");
+        assert!(!g.contains("3b"));
+
+        let g2 = grid_feed(1, 8, b"Q\x1b[b\x1b[0b!");
+        assert_eq!(g2.to_text(), "QQQ!    ");
+
+        let g3 = grid_feed(1, 8, b"\x1b[4bX");
+        assert_eq!(g3.to_text(), "X       ");
+        assert!(!g3.contains("4b"));
+
+        let g4 = grid_feed(1, 8, b"A\x1bc\x1b[2bZ");
+        assert_eq!(g4.to_text(), "Z       ");
+        assert!(!g4.contains("2b"));
     }
 
     #[test]

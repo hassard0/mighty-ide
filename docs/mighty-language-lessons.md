@@ -7777,3 +7777,13 @@ wrong position.
   Cursor Up using the existing clamped relative movement helper. Regression
   coverage verifies both aliases and confirms their bytes do not leak into the
   visible grid.
+
+L638. REP must duplicate the previous graphic cell, not leak as text. Terminal
+renderers use `CSI Ps b` to compact repeated runs of the same glyph; consuming it
+as an unknown CSI leaves sparse prompts or progress UI when applications rely on
+repeat-character output.
+
+- **IDE note:** `VtParser` now tracks the last printable cell and implements
+  `CSI b` by replaying that cell with its original foreground/background colors
+  under the current autowrap mode. Regression coverage checks count defaults,
+  color preservation after later SGR changes, and the no-previous-character case.
