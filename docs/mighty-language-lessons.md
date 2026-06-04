@@ -7686,3 +7686,14 @@ terminal apps that navigate fields or panes in reverse.
 - **IDE note:** `key_to_bytes` now uses the existing modifier argument for Tab:
   plain Tab remains `\t`, while Shift+Tab emits `ESC [ Z`. The terminal
   key-mapping regression test pins both forms.
+
+L628. Terminal navigation keys need xterm modifier parameters. Ignoring
+Shift/Alt/Ctrl on arrows, Home/End, Delete, and Page keys makes full-screen
+terminal apps lose selection, word/pane movement, and modified navigation
+gestures.
+
+- **IDE note:** `key_to_bytes` now emits xterm-style modified CSI sequences for
+  navigation keys (`CSI 1;N A/B/C/D/H/F`, `CSI 3;N~`, `CSI 5;N~`, `CSI 6;N~`).
+  Plain application-cursor arrows still use SS3, while modified arrows use CSI
+  modifier sequences. Tests cover Shift, Alt, Ctrl, combined modifiers, and
+  application-cursor interaction.

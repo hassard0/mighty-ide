@@ -1716,12 +1716,22 @@ fn default_shell_command() -> CommandBuilder {
 /// `ESC [ A/B/C/D`. Ctrl+letter (handled on the Char path) is mapped separately.
 pub fn key_to_bytes(key: u32, mods: u32, application_cursor_keys: bool) -> Option<Vec<u8>> {
     use crate::ffi::*;
+    let modifier = terminal_modifier_param(mods);
     let bytes: Vec<u8> = match key {
         MUI_KEY_ENTER => vec![b'\r'],
         MUI_KEY_BACKSPACE => vec![0x7f],
         MUI_KEY_TAB if mods & MUI_MOD_SHIFT != 0 => vec![0x1b, b'[', b'Z'],
         MUI_KEY_TAB => vec![b'\t'],
         MUI_KEY_ESCAPE => vec![0x1b],
+        MUI_KEY_LEFT if modifier.is_some() => modified_csi_1(modifier.unwrap(), b'D'),
+        MUI_KEY_RIGHT if modifier.is_some() => modified_csi_1(modifier.unwrap(), b'C'),
+        MUI_KEY_UP if modifier.is_some() => modified_csi_1(modifier.unwrap(), b'A'),
+        MUI_KEY_DOWN if modifier.is_some() => modified_csi_1(modifier.unwrap(), b'B'),
+        MUI_KEY_HOME if modifier.is_some() => modified_csi_1(modifier.unwrap(), b'H'),
+        MUI_KEY_END if modifier.is_some() => modified_csi_1(modifier.unwrap(), b'F'),
+        MUI_KEY_DELETE if modifier.is_some() => modified_csi_tilde(3, modifier.unwrap()),
+        MUI_KEY_PAGE_UP if modifier.is_some() => modified_csi_tilde(5, modifier.unwrap()),
+        MUI_KEY_PAGE_DOWN if modifier.is_some() => modified_csi_tilde(6, modifier.unwrap()),
         MUI_KEY_LEFT if application_cursor_keys => vec![0x1b, b'O', b'D'],
         MUI_KEY_RIGHT if application_cursor_keys => vec![0x1b, b'O', b'C'],
         MUI_KEY_UP if application_cursor_keys => vec![0x1b, b'O', b'A'],
@@ -1750,6 +1760,29 @@ pub fn key_to_bytes(key: u32, mods: u32, application_cursor_keys: bool) -> Optio
         _ => return None,
     };
     Some(bytes)
+}
+
+fn terminal_modifier_param(mods: u32) -> Option<u8> {
+    use crate::ffi::{MUI_MOD_ALT, MUI_MOD_CTRL, MUI_MOD_SHIFT};
+    let mut value = 1_u8;
+    if mods & MUI_MOD_SHIFT != 0 {
+        value += 1;
+    }
+    if mods & MUI_MOD_ALT != 0 {
+        value += 2;
+    }
+    if mods & MUI_MOD_CTRL != 0 {
+        value += 4;
+    }
+    (value > 1).then_some(value)
+}
+
+fn modified_csi_1(modifier: u8, final_byte: u8) -> Vec<u8> {
+    format!("\x1b[1;{}{}", modifier, final_byte as char).into_bytes()
+}
+
+fn modified_csi_tilde(code: u8, modifier: u8) -> Vec<u8> {
+    format!("\x1b[{};{}~", code, modifier).into_bytes()
 }
 
 /// Map a typed codepoint + modifier bits to terminal stdin bytes. With Ctrl held
@@ -2750,6 +2783,47 @@ mod tests {
         assert_eq!(key_to_bytes(MUI_KEY_RIGHT, 0, true), Some(vec![0x1b, b'O', b'C']));
         assert_eq!(key_to_bytes(MUI_KEY_LEFT, 0, true), Some(vec![0x1b, b'O', b'D']));
         assert_eq!(key_to_bytes(MUI_KEY_HOME, 0, true), Some(vec![0x1b, b'[', b'H']));
+    }
+
+    #[test]
+    fn key_mapping_honors_navigation_modifiers() {
+        use crate::ffi::*;
+        assert_eq!(
+            key_to_bytes(MUI_KEY_UP, MUI_MOD_SHIFT, false),
+            Some(b"\x1b[1;2A".to_vec())
+        );
+        assert_eq!(
+            key_to_bytes(MUI_KEY_LEFT, MUI_MOD_CTRL, false),
+            Some(b"\x1b[1;5D".to_vec())
+        );
+        assert_eq!(
+            key_to_bytes(MUI_KEY_RIGHT, MUI_MOD_ALT | MUI_MOD_CTRL, false),
+            Some(b"\x1b[1;7C".to_vec())
+        );
+        assert_eq!(
+            key_to_bytes(MUI_KEY_HOME, MUI_MOD_SHIFT | MUI_MOD_CTRL, false),
+            Some(b"\x1b[1;6H".to_vec())
+        );
+        assert_eq!(
+            key_to_bytes(MUI_KEY_END, MUI_MOD_ALT, false),
+            Some(b"\x1b[1;3F".to_vec())
+        );
+        assert_eq!(
+            key_to_bytes(MUI_KEY_DELETE, MUI_MOD_CTRL, false),
+            Some(b"\x1b[3;5~".to_vec())
+        );
+        assert_eq!(
+            key_to_bytes(MUI_KEY_PAGE_UP, MUI_MOD_SHIFT, false),
+            Some(b"\x1b[5;2~".to_vec())
+        );
+        assert_eq!(
+            key_to_bytes(MUI_KEY_PAGE_DOWN, MUI_MOD_ALT | MUI_MOD_SHIFT, false),
+            Some(b"\x1b[6;4~".to_vec())
+        );
+        assert_eq!(
+            key_to_bytes(MUI_KEY_UP, MUI_MOD_CTRL, true),
+            Some(b"\x1b[1;5A".to_vec())
+        );
     }
 
     #[test]
