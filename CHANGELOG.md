@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Transient close commands release stale focus**: Find & Replace, Hover,
+  Signature Help, Rename, Code Actions, prompt, autocomplete, dirty-confirm,
+  Git branch picker, breadcrumb menu, Command Palette, Quick Open, and Peek
+  close/cancel commands now clear stale Run/Web/Testing/Terminal/AI/Agents/search
+  focus when dismissing their overlay.
 - **Editor operation commands release stale focus**: Delete/Join Line,
   selection, multi-caret, comment, copy/cut/paste, word delete,
   indent/outdent, cursor movement, duplicate, and move-line commands now clear

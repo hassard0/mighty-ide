@@ -9059,3 +9059,19 @@ selection, carets, or only movement state.
 - **Language note:** no compiler gap surfaced. The grouped branch test keeps
   the behavior auditable, but the implementation still shows why editor command
   groups need reusable focus-effect metadata.
+
+## L753 - Closing Transient UI Is a Focus Transition
+
+Close and cancel commands are not passive cleanups. Dismissing a prompt,
+completion list, picker, peek view, or language overlay changes who owns the
+next key event, so these commands need the same explicit focus cleanup as open
+and editor-operation commands.
+
+- **IDE note:** Find & Replace, Hover, Signature Help, Rename, Code Actions,
+  prompt, autocomplete, dirty-confirm, Git branch picker, breadcrumb menu,
+  Command Palette, Quick Open, and Peek close/cancel commands now release stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus. Source-contract coverage
+  pins these close/cancel branches.
+- **Language note:** no compiler gap surfaced. This is more duplicated scalar
+  state management in the command dispatcher, reinforcing the need for reusable
+  command focus-effect metadata.

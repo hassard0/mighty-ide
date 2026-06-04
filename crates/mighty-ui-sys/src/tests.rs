@@ -10709,6 +10709,36 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         ),
         "Find & Replace command must open the replace bar and release stale surface focus"
     );
+    let close_focus_cleanup = "run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false";
+    for marker in [
+        "} else if id == cmd_find_replace_close()",
+        "} else if id == cmd_hover_close()",
+        "} else if id == cmd_signature_help_close()",
+        "} else if id == cmd_rename_cancel()",
+        "} else if id == cmd_code_actions_close()",
+        "} else if id == cmd_prompt_cancel()",
+        "} else if id == cmd_autocomplete_close()",
+        "} else if id == cmd_dirty_confirm_cancel()",
+        "} else if id == cmd_git_branch_cancel()",
+        "} else if id == cmd_breadcrumb_menu_cancel()",
+        "} else if id == cmd_command_palette_close()",
+        "} else if id == cmd_quick_open_close()",
+        "} else if id == cmd_peek_close()",
+    ] {
+        let start = main
+            .find(marker)
+            .unwrap_or_else(|| panic!("missing close/cancel command branch `{marker}`"));
+        let tail = &main[start..];
+        let end = tail[1..]
+            .find("\n        } else if id ==")
+            .map(|p| p + 1)
+            .unwrap_or(tail.len());
+        let branch = &tail[..end];
+        assert!(
+            branch.contains(close_focus_cleanup),
+            "close/cancel command branch `{marker}` must release stale focus"
+        );
+    }
     assert!(
         main.contains(
             "id == cmd_goto_line() {\n          mui_prompt_open(h, prompt_goto())\n          prompt_kind = prompt_goto()\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
