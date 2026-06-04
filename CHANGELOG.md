@@ -14,7 +14,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 ### Editing & layout
 - **Code actions hide unavailable server fixes**: LSP actions marked with
   `disabled` are now omitted from the quick-fix menu instead of appearing as
-  selectable rows that the server says cannot run.
+  selectable rows that the server says cannot run, while nested command
+  arguments remain intact.
 - **Go-to-definition accepts case-varied file URIs**: LSP definition targets now
   accept `FILE://...` schemes and `file://LOCALHOST/...` authorities, matching
   URI casing rules instead of dropping otherwise valid navigation targets.

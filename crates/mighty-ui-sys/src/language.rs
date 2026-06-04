@@ -917,14 +917,40 @@ fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
 }
 
 fn code_action_disabled(obj: &[u8]) -> bool {
-    let Some(disabled_at) = find_sub(obj, b"\"disabled\"") else {
-        return false;
-    };
-    let mut i = disabled_at + b"\"disabled\"".len();
-    while i < obj.len() && matches!(obj[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        i += 1;
+    top_level_field_value_start(obj, "disabled")
+        .is_some_and(|i| i < obj.len() && matches!(obj[i], b'{' | b't'))
+}
+
+fn top_level_field_value_start(obj: &[u8], field: &str) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut i = 0usize;
+    while i < obj.len() {
+        match obj[i] {
+            b'{' | b'[' => {
+                depth += 1;
+                i += 1;
+            }
+            b'}' | b']' => {
+                depth -= 1;
+                i += 1;
+            }
+            b'"' => {
+                let (key, past) = read_json_string_at(obj, i)?;
+                if depth == 1 && key == field {
+                    let mut value_at = past;
+                    while value_at < obj.len()
+                        && matches!(obj[value_at], b' ' | b':' | b'\t' | b'\r' | b'\n')
+                    {
+                        value_at += 1;
+                    }
+                    return Some(value_at);
+                }
+                i = past;
+            }
+            _ => i += 1,
+        }
     }
-    i < obj.len() && matches!(obj[i], b'{' | b't')
+    None
 }
 
 fn parse_command_action(obj: &[u8]) -> Option<CommandAction> {
@@ -2156,6 +2182,17 @@ mod tests {
             actions[0].command.as_ref().map(|c| c.command.as_str()),
             Some("server.apply")
         );
+    }
+
+    #[test]
+    fn parse_code_actions_keeps_nested_disabled_argument_text() {
+        let json = r#"{"result":[{"title":"Apply command","command":"server.apply","arguments":[{"metadata":{"disabled":{"reason":"not the action state"}}}]}],"id":5}"#;
+        let actions = parse_code_actions(json);
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].title, "Apply command");
+        let command = actions[0].command.as_ref().expect("command");
+        assert_eq!(command.command, "server.apply");
+        assert!(command.arguments_json.as_ref().unwrap().contains("disabled"));
     }
 
     // ---- state types ----

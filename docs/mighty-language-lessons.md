@@ -9785,9 +9785,10 @@ is useful to explain but not valid to apply. Showing those actions as ordinary
 quick-fix rows makes the menu feel broken because Enter/click can select a fix
 the server already marked unavailable.
 
-- **IDE note:** code-action parsing now omits actions with `disabled` metadata.
-  The current quick-fix menu has no disabled-row affordance, so hiding them is
-  clearer than exposing a selectable no-op.
+- **IDE note:** code-action parsing now omits actions with top-level `disabled`
+  metadata. The current quick-fix menu has no disabled-row affordance, so hiding
+  them is clearer than exposing a selectable no-op; nested command arguments are
+  still preserved for executable actions.
 - **Language note:** no compiler gap surfaced. When an LSP shape includes UI
   state that Mighty cannot currently represent directly, the shim should either
   model that state explicitly or filter it before it crosses the scalar menu ABI.
