@@ -2644,6 +2644,7 @@ fn main() {
             ai_focus = false
             agents_focus = false
             find_nav = false
+            typing = false
           } else if topbar_act == 2 {
             mui_palette_open(h)
             palette_open = true
@@ -2670,9 +2671,11 @@ fn main() {
             // Re-clicking the beaker toggles the panel off.
             let _o = mui_test_toggle(h)
             test_focus = false
+            typing = false
           } else if rail_hit >= 0 {
             test_focus = false
             agents_focus = false
+            typing = false
             if rail_hit == rail_agents() {
               let opened = mui_ai_open(h)
               if opened == 1 { ai_focus = true }
@@ -4674,6 +4677,7 @@ fn main() {
           term_focus = false
           agents_focus = false
           find_nav = false
+          typing = false
         } else if rail_hit == rail_run() || topbar_act == 1 {
           // Run (play) icon OR the top-right run ▶ button: toggle the Run panel;
           // running the file starts it.
@@ -4690,6 +4694,7 @@ fn main() {
           ai_focus = false
           agents_focus = false
           find_nav = false
+          typing = false
         } else if rail_hit == rail_debug() {
           // Debug (bug) icon: switch the sidebar to the Run-and-Debug view.
           let _p = mui_panel_set(h, panel_debug())
@@ -4700,6 +4705,7 @@ fn main() {
           ai_focus = false
           agents_focus = false
           find_nav = false
+          typing = false
         } else if rail_hit == rail_test() {
           // Testing (beaker) icon: switch the sidebar to the Testing view + focus.
           let _p = mui_panel_set(h, panel_test())
@@ -4710,6 +4716,7 @@ fn main() {
           ai_focus = false
           agents_focus = false
           find_nav = false
+          typing = false
         } else if rail_hit == rail_agents_mty() {
           // Mighty Agents (nodes) icon: switch to the topology view + rescan.
           let _p = mui_panel_set(h, panel_agents_mty())
@@ -4721,6 +4728,7 @@ fn main() {
           term_focus = false
           ai_focus = false
           find_nav = false
+          typing = false
         } else if rail_hit >= 0 {
           let _p = mui_panel_set(h, rail_hit)
           run_focus = false
@@ -4730,6 +4738,7 @@ fn main() {
           ai_focus = false
           agents_focus = false
           find_nav = false
+          typing = false
           if rail_hit == panel_search() {
             let _q = mui_search_query_len(h)
           }

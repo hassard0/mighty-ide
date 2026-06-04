@@ -9427,3 +9427,19 @@ sidebar input resumes.
 - **Language note:** no compiler gap surfaced. Focused side panels have local
   input branches just like overlays; source contracts should slice those
   branches separately from command-dispatched open and close actions.
+
+## L779 - Rail Switches Are Typing Boundaries
+
+Activity-rail and topbar navigation consume mouse input to transfer ownership
+to another surface. Even when the target surface is not an editor overlay, that
+transition should end any transient editor typing run so the next character does
+not inherit stale edit state.
+
+- **IDE note:** rail/topbar switches to Run, Debug, Testing, Copilot, Mighty
+  Agents, and generic sidebar panels now clear transient typing state while
+  releasing competing focus. The Testing-focused rail path is covered separately
+  because it has its own local router.
+- **Language note:** no compiler gap surfaced. Mouse navigation routes need the
+  same ownership contract as keyboard exits: source contracts should check both
+  the general chrome router and focused-panel subrouters when they duplicate
+  rail handling.

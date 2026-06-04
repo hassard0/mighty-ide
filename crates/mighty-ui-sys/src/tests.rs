@@ -12020,6 +12020,24 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         ),
         "Sidebar close command must release stale focus"
     );
+    let focused_test_rail_start = main
+        .find("} else if topbar_act == 1 {\n            let opened = mui_run_toggle(h)")
+        .expect("Testing-focused topbar Run branch should exist");
+    let focused_test_rail_end = main[focused_test_rail_start..]
+        .find("} else if tb_hit == test_tb_run()")
+        .map(|p| focused_test_rail_start + p)
+        .expect("Testing-focused rail branch should precede Testing toolbar routes");
+    let focused_test_rail_block = &main[focused_test_rail_start..focused_test_rail_end];
+    assert!(
+        focused_test_rail_block.contains(
+            "topbar_act == 1 {\n            let opened = mui_run_toggle(h)\n            if opened == 1 { run_focus = true; if mui_run_running(h) == 0 { let _r = mui_run_start(h) } }\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false"
+        ) && focused_test_rail_block.contains(
+            "let _o = mui_test_toggle(h)\n            test_focus = false\n            typing = false"
+        ) && focused_test_rail_block.contains(
+            "test_focus = false\n            agents_focus = false\n            typing = false"
+        ),
+        "Testing-focused rail/topbar switches must clear transient typing state"
+    );
     let rail_mouse_start = main
         .rfind("rail_hit == rail_agents()")
         .expect("mouse router should handle Copilot rail clicks");
@@ -12046,12 +12064,17 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "ai_focus = false",
         "agents_focus = false",
         "find_nav = false",
+        "typing = false",
     ] {
         assert!(
             rail_mouse_block.contains(needle),
             "Rail and topbar mouse switches must release stale competing surface focus; missing `{needle}`"
         );
     }
+    assert!(
+        rail_mouse_block.matches("typing = false").count() >= 6,
+        "Every rail/topbar mouse switch must clear transient typing state"
+    );
     assert!(
         main.contains(
             "term_act == 1 {\n          let _tc = mui_term_clear(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"

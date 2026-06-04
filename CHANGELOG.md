@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Rail switches stop stale typing state**: activity-rail and topbar
+  navigation now clear transient editor typing state while transferring focus
+  to Run, Debug, Testing, Copilot, Agents, or another sidebar panel.
 - **Focused side-panel Escape releases stale focus**: Search and Source
   Control Escape-to-Explorer routes now clear stale surface/search focus before
   returning keyboard input to the editor/sidebar.
