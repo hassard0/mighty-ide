@@ -1983,6 +1983,13 @@ fn main() {
             mui_palette_open(h)
             palette_open = true
             palette_ignore_mouse_down = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
             typing = false
           } else if is_ai_panel_chord(cp, mods) {           // Ctrl+Shift+A : close/unfocus
             let _o = mui_ai_open(h)
@@ -2833,11 +2840,25 @@ fn main() {
           mui_palette_open(h)
           palette_open = true
           palette_ignore_mouse_down = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
           typing = false
         } else if is_quickopen_chord(cp, mods) {            // Ctrl+P : universal Quick-Open
           mui_quickopen_open(h)
           quickopen_open = true
           quickopen_ignore_mouse_down = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
           typing = false
         } else if is_run_chord(cp, mods) {                  // Ctrl+Shift+R : run the active file
           let _r = mui_run_start(h)

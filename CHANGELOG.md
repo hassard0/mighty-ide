@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Overlay shortcuts release stale focus**: Ctrl+Shift+P and Ctrl+P now clear
+  stale Run/Web/Testing/Terminal/AI/Agents/search focus when opening the
+  Command Palette or Quick Open directly, matching the command-dispatch path.
 - **Direct chrome clicks release stale focus**: branch, breadcrumb, Markdown
   preview, Problems close, Explorer header, Settings utility, topbar Palette/
   Quick Open, terminal scroll, and editor body mouse routes now clear stale

@@ -9200,3 +9200,17 @@ editor body itself all make the next keystroke belong somewhere specific.
 - **Language note:** no compiler gap surfaced. The route-coverage lesson
   broadened from tab commands to chrome: mouse-only branches need the same
   ownership effects as their palette equivalents.
+
+## L763 - Overlay Shortcuts Need The Command-route Contract
+
+Opening a keyboard-focused overlay from a shortcut can bypass the central
+command dispatcher. If that direct route leaves stale panel flags alive, the
+overlay appears but the next event can still belong to the old surface.
+
+- **IDE note:** Ctrl+Shift+P and Ctrl+P now clear stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus when opening Command Palette
+  and Quick Open directly. Source-contract coverage pins both default-mode
+  shortcuts plus the AI-focused Palette shortcut.
+- **Language note:** no compiler gap surfaced. This is another route-parity
+  issue: remappable command rows, direct shortcuts, and focused-mode escape
+  hatches all need the same ownership side effects.

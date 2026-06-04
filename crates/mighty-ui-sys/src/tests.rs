@@ -10790,6 +10790,48 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         ),
         "Quick Open command must open the overlay and release stale surface focus"
     );
+    for (start_marker, end_marker, label) in [
+        (
+            "} else if is_palette_chord(cp, mods) {            // Ctrl+Shift+P : palette",
+            "} else if is_ai_panel_chord(cp, mods)",
+            "AI-focused Ctrl+Shift+P",
+        ),
+        (
+            "} else if is_palette_chord(cp, mods) {              // Ctrl+Shift+P : palette",
+            "} else if is_quickopen_chord(cp, mods)",
+            "default Ctrl+Shift+P",
+        ),
+    ] {
+        let start = main
+            .find(start_marker)
+            .unwrap_or_else(|| panic!("missing shortcut branch `{label}`"));
+        let end = main[start..]
+            .find(end_marker)
+            .map(|i| start + i)
+            .unwrap_or_else(|| panic!("missing end marker for shortcut branch `{label}`"));
+        let branch = &main[start..end];
+        for needle in [
+            "mui_palette_open(h)",
+            "palette_open = true",
+            "palette_ignore_mouse_down = false",
+            "run_focus = false",
+            "web_focus = false",
+            "test_focus = false",
+            "term_focus = false",
+            "ai_focus = false",
+            "agents_focus = false",
+            "find_nav = false",
+            "typing = false",
+        ] {
+            assert!(branch.contains(needle), "{label} must include `{needle}`");
+        }
+    }
+    assert!(
+        main.contains(
+            "is_quickopen_chord(cp, mods) {            // Ctrl+P : universal Quick-Open\n          mui_quickopen_open(h)\n          quickopen_open = true\n          quickopen_ignore_mouse_down = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
+        ),
+        "Ctrl+P direct shortcut must open Quick Open and release stale focus"
+    );
     assert!(
         main.contains(
             "id == cmd_find() {\n          mui_prompt_open(h, prompt_find())\n          prompt_kind = prompt_find()\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
