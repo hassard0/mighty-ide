@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **LSP requests percent-encode file paths**: completion, hover, definition,
+  rename, code-action, diagnostics, and generic LSP requests now share one
+  file-URI builder that encodes spaces, `#`, `?`, and non-ASCII path bytes.
 - **Workspace edits accept case-varied file URI keys**: rename and code-action
   edits using `FILE:///...` keys in the LSP `changes` map now parse correctly,
   while nested URI-looking text inside edits is ignored as payload.

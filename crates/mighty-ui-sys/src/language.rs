@@ -1729,12 +1729,7 @@ pub mod lsp {
     }
 
     pub fn file_uri(path: &Path) -> String {
-        let s = path.to_string_lossy().replace('\\', "/");
-        if s.starts_with('/') {
-            format!("file://{s}")
-        } else {
-            format!("file:///{s}")
-        }
+        crate::nav::path_to_file_uri(path)
     }
 
     fn kill(mut child: Child) {

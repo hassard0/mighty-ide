@@ -9819,3 +9819,18 @@ the `changes` map shape keyed by those URIs.
 - **Language note:** no compiler gap surfaced. URI handling needs the same
   normalization at every parser boundary, not only at the final path conversion
   step.
+
+## L806 - LSP Request URIs Must Encode Path Bytes
+
+The IDE already percent-decodes file URIs coming back from language servers, but
+requests still sent raw paths after only replacing `\` with `/`. Paths containing
+spaces, `#`, `?`, or non-ASCII characters can then be parsed as invalid or
+different document URIs by stricter servers.
+
+- **IDE note:** all shim-side LSP clients now share `path_to_file_uri`, which
+  percent-encodes non-URI path bytes before sending `didOpen`, completion,
+  hover, definition, signature, rename, code-action, diagnostics, and generic
+  server requests.
+- **Language note:** no compiler gap surfaced. URI construction and URI parsing
+  should live as a shared pair; otherwise response handling can be correct while
+  request identity still breaks for real-world file names.

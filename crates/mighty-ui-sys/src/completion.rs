@@ -698,12 +698,7 @@ pub mod lsp {
     /// Build a `file://` URI for an absolute path (Windows-aware: drive paths
     /// become `file:///C:/...`). Best-effort; used only as the document id.
     fn file_uri(path: &Path) -> String {
-        let s = path.to_string_lossy().replace('\\', "/");
-        if s.starts_with('/') {
-            format!("file://{s}")
-        } else {
-            format!("file:///{s}")
-        }
+        crate::nav::path_to_file_uri(path)
     }
 
     /// Scrape `"label":"..."` values out of a JSON blob. Returns labels in the

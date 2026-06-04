@@ -143,12 +143,7 @@ pub fn json_escape(s: &str) -> String {
 }
 
 pub fn file_uri(path: &Path) -> String {
-    let s = path.to_string_lossy().replace('\\', "/");
-    if s.starts_with('/') {
-        format!("file://{s}")
-    } else {
-        format!("file:///{s}")
-    }
+    crate::nav::path_to_file_uri(path)
 }
 
 fn kill(mut child: Child) {
@@ -1030,6 +1025,10 @@ mod tests {
         assert_eq!(json_escape("a\"b\\c"), "a\\\"b\\\\c");
         let u = file_uri(Path::new("C:\\x\\y.rs"));
         assert!(u.starts_with("file:///C:/x/y.rs") || u.starts_with("file://"));
+        assert_eq!(
+            file_uri(Path::new(r"C:\x y\hash#query?.rs")),
+            "file:///C:/x%20y/hash%23query%3F.rs"
+        );
     }
 
     #[test]

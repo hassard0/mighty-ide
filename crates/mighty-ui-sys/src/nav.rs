@@ -388,6 +388,47 @@ pub fn paths_equal(a: &std::path::Path, b: &std::path::Path) -> bool {
     norm(a) == norm(b)
 }
 
+/// Build a `file://` URI for an LSP document path. Windows drive paths become
+/// `file:///C:/...`; path bytes that are not valid URI path characters are
+/// percent-encoded.
+pub fn path_to_file_uri(path: &std::path::Path) -> String {
+    let path = path.to_string_lossy().replace('\\', "/");
+    let encoded = percent_encode_file_path(&path);
+    if encoded.starts_with('/') {
+        format!("file://{encoded}")
+    } else {
+        format!("file:///{encoded}")
+    }
+}
+
+fn percent_encode_file_path(path: &str) -> String {
+    let mut out = String::with_capacity(path.len());
+    for ch in path.chars() {
+        if is_file_uri_path_char(ch) {
+            out.push(ch);
+        } else {
+            let mut buf = [0u8; 4];
+            for b in ch.encode_utf8(&mut buf).as_bytes() {
+                out.push('%');
+                out.push(hex_digit(b >> 4));
+                out.push(hex_digit(b & 0x0f));
+            }
+        }
+    }
+    out
+}
+
+fn is_file_uri_path_char(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || matches!(ch, '/' | ':' | '-' | '.' | '_' | '~')
+}
+
+fn hex_digit(n: u8) -> char {
+    match n {
+        0..=9 => (b'0' + n) as char,
+        _ => (b'A' + (n - 10)) as char,
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Parsers (pure, unit-tested) — scrape hover text / definition location out of
 // the JSON-RPC response stream without a JSON dependency.
@@ -846,12 +887,7 @@ pub mod lsp {
     }
 
     fn file_uri(path: &Path) -> String {
-        let s = path.to_string_lossy().replace('\\', "/");
-        if s.starts_with('/') {
-            format!("file://{s}")
-        } else {
-            format!("file:///{s}")
-        }
+        crate::nav::path_to_file_uri(path)
     }
 
     fn kill(mut child: Child) {
@@ -1384,6 +1420,20 @@ mod tests {
         assert!(paths_equal(a, b));
         let c = std::path::Path::new("c:/users/me/bar.mty");
         assert!(!paths_equal(a, c));
+    }
+
+    #[test]
+    fn path_to_file_uri_percent_encodes_document_path() {
+        let uri = path_to_file_uri(std::path::Path::new(r"C:\a b\hash#query?.mty"));
+        assert_eq!(uri, "file:///C:/a%20b/hash%23query%3F.mty");
+    }
+
+    #[test]
+    fn path_to_file_uri_round_trips_unicode_path() {
+        let path = std::path::Path::new(r"C:\tmp\東京😀.mty");
+        let uri = path_to_file_uri(path);
+        assert_eq!(uri, "file:///C:/tmp/%E6%9D%B1%E4%BA%AC%F0%9F%98%80.mty");
+        assert_eq!(uri_to_path(&uri).unwrap(), path);
     }
 
     #[test]
