@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Agents live rows require owned identity**: live `mty inspect --json` agent
+  rows now require a top-level numeric `agent_id` plus `agent_type`, so nested
+  metadata cannot fabricate an agent `0` in the topology panel.
 - **Code-action fix-all commands require Mighty ownership**: language-server
   commands such as `rust-analyzer.fixAll` now remain server commands instead of
   being mistaken for the shim's synthetic `mty fix --apply` action, and

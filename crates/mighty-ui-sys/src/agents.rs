@@ -626,9 +626,10 @@ fn parse_agent_array(arr: &[u8], out: &mut Vec<AgentSnapshot>) {
 }
 
 fn parse_one_agent(obj: &[u8]) -> Option<AgentSnapshot> {
+    let agent_id = top_level_uint_field(obj, b"agent_id")?;
     let agent_type = top_level_string_field(obj, b"agent_type")?;
     Some(AgentSnapshot {
-        agent_id: top_level_uint_field(obj, b"agent_id").unwrap_or(0),
+        agent_id,
         agent_type,
         mailbox_depth: top_level_uint_field(obj, b"mailbox_depth").unwrap_or(0),
         mailbox_high_water: top_level_uint_field(obj, b"mailbox_high_water").unwrap_or(0),
@@ -1064,6 +1065,28 @@ fn main() {
         assert_eq!(s.agents[0].mailbox_depth, 2);
         assert_eq!(s.agents[0].mailbox_high_water, 4);
         assert_eq!(s.agents[0].in_flight_handler, "Submit");
+    }
+
+    #[test]
+    fn parse_snapshot_requires_agent_owned_identity() {
+        let raw = r#"{"worker_count":1,"agents":[
+          {
+            "metadata":{"agent_id":99,"agent_type":"Wrong"},
+            "agent_type":"MissingId"
+          },
+          {
+            "agent_id":7,
+            "metadata":{"agent_type":"Wrong"},
+            "agent_type":"Right"
+          }
+        ]}"#;
+        let s = parse_snapshot(raw).expect("snapshot");
+
+        assert_eq!(s.agents.len(), 1);
+        assert_eq!(s.agents[0].agent_id, 7);
+        assert_eq!(s.agents[0].agent_type, "Right");
+        assert_eq!(s.agents[0].mailbox_depth, 0);
+        assert_eq!(s.agents[0].mailbox_high_water, 0);
     }
 
     #[test]

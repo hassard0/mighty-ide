@@ -10245,3 +10245,17 @@ commands whose identifiers contain `fixAll`, but those commands still belong to
   synthetic shim commands by exact ownership, not by broad capability words in a
   server-owned command id, and command argument parsing should preserve the same
   owner boundary as top-level WorkspaceEdit parsing.
+
+## L836 - Runtime Agent Rows Need Owned Identity
+
+The Agents panel's live view consumes `mty inspect --json` snapshots. Optional
+metrics can default to zero, but a row without its own `agent_id` is not a real
+agent identity; nested metadata can mention IDs for explanations or history.
+
+- **IDE note:** live snapshot parsing now admits an agent row only when the row
+  owns both a numeric `agent_id` and an `agent_type`. Missing optional mailbox
+  counters still display as zero, but metadata-only identity fields no longer
+  fabricate an agent `0`.
+- **Language note:** no compiler gap surfaced. Runtime-inspection UIs should
+  distinguish required identity fields from optional metric fields instead of
+  defaulting every missing number into a plausible live value.
