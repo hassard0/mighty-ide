@@ -8036,3 +8036,13 @@ mode is tracked separately.
   block/underline/bar and `2/4/6` to steady block/underline/bar. Regression
   coverage asserts both shape and blink state for every supported cursor-style
   variant.
+
+L664. OSC color setters are state, not disposable control strings. Apps can set
+default foreground/background/cursor colors with `OSC 10/11/12` and later query
+them, so consuming setters without updating query state returns stale terminal
+identity.
+
+- **IDE note:** the VT parser now tracks `OSC 10/11/12` color setters for
+  subsequent query replies, accepting both `#rrggbb` and `rgb:` component forms.
+  Invalid setters and unknown OSC color queries are still consumed without
+  leaking payload text into the terminal grid.

@@ -812,6 +812,12 @@ pub struct VtParser {
     autowrap: bool,
     /// Whether CUP/HVP row coordinates are relative to the scroll-region top (`CSI ?6 h/l`).
     origin_mode: bool,
+    /// Default foreground color reported by OSC 10 color queries.
+    default_fg_rgb: (u8, u8, u8),
+    /// Default background color reported by OSC 11 color queries.
+    default_bg_rgb: (u8, u8, u8),
+    /// Cursor color reported by OSC 12 color queries.
+    cursor_rgb: (u8, u8, u8),
     /// Last window/icon title reported by OSC 0/1/2.
     title: String,
     /// Last decoded OSC 52 clipboard write request, drained by the UI bridge.
@@ -852,6 +858,9 @@ impl VtParser {
             newline_mode: true,
             autowrap: true,
             origin_mode: false,
+            default_fg_rgb: DEFAULT_FG_RGB,
+            default_bg_rgb: DEFAULT_BG_RGB,
+            cursor_rgb: DEFAULT_CURSOR_RGB,
             title: String::new(),
             clipboard_write: None,
         }
@@ -1963,6 +1972,7 @@ impl VtParser {
     fn finish_osc(&mut self) {
         self.capture_osc_title();
         self.capture_osc_clipboard();
+        self.capture_osc_color_set();
         self.reply_osc_color_query();
         self.reply_osc_palette_query();
         self.osc.clear();
@@ -1971,12 +1981,31 @@ impl VtParser {
 
     fn reply_osc_color_query(&mut self) {
         let (kind, color) = match self.osc.as_slice() {
-            b"10;?" => ("10", DEFAULT_FG_RGB),
-            b"11;?" => ("11", DEFAULT_BG_RGB),
-            b"12;?" => ("12", DEFAULT_CURSOR_RGB),
+            b"10;?" => ("10", self.default_fg_rgb),
+            b"11;?" => ("11", self.default_bg_rgb),
+            b"12;?" => ("12", self.cursor_rgb),
             _ => return,
         };
         self.push_osc_color_reply(kind, color);
+    }
+
+    fn capture_osc_color_set(&mut self) {
+        let payload = String::from_utf8_lossy(&self.osc);
+        let Some((kind, value)) = payload.split_once(';') else {
+            return;
+        };
+        if value == "?" {
+            return;
+        }
+        let Some(color) = parse_osc_rgb(value) else {
+            return;
+        };
+        match kind {
+            "10" => self.default_fg_rgb = color,
+            "11" => self.default_bg_rgb = color,
+            "12" => self.cursor_rgb = color,
+            _ => {}
+        }
     }
 
     fn reply_osc_palette_query(&mut self) {
@@ -2160,6 +2189,45 @@ fn decode_osc52_base64(input: &[u8]) -> Option<Vec<u8>> {
 fn palette_rgb8(index: u32) -> (u8, u8, u8) {
     let (r, g, b, _) = palette_rgba(index);
     (unit_to_byte(r), unit_to_byte(g), unit_to_byte(b))
+}
+
+fn parse_osc_rgb(value: &str) -> Option<(u8, u8, u8)> {
+    if let Some(hex) = value.strip_prefix('#') {
+        return parse_hex_rgb(hex);
+    }
+    let components = value.strip_prefix("rgb:")?;
+    let mut parts = components.split('/');
+    let r = parse_osc_rgb_component(parts.next()?)?;
+    let g = parse_osc_rgb_component(parts.next()?)?;
+    let b = parse_osc_rgb_component(parts.next()?)?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some((r, g, b))
+}
+
+fn parse_hex_rgb(hex: &str) -> Option<(u8, u8, u8)> {
+    if hex.len() != 6 {
+        return None;
+    }
+    let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+    let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+    let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+    Some((r, g, b))
+}
+
+fn parse_osc_rgb_component(component: &str) -> Option<u8> {
+    if component.is_empty() || component.len() > 4 {
+        return None;
+    }
+    let value = u16::from_str_radix(component, 16).ok()?;
+    match component.len() {
+        1 => Some((value as u8) * 17),
+        2 => Some(value as u8),
+        3 => Some((value >> 4) as u8),
+        4 => Some((value >> 8) as u8),
+        _ => None,
+    }
 }
 
 fn unit_to_byte(value: f32) -> u8 {
@@ -4270,13 +4338,37 @@ mod tests {
     }
 
     #[test]
-    fn osc_color_non_queries_are_only_consumed() {
+    fn osc_color_setters_update_query_replies() {
+        let mut g = Grid::new(1, 30);
+        let mut p = VtParser::new();
+        p.feed(
+            &mut g,
+            b"\x1b]10;#010203\x07\
+              \x1b]11;rgb:ffff/8000/0000\x1b\\\
+              \x1b]12;rgb:7c/5c/ff\x07\
+              \x1b]10;?\x07\x1b]11;?\x07\x1b]12;?\x07done",
+        );
+        assert_eq!(
+            p.take_reply(),
+            b"\x1b]10;rgb:0101/0202/0303\x1b\\\
+              \x1b]11;rgb:ffff/8080/0000\x1b\\\
+              \x1b]12;rgb:7c7c/5c5c/ffff\x1b\\"
+                .to_vec()
+        );
+        assert!(g.contains("done"));
+        assert!(!g.contains("#010203"));
+        assert!(!g.contains("rgb:ffff"));
+        assert!(!g.contains("10;?"));
+    }
+
+    #[test]
+    fn osc_color_invalid_setters_and_unknown_queries_are_only_consumed() {
         let mut g = Grid::new(1, 20);
         let mut p = VtParser::new();
-        p.feed(&mut g, b"\x1b]10;#ffffff\x07\x1b]13;?\x07done");
-        assert!(p.take_reply().is_empty());
+        p.feed(&mut g, b"\x1b]10;not-a-color\x07\x1b]13;?\x07\x1b]10;?\x07done");
+        assert_eq!(p.take_reply(), b"\x1b]10;rgb:d1d1/d6d6/e0e0\x1b\\");
         assert!(g.contains("done"));
-        assert!(!g.contains("#ffffff"));
+        assert!(!g.contains("not-a-color"));
         assert!(!g.contains("13;?"));
     }
 
