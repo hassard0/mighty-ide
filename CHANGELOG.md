@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Sidebar view commands now release dock focus**: `View: Explorer`,
+  `View: Search`, `View: Source Control`, and `View: Outline` clear stale
+  Run/Web/Testing/Terminal focus when they switch the sidebar panel.
 - **AI Copilot commands now clear stale dock focus**: `View: AI Copilot` and
   `AI: Clear Chat` release stale Run/Web/Testing/Terminal focus when they show
   Copilot, so the next input belongs to the visible right-dock surface.

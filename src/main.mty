@@ -4652,10 +4652,20 @@ fn main() {
           find_nav = false
         } else if id == cmd_view_explorer() {
           let _vp = mui_panel_set(h, panel_explorer())
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_view_search() {
           let _vp = mui_panel_set(h, panel_search())
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_search_run() {
           let _vp = mui_panel_set(h, panel_search())
           let _c = mui_search_run(h)
@@ -4682,14 +4692,24 @@ fn main() {
           find_nav = false
         } else if id == cmd_view_source_control() {
           let _vp = mui_panel_set(h, panel_scm())
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_git_close_source_control() {
           let _gc = mui_scm_close(h)
           agents_focus = false
           find_nav = false
         } else if id == cmd_view_outline() {
           let _vp = mui_panel_set(h, panel_outline())
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_outline_refresh() {
           let _vp = mui_panel_set(h, panel_outline())
           let _or = mui_outline_refresh(h)

@@ -10526,6 +10526,19 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("find_nav = false"),
         "Explorer close command must use the Explorer-specific close ABI without clearing tree state"
     );
+    for (helper, panel, label) in [
+        ("cmd_view_explorer", "panel_explorer", "Explorer"),
+        ("cmd_view_search", "panel_search", "Search"),
+        ("cmd_view_source_control", "panel_scm", "Source Control"),
+        ("cmd_view_outline", "panel_outline", "Outline"),
+    ] {
+        assert!(
+            main.contains(&format!(
+                "id == {helper}() {{\n          let _vp = mui_panel_set(h, {panel}())\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          agents_focus = false\n          find_nav = false"
+            )),
+            "{label} view command must reveal the sidebar panel and release dock focus"
+        );
+    }
     assert!(
         main.contains("id == cmd_git_refresh_source_control()")
             && main.contains("let _vp = mui_panel_set(h, panel_scm())")

@@ -8546,3 +8546,14 @@ stale Run, Web, Testing, and Terminal focus so input follows the visible drawer.
 - **IDE note:** `View: AI Copilot` and `AI: Clear Chat` now clear bottom-dock
   focus flags after showing Copilot. The clear-chat command still disables
   editor typing while preserving AI focus for the next composer interaction.
+
+## L712 - Sidebar View Commands Should Release Dock Focus
+
+Switching the sidebar from the palette is a visible context change. If stale
+Run, Web, Testing, or Terminal focus survives that switch, subsequent input can
+be routed to a dock owner the user is no longer working with.
+
+- **IDE note:** `View: Explorer`, `View: Search`, `View: Source Control`, and
+  `View: Outline` now clear bottom-dock focus plus transient navigation state
+  after selecting their sidebar panel. That makes command-palette sidebar
+  navigation follow the same ownership model as direct rail clicks.
