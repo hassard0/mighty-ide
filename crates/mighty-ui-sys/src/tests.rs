@@ -6443,6 +6443,44 @@ fn debug_breakpoint_inventory_rows_open_source_location() {
 }
 
 #[test]
+fn debug_breakpoint_open_missing_target_prunes_stale_breakpoint() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+    let root = std::env::temp_dir().join(format!("mui_bp_missing_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("gone.mty");
+    std::fs::write(&file, b"one\ntwo\nthree\n").unwrap();
+    let key = file.to_string_lossy().to_string();
+    ctx.dbg.toggle_breakpoint(&key, 2);
+    ctx.dbg.set_open(true);
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_DEBUG;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::fs::remove_file(&file).unwrap();
+
+    assert_eq!(ctx.dbg.total_breakpoint_count(), 1);
+    assert_eq!(crate::dapabi::mui_bp_open_at_hit(handle, 2000), -1);
+    assert_eq!(ctx.dbg.total_breakpoint_count(), 0);
+    assert!(!ctx.dbg.has_breakpoint(&key, 2));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Breakpoint target missing: gone.mty");
+
+    assert_eq!(crate::dapabi::mui_bp_open_at_hit(handle, 2000), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No breakpoint row selected"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+    crate::layout::reset_sidebar_preset();
+}
+
+#[test]
 fn debug_breakpoint_inventory_dot_removes_visible_breakpoint() {
     use crate::ffi::MuiEvent;
 

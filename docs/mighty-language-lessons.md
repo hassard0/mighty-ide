@@ -10855,3 +10855,16 @@ next draw.
   forced Welcome/Open Recent surface visible.
 - **Language note:** no compiler gap surfaced. Render-time hit snapshots should
   be invalidated at the same time as the backing list they resolve into.
+
+## L880 - Breakpoint Rows Should Prune Missing Source Targets
+
+Debug breakpoint rows cache source paths and line numbers. If a source file is
+deleted after the row is drawn, opening the row should not keep the stale
+breakpoint in the inventory for repeated failed clicks.
+
+- **IDE note:** opening a breakpoint row whose source file is missing now
+  removes that breakpoint from the debug model, resends breakpoints for live
+  sessions, and reports the missing target with visible feedback.
+- **Language note:** no compiler gap surfaced. Navigation rows that are backed
+  by mutable model state should clean up stale entries as part of the failed
+  activation path.

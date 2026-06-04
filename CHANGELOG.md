@@ -43,6 +43,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Open Recent clears stale hit rows**: missing Welcome/Open Recent file or
   folder rows now prune their cached hit-test snapshot immediately, so repeated
   clicks cannot keep targeting a removed resource before the next draw.
+- **Breakpoint rows prune missing targets**: opening a debug breakpoint row
+  whose source file was deleted now removes the stale breakpoint entry and keeps
+  the inventory from repeatedly targeting a missing file.
 - **Fix-all code actions protect dirty duplicate tabs**: Fix all (mty) now
   refuses to save or run the external fixer when another equivalent tab for the
   active file has unsaved edits, matching inline workspace-edit safety, and
