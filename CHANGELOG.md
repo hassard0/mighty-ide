@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Diagnostics read params and range owner fields**: generic LSP diagnostics
+  now read `params.diagnostics` and each diagnostic range's top-level
+  `start` / `end` positions, so nested metadata cannot replace problem rows or
+  underline coordinates.
 - **Apply-edit responses route by top-level request fields**: generic LSP
   `workspace/applyEdit` acknowledgement now finds complete request objects and
   reads only top-level `method` / `id`, so nested metadata cannot hijack command

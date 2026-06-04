@@ -10060,3 +10060,16 @@ request id.
 - **Language note:** no compiler gap surfaced. Protocol routing should be based
   on complete message envelopes; nested metadata is descriptive text, not a
   routable request.
+
+## L823 - Diagnostics Need Params and Range Ownership
+
+LSP diagnostic notifications can include metadata objects with fields named
+`diagnostics`, `range`, `start`, `end`, `line`, or `character`. Broad scans can
+replace the published diagnostics array or move underline coordinates.
+
+- **IDE note:** generic LSP diagnostic parsing now reads diagnostics from the
+  notification `params.diagnostics` array, then reads each diagnostic range from
+  the range object's top-level `start` and `end` positions.
+- **Language note:** no compiler gap surfaced. Diagnostics are another nested
+  ownership tree: notification params own the diagnostic list, each diagnostic
+  owns its range, and each range owns its positions.

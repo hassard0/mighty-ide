@@ -585,17 +585,9 @@ fn diagnostics_uri_matches(actual: &str, wanted: &str) -> bool {
 }
 
 fn parse_diagnostics_array_from_bytes(bytes: &[u8]) -> Option<Vec<Diag>> {
-    // Anchor at the diagnostics array.
-    let diag_at = find_sub(bytes, b"\"diagnostics\"")?;
-    let mut i = diag_at + b"\"diagnostics\"".len();
-    while i < bytes.len() && matches!(bytes[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        i += 1;
-    }
-    if i >= bytes.len() || bytes[i] != b'[' {
-        return None;
-    }
-    let end = match_bracket(bytes, i);
-    let arr = &bytes[i..end.min(bytes.len())];
+    let arr = top_level_object_field(bytes, b"params")
+        .and_then(|params| top_level_array_field(params, b"diagnostics"))
+        .or_else(|| top_level_array_field(bytes, b"diagnostics"))?;
     Some(parse_diag_array(arr))
 }
 
@@ -644,17 +636,14 @@ fn parse_diag_array(arr: &[u8]) -> Vec<Diag> {
 /// Parse a single diagnostic object slice.
 fn parse_one_diag(obj: &[u8]) -> Option<Diag> {
     let range = top_level_object_field(obj, b"range")?;
-    let start_at = find_sub(range, b"\"start\"")?;
-    let s_region = &range[start_at..];
-    let line = read_uint_after(s_region, b"\"line\"")? as i32;
-    let col = read_uint_after(s_region, b"\"character\"")? as i32;
+    let start = top_level_object_field(range, b"start")?;
+    let line = top_level_uint_field(start, b"line")? as i32;
+    let col = top_level_uint_field(start, b"character")? as i32;
     // optional end character on the same start line for a wider underline.
-    let end_at = find_sub(range, b"\"end\"");
-    let col_end = end_at
-        .and_then(|e| {
-            let e_region = &range[e..];
-            let el = read_uint_after(e_region, b"\"line\"")?;
-            let ec = read_uint_after(e_region, b"\"character\"")?;
+    let col_end = top_level_object_field(range, b"end")
+        .and_then(|end| {
+            let el = top_level_uint_field(end, b"line")?;
+            let ec = top_level_uint_field(end, b"character")?;
             if el as i32 == line && (ec as i32) > col {
                 Some(ec as i32)
             } else {
@@ -690,6 +679,15 @@ fn top_level_object_field<'a>(obj: &'a [u8], field: &[u8]) -> Option<&'a [u8]> {
         return None;
     }
     let value_end = match_brace(obj, value_start);
+    Some(&obj[value_start..value_end])
+}
+
+fn top_level_array_field<'a>(obj: &'a [u8], field: &[u8]) -> Option<&'a [u8]> {
+    let value_start = top_level_field_value_start(obj, field)?;
+    if obj.get(value_start) != Some(&b'[') {
+        return None;
+    }
+    let value_end = match_bracket(obj, value_start);
     Some(&obj[value_start..value_end])
 }
 
@@ -781,28 +779,6 @@ fn top_level_field_value_start(obj: &[u8], field: &[u8]) -> Option<usize> {
         k += 1;
     }
     None
-}
-
-/// Read an unsigned int value of `key` in `region`.
-fn read_uint_after(region: &[u8], key: &[u8]) -> Option<u32> {
-    let p = find_sub(region, key)?;
-    let mut j = p + key.len();
-    while j < region.len() && matches!(region[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        j += 1;
-    }
-    let start = j;
-    let mut v: u32 = 0;
-    while j < region.len() && region[j].is_ascii_digit() {
-        v = v
-            .saturating_mul(10)
-            .saturating_add((region[j] - b'0') as u32);
-        j += 1;
-    }
-    if j == start {
-        None
-    } else {
-        Some(v)
-    }
 }
 
 /// Read a JSON string at/after `pos` (skips ws + `:`), un-escaping common cases.
@@ -1050,6 +1026,31 @@ mod tests {
         assert_eq!(diags[0].line, 4);
         assert_eq!(diags[0].col_start, 3);
         assert_eq!(diags[0].col_end, 8);
+        assert_eq!(diags[0].message, "primary");
+    }
+
+    #[test]
+    fn diagnostics_array_uses_params_top_level_field() {
+        let stream = r#"{"params":{"metadata":{"diagnostics":[{"range":{"start":{"line":99,"character":1},"end":{"line":99,"character":2}},"severity":1,"message":"wrong nested"}]},"diagnostics":[{"range":{"start":{"line":5,"character":6},"end":{"line":5,"character":10}},"severity":2,"message":"right"}]}}"#;
+        let diags = parse_publish_diagnostics(stream);
+
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].line, 5);
+        assert_eq!(diags[0].col_start, 6);
+        assert_eq!(diags[0].col_end, 10);
+        assert_eq!(diags[0].severity, Severity::Warning);
+        assert_eq!(diags[0].message, "right");
+    }
+
+    #[test]
+    fn diagnostics_range_uses_range_top_level_positions() {
+        let stream = r#"{"params":{"diagnostics":[{"range":{"metadata":{"start":{"line":99,"character":1},"end":{"line":99,"character":2}},"start":{"metadata":{"line":98,"character":3},"line":6,"character":7},"end":{"metadata":{"line":97,"character":4},"line":6,"character":12}},"severity":1,"message":"primary"}]}}"#;
+        let diags = parse_publish_diagnostics(stream);
+
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].line, 6);
+        assert_eq!(diags[0].col_start, 7);
+        assert_eq!(diags[0].col_end, 12);
         assert_eq!(diags[0].message, "primary");
     }
 
