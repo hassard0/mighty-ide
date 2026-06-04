@@ -1380,6 +1380,7 @@ impl VtParser {
             b'\\' => self.state = State::Ground, // ST terminates
             0x18 | 0x1a => self.state = State::Ground, // CAN/SUB abort
             0x07 => self.state = State::Ground,  // tolerate stray BEL
+            0x9c => self.state = State::Ground,  // 8-bit ST terminates
             _ => self.state = State::Osc,        // not ST; keep consuming
         }
     }
@@ -1397,6 +1398,7 @@ impl VtParser {
         match b {
             b'\\' => self.state = State::Ground, // ST terminates
             0x18 | 0x1a => self.state = State::Ground, // CAN/SUB abort
+            0x9c => self.state = State::Ground,  // 8-bit ST terminates
             _ => self.state = State::String,     // not ST; keep consuming
         }
     }
@@ -2570,6 +2572,19 @@ mod tests {
         assert!(g2.contains("guard"));
         assert!(g2.contains("safe"));
         assert!(!g2.contains("privacy"));
+        assert!(!g2.contains("hidden"));
+    }
+
+    #[test]
+    fn escape_string_esc_substates_accept_eight_bit_st() {
+        let g = grid_feed(2, 40, b"\x1b]0;title\x1b\x9cafter");
+        assert!(g.contains("after"));
+        assert!(!g.contains("title"));
+
+        let g2 = grid_feed(2, 40, b"\x1bPpayload\x1b\x9cdcs\x1b_hidden\x1b\x9capc");
+        assert!(g2.contains("dcs"));
+        assert!(g2.contains("apc"));
+        assert!(!g2.contains("payload"));
         assert!(!g2.contains("hidden"));
     }
 

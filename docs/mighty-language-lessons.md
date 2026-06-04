@@ -7669,3 +7669,12 @@ visible text.
   without clearing the partial parameters. CAN/SUB still abort, ESC and C1
   introducers still replace the sequence, and parser tests cover BEL/CR inside
   cursor-column commands without leaking the final `G`.
+
+L626. String substates must accept every ST form. OSC and DCS-style strings
+already terminated on 8-bit ST (`0x9C`) in their normal payload state, but the
+post-ESC substates only recognized `ESC \`, CAN/SUB, and OSC BEL. An `ESC`
+followed by 8-bit ST could therefore keep swallowing later terminal output.
+
+- **IDE note:** OSC-ESC and DCS/PM/APC/SOS-ESC substates now treat `0x9C` as
+  string termination too. Parser tests cover OSC, DCS, and APC payloads ending
+  through `ESC 0x9C` with following printable output preserved.
