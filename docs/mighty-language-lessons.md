@@ -9848,3 +9848,17 @@ the server/share pair look like local path segments instead.
 - **Language note:** no compiler gap surfaced. Windows drive paths, POSIX paths,
   and UNC paths need distinct URI construction branches even when the later path
   decoder can accept all three forms.
+
+## L808 - Diagnostics URI Matching Should Compare Files, Not Strings
+
+Generic language servers can publish diagnostics with URI spellings that differ
+from the URI Mighty sent: uppercase `FILE`, `localhost` authority, or different
+percent-hex casing. A raw string comparison drops valid diagnostics for the
+active document.
+
+- **IDE note:** `publishDiagnostics` filtering now keeps exact matches fast, then
+  falls back to `uri_to_path` plus normalized path equality before rejecting a
+  notification as belonging to another file.
+- **Language note:** no compiler gap surfaced. Once URI decoding is available,
+  every response path that decides document identity should reuse it instead of
+  relying on byte-for-byte URI echo behavior.

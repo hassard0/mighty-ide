@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Diagnostics match equivalent file URIs**: generic LSP diagnostics now accept
+  case-varied schemes, `localhost` authorities, and percent-hex casing changes
+  when matching a publish notification to the active document.
 - **LSP requests emit UNC authorities correctly**: network paths such as
   `\\server\share\file` now become `file://server/share/file` instead of a
   four-slash local path URI.

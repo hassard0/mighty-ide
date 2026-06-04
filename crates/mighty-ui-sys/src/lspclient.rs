@@ -570,8 +570,21 @@ fn publish_chunk_matches_uri(chunk: &[u8], wanted_uri: Option<&str>) -> bool {
     };
     find_sub(chunk, b"\"uri\"")
         .and_then(|u| read_json_string_at(chunk, u + b"\"uri\"".len()))
-        .map(|(uri, _)| uri == wanted)
+        .map(|(uri, _)| diagnostics_uri_matches(&uri, wanted))
         .unwrap_or(false)
+}
+
+fn diagnostics_uri_matches(actual: &str, wanted: &str) -> bool {
+    if actual == wanted {
+        return true;
+    }
+    let Some(actual_path) = crate::nav::uri_to_path(actual) else {
+        return false;
+    };
+    let Some(wanted_path) = crate::nav::uri_to_path(wanted) else {
+        return false;
+    };
+    crate::nav::paths_equal(&actual_path, &wanted_path)
 }
 
 fn parse_diagnostics_array_from_bytes(bytes: &[u8]) -> Option<Vec<Diag>> {
@@ -960,6 +973,22 @@ mod tests {
     fn diagnostics_for_uri_returns_empty_when_only_other_uri_publishes() {
         let stream = r#"{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///x/other.rs","diagnostics":[{"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":4}},"severity":1,"message":"wrong file"}]}}"#;
         assert!(parse_publish_diagnostics_for_uri(stream, "file:///x/main.rs").is_empty());
+    }
+
+    #[test]
+    fn diagnostics_for_uri_matches_equivalent_file_uris() {
+        let stream = r#"{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"FILE://localhost/C:/x/main.rs","diagnostics":[{"range":{"start":{"line":4,"character":1},"end":{"line":4,"character":5}},"severity":1,"message":"same file"}]}}"#;
+        let diags = parse_publish_diagnostics_for_uri(stream, "file:///C:/x/main.rs");
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].message, "same file");
+    }
+
+    #[test]
+    fn diagnostics_for_uri_matches_percent_hex_casing() {
+        let stream = r#"{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///C:/x/a%20b/%e6%9d%b1.rs","diagnostics":[{"range":{"start":{"line":2,"character":0},"end":{"line":2,"character":1}},"severity":2,"message":"encoded same file"}]}}"#;
+        let diags = parse_publish_diagnostics_for_uri(stream, "file:///C:/x/a%20b/%E6%9D%B1.rs");
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].message, "encoded same file");
     }
 
     #[test]
