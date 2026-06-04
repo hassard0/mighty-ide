@@ -8568,3 +8568,14 @@ right-dock AI focus so the next input cannot route to a hidden output surface.
   AI, Agents, and transient navigation focus after selecting the Debug panel.
   Debug control commands still reveal the panel before acting, so view and
   action paths now share the same focus ownership rule.
+
+## L714 - Output View Commands Should Claim Their Interaction Focus
+
+Opening an output surface is not just a visibility change. Run and Testing have
+keyboard handlers for rows, toolbar actions, and scrolling, so their palette
+view commands should claim the matching focus and release competing dock owners.
+
+- **IDE note:** `View: Run Output` now opens Run, keeps Run focus, and clears
+  Terminal/AI/transient navigation focus. `View: Testing` now reveals Testing,
+  claims `test_focus`, and releases Run, Web, Terminal, AI, Agents, and
+  transient navigation state.

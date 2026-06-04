@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Run Output and Testing view commands claim focus**: `View: Run Output` now
+  clears stale Terminal/AI/navigation focus, and `View: Testing` now explicitly
+  claims Testing focus while releasing competing output owners.
 - **Run and Debug view now owns focus cleanly**: `View: Run and Debug` clears
   stale Run/Web/Testing/Terminal/AI/Agents focus when it switches to the Debug
   sidebar, preventing hidden surfaces from receiving the next input.

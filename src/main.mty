@@ -4744,13 +4744,22 @@ fn main() {
           find_nav = false
         } else if id == cmd_view_testing() {
           let _vp = mui_panel_set(h, panel_test())
+          test_focus = true
+          run_focus = false
+          web_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_view_run_output() {
           let _vo = mui_run_open(h)
           run_focus = true
           web_focus = false
           test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_view_problems() {
           let _po = mui_problems_open(h)
           run_focus = false

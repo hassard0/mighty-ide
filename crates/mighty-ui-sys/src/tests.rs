@@ -10716,6 +10716,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains(
+            "id == cmd_view_run_output() {\n          let _vo = mui_run_open(h)\n          run_focus = true\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Run Output view command must open Run and release competing focus"
+    );
+    assert!(
+        main.contains(
             "id == cmd_view_run_debug() {\n          let _vp = mui_panel_set(h, panel_debug())\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
         ),
         "Run and Debug view command must reveal Debug and release stale dock/right-dock focus"
@@ -10818,6 +10824,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _tc = mui_test_close(h)")
             && main.contains("test_focus = false"),
         "Test close command must use the Testing-specific close ABI and release Testing focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_view_testing() {\n          let _vp = mui_panel_set(h, panel_test())\n          test_focus = true\n          run_focus = false\n          web_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Testing view command must reveal Testing and claim test focus"
     );
     assert!(
         main.contains(
