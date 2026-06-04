@@ -18,6 +18,17 @@ use crate::diagnostics::{self, Severity};
 use crate::layout;
 use crate::theme;
 
+pub(crate) fn header_action_rects(width: u32, height: u32) -> [(f32, f32, f32, f32, i32); 2] {
+    let size = layout::DOCK_PRESET_SIZE;
+    let gap = layout::DOCK_ACTION_GAP;
+    let right = layout::dock_header_content_right(width, height);
+    let y = layout::term_panel_top(height) + (layout::term_header_h() - size) * 0.5;
+    [
+        (right - size * 2.0 - gap, y, size, size, 1),
+        (right - size, y, size, size, 2),
+    ]
+}
+
 fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
     let max_px = max_px.max(0.0);
     if max_px <= 1.0 {
@@ -267,6 +278,19 @@ impl ProblemSet {
         click_x >= x && click_x <= x + cw && click_y >= y && click_y <= y + ch
     }
 
+    /// Hit-test local Problems header actions: 1 = refresh, 2 = clear.
+    pub fn header_action_at(&self, click_x: f32, click_y: f32, w: f32, h: f32, left: f32) -> i32 {
+        if !self.open || click_x < left || click_x > w {
+            return 0;
+        }
+        for (x, y, rw, rh, action) in header_action_rects(w.max(1.0) as u32, h.max(1.0) as u32) {
+            if click_x >= x && click_x <= x + rw && click_y >= y && click_y <= y + rh {
+                return action;
+            }
+        }
+        0
+    }
+
     /// Draw the Problems panel as a bottom band: a header with error/warning
     /// totals, then file groups, then indented `severity message code Ln:Col`
     /// rows. No-op when closed.
@@ -312,6 +336,13 @@ impl ProblemSet {
         x += 17.0;
         let wc = self.warnings.to_string();
         ctx.text.queue_ui_sized(x, hy, &wc, if self.warnings > 0 { theme::WARNING() } else { theme::TEXT_3() }, chrome - 1.0, clip);
+        for (x, y, bw, bh, action) in header_action_rects(w.max(1.0) as u32, h.max(1.0) as u32) {
+            let icon = if action == 1 { icons::REFRESH } else { icons::TRASH };
+            let color = if action == 1 || !self.items.is_empty() { theme::TEXT_3() } else { theme::TEXT_4() };
+            ctx.dl_round(x, y, bw, bh, 5.0, theme::BG_1());
+            ctx.dl_stroke(x, y, bw, bh, 5.0, theme::BORDER_SOFT(), 1.0);
+            ctx.dl_icon(x + (bw - 15.0) * 0.5, y + (bh - 15.0) * 0.5, 15.0, 15.0, icon, color, 1.5, false);
+        }
 
         if self.items.is_empty() {
             ctx.dl_icon(left + 14.0, Self::body_top(h) + 2.0, 14.0, 14.0, icons::CHECK, theme::GREEN(), 1.7, false);

@@ -537,6 +537,24 @@ pub extern "C" fn mui_problems_close_at_click(handle: i64) -> i32 {
     i32::from(ctx.problems.close_at(ctx.last_event.x, ctx.last_event.y, w, h, left))
 }
 
+/// Map the last click to a Problems header action:
+/// `1` = refresh diagnostics, `2` = clear diagnostics, `0` = none.
+#[no_mangle]
+pub extern "C" fn mui_problems_header_action_at_click(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let left = layout::body_left(ctx.sidebar_visible);
+    let w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
+    let h = ctx.gpu.height as f32;
+    let action = ctx.problems.header_action_at(ctx.last_event.x, ctx.last_event.y, w, h, left);
+    if action > 0 {
+        let label = if action == 1 { "refresh" } else { "clear" };
+        crate::abi::trace(&format!("problems_header action={label}"));
+    }
+    action
+}
+
 /// Open the file of problem `i` as a tab and jump to its line:col. Returns the
 /// resulting tab index, or `-1` out of range / missing file.
 #[no_mangle]

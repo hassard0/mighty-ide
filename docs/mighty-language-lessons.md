@@ -8319,3 +8319,12 @@ clear are faster and more discoverable as local header actions.
   dispatches those actions before row navigation, and the symbol count is
   measured to fit ahead of the controls. Tests cover header hit/miss behavior
   and event ordering before symbol row hit-testing.
+
+L691. Bottom-dock panels need the same local maintenance affordances as sidebar
+panels. Problems refresh and clear are command-palette actions, but users often
+discover stale or noisy diagnostics while already looking at the Problems dock.
+
+- **IDE note:** the Problems dock header now exposes compact refresh and clear
+  buttons before the shared dock size/close controls. A dedicated header action
+  ABI mirrors the painted geometry, Mighty refreshes or clears before diagnostic
+  row hit-testing, and tests cover hit/miss behavior plus dispatcher ordering.

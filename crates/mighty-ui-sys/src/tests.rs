@@ -8300,6 +8300,46 @@ fn problems_clear_command_clears_diagnostics_without_closing_panel() {
 }
 
 #[test]
+fn problems_header_actions_hit_visible_buttons() {
+    use crate::ffi::MuiEvent;
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    ctx.gpu.phys_width = 0;
+    ctx.gpu.phys_height = 0;
+    ctx.sidebar_visible = false;
+    ctx.problems.set_open(true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let rects = crate::problems::header_action_rects(ctx.gpu.width, ctx.gpu.height);
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        rects[0].0 + rects[0].2 * 0.5,
+        rects[0].1 + rects[0].3 * 0.5,
+        0,
+    );
+    assert_eq!(crate::navsurfaces::mui_problems_header_action_at_click(h), 1);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        rects[1].0 + rects[1].2 * 0.5,
+        rects[1].1 + rects[1].3 * 0.5,
+        0,
+    );
+    assert_eq!(crate::navsurfaces::mui_problems_header_action_at_click(h), 2);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        rects[0].0 + rects[0].2 * 0.5,
+        rects[0].1 + rects[0].3 + 12.0,
+        0,
+    );
+    assert_eq!(crate::navsurfaces::mui_problems_header_action_at_click(h), 0);
+}
+
+#[test]
 fn markdown_preview_rejects_non_markdown_active_file() {
     let mut ctx = ctx_or_skip!();
     ctx.language = crate::langdetect::Language::Mighty;
@@ -10152,6 +10192,14 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _pc = mui_problems_clear(h)")
             && main.contains("agents_focus = false"),
         "Problems clear command must clear the Problems model without closing the panel"
+    );
+    assert!(
+        main.contains("fn mui_problems_header_action_at_click(handle: I64) -> I32")
+            && main.contains("let prob_act = mui_problems_header_action_at_click(h)")
+            && main.contains("let prob_hit = if prob_act > 0 { 0 - 1 } else { mui_problems_row_at_click(h) }")
+            && main.contains("prob_on == 1 && prob_act == problems_tb_refresh()")
+            && main.contains("prob_on == 1 && prob_act == problems_tb_clear()"),
+        "Problems header buttons must dispatch before diagnostic row navigation"
     );
     assert!(
         main.contains("id == cmd_problems_close()")

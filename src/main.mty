@@ -645,6 +645,7 @@ extern c {
   fn mui_problems_scroll(handle: I64, delta: I32)
   fn mui_problems_row_at_click(handle: I64) -> I32
   fn mui_problems_close_at_click(handle: I64) -> I32
+  fn mui_problems_header_action_at_click(handle: I64) -> I32
   fn mui_problems_open_row(handle: I64, i: I32) -> I32
   fn mui_problems_draw(handle: I64)
   // ---- interactive breadcrumb dropdown ----
@@ -1052,6 +1053,8 @@ fn dbg_breakpoint_base() -> I32 { 2000 }
 fn dbg_breakpoint_remove_base() -> I32 { 3000 }
 fn outline_tb_refresh() -> I32 { 1 }
 fn outline_tb_clear() -> I32 { 2 }
+fn problems_tb_refresh() -> I32 { 1 }
+fn problems_tb_clear() -> I32 { 2 }
 // Test toolbar click codes (mirror TB_RUN/TB_STOP in testabi.rs).
 fn test_tb_run() -> I32 { 1 }
 fn test_tb_stop() -> I32 { 2 }
@@ -3375,8 +3378,9 @@ fn main() {
         let md_close = mui_md_close_at_click(h)
         let chip_hit = mui_status_problems_chip_at_click(h)
         let prob_on = mui_problems_is_open(h)
+        let prob_act = mui_problems_header_action_at_click(h)
         let prob_close = mui_problems_close_at_click(h)
-        let prob_hit = mui_problems_row_at_click(h)
+        let prob_hit = if prob_act > 0 { 0 - 1 } else { mui_problems_row_at_click(h) }
         // Git click targets (computed up-front so the dispatch ladder stays flat):
         // the status-bar branch segment opens the switcher; a click on an inline-
         // diff hunk header stages/unstages that hunk.
@@ -3509,6 +3513,13 @@ fn main() {
         } else if chip_hit == 1 {
           // Status-bar problems chip: open + refresh the Problems panel.
           let _po = mui_problems_open(h)
+        } else if prob_on == 1 && prob_act == problems_tb_refresh() {
+          let _dr = mui_diag_refresh(h)
+          let _pr = mui_problems_refresh(h)
+          find_nav = false
+        } else if prob_on == 1 && prob_act == problems_tb_clear() {
+          let _pc = mui_problems_clear(h)
+          find_nav = false
         } else if prob_on == 1 && prob_close == 1 {
           let _pc = mui_problems_toggle(h)
         } else if prob_on == 1 && prob_hit >= 0 {
