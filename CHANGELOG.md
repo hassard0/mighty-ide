@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Search replace-focus command advertises its reveal path**:
+  `Search: Toggle Replace Field` now says it opens Search before moving focus
+  between query and replace, matching the existing dispatch path.
 - **Git blame toggle describes both states**: `Git: Toggle Blame` now advertises
   showing or hiding the blame gutter, matching the actual toggle ABI and keeping
   the dedicated hide command as a one-way close action.

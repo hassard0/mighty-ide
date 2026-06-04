@@ -8744,3 +8744,14 @@ users a weaker contract than the command actually implements.
 - **IDE note:** `Git: Toggle Blame` now describes showing or hiding the git
   blame gutter. Static-description tests cover the wording so the palette,
   shortcuts/help surfaces, and the blame toggle ABI stay aligned.
+
+## L730 - Focus Toggle Commands Can Also Reveal Their Surface
+
+Commands that move focus inside a panel still need to describe panel reveal when
+they route through a view-selection step first. Otherwise users cannot tell that
+the command is useful from another visible surface.
+
+- **IDE note:** `Search: Toggle Replace Field` now describes opening Search and
+  then moving focus between query and replace. The Mighty dispatcher already
+  calls `mui_panel_set(panel_search())` before `mui_search_toggle_focus`; static
+  description coverage now protects that user-facing contract.

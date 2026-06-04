@@ -1136,7 +1136,7 @@ impl PaletteEngine {
             CMD_SEARCH_RUN => (icons::SEARCH, "Run the current project-wide search query", false),
             CMD_SEARCH_CLEAR_RESULTS => (icons::CLOSE, "Clear Search results without changing query or replace text", false),
             CMD_SEARCH_REPLACE_ALL => (icons::REPLACE, "Replace every current project-wide search match", false),
-            CMD_SEARCH_TOGGLE_REPLACE => (icons::REPLACE, "Move Search panel focus between query and replace", false),
+            CMD_SEARCH_TOGGLE_REPLACE => (icons::REPLACE, "Open Search and move focus between query and replace", false),
             CMD_SEARCH_CLOSE => (icons::CLOSE, "Close the Search panel without clearing query or results", false),
             CMD_VIEW_SOURCE_CONTROL => (icons::GIT, "Open source control", false),
             CMD_VIEW_OUTLINE => (icons::FN_SYMBOL, "Open the symbol outline", false),
@@ -1754,6 +1754,10 @@ mod tests {
         assert_eq!(
             command_static_desc(CMD_GIT_TOGGLE_BLAME),
             "Show or hide git blame in the gutter"
+        );
+        assert_eq!(
+            command_static_desc(CMD_SEARCH_TOGGLE_REPLACE),
+            "Open Search and move focus between query and replace"
         );
         assert_eq!(
             command_static_desc(CMD_DOCK_COMPACT),
