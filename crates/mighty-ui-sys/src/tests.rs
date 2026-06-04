@@ -3020,6 +3020,15 @@ fn new_folder_dialog_env_pick_creates_or_accepts_folder() {
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Name is reserved on Windows");
 
+    let trailing_space = root.join("bad ");
+    std::env::set_var("MUI_NEW_FOLDER_PICK", trailing_space.to_string_lossy().as_ref());
+    assert_eq!(crate::mui_newfolder_dialog(handle), 0);
+    std::env::remove_var("MUI_NEW_FOLDER_PICK");
+    assert!(!trailing_space.exists());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Name must not end with a dot or space");
+
     let _ = std::fs::remove_dir_all(&root);
 }
 
@@ -3225,6 +3234,16 @@ fn new_file_dialog_cancel_and_existing_are_noops() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Name is reserved on Windows");
+
+    let trailing_space = root.join("bad .mty ");
+    std::env::set_var("MUI_NEW_FILE_PICK", trailing_space.to_string_lossy().as_ref());
+    assert_eq!(mui_newfile_workspace_dialog(handle), -2);
+    std::env::remove_var("MUI_NEW_FILE_PICK");
+    assert!(!trailing_space.exists());
+    assert_eq!(mui_tab_count(handle), 2);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Name must not end with a dot or space");
 
     let _ = std::fs::remove_dir_all(&outside_dir);
 

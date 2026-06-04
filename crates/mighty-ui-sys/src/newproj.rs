@@ -61,17 +61,17 @@ pub fn validate_name(input: &str) -> Result<String, String> {
 /// Validate only platform-level basename traps for paths selected by native
 /// dialogs. Dialogs can reasonably choose names outside the prompt's
 /// conservative charset, but still must not hit Windows device basenames or
-/// trailing-dot normalization.
+/// trailing-dot/space normalization.
 pub fn validate_platform_segment(input: &str) -> Result<(), String> {
+    if input.ends_with('.') || input.ends_with(' ') {
+        return Err("Name must not end with a dot or space".to_string());
+    }
     let name = input.trim();
     if name.is_empty() {
         return Err("Choose a name".to_string());
     }
     if name == "." || name == ".." {
         return Err("Invalid name".to_string());
-    }
-    if name.ends_with('.') {
-        return Err("Name must not end with a dot".to_string());
     }
     if name.contains('/') || name.contains('\\') || name.contains(':') {
         return Err("Name must not contain path separators".to_string());
@@ -186,6 +186,8 @@ mod tests {
         assert!(validate_platform_segment("emoji\u{1F600}.mty").is_ok());
         assert!(validate_platform_segment("CON.txt").is_err());
         assert!(validate_platform_segment("folder.").is_err());
+        assert!(validate_platform_segment("folder ").is_err());
+        assert!(validate_platform_segment("  ").is_err());
         assert!(validate_platform_segment("a/b").is_err());
     }
 

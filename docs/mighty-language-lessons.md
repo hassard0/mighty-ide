@@ -10455,3 +10455,16 @@ platform-specific filesystem traps.
 - **Language note:** no compiler gap surfaced. Dialog APIs reduce traversal
   risk, but they do not remove filesystem-name semantics; validate the basename
   closest to the operation that mutates disk.
+
+## L851 - Platform Guards Must Check Raw Basenames
+
+Windows treats trailing spaces like trailing dots: they can be rejected or
+normalized away by filesystem APIs. A guard that trims before checking loses the
+exact basename selected by a native dialog.
+
+- **IDE note:** native New File and New Folder creation now rejects raw
+  basenames ending in either `.` or space before trimming for empty-name checks,
+  preventing dialog-selected paths from resolving to a different on-disk name.
+- **Language note:** no compiler gap surfaced. Validation that protects a
+  filesystem operation should check raw path text for normalization hazards
+  before applying user-input cleanup such as `trim`.

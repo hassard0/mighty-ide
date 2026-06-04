@@ -12083,6 +12083,14 @@ enum FileDialogPick {
     Unavailable,
 }
 
+fn dialog_pick_from_raw_path(path: String) -> FileDialogPick {
+    if path.trim().is_empty() {
+        FileDialogPick::Cancelled
+    } else {
+        FileDialogPick::Picked(PathBuf::from(path))
+    }
+}
+
 fn pick_open_file_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FileDialogPick {
     if let Ok(sequence) = std::env::var("MUI_OPEN_FILE_PICK_SEQUENCE") {
         let trimmed = sequence.trim();
@@ -12091,12 +12099,7 @@ fn pick_open_file_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize
         }
     }
     if let Ok(path) = std::env::var("MUI_OPEN_FILE_PICK") {
-        let trimmed = path.trim();
-        return if trimmed.is_empty() {
-            FileDialogPick::Cancelled
-        } else {
-            FileDialogPick::Picked(PathBuf::from(trimmed))
-        };
+        return dialog_pick_from_raw_path(path);
     }
     if !cfg!(windows) {
         return FileDialogPick::Unavailable;
@@ -12147,12 +12150,7 @@ fn pick_save_file_native(
         return next_save_file_pick_from_sequence(&sequence);
     }
     if let Ok(path) = std::env::var("MUI_SAVE_FILE_PICK") {
-        let trimmed = path.trim();
-        return if trimmed.is_empty() {
-            FileDialogPick::Cancelled
-        } else {
-            FileDialogPick::Picked(PathBuf::from(trimmed))
-        };
+        return dialog_pick_from_raw_path(path);
     }
     if !cfg!(windows) {
         return FileDialogPick::Unavailable;
@@ -12207,12 +12205,7 @@ fn next_open_file_pick_from_sequence(sequence: &str) -> FileDialogPick {
     }
     let idx = state.1;
     state.1 = state.1.saturating_add(1);
-    let picked = sequence.split('|').nth(idx).unwrap_or("").trim();
-    if picked.is_empty() {
-        FileDialogPick::Cancelled
-    } else {
-        FileDialogPick::Picked(PathBuf::from(picked))
-    }
+    dialog_pick_from_raw_path(sequence.split('|').nth(idx).unwrap_or("").to_string())
 }
 
 fn next_save_file_pick_from_sequence(sequence: &str) -> FileDialogPick {
@@ -12227,12 +12220,7 @@ fn next_save_file_pick_from_sequence(sequence: &str) -> FileDialogPick {
     }
     let idx = state.1;
     state.1 = state.1.saturating_add(1);
-    let picked = sequence.split('|').nth(idx).unwrap_or("").trim();
-    if picked.is_empty() {
-        FileDialogPick::Cancelled
-    } else {
-        FileDialogPick::Picked(PathBuf::from(picked))
-    }
+    dialog_pick_from_raw_path(sequence.split('|').nth(idx).unwrap_or("").to_string())
 }
 
 fn pick_new_file_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FileDialogPick {
@@ -12243,12 +12231,7 @@ fn pick_new_file_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>
         }
     }
     if let Ok(path) = std::env::var("MUI_NEW_FILE_PICK") {
-        let trimmed = path.trim();
-        return if trimmed.is_empty() {
-            FileDialogPick::Cancelled
-        } else {
-            FileDialogPick::Picked(PathBuf::from(trimmed))
-        };
+        return dialog_pick_from_raw_path(path);
     }
     if !cfg!(windows) {
         return FileDialogPick::Unavailable;
@@ -12294,12 +12277,7 @@ try {
 
 fn pick_new_folder_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FileDialogPick {
     if let Ok(path) = std::env::var("MUI_NEW_FOLDER_PICK") {
-        let trimmed = path.trim();
-        return if trimmed.is_empty() {
-            FileDialogPick::Cancelled
-        } else {
-            FileDialogPick::Picked(PathBuf::from(trimmed))
-        };
+        return dialog_pick_from_raw_path(path);
     }
     if !cfg!(windows) {
         return FileDialogPick::Unavailable;
@@ -12339,12 +12317,7 @@ try {
 
 fn pick_new_project_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FileDialogPick {
     if let Ok(path) = std::env::var("MUI_NEW_PROJECT_PICK") {
-        let trimmed = path.trim();
-        return if trimmed.is_empty() {
-            FileDialogPick::Cancelled
-        } else {
-            FileDialogPick::Picked(PathBuf::from(trimmed))
-        };
+        return dialog_pick_from_raw_path(path);
     }
     if !cfg!(windows) {
         return FileDialogPick::Unavailable;
@@ -12394,12 +12367,7 @@ fn next_new_file_pick_from_sequence(sequence: &str) -> FileDialogPick {
     }
     let idx = state.1;
     state.1 = state.1.saturating_add(1);
-    let picked = sequence.split('|').nth(idx).unwrap_or("").trim();
-    if picked.is_empty() {
-        FileDialogPick::Cancelled
-    } else {
-        FileDialogPick::Picked(PathBuf::from(picked))
-    }
+    dialog_pick_from_raw_path(sequence.split('|').nth(idx).unwrap_or("").to_string())
 }
 
 fn run_file_dialog_script(
@@ -12426,12 +12394,7 @@ fn run_file_dialog_script(
     if !out.status.success() {
         return FileDialogPick::Unavailable;
     }
-    let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    if path.is_empty() {
-        FileDialogPick::Cancelled
-    } else {
-        FileDialogPick::Picked(PathBuf::from(path))
-    }
+    dialog_pick_from_raw_path(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
 #[cfg(target_os = "windows")]
