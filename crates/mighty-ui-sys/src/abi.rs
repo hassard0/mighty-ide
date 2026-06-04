@@ -7403,10 +7403,10 @@ pub extern "C" fn mui_complete_push_byte(handle: i64, byte: i32) {
     }
 }
 
-/// Translate a 0-based `(line, col)` to a byte offset in `buf` (col is a byte
-/// count from the line start, clamped to the line length). Shim-side because
-/// Mighty already tracks the cursor as a byte offset, but the ABI is specified
-/// as `(line, col)`; this keeps the two in agreement.
+/// Translate a 0-based `(line, col)` to a byte offset in `buf` (col is a
+/// character count from the line start, clamped to the line length). Shim-side
+/// because the editor model exposes cursor columns as character offsets while
+/// the completion engine scans UTF-8 bytes.
 fn line_col_to_offset(buf: &[u8], line: i32, col: i32) -> usize {
     if line < 0 {
         return 0;
@@ -7421,13 +7421,45 @@ fn line_col_to_offset(buf: &[u8], line: i32, col: i32) -> usize {
         }
         i += 1;
     }
-    // Walk `col` bytes into the line, stopping at its newline / EOF.
-    let mut c = 0i32;
-    while i < buf.len() && buf[i] != b'\n' && c < col.max(0) {
+
+    let line_start = i;
+    while i < buf.len() && buf[i] != b'\n' {
         i += 1;
-        c += 1;
     }
-    i
+    let line_end = i;
+    let col = col.max(0) as usize;
+    let line_bytes = &buf[line_start..line_end];
+    let Ok(line_text) = std::str::from_utf8(line_bytes) else {
+        return line_start + col.min(line_bytes.len());
+    };
+    line_text
+        .char_indices()
+        .nth(col)
+        .map_or(line_end, |(byte, _)| line_start + byte)
+}
+
+#[cfg(test)]
+mod completion_abi_tests {
+    use super::*;
+
+    #[test]
+    fn line_col_to_offset_treats_columns_as_utf8_chars() {
+        let text = "éα caf\nxx";
+        assert_eq!(line_col_to_offset(text.as_bytes(), 0, 0), 0);
+        assert_eq!(line_col_to_offset(text.as_bytes(), 0, 1), "é".len());
+        assert_eq!(line_col_to_offset(text.as_bytes(), 0, 3), "éα ".len());
+        assert_eq!(line_col_to_offset(text.as_bytes(), 0, 6), "éα caf".len());
+        assert_eq!(line_col_to_offset(text.as_bytes(), 0, 99), "éα caf".len());
+        assert_eq!(line_col_to_offset(text.as_bytes(), 1, 1), "éα caf\nx".len());
+    }
+
+    #[test]
+    fn line_col_to_offset_falls_back_to_bytes_for_invalid_utf8() {
+        let bytes = [b'a', 0xff, b'b', b'\n', b'c'];
+        assert_eq!(line_col_to_offset(&bytes, 0, 2), 2);
+        assert_eq!(line_col_to_offset(&bytes, 0, 99), 3);
+        assert_eq!(line_col_to_offset(&bytes, 1, 1), 5);
+    }
 }
 
 /// Build the candidate list for the prefix at the cursor `(line, col)` (0-based)
