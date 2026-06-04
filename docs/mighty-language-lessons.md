@@ -7759,3 +7759,11 @@ into degraded fallback behavior.
   replies (`CSI ?1;2c` and `CSI >0;0;0c`). Regression tests cover empty/zero
   primary queries and secondary `>`/`>0` forms without leaking query bytes into
   the grid.
+
+L636. Cursor movement has legacy CSI aliases. `CSI Ps a` (HPR) is the horizontal
+position-relative form of Cursor Forward; skipping it consumes the sequence but
+leaves later text at the old column.
+
+- **IDE note:** `VtParser` now routes `CSI a` through the same clamped relative
+  cursor movement as `CSI C`. The cursor movement regression test covers normal
+  HPR movement and right-edge clamping without leaking the sequence bytes.
