@@ -8006,3 +8006,13 @@ ignore a valid terminal command.
   as CSI `T`, including parameter parsing and active scroll-region clipping.
   Regression coverage verifies full-screen and margin-limited scroll-down output
   and confirms the alias bytes do not leak into the grid.
+
+L661. Cursor blink mode is terminal state even before rendering animates it.
+Xterm-compatible apps use private mode `?12` to request blinking or steady
+cursors, and can query it with DECRQM. Ignoring the mode makes status replies
+look unsupported and loses cursor intent across save/restore boundaries.
+
+- **IDE note:** the VT parser now tracks `CSI ?12 h/l`, includes it in cursor
+  save/restore and alternate-screen snapshots, resets it through RIS/DECSTR, and
+  reports it via `CSI ?12 $ p`. Regression coverage pins the toggle, query,
+  reset, and cursor snapshot behavior.

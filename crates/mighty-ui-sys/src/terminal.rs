@@ -693,6 +693,7 @@ struct SavedCursor {
     insert_mode: bool,
     newline_mode: bool,
     cursor_visible: bool,
+    cursor_blinking: bool,
     cursor_shape: CursorShape,
 }
 
@@ -793,6 +794,8 @@ pub struct VtParser {
     focus_reporting: bool,
     /// Whether the terminal cursor should be drawn (`CSI ?25 h/l`).
     cursor_visible: bool,
+    /// Whether the running app requested cursor blinking (`CSI ?12 h/l`).
+    cursor_blinking: bool,
     /// Shape requested by DECSCUSR (`CSI Ps SP q`).
     cursor_shape: CursorShape,
     /// Whether arrow keys should use application cursor-key sequences.
@@ -840,6 +843,7 @@ impl VtParser {
             bracketed_paste: false,
             focus_reporting: false,
             cursor_visible: true,
+            cursor_blinking: false,
             cursor_shape: CursorShape::Block,
             application_cursor_keys: false,
             mouse_modes: 0,
@@ -896,6 +900,11 @@ impl VtParser {
 
     pub fn cursor_visible(&self) -> bool {
         self.cursor_visible
+    }
+
+    #[cfg(test)]
+    fn cursor_blinking(&self) -> bool {
+        self.cursor_blinking
     }
 
     pub fn cursor_shape(&self) -> CursorShape {
@@ -1472,6 +1481,8 @@ impl VtParser {
                 ("7", b'l') => self.autowrap = false,
                 ("1048", b'h') => self.save_cursor(grid),
                 ("1048", b'l') => self.restore_cursor(grid),
+                ("12", b'h') => self.cursor_blinking = true,
+                ("12", b'l') => self.cursor_blinking = false,
                 ("25", b'h') => self.cursor_visible = true,
                 ("25", b'l') => self.cursor_visible = false,
                 ("1004", b'h') => self.focus_reporting = true,
@@ -1501,6 +1512,7 @@ impl VtParser {
         self.bracketed_paste = false;
         self.focus_reporting = false;
         self.cursor_visible = true;
+        self.cursor_blinking = false;
         self.cursor_shape = CursorShape::Block;
         self.application_cursor_keys = false;
         self.mouse_modes = 0;
@@ -1742,6 +1754,7 @@ impl VtParser {
             insert_mode: self.insert_mode,
             newline_mode: self.newline_mode,
             cursor_visible: self.cursor_visible,
+            cursor_blinking: self.cursor_blinking,
             cursor_shape: self.cursor_shape,
         }
     }
@@ -1759,6 +1772,7 @@ impl VtParser {
         self.insert_mode = saved.insert_mode;
         self.newline_mode = saved.newline_mode;
         self.cursor_visible = saved.cursor_visible;
+        self.cursor_blinking = saved.cursor_blinking;
         self.cursor_shape = saved.cursor_shape;
     }
 
@@ -1841,6 +1855,7 @@ impl VtParser {
                 "1" => Some(self.application_cursor_keys),
                 "6" => Some(self.origin_mode),
                 "7" => Some(self.autowrap),
+                "12" => Some(self.cursor_blinking),
                 "25" => Some(self.cursor_visible),
                 "47" | "1047" | "1049" => Some(grid.alternate_screen_active()),
                 "1000" => Some(self.mouse_modes & MOUSE_MODE_BUTTON != 0),
@@ -3757,11 +3772,13 @@ mod tests {
         let mut g = Grid::new(1, 8);
         let mut p = VtParser::new();
 
-        p.feed(&mut g, b"\x1b[2 q\x1b7\x1b[?25l\x1b[6 q\x1b8");
+        p.feed(&mut g, b"\x1b[?12h\x1b[2 q\x1b7\x1b[?12l\x1b[?25l\x1b[6 q\x1b8");
+        assert!(p.cursor_blinking());
         assert!(p.cursor_visible());
         assert_eq!(p.cursor_shape(), CursorShape::Block);
 
-        p.feed(&mut g, b"\x1b[?25l\x1b[6 q\x1b[s\x1b[?25h\x1b[4 q\x1b[u");
+        p.feed(&mut g, b"\x1b[?12l\x1b[?25l\x1b[6 q\x1b[s\x1b[?12h\x1b[?25h\x1b[4 q\x1b[u");
+        assert!(!p.cursor_blinking());
         assert!(!p.cursor_visible());
         assert_eq!(p.cursor_shape(), CursorShape::Bar);
         assert!(!g.contains("?25"));
@@ -3796,16 +3813,19 @@ mod tests {
         let mut g = Grid::new(1, 8);
         let mut p = VtParser::new();
 
-        p.feed(&mut g, b"\x1b[?25h\x1b[2 q\x1b[?1049h\x1b[?25l\x1b[6 q\x1b[?1049l");
+        p.feed(&mut g, b"\x1b[?12h\x1b[?25h\x1b[2 q\x1b[?1049h\x1b[?12l\x1b[?25l\x1b[6 q\x1b[?1049l");
+        assert!(p.cursor_blinking());
         assert!(p.cursor_visible());
         assert_eq!(p.cursor_shape(), CursorShape::Block);
         assert!(!g.contains("1049"));
 
-        p.feed(&mut g, b"\x1b[?25l\x1b[6 q\x1b7\x1b[?25h\x1b[2 q\x1b[?1049h\x1b[?25l\x1b[6 q\x1b[?1049l");
+        p.feed(&mut g, b"\x1b[?12l\x1b[?25l\x1b[6 q\x1b7\x1b[?12h\x1b[?25h\x1b[2 q\x1b[?1049h\x1b[?12l\x1b[?25l\x1b[6 q\x1b[?1049l");
+        assert!(p.cursor_blinking());
         assert!(p.cursor_visible());
         assert_eq!(p.cursor_shape(), CursorShape::Block);
 
         p.feed(&mut g, b"\x1b8");
+        assert!(!p.cursor_blinking());
         assert!(!p.cursor_visible());
         assert_eq!(p.cursor_shape(), CursorShape::Bar);
     }
@@ -3965,6 +3985,21 @@ mod tests {
     }
 
     #[test]
+    fn cursor_blink_mode_tracks_private_csi() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+        assert!(!p.cursor_blinking());
+
+        p.feed(&mut g, b"\x1b[?12h");
+        assert!(p.cursor_blinking());
+        assert!(!g.contains("12"));
+
+        p.feed(&mut g, b"\x1b[?12l");
+        assert!(!p.cursor_blinking());
+        assert!(!g.contains("12"));
+    }
+
+    #[test]
     fn cursor_shape_tracks_decscusr() {
         let mut g = Grid::new(1, 8);
         let mut p = VtParser::new();
@@ -4000,9 +4035,10 @@ mod tests {
         let mut p = VtParser::new();
         p.feed(
             &mut g,
-            b"\x1b[?1h\x1b[?25l\x1b[6 q\x1b[?1004h\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1bc",
+            b"\x1b[?1h\x1b[?12h\x1b[?25l\x1b[6 q\x1b[?1004h\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1bc",
         );
         assert!(!p.application_cursor_keys());
+        assert!(!p.cursor_blinking());
         assert!(p.cursor_visible());
         assert_eq!(p.cursor_shape(), CursorShape::Block);
         assert!(!p.focus_reporting_enabled());
@@ -4017,7 +4053,7 @@ mod tests {
         let mut p = VtParser::new();
         p.feed(
             &mut g,
-            b"aaaaaa\nbbbbbb\ncccccc\ndddddd\x1b[2;3r\x1b[?6h\x1b[?7l\x1b[31;44m\x1b[6 q\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1b[!pX",
+            b"aaaaaa\nbbbbbb\ncccccc\ndddddd\x1b[2;3r\x1b[?6h\x1b[?7l\x1b[31;44m\x1b[?12h\x1b[6 q\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1b[!pX",
         );
 
         assert_eq!(g.cell(0, 0).ch, 'X');
@@ -4026,6 +4062,7 @@ mod tests {
         assert_eq!(g.cell(0, 0).bg, DEFAULT_BG);
         assert_eq!(p.cursor_shape(), CursorShape::Block);
         assert!(p.cursor_visible());
+        assert!(!p.cursor_blinking());
         assert!(!p.application_cursor_keys());
         assert!(!p.bracketed_paste_enabled());
         assert!(!p.mouse_reporting_enabled());
@@ -4439,11 +4476,16 @@ mod tests {
         assert_eq!(p.take_reply(), b"\x1b[?2004;1$y");
         assert!(p.bracketed_paste_enabled());
 
+        p.feed(&mut g, b"\x1b[?12$p\x1b[?12h\x1b[?12$p");
+        assert_eq!(p.take_reply(), b"\x1b[?12;2$y\x1b[?12;1$y");
+        assert!(p.cursor_blinking());
+
         p.feed(&mut g, b"\x1b[?1004h\x1b[?1004$p\x1b[?25l\x1b[?25$p");
         assert_eq!(p.take_reply(), b"\x1b[?1004;1$y\x1b[?25;2$y");
         assert!(p.focus_reporting_enabled());
         assert!(!p.cursor_visible());
         assert!(!g.contains("2004"));
+        assert!(!g.contains("12"));
         assert!(!g.contains("1004"));
         assert!(!g.contains("25"));
     }
