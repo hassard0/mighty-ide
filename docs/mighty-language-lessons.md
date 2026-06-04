@@ -9577,3 +9577,18 @@ tests, headers, and guards feel unfinished, even when tab-stops and choices work
   explicit context object once variables enter the grammar; keeping the default
   context empty preserves pure parser tests while letting ABI routes supply live
   editor state.
+
+## L789 - Braced Snippet Variables Need Fallbacks
+
+Imported snippets often use braced variable syntax such as `${TM_FILENAME}` and
+`${TM_FILENAME_BASE:main}` because it composes cleanly with surrounding text.
+Parsing only bare `$NAME` variables leaves otherwise valid templates visibly
+unfinished.
+
+- **IDE note:** braced snippet variables now parse as variables, resolve from
+  the active editor context, and use their default text when no context value is
+  available. The same resolver is used inside editable placeholder defaults so
+  selection ranges cover the inserted value instead of marker syntax.
+- **Language note:** no compiler gap surfaced. Once snippet variables support
+  defaults, parser tests should include both syntax shape and expansion
+  fallback behavior; defaults are an expansion concern, not just a parse concern.

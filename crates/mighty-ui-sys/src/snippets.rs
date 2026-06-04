@@ -37,8 +37,9 @@ use std::path::{Path, PathBuf};
 pub enum Segment {
     /// Literal text (may contain `\n` for multi-line bodies).
     Text(String),
-    /// A VS Code-style snippet variable such as `$TM_FILENAME`.
-    Variable(String),
+    /// A VS Code-style snippet variable such as `$TM_FILENAME` or
+    /// `${TM_FILENAME_BASE:default}`.
+    Variable { name: String, default: Option<String>, braced: bool },
     /// A tab-stop: its number (`0` is the final cursor) and placeholder text
     /// (empty when the body used the bare `$N` form).
     Stop { num: u32, placeholder: String },
@@ -65,7 +66,8 @@ impl SnippetDef {
 
 /// Parse a snippet `body` into an ordered list of [`Segment`]s.
 ///
-/// Recognizes `$N`, `${N:placeholder}`, `${N|one,two|}`, and `$0`. Nested
+/// Recognizes `$N`, `${N:placeholder}`, `${N|one,two|}`, `$0`, and snippet
+/// variables such as `$TM_FILENAME` / `${TM_FILENAME_BASE:default}`. Nested
 /// placeholder defaults are flattened into the outer placeholder text. A literal
 /// dollar sign is written `\$`. Anything else is literal text (newlines
 /// preserved).
@@ -88,11 +90,17 @@ pub fn parse_body(body: &str) -> Vec<Segment> {
             continue;
         }
         if c == '$' && i + 1 < chars.len() {
-            // `${N:placeholder}`
+            // `${N:placeholder}` / `${NAME:default}`
             if chars[i + 1] == '{' {
                 if let Some((num, placeholder, consumed)) = parse_braced(&chars[i..]) {
                     flush(&mut segs, &mut text);
                     segs.push(Segment::Stop { num, placeholder });
+                    i += consumed;
+                    continue;
+                }
+                if let Some((name, default, consumed)) = parse_braced_variable(&chars[i..]) {
+                    flush(&mut segs, &mut text);
+                    segs.push(Segment::Variable { name, default, braced: true });
                     i += consumed;
                     continue;
                 }
@@ -116,7 +124,11 @@ pub fn parse_body(body: &str) -> Vec<Segment> {
                     j += 1;
                 }
                 flush(&mut segs, &mut text);
-                segs.push(Segment::Variable(chars[i + 1..j].iter().collect()));
+                segs.push(Segment::Variable {
+                    name: chars[i + 1..j].iter().collect(),
+                    default: None,
+                    braced: false,
+                });
                 i = j;
                 continue;
             }
@@ -163,6 +175,33 @@ fn parse_braced(chars: &[char]) -> Option<(u32, String, usize)> {
     }
 }
 
+/// Parse a braced variable starting at `chars[0] == '$'`, such as
+/// `${TM_FILENAME}` or `${TM_FILENAME_BASE:default}`.
+fn parse_braced_variable(chars: &[char]) -> Option<(String, Option<String>, usize)> {
+    debug_assert!(chars[0] == '$' && chars.get(1) == Some(&'{'));
+    let mut j = 2;
+    if j >= chars.len() || !is_variable_start(chars[j]) {
+        return None;
+    }
+    j += 1;
+    while j < chars.len() && is_variable_char(chars[j]) {
+        j += 1;
+    }
+    let name: String = chars[2..j].iter().collect();
+    if j < chars.len() && chars[j] == ':' {
+        j += 1;
+        let (default, consumed) = parse_placeholder_text(&chars[j..])?;
+        j += consumed;
+        return Some((name, Some(default), j));
+    }
+    if j < chars.len() && chars[j] == '}' {
+        j += 1;
+        Some((name, None, j))
+    } else {
+        None
+    }
+}
+
 fn parse_placeholder_text(chars: &[char]) -> Option<(String, usize)> {
     let mut text = String::new();
     let mut j = 0;
@@ -172,6 +211,9 @@ fn parse_placeholder_text(chars: &[char]) -> Option<(String, usize)> {
             '$' if chars.get(j + 1) == Some(&'{') => {
                 if let Some((_, placeholder, consumed)) = parse_braced(&chars[j..]) {
                     text.push_str(&placeholder);
+                    j += consumed;
+                } else if let Some((_, _, consumed)) = parse_braced_variable(&chars[j..]) {
+                    text.extend(chars[j..j + consumed].iter());
                     j += consumed;
                 } else {
                     text.push(chars[j]);
@@ -311,9 +353,9 @@ pub fn expand_with_context(
     for seg in &segs {
         match seg {
             Segment::Text(s) => emit(s, &mut text, &mut line, &mut col),
-            Segment::Variable(name) => {
-                let value = resolve_snippet_variable(name, context)
-                    .unwrap_or_else(|| format!("${name}"));
+            Segment::Variable { name, default, braced } => {
+                let value = resolve_variable_with_default(name, default.as_deref(), context)
+                    .unwrap_or_else(|| unresolved_variable_literal(name, *braced));
                 emit(&value, &mut text, &mut line, &mut col);
             }
             Segment::Stop { num, placeholder } => {
@@ -337,6 +379,19 @@ fn resolve_variables_in_text(text: &str, context: &SnippetContext) -> String {
     let mut out = String::new();
     let mut i = 0;
     while i < chars.len() {
+        if chars[i] == '$' && chars.get(i + 1) == Some(&'{') {
+            if let Some((name, default, consumed)) = parse_braced_variable(&chars[i..]) {
+                if let Some(value) =
+                    resolve_variable_with_default(&name, default.as_deref(), context)
+                {
+                    out.push_str(&value);
+                } else {
+                    out.push_str(&unresolved_variable_literal(&name, true));
+                }
+                i += consumed;
+                continue;
+            }
+        }
         if chars[i] == '$' && i + 1 < chars.len() && is_variable_start(chars[i + 1]) {
             let mut j = i + 2;
             while j < chars.len() && is_variable_char(chars[j]) {
@@ -355,6 +410,24 @@ fn resolve_variables_in_text(text: &str, context: &SnippetContext) -> String {
         }
     }
     out
+}
+
+fn resolve_variable_with_default(
+    name: &str,
+    default: Option<&str>,
+    context: &SnippetContext,
+) -> Option<String> {
+    resolve_snippet_variable(name, context).or_else(|| {
+        default.map(|value| resolve_variables_in_text(value, context))
+    })
+}
+
+fn unresolved_variable_literal(name: &str, braced: bool) -> String {
+    if braced {
+        format!("${{{name}}}")
+    } else {
+        format!("${name}")
+    }
 }
 
 fn resolve_snippet_variable(name: &str, context: &SnippetContext) -> Option<String> {
@@ -870,9 +943,39 @@ mod tests {
             segs,
             vec![
                 Segment::Text("file ".into()),
-                Segment::Variable("TM_FILENAME".into()),
+                Segment::Variable {
+                    name: "TM_FILENAME".into(),
+                    default: None,
+                    braced: false,
+                },
                 Segment::Text(" base ".into()),
-                Segment::Variable("TM_FILENAME_BASE".into()),
+                Segment::Variable {
+                    name: "TM_FILENAME_BASE".into(),
+                    default: None,
+                    braced: false,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_braced_variables() {
+        let segs = parse_body("file ${TM_FILENAME} base ${TM_FILENAME_BASE:main}");
+        assert_eq!(
+            segs,
+            vec![
+                Segment::Text("file ".into()),
+                Segment::Variable {
+                    name: "TM_FILENAME".into(),
+                    default: None,
+                    braced: true,
+                },
+                Segment::Text(" base ".into()),
+                Segment::Variable {
+                    name: "TM_FILENAME_BASE".into(),
+                    default: Some("main".into()),
+                    braced: true,
+                },
             ]
         );
     }
@@ -991,16 +1094,41 @@ mod tests {
     }
 
     #[test]
+    fn expand_braced_file_variables_from_context() {
+        let path = std::path::Path::new("C:/work/src/main.test.mty");
+        let ctx = SnippetContext::from_path(Some(path));
+        let exp = expand_with_context(
+            "${TM_FILENAME}|${TM_FILENAME_BASE}|${TM_DIRECTORY}|${TM_FILEPATH}",
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(
+            exp.text,
+            "main.test.mty|main.test|C:/work/src|C:/work/src/main.test.mty"
+        );
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
+    fn expand_braced_variable_defaults_without_context() {
+        let exp = expand("${TM_FILENAME_BASE:main}|${UNKNOWN:fallback}", "", 0, 0);
+        assert_eq!(exp.text, "main|fallback");
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
     fn expand_unknown_variables_are_preserved() {
-        let exp = expand("$UNKNOWN $TM_FILENAME", "", 0, 0);
-        assert_eq!(exp.text, "$UNKNOWN $TM_FILENAME");
+        let exp = expand("$UNKNOWN ${UNKNOWN} $TM_FILENAME ${TM_FILENAME}", "", 0, 0);
+        assert_eq!(exp.text, "$UNKNOWN ${UNKNOWN} $TM_FILENAME ${TM_FILENAME}");
     }
 
     #[test]
     fn expand_variables_inside_placeholders_update_selection_range() {
         let path = std::path::Path::new("C:/work/src/main.mty");
         let ctx = SnippetContext::from_path(Some(path));
-        let exp = expand_with_context("${1:$TM_FILENAME_BASE}_test $0", "", 0, 0, &ctx);
+        let exp = expand_with_context("${1:${TM_FILENAME_BASE:default}}_test $0", "", 0, 0, &ctx);
         assert_eq!(exp.text, "main_test ");
         assert_eq!(exp.stops[0], Stop { num: 1, start: (0, 0), end: (0, 4) });
         assert_eq!(exp.stops[1], Stop { num: 0, start: (0, 10), end: (0, 10) });
