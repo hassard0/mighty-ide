@@ -487,7 +487,9 @@ pub fn diagnostics_with_timeout(
     };
 
     let text = String::from_utf8_lossy(&raw).into_owned();
-    parse_publish_diagnostics_for_uri(&text, &uri)
+    let mut diags = parse_publish_diagnostics_for_uri(&text, &uri);
+    normalize_lsp_diag_columns(source, &mut diags);
+    diags
 }
 
 /// Parse a `textDocument/publishDiagnostics` notification stream into [`Diag`]s.
@@ -501,6 +503,41 @@ pub fn parse_publish_diagnostics(stream: &str) -> Vec<Diag> {
 
 pub fn parse_publish_diagnostics_for_uri(stream: &str, wanted_uri: &str) -> Vec<Diag> {
     parse_publish_diagnostics_latest(stream, Some(wanted_uri))
+}
+
+fn normalize_lsp_diag_columns(source: &str, diags: &mut [Diag]) {
+    for diag in diags {
+        if diag.line < 0 {
+            continue;
+        }
+        let Some(line_text) = source.split('\n').nth(diag.line as usize) else {
+            continue;
+        };
+        let start = utf16_to_char_col(line_text, diag.col_start.max(0) as u32) as i32;
+        let mut end = utf16_to_char_col(line_text, diag.col_end.max(0) as u32) as i32;
+        if end <= start {
+            end = start + 1;
+        }
+        diag.col_start = start;
+        diag.col_end = end;
+    }
+}
+
+fn utf16_to_char_col(line_text: &str, utf16_col: u32) -> u32 {
+    let mut units = 0u32;
+    let mut chars = 0u32;
+    for ch in line_text.chars() {
+        if units >= utf16_col {
+            return chars;
+        }
+        let next = units + ch.len_utf16() as u32;
+        if next > utf16_col {
+            return chars;
+        }
+        units = next;
+        chars += 1;
+    }
+    chars
 }
 
 fn parse_publish_diagnostics_latest(stream: &str, wanted_uri: Option<&str>) -> Vec<Diag> {
@@ -861,6 +898,36 @@ mod tests {
         let diags = parse_publish_diagnostics(stream);
         assert_eq!(diags.len(), 1);
         assert_eq!(diags[0].severity, Severity::Warning);
+    }
+
+    #[test]
+    fn utf16_diag_columns_convert_to_editor_character_columns() {
+        let mut diags = vec![Diag {
+            line: 0,
+            col_start: 2,
+            col_end: 5,
+            severity: Severity::Error,
+            code: String::new(),
+            message: "after emoji".to_string(),
+        }];
+        normalize_lsp_diag_columns("😀abc", &mut diags);
+        assert_eq!(diags[0].col_start, 1);
+        assert_eq!(diags[0].col_end, 4);
+    }
+
+    #[test]
+    fn utf16_diag_columns_inside_surrogate_pair_snap_to_character_start() {
+        let mut diags = vec![Diag {
+            line: 0,
+            col_start: 1,
+            col_end: 2,
+            severity: Severity::Error,
+            code: String::new(),
+            message: "inside surrogate".to_string(),
+        }];
+        normalize_lsp_diag_columns("😀abc", &mut diags);
+        assert_eq!(diags[0].col_start, 0);
+        assert_eq!(diags[0].col_end, 1);
     }
 
     #[test]
