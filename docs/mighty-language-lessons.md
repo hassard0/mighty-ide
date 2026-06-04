@@ -9932,3 +9932,18 @@ metadata and nested documentation fields change the popup contents.
 - **Language note:** no compiler gap surfaced. Array payloads are easier to
   parse correctly by splitting complete child objects first, then reading
   top-level fields, instead of inferring ownership from key ordering.
+
+## L814 - WorkspaceEdit Parsers Need Result Boundaries
+
+WorkspaceEdit responses can be wrapped in a JSON-RPC envelope that also contains
+metadata fields named `changes` or `documentChanges`. Parsing the first matching
+key in the entire response can ignore the real edit payload or apply stale
+metadata instead.
+
+- **IDE note:** WorkspaceEdit parsing now prefers the top-level JSON-RPC
+  `result` payload before reading `changes` or `documentChanges`, while keeping
+  the existing bare-edit fallback used by inline code actions and command
+  arguments.
+- **Language note:** no compiler gap surfaced. Protocol parsers that accept both
+  wrapped and bare payloads should explicitly choose the wrapped payload when it
+  exists, then fall back only for known embedded forms.

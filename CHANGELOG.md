@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Workspace edits read result-scoped edits**: rename and code-action edit
+  parsing now prefers the JSON-RPC `result` payload before reading `changes` or
+  `documentChanges`, preventing envelope metadata from hiding the real
+  WorkspaceEdit.
 - **Signature help reads result-scoped signatures**: LSP signature-help parsing
   now isolates the JSON-RPC `result`, reads `activeSignature` /
   `activeParameter` from that payload, and parses signature labels, parameters,

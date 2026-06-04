@@ -379,9 +379,14 @@ impl WorkspaceEdit {
 /// array. Returns an empty edit (no files) when neither is present / `null`.
 pub fn parse_workspace_edit(json: &str) -> WorkspaceEdit {
     let bytes = json.as_bytes();
+    let bytes = workspace_edit_payload(bytes);
     let mut we = WorkspaceEdit::default();
 
-    if let Some(changes_at) = find_sub(bytes, b"\"changes\"") {
+    if let Some(changes_at) = top_level_field_value_start(bytes, "changes") {
+        parse_changes_map_at_value(bytes, changes_at, &mut we);
+    } else if let Some(dc_at) = top_level_field_value_start(bytes, "documentChanges") {
+        parse_document_changes_at_value(bytes, dc_at, &mut we);
+    } else if let Some(changes_at) = find_sub(bytes, b"\"changes\"") {
         // Walk URI keys inside the changes object. Each key is a `"file://..."`
         // string immediately followed by `:[` and a list of edits up to `]`.
         parse_changes_map(bytes, changes_at, &mut we);
@@ -391,6 +396,19 @@ pub fn parse_workspace_edit(json: &str) -> WorkspaceEdit {
     we
 }
 
+fn workspace_edit_payload(bytes: &[u8]) -> &[u8] {
+    if bytes.first() == Some(&b'{') {
+        if let Some(result_at) = top_level_field_value_start(bytes, "result") {
+            if bytes.get(result_at..result_at + 4) == Some(b"null") {
+                return &[];
+            }
+            let result_end = json_value_end(bytes, result_at).min(bytes.len());
+            return &bytes[result_at..result_end];
+        }
+    }
+    bytes
+}
+
 /// Parse the `changes` map shape into `we`.
 fn parse_changes_map(bytes: &[u8], changes_at: usize, we: &mut WorkspaceEdit) {
     // Find the opening `{` of the changes object.
@@ -398,6 +416,10 @@ fn parse_changes_map(bytes: &[u8], changes_at: usize, we: &mut WorkspaceEdit) {
     while i < bytes.len() && matches!(bytes[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
         i += 1;
     }
+    parse_changes_map_at_value(bytes, i, we);
+}
+
+fn parse_changes_map_at_value(bytes: &[u8], i: usize, we: &mut WorkspaceEdit) {
     if i >= bytes.len() || bytes[i] != b'{' {
         return;
     }
@@ -477,6 +499,10 @@ fn parse_document_changes(bytes: &[u8], dc_at: usize, we: &mut WorkspaceEdit) {
     while i < bytes.len() && matches!(bytes[i], b' ' | b':' | b'\t' | b'\r' | b'\n') {
         i += 1;
     }
+    parse_document_changes_at_value(bytes, i, we);
+}
+
+fn parse_document_changes_at_value(bytes: &[u8], i: usize, we: &mut WorkspaceEdit) {
     if i >= bytes.len() || bytes[i] != b'[' {
         return;
     }
@@ -1979,12 +2005,30 @@ mod tests {
     }
 
     #[test]
+    fn parse_workspace_edit_uses_result_changes_not_envelope_fields() {
+        let json = r#"{"jsonrpc":"2.0","changes":{"file:///wrong.mty":[{"newText":"wrong","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":1}}}]},"result":{"changes":{"file:///right.mty":[{"newText":"right","range":{"start":{"line":1,"character":2},"end":{"line":1,"character":5}}}]}},"id":4}"#;
+        let we = parse_workspace_edit(json);
+        assert_eq!(we.file_count(), 1);
+        assert_eq!(we.files[0].0, "file:///right.mty");
+        assert_eq!(we.files[0].1[0].new_text, "right");
+    }
+
+    #[test]
     fn parse_workspace_edit_document_changes_shape() {
         let json = r#"{"result":{"documentChanges":[{"textDocument":{"uri":"file:///z.mty","version":1},"edits":[{"newText":"X","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":1}}}]}]},"id":4}"#;
         let we = parse_workspace_edit(json);
         assert_eq!(we.file_count(), 1);
         assert_eq!(we.files[0].0, "file:///z.mty");
         assert_eq!(we.files[0].1[0], TextEdit { start_line: 2, start_col: 0, end_line: 2, end_col: 1, new_text: "X".into() });
+    }
+
+    #[test]
+    fn parse_workspace_edit_uses_result_document_changes_not_envelope_fields() {
+        let json = r#"{"jsonrpc":"2.0","documentChanges":[{"textDocument":{"uri":"file:///wrong.mty"},"edits":[{"newText":"wrong","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":1}}}]}],"result":{"documentChanges":[{"textDocument":{"uri":"file:///right.mty"},"edits":[{"newText":"right","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":8}}}]}]},"id":4}"#;
+        let we = parse_workspace_edit(json);
+        assert_eq!(we.file_count(), 1);
+        assert_eq!(we.files[0].0, "file:///right.mty");
+        assert_eq!(we.files[0].1[0], TextEdit { start_line: 3, start_col: 4, end_line: 3, end_col: 8, new_text: "right".into() });
     }
 
     #[test]
