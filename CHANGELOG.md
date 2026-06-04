@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Nested snippet defaults flatten cleanly**: imported snippets that nest
+  defaults such as `${1:${2:name}}` now expand to the default text instead of
+  leaving malformed marker fragments in the editor.
 - **Snippet choices expand as editable placeholders**: VS Code-style choice
   stops such as `${1|red,green,blue|}` now insert and select the first choice
   instead of leaving the marker literal, with escaped separators handled.

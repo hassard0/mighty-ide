@@ -9547,3 +9547,18 @@ can immediately overwrite.
   test parser output and expanded cursor ranges together; syntax that parses
   correctly can still be unusable if the selected range lands on the marker
   instead of the inserted default text.
+
+## L787 - Nested Snippet Defaults Should Degrade To Text
+
+Imported snippets often nest placeholder defaults, for example
+`${1:${2:name}: ${3:Type}}`. Mighty does not need full nested tab-stop
+navigation to make those snippets useful, but it must not stop at the inner
+brace and leave malformed marker fragments in the editor.
+
+- **IDE note:** nested placeholder defaults now flatten into the outer selected
+  placeholder text, and bare nested tab-stops are dropped from that text instead
+  of leaking marker syntax.
+- **Language note:** no compiler gap surfaced. Snippet parsers can make a
+  pragmatic compatibility step by flattening nested defaults before adding full
+  nested-session semantics, but tests should prove both parse output and
+  resulting selection ranges.

@@ -62,7 +62,8 @@ impl SnippetDef {
 
 /// Parse a snippet `body` into an ordered list of [`Segment`]s.
 ///
-/// Recognizes `$N`, `${N:placeholder}`, `${N|one,two|}`, and `$0`. A literal
+/// Recognizes `$N`, `${N:placeholder}`, `${N|one,two|}`, and `$0`. Nested
+/// placeholder defaults are flattened into the outer placeholder text. A literal
 /// dollar sign is written `\$`. Anything else is literal text (newlines
 /// preserved).
 pub fn parse_body(body: &str) -> Vec<Segment> {
@@ -155,6 +156,22 @@ fn parse_placeholder_text(chars: &[char]) -> Option<(String, usize)> {
     while j < chars.len() {
         match chars[j] {
             '}' => return Some((text, j + 1)),
+            '$' if chars.get(j + 1) == Some(&'{') => {
+                if let Some((_, placeholder, consumed)) = parse_braced(&chars[j..]) {
+                    text.push_str(&placeholder);
+                    j += consumed;
+                } else {
+                    text.push(chars[j]);
+                    j += 1;
+                }
+            }
+            '$' if j + 1 < chars.len() && chars[j + 1].is_ascii_digit() => {
+                let mut k = j + 1;
+                while k < chars.len() && chars[k].is_ascii_digit() {
+                    k += 1;
+                }
+                j = k;
+            }
             '\\' if j + 1 < chars.len() && matches!(chars[j + 1], '}' | '$' | '\\') => {
                 text.push(chars[j + 1]);
                 j += 2;
@@ -780,6 +797,24 @@ mod tests {
     }
 
     #[test]
+    fn parse_nested_placeholder_defaults_are_flattened() {
+        let segs = parse_body("${1:${2:name} = ${3:value}};");
+        assert_eq!(
+            segs,
+            vec![
+                Segment::Stop { num: 1, placeholder: "name = value".into() },
+                Segment::Text(";".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_bare_nested_tab_stops_do_not_leak_into_placeholder_text() {
+        let segs = parse_body("${1:call($2)}");
+        assert_eq!(segs, vec![Segment::Stop { num: 1, placeholder: "call()".into() }]);
+    }
+
+    #[test]
     fn parse_escaped_dollar_is_literal() {
         assert_eq!(parse_body("cost \\$5"), vec![Segment::Text("cost $5".into())]);
     }
@@ -823,6 +858,14 @@ mod tests {
         assert_eq!(exp.text, "kind error ");
         assert_eq!(exp.stops[0], Stop { num: 1, start: (0, 5), end: (0, 10) });
         assert_eq!(exp.stops[1], Stop { num: 0, start: (0, 11), end: (0, 11) });
+    }
+
+    #[test]
+    fn expand_nested_placeholder_selects_flattened_default() {
+        let exp = expand("let ${1:${2:name}: ${3:Type}} = $0", "", 0, 0);
+        assert_eq!(exp.text, "let name: Type = ");
+        assert_eq!(exp.stops[0], Stop { num: 1, start: (0, 4), end: (0, 14) });
+        assert_eq!(exp.stops[1], Stop { num: 0, start: (0, 17), end: (0, 17) });
     }
 
     #[test]
