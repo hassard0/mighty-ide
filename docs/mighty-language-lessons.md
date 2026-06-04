@@ -8734,3 +8734,13 @@ continue receiving input after the chrome has been removed.
   search navigation after calling `mui_sidebar_close`. The Mighty dispatcher
   source-contract test covers this alongside the individual Explorer/Search/SCM/
   Agents close paths.
+
+## L729 - Toggle Descriptions Must Name Both Outcomes
+
+Labels and descriptions should agree about command shape. If a visible label
+says Toggle but the description only names the open/show side, the palette gives
+users a weaker contract than the command actually implements.
+
+- **IDE note:** `Git: Toggle Blame` now describes showing or hiding the git
+  blame gutter. Static-description tests cover the wording so the palette,
+  shortcuts/help surfaces, and the blame toggle ABI stay aligned.

@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Git blame toggle describes both states**: `Git: Toggle Blame` now advertises
+  showing or hiding the blame gutter, matching the actual toggle ABI and keeping
+  the dedicated hide command as a one-way close action.
 - **Close Sidebar now releases sidebar-local focus**: `View: Close Sidebar`
   clears stale Agents focus and transient search navigation after closing the
   drawer, matching the close behavior of individual sidebar panels.

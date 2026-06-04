@@ -1123,7 +1123,7 @@ impl PaletteEngine {
             CMD_GIT_PUSH => (icons::GIT, "Push commits to the remote", false),
             CMD_GIT_PULL => (icons::GIT, "Pull (fast-forward only) from the remote", false),
             CMD_GIT_FETCH => (icons::GIT, "Fetch refs from the remote", false),
-            CMD_GIT_TOGGLE_BLAME => (icons::GIT, "Show git blame in the gutter", false),
+            CMD_GIT_TOGGLE_BLAME => (icons::GIT, "Show or hide git blame in the gutter", false),
             CMD_GIT_HIDE_BLAME => (icons::CLOSE, "Hide the active git blame gutter", false),
             CMD_GIT_STAGE_ALL => (icons::STAGE_PLUS, "Stage every changed path", false),
             CMD_GIT_UNSTAGE_ALL => (icons::UNSTAGE_MINUS, "Unstage every staged path", false),
@@ -1750,6 +1750,10 @@ mod tests {
         assert_eq!(
             command_static_desc(CMD_TOGGLE_TERMINAL),
             "Open the integrated terminal or focus it if already open"
+        );
+        assert_eq!(
+            command_static_desc(CMD_GIT_TOGGLE_BLAME),
+            "Show or hide git blame in the gutter"
         );
         assert_eq!(
             command_static_desc(CMD_DOCK_COMPACT),
