@@ -669,6 +669,8 @@ struct SavedCursor {
     bg: u32,
     autowrap: bool,
     origin_mode: bool,
+    cursor_visible: bool,
+    cursor_shape: CursorShape,
 }
 
 /// A minimal VT/ANSI parser that drives a [`Grid`].
@@ -1540,6 +1542,8 @@ impl VtParser {
             bg: grid.cur_bg,
             autowrap: self.autowrap,
             origin_mode: self.origin_mode,
+            cursor_visible: self.cursor_visible,
+            cursor_shape: self.cursor_shape,
         });
     }
 
@@ -1550,6 +1554,8 @@ impl VtParser {
             grid.cur_bg = saved.bg;
             self.autowrap = saved.autowrap;
             self.origin_mode = saved.origin_mode;
+            self.cursor_visible = saved.cursor_visible;
+            self.cursor_shape = saved.cursor_shape;
         }
     }
 
@@ -3259,6 +3265,21 @@ mod tests {
         assert_eq!(g2.cell(1, 2).ch, 'X', "CUP should be relative after restore");
         assert_eq!(g2.cursor(), (1, 3));
         assert!(!g2.contains("?6"));
+    }
+
+    #[test]
+    fn cursor_save_restore_sequences_restore_cursor_attributes() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+
+        p.feed(&mut g, b"\x1b[2 q\x1b7\x1b[?25l\x1b[6 q\x1b8");
+        assert!(p.cursor_visible());
+        assert_eq!(p.cursor_shape(), CursorShape::Block);
+
+        p.feed(&mut g, b"\x1b[?25l\x1b[6 q\x1b[s\x1b[?25h\x1b[4 q\x1b[u");
+        assert!(!p.cursor_visible());
+        assert_eq!(p.cursor_shape(), CursorShape::Bar);
+        assert!(!g.contains("?25"));
     }
 
     #[test]
