@@ -10737,6 +10737,46 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         ),
         "direct editor tab-switch shortcuts must release stale surface focus"
     );
+    for marker in [
+        "} else if id == cmd_next_tab()",
+        "} else if id == cmd_prev_tab()",
+        "} else if id == cmd_close_tab()",
+        "} else if id == cmd_close_saved_tabs()",
+        "} else if id == cmd_close_other_saved_tabs()",
+        "} else if id == cmd_close_saved_tabs_to_right()",
+        "} else if id == cmd_close_saved_tabs_to_left()",
+        "} else if id == cmd_reopen_closed_tab()",
+        "} else if id == cmd_duplicate_active_tab()",
+        "} else if id == cmd_move_active_tab_left()",
+        "} else if id == cmd_move_active_tab_right()",
+        "} else if id == cmd_sort_tabs_by_name()",
+        "} else if id == cmd_close_duplicate_tabs()",
+        "} else if id == cmd_reload_active_file()",
+        "} else if id == cmd_revert_active_file()",
+    ] {
+        let branch = main
+            .split(marker)
+            .nth(1)
+            .unwrap_or_else(|| panic!("missing tab-management branch {marker}"));
+        let branch = branch
+            .split("} else if id ==")
+            .next()
+            .expect("tab-management branch should have a bounded body");
+        for assignment in [
+            "run_focus = false",
+            "web_focus = false",
+            "test_focus = false",
+            "term_focus = false",
+            "ai_focus = false",
+            "agents_focus = false",
+            "find_nav = false",
+        ] {
+            assert!(
+                branch.contains(assignment),
+                "tab-management branch {marker} must include `{assignment}`"
+            );
+        }
+    }
     assert!(
         main.contains("id == cmd_hover_close()")
             && main.contains("let _hc = mui_hover_close(h)")

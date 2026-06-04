@@ -3972,6 +3972,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
@@ -4700,6 +4706,12 @@ fn main() {
           let a = mui_tab_next(h)
           let _b = mui_ed_tab_switch(h, a)
           mui_ed_undo_reset(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
           let _r = mui_diag_refresh(h)
           let _o = mui_outline_refresh(h)
@@ -4707,6 +4719,12 @@ fn main() {
           let a = mui_tab_prev(h)
           let _b = mui_ed_tab_switch(h, a)
           mui_ed_undo_reset(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
           find_nav = false
           let _r = mui_diag_refresh(h)
           let _o = mui_outline_refresh(h)
@@ -4716,6 +4734,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
@@ -4725,6 +4749,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
@@ -4734,6 +4764,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
@@ -4743,6 +4779,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
@@ -4752,6 +4794,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
@@ -4761,6 +4809,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
@@ -4770,6 +4824,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
@@ -4779,6 +4839,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
           }
         } else if id == cmd_move_active_tab_right() {
@@ -4786,6 +4852,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
           }
         } else if id == cmd_sort_tabs_by_name() {
@@ -4793,6 +4865,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
           }
         } else if id == cmd_close_duplicate_tabs() {
@@ -4800,6 +4878,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
           }
         } else if id == cmd_reload_active_file() {
@@ -4807,6 +4891,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
@@ -4816,6 +4906,12 @@ fn main() {
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)

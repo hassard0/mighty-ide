@@ -8919,3 +8919,19 @@ the same stale surface focus that other modal overlays clear.
 - **Language note:** no compiler gap surfaced. The current scalar flag model is
   workable, but a shared focus-effect declaration for modal commands would make
   these ownership contracts less repetitive.
+
+## L744 - Palette Tab Commands Return To Editor Ownership
+
+Tab-management commands are editor-content navigation, even when invoked from
+the palette instead of a keyboard shortcut. If a stale panel focus flag survives
+after the active tab changes, the visible editor can switch while the next input
+still routes to an old dock or sidebar owner.
+
+- **IDE note:** Palette tab commands for next/previous tab, close tab, close
+  saved/other/right/left saved tabs, reopen, duplicate, move left/right, sort,
+  close duplicates, reload, and revert now release stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus after successful editor tab
+  switches. The dispatcher source-contract test enumerates every tab branch.
+- **Language note:** no compiler gap surfaced. This continues to point at a
+  missing reusable focus-effect helper or command metadata path, but the
+  scalar-state update remains straightforward.

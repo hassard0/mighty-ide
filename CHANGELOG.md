@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Palette tab commands return focus to the editor**: Next/Previous Tab,
+  close saved/duplicate tabs, reopen, duplicate, move, sort, reload, and revert
+  tab commands now clear stale Run/Web/Testing/Terminal/AI/Agents/search focus
+  after switching editor content.
 - **Preference overlays release stale panel focus**: Preferences: Settings,
   Preferences: Color Theme, their close commands, and the Ctrl+, Settings
   shortcut now clear stale Run/Web/Testing/Terminal/AI/Agents/search focus when
