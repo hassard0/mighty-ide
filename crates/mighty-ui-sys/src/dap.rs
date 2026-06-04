@@ -419,7 +419,7 @@ pub fn parse_envelope(text: &str) -> Option<DapEnvelope> {
 pub struct StoppedInfo {
     pub reason: String,
     pub description: String,
-    pub thread_id: i64,
+    pub thread_id: Option<i64>,
 }
 
 /// Parse a `stopped` event's body.
@@ -429,8 +429,23 @@ pub fn parse_stopped(raw: &str) -> StoppedInfo {
     StoppedInfo {
         reason: top_level_string_field(body, b"reason").unwrap_or_default(),
         description: top_level_string_field(body, b"description").unwrap_or_default(),
-        thread_id: top_level_uint_field(body, b"threadId").unwrap_or(1),
+        thread_id: top_level_uint_field(body, b"threadId"),
     }
+}
+
+/// Parse a `threads` response into thread IDs.
+pub fn parse_threads(raw: &str) -> Vec<i64> {
+    let bytes = raw.as_bytes();
+    let Some(body) = top_level_object_field(bytes, b"body") else {
+        return Vec::new();
+    };
+    let Some(threads) = top_level_array_field(body, b"threads") else {
+        return Vec::new();
+    };
+    split_objects(threads)
+        .into_iter()
+        .filter_map(|obj| top_level_uint_field(obj, b"id"))
+        .collect()
 }
 
 /// An `output` event body.
@@ -1005,7 +1020,18 @@ impl DebugModel {
                 // Request the stack now that we're stopped; the worker will post
                 // a `Stack` event back with the frames.
                 if let Some(s) = &self.session {
-                    s.request_stack(info.thread_id);
+                    if let Some(thread_id) = info.thread_id {
+                        s.request_stack(thread_id);
+                    } else {
+                        s.request_threads();
+                    }
+                }
+            }
+            SessionEvent::Threads(thread_ids) => {
+                if self.state == DebugState::Stopped {
+                    if let (Some(s), Some(thread_id)) = (&self.session, thread_ids.first()) {
+                        s.request_stack(*thread_id);
+                    }
                 }
             }
             SessionEvent::Stack(frames) => {
@@ -1089,6 +1115,7 @@ impl DebugModel {
 #[derive(Debug)]
 pub enum SessionEvent {
     Stopped(StoppedInfo),
+    Threads(Vec<i64>),
     Stack(Vec<StackFrame>),
     Variables(Vec<Variable>),
     Output(OutputInfo),
@@ -1101,6 +1128,7 @@ enum Outbound {
     Continue,
     Pause,
     Step(String),
+    Threads,
     Stack(i64),
     Variables(i64),
     SetBreakpoints { path: String, lines: Vec<u32> },
@@ -1179,6 +1207,9 @@ impl DapSession {
     }
     pub fn request_stack(&self, thread_id: i64) {
         let _ = self.cmds.send(Outbound::Stack(thread_id));
+    }
+    pub fn request_threads(&self) {
+        let _ = self.cmds.send(Outbound::Threads);
     }
     pub fn request_variables(&self, frame_id: i64) {
         let _ = self.cmds.send(Outbound::Variables(frame_id));
@@ -1367,6 +1398,10 @@ fn worker_loop(
                         r#"{{"seq":{},"type":"request","command":"{c}","arguments":{{"threadId":1}}}}"#,
                         next()
                     ),
+                    Outbound::Threads => format!(
+                        r#"{{"seq":{},"type":"request","command":"threads","arguments":{{}}}}"#,
+                        next()
+                    ),
                     Outbound::Stack(tid) => format!(
                         r#"{{"seq":{},"type":"request","command":"stackTrace","arguments":{{"threadId":{tid},"startFrame":0,"levels":50}}}}"#,
                         next()
@@ -1455,6 +1490,9 @@ fn route_inbound(env: &DapEnvelope, events: &Sender<SessionEvent>) {
             Some("stackTrace") => {
                 let _ = events.send(SessionEvent::Stack(parse_stack_trace(&env.raw)));
             }
+            Some("threads") => {
+                let _ = events.send(SessionEvent::Threads(parse_threads(&env.raw)));
+            }
             Some("variables") => {
                 let _ = events.send(SessionEvent::Variables(parse_variables(&env.raw)));
             }
@@ -1530,7 +1568,7 @@ mod tests {
         assert_eq!(env.event.as_deref(), Some("stopped"));
         let info = parse_stopped(&env.raw);
         assert_eq!(info.reason, "breakpoint");
-        assert_eq!(info.thread_id, 1);
+        assert_eq!(info.thread_id, Some(1));
     }
 
     #[test]
@@ -1566,7 +1604,7 @@ mod tests {
         let info = parse_stopped(&parse_envelope(raw).unwrap().raw);
         assert_eq!(info.reason, "breakpoint");
         assert_eq!(info.description, "right desc");
-        assert_eq!(info.thread_id, 2);
+        assert_eq!(info.thread_id, Some(2));
     }
 
     #[test]
@@ -1576,7 +1614,36 @@ mod tests {
 
         assert_eq!(info.reason, "");
         assert_eq!(info.description, "");
-        assert_eq!(info.thread_id, 1);
+        assert_eq!(info.thread_id, None);
+    }
+
+    #[test]
+    fn parse_stopped_without_thread_id_requests_thread_lookup() {
+        let raw = r#"{"type":"event","event":"stopped","body":{"reason":"entry","allThreadsStopped":true}}"#;
+        let info = parse_stopped(&parse_envelope(raw).unwrap().raw);
+
+        assert_eq!(info.reason, "entry");
+        assert_eq!(info.thread_id, None);
+    }
+
+    #[test]
+    fn parse_threads_response_uses_thread_owned_ids() {
+        let raw = r#"{
+          "type":"response",
+          "command":"threads",
+          "success":true,
+          "body":{
+            "metadata":{"id":99},
+            "threads":[
+              {"id":7,"name":"main","metadata":{"id":70}},
+              {"name":"missing id","metadata":{"id":8}},
+              {"id":9,"name":"worker"}
+            ]
+          }
+        }"#;
+        let threads = parse_threads(&parse_envelope(raw).unwrap().raw);
+
+        assert_eq!(threads, vec![7, 9]);
     }
 
     #[test]
@@ -1883,7 +1950,7 @@ mod tests {
         m.apply_event(SessionEvent::Stopped(StoppedInfo {
             reason: "breakpoint".into(),
             description: String::new(),
-            thread_id: 1,
+            thread_id: Some(1),
         }));
         assert_eq!(m.state(), DebugState::Stopped);
         m.apply_event(SessionEvent::Stack(vec![

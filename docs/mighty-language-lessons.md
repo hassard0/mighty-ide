@@ -10301,3 +10301,17 @@ not a valid replacement for a previously parsed timestamp or timezone.
 - **Language note:** no compiler gap surfaced. Cache-refresh parsers should
   model optional parsed fields explicitly, then merge only known-good values
   instead of defaulting bad input into plausible state.
+
+## L840 - DAP Stopped Events Need Real Threads
+
+DAP `stopped` events may omit `threadId`, especially when all threads stopped.
+Using a synthetic thread ID turns an unknown stop target into a concrete
+`stackTrace` request for the wrong thread.
+
+- **IDE note:** stopped-event parsing now keeps `threadId` optional. When it is
+  absent, the debugger asks the adapter for `threads` and requests the stack for
+  the first returned thread ID; explicit stopped `threadId` values still go
+  straight to `stackTrace`.
+- **Language note:** no compiler gap surfaced. Protocol control flow should
+  preserve unknown IDs as unknown and add the missing request step, rather than
+  defaulting identity fields into plausible handles.

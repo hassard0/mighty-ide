@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Debugger stopped events resolve real threads**: stopped events without a
+  body-owned `threadId` now request the adapter's `threads` response and use a
+  real returned thread before fetching the stack, instead of assuming thread 1.
 - **Blame dates preserve valid cached metadata**: git blame parsing now stores
   author timestamps and timezones only after successful parsing, so malformed
   repeat headers cannot erase a commit's cached date, and date-less blame rows
