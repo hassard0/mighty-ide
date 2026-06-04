@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Recent files de-duplicate equivalent paths**: Quick Open now removes
+  canonical-equivalent prior file entries when recording a recent file, matching
+  the stale-row removal path and avoiding duplicate MRU rows for the same file.
 - **Workspace recents compare folder identity**: recent workspace de-duplication
   and stale-folder removal now canonicalize folder paths and use Windows
   slash/case fallback, keeping Open Recent from listing equivalent folders twice.

@@ -10550,3 +10550,16 @@ separators, or different Windows casing.
 - **Language note:** no compiler gap surfaced. MRU de-duplication should use
   the identity semantics of the resource being listed, not the display string
   that happened to reach the API.
+
+## L858 - Recent File Recording Needs Path Equivalence
+
+Recent file removal used path equivalence, but recording a file still used raw
+string equality. Opening one file through two equivalent spellings could leave
+two Quick Open MRU rows for the same resource.
+
+- **IDE note:** Quick Open recent-file recording now removes any
+  canonical-equivalent existing row before inserting the new newest path. The
+  behavior matches stale-row removal, including Windows-only slash/case fallback.
+- **Language note:** no compiler gap surfaced. Add and remove operations for the
+  same MRU must share identity semantics; otherwise the list can accumulate
+  duplicates that its own cleanup logic would later treat as one resource.

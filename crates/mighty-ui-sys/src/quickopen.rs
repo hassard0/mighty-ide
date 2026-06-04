@@ -361,7 +361,7 @@ impl Mru {
         if path.as_os_str().is_empty() {
             return;
         }
-        self.paths.retain(|p| p != &path);
+        self.paths.retain(|p| !recent_paths_equal(p, &path));
         self.paths.insert(0, path);
         self.paths.truncate(MRU_CAP);
     }
@@ -1371,6 +1371,24 @@ mod tests {
         mru.record(equivalent);
         assert!(mru.remove(&path));
         assert!(mru.entries().is_empty());
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn mru_record_dedups_canonical_equivalent_path() {
+        let root = std::env::temp_dir().join(format!("mui_qo_mru_record_eq_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("same.mty");
+        std::fs::write(&path, b"same").unwrap();
+        let equivalent = root.join(".").join("same.mty");
+
+        let mut mru = Mru::new();
+        mru.record(path);
+        mru.record(equivalent.clone());
+
+        assert_eq!(mru.entries(), &[equivalent]);
 
         let _ = std::fs::remove_dir_all(&root);
     }
