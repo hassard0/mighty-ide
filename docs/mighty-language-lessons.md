@@ -9384,3 +9384,18 @@ slice the shared branch by overlay instead of treating it as one path.
 - **Language note:** no compiler gap surfaced. In shared overlay arms, assert
   cleanup at the nested overlay level; otherwise one cleaned direct route can
   hide stale ownership paths in a sibling overlay.
+
+## L776 - Shared Overlay Cleanup Applies To Modal Siblings Too
+
+Unsaved Changes and Keyboard Shortcuts live in the same top-level overlay arm as
+branch and breadcrumb. Their local save/discard/cancel routes also close a modal
+surface, so they need explicit ownership cleanup before control returns to the
+editor or another surface.
+
+- **IDE note:** Unsaved Changes save/discard/cancel and Keyboard Shortcuts
+  close/cancel local routes now release stale Run/Web/Testing/Terminal/AI/Agents
+  focus, search navigation, and transient typing state before editor input
+  resumes.
+- **Language note:** no compiler gap surfaced. Once a shared overlay arm is
+  sliced for one nested overlay, audit each sibling with the same exit-route
+  lens; shared routing does not imply shared cleanup.

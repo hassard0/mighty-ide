@@ -12300,6 +12300,32 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         .map(|i| overlay_start + i)
         .expect("shared overlay branch should precede palette branch");
     let overlay_branch = &main[overlay_start..overlay_end];
+    let dirty_start = overlay_branch
+        .find("if mui_dirty_confirm_active(h) == 1 {")
+        .expect("dirty-confirm local branch should exist");
+    let keys_start = overlay_branch
+        .find("} else if mui_keys_active(h) == 1 {")
+        .expect("keyboard shortcuts local branch should exist");
+    let dirty_branch = &overlay_branch[dirty_start..keys_start];
+    let dirty_cancel_cleanup = "run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false\n              typing = false";
+    let dirty_accept_cleanup = "run_focus = false\n                web_focus = false\n                test_focus = false\n                term_focus = false\n                ai_focus = false\n                agents_focus = false\n                typing = false";
+    assert!(
+        dirty_branch.matches(dirty_cancel_cleanup).count() >= 2
+            && dirty_branch.matches(dirty_accept_cleanup).count() >= 3,
+        "Unsaved Changes local cancel/save/discard exits must release stale focus"
+    );
+    let keys_end = overlay_branch[keys_start..]
+        .find("} else if mui_branch_active(h) == 1 {")
+        .map(|i| keys_start + i)
+        .expect("keyboard shortcuts branch should precede branch picker");
+    let keys_branch = &overlay_branch[keys_start..keys_end];
+    let keys_cancel_cleanup = "mui_keys_cancel(h)\n              run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false\n              typing = false";
+    let keys_cancel_cleanup_outer = "mui_keys_cancel(h)\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    assert!(
+        keys_branch.matches(keys_cancel_cleanup).count() >= 4
+            && keys_branch.matches(keys_cancel_cleanup_outer).count() >= 1,
+        "Keyboard Shortcuts local cancel exits must release stale focus"
+    );
     let branch_start = overlay_branch
         .find("} else if mui_branch_active(h) == 1 {")
         .expect("branch picker local branch should exist");

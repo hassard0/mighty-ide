@@ -1640,6 +1640,14 @@ fn main() {
             let k = mui_event_key(h)
             if k == key_escape() {
               let _dcc = mui_dirty_confirm_cancel(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             } else if k == key_enter() {
               let dr = mui_dirty_confirm_save(h)
               if dr == -2 {
@@ -1650,12 +1658,27 @@ fn main() {
                 find_nav = false
                 let _r = mui_diag_refresh(h)
                 let _o = mui_outline_refresh(h)
+                run_focus = false
+                web_focus = false
+                test_focus = false
+                term_focus = false
+                ai_focus = false
+                agents_focus = false
+                typing = false
               }
             }
           } else if tag == ev_mouse_down() {
             let dc = mui_dirty_confirm_click(h)
             if dc == 1 {
               let _dcc = mui_dirty_confirm_cancel(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             } else if dc == 2 {
               let dr = mui_dirty_confirm_discard(h)
               if dr == -2 {
@@ -1666,6 +1689,13 @@ fn main() {
                 find_nav = false
                 let _r = mui_diag_refresh(h)
                 let _o = mui_outline_refresh(h)
+                run_focus = false
+                web_focus = false
+                test_focus = false
+                term_focus = false
+                ai_focus = false
+                agents_focus = false
+                typing = false
               }
             } else if dc == 3 {
               let dr = mui_dirty_confirm_save(h)
@@ -1677,6 +1707,13 @@ fn main() {
                 find_nav = false
                 let _r = mui_diag_refresh(h)
                 let _o = mui_outline_refresh(h)
+                run_focus = false
+                web_focus = false
+                test_focus = false
+                term_focus = false
+                ai_focus = false
+                agents_focus = false
+                typing = false
               }
             }
           }
@@ -1697,9 +1734,25 @@ fn main() {
             let k = mui_event_key(h)
             if k == key_escape() {
               mui_keys_cancel(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             }
           } else if tag == ev_mouse_down() {
             mui_keys_cancel(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         } else if tag == ev_char() {
           let cp = mui_event_codepoint(h)
@@ -1727,11 +1780,27 @@ fn main() {
               let _c = mui_keys_begin_capture(h)
             } else if k == key_escape() {
               mui_keys_cancel(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             }
           } else if tag == ev_mouse_down() {
             let kh = mui_keys_click(h)
             if kh == 3 {
               mui_keys_cancel(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             } else if kh == 4 {
               let _r = mui_keys_reset(h)
             } else if kh == 5 {
@@ -1742,6 +1811,14 @@ fn main() {
               let _keep = kh
             } else {
               mui_keys_cancel(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             }
           }
         } else if mui_branch_active(h) == 1 {

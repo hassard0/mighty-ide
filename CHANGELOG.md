@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Dirty-confirm and keyboard-shortcut exits release stale focus**: Unsaved
+  Changes save/discard/cancel and Keyboard Shortcuts close/cancel local routes
+  now clear stale surface/search focus before returning keyboard input.
 - **Branch and breadcrumb local exits release stale focus**: branch picker
   accept/cancel and breadcrumb accept/dismiss local routes now clear stale
   surface/search focus before returning keyboard input to the editor.
