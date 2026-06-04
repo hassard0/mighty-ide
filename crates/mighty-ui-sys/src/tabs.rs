@@ -550,22 +550,20 @@ impl TabStore {
         self.reload_index(i, bytes, true);
     }
 
-    /// Replace a clean open file-backed tab from disk. Returns:
-    /// * `Some(true)` when the tab was refreshed,
-    /// * `Some(false)` when the file is open but dirty and was left untouched,
-    /// * `None` when no open tab points at `path`.
-    pub fn reload_clean_path(&mut self, path: &Path, bytes: &[u8]) -> Option<bool> {
-        let i = self.find_by_path(path)?;
-        if self.is_dirty(i) {
-            return Some(false);
-        }
-        self.reload_index(i, bytes, false);
-        Some(true)
-    }
-
     /// Replace every clean open file-backed tab matching `path` from disk.
     /// Returns `(refreshed, dirty_skipped)`.
     pub fn reload_all_clean_path(&mut self, path: &Path, bytes: &[u8]) -> (usize, usize) {
+        self.reload_all_clean_path_except(path, bytes, usize::MAX)
+    }
+
+    /// Replace every clean open file-backed tab matching `path` from disk,
+    /// excluding `except_idx`. Returns `(refreshed, dirty_skipped)`.
+    pub fn reload_all_clean_path_except(
+        &mut self,
+        path: &Path,
+        bytes: &[u8],
+        except_idx: usize,
+    ) -> (usize, usize) {
         let mut refreshed = 0usize;
         let mut dirty_skipped = 0usize;
         let matching: Vec<usize> = self
@@ -573,10 +571,14 @@ impl TabStore {
             .iter()
             .enumerate()
             .filter_map(|(idx, tab)| {
-                tab.path
-                    .as_deref()
-                    .is_some_and(|p| tab_paths_equal(p, path))
-                    .then_some(idx)
+                (idx != except_idx)
+                    .then(|| {
+                        tab.path
+                            .as_deref()
+                            .is_some_and(|p| tab_paths_equal(p, path))
+                            .then_some(idx)
+                    })
+                    .flatten()
             })
             .collect();
         for idx in matching {

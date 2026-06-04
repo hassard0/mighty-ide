@@ -10310,16 +10310,23 @@ fn apply_workspace_edit(
             }
             // Apply to the active model in-place (preserves the live edit state),
             // then save it to disk.
-            let m = ctx.tabs.active_model_mut();
-            let text = m.as_text();
-            let cl = m.cursor_line() as i32;
-            let cc = m.cursor_col() as i32;
-            let edited = crate::language::apply_text_edits(&text, &edits);
-            *m = crate::editor::TextModel::from_bytes(edited.as_bytes());
-            m.move_to(cl, cc);
+            let edited_bytes = {
+                let m = ctx.tabs.active_model_mut();
+                let text = m.as_text();
+                let cl = m.cursor_line() as i32;
+                let cc = m.cursor_col() as i32;
+                let edited = crate::language::apply_text_edits(&text, &edits);
+                *m = crate::editor::TextModel::from_bytes(edited.as_bytes());
+                m.move_to(cl, cc);
+                m.to_bytes()
+            };
             if let Some(p) = current.clone() {
-                let _ = std::fs::write(&p, m.to_bytes());
+                let _ = std::fs::write(&p, &edited_bytes);
                 mark_active_clean(ctx);
+                let active = ctx.tabs.active();
+                let _ = ctx
+                    .tabs
+                    .reload_all_clean_path_except(&p, &edited_bytes, active);
             }
             result.changed += 1;
         } else {
@@ -10338,7 +10345,7 @@ fn apply_workspace_edit(
             let edited = crate::language::apply_text_edits(&text, &edits);
             if std::fs::write(&fpath, edited.as_bytes()).is_ok() {
                 result.changed += 1;
-                let _ = ctx.tabs.reload_clean_path(&fpath, edited.as_bytes());
+                let _ = ctx.tabs.reload_all_clean_path(&fpath, edited.as_bytes());
             }
         }
     }

@@ -10606,3 +10606,19 @@ the UI is not enough if the replace still rewrites that file on disk.
 - **Language note:** no compiler gap surfaced. Batch operations need a
   write-preflight stage, not just a post-write refresh stage, whenever their
   targets can overlap live editor resources.
+
+## L862 - Workspace Edits Must Refresh Clean Duplicate Views
+
+Workspace edits can write a file that is visible through multiple clean tabs.
+Refreshing only the first matching tab leaves other duplicate views stale even
+though the disk and one editor model were updated.
+
+- **IDE note:** workspace edit application now refreshes every clean equivalent
+  tab after writing a changed file. For active-file edits, the active tab keeps
+  its undo history while clean duplicate views reload from the edited bytes.
+  The LSP workspace-edit parser also accepts real `workspace/applyEdit`
+  requests through `params.edit` while continuing to ignore unrelated
+  request-shaped `result` envelopes.
+- **Language note:** no compiler gap surfaced. Post-write refresh should use
+  the same resource-identity set as write preflights; otherwise safety checks
+  can be correct while visible editor state is still inconsistent.

@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Workspace edits refresh clean duplicate tabs**: code actions and LSP
+  workspace/applyEdit requests now refresh every clean duplicate view of a
+  changed file while preserving undo history on the active edited tab.
 - **Project replace skips dirty open files**: Search Replace All now refuses to
   rewrite files that have any dirty equivalent open tab, and refreshes every
   clean duplicate view after successful replacements.

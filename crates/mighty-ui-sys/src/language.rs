@@ -407,6 +407,15 @@ pub fn parse_workspace_edit(json: &str) -> WorkspaceEdit {
 fn workspace_edit_payload(bytes: &[u8]) -> &[u8] {
     if bytes.first() == Some(&b'{') {
         if top_level_field_value_start(bytes, "method").is_some() {
+            if top_level_json_string_field(bytes, "method").as_deref()
+                == Some("workspace/applyEdit")
+            {
+                if let Some(params) = top_level_object_field(bytes, "params") {
+                    if let Some(edit) = top_level_object_field(params, "edit") {
+                        return edit;
+                    }
+                }
+            }
             return &[];
         }
         if let Some(result_at) = top_level_field_value_start(bytes, "result") {

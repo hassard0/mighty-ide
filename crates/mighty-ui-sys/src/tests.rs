@@ -7931,6 +7931,67 @@ fn codeaction_workspace_edit_refreshes_clean_split_tab_without_switching_focus()
 }
 
 #[test]
+fn codeaction_workspace_edit_refreshes_clean_duplicate_other_tabs() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_codeaction_workspace_clean_duplicate_other_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let left = root.join("left.mty");
+    let right = root.join("right.mty");
+    std::fs::write(&left, "left_symbol\n").unwrap();
+    std::fs::write(&right, "right_symbol\n").unwrap();
+
+    let left_idx = ctx.tabs.open_path(left);
+    let right_idx = ctx.tabs.open_path(right.clone());
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs.switch(left_idx);
+    crate::sync_active_path(&mut ctx);
+    assert_eq!(ctx.tabs.find_by_path(&right), Some(right_idx));
+
+    let uri_path = right.to_string_lossy().replace('\\', "/");
+    let uri = if uri_path.starts_with('/') {
+        format!("file://{uri_path}")
+    } else {
+        format!("file:///{uri_path}")
+    };
+    assert_eq!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Rename other file with clean duplicate".to_string(),
+            edit: Some(crate::language::WorkspaceEdit {
+                files: vec![(
+                    uri,
+                    vec![crate::language::TextEdit {
+                        start_line: 0,
+                        start_col: 0,
+                        end_line: 0,
+                        end_col: 12,
+                        new_text: "updated_symbol".to_string(),
+                    }],
+                )],
+            }),
+            command_edit: None,
+            command: None,
+            fix_all_mty: false,
+        }]),
+        1
+    );
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_codeaction_apply(h), 1);
+    assert_eq!(ctx.tabs.active(), left_idx);
+    assert_eq!(ctx.tabs.get(right_idx).unwrap().model.as_text(), "updated_symbol\n");
+    assert_eq!(ctx.tabs.get(duplicate).unwrap().model.as_text(), "updated_symbol\n");
+    assert!(!ctx.tabs.is_dirty(right_idx));
+    assert!(!ctx.tabs.is_dirty(duplicate));
+    assert_eq!(std::fs::read_to_string(&right).unwrap(), "updated_symbol\n");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn codeaction_active_workspace_edit_remains_undoable() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!(
@@ -7986,6 +8047,66 @@ fn codeaction_active_workspace_edit_remains_undoable() {
     assert_eq!(crate::mui_ed_redo(h), 1);
     assert_eq!(ctx.tabs.active_model().as_text(), "new_symbol\n");
     assert!(!ctx.tabs.is_dirty(ctx.tabs.active()));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn codeaction_active_workspace_edit_refreshes_clean_duplicate_without_losing_undo() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_codeaction_active_clean_duplicate_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, "old_symbol\n").unwrap();
+
+    let active_idx = ctx.tabs.open_path(path.clone());
+    let duplicate = ctx.tabs.duplicate_active();
+    ctx.tabs.switch(active_idx);
+    crate::sync_active_path(&mut ctx);
+    let uri_path = path.to_string_lossy().replace('\\', "/");
+    let uri = if uri_path.starts_with('/') {
+        format!("file://{uri_path}")
+    } else {
+        format!("file:///{uri_path}")
+    };
+    assert_eq!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Rename active symbol with clean duplicate".to_string(),
+            edit: Some(crate::language::WorkspaceEdit {
+                files: vec![(
+                    uri,
+                    vec![crate::language::TextEdit {
+                        start_line: 0,
+                        start_col: 0,
+                        end_line: 0,
+                        end_col: 10,
+                        new_text: "new_symbol".to_string(),
+                    }],
+                )],
+            }),
+            command_edit: None,
+            command: None,
+            fix_all_mty: false,
+        }]),
+        1
+    );
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_ed_undo_record(h);
+    assert_eq!(crate::mui_codeaction_apply(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "new_symbol\n");
+    assert_eq!(ctx.tabs.get(duplicate).unwrap().model.as_text(), "new_symbol\n");
+    assert!(!ctx.tabs.is_dirty(active_idx));
+    assert!(!ctx.tabs.is_dirty(duplicate));
+
+    assert_eq!(crate::mui_ed_undo(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "old_symbol\n");
+    assert!(ctx.tabs.is_dirty(active_idx));
+    assert_eq!(ctx.tabs.get(duplicate).unwrap().model.as_text(), "new_symbol\n");
 
     let _ = std::fs::remove_dir_all(&root);
 }
