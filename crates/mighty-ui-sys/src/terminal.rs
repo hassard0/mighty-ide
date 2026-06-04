@@ -480,6 +480,11 @@ impl Grid {
         self.cur_col = col.saturating_sub(1).min(self.cols - 1);
     }
 
+    fn move_cursor_origin_1_based(&mut self, row: usize, col: usize) {
+        self.cur_row = (self.scroll_top + row.saturating_sub(1)).min(self.scroll_bottom);
+        self.cur_col = col.saturating_sub(1).min(self.cols - 1);
+    }
+
     fn move_cursor_relative(&mut self, d_row: isize, d_col: isize) {
         let row = self.cur_row.saturating_add_signed(d_row).min(self.rows - 1);
         let col = self.cur_col.saturating_add_signed(d_col).min(self.cols - 1);
@@ -604,6 +609,8 @@ pub struct VtParser {
     sgr_mouse: bool,
     /// Whether printable output should wrap after the right margin (`CSI ?7 h/l`).
     autowrap: bool,
+    /// Whether CUP/HVP row coordinates are relative to the scroll-region top (`CSI ?6 h/l`).
+    origin_mode: bool,
 }
 
 impl Default for VtParser {
@@ -628,6 +635,7 @@ impl VtParser {
             mouse_reporting: false,
             sgr_mouse: false,
             autowrap: true,
+            origin_mode: false,
         }
     }
 
@@ -1042,6 +1050,14 @@ impl VtParser {
                 ("47" | "1047" | "1049", b'l') => grid.exit_alternate_screen(),
                 ("1", b'h') => self.application_cursor_keys = true,
                 ("1", b'l') => self.application_cursor_keys = false,
+                ("6", b'h') => {
+                    self.origin_mode = true;
+                    grid.move_cursor_origin_1_based(1, 1);
+                }
+                ("6", b'l') => {
+                    self.origin_mode = false;
+                    grid.move_cursor_1_based(1, 1);
+                }
                 ("7", b'h') => self.autowrap = true,
                 ("7", b'l') => self.autowrap = false,
                 ("1048", b'h') => self.save_cursor(grid),
@@ -1068,6 +1084,7 @@ impl VtParser {
         self.mouse_reporting = false;
         self.sgr_mouse = false;
         self.autowrap = true;
+        self.origin_mode = false;
     }
 
     fn set_cursor_shape(&mut self) {
@@ -1146,7 +1163,11 @@ impl VtParser {
             .filter(|s| !s.is_empty())
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or(1);
-        grid.move_cursor_1_based(row, col);
+        if self.origin_mode {
+            grid.move_cursor_origin_1_based(row, col);
+        } else {
+            grid.move_cursor_1_based(row, col);
+        }
     }
 
     fn cursor_relative(&mut self, grid: &mut Grid, final_byte: u8) {
@@ -2077,6 +2098,27 @@ mod tests {
 
         let g2 = grid_feed(4, 4, b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[T");
         assert_eq!(g2.to_text(), "1111\n    \n2222\n4444");
+    }
+
+    #[test]
+    fn origin_mode_makes_cursor_position_relative_to_scroll_region() {
+        let g = grid_feed(5, 6, b"aaaaaa\nbbbbbb\ncccccc\ndddddd\neeeeee\x1b[2;4r\x1b[?6h\x1b[1;3HX");
+        assert_eq!(g.cell(0, 2).ch, 'a', "row above margin is preserved");
+        assert_eq!(g.cell(1, 2).ch, 'X');
+        assert_eq!(g.cursor(), (1, 3));
+        assert!(!g.contains("?6h"));
+
+        let g2 = grid_feed(5, 6, b"aaaaaa\nbbbbbb\ncccccc\ndddddd\neeeeee\x1b[2;4r\x1b[?6h\x1b[99;2HY");
+        assert_eq!(g2.cell(3, 1).ch, 'Y', "origin-mode rows clamp to bottom margin");
+    }
+
+    #[test]
+    fn resetting_origin_mode_returns_cursor_position_to_absolute_rows() {
+        let g = grid_feed(5, 6, b"aaaaaa\nbbbbbb\ncccccc\ndddddd\neeeeee\x1b[2;4r\x1b[?6h\x1b[?6l\x1b[1;3HZ");
+        assert_eq!(g.cell(0, 2).ch, 'Z');
+        assert_eq!(g.cell(1, 2).ch, 'b');
+        assert_eq!(g.cursor(), (0, 3));
+        assert!(!g.contains("?6l"));
     }
 
     #[test]

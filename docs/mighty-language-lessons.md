@@ -7591,3 +7591,13 @@ output.
   eight columns, supports HTS (`ESC H`) and TBC (`CSI g` / `CSI 3 g`), and
   restores default tab stops on full terminal reset. Parser tests cover custom
   stops, clearing the current stop, clearing all stops, and reset behavior.
+
+L618. Terminal origin mode must pair with scroll regions. The parser supported
+scroll margins, but ignored DEC origin mode (`CSI ?6 h/l`), so `CUP`/`HVP`
+always positioned against absolute screen rows. Full-screen terminal programs
+use origin mode to address rows inside the active scroll region.
+
+- **IDE note:** `VtParser` now tracks origin mode, homes the cursor on
+  DECSET/DECRST `?6`, and applies margin-relative row coordinates to `CUP`/`HVP`
+  while clamping to the scroll-region bottom. Tests cover origin-relative
+  positioning, bottom-margin clamping, and returning to absolute coordinates.
