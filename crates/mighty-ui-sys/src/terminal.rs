@@ -138,6 +138,10 @@ impl Grid {
     }
 
     pub fn cursor(&self) -> (usize, usize) {
+        (self.cur_row, self.cur_col.min(self.cols - 1))
+    }
+
+    fn raw_cursor(&self) -> (usize, usize) {
         (self.cur_row, self.cur_col)
     }
 
@@ -1541,7 +1545,7 @@ impl VtParser {
     }
 
     fn cursor_snapshot(&self, grid: &Grid) -> SavedCursor {
-        let (row, col) = grid.cursor();
+        let (row, col) = grid.raw_cursor();
         SavedCursor {
             row,
             col,
@@ -1555,7 +1559,8 @@ impl VtParser {
     }
 
     fn restore_cursor_snapshot(&mut self, grid: &mut Grid, saved: SavedCursor) {
-        grid.move_cursor_1_based(saved.row + 1, saved.col + 1);
+        grid.cur_row = saved.row.min(grid.rows - 1);
+        grid.cur_col = saved.col.min(grid.cols);
         grid.cur_fg = saved.fg;
         grid.cur_bg = saved.bg;
         self.autowrap = saved.autowrap;
@@ -2648,7 +2653,7 @@ mod tests {
     fn clearing_all_tab_stops_pins_tab_at_right_edge_until_reset() {
         let g = grid_feed(1, 12, b"\x1b[3ga\t");
         assert_eq!(g.cell(0, 0).ch, 'a');
-        assert_eq!(g.cursor(), (0, 12));
+        assert_eq!(g.cursor(), (0, 11));
 
         let g2 = grid_feed(1, 12, b"\x1b[3g\x1bca\tb");
         assert_eq!(g2.cell(0, 0).ch, 'a');
@@ -2686,6 +2691,10 @@ mod tests {
         assert_eq!(g.cell(0, 2).ch, 'c');
         assert_eq!(g.cell(1, 0).ch, 'd');
         assert_eq!(g.cursor(), (1, 1));
+
+        let g2 = grid_feed(3, 3, b"abc");
+        assert_eq!(g2.to_text(), "abc\n   \n   ");
+        assert_eq!(g2.cursor(), (0, 2));
     }
 
     #[test]
@@ -3018,7 +3027,7 @@ mod tests {
             b"1111\n2222\n3333\n4444\x1b[2;3r\x1b[3;1HZZZZ\nYYYY",
         );
         assert_eq!(g.to_text(), "1111\nZZZZ\nYYYY\n4444");
-        assert_eq!(g.cursor(), (2, 4));
+        assert_eq!(g.cursor(), (2, 3));
         assert!(!g.contains("2;3r"));
     }
 
@@ -3869,6 +3878,9 @@ mod tests {
         assert!(!g.contains("6n"));
         // A second take yields nothing (buffer drained).
         assert!(p.take_reply().is_empty());
+
+        p.feed(&mut g, b"\x1b[1;1Habcdefghij\x1b[6n");
+        assert_eq!(p.take_reply(), b"\x1b[1;10R");
     }
 
     #[test]
