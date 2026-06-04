@@ -5597,14 +5597,33 @@ fn main() {
           if wr == 2 {
             mui_prompt_open(h, prompt_open_folder())
             prompt_kind = prompt_open_folder()
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
             find_nav = false
           } else if wr == 3 {
             if mui_recent_any(h) == 1 {
               // "Open Recent" should let the user choose without jumping back
               // to the branded first-run landing.
               mui_welcome_open_recent_picker(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
             } else {
               let _re = mui_recent_empty(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
               find_nav = false
             }
           }

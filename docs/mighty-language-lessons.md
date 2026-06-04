@@ -8951,3 +8951,18 @@ focus before the next event is routed.
 - **Language note:** no compiler gap surfaced. The flat range-dispatch pattern
   works, but common focus-effect metadata would keep pane commands from needing
   manual scalar flag resets in the Mighty ladder.
+
+## L746 - Workspace Entrypoints Own Their Pickers
+
+Workspace entrypoints can route into native pickers, prompt fallbacks, or
+focused recent lists. When the native path falls back to in-app UI, that UI owns
+the next input event and must clear any stale dock, sidebar, or search focus
+left by the previous surface.
+
+- **IDE note:** File: Open Folder's prompt fallback and File: Open Recent's
+  picker or empty-state feedback now release stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus before the next interaction.
+  Dispatcher source-contract coverage pins all three workspace branches.
+- **Language note:** no compiler gap surfaced. The repeated scalar cleanup is
+  still straightforward, but workspace commands would also benefit from shared
+  command focus-effect metadata once the language has a convenient path for it.

@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Workspace entrypoints release stale focus**: File: Open Folder's prompt
+  fallback and File: Open Recent's picker or empty-state feedback now clear
+  stale Run/Web/Testing/Terminal/AI/Agents/search focus when workspace UI owns
+  the next interaction.
 - **Pane and Markdown commands return to editor focus**: Split Editor, Focus
   Next Pane, Close Pane, Markdown Preview, and Markdown Close Preview now clear
   stale Run/Web/Testing/Terminal/AI/Agents/search focus when they move

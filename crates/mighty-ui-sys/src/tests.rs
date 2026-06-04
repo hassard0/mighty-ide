@@ -10519,8 +10519,34 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("let _re = mui_recent_empty(h)")
-            && !main.contains("} else {\n              mui_prompt_open(h, prompt_open_folder())\n              prompt_kind = prompt_open_folder()\n              find_nav = false\n            }\n          }\n        } else if id >= cmd_fold_first()"),
+            && !main.contains("} else {\n              mui_prompt_open(h, prompt_open_folder())\n              prompt_kind = prompt_open_folder()"),
         "File: Open Recent empty state should report no recents instead of opening the Open Folder prompt"
+    );
+    let workspace_start = main
+        .find("id >= cmd_ws_first() && id <= cmd_ws_last()")
+        .expect("workspace command range must be dispatched");
+    let workspace_end = main[workspace_start..]
+        .find("} else if id >= cmd_fold_first()")
+        .expect("workspace command range should end before fold commands")
+        + workspace_start;
+    let workspace_block = &main[workspace_start..workspace_end];
+    assert!(
+        workspace_block.contains(
+            "if wr == 2 {\n            mui_prompt_open(h, prompt_open_folder())\n            prompt_kind = prompt_open_folder()\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+        ),
+        "Open Folder prompt fallback must release stale surface focus"
+    );
+    assert!(
+        workspace_block.contains(
+            "mui_welcome_open_recent_picker(h)\n              run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false"
+        ),
+        "Open Recent picker must release stale surface focus"
+    );
+    assert!(
+        workspace_block.contains(
+            "let _re = mui_recent_empty(h)\n              run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false"
+        ),
+        "Open Recent empty feedback must release stale surface focus"
     );
     assert!(
         main.contains("let np = mui_newproj_dialog(h)")
