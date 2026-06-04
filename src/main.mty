@@ -2765,7 +2765,14 @@ fn main() {
           let cp = mui_event_codepoint(h)
           let mods = mui_event_mods(h)
           if ctrl_held(mods) && cp == 96 {                  // Ctrl+` : unfocus
+            run_focus = false
+            web_focus = false
+            test_focus = false
             term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if ctrl_held(mods) && !shift_held(mods) && (cp == 118 || cp == 86) {
             let _tp = mui_term_paste(h)
           } else {
@@ -3835,6 +3842,7 @@ fn main() {
           ai_focus = false
           agents_focus = false
           find_nav = false
+          typing = false
         } else if mui_bp_scroll_inventory_at_event(h, if dir > 0 { -3 } else { 3 }) == 1 {
         } else if dir > 0 {
           if first >= 3 { first = first - 3 } else { first = 0 }
@@ -4344,6 +4352,7 @@ fn main() {
           ai_focus = false
           agents_focus = false
           find_nav = false
+          typing = false
         } else if mui_term_hit_at_event(h) == 1 {
           let _tmd = mui_term_mouse_button(h, 1)
           run_focus = false
@@ -4353,6 +4362,7 @@ fn main() {
           ai_focus = false
           agents_focus = false
           find_nav = false
+          typing = false
         } else if cur_panel == panel_agents_mty() {
           // Mighty Agents topology row clicks jump to definitions. Header
           // actions are routed before tab handling because both live at y <= 40.
@@ -6399,6 +6409,7 @@ fn main() {
           ai_focus = false
           agents_focus = false
           find_nav = false
+          typing = false
         } else if id == cmd_terminal_clear() {
           let _to = mui_term_open(h)
           let _tc = mui_term_clear(h)
@@ -6409,6 +6420,7 @@ fn main() {
           ai_focus = false
           agents_focus = false
           find_nav = false
+          typing = false
         } else if id == cmd_terminal_close() {
           let _tclose = mui_term_close(h)
           run_focus = false
@@ -6418,6 +6430,7 @@ fn main() {
           ai_focus = false
           agents_focus = false
           find_nav = false
+          typing = false
         } else if id == cmd_view_web_playground() {
           let _vw = mui_web_open(h)
           web_focus = true

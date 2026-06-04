@@ -9272,3 +9272,18 @@ instead of relying on the panel's current focus bit.
 - **Language note:** no compiler gap surfaced. The route-parity lesson now
   covers mouse ownership transitions too: the event arm that consumes the click
   must write the full ownership contract.
+
+## L768 - Terminal Ownership Routes Need The Same Cleanup
+
+The integrated terminal has both keyboard-focused shell routes and direct mouse
+routes. Normal shell keys must stay untouched, but local focus transitions such
+as Ctrl+` unfocus, terminal scroll, header clear, body click, and terminal
+commands still need explicit ownership cleanup.
+
+- **IDE note:** Terminal Ctrl+` unfocus, terminal scroll/body/header clicks, and
+  Terminal open/clear/close command paths now clear stale
+  Run/Web/Testing/AI/Agents/search focus plus transient typing state while
+  preserving actual shell input delivery.
+- **Language note:** no compiler gap surfaced. This is the same route-parity
+  contract applied to a mixed input surface: only ownership transitions get the
+  cleanup writes; ordinary key/character forwarding remains data-plane routing.

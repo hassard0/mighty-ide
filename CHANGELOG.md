@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Terminal focus routes release stale focus**: Ctrl+` unfocus plus terminal
+  scroll, header clear, body click, open, clear, and close routes now clear
+  stale panel/AI/Agents/search focus and transient typing state.
 - **Focused output clicks release stale focus**: Run/Web/Testing focused header,
   row-jump, and outside-click routes now explicitly clear competing focus before
   keeping panel ownership or returning keyboard input to the editor.

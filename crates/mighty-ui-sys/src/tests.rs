@@ -11131,7 +11131,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains(
-            "id == cmd_terminal_close() {\n          let _tclose = mui_term_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            "id == cmd_terminal_close() {\n          let _tclose = mui_term_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
         ),
         "Terminal: Close must use the terminal-specific close ABI and release stale focus"
     );
@@ -11858,14 +11858,64 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         main.contains(
             "id == cmd_view_terminal() {\n          let ok = mui_term_open(h)\n          if ok == 1 { term_focus = true; mui_log_terminal(h) }\n          run_focus = false\n          web_focus = false\n          test_focus = false"
         )
-            && main.contains("ai_focus = false\n          agents_focus = false\n          find_nav = false"),
+            && main.contains(
+                "ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
+            ),
         "Terminal view command must open Terminal and release other bottom-dock focus"
     );
     assert!(
         main.contains(
-            "id == cmd_terminal_clear() {\n          let _to = mui_term_open(h)\n          let _tc = mui_term_clear(h)\n          if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            "id == cmd_terminal_clear() {\n          let _to = mui_term_open(h)\n          let _tc = mui_term_clear(h)\n          if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
         ),
         "Terminal clear command must reveal Terminal and release competing surfaces"
+    );
+    let term_focus_start = main
+        .find("} else if term_focus && tag != ev_mouse_down() {")
+        .expect("terminal focused branch should exist");
+    let term_focus_end = main[term_focus_start..]
+        .find("} else if completing {")
+        .map(|i| term_focus_start + i)
+        .expect("terminal focused branch should precede completion branch");
+    let term_focus_branch = &main[term_focus_start..term_focus_end];
+    assert!(
+        term_focus_branch.contains(
+            "ctrl_held(mods) && cp == 96 {                  // Ctrl+` : unfocus\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false"
+        ),
+        "Terminal Ctrl+` unfocus must release stale focus and typing state"
+    );
+    let scroll_start = main
+        .find("if mui_term_hit_at_event(h) == 1 {\n          mui_term_scroll(h, dir)")
+        .expect("terminal scroll route should exist");
+    let scroll_end = main[scroll_start..]
+        .find("} else if mui_bp_scroll_inventory_at_event")
+        .map(|i| scroll_start + i)
+        .expect("terminal scroll route should precede breakpoint inventory scroll");
+    let term_scroll_branch = &main[scroll_start..scroll_end];
+    assert!(
+        term_scroll_branch.contains(
+            "run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = true\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
+        ),
+        "Terminal scroll focus route must release stale focus and typing state"
+    );
+    let term_mouse_start = main
+        .find("} else if term_act == 1 {")
+        .expect("terminal header clear route should exist");
+    let term_mouse_end = main[term_mouse_start..]
+        .find("} else if cur_panel == panel_agents_mty()")
+        .map(|i| term_mouse_start + i)
+        .expect("terminal mouse routes should precede Agents panel route");
+    let term_mouse_branch = &main[term_mouse_start..term_mouse_end];
+    assert!(
+        term_mouse_branch.contains(
+            "let _tc = mui_term_clear(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
+        ),
+        "Terminal header clear click must claim Terminal ownership and clear stale focus"
+    );
+    assert!(
+        term_mouse_branch.contains(
+            "let _tmd = mui_term_mouse_button(h, 1)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = true\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
+        ),
+        "Terminal body click must claim Terminal ownership and clear stale focus"
     );
     assert!(
         main.contains(
