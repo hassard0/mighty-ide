@@ -7848,3 +7848,13 @@ rows reserved outside the viewport.
   scroll region while horizontal motion still spans the full row. Regression
   tests cover large upward/downward CUU/CUD/VPR motions and CNL/CPL line motions
   at both margins.
+
+L645. VPA follows origin mode for its row coordinate. `CSI d` changes only the
+cursor row, but when DECOM is active that row is still relative to the scroll
+region; treating it as an absolute screen row lets TUIs write outside their
+reserved viewport.
+
+- **IDE note:** `VtParser` now routes VPA through a row-only origin-mode helper
+  when `CSI ?6 h` is active, preserving the current column while clamping rows to
+  the active scroll-region margins. Regression coverage verifies top-margin
+  mapping and bottom-margin clamping.

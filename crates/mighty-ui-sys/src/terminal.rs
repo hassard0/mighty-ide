@@ -480,6 +480,10 @@ impl Grid {
         self.cur_col = col.saturating_sub(1).min(self.cols - 1);
     }
 
+    fn move_cursor_row_origin_1_based(&mut self, row: usize) {
+        self.cur_row = (self.scroll_top + row.saturating_sub(1)).min(self.scroll_bottom);
+    }
+
     fn move_cursor_relative(&mut self, d_row: isize, d_col: isize) {
         let row = self.cur_row.saturating_add_signed(d_row).min(self.rows - 1);
         let col = self.cur_col.saturating_add_signed(d_col).min(self.cols - 1);
@@ -1403,7 +1407,11 @@ impl VtParser {
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or(1)
             .max(1);
-        grid.move_cursor_row_1_based(row);
+        if self.origin_mode {
+            grid.move_cursor_row_origin_1_based(row);
+        } else {
+            grid.move_cursor_row_1_based(row);
+        }
     }
 
     fn cursor_row_relative(&mut self, grid: &mut Grid) {
@@ -2591,6 +2599,18 @@ mod tests {
 
         let g2 = grid_feed(5, 6, b"aaaaaa\nbbbbbb\ncccccc\ndddddd\neeeeee\x1b[2;4r\x1b[?6h\x1b[99;2HY");
         assert_eq!(g2.cell(3, 1).ch, 'Y', "origin-mode rows clamp to bottom margin");
+    }
+
+    #[test]
+    fn origin_mode_makes_vpa_relative_to_scroll_region() {
+        let g = grid_feed(
+            5,
+            6,
+            b"aaaaaa\nbbbbbb\ncccccc\ndddddd\neeeeee\x1b[2;4r\x1b[?6h\x1b[3;3HX\x1b[1dY\x1b[99dZ",
+        );
+        assert_eq!(g.cell(1, 3).ch, 'Y', "VPA row 1 maps to top margin");
+        assert_eq!(g.cell(3, 4).ch, 'Z', "VPA clamps to bottom margin");
+        assert!(!g.contains("99d"));
     }
 
     #[test]
