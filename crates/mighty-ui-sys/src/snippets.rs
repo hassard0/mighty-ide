@@ -300,6 +300,9 @@ pub struct SnippetContext {
     active_path: Option<PathBuf>,
     selected_text: String,
     workspace_root: Option<PathBuf>,
+    current_line: Option<String>,
+    line_index: Option<usize>,
+    current_word: String,
 }
 
 impl SnippetContext {
@@ -316,10 +319,24 @@ impl SnippetContext {
         selected_text: &str,
         workspace_root: Option<&Path>,
     ) -> Self {
+        SnippetContext::from_editor_context(path, selected_text, workspace_root, None, None, "")
+    }
+
+    pub fn from_editor_context(
+        path: Option<&Path>,
+        selected_text: &str,
+        workspace_root: Option<&Path>,
+        current_line: Option<&str>,
+        line_index: Option<usize>,
+        current_word: &str,
+    ) -> Self {
         SnippetContext {
             active_path: path.map(Path::to_path_buf),
             selected_text: selected_text.to_string(),
             workspace_root: workspace_root.map(Path::to_path_buf),
+            current_line: current_line.map(str::to_string),
+            line_index,
+            current_word: current_word.to_string(),
         }
     }
 }
@@ -455,6 +472,10 @@ fn unresolved_variable_literal(name: &str, braced: bool) -> String {
 fn resolve_snippet_variable(name: &str, context: &SnippetContext) -> Option<String> {
     match name {
         "TM_SELECTED_TEXT" => Some(context.selected_text.clone()),
+        "TM_CURRENT_LINE" => context.current_line.clone(),
+        "TM_CURRENT_WORD" => Some(context.current_word.clone()),
+        "TM_LINE_INDEX" => context.line_index.map(|line| line.to_string()),
+        "TM_LINE_NUMBER" => context.line_index.map(|line| (line + 1).to_string()),
         "TM_FILENAME" => context
             .active_path
             .as_deref()
@@ -916,6 +937,7 @@ pub fn try_expand_with_context(
     let line = model.cursor_line();
     let col = model.cursor_col();
     let word = prefix_word(model.line(line), col);
+    let current_line = model.line(line).to_string();
     let Some(def) = find_snippet(lang, &word) else {
         return false;
     };
@@ -941,10 +963,13 @@ pub fn try_expand_with_context(
         let context = SnippetContext::from_path_and_selection(active_path, selected_text);
         expand_with_context(&def.body, &indent, cl, cc, &context)
     } else {
-        let context = SnippetContext::from_path_selection_and_workspace(
+        let context = SnippetContext::from_editor_context(
             active_path,
             selected_text,
             workspace_root,
+            Some(&current_line),
+            Some(line),
+            &word,
         );
         expand_with_context(&def.body, &indent, cl, cc, &context)
     };
@@ -1230,6 +1255,34 @@ mod tests {
         );
         assert_eq!(exp.text, "app|C:/work/app|src/main.mty");
         assert!(exp.stops.is_empty());
+    }
+
+    #[test]
+    fn expand_current_line_variables_from_context() {
+        let ctx = SnippetContext::from_editor_context(
+            None,
+            "",
+            None,
+            Some("  guard"),
+            Some(6),
+            "guard",
+        );
+        let exp = expand_with_context(
+            "$TM_CURRENT_LINE|$TM_CURRENT_WORD|$TM_LINE_INDEX|$TM_LINE_NUMBER",
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(exp.text, "  guard|guard|6|7");
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
+    fn expand_empty_current_word_uses_default() {
+        let ctx = SnippetContext::from_editor_context(None, "", None, Some("  "), Some(0), "");
+        let exp = expand_with_context("${TM_CURRENT_WORD:name}|$TM_CURRENT_WORD", "", 0, 0, &ctx);
+        assert_eq!(exp.text, "name|");
     }
 
     #[test]

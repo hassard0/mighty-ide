@@ -9623,3 +9623,19 @@ templates detached from the project the user opened.
   tested with both inside-root and outside-root files; unresolved relative paths
   should still allow braced default fallbacks without fabricating misleading
   project-relative paths.
+
+## L792 - Snippets Need Cursor-Site Context
+
+Imported snippets also reference the expansion site itself, using variables such
+as `$TM_CURRENT_LINE`, `$TM_CURRENT_WORD`, `$TM_LINE_INDEX`, and
+`$TM_LINE_NUMBER`. Without these, line-aware templates and generated guards lose
+context even when file and workspace variables resolve.
+
+- **IDE note:** snippet expansion context now captures the current editor line,
+  zero-based line index, one-based line number, and prefix/current word before
+  the snippet mutates the model. These variables resolve in top-level snippet
+  text and placeholder defaults, with empty current words still able to use
+  braced defaults.
+- **Language note:** no compiler gap surfaced. Position variables should be
+  captured before deleting the typed snippet prefix; otherwise tests can pass
+  for pure expansion while the live editor reports the post-mutation line.
