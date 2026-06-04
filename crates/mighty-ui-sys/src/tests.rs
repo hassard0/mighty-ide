@@ -10447,10 +10447,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Terminal: Close must use the terminal-specific close ABI and clear terminal focus"
     );
     assert!(
-        main.contains("id == cmd_terminal_clear()")
-            && main.contains("mui_term_clear(h)")
+        main.contains(
+            "id == cmd_terminal_clear() {\n          let _to = mui_term_open(h)\n          let _tc = mui_term_clear(h)"
+        )
             && main.contains("if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }"),
-        "Terminal: Clear Buffer must clear through the terminal ABI and preserve focus when terminal remains open"
+        "Terminal: Clear Buffer must reveal Terminal before clearing and preserve focus when terminal remains open"
     );
     assert!(
         main.contains("fn mui_term_header_action_at_click(handle: I64) -> I32")

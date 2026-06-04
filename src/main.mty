@@ -4766,6 +4766,7 @@ fn main() {
           let ok = mui_term_open(h)
           if ok == 1 { term_focus = true; mui_log_terminal(h) }
         } else if id == cmd_terminal_clear() {
+          let _to = mui_term_open(h)
           let _tc = mui_term_clear(h)
           if mui_term_is_open(h) == 1 { term_focus = true } else { term_focus = false }
         } else if id == cmd_terminal_close() {

@@ -8502,3 +8502,14 @@ visible before the transcript disappears, matching the local header action.
 - **IDE note:** `AI: Clear Chat` now calls `mui_ai_show` before
   `mui_ai_clear`. The command keeps AI focus and leaves typing disabled so the
   Copilot surface owns the next input after the transcript reset.
+
+## L708 - Terminal Buffer Commands Should Reveal Terminal
+
+Terminal buffer cleanup is only understandable when the terminal surface is
+visible. Palette commands should not silently clear PTY output while the user is
+looking at another dock owner or a closed terminal.
+
+- **IDE note:** `Terminal: Clear Buffer` now calls `mui_term_open` before
+  `mui_term_clear`. Mighty then derives terminal focus from the open state, so a
+  successful clear lands on the integrated Terminal and open failures still
+  report through the terminal ABI.
