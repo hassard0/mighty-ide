@@ -7630,3 +7630,13 @@ arrive.
   both their normal and post-ESC substates. Parser tests cover cancelled OSC,
   DCS, PM, and SOS payloads and assert that the text after cancellation remains
   visible.
+
+L622. Terminal C1 controls have 8-bit aliases. Supporting only the 7-bit
+`ESC`-prefixed forms (`ESC [`, `ESC ]`, `ESC P`, etc.) misses streams that use
+single-byte CSI/OSC/DCS/SOS/PM/APC/ST controls directly.
+
+- **IDE note:** ground-state parsing now recognizes 8-bit CSI (`0x9B`), OSC
+  (`0x9D`), DCS (`0x90`), SOS (`0x98`), PM (`0x9E`), and APC (`0x9F`) as the
+  same states as their 7-bit introducers, and OSC/non-OSC string states accept
+  8-bit ST (`0x9C`) as a terminator. Tests cover cursor movement and swallowed
+  string payloads through the C1 forms.

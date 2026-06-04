@@ -735,6 +735,12 @@ impl VtParser {
 
         match b {
             0x1b => self.state = State::Escape, // ESC
+            0x90 | 0x98 | 0x9e | 0x9f => self.state = State::String, // DCS/SOS/PM/APC
+            0x9b => {
+                self.csi.clear();
+                self.state = State::Csi;
+            }
+            0x9d => self.state = State::Osc,
             b'\n' => grid.newline(),
             b'\r' => grid.carriage_return(),
             0x08 | 0x7f => grid.backspace(), // BS / DEL
@@ -1338,6 +1344,7 @@ impl VtParser {
             0x07 => self.state = State::Ground, // BEL terminates
             0x18 | 0x1a => self.state = State::Ground, // CAN/SUB abort
             0x1b => self.state = State::OscEsc, // maybe ST
+            0x9c => self.state = State::Ground, // 8-bit ST terminates
             _ => {}                              // title text etc.: consume
         }
     }
@@ -1356,6 +1363,7 @@ impl VtParser {
         match b {
             0x18 | 0x1a => self.state = State::Ground, // CAN/SUB abort
             0x1b => self.state = State::StringEsc, // maybe ST
+            0x9c => self.state = State::Ground,    // 8-bit ST terminates
             _ => {}                                // payload: consume
         }
     }
@@ -2538,6 +2546,27 @@ mod tests {
         assert!(g2.contains("safe"));
         assert!(!g2.contains("privacy"));
         assert!(!g2.contains("hidden"));
+    }
+
+    #[test]
+    fn eight_bit_c1_controls_match_esc_prefixed_forms() {
+        let g = grid_feed(2, 40, b"abcd\x9b2GZ\x9d0;title\x9cok");
+        assert_eq!(g.cell(0, 1).ch, 'Z');
+        assert!(g.contains("ok"));
+        assert!(!g.contains("2G"));
+        assert!(!g.contains("title"));
+
+        let g2 = grid_feed(
+            2,
+            40,
+            b"\x90dcspayload\x9cD\x98sospayload\x9cS\x9epmpayload\x9cP\x9fapcpayload\x9cA",
+        );
+        assert!(g2.contains("DSPA"));
+        assert!(!g2.contains("payload"));
+        assert!(!g2.contains("dcs"));
+        assert!(!g2.contains("sos"));
+        assert!(!g2.contains("pm"));
+        assert!(!g2.contains("apc"));
     }
 
     #[test]
