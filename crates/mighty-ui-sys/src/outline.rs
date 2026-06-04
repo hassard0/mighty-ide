@@ -413,23 +413,123 @@ fn read_uint_after(region: &[u8], key: &[u8]) -> Option<u32> {
 
 fn read_str_after(region: &[u8], key: &[u8]) -> Option<String> {
     let p = find_sub(region, key)?;
-    let mut j = p + key.len();
-    while j < region.len() && matches!(region[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
+    read_json_string_at(region, p + key.len()).map(|(s, _)| s)
+}
+
+fn read_json_string_at(bytes: &[u8], pos: usize) -> Option<(String, usize)> {
+    let mut j = pos;
+    while j < bytes.len() && matches!(bytes[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
         j += 1;
     }
-    if j >= region.len() || region[j] != b'"' {
+    if j >= bytes.len() || bytes[j] != b'"' {
         return None;
     }
     j += 1;
     let mut s = String::new();
-    while j < region.len() && region[j] != b'"' {
-        if region[j] == b'\\' && j + 1 < region.len() {
-            j += 1;
+    let mut segment_start = j;
+    let mut high_surrogate: Option<u16> = None;
+    while j < bytes.len() {
+        match bytes[j] {
+            b'"' => {
+                flush_json_segment(bytes, segment_start, j, &mut s, &mut high_surrogate)?;
+                push_pending_surrogate(&mut s, &mut high_surrogate);
+                return Some((s, j + 1));
+            }
+            b'\\' if j + 1 < bytes.len() => {
+                flush_json_segment(bytes, segment_start, j, &mut s, &mut high_surrogate)?;
+                j += 1;
+                match bytes[j] {
+                    b'n' => push_escaped_char(&mut s, &mut high_surrogate, '\n'),
+                    b't' => push_escaped_char(&mut s, &mut high_surrogate, '\t'),
+                    b'r' => push_escaped_char(&mut s, &mut high_surrogate, '\r'),
+                    b'b' => push_escaped_char(&mut s, &mut high_surrogate, '\u{0008}'),
+                    b'f' => push_escaped_char(&mut s, &mut high_surrogate, '\u{000c}'),
+                    b'"' => push_escaped_char(&mut s, &mut high_surrogate, '"'),
+                    b'\\' => push_escaped_char(&mut s, &mut high_surrogate, '\\'),
+                    b'/' => push_escaped_char(&mut s, &mut high_surrogate, '/'),
+                    b'u' if j + 4 < bytes.len() => {
+                        let cp = read_hex4(&bytes[j + 1..j + 5])?;
+                        push_json_code_unit(&mut s, &mut high_surrogate, cp);
+                        j += 4;
+                    }
+                    other => push_escaped_char(&mut s, &mut high_surrogate, other as char),
+                }
+                j += 1;
+                segment_start = j;
+                continue;
+            }
+            _ => {
+                j += 1;
+                continue;
+            }
         }
-        s.push(region[j] as char);
-        j += 1;
     }
-    Some(s)
+    None
+}
+
+fn flush_json_segment(
+    bytes: &[u8],
+    start: usize,
+    end: usize,
+    out: &mut String,
+    high_surrogate: &mut Option<u16>,
+) -> Option<()> {
+    if start < end {
+        push_pending_surrogate(out, high_surrogate);
+        out.push_str(std::str::from_utf8(&bytes[start..end]).ok()?);
+    }
+    Some(())
+}
+
+fn read_hex4(bytes: &[u8]) -> Option<u16> {
+    if bytes.len() != 4 {
+        return None;
+    }
+    let mut value = 0u16;
+    for &b in bytes {
+        let digit = match b {
+            b'0'..=b'9' => b - b'0',
+            b'a'..=b'f' => b - b'a' + 10,
+            b'A'..=b'F' => b - b'A' + 10,
+            _ => return None,
+        };
+        value = (value << 4) | digit as u16;
+    }
+    Some(value)
+}
+
+fn push_escaped_char(out: &mut String, high_surrogate: &mut Option<u16>, ch: char) {
+    push_pending_surrogate(out, high_surrogate);
+    out.push(ch);
+}
+
+fn push_pending_surrogate(out: &mut String, high_surrogate: &mut Option<u16>) {
+    if high_surrogate.take().is_some() {
+        out.push('\u{fffd}');
+    }
+}
+
+fn push_json_code_unit(out: &mut String, high_surrogate: &mut Option<u16>, unit: u16) {
+    match unit {
+        0xd800..=0xdbff => {
+            push_pending_surrogate(out, high_surrogate);
+            *high_surrogate = Some(unit);
+        }
+        0xdc00..=0xdfff => {
+            if let Some(high) = high_surrogate.take() {
+                let high = (high as u32) - 0xd800;
+                let low = (unit as u32) - 0xdc00;
+                let cp = 0x10000 + ((high << 10) | low);
+                out.push(char::from_u32(cp).unwrap_or('\u{fffd}'));
+            } else {
+                out.push('\u{fffd}');
+            }
+        }
+        _ => {
+            push_pending_surrogate(out, high_surrogate);
+            out.push(char::from_u32(unit as u32).unwrap_or('\u{fffd}'));
+        }
+    }
 }
 
 fn read_range_start_line_after(region: &[u8], key: &[u8]) -> Option<u32> {
@@ -844,6 +944,18 @@ fn b() {}\n";
         assert_eq!(syms[0].line, 2);
         assert_eq!(syms[1].name, "main");
         assert_eq!(syms[1].line, 6);
+    }
+
+    #[test]
+    fn parse_document_symbols_decodes_json_string_names() {
+        let json = r#"{"result":[{"name":"東京","kind":12,"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":1}},"selectionRange":{"start":{"line":1,"character":0},"end":{"line":1,"character":1}}},{"name":"caf\u00e9::\"quoted\"","kind":12,"range":{"start":{"line":2,"character":0},"end":{"line":2,"character":1}},"selectionRange":{"start":{"line":2,"character":0},"end":{"line":2,"character":1}}},{"name":"\ud83d\ude00 target","kind":12,"range":{"start":{"line":3,"character":0},"end":{"line":3,"character":1}},"selectionRange":{"start":{"line":3,"character":0},"end":{"line":3,"character":1}}},{"name":"\ud83dX","kind":12,"range":{"start":{"line":4,"character":0},"end":{"line":4,"character":1}},"selectionRange":{"start":{"line":4,"character":0},"end":{"line":4,"character":1}}}],"id":2}"#;
+        let syms = parse_document_symbols(json).expect("symbols");
+
+        assert_eq!(syms.len(), 4);
+        assert_eq!(syms[0].name, "東京");
+        assert_eq!(syms[1].name, "café::\"quoted\"");
+        assert_eq!(syms[2].name, "\u{1f600} target");
+        assert_eq!(syms[3].name, "\u{fffd}X");
     }
 
     #[test]
