@@ -45,6 +45,9 @@ pub const DEFAULT_FG: u32 = 0xffff_ffff;
 /// Sentinel `bg` meaning "transparent/default background" (SGR 0 / 49).
 pub const DEFAULT_BG: u32 = 0xffff_fffe;
 const TRUECOLOR_MASK: u32 = 0x0100_0000;
+const DEFAULT_FG_RGB: (u8, u8, u8) = (0xd1, 0xd6, 0xe0);
+const DEFAULT_BG_RGB: (u8, u8, u8) = (0x14, 0x14, 0x1c);
+const DEFAULT_CURSOR_RGB: (u8, u8, u8) = (0x7c, 0x5c, 0xff);
 const MOUSE_MODE_BUTTON: u8 = 1 << 0; // DECSET ?1000
 const MOUSE_MODE_DRAG: u8 = 1 << 1; // DECSET ?1002
 const MOUSE_MODE_ANY: u8 = 1 << 2; // DECSET ?1003
@@ -1595,8 +1598,26 @@ impl VtParser {
 
     fn finish_osc(&mut self) {
         self.capture_osc_title();
+        self.reply_osc_color_query();
         self.osc.clear();
         self.state = State::Ground;
+    }
+
+    fn reply_osc_color_query(&mut self) {
+        let (kind, color) = match self.osc.as_slice() {
+            b"10;?" => ("10", DEFAULT_FG_RGB),
+            b"11;?" => ("11", DEFAULT_BG_RGB),
+            b"12;?" => ("12", DEFAULT_CURSOR_RGB),
+            _ => return,
+        };
+        self.push_osc_color_reply(kind, color);
+    }
+
+    fn push_osc_color_reply(&mut self, kind: &str, (r, g, b): (u8, u8, u8)) {
+        let reply = format!(
+            "\x1b]{kind};rgb:{r:02x}{r:02x}/{g:02x}{g:02x}/{b:02x}{b:02x}\x1b\\"
+        );
+        self.reply.extend_from_slice(reply.as_bytes());
     }
 
     fn capture_osc_title(&mut self) {
@@ -3408,6 +3429,39 @@ mod tests {
         assert!(p.title().starts_with("ab"));
         assert!(p.title().chars().count() <= 160);
         assert!(!p.title().contains('\n'));
+    }
+
+    #[test]
+    fn osc_color_queries_are_answered() {
+        let mut g = Grid::new(1, 20);
+        let mut p = VtParser::new();
+        p.feed(
+            &mut g,
+            b"\x1b]10;?\x07\x1b]11;?\x1b\\\x9d12;?\x9cok",
+        );
+        assert_eq!(
+            p.take_reply(),
+            b"\x1b]10;rgb:d1d1/d6d6/e0e0\x1b\\\
+              \x1b]11;rgb:1414/1414/1c1c\x1b\\\
+              \x1b]12;rgb:7c7c/5c5c/ffff\x1b\\"
+                .to_vec()
+        );
+        assert!(p.take_reply().is_empty());
+        assert!(g.contains("ok"));
+        assert!(!g.contains("10;?"));
+        assert!(!g.contains("11;?"));
+        assert!(!g.contains("12;?"));
+    }
+
+    #[test]
+    fn osc_color_non_queries_are_only_consumed() {
+        let mut g = Grid::new(1, 20);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b]10;#ffffff\x07\x1b]13;?\x07done");
+        assert!(p.take_reply().is_empty());
+        assert!(g.contains("done"));
+        assert!(!g.contains("#ffffff"));
+        assert!(!g.contains("13;?"));
     }
 
     #[test]
