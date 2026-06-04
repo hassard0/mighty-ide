@@ -905,6 +905,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Open Recent empty feedback replaces stale Open toasts**: `No recent files
   or folders` is now treated as part of the Open workflow, so it replaces older
   open-file/open-folder outcomes instead of appearing as unrelated feedback.
+- **Terminal clipboard-copy feedback stays in the Copy lane**: OSC52 terminal
+  copies that report `Copied from terminal` now replace stale copy/paste toasts
+  instead of stacking as unrelated feedback.
 - **Save All now has native-picker proof for untitled tabs**: deterministic
   SaveFileDialog sequences let the Windows harness verify Save As and Save All
   in one run, including the exact Save All path used for a dirty untitled tab.

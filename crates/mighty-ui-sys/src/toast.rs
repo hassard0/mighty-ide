@@ -776,6 +776,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Clipboard is empty"
         || m == "Pasted clipboard"
         || m == "Pasted to terminal"
+        || m == "Copied from terminal"
         || m == "Terminal paste failed"
         || m.starts_with("Could not copy")
     {
@@ -1346,6 +1347,11 @@ mod tests {
         q.push_at(Kind::Success, "Pasted to terminal", t0 + Duration::from_millis(500));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Pasted to terminal");
+        assert_eq!(q.toasts()[0].kind, Kind::Success);
+
+        q.push_at(Kind::Success, "Copied from terminal", t0 + Duration::from_millis(600));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Copied from terminal");
         assert_eq!(q.toasts()[0].kind, Kind::Success);
     }
 
