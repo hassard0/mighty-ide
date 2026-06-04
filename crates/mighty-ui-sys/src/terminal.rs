@@ -225,6 +225,7 @@ impl Grid {
         for c in &mut self.cells {
             *c = Cell::default();
         }
+        self.primary_screen = None;
         self.cur_row = 0;
         self.cur_col = 0;
         self.reset_scroll_region();
@@ -2804,6 +2805,15 @@ mod tests {
         assert_eq!(g.to_text(), "ABC     \nDEF!    \n        ");
         assert_eq!(g.cursor(), (1, 4));
         assert!(!g.contains("ALT"));
+    }
+
+    #[test]
+    fn esc_c_inside_alternate_screen_discards_primary_snapshot() {
+        let g = grid_feed(2, 10, b"prompt\x1b[?1049hALT\x1bc\x1b[?1049lZ");
+        assert_eq!(g.cell(0, 0).ch, 'Z');
+        assert!(!g.contains("prompt"));
+        assert!(!g.contains("ALT"));
+        assert!(!g.contains("1049"));
     }
 
     #[test]

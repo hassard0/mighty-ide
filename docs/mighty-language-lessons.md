@@ -7867,3 +7867,13 @@ without erasing visible cells.
 - **IDE note:** erase-display mode `3` is now a visible no-op instead of an alias
   for `CSI 2 J`. Regression coverage verifies the escape is consumed while the
   current grid contents remain intact.
+
+L647. RIS must discard alternate-screen snapshots. `ESC c` is a full terminal
+reset; if it occurs while a TUI is on the alternate screen, a later
+`CSI ?1049 l` must not resurrect the stale primary screen that existed before
+the reset.
+
+- **IDE note:** clearing the terminal grid now also drops any saved primary
+  screen snapshot. Regression coverage enters the alternate screen, performs RIS,
+  exits alternate mode, and verifies neither stale primary nor alternate content
+  returns.
