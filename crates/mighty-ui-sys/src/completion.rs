@@ -1125,11 +1125,11 @@ pub mod lsp {
         };
 
         // Read on a worker thread so a blocking pipe read can't pin us past the
-        // timeout. The thread reads until it has seen the completion response
-        // (the `"id":2` payload) — then it stops promptly — or until EOF / a
-        // size cap. The server doesn't close stdout on its own, so without the
-        // early stop we'd always wait the full timeout; the `"id":2` marker lets
-        // the happy path return as soon as the answer arrives.
+        // timeout. The thread reads until it has seen the complete completion
+        // response object for id 2, then it stops promptly, or until EOF / a
+        // size cap. The server doesn't close stdout on its own, so
+        // response-owned id matching lets the happy path return as soon as the
+        // answer arrives.
         let (tx, rx) = mpsc::channel::<Vec<u8>>();
         let reader = std::thread::spawn(move || {
             let mut buf: Vec<u8> = Vec::new();
@@ -1140,7 +1140,7 @@ pub mod lsp {
                     Ok(n) => {
                         buf.extend_from_slice(&chunk[..n]);
                         // Stop once the completion response (id:2) has arrived.
-                        if find_subslice(&buf, b"\"id\":2").is_some() {
+                        if crate::nav::lsp::has_response_id(&buf, 2) {
                             break;
                         }
                         if buf.len() > 1024 * 1024 {
@@ -1179,13 +1179,6 @@ pub mod lsp {
         scrape_labels(&text)
     }
 
-    /// Find the first occurrence of `needle` in `hay` (byte substring search).
-    fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
-        if needle.is_empty() || needle.len() > hay.len() {
-            return None;
-        }
-        hay.windows(needle.len()).position(|w| w == needle)
-    }
 }
 
 #[cfg(test)]
@@ -1655,6 +1648,26 @@ mod tests {
         }"#;
         let labels = super::lsp::scrape_labels(json);
         assert_eq!(labels, vec!["right".to_string(), "next".to_string()]);
+    }
+
+    #[test]
+    fn lsp_completion_response_wait_uses_response_owned_id() {
+        let stream = br#"Content-Length: 99
+
+{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":[{"label":"wrong"}]}}}Content-Length: 59
+
+{"jsonrpc":"2.0","id":2,"result":[{"label":"right"}]}"#;
+
+        assert!(crate::nav::lsp::has_response_id(stream, 2));
+    }
+
+    #[test]
+    fn lsp_completion_response_wait_ignores_nested_id_and_requests() {
+        let nested_id = br#"{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":[{"label":"wrong"}]}}}"#;
+        let server_request = br#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}"#;
+
+        assert!(!crate::nav::lsp::has_response_id(nested_id, 2));
+        assert!(!crate::nav::lsp::has_response_id(server_request, 2));
     }
 
     #[test]

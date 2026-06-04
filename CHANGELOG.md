@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Completion waits for response-owned IDs**: semantic completion now waits for
+  a complete top-level response object with `id: 2` before scraping labels, so
+  progress metadata or server requests cannot end completion collection early.
 - **Mighty language requests wait for response-owned IDs**: signature help,
   rename preparation, rename edits, code actions, and document-symbol requests
   now share the envelope-owned response wait used by navigation, so progress

@@ -10157,3 +10157,17 @@ for the user's request arrives.
 - **Language note:** no compiler gap surfaced. Once a transport invariant is
   found in one feature client, every sibling client should share that invariant
   instead of repeating substring readiness checks.
+
+## L830 - Completion Readiness Also Belongs To The Response Envelope
+
+Semantic completion uses its own LSP client path, but it receives the same
+initialize response, progress notifications, server requests, and completion
+response stream as every other request. A nested `id: 2` in progress metadata is
+not the completion answer.
+
+- **IDE note:** the semantic completion reader now uses the shared
+  response-owned `id: 2` readiness check before scraping labels from the result
+  payload.
+- **Language note:** no compiler gap surfaced. Autocomplete needs the same
+  transport envelope discipline as hover, definition, signature help, rename,
+  and code actions.
