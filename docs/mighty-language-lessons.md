@@ -8128,3 +8128,14 @@ the bytes and colors correct while still losing the meaning of the line.
   `mui_term_draw` paints strikethrough runs with the resolved foreground color.
   Regression coverage pins SGR reset, repeated struck cells, and restored
   strikethrough state.
+
+L673. Italic terminal text needs the real italic face path. Modern prompts,
+diagnostic tools, and markdown-aware CLIs use `SGR 3` for comments, hints, and
+secondary prose. Treating it as an ignored escape keeps the grid legible but
+makes semantic emphasis disappear.
+
+- **IDE note:** terminal cells now carry an italic flag, `SGR 3/23` updates it
+  for subsequent output, REP and cursor save/restore preserve it, and terminal
+  glyph runs split on italic state so `mui_term_draw` can queue the bundled true
+  italic code face. Regression coverage pins SGR reset, repeated italic cells,
+  restored italic state, and RIS clearing stale style attributes.
