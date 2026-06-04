@@ -12272,6 +12272,26 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && code_action_branch.contains(local_editor_cleanup_outer),
         "Code Actions local apply, Escape, printed-char, and mouse exits must release stale focus"
     );
+    let peek_start = main
+        .find("if mui_peek_active(h) == 1 {")
+        .expect("peek key branch should exist");
+    let peek_end = main[peek_start..]
+        .find("} else if k == key_f12()")
+        .map(|i| peek_start + i)
+        .expect("peek key branch should precede F12 handling");
+    let peek_branch = &main[peek_start..peek_end];
+    assert!(
+        peek_branch.contains(
+            "if k == key_escape() {\n            let _pc = mui_peek_close(h)\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false"
+        ) && peek_branch.contains(
+            "let r = mui_peek_goto(h)\n            if r >= 0 {\n              let _b = mui_ed_tab_switch(h, mui_tab_active(h))"
+        ) && peek_branch.contains(
+            "find_nav = false\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            typing = false"
+        ) && peek_branch.contains(
+            "let _pc = mui_peek_close(h)                       // any other key dismisses\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false"
+        ),
+        "Peek local Escape, Enter, and other-key exits must release stale focus"
+    );
     assert!(
         main.contains("id == cmd_markdown_close_preview()")
             && main.contains("let _mdc = mui_md_close(h)")

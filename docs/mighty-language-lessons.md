@@ -9356,3 +9356,17 @@ editor.
 - **Language note:** no compiler gap surfaced. Editor-owned overlays still need
   local exit contracts when their open commands already clear focus, because
   command dispatch and in-overlay event routing are independent control paths.
+
+## L774 - Peek Navigation Has Local Exit Routes
+
+Peek is opened through commands or shortcuts, but once active it captures keys
+inside the main editor key arm. Escape, Enter navigation, and other-key
+dismissal leave the Peek surface locally, so they need the same ownership cleanup
+as the command-dispatched close row.
+
+- **IDE note:** Peek Escape, Enter navigation, and other-key dismissal now
+  release stale Run/Web/Testing/Terminal/AI/Agents/search focus plus transient
+  typing state before editor input resumes.
+- **Language note:** no compiler gap surfaced. For keyboard-captured overlays,
+  distinguish passive navigation like Up/Down from actual exit routes, then
+  assert the ownership contract on only the exit paths.

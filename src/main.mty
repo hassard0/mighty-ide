@@ -3667,6 +3667,14 @@ fn main() {
           // Enter navigates to the actual definition, Up/Down scroll the preview.
           if k == key_escape() {
             let _pc = mui_peek_close(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if k == key_enter() {
             let r = mui_peek_goto(h)
             if r >= 0 {
@@ -3675,12 +3683,27 @@ fn main() {
               let _o = mui_outline_refresh(h)
             }
             find_nav = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            typing = false
           } else if k == key_up() {
             mui_peek_scroll(h, -1)
           } else if k == key_down() {
             mui_peek_scroll(h, 1)
           } else {
             let _pc = mui_peek_close(h)                       // any other key dismisses
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         } else if k == key_f12() {
           let kmods = mui_event_mods(h)
