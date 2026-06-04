@@ -9639,3 +9639,17 @@ context even when file and workspace variables resolve.
 - **Language note:** no compiler gap surfaced. Position variables should be
   captured before deleting the typed snippet prefix; otherwise tests can pass
   for pure expansion while the live editor reports the post-mutation line.
+
+## L793 - Snippets Need Local Date Context
+
+Headers, file templates, and generated test scaffolds often include snippet
+variables such as `$CURRENT_YEAR`, `$CURRENT_MONTH`, and `$CURRENT_DATE`.
+Leaving those literal makes otherwise useful imported snippets look unfinished.
+
+- **IDE note:** snippet expansion now resolves the common current date/time
+  variable family from the local expansion time on Windows, with a standard-time
+  fallback for non-Windows builds. Tests inject fixed date parts so the resolver
+  remains deterministic.
+- **Language note:** no compiler gap surfaced. Time-dependent snippet variables
+  should flow through the same explicit context object as file, workspace, and
+  cursor variables; deterministic tests should never depend on the wall clock.

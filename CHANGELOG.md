@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Current-date snippet variables resolve**: imported snippets can now use
+  `$CURRENT_YEAR`, `$CURRENT_MONTH`, `$CURRENT_DATE`, and related day/time
+  variables from the local expansion time.
 - **Current-line snippet variables resolve**: imported snippets can now use
   `$TM_CURRENT_LINE`, `$TM_CURRENT_WORD`, `$TM_LINE_INDEX`, and
   `$TM_LINE_NUMBER` from the expansion site.

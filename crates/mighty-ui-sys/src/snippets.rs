@@ -303,6 +303,24 @@ pub struct SnippetContext {
     current_line: Option<String>,
     line_index: Option<usize>,
     current_word: String,
+    date: Option<DateParts>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DateParts {
+    year: u16,
+    month: u8,
+    day: u8,
+    hour: u8,
+    minute: u8,
+    second: u8,
+    weekday: u8,
+}
+
+impl DateParts {
+    fn local_now() -> Self {
+        local_date_parts()
+    }
 }
 
 impl SnippetContext {
@@ -319,7 +337,15 @@ impl SnippetContext {
         selected_text: &str,
         workspace_root: Option<&Path>,
     ) -> Self {
-        SnippetContext::from_editor_context(path, selected_text, workspace_root, None, None, "")
+        SnippetContext::from_editor_context(
+            path,
+            selected_text,
+            workspace_root,
+            None,
+            None,
+            "",
+            None,
+        )
     }
 
     pub fn from_editor_context(
@@ -329,6 +355,7 @@ impl SnippetContext {
         current_line: Option<&str>,
         line_index: Option<usize>,
         current_word: &str,
+        date: Option<DateParts>,
     ) -> Self {
         SnippetContext {
             active_path: path.map(Path::to_path_buf),
@@ -337,6 +364,7 @@ impl SnippetContext {
             current_line: current_line.map(str::to_string),
             line_index,
             current_word: current_word.to_string(),
+            date,
         }
     }
 }
@@ -476,6 +504,17 @@ fn resolve_snippet_variable(name: &str, context: &SnippetContext) -> Option<Stri
         "TM_CURRENT_WORD" => Some(context.current_word.clone()),
         "TM_LINE_INDEX" => context.line_index.map(|line| line.to_string()),
         "TM_LINE_NUMBER" => context.line_index.map(|line| (line + 1).to_string()),
+        "CURRENT_YEAR" => Some(date_parts(context).year.to_string()),
+        "CURRENT_YEAR_SHORT" => Some(format!("{:02}", date_parts(context).year % 100)),
+        "CURRENT_MONTH" => Some(format!("{:02}", date_parts(context).month)),
+        "CURRENT_MONTH_NAME" => Some(month_name(date_parts(context).month, false).to_string()),
+        "CURRENT_MONTH_NAME_SHORT" => Some(month_name(date_parts(context).month, true).to_string()),
+        "CURRENT_DATE" => Some(format!("{:02}", date_parts(context).day)),
+        "CURRENT_DAY_NAME" => Some(day_name(date_parts(context).weekday, false).to_string()),
+        "CURRENT_DAY_NAME_SHORT" => Some(day_name(date_parts(context).weekday, true).to_string()),
+        "CURRENT_HOUR" => Some(format!("{:02}", date_parts(context).hour)),
+        "CURRENT_MINUTE" => Some(format!("{:02}", date_parts(context).minute)),
+        "CURRENT_SECOND" => Some(format!("{:02}", date_parts(context).second)),
         "TM_FILENAME" => context
             .active_path
             .as_deref()
@@ -513,6 +552,96 @@ fn relative_filepath(context: &SnippetContext) -> Option<String> {
         .ok()
         .filter(|relative| !relative.as_os_str().is_empty())
         .map(|relative| relative.to_string_lossy().replace('\\', "/"))
+}
+
+fn date_parts(context: &SnippetContext) -> DateParts {
+    context.date.unwrap_or_else(DateParts::local_now)
+}
+
+fn month_name(month: u8, short: bool) -> &'static str {
+    const LONG: [&str; 12] = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ];
+    const SHORT: [&str; 12] = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    let idx = month.saturating_sub(1).min(11) as usize;
+    if short { SHORT[idx] } else { LONG[idx] }
+}
+
+fn day_name(weekday: u8, short: bool) -> &'static str {
+    const LONG: [&str; 7] = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+    ];
+    const SHORT: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    let idx = weekday.min(6) as usize;
+    if short { SHORT[idx] } else { LONG[idx] }
+}
+
+#[cfg(windows)]
+fn local_date_parts() -> DateParts {
+    let mut t = windows_sys::Win32::Foundation::SYSTEMTIME::default();
+    unsafe { windows_sys::Win32::System::SystemInformation::GetLocalTime(&mut t) };
+    DateParts {
+        year: t.wYear,
+        month: t.wMonth as u8,
+        day: t.wDay as u8,
+        hour: t.wHour as u8,
+        minute: t.wMinute as u8,
+        second: t.wSecond as u8,
+        weekday: t.wDayOfWeek as u8,
+    }
+}
+
+#[cfg(not(windows))]
+fn local_date_parts() -> DateParts {
+    let seconds = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let days = seconds.div_euclid(86_400);
+    let seconds_of_day = seconds.rem_euclid(86_400);
+    let (year, month, day) = civil_from_days(days);
+    DateParts {
+        year: year as u16,
+        month,
+        day,
+        hour: (seconds_of_day / 3600) as u8,
+        minute: ((seconds_of_day % 3600) / 60) as u8,
+        second: (seconds_of_day % 60) as u8,
+        weekday: ((days + 4).rem_euclid(7)) as u8,
+    }
+}
+
+#[cfg(not(windows))]
+fn civil_from_days(days: i64) -> (i32, u8, u8) {
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 }.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096).div_euclid(365);
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2).div_euclid(153);
+    let d = doy - (153 * mp + 2).div_euclid(5) + 1;
+    let m = mp + if mp < 10 { 3 } else { -9 };
+    ((y + i64::from(m <= 2)) as i32, m as u8, d as u8)
 }
 
 /// An active tab-stop navigation session over an expanded snippet.
@@ -970,6 +1099,7 @@ pub fn try_expand_with_context(
             Some(&current_line),
             Some(line),
             &word,
+            None,
         );
         expand_with_context(&def.body, &indent, cl, cc, &context)
     };
@@ -1266,6 +1396,7 @@ mod tests {
             Some("  guard"),
             Some(6),
             "guard",
+            None,
         );
         let exp = expand_with_context(
             "$TM_CURRENT_LINE|$TM_CURRENT_WORD|$TM_LINE_INDEX|$TM_LINE_NUMBER",
@@ -1280,9 +1411,51 @@ mod tests {
 
     #[test]
     fn expand_empty_current_word_uses_default() {
-        let ctx = SnippetContext::from_editor_context(None, "", None, Some("  "), Some(0), "");
+        let ctx = SnippetContext::from_editor_context(
+            None,
+            "",
+            None,
+            Some("  "),
+            Some(0),
+            "",
+            None,
+        );
         let exp = expand_with_context("${TM_CURRENT_WORD:name}|$TM_CURRENT_WORD", "", 0, 0, &ctx);
         assert_eq!(exp.text, "name|");
+    }
+
+    #[test]
+    fn expand_current_date_variables_from_context() {
+        let ctx = SnippetContext::from_editor_context(
+            None,
+            "",
+            None,
+            None,
+            None,
+            "",
+            Some(DateParts {
+                year: 2026,
+                month: 6,
+                day: 4,
+                hour: 9,
+                minute: 5,
+                second: 7,
+                weekday: 4,
+            }),
+        );
+        let exp = expand_with_context(
+            concat!(
+                "$CURRENT_YEAR|$CURRENT_YEAR_SHORT|$CURRENT_MONTH|",
+                "$CURRENT_MONTH_NAME|$CURRENT_MONTH_NAME_SHORT|$CURRENT_DATE|",
+                "$CURRENT_DAY_NAME|$CURRENT_DAY_NAME_SHORT|",
+                "$CURRENT_HOUR|$CURRENT_MINUTE|$CURRENT_SECOND"
+            ),
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(exp.text, "2026|26|06|June|Jun|04|Thursday|Thu|09|05|07");
     }
 
     #[test]
