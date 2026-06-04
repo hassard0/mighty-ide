@@ -12189,6 +12189,33 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         ),
         "Diff close command must close the shim diff view, clear Mighty's diff-open flag, and release stale focus"
     );
+    let diff_start = main
+        .find("} else if diff_open {")
+        .expect("diff-focused branch should exist");
+    let diff_end = main[diff_start..]
+        .find("} else if replacing {")
+        .map(|i| diff_start + i)
+        .expect("diff branch should precede Find & Replace branch");
+    let diff_branch = &main[diff_start..diff_end];
+    assert!(
+        diff_branch.contains(
+            "} else if k == key_escape() {\n            let _dc = mui_diff_close(h)\n            diff_open = false\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false"
+        ),
+        "Diff Escape close must release stale focus"
+    );
+    let replace_start = main
+        .find("} else if replacing {")
+        .expect("Find & Replace branch should exist");
+    let replace_end = main[replace_start..]
+        .find("} else if prompt_kind != 0 {")
+        .map(|i| replace_start + i)
+        .expect("Find & Replace branch should precede prompt branch");
+    let replace_branch = &main[replace_start..replace_end];
+    let replace_local_cleanup = "let _repc = mui_replace_cancel(h)\n            replacing = false\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    assert!(
+        replace_branch.matches(replace_local_cleanup).count() >= 2,
+        "Find & Replace local Escape and close-click routes must release stale focus"
+    );
     assert!(
         main.contains("id == cmd_markdown_close_preview()")
             && main.contains("let _mdc = mui_md_close(h)")

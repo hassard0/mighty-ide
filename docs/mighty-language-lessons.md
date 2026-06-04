@@ -9301,3 +9301,16 @@ arms need the same cleanup as the palette command rows that open or close them.
 - **Language note:** no compiler gap surfaced. The route-parity lesson extends
   to modal-style in-app settings surfaces: command rows and local overlay exits
   are separate routes and both must write the ownership contract.
+
+## L770 - Transient Editor Overlays Close Locally Too
+
+Inline diff and Find & Replace have palette commands that close them, but they
+also close from their focused local event arms. Those local Esc/click exits need
+the same ownership cleanup as the command rows.
+
+- **IDE note:** inline Diff Escape and Find & Replace Escape/close-click now
+  release stale Run/Web/Testing/Terminal/AI/Agents/search focus and transient
+  typing state before returning keyboard input to the editor.
+- **Language note:** no compiler gap surfaced. The source-contract check should
+  slice local overlay event arms separately from command-dispatch branches,
+  because both routes can close the same visible UI.

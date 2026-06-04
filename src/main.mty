@@ -2563,6 +2563,14 @@ fn main() {
           } else if k == key_escape() {
             let _dc = mui_diff_close(h)
             diff_open = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         } else if tag == ev_scroll() {
           let dir = mui_event_scroll_dir(h)
@@ -2582,6 +2590,14 @@ fn main() {
           } else if k == key_escape() {
             let _repc = mui_replace_cancel(h)
             replacing = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if k == key_enter() {
             // Enter on the replace field replaces all; otherwise replace-next.
             let rf = mui_replace_focus(h)
@@ -2605,6 +2621,14 @@ fn main() {
           if mui_replace_close_at_click(h) == 1 {
             let _repc = mui_replace_cancel(h)
             replacing = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         }
       } else if prompt_kind != 0 {

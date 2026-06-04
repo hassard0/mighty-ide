@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Diff and replace local exits release stale focus**: inline Diff Escape plus
+  Find & Replace Escape/close-click now clear stale surface/search focus before
+  returning input to the editor.
 - **Settings and theme exits release stale focus**: local Escape, close, outside
   click, and apply exits in Settings and Color Theme now clear stale
   panel/terminal/AI/Agents/search focus before returning to editor input.
