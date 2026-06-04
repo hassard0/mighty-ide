@@ -4726,7 +4726,13 @@ fn main() {
           find_nav = false
         } else if id == cmd_view_run_debug() {
           let _vp = mui_panel_set(h, panel_debug())
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
+          find_nav = false
         } else if id == cmd_debug_close() {
           let _dc = mui_dbg_close(h)
           agents_focus = false

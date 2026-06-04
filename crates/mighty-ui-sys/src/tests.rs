@@ -10715,6 +10715,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Run close command must use the Run-specific close ABI and release Run focus"
     );
     assert!(
+        main.contains(
+            "id == cmd_view_run_debug() {\n          let _vp = mui_panel_set(h, panel_debug())\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Run and Debug view command must reveal Debug and release stale dock/right-dock focus"
+    );
+    assert!(
         main.contains("id == cmd_debug_stop()")
             && main.contains("let _ds = mui_dbg_stop(h)")
             && main.contains("let _vp = mui_panel_set(h, panel_debug())"),

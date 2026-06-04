@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Run and Debug view now owns focus cleanly**: `View: Run and Debug` clears
+  stale Run/Web/Testing/Terminal/AI/Agents focus when it switches to the Debug
+  sidebar, preventing hidden surfaces from receiving the next input.
 - **Sidebar view commands now release dock focus**: `View: Explorer`,
   `View: Search`, `View: Source Control`, and `View: Outline` clear stale
   Run/Web/Testing/Terminal focus when they switch the sidebar panel.

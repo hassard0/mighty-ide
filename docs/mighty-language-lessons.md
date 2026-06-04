@@ -8557,3 +8557,14 @@ be routed to a dock owner the user is no longer working with.
   `View: Outline` now clear bottom-dock focus plus transient navigation state
   after selecting their sidebar panel. That makes command-palette sidebar
   navigation follow the same ownership model as direct rail clicks.
+
+## L713 - Debug View Commands Should Release Competing Focus
+
+Run and Debug is a sidebar surface, but it has its own toolbar and breakpoint
+inventory. Opening it from the palette should release both bottom-dock focus and
+right-dock AI focus so the next input cannot route to a hidden output surface.
+
+- **IDE note:** `View: Run and Debug` now clears Run, Web, Testing, Terminal,
+  AI, Agents, and transient navigation focus after selecting the Debug panel.
+  Debug control commands still reveal the panel before acting, so view and
+  action paths now share the same focus ownership rule.
