@@ -4988,6 +4988,14 @@ fn main() {
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
+          } else {
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if id == cmd_close_saved_tabs() {
           let a = mui_tab_close_saved(h)
@@ -5003,6 +5011,14 @@ fn main() {
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
+          } else {
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if id == cmd_close_other_saved_tabs() {
           let a = mui_tab_close_other_saved(h)
@@ -5018,6 +5034,14 @@ fn main() {
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
+          } else {
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if id == cmd_close_saved_tabs_to_right() {
           let a = mui_tab_close_saved_to_right(h)
@@ -5033,6 +5057,14 @@ fn main() {
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
+          } else {
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if id == cmd_close_saved_tabs_to_left() {
           let a = mui_tab_close_saved_to_left(h)
@@ -5048,6 +5080,14 @@ fn main() {
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
+          } else {
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if id == cmd_reopen_closed_tab() {
           let a = mui_tab_reopen_closed(h)
@@ -5063,6 +5103,14 @@ fn main() {
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
+          } else {
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if id == cmd_duplicate_active_tab() {
           let a = mui_tab_duplicate_active(h)
@@ -5091,12 +5139,28 @@ fn main() {
             ai_focus = false
             agents_focus = false
             find_nav = false
+          } else {
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if id == cmd_move_active_tab_right() {
           let a = mui_tab_move_active_right(h)
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+          } else {
             run_focus = false
             web_focus = false
             test_focus = false
@@ -5117,12 +5181,28 @@ fn main() {
             ai_focus = false
             agents_focus = false
             find_nav = false
+          } else {
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if id == cmd_close_duplicate_tabs() {
           let a = mui_tab_close_duplicate_files(h)
           if a >= 0 {
             let _b = mui_ed_tab_switch(h, a)
             mui_ed_undo_reset(h)
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+          } else {
             run_focus = false
             web_focus = false
             test_focus = false
@@ -5145,6 +5225,14 @@ fn main() {
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
+          } else {
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if id == cmd_revert_active_file() {
           let a = mui_tab_revert_active(h)
@@ -5160,6 +5248,14 @@ fn main() {
             find_nav = false
             let _r = mui_diag_refresh(h)
             let _o = mui_outline_refresh(h)
+          } else {
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
           }
         } else if id == cmd_format_document() {
           do_format(h)

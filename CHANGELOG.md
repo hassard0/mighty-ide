@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Tab command no-ops release stale focus**: tab close/reopen/move/sort/
+  duplicate-close/reload/revert commands now clear stale Run/Web/Testing/
+  Terminal/AI/Agents focus even when the tab operation is refused or has
+  nothing to do.
 - **Active-file utility commands release stale focus**: reveal and copy-path/name/
   directory commands now clear stale Run/Web/Testing/Terminal/AI/Agents focus
   just like other file commands, so subsequent typing returns to the editor.

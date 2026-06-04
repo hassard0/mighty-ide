@@ -9157,3 +9157,17 @@ palette closes.
 - **Language note:** no compiler gap surfaced. The repeated scalar focus writes
   continue to argue for command metadata, but until that exists every command
   branch that returns to editor-owned UI needs an explicit cleanup contract.
+
+## L760 - No-op Tab Commands Still Own The Next Keystroke
+
+Tab commands often have valid no-op outcomes: the active tab is already at an
+edge, no closed tab exists, reload is refused, or there are no saved tabs to
+close. Those outcomes still return the user to editor-owned chrome.
+
+- **IDE note:** close/reopen/move/sort/duplicate-close/reload/revert tab command
+  no-op paths now release stale Run/Web/Testing/Terminal/AI/Agents/search focus.
+  Source-contract coverage now requires explicit cleanup in the `else` branch,
+  not just somewhere in the successful path.
+- **Language note:** no compiler gap surfaced. This is another command metadata
+  gap: success and no-op result paths need the same ownership effect even when
+  their data-plane effects differ.

@@ -11071,6 +11071,35 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             );
         }
     }
+    for marker in [
+        "} else if id == cmd_close_tab()",
+        "} else if id == cmd_close_saved_tabs()",
+        "} else if id == cmd_close_other_saved_tabs()",
+        "} else if id == cmd_close_saved_tabs_to_right()",
+        "} else if id == cmd_close_saved_tabs_to_left()",
+        "} else if id == cmd_reopen_closed_tab()",
+        "} else if id == cmd_move_active_tab_left()",
+        "} else if id == cmd_move_active_tab_right()",
+        "} else if id == cmd_sort_tabs_by_name()",
+        "} else if id == cmd_close_duplicate_tabs()",
+        "} else if id == cmd_reload_active_file()",
+        "} else if id == cmd_revert_active_file()",
+    ] {
+        let branch = main
+            .split(marker)
+            .nth(1)
+            .unwrap_or_else(|| panic!("missing tab-management branch {marker}"));
+        let branch = branch
+            .split("} else if id ==")
+            .next()
+            .expect("tab-management branch should have a bounded body");
+        assert!(
+            branch.contains(
+                "} else {\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+            ),
+            "tab-management no-op branch {marker} must release stale focus"
+        );
+    }
     assert!(
         main.contains("id == cmd_hover_close()")
             && main.contains("let _hc = mui_hover_close(h)")
