@@ -10677,16 +10677,16 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     ] {
         assert!(
             main.contains(&format!(
-                "id == {helper}() {{\n          let _vp = mui_panel_set(h, {panel}())\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          agents_focus = false\n          find_nav = false"
+                "id == {helper}() {{\n          let _vp = mui_panel_set(h, {panel}())\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
             )),
-            "{label} view command must reveal the sidebar panel and release dock focus"
+            "{label} view command must reveal the sidebar panel and release competing focus"
         );
     }
     assert!(
-        main.contains("id == cmd_git_refresh_source_control()")
-            && main.contains("let _vp = mui_panel_set(h, panel_scm())")
-            && main.contains("let _r = mui_scm_refresh(h)"),
-        "Git refresh command must reveal Source Control before refreshing status"
+        main.contains(
+            "id == cmd_git_refresh_source_control() {\n          let _vp = mui_panel_set(h, panel_scm())\n          let _r = mui_scm_refresh(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Git refresh command must reveal Source Control and release competing focus"
     );
     assert!(
         main.contains("id == cmd_git_close_source_control()")
@@ -10696,28 +10696,27 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains(
-            "id == cmd_git_clear_commit_message() {\n          let _vp = mui_panel_set(h, panel_scm())\n          let _gcm = mui_scm_clear_message(h)"
-        )
-            && main.contains("find_nav = false"),
-        "Source Control clear-message command must reveal Source Control and clear only the commit draft"
+            "id == cmd_git_clear_commit_message() {\n          let _vp = mui_panel_set(h, panel_scm())\n          let _gcm = mui_scm_clear_message(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Source Control clear-message command must reveal Source Control, clear only the commit draft, and release competing focus"
     );
     assert!(
         main.contains(
-            "id == cmd_git_commit_staged() {\n          let _vp = mui_panel_set(h, panel_scm())\n          let _gc = mui_scm_commit(h)\n          let _r = mui_scm_refresh(h)"
-        )
-            && main.contains("let _r = mui_scm_refresh(h)")
-            && main.contains("find_nav = false"),
-        "Source Control commit command must reveal Source Control before using the commit-message draft"
+            "id == cmd_git_commit_staged() {\n          let _vp = mui_panel_set(h, panel_scm())\n          let _gc = mui_scm_commit(h)\n          let _r = mui_scm_refresh(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Source Control commit command must reveal Source Control before using the commit-message draft and release competing focus"
     );
-    assert!(
-        main.contains("id == cmd_git_stage_all()")
-            && main.contains("id == cmd_git_unstage_all()")
-            && main
-                .matches("let _vp = mui_panel_set(h, panel_scm())\n          let _g")
-                .count()
-                >= 2,
-        "Source Control bulk-stage commands must reveal Source Control before acting"
-    );
+    for (helper, call) in [
+        ("cmd_git_stage_all", "let _gsa = mui_scm_stage_all(h)"),
+        ("cmd_git_unstage_all", "let _gua = mui_scm_unstage_all(h)"),
+    ] {
+        assert!(
+            main.contains(&format!(
+                "id == {helper}() {{\n          let _vp = mui_panel_set(h, panel_scm())\n          {call}\n          let _r = mui_scm_refresh(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            )),
+            "Source Control bulk-stage command `{helper}` must reveal Source Control before acting and release competing focus"
+        );
+    }
     assert!(
         main.contains("fn mui_scm_message_clear_at_click(handle: I64) -> I32")
             && main.contains("let scm_msg_clear = mui_scm_message_clear_at_click(h)")

@@ -4883,24 +4883,53 @@ fn main() {
           let _vp = mui_panel_set(h, panel_scm())
           let _gsa = mui_scm_stage_all(h)
           let _r = mui_scm_refresh(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_git_unstage_all() {
           let _vp = mui_panel_set(h, panel_scm())
           let _gua = mui_scm_unstage_all(h)
           let _r = mui_scm_refresh(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_git_commit_staged() {
           let _vp = mui_panel_set(h, panel_scm())
           let _gc = mui_scm_commit(h)
           let _r = mui_scm_refresh(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_git_clear_commit_message() {
           let _vp = mui_panel_set(h, panel_scm())
           let _gcm = mui_scm_clear_message(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_git_refresh_source_control() {
           let _vp = mui_panel_set(h, panel_scm())
           let _r = mui_scm_refresh(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_view_explorer() {
@@ -4909,6 +4938,7 @@ fn main() {
           web_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_view_search() {
@@ -4917,6 +4947,7 @@ fn main() {
           web_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_search_run() {
@@ -4949,6 +4980,7 @@ fn main() {
           web_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_git_close_source_control() {
@@ -4961,6 +4993,7 @@ fn main() {
           web_focus = false
           test_focus = false
           term_focus = false
+          ai_focus = false
           agents_focus = false
           find_nav = false
         } else if id == cmd_outline_refresh() {

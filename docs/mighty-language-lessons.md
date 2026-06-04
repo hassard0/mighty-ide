@@ -8814,3 +8814,17 @@ consumer.
   refresh/clear now release stale Run/Web/Testing/Terminal/AI/Agents/search
   focus after showing or acting on Problems. Source-contract tests cover the
   palette and mouse paths.
+
+## L736 - Sidebar Views Must Also Release Right-dock Focus
+
+Left-sidebar view commands are ownership changes even when the sidebar panel has
+no dedicated text-input flag. If they only clear lower-dock focus, AI or another
+right-dock owner can keep receiving input after the user explicitly switches
+the visible sidebar.
+
+- **IDE note:** Explorer, Search, Source Control, and Outline view commands now
+  clear stale AI focus as well as Run/Web/Testing/Terminal/Agents/search state.
+  Source Control refresh, stage-all, unstage-all, commit-staged, and
+  clear-message commands also release the full competing-focus set after
+  revealing SCM. The dispatcher source-contract test checks each local command
+  branch.
