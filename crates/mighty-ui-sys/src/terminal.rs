@@ -1046,7 +1046,11 @@ impl VtParser {
                 } else if b == b'u' {
                     self.restore_cursor(grid);
                 } else if b == b'p' {
-                    self.handle_mode_status_query(grid);
+                    if self.is_soft_reset() {
+                        self.soft_reset(grid);
+                    } else {
+                        self.handle_mode_status_query(grid);
+                    }
                 } else if b == b't' {
                     self.handle_window_ops(grid);
                 }
@@ -1306,6 +1310,18 @@ impl VtParser {
         self.sgr_mouse = false;
         self.autowrap = true;
         self.origin_mode = false;
+    }
+
+    fn is_soft_reset(&self) -> bool {
+        self.csi.as_slice() == b"!"
+    }
+
+    fn soft_reset(&mut self, grid: &mut Grid) {
+        self.reset_modes();
+        grid.cur_fg = DEFAULT_FG;
+        grid.cur_bg = DEFAULT_BG;
+        grid.reset_scroll_region();
+        grid.move_cursor_1_based(1, 1);
     }
 
     fn set_cursor_shape(&mut self) {
@@ -3438,6 +3454,31 @@ mod tests {
         assert!(!p.bracketed_paste_enabled());
         assert!(!p.mouse_reporting_enabled());
         assert!(!p.sgr_mouse_enabled());
+    }
+
+    #[test]
+    fn decstr_soft_reset_restores_modes_without_clearing_grid() {
+        let mut g = Grid::new(4, 6);
+        let mut p = VtParser::new();
+        p.feed(
+            &mut g,
+            b"aaaaaa\nbbbbbb\ncccccc\ndddddd\x1b[2;3r\x1b[?6h\x1b[?7l\x1b[31;44m\x1b[6 q\x1b[?2004h\x1b[?1000h\x1b[?1006h\x1b[!pX",
+        );
+
+        assert_eq!(g.cell(0, 0).ch, 'X');
+        assert_eq!(g.cell(0, 1).ch, 'a', "soft reset must not clear visible cells");
+        assert_eq!(g.cell(0, 0).fg, DEFAULT_FG);
+        assert_eq!(g.cell(0, 0).bg, DEFAULT_BG);
+        assert_eq!(p.cursor_shape(), CursorShape::Block);
+        assert!(p.cursor_visible());
+        assert!(!p.application_cursor_keys());
+        assert!(!p.bracketed_paste_enabled());
+        assert!(!p.mouse_reporting_enabled());
+        assert!(!p.sgr_mouse_enabled());
+        assert!(!g.contains("!p"));
+
+        p.feed(&mut g, b"\x1b[4;1HZ\x1b[S");
+        assert_eq!(g.to_text(), "bbbbbb\ncccccc\nZddddd\n      ");
     }
 
     #[test]
