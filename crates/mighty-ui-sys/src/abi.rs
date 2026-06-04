@@ -7526,7 +7526,10 @@ pub extern "C" fn mui_term_draw(handle: i64) {
             let mut col = 0usize;
             while col < cols {
                 let cell = g.cell(r, col);
-                if !cell.underline || cell.conceal || (cell.blink && !blink_visible) {
+                if (!cell.underline && cell.hyperlink.is_none())
+                    || cell.conceal
+                    || (cell.blink && !blink_visible)
+                {
                     col += 1;
                     continue;
                 }
@@ -7534,7 +7537,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 let start = col;
                 while col < cols {
                     let cell = g.cell(r, col);
-                    if !cell.underline
+                    if (!cell.underline && cell.hyperlink.is_none())
                         || cell.conceal
                         || (cell.blink && !blink_visible)
                         || cell.fg != fg

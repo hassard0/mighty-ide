@@ -38,6 +38,7 @@ pub struct Cell {
     pub ch: char,
     pub fg: u32,
     pub bg: u32,
+    pub hyperlink: Option<u32>,
     pub underline: bool,
     pub strikethrough: bool,
     pub italic: bool,
@@ -75,6 +76,7 @@ impl Default for Cell {
             ch: ' ',
             fg: DEFAULT_FG,
             bg: DEFAULT_BG,
+            hyperlink: None,
             underline: false,
             strikethrough: false,
             italic: false,
@@ -635,6 +637,7 @@ impl Grid {
                 ch: 'E',
                 fg: self.cur_fg,
                 bg: self.cur_bg,
+                hyperlink: None,
                 underline: false,
                 strikethrough: false,
                 italic: false,
@@ -706,6 +709,7 @@ struct SavedCursor {
     col: usize,
     fg: u32,
     bg: u32,
+    active_hyperlink: Option<u32>,
     g0_charset: Charset,
     g1_charset: Charset,
     active_charset: CharsetSlot,
@@ -834,6 +838,10 @@ pub struct VtParser {
     conceal: bool,
     /// Whether SGR blink is active for subsequently-written cells.
     blink: bool,
+    /// URI ids captured from OSC 8 hyperlink escapes.
+    hyperlinks: Vec<String>,
+    /// Active OSC 8 hyperlink id applied to subsequently-written cells.
+    active_hyperlink: Option<u32>,
     /// Last graphic cell written by printable output, used by REP (`CSI Ps b`).
     last_graphic: Option<Cell>,
     /// Whether the running app asked for bracketed paste (`CSI ?2004 h`).
@@ -904,6 +912,8 @@ impl VtParser {
             overline: false,
             conceal: false,
             blink: false,
+            hyperlinks: Vec::new(),
+            active_hyperlink: None,
             last_graphic: None,
             bracketed_paste: false,
             focus_reporting: false,
@@ -1117,6 +1127,7 @@ impl VtParser {
             ch,
             fg,
             bg,
+            hyperlink: self.active_hyperlink,
             underline: self.underline,
             strikethrough: self.strikethrough,
             italic: self.italic,
@@ -1657,6 +1668,8 @@ impl VtParser {
         self.saved_cursor = None;
         self.alternate_cursor = None;
         self.last_graphic = None;
+        self.hyperlinks.clear();
+        self.active_hyperlink = None;
         self.g0_charset = Charset::Ascii;
         self.g1_charset = Charset::Ascii;
         self.active_charset = CharsetSlot::G0;
@@ -1949,6 +1962,7 @@ impl VtParser {
             col,
             fg: grid.cur_fg,
             bg: grid.cur_bg,
+            active_hyperlink: self.active_hyperlink,
             g0_charset: self.g0_charset,
             g1_charset: self.g1_charset,
             active_charset: self.active_charset,
@@ -1976,6 +1990,7 @@ impl VtParser {
         grid.cur_col = saved.col.min(grid.cols);
         grid.cur_fg = saved.fg;
         grid.cur_bg = saved.bg;
+        self.active_hyperlink = saved.active_hyperlink;
         self.g0_charset = saved.g0_charset;
         self.g1_charset = saved.g1_charset;
         self.active_charset = saved.active_charset;
@@ -2161,6 +2176,7 @@ impl VtParser {
     }
 
     fn finish_osc(&mut self) {
+        self.capture_osc_hyperlink();
         self.capture_osc_title();
         self.capture_osc_clipboard();
         self.capture_osc_color_set();
@@ -2171,6 +2187,40 @@ impl VtParser {
         self.reply_osc_palette_query();
         self.osc.clear();
         self.state = State::Ground;
+    }
+
+    fn capture_osc_hyperlink(&mut self) {
+        let payload = String::from_utf8_lossy(&self.osc);
+        let mut parts = payload.splitn(3, ';');
+        if parts.next() != Some("8") {
+            return;
+        }
+        let _params = parts.next().unwrap_or_default();
+        let uri = parts.next().unwrap_or_default();
+        if uri.is_empty() {
+            self.active_hyperlink = None;
+            return;
+        }
+
+        let uri: String = uri
+            .chars()
+            .filter(|ch| !ch.is_control())
+            .take(2048)
+            .collect();
+        if uri.is_empty() {
+            self.active_hyperlink = None;
+            return;
+        }
+        self.active_hyperlink = Some(self.intern_hyperlink(uri));
+    }
+
+    fn intern_hyperlink(&mut self, uri: String) -> u32 {
+        if let Some(index) = self.hyperlinks.iter().position(|existing| existing == &uri) {
+            return index as u32;
+        }
+        let id = self.hyperlinks.len() as u32;
+        self.hyperlinks.push(uri);
+        id
     }
 
     fn reply_osc_color_query(&mut self) {
@@ -3647,6 +3697,40 @@ mod tests {
     }
 
     #[test]
+    fn osc_8_hyperlinks_mark_later_cells_until_closed() {
+        let g = grid_feed(
+            1,
+            16,
+            b"A\x1b]8;;https://example.com\x07BC\x1b]8;;\x07D",
+        );
+        assert_eq!(g.to_text(), "ABCD            ");
+        assert_eq!(g.cell(0, 0).hyperlink, None);
+        let Some(link) = g.cell(0, 1).hyperlink else {
+            panic!("linked cell should carry hyperlink id");
+        };
+        assert_eq!(g.cell(0, 2).hyperlink, Some(link));
+        assert_eq!(g.cell(0, 3).hyperlink, None);
+        assert!(!g.contains("https://"));
+        assert!(!g.contains("]8;"));
+    }
+
+    #[test]
+    fn osc_8_hyperlinks_accept_st_and_reuse_uri_ids() {
+        let g = grid_feed(
+            1,
+            16,
+            b"\x1b]8;;https://example.com\x1b\\A\x1b]8;;\x1b\\B\
+              \x1b]8;;https://example.com\x1b\\C",
+        );
+        let Some(first) = g.cell(0, 0).hyperlink else {
+            panic!("first linked cell should carry hyperlink id");
+        };
+        assert_eq!(g.cell(0, 1).hyperlink, None);
+        assert_eq!(g.cell(0, 2).hyperlink, Some(first));
+        assert!(!g.contains("example.com"));
+    }
+
+    #[test]
     fn sgr_intensity_reset_clears_bold_and_faint() {
         let g = grid_feed(1, 8, b"\x1b[31;1;2mA\x1b[22mB");
         assert_eq!(g.cell(0, 0).fg, 9);
@@ -3748,6 +3832,15 @@ mod tests {
             assert!(g13.cell(0, col).blink);
         }
         assert!(!g13.cell(0, 3).blink);
+
+        let g14 = grid_feed(1, 8, b"\x1b]8;;https://example.com\x07A\x1b[2b\x1b]8;;\x07Z");
+        assert_eq!(g14.to_text(), "AAAZ    ");
+        let link = g14.cell(0, 0).hyperlink;
+        assert!(link.is_some());
+        for col in 0..3 {
+            assert_eq!(g14.cell(0, col).hyperlink, link);
+        }
+        assert_eq!(g14.cell(0, 3).hyperlink, None);
     }
 
     #[test]
@@ -4377,6 +4470,14 @@ mod tests {
         let g14 = grid_feed(1, 8, b"\x1b[5m\x1b7\x1b[25m\x1b8X");
         assert!(g14.cell(0, 0).blink);
         assert!(!g14.contains("[25"));
+
+        let g15 = grid_feed(
+            1,
+            8,
+            b"\x1b]8;;https://example.com\x07\x1b7\x1b]8;;\x07\x1b8X",
+        );
+        assert!(g15.cell(0, 0).hyperlink.is_some());
+        assert!(!g15.contains("example.com"));
     }
 
     #[test]
@@ -4694,6 +4795,16 @@ mod tests {
         assert!(!g.cell(0, 0).overline);
         assert!(!g.cell(0, 0).conceal);
         assert!(!g.cell(0, 0).blink);
+        assert_eq!(g.cell(0, 0).hyperlink, None);
+        assert!(!g.contains("A"));
+    }
+
+    #[test]
+    fn esc_c_resets_osc_hyperlink_state() {
+        let g = grid_feed(1, 8, b"\x1b]8;;https://example.com\x07A\x1bcZ");
+        assert_eq!(g.cell(0, 0).ch, 'Z');
+        assert_eq!(g.cell(0, 0).hyperlink, None);
+        assert!(!g.contains("example.com"));
         assert!(!g.contains("A"));
     }
 

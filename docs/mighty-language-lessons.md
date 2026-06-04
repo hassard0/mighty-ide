@@ -8181,3 +8181,15 @@ terminal miss state that other emulators expose.
   stale blink state. `mui_term_draw` reuses the frame counter's blink phase to
   suppress glyph and line-decoration drawing during the off phase while keeping
   cell width stable.
+
+L678. OSC 8 hyperlinks are terminal metadata, not text to leak into the grid.
+Prompts, test runners, and build tools emit clickable file, issue, and URL
+references through OSC 8. If the terminal only consumes the bytes, it stays
+legible but loses a modern navigation affordance.
+
+- **IDE note:** terminal cells now carry a compact OSC 8 hyperlink id. `OSC 8;params;uri`
+  marks subsequently-written cells until `OSC 8;;` clears it, ST and BEL
+  terminators both work, REP and cursor save/restore preserve the
+  metadata, and RIS clears stale link state. `mui_term_draw` underlines linked
+  cells with the existing foreground-color decoration path so links are visible
+  without painting escape payloads.
