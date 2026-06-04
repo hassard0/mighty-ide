@@ -670,6 +670,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Recent folder missing")
         || m == "No recent file selected"
         || m == "No recent folder selected"
+        || m == "No recent files or folders"
         || m.starts_with("Welcome ")
     {
         Some(OperationKey::Open)
@@ -1435,6 +1436,14 @@ mod tests {
         q.push_at(Kind::Warn, "Enter a folder path", t0 + Duration::from_millis(450));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Enter a folder path");
+
+        q.push_at(
+            Kind::Info,
+            "No recent files or folders",
+            t0 + Duration::from_millis(475),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No recent files or folders");
 
         q.push_at(Kind::Info, "Welcome closed", t0 + Duration::from_millis(500));
         q.push_at(

@@ -902,6 +902,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Typed Open Folder blank paths stay in the Open feedback lane**: empty
   Open Folder fallback submissions still report `Enter a folder path`, and now
   replace stale open-folder toasts instead of stacking separately.
+- **Open Recent empty feedback replaces stale Open toasts**: `No recent files
+  or folders` is now treated as part of the Open workflow, so it replaces older
+  open-file/open-folder outcomes instead of appearing as unrelated feedback.
 - **Save All now has native-picker proof for untitled tabs**: deterministic
   SaveFileDialog sequences let the Windows harness verify Save As and Save All
   in one run, including the exact Save All path used for a dirty untitled tab.
