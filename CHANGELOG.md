@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Workspace document changes read entry-scoped edits**: LSP
+  `documentChanges` parsing now reads `textDocument.uri`, `edits`, `newText`,
+  and range coordinates from each owning object, so nested metadata cannot
+  redirect or reshape rename/code-action edits.
 - **Debugger events read envelope and body scopes separately**: DAP envelope
   routing now uses only top-level `type`, `event`, `command`, `request_seq`, and
   `success` fields, while stopped/output/exited event details come from the

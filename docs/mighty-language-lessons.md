@@ -10018,3 +10018,17 @@ event details.
 - **Language note:** no compiler gap surfaced. Transport routing and event
   payload interpretation are separate scopes; metadata can describe either one
   but should not own either one.
+
+## L820 - Workspace Document Changes Need Entry-Scoped Fields
+
+LSP `WorkspaceEdit.documentChanges` entries can contain metadata objects with
+fields named `textDocument`, `edits`, `uri`, `newText`, `range`, `start`, `end`,
+`line`, or `character`. Broad scans can redirect edits to the wrong file or
+apply the wrong coordinates.
+
+- **IDE note:** document-change parsing now reads `textDocument.uri`, `edits`,
+  `newText`, and range coordinates only from the owning document-change,
+  TextEdit, range, and position objects.
+- **Language note:** no compiler gap surfaced. Workspace edits are nested
+  ownership trees; parsing should descend through the specific owner at each
+  level instead of scanning sibling or metadata subtrees.

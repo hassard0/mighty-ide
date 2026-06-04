@@ -157,27 +157,6 @@ fn push_json_code_unit(out: &mut String, high_surrogate: &mut Option<u16>, unit:
     }
 }
 
-/// Read the unsigned integer value of `key` somewhere in `region` (scans for the
-/// key, skips `:`/whitespace, then parses digits). Returns `None` if absent.
-fn read_uint_after(region: &[u8], key: &[u8]) -> Option<u32> {
-    let p = find_sub(region, key)?;
-    let mut j = p + key.len();
-    while j < region.len() && matches!(region[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        j += 1;
-    }
-    let start = j;
-    let mut v: u32 = 0;
-    while j < region.len() && region[j].is_ascii_digit() {
-        v = v.saturating_mul(10).saturating_add((region[j] - b'0') as u32);
-        j += 1;
-    }
-    if j == start {
-        None
-    } else {
-        Some(v)
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Signature help
 // ---------------------------------------------------------------------------
@@ -561,28 +540,19 @@ fn parse_one_document_change(obj: &[u8], we: &mut WorkspaceEdit) {
     // ResourceOperation objects (`create`, `rename`, `delete`) also carry URIs,
     // but no text edit list. Keep this parser scoped to TextDocumentEdit objects
     // so we never apply edits to the wrong file.
-    let Some(td_at) = find_sub(obj, b"\"textDocument\"") else {
+    let Some(text_document) = top_level_object_field(obj, "textDocument") else {
         return;
     };
-    let Some(edits_at) = find_sub(obj, b"\"edits\"") else {
+    let Some(edits_region) = top_level_array_field(obj, "edits") else {
         return;
     };
-    let Some(uri_rel) = find_sub(&obj[td_at..], b"\"uri\"") else {
+    let Some(uri_at) = top_level_field_value_start(text_document, "uri") else {
         return;
     };
-    let uri_at = td_at + uri_rel;
-    let Some((uri, _)) = read_json_string_at(obj, uri_at + b"\"uri\"".len()) else {
+    let Some((uri, _)) = read_json_string_at(text_document, uri_at) else {
         return;
     };
-    let mut j = edits_at + b"\"edits\"".len();
-    while j < obj.len() && matches!(obj[j], b' ' | b':' | b'\t' | b'\r' | b'\n') {
-        j += 1;
-    }
-    if j >= obj.len() || obj[j] != b'[' {
-        return;
-    }
-    let e_end = match_bracket(obj, j);
-    let edits = parse_text_edits(&obj[j..e_end.min(obj.len())]);
+    let edits = parse_text_edits(edits_region);
     if !edits.is_empty() {
         we.files.push((uri, edits));
     }
@@ -636,25 +606,15 @@ fn parse_text_edits(arr: &[u8]) -> Vec<TextEdit> {
 
 /// Parse a single `TextEdit` object slice.
 fn parse_one_text_edit(obj: &[u8]) -> Option<TextEdit> {
-    // newText: a string under "newText".
-    let nt_key = b"\"newText\"";
-    let nt_at = find_sub(obj, nt_key)?;
-    let (new_text, _) = read_json_string_at(obj, nt_at + nt_key.len())?;
-
-    // The range: first "start" then "end" objects (each line/character).
-    let start_at = find_sub(obj, b"\"start\"")?;
-    let end_at = find_sub(obj, b"\"end\"")?;
-    // Bound start region by where end begins (so start's scan can't grab end's
-    // numbers if start appears first), and vice versa.
-    let (s_region, e_region) = if start_at < end_at {
-        (&obj[start_at..end_at], &obj[end_at..])
-    } else {
-        (&obj[start_at..], &obj[end_at..start_at])
-    };
-    let start_line = read_uint_after(s_region, b"\"line\"")?;
-    let start_col = read_uint_after(s_region, b"\"character\"")?;
-    let end_line = read_uint_after(e_region, b"\"line\"")?;
-    let end_col = read_uint_after(e_region, b"\"character\"")?;
+    let nt_at = top_level_field_value_start(obj, "newText")?;
+    let (new_text, _) = read_json_string_at(obj, nt_at)?;
+    let range = top_level_object_field(obj, "range")?;
+    let start = top_level_object_field(range, "start")?;
+    let end = top_level_object_field(range, "end")?;
+    let start_line = top_level_uint_field(start, "line")?;
+    let start_col = top_level_uint_field(start, "character")?;
+    let end_line = top_level_uint_field(end, "line")?;
+    let end_col = top_level_uint_field(end, "character")?;
     Some(TextEdit {
         start_line,
         start_col,
@@ -2053,6 +2013,37 @@ mod tests {
         assert_eq!(we.file_count(), 1);
         assert_eq!(we.files[0].0, "file:///edited.rs");
         assert_eq!(we.files[0].1[0], TextEdit { start_line: 3, start_col: 1, end_line: 3, end_col: 4, new_text: "ok".into() });
+    }
+
+    #[test]
+    fn parse_workspace_edit_document_changes_uses_entry_top_level_fields() {
+        let json = r#"{"result":{"documentChanges":[
+          {
+            "metadata":{
+              "textDocument":{"uri":"file:///wrong-entry.rs"},
+              "edits":[{"newText":"wrong-entry","range":{"start":{"line":90,"character":1},"end":{"line":90,"character":2}}}]
+            },
+            "textDocument":{"metadata":{"uri":"file:///wrong-doc.rs"},"uri":"file:///right.rs"},
+            "edits":[
+              {
+                "metadata":{
+                  "newText":"wrong-edit",
+                  "range":{"start":{"line":91,"character":3},"end":{"line":91,"character":4}}
+                },
+                "newText":"right",
+                "range":{
+                  "metadata":{"start":{"line":92,"character":5},"end":{"line":92,"character":6}},
+                  "start":{"metadata":{"line":93,"character":7},"line":4,"character":8},
+                  "end":{"metadata":{"line":94,"character":9},"line":4,"character":13}
+                }
+              }
+            ]
+          }
+        ]},"id":4}"#;
+        let we = parse_workspace_edit(json);
+        assert_eq!(we.file_count(), 1);
+        assert_eq!(we.files[0].0, "file:///right.rs");
+        assert_eq!(we.files[0].1[0], TextEdit { start_line: 4, start_col: 8, end_line: 4, end_col: 13, new_text: "right".into() });
     }
 
     #[test]
