@@ -597,10 +597,12 @@ pub extern "C" fn mui_dbg_var_value_char(handle: i64, i: i32, j: i32) -> i32 {
 
 /// What the last click hit inside the debug view, encoded for Mighty:
 ///   `-1` nothing, `0..` a call-stack frame index, breakpoint rows as
-///   `BREAKPOINT_BASE + index`, or one of the toolbar codes (`TOOLBAR_*` below)
-///   returned as `TOOLBAR_BASE + code`.
+///   `BREAKPOINT_BASE + index`, breakpoint-dot remove targets as
+///   `BREAKPOINT_REMOVE_BASE + index`, or one of the toolbar codes
+///   (`TOOLBAR_*` below) returned as `TOOLBAR_BASE + code`.
 const TOOLBAR_BASE: i32 = 1000;
 const BREAKPOINT_BASE: i32 = 2000;
+const BREAKPOINT_REMOVE_BASE: i32 = 3000;
 /// Toolbar action codes (added to `TOOLBAR_BASE`).
 pub const TB_CONTINUE: i32 = 0;
 pub const TB_STEP_OVER: i32 = 1;
@@ -678,6 +680,14 @@ pub(crate) fn debug_breakpoint_label_y() -> f32 {
 
 pub(crate) fn debug_breakpoint_rows_top() -> f32 {
     debug_breakpoint_label_y() + 20.0
+}
+
+pub(crate) fn debug_breakpoint_remove_target_left() -> f32 {
+    layout::RAIL_W + 8.0
+}
+
+pub(crate) fn debug_breakpoint_remove_target_right() -> f32 {
+    layout::RAIL_W + 28.0
 }
 
 pub(crate) fn debug_stack_label_y(breakpoint_count: usize) -> f32 {
@@ -896,6 +906,11 @@ pub extern "C" fn mui_dbg_click(handle: i64) -> i32 {
             && first + (idx as usize) < breakpoints.len()
             && (idx as usize) < bp_data_rows
         {
+            if x >= debug_breakpoint_remove_target_left()
+                && x <= debug_breakpoint_remove_target_right()
+            {
+                return BREAKPOINT_REMOVE_BASE + idx;
+            }
             return BREAKPOINT_BASE + idx;
         }
     }
@@ -910,6 +925,22 @@ pub extern "C" fn mui_dbg_click(handle: i64) -> i32 {
     -1
 }
 
+fn breakpoint_location_at_code(ctx: &MuiContext, code: i32, base: i32) -> Option<crate::dap::BreakpointLocation> {
+    let idx = code - base;
+    if idx < 0 {
+        return None;
+    }
+    let locations = ctx.dbg.breakpoint_locations();
+    let data_rows = debug_breakpoint_data_rows(locations.len());
+    let first = ctx.dbg.breakpoint_window_first(data_rows);
+    let source_idx = first + idx as usize;
+    if source_idx >= locations.len() || (idx as usize) >= data_rows {
+        None
+    } else {
+        Some(locations[source_idx].clone())
+    }
+}
+
 /// Open the source location for a breakpoint click code returned by
 /// [`mui_dbg_click`]. Returns the active tab index, or `-1` if the row/path is
 /// unavailable.
@@ -922,16 +953,9 @@ pub extern "C" fn mui_bp_open_at_hit(handle: i64, code: i32) -> i32 {
     if idx < 0 {
         return -1;
     }
-    let target = {
-        let locations = ctx.dbg.breakpoint_locations();
-        let data_rows = debug_breakpoint_data_rows(locations.len());
-        let first = ctx.dbg.breakpoint_window_first(data_rows);
-        let source_idx = first + idx as usize;
-        if source_idx >= locations.len() || (idx as usize) >= data_rows {
-            ctx.push_toast(crate::toast::Kind::Info, "No breakpoint row selected");
-            return -1;
-        }
-        locations[source_idx].clone()
+    let Some(target) = breakpoint_location_at_code(ctx, code, BREAKPOINT_BASE) else {
+        ctx.push_toast(crate::toast::Kind::Info, "No breakpoint row selected");
+        return -1;
     };
     let path = std::path::PathBuf::from(&target.file);
     if !path.exists() {
@@ -947,6 +971,38 @@ pub extern "C" fn mui_bp_open_at_hit(handle: i64, code: i32) -> i32 {
     model.set_first_visible(line0.saturating_sub(2) as usize);
     crate::abi::trace(&format!("bp_open line={}", target.line));
     tab as i32
+}
+
+/// Remove the breakpoint dot target returned by [`mui_dbg_click`]. Returns 1
+/// when a breakpoint was removed.
+#[no_mangle]
+pub extern "C" fn mui_bp_remove_at_hit(handle: i64, code: i32) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let Some(target) = breakpoint_location_at_code(ctx, code, BREAKPOINT_REMOVE_BASE) else {
+        ctx.push_toast(crate::toast::Kind::Info, "No breakpoint row selected");
+        return 0;
+    };
+    if !ctx.dbg.remove_breakpoint(&target.file, target.line) {
+        ctx.push_toast(crate::toast::Kind::Info, "Breakpoint already cleared");
+        return 0;
+    }
+    if ctx.dbg.state() != crate::dap::DebugState::Idle
+        && ctx.dbg.state() != crate::dap::DebugState::Terminated
+    {
+        ctx.dbg.resend_breakpoints();
+    }
+    let name = std::path::Path::new(&target.file)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("source");
+    ctx.push_toast(
+        crate::toast::Kind::Info,
+        format!("Breakpoint removed: {name}:{}", target.line),
+    );
+    crate::abi::trace(&format!("bp_remove {}:{}", target.file, target.line));
+    1
 }
 
 /// Scroll the debug sidebar breakpoint inventory if the last wheel event is

@@ -594,6 +594,24 @@ impl DebugModel {
         }
     }
 
+    /// Remove a specific stored breakpoint by absolute file and 1-based DAP
+    /// line. Returns true when a breakpoint was removed.
+    pub fn remove_breakpoint(&mut self, file: &str, line: u32) -> bool {
+        let Some(lines) = self.breakpoints.get_mut(file) else {
+            return false;
+        };
+        let Some(pos) = lines.iter().position(|&l| l == line) else {
+            return false;
+        };
+        lines.remove(pos);
+        if lines.is_empty() {
+            self.breakpoints.remove(file);
+        }
+        let count = self.total_breakpoint_count();
+        self.breakpoint_first = self.breakpoint_first.min(count);
+        true
+    }
+
     /// `true` if there's a breakpoint on (0-based) `line` of `file`.
     pub fn has_breakpoint(&self, file: &str, line0: i32) -> bool {
         if line0 < 0 {
@@ -1584,6 +1602,22 @@ mod tests {
         assert_eq!(m.breakpoint_window_first(3), 0);
         assert!(!m.scroll_breakpoints(3, 6));
         assert_eq!(m.breakpoint_window_first(6), 0);
+    }
+
+    #[test]
+    fn remove_breakpoint_deletes_exact_location_and_clamps_window() {
+        let mut m = DebugModel::new();
+        for i in 0..6 {
+            m.toggle_breakpoint(&format!("C:/p/file{i}.mty"), i);
+        }
+        assert!(m.scroll_breakpoints(99, 3));
+        assert_eq!(m.breakpoint_window_first(3), 3);
+
+        assert!(m.remove_breakpoint("C:/p/file4.mty", 5));
+        assert_eq!(m.total_breakpoint_count(), 5);
+        assert!(!m.has_breakpoint("C:/p/file4.mty", 4));
+        assert_eq!(m.breakpoint_window_first(3), 2);
+        assert!(!m.remove_breakpoint("C:/p/file4.mty", 5));
     }
 
     #[test]

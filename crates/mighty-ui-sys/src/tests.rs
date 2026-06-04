@@ -5530,6 +5530,53 @@ fn debug_breakpoint_inventory_rows_open_source_location() {
 }
 
 #[test]
+fn debug_breakpoint_inventory_dot_removes_visible_breakpoint() {
+    use crate::ffi::MuiEvent;
+
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+    for i in 0..6 {
+        ctx.dbg.toggle_breakpoint(&format!("C:/p/file{i}.mty"), i as i32);
+    }
+    ctx.dbg.set_open(true);
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_DEBUG;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        crate::dapabi::debug_breakpoint_remove_target_left() + 2.0,
+        crate::dapabi::debug_breakpoint_rows_top() + crate::layout::LINE_H() * 0.5,
+        0,
+    );
+    assert_eq!(crate::dapabi::mui_dbg_click(handle), 3000);
+
+    assert_eq!(crate::dapabi::mui_bp_scroll_inventory_at_event(handle, 99), 1);
+    assert_eq!(ctx.dbg.breakpoint_window_first(3), 3);
+    assert_eq!(crate::dapabi::mui_dbg_click(handle), 3000);
+
+    assert_eq!(crate::dapabi::mui_bp_remove_at_hit(handle, 3000), 1);
+    assert_eq!(ctx.dbg.total_breakpoint_count(), 5);
+    assert!(!ctx.dbg.has_breakpoint("C:/p/file3.mty", 3));
+    assert_eq!(ctx.dbg.breakpoint_window_first(3), 2);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Breakpoint removed: file3.mty:4"
+    );
+
+    assert_eq!(crate::dapabi::mui_bp_remove_at_hit(handle, 3003), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No breakpoint row selected"
+    );
+
+    crate::layout::reset_sidebar_preset();
+}
+
+#[test]
 fn debug_breakpoint_overflow_row_is_not_a_source_click() {
     use crate::ffi::MuiEvent;
 
@@ -10147,6 +10194,14 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let _b = mui_ed_tab_switch(h, newidx)")
             && main.contains("let _r = mui_diag_refresh(h)"),
         "Debug breakpoint inventory clicks must open the source tab through the breakpoint ABI"
+    );
+    assert!(
+        main.contains("fn dbg_breakpoint_remove_base() -> I32 { 3000 }")
+            && main.contains("if d_hit >= dbg_breakpoint_remove_base()")
+            && main.contains("let _rm = mui_bp_remove_at_hit(h, d_hit)")
+            && main.find("if d_hit >= dbg_breakpoint_remove_base()")
+                < main.find("else if d_hit >= dbg_breakpoint_base()"),
+        "Debug breakpoint dot clicks must remove before generic breakpoint row opens"
     );
     assert!(
         main.contains("fn mui_bp_scroll_inventory_at_event(handle: I64, delta: I32) -> I32")

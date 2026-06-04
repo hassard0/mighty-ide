@@ -8288,3 +8288,14 @@ the list itself can move.
   the fourth row reports either remaining breakpoints below or earlier
   breakpoints above. Tests cover model clamping, wheel hit routing, scroll
   labels, and Mighty event dispatch.
+
+L688. Breakpoint inventory rows should manage breakpoints, not only navigate.
+Once a breakpoint is visible in the Debug panel, clearing that exact breakpoint
+should not require jumping to the source gutter first.
+
+- **IDE note:** clicking the red breakpoint dot in the Run and Debug inventory
+  now removes that visible breakpoint, while clicking the row text still opens
+  the source location. The remove hit range has its own encoded ABI, translates
+  through the scrolled breakpoint window, resends live-session breakpoints, and
+  reports the removed file/line. Tests cover exact-location removal, scrolled
+  row mapping, no-row feedback, and Mighty dispatch ordering.

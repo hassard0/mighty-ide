@@ -561,6 +561,7 @@ extern c {
   fn mui_bp_count(handle: I64) -> I32
   fn mui_bp_line(handle: I64, i: I32) -> I32
   fn mui_bp_open_at_hit(handle: I64, code: I32) -> I32
+  fn mui_bp_remove_at_hit(handle: I64, code: I32) -> I32
   fn mui_bp_scroll_inventory_at_event(handle: I64, delta: I32) -> I32
   fn mui_bp_gutter_click(handle: I64, first_line: I32, total_lines: I32) -> I32
   fn mui_dbg_stack_count(handle: I64) -> I32
@@ -1046,6 +1047,7 @@ fn rail_agents_mty() -> I32 { 8 } // Mighty Agents topology rail slot (nodes ico
 // Debug toolbar click codes (mirror TOOLBAR_BASE in dapabi.rs).
 fn dbg_toolbar_base() -> I32 { 1000 }
 fn dbg_breakpoint_base() -> I32 { 2000 }
+fn dbg_breakpoint_remove_base() -> I32 { 3000 }
 // Test toolbar click codes (mirror TB_RUN/TB_STOP in testabi.rs).
 fn test_tb_run() -> I32 { 1 }
 fn test_tb_stop() -> I32 { 2 }
@@ -3666,7 +3668,9 @@ fn main() {
           // Debug view: a toolbar button (continue/step/stop), a breakpoint
           // inventory row, or a call-stack frame row.
           let d_hit = mui_dbg_click(h)
-          if d_hit >= dbg_breakpoint_base() {
+          if d_hit >= dbg_breakpoint_remove_base() {
+            let _rm = mui_bp_remove_at_hit(h, d_hit)
+          } else if d_hit >= dbg_breakpoint_base() {
             let newidx = mui_bp_open_at_hit(h, d_hit)
             if newidx >= 0 {
               let _b = mui_ed_tab_switch(h, newidx)
