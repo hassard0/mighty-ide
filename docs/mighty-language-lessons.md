@@ -8076,3 +8076,13 @@ responses are correct.
   `OSC 10/11/12`, `OSC 104`, and `OSC 110/111/112` therefore affect the rendered
   terminal surface as well as query replies, with tests pinning dynamic draw
   color resolution and reset behavior.
+
+L668. Full reset must reset identity state, not only screen cells. `ESC c`
+clearing the grid while preserving current SGR attributes or OSC theme/title
+state leaves the next prompt in a stale terminal personality.
+
+- **IDE note:** RIS now resets current SGR foreground/background, dynamic OSC
+  default colors, cursor color, palette entries, and terminal title alongside
+  modes and the visible grid. Regression coverage verifies later text uses
+  default attributes and post-reset color queries/render resolution return to
+  built-in defaults.

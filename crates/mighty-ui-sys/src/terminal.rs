@@ -1093,11 +1093,9 @@ impl VtParser {
                 self.esc_intermediate = b;
                 self.state = State::EscapeIntermediate;
             }
-            // `ESC c` full reset — clear the grid.
+            // `ESC c` full reset restores modes, grid, and terminal identity.
             b'c' => {
-                grid.clear();
-                grid.reset_tab_stops();
-                self.reset_modes();
+                self.full_reset(grid);
                 self.state = State::Ground;
             }
             b'H' => {
@@ -1568,6 +1566,27 @@ impl VtParser {
         self.newline_mode = true;
         self.autowrap = true;
         self.origin_mode = false;
+    }
+
+    fn reset_color_state(&mut self) {
+        self.default_fg_rgb = DEFAULT_FG_RGB;
+        self.default_bg_rgb = DEFAULT_BG_RGB;
+        self.cursor_rgb = DEFAULT_CURSOR_RGB;
+        self.palette_rgb = std::array::from_fn(|index| palette_rgb8(index as u32));
+    }
+
+    fn full_reset(&mut self, grid: &mut Grid) {
+        grid.clear();
+        grid.reset_tab_stops();
+        grid.cur_fg = DEFAULT_FG;
+        grid.cur_bg = DEFAULT_BG;
+        self.reset_modes();
+        self.reset_color_state();
+        self.title.clear();
+        self.osc.clear();
+        self.csi.clear();
+        self.utf8.clear();
+        self.utf8_need = 0;
     }
 
     fn is_soft_reset(&self) -> bool {
@@ -4269,6 +4288,50 @@ mod tests {
         assert!(!p.bracketed_paste_enabled());
         assert!(!p.mouse_reporting_enabled());
         assert!(!p.sgr_mouse_enabled());
+    }
+
+    #[test]
+    fn esc_c_resets_sgr_attributes_for_later_text() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b[31;44mA\x1bcZ");
+
+        assert_eq!(g.cell(0, 0).ch, 'Z');
+        assert_eq!(g.cell(0, 0).fg, DEFAULT_FG);
+        assert_eq!(g.cell(0, 0).bg, DEFAULT_BG);
+        assert!(!g.contains("A"));
+    }
+
+    #[test]
+    fn esc_c_resets_terminal_identity_state() {
+        let mut g = Grid::new(1, 40);
+        let mut p = VtParser::new();
+        p.feed(
+            &mut g,
+            b"\x1b]0;custom title\x07\
+              \x1b]10;#010203\x07\
+              \x1b]11;#040506\x07\
+              \x1b]12;#070809\x07\
+              \x1b]4;1;#0a0b0c\x07\
+              \x1bc\
+              \x1b]10;?\x07\x1b]11;?\x07\x1b]12;?\x07\x1b]4;1;?\x07Z",
+        );
+
+        assert_eq!(p.title(), "");
+        assert_eq!(
+            p.take_reply(),
+            b"\x1b]10;rgb:d1d1/d6d6/e0e0\x1b\\\
+              \x1b]11;rgb:1414/1414/1c1c\x1b\\\
+              \x1b]12;rgb:7c7c/5c5c/ffff\x1b\\\
+              \x1b]4;1;rgb:cccc/4040/4040\x1b\\"
+                .to_vec()
+        );
+        assert_eq!(p.foreground_rgba(DEFAULT_FG), rgb8_rgba(DEFAULT_FG_RGB, 1.0));
+        assert_eq!(p.background_rgba(DEFAULT_BG), None);
+        assert_eq!(p.cursor_rgba(), rgb8_rgba(DEFAULT_CURSOR_RGB, 0.6));
+        assert_eq!(p.foreground_rgba(1), rgb8_rgba((0xcc, 0x40, 0x40), 1.0));
+        assert!(g.contains("Z"));
+        assert!(!g.contains("custom title"));
     }
 
     #[test]
