@@ -62,6 +62,34 @@ fn model_for_bytes(path: Option<&Path>, bytes: &[u8]) -> (TextModel, FoldState, 
     (model, fold, read_only)
 }
 
+fn tab_paths_equal(a: &Path, b: &Path) -> bool {
+    if a == b {
+        return true;
+    }
+    if let (Ok(ca), Ok(cb)) = (a.canonicalize(), b.canonicalize()) {
+        if ca == cb {
+            return true;
+        }
+        #[cfg(windows)]
+        {
+            return normalize_windows_path(&ca) == normalize_windows_path(&cb);
+        }
+    }
+    #[cfg(windows)]
+    {
+        return normalize_windows_path(a) == normalize_windows_path(b);
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
+#[cfg(windows)]
+fn normalize_windows_path(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/").to_lowercase()
+}
+
 /// One open file tab. Since the L28 codegen bug forced the editable buffer
 /// shim-side, each tab now owns an authoritative [`TextModel`] (lines, cursor,
 /// scroll, dirty). The legacy `bytes`/cursor/scroll fields are retained only for
@@ -159,12 +187,13 @@ impl TabStore {
         self.tabs.get_mut(i)
     }
 
-    /// Find an already-open tab whose path matches `path` (canonicalized loosely
-    /// via direct equality). Returns its index.
+    /// Find an already-open tab whose path matches `path`. Existing files are
+    /// compared by canonical path; Windows also falls back to loose slash/case
+    /// matching so alternate spellings do not create duplicate tabs.
     pub fn find_by_path(&self, path: &Path) -> Option<usize> {
         self.tabs
             .iter()
-            .position(|t| t.path.as_deref() == Some(path))
+            .position(|t| t.path.as_deref().is_some_and(|p| tab_paths_equal(p, path)))
     }
 
     /// Open `path` as a new tab (reading its bytes from disk), or switch to the
@@ -301,7 +330,10 @@ impl TabStore {
             if tab.is_dirty() {
                 continue;
             }
-            if let Some((_, keep_idx)) = keep_for_path.iter_mut().find(|(p, _)| *p == path) {
+            if let Some((_, keep_idx)) = keep_for_path
+                .iter_mut()
+                .find(|(p, _)| tab_paths_equal(p, &path))
+            {
                 if idx == old_active {
                     *keep_idx = idx;
                 }
@@ -320,7 +352,7 @@ impl TabStore {
             } else if let Some(path) = tab.path.as_ref() {
                 keep_for_path
                     .iter()
-                    .find(|(p, _)| p == path)
+                    .find(|(p, _)| tab_paths_equal(p, path))
                     .map(|(_, keep_idx)| *keep_idx == idx)
                     .unwrap_or(true)
             } else {
@@ -881,6 +913,22 @@ mod tests {
     }
 
     #[test]
+    fn open_path_reuses_canonical_equivalent_path() {
+        let p = write_tmp("tabs_equivalent_path.txt", b"same");
+        let equivalent = p
+            .parent()
+            .unwrap()
+            .join(".")
+            .join(p.file_name().unwrap());
+
+        let mut s = TabStore::new();
+        assert_eq!(s.open_path(p), 0);
+        assert_eq!(s.open_path(equivalent), 0);
+        assert_eq!(s.count(), 1);
+        assert_eq!(s.active(), 0);
+    }
+
+    #[test]
     fn byte_round_trip_preserves_bytes_and_state() {
         let mut s = TabStore::new();
         s.ensure_scratch(); // one scratch tab
@@ -1151,6 +1199,39 @@ mod tests {
         assert_eq!(compaction.old_to_new[duplicate_a], Some(0));
         assert_eq!(compaction.old_to_new[b_idx + 1], Some(1));
         assert_eq!(compaction.old_to_new[duplicate_b + 1], None);
+    }
+
+    #[test]
+    fn close_duplicate_file_tabs_compacts_equivalent_clean_paths() {
+        let p = write_tmp("tabs_duplicate_equivalent.txt", b"same");
+        let equivalent = p
+            .parent()
+            .unwrap()
+            .join(".")
+            .join(p.file_name().unwrap());
+        let model = TextModel::from_bytes(b"same");
+
+        let mut s = TabStore::new();
+        s.tabs.push(Tab {
+            path: Some(p),
+            bytes: b"same".to_vec(),
+            model: model.clone(),
+            ..Default::default()
+        });
+        s.tabs.push(Tab {
+            path: Some(equivalent),
+            bytes: b"same".to_vec(),
+            model,
+            ..Default::default()
+        });
+        s.active = 1;
+
+        let compaction = s.close_duplicate_file_tabs().unwrap();
+
+        assert_eq!(compaction.removed, 1);
+        assert_eq!(s.count(), 1);
+        assert_eq!(s.active(), 0);
+        assert_eq!(compaction.old_to_new, vec![None, Some(0)]);
     }
 
     #[test]

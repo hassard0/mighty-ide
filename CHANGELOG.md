@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Open tabs compare equivalent file paths**: tab lookup now canonicalizes
+  file-backed paths and applies Windows slash/case fallback, preventing
+  duplicate tabs and Save As target misses when the same file is referenced by
+  an alternate spelling such as `.\file`.
 - **Save As rejects platform-trap filenames**: typed and native Save As targets
   now reject reserved Windows device names and trailing-dot/space basenames
   before binding the tab or writing to disk.

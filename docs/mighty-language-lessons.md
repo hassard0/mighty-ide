@@ -10481,3 +10481,17 @@ need the same platform-name checks as file creation.
 - **Language note:** no compiler gap surfaced. Save and create flows share the
   same filesystem mutation risk once a new path is chosen; centralize validation
   at the path-binding boundary, not only at creation prompts.
+
+## L853 - Open Tabs Need Path Equivalence
+
+File-backed tab identity is a same-file question, not a byte-for-byte path
+string question. Dot segments, canonicalized paths, and Windows slash/case
+variants can all describe the same target while bypassing literal equality.
+
+- **IDE note:** open-tab lookup now compares existing files through
+  canonicalization and uses Windows-only slash/case fallback when canonical paths
+  still differ or a path cannot be resolved. Duplicate-tab cleanup uses the same
+  comparison, so clean equivalent duplicates compact consistently.
+- **Language note:** no compiler gap surfaced. Any UI invariant that protects a
+  file identity should use path equivalence at the boundary; string equality is
+  only suitable after paths have already been normalized into a stable key.
