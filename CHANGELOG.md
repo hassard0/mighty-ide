@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Pane and Markdown commands return to editor focus**: Split Editor, Focus
+  Next Pane, Close Pane, Markdown Preview, and Markdown Close Preview now clear
+  stale Run/Web/Testing/Terminal/AI/Agents/search focus when they move
+  interaction back into editor-owned panes.
 - **Palette tab commands return focus to the editor**: Next/Previous Tab,
   close saved/duplicate tabs, reopen, duplicate, move, sort, reload, and revert
   tab commands now clear stale Run/Web/Testing/Terminal/AI/Agents/search focus

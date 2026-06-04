@@ -5182,10 +5182,24 @@ fn main() {
           typing = true
         } else if id == cmd_markdown_close_preview() {
           let _mdc = mui_md_close(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_git_hide_blame() {
           let _bc = mui_blame_close(h)
         } else if id >= cmd_pane_first() && id <= cmd_pane_last() {
           let _pn = mui_pane_dispatch(h, id)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id >= cmd_git_first() && id <= cmd_git_last() {
           let _g = mui_git_dispatch(h, id)
           if mui_branch_active(h) == 1 { branch_open = true }

@@ -11427,8 +11427,17 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_markdown_close_preview()")
-            && main.contains("let _mdc = mui_md_close(h)"),
-        "Markdown close-preview command must call the dedicated Markdown preview close ABI"
+            && main.contains("let _mdc = mui_md_close(h)")
+            && main.contains(
+                "let _mdc = mui_md_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "Markdown close-preview command must call the dedicated Markdown preview close ABI and release stale focus"
+    );
+    assert!(
+        main.contains(
+            "id >= cmd_pane_first() && id <= cmd_pane_last() {\n          let _pn = mui_pane_dispatch(h, id)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Split-pane and Markdown preview commands must release stale focus after returning to editor-owned UI"
     );
     assert!(
         main.contains("id == cmd_settings_close()")

@@ -8935,3 +8935,19 @@ still routes to an old dock or sidebar owner.
 - **Language note:** no compiler gap surfaced. This continues to point at a
   missing reusable focus-effect helper or command metadata path, but the
   scalar-state update remains straightforward.
+
+## L745 - Pane Commands Are Editor Ownership Changes
+
+Split-pane actions and Markdown Preview are not side panels. They reshape the
+editor surface itself, so palette commands that split, focus, close panes, or
+open/close the preview should release any stale dock/sidebar/modal navigation
+focus before the next event is routed.
+
+- **IDE note:** Split Editor Right, Focus Next Editor Pane, Close Editor Pane,
+  Markdown: Open Preview, and Markdown: Close Preview now clear stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus when they return interaction
+  to editor-owned pane UI. Dispatcher source-contract coverage pins both the
+  pane command range and the explicit Markdown close branch.
+- **Language note:** no compiler gap surfaced. The flat range-dispatch pattern
+  works, but common focus-effect metadata would keep pane commands from needing
+  manual scalar flag resets in the Mighty ladder.
