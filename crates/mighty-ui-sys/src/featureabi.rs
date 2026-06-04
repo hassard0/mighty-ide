@@ -387,6 +387,36 @@ pub(crate) fn diff_hunk_button_width(text: &mut crate::text::Text, label: &str, 
     feature_ui_text_width(text, label, size) + 18.0
 }
 
+pub(crate) struct DiffGutterGeometry {
+    pub old_x: f32,
+    pub new_x: f32,
+    pub marker_x: f32,
+    pub divider_x: f32,
+    pub text_x: f32,
+}
+
+pub(crate) fn diff_gutter_geometry(
+    region_left: f32,
+    old_col_w: f32,
+    new_col_w: f32,
+) -> DiffGutterGeometry {
+    let old_x = region_left + 6.0;
+    let new_x = old_x + old_col_w.max(1.0) + 14.0;
+    let marker_x = new_x + new_col_w.max(1.0) + 12.0;
+    let divider_x = marker_x + 8.0;
+    DiffGutterGeometry {
+        old_x,
+        new_x,
+        marker_x,
+        divider_x,
+        text_x: divider_x + 8.0,
+    }
+}
+
+pub(crate) fn diff_gutter_label_width(text: &mut crate::text::Text, label: &str, size: f32) -> f32 {
+    text.measure_sized(label, size).0
+}
+
 pub(crate) fn fit_blame_text(
     text: &mut crate::text::Text,
     s: &str,
@@ -826,10 +856,32 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
 
     // Diff body. Two-column line-number gutter (old | new) then the text.
     let body_top = field_top + head_h + 4.0;
-    let gut_w = 84.0_f32; // room for "old | new"
-    let text_x = region.left + gut_w + 8.0;
     let first = ctx.diff.first();
     let visible = ((field_h - head_h - 8.0) / line_h).floor().max(0.0) as usize;
+    let mut old_col_w = diff_gutter_label_width(&mut ctx.text, "\u{00b7}", chrome);
+    let mut new_col_w = old_col_w;
+    for vis in 0..visible {
+        let idx = first + vis;
+        let Some(row) = diff_line_snapshot(&ctx.diff, idx) else {
+            break;
+        };
+        if row.kind == LineKind::Hunk {
+            continue;
+        }
+        let old_s = if row.old_no >= 0 {
+            row.old_no.to_string()
+        } else {
+            "\u{00b7}".to_string()
+        };
+        let new_s = if row.new_no >= 0 {
+            row.new_no.to_string()
+        } else {
+            "\u{00b7}".to_string()
+        };
+        old_col_w = old_col_w.max(diff_gutter_label_width(&mut ctx.text, &old_s, chrome));
+        new_col_w = new_col_w.max(diff_gutter_label_width(&mut ctx.text, &new_s, chrome));
+    }
+    let gutter = diff_gutter_geometry(region.left, old_col_w, new_col_w);
 
     for vis in 0..visible {
         let idx = first + vis;
@@ -885,25 +937,25 @@ pub extern "C" fn mui_diff_draw(handle: i64) {
         // Old / new line-number gutter (dim; '·' for the missing side).
         let old_s = if row.old_no >= 0 { row.old_no.to_string() } else { "\u{00b7}".to_string() };
         let new_s = if row.new_no >= 0 { row.new_no.to_string() } else { "\u{00b7}".to_string() };
-        ctx.text.queue_sized(region.left + 6.0, y + 3.0, &old_s, theme::GUTTER(), chrome, clip);
-        ctx.text.queue_sized(region.left + 44.0, y + 3.0, &new_s, theme::GUTTER(), chrome, clip);
+        ctx.text.queue_sized(gutter.old_x, y + 3.0, &old_s, theme::GUTTER(), chrome, clip);
+        ctx.text.queue_sized(gutter.new_x, y + 3.0, &new_s, theme::GUTTER(), chrome, clip);
         // +/- marker glyph in the small gap before the text.
         let marker = match row.kind {
             LineKind::Add => "+",
             LineKind::Remove => "\u{2212}",
             _ => " ",
         };
-        ctx.text.queue(region.left + gut_w - 6.0, ty, marker, fg, clip);
+        ctx.text.queue(gutter.marker_x, ty, marker, fg, clip);
 
         // Diff line text (clipped to the window width).
-        let max_w = (w - 12.0 - text_x).max(0.0);
+        let max_w = (w - 12.0 - gutter.text_x).max(0.0);
         let shown = fit_diff_code_text(&mut ctx.text, &row.text, max_w, chrome);
         let text_col = if row.kind == LineKind::Context { theme::TEXT_1() } else { fg };
-        ctx.text.queue(text_x, ty, &shown, text_col, clip);
+        ctx.text.queue(gutter.text_x, ty, &shown, text_col, clip);
     }
 
     // Gutter divider.
-    ctx.dl_rect(region.left + gut_w, body_top, 1.0, field_h - head_h - 8.0, theme::BORDER_SOFT());
+    ctx.dl_rect(gutter.divider_x, body_top, 1.0, field_h - head_h - 8.0, theme::BORDER_SOFT());
 }
 
 pub(crate) struct DiffLineSnapshot {

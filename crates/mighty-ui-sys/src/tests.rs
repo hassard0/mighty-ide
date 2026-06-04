@@ -5916,6 +5916,34 @@ fn diff_hunk_button_width_uses_measured_label_text() {
 }
 
 #[test]
+fn diff_gutter_columns_use_measured_line_numbers() {
+    let mut ctx = ctx_or_skip!();
+    let size = crate::theme::CHROME_FONT_SIZE;
+    let old_w = crate::featureabi::diff_gutter_label_width(&mut ctx.text, "888888", size);
+    let new_w = crate::featureabi::diff_gutter_label_width(&mut ctx.text, "12", size);
+    let geom = crate::featureabi::diff_gutter_geometry(72.0, old_w, new_w);
+
+    assert_eq!(old_w, ctx.text.measure_sized("888888", size).0);
+    assert!(geom.new_x >= geom.old_x + old_w + 14.0);
+    assert!(geom.marker_x >= geom.new_x + new_w + 12.0);
+    assert!(geom.text_x > geom.divider_x);
+}
+
+#[test]
+fn diff_gutter_geometry_expands_for_wide_line_numbers() {
+    let mut ctx = ctx_or_skip!();
+    let size = crate::theme::CHROME_FONT_SIZE;
+    let narrow_old = crate::featureabi::diff_gutter_label_width(&mut ctx.text, "8", size);
+    let wide_old = crate::featureabi::diff_gutter_label_width(&mut ctx.text, "888888", size);
+    let new_w = crate::featureabi::diff_gutter_label_width(&mut ctx.text, "9", size);
+    let narrow = crate::featureabi::diff_gutter_geometry(42.0, narrow_old, new_w);
+    let wide = crate::featureabi::diff_gutter_geometry(42.0, wide_old, new_w);
+
+    assert!(wide_old > narrow_old);
+    assert!(wide.text_x > narrow.text_x);
+}
+
+#[test]
 fn diff_hunk_header_fits_before_measured_action_button() {
     let mut ctx = ctx_or_skip!();
     let chrome = crate::theme::CHROME_FONT_SIZE;

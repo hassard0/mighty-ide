@@ -8202,3 +8202,13 @@ Keyboard Shortcuts rows look pre-truncated even when there was enough room.
   `File: New File` and `Explorer: New File in Workspace`. The dialog behavior
   remains in contextual descriptions and command handling, while tests pin the
   product wording so command surfaces do not drift back to faux truncation.
+
+L680. Inline diff gutters should size to measured line numbers. A fixed
+old/new-number gutter works on small files, but wide line numbers can crowd the
+marker and code column even after diff headers and body text use measured
+budgets.
+
+- **IDE note:** inline diff drawing now measures the visible old/new line-number
+  columns before rendering body rows, deriving the marker, divider, and code
+  column from those widths. Focused geometry tests pin both measured label widths
+  and expansion for large line numbers.
