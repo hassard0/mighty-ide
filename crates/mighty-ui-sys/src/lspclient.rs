@@ -563,6 +563,9 @@ fn utf16_to_char_col(line_text: &str, utf16_col: u32) -> u32 {
 
 fn parse_publish_diagnostics_latest(stream: &str, wanted_uri: Option<&str>) -> Vec<Diag> {
     let bytes = stream.as_bytes();
+    if wanted_uri.is_none() && is_json_array(bytes) {
+        return parse_diagnostics_array_from_bytes(bytes).unwrap_or_default();
+    }
     let mut latest: Option<Vec<Diag>> = None;
     let mut saw_object = false;
     for object in top_level_json_objects(bytes) {
@@ -606,10 +609,21 @@ fn diagnostics_uri_matches(actual: &str, wanted: &str) -> bool {
 }
 
 fn parse_diagnostics_array_from_bytes(bytes: &[u8]) -> Option<Vec<Diag>> {
-    let arr = top_level_object_field(bytes, b"params")
-        .and_then(|params| top_level_array_field(params, b"diagnostics"))
-        .or_else(|| top_level_array_field(bytes, b"diagnostics"))?;
+    let arr = if is_json_array(bytes) {
+        bytes
+    } else {
+        top_level_object_field(bytes, b"params")
+            .and_then(|params| top_level_array_field(params, b"diagnostics"))?
+    };
     Some(parse_diag_array(arr))
+}
+
+fn is_json_array(bytes: &[u8]) -> bool {
+    let mut i = 0usize;
+    while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    bytes.get(i) == Some(&b'[')
 }
 
 /// Split a `[ {...}, ... ]` slice into per-diagnostic objects and parse each.
@@ -1060,6 +1074,24 @@ mod tests {
         assert_eq!(diags[0].col_start, 6);
         assert_eq!(diags[0].col_end, 10);
         assert_eq!(diags[0].severity, Severity::Warning);
+        assert_eq!(diags[0].message, "right");
+    }
+
+    #[test]
+    fn diagnostics_object_requires_params_owned_array() {
+        let stream = r#"{"metadata":{"diagnostics":[{"range":{"start":{"line":98,"character":1},"end":{"line":98,"character":2}},"severity":1,"message":"wrong nested"}]},"diagnostics":[{"range":{"start":{"line":5,"character":6},"end":{"line":5,"character":10}},"severity":2,"message":"wrong root"}]}"#;
+
+        assert!(parse_publish_diagnostics(stream).is_empty());
+    }
+
+    #[test]
+    fn diagnostics_raw_array_still_parses_direct_payloads() {
+        let stream = r#"[{"range":{"start":{"line":5,"character":6},"end":{"line":5,"character":10}},"severity":2,"message":"right"}]"#;
+        let diags = parse_publish_diagnostics(stream);
+
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].line, 5);
+        assert_eq!(diags[0].col_start, 6);
         assert_eq!(diags[0].message, "right");
     }
 

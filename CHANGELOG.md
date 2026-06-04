@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Diagnostics require params-owned arrays**: LSP diagnostic objects now read
+  diagnostics only from `params.diagnostics` while preserving direct raw-array
+  parsing for isolated payloads, so wrapper-level arrays cannot become Problems.
 - **Debugger stack frames require owned lines**: DAP stack-trace rows now need
   both a frame-owned `id` and `line`, so metadata-only line fields cannot jump
   the editor to the top of a source file.

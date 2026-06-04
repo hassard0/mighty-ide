@@ -10273,3 +10273,17 @@ metadata mentions a line number.
 - **Language note:** no compiler gap surfaced. Navigation-producing protocol
   rows should require their own identity and location fields; defaulting missing
   locations into plausible coordinates creates misleading jumps.
+
+## L838 - LSP Diagnostics Belong To Params
+
+`textDocument/publishDiagnostics` carries diagnostics under `params`. A complete
+notification object with a root-level `diagnostics` array is not a real publish
+payload, even if that array happens to look parseable.
+
+- **IDE note:** generic LSP diagnostics now read arrays from `params.diagnostics`
+  for JSON objects. Bare diagnostic arrays are still accepted for direct parser
+  payloads, but wrapper/root-level arrays inside objects no longer become live
+  Problems rows.
+- **Language note:** no compiler gap surfaced. Notification parsers should keep
+  compatibility fallbacks structurally distinct from complete protocol objects
+  so convenience parsing does not weaken the live transport contract.
