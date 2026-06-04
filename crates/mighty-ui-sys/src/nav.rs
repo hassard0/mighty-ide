@@ -510,19 +510,18 @@ fn parse_hover_array(bytes: &[u8], array_at: usize) -> Option<String> {
 /// missing result.
 pub fn parse_definition(json: &str) -> Option<(String, u32, u32)> {
     let bytes = json.as_bytes();
-    if let Some(link) = parse_location_link(bytes) {
+    let result = definition_result_value(bytes)?;
+    let target = first_result_object(result)?;
+    if let Some(link) = parse_location_link(target) {
         return Some(link);
     }
-    parse_location(bytes)
+    parse_location(target)
 }
 
 fn parse_location_link(bytes: &[u8]) -> Option<(String, u32, u32)> {
-    let uri_key = b"\"targetUri\"";
-    let uri_pos = find_sub(bytes, uri_key)?;
-    let uri = read_json_string_after(bytes, uri_pos + uri_key.len())?;
-    let range_anchor = find_sub(bytes, b"\"targetSelectionRange\"")
-        .or_else(|| find_sub(bytes, b"\"targetRange\""))?;
-    let region = &bytes[range_anchor..];
+    let uri = top_level_json_string_field(bytes, b"targetUri")?;
+    let region = top_level_object_field(bytes, b"targetSelectionRange")
+        .or_else(|| top_level_object_field(bytes, b"targetRange"))?;
     let start_anchor = find_sub(region, b"\"start\"")?;
     let start_region = &region[start_anchor..];
     let line = read_uint_after(start_region, b"\"line\"")?;
@@ -531,16 +530,107 @@ fn parse_location_link(bytes: &[u8]) -> Option<(String, u32, u32)> {
 }
 
 fn parse_location(bytes: &[u8]) -> Option<(String, u32, u32)> {
-    // The uri belongs to the result Location; it appears once. This deliberately
-    // does not match `targetUri`; LocationLink is handled first.
-    let uri_key = b"\"uri\"";
-    let uri_pos = find_sub(bytes, uri_key)?;
-    let uri = read_json_string_after(bytes, uri_pos + uri_key.len())?;
-    let start_anchor = find_sub(bytes, b"\"start\"")?;
-    let start_region = &bytes[start_anchor..];
+    let uri = top_level_json_string_field(bytes, b"uri")?;
+    let range = top_level_object_field(bytes, b"range")?;
+    let start_anchor = find_sub(range, b"\"start\"")?;
+    let start_region = &range[start_anchor..];
     let line = read_uint_after(start_region, b"\"line\"")?;
     let col = read_uint_after(start_region, b"\"character\"")?;
     Some((uri, line, col))
+}
+
+fn definition_result_value(bytes: &[u8]) -> Option<&[u8]> {
+    let value_start = top_level_field_value_start(bytes, b"result")?;
+    if bytes.get(value_start..value_start + 4) == Some(b"null") {
+        return None;
+    }
+    let value_end = json_value_end(bytes, value_start).min(bytes.len());
+    Some(&bytes[value_start..value_end])
+}
+
+fn first_result_object(value: &[u8]) -> Option<&[u8]> {
+    match value.first().copied()? {
+        b'{' => Some(value),
+        b'[' => {
+            let mut i = 1usize;
+            while i < value.len() {
+                i = skip_json_ws_and_commas(value, i);
+                if i >= value.len() || value[i] == b']' {
+                    return None;
+                }
+                if value[i] == b'{' {
+                    let end = match_enclosed(value, i, b'{', b'}').min(value.len());
+                    return Some(&value[i..end]);
+                }
+                i = json_value_end(value, i);
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+fn top_level_object_field<'a>(obj: &'a [u8], field: &[u8]) -> Option<&'a [u8]> {
+    let value_start = top_level_field_value_start(obj, field)?;
+    if obj.get(value_start) != Some(&b'{') {
+        return None;
+    }
+    let value_end = match_enclosed(obj, value_start, b'{', b'}').min(obj.len());
+    Some(&obj[value_start..value_end])
+}
+
+fn top_level_json_string_field(obj: &[u8], field: &[u8]) -> Option<String> {
+    top_level_field_value_start(obj, field)
+        .and_then(|value_start| read_json_string_after(obj, value_start))
+}
+
+fn top_level_field_value_start(obj: &[u8], field: &[u8]) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut esc = false;
+    let mut k = 0usize;
+    while k < obj.len() {
+        let b = obj[k];
+        if in_str {
+            if esc {
+                esc = false;
+            } else if b == b'\\' {
+                esc = true;
+            } else if b == b'"' {
+                in_str = false;
+            }
+            k += 1;
+            continue;
+        }
+
+        match b {
+            b'"' => {
+                if depth == 1
+                    && obj.get(k + 1..k + 1 + field.len()) == Some(field)
+                    && obj.get(k + 1 + field.len()) == Some(&b'"')
+                {
+                    let mut p = k + field.len() + 2;
+                    while p < obj.len() && obj[p].is_ascii_whitespace() {
+                        p += 1;
+                    }
+                    if obj.get(p) != Some(&b':') {
+                        return None;
+                    }
+                    p += 1;
+                    while p < obj.len() && obj[p].is_ascii_whitespace() {
+                        p += 1;
+                    }
+                    return Some(p);
+                }
+                in_str = true;
+            }
+            b'{' | b'[' => depth += 1,
+            b'}' | b']' => depth -= 1,
+            _ => {}
+        }
+        k += 1;
+    }
+    None
 }
 
 /// Resolve an LSP `file://` uri to a filesystem path (Windows-aware:
@@ -1341,12 +1431,30 @@ mod tests {
     }
 
     #[test]
+    fn parse_definition_uses_result_location_not_envelope_fields() {
+        let json = r#"{"jsonrpc":"2.0","uri":"file:///C:/tmp/wrong.mty","range":{"start":{"line":99,"character":9},"end":{"line":99,"character":10}},"result":{"uri":"file:///C:/tmp/right.mty","range":{"start":{"line":4,"character":6},"end":{"line":4,"character":12}}},"id":2}"#;
+        let (uri, line, col) = parse_definition(json).expect("definition");
+        assert_eq!(uri, "file:///C:/tmp/right.mty");
+        assert_eq!(line, 4);
+        assert_eq!(col, 6);
+    }
+
+    #[test]
     fn parse_definition_reads_location_link_selection_range() {
         let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"originSelectionRange":{"start":{"line":2,"character":4},"end":{"line":2,"character":7}},"targetUri":"file:///C:/tmp/lib.rs","targetRange":{"start":{"line":30,"character":0},"end":{"line":36,"character":1}},"targetSelectionRange":{"start":{"line":32,"character":8},"end":{"line":32,"character":14}}}]}"#;
         let (uri, line, col) = parse_definition(json).expect("location link");
         assert_eq!(uri, "file:///C:/tmp/lib.rs");
         assert_eq!(line, 32);
         assert_eq!(col, 8);
+    }
+
+    #[test]
+    fn parse_definition_uses_result_location_link_not_envelope_fields() {
+        let json = r#"{"jsonrpc":"2.0","targetUri":"file:///C:/tmp/wrong.rs","targetSelectionRange":{"start":{"line":88,"character":7},"end":{"line":88,"character":8}},"result":[{"targetUri":"file:///C:/tmp/right.rs","targetRange":{"start":{"line":10,"character":0},"end":{"line":12,"character":0}},"targetSelectionRange":{"start":{"line":11,"character":5},"end":{"line":11,"character":9}}}],"id":2}"#;
+        let (uri, line, col) = parse_definition(json).expect("location link");
+        assert_eq!(uri, "file:///C:/tmp/right.rs");
+        assert_eq!(line, 11);
+        assert_eq!(col, 5);
     }
 
     #[test]

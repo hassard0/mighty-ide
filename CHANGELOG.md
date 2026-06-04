@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Go-to-definition reads result-scoped targets**: LSP definition parsing now
+  isolates the JSON-RPC `result` before reading `Location` or `LocationLink`
+  fields, preventing envelope or metadata URI/range fields from hijacking the
+  navigation target.
 - **Diagnostics parse complete LSP objects**: generic LSP diagnostics now scan
   complete JSON messages instead of splitting on the raw `publishDiagnostics`
   text, so diagnostic messages can mention the method name without corrupting

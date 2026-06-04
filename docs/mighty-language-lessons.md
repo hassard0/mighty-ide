@@ -9890,3 +9890,17 @@ the owning `params.uri`.
 - **Language note:** no compiler gap surfaced. Protocol streams need
   boundary-aware object parsing before payload searches; substring delimiters
   make ordinary text capable of changing parser state.
+
+## L811 - Definition Targets Belong To The Result Value
+
+JSON-RPC responses can legally carry envelope or metadata fields next to
+`result`. If go-to-definition scans the whole response for `uri`, `targetUri`,
+or ranges, those non-result fields can hijack navigation even when the actual
+LSP `Location` or `LocationLink` is correct.
+
+- **IDE note:** definition parsing now isolates the top-level `result` value,
+  unwraps the first result object for `Location[]` / `LocationLink[]`, and reads
+  target fields from that object before moving the cursor or opening a tab.
+- **Language note:** no compiler gap surfaced. Response parsers should establish
+  the semantic payload boundary first, then parse protocol fields inside that
+  boundary.
