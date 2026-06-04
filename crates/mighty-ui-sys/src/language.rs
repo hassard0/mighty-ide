@@ -51,35 +51,110 @@ fn read_json_string_at(bytes: &[u8], pos: usize) -> Option<(String, usize)> {
     }
     j += 1;
     let mut val = String::new();
-    while j < bytes.len() && bytes[j] != b'"' {
-        if bytes[j] == b'\\' && j + 1 < bytes.len() {
-            j += 1;
-            match bytes[j] {
-                b'n' => val.push('\n'),
-                b't' => val.push('\t'),
-                b'r' => val.push('\r'),
-                b'"' => val.push('"'),
-                b'\\' => val.push('\\'),
-                b'/' => val.push('/'),
-                b'u' if j + 4 < bytes.len() => {
-                    let hex = &bytes[j + 1..j + 5];
-                    if let Ok(s) = std::str::from_utf8(hex) {
-                        if let Ok(cp) = u32::from_str_radix(s, 16) {
-                            if let Some(c) = char::from_u32(cp) {
-                                val.push(c);
-                            }
-                            j += 4;
-                        }
-                    }
-                }
-                other => val.push(other as char),
+    let mut segment_start = j;
+    let mut high_surrogate: Option<u16> = None;
+    while j < bytes.len() {
+        match bytes[j] {
+            b'"' => {
+                flush_json_segment(bytes, segment_start, j, &mut val, &mut high_surrogate)?;
+                push_pending_surrogate(&mut val, &mut high_surrogate);
+                return Some((val, j + 1));
             }
-        } else {
-            val.push(bytes[j] as char);
+            b'\\' if j + 1 < bytes.len() => {
+                flush_json_segment(bytes, segment_start, j, &mut val, &mut high_surrogate)?;
+                j += 1;
+                match bytes[j] {
+                    b'n' => push_escaped_char(&mut val, &mut high_surrogate, '\n'),
+                    b't' => push_escaped_char(&mut val, &mut high_surrogate, '\t'),
+                    b'r' => push_escaped_char(&mut val, &mut high_surrogate, '\r'),
+                    b'b' => push_escaped_char(&mut val, &mut high_surrogate, '\u{0008}'),
+                    b'f' => push_escaped_char(&mut val, &mut high_surrogate, '\u{000c}'),
+                    b'"' => push_escaped_char(&mut val, &mut high_surrogate, '"'),
+                    b'\\' => push_escaped_char(&mut val, &mut high_surrogate, '\\'),
+                    b'/' => push_escaped_char(&mut val, &mut high_surrogate, '/'),
+                    b'u' if j + 4 < bytes.len() => {
+                        let unit = read_hex4(&bytes[j + 1..j + 5])?;
+                        push_json_code_unit(&mut val, &mut high_surrogate, unit);
+                        j += 4;
+                    }
+                    other => push_escaped_char(&mut val, &mut high_surrogate, other as char),
+                }
+                j += 1;
+                segment_start = j;
+                continue;
+            }
+            _ => {
+                j += 1;
+                continue;
+            }
         }
-        j += 1;
     }
-    Some((val, j + 1))
+    None
+}
+
+fn flush_json_segment(
+    bytes: &[u8],
+    start: usize,
+    end: usize,
+    out: &mut String,
+    high_surrogate: &mut Option<u16>,
+) -> Option<()> {
+    if start < end {
+        push_pending_surrogate(out, high_surrogate);
+        out.push_str(std::str::from_utf8(&bytes[start..end]).ok()?);
+    }
+    Some(())
+}
+
+fn read_hex4(bytes: &[u8]) -> Option<u16> {
+    if bytes.len() != 4 {
+        return None;
+    }
+    let mut value = 0u16;
+    for &b in bytes {
+        let digit = match b {
+            b'0'..=b'9' => b - b'0',
+            b'a'..=b'f' => b - b'a' + 10,
+            b'A'..=b'F' => b - b'A' + 10,
+            _ => return None,
+        };
+        value = (value << 4) | digit as u16;
+    }
+    Some(value)
+}
+
+fn push_escaped_char(out: &mut String, high_surrogate: &mut Option<u16>, ch: char) {
+    push_pending_surrogate(out, high_surrogate);
+    out.push(ch);
+}
+
+fn push_pending_surrogate(out: &mut String, high_surrogate: &mut Option<u16>) {
+    if high_surrogate.take().is_some() {
+        out.push('\u{fffd}');
+    }
+}
+
+fn push_json_code_unit(out: &mut String, high_surrogate: &mut Option<u16>, unit: u16) {
+    match unit {
+        0xd800..=0xdbff => {
+            push_pending_surrogate(out, high_surrogate);
+            *high_surrogate = Some(unit);
+        }
+        0xdc00..=0xdfff => {
+            if let Some(high) = high_surrogate.take() {
+                let high = (high as u32) - 0xd800;
+                let low = (unit as u32) - 0xdc00;
+                let cp = 0x10000 + ((high << 10) | low);
+                out.push(char::from_u32(cp).unwrap_or('\u{fffd}'));
+            } else {
+                out.push('\u{fffd}');
+            }
+        }
+        _ => {
+            push_pending_surrogate(out, high_surrogate);
+            out.push(char::from_u32(unit as u32).unwrap_or('\u{fffd}'));
+        }
+    }
 }
 
 /// Read the unsigned integer value of `key` somewhere in `region` (scans for the
@@ -1805,6 +1880,15 @@ mod tests {
         assert_eq!(sig.doc, "adds a thing");
     }
 
+    #[test]
+    fn parse_signature_help_decodes_unicode_strings() {
+        let json = r#"{"result":{"signatures":[{"label":"fn 東京(caf\u00e9: Str) -> \ud83d\ude00","parameters":[{"label":"caf\u00e9"}],"documentation":"\ud83dX"}],"activeSignature":0,"activeParameter":0},"id":2}"#;
+        let sig = parse_signature_help(json).expect("sig");
+        assert_eq!(sig.label, "fn 東京(café: Str) -> \u{1f600}");
+        assert_eq!(sig.params, vec!["café".to_string()]);
+        assert_eq!(sig.doc, "\u{fffd}X");
+    }
+
     // ---- WorkspaceEdit (rename) parsing ----
 
     #[test]
@@ -1868,6 +1952,14 @@ mod tests {
         let we = parse_workspace_edit(r#"{"result":null,"id":4}"#);
         assert!(we.is_empty());
         assert_eq!(we.file_count(), 0);
+    }
+
+    #[test]
+    fn parse_workspace_edit_decodes_unicode_new_text() {
+        let json = r#"{"result":{"changes":{"file:///a.mty":[{"newText":"東京 caf\u00e9 \ud83d\ude00","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":1}}}]}},"id":4}"#;
+        let we = parse_workspace_edit(json);
+        assert_eq!(we.files.len(), 1);
+        assert_eq!(we.files[0].1[0].new_text, "東京 café \u{1f600}");
     }
 
     // ---- multi-edit apply (offset correctness) ----
@@ -1986,6 +2078,14 @@ mod tests {
         assert_eq!(actions[1].title, "Fix all in file");
         assert!(actions[1].edit.is_none());
         assert!(actions[1].fix_all_mty);
+    }
+
+    #[test]
+    fn parse_code_actions_decodes_unicode_titles() {
+        let json = r#"{"result":[{"title":"Fix 東京 caf\u00e9 \ud83d\ude00","kind":"quickfix"}],"id":5}"#;
+        let actions = parse_code_actions(json);
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].title, "Fix 東京 café \u{1f600}");
     }
 
     #[test]
