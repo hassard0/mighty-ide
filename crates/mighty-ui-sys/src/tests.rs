@@ -11043,7 +11043,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains(
-            "ctrl_held(mods) && cp == 96 {             // Ctrl+` : toggle terminal\n          if mui_term_is_open(h) == 1 {\n            term_focus = true\n          } else {\n            let ok = mui_term_open(h)\n            if ok == 1 { term_focus = true; mui_log_terminal(h) }\n          }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            "ctrl_held(mods) && cp == 96 {             // Ctrl+` : open/focus terminal\n          if mui_term_is_open(h) == 1 {\n            term_focus = true\n          } else {\n            let ok = mui_term_open(h)\n            if ok == 1 { term_focus = true; mui_log_terminal(h) }\n          }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
         ),
         "Terminal keyboard shortcut must focus Terminal and release competing surfaces"
     );

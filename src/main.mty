@@ -2945,7 +2945,7 @@ fn main() {
           } else {
             mui_toast(h, 0, 10)
           }
-        } else if ctrl_held(mods) && cp == 96 {             // Ctrl+` : toggle terminal
+        } else if ctrl_held(mods) && cp == 96 {             // Ctrl+` : open/focus terminal
           if mui_term_is_open(h) == 1 {
             term_focus = true
           } else {

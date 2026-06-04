@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Terminal shortcut command no longer promises a close toggle**: the legacy
+  Ctrl+` command now appears as `Terminal: Open or Focus`, matching its actual
+  behavior of opening the integrated terminal or focusing the existing one while
+  leaving `Terminal: Close` as the explicit close path.
 - **Markdown Preview commands describe one-way actions**: palette descriptions
   now say `Markdown: Open Preview` opens the live preview pane and
   `Markdown: Close Preview` closes it, matching the dedicated command paths

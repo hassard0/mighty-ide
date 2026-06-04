@@ -8674,3 +8674,16 @@ behavior even when the app exposes a dedicated close command.
   preview pane, while `Markdown: Close Preview` keeps the dedicated close
   description. Static-description tests cover both command ids so palette rows
   and shortcut/help surfaces stay aligned with the one-way dispatch paths.
+
+## L724 - Legacy Command Ids Should Not Leak Old Behavior Names
+
+Stable command ids can outlive the behavior they were first named after. If the
+registry keeps the old visible label, users trust stale wording instead of the
+current command contract.
+
+- **IDE note:** the legacy `CMD_TOGGLE_TERMINAL` row now appears as
+  `Terminal: Open or Focus`, and its static description says it opens the
+  integrated terminal or focuses it when already open. Ctrl+` still routes
+  through the same id for compatibility, but `Terminal: Close` remains the only
+  close command. Palette label, static-description, and Mighty-dispatch tests
+  cover the contract.

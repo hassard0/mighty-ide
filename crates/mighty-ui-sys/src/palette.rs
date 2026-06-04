@@ -477,7 +477,7 @@ pub const COMMANDS: &[Command] = &[
     Command { id: CMD_CODE_ACTIONS,     label: "Code Actions",       keybinding: "Ctrl+." },
     Command { id: CMD_CODE_ACTIONS_CLOSE, label: "Code Actions: Close Menu", keybinding: "" },
     Command { id: CMD_PROMPT_CANCEL,    label: "Prompt: Cancel Input", keybinding: "" },
-    Command { id: CMD_TOGGLE_TERMINAL,  label: "Toggle Terminal",    keybinding: "Ctrl+`" },
+    Command { id: CMD_TOGGLE_TERMINAL,  label: "Terminal: Open or Focus", keybinding: "Ctrl+`" },
     Command { id: CMD_TOGGLE_SIDEBAR,   label: "Toggle Sidebar",     keybinding: "Ctrl+B" },
     Command { id: CMD_NEXT_TAB,         label: "Next Tab",           keybinding: "Ctrl+Tab" },
     Command { id: CMD_PREV_TAB,         label: "Previous Tab",       keybinding: "Ctrl+Shift+Tab" },
@@ -1038,7 +1038,7 @@ impl PaletteEngine {
             CMD_CODE_ACTIONS => (icons::LIGHTBULB, "Show quick fixes and code actions at the cursor", false),
             CMD_CODE_ACTIONS_CLOSE => (icons::CLOSE, "Close the Code Actions menu without applying an action", false),
             CMD_PROMPT_CANCEL => (icons::CLOSE, "Close the active bottom prompt without applying input", false),
-            CMD_TOGGLE_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal", false),
+            CMD_TOGGLE_TERMINAL => (icons::TEST_BOX, "Open the integrated terminal or focus it if already open", false),
             CMD_TOGGLE_SIDEBAR => (icons::EXPLORER, "Show or hide the file explorer", false),
             CMD_NEXT_TAB => (icons::CHEVRON, "Switch to the next open tab", false),
             CMD_PREV_TAB => (icons::CHEVRON, "Switch to the previous open tab", false),
@@ -1502,6 +1502,17 @@ mod tests {
     }
 
     #[test]
+    fn terminal_shortcut_label_matches_open_or_focus_behavior() {
+        let terminal = COMMANDS
+            .iter()
+            .find(|c| c.id == CMD_TOGGLE_TERMINAL)
+            .expect("legacy terminal shortcut command should exist");
+
+        assert_eq!(terminal.label, "Terminal: Open or Focus");
+        assert_eq!(terminal.keybinding, "Ctrl+`");
+    }
+
+    #[test]
     fn dialog_commands_use_standard_ellipsis_labels() {
         for (id, expected) in [
             (CMD_NEW_FILE, "File: New File..."),
@@ -1546,7 +1557,7 @@ mod tests {
 
     #[test]
     fn substring_and_fuzzy_match() {
-        // "term" is a substring of "Toggle Terminal".
+        // "term" is a substring of "Terminal: Open or Focus".
         let got = filter_commands(COMMANDS, "term");
         assert!(got.iter().any(|c| c.id == CMD_TOGGLE_TERMINAL));
         // "gtd" is a subsequence of "Go to Definition" (fuzzy).
@@ -1559,7 +1570,7 @@ mod tests {
 
     #[test]
     fn prefix_beats_substring_in_order() {
-        // "ta": "Toggle Terminal"/"Toggle Sidebar"? No. Use "t": prefixes nothing
+        // "ta": "Terminal: Open or Focus"/"Toggle Sidebar"? No. Use "t": prefixes nothing
         // but matches many. Use a query where a prefix and a substring coexist.
         // "g" prefixes "Go to Line"/"Go to Definition" (Prefix) and is a substring
         // of "Toggle ..." (Substring) — prefixes must come first.
@@ -1735,6 +1746,10 @@ mod tests {
         assert_eq!(
             command_static_desc(CMD_OPEN_RECENT),
             "Open a recent file or workspace folder"
+        );
+        assert_eq!(
+            command_static_desc(CMD_TOGGLE_TERMINAL),
+            "Open the integrated terminal or focus it if already open"
         );
         assert_eq!(
             command_static_desc(CMD_MARKDOWN_PREVIEW),
