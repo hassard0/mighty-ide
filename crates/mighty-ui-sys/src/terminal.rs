@@ -673,6 +673,7 @@ struct SavedCursor {
     bg: u32,
     autowrap: bool,
     origin_mode: bool,
+    insert_mode: bool,
     cursor_visible: bool,
     cursor_shape: CursorShape,
 }
@@ -1571,6 +1572,7 @@ impl VtParser {
             bg: grid.cur_bg,
             autowrap: self.autowrap,
             origin_mode: self.origin_mode,
+            insert_mode: self.insert_mode,
             cursor_visible: self.cursor_visible,
             cursor_shape: self.cursor_shape,
         }
@@ -1583,6 +1585,7 @@ impl VtParser {
         grid.cur_bg = saved.bg;
         self.autowrap = saved.autowrap;
         self.origin_mode = saved.origin_mode;
+        self.insert_mode = saved.insert_mode;
         self.cursor_visible = saved.cursor_visible;
         self.cursor_shape = saved.cursor_shape;
     }
@@ -3351,6 +3354,14 @@ mod tests {
         assert_eq!(g2.cell(1, 2).ch, 'X', "CUP should be relative after restore");
         assert_eq!(g2.cursor(), (1, 3));
         assert!(!g2.contains("?6"));
+
+        let g3 = grid_feed(1, 8, b"abcdef\x1b[1;3H\x1b[4h\x1b7\x1b[4l\x1b8X");
+        assert_eq!(g3.to_text(), "abXcdef ");
+        assert!(!g3.contains("[4"));
+
+        let g4 = grid_feed(1, 8, b"abcdef\x1b[1;3H\x1b[4l\x1b[s\x1b[4h\x1b[uX");
+        assert_eq!(g4.to_text(), "abXdef  ");
+        assert!(!g4.contains("[4"));
     }
 
     #[test]
@@ -3409,6 +3420,17 @@ mod tests {
         p.feed(&mut g, b"\x1b8");
         assert!(!p.cursor_visible());
         assert_eq!(p.cursor_shape(), CursorShape::Bar);
+    }
+
+    #[test]
+    fn alternate_screen_1049_restores_insert_mode() {
+        let g = grid_feed(1, 8, b"abcdef\x1b[1;3H\x1b[?1049h\x1b[4h\x1b[?1049lX");
+        assert_eq!(g.to_text(), "abXdef  ");
+        assert!(!g.contains("1049"));
+        assert!(!g.contains("[4h"));
+
+        let g2 = grid_feed(1, 8, b"abcdef\x1b[1;3H\x1b[4h\x1b[?1049h\x1b[4l\x1b[?1049lX");
+        assert_eq!(g2.to_text(), "abXcdef ");
     }
 
     #[test]
