@@ -5619,7 +5619,9 @@ fn debug_toolbar_fits_compact_sidebar() {
     crate::layout::set_window_width(520);
 
     let tb = crate::dapabi::toolbar_geom();
-    let toolbar_right = tb.x0 + 5.0 * tb.btn + 4.0 * tb.gap;
+    let toolbar_right = tb.x0
+        + crate::dapabi::DEBUG_TOOLBAR_BUTTONS as f32 * tb.btn
+        + crate::dapabi::DEBUG_TOOLBAR_BUTTONS.saturating_sub(1) as f32 * tb.gap;
     assert!(
         toolbar_right <= crate::layout::sidebar_right() - 12.0,
         "debug toolbar should stay inside compact sidebar: right={toolbar_right}"
@@ -5930,6 +5932,51 @@ fn debug_toolbar_play_starts_or_prompts_from_idle() {
 }
 
 #[test]
+fn debug_toolbar_clear_session_button_reuses_clear_command() {
+    use crate::ffi::MuiEvent;
+
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+    let path = "C:/p/demo.mty";
+    ctx.dbg.seed_demo(path);
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_DEBUG;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let tb = crate::dapabi::toolbar_geom();
+    let idx = crate::dapabi::TB_CLEAR_SESSION as f32;
+
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        0,
+        tb.x0 + idx * (tb.btn + tb.gap) + tb.btn * 0.5,
+        tb.y + tb.btn * 0.5,
+        0,
+    );
+    let hit = crate::dapabi::mui_dbg_click(handle);
+    assert_eq!(
+        hit,
+        1000 + crate::dapabi::TB_CLEAR_SESSION,
+        "clear-session button should hit the sixth debug toolbar slot"
+    );
+
+    crate::dapabi::mui_dbg_toolbar_action(handle, hit);
+    assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(crate::dapabi::mui_dbg_state(handle), crate::dap::DebugState::Idle.as_i32());
+    assert_eq!(crate::dapabi::mui_dbg_stack_count(handle), 0);
+    assert_eq!(crate::dapabi::mui_dbg_var_count(handle), 0);
+    assert!(ctx.dbg.has_breakpoint(path, 2));
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Debug session cleared"
+    );
+
+    crate::layout::reset_sidebar_preset();
+}
+
+#[test]
 fn debug_restart_without_target_reports_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     ctx.sidebar_visible = false;
@@ -6157,6 +6204,16 @@ fn debug_toolbar_actions_reuse_direct_feedback() {
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "No debug session to stop"
+    );
+
+    ctx.dbg.seed_demo("C:/workspace/src/main.mty");
+    crate::dapabi::mui_dbg_toolbar_action(
+        handle,
+        1000 + crate::dapabi::TB_CLEAR_SESSION,
+    );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Debug session cleared"
     );
 }
 

@@ -8398,3 +8398,15 @@ shared dock controls and route those clicks before grid mouse reporting.
   Mighty hit-tests that header action before PTY grid routing, then reuses
   `mui_term_clear` so focus and toast behavior stay aligned with the command
   palette path.
+
+## L699 - Debug Session Cleanup Belongs In The Debug Toolbar
+
+Run and Debug had a command-palette action for clearing stale session state, but
+the visible toolbar stopped at run-control actions. When stack, variables, or
+console state is visibly stale, cleanup should be available in the same panel
+without requiring a palette search.
+
+- **IDE note:** the Debug toolbar now includes a compact clear-session button
+  after Stop. The shared toolbar geometry drives drawing, hit-testing, and
+  compact-fit tests, and the toolbar action reuses `mui_dbg_clear_session` so
+  breakpoints and last target are preserved exactly like the command path.

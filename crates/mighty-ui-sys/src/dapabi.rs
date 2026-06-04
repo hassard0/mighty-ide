@@ -609,8 +609,10 @@ pub const TB_STEP_OVER: i32 = 1;
 pub const TB_STEP_INTO: i32 = 2;
 pub const TB_STEP_OUT: i32 = 3;
 pub const TB_STOP: i32 = 4;
+pub const TB_CLEAR_SESSION: i32 = 5;
+pub(crate) const DEBUG_TOOLBAR_BUTTONS: usize = 6;
 
-/// Geometry of the debug toolbar (a row of 5 icon buttons under the header).
+/// Geometry of the debug toolbar (a row of icon buttons under the header).
 pub(crate) struct ToolbarGeom {
     pub(crate) x0: f32,
     pub(crate) y: f32,
@@ -622,8 +624,9 @@ pub(crate) fn toolbar_geom() -> ToolbarGeom {
     let sx = layout::RAIL_W;
     let sw = layout::sidebar_w();
     let gap = if sw <= layout::SIDEBAR_MIN_W + 2.0 { 4.0 } else { 6.0 };
-    let available = (sw - 24.0 - gap * 4.0).max(0.0);
-    let btn = (available / 5.0).clamp(22.0, 30.0);
+    let gaps = DEBUG_TOOLBAR_BUTTONS.saturating_sub(1) as f32;
+    let available = (sw - 24.0 - gap * gaps).max(0.0);
+    let btn = (available / DEBUG_TOOLBAR_BUTTONS as f32).clamp(22.0, 30.0);
     ToolbarGeom {
         x0: sx + 12.0,
         y: 40.0 + 8.0,
@@ -894,10 +897,10 @@ pub extern "C" fn mui_dbg_click(handle: i64) -> i32 {
     // Toolbar buttons.
     let tb = toolbar_geom();
     if y >= tb.y && y <= tb.y + tb.btn {
-        for code in 0..5 {
+        for code in 0..DEBUG_TOOLBAR_BUTTONS {
             let bx = tb.x0 + code as f32 * (tb.btn + tb.gap);
             if x >= bx && x <= bx + tb.btn {
-                return TOOLBAR_BASE + code;
+                return TOOLBAR_BASE + code as i32;
             }
         }
     }
@@ -1106,6 +1109,10 @@ pub extern "C" fn mui_dbg_toolbar_action(handle: i64, code: i32) {
             crate::abi::trace("dbg_toolbar action=stop");
             let _ = mui_dbg_stop(handle);
         }
+        x if x == TB_CLEAR_SESSION => {
+            crate::abi::trace("dbg_toolbar action=clear_session");
+            let _ = mui_dbg_clear_session(handle);
+        }
         _ => {}
     }
 }
@@ -1232,15 +1239,16 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
     ctx.dl_round(pill_x, pill_y, pill_w, 17.0, 6.0, theme::BG_4());
     ctx.text.queue_ui_sized(pill_x + 9.0, pill_y + 2.5, state_label, state_col, chrome - 2.0, clip);
 
-    // Toolbar: continue / step-over / step-into / step-out / stop.
+    // Toolbar: continue / step-over / step-into / step-out / stop / clear.
     let tb = toolbar_geom();
     let running = matches!(ctx.dbg.state(), DebugState::Running | DebugState::Stopped);
-    let buttons: [(&str, MuiColor, f32, bool); 5] = [
+    let buttons: [(&str, MuiColor, f32, bool); DEBUG_TOOLBAR_BUTTONS] = [
         (icons::DBG_CONTINUE, theme::GREEN(), 1.6, true),
         (icons::DBG_STEP_OVER, theme::ACCENT_BRIGHT(), 1.6, false),
         (icons::DBG_STEP_INTO, theme::ACCENT_BRIGHT(), 1.6, false),
         (icons::DBG_STEP_OUT, theme::ACCENT_BRIGHT(), 1.6, false),
         (icons::DBG_STOP, theme::ERROR(), 1.6, true),
+        (icons::TRASH, theme::TEXT_3(), 1.5, false),
     ];
     for (i, (path, color, stroke, fill)) in buttons.iter().enumerate() {
         let bx = tb.x0 + i as f32 * (tb.btn + tb.gap);
@@ -1248,6 +1256,8 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
             true
         } else if i == 4 {
             running
+        } else if i == TB_CLEAR_SESSION as usize {
+            true
         } else {
             ctx.dbg.state() == DebugState::Stopped
         };
