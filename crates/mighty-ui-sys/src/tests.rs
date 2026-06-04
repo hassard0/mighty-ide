@@ -12242,6 +12242,36 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         completion_branch.matches(completion_local_cleanup).count() >= 3,
         "Autocomplete local Escape, unhandled-key, and mouse-miss dismissals must release stale focus"
     );
+    let rename_start = main
+        .find("} else if renaming {")
+        .expect("rename branch should exist");
+    let rename_end = main[rename_start..]
+        .find("} else if code_action_open {")
+        .map(|i| rename_start + i)
+        .expect("rename branch should precede code actions branch");
+    let rename_branch = &main[rename_start..rename_end];
+    let local_editor_cleanup = "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    assert!(
+        rename_branch.matches(local_editor_cleanup).count() >= 2,
+        "Rename local Escape and Enter exits must release stale focus"
+    );
+    let code_action_start = main
+        .find("} else if code_action_open {")
+        .expect("code actions branch should exist");
+    let code_action_end = main[code_action_start..]
+        .find("} else if mui_panel_active(h) == panel_search()")
+        .map(|i| code_action_start + i)
+        .expect("code actions branch should precede focused panel branches");
+    let code_action_branch = &main[code_action_start..code_action_end];
+    let local_editor_cleanup_outer = "run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false";
+    assert!(
+        code_action_branch.matches(local_editor_cleanup).count() >= 4
+            && code_action_branch.contains(
+                "let _cac = mui_codeaction_cancel(h)\n          code_action_open = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
+            )
+            && code_action_branch.contains(local_editor_cleanup_outer),
+        "Code Actions local apply, Escape, printed-char, and mouse exits must release stale focus"
+    );
     assert!(
         main.contains("id == cmd_markdown_close_preview()")
             && main.contains("let _mdc = mui_md_close(h)")

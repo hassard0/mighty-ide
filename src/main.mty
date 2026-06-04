@@ -3029,6 +3029,14 @@ fn main() {
           } else if k == key_escape() {
             let _rcancel = mui_rename_cancel(h)
             renaming = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if k == key_enter() {
             if mui_rename_can_commit(h) == 1 { mui_ed_undo_record(h) }
             let nfiles = mui_rename_commit(h, rename_line, rename_col)
@@ -3037,6 +3045,14 @@ fn main() {
               mui_tab_set_dirty(h, mui_tab_active(h), 0)
               let _r = mui_diag_refresh(h)
             }
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         }
       } else if code_action_open {
@@ -3054,14 +3070,38 @@ fn main() {
             if applied == 1 {
               let _r = mui_diag_refresh(h)
             }
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else if k == key_escape() {
             let _cac = mui_codeaction_cancel(h)
             code_action_open = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         } else if tag == ev_char() {
           // Any printed char dismisses the menu (then re-handled next frame).
           let _cac = mui_codeaction_cancel(h)
           code_action_open = false
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
+          typing = false
         } else if tag == ev_mouse_down() {
           let total_ca = mui_ed_line_count(h)
           let ch = mui_codeaction_click(h, ca_line - first, ca_col, total_ca)
@@ -3072,9 +3112,25 @@ fn main() {
             if applied == 1 {
               let _r = mui_diag_refresh(h)
             }
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           } else {
             let _cac = mui_codeaction_cancel(h)
             code_action_open = false
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
+            find_nav = false
+            typing = false
           }
         }
       } else if mui_panel_active(h) == panel_search() && tag != ev_mouse_down() {

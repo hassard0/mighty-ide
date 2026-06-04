@@ -9341,3 +9341,18 @@ should clear stale surface focus before normal editor input resumes.
 - **Language note:** no compiler gap surfaced. For mixed editor overlays, keep
   filter/edit paths separate from pure dismiss paths when applying ownership
   cleanup, because typed characters may need to preserve the active undo run.
+
+## L773 - Inline Editor Tools Still Need Exit Ownership
+
+Rename and Code Actions are anchored in the editor, but their local Escape,
+Enter, click, and typed-character exits can still run after another surface held
+focus. Closing or applying those tools should explicitly return ownership to the
+editor.
+
+- **IDE note:** Rename Escape/Enter and Code Actions apply, Escape,
+  printed-character dismissal, and mouse-miss dismissal now release stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus plus transient typing state
+  before editor input resumes.
+- **Language note:** no compiler gap surfaced. Editor-owned overlays still need
+  local exit contracts when their open commands already clear focus, because
+  command dispatch and in-overlay event routing are independent control paths.
