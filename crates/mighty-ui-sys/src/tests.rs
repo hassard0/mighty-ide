@@ -10083,6 +10083,74 @@ fn problems_clear_command_clears_diagnostics_without_closing_panel() {
 }
 
 #[test]
+fn problems_open_row_misses_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::navsurfaces::mui_problems_open_row(h, -1), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No problem selected");
+
+    assert_eq!(crate::navsurfaces::mui_problems_open_row(h, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Problem row no longer listed");
+
+    let missing = std::env::temp_dir()
+        .join(format!("mui_problems_missing_{}", std::process::id()))
+        .join("missing.mty");
+    ctx.problems.aggregate(vec![(
+        missing,
+        vec![crate::diagnostics::Diag {
+            line: 1,
+            col_start: 2,
+            col_end: 3,
+            severity: crate::diagnostics::Severity::Error,
+            code: "MT1".into(),
+            message: "bad type".into(),
+        }],
+    )]);
+
+    assert_eq!(crate::navsurfaces::mui_problems_open_row(h, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Problems target missing: missing.mty");
+}
+
+#[test]
+fn problems_open_row_opens_file_and_moves_cursor() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir()
+        .join(format!("mui_problems_open_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("target.mty");
+    std::fs::write(&file, b"one\ntwo\nthree\nfour\n").unwrap();
+    ctx.problems.aggregate(vec![(
+        file.clone(),
+        vec![crate::diagnostics::Diag {
+            line: 2,
+            col_start: 1,
+            col_end: 3,
+            severity: crate::diagnostics::Severity::Warning,
+            code: "MT2".into(),
+            message: "unused".into(),
+        }],
+    )]);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let tab = crate::navsurfaces::mui_problems_open_row(h, 0);
+    assert_eq!(tab, ctx.tabs.active() as i32);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(file.as_path()));
+    assert_eq!(ctx.tabs.active_model().cursor_line(), 2);
+    assert_eq!(ctx.tabs.active_model().cursor_col(), 1);
+    assert_eq!(ctx.tabs.active_model().first_visible(), 0);
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn problems_header_actions_hit_visible_buttons() {
     use crate::ffi::MuiEvent;
 

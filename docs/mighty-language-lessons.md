@@ -10803,3 +10803,16 @@ location even when the file still exists and the query still appears somewhere.
   visible feedback telling the user to run Search again.
 - **Language note:** no compiler gap surfaced. Navigation commands that consume
   cached coordinates need the same freshness guard as mutation commands.
+
+## L876 - Problems Row Navigation Needs Visible Failure Feedback
+
+Problems rows store file, line, and column coordinates from the current
+diagnostics view. If a row is no longer present or the target file disappears,
+the open-row command should not fail silently.
+
+- **IDE note:** opening a Problems row now reports invalid selections,
+  disappeared rows, and missing target files with visible feedback before
+  returning failure.
+- **Language note:** no compiler gap surfaced. Cached diagnostic navigation can
+  be invalidated by ordinary workspace changes, so callers need explicit
+  failure feedback even when full snapshot freshness is not available.

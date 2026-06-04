@@ -31,6 +31,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Search result opens validate freshness**: opening a project-search match now
   checks that the target file still matches the searched bytes before jumping to
   cached line/column coordinates.
+- **Problems jumps report stale targets**: opening a Problems row now reports
+  invalid selections, disappeared rows, and missing target files with visible
+  feedback instead of silently failing.
 - **Fix-all code actions protect dirty duplicate tabs**: Fix all (mty) now
   refuses to save or run the external fixer when another equivalent tab for the
   active file has unsaved edits, matching inline workspace-edit safety, and

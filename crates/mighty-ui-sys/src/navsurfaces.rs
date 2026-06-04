@@ -563,15 +563,22 @@ pub extern "C" fn mui_problems_open_row(handle: i64, i: i32) -> i32 {
         return -1;
     };
     if i < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No problem selected");
         return -1;
     }
     let (path, line, col) = {
         let Some(p) = ctx.problems.get(i as usize) else {
+            ctx.push_toast(crate::toast::Kind::Info, "Problem row no longer listed");
             return -1;
         };
         (p.path.clone(), p.line, p.col)
     };
     if !path.exists() {
+        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Problems target missing: {name}"),
+        );
         return -1;
     }
     let idx = ctx.tabs.open_path(path);
