@@ -646,16 +646,16 @@ fn parse_diag_array(arr: &[u8]) -> Vec<Diag> {
 
 /// Parse a single diagnostic object slice.
 fn parse_one_diag(obj: &[u8]) -> Option<Diag> {
-    // range.start: the FIRST "start" object's line/character.
-    let start_at = find_sub(obj, b"\"start\"")?;
-    let s_region = &obj[start_at..];
+    let range = top_level_object_field(obj, b"range")?;
+    let start_at = find_sub(range, b"\"start\"")?;
+    let s_region = &range[start_at..];
     let line = read_uint_after(s_region, b"\"line\"")? as i32;
     let col = read_uint_after(s_region, b"\"character\"")? as i32;
     // optional end character on the same start line for a wider underline.
-    let end_at = find_sub(obj, b"\"end\"");
+    let end_at = find_sub(range, b"\"end\"");
     let col_end = end_at
         .and_then(|e| {
-            let e_region = &obj[e..];
+            let e_region = &range[e..];
             let el = read_uint_after(e_region, b"\"line\"")?;
             let ec = read_uint_after(e_region, b"\"character\"")?;
             if el as i32 == line && (ec as i32) > col {
@@ -666,20 +666,15 @@ fn parse_one_diag(obj: &[u8]) -> Option<Diag> {
         })
         .unwrap_or(col + 1);
 
-    let severity = read_uint_after(obj, b"\"severity\"").unwrap_or(1);
+    let severity = top_level_uint_field(obj, b"severity").unwrap_or(1);
     let severity = if severity == 1 {
         Severity::Error
     } else {
         Severity::Warning
     };
-    let message = find_sub(obj, b"\"message\"")
-        .and_then(|m| read_json_string_at(obj, m + b"\"message\"".len()))
-        .map(|(s, _)| s)
-        .unwrap_or_default();
-    let code = find_sub(obj, b"\"code\"")
-        .and_then(|c| read_json_string_at(obj, c + b"\"code\"".len()))
-        .map(|(s, _)| s)
-        .or_else(|| read_uint_after(obj, b"\"code\"").map(|n| n.to_string()))
+    let message = top_level_json_string_field(obj, b"message").unwrap_or_default();
+    let code = top_level_json_string_field(obj, b"code")
+        .or_else(|| top_level_uint_field(obj, b"code").map(|n| n.to_string()))
         .unwrap_or_default();
 
     Some(Diag {
@@ -690,6 +685,90 @@ fn parse_one_diag(obj: &[u8]) -> Option<Diag> {
         code,
         message,
     })
+}
+
+fn top_level_object_field<'a>(obj: &'a [u8], field: &[u8]) -> Option<&'a [u8]> {
+    let value_start = top_level_field_value_start(obj, field)?;
+    if obj.get(value_start) != Some(&b'{') {
+        return None;
+    }
+    let value_end = match_brace(obj, value_start);
+    Some(&obj[value_start..value_end])
+}
+
+fn top_level_json_string_field(obj: &[u8], field: &[u8]) -> Option<String> {
+    top_level_field_value_start(obj, field)
+        .and_then(|value_start| read_json_string_at(obj, value_start))
+        .map(|(value, _)| value)
+}
+
+fn top_level_uint_field(obj: &[u8], field: &[u8]) -> Option<u32> {
+    let mut j = top_level_field_value_start(obj, field)?;
+    while j < obj.len() && obj[j].is_ascii_whitespace() {
+        j += 1;
+    }
+    let start = j;
+    let mut value: u32 = 0;
+    while j < obj.len() && obj[j].is_ascii_digit() {
+        value = value
+            .saturating_mul(10)
+            .saturating_add((obj[j] - b'0') as u32);
+        j += 1;
+    }
+    if j == start {
+        None
+    } else {
+        Some(value)
+    }
+}
+
+fn top_level_field_value_start(obj: &[u8], field: &[u8]) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut esc = false;
+    let mut k = 0usize;
+    while k < obj.len() {
+        let b = obj[k];
+        if in_str {
+            if esc {
+                esc = false;
+            } else if b == b'\\' {
+                esc = true;
+            } else if b == b'"' {
+                in_str = false;
+            }
+            k += 1;
+            continue;
+        }
+
+        match b {
+            b'"' => {
+                if depth == 1
+                    && obj.get(k + 1..k + 1 + field.len()) == Some(field)
+                    && obj.get(k + 1 + field.len()) == Some(&b'"')
+                {
+                    let mut p = k + field.len() + 2;
+                    while p < obj.len() && obj[p].is_ascii_whitespace() {
+                        p += 1;
+                    }
+                    if obj.get(p) != Some(&b':') {
+                        return None;
+                    }
+                    p += 1;
+                    while p < obj.len() && obj[p].is_ascii_whitespace() {
+                        p += 1;
+                    }
+                    return Some(p);
+                }
+                in_str = true;
+            }
+            b'{' | b'[' => depth += 1,
+            b'}' | b']' => depth -= 1,
+            _ => {}
+        }
+        k += 1;
+    }
+    None
 }
 
 /// Read an unsigned int value of `key` in `region`.
@@ -948,6 +1027,18 @@ mod tests {
 
         assert_eq!(diags.len(), 1);
         assert_eq!(diags[0].code, "6133");
+    }
+
+    #[test]
+    fn diagnostics_range_ignores_related_information_ranges() {
+        let stream = r#"{"params":{"diagnostics":[{"relatedInformation":[{"location":{"uri":"file:///x/dep.rs","range":{"start":{"line":99,"character":1},"end":{"line":99,"character":2}}},"message":"related"}],"range":{"start":{"line":4,"character":3},"end":{"line":4,"character":8}},"severity":1,"message":"primary"}]}}"#;
+        let diags = parse_publish_diagnostics(stream);
+
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].line, 4);
+        assert_eq!(diags[0].col_start, 3);
+        assert_eq!(diags[0].col_end, 8);
+        assert_eq!(diags[0].message, "primary");
     }
 
     #[test]

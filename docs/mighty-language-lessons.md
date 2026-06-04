@@ -9862,3 +9862,17 @@ active document.
 - **Language note:** no compiler gap surfaced. Once URI decoding is available,
   every response path that decides document identity should reuse it instead of
   relying on byte-for-byte URI echo behavior.
+
+## L809 - Diagnostic Related Ranges Are Not Primary Ranges
+
+LSP diagnostic objects can include `relatedInformation` entries with their own
+locations, ranges, and messages. JSON field order is not fixed, so scanning for
+the first nested `range` or `message` can underline a related file location and
+display secondary text instead of the diagnostic itself.
+
+- **IDE note:** diagnostic parsing now reads the diagnostic object's top-level
+  `range`, `severity`, `code`, and `message` fields before building the Problems
+  entry or editor underline, ignoring nested related-information payloads.
+- **Language note:** no compiler gap surfaced. Hand-written JSON scanners need
+  field-scope helpers for object-shaped protocols; payload-order assumptions are
+  too fragile for LSP responses.

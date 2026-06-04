@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Diagnostics ignore related-information ranges**: generic LSP diagnostics now
+  read the diagnostic's own top-level `range`, `severity`, `code`, and
+  `message` fields, so related-information locations cannot move the underline
+  or replace the primary message.
 - **Diagnostics match equivalent file URIs**: generic LSP diagnostics now accept
   case-varied schemes, `localhost` authorities, and percent-hex casing changes
   when matching a publish notification to the active document.
