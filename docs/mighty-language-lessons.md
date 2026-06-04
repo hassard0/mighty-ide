@@ -9834,3 +9834,17 @@ different document URIs by stricter servers.
 - **Language note:** no compiler gap surfaced. URI construction and URI parsing
   should live as a shared pair; otherwise response handling can be correct while
   request identity still breaks for real-world file names.
+
+## L807 - UNC File URIs Use The Authority Slot
+
+Windows network paths are not ordinary absolute local paths. A path such as
+`\\server\share\file.mty` should become `file://server/share/file.mty`, where
+`server` is the URI authority. Emitting `file:////server/share/file.mty` makes
+the server/share pair look like local path segments instead.
+
+- **IDE note:** the shared LSP file-URI builder now detects normalized `//`
+  paths before generic absolute paths and emits UNC authority-form file URIs,
+  still percent-encoding path bytes inside the share path.
+- **Language note:** no compiler gap surfaced. Windows drive paths, POSIX paths,
+  and UNC paths need distinct URI construction branches even when the later path
+  decoder can accept all three forms.

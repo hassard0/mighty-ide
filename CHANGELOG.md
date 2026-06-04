@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **LSP requests emit UNC authorities correctly**: network paths such as
+  `\\server\share\file` now become `file://server/share/file` instead of a
+  four-slash local path URI.
 - **LSP requests percent-encode file paths**: completion, hover, definition,
   rename, code-action, diagnostics, and generic LSP requests now share one
   file-URI builder that encodes spaces, `#`, `?`, and non-ASCII path bytes.

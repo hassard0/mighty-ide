@@ -1029,6 +1029,10 @@ mod tests {
             file_uri(Path::new(r"C:\x y\hash#query?.rs")),
             "file:///C:/x%20y/hash%23query%3F.rs"
         );
+        assert_eq!(
+            file_uri(Path::new(r"\\server\share folder\main.rs")),
+            "file://server/share%20folder/main.rs"
+        );
     }
 
     #[test]

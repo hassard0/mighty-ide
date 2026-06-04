@@ -394,7 +394,9 @@ pub fn paths_equal(a: &std::path::Path, b: &std::path::Path) -> bool {
 pub fn path_to_file_uri(path: &std::path::Path) -> String {
     let path = path.to_string_lossy().replace('\\', "/");
     let encoded = percent_encode_file_path(&path);
-    if encoded.starts_with('/') {
+    if encoded.starts_with("//") {
+        format!("file:{encoded}")
+    } else if encoded.starts_with('/') {
         format!("file://{encoded}")
     } else {
         format!("file:///{encoded}")
@@ -1433,6 +1435,14 @@ mod tests {
         let path = std::path::Path::new(r"C:\tmp\東京😀.mty");
         let uri = path_to_file_uri(path);
         assert_eq!(uri, "file:///C:/tmp/%E6%9D%B1%E4%BA%AC%F0%9F%98%80.mty");
+        assert_eq!(uri_to_path(&uri).unwrap(), path);
+    }
+
+    #[test]
+    fn path_to_file_uri_emits_unc_authority() {
+        let path = std::path::Path::new(r"\\server\share folder\foo#bar.mty");
+        let uri = path_to_file_uri(path);
+        assert_eq!(uri, "file://server/share%20folder/foo%23bar.mty");
         assert_eq!(uri_to_path(&uri).unwrap(), path);
     }
 
