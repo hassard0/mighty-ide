@@ -8890,3 +8890,18 @@ muscle-memory shortcut.
   first-class command/action metadata so Mighty can share focus effects between
   command IDs and direct shortcut branches instead of spelling out scalar flag
   updates in each route.
+
+## L742 - Modal Utility Commands Also Own Input
+
+Utility overlays can look informational, but once a command opens or mutates
+one, it becomes the next interaction owner. Leaving an old dock, sidebar, or
+search navigation flag alive after a modal command makes the following key event
+depend on stale state instead of the visible UI.
+
+- **IDE note:** Keyboard Shortcuts open/reset-selected/reset-all/close commands
+  now release Run/Web/Testing/Terminal/AI/Agents/search focus around the modal
+  overlay, and New Project's prompt fallback releases the same stale surface
+  set when the native picker falls back to text input.
+- **Language note:** no compiler gap surfaced. This is another case where
+  command metadata should eventually carry focus effects so modal ownership is
+  declared once instead of repeated in command-specific branches.

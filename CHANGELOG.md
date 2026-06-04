@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Editing & layout
+- **Modal command focus is consistent**: Keyboard Shortcuts open/reset/close
+  commands and the New Project prompt fallback now clear stale
+  Run/Web/Testing/Terminal/AI/Agents/search focus when they move interaction
+  into modal or prompt-owned UI.
 - **Editor shortcuts release stale panel focus**: Ctrl+I, Ctrl+F, Ctrl+G,
   Ctrl+H, Ctrl+K, Ctrl+., Ctrl+Shift+Space, F2, F12, Alt+F12, Ctrl+O,
   Ctrl+Shift+S prompt fallbacks, and direct tab-switch shortcuts now clear

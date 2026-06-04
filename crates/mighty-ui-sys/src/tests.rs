@@ -11404,18 +11404,39 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main.contains("id == cmd_keyboard_shortcuts_close()")
-            && main.contains("let _kc = mui_keys_close(h)"),
-        "Keyboard Shortcuts close command must call the dedicated close ABI"
+            && main.contains("let _kc = mui_keys_close(h)")
+            && main.contains(
+                "let _kc = mui_keys_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "Keyboard Shortcuts close command must call the dedicated close ABI and release stale focus"
     );
     assert!(
         main.contains("id == cmd_keyboard_shortcuts_reset_selected()")
-            && main.contains("let _ksr = mui_keys_reset_selected_command(h)"),
-        "Keyboard Shortcuts reset-selected command must call the dedicated command ABI"
+            && main.contains("let _ksr = mui_keys_reset_selected_command(h)")
+            && main.contains(
+                "let _ksr = mui_keys_reset_selected_command(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "Keyboard Shortcuts reset-selected command must call the dedicated command ABI and release stale focus"
     );
     assert!(
         main.contains("id == cmd_keyboard_shortcuts_reset_all()")
-            && main.contains("let _ksa = mui_keys_reset_all_command(h)"),
-        "Keyboard Shortcuts reset-all command must call the dedicated command ABI"
+            && main.contains("let _ksa = mui_keys_reset_all_command(h)")
+            && main.contains(
+                "let _ksa = mui_keys_reset_all_command(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+            ),
+        "Keyboard Shortcuts reset-all command must call the dedicated command ABI and release stale focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_keyboard_shortcuts() {\n          mui_keys_open(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+        ),
+        "Keyboard Shortcuts open command must release stale surface focus"
+    );
+    assert!(
+        main.contains(
+            "id == cmd_new_project() {\n          let np = mui_newproj_dialog(h)\n          if np == -1 {\n            mui_prompt_open(h, prompt_new_project())\n            prompt_kind = prompt_new_project()\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n          }\n          find_nav = false"
+        ),
+        "New Project prompt fallback must release stale surface focus"
     );
     assert!(
         main.contains("kh == 4")

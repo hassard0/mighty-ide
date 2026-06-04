@@ -5503,17 +5503,51 @@ fn main() {
           term_focus = false
         } else if id == cmd_keyboard_shortcuts() {
           mui_keys_open(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_keyboard_shortcuts_reset_selected() {
           let _ksr = mui_keys_reset_selected_command(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_keyboard_shortcuts_reset_all() {
           let _ksa = mui_keys_reset_all_command(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_keyboard_shortcuts_close() {
           let _kc = mui_keys_close(h)
+          run_focus = false
+          web_focus = false
+          test_focus = false
+          term_focus = false
+          ai_focus = false
+          agents_focus = false
+          find_nav = false
         } else if id == cmd_new_project() {
           let np = mui_newproj_dialog(h)
           if np == -1 {
             mui_prompt_open(h, prompt_new_project())
             prompt_kind = prompt_new_project()
+            run_focus = false
+            web_focus = false
+            test_focus = false
+            term_focus = false
+            ai_focus = false
+            agents_focus = false
           }
           find_nav = false
         }
