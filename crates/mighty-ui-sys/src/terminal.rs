@@ -922,6 +922,42 @@ impl VtParser {
         self.cursor_shape
     }
 
+    fn foreground_rgba(&self, fg: u32) -> (f32, f32, f32, f32) {
+        if fg == DEFAULT_FG {
+            return rgb8_rgba(self.default_fg_rgb, 1.0);
+        }
+
+        if fg & TRUECOLOR_MASK != 0 {
+            let r = ((fg >> 16) & 0xff) as u8;
+            let g = ((fg >> 8) & 0xff) as u8;
+            let b = (fg & 0xff) as u8;
+            return rgb8_rgba((r, g, b), 1.0);
+        }
+
+        if fg <= 255 {
+            return rgb8_rgba(self.palette_rgb[fg as usize], 1.0);
+        }
+
+        rgb8_rgba(self.default_fg_rgb, 1.0)
+    }
+
+    fn background_rgba(&self, bg: u32) -> Option<(f32, f32, f32, f32)> {
+        if bg == DEFAULT_BG {
+            return if self.default_bg_rgb == DEFAULT_BG_RGB {
+                None
+            } else {
+                Some(rgb8_rgba(self.default_bg_rgb, 0.72))
+            };
+        }
+
+        let (r, g, b, _) = self.foreground_rgba(bg);
+        Some((r, g, b, 0.72))
+    }
+
+    fn cursor_rgba(&self) -> (f32, f32, f32, f32) {
+        rgb8_rgba(self.cursor_rgb, 0.6)
+    }
+
     pub fn application_cursor_keys(&self) -> bool {
         self.application_cursor_keys
     }
@@ -2293,6 +2329,10 @@ fn unit_to_byte(value: f32) -> u8 {
     (value.clamp(0.0, 1.0) * 255.0).round() as u8
 }
 
+fn rgb8_rgba((r, g, b): (u8, u8, u8), alpha: f32) -> (f32, f32, f32, f32) {
+    (r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, alpha)
+}
+
 fn parse_sgr_params(params: &str) -> Vec<Option<i32>> {
     let mut out = Vec::new();
     for part in params.split(';') {
@@ -2414,6 +2454,7 @@ pub fn palette_rgba(fg: u32) -> (f32, f32, f32, f32) {
 /// Resolve a terminal background color code to RGBA. [`DEFAULT_BG`] is
 /// transparent so the terminal panel background shows through when no SGR
 /// background is active.
+#[cfg(test)]
 pub fn background_rgba(bg: u32) -> Option<(f32, f32, f32, f32)> {
     if bg == DEFAULT_BG {
         return None;
@@ -2548,6 +2589,18 @@ impl Terminal {
 
     pub fn cursor_shape(&self) -> CursorShape {
         self.parser.cursor_shape()
+    }
+
+    pub fn foreground_rgba(&self, fg: u32) -> (f32, f32, f32, f32) {
+        self.parser.foreground_rgba(fg)
+    }
+
+    pub fn background_rgba(&self, bg: u32) -> Option<(f32, f32, f32, f32)> {
+        self.parser.background_rgba(bg)
+    }
+
+    pub fn cursor_rgba(&self) -> (f32, f32, f32, f32) {
+        self.parser.cursor_rgba()
     }
 
     pub fn title(&self) -> &str {
@@ -4440,6 +4493,46 @@ mod tests {
         assert!(g.contains("done"));
         assert!(!g.contains("#010203"));
         assert!(!g.contains("110"));
+    }
+
+    #[test]
+    fn osc_colors_resolve_for_terminal_drawing() {
+        let mut g = Grid::new(1, 40);
+        let mut p = VtParser::new();
+        p.feed(
+            &mut g,
+            b"\x1b]10;#010203\x07\
+              \x1b]11;#040506\x07\
+              \x1b]12;#070809\x07\
+              \x1b]4;1;#0a0b0c\x07",
+        );
+
+        assert_eq!(p.foreground_rgba(DEFAULT_FG), rgb8_rgba((1, 2, 3), 1.0));
+        assert_eq!(
+            p.background_rgba(DEFAULT_BG),
+            Some(rgb8_rgba((4, 5, 6), 0.72))
+        );
+        assert_eq!(p.cursor_rgba(), rgb8_rgba((7, 8, 9), 0.6));
+        assert_eq!(p.foreground_rgba(1), rgb8_rgba((10, 11, 12), 1.0));
+        assert_eq!(
+            p.foreground_rgba(encode_truecolor(13, 14, 15)),
+            rgb8_rgba((13, 14, 15), 1.0)
+        );
+    }
+
+    #[test]
+    fn osc_color_resets_restore_drawing_defaults() {
+        let mut g = Grid::new(1, 40);
+        let mut p = VtParser::new();
+        p.feed(
+            &mut g,
+            b"\x1b]10;#010203\x07\x1b]11;#040506\x07\x1b]12;#070809\x07\
+              \x1b]110\x07\x1b]111\x07\x1b]112\x07",
+        );
+
+        assert_eq!(p.foreground_rgba(DEFAULT_FG), rgb8_rgba(DEFAULT_FG_RGB, 1.0));
+        assert_eq!(p.background_rgba(DEFAULT_BG), None);
+        assert_eq!(p.cursor_rgba(), rgb8_rgba(DEFAULT_CURSOR_RGB, 0.6));
     }
 
     #[test]

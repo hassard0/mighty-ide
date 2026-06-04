@@ -7461,7 +7461,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
 
     // Snapshot the grid into owned data so the borrow on `ctx.terminal` ends
     // before we borrow `ctx.text`.
-    let (rows, cols, cursor, cursor_visible, cursor_blinking, cursor_shape, backgrounds, glyphs) = {
+    let (rows, cols, cursor, cursor_visible, cursor_blinking, cursor_shape, cursor_color, backgrounds, glyphs) = {
         let Some(t) = ctx.terminal.as_ref() else {
             return;
         };
@@ -7478,7 +7478,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 while col < cols && g.cell(r, col).bg == bg {
                     col += 1;
                 }
-                if let Some(color) = crate::terminal::background_rgba(bg) {
+                if let Some(color) = t.background_rgba(bg) {
                     let x = layout::term_cell_x(region, start);
                     let w = (col - start) as f32 * layout::CHAR_W();
                     bg_runs.push((x, y, w, color));
@@ -7503,7 +7503,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 // Trim a trailing run of spaces (don't draw blank tails).
                 if !s.trim_end().is_empty() {
                     let x = layout::term_cell_x(region, start);
-                    runs.push((x, y, s, crate::terminal::palette_rgba(fg)));
+                    runs.push((x, y, s, t.foreground_rgba(fg)));
                 }
             }
         }
@@ -7514,6 +7514,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
             t.cursor_visible(),
             t.cursor_blinking(),
             t.cursor_shape(),
+            t.cursor_rgba(),
             bg_runs,
             runs,
         )
@@ -7535,6 +7536,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
         && cr < rows
         && cc <= cols
     {
+        let (cursor_r, cursor_g, cursor_b, cursor_a) = cursor_color;
         let cx = layout::term_cell_x(region, cc);
         let mut cy = layout::term_cell_y(height, cr);
         let mut cw = layout::CHAR_W();
@@ -7557,7 +7559,7 @@ pub extern "C" fn mui_term_draw(handle: i64) {
                 cy,
                 cw,
                 ch,
-                MuiColor::new(0.486, 0.361, 1.0, 0.6),
+                MuiColor::new(cursor_r, cursor_g, cursor_b, cursor_a),
             );
         }
     }

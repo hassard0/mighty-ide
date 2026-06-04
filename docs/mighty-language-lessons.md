@@ -8065,3 +8065,14 @@ identity after temporary theme changes.
   background, and cursor color resets, restoring subsequent `OSC 10/11/12`
   query replies to Mighty IDE's built-in defaults. Regression coverage verifies
   the resets across BEL, 7-bit ST, and 8-bit OSC/ST forms.
+
+L667. Terminal color state has to feed rendering, not only replies. A parser can
+truthfully answer OSC color queries while the visible grid still paints from a
+static palette, which makes theme-aware TUIs look wrong even though probe
+responses are correct.
+
+- **IDE note:** terminal drawing now resolves foregrounds, backgrounds, palette
+  entries, and cursor color through the live parser state. `OSC 4`,
+  `OSC 10/11/12`, `OSC 104`, and `OSC 110/111/112` therefore affect the rendered
+  terminal surface as well as query replies, with tests pinning dynamic draw
+  color resolution and reset behavior.
