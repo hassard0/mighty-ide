@@ -11721,3 +11721,20 @@ cannot run on the target platform.
 - **Language note:** no compiler gap surfaced. Native release workflows should
   fail before archive creation when the staged package mixes OS families, not
   rely on manual inspection after upload.
+
+## L947 - Active File Copy Failures Should Preserve Clipboard Write Errors
+
+The active-file copy commands had been improved to name the target path, relative
+path, basename, or directory, but they still flattened clipboard write failures
+to `Could not copy path: file.mty`. That made these command-palette file helpers
+less actionable than editor copy, cut, and terminal copy, which now preserve the
+host clipboard error.
+
+- **IDE note:** active-file Copy Path, Copy Relative Path, Copy File Name, and
+  Copy Directory failures now append the clipboard write error while preserving
+  the target (`Could not copy relative path: src/main.mty: clipboard command
+  failed`). A focused ABI test forces the clipboard write failure and verifies
+  all four command paths report the reason.
+- **Language note:** no compiler gap surfaced. Reusable host-integration
+  helpers should carry both the selected target and the platform failure reason
+  through scalar ABI command surfaces.

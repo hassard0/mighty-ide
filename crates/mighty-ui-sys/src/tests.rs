@@ -6721,27 +6721,71 @@ fn active_file_name_and_directory_text_are_clipboard_ready() {
 #[test]
 fn active_file_os_failure_messages_name_the_target() {
     let path = std::path::Path::new("C:\\workspace\\src\\main.mty");
+    let err = std::io::Error::new(std::io::ErrorKind::Other, "clipboard command failed");
 
     assert_eq!(
         crate::abi::file_manager_reveal_failed_message(path),
         "Could not show main.mty in file manager"
     );
     assert_eq!(
-        crate::abi::copy_path_failed_message(path),
-        "Could not copy path: main.mty"
+        crate::abi::copy_path_failed_message(path, &err),
+        "Could not copy path: main.mty: clipboard command failed"
     );
     assert_eq!(
-        crate::abi::copy_relative_path_failed_message("src/main.mty"),
-        "Could not copy relative path: src/main.mty"
+        crate::abi::copy_relative_path_failed_message("src/main.mty", &err),
+        "Could not copy relative path: src/main.mty: clipboard command failed"
     );
     assert_eq!(
-        crate::abi::copy_file_name_failed_message("main.mty"),
-        "Could not copy file name: main.mty"
+        crate::abi::copy_file_name_failed_message("main.mty", &err),
+        "Could not copy file name: main.mty: clipboard command failed"
     );
     assert_eq!(
-        crate::abi::copy_directory_failed_message("C:/workspace/src"),
-        "Could not copy directory: C:/workspace/src"
+        crate::abi::copy_directory_failed_message("C:/workspace/src", &err),
+        "Could not copy directory: C:/workspace/src: clipboard command failed"
     );
+}
+
+#[test]
+fn active_file_copy_failures_report_clipboard_write_reason() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    std::env::set_var("MUI_CLIPBOARD_WRITE_FORCE_FAIL", "clipboard command failed");
+    let root = std::env::temp_dir().join(format!("mui_active_copy_fail_{}", std::process::id()));
+    let src = root.join("src");
+    std::fs::create_dir_all(&src).unwrap();
+    let file = src.join("main.mty");
+    std::fs::write(&file, b"fn main() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tabs.open_path(file);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::abi::mui_file_copy_active_path(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Could not copy path: main.mty: clipboard command failed"
+    );
+    assert_eq!(crate::abi::mui_file_copy_active_relative_path(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Could not copy relative path: src/main.mty: clipboard command failed"
+    );
+    assert_eq!(crate::abi::mui_file_copy_active_name(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Could not copy file name: main.mty: clipboard command failed"
+    );
+    assert_eq!(crate::abi::mui_file_copy_active_directory(handle), 0);
+    let expected_directory = format!(
+        "Could not copy directory: {}: clipboard command failed",
+        src.to_string_lossy().replace('\\', "/")
+    );
+    assert_eq!(ctx.toasts.toasts().last().unwrap().message, expected_directory);
+
+    std::env::remove_var("MUI_CLIPBOARD_WRITE_FORCE_FAIL");
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]
