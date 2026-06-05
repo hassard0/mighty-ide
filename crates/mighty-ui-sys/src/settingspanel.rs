@@ -237,58 +237,60 @@ impl SettingsPanel {
     /// Adjust the selected NUMERIC row by `delta` (font px or tab spaces). For
     /// the Theme row, `delta` cycles the theme. No-op for boolean rows. Applies
     /// live + persists.
-    pub fn adjust(&mut self, delta: i32) {
+    pub fn adjust(&mut self, delta: i32) -> bool {
         match self.selected() {
             RowId::FontSize => {
                 settings::update(|s| s.font_size += delta as f32);
-                settings::save();
+                settings::save()
             }
             RowId::TabWidth => {
                 settings::update(|s| s.tab_width += delta);
-                settings::save();
+                settings::save()
             }
             RowId::Theme => self.cycle_theme(delta),
-            _ => {}
+            _ => true,
         }
     }
 
     /// Toggle / activate the selected row: flips a boolean row, cycles the theme
     /// forward, or (for a numeric row) bumps it up by one. Applies live + saves.
-    pub fn toggle(&mut self) {
+    pub fn toggle(&mut self) -> bool {
         match self.selected() {
             RowId::WordWrap => {
                 settings::update(|s| s.word_wrap = !s.word_wrap);
-                settings::save();
+                settings::save()
             }
             RowId::Minimap => {
                 settings::update(|s| s.minimap = !s.minimap);
-                settings::save();
+                settings::save()
             }
             RowId::BracketColors => {
                 settings::update(|s| s.bracket_colors = !s.bracket_colors);
-                settings::save();
+                settings::save()
             }
             RowId::IndentGuides => {
                 settings::update(|s| s.indent_guides = !s.indent_guides);
-                settings::save();
+                settings::save()
             }
             RowId::InlineAi => {
                 if inline_ai_key_available() {
                     settings::update(|s| s.inline_ai = !s.inline_ai);
-                    settings::save();
+                    settings::save()
+                } else {
+                    true
                 }
             }
             RowId::TrimWhitespace => {
                 settings::update(|s| s.trim_ws = !s.trim_ws);
-                settings::save();
+                settings::save()
             }
             RowId::FinalNewline => {
                 settings::update(|s| s.final_newline = !s.final_newline);
-                settings::save();
+                settings::save()
             }
             RowId::AutoSave => {
                 settings::update(|s| s.autosave = !s.autosave);
-                settings::save();
+                settings::save()
             }
             RowId::Theme => self.cycle_theme(1),
             RowId::FontSize => self.adjust(1),
@@ -297,7 +299,7 @@ impl SettingsPanel {
     }
 
     /// Cycle the active theme by `delta` (wrapping) and persist.
-    fn cycle_theme(&self, delta: i32) {
+    fn cycle_theme(&self, delta: i32) -> bool {
         let cur = theme::active_id();
         let n = ThemeId::ALL.len() as i32;
         let i = ThemeId::ALL.iter().position(|&t| t == cur).unwrap_or(0) as i32;
@@ -307,7 +309,7 @@ impl SettingsPanel {
         }
         let next = ThemeId::ALL[j as usize];
         theme::set_active(next);
-        crate::config::save_all();
+        crate::config::save_all()
     }
 
     /// The display value string for a row (read live from settings/theme).

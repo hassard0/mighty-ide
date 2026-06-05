@@ -88,6 +88,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Settings persistence failures are visible**: Settings panel changes still
+  apply live, but failed config writes now warn that the preference may reset
+  after restart instead of looking durably saved.
 - **Zoom preference failures are visible**: zoom commands still apply
   immediately, but failed persistence now logs the config I/O error and shows a
   warning that the zoom will reset after restart.

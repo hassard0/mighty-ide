@@ -3373,6 +3373,52 @@ fn settings_close_acknowledges_state() {
 }
 
 #[test]
+fn settings_persistence_failure_reports_visible_feedback() {
+    use crate::featureabi::{mui_settings_move, mui_settings_open, mui_settings_toggle};
+
+    let _guard = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before_settings = crate::settings::active();
+    let before_theme = crate::theme::active_id();
+    crate::settings::set_active(crate::settings::Settings::default());
+    crate::theme::set_active(crate::theme::ThemeId::Vivid);
+
+    let blocked = std::env::temp_dir().join(format!(
+        "mighty-ide-settings-config-blocked-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_file(&blocked);
+    let _ = std::fs::remove_dir_all(&blocked);
+    std::fs::write(&blocked, b"not a directory").unwrap();
+    let old_override = std::env::var_os("MUI_CONFIG_DIR");
+    std::env::set_var("MUI_CONFIG_DIR", &blocked);
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    assert_eq!(mui_settings_open(handle), 1);
+    mui_settings_move(handle, 2); // Word Wrap
+    assert!(!crate::settings::word_wrap());
+    mui_settings_toggle(handle);
+    assert!(crate::settings::word_wrap());
+
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Settings not saved; changes may reset after restart"
+    );
+
+    match old_override {
+        Some(v) => std::env::set_var("MUI_CONFIG_DIR", v),
+        None => std::env::remove_var("MUI_CONFIG_DIR"),
+    }
+    crate::settings::set_active(before_settings);
+    crate::theme::set_active(before_theme);
+    let _ = std::fs::remove_file(&blocked);
+}
+
+#[test]
 fn search_panel_clicks_focus_fields_and_return_actions() {
     use crate::ffi::MuiEvent;
 

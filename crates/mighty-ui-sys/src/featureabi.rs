@@ -1434,7 +1434,12 @@ pub extern "C" fn mui_settings_click(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_settings_adjust(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        ctx.settings_panel.adjust(delta);
+        if !ctx.settings_panel.adjust(delta) {
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                "Settings not saved; changes may reset after restart",
+            );
+        }
     }
 }
 
@@ -1443,7 +1448,12 @@ pub extern "C" fn mui_settings_adjust(handle: i64, delta: i32) {
 #[no_mangle]
 pub extern "C" fn mui_settings_toggle(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        ctx.settings_panel.toggle();
+        if !ctx.settings_panel.toggle() {
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                "Settings not saved; changes may reset after restart",
+            );
+        }
     }
 }
 
