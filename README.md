@@ -220,6 +220,10 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Breakpoint jumps reject directory targets from stale debug rows instead of
   opening an empty tab, then prune the stale breakpoint so repeated clicks no
   longer target a non-file row
+- Panel and navigation overlay drawing, including Prompt, Problems, Branch
+  Switcher, AI Copilot, Breadcrumb menus, Sticky Scroll, and Peek Definition,
+  preserves the caller's overlay layer state so later overlay text and chrome
+  stay on the overlay layer
 
 - Test result jumps name missing stale suite files instead of reporting a
   generic unresolved row

@@ -96,6 +96,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Help, Rename, Code Actions, and Find & Replace drawing now restore the
   caller's overlay flag instead of always clearing it, preventing later popup
   chrome from being queued on the base layer.
+- **Panel and navigation draw preserves overlay state**: Prompt, Problems,
+  Branch Switcher, AI Copilot, Breadcrumb menus, Sticky Scroll, and Peek
+  Definition drawing now restore the caller's overlay flag instead of always
+  clearing it, leaving frame-start as the only source-level overlay reset.
 - **Prompt stale submit routes are visible**: stale Go-to-Line and Find submit
   routes now report `No prompt input open` after the prompt has closed instead
   of treating the route as an empty query.

@@ -12036,6 +12036,81 @@ fn editor_popup_draws_restore_existing_overlay_state() {
 }
 
 #[test]
+fn panel_and_navigation_draws_restore_existing_overlay_state() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 600;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_prompt_open(handle, 2);
+    ctx.overlay = true;
+    crate::mui_prompt_draw(handle);
+    assert!(ctx.overlay, "prompt draw must preserve caller overlay state");
+    assert_eq!(crate::mui_prompt_cancel(handle), 1);
+
+    ctx.problems.set_open(true);
+    ctx.overlay = true;
+    crate::navsurfaces::mui_problems_draw(handle);
+    assert!(ctx.overlay, "Problems draw must preserve caller overlay state");
+    assert_eq!(crate::navsurfaces::mui_problems_close(handle), 1);
+
+    ctx.branch_picker.open(&crate::scm::BranchList {
+        entries: vec![
+            crate::scm::BranchEntry {
+                name: "main".to_string(),
+                current: true,
+                remote: false,
+            },
+            crate::scm::BranchEntry {
+                name: "feature/overlay".to_string(),
+                current: false,
+                remote: false,
+            },
+        ],
+    });
+    ctx.overlay = true;
+    crate::panels::mui_branch_draw(handle);
+    assert!(ctx.overlay, "branch picker draw must preserve caller overlay state");
+    assert_eq!(crate::panels::mui_branch_cancel(handle), 1);
+
+    ctx.ai.open = true;
+    ctx.overlay = true;
+    crate::panels::mui_ai_draw(handle);
+    assert!(ctx.overlay, "AI panel draw must preserve caller overlay state");
+    ctx.ai.open = false;
+
+    ctx.crumb_menu.open(
+        crate::crumbmenu::MenuKind::Files,
+        vec![crate::crumbmenu::MenuItem {
+            label: "main.mty".to_string(),
+            icon: None,
+            icon_color: crate::theme::TEXT(),
+            depth: 0,
+            target: 0,
+        }],
+        80.0,
+    );
+    ctx.overlay = true;
+    crate::navsurfaces::mui_crumb_menu_draw(handle);
+    assert!(ctx.overlay, "breadcrumb menu draw must preserve caller overlay state");
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_cancel(handle), 1);
+
+    assert!(ctx.peek.open_at(
+        std::path::PathBuf::from("peek_target.mty"),
+        0,
+        0,
+        0,
+        crate::langdetect::Language::Mighty,
+        Some("fn peek_target() {}\n")
+    ));
+    ctx.overlay = true;
+    crate::stickyabi::mui_peek_draw(handle, 0, 24);
+    assert!(ctx.overlay, "Peek draw must preserve caller overlay state");
+    assert_eq!(crate::stickyabi::mui_peek_close(handle), 1);
+}
+
+#[test]
 fn color_theme_persistence_failure_reports_visible_feedback() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();

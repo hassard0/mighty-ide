@@ -1351,13 +1351,14 @@ pub extern "C" fn mui_branch_draw(handle: i64) {
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let picker = std::mem::take(&mut ctx.branch_picker);
     let old_clip = ctx.clip;
+    let was_overlay = ctx.overlay;
     ctx.clip = None;
     ctx.overlay = true;
     ctx.text.clear_overlay_runs();
     ctx.text.set_overlay(true);
     draw_branch_picker(&picker, ctx, w, h);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.clip = old_clip;
     ctx.branch_picker = picker;
 }
@@ -2565,10 +2566,11 @@ pub extern "C" fn mui_ai_draw(handle: i64) {
     // Render on the overlay layer so the chat card occludes editor glyphs that
     // sit underneath the right-docked panel band.
     let panel = std::mem::take(&mut ctx.ai);
+    let was_overlay = ctx.overlay;
     ctx.overlay = true;
     ctx.text.set_overlay(true);
     panel.draw(ctx, visible_w, visible_h);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.ai = panel;
 }

@@ -4211,8 +4211,8 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
         false,
     );
     if max_w <= 1.0 {
-        ctx.text.set_overlay(false);
         ctx.overlay = was_overlay;
+        ctx.text.set_overlay(was_overlay);
         return;
     }
     let (label_w, _) = ctx.text.measure_ui_sized(&label, chrome);
@@ -4221,8 +4221,8 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
         if !label.is_empty() {
             ctx.text.queue_sized(text_x, text_y, &label, theme::TEXT_3(), chrome, clip);
         }
-        ctx.text.set_overlay(false);
         ctx.overlay = was_overlay;
+        ctx.text.set_overlay(was_overlay);
         return;
     }
     ctx.text.queue_sized(text_x, text_y, &label, theme::TEXT_3(), chrome, clip);
@@ -4231,8 +4231,8 @@ pub extern "C" fn mui_prompt_draw(handle: i64) {
     if !query.is_empty() {
         ctx.text.queue_sized(qx, text_y, &query, theme::TEXT(), chrome, clip);
     }
-    ctx.text.set_overlay(false);
     ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
 }
 
 pub(crate) fn prompt_draw_label(ctx: &MuiContext) -> String {

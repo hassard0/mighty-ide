@@ -65,11 +65,12 @@ pub extern "C" fn mui_sticky_draw(handle: i64, region: i32) {
     let lang = ctx.language;
     let total = ctx.tabs.active_model().line_count().max(1) as u64;
     let sticky = std::mem::take(&mut ctx.sticky);
+    let was_overlay = ctx.overlay;
     ctx.overlay = true;
     ctx.text.set_overlay(true);
     sticky.draw(ctx, lang, total);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.sticky = sticky;
 }
 
@@ -320,10 +321,11 @@ pub extern "C" fn mui_peek_draw(handle: i64, first: i32, rows: i32) {
     }
     let total = ctx.tabs.active_model().line_count().max(1) as u64;
     let peek = std::mem::take(&mut ctx.peek);
+    let was_overlay = ctx.overlay;
     ctx.overlay = true;
     ctx.text.set_overlay(true);
     peek.draw(ctx, first.max(0) as u32, rows.max(0) as u32, total);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.peek = peek;
 }

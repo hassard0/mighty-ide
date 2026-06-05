@@ -672,11 +672,12 @@ pub extern "C" fn mui_problems_draw(handle: i64) {
     }
     let left = layout::body_left(ctx.sidebar_visible);
     let panel = std::mem::take(&mut ctx.problems);
+    let was_overlay = ctx.overlay;
     ctx.overlay = true;
     ctx.text.set_overlay(true);
     panel.draw(ctx, left);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.problems = panel;
 }
 
@@ -997,11 +998,12 @@ pub extern "C" fn mui_crumb_menu_draw(handle: i64) {
         return;
     }
     let menu = std::mem::take(&mut ctx.crumb_menu);
+    let was_overlay = ctx.overlay;
     ctx.overlay = true;
     ctx.text.set_overlay(true);
     menu.draw(ctx);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.crumb_menu = menu;
 }
 
