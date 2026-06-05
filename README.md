@@ -18,6 +18,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - In-file find & replace (Ctrl+H), find with match highlighting (Ctrl+F)
 - Format document guards unsaved scratch buffers and dirty duplicate tabs with
   target-specific feedback
+- Save, Save As, and Save All reject directory targets with explicit `not a
+  file` feedback instead of surfacing raw platform write errors
 - **Multi-cursor** — select word / add caret at next occurrence (Ctrl+D), add caret above/below (Ctrl+Alt+↑/↓), toggle caret on Alt+Click
 - **Snippets** — type a prefix + Tab to expand a template with navigable tab-stops
 - **Save conveniences** — opt-in trim-trailing-whitespace, ensure-final-newline, and timed auto-save (Settings)

@@ -40,6 +40,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Quick Open rejects directory file rows**: accepting a file row whose indexed
   target became a directory now refreshes the file index, keeps Quick Open open,
   and reports `Quick Open target is not a file: <name>`.
+- **Save targets reject directories explicitly**: Save, Save As, and Save All
+  now preflight existing non-file targets and report `Save failed: <name>: not
+  a file` instead of leaking platform-specific write errors.
 - **Packages include a verification manifest**: Windows, macOS, Linux, and the
   Git-Bash Windows package path now write `PACKAGE-MANIFEST.txt` into the
   package root with platform/version metadata, native payload hashes and sizes,

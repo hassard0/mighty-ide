@@ -627,6 +627,24 @@ fn file_operation_failed_message(action: &str, path: &std::path::Path, e: &std::
     }
 }
 
+fn save_target_not_file_message(path: &std::path::Path) -> String {
+    format!("Save failed: {}: not a file", basename(path))
+}
+
+fn save_target_is_existing_non_file(path: &std::path::Path) -> bool {
+    path.exists() && !path.is_file()
+}
+
+fn reject_save_target_not_file(ctx: &mut MuiContext, path: &std::path::Path) -> i32 {
+    ctx.autosave.disarm();
+    refresh_workspace_file_views(ctx);
+    ctx.push_toast(
+        crate::toast::Kind::Error,
+        save_target_not_file_message(path),
+    );
+    -1
+}
+
 pub(crate) fn diagnostic_source_for_path(ctx: &MuiContext, path: &std::path::Path) -> Result<String, String> {
     if ctx.tabs.active_path().as_deref() == Some(path) {
         Ok(ctx.tabs.active_model().as_text().to_string())
@@ -12572,6 +12590,9 @@ fn save_active_current_path(ctx: &mut MuiContext) -> i32 {
     }
     let bytes = save_bytes_for_active(ctx);
     let name = basename(&path);
+    if save_target_is_existing_non_file(&path) {
+        return reject_save_target_not_file(ctx, &path);
+    }
     let resurrected_path = !path.is_file();
     match std::fs::write(&path, &bytes) {
         Ok(()) => {
@@ -12642,6 +12663,9 @@ fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf, toast_succe
             path.display()
         );
         return -1;
+    }
+    if save_target_is_existing_non_file(&path) {
+        return reject_save_target_not_file(ctx, &path);
     }
     let Some(tab) = ctx.tabs.get_mut(idx) else {
         return -1;
@@ -12758,6 +12782,14 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
         }
         if let Some(path) = tab.path.clone() {
             let bytes = save_bytes_for_tab(tab);
+            if save_target_is_existing_non_file(&path) {
+                failed += 1;
+                if first_failed_message.is_none() {
+                    first_failed_message = Some(save_target_not_file_message(&path));
+                }
+                eprintln!("mui_save_all({}): not a file", path.display());
+                continue;
+            }
             let resurrected_path = !path.is_file();
             match std::fs::write(&path, &bytes) {
                 Ok(()) => {
@@ -13003,6 +13035,9 @@ fn save_active_to_path(ctx: &mut MuiContext, target: PathBuf) -> i32 {
     }
     if let Some(parent) = target.parent() {
         let _ = std::fs::create_dir_all(parent);
+    }
+    if save_target_is_existing_non_file(&target) {
+        return reject_save_target_not_file(ctx, &target);
     }
     let bytes = save_bytes_for_active(ctx);
     let name = basename(&target);

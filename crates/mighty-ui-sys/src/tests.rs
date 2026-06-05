@@ -5772,11 +5772,7 @@ fn save_all_failure_reports_failed_file_count() {
     assert!(blocked.is_dir());
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert!(
-        toast.message.starts_with("Save All failed: blocked.mty: "),
-        "{}",
-        toast.message
-    );
+    assert_eq!(toast.message, "Save All failed: blocked.mty: not a file");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -14930,6 +14926,46 @@ fn save_as_dialog_failure_reports_filesystem_reason() {
 }
 
 #[test]
+fn save_as_dialog_rejects_directory_target_as_not_file() {
+    use crate::{mui_active_has_path, mui_ed_dirty, mui_save_as_dialog};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    crate::settings::set_active(crate::settings::Settings::default());
+
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("save me\n");
+    ctx.tabs.set_dirty(ctx.tabs.active(), true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_as_dialog_directory_target_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let target = root.join("folder.mty");
+    std::fs::create_dir_all(&target).unwrap();
+
+    std::env::set_var("MUI_SAVE_FILE_PICK", target.to_string_lossy().as_ref());
+    assert_eq!(mui_save_as_dialog(h), -1);
+    std::env::remove_var("MUI_SAVE_FILE_PICK");
+
+    assert!(target.is_dir());
+    assert_eq!(mui_active_has_path(h), 0);
+    assert_eq!(mui_ed_dirty(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "save me\n");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Save failed: folder.mty: not a file");
+
+    crate::settings::set_active(before);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn plain_save_on_untitled_uses_native_save_picker() {
     use crate::{mui_active_has_path, mui_ed_dirty, mui_ed_save};
 
@@ -14988,11 +15024,7 @@ fn plain_save_failure_reports_filesystem_reason() {
     assert!(blocked.is_dir());
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert!(
-        toast.message.starts_with("Save failed: blocked.mty: "),
-        "{}",
-        toast.message
-    );
+    assert_eq!(toast.message, "Save failed: blocked.mty: not a file");
 
     let _ = std::fs::remove_dir_all(&root);
 }

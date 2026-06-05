@@ -12779,3 +12779,17 @@ and missing-file checks.
 - **Language note:** no compiler gap surfaced. Fuzzy picker rows should treat
   row identity and filesystem object kind as separate invariants, both checked
   at the side-effect boundary.
+
+## L1020 - Save Boundaries Should Preflight Target Kind
+
+Write APIs report platform-specific errors when asked to write over a
+directory. That is technically correct but poor IDE feedback: the user needs to
+know the chosen save target is not a file, not parse an OS error string.
+
+- **IDE note:** Save, Save As, and Save All now preflight existing non-file
+  targets before writing. Directory targets leave dirty buffers intact, refresh
+  workspace file views, and report `Save failed: <name>: not a file` through
+  the normal save-failure toasts.
+- **Language note:** no compiler gap surfaced. Mutating filesystem commands
+  should validate the semantic target kind before invoking a lower-level API
+  whose error vocabulary is platform-specific.
