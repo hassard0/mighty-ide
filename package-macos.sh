@@ -192,6 +192,11 @@ fi
 echo "[6/6] archive"
 rm -f "$ZIP"
 tar -C dist -czf "$ZIP" "mighty-ide-macos"
+if tar -tzf "$ZIP" | grep -E '\.(pdb|lib|exp|ilk|obj|o|a|rlib|log|debug|map|exe|dll|so)$|\.dSYM(/|$)' >/dev/null; then
+  echo "ERROR: archive contains build byproducts or non-macOS native payloads:" >&2
+  tar -tzf "$ZIP" | grep -E '\.(pdb|lib|exp|ilk|obj|o|a|rlib|log|debug|map|exe|dll|so)$|\.dSYM(/|$)' >&2
+  exit 1
+fi
 
 find "$DIST_ROOT" -maxdepth 5 -type f | sort
 ls -lh "$ZIP"

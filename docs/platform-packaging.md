@@ -28,7 +28,10 @@ foreign-platform native payloads, and validate the native binary family before
 writing the archive. Windows checks PE headers in PowerShell and re-checks the
 executable after icon stamping.
 macOS and Linux require the standard `file` utility so Mach-O and ELF validation
-cannot be silently skipped.
+cannot be silently skipped. After the archive is written, each script scans the
+ZIP or tarball for the same sidecar and foreign-payload deny list, so the
+uploaded artifact is checked directly rather than inferred from the staging
+directory alone.
 
 The release invariant is one archive, one native binary family:
 
@@ -37,10 +40,10 @@ The release invariant is one archive, one native binary family:
 - Linux packages contain ELF files only for native code.
 
 The sidecar scan is intentionally shared in spirit across all three scripts:
-package trees must not contain `.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`,
-`.a`, `.rlib`, `.log`, `.debug`, `.map`, or `.dSYM` artifacts. A platform can
-still be stripped or symbolized before packaging, but those intermediate files
-must stay outside the release archive.
+package trees and finished archives must not contain `.pdb`, `.lib`, `.exp`,
+`.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, or `.dSYM`
+artifacts. A platform can still be stripped or symbolized before packaging, but
+those intermediate files must stay outside the release archive.
 
 If a platform archive cannot be built and smoke-tested on its native OS or a
 matching CI runner, do not publish a placeholder archive for that platform.
@@ -86,8 +89,8 @@ Expected artifacts:
 - `dist/mighty-ide-v0.3.0-win64.zip`
 
 The script checks both packaged binaries for PE headers and fails if any common
-build byproduct or Unix native library payload is found in the package
-directory.
+build byproduct or Unix native library payload is found in either the package
+directory or the final ZIP.
 
 Smoke-test by launching:
 
@@ -134,6 +137,7 @@ Both scripts:
 - verify the staged native binaries with `file`
 - reject native payloads that belong to another OS family
 - write a platform tarball under `dist/`
+- scan the platform tarball for build sidecars and foreign native payloads
 
 The resulting archives should be smoke-tested from the assembled package
 directory before upload.

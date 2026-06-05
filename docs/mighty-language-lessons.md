@@ -12690,3 +12690,18 @@ empty file-backed tab.
 - **Language note:** no compiler gap surfaced. Dialog results should be treated
   as untrusted input at the ABI boundary, even when the platform normally
   enforces the same constraints.
+
+## L1014 - Release Archives Need Their Own Clean-Binary Check
+
+Checking the assembled package directory catches most packaging mistakes, but
+the artifact users download is the compressed archive. A stale ZIP or tarball
+can still be wrong even when the staging tree was rebuilt cleanly.
+
+- **IDE note:** Windows, macOS, and Linux package scripts now scan the finished
+  archive for compiler/linker sidecars and foreign native payloads after the
+  staged package directory passes its native-binary checks. The README, build
+  notes, and platform packaging guide now describe the archive-level release
+  gate explicitly.
+- **Language note:** no compiler gap surfaced. Release automation should verify
+  the exact artifact boundary it intends to publish, not only the intermediate
+  directory used to build that artifact.

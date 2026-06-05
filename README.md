@@ -186,6 +186,9 @@ into `dist/` from a clean worktree, validate the staged native payloads, reject
 compiler/linker sidecars, reject obvious foreign-platform binaries, bundle the
 README/license/keybinding/build docs with platform-specific run instructions,
 and only then write the archive.
+After compression, each script also scans the final archive, so a release cannot
+pass because the staging tree was clean while the uploaded ZIP or tarball still
+contains a stray sidecar or wrong-platform native file.
 Each package also includes `PACKAGE-MANIFEST.txt`, a verification record with
 the platform, version, native payload hashes and sizes, and the clean binary
 checks completed before archiving.
@@ -211,6 +214,8 @@ Clean binary contract:
   files, import/static archives, PDB/ILK files, `.dSYM` bundles, `.debug` and
   `.map` symbol files, logs, and obvious foreign-platform native files before
   writing the archive.
+- Package scripts scan the finished archive for the same sidecar and
+  foreign-payload rules before reporting success.
 - macOS and Linux binaries must be produced on native hosts or matching CI
   runners; they are not cross-packaged from the Windows output.
 - If a native host is not available, leave that platform unbuilt rather than
@@ -218,9 +223,9 @@ Clean binary contract:
 
 | Platform | Command | Archive | Native payload checks |
 |----------|---------|---------|-----------------------|
-| Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.dylib`/`.so` files |
-| macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and `.dylib`; no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.exe`/`.dll`/`.so` files |
-| Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and `.so`; no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.exe`/`.dll`/`.dylib` files |
+| Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; staged tree and ZIP contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.dylib`/`.so` files |
+| macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and `.dylib`; staged tree and tarball contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.exe`/`.dll`/`.so` files |
+| Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and `.so`; staged tree and tarball contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.exe`/`.dll`/`.dylib` files |
 
 Minimum verification before upload:
 

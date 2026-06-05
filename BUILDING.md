@@ -54,6 +54,8 @@ byproducts such as object files, import/static archives, PDB/ILK files, `.dSYM`
 bundles, `.debug`/`.map` symbol files, and logs, rejecting obvious
 foreign-platform native files, and checking that the staged native binaries
 match the host platform format before the archive is written.
+After compression, the scripts scan the finished ZIP or tarball for the same
+sidecar and foreign-platform deny list before reporting success.
 The scripts also bundle the README, license, keybinding reference,
 changelog, build notes, platform packaging notes, samples, and platform-specific
 `RUN.txt` instructions. They also write `PACKAGE-MANIFEST.txt` into the package

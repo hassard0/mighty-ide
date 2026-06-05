@@ -167,6 +167,11 @@ fi
 echo "[6/6] archive"
 rm -f "$ZIP"
 tar -C dist -czf "$ZIP" "$PKG"
+if tar -tzf "$ZIP" | grep -E '\.(pdb|lib|exp|ilk|obj|o|a|rlib|log|debug|map|exe|dll|dylib)$|\.dSYM(/|$)' >/dev/null; then
+  echo "ERROR: archive contains build byproducts or non-Linux native payloads:" >&2
+  tar -tzf "$ZIP" | grep -E '\.(pdb|lib|exp|ilk|obj|o|a|rlib|log|debug|map|exe|dll|dylib)$|\.dSYM(/|$)' >&2
+  exit 1
+fi
 
 find "$DIST" -maxdepth 3 -type f | sort
 ls -lh "$ZIP"

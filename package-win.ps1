@@ -74,6 +74,25 @@ function Assert-NoBuildSidecars {
   }
 }
 
+function Assert-ZipHasCleanBinaries {
+  param([Parameter(Mandatory = $true)][string]$Archive)
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  $full = Resolve-Path -LiteralPath $Archive
+  $zip = [System.IO.Compression.ZipFile]::OpenRead($full)
+  try {
+    $bad = $zip.Entries |
+      Where-Object {
+        $_.FullName -match '\.(pdb|lib|exp|ilk|obj|o|a|rlib|log|debug|map|dylib|so)$|\.dSYM(/|$)'
+      }
+    if ($bad) {
+      $names = ($bad | ForEach-Object { $_.FullName }) -join [Environment]::NewLine
+      throw "archive contains build sidecars or non-Windows native payloads:$([Environment]::NewLine)$names"
+    }
+  } finally {
+    $zip.Dispose()
+  }
+}
+
 function Write-PackageManifest {
   param(
     [Parameter(Mandatory = $true)][string]$Path,
@@ -172,6 +191,7 @@ try {
   )
   Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
   Compress-Archive -Path $dist -DestinationPath $zip -Force
+  Assert-ZipHasCleanBinaries $zip
 
   Write-Host "[5/5] package contents"
   Get-ChildItem $dist
