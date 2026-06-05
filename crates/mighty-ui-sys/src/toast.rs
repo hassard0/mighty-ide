@@ -821,6 +821,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if is_mighty_diagnostic_message(m) {
         Some(OperationKey::Diagnostic)
     } else if m == "No code actions available"
+        || m.starts_with("No code actions available at ")
         || m == "No code action selected"
         || m == "No code action menu open"
         || m == "Code action needs a file"
@@ -2566,6 +2567,17 @@ mod tests {
         let t0 = Instant::now();
 
         q.push_at(Kind::Info, "No code actions available", t0);
+        q.push_at(
+            Kind::Info,
+            "No code actions available at main.mty:7:3",
+            t0 + Duration::from_millis(50),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "No code actions available at main.mty:7:3"
+        );
+
         q.push_at(
             Kind::Info,
             "No code action menu open",

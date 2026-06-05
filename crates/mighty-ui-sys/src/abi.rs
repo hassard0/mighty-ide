@@ -407,6 +407,20 @@ fn completion_not_found_message(ctx: &MuiContext) -> String {
     )
 }
 
+fn codeaction_not_found_message(ctx: &MuiContext, line: i32, col: i32) -> String {
+    let name = ctx
+        .tabs
+        .active_path()
+        .as_deref()
+        .map(basename)
+        .unwrap_or_else(|| "(scratch)".to_string());
+    format!(
+        "No code actions available at {name}:{}:{}",
+        line.max(0) + 1,
+        col.max(0) + 1
+    )
+}
+
 #[cfg(test)]
 mod code_action_diagnostics_tests {
     use super::*;
@@ -10850,7 +10864,10 @@ pub extern "C" fn mui_codeaction_request(handle: i64, line: i32, col: i32) -> i3
     let actions = compute_line_actions(ctx, line, col);
     if actions.is_empty() {
         println!("codeaction: line={line} total=0");
-        ctx.push_toast(crate::toast::Kind::Info, "No code actions available");
+        ctx.push_toast(
+            crate::toast::Kind::Info,
+            codeaction_not_found_message(ctx, line, col),
+        );
         return 0;
     }
     let count = ctx.codeaction.set(actions);

@@ -9812,13 +9812,32 @@ fn editor_mutating_commands_report_read_only_preview() {
 #[test]
 fn codeaction_no_actions_toasts_feedback() {
     let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(crate::mui_codeaction_request(h, 0, 0), 0);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
-        "No code actions available"
+        "No code actions available at (scratch):1:1"
     );
+
+    let root =
+        std::env::temp_dir().join(format!("mui_codeaction_empty_site_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("main.mty");
+    std::fs::write(&file, "let answer = 42\n").unwrap();
+    ctx.tabs.open_path(file);
+    crate::sync_active_path(&mut ctx);
+    ctx.toasts.clear();
+
+    assert_eq!(crate::mui_codeaction_request(h, 0, 4), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No code actions available at main.mty:1:5"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]

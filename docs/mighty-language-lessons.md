@@ -12140,3 +12140,17 @@ had been queried.
   toast replacement lane.
 - **Language note:** no compiler gap surfaced. Cursor-scoped language features
   should name the active query site on empty-result paths, not only on errors.
+
+## L975 - Code-Action Misses Should Name The Query Site
+
+Explicit code-action requests reported only `No code actions available` when
+the LSP and synthetic fixer produced no quick fixes. In a multi-tab session,
+that did not identify which buffer and cursor site had no action.
+
+- **IDE note:** empty code-action requests now report
+  `No code actions available at file:line:column`, falling back to `(scratch)`
+  for untitled buffers and keeping detailed misses in the code-action toast
+  replacement lane.
+- **Language note:** no compiler gap surfaced. Empty quick-fix paths should
+  report the queried editor site with the same specificity as other language
+  intelligence misses.
