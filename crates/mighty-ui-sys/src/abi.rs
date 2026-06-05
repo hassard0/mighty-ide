@@ -9407,7 +9407,18 @@ pub extern "C" fn mui_keys_begin_capture(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    i32::from(ctx.shortcuts.begin_capture())
+    if !ctx.shortcuts.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "Keyboard Shortcuts is already closed");
+        return 0;
+    }
+    let started = ctx.shortcuts.begin_capture();
+    if !started {
+        ctx.push_toast(
+            crate::toast::Kind::Info,
+            "Keyboard Shortcuts row cannot be remapped",
+        );
+    }
+    i32::from(started)
 }
 
 /// Record a captured chord `(cp, mods)` as the override for the command in
@@ -9432,9 +9443,18 @@ pub extern "C" fn mui_keys_reset(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !ctx.shortcuts.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "Keyboard Shortcuts is already closed");
+        return 0;
+    }
     let did = ctx.shortcuts.reset_selected();
     if did && ctx.shortcuts.take_persistence_failed() {
         push_shortcuts_persistence_warning(ctx);
+    } else if !did {
+        ctx.push_toast(
+            crate::toast::Kind::Info,
+            "Keyboard Shortcuts selection already uses default",
+        );
     }
     i32::from(did)
 }
@@ -9443,9 +9463,16 @@ pub extern "C" fn mui_keys_reset(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_keys_reset_all(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.shortcuts.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "Keyboard Shortcuts is already closed");
+            return;
+        }
+        let had_overrides = !ctx.shortcuts.overrides().is_empty();
         let did = ctx.shortcuts.reset_all();
         if did && ctx.shortcuts.take_persistence_failed() {
             push_shortcuts_persistence_warning(ctx);
+        } else if !had_overrides {
+            ctx.push_toast(crate::toast::Kind::Info, "Keyboard Shortcuts already use defaults");
         }
     }
 }

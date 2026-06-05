@@ -10980,6 +10980,54 @@ fn keyboard_shortcuts_close_command_exits_capture_and_overlay() {
 }
 
 #[test]
+fn keyboard_shortcuts_direct_misses_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_keys_begin_capture(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Keyboard Shortcuts is already closed");
+
+    crate::mui_keys_open(handle);
+    let row_count = ctx.shortcuts.count();
+    for _ in 0..row_count {
+        if !ctx.shortcuts.selected_remappable() {
+            break;
+        }
+        ctx.shortcuts.move_sel(1);
+    }
+    assert!(
+        !ctx.shortcuts.selected_remappable(),
+        "test requires at least one fixed shortcut row"
+    );
+    assert_eq!(crate::mui_keys_begin_capture(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Keyboard Shortcuts row cannot be remapped");
+
+    crate::mui_keys_open(handle);
+    assert_eq!(crate::mui_keys_reset(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(
+        toast.message,
+        "Keyboard Shortcuts selection already uses default"
+    );
+
+    crate::mui_keys_reset_all(handle);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Keyboard Shortcuts already use defaults");
+
+    assert_eq!(crate::mui_keys_close(handle), 1);
+    assert_eq!(crate::mui_keys_reset(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Keyboard Shortcuts is already closed");
+}
+
+#[test]
 fn keyboard_shortcuts_persistence_failure_reports_visible_feedback() {
     use crate::shortcuts::MOD_ALT;
 
