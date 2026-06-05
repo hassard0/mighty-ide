@@ -83,9 +83,10 @@ the archive scan passes, and the executable launches on Linux.
 
 ## Stop Condition
 
-After the README and release docs are committed, rebuild the Windows package
-from that clean commit, record the Windows archive hash and size, confirm the
-packaged Windows executable launched from `dist\mighty-ide-win64`, and stop.
+After the README, changelog, and release docs are committed, rebuild the
+Windows package from that clean commit, record the Windows archive hash and
+size, confirm the packaged Windows executable launched from
+`dist\mighty-ide-win64`, and stop.
 Use `docs\release-evidence.md` as the concise upload record.
 Record macOS and Linux as `unbuilt` unless their native package runs completed
 during this same pass. If only syntax and wrong-host checks ran for those

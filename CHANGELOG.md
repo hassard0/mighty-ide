@@ -60,6 +60,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Peek Definition targets now share the focused-pane file-open path.
 
 ### Language intelligence
+- **Explorer stale routes are visible**: Explorer header, row-hit, row-open,
+  toggle, and collapse routes now report when the panel has already closed and
+  cannot mutate retained hidden tree state.
 - **Snippet stale tab-stop routes are visible**: direct next-stop,
   previous-stop, and placeholder-replace calls now report
   `No snippet session active` after the snippet session has already ended.

@@ -4614,6 +4614,49 @@ fn explorer_close_command_hides_sidebar_without_clearing_tree() {
         "Explorer panel is already closed"
     );
 
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        0,
+        crate::layout::RAIL_W + 24.0,
+        20.0,
+        0,
+    );
+    assert_eq!(crate::mui_explorer_header_at_click(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Explorer panel is already closed"
+    );
+
+    let count_before = crate::mui_tree_count(handle);
+    assert_eq!(crate::mui_tree_toggle(handle, 0), count_before);
+    assert_eq!(crate::mui_tree_is_expanded(handle, 0), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Explorer panel is already closed"
+    );
+
+    crate::mui_tree_collapse_all(handle);
+    assert_eq!(crate::mui_tree_is_expanded(handle, 0), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Explorer panel is already closed"
+    );
+
+    assert_eq!(crate::mui_tree_row_at_click(handle), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Explorer panel is already closed"
+    );
+
+    let tab_count_before = ctx.tabs.count();
+    assert_eq!(crate::mui_tree_open_row(handle, 1), -1);
+    assert_eq!(ctx.tabs.count(), tab_count_before);
+    assert_eq!(crate::mui_tree_is_expanded(handle, 0), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Explorer panel is already closed"
+    );
+
     let _ = std::fs::remove_dir_all(root);
 }
 

@@ -58,8 +58,10 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Bracket-pair colorization + indent guides** — nesting-depth rainbow brackets, faint per-level guides with an active-block highlight
 - **Interactive minimap** — click to jump; tall files compress so the whole file maps across the strip
 - Tabs (Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W, click), file-tree sidebar (Ctrl+B), native Open File (Ctrl+O) with typed-path fallback when the picker is unavailable
-- Explorer expand/collapse actions report invalid rows, stale directory targets,
-  and replaced directory rows instead of silently leaving the tree unchanged
+- Explorer closed-panel header, row-hit, row-open, toggle, and collapse routes
+  report when the panel has already closed, while expand/collapse actions
+  report invalid rows, stale directory targets, and replaced directory rows
+  instead of silently leaving the tree unchanged
 - Native Open File rejects stale or directory picker results with the same
   target-specific feedback as typed Open File
 - Rename Active File preserves tab bindings, reports stale missing sources
@@ -379,7 +381,7 @@ Current Windows-hosted finalization state:
 
 Stop-pass checklist:
 
-1. Commit README and release documentation first.
+1. Commit README, changelog, and release documentation first.
 2. Rebuild the Windows package from that clean commit with `.\package-win.ps1`.
 3. Check macOS/Linux package scripts for syntax and wrong-host refusal from this
    checkout if native runners are unavailable, then record both platforms as

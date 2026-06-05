@@ -6142,10 +6142,8 @@ pub extern "C" fn mui_explorer_header_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    if !ctx.sidebar_visible {
-        return 0;
-    }
-    if ctx.active_panel != crate::PANEL_EXPLORER {
+    if !explorer_panel_visible(ctx) {
+        report_explorer_closed(ctx);
         return 0;
     }
     let x = ctx.last_event.x;
@@ -6189,6 +6187,10 @@ pub extern "C" fn mui_tab_new_untitled(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_tree_collapse_all(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !explorer_panel_visible(ctx) {
+            report_explorer_closed(ctx);
+            return;
+        }
         ctx.tree.collapse_all();
     }
 }
@@ -7544,6 +7546,10 @@ pub extern "C" fn mui_tree_toggle(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !explorer_panel_visible(ctx) {
+        report_explorer_closed(ctx);
+        return ctx.tree.count() as i32;
+    }
     if i < 0 {
         ctx.push_toast(crate::toast::Kind::Info, "No Explorer row selected");
         return ctx.tree.count() as i32;
@@ -7576,10 +7582,14 @@ pub extern "C" fn mui_tree_row_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !explorer_panel_visible(ctx) {
+        report_explorer_closed(ctx);
+        return -1;
+    }
     // Only count clicks within the sidebar's x band (right of the rail).
     let sx0 = layout::RAIL_W;
     let sx1 = layout::sidebar_right();
-    if !ctx.sidebar_visible || ctx.last_event.x < sx0 || ctx.last_event.x > sx1 {
+    if ctx.last_event.x < sx0 || ctx.last_event.x > sx1 {
         return -1;
     }
     let i = layout::tree_row_at(ctx.last_event.y) as usize;
@@ -7600,6 +7610,14 @@ enum ExplorerDirectoryTargetKind {
     Directory,
     Missing,
     NotDirectory,
+}
+
+fn explorer_panel_visible(ctx: &MuiContext) -> bool {
+    ctx.sidebar_visible && ctx.active_panel == crate::PANEL_EXPLORER
+}
+
+fn report_explorer_closed(ctx: &mut MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Info, "Explorer panel is already closed");
 }
 
 fn explorer_target_kind(path: &std::path::Path) -> ExplorerTargetKind {
@@ -7658,6 +7676,10 @@ pub extern "C" fn mui_tree_open_row(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !explorer_panel_visible(ctx) {
+        report_explorer_closed(ctx);
+        return -1;
+    }
     if i < 0 {
         ctx.push_toast(crate::toast::Kind::Info, "No Explorer row selected");
         return -1;
