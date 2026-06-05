@@ -12576,3 +12576,17 @@ snapshots can still call the open ABI with a negative or outdated row index.
 - **Language note:** no compiler gap surfaced. File tree actions should surface
   explicit no-selection and stale-index feedback even when normal hit-testing
   filters most invalid clicks, because ABI routes can outlive rendered rows.
+
+## L1006 - Peek Go-To Misses Should Be Visible
+
+Peek Definition go-to is normally routed only while a peek card is active, but
+keyboard and palette paths can still call the ABI after the card or target has
+been cleared. Returning `-1` silently makes Enter look broken.
+
+- **IDE note:** Peek go-to now reports `No Peek target selected` when no target
+  is available, while successful same-file and cross-file jumps keep their
+  existing behavior. The message shares the code-intelligence toast replacement
+  lane with Peek close, definition, hover, and signature-help feedback.
+- **Language note:** no compiler gap surfaced. Transient preview actions should
+  report stale/absent targets at the ABI boundary because local UI state can lag
+  behind shim-owned preview state.

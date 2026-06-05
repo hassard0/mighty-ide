@@ -915,6 +915,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || (m.starts_with("Save ") && m.ends_with(" before Go to Definition"))
         || m == "Save the file before Peek Definition"
         || (m.starts_with("Save ") && m.ends_with(" before Peek Definition"))
+        || m == "No Peek target selected"
         || m == "Peek view closed"
         || m == "Peek view is already closed"
         || m == "Save the file before signature help"
@@ -2720,6 +2721,14 @@ mod tests {
         q.push_at(Kind::Info, "Peek view closed", t0 + Duration::from_millis(450));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Peek view closed");
+
+        q.push_at(
+            Kind::Info,
+            "No Peek target selected",
+            t0 + Duration::from_millis(460),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No Peek target selected");
 
         q.push_at(
             Kind::Info,

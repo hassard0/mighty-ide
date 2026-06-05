@@ -234,7 +234,10 @@ pub extern "C" fn mui_peek_goto(handle: i64) -> i32 {
     };
     let (tpath, tline, tcol) = match ctx.peek.target_path() {
         Some(p) => (p.to_path_buf(), ctx.peek.target_line(), ctx.peek.target_col()),
-        None => return -1,
+        None => {
+            ctx.push_toast(crate::toast::Kind::Info, "No Peek target selected");
+            return -1;
+        }
     };
     ctx.peek.close();
     let current = ctx.file_path.clone();

@@ -9331,6 +9331,11 @@ fn peek_close_clears_inline_view() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Peek view is already closed");
+
+    assert_eq!(crate::stickyabi::mui_peek_goto(handle), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No Peek target selected");
 }
 
 #[test]
