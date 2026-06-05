@@ -36,6 +36,21 @@ fn active_path_str(ctx: &MuiContext) -> String {
         .unwrap_or_default()
 }
 
+fn debug_command_display() -> String {
+    let mty = crate::mty::path();
+    let program = std::path::Path::new(&mty)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(mty.as_str());
+    format!("{program} dap")
+}
+
+fn debug_start_failed_message(path: &std::path::Path) -> String {
+    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("file");
+    format!("Debug failed to start: {name} via {}", debug_command_display())
+}
+
 // ===========================================================================
 // Session lifecycle (F5 / Shift+F5) + stepping (F10 / F11 / Shift+F11)
 // ===========================================================================
@@ -75,11 +90,10 @@ fn dbg_start_or_continue(ctx: &mut MuiContext) -> i32 {
             ));
             let ok = ctx.dbg.start(&path);
             if !ok {
-                let name = path
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("file");
-                ctx.push_toast(crate::toast::Kind::Error, format!("Debug failed to start: {name}"));
+                ctx.push_toast(
+                    crate::toast::Kind::Error,
+                    debug_start_failed_message(&path),
+                );
             }
             println!("dbg: start {} -> {ok}", path.display());
         }

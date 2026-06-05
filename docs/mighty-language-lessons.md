@@ -11553,3 +11553,16 @@ than the panel detail and inconsistent with Run.
 - **Language note:** no compiler gap surfaced. Repeated runtime-panel launch
   paths should share failure-message construction so target and command context
   cannot drift between entry points.
+
+## L935 - Debug Startup Toasts Should Name The Adapter Command
+
+The debug console already logged adapter spawn failures, but the toast only
+named the source file. When the configured `mty` executable is missing or
+misconfigured, that makes the visible failure look like a target-file problem
+instead of an adapter-command problem.
+
+- **IDE note:** debug startup failure toasts now include the target filename and
+  attempted adapter command display name (`mty dap`), while preserving the
+  existing debug-console error detail.
+- **Language note:** no compiler gap surfaced. Debug launch UI should expose
+  the adapter boundary in the same visible-feedback layer as Run and Testing.

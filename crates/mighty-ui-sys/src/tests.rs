@@ -7755,6 +7755,50 @@ fn debug_start_without_active_file_opens_visible_debug_view() {
 }
 
 #[test]
+fn debug_start_spawn_failure_names_target_and_command() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_debug_spawn_fail_{}", std::process::id()));
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("main.mty");
+    let missing_mty = root.join("missing-mty.exe");
+    std::fs::write(&file, b"fn main() {}\n").unwrap();
+    ctx.tabs.open_path(file.clone());
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let old_mty = std::env::var_os("MIGHTY_MTY");
+    std::env::set_var("MIGHTY_MTY", &missing_mty);
+    assert_eq!(
+        crate::dapabi::mui_dbg_start(handle),
+        crate::dap::DebugState::Terminated.as_i32()
+    );
+    if let Some(v) = old_mty {
+        std::env::set_var("MIGHTY_MTY", v);
+    } else {
+        std::env::remove_var("MIGHTY_MTY");
+    }
+
+    assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(crate::dapabi::mui_dbg_active(handle), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(
+        toast.message,
+        "Debug failed to start: main.mty via missing-mty.exe dap"
+    );
+    let console = ctx.dbg.console_line(0).expect("debug failure console line");
+    assert!(console.is_error);
+    assert!(console.text.contains("failed to start adapter"));
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn debug_close_command_preserves_session_state_and_breakpoints() {
     let mut ctx = ctx_or_skip!();
     let path = "C:/p/demo.mty";
