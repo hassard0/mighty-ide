@@ -63,6 +63,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Snippet stale tab-stop routes are visible**: direct next-stop,
   previous-stop, and placeholder-replace calls now report
   `No snippet session active` after the snippet session has already ended.
+- **Web stale focus routes are visible**: focused Web Playground click and
+  scroll routes now report `Web Playground is already closed` when stale focus
+  reaches them after the panel has closed.
 - **Terminal stale input routes are visible**: focused terminal key, typed
   codepoint, raw-byte, and scroll routes now report `Terminal is not open` when
   stale focus tries to send input after the PTY has closed.

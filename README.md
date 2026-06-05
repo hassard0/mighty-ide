@@ -205,7 +205,7 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   generic unresolved row
 
 ### Web
-- **Run in Browser (Alt+W)** — build the active file to `wasm32-web` and run it in the browser via `mty serve` (web-game packages) or a `mty build --target wasm32-web` + static-server fallback; streams build/serve output, scrapes the served URL, opens the default browser, stop affordance. Sample: `examples/webspin/`
+- **Run in Browser (Alt+W)** — build the active file to `wasm32-web` and run it in the browser via `mty serve` (web-game packages) or a `mty build --target wasm32-web` + static-server fallback; streams build/serve output, scrapes the served URL, opens the default browser, stop affordance, and reports stale Web click/scroll routes after the panel closes. Sample: `examples/webspin/`
 
 ### Workspace & UX
 - **Explicit Workspace + Open Folder (Ctrl+Shift+O)** — native folder picker (typed-path fallback only when the picker is unavailable) re-roots the file tree, Quick-Open, Search, git, and Agents; typed and picked folder paths preserve distinct missing-folder versus `not a folder` feedback; **New Folder** (Ctrl+Shift+N) creates workspace directories; active files can be revealed in the IDE file tree, shown in the OS file manager, or copied as absolute, relative, basename, or directory text from the command palette; **Open Recent** shows recent files or folders from the shared recents picker, reports missing or stale rows with target-specific feedback, and warns when recent-history persistence fails; explorer header shows the active workspace

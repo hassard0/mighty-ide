@@ -2145,6 +2145,9 @@ fn web_header_clear_action_hits_visible_button() {
         0,
     );
     assert_eq!(crate::webabi::mui_web_click(handle), crate::webabi::WEB_CLICK_NONE);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Web Playground is already closed");
 }
 
 #[test]
@@ -2168,6 +2171,22 @@ fn web_close_command_acknowledges_state_without_clearing_output_or_url() {
         ctx.toasts.toasts().last().unwrap().message,
         "Web Playground is already closed"
     );
+}
+
+#[test]
+fn web_scroll_reports_closed_panel() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::webabi::mui_web_scroll(h, 3);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Web Playground is already closed");
+
+    ctx.web.seed_demo("examples/webspin/src/main.mty");
+    ctx.toasts.clear();
+    crate::webabi::mui_web_scroll(h, 3);
+    assert!(ctx.toasts.toasts().is_empty());
 }
 
 #[test]

@@ -76,6 +76,10 @@ fn web_error_toast(ctx: &MuiContext, fallback: &str) -> String {
     }
 }
 
+fn report_web_closed(ctx: &mut MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Info, "Web Playground is already closed");
+}
+
 /// Start the Web Playground for the active file. Opens the panel + closes the
 /// Run panel (they share the band). Returns `1` if a process spawned, else `0`
 /// (no file / spawn or build error — the panel still shows the error output).
@@ -209,7 +213,7 @@ pub extern "C" fn mui_web_close(handle: i64) -> i32 {
         crate::abi::trace("web_close");
         return 1;
     }
-    ctx.push_toast(crate::toast::Kind::Info, "Web Playground is already closed");
+    report_web_closed(ctx);
     crate::abi::trace("web_close noop");
     0
 }
@@ -339,6 +343,10 @@ pub extern "C" fn mui_web_line_char(handle: i64, i: i32, j: i32) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_web_scroll(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.web.is_active() {
+            report_web_closed(ctx);
+            return;
+        }
         ctx.web.scroll(delta);
     }
 }
@@ -358,6 +366,7 @@ pub extern "C" fn mui_web_click(handle: i64) -> i32 {
         return WEB_CLICK_NONE;
     };
     if !ctx.web.is_active() {
+        report_web_closed(ctx);
         return WEB_CLICK_NONE;
     }
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
