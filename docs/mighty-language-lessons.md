@@ -12912,3 +12912,17 @@ the prompt opens.
 - **Language note:** no compiler gap surfaced. Destructive commands should
   validate object kind at the last side-effect boundary, even when earlier UI
   confirmation already validated the target name.
+
+## L1029 - Rename Commands Have Two File-Kind Boundaries
+
+Rename Active File has both a source path and a destination path. Either one can
+become a directory after the prompt opens: the source can stop being a file, or
+the requested destination basename can already be occupied by a folder.
+
+- **IDE note:** active-file rename now checks both endpoints before invoking
+  `std::fs::rename`. Directory sources or destinations refresh workspace file
+  views, report `Rename failed: <name>: not a file`, and leave the active tab
+  bound to the original path.
+- **Language note:** no compiler gap surfaced. Move-style filesystem commands
+  should validate the semantic kind of every endpoint, not only the existence of
+  the destination name.

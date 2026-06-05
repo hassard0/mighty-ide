@@ -84,6 +84,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Rename Active File rejects directory endpoints**: active-file rename now
+  preflights both the source path and requested destination name before moving.
+  Directory endpoints report `Rename failed: <name>: not a file`, refresh
+  workspace file views, and preserve the active tab binding.
 - **Delete Active File rejects directory targets**: after exact-name
   confirmation and dirty-buffer checks, Delete Active File now preflights the
   active path before removal. Directory targets report

@@ -6412,6 +6412,22 @@ pub extern "C" fn mui_file_rename_active(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, format!("Already named {name}"));
         return 1;
     }
+    if save_target_is_existing_non_file(&old_path) {
+        refresh_workspace_file_views(ctx);
+        ctx.push_toast(
+            crate::toast::Kind::Error,
+            file_target_not_file_message("Rename", &old_path),
+        );
+        return 0;
+    }
+    if save_target_is_existing_non_file(&new_path) {
+        refresh_workspace_file_views(ctx);
+        ctx.push_toast(
+            crate::toast::Kind::Error,
+            file_target_not_file_message("Rename", &new_path),
+        );
+        return 0;
+    }
     if new_path.exists() {
         ctx.push_toast(crate::toast::Kind::Warn, format!("File already exists: {name}"));
         return 0;
