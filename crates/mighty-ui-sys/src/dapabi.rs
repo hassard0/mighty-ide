@@ -1221,6 +1221,12 @@ pub extern "C" fn mui_bp_open_at_hit(handle: i64, code: i32) -> i32 {
             return reject_bad_breakpoint_target(ctx, &path, BreakpointTargetKind::Missing);
         }
         BreakpointTargetKind::NotFile => {
+            if ctx.dbg.remove_breakpoint(&target.file, target.line)
+                && ctx.dbg.state() != crate::dap::DebugState::Idle
+                && ctx.dbg.state() != crate::dap::DebugState::Terminated
+            {
+                ctx.dbg.resend_breakpoints();
+            }
             crate::abi::trace(&format!("bp_open not-file {}", target.file));
             return reject_bad_breakpoint_target(ctx, &path, BreakpointTargetKind::NotFile);
         }

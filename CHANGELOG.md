@@ -87,6 +87,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Run output directory misses demote precisely**: clicking a Run diagnostic
   row whose target became a directory now demotes that row and preserves
   `Run target is not a file: <name>` for repeated clicks.
+- **Directory-backed breakpoints are pruned**: opening a debug breakpoint row
+  whose source path became a directory now removes the stale breakpoint after
+  reporting `Breakpoint target is not a file: <name>`.
 - **Explorer directory rows revalidate before toggling**: cached Explorer rows
   that used to be directories now report missing or replaced directory targets
   before expand/collapse or row-open actions mutate the tree.

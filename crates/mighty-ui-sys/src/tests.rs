@@ -9620,10 +9620,17 @@ fn debug_breakpoint_directory_target_reports_visible_feedback() {
 
     assert_eq!(crate::dapabi::mui_bp_open_at_hit(handle, 2000), -1);
     assert_eq!(crate::mui_tab_count(handle), before);
-    assert_eq!(ctx.dbg.total_breakpoint_count(), 1);
+    assert_eq!(ctx.dbg.total_breakpoint_count(), 0);
+    assert!(!ctx.dbg.has_breakpoint(&key, 2));
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Breakpoint target is not a file: gone.mty");
+
+    assert_eq!(crate::dapabi::mui_bp_open_at_hit(handle, 2000), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Breakpoint row no longer listed"
+    );
 
     let _ = std::fs::remove_dir_all(root);
     crate::layout::reset_sidebar_preset();
