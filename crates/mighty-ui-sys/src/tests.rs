@@ -10881,13 +10881,24 @@ fn breadcrumb_accept_misses_report_visible_feedback() {
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No breadcrumb row selected");
 
-    let missing = std::env::temp_dir()
-        .join(format!("mui_crumb_missing_{}", std::process::id()))
-        .join("missing.mty");
-    ctx.crumb_files = vec![missing];
+    let root = std::env::temp_dir().join(format!("mui_crumb_missing_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let missing = root.join("missing.mty");
+    std::fs::write(&missing, "fn crumb_target() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    crate::mui_quickopen_open(h);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
+    ctx.crumb_files = vec![missing.clone()];
     ctx.crumb_menu
         .open(crate::crumbmenu::MenuKind::Files, vec![item], 80.0);
+    std::fs::remove_file(&missing).unwrap();
     assert_eq!(crate::navsurfaces::mui_crumb_menu_accept(h, -1), -1);
+    assert_eq!(ctx.tree.count(), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Breadcrumb target missing: missing.mty");
@@ -10895,6 +10906,8 @@ fn breadcrumb_accept_misses_report_visible_feedback() {
         ctx.crumb_files.is_empty(),
         "missing breadcrumb targets should be pruned from the backing file list"
     );
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]

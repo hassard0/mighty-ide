@@ -11248,3 +11248,16 @@ source.
   index, and visible Quick Open rows after pruning the missing diagnostic path.
 - **Language note:** no compiler gap surfaced. Diagnostics panels should update
   shared file indexes whenever a diagnostic source disappears.
+
+## L912 - Stale Breadcrumb Files Should Refresh File Views
+
+Breadcrumb file menus can contain sibling file targets that were deleted after
+the menu was built. Accepting such a row pruned the breadcrumb backing list and
+warned the user, but shared file discovery surfaces could continue to render
+the removed file.
+
+- **IDE note:** stale Breadcrumb file opens now refresh Explorer, Quick Open's
+  backing index, and visible Quick Open rows after pruning the missing menu
+  target.
+- **Language note:** no compiler gap surfaced. Breadcrumb navigation should
+  keep shared file indexes synchronized with its own pruned file list.
