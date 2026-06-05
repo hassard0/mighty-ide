@@ -3292,6 +3292,12 @@ fn test_close_command_acknowledges_state_without_clearing_results() {
         ctx.toasts.toasts().last().unwrap().message,
         "Testing panel is already closed"
     );
+
+    crate::testabi::mui_test_scroll(h, 3);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Testing panel is already closed"
+    );
 }
 
 #[test]

@@ -84,9 +84,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Run output stale routes are visible**: Run panel header and output-row click
   routes now report when the panel has already closed, and retained hidden
   output can no longer be activated by stale row calls.
-- **Testing stale routes are visible**: Testing toolbar and result-row click
-  routes now report when the panel has already closed, and retained hidden
-  results can no longer be activated by stale row calls.
+- **Testing stale routes are visible**: Testing toolbar, result-row click, and
+  scroll routes now report when the panel has already closed, and retained
+  hidden results can no longer be activated by stale row calls.
 - **Debug stale routes are visible**: Run and Debug sidebar click, breakpoint
   open/remove, breakpoint-clear, and toolbar action routes now report when the
   panel has already closed and cannot mutate retained hidden debug state.

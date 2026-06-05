@@ -707,6 +707,10 @@ pub extern "C" fn mui_test_click_tab(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_test_scroll(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !testing_panel_visible(ctx) {
+            report_testing_closed(ctx);
+            return;
+        }
         ctx.tests_panel.scroll(delta);
     }
 }
