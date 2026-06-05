@@ -10957,3 +10957,15 @@ offset, but asking them to rerun the same search keeps the stale snapshot alive.
 - **Language note:** no compiler gap surfaced. Stale-position guards should
   refresh cached search rows when they already know the active query that built
   the snapshot.
+
+## L888 - Problems Rows Should Prune Missing Files
+
+The Problems panel aggregates diagnostics by file. If a file disappears after
+diagnostics are collected, opening its row should not leave the old errors and
+warnings counted in the bottom dock.
+
+- **IDE note:** opening a Problem row whose target file is missing now removes
+  all diagnostics for that path before showing the warning, and recalculates
+  error/warning counts.
+- **Language note:** no compiler gap surfaced. Aggregated diagnostic surfaces
+  should mutate their model when row activation proves a file group is stale.

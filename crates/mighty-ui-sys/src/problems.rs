@@ -163,6 +163,30 @@ impl ProblemSet {
         self.items.get(i)
     }
 
+    /// Remove diagnostics for `path`, preserving the panel's open/closed state.
+    /// Returns the number of rows removed.
+    pub fn remove_path(&mut self, path: &Path) -> usize {
+        let before = self.items.len();
+        self.items.retain(|p| p.path != path);
+        let removed = before.saturating_sub(self.items.len());
+        if removed > 0 {
+            self.errors = self
+                .items
+                .iter()
+                .filter(|p| p.severity == Severity::Error)
+                .count() as i32;
+            self.warnings = self
+                .items
+                .iter()
+                .filter(|p| p.severity == Severity::Warning)
+                .count() as i32;
+            if self.scroll > self.items.len() as i32 {
+                self.scroll = 0;
+            }
+        }
+        removed
+    }
+
     pub fn scroll_by(&mut self, delta: i32) {
         self.scroll = (self.scroll + delta).max(0);
         let max = self.items.len() as i32;
@@ -634,6 +658,31 @@ mod tests {
         assert_eq!(ps.error_count(), 0);
         assert_eq!(ps.warn_count(), 0);
         assert!(!ps.clear());
+    }
+
+    #[test]
+    fn remove_path_drops_matching_rows_and_recounts() {
+        let mut ps = ProblemSet::new();
+        let a = PathBuf::from("/ws/a.mty");
+        let b = PathBuf::from("/ws/b.mty");
+        ps.aggregate(vec![
+            (
+                a.clone(),
+                vec![
+                    diag(0, 0, Severity::Error, "MT1", "e"),
+                    diag(1, 0, Severity::Warning, "MT2", "w"),
+                ],
+            ),
+            (b.clone(), vec![diag(2, 0, Severity::Warning, "MT3", "w2")]),
+        ]);
+        ps.scroll_by(5);
+
+        assert_eq!(ps.remove_path(&a), 2);
+        assert_eq!(ps.count(), 1);
+        assert_eq!(ps.error_count(), 0);
+        assert_eq!(ps.warn_count(), 1);
+        assert_eq!(ps.get(0).unwrap().path, b);
+        assert_eq!(ps.remove_path(&PathBuf::from("/ws/missing.mty")), 0);
     }
 
     #[test]

@@ -10470,6 +10470,8 @@ fn problems_open_row_misses_report_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Problems target missing: missing.mty");
+    assert_eq!(crate::navsurfaces::mui_problems_count(h), 0);
+    assert_eq!(crate::navsurfaces::mui_problems_error_count(h), 0);
 }
 
 #[test]
