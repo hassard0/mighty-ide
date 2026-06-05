@@ -12898,3 +12898,17 @@ feedback is the object-kind mismatch, not the platform read error.
 - **Language note:** no compiler gap surfaced. Background analysis pipelines
   should validate source identity before reading from disk so stale project
   indexes produce actionable diagnostics failures.
+
+## L1028 - Destructive File Commands Need Kind Checks After Confirmation
+
+Delete Active File already requires typing the exact basename, but confirmation
+does not prove the path still names a file. A file can become a directory after
+the prompt opens.
+
+- **IDE note:** Delete Active File now checks for existing non-file targets
+  after exact-name confirmation and dirty-buffer protection, but before removal.
+  Directory targets refresh workspace file views, report
+  `Delete failed: <name>: not a file`, and leave the active tab path intact.
+- **Language note:** no compiler gap surfaced. Destructive commands should
+  validate object kind at the last side-effect boundary, even when earlier UI
+  confirmation already validated the target name.

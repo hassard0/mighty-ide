@@ -6923,6 +6923,15 @@ pub extern "C" fn mui_file_delete_active_confirm(handle: i64) -> i32 {
         );
         return 0;
     }
+    if save_target_is_existing_non_file(&path) {
+        refresh_workspace_file_views(ctx);
+        ctx.push_toast(
+            crate::toast::Kind::Error,
+            file_target_not_file_message("Delete", &path),
+        );
+        println!("file-delete: skipped non-file target {}", path.display());
+        return 0;
+    }
     let deleted = match std::fs::remove_file(&path) {
         Ok(()) => true,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => true,

@@ -84,6 +84,11 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Delete Active File rejects directory targets**: after exact-name
+  confirmation and dirty-buffer checks, Delete Active File now preflights the
+  active path before removal. Directory targets report
+  `Delete failed: <name>: not a file`, refresh workspace file views, and leave
+  the active tab bound to the original path.
 - **Reload and Revert reject directory targets**: Reload Active File and Revert
   Active File now preflight the active path before reading from disk. Directory
   targets report `Reload failed: <name>: not a file` or
