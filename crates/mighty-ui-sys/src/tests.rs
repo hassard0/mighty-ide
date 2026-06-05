@@ -1198,6 +1198,16 @@ fn tree_abi_scan_toggle_and_open_row() {
     assert_eq!(mui_tree_is_dir(handle, 0), 1); // sub/
     assert_eq!(mui_tree_is_dir(handle, 1), 0); // a.txt
 
+    assert_eq!(mui_tree_toggle(handle, -1), 2);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No Explorer row selected");
+
+    assert_eq!(mui_tree_toggle(handle, 99), 2);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Explorer row no longer listed");
+
     assert_eq!(mui_tree_open_row(handle, -1), -1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);

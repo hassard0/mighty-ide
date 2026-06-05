@@ -7511,9 +7511,15 @@ pub extern "C" fn mui_tree_toggle(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    if i >= 0 {
-        ctx.tree.toggle(i as usize);
+    if i < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No Explorer row selected");
+        return ctx.tree.count() as i32;
     }
+    if ctx.tree.get(i as usize).is_none() {
+        ctx.push_toast(crate::toast::Kind::Info, "Explorer row no longer listed");
+        return ctx.tree.count() as i32;
+    }
+    ctx.tree.toggle(i as usize);
     ctx.tree.count() as i32
 }
 
