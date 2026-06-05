@@ -3444,9 +3444,15 @@ fn agents_open_node_directory_target_reports_visible_feedback() {
 
     assert_eq!(crate::agentsabi::mui_agents_open_node(handle, 1), -1);
     assert_eq!(crate::mui_tab_count(handle), before);
+    assert_eq!(crate::agentsabi::mui_agents_count(handle), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Agents target is not a file: agent.mty");
+
+    assert_eq!(crate::agentsabi::mui_agents_open_node(handle, 1), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Agent node no longer listed");
 
     let _ = std::fs::remove_dir_all(root);
 }

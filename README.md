@@ -210,7 +210,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   before their hit snapshot is cleared
 - **Mighty Agents panel (Alt+G)** — static agent-system topology, run, and live `mty inspect` when the Mighty runtime control socket is available
 - Agents topology jumps reject directory targets from stale scan results instead
-  of opening an empty tab
+  of opening an empty tab, then refresh the topology so repeated clicks do not
+  keep targeting a non-file row
 - Settings panel (Ctrl+,) — live font size / tab width / word wrap / minimap / theme / bracket colors / indent guides / save conveniences
 - Integrated terminal (Ctrl+`) — a real ConPTY shell with a VT parser
 

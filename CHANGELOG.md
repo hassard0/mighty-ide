@@ -84,6 +84,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   topology, Source Control rows, and Debug breakpoints now require jump targets
   to be real files. Directory targets report target-specific `is not a file`
   feedback and leave the tab list unchanged.
+- **Directory-backed Agents rows refresh away**: clicking an Agents topology row
+  whose source path became a directory now refreshes the topology after the
+  warning, so repeated clicks report `Agent node no longer listed`.
 - **Run output directory misses demote precisely**: clicking a Run diagnostic
   row whose target became a directory now demotes that row and preserves
   `Run target is not a file: <name>` for repeated clicks.

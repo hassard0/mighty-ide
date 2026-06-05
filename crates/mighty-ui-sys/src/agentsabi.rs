@@ -1020,6 +1020,12 @@ fn refresh_missing_agents_target(ctx: &mut MuiContext, message: String) -> i32 {
 }
 
 fn reject_non_file_agents_target(ctx: &mut MuiContext, message: String) -> i32 {
+    let root = ctx
+        .agents
+        .root
+        .clone()
+        .unwrap_or_else(|| crate::wsabi::effective_root(ctx));
+    let _ = ctx.agents.refresh(&root);
     crate::abi::refresh_workspace_file_views(ctx);
     ctx.push_toast(crate::toast::Kind::Warn, message);
     -1
