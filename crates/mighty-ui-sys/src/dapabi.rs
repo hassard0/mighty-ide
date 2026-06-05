@@ -1089,6 +1089,21 @@ fn breakpoint_location_at_code(ctx: &MuiContext, code: i32, base: i32) -> Option
     }
 }
 
+fn breakpoint_missing_row_message(ctx: &MuiContext, code: i32, base: i32) -> &'static str {
+    let idx = code - base;
+    if idx < 0 {
+        return "No breakpoint row selected";
+    }
+    let locations = ctx.dbg.breakpoint_locations();
+    let data_rows = debug_breakpoint_data_rows(locations.len());
+    let first = ctx.dbg.breakpoint_window_first(data_rows);
+    if locations.is_empty() || (idx as usize) >= data_rows || first + idx as usize >= locations.len() {
+        "Breakpoint row no longer listed"
+    } else {
+        "No breakpoint row selected"
+    }
+}
+
 /// Open the source location for a breakpoint click code returned by
 /// [`mui_dbg_click`]. Returns the active tab index, or `-1` if the row/path is
 /// unavailable.
@@ -1099,10 +1114,14 @@ pub extern "C" fn mui_bp_open_at_hit(handle: i64, code: i32) -> i32 {
     };
     let idx = code - BREAKPOINT_BASE;
     if idx < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No breakpoint row selected");
         return -1;
     }
     let Some(target) = breakpoint_location_at_code(ctx, code, BREAKPOINT_BASE) else {
-        ctx.push_toast(crate::toast::Kind::Info, "No breakpoint row selected");
+        ctx.push_toast(
+            crate::toast::Kind::Info,
+            breakpoint_missing_row_message(ctx, code, BREAKPOINT_BASE),
+        );
         return -1;
     };
     let path = std::path::PathBuf::from(&target.file);
@@ -1141,7 +1160,10 @@ pub extern "C" fn mui_bp_remove_at_hit(handle: i64, code: i32) -> i32 {
         return 0;
     };
     let Some(target) = breakpoint_location_at_code(ctx, code, BREAKPOINT_REMOVE_BASE) else {
-        ctx.push_toast(crate::toast::Kind::Info, "No breakpoint row selected");
+        ctx.push_toast(
+            crate::toast::Kind::Info,
+            breakpoint_missing_row_message(ctx, code, BREAKPOINT_REMOVE_BASE),
+        );
         return 0;
     };
     if !ctx.dbg.remove_breakpoint(&target.file, target.line) {

@@ -12432,3 +12432,17 @@ archives were not named in the checks or release docs.
 - **Language note:** no compiler gap surfaced. Packaging scripts that bridge
   compiler output into release artifacts should describe the artifact contract
   in docs and encode it in explicit, platform-specific validation.
+
+## L996 - Breakpoint Row Misses Should Name Stale Rows
+
+Breakpoint inventory rows are hit-tested through scalar row codes. When a row
+code outlived the visible breakpoint list, opening or removing it reported
+`No breakpoint row selected`, which hid the difference between an invalid click
+and a stale row.
+
+- **IDE note:** breakpoint open/remove misses now report
+  `Breakpoint row no longer listed` when the row code points past the current
+  visible inventory or the breakpoint list is empty. Codes below the breakpoint
+  row base still report `No breakpoint row selected`.
+- **Language note:** no compiler gap surfaced. Scalar hit-code handlers should
+  keep enough context to distinguish invalid input from stale UI snapshots.

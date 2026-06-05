@@ -119,6 +119,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Breakpoint rows prune missing targets**: opening a debug breakpoint row
   whose source file was deleted now removes the stale breakpoint entry and keeps
   the inventory from repeatedly targeting a missing file.
+- **Breakpoint stale rows are explicit**: opening or removing a breakpoint row
+  that has fallen out of the visible breakpoint inventory now reports
+  `Breakpoint row no longer listed` instead of the generic no-selection message.
 - **Testing result jumps distinguish stale rows**: out-of-range Testing result
   jumps now report `No test result row selected` instead of implying a visible
   row lacked a file target.

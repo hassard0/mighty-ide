@@ -8082,6 +8082,12 @@ fn debug_breakpoint_open_missing_target_prunes_stale_breakpoint() {
     assert_eq!(crate::dapabi::mui_bp_open_at_hit(handle, 2000), -1);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
+        "Breakpoint row no longer listed"
+    );
+
+    assert_eq!(crate::dapabi::mui_bp_open_at_hit(handle, 1999), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
         "No breakpoint row selected"
     );
 
@@ -8128,6 +8134,12 @@ fn debug_breakpoint_inventory_dot_removes_visible_breakpoint() {
     );
 
     assert_eq!(crate::dapabi::mui_bp_remove_at_hit(handle, 3003), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Breakpoint row no longer listed"
+    );
+
+    assert_eq!(crate::dapabi::mui_bp_remove_at_hit(handle, 2999), 0);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "No breakpoint row selected"
@@ -8205,7 +8217,7 @@ fn debug_breakpoint_overflow_row_is_not_a_source_click() {
     assert_eq!(crate::dapabi::mui_bp_open_at_hit(handle, 2000 + overflow_row as i32), -1);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
-        "No breakpoint row selected"
+        "Breakpoint row no longer listed"
     );
 
     crate::layout::reset_sidebar_preset();
