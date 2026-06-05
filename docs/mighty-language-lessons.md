@@ -13323,3 +13323,17 @@ states.
   `Choose an empty folder for <name>`.
 - **Language note:** no compiler gap surfaced. Creation commands should classify
   destination state once before deciding whether to prepare, reject, or create.
+
+## L1056 - Workspace Test Discovery Should Guard Roots Once
+
+The Testing panel's workspace-level target discovery first decides whether the
+effective workspace root can be searched, then ranks manifests and test files
+under it. That root gate still used a direct directory check.
+
+- **IDE note:** workspace test discovery now classifies the effective root with
+  one metadata read before scanning for `mighty.toml`, `tests/*.test.mty`, or
+  fallback `.mty` files. A stale file-backed workspace root remains a clean
+  no-target state instead of becoming a directory walk attempt.
+- **Language note:** no compiler gap surfaced. Search entry points should name
+  the boundary predicate explicitly so later ranking logic only handles
+  searchable directories.

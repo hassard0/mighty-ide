@@ -128,7 +128,7 @@ fn fail_test_before_start(ctx: &mut MuiContext, path: &std::path::Path, focus: O
 }
 
 pub(crate) fn workspace_test_target_for_root(root: &std::path::Path) -> Option<std::path::PathBuf> {
-    if root.as_os_str().is_empty() || !root.is_dir() {
+    if !workspace_root_is_searchable(root) {
         return None;
     }
     let manifest = root.join("mighty.toml");
@@ -154,6 +154,11 @@ pub(crate) fn workspace_test_target_for_root(root: &std::path::Path) -> Option<s
     collect_workspace_candidates(root, root, &mut files, CandidateKind::MightyFile, 4);
     files.sort_by(|a, b| candidate_rank(root, a).cmp(&candidate_rank(root, b)));
     files.into_iter().next()
+}
+
+fn workspace_root_is_searchable(root: &std::path::Path) -> bool {
+    !root.as_os_str().is_empty()
+        && std::fs::metadata(root).is_ok_and(|meta| meta.is_dir())
 }
 
 fn workspace_test_target(ctx: &MuiContext) -> Option<std::path::PathBuf> {
@@ -1283,6 +1288,19 @@ mod tests {
             root.join("mighty.toml")
         );
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn workspace_target_rejects_file_backed_root() {
+        let root = std::env::temp_dir().join(format!(
+            "mui-workspace-test-file-root-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&root);
+        std::fs::write(&root, b"not a workspace").unwrap();
+
+        assert_eq!(workspace_test_target_for_root(&root), None);
+        let _ = std::fs::remove_file(&root);
     }
 
     #[test]
