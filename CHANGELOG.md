@@ -34,6 +34,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Diff row misses match Source Control wording**: opening a diff without a
+  selected Source Control row now reports `No source control row selected`,
+  matching the SCM open and stage paths.
 - **Diff hunk misses are specific**: per-hunk stage/unstage actions now
   distinguish an absent hunk click from a stale hunk index, reporting
   `No diff hunk selected` or `Diff hunk no longer listed` instead of the

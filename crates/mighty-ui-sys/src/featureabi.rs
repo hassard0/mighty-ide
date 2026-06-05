@@ -815,7 +815,7 @@ pub extern "C" fn mui_diff_open_row(handle: i64, i: i32) -> i32 {
         return 0;
     };
     if i < 0 {
-        ctx.push_toast(crate::toast::Kind::Warn, "No source-control row");
+        ctx.push_toast(crate::toast::Kind::Info, "No source control row selected");
         return 0;
     }
     let (path, staged, root) = {

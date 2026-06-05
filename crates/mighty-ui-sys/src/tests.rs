@@ -5828,8 +5828,8 @@ fn diff_open_noops_report_visible_feedback() {
 
     assert_eq!(crate::featureabi::mui_diff_open_row(handle, -1), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
-    assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "No source-control row");
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No source control row selected");
 
     assert_eq!(crate::featureabi::mui_diff_open_row(handle, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
