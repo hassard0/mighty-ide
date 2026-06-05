@@ -264,6 +264,24 @@ pub extern "C" fn mui_dbg_restart(handle: i64) -> i32 {
     open_debug_view(ctx);
     let had_target = ctx.dbg.has_program();
     let target = ctx.dbg.program().map(|p| p.to_path_buf());
+    if let Some(path) = target.as_deref() {
+        let label = debug_target_label(path);
+        let stale_reason = match std::fs::metadata(path) {
+            Ok(meta) if meta.is_file() => None,
+            Ok(_) => Some(format!("target is not a file: {label}")),
+            Err(err) => Some(format!("{label}: {err}")),
+        };
+        if let Some(reason) = stale_reason {
+            ctx.dbg.fail_before_start(path, reason);
+            let reason = debug_spawn_failure_reason(ctx);
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                debug_restart_failed_message(path, reason.as_deref()),
+            );
+            crate::abi::trace("dbg_restart stale_target");
+            return 0;
+        }
+    }
     let ok = ctx.dbg.restart();
     if !ok {
         let reason = debug_spawn_failure_reason(ctx);

@@ -9361,6 +9361,99 @@ fn debug_restart_spawn_failure_names_target_and_command() {
 }
 
 #[test]
+fn debug_restart_rejects_missing_previous_target_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_debug_restart_missing_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("again.mty");
+    std::fs::write(&file, b"fn main() {}\n").unwrap();
+    ctx.dbg.seed_demo(&file.to_string_lossy());
+    std::fs::remove_file(&file).unwrap();
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::dapabi::mui_dbg_restart(handle), 0);
+    assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(
+        crate::dapabi::mui_dbg_state(handle),
+        crate::dap::DebugState::Terminated.as_i32()
+    );
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast
+            .message
+            .starts_with("Debug restart failed: again.mty via "),
+        "{}",
+        toast.message
+    );
+    assert!(toast.message.contains(" dap: again.mty: "), "{}", toast.message);
+    let console = ctx.dbg.console_line(0).expect("debug failure console line");
+    assert!(console.is_error);
+    assert!(
+        console
+            .text
+            .starts_with("debug: failed to start adapter: again.mty: "),
+        "{}",
+        console.text
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn debug_restart_rejects_directory_previous_target_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_debug_restart_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("again.mty");
+    std::fs::write(&file, b"fn main() {}\n").unwrap();
+    ctx.dbg.seed_demo(&file.to_string_lossy());
+    std::fs::remove_file(&file).unwrap();
+    std::fs::create_dir_all(&file).unwrap();
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::dapabi::mui_dbg_restart(handle), 0);
+    assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(
+        crate::dapabi::mui_dbg_state(handle),
+        crate::dap::DebugState::Terminated.as_i32()
+    );
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast
+            .message
+            .starts_with("Debug restart failed: again.mty via "),
+        "{}",
+        toast.message
+    );
+    assert!(
+        toast.message.ends_with("dap: target is not a file: again.mty"),
+        "{}",
+        toast.message
+    );
+    let console = ctx.dbg.console_line(0).expect("debug failure console line");
+    assert!(console.is_error);
+    assert_eq!(
+        console.text,
+        "debug: failed to start adapter: target is not a file: again.mty"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn debug_close_command_preserves_session_state_and_breakpoints() {
     let mut ctx = ctx_or_skip!();
     let path = "C:/p/demo.mty";
