@@ -11771,3 +11771,18 @@ without making the user go hunting through trace output.
   should carry both the attempted command and the host failure reason in visible
   feedback, matching the external-tool failure contract used by Run, Debug,
   Format, and Fix All.
+
+## L950 - Test Startup Failures Should Surface The Spawn Reason
+
+The Testing panel created a synthetic failed row when `mty test` could not be
+spawned, and that row included the host error, but the toast only reported the
+target and command. That forced the user to inspect the panel row to learn why
+the run did not even start.
+
+- **IDE note:** test-run startup failure toasts now append the compact spawn
+  reason from the synthetic `<spawn>` row while preserving the target file and
+  attempted `mty test` command. Existing toast grouping already accepts the
+  detailed `Test run failed to start:` prefix.
+- **Language note:** no compiler gap surfaced. Background task launch failures
+  should put the actionable host error in the immediate toast as well as the
+  detailed panel row, because the toast is the first feedback surface users see.

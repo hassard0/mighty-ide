@@ -2284,9 +2284,12 @@ fn test_run_spawn_failure_names_target_and_command() {
     assert!(!ctx.tests_panel.is_running());
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert_eq!(
-        toast.message,
-        "Test run failed to start: main.mty via missing-mty.exe test"
+    assert!(
+        toast
+            .message
+            .starts_with("Test run failed to start: main.mty via missing-mty.exe test: "),
+        "toast should include target, command, and spawn reason, got {:?}",
+        toast.message
     );
     let row = ctx.tests_panel.row(0).expect("spawn failure row");
     assert_eq!(row.full_name, "<spawn>");

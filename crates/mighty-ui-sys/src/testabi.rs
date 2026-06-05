@@ -41,9 +41,21 @@ fn test_command_display() -> String {
     format!("{program} test")
 }
 
-fn test_start_failed_message(path: &std::path::Path) -> String {
+fn compact_test_start_reason(ctx: &MuiContext) -> Option<String> {
+    let row = ctx.tests_panel.row(0)?;
+    row.message
+        .split_once(": ")
+        .map(|(_, reason)| reason.trim().to_string())
+        .filter(|reason| !reason.is_empty())
+}
+
+fn test_start_failed_message(path: &std::path::Path, reason: Option<&str>) -> String {
     let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("file");
-    format!("Test run failed to start: {name} via {}", test_command_display())
+    let base = format!("Test run failed to start: {name} via {}", test_command_display());
+    match reason.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(reason) => format!("{base}: {reason}"),
+        None => base,
+    }
 }
 
 pub(crate) fn workspace_test_target_for_root(root: &std::path::Path) -> Option<std::path::PathBuf> {
@@ -172,9 +184,10 @@ pub extern "C" fn mui_test_run(handle: i64) -> i32 {
         crate::abi::trace(&format!("test_run start target={}", path.display()));
         1
     } else {
+        let reason = compact_test_start_reason(ctx);
         ctx.push_toast(
             crate::toast::Kind::Error,
-            test_start_failed_message(&path),
+            test_start_failed_message(&path, reason.as_deref()),
         );
         crate::abi::trace(&format!("test_run failed target={}", path.display()));
         0
@@ -209,9 +222,10 @@ pub extern "C" fn mui_test_run_at_cursor(handle: i64) -> i32 {
         );
         1
     } else {
+        let reason = compact_test_start_reason(ctx);
         ctx.push_toast(
             crate::toast::Kind::Error,
-            test_start_failed_message(&path),
+            test_start_failed_message(&path, reason.as_deref()),
         );
         crate::abi::trace(&format!("test_run_at_cursor failed target={}", path.display()));
         0
