@@ -36,7 +36,7 @@
 //! frame, exactly like the chat copilot's pump discipline.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use crate::ai::{api_key, MODEL};
@@ -194,6 +194,12 @@ struct Shared {
     running: Arc<AtomicBool>,
 }
 
+impl Shared {
+    fn lock_inner(&self) -> MutexGuard<'_, ResultSlot> {
+        self.inner.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}
+
 // ===========================================================================
 // GhostState — the engine the ABI drives
 // ===========================================================================
@@ -348,11 +354,10 @@ impl GhostState {
         let user = build_fim_prompt(&ctx);
         std::thread::spawn(move || {
             let text = run_completion(&key, &user);
-            if let Ok(mut g) = shared.inner.lock() {
-                g.text = text.map(|t| strip_fences(&t));
-                g.gen = gen;
-                g.done = true;
-            }
+            let mut g = shared.lock_inner();
+            g.text = text.map(|t| strip_fences(&t));
+            g.gen = gen;
+            g.done = true;
             shared.running.store(false, Ordering::SeqCst);
         });
         true
@@ -371,9 +376,7 @@ impl GhostState {
             return false;
         };
         let (text, gen, done) = {
-            let Ok(mut g) = shared.inner.lock() else {
-                return false;
-            };
+            let mut g = shared.lock_inner();
             if !g.done {
                 return false;
             }
@@ -636,7 +639,7 @@ mod tests {
         shared.running.store(false, Ordering::SeqCst);
         let req_gen = gh.generation;
         {
-            let mut slot = shared.inner.lock().unwrap();
+            let mut slot = shared.lock_inner();
             slot.text = Some("completion".to_string());
             slot.gen = req_gen;
             slot.done = true;
@@ -657,7 +660,7 @@ mod tests {
         shared.running.store(false, Ordering::SeqCst);
         let gen = gh.generation;
         {
-            let mut slot = shared.inner.lock().unwrap();
+            let mut slot = shared.lock_inner();
             slot.text = Some(".push(x)".to_string());
             slot.gen = gen;
             slot.done = true;
@@ -668,6 +671,38 @@ mod tests {
         assert!(gh.has_ghost());
         assert_eq!(gh.suggestion(), Some(".push(x)"));
         assert_eq!(gh.anchor(), (2, 5));
+    }
+
+    #[test]
+    fn fresh_response_recovers_from_poisoned_slot() {
+        let mut gh = GhostState::new();
+        let shared = Shared::default();
+        shared.running.store(false, Ordering::SeqCst);
+
+        let hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let poisoned = std::panic::catch_unwind({
+            let shared = shared.clone();
+            move || {
+                let _slot = shared.lock_inner();
+                panic!("poison ghost result slot");
+            }
+        });
+        std::panic::set_hook(hook);
+        assert!(poisoned.is_err());
+
+        let gen = gh.generation;
+        {
+            let mut slot = shared.lock_inner();
+            slot.text = Some("completion".to_string());
+            slot.gen = gen;
+            slot.done = true;
+        }
+        gh.shared = Some(shared);
+
+        assert!(gh.poll((4, 2)));
+        assert_eq!(gh.suggestion(), Some("completion"));
+        assert_eq!(gh.anchor(), (4, 2));
     }
 
     #[test]
