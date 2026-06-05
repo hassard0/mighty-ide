@@ -98,6 +98,29 @@ fn debug_target_label(path: &std::path::Path) -> String {
         .to_string()
 }
 
+enum DebugTargetKind {
+    File,
+    Missing,
+    NotFile,
+}
+
+fn debug_target_kind(path: &std::path::Path) -> DebugTargetKind {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => DebugTargetKind::File,
+        Ok(_) => DebugTargetKind::NotFile,
+        Err(_) => DebugTargetKind::Missing,
+    }
+}
+
+fn stale_debug_target_reason(path: &std::path::Path) -> Option<String> {
+    let label = debug_target_label(path);
+    match debug_target_kind(path) {
+        DebugTargetKind::File => None,
+        DebugTargetKind::Missing => Some(format!("target missing: {label}")),
+        DebugTargetKind::NotFile => Some(format!("target is not a file: {label}")),
+    }
+}
+
 enum BreakpointTargetKind {
     File,
     Missing,
@@ -189,13 +212,7 @@ fn dbg_start_or_continue(ctx: &mut MuiContext) -> i32 {
                 crate::abi::trace("dbg_action start_no_file");
                 return ctx.dbg.state().as_i32();
             };
-            let label = debug_target_label(&path);
-            let stale_reason = match std::fs::metadata(&path) {
-                Ok(meta) if meta.is_file() => None,
-                Ok(_) => Some(format!("target is not a file: {label}")),
-                Err(err) => Some(format!("{label}: {err}")),
-            };
-            if let Some(reason) = stale_reason {
+            if let Some(reason) = stale_debug_target_reason(&path) {
                 ctx.dbg.fail_before_start(&path, reason);
                 let reason = debug_spawn_failure_reason(ctx);
                 ctx.push_toast(
@@ -295,13 +312,7 @@ pub extern "C" fn mui_dbg_restart(handle: i64) -> i32 {
     let had_target = ctx.dbg.has_program();
     let target = ctx.dbg.program().map(|p| p.to_path_buf());
     if let Some(path) = target.as_deref() {
-        let label = debug_target_label(path);
-        let stale_reason = match std::fs::metadata(path) {
-            Ok(meta) if meta.is_file() => None,
-            Ok(_) => Some(format!("target is not a file: {label}")),
-            Err(err) => Some(format!("{label}: {err}")),
-        };
-        if let Some(reason) = stale_reason {
+        if let Some(reason) = stale_debug_target_reason(path) {
             ctx.dbg.fail_before_start(path, reason);
             let reason = debug_spawn_failure_reason(ctx);
             ctx.push_toast(

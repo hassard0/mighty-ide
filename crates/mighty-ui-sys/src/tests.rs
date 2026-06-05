@@ -9617,15 +9617,16 @@ fn debug_start_rejects_missing_active_path_before_spawn() {
         "{}",
         toast.message
     );
-    assert!(toast.message.contains(" dap: main.mty: "), "{}", toast.message);
+    assert!(
+        toast.message.ends_with("dap: target missing: main.mty"),
+        "{}",
+        toast.message
+    );
     let console = ctx.dbg.console_line(0).expect("debug failure console line");
     assert!(console.is_error);
-    assert!(
-        console
-            .text
-            .starts_with("debug: failed to start adapter: main.mty: "),
-        "{}",
-        console.text
+    assert_eq!(
+        console.text,
+        "debug: failed to start adapter: target missing: main.mty"
     );
 
     let _ = std::fs::remove_dir_all(root);
@@ -9761,15 +9762,16 @@ fn debug_restart_rejects_missing_previous_target_before_spawn() {
         "{}",
         toast.message
     );
-    assert!(toast.message.contains(" dap: again.mty: "), "{}", toast.message);
+    assert!(
+        toast.message.ends_with("dap: target missing: again.mty"),
+        "{}",
+        toast.message
+    );
     let console = ctx.dbg.console_line(0).expect("debug failure console line");
     assert!(console.is_error);
-    assert!(
-        console
-            .text
-            .starts_with("debug: failed to start adapter: again.mty: "),
-        "{}",
-        console.text
+    assert_eq!(
+        console.text,
+        "debug: failed to start adapter: target missing: again.mty"
     );
 
     let _ = std::fs::remove_dir_all(root);

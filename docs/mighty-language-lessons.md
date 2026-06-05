@@ -13427,3 +13427,19 @@ user should fix.
 - **Language note:** no compiler gap surfaced. Command wrappers should separate
   machine-oriented status summaries from user-actionable diagnostics when
   choosing a compact failure message.
+
+## L1063 - Debug Preflight Should Normalize Stale Targets
+
+Debugger start/restart already rejected directory-backed program targets before
+spawning `mty dap`, but missing program targets still copied raw platform I/O
+text into the debug console and toast.
+
+- **IDE note:** debug start and restart now share one target classifier for
+  file, missing, and not-file states before adapter launch. Missing targets are
+  reported as `target missing: <name>`, while directory-backed targets keep the
+  existing `target is not a file: <name>` wording. This makes debugger
+  preflight feedback match Run/Test/Web target checks and keeps the message
+  stable across operating systems.
+- **Language note:** no compiler gap surfaced. Process adapters should classify
+  launch targets before invoking tools so user-visible failures are about the
+  target state, not host-specific I/O phrasing.
