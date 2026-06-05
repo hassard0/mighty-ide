@@ -13457,3 +13457,18 @@ the output line and toast.
   still keep the real launcher error.
 - **Language note:** no compiler gap surfaced. User-facing process preflight
   should classify the requested target separately from tool-launch failures.
+
+## L1065 - Test Preflight Should Normalize Missing Targets
+
+The Testing panel already classified stale result-row targets, and it rejected
+directory-backed active files before spawning `mty test`, but missing active
+files still copied raw host I/O wording into the result row and toast.
+
+- **IDE note:** Test run preflight now reuses the existing test-target
+  classifier for missing, not-file, and file states. Missing active files report
+  `target missing: <name>` in the Testing row and toast, while directory-backed
+  active paths keep `target is not a file: <name>`. Missing `mty` launcher
+  failures still keep the real spawn error.
+- **Language note:** no compiler gap surfaced. Testing surfaces should use the
+  same target-state vocabulary as Run, Debug, Web, and clickable stale-result
+  checks.

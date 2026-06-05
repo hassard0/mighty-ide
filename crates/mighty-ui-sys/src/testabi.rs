@@ -78,10 +78,10 @@ fn test_target_label(path: &std::path::Path) -> String {
 
 fn stale_test_target_reason(path: &std::path::Path) -> Option<String> {
     let label = test_target_label(path);
-    match std::fs::metadata(path) {
-        Ok(meta) if meta.is_file() => None,
-        Ok(_) => Some(format!("target is not a file: {label}")),
-        Err(err) => Some(format!("{label}: {err}")),
+    match test_target_kind(path) {
+        TestTargetKind::File => None,
+        TestTargetKind::Missing => Some(format!("target missing: {label}")),
+        TestTargetKind::NotFile => Some(format!("target is not a file: {label}")),
     }
 }
 

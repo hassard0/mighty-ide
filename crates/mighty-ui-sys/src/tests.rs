@@ -2909,13 +2909,16 @@ fn test_run_rejects_missing_active_path_before_spawn() {
         "{}",
         toast.message
     );
-    assert!(toast.message.contains(" test: main.mty: "), "{}", toast.message);
+    assert!(
+        toast.message.ends_with(" test: target missing: main.mty"),
+        "{}",
+        toast.message
+    );
     let row = ctx.tests_panel.row(0).expect("preflight failure row");
     assert_eq!(row.full_name, "<start>");
-    assert!(
-        row.message.starts_with("failed before spawn: main.mty: "),
-        "{}",
-        row.message
+    assert_eq!(
+        row.message,
+        "failed before spawn: target missing: main.mty"
     );
 
     let _ = std::fs::remove_dir_all(root);
