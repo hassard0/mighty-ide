@@ -29,7 +29,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
 
 use crate::diagnostics;
@@ -407,9 +407,7 @@ impl WebPlayground {
                     match pipe.read(&mut buf) {
                         Ok(0) | Err(_) => break,
                         Ok(n) => {
-                            if let Ok(mut g) = sink.lock() {
-                                g.extend_from_slice(&buf[..n]);
-                            }
+                            lock_output_buffer(&sink).extend_from_slice(&buf[..n]);
                         }
                     }
                 }
@@ -471,9 +469,13 @@ impl WebPlayground {
     pub fn pump(&mut self) -> bool {
         let mut changed = false;
         if let Some(out) = &self.out {
-            let chunk = match out.lock() {
-                Ok(mut g) if !g.is_empty() => std::mem::take(&mut *g),
-                _ => Vec::new(),
+            let chunk = {
+                let mut g = lock_output_buffer(out);
+                if g.is_empty() {
+                    Vec::new()
+                } else {
+                    std::mem::take(&mut *g)
+                }
             };
             if !chunk.is_empty() {
                 let text = String::from_utf8_lossy(&chunk).into_owned();
@@ -486,11 +488,10 @@ impl WebPlayground {
                 match done.try_recv() {
                     Ok(()) | Err(TryRecvError::Disconnected) => {
                         if let Some(out) = self.out.take() {
-                            if let Ok(g) = out.lock() {
-                                if !g.is_empty() {
-                                    let text = String::from_utf8_lossy(&g).into_owned();
-                                    self.feed(&text);
-                                }
+                            let g = lock_output_buffer(&out);
+                            if !g.is_empty() {
+                                let text = String::from_utf8_lossy(&g).into_owned();
+                                self.feed(&text);
                             }
                         }
                         self.flush_partial();
@@ -575,6 +576,10 @@ impl WebPlayground {
             self.push_line(d.to_string());
         }
     }
+}
+
+fn lock_output_buffer(out: &Arc<Mutex<Vec<u8>>>) -> MutexGuard<'_, Vec<u8>> {
+    out.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 /// Open `url` in the default browser. Windows: `cmd /c start "" <url>`.
@@ -781,6 +786,33 @@ mod tests {
         assert!(w.take_url_fresh());
         // latch cleared after read
         assert!(!w.take_url_fresh());
+    }
+
+    #[test]
+    fn pump_recovers_from_poisoned_output_buffer() {
+        let out = Arc::new(Mutex::new(
+            b"mty serve: listening on http://127.0.0.1:8124\n".to_vec(),
+        ));
+        let hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let poisoned = {
+            let out = Arc::clone(&out);
+            std::panic::catch_unwind(move || {
+                let _guard = lock_output_buffer(&out);
+                panic!("poison web output buffer");
+            })
+        };
+        std::panic::set_hook(hook);
+        assert!(poisoned.is_err());
+
+        let mut w = WebPlayground::new();
+        w.out = Some(out);
+
+        assert!(w.pump());
+        assert_eq!(w.line_count(), 1);
+        assert_eq!(w.url(), "http://127.0.0.1:8124");
+        assert!(w.take_url_fresh());
+        assert!(lock_output_buffer(w.out.as_ref().unwrap()).is_empty());
     }
 
     #[test]
