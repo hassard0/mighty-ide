@@ -11336,3 +11336,31 @@ present file could remain invisible in file discovery surfaces.
   Explorer and Quick Open without being added to recents.
 - **Language note:** no compiler gap surfaced. Creation guards should still
   synchronize discovery state when the guard observes newer filesystem state.
+
+## L919 - New Folder Outcomes Should Refresh File Views
+
+New Folder could observe an externally created folder after Explorer and Quick
+Open were last indexed. The prompt warned that the folder already existed, but
+the new folder and any files inside it could remain hidden from discovery
+surfaces.
+
+- **IDE note:** New Folder now uses the shared file-view refresh path for
+  created, ready, and already-existing targets so Explorer, Quick Open, the
+  backing index, and stale recents are synchronized together.
+- **Language note:** no compiler gap surfaced. Folder lifecycle commands should
+  refresh file discovery through the same primitive as file lifecycle commands.
+
+## L920 - Platform Packaging Needs an Explicit Artifact Contract
+
+Windows packaging is automated, but macOS and Linux release binaries require
+native-host package work. Without a documented artifact contract it is too easy
+to imply cross-platform binaries are clean just because the Windows package was
+rebuilt.
+
+- **IDE note:** README, BUILDING, and the platform packaging doc now spell out
+  the current package matrix: Windows x64 is built by `package-win.ps1`, while
+  macOS and Linux require native packaging scripts or CI runners before clean
+  binary artifacts can be claimed.
+- **Language note:** no compiler gap surfaced. Native Mighty applications need
+  per-OS release verification because the executable and shim are host ABI
+  artifacts, not portable bytecode.

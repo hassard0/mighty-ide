@@ -140,6 +140,25 @@ Prerequisites:
 
 See [BUILDING.md](BUILDING.md) for the exact toolchain paths and commands.
 
+## Release Packages
+
+Mighty IDE keeps generated binaries out of git. Release artifacts are built into
+`dist/` on a clean tree and uploaded separately.
+
+- **Windows x64:** run `.\package-win.ps1` on Windows. This produces
+  `dist\mighty-ide-win64\` and `dist\mighty-ide-v0.3.0-win64.zip` containing
+  `mighty-ide.exe`, `mighty_ui_sys.dll`, sample files, `RUN.txt`, and the
+  desktop-shortcut helper.
+- **macOS:** build on a macOS runner or developer machine. Do not reuse Windows
+  artifacts or cross-built DLLs; produce a native app bundle/archive from a
+  fresh `dist/` directory.
+- **Linux:** build on a Linux runner or developer machine. Do not reuse Windows
+  artifacts; produce a native tarball/AppImage-style directory from a fresh
+  `dist/` directory.
+
+See [`docs/platform-packaging.md`](docs/platform-packaging.md) for the packaging
+checklist and current platform status.
+
 ## Dogfooding Mighty
 
 The IDE is the **forcing function** for maturing Mighty: every place the language fights us while building real native software is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md), so each friction point can be promoted into a Mighty issue / RFC. That feedback loop (lessons L1–L58) has already driven real fixes in the Mighty compiler — for example the native `Vec`-growth codegen bug ([L28](docs/mighty-language-lessons.md)), the `extern c` scalar ABI (L17), the LSP-client discipline (L24–L25), the parse-stack ceiling worked around by the `mui_chord` router (L37–L38, and the `!fn_call(args)` precedence trap found wiring the shortcuts overlay, L46), the native runtime/linking gaps captured while hardening Windows packaging (L50–L51), and the repeated prompt-string staging pressure from file-operation commands (L52).

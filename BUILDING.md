@@ -44,6 +44,24 @@ For the release/package build:
 This assembles `dist\mighty-ide-win64\` and writes
 `dist\mighty-ide-v0.3.0-win64.zip`.
 
+## Platform packaging status
+
+Generated binaries live under `dist/`, which is intentionally ignored by git.
+Start every release package from a clean worktree and a freshly assembled
+platform directory.
+
+| Platform | Current command | Artifact | Status |
+|----------|-----------------|----------|--------|
+| Windows x64 | `.\package-win.ps1` | `dist\mighty-ide-v0.3.0-win64.zip` | Supported from Windows |
+| macOS | native macOS runner required | native app/archive under `dist/` | No checked-in script yet |
+| Linux | native Linux runner required | native archive under `dist/` | No checked-in script yet |
+
+Do not cross-ship artifacts between platforms. The Rust shim is a native
+dynamic library (`.dll`, `.dylib`, or `.so`) and the Mighty executable links to
+the host platform's ABI, so each OS package must be built and smoke-tested on
+that OS or on a matching CI runner. The release checklist is maintained in
+[`docs/platform-packaging.md`](docs/platform-packaging.md).
+
 ## Run
 
 ```sh

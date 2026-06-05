@@ -3531,6 +3531,36 @@ fn new_folder_validates_name_clears_stage_and_toasts() {
 }
 
 #[test]
+fn new_folder_existing_target_refreshes_file_views() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_new_folder_existing_refreshes_views");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.tree.count(), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
+
+    let existing = root.join("external");
+    std::fs::create_dir_all(&existing).unwrap();
+    std::fs::write(existing.join("inside.mty"), "fn inside() {}\n").unwrap();
+    ctx.path_stage.extend_from_slice(b"external");
+    assert_eq!(crate::mui_newfolder_create(handle), 0);
+
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "inside.mty");
+    assert!(ctx.quickopen.recent_paths().is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Folder already exists: external");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn new_folder_dialog_env_pick_creates_or_accepts_folder() {
     let _g = crate::settings::TEST_LOCK
         .lock()

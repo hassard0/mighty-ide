@@ -5878,13 +5878,14 @@ pub extern "C" fn mui_newfolder_create(handle: i64) -> i32 {
     let base = crate::wsabi::effective_root(ctx);
     let target = base.join(&name);
     if target.exists() {
+        refresh_workspace_file_views(ctx);
         ctx.push_toast(crate::toast::Kind::Warn, format!("Folder already exists: {name}"));
         println!("newfolder: target already exists: {}", target.display());
         return 0;
     }
     match std::fs::create_dir(&target) {
         Ok(_) => {
-            ctx.tree.refresh();
+            refresh_workspace_file_views(ctx);
             ctx.push_toast(crate::toast::Kind::Success, format!("Created folder: {name}"));
             1
         }
@@ -5990,18 +5991,19 @@ fn create_or_accept_folder_at(
         return 0;
     }
     if target.is_dir() {
-        ctx.tree.refresh();
+        refresh_workspace_file_views(ctx);
         ctx.push_toast(crate::toast::Kind::Success, format!("Folder ready: {name}"));
         return 1;
     }
     if target.exists() {
+        refresh_workspace_file_views(ctx);
         ctx.push_toast(crate::toast::Kind::Warn, format!("Folder already exists: {name}"));
         println!("newfolder: target exists but is not a folder: {}", target.display());
         return 0;
     }
     match std::fs::create_dir_all(&target) {
         Ok(_) => {
-            ctx.tree.refresh();
+            refresh_workspace_file_views(ctx);
             ctx.push_toast(crate::toast::Kind::Success, format!("Created folder: {name}"));
             1
         }
