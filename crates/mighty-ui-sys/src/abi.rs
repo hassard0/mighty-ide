@@ -8226,32 +8226,48 @@ pub extern "C" fn mui_term_header_action_at_click(handle: i64) -> i32 {
 }
 
 /// Map a named key (`MUI_KEY_*`) + mods to terminal stdin bytes and write them
-/// to the PTY. No-op if the terminal is not running.
+/// to the PTY. Reports stale Terminal focus if no shell is running.
 #[no_mangle]
 pub extern "C" fn mui_term_key(handle: i64, keycode: i32, mods: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        if let Some(t) = ctx.terminal.as_mut() {
-            if keycode >= 0 {
-                t.send_key(keycode as u32, mods.max(0) as u32);
-            }
+        if keycode < 0 {
+            return;
         }
+        let Some(t) = ctx.terminal.as_mut() else {
+            ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+            return;
+        };
+        if !ctx.term_open {
+            ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+            return;
+        }
+        t.send_key(keycode as u32, mods.max(0) as u32);
     }
 }
 
 /// Map a typed codepoint + mods to terminal stdin bytes (Ctrl+letter -> control
-/// code, else UTF-8) and write them to the PTY. No-op if not running.
+/// code, else UTF-8) and write them to the PTY. Reports stale Terminal focus if
+/// no shell is running.
 #[no_mangle]
 pub extern "C" fn mui_term_send_codepoint(handle: i64, codepoint: i32, mods: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        if let Some(t) = ctx.terminal.as_mut() {
-            if codepoint >= 0 {
-                if let Some(bytes) =
-                    crate::terminal::codepoint_to_bytes(codepoint as u32, mods.max(0) as u32)
-                {
-                    t.send(&bytes);
-                }
-            }
+        if codepoint < 0 {
+            return;
         }
+        let Some(bytes) =
+            crate::terminal::codepoint_to_bytes(codepoint as u32, mods.max(0) as u32)
+        else {
+            return;
+        };
+        let Some(t) = ctx.terminal.as_mut() else {
+            ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+            return;
+        };
+        if !ctx.term_open {
+            ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+            return;
+        }
+        t.send(&bytes);
     }
 }
 

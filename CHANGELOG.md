@@ -60,6 +60,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Peek Definition targets now share the focused-pane file-open path.
 
 ### Language intelligence
+- **Terminal stale input routes are visible**: focused terminal key and typed
+  codepoint routes now report `Terminal is not open` when stale focus tries to
+  send input after the PTY has closed.
 - **Terminal stale header routes are visible**: Terminal header-clear hit
   routing now reports when the integrated Terminal has already closed instead
   of silently returning no action from stale header clicks.

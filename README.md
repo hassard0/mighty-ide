@@ -243,6 +243,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Integrated terminal (Ctrl+`) — a real ConPTY shell with a VT parser
 - Terminal closed-panel header-clear routes report that the Terminal is already
   closed instead of silently ignoring stale header clicks
+- Terminal stale key and text input routes report when the shell is not open
+  instead of dropping focused input without feedback
 
 ### Themes
 Three live-switchable design systems, all rendered through Vello:

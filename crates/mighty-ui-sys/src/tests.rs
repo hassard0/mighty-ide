@@ -3771,6 +3771,27 @@ fn terminal_paste_acknowledges_closed_state_without_requiring_pty_spawn() {
 }
 
 #[test]
+fn terminal_input_acknowledges_closed_state_without_requiring_pty_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::abi::mui_term_key(handle, crate::ffi::MUI_KEY_ENTER as i32, 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Terminal is not open");
+
+    crate::abi::mui_term_send_codepoint(handle, 'x' as i32, 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Terminal is not open");
+
+    let before = ctx.toasts.toasts().len();
+    crate::abi::mui_term_key(handle, -1, 0);
+    crate::abi::mui_term_send_codepoint(handle, -1, 0);
+    assert_eq!(ctx.toasts.toasts().len(), before);
+}
+
+#[test]
 fn terminal_header_clear_action_hits_visible_button() {
     use crate::ffi::{MuiEvent, MUI_EVENT_MOUSE_DOWN, MUI_MOUSE_LEFT};
 
