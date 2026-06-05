@@ -645,7 +645,7 @@ fn save_target_not_file_message(path: &std::path::Path) -> String {
 }
 
 fn save_target_is_existing_non_file(path: &std::path::Path) -> bool {
-    path.exists() && !path.is_file()
+    std::fs::metadata(path).is_ok_and(|meta| !meta.is_file())
 }
 
 fn file_target_not_file_message(action: &str, path: &std::path::Path) -> String {
@@ -672,8 +672,8 @@ pub(crate) fn rename_stale_source_message(
 fn existing_non_dir_ancestor(path: &std::path::Path) -> Option<PathBuf> {
     let mut current = Some(path);
     while let Some(p) = current {
-        if p.exists() {
-            return (!p.is_dir()).then(|| p.to_path_buf());
+        if let Ok(meta) = std::fs::metadata(p) {
+            return (!meta.is_dir()).then(|| p.to_path_buf());
         }
         current = p.parent();
     }

@@ -13263,3 +13263,18 @@ what actually changed on disk.
 - **Language note:** no compiler gap surfaced. Even primary navigation surfaces
   like Explorer should validate cached row kind against current filesystem
   state before turning a row into a tab.
+
+## L1052 - Shared File-Operation Guards Should Classify Once
+
+Save, Save As, Save All, diagnostics, reload/revert, rename, delete, format,
+and code-action flows all share helpers that ask whether an existing path is a
+non-file target. Those helpers were still using split existence and kind checks.
+
+- **IDE note:** the shared non-file target guard now uses a single metadata read
+  to classify existing non-file targets, and the ancestor guard for save paths
+  does the same for parent directories. Existing user-facing errors are
+  preserved, including `Save failed: <name>: not a file`,
+  `Save All failed: <name>: not a file`, and
+  `Diagnostics failed: <name>: not a file`.
+- **Language note:** no compiler gap surfaced. Shared filesystem predicates are
+  worth hardening first because they quietly define behavior for many commands.
