@@ -85,6 +85,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Peek Definition targets now share the focused-pane file-open path.
 
 ### Language intelligence
+- **Autocomplete draw preserves overlay state**: completion dropdown drawing now
+  restores the caller's overlay flag instead of always clearing it, preventing
+  later overlay text or chrome from being queued on the base layer.
 - **Prompt stale submit routes are visible**: stale Go-to-Line and Find submit
   routes now report `No prompt input open` after the prompt has closed instead
   of treating the route as an empty query.

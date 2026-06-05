@@ -9207,11 +9207,12 @@ pub extern "C" fn mui_complete_draw(handle: i64, cursor_px_x: f32, cursor_px_y: 
     let (w, h) = visible_surface_size(ctx);
     // Split the borrow: `draw` needs `&mut ctx` for both rects + text.
     let engine = std::mem::take(&mut ctx.complete);
+    let was_overlay = ctx.overlay;
     ctx.overlay = true;
     ctx.text.set_overlay(true);
     engine.draw(ctx, cursor_px_x, cursor_px_y, w, h);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.complete = engine;
 }
 
@@ -9236,11 +9237,12 @@ pub extern "C" fn mui_complete_draw_at(
     let y = layout::row_y_in(region, row);
     let (w, h) = visible_surface_size(ctx);
     let engine = std::mem::take(&mut ctx.complete);
+    let was_overlay = ctx.overlay;
     ctx.overlay = true;
     ctx.text.set_overlay(true);
     engine.draw(ctx, x, y, w, h);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.complete = engine;
 }
 

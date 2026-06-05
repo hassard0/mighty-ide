@@ -14905,6 +14905,34 @@ fn autocomplete_close_command_clears_active_dropdown() {
 }
 
 #[test]
+fn autocomplete_draw_restores_existing_overlay_state() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 600;
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("alpha al");
+    ctx.tabs.active_model_mut().move_to(0, 8);
+    assert!(crate::mui_ed_complete_request(h) > 0);
+    assert_eq!(crate::mui_complete_active(h), 1);
+
+    ctx.overlay = true;
+    crate::mui_complete_draw_at(h, 0, 8, 1);
+    assert!(
+        ctx.overlay,
+        "autocomplete draw must not clear a caller-owned overlay layer"
+    );
+
+    ctx.overlay = false;
+    crate::mui_complete_draw_at(h, 0, 8, 1);
+    assert!(
+        !ctx.overlay,
+        "autocomplete draw must restore non-overlay callers as well"
+    );
+}
+
+#[test]
 fn completion_accept_preflight_tracks_editability() {
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();

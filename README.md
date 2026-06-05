@@ -126,6 +126,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   instead of silently doing nothing
 - Autocomplete stale click, move, and accept routes report visible feedback when
   the dropdown has already closed
+- Autocomplete drawing preserves the caller's overlay layer state, so suggestion
+  rows do not accidentally demote later overlay text or chrome
 - Staged save failures report visible feedback for scratch targets and dirty
   open tabs instead of only logging to stderr
 - Staged and active load failures report `Load failed: <file>: <reason>`, with
