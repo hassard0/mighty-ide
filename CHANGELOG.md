@@ -30,6 +30,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Test result stale targets are named**: opening a test result row whose suite
+  file disappeared now reports `Test target missing: <suite>` instead of the
+  generic no-file-target message.
 - **Autocomplete accept misses are visible**: accepting an autocomplete
   suggestion with no active dropdown now reports `No autocomplete suggestions
   open`, while preflight remains quiet and repeated code-intelligence misses

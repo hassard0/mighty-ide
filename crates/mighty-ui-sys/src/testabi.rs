@@ -548,7 +548,29 @@ pub extern "C" fn mui_test_open_row(handle: i64, i: i32) -> i32 {
     }
     .to_string();
     let Some((full, line, col)) = ctx.tests_panel.resolve_row_target(i as usize) else {
+        let expected_suite = if !ctx.tests_panel.pkg().trim().is_empty()
+            && !row.suite.trim().is_empty()
+        {
+            Some(
+                std::path::PathBuf::from(ctx.tests_panel.pkg())
+                    .join("tests")
+                    .join(&row.suite),
+            )
+        } else {
+            None
+        };
         crate::abi::refresh_workspace_file_views(ctx);
+        if let Some(path) = expected_suite {
+            if !path.exists() {
+                let name = path
+                    .file_name()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or_else(|| path.to_string_lossy().into_owned());
+                ctx.push_toast(crate::toast::Kind::Warn, format!("Test target missing: {name}"));
+                return 0;
+            }
+        }
         ctx.push_toast(
             crate::toast::Kind::Info,
             format!("Test result row has no file target: {row_name}"),
