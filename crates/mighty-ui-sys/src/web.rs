@@ -150,6 +150,16 @@ impl WebPlayground {
         self.lines.get(i)
     }
 
+    /// A concise summary of the latest error-looking output line, suitable for
+    /// a toast. The full output remains in the Web panel.
+    pub fn latest_error_summary(&self) -> Option<String> {
+        self.lines
+            .iter()
+            .rev()
+            .find(|line| line.is_error)
+            .map(|line| compact_error_line(&line.text, 120))
+    }
+
     /// Read+clear the "a fresh URL was scraped" latch (so the IDE opens the
     /// browser exactly once per server start).
     pub fn take_url_fresh(&mut self) -> bool {
@@ -591,6 +601,16 @@ fn looks_error(line: &str) -> bool {
         || (line.contains("[MT") && line.contains("Error"))
         || line.starts_with("build failed")
         || line.starts_with("failed to")
+}
+
+fn compact_error_line(line: &str, max_chars: usize) -> String {
+    let trimmed = line.trim();
+    if trimmed.chars().count() <= max_chars {
+        return trimmed.to_string();
+    }
+    let mut out: String = trimmed.chars().take(max_chars.saturating_sub(3)).collect();
+    out.push_str("...");
+    out
 }
 
 fn wasm_size(p: &Path) -> u64 {

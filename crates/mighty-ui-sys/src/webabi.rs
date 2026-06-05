@@ -37,6 +37,15 @@ fn web_port() -> u16 {
         .unwrap_or(8000)
 }
 
+fn web_error_toast(ctx: &MuiContext, fallback: &str) -> String {
+    match ctx.web.latest_error_summary() {
+        Some(reason) if !reason.trim().is_empty() => {
+            format!("Run in Browser: {reason} (see panel)")
+        }
+        _ => fallback.to_string(),
+    }
+}
+
 /// Start the Web Playground for the active file. Opens the panel + closes the
 /// Run panel (they share the band). Returns `1` if a process spawned, else `0`
 /// (no file / spawn or build error — the panel still shows the error output).
@@ -70,7 +79,10 @@ pub extern "C" fn mui_web_run(handle: i64) -> i32 {
         1
     } else {
         if ctx.web.take_saw_error() {
-            ctx.push_toast(crate::toast::Kind::Error, "Run in Browser: build failed (see panel)");
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                web_error_toast(ctx, "Run in Browser: build failed (see panel)"),
+            );
         }
         0
     }
@@ -187,7 +199,10 @@ pub extern "C" fn mui_web_pump(handle: i64) -> i32 {
     };
     let _changed = c.web.pump();
     if c.web.take_saw_error() {
-        c.push_toast(crate::toast::Kind::Error, "Web build error (see panel)");
+        c.push_toast(
+            crate::toast::Kind::Error,
+            web_error_toast(c, "Run in Browser: build error (see panel)"),
+        );
     }
     if c.web.take_just_finished() && !c.web.is_running() {
         c.push_toast(crate::toast::Kind::Info, "Web server stopped");

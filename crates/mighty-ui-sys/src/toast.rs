@@ -1700,11 +1700,14 @@ mod tests {
         q.push_at(Kind::Info, "Run in Browser: mty serve...", t0 + Duration::from_millis(200));
         q.push_at(
             Kind::Error,
-            "Run in Browser: build failed (see panel)",
+            "Run in Browser: failed to run `missing-mty.exe build`: process spawn denied (see panel)",
             t0 + Duration::from_millis(300),
         );
         assert_eq!(q.len(), 2);
-        assert_eq!(q.toasts()[1].message, "Run in Browser: build failed (see panel)");
+        assert_eq!(
+            q.toasts()[1].message,
+            "Run in Browser: failed to run `missing-mty.exe build`: process spawn denied (see panel)"
+        );
         assert!(!q
             .toasts()
             .iter()

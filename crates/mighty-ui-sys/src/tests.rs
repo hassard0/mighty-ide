@@ -20,6 +20,18 @@ impl Drop for EnvRemoveGuard {
     }
 }
 
+struct EnvRestoreGuard(&'static str, Option<std::ffi::OsString>);
+
+impl Drop for EnvRestoreGuard {
+    fn drop(&mut self) {
+        if let Some(v) = self.1.as_ref() {
+            std::env::set_var(self.0, v);
+        } else {
+            std::env::remove_var(self.0);
+        }
+    }
+}
+
 /// Index into RGBA8 pixel data at (x, y).
 fn px(pixels: &[u8], x: u32, y: u32, width: u32) -> (u8, u8, u8, u8) {
     let i = ((y * width + x) * 4) as usize;
@@ -1591,6 +1603,43 @@ fn web_playground_idle_controls_explain_noops() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Web URL not ready");
+}
+
+#[test]
+fn web_run_build_failure_toast_includes_latest_error_line() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let old_mty = std::env::var_os("MIGHTY_MTY");
+    let _mty_env = EnvRestoreGuard("MIGHTY_MTY", old_mty);
+    let missing_mty = std::env::temp_dir().join(format!(
+        "mui_missing_mty_{}",
+        std::process::id()
+    )).join("mty-missing.exe");
+    std::env::set_var("MIGHTY_MTY", missing_mty.to_string_lossy().as_ref());
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_web_fail_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("main.mty");
+    std::fs::write(&file, b"fn main() {}\n").unwrap();
+    ctx.tabs.open_path(file);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::webabi::mui_web_run(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast.message.starts_with("Run in Browser: failed to run `"),
+        "{}",
+        toast.message
+    );
+    assert!(
+        toast.message.ends_with(" (see panel)"),
+        "{}",
+        toast.message
+    );
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]

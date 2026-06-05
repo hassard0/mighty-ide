@@ -12043,3 +12043,17 @@ selected path and root; the UI did not.
 - **Language note:** no compiler gap surfaced. Native picker validation should
   explain both the invalid selection and the active workspace boundary so users
   can recover without checking logs or guessing which window/root is active.
+
+## L968 - Run In Browser Errors Should Surface The Latest Error Line
+
+The Web Playground panel captured detailed build and server output, but the
+toast for a failed start only said `Run in Browser: build failed (see panel)`.
+That forced users to open the panel for even obvious setup failures such as a
+missing compiler executable.
+
+- **IDE note:** Run in Browser failure toasts now include the latest
+  error-looking output line, compacted for toast display, followed by
+  `(see panel)` for the full log.
+- **Language note:** no compiler gap surfaced. Tooling integrations should
+  retain full logs in their panels while also promoting the most actionable
+  failure line into transient feedback.
