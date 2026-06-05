@@ -657,7 +657,36 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
     assert!(ctx.path_stage.is_empty());
     assert_eq!(mui_tab_count(handle), 2);
     assert_eq!(mui_tab_active(handle), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast
+            .message
+            .starts_with("Open failed: mui_tababi_missing.txt: "),
+        "{}",
+        toast.message
+    );
     mui_path_clear(handle);
+
+    // Directories are rejected with a specific reason instead of looking like
+    // a generic read failure.
+    let folder = dir.join(format!("mui_tababi_open_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&folder);
+    std::fs::create_dir_all(&folder).unwrap();
+    for b in folder.to_string_lossy().as_bytes() {
+        mui_path_push(handle, *b as u32);
+    }
+    assert_eq!(mui_tab_open_path(handle), -1);
+    assert!(ctx.path_stage.is_empty());
+    assert_eq!(mui_tab_count(handle), 2);
+    assert_eq!(mui_tab_active(handle), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(
+        toast.message,
+        format!("Open failed: {}: not a file", folder.file_name().unwrap().to_string_lossy())
+    );
+    let _ = std::fs::remove_dir_all(&folder);
 
     assert_eq!(mui_tab_switch(handle, 99), -1);
     assert_eq!(mui_tab_active(handle), 1);

@@ -11817,3 +11817,18 @@ startup-failure passes.
 - **Language note:** no compiler gap surfaced. Adapter/client boundaries should
   keep the detailed console row, but the scalar ABI command surface should also
   promote the actionable host reason into the immediate toast.
+
+## L953 - Typed File Open Failures Should Preserve The Filesystem Reason
+
+The typed-path Open File fallback rejected missing files and directories with
+the same `Open failed: name` toast. That protected against phantom empty tabs,
+but it did not tell the user whether the path was missing, a folder, or failed
+for another host filesystem reason.
+
+- **IDE note:** typed-path open now uses filesystem metadata before opening a
+  tab and reports `Open failed: name: reason`, including stable `not a file`
+  feedback for directories and the host error for missing or inaccessible paths.
+  Detailed `Open failed:` messages still replace stale Open toasts.
+- **Language note:** no compiler gap surfaced. File-operation ABI surfaces
+  should keep target context and host reason together; basename-only feedback is
+  too weak once the command involves real filesystem state.

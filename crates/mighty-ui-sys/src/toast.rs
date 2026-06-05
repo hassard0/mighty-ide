@@ -1521,6 +1521,17 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No recent files or folders");
 
+        q.push_at(
+            Kind::Error,
+            "Open failed: missing.mty: The system cannot find the file specified. (os error 2)",
+            t0 + Duration::from_millis(490),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Open failed: missing.mty: The system cannot find the file specified. (os error 2)"
+        );
+
         q.push_at(Kind::Info, "Welcome closed", t0 + Duration::from_millis(500));
         q.push_at(
             Kind::Info,

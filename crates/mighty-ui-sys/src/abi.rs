@@ -540,6 +540,15 @@ fn basename(path: &std::path::Path) -> String {
         .unwrap_or_else(|| path.to_string_lossy().into_owned())
 }
 
+fn open_failed_message(path: &std::path::Path, reason: &str) -> String {
+    let name = basename(path);
+    if reason.trim().is_empty() {
+        format!("Open failed: {name}")
+    } else {
+        format!("Open failed: {name}: {}", reason.trim())
+    }
+}
+
 /// Initial directory for native file dialogs. Prefer the folder of the active
 /// file so Open/New/Save As land where the user is already working; fall back to
 /// the workspace root when the active tab is untitled or its parent is missing.
@@ -4260,10 +4269,22 @@ pub extern "C" fn mui_tab_open_path(handle: i64) -> i32 {
     } else {
         ctx.tree.root().join(&candidate)
     };
-    if !resolved.is_file() {
-        let name = basename(&resolved);
-        ctx.push_toast(crate::toast::Kind::Error, format!("Open failed: {name}"));
-        return -1;
+    match std::fs::metadata(&resolved) {
+        Ok(meta) if meta.is_file() => {}
+        Ok(_) => {
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                open_failed_message(&resolved, "not a file"),
+            );
+            return -1;
+        }
+        Err(e) => {
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                open_failed_message(&resolved, &e.to_string()),
+            );
+            return -1;
+        }
     }
     let idx = ctx.tabs.open_path(resolved.clone());
     sync_active_path(ctx);
