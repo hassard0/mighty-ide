@@ -15989,6 +15989,7 @@ fn find_replace_close_command_clears_active_bar() {
         ctx.toasts.toasts()[0].message,
         "No Find & Replace bar open"
     );
+    ctx.toasts.clear();
 
     assert_eq!(crate::mui_replace_close_at_click(handle), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
@@ -15996,6 +15997,36 @@ fn find_replace_close_command_clears_active_bar() {
         ctx.toasts.toasts()[0].message,
         "No Find & Replace bar open"
     );
+    ctx.toasts.clear();
+
+    crate::mui_replace_push(handle, b'x' as i32);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No Find & Replace bar open");
+    ctx.toasts.clear();
+
+    crate::mui_replace_backspace(handle);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No Find & Replace bar open");
+    ctx.toasts.clear();
+
+    assert_eq!(crate::mui_replace_toggle_focus(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No Find & Replace bar open");
+    ctx.toasts.clear();
+
+    assert_eq!(crate::mui_replace_next(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No Find & Replace bar open");
+    ctx.toasts.clear();
+
+    assert_eq!(crate::mui_replace_all(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No Find & Replace bar open");
 }
 
 #[test]

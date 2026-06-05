@@ -121,6 +121,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Autocomplete stale move routes are visible**: suggestion selection movement
   now reports `No autocomplete suggestions open` when the dropdown has already
   closed, matching stale clicks, accept, and cancel.
+- **Find & Replace stale action routes are visible**: text entry, backspace,
+  focus toggle, replace-next, and replace-all now report
+  `No Find & Replace bar open` when the bar has already closed.
 - **Run output directory misses demote precisely**: clicking a Run diagnostic
   row whose target became a directory now demotes that row and preserves
   `Run target is not a file: <name>` for repeated clicks.

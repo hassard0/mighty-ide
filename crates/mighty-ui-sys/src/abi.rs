@@ -16668,6 +16668,10 @@ pub extern "C" fn mui_replace_active(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_replace_push(handle: i64, cp: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.replace_bar.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No Find & Replace bar open");
+            return;
+        }
         if cp >= 0 {
             ctx.replace_bar.push(cp as u32);
         }
@@ -16678,6 +16682,10 @@ pub extern "C" fn mui_replace_push(handle: i64, cp: i32) {
 #[no_mangle]
 pub extern "C" fn mui_replace_backspace(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.replace_bar.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No Find & Replace bar open");
+            return;
+        }
         ctx.replace_bar.backspace();
     }
 }
@@ -16686,7 +16694,13 @@ pub extern "C" fn mui_replace_backspace(handle: i64) {
 /// replace field is now focused, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_replace_toggle_focus(handle: i64) -> i32 {
-    unsafe { ctx(handle) }.map_or(0, |c| c.replace_bar.toggle_focus())
+    unsafe { ctx(handle) }.map_or(0, |c| {
+        if !c.replace_bar.is_active() {
+            c.push_toast(crate::toast::Kind::Info, "No Find & Replace bar open");
+            return 0;
+        }
+        c.replace_bar.toggle_focus()
+    })
 }
 
 /// `1` if the replace field currently has focus.
@@ -16765,6 +16779,10 @@ pub extern "C" fn mui_replace_next(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !ctx.replace_bar.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No Find & Replace bar open");
+        return 0;
+    }
     let needle = ctx.replace_bar.find_string();
     if needle.is_empty() {
         ctx.push_toast(crate::toast::Kind::Info, "Enter text to replace");
@@ -16791,6 +16809,10 @@ pub extern "C" fn mui_replace_all(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !ctx.replace_bar.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No Find & Replace bar open");
+        return 0;
+    }
     let needle = ctx.replace_bar.find_string();
     if needle.is_empty() {
         ctx.push_toast(crate::toast::Kind::Info, "Enter text to replace");
