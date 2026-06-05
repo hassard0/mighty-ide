@@ -13352,3 +13352,17 @@ decide whether to clear its cached hit snapshot.
   already classified the path.
 - **Language note:** no compiler gap surfaced. UI snapshots should be invalidated
   from the model state they mirror, not from a repeated side probe.
+
+## L1058 - Breadcrumb File Menus Should Classify Directory Entries Once
+
+The breadcrumb file dropdown lists sibling source files from the active file's
+directory. It previously built each path and then asked the filesystem whether
+that path was a file.
+
+- **IDE note:** breadcrumb sibling-file enumeration now uses the directory
+  entry's file type before building source-file menu rows. Directory entries
+  with source-like names, such as `folder.mty`, stay filtered out while ordinary
+  `.mty`, `.toml`, `.md`, `.txt`, `.rs`, and `.json` files remain sorted into
+  the dropdown.
+- **Language note:** no compiler gap surfaced. Directory walkers should use the
+  metadata carried by the iterator entry when it is sufficient for the decision.

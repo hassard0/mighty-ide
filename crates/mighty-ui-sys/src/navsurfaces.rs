@@ -702,10 +702,10 @@ fn list_dir_files(dir: &std::path::Path) -> Vec<(String, PathBuf)> {
     let mut out = Vec::new();
     if let Ok(rd) = std::fs::read_dir(dir) {
         for ent in rd.flatten() {
-            let p = ent.path();
-            if !p.is_file() {
+            if !ent.file_type().is_ok_and(|kind| kind.is_file()) {
                 continue;
             }
+            let p = ent.path();
             let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
             if matches!(ext, "mty" | "toml" | "md" | "txt" | "rs" | "json") {
                 if let Some(name) = p.file_name().map(|s| s.to_string_lossy().into_owned()) {
@@ -984,11 +984,13 @@ mod tests {
         let _ = std::fs::write(dir.join("b.mty"), "fn b() {}");
         let _ = std::fs::write(dir.join("a.mty"), "fn a() {}");
         let _ = std::fs::write(dir.join("note.png"), "x"); // filtered out
+        let _ = std::fs::create_dir_all(dir.join("folder.mty")); // filtered out
         let files = list_dir_files(&dir);
         let names: Vec<_> = files.iter().map(|(n, _)| n.as_str()).collect();
         assert!(names.contains(&"a.mty"));
         assert!(names.contains(&"b.mty"));
         assert!(!names.contains(&"note.png"));
+        assert!(!names.contains(&"folder.mty"));
         // sorted: a before b
         let ai = names.iter().position(|n| *n == "a.mty").unwrap();
         let bi = names.iter().position(|n| *n == "b.mty").unwrap();
