@@ -12731,9 +12731,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("let accepted = mui_ghost_accept_word(h)")
             && main.contains("if mui_ghost_can_accept(h) == 1 { mui_ed_undo_record(h) }\n            typing = false\n            let accepted = mui_ghost_accept(h)")
             && main.contains("if mui_ghost_can_accept(h) == 1 { mui_ed_undo_record(h) }\n            let accepted = mui_ghost_accept_word(h)")
-            && main.contains("if accepted > 0 {\n              mui_tab_set_dirty(h, mui_tab_active(h), 1)")
+            && main
+                .matches("if accepted > 0 {\n              mui_tab_set_dirty(h, mui_tab_active(h), 1)\n              let _cc = mui_complete_cancel(h)\n              completing = false\n              typing = false\n            }")
+                .count()
+                >= 2
             && main.contains("if accepted == 1 {\n              mui_tab_set_dirty(h, mui_tab_active(h), 1)"),
-        "completion and ghost accept paths must only record undo/dirty after accepted edits"
+        "completion accepts must only close after edits, and completion/ghost paths must only record undo/dirty after accepted edits"
     );
     assert!(
         main.contains("mui_snippet_can_expand(h) == 1")

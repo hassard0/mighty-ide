@@ -3190,10 +3190,10 @@ fn main() {
             }
             if accepted > 0 {
               mui_tab_set_dirty(h, mui_tab_active(h), 1)
+              let _cc = mui_complete_cancel(h)
+              completing = false
+              typing = false
             }
-            let _cc = mui_complete_cancel(h)
-            completing = false
-            typing = false
           } else if k == key_escape() {
             let _cc = mui_complete_cancel(h)
             completing = false
@@ -3245,10 +3245,10 @@ fn main() {
             }
             if accepted > 0 {
               mui_tab_set_dirty(h, mui_tab_active(h), 1)
+              let _cc = mui_complete_cancel(h)
+              completing = false
+              typing = false
             }
-            let _cc = mui_complete_cancel(h)
-            completing = false
-            typing = false
           } else {
             let _cc = mui_complete_cancel(h)
             completing = false
