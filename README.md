@@ -18,6 +18,7 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Toggle line comment (Ctrl+/), Tab/Shift+Tab indent and outdent, auto-indent on Enter (brace-aware), bracket/quote auto-close + skip-over + empty-pair backspace, bracket-match highlight
 - Duplicate line/selection (Ctrl+Shift+D), delete current line (Ctrl+Shift+K), join line (Ctrl+J), move line up/down (Alt+↑ / Alt+↓), word-wise and document-boundary motion (Ctrl+←/→, Ctrl+Home/End), word deletion (Ctrl+Backspace/Delete), smart Home, Shift+motion selection
 - In-file find & replace (Ctrl+H), find with match highlighting (Ctrl+F)
+- Find & Replace stale close-click routes report when the bar has already closed
 - Format document guards unsaved scratch buffers and dirty duplicate tabs with
   target-specific feedback, and rejects directory targets with explicit `not a
   file` feedback before spawning the formatter
@@ -199,6 +200,7 @@ Three live-switchable design systems, all rendered through Vello:
 - **Warm Studio** — a light, warm-paper theme
 - Theme changes apply live and report a visible warning if the preference could
   not be persisted, so a failed config write does not look like a durable choice.
+- Color theme picker stale click routes report when the picker has already closed.
 
 Bundled fonts: **JetBrains Mono** (code) + **Bricolage Grotesque** (UI chrome), both SIL OFL (`fonts/`). **Real bold/italic faces** are used semantically — italic comments, bold headings and chrome — not synthesized slants.
 

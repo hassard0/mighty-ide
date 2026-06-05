@@ -1671,6 +1671,9 @@ fn replace_bar_close_hit_tracks_visible_button() {
         0,
     );
     assert_eq!(mui_replace_close_at_click(handle), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(ctx.toasts.toasts()[0].message, "No Find & Replace bar open");
 }
 
 #[test]
@@ -10892,6 +10895,10 @@ fn color_theme_close_command_cancels_picker() {
     assert_eq!(crate::mui_theme_picker_cancel(handle), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(ctx.toasts.toasts()[0].message, "No color theme picker open");
+
+    assert_eq!(crate::mui_theme_picker_click(handle), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].message, "No color theme picker open");
 }
 
 #[test]
@@ -15419,6 +15426,13 @@ fn find_replace_close_command_clears_active_bar() {
     assert_eq!(crate::mui_replace_cancel(handle), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(
+        ctx.toasts.toasts()[0].message,
+        "No Find & Replace bar open"
+    );
+
+    assert_eq!(crate::mui_replace_close_at_click(handle), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(
         ctx.toasts.toasts()[0].message,
         "No Find & Replace bar open"

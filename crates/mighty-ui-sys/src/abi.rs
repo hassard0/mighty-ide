@@ -9682,6 +9682,10 @@ pub extern "C" fn mui_theme_picker_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !ctx.theme_picker.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No color theme picker open");
+        return 0;
+    }
     let out = ctx
         .theme_picker
         .click(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height);
@@ -16562,8 +16566,11 @@ pub extern "C" fn mui_replace_close_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    if !ctx.replace_bar.is_active()
-        || ctx.last_event.tag != crate::ffi::MUI_EVENT_MOUSE_DOWN
+    if !ctx.replace_bar.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No Find & Replace bar open");
+        return 0;
+    }
+    if ctx.last_event.tag != crate::ffi::MUI_EVENT_MOUSE_DOWN
         || ctx.last_event.button != crate::ffi::MUI_MOUSE_LEFT
     {
         return 0;
