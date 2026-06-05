@@ -90,6 +90,24 @@ Windows verification can be completed from this checkout. macOS and Linux
 verification must be completed on native hosts or matching CI runners; the
 checked-in scripts intentionally refuse to run on the wrong OS.
 
+## Final release procedure
+
+Use this order for a publishable pass:
+
+1. Commit source, README, changelog, build notes, and packaging docs.
+2. Run the package script on the native host for each platform:
+   `.\package-win.ps1`, `./package-macos.sh`, or `./package-linux.sh`.
+3. Confirm the script wrote `PACKAGE-MANIFEST.txt` in the package root and that
+   the manifest lists the expected native family: PE, Mach-O, or ELF.
+4. Launch the packaged app from inside the assembled package directory or app
+   bundle, not from `target/`.
+5. Record archive size, SHA-256, native payload family, sidecar/foreign-payload
+   scan result, manifest summary, and packaged launch result.
+
+If a native macOS or Linux host is not available, leave that platform unbuilt
+for the release. Do not rename the Windows ZIP, reuse its DLL, or publish an
+empty placeholder for another OS.
+
 ## Run
 
 ```sh

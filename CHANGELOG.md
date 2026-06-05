@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Release packaging
+- **Release docs now define the final native-host gate**: README, build notes,
+  and platform packaging docs now put the release operator flow up front:
+  commit docs first, run each package script on its native OS or matching CI
+  runner, smoke-test from the assembled package, and mark unavailable macOS or
+  Linux hosts as unbuilt instead of deriving them from Windows artifacts.
 - **Archive-level clean-binary checks**: Windows, macOS, and Linux package
   scripts now scan the finished ZIP or tarball for compiler/linker sidecars and
   wrong-platform native payloads after the staged package directory has already

@@ -39,6 +39,12 @@ The release invariant is one archive, one native binary family:
 - macOS packages contain Mach-O files only for native code.
 - Linux packages contain ELF files only for native code.
 
+A completed release has one verification record per uploaded platform. That
+record must come from the package script and the native smoke test for that
+platform, not from another OS package. If the Windows package is current but
+macOS or Linux has not run on native infrastructure, the correct state is
+`unbuilt`, not `derived from Windows`.
+
 The sidecar scan is intentionally shared in spirit across all three scripts:
 package trees and finished archives must not contain `.pdb`, `.lib`, `.exp`,
 `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, or `.dSYM`
@@ -225,6 +231,22 @@ find dist/mighty-ide-linux-x64 \( -type f \( \
 
 An empty `find` result is expected for the sidecar/foreign-payload scans. If
 any path is printed, fix the package before publishing it.
+
+## Native Host Gate
+
+The scripts are deliberately host-specific:
+
+- `package-win.ps1` runs on Windows and validates PE headers directly.
+- `package-macos.sh` runs only when `uname -s` is `Darwin` and validates Mach-O
+  payloads with `file`.
+- `package-linux.sh` runs only when `uname -s` is `Linux` and validates ELF
+  payloads with `file`.
+
+Those guards are part of the release process. A platform is clean only after
+its own script has completed, its archive has passed the archive-level scan,
+and the packaged executable has launched from the assembled package directory
+or app bundle. Cross-host script syntax checks are useful maintenance, but they
+do not create a shippable macOS or Linux binary.
 
 ## Release Note Evidence
 

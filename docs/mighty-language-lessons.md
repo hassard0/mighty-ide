@@ -12821,3 +12821,19 @@ the path now names a directory. Those are different recovery paths for users.
 - **Language note:** no compiler gap surfaced. Batch edit engines should track
   missing, dirty, and wrong-kind skips separately so the UI can report the
   actionable reason instead of a generic I/O failure.
+
+## L1023 - Release Packages Need Native-Host Evidence
+
+Clean binary packaging is more than filtering sidecars. The executable and shim
+are native artifacts, so a Windows package, a macOS package, and a Linux package
+each need evidence from the host OS or matching CI runner that produced them.
+
+- **IDE note:** README, build notes, and platform packaging docs now describe
+  the final operator flow: commit docs before packaging, run each script on its
+  native host, smoke-test from the assembled package, and record archive hash,
+  native payload family, sidecar scan, manifest, and launch evidence. If a
+  macOS or Linux runner is unavailable, that platform is listed as unbuilt
+  instead of being derived from the Windows ZIP.
+- **Language note:** no compiler gap surfaced. Release tooling should make
+  artifact provenance explicit when the build output is ABI-specific; clean
+  archives without native-host evidence are not complete release evidence.

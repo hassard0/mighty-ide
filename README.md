@@ -218,6 +218,17 @@ Each package also includes `PACKAGE-MANIFEST.txt`, a verification record with
 the platform, version, native payload hashes and sizes, and the clean binary
 checks completed before archiving.
 
+Release operator flow:
+
+1. Commit README, docs, changelog, and source changes first.
+2. Build each OS package on that same OS or a matching CI runner.
+3. Run the platform package script from the clean committed tree.
+4. Smoke-test the packaged executable from inside the assembled package
+   directory or app bundle.
+5. Upload only the generated archive from `dist/`.
+6. Record the archive size, SHA-256, native payload family, sidecar scan,
+   manifest summary, and packaged launch result in the release notes.
+
 Release checklist:
 
 1. Commit all source, README, and docs changes before packaging.
@@ -251,6 +262,11 @@ Clean binary contract:
 | Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; staged tree and ZIP contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.dylib`/`.so` files |
 | macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and `.dylib`; staged tree and tarball contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.exe`/`.dll`/`.so` files |
 | Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and `.so`; staged tree and tarball contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.exe`/`.dll`/`.dylib` files |
+
+Windows can be produced and verified from a Windows checkout. macOS and Linux
+must be produced on native hosts or matching CI runners because their executable
+and shim formats are different native binaries, not repackaged variants of the
+Windows output.
 
 Minimum verification before upload:
 
