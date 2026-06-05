@@ -768,8 +768,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No active file directory to copy"
         || m == "No text to copy"
         || m == "Nothing to cut"
-        || m == "Could not copy text"
-        || m == "Could not cut text"
+        || m.starts_with("Could not copy text")
+        || m.starts_with("Could not cut text")
         || m == "Cut selection"
         || m == "Cut line"
         || m.starts_with("Clipboard paste failed")
@@ -1329,6 +1329,18 @@ mod tests {
         q.push_at(Kind::Success, "Cut line", t0 + Duration::from_millis(100));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Cut line");
+
+        q.push_at(
+            Kind::Error,
+            "Could not copy text: clipboard command failed",
+            t0 + Duration::from_millis(150),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Could not copy text: clipboard command failed"
+        );
+        assert_eq!(q.toasts()[0].kind, Kind::Error);
 
         q.push_at(Kind::Info, "Clipboard is empty", t0 + Duration::from_millis(200));
         assert_eq!(q.len(), 1);

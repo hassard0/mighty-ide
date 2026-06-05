@@ -11677,3 +11677,17 @@ detail.
   a separate `Terminal is not open` warning.
 - **Language note:** no compiler gap surfaced. Shared host integration helpers
   should expose consistent visible errors across editor and terminal surfaces.
+
+## L944 - Editor Copy/Cut Failures Should Preserve Clipboard Write Errors
+
+Paste feedback now preserves clipboard read failures, but editor copy and cut
+still collapsed all write-side clipboard problems into `Could not copy text` or
+`Could not cut text`. That loses the useful platform distinction between a
+missing clipboard command and a command that ran but failed.
+
+- **IDE note:** copy/cut failures now include the clipboard write error
+  (`Could not copy text: clipboard command failed`), stale clipboard toasts group
+  the detailed prefix, and failed cut leaves the buffer unchanged.
+- **Language note:** no compiler gap surfaced. Mutating editor commands should
+  report host integration failures before changing document state, and the
+  visible error should retain the host failure reason.

@@ -12052,6 +12052,39 @@ fn cut_preflight_tracks_mutating_targets_and_read_only() {
 }
 
 #[test]
+fn copy_and_cut_failures_report_clipboard_write_reason() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_CLIPBOARD_WRITE_FORCE_FAIL", "clipboard command failed");
+    *ctx.tabs.active_model_mut() = crate::editor::TextModel::from_bytes(b"copy me");
+    assert_eq!(crate::mui_ed_copy(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(
+        toast.message,
+        "Could not copy text: clipboard command failed"
+    );
+
+    ctx.toasts.clear();
+    *ctx.tabs.active_model_mut() = crate::editor::TextModel::from_bytes(b"cut me");
+    ctx.tabs.active_model_mut().set_selection((0, 0), (0, 3));
+    assert_eq!(crate::mui_ed_cut(h), 0);
+    assert_eq!(ctx.tabs.active_model().as_text(), "cut me");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(
+        toast.message,
+        "Could not cut text: clipboard command failed"
+    );
+    std::env::remove_var("MUI_CLIPBOARD_WRITE_FORCE_FAIL");
+}
+
+#[test]
 fn paste_preflight_tracks_clipboard_editability_and_read_only() {
     let _g = crate::settings::TEST_LOCK
         .lock()

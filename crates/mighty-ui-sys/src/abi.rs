@@ -6352,6 +6352,14 @@ pub(crate) fn platform_clipboard_read_command() -> Option<(String, Vec<String>)>
 fn write_clipboard_text(text: &str) -> std::io::Result<()> {
     use std::io::Write;
 
+    if let Ok(reason) = std::env::var("MUI_CLIPBOARD_WRITE_FORCE_FAIL") {
+        let reason = if reason.trim().is_empty() {
+            "clipboard command failed".to_string()
+        } else {
+            reason
+        };
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, reason));
+    }
     let Some((program, args)) = platform_clipboard_command() else {
         return Err(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
@@ -6372,6 +6380,15 @@ fn write_clipboard_text(text: &str) -> std::io::Result<()> {
         Ok(())
     } else {
         Err(std::io::Error::new(std::io::ErrorKind::Other, "clipboard command failed"))
+    }
+}
+
+fn clipboard_write_failure_message(action: &str, e: &std::io::Error) -> String {
+    let msg = e.to_string();
+    if msg.trim().is_empty() {
+        format!("Could not {action} text")
+    } else {
+        format!("Could not {action} text: {msg}")
     }
 }
 
@@ -14843,7 +14860,10 @@ pub extern "C" fn mui_ed_copy(handle: i64) -> i32 {
             1
         }
         Err(e) => {
-            ctx.push_toast(crate::toast::Kind::Error, "Could not copy text");
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                clipboard_write_failure_message("copy", &e),
+            );
             println!("editor-copy: failed: {e}");
             0
         }
@@ -14891,7 +14911,10 @@ pub extern "C" fn mui_ed_cut(handle: i64) -> i32 {
             }
         }
         Err(e) => {
-            ctx.push_toast(crate::toast::Kind::Error, "Could not cut text");
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                clipboard_write_failure_message("cut", &e),
+            );
             println!("editor-cut: failed: {e}");
             0
         }
