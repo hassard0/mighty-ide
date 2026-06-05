@@ -241,6 +241,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Settings panel stale move, click, adjust, and toggle routes report when the
   panel has already closed
 - Integrated terminal (Ctrl+`) — a real ConPTY shell with a VT parser
+- Terminal closed-panel header-clear routes report that the Terminal is already
+  closed instead of silently ignoring stale header clicks
 
 ### Themes
 Three live-switchable design systems, all rendered through Vello:

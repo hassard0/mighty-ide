@@ -3829,6 +3829,10 @@ fn terminal_header_clear_action_hits_visible_button() {
         crate::abi::mui_term_header_action_at_click(handle),
         crate::abi::TERM_HEADER_CLICK_NONE
     );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Terminal is already closed"
+    );
 }
 
 #[test]

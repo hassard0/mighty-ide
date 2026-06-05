@@ -60,6 +60,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Peek Definition targets now share the focused-pane file-open path.
 
 ### Language intelligence
+- **Terminal stale header routes are visible**: Terminal header-clear hit
+  routing now reports when the integrated Terminal has already closed instead
+  of silently returning no action from stale header clicks.
 - **Outline stale routes are visible**: Outline row-hit, row-open, and
   header-action routes now report when the sidebar panel has already closed and
   cannot jump through retained hidden symbols.

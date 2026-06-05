@@ -8139,7 +8139,7 @@ pub extern "C" fn mui_term_close(handle: i64) -> i32 {
         return 0;
     };
     if !ctx.term_open && ctx.terminal.is_none() {
-        ctx.push_toast(crate::toast::Kind::Info, "Terminal is already closed");
+        report_terminal_closed(ctx);
         trace("term_close noop");
         return 0;
     }
@@ -8152,6 +8152,10 @@ pub extern "C" fn mui_term_close(handle: i64) -> i32 {
     1
 }
 
+fn report_terminal_closed(ctx: &mut MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Info, "Terminal is already closed");
+}
+
 /// Clear the terminal's visible buffer without killing the shell.
 /// Returns `1` when a terminal panel remains open afterwards, else `0`.
 #[no_mangle]
@@ -8160,7 +8164,7 @@ pub extern "C" fn mui_term_clear(handle: i64) -> i32 {
         return 0;
     };
     if !ctx.term_open || ctx.terminal.is_none() {
-        ctx.push_toast(crate::toast::Kind::Info, "Terminal is already closed");
+        report_terminal_closed(ctx);
         trace("term_clear noop");
         return 0;
     }
@@ -8210,6 +8214,7 @@ pub extern "C" fn mui_term_header_action_at_click(handle: i64) -> i32 {
         return TERM_HEADER_CLICK_NONE;
     };
     if !ctx.term_open || ctx.terminal.is_none() {
+        report_terminal_closed(ctx);
         return TERM_HEADER_CLICK_NONE;
     }
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
