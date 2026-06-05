@@ -11415,3 +11415,18 @@ successful auto-save.
   This keeps Explorer, Quick Open rows, the backing index, and recents aligned.
 - **Language note:** no compiler gap surfaced. Background lifecycle commands
   need the same cleanup guarantees as explicit save commands.
+
+## L925 - Successful Open Paths Should Prune Missing Recents
+
+Native Open File, Quick Open accept, Welcome recent-file open, and the
+Mighty-side "record active file" bridge all recorded a newly opened file as MRU,
+but they did not run the shared file-view refresh path. If another recent file
+went missing after the chooser was populated, the successful open could leave
+that stale entry visible until a later manual refresh.
+
+- **IDE note:** successful open/record paths now record the opened file and then
+  refresh shared file views, keeping Explorer, the Quick Open index, visible
+  rows, and the recent-file MRU synchronized.
+- **Language note:** no compiler gap surfaced. Cross-ABI open commands should
+  terminate through one cleanup primitive so discovery state does not depend on
+  which UI surface initiated the open.

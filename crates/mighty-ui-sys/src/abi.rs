@@ -4292,6 +4292,7 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
     let idx = ctx.tabs.open_path(path.clone());
     sync_active_path(ctx);
     record_recent_file(ctx, path);
+    refresh_workspace_file_views(ctx);
     ensure_tab_visible(ctx, idx);
     idx as i32
 }
@@ -9297,6 +9298,7 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
                     let idx = ctx.tabs.open_path(path.clone());
                     sync_active_path(ctx);
                     record_recent_file(ctx, path);
+                    refresh_workspace_file_views(ctx);
                     idx as i32
                 }
                 Some(path) => {
@@ -9393,6 +9395,7 @@ pub extern "C" fn mui_qo_record_active(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         if let Some(p) = ctx.tabs.active_path() {
             record_recent_file(ctx, p);
+            refresh_workspace_file_views(ctx);
         }
     }
 }
@@ -15441,6 +15444,7 @@ pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
     ctx.welcome.dismiss();
     sync_active_path(ctx);
     record_recent_file(ctx, path);
+    refresh_workspace_file_views(ctx);
     idx as i32
 }
 

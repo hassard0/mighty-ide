@@ -12336,6 +12336,76 @@ fn quickopen_accept_missing_indexed_file_reindexes_and_stays_open() {
 }
 
 #[test]
+fn quickopen_accept_file_prunes_missing_recent_files_after_open() {
+    use crate::{mui_qo_accept, mui_quickopen_open};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_qo_accept_prunes_missing_recent_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let opened = root.join("opened.mty");
+    let missing = root.join("missing.mty");
+    std::fs::write(&opened, "fn opened() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_quickopen_open(h);
+    ctx.quickopen.set_recent_paths(vec![missing.clone()]);
+    assert_eq!(ctx.quickopen.recent_paths(), vec![missing.clone()]);
+    assert_eq!(mui_qo_accept(h, 0), 1);
+
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(opened.as_path()));
+    assert_eq!(ctx.quickopen.recent_paths(), vec![opened.clone()]);
+    mui_quickopen_open(h);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "opened.mty");
+    assert_eq!(ctx.tree.count(), 1);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn quickopen_record_active_prunes_missing_recent_files() {
+    use crate::mui_qo_record_active;
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_qo_record_active_prunes_missing_recent_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let active = root.join("active.mty");
+    let missing = root.join("missing.mty");
+    std::fs::write(&active, "fn active() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tabs.open_path(active.clone());
+    ctx.quickopen.set_recent_paths(vec![missing.clone()]);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_qo_record_active(h);
+
+    assert_eq!(ctx.quickopen.recent_paths(), vec![active.clone()]);
+    crate::mui_quickopen_open(h);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "active.mty");
+    assert_eq!(ctx.tree.count(), 1);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn quickopen_accept_empty_result_reports_feedback_and_stays_open() {
     use crate::{mui_qo_accept, mui_qo_active, mui_qo_count, mui_quickopen_open};
 
@@ -12439,6 +12509,47 @@ fn welcome_open_recent_misses_report_visible_feedback() {
 }
 
 #[test]
+fn welcome_open_recent_success_prunes_missing_recent_files() {
+    use crate::{mui_welcome_draw, mui_welcome_open_recent};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    let root = std::env::temp_dir().join(format!(
+        "mui_welcome_recent_success_prunes_missing_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let opened = root.join("opened.mty");
+    let missing = root.join("missing.mty");
+    std::fs::write(&opened, "fn opened() {}\n").unwrap();
+    std::fs::write(&missing, "fn missing() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.quickopen.set_recent_paths(vec![opened.clone(), missing.clone()]);
+    ctx.welcome.open();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_welcome_draw(h);
+    assert_eq!(ctx.quickopen.recent_paths(), vec![opened.clone(), missing.clone()]);
+    std::fs::remove_file(&missing).unwrap();
+    assert_eq!(mui_welcome_open_recent(h, 0), 1);
+
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(opened.as_path()));
+    assert_eq!(ctx.quickopen.recent_paths(), vec![opened.clone()]);
+    crate::mui_quickopen_open(h);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "opened.mty");
+    assert_eq!(ctx.tree.count(), 1);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn welcome_missing_recent_folder_stays_open_and_prunes() {
     use crate::wsabi::mui_ws_recent_count;
     use crate::{mui_welcome_active, mui_welcome_draw, mui_welcome_open_folder};
@@ -12526,6 +12637,46 @@ fn open_file_dialog_env_pick_opens_tab_and_records_recent() {
     assert_eq!(ctx.tabs.active_path().as_deref(), Some(picked.as_path()));
     assert_eq!(ctx.tabs.active_model().as_text(), "fn picked() -> I32 { 7 }");
     assert_eq!(mui_quickopen_reindex(h), 1, "picked file's folder is still indexed");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn open_file_dialog_success_prunes_missing_recent_files() {
+    use crate::{mui_open_file_dialog, mui_quickopen_reindex};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let root = std::env::temp_dir().join(format!(
+        "mui_open_file_dialog_prunes_missing_recent_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let picked = root.join("picked.mty");
+    let missing = root.join("missing.mty");
+    std::fs::write(&picked, b"fn picked() -> I32 { 7 }").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.quickopen.set_recent_paths(vec![missing.clone()]);
+
+    std::env::set_var("MUI_OPEN_FILE_PICK", picked.to_string_lossy().as_ref());
+    let idx = mui_open_file_dialog(h);
+    std::env::remove_var("MUI_OPEN_FILE_PICK");
+
+    assert_eq!(idx, 1);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(picked.as_path()));
+    assert_eq!(ctx.quickopen.recent_paths(), vec![picked.clone()]);
+    assert_eq!(mui_quickopen_reindex(h), 1);
+    crate::mui_quickopen_open(h);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "picked.mty");
+    assert_eq!(ctx.tree.count(), 1);
 
     let _ = std::fs::remove_dir_all(&root);
 }
