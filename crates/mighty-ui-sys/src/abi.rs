@@ -2358,7 +2358,7 @@ pub extern "C" fn mui_dock_dispatch(handle: i64, id: i32) -> i32 {
             trace(&format!("dock_dispatch id={id} close"));
             return 4;
         }
-        ctx.push_toast(crate::toast::Kind::Info, "No bottom dock open");
+        ctx.push_toast(crate::toast::Kind::Info, "No bottom dock is open");
         trace(&format!("dock_dispatch id={id} close noop"));
         return 0;
     }

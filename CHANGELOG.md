@@ -34,6 +34,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Bottom-dock close misses are explicit**: closing the shared bottom dock when
+  no lower panel is open now reports `No bottom dock is open`, and the no-op is
+  covered alongside the dock preset commands.
 - **Signature-help no-op feedback is consistent**: closing signature help when
   no popup is open now reports `No signature help popup open`, matching the
   sentence-style wording used by other overlay no-op messages.

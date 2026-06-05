@@ -2900,6 +2900,14 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
         "Bottom dock closed",
         "visible dock close button should confirm the close"
     );
+    assert_eq!(
+        crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_CLOSE as i32),
+        0
+    );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No bottom dock is open"
+    );
     crate::uiscale::set_os_scale(1.0);
     crate::uiscale::set_user_zoom(1.0);
     crate::layout::reset_dock_fraction();
@@ -2925,6 +2933,14 @@ fn dock_preset_commands_open_hidden_dock_at_requested_size() {
         4
     );
     assert!(!ctx.bottom_dock_open());
+    assert_eq!(
+        crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_CLOSE as i32),
+        0
+    );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No bottom dock is open"
+    );
     assert_eq!(
         crate::abi::mui_dock_dispatch(handle, crate::palette::CMD_DOCK_RESET as i32),
         2
