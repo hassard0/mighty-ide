@@ -1697,7 +1697,7 @@ mod tests {
 
         q.push_at(
             Kind::Error,
-            "Format failed: main.mty via missing-mty.exe fmt",
+            "Format failed: main.mty via missing-mty.exe fmt: process spawn denied",
             t0 + Duration::from_millis(400),
         );
         q.push_at(Kind::Success, "Formatted document", t0 + Duration::from_millis(500));
@@ -2645,13 +2645,13 @@ mod tests {
 
         q.push_at(
             Kind::Error,
-            "Format failed: main.mty via missing-mty.exe fmt",
+            "Format failed: main.mty via missing-mty.exe fmt: process spawn denied",
             t0 + Duration::from_millis(200),
         );
         assert_eq!(q.len(), 1);
         assert_eq!(
             q.toasts()[0].message,
-            "Format failed: main.mty via missing-mty.exe fmt"
+            "Format failed: main.mty via missing-mty.exe fmt: process spawn denied"
         );
         assert_eq!(q.toasts()[0].kind, Kind::Error);
 

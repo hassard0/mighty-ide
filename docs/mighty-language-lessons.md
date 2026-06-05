@@ -11971,3 +11971,18 @@ the actionable host reason was discarded.
   larger command should preserve the inner operation's target and host reason;
   otherwise compound commands become harder to recover from than direct file
   commands.
+
+## L963 - Formatter Failures Should Surface Spawn And Stderr Details
+
+The Format command already named the file and formatter command, but
+`run_fmt` collapsed both process-spawn failures and non-zero formatter exits
+into a payload-free `Failed` outcome. The log carried stderr or the spawn error;
+the toast stopped at `Format failed: file via mty fmt`.
+
+- **IDE note:** formatter failures now carry a reason string through
+  `FmtOutcome::Failed(reason)` and report
+  `Format failed: target via command: reason` in the toast. Detailed format
+  failures still group under the existing `Format failed` prefix.
+- **Language note:** no compiler gap surfaced. Tool subprocess wrappers should
+  return enough structured failure context for the UI layer to explain both the
+  command boundary and the host/tool reason.

@@ -12,7 +12,7 @@ use std::process::Command;
 
 /// Outcome of a format attempt. The IDE maps these to status-bar messages and a
 /// distinct ABI return code (see [`crate::mui_format_current`]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FmtOutcome {
     /// The file was a `.mty` file and `mty fmt` exited 0.
     Formatted,
@@ -20,7 +20,7 @@ pub enum FmtOutcome {
     /// the L26 data-loss guard: `mty fmt` truncates non-`.mty` input to 1 byte.
     NotApplicable,
     /// The file was a `.mty` file but `mty fmt` failed to spawn / exited non-zero.
-    Failed,
+    Failed(String),
 }
 
 /// Whether `path` has a `.mty` extension (case-insensitive). Only `.mty` files
@@ -61,18 +61,24 @@ pub fn run_fmt(path: &Path) -> FmtOutcome {
             if out.status.success() {
                 FmtOutcome::Formatted
             } else {
+                let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+                let reason = if stderr.is_empty() {
+                    out.status.to_string()
+                } else {
+                    format!("{}: {stderr}", out.status)
+                };
                 eprintln!(
                     "format: `{mty} fmt {}` exited {}: {}",
                     path.display(),
                     out.status,
-                    String::from_utf8_lossy(&out.stderr).trim()
+                    stderr
                 );
-                FmtOutcome::Failed
+                FmtOutcome::Failed(reason)
             }
         }
         Err(e) => {
             eprintln!("format: failed to run `{mty} fmt`: {e}");
-            FmtOutcome::Failed
+            FmtOutcome::Failed(e.to_string())
         }
     }
 }
@@ -159,7 +165,7 @@ mod tests {
             let _ = std::fs::remove_file(&path);
             return;
         }
-        if outcome != FmtOutcome::Formatted {
+        if !matches!(outcome, FmtOutcome::Formatted) {
             eprintln!("fmt idempotence skipped: `mty fmt` did not succeed on sample");
             let _ = std::fs::remove_file(&path);
             return;

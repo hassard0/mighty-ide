@@ -11371,9 +11371,13 @@ fn format_command_display() -> String {
     format!("{program} fmt")
 }
 
-fn format_failed_message(path: &std::path::Path) -> String {
+fn format_failed_message(path: &std::path::Path, reason: Option<&str>) -> String {
     let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("file");
-    format!("Format failed: {name} via {}", format_command_display())
+    let base = format!("Format failed: {name} via {}", format_command_display());
+    match reason.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(reason) => format!("{base}: {reason}"),
+        None => base,
+    }
 }
 
 #[no_mangle]
@@ -11410,9 +11414,12 @@ pub extern "C" fn mui_format_current(handle: i64) -> i32 {
             ctx.push_toast(crate::toast::Kind::Info, "Format is available for Mighty files");
             0
         }
-        crate::format::FmtOutcome::Failed => {
+        crate::format::FmtOutcome::Failed(reason) => {
             println!("format: {} -> failed", path.display());
-            ctx.push_toast(crate::toast::Kind::Error, format_failed_message(&path));
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                format_failed_message(&path, Some(&reason)),
+            );
             -1
         }
     }

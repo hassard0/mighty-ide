@@ -10730,9 +10730,12 @@ fn format_current_failure_names_target_and_command() {
     assert_eq!(ctx.tabs.active_model().as_text(), "fn main() {}\n");
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert_eq!(
-        toast.message,
-        "Format failed: main.mty via missing-mty.exe fmt"
+    assert!(
+        toast
+            .message
+            .starts_with("Format failed: main.mty via missing-mty.exe fmt: "),
+        "{}",
+        toast.message
     );
 
     let _ = std::fs::remove_dir_all(root);
