@@ -10685,6 +10685,23 @@ fn mty_default() -> String {
     crate::mty::path()
 }
 
+fn mty_program_display(mty: &str) -> &str {
+    std::path::Path::new(mty)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(mty)
+}
+
+fn fix_all_command_display(mty: &str) -> String {
+    format!("{} fix --apply", mty_program_display(mty))
+}
+
+fn fix_all_failed_message(path: &std::path::Path, mty: &str) -> String {
+    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("file");
+    format!("Fix all (mty) failed: {name} via {}", fix_all_command_display(mty))
+}
+
 /// `1` while the code-action menu is active.
 #[no_mangle]
 pub extern "C" fn mui_codeaction_active(handle: i64) -> i32 {
@@ -10847,7 +10864,10 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
             ctx.push_toast(crate::toast::Kind::Success, "Applied Fix all (mty)");
             ctx.codeaction.cancel();
         } else {
-            ctx.push_toast(crate::toast::Kind::Warn, "Fix all (mty) failed");
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                fix_all_failed_message(&path, &mty),
+            );
         }
         println!("codeaction: apply Fix-all-mty ok={ok}");
         return i32::from(ok);

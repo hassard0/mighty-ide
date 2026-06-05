@@ -825,7 +825,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Code action needs a file"
         || m == "Save failed before code action"
         || m == "Applied Fix all (mty)"
-        || m == "Fix all (mty) failed"
+        || m.starts_with("Fix all (mty) failed")
         || m == "Applied code action"
         || m == "Code action produced no edit"
     {
@@ -2347,6 +2347,25 @@ mod tests {
         q.push_at(Kind::Success, "Applied code action", t0 + Duration::from_millis(300));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Applied code action");
+
+        q.push_at(
+            Kind::Warn,
+            "Fix all (mty) failed: main.mty via fake-mty.cmd fix --apply",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Fix all (mty) failed: main.mty via fake-mty.cmd fix --apply"
+        );
+
+        q.push_at(
+            Kind::Success,
+            "Applied Fix all (mty)",
+            t0 + Duration::from_millis(500),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Applied Fix all (mty)");
     }
 
     #[test]

@@ -11579,3 +11579,15 @@ failed.
   replacement through a prefix-based operation key.
 - **Language note:** no compiler gap surfaced. File-mutating tool failures
   should identify both the edited target and the external command boundary.
+
+## L937 - Fix All Failures Should Name Target And Fix Command
+
+The synthetic Fix all action saves the active buffer and then shells out to
+`mty fix --apply`, but a failed fixer run only reported `Fix all (mty) failed`.
+That hid both the target file and the external command that needed attention.
+
+- **IDE note:** Fix all failure toasts now include the active filename and the
+  attempted `mty fix --apply` command display name, while code-action toast
+  grouping uses a prefix match so stale menu/fixer feedback still collapses.
+- **Language note:** no compiler gap surfaced. File-mutating code-action
+  helpers need the same target-plus-command feedback contract as format.

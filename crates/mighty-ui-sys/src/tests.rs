@@ -9762,7 +9762,10 @@ fn codeaction_fix_all_refreshes_clean_duplicate_when_fixer_fails_after_pre_fix_s
     assert!(!ctx.tabs.is_dirty(duplicate));
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Fix all (mty) failed");
+    assert_eq!(
+        toast.message,
+        "Fix all (mty) failed: main.mty via fake-mty.cmd fix --apply"
+    );
 
     if let Some(v) = old_mty {
         std::env::set_var("MIGHTY_MTY", v);
@@ -9825,7 +9828,10 @@ fn codeaction_fix_all_presave_republishes_resurrected_file_to_quickopen() {
     assert_eq!(ctx.quickopen.row(0).unwrap().name, "main.mty");
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Fix all (mty) failed");
+    assert_eq!(
+        toast.message,
+        "Fix all (mty) failed: main.mty via fake-mty.cmd fix --apply"
+    );
 
     if let Some(v) = old_mty {
         std::env::set_var("MIGHTY_MTY", v);
