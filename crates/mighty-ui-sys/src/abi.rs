@@ -10034,6 +10034,10 @@ pub extern "C" fn mui_qo_push_char(handle: i64, cp: i32) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
+    if !ctx.quickopen.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No Quick Open panel open");
+        return;
+    }
     if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
         ctx.quickopen.push_char(ch);
         quickopen_sync_providers(ctx);
@@ -10047,6 +10051,10 @@ pub extern "C" fn mui_qo_backspace(handle: i64) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
+    if !ctx.quickopen.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No Quick Open panel open");
+        return;
+    }
     let _ = ctx.quickopen.backspace();
     quickopen_sync_providers(ctx);
 }
@@ -10090,6 +10098,10 @@ pub extern "C" fn mui_recent_empty(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_qo_move(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.quickopen.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No Quick Open panel open");
+            return;
+        }
         ctx.quickopen.move_sel(delta);
     }
 }

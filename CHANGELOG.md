@@ -102,6 +102,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Command Palette stale keyboard routes are visible**: palette text entry,
   backspace, and selection-move routes now report `No command palette open`
   when the overlay has already closed, matching stale clicks and cancel.
+- **Quick Open stale keyboard routes are visible**: Quick Open text entry,
+  backspace, and selection-move routes now report `No Quick Open panel open`
+  when the overlay has already closed, matching stale clicks and cancel.
 - **Run output directory misses demote precisely**: clicking a Run diagnostic
   row whose target became a directory now demotes that row and preserves
   `Run target is not a file: <name>` for repeated clicks.
