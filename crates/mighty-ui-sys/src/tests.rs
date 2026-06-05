@@ -7972,6 +7972,20 @@ fn active_file_os_failure_messages_name_the_target() {
         "Reveal in file manager is unavailable: main.mty"
     );
     assert_eq!(
+        crate::abi::reveal_stale_target_message(
+            path,
+            Some(&std::io::Error::new(std::io::ErrorKind::NotFound, "gone"))
+        ),
+        "Reveal target missing: main.mty"
+    );
+    assert_eq!(
+        crate::abi::reveal_stale_target_message(
+            path,
+            Some(&std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied"))
+        ),
+        "Reveal target unavailable: main.mty: denied"
+    );
+    assert_eq!(
         crate::abi::reveal_outside_root_message(
             path,
             std::path::Path::new("C:\\workspace")
@@ -8031,6 +8045,69 @@ fn active_file_tree_reveal_outside_root_names_target_and_root() {
 
     let _ = std::fs::remove_dir_all(root);
     let _ = std::fs::remove_dir_all(outside);
+}
+
+#[test]
+fn active_file_tree_reveal_rejects_stale_targets() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_reveal_stale_{}", std::process::id()));
+    std::fs::create_dir_all(&root).unwrap();
+    let missing = root.join("gone.mty");
+    std::fs::write(&missing, b"fn main() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    ctx.tabs.open_path(missing.clone());
+    std::fs::remove_file(&missing).unwrap();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::abi::mui_file_reveal_active(handle), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Reveal target missing: gone.mty");
+    assert_eq!(ctx.tree.count(), 0);
+
+    let dir = root.join("folder.mty");
+    std::fs::create_dir_all(&dir).unwrap();
+    ctx.tabs.open_path(dir);
+    assert_eq!(crate::abi::mui_file_reveal_active(handle), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Reveal target is not a file: folder.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn active_file_os_reveal_rejects_stale_targets_before_launch() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    std::env::set_var("MUI_FILE_REVEAL_FORCE_SPAWN_ERROR", "should not launch");
+    let _env = EnvRemoveGuard("MUI_FILE_REVEAL_FORCE_SPAWN_ERROR");
+    let root = std::env::temp_dir().join(format!("mui_os_reveal_stale_{}", std::process::id()));
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("gone.mty");
+    std::fs::write(&file, b"fn main() {}\n").unwrap();
+    ctx.tabs.open_path(file.clone());
+    std::fs::remove_file(&file).unwrap();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::abi::mui_file_reveal_active_in_os(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Reveal target missing: gone.mty");
+
+    let dir = root.join("folder.mty");
+    std::fs::create_dir_all(&dir).unwrap();
+    ctx.tabs.open_path(dir);
+    assert_eq!(crate::abi::mui_file_reveal_active_in_os(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Reveal target is not a file: folder.mty");
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]

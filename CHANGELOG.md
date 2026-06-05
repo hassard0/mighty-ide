@@ -220,6 +220,11 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   or directory-backed tabs produce Testing-panel failure rows and target-specific
   toasts instead of launching against stale filesystem state or falling back to
   another workspace target.
+- **Reveal commands reject stale active targets up front**: File Tree reveal and
+  Show in File Manager now preflight the active path, refresh stale workspace
+  indexes, and report missing or directory-backed targets directly instead of
+  mislabeling them as outside the Explorer root or launching the OS file manager
+  against stale paths.
 - **Run active file rejects stale targets up front**: `mty run` now refuses
   missing or directory-backed active paths before spawning a child process,
   keeping the Run panel and toast pointed at the actual stale file state.

@@ -6525,6 +6525,9 @@ pub extern "C" fn mui_file_reveal_active(handle: i64) -> i32 {
         );
         return -1;
     };
+    if reject_stale_reveal_target(ctx, &path) {
+        return -1;
+    }
     ctx.sidebar_visible = true;
     match ctx.tree.reveal(&path) {
         Some(i) => {
@@ -6592,6 +6595,42 @@ pub(crate) fn reveal_outside_root_message(
     }
 }
 
+pub(crate) fn reveal_stale_target_message(
+    path: &std::path::Path,
+    err: Option<&std::io::Error>,
+) -> String {
+    let name = basename(path);
+    if save_target_is_existing_non_file(path) {
+        return format!("Reveal target is not a file: {name}");
+    }
+    match err {
+        Some(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            format!("Reveal target missing: {name}")
+        }
+        Some(e) => format!("Reveal target unavailable: {name}: {e}"),
+        None => format!("Reveal target missing: {name}"),
+    }
+}
+
+fn reject_stale_reveal_target(ctx: &mut MuiContext, path: &std::path::Path) -> bool {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => false,
+        Ok(_) => {
+            refresh_workspace_file_views(ctx);
+            ctx.push_toast(crate::toast::Kind::Warn, reveal_stale_target_message(path, None));
+            true
+        }
+        Err(e) => {
+            refresh_workspace_file_views(ctx);
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                reveal_stale_target_message(path, Some(&e)),
+            );
+            true
+        }
+    }
+}
+
 pub(crate) fn outside_workspace_pick_message(
     kind: &str,
     target: &std::path::Path,
@@ -6631,6 +6670,9 @@ pub extern "C" fn mui_file_reveal_active_in_os(handle: i64) -> i32 {
         );
         return 0;
     };
+    if reject_stale_reveal_target(ctx, &path) {
+        return 0;
+    }
     let Some((program, args)) = platform_reveal_command(&path) else {
         ctx.push_toast(
             crate::toast::Kind::Warn,
