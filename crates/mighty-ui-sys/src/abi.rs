@@ -47,7 +47,7 @@ fn remove_recent_file(ctx: &mut MuiContext, path: &std::path::Path) {
     }
 }
 
-fn refresh_workspace_file_views(ctx: &mut MuiContext) {
+pub(crate) fn refresh_workspace_file_views(ctx: &mut MuiContext) {
     ctx.tree.refresh();
     let root = quickopen_root(ctx);
     let _ = ctx.quickopen.ensure_index(&root, true);

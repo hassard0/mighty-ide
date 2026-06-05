@@ -11153,3 +11153,15 @@ loss.
 - **Language note:** no compiler gap surfaced. Failed file reload primitives
   should leave the last known-good buffer intact unless the user explicitly
   discards it.
+
+## L904 - Stale Search Opens Should Refresh File Views
+
+Opening a project-search result can race with external deletion. Search results
+were refreshed and the user saw a missing-target warning, but Explorer and an
+open Quick Open panel could keep showing the deleted file until another manual
+refresh.
+
+- **IDE note:** stale Search-result opens now refresh Explorer, Quick Open's
+  backing index, and visible Quick Open rows when the target file is missing.
+- **Language note:** no compiler gap surfaced. Navigation misses from indexed
+  file lists should update every surface derived from that index.

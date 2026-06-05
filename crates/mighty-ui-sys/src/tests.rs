@@ -3228,6 +3228,42 @@ fn search_open_misses_report_visible_feedback() {
 }
 
 #[test]
+fn search_open_missing_target_refreshes_workspace_file_views() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_search_open_missing_refreshes_views_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("hit.mty");
+    std::fs::write(&path, "needle\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
+    for ch in "needle".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+    assert_eq!(crate::panels::mui_search_run(handle), 1);
+
+    std::fs::remove_file(&path).unwrap();
+    assert_eq!(crate::panels::mui_search_open(handle, 0), -1);
+    assert_eq!(ctx.search.match_count(), 0);
+    assert_eq!(ctx.tree.count(), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Search target missing: hit.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn search_open_skips_files_changed_since_search() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_search_open_changed_since_search");

@@ -1611,6 +1611,7 @@ pub extern "C" fn mui_search_open(handle: i64, i: i32) -> i32 {
         Err(_) => {
             let dir = workspace_dir(ctx);
             let _ = ctx.search.run(&dir);
+            crate::abi::refresh_workspace_file_views(ctx);
             ctx.push_toast(crate::toast::Kind::Warn, format!("Search target missing: {name}"));
             return -1;
         }
