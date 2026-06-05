@@ -13545,3 +13545,16 @@ already moved on.
   dirty and missing files.
 - **Language note:** no compiler gap surfaced. Result families should include
   every terminal outcome of the operation, including partial-success skips.
+
+## L1071 - Save-As Target Conflicts Are Save Feedback
+
+Save As can refuse a target when that file is already open in another tab. The
+message is not phrased with `Save`, but it is still part of the save workflow and
+should replace stale save-dialog guidance instead of stacking as unrelated
+feedback.
+
+- **IDE note:** `Target file is already open` now coalesces with the Save
+  operation family, so Save As conflict feedback replaces stale save-path or
+  dialog warnings and is replaced by the next successful save result.
+- **Language note:** no compiler gap surfaced. Toast classification should use
+  the operation that produced the message, not only the first word of the text.
