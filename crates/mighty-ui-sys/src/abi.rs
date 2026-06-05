@@ -11148,6 +11148,21 @@ pub extern "C" fn mui_format_can_current(handle: i64) -> i32 {
 ///
 /// `mty fmt` formats in place (confirmed via `mty fmt --help`), so no extra
 /// flags are needed.
+fn format_command_display() -> String {
+    let mty = crate::mty::path();
+    let program = std::path::Path::new(&mty)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(mty.as_str());
+    format!("{program} fmt")
+}
+
+fn format_failed_message(path: &std::path::Path) -> String {
+    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("file");
+    format!("Format failed: {name} via {}", format_command_display())
+}
+
 #[no_mangle]
 pub extern "C" fn mui_format_current(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -11184,7 +11199,7 @@ pub extern "C" fn mui_format_current(handle: i64) -> i32 {
         }
         crate::format::FmtOutcome::Failed => {
             println!("format: {} -> failed", path.display());
-            ctx.push_toast(crate::toast::Kind::Error, "Format failed");
+            ctx.push_toast(crate::toast::Kind::Error, format_failed_message(&path));
             -1
         }
     }

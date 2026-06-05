@@ -10266,6 +10266,44 @@ fn format_current_reports_missing_or_unsupported_target() {
 }
 
 #[test]
+fn format_current_failure_names_target_and_command() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let old_mty = std::env::var_os("MIGHTY_MTY");
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_format_fail_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    let missing_mty = root.join("missing-mty.exe");
+    std::fs::write(&path, "fn main() {}\n").unwrap();
+    ctx.tabs.open_path(path.clone());
+    crate::sync_active_path(&mut ctx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MIGHTY_MTY", &missing_mty);
+    assert_eq!(crate::mui_format_can_current(h), 1);
+    assert_eq!(crate::mui_format_current(h), -1);
+    if let Some(v) = old_mty {
+        std::env::set_var("MIGHTY_MTY", v);
+    } else {
+        std::env::remove_var("MIGHTY_MTY");
+    }
+
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "fn main() {}\n");
+    assert_eq!(ctx.tabs.active_model().as_text(), "fn main() {}\n");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(
+        toast.message,
+        "Format failed: main.mty via missing-mty.exe fmt"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn format_preflight_reports_only_safe_mutating_targets() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;

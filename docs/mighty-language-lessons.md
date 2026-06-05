@@ -11566,3 +11566,16 @@ instead of an adapter-command problem.
   existing debug-console error detail.
 - **Language note:** no compiler gap surfaced. Debug launch UI should expose
   the adapter boundary in the same visible-feedback layer as Run and Testing.
+
+## L936 - Format Failures Should Name Target And Formatter Command
+
+The formatter path logged `mty fmt` spawn/exit details, but the toast only said
+`Format failed`. That was too generic for a file-mutating command: the user
+needs to know which document was being formatted and which formatter command
+failed.
+
+- **IDE note:** format failure toasts now include the target filename and the
+  attempted command display name, while preserving stale-format-toast
+  replacement through a prefix-based operation key.
+- **Language note:** no compiler gap surfaced. File-mutating tool failures
+  should identify both the edited target and the external command boundary.

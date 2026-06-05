@@ -831,7 +831,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::CodeAction)
     } else if m == "Formatted document"
-        || m == "Format failed"
+        || m.starts_with("Format failed")
         || m == "Save the file before formatting"
         || m == "Save or discard changes before formatting"
         || m == "Format is available for Mighty files"
@@ -1540,11 +1540,15 @@ mod tests {
         assert_eq!(q.toasts()[1].message, "No web server running");
         assert!(!q.toasts().iter().any(|t| t.message == "Web URL not ready"));
 
-        q.push_at(Kind::Error, "Format failed", t0 + Duration::from_millis(400));
+        q.push_at(
+            Kind::Error,
+            "Format failed: main.mty via missing-mty.exe fmt",
+            t0 + Duration::from_millis(400),
+        );
         q.push_at(Kind::Success, "Formatted document", t0 + Duration::from_millis(500));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Formatted document");
-        assert!(!q.toasts().iter().any(|t| t.message == "Format failed"));
+        assert!(!q.toasts().iter().any(|t| t.message.starts_with("Format failed")));
     }
 
     #[test]
@@ -2412,9 +2416,16 @@ mod tests {
         );
         assert_eq!(q.toasts()[0].kind, Kind::Info);
 
-        q.push_at(Kind::Error, "Format failed", t0 + Duration::from_millis(200));
+        q.push_at(
+            Kind::Error,
+            "Format failed: main.mty via missing-mty.exe fmt",
+            t0 + Duration::from_millis(200),
+        );
         assert_eq!(q.len(), 1);
-        assert_eq!(q.toasts()[0].message, "Format failed");
+        assert_eq!(
+            q.toasts()[0].message,
+            "Format failed: main.mty via missing-mty.exe fmt"
+        );
         assert_eq!(q.toasts()[0].kind, Kind::Error);
 
         q.push_at(
