@@ -12720,3 +12720,18 @@ file-backed editor tab.
 - **Language note:** no compiler gap surfaced. Any resolver that hands paths to
   editor-owned open routines should preserve both existence and object-kind
   validation at the UI boundary.
+
+## L1016 - Click-To-Open Panels Need The Same File-Kind Gate
+
+Run output, test results, agent topology nodes, source-control rows, and debug
+breakpoints all jump to files resolved from external or cached tool output.
+Checking only that the target exists leaves the same empty-tab failure mode when
+that output names a directory.
+
+- **IDE note:** these click-to-open panels now require the resolved target to be
+  a real file before opening a tab. Directory targets report
+  `<surface> target is not a file: <name>` with surface-specific wording and
+  leave the tab list unchanged.
+- **Language note:** no compiler gap surfaced. Tool-output navigation should
+  share one invariant with direct file opens: an editor tab represents a file
+  target, not merely any existing filesystem path.

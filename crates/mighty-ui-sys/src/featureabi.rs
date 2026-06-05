@@ -408,14 +408,16 @@ pub extern "C" fn mui_run_click_row(handle: i64, i: i32) -> i32 {
     };
     let (full, l, c) = target;
     if !full.exists() {
-        let name = full
-            .file_name()
-            .map(|s| s.to_string_lossy().into_owned())
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| full.to_string_lossy().into_owned());
+        let name = crate::abi::file_target_name(&full);
         let _ = ctx.run.demote_target(&root, &full);
         crate::abi::refresh_workspace_file_views(ctx);
         ctx.push_toast(crate::toast::Kind::Warn, format!("Run target missing: {name}"));
+        return 0;
+    }
+    if !full.is_file() {
+        let name = crate::abi::file_target_name(&full);
+        crate::abi::refresh_workspace_file_views(ctx);
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Run target is not a file: {name}"));
         return 0;
     }
     // Open the file as a tab now, store the jump target for read-back.

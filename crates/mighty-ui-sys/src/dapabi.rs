@@ -1126,7 +1126,7 @@ pub extern "C" fn mui_bp_open_at_hit(handle: i64, code: i32) -> i32 {
     };
     let path = std::path::PathBuf::from(&target.file);
     if !path.exists() {
-        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+        let name = crate::abi::file_target_name(&path);
         if ctx.dbg.remove_breakpoint(&target.file, target.line)
             && ctx.dbg.state() != crate::dap::DebugState::Idle
             && ctx.dbg.state() != crate::dap::DebugState::Terminated
@@ -1139,6 +1139,16 @@ pub extern "C" fn mui_bp_open_at_hit(handle: i64, code: i32) -> i32 {
             format!("Breakpoint target missing: {name}"),
         );
         crate::abi::trace(&format!("bp_open missing {}", target.file));
+        return -1;
+    }
+    if !path.is_file() {
+        let name = crate::abi::file_target_name(&path);
+        crate::abi::refresh_workspace_file_views(ctx);
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Breakpoint target is not a file: {name}"),
+        );
+        crate::abi::trace(&format!("bp_open not-file {}", target.file));
         return -1;
     }
     let tab = ctx.tabs.open_path(path.clone());

@@ -968,7 +968,7 @@ pub extern "C" fn mui_agents_open_node(handle: i64, i: i32) -> i32 {
         (n.file.clone(), n.line, n.name.clone())
     };
     if !file.exists() {
-        let name = file.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+        let name = crate::abi::file_target_name(&file);
         let root = ctx
             .agents
             .root
@@ -977,6 +977,12 @@ pub extern "C" fn mui_agents_open_node(handle: i64, i: i32) -> i32 {
         let _ = ctx.agents.refresh(&root);
         crate::abi::refresh_workspace_file_views(ctx);
         ctx.push_toast(crate::toast::Kind::Warn, format!("Agents target missing: {name}"));
+        return -1;
+    }
+    if !file.is_file() {
+        let name = crate::abi::file_target_name(&file);
+        crate::abi::refresh_workspace_file_views(ctx);
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Agents target is not a file: {name}"));
         return -1;
     }
     let idx = ctx.tabs.open_path(file.clone());

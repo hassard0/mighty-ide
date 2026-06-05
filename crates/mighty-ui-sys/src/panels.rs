@@ -253,11 +253,15 @@ pub extern "C" fn mui_scm_open_row(handle: i64, i: i32) -> i32 {
     };
     let full = root.join(&path);
     if !full.exists() {
-        let name = std::path::Path::new(&path)
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or(path.as_str());
+        let name = crate::abi::file_target_name(std::path::Path::new(&path));
         ctx.push_toast(crate::toast::Kind::Warn, format!("Source control target missing: {name}"));
+        let _ = ctx.scm.refresh(&root);
+        crate::abi::refresh_workspace_file_views(ctx);
+        return -1;
+    }
+    if !full.is_file() {
+        let name = crate::abi::file_target_name(std::path::Path::new(&path));
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Source control target is not a file: {name}"));
         let _ = ctx.scm.refresh(&root);
         crate::abi::refresh_workspace_file_views(ctx);
         return -1;

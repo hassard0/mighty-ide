@@ -562,12 +562,13 @@ pub extern "C" fn mui_test_open_row(handle: i64, i: i32) -> i32 {
         crate::abi::refresh_workspace_file_views(ctx);
         if let Some(path) = expected_suite {
             if !path.exists() {
-                let name = path
-                    .file_name()
-                    .map(|s| s.to_string_lossy().into_owned())
-                    .filter(|s| !s.is_empty())
-                    .unwrap_or_else(|| path.to_string_lossy().into_owned());
+                let name = crate::abi::file_target_name(&path);
                 ctx.push_toast(crate::toast::Kind::Warn, format!("Test target missing: {name}"));
+                return 0;
+            }
+            if !path.is_file() {
+                let name = crate::abi::file_target_name(&path);
+                ctx.push_toast(crate::toast::Kind::Warn, format!("Test target is not a file: {name}"));
                 return 0;
             }
         }
@@ -578,13 +579,15 @@ pub extern "C" fn mui_test_open_row(handle: i64, i: i32) -> i32 {
         return 0;
     };
     if !full.exists() {
-        let name = full
-            .file_name()
-            .map(|s| s.to_string_lossy().into_owned())
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| full.to_string_lossy().into_owned());
+        let name = crate::abi::file_target_name(&full);
         crate::abi::refresh_workspace_file_views(ctx);
         ctx.push_toast(crate::toast::Kind::Warn, format!("Test target missing: {name}"));
+        return 0;
+    }
+    if !full.is_file() {
+        let name = crate::abi::file_target_name(&full);
+        crate::abi::refresh_workspace_file_views(ctx);
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Test target is not a file: {name}"));
         return 0;
     }
     let _idx = ctx.tabs.open_path(full.clone());

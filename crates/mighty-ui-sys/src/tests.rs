@@ -2451,6 +2451,31 @@ fn run_output_click_misses_report_visible_feedback() {
 }
 
 #[test]
+fn run_output_directory_target_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!("mui_run_dir_target_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let target = root.join("run_target.mty");
+    std::fs::create_dir_all(&target).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    let before = crate::mui_tab_count(h);
+    ctx.run.seed_demo(target.to_string_lossy().as_ref());
+
+    assert_eq!(crate::featureabi::mui_run_click_row(h, 2), 0);
+    assert_eq!(crate::mui_tab_count(h), before);
+    assert_eq!(crate::featureabi::mui_run_click_tab(h), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Run target is not a file: run_target.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn run_and_diff_row_snapshots_skip_missing_rows() {
     let mut run = crate::run::RunPanel::new();
     assert!(crate::featureabi::run_line_snapshot(&run, 0).is_none());
@@ -2743,6 +2768,30 @@ fn test_result_open_misses_report_visible_feedback() {
 }
 
 #[test]
+fn test_result_directory_target_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!("mui_test_dir_target_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let tests_dir = root.join("tests");
+    std::fs::create_dir_all(tests_dir.join("parser.test")).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(tests_dir);
+    ctx.tree.refresh();
+    let before = crate::mui_tab_count(handle);
+    ctx.tests_panel.seed_demo(root.to_string_lossy().as_ref());
+
+    assert_eq!(crate::testabi::mui_test_open_row(handle, 3), 0);
+    assert_eq!(crate::mui_tab_count(handle), before);
+    assert_eq!(crate::testabi::mui_test_click_tab(handle), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Test target is not a file: parser.test");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn agents_run_without_file_reports_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -2849,6 +2898,31 @@ fn agents_open_node_misses_report_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Agent node no longer listed");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn agents_open_node_directory_target_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!("mui_agents_dir_target_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let target = root.join("agent.mty");
+    std::fs::create_dir_all(&target).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    let model = crate::agents::scan_file(&target, "agent Worker {}\n");
+    ctx.agents.set_model(model);
+    let before = crate::mui_tab_count(handle);
+
+    assert_eq!(crate::agentsabi::mui_agents_open_node(handle, 1), -1);
+    assert_eq!(crate::mui_tab_count(handle), before);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Agents target is not a file: agent.mty");
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -7682,6 +7756,32 @@ fn scm_open_row_misses_report_visible_feedback() {
 }
 
 #[test]
+fn scm_open_row_directory_target_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_scm_open_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("changed.mty")).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.scm.root = Some(root.clone());
+    ctx.scm.status.entries.push(crate::scm::ScmEntry {
+        path: "changed.mty".to_string(),
+        staged: false,
+        status: 'M',
+    });
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let before = crate::mui_tab_count(h);
+
+    assert_eq!(crate::panels::mui_scm_open_row(h, 0), -1);
+    assert_eq!(crate::mui_tab_count(h), before);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Source control target is not a file: changed.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn scm_open_row_records_recent_file() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_scm_open_records_recent_{}", std::process::id()));
@@ -8226,6 +8326,39 @@ fn debug_breakpoint_open_missing_target_prunes_stale_breakpoint() {
         ctx.toasts.toasts().last().unwrap().message,
         "No breakpoint row selected"
     );
+
+    let _ = std::fs::remove_dir_all(root);
+    crate::layout::reset_sidebar_preset();
+}
+
+#[test]
+fn debug_breakpoint_directory_target_reports_visible_feedback() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    crate::layout::reset_sidebar_preset();
+    crate::layout::set_window_width(900);
+    let root = std::env::temp_dir().join(format!("mui_bp_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("gone.mty");
+    std::fs::create_dir_all(&file).unwrap();
+    let key = file.to_string_lossy().to_string();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    ctx.dbg.toggle_breakpoint(&key, 2);
+    ctx.dbg.set_open(true);
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_DEBUG;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let before = crate::mui_tab_count(handle);
+
+    assert_eq!(crate::dapabi::mui_bp_open_at_hit(handle, 2000), -1);
+    assert_eq!(crate::mui_tab_count(handle), before);
+    assert_eq!(ctx.dbg.total_breakpoint_count(), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Breakpoint target is not a file: gone.mty");
 
     let _ = std::fs::remove_dir_all(root);
     crate::layout::reset_sidebar_preset();

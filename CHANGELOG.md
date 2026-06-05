@@ -27,6 +27,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   require the resolved target to be a real file. Directory targets from stale or
   malformed resolver output report `Definition target is not a file: <name>`
   and leave the tab list unchanged.
+- **Click-to-open panels reject directories**: Run output, Test results, Agents
+  topology, Source Control rows, and Debug breakpoints now require jump targets
+  to be real files. Directory targets report target-specific `is not a file`
+  feedback and leave the tab list unchanged.
 - **Packages include a verification manifest**: Windows, macOS, Linux, and the
   Git-Bash Windows package path now write `PACKAGE-MANIFEST.txt` into the
   package root with platform/version metadata, native payload hashes and sizes,

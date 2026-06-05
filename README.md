@@ -103,13 +103,21 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Branch switcher + push / pull / fetch**
 - **Per-hunk stage / unstage** (reconstructed unified patches)
 - **Blame gutter (Alt+B)** — porcelain-parsed, per-file cached
+- Source Control row opens reject directory targets from stale git status
+  entries instead of opening an empty tab
 
 ### Run · Test · Debug
 - Run panel (Ctrl+Shift+R) — background `mty run` with streamed output + clickable diagnostics
 - Stale Run output diagnostic rows keep naming the missing source file on
   repeated clicks after the row has been demoted
+- Run output jumps reject directory targets from stale tool output instead of
+  opening an empty tab
 - **Test runner panel (Ctrl+Shift+T)** — shim-side `mty-test` parser + results model
+- Test result jumps reject directory targets from stale suite output instead of
+  opening an empty tab
 - **Debugger (DAP)** — a shim-side client driving `mty dap`: breakpoints, run controls, call stack + variables, Run-and-Debug view, plus palette commands for start/continue, pause, restart, stop, and step controls (F5 start-continue / Shift+F5 stop, F10 step-over, F11 / Shift+F11 step-into/out)
+- Breakpoint jumps reject directory targets from stale debug rows instead of
+  opening an empty tab
 
 - Test result jumps name missing stale suite files instead of reporting a
   generic unresolved row
@@ -130,6 +138,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   Folder, Quick Open, and Command Palette actions; clickable toast notifications
   with a command-palette clear-all action, **Zen / focus mode (Alt+Z)**
 - **Mighty Agents panel (Alt+G)** — static agent-system topology, run, and live `mty inspect` when the Mighty runtime control socket is available
+- Agents topology jumps reject directory targets from stale scan results instead
+  of opening an empty tab
 - Settings panel (Ctrl+,) — live font size / tab width / word wrap / minimap / theme / bracket colors / indent guides / save conveniences
 - Integrated terminal (Ctrl+`) — a real ConPTY shell with a VT parser
 
