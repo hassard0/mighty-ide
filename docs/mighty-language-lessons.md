@@ -12057,3 +12057,17 @@ missing compiler executable.
 - **Language note:** no compiler gap surfaced. Tooling integrations should
   retain full logs in their panels while also promoting the most actionable
   failure line into transient feedback.
+
+## L969 - Source Control Root Refusals Should Name The Row And Boundary
+
+SCM row actions could reach a stale status entry after the git root was cleared
+or the workspace boundary changed. The toast only said
+`Source control root missing`, which did not identify the selected row or the
+workspace/repo boundary that needed refreshing.
+
+- **IDE note:** source-control open-row and toggle-stage refusals now report
+  `Source control root missing for target in boundary`, while detailed messages
+  still group with other source-control feedback so stale row warnings collapse.
+- **Language note:** no compiler gap surfaced. Workspace-scoped integrations
+  should name both the requested target and the active boundary when refusing a
+  row operation because the backing root is unavailable.

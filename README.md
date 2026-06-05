@@ -156,6 +156,18 @@ Release checklist:
 4. Smoke-test the packaged app from inside the assembled package directory.
 5. Upload only the generated archive from `dist/`.
 
+Clean binary contract:
+
+- Windows archives contain only Windows PE native payloads: `mighty-ide.exe`
+  and `mighty_ui_sys.dll`.
+- macOS archives contain only Mach-O native payloads in `Mighty IDE.app`.
+- Linux archives contain only ELF native payloads: `mighty-ide` and
+  `libmighty_ui_sys.so`.
+- Package scripts reject common compiler/linker byproducts and obvious
+  foreign-platform native files before writing the archive.
+- macOS and Linux binaries must be produced on native hosts or matching CI
+  runners; they are not cross-packaged from the Windows output.
+
 | Platform | Command | Archive | Native payload checks |
 |----------|---------|---------|-----------------------|
 | Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; no `.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.rlib`, `.log`, `.dylib`, or `.so` files |

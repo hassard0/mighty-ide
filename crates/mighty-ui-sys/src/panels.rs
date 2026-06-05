@@ -126,6 +126,33 @@ fn scm_trace_root(ctx: &MuiContext) -> String {
         .unwrap_or_else(|| "<none>".to_string())
 }
 
+fn scm_root_missing_message(ctx: &MuiContext, path: &str) -> String {
+    let target = std::path::Path::new(path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(path);
+    let boundary = workspace_dir(ctx);
+    let boundary = boundary
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            let shown = boundary.display().to_string();
+            if shown.is_empty() {
+                "workspace".to_string()
+            } else {
+                shown
+            }
+        });
+    if target.is_empty() {
+        format!("Source control root missing in {boundary}")
+    } else {
+        format!("Source control root missing for {target} in {boundary}")
+    }
+}
+
 // ===========================================================================
 // Source Control panel — git status / stage / commit (shim shells to git)
 // ===========================================================================
@@ -216,7 +243,10 @@ pub extern "C" fn mui_scm_open_row(handle: i64, i: i32) -> i32 {
             return -1;
         };
         let Some(root) = ctx.scm.root.clone() else {
-            ctx.push_toast(crate::toast::Kind::Warn, "Source control root missing");
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                scm_root_missing_message(ctx, entry.path.as_str()),
+            );
             return -1;
         };
         (entry.path.clone(), root)
@@ -259,7 +289,10 @@ pub extern "C" fn mui_scm_toggle_stage(handle: i64, i: i32) -> i32 {
         }
     };
     if ctx.scm.root.is_none() {
-        ctx.push_toast(crate::toast::Kind::Warn, "Source control root missing");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            scm_root_missing_message(ctx, path_before.as_str()),
+        );
         crate::abi::trace(&format!("scm_toggle_stage ok=0 idx={i} missing-root"));
         return 0;
     }

@@ -610,7 +610,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Source control stage failed")
         || m.starts_with("Source control unstage failed")
         || m == "No source control row selected"
-        || m == "Source control root missing"
+        || m.starts_with("Source control root missing")
         || m.starts_with("Source Control message ")
         || m == "Source Control panel closed"
         || m == "Source Control panel is already closed"
@@ -1977,11 +1977,14 @@ mod tests {
         q.push_at(Kind::Info, "No source control row selected", t0);
         q.push_at(
             Kind::Warn,
-            "Source control root missing",
+            "Source control root missing for tracked.mty in mighty-ide",
             t0 + Duration::from_millis(100),
         );
         assert_eq!(q.len(), 1);
-        assert_eq!(q.toasts()[0].message, "Source control root missing");
+        assert_eq!(
+            q.toasts()[0].message,
+            "Source control root missing for tracked.mty in mighty-ide"
+        );
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
 
         q.push_at(

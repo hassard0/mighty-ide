@@ -26,6 +26,17 @@ family before writing the archive. Windows checks PE headers in PowerShell.
 macOS and Linux require the standard `file` utility so Mach-O and ELF validation
 cannot be silently skipped.
 
+The release invariant is one archive, one native binary family:
+
+- Windows packages contain PE files only for native code.
+- macOS packages contain Mach-O files only for native code.
+- Linux packages contain ELF files only for native code.
+
+If a platform archive cannot be built and smoke-tested on its native OS or a
+matching CI runner, do not publish a placeholder archive for that platform.
+Publish the verified platforms and leave the missing platform unbuilt until a
+native runner can produce and validate it.
+
 Every package must include these human-readable files at the package root unless
 the root is an `.app` archive, in which case they live beside the `.app` in the
 tarball:
