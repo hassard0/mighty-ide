@@ -576,6 +576,7 @@ pub extern "C" fn mui_problems_open_row(handle: i64, i: i32) -> i32 {
     if !path.exists() {
         let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
         let _ = ctx.problems.remove_path(&path);
+        crate::abi::refresh_workspace_file_views(ctx);
         ctx.push_toast(
             crate::toast::Kind::Warn,
             format!("Problems target missing: {name}"),

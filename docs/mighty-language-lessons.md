@@ -11236,3 +11236,15 @@ still show the removed file.
   missing.
 - **Language note:** no compiler gap surfaced. Lazily resolved test navigation
   should share the same missing-target cleanup contract as other panels.
+
+## L911 - Stale Problems Should Refresh File Views
+
+Problems rows can point at files that were deleted after diagnostics were
+aggregated. Opening such a row removed the stale diagnostic and warned the user,
+but Explorer and visible Quick Open rows could continue to show the missing
+source.
+
+- **IDE note:** stale Problems opens now refresh Explorer, Quick Open's backing
+  index, and visible Quick Open rows after pruning the missing diagnostic path.
+- **Language note:** no compiler gap surfaced. Diagnostics panels should update
+  shared file indexes whenever a diagnostic source disappears.

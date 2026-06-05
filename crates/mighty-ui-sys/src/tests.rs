@@ -11034,11 +11034,19 @@ fn problems_open_row_misses_report_visible_feedback() {
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Problem row no longer listed");
 
-    let missing = std::env::temp_dir()
-        .join(format!("mui_problems_missing_{}", std::process::id()))
-        .join("missing.mty");
+    let root = std::env::temp_dir().join(format!("mui_problems_missing_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let missing = root.join("missing.mty");
+    std::fs::write(&missing, "let broken = true\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    crate::mui_quickopen_open(h);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
     ctx.problems.aggregate(vec![(
-        missing,
+        missing.clone(),
         vec![crate::diagnostics::Diag {
             line: 1,
             col_start: 2,
@@ -11049,12 +11057,17 @@ fn problems_open_row_misses_report_visible_feedback() {
         }],
     )]);
 
+    std::fs::remove_file(&missing).unwrap();
     assert_eq!(crate::navsurfaces::mui_problems_open_row(h, 0), -1);
+    assert_eq!(ctx.tree.count(), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Problems target missing: missing.mty");
     assert_eq!(crate::navsurfaces::mui_problems_count(h), 0);
     assert_eq!(crate::navsurfaces::mui_problems_error_count(h), 0);
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]
