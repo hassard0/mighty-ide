@@ -11376,3 +11376,16 @@ recent could therefore remain visible after an otherwise successful Save All.
   sync after normal saves too.
 - **Language note:** no compiler gap surfaced. Batch file commands should use
   the same final refresh primitive as single-file lifecycle commands.
+
+## L922 - New File Success Should Prune Missing Recents
+
+Successful New File creation refreshed Explorer and Quick Open rows, but it
+bypassed the shared file-view refresh path. If the recent-file MRU already held
+a missing path, creating a new file could leave that stale recent in place.
+
+- **IDE note:** New File success now records the created file and then uses the
+  shared file-view refresh path, so the created file becomes MRU while missing
+  recents are pruned in the same pass.
+- **Language note:** no compiler gap surfaced. Successful creation paths should
+  use the same discovery cleanup primitive as guarded and failed lifecycle
+  paths.

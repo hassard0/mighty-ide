@@ -6131,11 +6131,8 @@ fn create_new_file_at(
         Ok(_) => {
             let idx = ctx.tabs.open_path(target.clone());
             sync_active_path(ctx);
-            ctx.tree.refresh();
-            let root = crate::wsabi::effective_root(ctx);
-            let _ = ctx.quickopen.ensure_index(&root, true);
             record_recent_file(ctx, target.clone());
-            ctx.quickopen.refresh_file_rows();
+            refresh_workspace_file_views(ctx);
             ctx.welcome.dismiss();
             ctx.push_toast(crate::toast::Kind::Success, format!("Created file: {name}"));
             idx as i32

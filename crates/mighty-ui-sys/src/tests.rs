@@ -3721,6 +3721,38 @@ fn new_file_existing_target_refreshes_file_views() {
 }
 
 #[test]
+fn new_file_create_prunes_missing_recent_files() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_new_file_prunes_missing_recent");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let missing = root.join("missing.mty");
+    let created = root.join("fresh.mty");
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.quickopen.set_recent_paths(vec![missing.clone()]);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    assert_eq!(ctx.quickopen.recent_paths(), vec![missing.clone()]);
+
+    ctx.path_stage.extend_from_slice(b"fresh.mty");
+    let idx = crate::mui_newfile_create(handle);
+
+    assert!(idx >= 0);
+    assert!(created.exists());
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(created.as_path()));
+    assert_eq!(ctx.quickopen.recent_paths(), vec![created.clone()]);
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "fresh.mty");
+    assert_eq!(ctx.tree.count(), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Created file: fresh.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn new_file_dialog_env_pick_creates_opens_and_records_recent() {
     use crate::{mui_newfile_dialog, mui_quickopen_reindex, mui_tab_active, mui_tab_count};
 
