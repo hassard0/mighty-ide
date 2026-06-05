@@ -12634,3 +12634,17 @@ editor-load path.
 - **Language note:** no compiler gap surfaced. Legacy scalar ABI paths should
   use the same user-visible failure vocabulary as newer editor-owned commands
   when they touch the same file resource.
+
+## L1010 - Diagnostics Spawn Failures Must Not Look Clean
+
+`mui_diag_refresh` treated a failed `mty check` spawn as an empty diagnostic
+list. That protects the editor from crashing, but it also makes a missing
+checker look exactly like a clean file.
+
+- **IDE note:** explicit Mighty diagnostics refresh now clears stale diagnostics
+  and reports `Diagnostics failed: <checker>: <reason>` when the checker process
+  cannot start. Broad Problems aggregation keeps its best-effort fallback so one
+  unavailable checker does not abort the whole surface.
+- **Language note:** no compiler gap surfaced. Tool-backed analysis should
+  distinguish "no findings" from "the analysis tool did not run" at the UI
+  boundary.

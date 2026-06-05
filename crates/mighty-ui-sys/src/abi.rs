@@ -3377,10 +3377,18 @@ pub extern "C" fn mui_diag_refresh(handle: i64) -> i32 {
         return 0;
     };
     // Mighty keeps using `mty check`; other languages surface their language
-    // server's publishDiagnostics (only when a server is installed). Either path
-    // is best-effort — failure/no-server yields an empty set, never a crash.
+    // server's publishDiagnostics (only when a server is installed). Missing
+    // tooling yields an empty set; explicit Mighty refresh also reports why.
     if ctx.language == Language::Mighty {
-        ctx.diags = diagnostics::run_check(&path);
+        match diagnostics::run_check_result(&path) {
+            Ok(diags) => {
+                ctx.diags = diags;
+            }
+            Err(reason) => {
+                ctx.diags.clear();
+                ctx.push_toast(crate::toast::Kind::Error, reason);
+            }
+        }
     } else if let Some(spec) = crate::lspregistry::server_for(ctx.language) {
         let source = if ctx.tabs.active_path().as_ref() == Some(&path) {
             ctx.tabs.active_model().as_text()

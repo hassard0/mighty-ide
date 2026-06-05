@@ -848,7 +848,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No color theme picker open"
     {
         Some(OperationKey::Theme)
-    } else if is_mighty_diagnostic_message(m) {
+    } else if is_mighty_diagnostic_message(m) || m.starts_with("Diagnostics failed:") {
         Some(OperationKey::Diagnostic)
     } else if m == "No code actions available"
         || m.starts_with("No code actions available at ")
@@ -1971,6 +1971,21 @@ mod tests {
         assert_eq!(q.len(), 2);
         assert_eq!(q.toasts()[1].message, "MT2001: expected I32, found Str");
         assert!(!q.toasts().iter().any(|t| t.message == "MT1001: expected I32"));
+
+        q.push_at(
+            Kind::Error,
+            "Diagnostics failed: `missing-mty.exe check`: process spawn denied",
+            t0 + Duration::from_millis(350),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(
+            q.toasts()[1].message,
+            "Diagnostics failed: `missing-mty.exe check`: process spawn denied"
+        );
+        assert!(!q
+            .toasts()
+            .iter()
+            .any(|t| t.message.starts_with("MT2001:")));
     }
 
     #[test]

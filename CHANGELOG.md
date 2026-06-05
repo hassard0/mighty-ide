@@ -39,6 +39,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Diagnostics refresh failures are visible**: explicit Mighty diagnostics
+  refresh now reports `Diagnostics failed: <checker>: <reason>` and clears stale
+  diagnostics when `mty check` cannot be spawned, instead of silently showing an
+  empty diagnostic set.
 - **Staged load failures are visible**: scalar `mui_load` read failures for a
   configured path now report `Load failed: <file>: <reason>` and clear the load
   buffer, matching editor-load feedback instead of only logging to stderr.

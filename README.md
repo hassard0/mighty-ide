@@ -62,6 +62,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   open tabs instead of only logging to stderr
 - Staged load failures report `Load failed: <file>: <reason>` instead of only
   logging configured-path read errors
+- Diagnostics refresh failures report the missing checker command instead of
+  looking like a clean file with no diagnostics
 - Empty explicit code-action requests name the active file or scratch buffer
   and cursor position, so no-quick-fix feedback points to the queried site
 - Applying code actions with no active quick-fix menu reports

@@ -11555,6 +11555,57 @@ fn sync_active_path_clears_stale_active_diagnostics() {
 }
 
 #[test]
+fn diag_refresh_spawn_failure_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_diag_refresh_spawn_failure_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    let missing_mty = root.join("missing-mty.exe");
+    std::fs::write(&path, "fn main() {}\n").unwrap();
+
+    ctx.tabs.open_path(path);
+    crate::sync_active_path(&mut ctx);
+    ctx.diags.push(crate::diagnostics::Diag {
+        line: 7,
+        col_start: 1,
+        col_end: 2,
+        severity: crate::diagnostics::Severity::Error,
+        code: "old".to_string(),
+        message: "stale diagnostic".to_string(),
+    });
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let old_mty = std::env::var_os("MIGHTY_MTY");
+    std::env::set_var("MIGHTY_MTY", &missing_mty);
+    assert_eq!(crate::mui_diag_refresh(handle), 0);
+    if let Some(v) = old_mty {
+        std::env::set_var("MIGHTY_MTY", v);
+    } else {
+        std::env::remove_var("MIGHTY_MTY");
+    }
+
+    assert!(ctx.diags.is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast.message.starts_with("Diagnostics failed: `"),
+        "{}",
+        toast.message
+    );
+    assert!(
+        toast.message.contains("missing-mty.exe check"),
+        "{}",
+        toast.message
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn sync_active_path_clears_stale_find_matches() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!(

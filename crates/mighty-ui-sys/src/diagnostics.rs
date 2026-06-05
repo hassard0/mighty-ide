@@ -208,10 +208,8 @@ fn mty_path() -> String {
     crate::mty::path()
 }
 
-/// Run `mty check <path>` and parse the result. Returns the parsed diagnostics.
-/// On spawn failure, logs to stderr and returns an empty list (the IDE simply
-/// shows "no diagnostics" rather than crashing).
-pub fn run_check(path: &Path) -> Vec<Diag> {
+/// Run `mty check <path>` and parse the result.
+pub fn run_check_result(path: &Path) -> Result<Vec<Diag>, String> {
     let mty = mty_path();
     let output = Command::new(&mty)
         .arg("check")
@@ -224,13 +222,20 @@ pub fn run_check(path: &Path) -> Vec<Diag> {
             let mut combined = String::new();
             combined.push_str(&String::from_utf8_lossy(&out.stdout));
             combined.push_str(&String::from_utf8_lossy(&out.stderr));
-            parse_check_output(&combined)
+            Ok(parse_check_output(&combined))
         }
         Err(e) => {
-            eprintln!("diagnostics: failed to run `{mty} check`: {e}");
-            Vec::new()
+            let reason = format!("Diagnostics failed: `{mty} check`: {e}");
+            eprintln!("{reason}");
+            Err(reason)
         }
     }
+}
+
+/// Run `mty check <path>` and parse the result. Existing broad refresh paths use
+/// this best-effort helper so one unavailable checker does not abort aggregation.
+pub fn run_check(path: &Path) -> Vec<Diag> {
+    run_check_result(path).unwrap_or_default()
 }
 
 #[cfg(test)]
