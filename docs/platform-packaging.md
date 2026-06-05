@@ -248,6 +248,28 @@ and the packaged executable has launched from the assembled package directory
 or app bundle. Cross-host script syntax checks are useful maintenance, but they
 do not create a shippable macOS or Linux binary.
 
+## Current Host Verification
+
+From this Windows checkout, the release operator can fully rebuild and verify
+only the Windows x64 package. A clean Windows pass means:
+
+- `package-win.ps1` completed from a clean committed tree.
+- `dist/mighty-ide-win64/mighty-ide.exe` and
+  `dist/mighty-ide-win64/mighty_ui_sys.dll` both passed PE header checks.
+- The staged tree and ZIP contain no compiler/linker sidecars and no `.dylib`
+  or `.so` payloads.
+- `PACKAGE-MANIFEST.txt` records the Windows payload hashes and sizes.
+- The packaged executable launched with its working directory set to
+  `dist/mighty-ide-win64`.
+
+macOS and Linux readiness from a Windows host is limited to source maintenance:
+the packaging scripts can be reviewed, shell syntax can be checked where a Bash
+toolchain is available, and the host gates can be verified to refuse the wrong
+OS. Those checks are useful, but they do not produce clean macOS or Linux
+binaries. A macOS or Linux archive is publishable only after its own native
+script completes on that platform or on a matching CI runner and the packaged
+app is smoke-tested there.
+
 ## Release Note Evidence
 
 Record the same evidence for every archive that is uploaded. If a platform was

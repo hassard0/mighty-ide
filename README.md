@@ -220,55 +220,12 @@ See [BUILDING.md](BUILDING.md) for the exact toolchain paths and commands.
 ## Release Packages
 
 Generated release binaries stay out of git. The checked-in package scripts build
-into `dist/` from a clean worktree, validate the staged native payloads, reject
-compiler/linker sidecars, reject obvious foreign-platform binaries, bundle the
-README/license/keybinding/build docs with platform-specific run instructions,
-and only then write the archive.
-After compression, each script also scans the final archive, so a release cannot
-pass because the staging tree was clean while the uploaded ZIP or tarball still
-contains a stray sidecar or wrong-platform native file.
-Each package also includes `PACKAGE-MANIFEST.txt`, a verification record with
-the platform, version, native payload hashes and sizes, and the clean binary
-checks completed before archiving.
-
-Release operator flow:
-
-1. Commit README, docs, changelog, and source changes first.
-2. Build each OS package on that same OS or a matching CI runner.
-3. Run the platform package script from the clean committed tree.
-4. Smoke-test the packaged executable from inside the assembled package
-   directory or app bundle.
-5. Upload only the generated archive from `dist/`.
-6. Record the archive size, SHA-256, native payload family, sidecar scan,
-   manifest summary, and packaged launch result in the release notes.
-
-Release checklist:
-
-1. Commit all source, README, and docs changes before packaging.
-2. Build each package on the same OS family that will run it.
-3. Run the platform package script from a clean worktree.
-4. Smoke-test the packaged app from inside the assembled package directory.
-5. Upload only the generated archive from `dist/`.
-6. Record the archive size, SHA-256, native binary family, byproduct scan
-   result, and bundled `PACKAGE-MANIFEST.txt` details in the release notes.
-
-Clean binary contract:
-
-- Windows archives contain only Windows PE native payloads: `mighty-ide.exe`
-  and `mighty_ui_sys.dll`.
-- macOS archives contain only Mach-O native payloads in `Mighty IDE.app`.
-- Linux archives contain only ELF native payloads: `mighty-ide` and
-  `libmighty_ui_sys.so`.
-- Package scripts reject common compiler/linker byproducts, including object
-  files, import/static archives, PDB/ILK files, `.dSYM` bundles, `.debug` and
-  `.map` symbol files, logs, and obvious foreign-platform native files before
-  writing the archive.
-- Package scripts scan the finished archive for the same sidecar and
-  foreign-payload rules before reporting success.
-- macOS and Linux binaries must be produced on native hosts or matching CI
-  runners; they are not cross-packaged from the Windows output.
-- If a native host is not available, leave that platform unbuilt rather than
-  publishing a placeholder archive or reusing binaries from another OS.
+into `dist/` from a clean committed tree, validate the native payloads for the
+host OS, reject compiler/linker sidecars, reject obvious foreign-platform
+binaries, bundle the project docs, and then scan the finished archive before
+reporting success. Every package includes `PACKAGE-MANIFEST.txt` with the
+platform, version, native payload hashes and sizes, and the clean-binary checks
+completed before archiving.
 
 | Platform | Command | Archive | Native payload checks |
 |----------|---------|---------|-----------------------|
@@ -280,6 +237,17 @@ Windows can be produced and verified from a Windows checkout. macOS and Linux
 must be produced on native hosts or matching CI runners because their executable
 and shim formats are different native binaries, not repackaged variants of the
 Windows output.
+
+Release checklist:
+
+1. Commit source, README, docs, changelog, and packaging changes first.
+2. Build each OS package on that OS or a matching CI runner.
+3. Run the platform package script from the clean committed tree.
+4. Smoke-test the packaged executable from inside the assembled package
+   directory or app bundle.
+5. Upload only the generated archive from `dist/`.
+6. Record the archive size, SHA-256, native payload family, sidecar scan,
+   manifest summary, and packaged launch result in the release notes.
 
 Minimum verification before upload:
 
