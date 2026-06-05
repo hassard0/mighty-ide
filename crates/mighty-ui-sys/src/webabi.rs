@@ -36,6 +36,29 @@ fn path_label(path: &std::path::Path) -> String {
         .unwrap_or_else(|| path.display().to_string())
 }
 
+enum WebTargetKind {
+    File,
+    Missing,
+    NotFile,
+}
+
+fn web_target_kind(path: &std::path::Path) -> WebTargetKind {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => WebTargetKind::File,
+        Ok(_) => WebTargetKind::NotFile,
+        Err(_) => WebTargetKind::Missing,
+    }
+}
+
+fn stale_web_target_reason(path: &std::path::Path) -> Option<String> {
+    let label = path_label(path);
+    match web_target_kind(path) {
+        WebTargetKind::File => None,
+        WebTargetKind::Missing => Some(format!("target missing: {label}")),
+        WebTargetKind::NotFile => Some(format!("target is not a file: {label}")),
+    }
+}
+
 /// Default bind port for the Web Playground (overridable via `MIGHTY_WEB_PORT`).
 fn web_port() -> u16 {
     std::env::var("MIGHTY_WEB_PORT")
@@ -74,30 +97,13 @@ pub extern "C" fn mui_web_run(handle: i64) -> i32 {
     ctx.term_open = false;
     ctx.run.close();
     ctx.problems.set_open(false);
-    match std::fs::metadata(&path) {
-        Ok(meta) if meta.is_file() => {}
-        Ok(_) => {
-            ctx.web.fail_before_start(
-                &path,
-                format!("failed to start: target is not a file: {}", path_label(&path)),
-            );
-            ctx.push_toast(
-                crate::toast::Kind::Error,
-                web_error_toast(ctx, "Run in Browser: target is not a file"),
-            );
-            return 0;
-        }
-        Err(e) => {
-            ctx.web.fail_before_start(
-                &path,
-                format!("failed to start: {}: {e}", path_label(&path)),
-            );
-            ctx.push_toast(
-                crate::toast::Kind::Error,
-                web_error_toast(ctx, "Run in Browser: target missing"),
-            );
-            return 0;
-        }
+    if let Some(reason) = stale_web_target_reason(&path) {
+        ctx.web.fail_before_start(&path, format!("failed to start: {reason}"));
+        ctx.push_toast(
+            crate::toast::Kind::Error,
+            web_error_toast(ctx, "Run in Browser: target unavailable"),
+        );
+        return 0;
     }
     let ok = ctx.web.start(&path, web_port());
     let mode = match ctx.web.mode() {

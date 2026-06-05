@@ -13472,3 +13472,19 @@ files still copied raw host I/O wording into the result row and toast.
 - **Language note:** no compiler gap surfaced. Testing surfaces should use the
   same target-state vocabulary as Run, Debug, Web, and clickable stale-result
   checks.
+
+## L1066 - Web Preflight Should Normalize Missing Targets
+
+Run in Browser already rejected directory-backed active files before spawning
+`mty serve` or `mty build`, but missing active files still copied raw host I/O
+wording into the Web panel and toast.
+
+- **IDE note:** Web start preflight now classifies the active file as file,
+  missing, or not-file before launching any build/server command. Missing active
+  files report `target missing: <name>` in the Web panel and toast, while
+  directory-backed active paths keep `target is not a file: <name>`. Real
+  build, serve, browser, and tool-spawn failures still keep their underlying
+  error text.
+- **Language note:** no compiler gap surfaced. Browser-run surfaces should share
+  the same target-state vocabulary as Run, Test, Debug, and stale navigation
+  rows.
