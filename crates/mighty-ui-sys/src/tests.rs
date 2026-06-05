@@ -10022,6 +10022,62 @@ fn codeaction_workspace_edit_publishes_created_file_to_quickopen() {
 }
 
 #[test]
+fn codeaction_workspace_edit_skips_missing_non_create_file() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_codeaction_workspace_missing_non_create_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let active = root.join("main.mty");
+    let missing = root.join("missing.mty");
+    std::fs::write(&active, "main_symbol\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tabs.open_path(active.clone());
+    crate::sync_active_path(&mut ctx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let uri_path = missing.to_string_lossy().replace('\\', "/");
+    let uri = if uri_path.starts_with('/') {
+        format!("file://{uri_path}")
+    } else {
+        format!("file:///{uri_path}")
+    };
+    assert_eq!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Rename stale helper file".to_string(),
+            edit: Some(crate::language::WorkspaceEdit {
+                files: vec![(
+                    uri,
+                    vec![crate::language::TextEdit {
+                        start_line: 0,
+                        start_col: 0,
+                        end_line: 0,
+                        end_col: 12,
+                        new_text: "updated_symbol".to_string(),
+                    }],
+                )],
+            }),
+            command_edit: None,
+            command: None,
+            fix_all_mty: false,
+        }]),
+        1
+    );
+
+    assert_eq!(crate::mui_codeaction_apply(h), 0);
+    assert_eq!(crate::mui_codeaction_active(h), 1);
+    assert!(!missing.exists());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Skipped missing file during workspace edit");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn format_current_reports_missing_or_unsupported_target() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;

@@ -10368,6 +10368,14 @@ fn fallback_rename_edits(source: &str, symbol: &str) -> Vec<crate::language::Tex
 struct WorkspaceEditApplyResult {
     changed: i32,
     skipped_dirty: i32,
+    skipped_missing: i32,
+}
+
+fn workspace_edits_can_create_missing_file(edits: &[crate::language::TextEdit]) -> bool {
+    !edits.is_empty()
+        && edits.iter().all(|e| {
+            e.start_line == 0 && e.start_col == 0 && e.end_line == 0 && e.end_col == 0
+        })
 }
 
 fn apply_workspace_edit(
@@ -10379,6 +10387,7 @@ fn apply_workspace_edit(
     let mut result = WorkspaceEditApplyResult {
         changed: 0,
         skipped_dirty: 0,
+        skipped_missing: 0,
     };
     for (uri, edits) in &we.files {
         if edits.is_empty() {
@@ -10451,7 +10460,22 @@ fn apply_workspace_edit(
                 continue;
             }
             // Other clean file: read from disk, apply, write back; refresh an open tab.
-            let disk = std::fs::read(&fpath).unwrap_or_default();
+            // Missing files are only valid for explicit create-style workspace
+            // edits (all inserts at 0:0). Replacement edits against stale files
+            // must not be applied to an empty fallback buffer.
+            let disk = match std::fs::read(&fpath) {
+                Ok(bytes) => bytes,
+                Err(_) if workspace_edits_can_create_missing_file(&edits) => Vec::new(),
+                Err(e) => {
+                    result.skipped_missing += 1;
+                    println!(
+                        "workspace edit: skipped missing non-active path={} err={e}",
+                        fpath.display()
+                    );
+                    refresh_workspace_file_views(ctx);
+                    continue;
+                }
+            };
             let text = String::from_utf8_lossy(&disk).into_owned();
             let edited = crate::language::apply_text_edits(&text, &edits);
             let resurrected_path = !fpath.is_file();
@@ -10473,6 +10497,11 @@ fn toast_codeaction_workspace_result(ctx: &mut MuiContext, result: &WorkspaceEdi
         ctx.push_toast(
             crate::toast::Kind::Warn,
             "Skipped dirty file during workspace edit",
+        );
+    } else if result.skipped_missing > 0 {
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Skipped missing file during workspace edit",
         );
     } else if result.changed > 0 {
         ctx.push_toast(crate::toast::Kind::Success, "Applied code action");

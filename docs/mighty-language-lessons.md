@@ -11475,3 +11475,18 @@ file-backed editor tab and status path.
 - **Language note:** no compiler gap surfaced. Entry-point normalization should
   sit above permissive low-level primitives so startup behavior matches the
   guarded UI command paths.
+
+## L929 - Workspace Edits Must Not Treat Missing Files As Empty Buffers
+
+Code actions and rename apply LSP `WorkspaceEdit`s across active and non-active
+files. The non-active-file path read disk with an empty fallback, so a stale
+server edit targeting a deleted file could be applied to an empty buffer and
+silently recreate the file with partial replacement text.
+
+- **IDE note:** non-active workspace edits now skip missing files unless every
+  edit is an explicit create-style insertion at `0:0`. Stale replacement edits
+  report "Skipped missing file during workspace edit" and leave the code-action
+  menu open instead of creating a misleading file.
+- **Language note:** no compiler gap surfaced. File-backed transformation
+  primitives need to distinguish "create a new file" from "edit existing
+  content" before falling back to an empty buffer.
