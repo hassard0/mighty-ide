@@ -11311,3 +11311,16 @@ the stale tab, Explorer row, Quick Open row, and recent-file entry around.
 - **Language note:** no compiler gap surfaced. Destructive file operations
   should treat missing clean targets as cleanup work, not as a reason to keep
   stale UI state.
+
+## L917 - Failed Renames Should Refresh File Views
+
+Rename Active File can race with external deletion after the new name is staged.
+The failed rename correctly reported an error, but Explorer, Quick Open, and
+recent-file rows could continue showing the missing source path.
+
+- **IDE note:** active-file rename failures now refresh shared file views so
+  Explorer, Quick Open rows, the backing index, and missing recents are pruned
+  together while the rename still reports failure.
+- **Language note:** no compiler gap surfaced. File lifecycle failures should
+  refresh shared discovery state even when the requested operation cannot be
+  completed.

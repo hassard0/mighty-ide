@@ -6198,6 +6198,7 @@ pub extern "C" fn mui_file_rename_active(handle: i64) -> i32 {
             1
         }
         Err(e) => {
+            refresh_workspace_file_views(ctx);
             ctx.push_toast(crate::toast::Kind::Error, format!("Rename failed: {name}"));
             println!("file-rename: failed {} -> {}: {e}", old_path.display(), new_path.display());
             0
