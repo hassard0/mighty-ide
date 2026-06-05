@@ -26,6 +26,29 @@ Packaged launch:
 Release decision:
 ```
 
+## Current Pass Status
+
+This repository is currently being finalized from a Windows checkout. That means
+the Windows x64 archive can be rebuilt and fully verified here, including PE
+header checks, sidecar/foreign-payload scans, `PACKAGE-MANIFEST.txt`, archive
+hash/size capture, and a packaged launch from `dist\mighty-ide-win64`.
+
+macOS and Linux are not considered clean merely because their scripts exist or
+their host gates can be inspected from Windows. They become releasable only
+after `./package-macos.sh` or `./package-linux.sh` completes on the matching
+native OS or CI runner and the packaged app launches from the assembled package
+directory or app bundle.
+
+Record unavailable platforms as:
+
+```text
+Platform: macOS
+Release decision: unbuilt - native macOS runner unavailable
+
+Platform: Linux x64
+Release decision: unbuilt - native Linux runner unavailable
+```
+
 ## Required Checks
 
 For every uploaded archive:

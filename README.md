@@ -230,6 +230,17 @@ reporting success. Every package includes `PACKAGE-MANIFEST.txt` with the
 platform, version, native payload hashes and sizes, and the clean-binary checks
 completed before archiving.
 
+Current release state from this checkout:
+
+- Windows x64 can be rebuilt and fully verified locally with `.\package-win.ps1`.
+- macOS must be built with `./package-macos.sh` on macOS or a matching macOS CI
+  runner, then smoke-tested there.
+- Linux x64 must be built with `./package-linux.sh` on Linux or a matching
+  Linux CI runner, then smoke-tested there.
+- If a native macOS or Linux runner is unavailable, mark that platform
+  `unbuilt`; do not publish a renamed archive, placeholder archive, or native
+  payload copied from another OS.
+
 | Platform | Command | Archive | Native payload checks |
 |----------|---------|---------|-----------------------|
 | Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; staged tree and ZIP contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.dylib`/`.so` files |

@@ -45,6 +45,16 @@ platform, not from another OS package. If the Windows package is current but
 macOS or Linux has not run on native infrastructure, the correct state is
 `unbuilt`, not `derived from Windows`.
 
+Release operators should use only three final states for each platform:
+
+- `publish`: package script completed on the matching native host or runner, the
+  archive-level scan passed, the manifest exists, and the packaged executable
+  launched from the assembled package.
+- `hold`: a native build exists but one required check failed or has not been
+  recorded yet.
+- `unbuilt`: no matching native host or runner produced the archive for this
+  pass.
+
 The sidecar scan is intentionally shared in spirit across all three scripts:
 package trees and finished archives must not contain `.pdb`, `.lib`, `.exp`,
 `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, or `.dSYM`

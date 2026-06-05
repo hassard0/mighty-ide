@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Release packaging
+- **Final release handoff is documented**: README and release docs now spell
+  out the current Windows-local verification scope, the native-runner
+  requirement for macOS and Linux, and the only valid platform decisions:
+  `publish`, `hold`, or `unbuilt`.
 - **Release verification record is packaged**: release archives now include
   `docs/release-verification.md`, a per-platform evidence template for archive
   size, SHA-256, native payload family, sidecar and foreign-payload scans,
