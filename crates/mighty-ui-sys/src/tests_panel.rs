@@ -28,7 +28,7 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
 
 /// A test's outcome.
@@ -301,9 +301,7 @@ impl TestPanel {
                     match pipe.read(&mut buf) {
                         Ok(0) | Err(_) => break,
                         Ok(n) => {
-                            if let Ok(mut g) = sink.lock() {
-                                g.extend_from_slice(&buf[..n]);
-                            }
+                            lock_output_buffer(&sink).extend_from_slice(&buf[..n]);
                         }
                     }
                 }
@@ -379,9 +377,13 @@ impl TestPanel {
     pub fn pump(&mut self) -> bool {
         let mut changed = false;
         if let Some(out) = &self.out {
-            let chunk = match out.lock() {
-                Ok(mut g) if !g.is_empty() => std::mem::take(&mut *g),
-                _ => Vec::new(),
+            let chunk = {
+                let mut g = lock_output_buffer(out);
+                if g.is_empty() {
+                    Vec::new()
+                } else {
+                    std::mem::take(&mut *g)
+                }
             };
             if !chunk.is_empty() {
                 let text = String::from_utf8_lossy(&chunk).into_owned();
@@ -394,11 +396,10 @@ impl TestPanel {
                 match done.try_recv() {
                     Ok(()) | Err(TryRecvError::Disconnected) => {
                         if let Some(out) = self.out.take() {
-                            if let Ok(g) = out.lock() {
-                                if !g.is_empty() {
-                                    let text = String::from_utf8_lossy(&g).into_owned();
-                                    self.feed(&text);
-                                }
+                            let g = lock_output_buffer(&out);
+                            if !g.is_empty() {
+                                let text = String::from_utf8_lossy(&g).into_owned();
+                                self.feed(&text);
                             }
                         }
                         self.flush_partial();
@@ -547,6 +548,10 @@ impl TestPanel {
         self.total = self.rows.len();
         self.duration_ms = 218;
     }
+}
+
+fn lock_output_buffer(out: &Arc<Mutex<Vec<u8>>>) -> MutexGuard<'_, Vec<u8>> {
+    out.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 /// Parse the per-test result body (everything after `test `): split on the
@@ -744,6 +749,31 @@ test result: 2 passed; 1 failed; 3 total
         assert_eq!(t.total(), 3);
         assert_eq!(t.row(1).unwrap().short_name, "test_fails");
         assert_eq!(t.row(1).unwrap().message, "trap MT5001: boom: expected 2 got 3");
+    }
+
+    #[test]
+    fn pump_recovers_from_poisoned_output_buffer() {
+        let out = Arc::new(Mutex::new(b"test s::test_a ... ok\n".to_vec()));
+        let hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let poisoned = {
+            let out = Arc::clone(&out);
+            std::panic::catch_unwind(move || {
+                let _guard = lock_output_buffer(&out);
+                panic!("poison test output buffer");
+            })
+        };
+        std::panic::set_hook(hook);
+        assert!(poisoned.is_err());
+
+        let mut t = TestPanel::new();
+        t.out = Some(out);
+
+        assert!(t.pump());
+        assert_eq!(t.row_count(), 1);
+        assert_eq!(t.row(0).unwrap().full_name, "s::test_a");
+        assert_eq!(t.row(0).unwrap().status, Status::Passed);
+        assert!(lock_output_buffer(t.out.as_ref().unwrap()).is_empty());
     }
 
     #[test]
