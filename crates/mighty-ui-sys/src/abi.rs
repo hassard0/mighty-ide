@@ -3233,9 +3233,14 @@ pub extern "C" fn mui_save_commit(handle: i64) -> i32 {
         eprintln!("mui_save_commit({}): skipped dirty open tab", path.display());
         return -1;
     }
+    let resurrected_path = !path.is_file();
     match std::fs::write(&path, &ctx.save_buf) {
         Ok(()) => {
             let _ = ctx.tabs.reload_all_clean_path(&path, &ctx.save_buf);
+            if resurrected_path {
+                record_recent_file(ctx, path.clone());
+                refresh_workspace_file_views(ctx);
+            }
             0
         }
         Err(e) => {

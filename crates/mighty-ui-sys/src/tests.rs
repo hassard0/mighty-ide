@@ -479,6 +479,49 @@ fn save_staging_refreshes_clean_open_tabs() {
 }
 
 #[test]
+fn save_staging_republishes_resurrected_file_to_quickopen() {
+    use crate::{mui_path_commit, mui_path_push, mui_save_commit, mui_save_push};
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_staging_resurrects_file_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("staged-restored.mty");
+    std::fs::write(&path, b"old\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let idx = ctx.tabs.open_path(path.clone());
+    assert!(!ctx.tabs.is_dirty(idx));
+
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.quickopen.count(), 1);
+    std::fs::remove_file(&path).unwrap();
+    assert_eq!(crate::mui_quickopen_reindex(handle), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
+
+    for b in path.to_string_lossy().as_bytes() {
+        mui_path_push(handle, *b as u32);
+    }
+    mui_path_commit(handle);
+    for b in b"new staged restore\n" {
+        mui_save_push(handle, *b as u32);
+    }
+
+    assert_eq!(mui_save_commit(handle), 0);
+    assert_eq!(std::fs::read(&path).unwrap(), b"new staged restore\n");
+    assert_eq!(ctx.tabs.get(idx).unwrap().model.as_text(), "new staged restore\n");
+    assert_eq!(ctx.quickopen.recent_paths(), vec![path.clone()]);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "staged-restored.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn save_staging_refuses_dirty_open_tab() {
     use crate::{mui_path_commit, mui_path_push, mui_save_commit, mui_save_push};
 

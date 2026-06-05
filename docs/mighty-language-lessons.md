@@ -11127,3 +11127,15 @@ the user clicked Save.
   rows in sync before the tab closes.
 - **Language note:** no compiler gap surfaced. Shared save helpers should treat
   restored existing paths and newly selected paths as the same lifecycle event.
+
+## L902 - Staged Save Restores Should Publish Files
+
+The byte-staged save ABI is separate from the editor Save helpers. It refreshed
+clean open tabs after writing, but a staged write that recreated a missing path
+could leave file discovery surfaces stale.
+
+- **IDE note:** `mui_save_commit` now republishes restored staged-save targets
+  to recent files, Explorer, and visible Quick Open rows after a successful
+  write.
+- **Language note:** no compiler gap surfaced. Legacy scalar write APIs need the
+  same file lifecycle guarantees as newer editor save commands.
