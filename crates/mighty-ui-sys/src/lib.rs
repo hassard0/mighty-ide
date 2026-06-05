@@ -1217,11 +1217,12 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         let cx = layout::text_x_in(region, total, col);
         let cy = layout::row_y_in(region, row);
         let engine = std::mem::take(&mut ctx.complete);
+        let was_overlay = ctx.overlay;
         ctx.overlay = true;
         ctx.text.set_overlay(true);
         engine.draw(ctx, cx, cy, layout_w, layout_h);
-        ctx.overlay = false;
-        ctx.text.set_overlay(false);
+        ctx.overlay = was_overlay;
+        ctx.text.set_overlay(was_overlay);
         ctx.complete = engine;
     }
 
@@ -1233,11 +1234,12 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         let cx = layout::text_x_in(region, total, col);
         let cy = layout::row_y_in(region, row);
         let sig = std::mem::take(&mut ctx.sig);
+        let was_overlay = ctx.overlay;
         ctx.overlay = true;
         ctx.text.set_overlay(true);
         sig.draw_inset(ctx, cx, cy, layout_w, layout_h, region.left + 8.0);
-        ctx.overlay = false;
-        ctx.text.set_overlay(false);
+        ctx.overlay = was_overlay;
+        ctx.text.set_overlay(was_overlay);
         ctx.sig = sig;
     }
     if let Some((row, col)) = ctx.codeaction_autoopen {
@@ -1246,11 +1248,12 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
         let cx = layout::text_x_in(region, total, col);
         let cy = layout::row_y_in(region, row);
         let menu = std::mem::take(&mut ctx.codeaction);
+        let was_overlay = ctx.overlay;
         ctx.overlay = true;
         ctx.text.set_overlay(true);
         menu.draw_inset(ctx, cx, cy, layout_w, layout_h, region.left + 8.0);
-        ctx.overlay = false;
-        ctx.text.set_overlay(false);
+        ctx.overlay = was_overlay;
+        ctx.text.set_overlay(was_overlay);
         ctx.codeaction = menu;
     }
     // Rename input is centered (no anchor needed). In the LIVE path Mighty calls
@@ -1259,13 +1262,14 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
     if ctx.rename_autoopen && ctx.rename.is_active() {
         let rename = std::mem::take(&mut ctx.rename);
         let old_clip = ctx.clip;
+        let was_overlay = ctx.overlay;
         ctx.clip = None;
         ctx.overlay = true;
         ctx.text.clear_overlay_runs();
         ctx.text.set_overlay(true);
         rename.draw(ctx, layout_w, layout_h);
-        ctx.overlay = false;
-        ctx.text.set_overlay(false);
+        ctx.overlay = was_overlay;
+        ctx.text.set_overlay(was_overlay);
         ctx.clip = old_clip;
         ctx.rename = rename;
     }
@@ -1276,13 +1280,14 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
     if ctx.theme_picker_autoopen && ctx.theme_picker.is_active() {
         let picker = std::mem::take(&mut ctx.theme_picker);
         let old_clip = ctx.clip;
+        let was_overlay = ctx.overlay;
         ctx.clip = None;
         ctx.overlay = true;
         ctx.text.clear_overlay_runs();
         ctx.text.set_overlay(true);
         picker.draw(ctx, layout_w, layout_h);
-        ctx.overlay = false;
-        ctx.text.set_overlay(false);
+        ctx.overlay = was_overlay;
+        ctx.text.set_overlay(was_overlay);
         ctx.clip = old_clip;
         ctx.theme_picker = picker;
     }

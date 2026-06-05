@@ -11979,6 +11979,63 @@ fn command_overlay_draws_restore_existing_overlay_state() {
 }
 
 #[test]
+fn editor_popup_draws_restore_existing_overlay_state() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 600;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_quickopen_open(handle);
+    ctx.overlay = true;
+    crate::mui_qo_draw(handle);
+    assert!(ctx.overlay, "Quick Open draw must preserve caller overlay state");
+    crate::mui_qo_cancel(handle);
+
+    assert!(ctx.hover.set_text("```mty\nfn hover_doc()\n```"));
+    ctx.overlay = true;
+    crate::mui_hover_draw(handle, 2, 4, 10);
+    assert!(ctx.overlay, "hover draw must preserve caller overlay state");
+
+    assert!(ctx.sig.set(Some(crate::language::ParsedSignature {
+        label: "fn call(arg: I32) -> I32".to_string(),
+        params: vec!["arg: I32".to_string()],
+        active: 0,
+        doc: "Call documentation".to_string(),
+    })));
+    ctx.overlay = true;
+    crate::abi::mui_sig_draw(handle, 2, 4, 10);
+    assert!(ctx.overlay, "signature help draw must preserve caller overlay state");
+
+    ctx.rename.open("old_name");
+    ctx.overlay = true;
+    crate::abi::mui_rename_draw(handle);
+    assert!(ctx.overlay, "rename draw must preserve caller overlay state");
+    assert_eq!(crate::abi::mui_rename_cancel(handle), 1);
+
+    assert!(ctx.codeaction.set(vec![crate::language::CodeAction {
+        title: "Replace typo".to_string(),
+        edit: None,
+        command_edit: None,
+        command: Some(crate::language::CommandAction {
+            command: "server.apply".to_string(),
+            arguments_json: None,
+        }),
+        fix_all_mty: false,
+    }]) > 0);
+    ctx.overlay = true;
+    crate::abi::mui_codeaction_draw(handle, 2, 4, 10);
+    assert!(ctx.overlay, "code action draw must preserve caller overlay state");
+    assert_eq!(crate::abi::mui_codeaction_cancel(handle), 1);
+
+    crate::mui_replace_open(handle);
+    ctx.overlay = true;
+    crate::mui_replace_draw(handle);
+    assert!(ctx.overlay, "Find & Replace draw must preserve caller overlay state");
+    assert_eq!(crate::mui_replace_cancel(handle), 1);
+}
+
+#[test]
 fn color_theme_persistence_failure_reports_visible_feedback() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();

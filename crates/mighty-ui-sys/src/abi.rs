@@ -10574,13 +10574,14 @@ pub extern "C" fn mui_qo_draw(handle: i64) {
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let qo = std::mem::take(&mut ctx.quickopen);
     let old_clip = ctx.clip;
+    let was_overlay = ctx.overlay;
     ctx.clip = None;
     ctx.overlay = true;
     ctx.text.clear_overlay_runs();
     ctx.text.set_overlay(true);
     qo.draw(ctx, w, h);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.clip = old_clip;
     ctx.quickopen = qo;
 }
@@ -10702,11 +10703,12 @@ pub extern "C" fn mui_hover_draw(handle: i64, row: i32, col: i32, total_lines: i
     let y = layout::row_y_in(region, row);
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let hover = std::mem::take(&mut ctx.hover);
+    let was_overlay = ctx.overlay;
     ctx.overlay = true;
     ctx.text.set_overlay(true);
     hover.draw(ctx, x, y, w, h);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.hover = hover;
 }
 
@@ -11035,11 +11037,12 @@ pub extern "C" fn mui_sig_draw(handle: i64, row: i32, col: i32, total_lines: i32
     let y = layout::row_y_in(region, row);
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let sig = std::mem::take(&mut ctx.sig);
+    let was_overlay = ctx.overlay;
     ctx.overlay = true;
     ctx.text.set_overlay(true);
     sig.draw_inset(ctx, x, y, w, h, region.left + 8.0);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.sig = sig;
 }
 
@@ -11926,13 +11929,14 @@ pub extern "C" fn mui_rename_draw(handle: i64) {
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let rename = std::mem::take(&mut ctx.rename);
     let old_clip = ctx.clip;
+    let was_overlay = ctx.overlay;
     ctx.clip = None;
     ctx.overlay = true;
     ctx.text.clear_overlay_runs();
     ctx.text.set_overlay(true);
     rename.draw(ctx, w, h);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.clip = old_clip;
     ctx.rename = rename;
 }
@@ -12388,11 +12392,12 @@ pub extern "C" fn mui_codeaction_draw(handle: i64, row: i32, col: i32, total_lin
     let y = layout::row_y_in(region, row);
     let (w, h) = visible_surface_size(ctx);
     let menu = std::mem::take(&mut ctx.codeaction);
+    let was_overlay = ctx.overlay;
     ctx.overlay = true;
     ctx.text.set_overlay(true);
     menu.draw_inset(ctx, x, y, w, h, region.left + 8.0);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.codeaction = menu;
 }
 
@@ -17059,8 +17064,8 @@ pub extern "C" fn mui_replace_draw(handle: i64) {
     );
     ctx.text.queue_sized(text_x, fy, &find_line, theme::TEXT(), chrome, clip);
     ctx.text.queue_sized(text_x, ry, &repl_line, theme::TEXT(), chrome, clip);
-    ctx.text.set_overlay(false);
     ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
 }
 
 fn replace_close_rect(w: f32, top: f32, bar_h: f32) -> (f32, f32, f32, f32) {

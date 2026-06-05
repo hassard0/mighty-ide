@@ -147,6 +147,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   feedback
 - Code-action stale click and move routes report when the quick-fix menu has
   already closed
+- Editor popup drawing, including Quick Open, Hover, Signature Help, Rename,
+  Code Actions, and Find & Replace, preserves the caller's overlay layer state
+  so later overlay text and chrome stay on the overlay layer
 - Empty explicit hover requests name the active file and cursor position, so
   no-hover feedback identifies the queried site
 - Empty explicit signature-help requests name the active file and cursor
