@@ -967,23 +967,21 @@ pub extern "C" fn mui_agents_open_node(handle: i64, i: i32) -> i32 {
         }
         (n.file.clone(), n.line, n.name.clone())
     };
-    if !file.exists() {
-        let name = crate::abi::file_target_name(&file);
-        let root = ctx
-            .agents
-            .root
-            .clone()
-            .unwrap_or_else(|| crate::wsabi::effective_root(ctx));
-        let _ = ctx.agents.refresh(&root);
-        crate::abi::refresh_workspace_file_views(ctx);
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Agents target missing: {name}"));
-        return -1;
-    }
-    if !file.is_file() {
-        let name = crate::abi::file_target_name(&file);
-        crate::abi::refresh_workspace_file_views(ctx);
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Agents target is not a file: {name}"));
-        return -1;
+    let target_name = crate::abi::file_target_name(&file);
+    match agents_target_kind(&file) {
+        AgentsTargetKind::File => {}
+        AgentsTargetKind::Missing => {
+            return refresh_missing_agents_target(
+                ctx,
+                format!("Agents target missing: {target_name}"),
+            );
+        }
+        AgentsTargetKind::NotFile => {
+            return reject_non_file_agents_target(
+                ctx,
+                format!("Agents target is not a file: {target_name}"),
+            );
+        }
     }
     let idx = ctx.tabs.open_path(file.clone());
     crate::abi::sync_active_path(ctx);
@@ -994,6 +992,38 @@ pub extern "C" fn mui_agents_open_node(handle: i64, i: i32) -> i32 {
     model.set_first_visible(first as usize);
     crate::abi::trace(&format!("agents_open_node target={} node={name}", file.display()));
     idx as i32
+}
+
+enum AgentsTargetKind {
+    File,
+    Missing,
+    NotFile,
+}
+
+fn agents_target_kind(path: &std::path::Path) -> AgentsTargetKind {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => AgentsTargetKind::File,
+        Ok(_) => AgentsTargetKind::NotFile,
+        Err(_) => AgentsTargetKind::Missing,
+    }
+}
+
+fn refresh_missing_agents_target(ctx: &mut MuiContext, message: String) -> i32 {
+    let root = ctx
+        .agents
+        .root
+        .clone()
+        .unwrap_or_else(|| crate::wsabi::effective_root(ctx));
+    let _ = ctx.agents.refresh(&root);
+    crate::abi::refresh_workspace_file_views(ctx);
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+    -1
+}
+
+fn reject_non_file_agents_target(ctx: &mut MuiContext, message: String) -> i32 {
+    crate::abi::refresh_workspace_file_views(ctx);
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+    -1
 }
 
 /// Scroll the topology by `dir` rows (negative = up).

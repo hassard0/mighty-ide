@@ -13155,3 +13155,19 @@ and a later read failure.
 - **Language note:** no compiler gap surfaced. Search rows need two validations:
   first the filesystem target kind, then the content fingerprint for still-valid
   files.
+
+## L1045 - Agents Topology Jumps Need Target Classification
+
+Agents topology rows are derived from a scan snapshot, so clickable nodes can
+outlive the file they were found in. Missing nodes need a model refresh, while
+non-file nodes need workspace views refreshed and visible feedback.
+
+- **IDE note:** Agents node activation now classifies the target with one
+  metadata read before opening or rejecting it. Missing targets refresh the
+  topology and workspace file views; non-file targets refresh workspace file
+  views. Existing feedback is preserved:
+  `Agents target missing: <name>` and
+  `Agents target is not a file: <name>`.
+- **Language note:** no compiler gap surfaced. Generated topology models should
+  be treated like any other cached navigation surface: validate the target kind
+  once, then run the model-specific recovery path.
