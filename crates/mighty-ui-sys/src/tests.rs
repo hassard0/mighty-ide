@@ -19401,7 +19401,8 @@ fn every_palette_command_is_routed_by_mighty_dispatcher() {
 mod shim_chrome {
     use super::*;
     use crate::{
-        mui_event_codepoint, mui_poll_event_s, mui_window_toggle_maximize, mui_zoom_reset,
+        mui_event_codepoint, mui_poll_event_s, mui_window_toggle_maximize, mui_zoom_in,
+        mui_zoom_reset,
     };
     use std::sync::MutexGuard;
     use winit::dpi::PhysicalPosition;
@@ -19648,6 +19649,39 @@ mod shim_chrome {
             MUI_EVENT_SCROLL as i32,
             "a plain wheel must reach the IDE as a scroll"
         );
+    }
+
+    #[test]
+    fn zoom_persistence_failure_reports_visible_feedback() {
+        let _globals = ChromeGlobals::pin();
+        let mut ctx = match MuiContext::new_offscreen(WW, WH) {
+            Some(c) => c,
+            None => return,
+        };
+        let blocked = std::env::temp_dir().join(format!(
+            "mighty-ide-zoom-config-blocked-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&blocked);
+        let _ = std::fs::remove_dir_all(&blocked);
+        std::fs::write(&blocked, b"not a directory").unwrap();
+        let old_override = std::env::var_os("MUI_CONFIG_DIR");
+        std::env::set_var("MUI_CONFIG_DIR", &blocked);
+        let h = handle(&mut ctx);
+
+        assert_eq!(mui_zoom_in(h), 110);
+        let toast = ctx.toasts.toasts().last().unwrap();
+        assert_eq!(toast.kind, crate::toast::Kind::Warn);
+        assert_eq!(
+            toast.message,
+            "Zoom preference not saved; it will reset after restart"
+        );
+
+        match old_override {
+            Some(v) => std::env::set_var("MUI_CONFIG_DIR", v),
+            None => std::env::remove_var("MUI_CONFIG_DIR"),
+        }
+        let _ = std::fs::remove_file(&blocked);
     }
 
     #[test]

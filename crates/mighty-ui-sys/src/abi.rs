@@ -3119,9 +3119,15 @@ pub extern "C" fn mui_event_zoom_dir(handle: i64) -> i32 {
 
 fn apply_zoom(handle: i64, new_zoom: f32) -> i32 {
     crate::uiscale::set_user_zoom(new_zoom);
-    crate::config::save_zoom(crate::uiscale::user_zoom());
+    let persisted = crate::config::save_zoom(crate::uiscale::user_zoom());
     if let Some(ctx) = unsafe { ctx(handle) } {
         ctx.gpu.rescale();
+        if !persisted {
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                "Zoom preference not saved; it will reset after restart",
+            );
+        }
     }
     (crate::uiscale::user_zoom() * 100.0).round() as i32
 }

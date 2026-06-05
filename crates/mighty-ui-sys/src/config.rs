@@ -149,14 +149,22 @@ pub fn load_zoom() -> f32 {
 /// Persist the user `zoom`. Best-effort (returns `false` + logs on I/O error).
 pub fn save_zoom(zoom: f32) -> bool {
     let Some(path) = zoom_path() else {
+        eprintln!("config: no config directory available; zoom not persisted");
         return false;
     };
     if let Some(parent) = path.parent() {
-        if std::fs::create_dir_all(parent).is_err() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            eprintln!("config: create_dir_all {}: {e}", parent.display());
             return false;
         }
     }
-    std::fs::write(&path, format!("{zoom}")).is_ok()
+    match std::fs::write(&path, format!("{zoom}")) {
+        Ok(()) => true,
+        Err(e) => {
+            eprintln!("config: write {}: {e}", path.display());
+            false
+        }
+    }
 }
 
 /// Parse a `key=value` config blob for the `theme=` line, returning the id.

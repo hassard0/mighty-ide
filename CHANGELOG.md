@@ -88,6 +88,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Zoom preference failures are visible**: zoom commands still apply
+  immediately, but failed persistence now logs the config I/O error and shows a
+  warning that the zoom will reset after restart.
 - **Keyboard shortcut overrides honor isolated config dirs**: `keybindings.toml`
   now uses the same Mighty IDE config directory resolver as theme, settings,
   zoom, and recents, including `MUI_CONFIG_DIR` for harnesses and automation.

@@ -997,6 +997,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Problems panel ")
         || m.starts_with("Settings panel ")
         || m.starts_with("Keyboard Shortcuts ")
+        || m.starts_with("Zoom preference not saved")
     {
         Some(OperationKey::Layout)
     } else {
