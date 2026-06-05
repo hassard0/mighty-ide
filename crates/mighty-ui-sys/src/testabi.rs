@@ -31,6 +31,21 @@ fn active_path(ctx: &MuiContext) -> Option<std::path::PathBuf> {
     ctx.tabs.active_path()
 }
 
+fn test_command_display() -> String {
+    let mty = crate::mty::path();
+    let program = std::path::Path::new(&mty)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(mty.as_str());
+    format!("{program} test")
+}
+
+fn test_start_failed_message(path: &std::path::Path) -> String {
+    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("file");
+    format!("Test run failed to start: {name} via {}", test_command_display())
+}
+
 pub(crate) fn workspace_test_target_for_root(root: &std::path::Path) -> Option<std::path::PathBuf> {
     if root.as_os_str().is_empty() || !root.is_dir() {
         return None;
@@ -157,6 +172,10 @@ pub extern "C" fn mui_test_run(handle: i64) -> i32 {
         crate::abi::trace(&format!("test_run start target={}", path.display()));
         1
     } else {
+        ctx.push_toast(
+            crate::toast::Kind::Error,
+            test_start_failed_message(&path),
+        );
         crate::abi::trace(&format!("test_run failed target={}", path.display()));
         0
     }
@@ -190,11 +209,10 @@ pub extern "C" fn mui_test_run_at_cursor(handle: i64) -> i32 {
         );
         1
     } else {
-        let name = path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("file");
-        ctx.push_toast(crate::toast::Kind::Error, format!("Test run failed to start: {name}"));
+        ctx.push_toast(
+            crate::toast::Kind::Error,
+            test_start_failed_message(&path),
+        );
         crate::abi::trace(&format!("test_run_at_cursor failed target={}", path.display()));
         0
     }

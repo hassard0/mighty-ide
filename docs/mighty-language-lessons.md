@@ -11539,3 +11539,17 @@ the actual failure was the configured `mty` executable.
   present in the Run panel output.
 - **Language note:** no compiler gap surfaced. Runtime launch feedback should
   identify both the user target and the external program boundary that failed.
+
+## L934 - Test Startup Failures Need The Same Command Context
+
+The Testing panel already synthesized a failed `<spawn>` row when `mty test`
+could not launch, but normal Run Tests did not show a toast and Run Test at
+Cursor only named the active file. That made the most visible feedback weaker
+than the panel detail and inconsistent with Run.
+
+- **IDE note:** both Testing entry points now toast spawn failures with the
+  target filename and attempted command display name, while preserving the
+  synthetic failed row for panel-level diagnostics.
+- **Language note:** no compiler gap surfaced. Repeated runtime-panel launch
+  paths should share failure-message construction so target and command context
+  cannot drift between entry points.
