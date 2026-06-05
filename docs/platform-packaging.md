@@ -16,13 +16,18 @@ or a release operator.
    directory.
 6. Keep generated packages out of commits.
 
+The checked-in package scripts enforce these rules where they can: they refuse a
+dirty git worktree, delete the previous platform package directory, reject common
+compiler/linker sidecars such as PDBs, import libraries, object files, and logs,
+and validate the native binary family before writing the archive.
+
 ## Platform Matrix
 
 | Platform | Native binary shape | Current repo support |
 |----------|---------------------|----------------------|
-| Windows x64 | `mighty-ide.exe` plus `mighty_ui_sys.dll` | `package-win.ps1` creates `dist/mighty-ide-win64/` and `dist/mighty-ide-v0.3.0-win64.zip` |
-| macOS | `.app` archive containing a Mach-O executable plus `.dylib` dependencies | `package-macos.sh` creates `dist/mighty-ide-macos/` and `dist/mighty-ide-v0.3.0-macos.tar.gz` on macOS |
-| Linux x64 | executable plus `.so` dependencies in a tarball directory | `package-linux.sh` creates `dist/mighty-ide-linux-x64/` and `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` on Linux |
+| Windows x64 | PE `mighty-ide.exe` plus PE `mighty_ui_sys.dll` | `package-win.ps1` creates `dist/mighty-ide-win64/` and `dist/mighty-ide-v0.3.0-win64.zip` |
+| macOS | `.app` archive containing Mach-O executable plus `.dylib` dependencies | `package-macos.sh` creates `dist/mighty-ide-macos/` and `dist/mighty-ide-v0.3.0-macos.tar.gz` on macOS |
+| Linux x64 | ELF executable plus ELF `.so` dependencies in a tarball directory | `package-linux.sh` creates `dist/mighty-ide-linux-x64/` and `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` on Linux |
 
 ## Windows Procedure
 
@@ -40,6 +45,9 @@ Expected artifacts:
 - `dist/mighty-ide-win64/RUN.txt`
 - `dist/mighty-ide-win64/Create-Desktop-Shortcut.ps1`
 - `dist/mighty-ide-v0.3.0-win64.zip`
+
+The script checks both packaged binaries for PE headers and fails if any common
+build byproduct is found in the package directory.
 
 Smoke-test by launching:
 
@@ -73,12 +81,14 @@ linker.
 Both scripts:
 
 - refuse to run on the wrong host OS
+- refuse to run from a dirty git worktree
 - remove the previous platform package directory before assembly
 - build `mighty-ui-sys` and `mty-rt-abi` in release mode
 - generate a temporary host-specific `mighty.toml` and restore the checked-in
   Windows manifest on exit
 - copy only the executable, native shim library, samples/examples, and run docs
 - strip symbols when the platform `strip` tool is available
+- verify the staged native binaries with `file` when available
 - write a platform tarball under `dist/`
 
 The resulting archives should be smoke-tested from the assembled package

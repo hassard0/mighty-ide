@@ -18,6 +18,12 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 cd "$ROOT"
+if [[ -d .git ]] && command -v git >/dev/null 2>&1; then
+  if [[ -n "$(git status --porcelain)" ]]; then
+    echo "ERROR: package-linux.sh requires a clean git worktree before building release artifacts." >&2
+    exit 1
+  fi
+fi
 export CARGO_INCREMENTAL=0
 
 cleanup() {
@@ -76,6 +82,16 @@ cp RUN.txt "$DIST/RUN.txt"
 
 if command -v strip >/dev/null 2>&1; then
   strip "$DIST/mighty-ide" "$DIST/libmighty_ui_sys.so" || true
+fi
+
+if command -v file >/dev/null 2>&1; then
+  file "$DIST/mighty-ide" "$DIST/libmighty_ui_sys.so"
+  for binary in "$DIST/mighty-ide" "$DIST/libmighty_ui_sys.so"; do
+    file "$binary" | grep -q 'ELF' || {
+      echo "ERROR: Linux package contains a non-ELF native binary: $binary" >&2
+      exit 1
+    }
+  done
 fi
 
 if find "$DIST" -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.rlib' -o -name '*.log' \) | grep -q .; then

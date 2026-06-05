@@ -13,6 +13,38 @@ $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
 
+if ((Test-Path ".git") -and (Get-Command git -ErrorAction SilentlyContinue)) {
+  $gitStatus = & git status --porcelain
+  if ($LASTEXITCODE -ne 0) { throw "git status failed; refusing to package" }
+  if ($gitStatus) {
+    throw "package-win.ps1 requires a clean git worktree before building release artifacts"
+  }
+}
+
+function Assert-PeBinary {
+  param([Parameter(Mandatory = $true)][string]$Path)
+  $full = Resolve-Path -LiteralPath $Path
+  $fs = [System.IO.File]::OpenRead($full)
+  try {
+    $br = New-Object System.IO.BinaryReader($fs)
+    if ($br.ReadByte() -ne 0x4d -or $br.ReadByte() -ne 0x5a) {
+      throw "$Path is not a PE binary: missing MZ header"
+    }
+    $fs.Seek(0x3c, [System.IO.SeekOrigin]::Begin) | Out-Null
+    $peOffset = $br.ReadInt32()
+    if ($peOffset -lt 0 -or $peOffset -gt ($fs.Length - 4)) {
+      throw "$Path is not a PE binary: invalid PE header offset"
+    }
+    $fs.Seek($peOffset, [System.IO.SeekOrigin]::Begin) | Out-Null
+    if ($br.ReadByte() -ne 0x50 -or $br.ReadByte() -ne 0x45 -or
+        $br.ReadByte() -ne 0x00 -or $br.ReadByte() -ne 0x00) {
+      throw "$Path is not a PE binary: missing PE signature"
+    }
+  } finally {
+    $fs.Dispose()
+  }
+}
+
 $env:CARGO_INCREMENTAL = "0"
 $prevRustflags = $env:RUSTFLAGS
 $releaseLinkFlags = "-C debuginfo=0 -C link-arg=/DEBUG:NONE"
@@ -34,6 +66,8 @@ try {
 
   Copy-Item "target\release\main.exe" "$dist\mighty-ide.exe" -Force
   Copy-Item "target\release\mighty_ui_sys.dll" "$dist\mighty_ui_sys.dll" -Force
+  Assert-PeBinary "$dist\mighty-ide.exe"
+  Assert-PeBinary "$dist\mighty_ui_sys.dll"
 
   Write-Host "[3/5] icon stamp and assets"
   if (Get-Command python -ErrorAction SilentlyContinue) {

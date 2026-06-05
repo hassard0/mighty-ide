@@ -11445,3 +11445,17 @@ one opened through Explorer, Quick Open, or the native file dialog.
 - **Language note:** no compiler gap surfaced. When many Mighty-routed UI
   surfaces converge on one shim-side action, expose a single post-open cleanup
   primitive instead of duplicating state updates across panel modules.
+
+## L927 - Release Scripts Should Enforce Clean Native Artifacts
+
+The cross-platform package scripts documented clean artifact expectations, but
+the checks were easier to bypass than the docs implied. A final release pass
+needed the scripts themselves to fail on dirty worktrees and verify that each
+assembled native payload matched the target platform.
+
+- **IDE note:** Windows packaging now checks PE headers for the exe and DLL,
+  while macOS and Linux scripts verify Mach-O or ELF payloads with `file` when
+  available. All native package scripts now refuse dirty git state before
+  building release archives.
+- **Language note:** no compiler gap surfaced. Release automation should encode
+  artifact invariants in the scripts, not only in operator documentation.

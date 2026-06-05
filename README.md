@@ -143,18 +143,23 @@ See [BUILDING.md](BUILDING.md) for the exact toolchain paths and commands.
 ## Release Packages
 
 Mighty IDE keeps generated binaries out of git. Release artifacts are built into
-`dist/` on a clean tree and uploaded separately.
+`dist/` on a clean tree and uploaded separately. The package scripts now refuse
+to build from a dirty worktree and validate the packaged native binary shape
+before archiving, so a release operator gets a hard failure instead of a stale
+or cross-platform artifact.
 
 - **Windows x64:** run `.\package-win.ps1` on Windows. This produces
   `dist\mighty-ide-win64\` and `dist\mighty-ide-v0.3.0-win64.zip` containing
-  `mighty-ide.exe`, `mighty_ui_sys.dll`, sample files, `RUN.txt`, and the
-  desktop-shortcut helper.
+  PE-format `mighty-ide.exe` and `mighty_ui_sys.dll`, sample files, `RUN.txt`,
+  and the desktop-shortcut helper.
 - **macOS:** run `./package-macos.sh` on a macOS runner or developer machine.
   This produces `dist/mighty-ide-macos/` and
-  `dist/mighty-ide-v0.3.0-macos.tar.gz` containing a native `.app` bundle.
+  `dist/mighty-ide-v0.3.0-macos.tar.gz` containing a native `.app` bundle with
+  Mach-O executable and dylib payloads.
 - **Linux x64:** run `./package-linux.sh` on a Linux runner or developer
   machine. This produces `dist/mighty-ide-linux-x64/` and
-  `dist/mighty-ide-v0.3.0-linux-x64.tar.gz`.
+  `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` containing ELF executable and
+  shared-object payloads.
 
 Each platform package must be built and smoke-tested on the same OS family that
 will run it. Do not reuse Windows DLLs, macOS dylibs, or Linux shared objects

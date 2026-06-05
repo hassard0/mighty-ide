@@ -21,6 +21,12 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 cd "$ROOT"
+if [[ -d .git ]] && command -v git >/dev/null 2>&1; then
+  if [[ -n "$(git status --porcelain)" ]]; then
+    echo "ERROR: package-macos.sh requires a clean git worktree before building release artifacts." >&2
+    exit 1
+  fi
+fi
 export CARGO_INCREMENTAL=0
 
 cleanup() {
@@ -105,6 +111,16 @@ PLIST
 
 if command -v strip >/dev/null 2>&1; then
   strip "$MACOS/mighty-ide" "$MACOS/libmighty_ui_sys.dylib" || true
+fi
+
+if command -v file >/dev/null 2>&1; then
+  file "$MACOS/mighty-ide" "$MACOS/libmighty_ui_sys.dylib"
+  for binary in "$MACOS/mighty-ide" "$MACOS/libmighty_ui_sys.dylib"; do
+    file "$binary" | grep -q 'Mach-O' || {
+      echo "ERROR: macOS package contains a non-Mach-O native binary: $binary" >&2
+      exit 1
+    }
+  done
 fi
 
 if find "$DIST_ROOT" -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.rlib' -o -name '*.log' \) | grep -q .; then
