@@ -11649,3 +11649,17 @@ the hunk-apply path, which already reports the git failure summary.
 - **Language note:** no compiler gap surfaced. Row-level VCS commands should
   carry the selected path into visible feedback before refreshing away stale
   status entries.
+
+## L942 - Clipboard Paste Failures Should Preserve The Platform Reason
+
+Editor paste read failures collapsed every clipboard problem into
+`Clipboard paste failed`. That hid whether the platform clipboard command was
+missing, exited unsuccessfully, or failed for another OS-level reason.
+
+- **IDE note:** paste failures now include the clipboard read error text
+  (`Clipboard paste failed: clipboard command unavailable`), while clipboard
+  toast replacement groups the detailed prefix. The existing empty-clipboard,
+  successful paste, and read-only-preview paths are unchanged.
+- **Language note:** no compiler gap surfaced. Platform integration failures
+  should preserve the host error summary in user-visible feedback instead of
+  flattening it at the ABI boundary.

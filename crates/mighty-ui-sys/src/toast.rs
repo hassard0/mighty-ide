@@ -772,7 +772,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Could not cut text"
         || m == "Cut selection"
         || m == "Cut line"
-        || m == "Clipboard paste failed"
+        || m.starts_with("Clipboard paste failed")
         || m == "Clipboard is empty"
         || m == "Pasted clipboard"
         || m == "Pasted to terminal"
@@ -1338,6 +1338,18 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Pasted clipboard");
         assert_eq!(q.toasts()[0].kind, Kind::Success);
+
+        q.push_at(
+            Kind::Error,
+            "Clipboard paste failed: clipboard command unavailable",
+            t0 + Duration::from_millis(350),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Clipboard paste failed: clipboard command unavailable"
+        );
+        assert_eq!(q.toasts()[0].kind, Kind::Error);
 
         q.push_at(Kind::Error, "Terminal paste failed", t0 + Duration::from_millis(400));
         assert_eq!(q.len(), 1);

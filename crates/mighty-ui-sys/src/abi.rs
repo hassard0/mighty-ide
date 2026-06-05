@@ -6379,6 +6379,14 @@ fn read_clipboard_text() -> std::io::Result<String> {
     if let Ok(text) = std::env::var("MUI_CLIPBOARD_TEXT") {
         return Ok(text);
     }
+    if let Ok(reason) = std::env::var("MUI_CLIPBOARD_READ_FORCE_FAIL") {
+        let reason = if reason.trim().is_empty() {
+            "clipboard read failed".to_string()
+        } else {
+            reason
+        };
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, reason));
+    }
     let Some((program, args)) = platform_clipboard_read_command() else {
         return Err(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
@@ -6390,6 +6398,15 @@ fn read_clipboard_text() -> std::io::Result<String> {
         Ok(String::from_utf8_lossy(&output.stdout).into_owned())
     } else {
         Err(std::io::Error::new(std::io::ErrorKind::Other, "clipboard read failed"))
+    }
+}
+
+fn clipboard_failure_message(e: &std::io::Error) -> String {
+    let msg = e.to_string();
+    if msg.trim().is_empty() {
+        "Clipboard paste failed".to_string()
+    } else {
+        format!("Clipboard paste failed: {msg}")
     }
 }
 
@@ -14898,7 +14915,7 @@ pub extern "C" fn mui_ed_paste(handle: i64) -> i32 {
     let text = match read_clipboard_text() {
         Ok(text) => text,
         Err(e) => {
-            ctx.push_toast(crate::toast::Kind::Error, "Clipboard paste failed");
+            ctx.push_toast(crate::toast::Kind::Error, clipboard_failure_message(&e));
             println!("editor-paste: failed to read clipboard: {e}");
             return 0;
         }

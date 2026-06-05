@@ -12070,6 +12070,18 @@ fn paste_preflight_tracks_clipboard_editability_and_read_only() {
     assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Clipboard is empty");
 
     ctx.toasts.clear();
+    std::env::remove_var("MUI_CLIPBOARD_TEXT");
+    std::env::set_var("MUI_CLIPBOARD_READ_FORCE_FAIL", "clipboard command unavailable");
+    assert_eq!(crate::mui_ed_paste(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(
+        toast.message,
+        "Clipboard paste failed: clipboard command unavailable"
+    );
+    std::env::remove_var("MUI_CLIPBOARD_READ_FORCE_FAIL");
+
+    ctx.toasts.clear();
     std::env::set_var("MUI_CLIPBOARD_TEXT", "clip");
     assert_eq!(crate::mui_ed_can_paste(h), 1);
     assert!(ctx.toasts.toasts().is_empty());
@@ -12090,6 +12102,7 @@ fn paste_preflight_tracks_clipboard_editability_and_read_only() {
     assert_eq!(toast.message, "Edit is unavailable in read-only previews");
 
     std::env::remove_var("MUI_CLIPBOARD_TEXT");
+    std::env::remove_var("MUI_CLIPBOARD_READ_FORCE_FAIL");
     let _ = std::fs::remove_dir_all(root);
 }
 
