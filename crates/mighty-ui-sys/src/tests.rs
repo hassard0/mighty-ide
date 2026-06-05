@@ -9860,7 +9860,23 @@ fn codeaction_command_without_file_toasts_feedback() {
     assert_eq!(crate::mui_codeaction_active(h), 1);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
-        "Code action needs a file"
+        "Code action needs a file: (scratch)"
+    );
+
+    ctx.toasts.clear();
+    ctx.codeaction.set(vec![crate::language::CodeAction {
+        title: "Fix all (mty)".to_string(),
+        edit: None,
+        command_edit: None,
+        command: None,
+        fix_all_mty: true,
+    }]);
+
+    assert_eq!(crate::mui_codeaction_apply(h), 0);
+    assert_eq!(crate::mui_codeaction_active(h), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Code action needs a file: (scratch)"
     );
 }
 

@@ -12220,3 +12220,16 @@ mutate disk.
   basename and preserving format toast replacement behavior.
 - **Language note:** no compiler gap surfaced. Mutating tooling commands should
   name the exact dirty target when refusing to avoid data loss.
+
+## L981 - Code Actions That Need Files Should Name Scratch Buffers
+
+Server-command and Fix All code actions on untitled buffers reported only
+`Code action needs a file`. That explained the requirement but not that the
+active target was a scratch buffer with no path.
+
+- **IDE note:** no-file code-action apply paths now report
+  `Code action needs a file: (scratch)`, and detailed file-required messages
+  stay in the code-action toast replacement lane.
+- **Language note:** no compiler gap surfaced. Actions that mutate or ask the
+  language server to mutate a document should identify the unsaved editor target
+  before refusing to run.

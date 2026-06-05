@@ -825,6 +825,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No code action selected"
         || m == "No code action menu open"
         || m == "Code action needs a file"
+        || m.starts_with("Code action needs a file:")
         || m.starts_with("Save failed before code action")
         || m == "Applied Fix all (mty)"
         || m.starts_with("Fix all (mty) failed")
@@ -2625,6 +2626,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Code action needs a file");
+
+        q.push_at(
+            Kind::Warn,
+            "Code action needs a file: (scratch)",
+            t0 + Duration::from_millis(250),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Code action needs a file: (scratch)");
 
         q.push_at(
             Kind::Error,

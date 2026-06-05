@@ -995,6 +995,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   warning.
 - **Formatter dirty-tab refusals name the target**: dirty active or duplicate
   tabs now report the blocked file before refusing to run `mty fmt`.
+- **Code-action no-file refusals name scratch buffers**: Fix All and server
+  command actions on untitled buffers now report `(scratch)` instead of a
+  generic file-required warning.
 - **Testing result metadata is readable**: suite names and run duration in the
   Testing drawer now use secondary text instead of near-invisible faint chrome.
 - **Overlay helper text is readable**: command palette, Keyboard Shortcuts, and

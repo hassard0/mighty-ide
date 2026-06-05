@@ -11031,6 +11031,16 @@ fn codeaction_presave_failed_message(path: &std::path::Path, e: &std::io::Error)
     }
 }
 
+fn codeaction_needs_file_message(ctx: &MuiContext) -> String {
+    let name = ctx
+        .tabs
+        .active_path()
+        .as_deref()
+        .map(basename)
+        .unwrap_or_else(|| "(scratch)".to_string());
+    format!("Code action needs a file: {name}")
+}
+
 /// `1` while the code-action menu is active.
 #[no_mangle]
 pub extern "C" fn mui_codeaction_active(handle: i64) -> i32 {
@@ -11141,7 +11151,7 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         let path = match ctx.file_path.clone() {
             Some(p) => p,
             None => {
-                ctx.push_toast(crate::toast::Kind::Warn, "Code action needs a file");
+                ctx.push_toast(crate::toast::Kind::Warn, codeaction_needs_file_message(ctx));
                 return 0;
             }
         };
@@ -11232,7 +11242,7 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
     if let Some(command) = &action.command {
         let Some(path) = ctx.file_path.clone() else {
             println!("codeaction: execute command={} no active path", command.command);
-            ctx.push_toast(crate::toast::Kind::Warn, "Code action needs a file");
+            ctx.push_toast(crate::toast::Kind::Warn, codeaction_needs_file_message(ctx));
             return 0;
         };
         let (source, _, _) = active_source_and_cursor(ctx);

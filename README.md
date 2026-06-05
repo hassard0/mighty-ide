@@ -64,6 +64,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   position, so no-signature feedback is visible and actionable
 - Empty explicit rename requests name the active file or scratch buffer and
   cursor position, so non-renamable locations are clear
+- Code actions that require a saved file name scratch buffers before refusing
+  to run
 - Signature help (Ctrl+Shift+Space), rename symbol (F2), code actions / quick-fix (Ctrl+.)
 - **Quick-fix lightbulb** — a gutter bulb appears when the cursor's line has code actions; click it (or Ctrl+.) to open them (debounced so the server isn't spammed)
 - Live `mty check` diagnostics — gutter dots + wavy underlines
