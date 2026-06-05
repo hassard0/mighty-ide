@@ -89,6 +89,7 @@ try {
   if ((Test-Path $icon) -and (Test-Path $rcedit)) {
     & $rcedit "$dist\mighty-ide.exe" --set-icon $icon
     if ($LASTEXITCODE -ne 0) { throw "rcedit failed to stamp the app icon" }
+    Assert-PeBinary "$dist\mighty-ide.exe"
     Copy-Item $icon "$dist\mighty-ide.ico" -Force
   } else {
     Write-Warning "missing $icon or $rcedit; exe icon was not stamped"
@@ -111,7 +112,7 @@ try {
   Copy-Item "docs\platform-packaging.md" "$dist\docs\platform-packaging.md" -Force
 
   $byproducts = Get-ChildItem -LiteralPath $dist -Recurse -File |
-    Where-Object { $_.Extension -in @(".pdb", ".lib", ".exp", ".ilk", ".obj", ".o", ".rlib", ".log") }
+    Where-Object { $_.Extension -in @(".pdb", ".lib", ".exp", ".ilk", ".obj", ".o", ".a", ".rlib", ".log") }
   if ($byproducts) {
     $names = ($byproducts | ForEach-Object { $_.FullName }) -join [Environment]::NewLine
     throw "package contains build byproducts:$([Environment]::NewLine)$names"

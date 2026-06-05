@@ -12417,3 +12417,18 @@ not distinguish plain output from a stale demoted diagnostic.
 - **Language note:** no compiler gap surfaced. Output panes that mix plain rows
   and lazy source targets should echo the selected row when a scalar click
   cannot produce a navigation target.
+
+## L995 - Package Hygiene Must Reject Static Archives
+
+Release packages are native runtime payloads, not build directories. The
+Windows package script already rejected import libraries, and the macOS/Linux
+scripts rejected common object and debug sidecars, but Unix `.a` static
+archives were not named in the checks or release docs.
+
+- **IDE note:** Windows, macOS, and Linux package scripts now reject `.a`
+  archives as build byproducts. The Windows script also revalidates the PE
+  executable after icon stamping, so the staged binary is checked after the last
+  binary mutation before archiving.
+- **Language note:** no compiler gap surfaced. Packaging scripts that bridge
+  compiler output into release artifacts should describe the artifact contract
+  in docs and encode it in explicit, platform-specific validation.

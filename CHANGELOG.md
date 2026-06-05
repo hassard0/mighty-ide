@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Release packaging
+- **Package scripts reject static archives**: Windows, macOS, and Linux package
+  assembly now treats Unix `.a` static libraries as build byproducts, and the
+  Windows script revalidates the PE executable after icon stamping so the final
+  staged binary is checked before the archive is written.
 - **Packages include offline docs**: Windows, macOS, and Linux package scripts
   now bundle README, keybindings, changelog, build notes, license, platform
   packaging notes, samples, and platform-specific `RUN.txt` instructions while
