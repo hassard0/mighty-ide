@@ -23,7 +23,7 @@
 //! are unit-tested with SAMPLE data (no network) in `tests.rs`.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::ffi::MuiColor;
 use crate::layout;
@@ -115,20 +115,18 @@ pub struct SharedStream {
 }
 
 impl SharedStream {
+    fn lock_inner(&self) -> MutexGuard<'_, StreamInner> {
+        self.inner.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     fn push_delta(&self, s: &str) {
-        if let Ok(mut g) = self.inner.lock() {
-            g.delta.push_str(s);
-        }
+        self.lock_inner().delta.push_str(s);
     }
     fn set_error(&self, e: String) {
-        if let Ok(mut g) = self.inner.lock() {
-            g.error = Some(e);
-        }
+        self.lock_inner().error = Some(e);
     }
     fn finish(&self) {
-        if let Ok(mut g) = self.inner.lock() {
-            g.done = true;
-        }
+        self.lock_inner().done = true;
         self.running.store(false, Ordering::SeqCst);
     }
 }
@@ -473,9 +471,7 @@ impl AiPanel {
             return false;
         };
         let (delta, err, done) = {
-            let Ok(mut g) = stream.inner.lock() else {
-                return false;
-            };
+            let mut g = stream.lock_inner();
             let delta = std::mem::take(&mut g.delta);
             (delta, g.error.take(), g.done)
         };
@@ -1446,6 +1442,35 @@ mod tests {
     }
 
     #[test]
+    fn pump_recovers_from_poisoned_stream_lock() {
+        let mut panel = AiPanel::new();
+        panel.transcript.push(Turn { role: Role::User, text: "q".to_string() });
+        panel.transcript.push(Turn { role: Role::Assistant, text: String::new() });
+        let stream = SharedStream::default();
+        stream.running.store(true, std::sync::atomic::Ordering::SeqCst);
+        panel.stream = Some(stream.clone());
+
+        let hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let poisoned = std::panic::catch_unwind({
+            let stream = stream.clone();
+            move || {
+                let _guard = stream.lock_inner();
+                panic!("poison AI stream lock");
+            }
+        });
+        std::panic::set_hook(hook);
+        assert!(poisoned.is_err());
+
+        stream.push_delta("still streamed");
+        stream.finish();
+
+        assert!(panel.pump());
+        assert_eq!(panel.transcript[1].text, "still streamed");
+        assert!(!panel.is_streaming());
+    }
+
+    #[test]
     fn clear_resets_draft_transcript_scroll_and_stream() {
         let mut panel = AiPanel::new();
         panel.input = "draft".to_string();
@@ -1508,7 +1533,7 @@ mod tests {
         let stream = SharedStream::default();
         stream.running.store(true, std::sync::atomic::Ordering::SeqCst);
         AnthropicProvider { api_key: key }.stream(req, stream.clone());
-        let g = stream.inner.lock().unwrap();
+        let g = stream.lock_inner();
         eprintln!("live_smoke: delta={:?} error={:?}", g.delta, g.error);
         assert!(g.done);
         assert!(g.error.is_none() || g.delta.is_empty());
