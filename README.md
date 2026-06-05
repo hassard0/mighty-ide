@@ -34,6 +34,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   of opening empty tabs or reporting them as missing files
 - Quick Open command-mode accepts report closed-panel, wrong-mode, empty, and
   stale-row misses instead of silently returning no command
+- Command Palette and Quick Open stale click routes report when their overlay
+  has already closed
 - Command palette (Ctrl+Shift+P), fuzzy-filtered
 - Go-to-line (Ctrl+G), go-to-definition (F12, cross-file), jump-back (Ctrl+−)
 - **Peek definition (Alt+F12)** — inline framed definition preview
@@ -103,6 +105,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Applying code actions with no active quick-fix menu reports
   `No code action menu open`, while active selection misses keep their own
   feedback
+- Code-action stale click routes report when the quick-fix menu has already
+  closed
 - Empty explicit hover requests name the active file and cursor position, so
   no-hover feedback identifies the queried site
 - Empty explicit signature-help requests name the active file and cursor

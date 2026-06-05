@@ -9164,6 +9164,10 @@ pub extern "C" fn mui_palette_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !ctx.palette.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No command palette open");
+        return -1;
+    }
     let row = ctx
         .palette
         .click_row(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height);
@@ -9998,6 +10002,10 @@ pub extern "C" fn mui_qo_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !ctx.quickopen.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No Quick Open panel open");
+        return -1;
+    }
     let row = ctx
         .quickopen
         .click_row(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height);
@@ -11851,6 +11859,7 @@ pub extern "C" fn mui_codeaction_click(handle: i64, row: i32, col: i32, total_li
         return -1;
     };
     if !ctx.codeaction.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No code action menu open");
         return -1;
     }
     let region = layout::region(ctx.sidebar_visible);

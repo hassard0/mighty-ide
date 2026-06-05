@@ -10831,6 +10831,9 @@ fn rename_and_code_action_close_commands_clear_active_state() {
     assert_eq!(crate::abi::mui_codeaction_cancel(handle), 0);
     assert_eq!(ctx.toasts.toasts().len(), 2);
     assert_eq!(ctx.toasts.toasts()[1].message, "No code action menu open");
+    assert_eq!(crate::abi::mui_codeaction_click(handle, 0, 0, 1), -1);
+    assert_eq!(ctx.toasts.toasts().len(), 2);
+    assert_eq!(ctx.toasts.toasts()[1].message, "No code action menu open");
 }
 
 #[test]
@@ -14148,6 +14151,9 @@ fn palette_and_quickopen_close_commands_clear_active_overlays() {
     assert_eq!(crate::mui_palette_cancel(h), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(ctx.toasts.toasts()[0].message, "No command palette open");
+    assert_eq!(crate::mui_palette_click(h), -1);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].message, "No command palette open");
 
     crate::mui_quickopen_open(h);
     assert_eq!(crate::mui_qo_active(h), 1);
@@ -14155,6 +14161,9 @@ fn palette_and_quickopen_close_commands_clear_active_overlays() {
     assert_eq!(crate::mui_qo_active(h), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(crate::mui_qo_cancel(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].message, "No Quick Open panel open");
+    assert_eq!(crate::mui_qo_click(h), -1);
     assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(ctx.toasts.toasts()[0].message, "No Quick Open panel open");
 }
