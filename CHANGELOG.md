@@ -11,6 +11,12 @@ logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
 A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
+### Release packaging
+- **Packages include offline docs**: Windows, macOS, and Linux package scripts
+  now bundle README, keybindings, changelog, build notes, license, platform
+  packaging notes, samples, and platform-specific `RUN.txt` instructions while
+  preserving native binary format checks and build-sidecar rejection.
+
 ### Editing & layout
 - **Saves handle duplicate tabs coherently**: manual Save, Save All, and
   autosave now refuse conflicting dirty duplicate views of the same file, and

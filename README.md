@@ -144,8 +144,9 @@ See [BUILDING.md](BUILDING.md) for the exact toolchain paths and commands.
 
 Generated release binaries stay out of git. The checked-in package scripts build
 into `dist/` from a clean worktree, validate the staged native payloads, reject
-compiler/linker sidecars, reject obvious foreign-platform binaries, and only
-then write the archive.
+compiler/linker sidecars, reject obvious foreign-platform binaries, bundle the
+README/license/keybinding/build docs with platform-specific run instructions,
+and only then write the archive.
 
 Release checklist:
 
@@ -160,6 +161,10 @@ Release checklist:
 | Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; no `.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.rlib`, `.log`, `.dylib`, or `.so` files |
 | macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and `.dylib`; no build sidecars, `.exe`, `.dll`, or `.so` files |
 | Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and `.so`; no build sidecars, `.exe`, `.dll`, or `.dylib` files |
+
+Every archive includes `RUN.txt`, `README.md`, `KEYBINDINGS.md`, `CHANGELOG.md`,
+`BUILDING.md`, `LICENSE`, and `docs/platform-packaging.md` alongside the runtime
+payload so the package is usable without returning to the source tree.
 
 Each platform package must be built and smoke-tested on its native OS or a
 matching CI runner. Do not reuse Windows DLLs, macOS dylibs, or Linux shared

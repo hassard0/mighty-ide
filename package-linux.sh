@@ -72,7 +72,7 @@ MTY_LINKER="$CLANG" "$MTY" build --release src/main.mty --out-dir target/release
 
 echo "[5/6] assemble $DIST"
 rm -rf "$DIST"
-mkdir -p "$DIST/examples" "$DIST/samples"
+mkdir -p "$DIST/examples" "$DIST/samples" "$DIST/docs"
 cp target/release/main "$DIST/mighty-ide"
 cp target/release/libmighty_ui_sys.so "$DIST/libmighty_ui_sys.so"
 cp samples/hello.mty "$DIST/samples/hello.mty"
@@ -82,7 +82,44 @@ cp examples/demo.mty "$DIST/examples/demo.mty"
 for name in sample.py sample.rs sample.json agents.mty; do
   [[ -f "examples/$name" ]] && cp "examples/$name" "$DIST/examples/$name"
 done
-cp RUN.txt "$DIST/RUN.txt"
+cp README.md KEYBINDINGS.md CHANGELOG.md BUILDING.md LICENSE "$DIST/"
+cp docs/platform-packaging.md "$DIST/docs/platform-packaging.md"
+cat > "$DIST/RUN.txt" <<'RUN'
+Mighty IDE - Linux (x64)
+========================
+
+HOW TO RUN
+----------
+1. Keep mighty-ide and libmighty_ui_sys.so in the same directory. The executable
+   is linked with an rpath that loads the shim from its own package directory.
+2. From this folder, launch:
+       ./mighty-ide
+   or open a specific file:
+       ./mighty-ide path/to/file
+       ./mighty-ide samples/hello.mty
+3. If the executable bit is lost after unpacking, restore it with:
+       chmod +x mighty-ide
+
+SAMPLES TO EXPLORE
+------------------
+The samples/ folder includes a few .mty programs:
+    samples/hello.mty
+    samples/agents.mty
+    samples/web-spinner.mty
+
+WHAT WORKS STANDALONE
+---------------------
+The packaged executable and shared library are enough for editing, tabs, split
+panes, search, Quick Open, command palette, minimap, Markdown preview, the
+integrated terminal, and bundled themes.
+
+WHAT NEEDS EXTRA TOOLS ON PATH
+------------------------------
+- Mighty language services, Run, Test, Debug, New Project, and web builds need
+  the Mighty compiler `mty` on PATH.
+- Building Mighty programs needs `mty` and a C toolchain such as clang.
+- AI copilot features need ANTHROPIC_API_KEY in the environment.
+RUN
 
 if command -v strip >/dev/null 2>&1; then
   strip "$DIST/mighty-ide" "$DIST/libmighty_ui_sys.so" || true

@@ -52,9 +52,11 @@ platform directory. The packaging scripts enforce this by refusing dirty git
 state, removing the previous platform package directory, rejecting common build
 byproducts, rejecting obvious foreign-platform native files, and checking that
 the staged native binaries match the host platform format before the archive is
-written. Windows performs PE checks directly in PowerShell; macOS and Linux
-require the standard `file` utility and fail if the packaged payload is not
-Mach-O or ELF respectively.
+written. The scripts also bundle the README, license, keybinding reference,
+changelog, build notes, platform packaging notes, samples, and platform-specific
+`RUN.txt` instructions. Windows performs PE checks directly in PowerShell; macOS
+and Linux require the standard `file` utility and fail if the packaged payload is
+not Mach-O or ELF respectively.
 
 | Platform | Current command | Artifact | Status |
 |----------|-----------------|----------|--------|

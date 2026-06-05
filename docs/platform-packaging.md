@@ -11,7 +11,8 @@ or a release operator.
 3. Build the Rust shim and Mighty executable in release mode for the same host
    OS that will run the package.
 4. Bundle only the executable, native shim library, icon/assets needed at
-   runtime, samples/examples, and run instructions.
+   runtime, samples/examples, project docs, and platform-specific run
+   instructions.
 5. Reject build sidecars and obvious foreign-platform native payloads.
 6. Smoke-test the packaged executable from inside the assembled package
    directory.
@@ -24,6 +25,18 @@ reject obvious foreign-platform native payloads, and validate the native binary
 family before writing the archive. Windows checks PE headers in PowerShell.
 macOS and Linux require the standard `file` utility so Mach-O and ELF validation
 cannot be silently skipped.
+
+Every package must include these human-readable files at the package root unless
+the root is an `.app` archive, in which case they live beside the `.app` in the
+tarball:
+
+- `RUN.txt` with native instructions for that platform
+- `README.md`
+- `KEYBINDINGS.md`
+- `CHANGELOG.md`
+- `BUILDING.md`
+- `LICENSE`
+- `docs/platform-packaging.md`
 
 ## Platform Matrix
 
@@ -93,6 +106,8 @@ Both scripts:
 - generate a temporary host-specific `mighty.toml` and restore the checked-in
   Windows manifest on exit
 - copy only the executable, native shim library, samples/examples, and run docs
+- copy the README, keybindings, changelog, build notes, license, and platform
+  packaging notes into the archive
 - strip symbols when the platform `strip` tool is available
 - verify the staged native binaries with `file`
 - reject native payloads that belong to another OS family

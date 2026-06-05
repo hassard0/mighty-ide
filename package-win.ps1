@@ -104,6 +104,11 @@ try {
   }
   Copy-Item "Create-Desktop-Shortcut.ps1" "$dist\Create-Desktop-Shortcut.ps1" -Force
   Copy-Item "RUN.txt" "$dist\RUN.txt" -Force
+  New-Item -ItemType Directory -Force -Path "$dist\docs" | Out-Null
+  foreach ($doc in "README.md", "KEYBINDINGS.md", "CHANGELOG.md", "BUILDING.md", "LICENSE") {
+    Copy-Item $doc (Join-Path $dist $doc) -Force
+  }
+  Copy-Item "docs\platform-packaging.md" "$dist\docs\platform-packaging.md" -Force
 
   $byproducts = Get-ChildItem -LiteralPath $dist -Recurse -File |
     Where-Object { $_.Extension -in @(".pdb", ".lib", ".exp", ".ilk", ".obj", ".o", ".rlib", ".log") }

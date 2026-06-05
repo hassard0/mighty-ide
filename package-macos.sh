@@ -75,7 +75,7 @@ MTY_LINKER="$CLANG" "$MTY" build --release src/main.mty --out-dir target/release
 
 echo "[5/6] assemble $APP"
 rm -rf "$DIST_ROOT"
-mkdir -p "$MACOS/examples" "$MACOS/samples" "$RESOURCES"
+mkdir -p "$MACOS/examples" "$MACOS/samples" "$RESOURCES" "$DIST_ROOT/docs"
 cp target/release/main "$MACOS/mighty-ide"
 cp target/release/libmighty_ui_sys.dylib "$MACOS/libmighty_ui_sys.dylib"
 cp samples/hello.mty "$MACOS/samples/hello.mty"
@@ -85,7 +85,40 @@ cp examples/demo.mty "$MACOS/examples/demo.mty"
 for name in sample.py sample.rs sample.json agents.mty; do
   [[ -f "examples/$name" ]] && cp "examples/$name" "$MACOS/examples/$name"
 done
-cp RUN.txt "$MACOS/RUN.txt"
+cp README.md KEYBINDINGS.md CHANGELOG.md BUILDING.md LICENSE "$DIST_ROOT/"
+cp docs/platform-packaging.md "$DIST_ROOT/docs/platform-packaging.md"
+cat > "$DIST_ROOT/RUN.txt" <<'RUN'
+Mighty IDE - macOS
+==================
+
+HOW TO RUN
+----------
+1. Open "Mighty IDE.app" from Finder, or launch the executable from a terminal:
+       "Mighty IDE.app/Contents/MacOS/mighty-ide"
+2. Open a specific file from a terminal:
+       "Mighty IDE.app/Contents/MacOS/mighty-ide" path/to/file
+3. Keep the app bundle intact. The executable expects libmighty_ui_sys.dylib in
+   Contents/MacOS beside it.
+
+SAMPLES TO EXPLORE
+------------------
+The app bundle includes a few .mty samples under:
+    Mighty IDE.app/Contents/MacOS/samples/
+
+WHAT WORKS STANDALONE
+---------------------
+The packaged app contains the executable, native shim, bundled fonts, samples,
+and app metadata needed for editing, tabs, split panes, search, Quick Open,
+command palette, minimap, Markdown preview, integrated terminal, and themes.
+
+WHAT NEEDS EXTRA TOOLS ON PATH
+------------------------------
+- Mighty language services, Run, Test, Debug, New Project, and web builds need
+  the Mighty compiler `mty` on PATH.
+- Building Mighty programs needs `mty` and a C toolchain such as clang.
+- AI copilot features need ANTHROPIC_API_KEY in the environment.
+RUN
+cp "$DIST_ROOT/RUN.txt" "$MACOS/RUN.txt"
 [[ -f assets/mighty-ide.icns ]] && cp assets/mighty-ide.icns "$RESOURCES/mighty-ide.icns"
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
