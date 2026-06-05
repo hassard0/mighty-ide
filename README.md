@@ -220,6 +220,19 @@ Minimum verification before upload:
   are ELF, scan for sidecars and `.exe`/`.dll`/`.dylib` files, then launch
   `./mighty-ide` from the package directory.
 
+Release note template for each published archive:
+
+```text
+Platform:
+Archive:
+Size:
+SHA-256:
+Native payloads:
+Sidecar / foreign-payload scan:
+Manifest:
+Packaged launch:
+```
+
 Every archive includes `RUN.txt`, `README.md`, `KEYBINDINGS.md`, `CHANGELOG.md`,
 `BUILDING.md`, `LICENSE`, and `docs/platform-packaging.md` alongside the runtime
 payload, plus `PACKAGE-MANIFEST.txt` with native payload hashes and clean binary

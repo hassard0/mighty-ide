@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Release packaging
+- **Release notes have a clean-binary evidence template**: README and
+  `docs/platform-packaging.md` now include the exact fields to record for every
+  published Windows, macOS, or Linux archive: archive size, SHA-256, native
+  payload family, sidecar/foreign-payload scan result, manifest summary, and
+  packaged launch result.
 - **Packages include a verification manifest**: Windows, macOS, Linux, and the
   Git-Bash Windows package path now write `PACKAGE-MANIFEST.txt` into the
   package root with platform/version metadata, native payload hashes and sizes,

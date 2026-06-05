@@ -221,3 +221,25 @@ find dist/mighty-ide-linux-x64 \( -type f \( \
 
 An empty `find` result is expected for the sidecar/foreign-payload scans. If
 any path is printed, fix the package before publishing it.
+
+## Release Note Evidence
+
+Record the same evidence for every archive that is uploaded. If a platform was
+not built on its native host or matching CI runner, list it as unbuilt instead
+of publishing a placeholder or reused binary.
+
+```text
+Platform:
+Archive:
+Size:
+SHA-256:
+Native payloads:
+Sidecar / foreign-payload scan:
+PACKAGE-MANIFEST.txt:
+Packaged launch:
+```
+
+The `Native payloads` line should name the binary family verified by the
+package script: PE for Windows, Mach-O for macOS, and ELF for Linux. The
+manifest line should summarize the platform, version, payload hashes, payload
+sizes, and clean-binary checks recorded in `PACKAGE-MANIFEST.txt`.
