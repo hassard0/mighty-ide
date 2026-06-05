@@ -2444,6 +2444,33 @@ fn sidebar_resize_preserves_grab_offset_inside_hit_band() {
         ctx.toasts.toasts().last().unwrap().message,
         format!("Sidebar resized to {}px", (start_w + 30.0).round() as i32)
     );
+
+    ctx.sidebar_visible = true;
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        crate::layout::sidebar_right(),
+        resize_y,
+        0,
+    );
+    assert_eq!(crate::abi::mui_sidebar_resize_at_click(handle), 1);
+    assert!(ctx.sidebar_resizing);
+    ctx.sidebar_visible = false;
+    ctx.last_event = MuiEvent::mouse_move(crate::layout::sidebar_right() + 20.0, resize_y, 0);
+    assert_eq!(crate::abi::mui_sidebar_resize_to_event_x(handle), 0);
+    assert!(!ctx.sidebar_resizing);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Sidebar is already closed"
+    );
+
+    ctx.sidebar_resizing = true;
+    assert_eq!(crate::abi::mui_sidebar_resize_finish(handle), 0);
+    assert!(!ctx.sidebar_resizing);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Sidebar is already closed"
+    );
     crate::layout::reset_sidebar_preset();
     crate::layout::set_zen(zen_before);
 }

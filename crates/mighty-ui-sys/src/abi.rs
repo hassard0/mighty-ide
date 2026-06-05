@@ -7354,7 +7354,7 @@ pub extern "C" fn mui_sidebar_close(handle: i64) -> i32 {
         return 0;
     };
     if !ctx.sidebar_visible {
-        ctx.push_toast(crate::toast::Kind::Info, "Sidebar is already closed");
+        report_sidebar_closed(ctx);
         trace("sidebar_close noop");
         return 0;
     }
@@ -7426,6 +7426,10 @@ pub extern "C" fn mui_sidebar_resize_at_click(handle: i64) -> i32 {
 pub extern "C" fn mui_sidebar_resize_to_event_x(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| {
         if !c.sidebar_visible {
+            if c.sidebar_resizing {
+                c.sidebar_resizing = false;
+                report_sidebar_closed(c);
+            }
             return 0;
         }
         let edge_x = c.last_event.x + c.sidebar_resize_grab_dx;
@@ -7445,6 +7449,10 @@ pub extern "C" fn mui_sidebar_resize_finish(handle: i64) -> i32 {
         return 0;
     };
     if !ctx.sidebar_visible {
+        if ctx.sidebar_resizing {
+            ctx.sidebar_resizing = false;
+            report_sidebar_closed(ctx);
+        }
         return 0;
     }
     let width = layout::sidebar_w().round() as i32;
@@ -7452,6 +7460,10 @@ pub extern "C" fn mui_sidebar_resize_finish(handle: i64) -> i32 {
     ctx.push_toast(crate::toast::Kind::Info, format!("Sidebar resized to {width}px"));
     trace(&format!("sidebar_resize finish width={width}"));
     width
+}
+
+fn report_sidebar_closed(ctx: &mut MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Info, "Sidebar is already closed");
 }
 
 /// Draw the visible divider/handle on the sidebar's right edge.

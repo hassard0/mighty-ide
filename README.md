@@ -76,6 +76,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   has already closed
 - Bottom dock stale close, preset, and resize affordances report when no dock is
   open, while ordinary editor clicks stay quiet
+- Sidebar stale resize drag and finish routes report when the sidebar has
+  already closed and release the retained resize capture
 - **Reopen Closed Tab** (Ctrl+Alt+T) restores the most recently closed editor tab,
   including tabs removed by cleanup commands, without collapsing split-pane
   layouts
