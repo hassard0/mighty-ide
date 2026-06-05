@@ -51,6 +51,11 @@ fn debug_start_failed_message(path: &std::path::Path) -> String {
     format!("Debug failed to start: {name} via {}", debug_command_display())
 }
 
+fn debug_restart_failed_message(path: &std::path::Path) -> String {
+    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("file");
+    format!("Debug restart failed: {name} via {}", debug_command_display())
+}
+
 // ===========================================================================
 // Session lifecycle (F5 / Shift+F5) + stepping (F10 / F11 / Shift+F11)
 // ===========================================================================
@@ -171,11 +176,21 @@ pub extern "C" fn mui_dbg_restart(handle: i64) -> i32 {
     };
     open_debug_view(ctx);
     let had_target = ctx.dbg.has_program();
+    let target = ctx.dbg.program().map(|p| p.to_path_buf());
     let ok = ctx.dbg.restart();
     if !ok {
-        if had_target {
-            ctx.push_toast(crate::toast::Kind::Error, "Debug restart failed");
+        if let Some(path) = target.as_deref() {
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                debug_restart_failed_message(path),
+            );
             crate::abi::trace("dbg_restart failed");
+        } else if had_target {
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                format!("Debug restart failed via {}", debug_command_display()),
+            );
+            crate::abi::trace("dbg_restart failed_no_path");
         } else {
             ctx.push_toast(crate::toast::Kind::Warn, "No debug target to restart");
             crate::abi::trace("dbg_restart no_target");

@@ -11620,3 +11620,18 @@ user whether one tab or many tabs still needed attention.
 - **Language note:** no compiler gap surfaced. Bulk file operations should
   expose aggregate counts in visible feedback because the scalar ABI return code
   cannot carry enough context by itself.
+
+## L940 - Debug Restart Failures Need The Same Adapter Context As Startup
+
+Debug startup failures already named the target file and the attempted
+`mty dap` command, but restart failures still reported only
+`Debug restart failed`. When the saved adapter path is missing or misconfigured,
+restart should not lose the command boundary that startup exposes.
+
+- **IDE note:** debug restart failures now include the retained target filename
+  and attempted adapter command (`Debug restart failed: file.mty via mty dap`),
+  and debug toast replacement groups the detailed prefix. The debugger model now
+  exposes the retained program path through a read-only accessor for ABI
+  feedback.
+- **Language note:** no compiler gap surfaced. Lifecycle retry commands should
+  preserve the same target-plus-command feedback contract as first launch.

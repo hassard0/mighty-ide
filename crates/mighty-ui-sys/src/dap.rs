@@ -669,6 +669,9 @@ impl DebugModel {
     pub fn has_program(&self) -> bool {
         self.program.is_some()
     }
+    pub fn program(&self) -> Option<&Path> {
+        self.program.as_deref()
+    }
 
     // ---- breakpoints (pure) ----
 

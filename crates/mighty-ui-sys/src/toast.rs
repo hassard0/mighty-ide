@@ -918,7 +918,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Continue is available when paused"
         || m == "No debug session to stop"
         || m == "Pause is available while running"
-        || m == "Debug restart failed"
+        || m.starts_with("Debug restart failed")
         || m == "No debug target to restart"
         || m == "Step Over is available when paused"
         || m == "Step Into is available when paused"
@@ -1928,9 +1928,15 @@ mod tests {
 
         q.push_at(
             Kind::Error,
-            "Debug restart failed",
+            "Debug restart failed: main.mty via missing-mty.exe dap",
             t0 + Duration::from_millis(600),
         );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Debug restart failed: main.mty via missing-mty.exe dap"
+        );
+
         q.push_at(
             Kind::Warn,
             "Save the file before setting breakpoints",
