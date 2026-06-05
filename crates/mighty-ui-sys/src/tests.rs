@@ -11301,6 +11301,21 @@ fn color_theme_close_command_cancels_picker() {
     assert_eq!(crate::mui_theme_picker_click(handle), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(ctx.toasts.toasts()[0].message, "No color theme picker open");
+    ctx.toasts.clear();
+
+    crate::theme::set_active(crate::theme::ThemeId::Vivid);
+    crate::mui_theme_picker_move(handle, 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No color theme picker open");
+    assert_eq!(crate::theme::active_id(), crate::theme::ThemeId::Vivid);
+    ctx.toasts.clear();
+
+    assert_eq!(crate::mui_theme_picker_apply(handle), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No color theme picker open");
+    assert_eq!(crate::theme::active_id(), crate::theme::ThemeId::Vivid);
 }
 
 #[test]

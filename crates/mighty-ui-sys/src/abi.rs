@@ -9779,6 +9779,10 @@ pub extern "C" fn mui_theme_picker_active(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_theme_picker_move(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.theme_picker.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No color theme picker open");
+            return;
+        }
         ctx.theme_picker.move_sel(delta);
     }
 }
@@ -9815,6 +9819,10 @@ pub extern "C" fn mui_theme_picker_apply(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !ctx.theme_picker.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No color theme picker open");
+        return -1;
+    }
     let (id, persisted) = ctx.theme_picker.commit();
     if persisted {
         ctx.push_toast(

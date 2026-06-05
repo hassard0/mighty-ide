@@ -109,6 +109,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   text entry, backspace, and selection-move routes now report
   `Keyboard Shortcuts is already closed` when the overlay has already closed,
   matching stale clicks, remap, reset, and close.
+- **Color Theme stale apply is non-mutating**: theme-picker move and apply
+  routes now report `No color theme picker open` when the picker has already
+  closed, and stale apply no longer commits the highlighted theme.
 - **Run output directory misses demote precisely**: clicking a Run diagnostic
   row whose target became a directory now demotes that row and preserves
   `Run target is not a file: <name>` for repeated clicks.
