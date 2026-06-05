@@ -82,6 +82,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Workspace New File names dialog scope**: cancelling or missing the
   workspace-scoped New File picker now reports `New workspace file ...` so it
   is distinguishable from the general File: New File command.
+- **Run, Diff, Blame, and Agents name scratch misses**: path-scoped workflow
+  commands now identify untitled buffers in refusal feedback, so users can tell
+  when they need to save `(scratch)` before running Agents or Run, or when Diff
+  and Blame have no file-backed target.
 - **Copy file metadata names scratch buffers**: copy-path, copy-relative-path,
   copy-name, and copy-directory now identify `(scratch)` when the active tab has
   no file path.

@@ -27,6 +27,16 @@ fn active_path(ctx: &MuiContext) -> Option<std::path::PathBuf> {
     ctx.tabs.active_path()
 }
 
+fn active_target_label(ctx: &MuiContext) -> String {
+    active_path(ctx)
+        .as_deref()
+        .and_then(|p| p.file_name())
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("(scratch)")
+        .to_string()
+}
+
 fn run_command_display() -> String {
     let mty = crate::mty::path();
     let program = std::path::Path::new(&mty)
@@ -82,7 +92,10 @@ pub extern "C" fn mui_run_start(handle: i64) -> i32 {
         ctx.term_open = false;
         ctx.web.close();
         ctx.problems.set_open(false);
-        ctx.push_toast(crate::toast::Kind::Warn, "No file to run");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Save {} before running", active_target_label(ctx)),
+        );
         crate::abi::trace("run_start no_target");
         return 0;
     };
@@ -728,7 +741,10 @@ pub extern "C" fn mui_diff_open(handle: i64, staged: i32) -> i32 {
     let root = ctx.scm.root.clone().unwrap_or_else(|| ctx.tree.root().to_path_buf());
     // Repo-relative path of the active file.
     let Some(abs) = active_path(ctx) else {
-        ctx.push_toast(crate::toast::Kind::Warn, "No file to diff");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("No file to diff: {}", active_target_label(ctx)),
+        );
         return 0;
     };
     let rel = abs
@@ -1130,7 +1146,10 @@ pub extern "C" fn mui_blame_toggle(handle: i64) -> i32 {
         ctx.scm.refresh(&dir);
     }
     let Some((root, rel)) = active_relpath(ctx) else {
-        ctx.push_toast(crate::toast::Kind::Warn, "No file to blame");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("No file to blame: {}", active_target_label(ctx)),
+        );
         return 0;
     };
     let now = ctx.blame.toggle(&root, &rel);

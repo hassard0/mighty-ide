@@ -12332,3 +12332,19 @@ platform.
 - **Language note:** no compiler gap surfaced. Native-package documentation
   should mirror the ABI boundary enforced by package scripts, especially when a
   Mighty executable links to a host-specific Rust shim.
+
+## L989 - Workflow Panels Should Name Scratch No-File Misses
+
+Run, inline Diff, Blame, and Mighty Agents still had older no-file refusals such
+as `No file to run` and `Open a file before running Agents`. After the editor
+gained duplicate tabs, scratch tabs, and richer path-specific preflights, those
+messages were too generic to explain that the active target was an untitled
+buffer.
+
+- **IDE note:** Run and Agents now report `Save (scratch) before ...`, while
+  Diff and Blame report `No file to ...: (scratch)`. Toast replacement lanes
+  treat the new targeted messages as the same workflow feedback as the older
+  generic messages.
+- **Language note:** no compiler gap surfaced. Workflow commands that bridge
+  Mighty into host tools should carry a target label through scalar preflight
+  failures, even when the target has no filesystem path yet.

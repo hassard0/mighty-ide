@@ -620,12 +620,14 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Unstaged hunk"
         || m.starts_with("Hunk apply failed:")
         || m == "No file to diff"
+        || m.starts_with("No file to diff:")
         || m == "No source-control row"
         || m == "No git repository for diff"
         || m.starts_with("No diff for ")
         || m == "Diff view closed"
         || m == "Diff view is already closed"
         || m == "No file to blame"
+        || m.starts_with("No file to blame:")
         || m.starts_with("No blame ")
         || m.starts_with("Blame on ")
         || m == "Enter a branch name"
@@ -636,6 +638,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::Git)
     } else if m == "Open a file before running Agents"
+        || (m.starts_with("Save ") && m.ends_with(" before running Agents"))
         || m == "No agent node selected"
         || m.starts_with("Agents ")
     {
@@ -817,6 +820,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Run stopped")
         || m == "Run process stopped"
         || m == "No file to run"
+        || (m.starts_with("Save ") && m.ends_with(" before running"))
         || m == "No run process to stop"
         || m == "No run output row selected"
         || m == "Run output row has no file target"
@@ -2018,6 +2022,14 @@ mod tests {
         q.push_at(Kind::Warn, "No file to diff", t0);
         q.push_at(
             Kind::Warn,
+            "No file to diff: (scratch)",
+            t0 + Duration::from_millis(50),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No file to diff: (scratch)");
+
+        q.push_at(
+            Kind::Warn,
             "No git repository for diff",
             t0 + Duration::from_millis(100),
         );
@@ -2098,6 +2110,14 @@ mod tests {
         let t0 = Instant::now();
 
         q.push_at(Kind::Warn, "No file to blame", t0);
+        q.push_at(
+            Kind::Warn,
+            "No file to blame: (scratch)",
+            t0 + Duration::from_millis(50),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No file to blame: (scratch)");
+
         q.push_at(
             Kind::Warn,
             "No blame for main.mty (file not tracked?)",
@@ -2275,6 +2295,15 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No run process to stop");
+
+        q.push_at(
+            Kind::Warn,
+            "Save (scratch) before running",
+            t0 + Duration::from_millis(600),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Save (scratch) before running");
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
     }
 
     #[test]
@@ -2961,6 +2990,14 @@ mod tests {
         let t0 = Instant::now();
 
         q.push_at(Kind::Warn, "Open a file before running Agents", t0);
+        q.push_at(
+            Kind::Warn,
+            "Save (scratch) before running Agents",
+            t0 + Duration::from_millis(50),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Save (scratch) before running Agents");
+
         q.push_at(
             Kind::Info,
             "No agent node selected",

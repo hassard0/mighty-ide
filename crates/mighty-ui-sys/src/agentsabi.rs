@@ -1068,6 +1068,17 @@ fn inspect_command(mty: &str, sock: Option<&str>) -> Command {
     cmd
 }
 
+fn active_agent_target_label(ctx: &MuiContext) -> String {
+    ctx.tabs
+        .active_path()
+        .as_deref()
+        .and_then(|p| p.file_name())
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("(scratch)")
+        .to_string()
+}
+
 /// Run the active program (`mty run <active file>`) on a background thread,
 /// streaming output into the embedded run buffer. Returns `1` if a process
 /// spawned, `0` otherwise (no file / spawn failure).
@@ -1078,7 +1089,10 @@ pub extern "C" fn mui_agents_run(handle: i64) -> i32 {
     };
     let Some(path) = ctx.tabs.active_path() else {
         crate::abi::trace("agents_run no_active_file");
-        ctx.push_toast(crate::toast::Kind::Warn, "Open a file before running Agents");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Save {} before running Agents", active_agent_target_label(ctx)),
+        );
         return 0;
     };
     let mut topo = std::mem::take(&mut ctx.agents);

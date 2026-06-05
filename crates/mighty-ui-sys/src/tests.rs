@@ -2091,7 +2091,7 @@ fn run_start_without_file_reports_visible_feedback() {
     assert!(!ctx.problems.is_open());
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "No file to run");
+    assert_eq!(toast.message, "Save (scratch) before running");
 }
 
 #[test]
@@ -2647,7 +2647,7 @@ fn agents_run_without_file_reports_visible_feedback() {
     assert_eq!(crate::agentsabi::mui_agents_run(handle), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Open a file before running Agents");
+    assert_eq!(toast.message, "Save (scratch) before running Agents");
 }
 
 #[test]
@@ -5776,7 +5776,7 @@ fn diff_open_noops_report_visible_feedback() {
     assert_eq!(crate::featureabi::mui_diff_open(handle, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "No file to diff");
+    assert_eq!(toast.message, "No file to diff: (scratch)");
 
     assert_eq!(crate::featureabi::mui_diff_open_row(handle, -1), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
@@ -9061,6 +9061,18 @@ filename src/main.mty
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Blame is already hidden");
+}
+
+#[test]
+fn blame_without_file_reports_visible_target_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_blame_toggle(handle), 0);
+    assert_eq!(crate::featureabi::mui_blame_active(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No file to blame: (scratch)");
 }
 
 #[test]
