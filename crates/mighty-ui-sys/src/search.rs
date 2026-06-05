@@ -130,6 +130,8 @@ pub struct SearchState {
     pub replace_focus: bool,
     /// The last search results.
     pub results: SearchResults,
+    /// Query text that produced `results`; empty means there are no current results.
+    pub last_results_query: String,
 }
 
 impl SearchState {
@@ -168,13 +170,22 @@ impl SearchState {
         self.query.clear();
         self.replace.clear();
         self.results = SearchResults::default();
+        self.last_results_query.clear();
     }
 
     /// Clear derived results while preserving the user's query/replace draft.
     pub fn clear_results(&mut self) -> bool {
         let changed = !self.results.files.is_empty() || !self.results.matches.is_empty();
         self.results = SearchResults::default();
+        self.last_results_query.clear();
         changed
+    }
+
+    pub fn results_match_current_query(&self) -> bool {
+        let needle = self.query_string();
+        !needle.trim().is_empty()
+            && self.last_results_query == needle
+            && !self.results.matches.is_empty()
     }
 
     /// Walk `root`, searching every text file for the current query. Returns the
@@ -182,6 +193,7 @@ impl SearchState {
     /// can't hang the UI.
     pub fn run(&mut self, root: &Path) -> i32 {
         self.results = SearchResults::default();
+        self.last_results_query.clear();
         let needle = self.query_string();
         if needle.trim().is_empty() {
             return 0;
@@ -216,6 +228,7 @@ impl SearchState {
                 self.results.matches.extend(local);
             }
         }
+        self.last_results_query = needle;
         self.results.total_matches()
     }
 
@@ -246,6 +259,9 @@ impl SearchState {
     ) -> (i32, Vec<PathBuf>, usize, usize) {
         let needle = self.query_string();
         if needle.trim().is_empty() {
+            return (0, Vec::new(), 0, 0);
+        }
+        if self.last_results_query != needle {
             return (0, Vec::new(), 0, 0);
         }
         let replacement = self.replace_string();

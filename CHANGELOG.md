@@ -22,6 +22,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Workspace edits refresh clean duplicate tabs**: code actions and LSP
   workspace/applyEdit requests now refresh every clean duplicate view of a
   changed file while preserving undo history on the active edited tab.
+- **Project replace requires current search results**: Search Replace All now
+  refuses keyboard, mouse, and palette replaces when the query has changed
+  since the visible results were produced, and empty or missed project searches
+  report visible feedback.
 - **Project replace skips dirty open files**: Search Replace All now refuses to
   rewrite files that have any dirty equivalent open tab, and refreshes every
   clean duplicate view after successful replacements.

@@ -1424,6 +1424,7 @@ pub extern "C" fn mui_search_run(handle: i64) -> i32 {
         return 0;
     };
     let dir = workspace_dir(ctx);
+    let query = ctx.search.query_string();
     let n = ctx.search.run(&dir);
     println!(
         "search: query=\"{}\" files={} matches={}",
@@ -1437,6 +1438,11 @@ pub extern "C" fn mui_search_run(handle: i64) -> i32 {
         ctx.search.file_count(),
         n
     ));
+    if query.trim().is_empty() {
+        ctx.push_toast(crate::toast::Kind::Info, "Enter text to search");
+    } else if n == 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No project search results");
+    }
     n
 }
 
@@ -1448,6 +1454,18 @@ pub extern "C" fn mui_search_replace_all(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    let query = ctx.search.query_string();
+    if query.trim().is_empty() {
+        ctx.search.clear_results();
+        ctx.push_toast(crate::toast::Kind::Info, "Enter search text to replace");
+        crate::abi::trace("search_replace_all replaced=0 empty-query");
+        return 0;
+    }
+    if !ctx.search.results_match_current_query() {
+        ctx.push_toast(crate::toast::Kind::Info, "Run Search before replacing");
+        crate::abi::trace("search_replace_all replaced=0 stale-results");
+        return 0;
+    }
     let dir = workspace_dir(ctx);
     let (n, changed_paths, dirty_skipped, stale_skipped) = ctx
         .search
@@ -1625,8 +1643,8 @@ pub(crate) fn search_header_action_centers(sx: f32, sw: f32) -> [(f32, i32); 2] 
     [(sx + sw - 57.5, 3), (sx + sw - 27.5, 1)]
 }
 
-fn search_replace_button_enabled(query: &str, matches: i32) -> bool {
-    !query.trim().is_empty() && matches > 0
+fn search_replace_button_enabled(query: &str, matches: i32, current_results: bool) -> bool {
+    !query.trim().is_empty() && matches > 0 && current_results
 }
 
 /// Search-panel mouse action for the last click:
@@ -1676,7 +1694,13 @@ pub extern "C" fn mui_search_action_at_click(handle: i64) -> i32 {
     }
     if (box_x0..=box_x1).contains(&x) && (ry..=ry + box_h).contains(&y) {
         ctx.search.replace_focus = true;
-        if (btn_x0..=btn_x1).contains(&x) && search_replace_button_enabled(&ctx.search.query_string(), ctx.search.match_count()) {
+        if (btn_x0..=btn_x1).contains(&x)
+            && search_replace_button_enabled(
+                &ctx.search.query_string(),
+                ctx.search.match_count(),
+                ctx.search.results_match_current_query(),
+            )
+        {
             crate::abi::trace(&format!("search_action x={x:.1} y={y:.1} -> replace_all"));
             return 2;
         }
@@ -1775,10 +1799,11 @@ mod search_panel_tests {
 
     #[test]
     fn search_replace_button_tracks_real_query_availability() {
-        assert!(!search_replace_button_enabled("", 1));
-        assert!(!search_replace_button_enabled("   ", 1));
-        assert!(!search_replace_button_enabled("opened", 0));
-        assert!(search_replace_button_enabled("opened", 1));
+        assert!(!search_replace_button_enabled("", 1, true));
+        assert!(!search_replace_button_enabled("   ", 1, true));
+        assert!(!search_replace_button_enabled("opened", 0, true));
+        assert!(!search_replace_button_enabled("opened", 1, false));
+        assert!(search_replace_button_enabled("opened", 1, true));
     }
 }
 
@@ -1911,7 +1936,8 @@ pub extern "C" fn mui_search_draw(handle: i64) {
     let r_border = if replace_focus { theme::ACCENT_LINE() } else { theme::BORDER_STRONG() };
     ctx.dl_round(sx + 10.0, ry, sw - 20.0, box_h, 7.0, theme::BG_1());
     ctx.dl_stroke(sx + 10.0, ry, sw - 20.0, box_h, 7.0, r_border, 1.0);
-    let replace_ready = search_replace_button_enabled(&query, ctx.search.match_count());
+    let replace_ready =
+        search_replace_button_enabled(&query, ctx.search.match_count(), ctx.search.results_match_current_query());
     let replace_icon_col = if replace_focus { theme::ACCENT_BRIGHT() } else { theme::DIM() };
     ctx.dl_icon(sx + 16.0, ry + (box_h - 13.0) * 0.5, 13.0, 13.0, icons::REPLACE, replace_icon_col, 1.5, false);
     let (r_text, r_col) = if replace.is_empty() {

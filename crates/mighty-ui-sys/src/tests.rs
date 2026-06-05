@@ -2716,6 +2716,7 @@ fn search_panel_clicks_focus_fields_and_return_actions() {
         col: 0,
         preview: "opened".to_string(),
     });
+    ctx.search.last_results_query = "opened".to_string();
     ctx.last_event = MuiEvent::mouse(crate::ffi::MUI_EVENT_MOUSE_DOWN, 0, sx + sw - 26.0, 88.0, 0);
     assert_eq!(crate::panels::mui_search_action_at_click(handle), 2);
     assert!(ctx.search.replace_focus);
@@ -2731,6 +2732,51 @@ fn search_panel_clicks_focus_fields_and_return_actions() {
 
     ctx.active_panel = crate::PANEL_EXPLORER;
     assert_eq!(crate::panels::mui_search_action_at_click(handle), 0);
+}
+
+#[test]
+fn search_run_reports_empty_and_missed_queries() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_search_run_feedback");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("a.mty"), "let needle = 1\n").unwrap();
+    ctx.tree.set_root(root.clone());
+    ctx.search.results.files.push(crate::search::SearchFile {
+        path: root.join("old.mty"),
+        rel: "old.mty".to_string(),
+        match_count: 1,
+        fingerprint: 0,
+    });
+    ctx.search.results.matches.push(crate::search::SearchMatch {
+        file: 0,
+        line: 0,
+        col: 0,
+        preview: "old".to_string(),
+    });
+    ctx.search.last_results_query = "old".to_string();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_search_run(handle), 0);
+    assert_eq!(ctx.search.file_count(), 0);
+    assert_eq!(ctx.search.match_count(), 0);
+    assert!(ctx.search.last_results_query.is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Enter text to search");
+
+    for ch in "missing".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+    assert_eq!(crate::panels::mui_search_run(handle), 0);
+    assert_eq!(ctx.search.file_count(), 0);
+    assert_eq!(ctx.search.match_count(), 0);
+    assert_eq!(ctx.search.last_results_query, "missing");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No project search results");
+
+    let _ = std::fs::remove_dir_all(&root);
 }
 
 #[test]
@@ -2763,6 +2809,63 @@ fn search_replace_all_toasts_visible_result() {
     assert_eq!(toast.message, "Replaced 2 occurrences");
 
     let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn search_replace_all_requires_current_search_results() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_search_replace_stale_query");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("a.mty");
+    std::fs::write(&path, "foo\nbar\n").unwrap();
+    ctx.tree.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    for ch in "foo".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+    assert_eq!(crate::panels::mui_search_run(handle), 1);
+    ctx.search.query = "bar".chars().collect();
+    ctx.search.replace_focus = true;
+    for ch in "baz".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+
+    assert_eq!(crate::panels::mui_search_replace_all(handle), 0);
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "foo\nbar\n");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Run Search before replacing");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn search_replace_all_reports_empty_query_and_clears_stale_results() {
+    let mut ctx = ctx_or_skip!();
+    ctx.search.results.files.push(crate::search::SearchFile {
+        path: std::path::PathBuf::from("old.mty"),
+        rel: "old.mty".to_string(),
+        match_count: 1,
+        fingerprint: 0,
+    });
+    ctx.search.results.matches.push(crate::search::SearchMatch {
+        file: 0,
+        line: 0,
+        col: 0,
+        preview: "old".to_string(),
+    });
+    ctx.search.last_results_query = "old".to_string();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_search_replace_all(handle), 0);
+    assert_eq!(ctx.search.file_count(), 0);
+    assert_eq!(ctx.search.match_count(), 0);
+    assert!(ctx.search.last_results_query.is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Enter search text to replace");
 }
 
 #[test]
