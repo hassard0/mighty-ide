@@ -392,6 +392,21 @@ pub(crate) fn definition_not_found_message(path: &std::path::Path, line: i32, co
     format!("No definition found at {name}:{}:{}", line.max(0) + 1, col.max(0) + 1)
 }
 
+fn completion_not_found_message(ctx: &MuiContext) -> String {
+    let name = ctx
+        .tabs
+        .active_path()
+        .as_deref()
+        .map(basename)
+        .unwrap_or_else(|| "(scratch)".to_string());
+    let model = ctx.tabs.active_model();
+    format!(
+        "No completions available at {name}:{}:{}",
+        model.cursor_line() + 1,
+        model.cursor_col() + 1
+    )
+}
+
 #[cfg(test)]
 mod code_action_diagnostics_tests {
     use super::*;
@@ -8309,7 +8324,7 @@ pub extern "C" fn mui_complete_report_empty(handle: i64) -> i32 {
     if ctx.complete.count() > 0 {
         return 1;
     }
-    ctx.push_toast(crate::toast::Kind::Info, "No completions available");
+    ctx.push_toast(crate::toast::Kind::Info, completion_not_found_message(ctx));
     0
 }
 

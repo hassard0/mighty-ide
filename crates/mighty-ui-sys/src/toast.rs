@@ -870,6 +870,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::MultiCursor)
     } else if m == "No completions available"
+        || m.starts_with("No completions available at ")
         || m == "No autocomplete suggestions open"
         || m == "Save the file before hover"
         || m == "No hover information"
@@ -2429,6 +2430,14 @@ mod tests {
         let t0 = Instant::now();
 
         q.push_at(Kind::Info, "No completions available", t0);
+        q.push_at(
+            Kind::Info,
+            "No completions available at main.mty:4:2",
+            t0 + Duration::from_millis(50),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No completions available at main.mty:4:2");
+
         q.push_at(
             Kind::Warn,
             "Save the file before hover",

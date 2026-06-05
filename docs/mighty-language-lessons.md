@@ -12126,3 +12126,17 @@ file and position had been queried.
   and 1-based lookup coordinates.
 - **Language note:** no compiler gap surfaced. Code-intelligence miss feedback
   should name the query site even when it cannot reliably name a symbol.
+
+## L974 - Completion Misses Should Name The Query Site
+
+Explicit autocomplete requests reported only `No completions available` when
+the dropdown had no candidates. In a multi-tab session, especially after
+keyboard-driven file changes, that did not say which buffer and cursor position
+had been queried.
+
+- **IDE note:** explicit completion misses now report
+  `No completions available at file:line:column`, falling back to `(scratch)`
+  for untitled buffers and keeping detailed messages in the code-intelligence
+  toast replacement lane.
+- **Language note:** no compiler gap surfaced. Cursor-scoped language features
+  should name the active query site on empty-result paths, not only on errors.

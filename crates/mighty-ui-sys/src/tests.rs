@@ -11541,7 +11541,25 @@ fn explicit_completion_reports_empty_result_only_when_empty() {
     assert_eq!(crate::mui_complete_report_empty(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "No completions available");
+    assert_eq!(toast.message, "No completions available at (scratch):1:1");
+
+    let root =
+        std::env::temp_dir().join(format!("mui_completion_empty_site_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("empty-completion.mty");
+    std::fs::write(&file, "").unwrap();
+    ctx.tabs.open_path(file);
+    crate::sync_active_path(&mut ctx);
+    ctx.toasts.clear();
+
+    assert_eq!(crate::mui_complete_report_empty(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(
+        toast.message,
+        "No completions available at empty-completion.mty:1:1"
+    );
 
     ctx.tabs.active_model_mut().set_text_preserving_cursor("alpha al");
     ctx.tabs.active_model_mut().move_to(0, 8);
@@ -11550,6 +11568,8 @@ fn explicit_completion_reports_empty_result_only_when_empty() {
     let before = ctx.toasts.toasts().len();
     assert_eq!(crate::mui_complete_report_empty(h), 1);
     assert_eq!(ctx.toasts.toasts().len(), before);
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]

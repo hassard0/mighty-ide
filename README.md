@@ -51,6 +51,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 
 ### Language Intelligence
 - Hover info (Ctrl+K), autocomplete (Ctrl+Space — semantic LSP completions + buffer words)
+- Empty explicit autocomplete requests name the active file or scratch buffer
+  and cursor position, so no-candidate feedback stays actionable in multi-tab
+  sessions
 - Signature help (Ctrl+Shift+Space), rename symbol (F2), code actions / quick-fix (Ctrl+.)
 - **Quick-fix lightbulb** — a gutter bulb appears when the cursor's line has code actions; click it (or Ctrl+.) to open them (debounced so the server isn't spammed)
 - Live `mty check` diagnostics — gutter dots + wavy underlines

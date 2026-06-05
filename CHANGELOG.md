@@ -977,6 +977,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Autocomplete rows read like real IDE metadata**: semantic completions now
   show a clear `function` kind and suppress placeholder inline signatures,
   leaving full parameter detail in the selected-row footer.
+- **Autocomplete misses name the query site**: explicit empty completion
+  requests now report the active file or scratch buffer plus 1-based cursor
+  position instead of a generic no-candidates toast.
 - **Testing result metadata is readable**: suite names and run duration in the
   Testing drawer now use secondary text instead of near-invisible faint chrome.
 - **Overlay helper text is readable**: command palette, Keyboard Shortcuts, and
