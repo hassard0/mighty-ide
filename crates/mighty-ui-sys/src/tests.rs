@@ -1606,6 +1606,29 @@ fn web_playground_idle_controls_explain_noops() {
 }
 
 #[test]
+fn web_open_browser_failure_names_url_and_reason() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let old_fail = std::env::var_os("MUI_WEB_BROWSER_OPEN_FAIL");
+    let _fail_env = EnvRestoreGuard("MUI_WEB_BROWSER_OPEN_FAIL", old_fail);
+    let old_screenshot = std::env::var_os("MUI_SCREENSHOT");
+    let _screenshot_env = EnvRestoreGuard("MUI_SCREENSHOT", old_screenshot);
+    std::env::set_var("MUI_WEB_BROWSER_OPEN_FAIL", "launcher missing");
+    std::env::remove_var("MUI_SCREENSHOT");
+
+    let mut ctx = ctx_or_skip!();
+    ctx.web.seed_demo("examples/webspin/src/main.mty");
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::webabi::mui_web_open_browser(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Web browser open failed: http://127.0.0.1:8000: launcher missing"
+    );
+}
+
+#[test]
 fn web_run_build_failure_toast_includes_latest_error_line() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let old_mty = std::env::var_os("MIGHTY_MTY");

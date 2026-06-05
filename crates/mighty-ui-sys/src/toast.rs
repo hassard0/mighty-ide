@@ -1724,6 +1724,18 @@ mod tests {
         assert!(!q.toasts().iter().any(|t| t.message == "Web URL not ready"));
 
         q.push_at(
+            Kind::Warn,
+            "Web browser open failed: http://127.0.0.1:8000: launcher missing",
+            t0 + Duration::from_millis(370),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(
+            q.toasts()[1].message,
+            "Web browser open failed: http://127.0.0.1:8000: launcher missing"
+        );
+        assert!(!q.toasts().iter().any(|t| t.message == "No web server running"));
+
+        q.push_at(
             Kind::Error,
             "Format failed: main.mty via missing-mty.exe fmt: process spawn denied",
             t0 + Duration::from_millis(400),

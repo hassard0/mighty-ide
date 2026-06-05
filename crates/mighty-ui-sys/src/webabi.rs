@@ -228,17 +228,23 @@ pub extern "C" fn mui_web_open_browser(handle: i64) -> i32 {
         c.push_toast(crate::toast::Kind::Warn, "Web URL not ready");
         return 0;
     }
-    if crate::web::open_in_browser(&url) {
-        println!("web: opened {url} in the default browser");
-        c.push_toast(crate::toast::Kind::Success, format!("Opened {url}"));
-        1
-    } else {
-        if url.is_empty() {
-            c.push_toast(crate::toast::Kind::Warn, "Web URL not ready");
-        } else {
-            c.push_toast(crate::toast::Kind::Warn, "Web browser open failed");
+    if url.is_empty() {
+        c.push_toast(crate::toast::Kind::Warn, "Web URL not ready");
+        return 0;
+    }
+    match crate::web::open_in_browser_result(&url) {
+        Ok(()) => {
+            println!("web: opened {url} in the default browser");
+            c.push_toast(crate::toast::Kind::Success, format!("Opened {url}"));
+            1
         }
-        0
+        Err(reason) => {
+            c.push_toast(
+                crate::toast::Kind::Warn,
+                format!("Web browser open failed: {url}: {reason}"),
+            );
+            0
+        }
     }
 }
 

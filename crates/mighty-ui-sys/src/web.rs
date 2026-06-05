@@ -548,23 +548,37 @@ impl WebPlayground {
 /// Open `url` in the default browser. Windows: `cmd /c start "" <url>`.
 /// Returns `true` if the launcher process spawned.
 pub fn open_in_browser(url: &str) -> bool {
+    open_in_browser_result(url).is_ok()
+}
+
+/// Open `url` in the default browser, preserving the launcher/spawn failure.
+pub fn open_in_browser_result(url: &str) -> Result<(), String> {
     if url.is_empty() {
-        return false;
+        return Err("URL not ready".to_string());
+    }
+    if let Ok(reason) = std::env::var("MUI_WEB_BROWSER_OPEN_FAIL") {
+        let reason = reason.trim();
+        return Err(if reason.is_empty() {
+            "browser launcher unavailable".to_string()
+        } else {
+            reason.to_string()
+        });
     }
     #[cfg(target_os = "windows")]
     {
         Command::new("cmd")
             .args(["/C", "start", "", url])
             .spawn()
-            .is_ok()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
     }
     #[cfg(target_os = "macos")]
     {
-        Command::new("open").arg(url).spawn().is_ok()
+        Command::new("open").arg(url).spawn().map(|_| ()).map_err(|e| e.to_string())
     }
     #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
     {
-        Command::new("xdg-open").arg(url).spawn().is_ok()
+        Command::new("xdg-open").arg(url).spawn().map(|_| ()).map_err(|e| e.to_string())
     }
 }
 

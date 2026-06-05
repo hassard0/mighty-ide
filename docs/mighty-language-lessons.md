@@ -12085,3 +12085,17 @@ say which file actually produced the result.
 - **Language note:** no compiler gap surfaced. Asynchronous tool result toasts
   should read from the operation snapshot captured at start time, not ambient
   editor focus at completion time.
+
+## L971 - Browser Launcher Failures Should Name The URL And Reason
+
+Run in Browser could successfully build and serve a page, then fail to launch
+the default browser with only `Web browser open failed`. The served URL and the
+platform launcher error were lost, forcing users to infer whether the server,
+URL, or OS browser integration was at fault.
+
+- **IDE note:** the browser launcher now returns a structured spawn result, and
+  failures report `Web browser open failed: url: reason` while preserving the
+  successful `Opened url` path.
+- **Language note:** no compiler gap surfaced. Multi-step tool flows should
+  preserve the exact failing boundary: after build and serve succeed, launch
+  errors need URL and launcher context rather than another generic web failure.
