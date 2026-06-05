@@ -9095,6 +9095,12 @@ fn scm_open_row_directory_target_reports_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Source control target is not a file: changed.mty");
+    assert_eq!(ctx.scm.count(), 0);
+
+    assert_eq!(crate::panels::mui_scm_open_row(h, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Source control row no longer listed");
 
     let _ = std::fs::remove_dir_all(root);
 }

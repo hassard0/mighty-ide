@@ -165,7 +165,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   when the stale hunk no longer exists
 - **Blame gutter (Alt+B)** — porcelain-parsed, per-file cached
 - Source Control row opens reject directory targets from stale git status
-  entries instead of opening an empty tab
+  entries instead of opening an empty tab, then refresh the status list so
+  repeated clicks do not keep targeting a non-file row
 
 ### Run · Test · Debug
 - Run panel (Ctrl+Shift+R) — background `mty run` with streamed output + clickable diagnostics

@@ -90,6 +90,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Failed hunk apply refreshes stale diffs**: when a per-hunk stage or unstage
   patch no longer applies, the inline diff now refreshes or closes before
   reporting the git error, so stale hunk buttons do not remain actionable.
+- **Directory-backed SCM rows refresh away**: opening a Source Control row whose
+  path became a directory now leaves the refreshed status list empty for that
+  stale row, so repeated clicks report `Source control row no longer listed`.
 - **Run output directory misses demote precisely**: clicking a Run diagnostic
   row whose target became a directory now demotes that row and preserves
   `Run target is not a file: <name>` for repeated clicks.
