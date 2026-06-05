@@ -46,6 +46,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Fix-all code actions reject directory pre-save targets**: the `mty fix
   --apply` path now reports `Save failed before code action: <name>: not a
   file` before running the fixer when the active file path became a directory.
+- **Workspace-edit code actions skip directory file targets**: workspace edits
+  now report `Skipped non-file during workspace edit: <name>` when an edit
+  target is an existing directory, instead of classifying it as missing.
 - **Packages include a verification manifest**: Windows, macOS, Linux, and the
   Git-Bash Windows package path now write `PACKAGE-MANIFEST.txt` into the
   package root with platform/version metadata, native payload hashes and sizes,

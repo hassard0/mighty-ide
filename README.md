@@ -92,6 +92,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   to run
 - Fix-all code actions reject directory pre-save targets with explicit `not a
   file` feedback instead of raw platform write errors
+- Workspace-edit code actions skip directory file targets with explicit
+  non-file feedback instead of treating them as missing files
 - Hover, definition, peek definition, and signature help name scratch buffers
   before refusing unsaved LSP lookups
 - Signature help (Ctrl+Shift+Space), rename symbol (F2), code actions / quick-fix (Ctrl+.)

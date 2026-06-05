@@ -10853,14 +10853,23 @@ fn fallback_rename_edits(source: &str, symbol: &str) -> Vec<crate::language::Tex
 struct WorkspaceEditApplyResult {
     changed: i32,
     skipped_dirty: i32,
+    skipped_not_file: i32,
     skipped_missing: i32,
     first_skipped_dirty_message: Option<String>,
+    first_skipped_not_file_message: Option<String>,
     first_skipped_missing_message: Option<String>,
 }
 
 fn skipped_dirty_workspace_edit_message(path: &std::path::Path) -> String {
     format!(
         "Skipped dirty file during workspace edit: {}",
+        basename(path)
+    )
+}
+
+fn skipped_not_file_workspace_edit_message(path: &std::path::Path) -> String {
+    format!(
+        "Skipped non-file during workspace edit: {}",
         basename(path)
     )
 }
@@ -10881,8 +10890,10 @@ fn apply_workspace_edit(
     let mut result = WorkspaceEditApplyResult {
         changed: 0,
         skipped_dirty: 0,
+        skipped_not_file: 0,
         skipped_missing: 0,
         first_skipped_dirty_message: None,
+        first_skipped_not_file_message: None,
         first_skipped_missing_message: None,
     };
     for (uri, edits) in &we.files {
@@ -10920,6 +10931,19 @@ fn apply_workspace_edit(
                     "workspace edit: skipped active path with dirty duplicate path={}",
                     fpath.display()
                 );
+                continue;
+            }
+            if save_target_is_existing_non_file(&fpath) {
+                result.skipped_not_file += 1;
+                if result.first_skipped_not_file_message.is_none() {
+                    result.first_skipped_not_file_message =
+                        Some(skipped_not_file_workspace_edit_message(&fpath));
+                }
+                println!(
+                    "workspace edit: skipped active non-file path={}",
+                    fpath.display()
+                );
+                refresh_workspace_file_views(ctx);
                 continue;
             }
             // Apply to the active model in-place (preserves the live edit state),
@@ -10961,6 +10985,19 @@ fn apply_workspace_edit(
                     "workspace edit: skipped dirty non-active tab path={}",
                     fpath.display()
                 );
+                continue;
+            }
+            if save_target_is_existing_non_file(&fpath) {
+                result.skipped_not_file += 1;
+                if result.first_skipped_not_file_message.is_none() {
+                    result.first_skipped_not_file_message =
+                        Some(skipped_not_file_workspace_edit_message(&fpath));
+                }
+                println!(
+                    "workspace edit: skipped non-active non-file path={}",
+                    fpath.display()
+                );
+                refresh_workspace_file_views(ctx);
                 continue;
             }
             // Other clean file: read from disk, apply, write back; refresh an open tab.
@@ -11011,6 +11048,14 @@ fn toast_codeaction_workspace_result(ctx: &mut MuiContext, result: &WorkspaceEdi
                 .first_skipped_dirty_message
                 .as_deref()
                 .unwrap_or("Skipped dirty file during workspace edit"),
+        );
+    } else if result.skipped_not_file > 0 {
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            result
+                .first_skipped_not_file_message
+                .as_deref()
+                .unwrap_or("Skipped non-file during workspace edit"),
         );
     } else if result.skipped_missing > 0 {
         ctx.push_toast(

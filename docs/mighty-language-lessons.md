@@ -12807,3 +12807,17 @@ target-kind validation as Save and Save All before any command is launched.
 - **Language note:** no compiler gap surfaced. Multi-step commands should
   validate each side-effect boundary independently instead of assuming a prior
   command path has already established the filesystem invariant.
+
+## L1022 - Workspace Edits Should Separate Missing From Non-File Targets
+
+Workspace edits may touch files that are not currently open. Reading a target
+path before applying edits can fail both because the file is missing and because
+the path now names a directory. Those are different recovery paths for users.
+
+- **IDE note:** code-action workspace edits now skip existing non-file targets
+  before reading or writing them. Directory targets refresh workspace file
+  views, keep the code-action menu open, and report
+  `Skipped non-file during workspace edit: <name>`.
+- **Language note:** no compiler gap surfaced. Batch edit engines should track
+  missing, dirty, and wrong-kind skips separately so the UI can report the
+  actionable reason instead of a generic I/O failure.
