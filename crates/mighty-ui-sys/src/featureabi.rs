@@ -1109,6 +1109,14 @@ fn active_relpath(ctx: &MuiContext) -> Option<(std::path::PathBuf, String)> {
     Some((root, rel))
 }
 
+fn blame_target_label(relpath: &str) -> &str {
+    std::path::Path::new(relpath)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(relpath)
+}
+
 /// Toggle the git blame gutter for the active file (`git blame --porcelain`).
 /// Returns `1` if now active, `0` if toggled off / unavailable. Toasts on error.
 #[no_mangle]
@@ -1129,7 +1137,10 @@ pub extern "C" fn mui_blame_toggle(handle: i64) -> i32 {
     if now {
         if ctx.blame.line_count() == 0 {
             ctx.blame.close();
-            ctx.push_toast(crate::toast::Kind::Warn, "No blame (file not tracked?)");
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                format!("No blame for {} (file not tracked?)", blame_target_label(&rel)),
+            );
             return 0;
         }
         ctx.push_toast(crate::toast::Kind::Info, "Blame on \u{2014} toggle to hide");

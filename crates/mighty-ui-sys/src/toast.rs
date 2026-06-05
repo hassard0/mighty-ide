@@ -2027,11 +2027,14 @@ mod tests {
         q.push_at(Kind::Warn, "No file to blame", t0);
         q.push_at(
             Kind::Warn,
-            "No blame (file not tracked?)",
+            "No blame for main.mty (file not tracked?)",
             t0 + Duration::from_millis(100),
         );
         assert_eq!(q.len(), 1);
-        assert_eq!(q.toasts()[0].message, "No blame (file not tracked?)");
+        assert_eq!(
+            q.toasts()[0].message,
+            "No blame for main.mty (file not tracked?)"
+        );
 
         q.push_at(
             Kind::Info,

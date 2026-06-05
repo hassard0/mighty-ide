@@ -9018,6 +9018,28 @@ filename src/main.mty
 }
 
 #[test]
+fn blame_unavailable_feedback_names_active_file() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_blame_untracked_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("untracked.mty");
+    std::fs::write(&file, "fn main() {}\n").unwrap();
+    ctx.tree.set_root(root.clone());
+    ctx.workspace.set_root(root.clone());
+    ctx.tabs.open_path(file);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_blame_toggle(handle), 0);
+    assert_eq!(crate::featureabi::mui_blame_active(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No blame for untracked.mty (file not tracked?)");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn status_problems_chip_hit_tracks_rendered_branch_width() {
     use crate::ffi::MuiEvent;
     use crate::{mui_status_problems_chip_at_click, mui_status_render};

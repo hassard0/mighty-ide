@@ -12099,3 +12099,17 @@ URL, or OS browser integration was at fault.
 - **Language note:** no compiler gap surfaced. Multi-step tool flows should
   preserve the exact failing boundary: after build and serve succeed, launch
   errors need URL and launcher context rather than another generic web failure.
+
+## L972 - Blame Refusals Should Name The Active File
+
+The Git blame gutter correctly closed itself when `git blame` produced no
+porcelain rows, but the toast only said `No blame (file not tracked?)`. In a
+multi-tab code-reading session that did not say which active file lacked blame
+data.
+
+- **IDE note:** blame no-output feedback now reports
+  `No blame for target (file not tracked?)`, using the active file path snapshot
+  that was passed to the blame loader.
+- **Language note:** no compiler gap surfaced. Code-reading commands should
+  name their inspected target on unavailable-result paths, not only on hard
+  missing-file paths.
