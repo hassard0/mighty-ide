@@ -13641,6 +13641,65 @@ fn rename_commit_preflight_tracks_changed_editable_name() {
 }
 
 #[test]
+fn rename_commit_misses_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_rename_commit(h, 0, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No symbol rename input open");
+
+    ctx.rename.open("alpha");
+    assert_eq!(crate::mui_rename_commit(h, 0, 0), 0);
+    assert_eq!(crate::mui_rename_active(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Symbol already named alpha");
+
+    ctx.rename.open("alpha");
+    ctx.rename.backspace();
+    assert_eq!(crate::mui_rename_commit(h, 0, 0), 0);
+    assert_eq!(crate::mui_rename_active(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Enter a new symbol name");
+
+    ctx.tabs.ensure_scratch();
+    crate::sync_active_path(&mut ctx);
+    ctx.rename.open("alpha");
+    ctx.rename.push('b' as u32);
+    assert_eq!(crate::mui_rename_commit(h, 0, 0), -1);
+    assert_eq!(crate::mui_rename_active(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Save (scratch) before rename");
+}
+
+#[test]
+fn rename_commit_without_lsp_edits_reports_no_edit_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_rename_no_edits_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("notes.txt");
+    std::fs::write(&path, "nothing to rename here\n").unwrap();
+    ctx.tabs.open_path(path);
+    crate::sync_active_path(&mut ctx);
+    ctx.rename.open("alpha");
+    ctx.rename.push('b' as u32);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_rename_commit(h, 0, 0), 0);
+    assert_eq!(crate::mui_rename_active(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No rename edits for alpha");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn explicit_completion_reports_empty_result_only_when_empty() {
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();

@@ -963,6 +963,12 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Definition target is not a file")
         || m == "No rename target"
         || m.starts_with("No rename target at ")
+        || m == "No symbol rename input open"
+        || m == "Enter a new symbol name"
+        || m.starts_with("Symbol already named ")
+        || m.starts_with("Save ")
+            && m.ends_with(" before rename")
+        || m.starts_with("No rename edits for ")
     {
         Some(OperationKey::CodeIntel)
     } else if m == "Breadcrumb menu closed"

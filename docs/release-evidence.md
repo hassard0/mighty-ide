@@ -69,3 +69,9 @@ explicitly instead of publishing a placeholder archive.
 Platform:
 Release decision: unbuilt - native runner unavailable for this pass
 ```
+
+For a Windows-hosted stop pass, Windows x64 is the only platform that can be
+locally marked `publish`. macOS and Linux must remain `unbuilt` unless their
+own native package scripts completed and launched during the same pass. Script
+readiness, copied artifacts, or cross-host archive inspection are not clean
+binary evidence for those platforms.

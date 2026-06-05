@@ -11144,18 +11144,32 @@ pub extern "C" fn mui_rename_commit(handle: i64, line: i32, col: i32) -> i32 {
         return -1;
     };
     if !ctx.rename.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No symbol rename input open");
         return -1;
     }
     let new_name = ctx.rename.name_string();
     let original = ctx.rename.original().to_string();
-    if new_name.is_empty() || new_name == original {
+    if new_name.is_empty() {
         ctx.rename.cancel();
+        ctx.push_toast(crate::toast::Kind::Info, "Enter a new symbol name");
+        return 0;
+    }
+    if new_name == original {
+        ctx.rename.cancel();
+        ctx.push_toast(
+            crate::toast::Kind::Info,
+            format!("Symbol already named {original}"),
+        );
         return 0;
     }
     let path = match ctx.file_path.clone() {
         Some(p) => p,
         None => {
             ctx.rename.cancel();
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                language_needs_file_message(ctx, "rename"),
+            );
             return -1;
         }
     };
@@ -11178,6 +11192,10 @@ pub extern "C" fn mui_rename_commit(handle: i64, line: i32, col: i32) -> i32 {
         let edits = fallback_rename_edits(&source, &original);
         if edits.is_empty() {
             ctx.rename.cancel();
+            ctx.push_toast(
+                crate::toast::Kind::Info,
+                format!("No rename edits for {original}"),
+            );
             println!("rename: commit new=\"{new_name}\" edits=0 (no LSP, no fallback match)");
             return 0;
         }
