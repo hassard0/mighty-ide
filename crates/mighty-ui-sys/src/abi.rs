@@ -16106,7 +16106,7 @@ pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, "Recent file row no longer listed");
         return -1;
     };
-    if !path.is_file() {
+    if !path.exists() {
         let removed = ctx.quickopen.remove_recent_path(&path);
         if removed {
             persist_recent_files(ctx);
@@ -16116,6 +16116,19 @@ pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
         ctx.push_toast(
             crate::toast::Kind::Warn,
             format!("Recent file missing: {}", basename(&path)),
+        );
+        return -1;
+    }
+    if !path.is_file() {
+        let removed = ctx.quickopen.remove_recent_path(&path);
+        if removed {
+            persist_recent_files(ctx);
+        }
+        ctx.welcome.clear_recent_file_hits();
+        refresh_workspace_file_views(ctx);
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Recent file is not a file: {}", basename(&path)),
         );
         return -1;
     }

@@ -12750,3 +12750,17 @@ same path.
 - **Language note:** no compiler gap surfaced. Any path cached across frames or
   derived from a preview should be revalidated at accept time with both
   existence and object kind.
+
+## L1018 - Recent File Lists Need Object-Kind Feedback
+
+Recent file pickers cache paths across sessions and renders. A stale entry can
+reappear as a directory at the same path, which is a different failure from a
+deleted file and should not be reported as missing.
+
+- **IDE note:** Welcome/Open Recent file accepts now distinguish missing paths
+  from directory targets. Directory rows prune the bad recent, refresh workspace
+  file views, report `Recent file is not a file: <name>`, and leave the Welcome
+  recent picker open.
+- **Language note:** no compiler gap surfaced. Persisted navigation state
+  should carry target-kind checks at accept time, because persistence makes
+  object identity weaker than a live row snapshot.

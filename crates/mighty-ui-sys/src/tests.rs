@@ -14349,11 +14349,53 @@ fn welcome_open_recent_misses_report_visible_feedback() {
     std::fs::remove_file(&missing).unwrap();
 
     assert_eq!(mui_welcome_open_recent(h, 0), -1);
-    assert_eq!(ctx.tree.count(), 0);
+    assert_eq!(ctx.tabs.count(), 1);
     assert_eq!(ctx.quickopen.count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Recent file missing: missing.mty");
+    assert!(ctx.quickopen.recent_paths().is_empty());
+    assert_eq!(mui_welcome_active(h), 1);
+
+    assert_eq!(mui_welcome_open_recent(h, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Recent file row no longer listed");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn welcome_open_recent_directory_target_reports_visible_feedback() {
+    use crate::{mui_welcome_active, mui_welcome_draw, mui_welcome_open_recent};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let root = std::env::temp_dir().join(format!(
+        "mui_welcome_recent_directory_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let folder = root.join("folder.mty");
+    std::fs::write(&folder, b"fn recent() {}").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.quickopen.set_recent_paths(vec![folder.clone()]);
+    ctx.welcome.open_recent_picker();
+    mui_welcome_draw(h);
+    std::fs::remove_file(&folder).unwrap();
+    std::fs::create_dir_all(&folder).unwrap();
+
+    assert_eq!(mui_welcome_open_recent(h, 0), -1);
+    assert_eq!(ctx.tabs.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Recent file is not a file: folder.mty");
     assert!(ctx.quickopen.recent_paths().is_empty());
     assert_eq!(mui_welcome_active(h), 1);
 
