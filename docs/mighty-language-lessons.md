@@ -12837,3 +12837,18 @@ each need evidence from the host OS or matching CI runner that produced them.
 - **Language note:** no compiler gap surfaced. Release tooling should make
   artifact provenance explicit when the build output is ABI-specific; clean
   archives without native-host evidence are not complete release evidence.
+
+## L1024 - Format Commands Need Target-Kind Gates Too
+
+Format Document is a mutating command even though it delegates to `mty fmt`.
+If the active `.mty` file path is replaced by a directory after the tab is
+opened, the formatter path needs the same semantic target-kind check as Save.
+
+- **IDE note:** Format Document now disables itself for existing non-file
+  targets and, when invoked directly, reports
+  `Format failed: <name>: not a file` before spawning the formatter. The live
+  buffer and clean tab state remain unchanged, and workspace file views are
+  refreshed so stale file indexes can recover.
+- **Language note:** no compiler gap surfaced. Any command that mutates a path
+  through an external tool should check target kind before process launch; tool
+  errors are too late and too platform-specific for clear editor feedback.

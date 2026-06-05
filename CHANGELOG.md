@@ -76,6 +76,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Format Document rejects directory targets**: formatting now preflights the
+  active file path before spawning `mty fmt`. If the `.mty` file was replaced
+  by a directory, the command reports `Format failed: <name>: not a file`, keeps
+  the live buffer unchanged, and leaves the tab clean.
 - **Diagnostics refresh failures are visible**: explicit Mighty diagnostics
   refresh now reports `Diagnostics failed: <checker>: <reason>` and clears stale
   diagnostics when `mty check` cannot be spawned, instead of silently showing an

@@ -11608,6 +11608,33 @@ fn format_current_refuses_dirty_duplicate_tab() {
 }
 
 #[test]
+fn format_current_rejects_directory_target() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_format_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, "fn main() {}\n").unwrap();
+    let idx = ctx.tabs.open_path(path.clone());
+    crate::sync_active_path(&mut ctx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::fs::remove_file(&path).unwrap();
+    std::fs::create_dir_all(&path).unwrap();
+
+    assert_eq!(crate::mui_format_can_current(h), 0);
+    assert_eq!(crate::mui_format_current(h), -1);
+    assert!(path.is_dir());
+    assert_eq!(ctx.tabs.active_model().as_text(), "fn main() {}\n");
+    assert!(!ctx.tabs.is_dirty(idx));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Format failed: main.mty: not a file");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn format_current_publishes_restored_file_to_quickopen() {
     let _g = crate::settings::TEST_LOCK
         .lock()

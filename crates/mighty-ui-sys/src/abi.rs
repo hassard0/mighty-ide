@@ -11718,7 +11718,11 @@ pub extern "C" fn mui_format_can_current(handle: i64) -> i32 {
     let Some(path) = ctx.file_path.as_deref() else {
         return 0;
     };
-    i32::from(crate::format::is_mty_path(path) && !ctx.tabs.any_dirty_path(path))
+    i32::from(
+        crate::format::is_mty_path(path)
+            && !save_target_is_existing_non_file(path)
+            && !ctx.tabs.any_dirty_path(path),
+    )
 }
 
 /// Format the currently-configured file in place via `mty fmt <path>`. The
@@ -11770,6 +11774,10 @@ fn format_dirty_target_message(path: &std::path::Path) -> String {
     format!("Save or discard changes in {name} before formatting")
 }
 
+fn format_target_not_file_message(path: &std::path::Path) -> String {
+    format!("Format failed: {}: not a file", basename(path))
+}
+
 #[no_mangle]
 pub extern "C" fn mui_format_current(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -11785,6 +11793,15 @@ pub extern "C" fn mui_format_current(handle: i64) -> i32 {
         ctx.push_toast(
             crate::toast::Kind::Warn,
             format_dirty_target_message(&path),
+        );
+        return -1;
+    }
+    if save_target_is_existing_non_file(&path) {
+        println!("format: {} -> skipped non-file target", path.display());
+        refresh_workspace_file_views(ctx);
+        ctx.push_toast(
+            crate::toast::Kind::Error,
+            format_target_not_file_message(&path),
         );
         return -1;
     }

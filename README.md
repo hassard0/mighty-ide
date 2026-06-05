@@ -17,7 +17,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Duplicate line/selection (Ctrl+Shift+D), delete current line (Ctrl+Shift+K), join line (Ctrl+J), move line up/down (Alt+↑ / Alt+↓), word-wise and document-boundary motion (Ctrl+←/→, Ctrl+Home/End), word deletion (Ctrl+Backspace/Delete), smart Home, Shift+motion selection
 - In-file find & replace (Ctrl+H), find with match highlighting (Ctrl+F)
 - Format document guards unsaved scratch buffers and dirty duplicate tabs with
-  target-specific feedback
+  target-specific feedback, and rejects directory targets with explicit `not a
+  file` feedback before spawning the formatter
 - Save, Save As, and Save All reject directory targets with explicit `not a
   file` feedback instead of surfacing raw platform write errors
 - **Multi-cursor** — select word / add caret at next occurrence (Ctrl+D), add caret above/below (Ctrl+Alt+↑/↓), toggle caret on Alt+Click
