@@ -1600,9 +1600,11 @@ pub extern "C" fn mui_search_open(handle: i64, i: i32) -> i32 {
         }
     };
     if crate::search::content_fingerprint(&bytes) != fingerprint {
+        let dir = workspace_dir(ctx);
+        let _ = ctx.search.run(&dir);
         ctx.push_toast(
             crate::toast::Kind::Warn,
-            format!("Search result changed: {name}; run Search again"),
+            format!("Search result changed: {name}; results refreshed"),
         );
         return -1;
     }

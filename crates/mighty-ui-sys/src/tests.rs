@@ -3164,8 +3164,11 @@ fn search_open_skips_files_changed_since_search() {
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(
         toast.message,
-        "Search result changed: hit.mty; run Search again"
+        "Search result changed: hit.mty; results refreshed"
     );
+    assert_eq!(ctx.search.match_count(), 1);
+    assert_eq!(crate::panels::mui_search_open(handle, 0), 1);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(path.as_path()));
 
     let _ = std::fs::remove_dir_all(root);
 }

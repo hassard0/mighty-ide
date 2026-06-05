@@ -10945,3 +10945,15 @@ leaves the dead hit clickable until the user manually searches again.
 - **Language note:** no compiler gap surfaced. Cached search-hit activations
   should repair or clear their backing result set when row resolution proves the
   snapshot is stale.
+
+## L887 - Changed Search Hits Should Self-Refresh
+
+Search result fingerprints can also go stale when a matched file changes but
+still exists. Blocking navigation protects the user from jumping to the wrong
+offset, but asking them to rerun the same search keeps the stale snapshot alive.
+
+- **IDE note:** opening a changed Search result now reruns the active search
+  before warning, so the next activation uses fresh rows and fingerprints.
+- **Language note:** no compiler gap surfaced. Stale-position guards should
+  refresh cached search rows when they already know the active query that built
+  the snapshot.
