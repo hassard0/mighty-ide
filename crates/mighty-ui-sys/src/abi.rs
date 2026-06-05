@@ -9320,6 +9320,10 @@ pub extern "C" fn mui_keys_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !ctx.shortcuts.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "Keyboard Shortcuts is already closed");
+        return -1;
+    }
     ctx.shortcuts
         .click_action(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height)
 }

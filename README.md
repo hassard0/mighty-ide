@@ -177,8 +177,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   the folder already exists
 - **Live Markdown preview (Ctrl+Shift+V)** — themed, live-updating split-pane render
 - **Keyboard Shortcuts overlay (Ctrl+Shift+/)** — searchable command/binding reference with router-command remapping (persists to `keybindings.toml` under the shared Mighty IDE config directory and warns if override writes fail)
-- Keyboard Shortcuts remap/reset actions report closed-overlay, fixed-row, and
-  already-default misses instead of silently ignoring the command
+- Keyboard Shortcuts remap/reset/click actions report closed-overlay,
+  fixed-row, and already-default misses instead of silently ignoring the
+  command
 - Welcome screen with first-run New File, New Project, Open File, Open
   Folder, Quick Open, and Command Palette actions; clickable toast notifications
   with a command-palette clear-all action, **Zen / focus mode (Alt+Z)**

@@ -11035,6 +11035,11 @@ fn keyboard_shortcuts_direct_misses_report_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Keyboard Shortcuts is already closed");
+
+    assert_eq!(crate::mui_keys_click(handle), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Keyboard Shortcuts is already closed");
 }
 
 #[test]
@@ -11105,6 +11110,7 @@ fn keyboard_shortcuts_persistence_failure_reports_visible_feedback() {
 fn keyboard_shortcuts_reset_selected_command_opens_overlay_and_reports_outcomes() {
     use crate::shortcuts::{Chord, MOD_ALT};
 
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
     ctx.shortcuts
@@ -11132,6 +11138,7 @@ fn keyboard_shortcuts_reset_selected_command_opens_overlay_and_reports_outcomes(
 fn keyboard_shortcuts_reset_all_command_reports_changed_and_default_states() {
     use crate::shortcuts::{Chord, MOD_ALT};
 
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
     ctx.shortcuts
