@@ -985,6 +985,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Explorer row no longer listed"
         || m.starts_with("Quick Open target missing")
         || m.starts_with("Quick Open target is not a file")
+        || m == "No Quick Open result selected"
         || m == "Quick Open row no longer listed"
         || m == "No symbol selected"
         || m == "Symbol row no longer listed"
@@ -3451,6 +3452,14 @@ mod tests {
             q.toasts()[0].message,
             "Quick Open target is not a file: stale.mty"
         );
+
+        q.push_at(
+            Kind::Info,
+            "No Quick Open result selected",
+            t0 + Duration::from_millis(850),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No Quick Open result selected");
 
         q.push_at(
             Kind::Warn,

@@ -13582,3 +13582,17 @@ stale blame toast visible beside the new close result.
   the rest of the Git/blame feedback family.
 - **Language note:** no compiler gap surfaced. Feature lifecycle messages need
   the same operation key for open, failed, close, and already-closed outcomes.
+
+## L1074 - Empty Quick-Open Accept Is Navigation Feedback
+
+Quick Open can be active but have no selected result after filtering or after an
+empty accept attempt. That `No Quick Open result selected` message is part of
+the same navigation surface as missing Quick Open targets, row staleness,
+symbols, breadcrumbs, and go-to-line feedback.
+
+- **IDE note:** `No Quick Open result selected` now coalesces with the
+  Navigation operation family, so stale Quick Open or breadcrumb guidance is
+  replaced by the latest navigation result.
+- **Language note:** no compiler gap surfaced. Empty-selection guard messages
+  should be classified with the surface that emitted them, not left as generic
+  one-off toasts.
