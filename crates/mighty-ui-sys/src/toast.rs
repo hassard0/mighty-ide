@@ -2302,6 +2302,16 @@ mod tests {
         assert_eq!(q.toasts()[0].message, "No bottom dock is open");
         assert!(!q.toasts().iter().any(|t| t.message == "Bottom dock closed"));
 
+        q.push_at(Kind::Info, "Dock resized to 228px", t0 + Duration::from_millis(1025));
+        q.push_at(
+            Kind::Info,
+            "Sidebar is already closed",
+            t0 + Duration::from_millis(1050),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Sidebar is already closed");
+        assert!(!q.toasts().iter().any(|t| t.message == "Dock resized to 228px"));
+
         q.push_at(Kind::Info, "Settings panel closed", t0 + Duration::from_millis(1100));
         q.push_at(
             Kind::Info,
@@ -2578,6 +2588,15 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Terminal is already closed");
+
+        q.push_at(
+            Kind::Warn,
+            "Terminal is not open",
+            t0 + Duration::from_millis(250),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Terminal is not open");
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
 
         q.push_at(Kind::Info, "Terminal cleared", t0 + Duration::from_millis(300));
         assert_eq!(q.len(), 1);
