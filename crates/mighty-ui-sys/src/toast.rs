@@ -768,6 +768,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::Rename)
     } else if m.starts_with("Deleted ")
+        || m.starts_with("Delete target ")
         || m.starts_with("Delete failed")
         || m.starts_with("Type ")
         || m == "No active file to delete"
@@ -776,6 +777,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::Delete)
     } else if m.starts_with("Revealed ")
+        || m.starts_with("Reveal target ")
+        || m.starts_with("Showing ")
         || m == "No active file to reveal"
         || m.starts_with("No active file to reveal:")
         || m.contains(" is outside Explorer root")
@@ -785,6 +788,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::Reveal)
     } else if m.starts_with("Copied ")
+        || m.starts_with("Copy target ")
         || m == "No active file path to copy"
         || m.starts_with("No active file path to copy:")
         || m.starts_with("No active file relative path to copy:")
@@ -1499,6 +1503,15 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No active file to delete: (scratch)");
+
+        q.push_at(
+            Kind::Warn,
+            "Delete target missing: doomed.mty",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Delete target missing: doomed.mty");
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
     }
 
     #[test]
@@ -1588,6 +1601,15 @@ mod tests {
             "Could not copy terminal text: clipboard command failed"
         );
         assert_eq!(q.toasts()[0].kind, Kind::Error);
+
+        q.push_at(
+            Kind::Warn,
+            "Copy target missing: main.mty",
+            t0 + Duration::from_millis(800),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Copy target missing: main.mty");
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
     }
 
     #[test]
@@ -1640,6 +1662,24 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No active file to reveal: (scratch)");
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
+            Kind::Warn,
+            "Reveal target missing: main.mty",
+            t0 + Duration::from_millis(500),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Reveal target missing: main.mty");
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
+            Kind::Info,
+            "Showing main.mty in file manager",
+            t0 + Duration::from_millis(600),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Showing main.mty in file manager");
+        assert_eq!(q.toasts()[0].kind, Kind::Info);
     }
 
     #[test]

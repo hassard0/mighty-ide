@@ -152,6 +152,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   recent entry, refreshes Explorer and Quick Open, and warns
   `Rename source missing: <name>` instead of naming the requested destination
   with a raw filesystem error.
+- **Stale file-operation toasts replace cleanly**: stale copy, reveal, and
+  delete target feedback now belongs to the same toast families as the commands
+  that produced it, so repeated command attempts update one notification
+  instead of stacking unrelated warnings.
 - **Delete Active File rejects directory targets**: after exact-name
   confirmation and dirty-buffer checks, Delete Active File now preflights the
   active path before removal. Directory targets report
