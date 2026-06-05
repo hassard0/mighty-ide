@@ -8392,15 +8392,23 @@ pub extern "C" fn mui_term_focus(handle: i64, focused: i32) {
     }
 }
 
-/// Write a single raw byte to the PTY stdin. No-op if not running.
+/// Write a single raw byte to the PTY stdin. Reports stale Terminal focus if no
+/// shell is running.
 #[no_mangle]
 pub extern "C" fn mui_term_send_byte(handle: i64, byte: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        if let Some(t) = ctx.terminal.as_mut() {
-            if (0..=255).contains(&byte) {
-                t.send(&[byte as u8]);
-            }
+        if !(0..=255).contains(&byte) {
+            return;
         }
+        let Some(t) = ctx.terminal.as_mut() else {
+            ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+            return;
+        };
+        if !ctx.term_open {
+            ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+            return;
+        }
+        t.send(&[byte as u8]);
     }
 }
 

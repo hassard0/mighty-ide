@@ -3785,9 +3785,16 @@ fn terminal_input_acknowledges_closed_state_without_requiring_pty_spawn() {
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Terminal is not open");
 
+    crate::abi::mui_term_send_byte(handle, b'x' as i32);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Terminal is not open");
+
     let before = ctx.toasts.toasts().len();
     crate::abi::mui_term_key(handle, -1, 0);
     crate::abi::mui_term_send_codepoint(handle, -1, 0);
+    crate::abi::mui_term_send_byte(handle, -1);
+    crate::abi::mui_term_send_byte(handle, 256);
     assert_eq!(ctx.toasts.toasts().len(), before);
 }
 
