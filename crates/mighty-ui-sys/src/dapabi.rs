@@ -1508,8 +1508,7 @@ pub extern "C" fn mui_dbg_view_draw(handle: i64) {
     let title_x = sx + 14.0;
     let bp_title = fit_head_px(&mut ctx.text, &bp_title, (title_right - title_x).max(0.0), chrome - 2.0);
     ctx.text.queue_ui_sized(title_x, bp_label_y, &bp_title, theme::DIM(), chrome - 2.0, clip);
-    if bp_count > 0 {
-        let (cx, cy, cw, ch) = clear_rect.unwrap();
+    if let Some((cx, cy, cw, ch)) = clear_rect {
         ctx.dl_round(cx, cy, cw, ch, 5.0, theme::BG_4());
         ctx.dl_stroke(cx, cy, cw, ch, 5.0, theme::BORDER_SOFT(), 1.0);
         ctx.dl_icon(cx + 5.0, cy + 5.0, 12.0, 12.0, icons::TRASH, theme::TEXT_3(), 1.5, false);

@@ -13787,3 +13787,16 @@ stable shape is `Opened <url>`, where the payload is URL-like.
 - **Language note:** no compiler gap surfaced. Broad prefix rules should carry
   enough payload validation to avoid taking ownership of neighboring command
   surfaces.
+
+## L1090 - Tie Optional Debug Geometry To Its Draw Guard
+
+The debug breakpoint clear button exists only when the breakpoint inventory is
+non-empty. Rendering should consume the optional rectangle directly instead of
+rechecking the same count and unwrapping the value.
+
+- **IDE note:** breakpoint clear-button rendering now uses the `Option` geometry
+  guard directly, preserving behavior while removing an avoidable runtime
+  unwrap from the debug panel draw path.
+- **Language note:** no compiler gap surfaced. When a layout helper returns an
+  optional value, the draw path should branch on that value rather than on a
+  separate condition that must remain equivalent.
