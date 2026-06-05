@@ -11704,3 +11704,20 @@ left terminal clipboard problems less actionable than editor clipboard failures.
 - **Language note:** no compiler gap surfaced. Shared clipboard write plumbing
   should surface consistent host-error detail across editor and terminal
   integration points.
+
+## L946 - Release Packages Should Reject Foreign Native Payloads
+
+The platform package scripts already validated the primary executable format and
+rejected common build sidecars, but a stale package directory could still carry
+an obvious wrong-OS native library extension if assembly rules changed later.
+That would make the package look complete while still containing a payload that
+cannot run on the target platform.
+
+- **IDE note:** Windows packaging now rejects `.dylib` and `.so` payloads,
+  macOS packaging rejects `.exe`, `.dll`, and `.so` payloads, and Linux
+  packaging rejects `.exe`, `.dll`, and `.dylib` payloads before writing the
+  archive. The README, BUILDING guide, and platform packaging guide now describe
+  the exact release contract for Windows, macOS, and Linux.
+- **Language note:** no compiler gap surfaced. Native release workflows should
+  fail before archive creation when the staged package mixes OS families, not
+  rely on manual inspection after upload.

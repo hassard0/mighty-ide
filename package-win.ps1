@@ -45,6 +45,16 @@ function Assert-PeBinary {
   }
 }
 
+function Assert-NoForeignNativeArtifacts {
+  param([Parameter(Mandatory = $true)][string]$Path)
+  $foreign = Get-ChildItem -LiteralPath $Path -Recurse -File |
+    Where-Object { $_.Extension -in @(".dylib", ".so") }
+  if ($foreign) {
+    $names = ($foreign | ForEach-Object { $_.FullName }) -join [Environment]::NewLine
+    throw "Windows package contains non-Windows native payloads:$([Environment]::NewLine)$names"
+  }
+}
+
 $env:CARGO_INCREMENTAL = "0"
 $prevRustflags = $env:RUSTFLAGS
 $releaseLinkFlags = "-C debuginfo=0 -C link-arg=/DEBUG:NONE"
@@ -101,6 +111,7 @@ try {
     $names = ($byproducts | ForEach-Object { $_.FullName }) -join [Environment]::NewLine
     throw "package contains build byproducts:$([Environment]::NewLine)$names"
   }
+  Assert-NoForeignNativeArtifacts $dist
 
   Write-Host "[4/5] zip package"
   $zip = "dist\mighty-ide-$Version-win64.zip"

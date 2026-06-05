@@ -142,42 +142,30 @@ See [BUILDING.md](BUILDING.md) for the exact toolchain paths and commands.
 
 ## Release Packages
 
-Mighty IDE keeps generated binaries out of git. Release artifacts are built into
-`dist/` on a clean tree and uploaded separately. The package scripts now refuse
-to build from a dirty worktree and validate the packaged native binary shape
-before archiving, so a release operator gets a hard failure instead of a stale
-or cross-platform artifact.
+Generated release binaries stay out of git. The checked-in package scripts build
+into `dist/` from a clean worktree, validate the staged native payloads, reject
+compiler/linker sidecars, reject obvious foreign-platform binaries, and only
+then write the archive.
 
 Release checklist:
 
 1. Commit all source, README, and docs changes before packaging.
-2. Build each platform on that same OS family, not by copying binaries from
-   another platform.
-3. Run the package script from a clean worktree.
+2. Build each package on the same OS family that will run it.
+3. Run the platform package script from a clean worktree.
 4. Smoke-test the packaged app from inside the assembled package directory.
-5. Upload only the generated archive from `dist/`; keep `dist/` out of git.
+5. Upload only the generated archive from `dist/`.
 
-- **Windows x64:** run `.\package-win.ps1` on Windows. This produces
-  `dist\mighty-ide-win64\` and `dist\mighty-ide-v0.3.0-win64.zip` containing
-  PE-format `mighty-ide.exe` and `mighty_ui_sys.dll`, sample files, `RUN.txt`,
-  and the desktop-shortcut helper.
-- **macOS:** run `./package-macos.sh` on a macOS runner or developer machine.
-  This produces `dist/mighty-ide-macos/` and
-  `dist/mighty-ide-v0.3.0-macos.tar.gz` containing a native `.app` bundle with
-  Mach-O executable and dylib payloads.
-- **Linux x64:** run `./package-linux.sh` on a Linux runner or developer
-  machine. This produces `dist/mighty-ide-linux-x64/` and
-  `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` containing ELF executable and
-  shared-object payloads.
+| Platform | Command | Archive | Native payload checks |
+|----------|---------|---------|-----------------------|
+| Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; no `.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.rlib`, `.log`, `.dylib`, or `.so` files |
+| macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and `.dylib`; no build sidecars, `.exe`, `.dll`, or `.so` files |
+| Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and `.so`; no build sidecars, `.exe`, `.dll`, or `.dylib` files |
 
-Each platform package must be built and smoke-tested on the same OS family that
-will run it. Do not reuse Windows DLLs, macOS dylibs, or Linux shared objects
-across platforms. Windows validates PE headers directly; macOS and Linux require
-the standard `file` utility and fail the package if Mach-O or ELF validation
-does not pass.
-
-See [`docs/platform-packaging.md`](docs/platform-packaging.md) for the packaging
-checklist and current platform status.
+Each platform package must be built and smoke-tested on its native OS or a
+matching CI runner. Do not reuse Windows DLLs, macOS dylibs, or Linux shared
+objects across platforms. See
+[`docs/platform-packaging.md`](docs/platform-packaging.md) for the full package
+contract and verification commands.
 
 ## Dogfooding Mighty
 

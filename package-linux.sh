@@ -101,6 +101,11 @@ if find "$DIST" -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -n
   find "$DIST" -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.rlib' -o -name '*.log' \) >&2
   exit 1
 fi
+if find "$DIST" -type f \( -name '*.exe' -o -name '*.dll' -o -name '*.dylib' \) | grep -q .; then
+  echo "ERROR: Linux package contains non-Linux native payloads:" >&2
+  find "$DIST" -type f \( -name '*.exe' -o -name '*.dll' -o -name '*.dylib' \) >&2
+  exit 1
+fi
 
 echo "[6/6] archive"
 rm -f "$ZIP"

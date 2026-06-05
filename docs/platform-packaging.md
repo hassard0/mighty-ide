@@ -12,24 +12,26 @@ or a release operator.
    OS that will run the package.
 4. Bundle only the executable, native shim library, icon/assets needed at
    runtime, samples/examples, and run instructions.
-5. Smoke-test the packaged executable from inside the assembled package
+5. Reject build sidecars and obvious foreign-platform native payloads.
+6. Smoke-test the packaged executable from inside the assembled package
    directory.
-6. Keep generated packages out of commits.
+7. Keep generated packages out of commits.
 
 The checked-in package scripts enforce these rules where they can: they refuse a
 dirty git worktree, delete the previous platform package directory, reject common
 compiler/linker sidecars such as PDBs, import libraries, object files, and logs,
-and validate the native binary family before writing the archive. Windows checks
-PE headers in PowerShell. macOS and Linux require the standard `file` utility so
-Mach-O and ELF validation cannot be silently skipped.
+reject obvious foreign-platform native payloads, and validate the native binary
+family before writing the archive. Windows checks PE headers in PowerShell.
+macOS and Linux require the standard `file` utility so Mach-O and ELF validation
+cannot be silently skipped.
 
 ## Platform Matrix
 
 | Platform | Native binary shape | Current repo support |
 |----------|---------------------|----------------------|
-| Windows x64 | PE `mighty-ide.exe` plus PE `mighty_ui_sys.dll` | `package-win.ps1` creates `dist/mighty-ide-win64/` and `dist/mighty-ide-v0.3.0-win64.zip` |
-| macOS | `.app` archive containing Mach-O executable plus `.dylib` dependencies | `package-macos.sh` creates `dist/mighty-ide-macos/` and `dist/mighty-ide-v0.3.0-macos.tar.gz` on macOS |
-| Linux x64 | ELF executable plus ELF `.so` dependencies in a tarball directory | `package-linux.sh` creates `dist/mighty-ide-linux-x64/` and `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` on Linux |
+| Windows x64 | PE `mighty-ide.exe` plus PE `mighty_ui_sys.dll` | `package-win.ps1` creates `dist/mighty-ide-win64/` and `dist/mighty-ide-v0.3.0-win64.zip`; rejects `.dylib` and `.so` payloads |
+| macOS | `.app` archive containing Mach-O executable plus `.dylib` dependencies | `package-macos.sh` creates `dist/mighty-ide-macos/` and `dist/mighty-ide-v0.3.0-macos.tar.gz` on macOS; rejects `.exe`, `.dll`, and `.so` payloads |
+| Linux x64 | ELF executable plus ELF `.so` dependencies in a tarball directory | `package-linux.sh` creates `dist/mighty-ide-linux-x64/` and `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` on Linux; rejects `.exe`, `.dll`, and `.dylib` payloads |
 
 ## Windows Procedure
 
@@ -49,7 +51,8 @@ Expected artifacts:
 - `dist/mighty-ide-v0.3.0-win64.zip`
 
 The script checks both packaged binaries for PE headers and fails if any common
-build byproduct is found in the package directory.
+build byproduct or Unix native library payload is found in the package
+directory.
 
 Smoke-test by launching:
 
@@ -92,6 +95,7 @@ Both scripts:
 - copy only the executable, native shim library, samples/examples, and run docs
 - strip symbols when the platform `strip` tool is available
 - verify the staged native binaries with `file`
+- reject native payloads that belong to another OS family
 - write a platform tarball under `dist/`
 
 The resulting archives should be smoke-tested from the assembled package
