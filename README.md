@@ -119,11 +119,11 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   results instead of opening an empty tab
 - Empty explicit code-action requests name the active file or scratch buffer
   and cursor position, so no-quick-fix feedback points to the queried site
-- Applying code actions with no active quick-fix menu reports
+- Applying or moving code actions with no active quick-fix menu reports
   `No code action menu open`, while active selection misses keep their own
   feedback
-- Code-action stale click routes report when the quick-fix menu has already
-  closed
+- Code-action stale click and move routes report when the quick-fix menu has
+  already closed
 - Empty explicit hover requests name the active file and cursor position, so
   no-hover feedback identifies the queried site
 - Empty explicit signature-help requests name the active file and cursor

@@ -115,6 +115,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Rename stale keyboard routes are visible**: rename input text entry and
   backspace routes now report `No rename input open` when the inline rename
   field has already closed, matching cancel and commit feedback.
+- **Code Actions stale move routes are visible**: quick-fix selection movement
+  now reports `No code action menu open` when the menu has already closed,
+  matching stale clicks, apply, and cancel.
 - **Run output directory misses demote precisely**: clicking a Run diagnostic
   row whose target became a directory now demotes that row and preserves
   `Run target is not a file: <name>` for repeated clicks.

@@ -11234,6 +11234,12 @@ fn rename_and_code_action_close_commands_clear_active_state() {
     assert_eq!(crate::abi::mui_codeaction_click(handle, 0, 0, 1), -1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.message, "No code action menu open");
+    ctx.toasts.clear();
+
+    crate::abi::mui_codeaction_move(handle, 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No code action menu open");
 }
 
 #[test]

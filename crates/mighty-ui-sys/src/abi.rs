@@ -11989,6 +11989,10 @@ pub extern "C" fn mui_codeaction_can_apply(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_codeaction_move(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.codeaction.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No code action menu open");
+            return;
+        }
         ctx.codeaction.move_sel(delta);
     }
 }
