@@ -4529,11 +4529,8 @@ pub extern "C" fn mui_tab_open_path(handle: i64) -> i32 {
             return -1;
         }
     }
-    let idx = ctx.tabs.open_path(resolved.clone());
-    bind_active_tab_to_focused_pane(ctx);
-    sync_active_path(ctx);
+    let idx = open_path_in_focused_pane(ctx, resolved.clone());
     record_opened_file(ctx, &resolved);
-    ensure_tab_visible(ctx, idx);
     idx as i32
 }
 
@@ -4578,11 +4575,8 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
             return -2;
         }
     }
-    let idx = ctx.tabs.open_path(path.clone());
-    bind_active_tab_to_focused_pane(ctx);
-    sync_active_path(ctx);
+    let idx = open_path_in_focused_pane(ctx, path.clone());
     record_opened_file(ctx, &path);
-    ensure_tab_visible(ctx, idx);
     idx as i32
 }
 
@@ -4591,6 +4585,14 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
 fn bind_active_tab_to_focused_pane(ctx: &mut MuiContext) {
     let f = ctx.panes.focused();
     ctx.panes.set_tab(f, ctx.tabs.active());
+}
+
+fn open_path_in_focused_pane(ctx: &mut MuiContext, path: PathBuf) -> usize {
+    let idx = ctx.tabs.open_path(path);
+    bind_active_tab_to_focused_pane(ctx);
+    sync_active_path(ctx);
+    ensure_tab_visible(ctx, idx);
+    idx
 }
 
 #[no_mangle]
@@ -6486,8 +6488,7 @@ fn create_new_file_at(
     }
     match std::fs::OpenOptions::new().write(true).create_new(true).open(&target) {
         Ok(_) => {
-            let idx = ctx.tabs.open_path(target.clone());
-            sync_active_path(ctx);
+            let idx = open_path_in_focused_pane(ctx, target.clone());
             record_recent_file(ctx, target.clone());
             refresh_workspace_file_views(ctx);
             ctx.welcome.dismiss();
@@ -7624,8 +7625,7 @@ pub extern "C" fn mui_tree_open_row(handle: i64, i: i32) -> i32 {
             return reject_bad_explorer_target(ctx, &path, kind);
         }
     }
-    let idx = ctx.tabs.open_path(path.clone());
-    sync_active_path(ctx);
+    let idx = open_path_in_focused_pane(ctx, path.clone());
     record_opened_file(ctx, &path);
     idx as i32
 }
@@ -10174,8 +10174,7 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
         crate::quickopen::Mode::Files => {
             match ctx.quickopen.accept_file_path(i) {
                 Some(path) if path.is_file() => {
-                    let idx = ctx.tabs.open_path(path.clone());
-                    sync_active_path(ctx);
+                    let idx = open_path_in_focused_pane(ctx, path.clone());
                     record_opened_file(ctx, &path);
                     idx as i32
                 }
@@ -10589,8 +10588,7 @@ pub extern "C" fn mui_def_open_target(handle: i64) -> i32 {
             );
         }
     }
-    let idx = ctx.tabs.open_path(target_path.clone());
-    sync_active_path(ctx);
+    let idx = open_path_in_focused_pane(ctx, target_path.clone());
     record_opened_file(ctx, &target_path);
     idx as i32
 }
@@ -16913,9 +16911,8 @@ pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
             );
         }
     }
-    let idx = ctx.tabs.open_path(path.clone());
+    let idx = open_path_in_focused_pane(ctx, path.clone());
     ctx.welcome.dismiss();
-    sync_active_path(ctx);
     record_opened_file(ctx, &path);
     idx as i32
 }

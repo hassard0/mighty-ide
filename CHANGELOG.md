@@ -43,9 +43,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Direct tab switches preserve split panes**: exported tab switch, next-tab,
   and previous-tab entry points now retarget only the focused split pane, keeping
   the other pane bound to its original document.
-- **Direct tab creation preserves split panes**: typed Open File, native Open
-  File, and New Untitled entry points now bind the new active tab to the focused
-  pane without disturbing the other split pane.
+- **File-opening surfaces preserve split panes**: typed Open File, native Open
+  File, New File, Explorer rows, Quick Open, Welcome recents, definition targets,
+  and New Untitled now bind the new active tab to the focused pane without
+  disturbing the other split pane.
 
 ### Language intelligence
 - **Keyboard shortcut persistence failures are visible**: remap and reset actions

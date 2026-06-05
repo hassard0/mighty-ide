@@ -7391,6 +7391,105 @@ fn direct_tab_creation_preserves_split_pane_focus() {
 }
 
 #[test]
+fn file_open_surfaces_preserve_split_pane_focus() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    let root = std::env::temp_dir().join(format!(
+        "mui_open_surfaces_split_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let left = root.join("left.mty");
+    let right = root.join("right.mty");
+    let explorer = root.join("explorer.mty");
+    let quick = root.join("quick.mty");
+    let welcome = root.join("welcome.mty");
+    let definition = root.join("definition.mty");
+    for path in [&left, &right, &explorer, &quick, &welcome, &definition] {
+        std::fs::write(
+            path,
+            format!("// {}\n", path.file_name().unwrap().to_string_lossy()),
+        )
+        .unwrap();
+    }
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    let left_idx = ctx.tabs.open_path(left.clone());
+    let right_idx = ctx.tabs.open_path(right.clone());
+    ctx.tabs.switch(right_idx);
+    ctx.panes = crate::panes::PaneLayout::new(left_idx);
+    ctx.panes.split_right(right_idx, 0);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let explorer_row = (0..ctx.tree.count())
+        .find(|i| ctx.tree.get(*i).is_some_and(|row| row.path == explorer))
+        .expect("explorer row");
+    let explorer_idx = crate::mui_tree_open_row(handle, explorer_row as i32);
+    assert!(explorer_idx >= 0);
+    assert_eq!(
+        ctx.panes.tab_at(0),
+        Some(left_idx),
+        "Explorer open should keep the left pane"
+    );
+    assert_eq!(ctx.panes.tab_at(1), Some(explorer_idx as usize));
+
+    ctx.quickopen.set_recent_paths(vec![quick.clone()]);
+    crate::mui_quickopen_open(handle);
+    let quick_idx = crate::mui_qo_accept(handle, 0);
+    assert!(quick_idx >= 0);
+    assert_eq!(
+        ctx.panes.tab_at(0),
+        Some(left_idx),
+        "Quick Open should keep the left pane"
+    );
+    assert_eq!(ctx.panes.tab_at(1), Some(quick_idx as usize));
+
+    ctx.quickopen.set_recent_paths(vec![welcome.clone()]);
+    ctx.welcome.open();
+    crate::mui_welcome_draw(handle);
+    let welcome_idx = crate::mui_welcome_open_recent(handle, 0);
+    assert!(welcome_idx >= 0);
+    assert_eq!(
+        ctx.panes.tab_at(0),
+        Some(left_idx),
+        "Welcome recent should keep the left pane"
+    );
+    assert_eq!(ctx.panes.tab_at(1), Some(welcome_idx as usize));
+
+    ctx.def.set(Some(crate::nav::DefTarget {
+        path: definition.clone(),
+        line: 0,
+        col: 0,
+    }));
+    let def_idx = crate::mui_def_open_target(handle);
+    assert!(def_idx >= 0);
+    assert_eq!(
+        ctx.panes.tab_at(0),
+        Some(left_idx),
+        "Definition open should keep the left pane"
+    );
+    assert_eq!(ctx.panes.tab_at(1), Some(def_idx as usize));
+
+    ctx.path_stage.extend_from_slice(b"created.mty");
+    let created_idx = crate::mui_newfile_create(handle);
+    assert!(created_idx >= 0);
+    assert_eq!(
+        ctx.panes.tab_at(0),
+        Some(left_idx),
+        "New File should keep the left pane"
+    );
+    assert_eq!(ctx.panes.tab_at(1), Some(created_idx as usize));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn move_active_tab_left_right_preserves_split_pane_documents() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_move_tab_{}", std::process::id()));

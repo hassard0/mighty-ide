@@ -70,8 +70,10 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   split-pane layouts
 - Direct tab switches, next-tab, and previous-tab entry points retarget the
   focused split pane without collapsing or rebinding the other pane
-- Direct Open File and New Untitled entry points follow the same focused-pane
-  binding rule, so split layouts stay coherent even outside the main UI router
+- File-opening surfaces, including Open File, New File, Explorer rows, Quick
+  Open, Welcome recents, definition targets, and New Untitled, follow the same
+  focused-pane binding rule so split layouts stay coherent outside the main UI
+  router
 - **Move Active Tab Left/Right** (Ctrl+Shift+PageUp/PageDown) reorders tabs from
   the keyboard or command palette while preserving split-pane document bindings
 - **Sort Open Tabs by Name** alphabetizes tab clutter without losing the active
