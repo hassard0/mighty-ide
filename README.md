@@ -231,13 +231,21 @@ Generated release binaries stay out of git. The checked-in package scripts build
 into `dist/` from a clean committed tree, validate the native payloads for the
 host OS, reject compiler/linker sidecars, reject obvious foreign-platform
 binaries, bundle the project docs, and then scan the finished archive before
-reporting success. Every package includes `PACKAGE-MANIFEST.txt` with the
-platform, version, native payload hashes and sizes, and the clean-binary checks
-completed before archiving. Each package script also removes its previous
-platform package directory and same-version archive before building, so a failed
-final packaging run cannot leave a stale archive that looks newly verified.
-The source tree itself should remain binary-clean: platform archives and native
-payloads are generated under ignored build/package directories, not committed.
+reporting success. The source tree remains binary-clean because platform
+archives and native payloads are generated only under ignored build/package
+directories.
+
+| Platform | Command | Archive | Native payload checks |
+|----------|---------|---------|-----------------------|
+| Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; staged tree and ZIP contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.dylib`/`.so` files |
+| macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and `.dylib`; staged tree and tarball contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.exe`/`.dll`/`.so` files |
+| Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and `.so`; staged tree and tarball contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.exe`/`.dll`/`.dylib` files |
+
+Every package includes `RUN.txt`, `README.md`, `KEYBINDINGS.md`, `CHANGELOG.md`,
+`BUILDING.md`, `LICENSE`, `docs/platform-packaging.md`,
+`docs/release-verification.md`, and `docs/final-release-handoff.md` alongside
+the runtime payload, plus `PACKAGE-MANIFEST.txt` with native payload hashes,
+sizes, and clean-binary verification.
 
 Final handoff rule:
 
@@ -251,107 +259,6 @@ Final handoff rule:
 - If native macOS or Linux infrastructure is unavailable, record that platform
   as `unbuilt`; do not upload placeholder archives or copied native payloads.
 
-Current release state from this checkout:
-
-- Windows x64 can be rebuilt and fully verified locally with `.\package-win.ps1`.
-- A clean Windows binary means the ZIP was rebuilt from a clean committed tree,
-  PE headers were checked for both native payloads, the staged tree and ZIP
-  were scanned for sidecars and foreign native files, `PACKAGE-MANIFEST.txt`
-  was written, and the packaged executable launched from `dist\mighty-ide-win64`.
-- macOS must be built with `./package-macos.sh` on macOS or a matching macOS CI
-  runner, then smoke-tested there.
-- Linux x64 must be built with `./package-linux.sh` on Linux or a matching
-  Linux CI runner, then smoke-tested there.
-- If a native macOS or Linux runner is unavailable, mark that platform
-  `unbuilt`; do not publish a renamed archive, placeholder archive, or native
-  payload copied from another OS.
-
-Final pass evidence to record before upload:
-
-| Platform | Local decision | Required evidence |
-|----------|----------------|-------------------|
-| Windows x64 | `publish` only after the Windows package script and packaged launch pass here | ZIP size/hash, PE header checks for `mighty-ide.exe` and `mighty_ui_sys.dll`, staging-tree and ZIP sidecar/foreign-payload scans, `PACKAGE-MANIFEST.txt`, packaged launch |
-| macOS | `unbuilt` from this Windows checkout | Native macOS runner must run `./package-macos.sh`, verify Mach-O payloads, scan the tarball, and launch the app bundle before upload |
-| Linux x64 | `unbuilt` from this Windows checkout | Native Linux runner must run `./package-linux.sh`, verify ELF payloads, scan the tarball, and launch from the package directory before upload |
-
-Final Windows pass commands:
-
-```powershell
-git status --short --branch
-git log --oneline -1
-.\package-win.ps1
-Get-Item dist\mighty-ide-v0.3.0-win64.zip | Select-Object FullName,Length
-Get-FileHash dist\mighty-ide-v0.3.0-win64.zip -Algorithm SHA256
-Start-Process -FilePath "dist\mighty-ide-win64\mighty-ide.exe" `
-  -WorkingDirectory "dist\mighty-ide-win64"
-```
-
-For this Windows-hosted pass, record macOS and Linux as `unbuilt` unless native
-macOS and Linux runners actually produced and launched their packages during the
-same pass.
-
-Stop-pass rule for release finalization: after the README/docs are committed,
-the Windows package is rebuilt from that clean commit, the Windows archive hash
-and size are recorded, and macOS/Linux are either verified by native runners or
-marked `unbuilt`, stop iterating. Do not continue polishing after that handoff,
-and do not publish placeholder macOS or Linux archives from this Windows
-checkout.
-
-| Platform | Command | Archive | Native payload checks |
-|----------|---------|---------|-----------------------|
-| Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; staged tree and ZIP contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.dylib`/`.so` files |
-| macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and `.dylib`; staged tree and tarball contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.exe`/`.dll`/`.so` files |
-| Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and `.so`; staged tree and tarball contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.exe`/`.dll`/`.dylib` files |
-
-Windows can be produced and verified from a Windows checkout. macOS and Linux
-must be produced on native hosts or matching CI runners because their executable
-and shim formats are different native binaries, not repackaged variants of the
-Windows output.
-
-Release checklist:
-
-1. Commit source, README, docs, changelog, and packaging changes first.
-2. Build each OS package on that OS or a matching CI runner.
-3. Run the platform package script from the clean committed tree.
-4. Smoke-test the packaged executable from inside the assembled package
-   directory or app bundle.
-5. Upload only the generated archive from `dist/`.
-6. Record the archive size, SHA-256, native payload family, sidecar scan,
-   manifest summary, and packaged launch result in the release notes.
-
-Minimum verification before upload:
-
-- Windows: verify the ZIP hash and size, confirm `MZ`/`PE` headers for
-  `mighty-ide.exe` and `mighty_ui_sys.dll`, scan the package tree for sidecars
-  and non-Windows native payloads, then launch
-  `dist\mighty-ide-win64\mighty-ide.exe` from inside its package directory.
-- macOS: run `file` on the app executable and `.dylib`, confirm both are
-  Mach-O, scan for sidecars and `.exe`/`.dll`/`.so` files, then launch
-  `Mighty IDE.app/Contents/MacOS/mighty-ide` from the package directory.
-- Linux: run `file` on `mighty-ide` and `libmighty_ui_sys.so`, confirm both
-  are ELF, scan for sidecars and `.exe`/`.dll`/`.dylib` files, then launch
-  `./mighty-ide` from the package directory.
-
-Release note template for each published archive:
-
-```text
-Platform:
-Archive:
-Size:
-SHA-256:
-Native payloads:
-Sidecar / foreign-payload scan:
-Manifest:
-Packaged launch:
-```
-
-Every archive includes `RUN.txt`, `README.md`, `KEYBINDINGS.md`, `CHANGELOG.md`,
-`BUILDING.md`, `LICENSE`, `docs/platform-packaging.md`, and
-`docs/release-verification.md`, and `docs/final-release-handoff.md` alongside
-the runtime payload, plus
-`PACKAGE-MANIFEST.txt` with native payload hashes and clean binary verification,
-so the package is usable without returning to the source tree.
-
 Each platform package must be built and smoke-tested on its native OS or a
 matching CI runner. Do not reuse Windows DLLs, macOS dylibs, or Linux shared
 objects across platforms. See
@@ -361,6 +268,14 @@ contract and verification commands, and
 record to attach to each published archive. Use
 [`docs/final-release-handoff.md`](docs/final-release-handoff.md) for the final
 stop condition and per-platform publish decision.
+
+Current Windows-hosted finalization state:
+
+| Platform | Decision from this checkout | Required before upload |
+|----------|-----------------------------|------------------------|
+| Windows x64 | `publish` after `.\package-win.ps1` and packaged launch pass here | ZIP size/hash, PE header checks, staged-tree and ZIP sidecar/foreign-payload scans, `PACKAGE-MANIFEST.txt`, packaged launch |
+| macOS | `unbuilt` unless a macOS runner completed this pass | Native macOS runner must run `./package-macos.sh`, verify Mach-O payloads, scan the tarball, and launch the app bundle |
+| Linux x64 | `unbuilt` unless a Linux runner completed this pass | Native Linux runner must run `./package-linux.sh`, verify ELF payloads, scan the tarball, and launch from the package directory |
 
 ## Dogfooding Mighty
 

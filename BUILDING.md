@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-| Tool | What it does | Verified path (Windows) |
-|------|--------------|--------------------------|
+| Tool | What it does | How it is resolved |
+|------|--------------|--------------------|
 | **`mty`** (Mighty compiler) | builds `src/main.mty` → `target/main.exe` | Set `MIGHTY_MTY` or put `mty` on PATH |
 | **Rust** toolchain | builds the `mighty-ui-sys` shim cdylib + the arena runtime | `cargo` on PATH |
 | **clang** | the linker `mty build` drives (GNU `-o` arg syntax) | `C:\Program Files\LLVM\bin\clang.exe` |
