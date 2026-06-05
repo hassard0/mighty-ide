@@ -3981,6 +3981,42 @@ fn active_file_rename_updates_tab_path_tree_and_toasts() {
 }
 
 #[test]
+fn active_file_rename_success_prunes_missing_recent_files() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_active_file_rename_prunes_missing_recent");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let old = root.join("old.mty");
+    let new = root.join("new.mty");
+    let missing = root.join("missing.mty");
+    std::fs::write(&old, "fn main() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tabs.open_path(old.clone());
+    ctx.quickopen.set_recent_paths(vec![missing.clone(), old.clone()]);
+    crate::abi::sync_active_path(&mut ctx);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    assert_eq!(ctx.quickopen.recent_paths(), vec![missing.clone(), old.clone()]);
+
+    ctx.path_stage.extend_from_slice(b"new.mty");
+    assert_eq!(crate::mui_file_rename_active(handle), 1);
+
+    assert!(!old.exists());
+    assert!(new.exists());
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(new.as_path()));
+    assert_eq!(ctx.quickopen.recent_paths(), vec![new.clone()]);
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "new.mty");
+    assert_eq!(ctx.tree.count(), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Renamed to new.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn active_file_rename_rebinds_duplicate_tabs() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_active_file_rename_duplicates");

@@ -11389,3 +11389,16 @@ a missing path, creating a new file could leave that stale recent in place.
 - **Language note:** no compiler gap surfaced. Successful creation paths should
   use the same discovery cleanup primitive as guarded and failed lifecycle
   paths.
+
+## L923 - Rename Success Should Prune Missing Recents
+
+Successful active-file rename refreshed Explorer and Quick Open rows directly,
+but it did not run the shared recent-file pruning step. If an unrelated missing
+file was already in the MRU, a successful rename could leave that stale recent
+around.
+
+- **IDE note:** active-file rename success now removes the old path, records
+  the renamed path, and then uses the shared file-view refresh path so missing
+  recents are pruned with the rest of file discovery.
+- **Language note:** no compiler gap surfaced. Move/rename lifecycle success
+  paths need the same cleanup primitive as create, delete, and failure paths.
