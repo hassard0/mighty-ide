@@ -65,9 +65,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Direct tab switches preserve split panes**: exported tab switch, next-tab,
   and previous-tab entry points now retarget only the focused split pane, keeping
   the other pane bound to its original document.
-- **Direct tab store routes reject stale indexes**: exported tab store-begin,
-  store-commit, and dirty-state routes now report `No tab at that position`
-  instead of silently ignoring a stale tab index.
+- **Direct tab load/store routes reject stale indexes**: exported tab load-into,
+  store-begin, store-commit, and dirty-state routes now report
+  `No tab at that position` instead of silently ignoring a stale tab index or
+  clearing the load buffer without feedback.
 - **Split-pane retargeting rejects stale indexes**: exported pane-to-tab
   retarget calls now validate pane and tab indexes before changing the layout,
   reporting visible feedback instead of leaving a pane bound to a missing tab.

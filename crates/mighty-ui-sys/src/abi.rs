@@ -5569,12 +5569,15 @@ pub extern "C" fn mui_tab_load(handle: i64, idx: i32) -> i64 {
 /// switch so the live editor buffer is always actually populated.
 #[no_mangle]
 pub extern "C" fn mui_tab_load_into(handle: i64, idx: i32) -> i64 {
-    if idx < 0 {
-        return -1;
-    }
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if idx < 0 {
+        ctx.load_buf.clear();
+        ctx.push_toast(crate::toast::Kind::Warn, "No tab at that position");
+        trace(&format!("tab_load_into idx={idx} -> invalid"));
+        return -1;
+    }
     match ctx.tabs.get(idx as usize) {
         Some(t) => {
             ctx.load_buf = t.bytes.clone();
@@ -5582,6 +5585,8 @@ pub extern "C" fn mui_tab_load_into(handle: i64, idx: i32) -> i64 {
         }
         None => {
             ctx.load_buf.clear();
+            ctx.push_toast(crate::toast::Kind::Warn, "No tab at that position");
+            trace(&format!("tab_load_into idx={idx} -> invalid"));
             -1
         }
     }

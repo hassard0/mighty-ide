@@ -271,6 +271,13 @@ fn stale_tab_store_routes_report_visible_feedback() {
     ctx.tabs.ensure_scratch();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
+    ctx.load_buf = b"stale bytes".to_vec();
+    assert_eq!(crate::abi::mui_tab_load_into(handle, 4), -1);
+    assert!(ctx.load_buf.is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No tab at that position");
+
     crate::abi::mui_tab_store_begin(handle, 7);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
