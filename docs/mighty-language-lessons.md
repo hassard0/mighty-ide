@@ -11663,3 +11663,17 @@ missing, exited unsuccessfully, or failed for another OS-level reason.
 - **Language note:** no compiler gap surfaced. Platform integration failures
   should preserve the host error summary in user-visible feedback instead of
   flattening it at the ABI boundary.
+
+## L943 - Terminal Paste Failures Need The Same Clipboard Reason
+
+Editor paste now preserves clipboard read errors, but terminal paste still
+reported only `Terminal paste failed`. Both commands share the same platform
+clipboard boundary, so their failure feedback should carry the same diagnostic
+detail.
+
+- **IDE note:** terminal paste failures now include the clipboard read error
+  text (`Terminal paste failed: clipboard command unavailable`) and clipboard
+  toast replacement groups the detailed prefix. Closed-terminal feedback remains
+  a separate `Terminal is not open` warning.
+- **Language note:** no compiler gap surfaced. Shared host integration helpers
+  should expose consistent visible errors across editor and terminal surfaces.

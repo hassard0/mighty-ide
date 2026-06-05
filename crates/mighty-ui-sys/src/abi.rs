@@ -7490,7 +7490,10 @@ pub extern "C" fn mui_term_paste(handle: i64) -> i32 {
     let text = match read_clipboard_text() {
         Ok(text) => text,
         Err(e) => {
-            ctx.push_toast(crate::toast::Kind::Error, "Terminal paste failed");
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                terminal_paste_failure_message(&e),
+            );
             println!("terminal-paste: failed to read clipboard: {e}");
             return 0;
         }
@@ -7506,6 +7509,15 @@ pub extern "C" fn mui_term_paste(handle: i64) -> i32 {
     t.send_paste(&text);
     ctx.push_toast(crate::toast::Kind::Success, "Pasted to terminal");
     1
+}
+
+fn terminal_paste_failure_message(e: &std::io::Error) -> String {
+    let msg = e.to_string();
+    if msg.trim().is_empty() {
+        "Terminal paste failed".to_string()
+    } else {
+        format!("Terminal paste failed: {msg}")
+    }
 }
 
 /// Send a mouse-wheel scroll gesture to the PTY. When a terminal app enabled
