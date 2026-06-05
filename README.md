@@ -288,6 +288,13 @@ For this Windows-hosted pass, record macOS and Linux as `unbuilt` unless native
 macOS and Linux runners actually produced and launched their packages during the
 same pass.
 
+Stop-pass rule for release finalization: after the README/docs are committed,
+the Windows package is rebuilt from that clean commit, the Windows archive hash
+and size are recorded, and macOS/Linux are either verified by native runners or
+marked `unbuilt`, stop iterating. Do not continue polishing after that handoff,
+and do not publish placeholder macOS or Linux archives from this Windows
+checkout.
+
 | Platform | Command | Archive | Native payload checks |
 |----------|---------|---------|-----------------------|
 | Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; staged tree and ZIP contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.dylib`/`.so` files |

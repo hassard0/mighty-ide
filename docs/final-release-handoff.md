@@ -75,6 +75,11 @@ the archive scan passes, and the executable launches on Linux.
 
 ## Stop Condition
 
-After the Windows package has been rebuilt and the repo is clean, stop. Record
-macOS and Linux as `unbuilt` unless their native package runs completed during
-this same pass.
+After the README and release docs are committed, rebuild the Windows package
+from that clean commit, record the Windows archive hash and size, confirm the
+packaged Windows executable launched from `dist\mighty-ide-win64`, and stop.
+Record macOS and Linux as `unbuilt` unless their native package runs completed
+during this same pass.
+
+Stopping here is part of the release contract. Further IDE polish belongs in a
+new pass after the verified package handoff, not in the same finalization pass.

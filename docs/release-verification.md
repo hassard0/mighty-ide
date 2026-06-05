@@ -144,3 +144,8 @@ Linux x64: unbuilt - native Linux runner unavailable in this Windows pass.
 
 Source-level review and shell syntax checks keep the macOS and Linux package
 scripts ready, but they are not clean-binary evidence for those platforms.
+
+After recording the Windows archive hash/size and the unavailable native
+platforms as `unbuilt`, stop the pass. Continuing feature or polish work after
+that point invalidates the final-package evidence because the source tree no
+longer matches the clean commit used for packaging.
