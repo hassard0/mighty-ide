@@ -769,8 +769,12 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Reveal)
     } else if m.starts_with("Copied ")
         || m == "No active file path to copy"
+        || m.starts_with("No active file path to copy:")
+        || m.starts_with("No active file relative path to copy:")
         || m == "No active file name to copy"
+        || m.starts_with("No active file name to copy:")
         || m == "No active file directory to copy"
+        || m.starts_with("No active file directory to copy:")
         || m == "No text to copy"
         || m == "Nothing to cut"
         || m.starts_with("Could not copy text")
@@ -1425,6 +1429,17 @@ mod tests {
         q.push_at(Kind::Success, "Cut line", t0 + Duration::from_millis(100));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Cut line");
+
+        q.push_at(
+            Kind::Warn,
+            "No active file relative path to copy: (scratch)",
+            t0 + Duration::from_millis(125),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "No active file relative path to copy: (scratch)"
+        );
 
         q.push_at(
             Kind::Error,

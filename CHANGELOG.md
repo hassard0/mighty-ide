@@ -78,6 +78,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Workspace New File names dialog scope**: cancelling or missing the
   workspace-scoped New File picker now reports `New workspace file ...` so it
   is distinguishable from the general File: New File command.
+- **Copy file metadata names scratch buffers**: copy-path, copy-relative-path,
+  copy-name, and copy-directory now identify `(scratch)` when the active tab has
+  no file path.
 - **Breadcrumb file menus prune stale paths**: accepting a breadcrumb file row
   whose source disappeared now removes that dead path from the menu backing
   list while reporting the missing target.

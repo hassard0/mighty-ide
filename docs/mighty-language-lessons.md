@@ -12277,3 +12277,17 @@ workspace root.
 - **Language note:** no compiler gap surfaced. Commands that share a backing
   picker but differ in filesystem scope should keep the scope in their failure
   feedback.
+
+## L985 - Copy File-Metadata Misses Should Name Scratch Buffers
+
+Copy Active File Path, Copy Active File Relative Path, Copy Active File Name,
+and Copy Active File Directory all refused untitled buffers with generic
+`No active file ... to copy` messages. That explained the missing path but did
+not identify that the active editor was a scratch buffer.
+
+- **IDE note:** file-metadata copy preflights now report
+  `No active file ... to copy: (scratch)` for untitled buffers, with relative
+  path, name, and directory variants named independently.
+- **Language note:** no compiler gap surfaced. Clipboard commands that depend
+  on file-backed editor state should name the active buffer when refusing to
+  run.

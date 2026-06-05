@@ -6669,6 +6669,18 @@ pub(crate) fn copy_directory_failed_message(text: &str, e: &std::io::Error) -> S
     append_clipboard_write_reason(format!("Could not copy directory: {text}"), e)
 }
 
+fn active_file_copy_target_name(ctx: &MuiContext) -> String {
+    ctx.tabs
+        .active_path()
+        .as_deref()
+        .map(basename)
+        .unwrap_or_else(|| "(scratch)".to_string())
+}
+
+fn copy_needs_file_message(ctx: &MuiContext, what: &str) -> String {
+    format!("No active file {what} to copy: {}", active_file_copy_target_name(ctx))
+}
+
 /// Copy the active file path to the operating-system clipboard. Returns 1 on
 /// success, else 0.
 #[no_mangle]
@@ -6677,7 +6689,7 @@ pub extern "C" fn mui_file_copy_active_path(handle: i64) -> i32 {
         return 0;
     };
     let Some(path) = ctx.tabs.active_path() else {
-        ctx.push_toast(crate::toast::Kind::Warn, "No active file path to copy");
+        ctx.push_toast(crate::toast::Kind::Warn, copy_needs_file_message(ctx, "path"));
         return 0;
     };
     let text = path.display().to_string();
@@ -6702,7 +6714,7 @@ pub extern "C" fn mui_file_copy_active_relative_path(handle: i64) -> i32 {
         return 0;
     };
     let Some(path) = ctx.tabs.active_path() else {
-        ctx.push_toast(crate::toast::Kind::Warn, "No active file path to copy");
+        ctx.push_toast(crate::toast::Kind::Warn, copy_needs_file_message(ctx, "relative path"));
         return 0;
     };
     let text = active_relative_path_text(ctx, &path);
@@ -6726,7 +6738,7 @@ pub extern "C" fn mui_file_copy_active_name(handle: i64) -> i32 {
         return 0;
     };
     let Some(path) = ctx.tabs.active_path() else {
-        ctx.push_toast(crate::toast::Kind::Warn, "No active file name to copy");
+        ctx.push_toast(crate::toast::Kind::Warn, copy_needs_file_message(ctx, "name"));
         return 0;
     };
     let text = active_file_name_text(&path);
@@ -6750,7 +6762,7 @@ pub extern "C" fn mui_file_copy_active_directory(handle: i64) -> i32 {
         return 0;
     };
     let Some(path) = ctx.tabs.active_path() else {
-        ctx.push_toast(crate::toast::Kind::Warn, "No active file directory to copy");
+        ctx.push_toast(crate::toast::Kind::Warn, copy_needs_file_message(ctx, "directory"));
         return 0;
     };
     let text = active_directory_text(&path);

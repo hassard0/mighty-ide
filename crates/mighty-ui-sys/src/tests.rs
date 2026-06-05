@@ -12712,6 +12712,36 @@ fn cut_preflight_tracks_mutating_targets_and_read_only() {
 }
 
 #[test]
+fn active_file_copy_preflights_name_scratch_buffers() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::abi::mui_file_copy_active_path(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No active file path to copy: (scratch)");
+
+    assert_eq!(crate::abi::mui_file_copy_active_relative_path(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "No active file relative path to copy: (scratch)"
+    );
+
+    assert_eq!(crate::abi::mui_file_copy_active_name(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No active file name to copy: (scratch)");
+
+    assert_eq!(crate::abi::mui_file_copy_active_directory(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No active file directory to copy: (scratch)");
+}
+
+#[test]
 fn copy_and_cut_failures_report_clipboard_write_reason() {
     let _g = crate::settings::TEST_LOCK
         .lock()
