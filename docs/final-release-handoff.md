@@ -83,3 +83,20 @@ during this same pass.
 
 Stopping here is part of the release contract. Further IDE polish belongs in a
 new pass after the verified package handoff, not in the same finalization pass.
+
+## Final Pass Record
+
+For this Windows-hosted pass:
+
+- Windows x64 is the only platform that can receive local clean-binary evidence.
+  Its package must be rebuilt with `.\package-win.ps1` from a clean committed
+  tree, scanned by the script, launched from `dist\mighty-ide-win64`, and
+  recorded with the ZIP size and SHA-256 hash.
+- macOS remains `unbuilt` unless `./package-macos.sh` completes on a native
+  macOS host or matching CI runner during this pass.
+- Linux x64 remains `unbuilt` unless `./package-linux.sh` completes on a native
+  Linux host or matching CI runner during this pass.
+
+Do not continue implementation work after recording this evidence. If the source
+changes after the package is built, rebuild the package from the new clean
+commit before publishing.

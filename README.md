@@ -259,6 +259,13 @@ Final handoff rule:
 - If native macOS or Linux infrastructure is unavailable, record that platform
   as `unbuilt`; do not upload placeholder archives or copied native payloads.
 
+For a stop/pass release handoff, use
+[`docs/final-release-handoff.md`](docs/final-release-handoff.md) as the source
+of truth for platform decisions and
+[`docs/release-verification.md`](docs/release-verification.md) for the evidence
+record. Exact archive size and SHA-256 values are generated during packaging and
+must match the bundled `PACKAGE-MANIFEST.txt`.
+
 Each platform package must be built and smoke-tested on its native OS or a
 matching CI runner. Do not reuse Windows DLLs, macOS dylibs, or Linux shared
 objects across platforms. See

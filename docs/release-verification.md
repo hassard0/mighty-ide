@@ -149,3 +149,13 @@ After recording the Windows archive hash/size and the unavailable native
 platforms as `unbuilt`, stop the pass. Continuing feature or polish work after
 that point invalidates the final-package evidence because the source tree no
 longer matches the clean commit used for packaging.
+
+## Evidence Ownership
+
+The source docs define the release rules. Exact archive hashes, sizes, native
+payload hashes, and generated timestamps belong to the package output and the
+release evidence record for that run. For Windows, compare
+`dist\mighty-ide-v0.3.0-win64.zip` and
+`dist\mighty-ide-win64\PACKAGE-MANIFEST.txt` after `.\package-win.ps1`
+completes. For macOS and Linux, record equivalent values only from their native
+package directories and tarballs.
