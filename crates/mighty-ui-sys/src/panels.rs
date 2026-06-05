@@ -2268,7 +2268,7 @@ pub extern "C" fn mui_ai_close(handle: i64) -> i32 {
         return 0;
     };
     if !ctx.ai.open {
-        ctx.push_toast(crate::toast::Kind::Info, "AI Copilot is already closed");
+        report_ai_closed(ctx);
         crate::abi::trace("ai_close noop");
         return 0;
     }
@@ -2276,6 +2276,10 @@ pub extern "C" fn mui_ai_close(handle: i64) -> i32 {
     ctx.push_toast(crate::toast::Kind::Info, "AI Copilot closed");
     crate::abi::trace("ai_close");
     1
+}
+
+fn report_ai_closed(ctx: &mut MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Info, "AI Copilot is already closed");
 }
 
 /// Clear the AI transcript and draft, leaving the panel visible so the empty
@@ -2381,6 +2385,10 @@ pub extern "C" fn mui_ai_input_push(handle: i64, codepoint: i32) {
 #[no_mangle]
 pub extern "C" fn mui_ai_input_backspace(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.ai.open {
+            report_ai_closed(ctx);
+            return;
+        }
         ctx.ai.input.pop();
     }
 }
@@ -2389,6 +2397,10 @@ pub extern "C" fn mui_ai_input_backspace(handle: i64) {
 #[no_mangle]
 pub extern "C" fn mui_ai_input_newline(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.ai.open {
+            report_ai_closed(ctx);
+            return;
+        }
         ctx.ai.input.push('\n');
     }
 }
@@ -2438,6 +2450,11 @@ pub extern "C" fn mui_ai_send(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !ctx.ai.open {
+        report_ai_closed(ctx);
+        crate::abi::trace("ai_send blocked=closed");
+        return 0;
+    }
     ai_send_with_feedback(ctx)
 }
 
@@ -2479,6 +2496,10 @@ pub extern "C" fn mui_ai_streaming(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_ai_scroll(handle: i64, dir: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.ai.open {
+            report_ai_closed(ctx);
+            return;
+        }
         let step = layout::LINE_H() * 3.0;
         ctx.ai.scroll += dir as f32 * step;
         if ctx.ai.scroll < 0.0 {

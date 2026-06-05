@@ -1916,6 +1916,29 @@ fn view_commands_open_non_sidebar_surfaces_without_toggling() {
         ctx.toasts.toasts().last().unwrap().message,
         "AI Copilot is already closed"
     );
+    crate::panels::mui_ai_scroll(handle, 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "AI Copilot is already closed"
+    );
+    ctx.ai.input = "draft".to_string();
+    crate::panels::mui_ai_input_backspace(handle);
+    assert_eq!(ctx.ai.input, "draft");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "AI Copilot is already closed"
+    );
+    crate::panels::mui_ai_input_newline(handle);
+    assert_eq!(ctx.ai.input, "draft");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "AI Copilot is already closed"
+    );
+    assert_eq!(crate::panels::mui_ai_send(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "AI Copilot is already closed"
+    );
 }
 
 #[test]

@@ -157,6 +157,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 
 ### AI
 - AI copilot Agents panel (Ctrl+Shift+A) — streaming Anthropic chat
+- AI Copilot stale focused send, scroll, Backspace, and newline routes report
+  when the panel has already closed instead of mutating hidden chat state
 - Inline ask (Ctrl+I)
 - **Inline AI ghost-text** (Copilot-style) — debounced suggestions, force with Alt+\, word-wise partial accept (Ctrl+→)
 - Inline AI ghost-text accept and dismiss commands report when no suggestion is
