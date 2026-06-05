@@ -4228,6 +4228,15 @@ fn new_file_dialog_cancel_and_existing_are_noops() {
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "New file cancelled");
 
+    std::env::set_var("MUI_NEW_FILE_PICK", "");
+    assert_eq!(mui_newfile_workspace_dialog(handle), -2);
+    std::env::remove_var("MUI_NEW_FILE_PICK");
+    assert_eq!(mui_tab_count(handle), 1);
+    assert_eq!(mui_tab_active(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "New workspace file cancelled");
+
     let existing = root.join("taken.mty");
     std::fs::write(&existing, b"existing").unwrap();
     std::env::set_var("MUI_NEW_FILE_PICK", existing.to_string_lossy().as_ref());

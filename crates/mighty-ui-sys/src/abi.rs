@@ -6213,13 +6213,13 @@ pub extern "C" fn mui_newfile_workspace_dialog(handle: i64) -> i32 {
         FileDialogPick::Cancelled => {
             trace("new_workspace_file_dialog cancel");
             println!("mui_newfile_workspace_dialog: native new-file dialog cancelled");
-            ctx.push_toast(crate::toast::Kind::Info, "New file cancelled");
+            ctx.push_toast(crate::toast::Kind::Info, "New workspace file cancelled");
             return -2;
         }
         FileDialogPick::Unavailable => {
             trace("new_workspace_file_dialog unavailable");
             println!("mui_newfile_workspace_dialog: native new-file dialog unavailable");
-            ctx.push_toast(crate::toast::Kind::Warn, "New file dialog unavailable");
+            ctx.push_toast(crate::toast::Kind::Warn, "New workspace file dialog unavailable");
             return -1;
         }
     };

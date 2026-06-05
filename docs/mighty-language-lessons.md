@@ -12262,3 +12262,18 @@ having disappeared.
 - **Language note:** no compiler gap surfaced. Event handlers should preserve
   enough state-specific vocabulary for scalar ABI failures to explain whether
   input was missing, invalid, or stale.
+
+## L984 - Workspace File Dialog Misses Should Name Their Scope
+
+The workspace-scoped New File command reused `New file cancelled` and
+`New file dialog unavailable`, the same messages as the general File: New File
+command. When both commands are available from the palette, that hid whether the
+failed picker was allowed to create files anywhere or was constrained to the
+workspace root.
+
+- **IDE note:** workspace New File picker cancel and unavailable paths now
+  report `New workspace file ...`, and those messages remain in the create-file
+  toast replacement lane.
+- **Language note:** no compiler gap surfaced. Commands that share a backing
+  picker but differ in filesystem scope should keep the scope in their failure
+  feedback.

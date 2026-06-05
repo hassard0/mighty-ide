@@ -680,7 +680,9 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::NameInput)
     } else if m.starts_with("Created file")
         || m == "New file cancelled"
+        || m == "New workspace file cancelled"
         || m == "New file dialog unavailable"
+        || m == "New workspace file dialog unavailable"
         || m.starts_with("Choose a file inside the workspace")
         || m.starts_with("File already exists")
         || m.starts_with("File create failed")
@@ -1202,8 +1204,13 @@ mod tests {
             .any(|t| t.message == "File already exists: main.mty"));
 
         q.push_at(Kind::Info, "New file cancelled", t0 + Duration::from_millis(800));
+        q.push_at(
+            Kind::Info,
+            "New workspace file cancelled",
+            t0 + Duration::from_millis(825),
+        );
         assert_eq!(q.len(), 2);
-        assert_eq!(q.toasts()[1].message, "New file cancelled");
+        assert_eq!(q.toasts()[1].message, "New workspace file cancelled");
 
         q.push_at(
             Kind::Error,

@@ -75,6 +75,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Open Recent names stale row state**: Welcome and workspace Open Recent now
   distinguish an invalid selection from a row that disappeared after recents
   were pruned, keeping file and folder misses actionable.
+- **Workspace New File names dialog scope**: cancelling or missing the
+  workspace-scoped New File picker now reports `New workspace file ...` so it
+  is distinguishable from the general File: New File command.
 - **Breadcrumb file menus prune stale paths**: accepting a breadcrumb file row
   whose source disappeared now removes that dead path from the menu backing
   list while reporting the missing target.
