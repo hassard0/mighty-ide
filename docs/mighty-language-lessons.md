@@ -13278,3 +13278,19 @@ non-file target. Those helpers were still using split existence and kind checks.
   `Diagnostics failed: <name>: not a file`.
 - **Language note:** no compiler gap surfaced. Shared filesystem predicates are
   worth hardening first because they quietly define behavior for many commands.
+
+## L1053 - Resurrected Saves Should Mean Missing Before Write
+
+Several save and edit paths republish a file into Explorer and Quick Open when
+a write recreates a path that had disappeared. The old predicate used
+`!path.is_file()` after non-file targets were already rejected, which made the
+intent less clear and duplicated filesystem probes.
+
+- **IDE note:** save, autosave, Save All, format, and workspace-edit publication
+  now use a shared `save_target_was_missing` helper before writing. The
+  user-visible behavior is preserved: recreated files are recorded as recent
+  files and workspace views refresh, while existing files avoid unnecessary
+  republish work.
+- **Language note:** no compiler gap surfaced. Naming the filesystem state being
+  detected matters when the same save path handles ordinary writes, resurrected
+  files, and rejected non-file targets.

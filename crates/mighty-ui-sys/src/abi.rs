@@ -648,6 +648,10 @@ fn save_target_is_existing_non_file(path: &std::path::Path) -> bool {
     std::fs::metadata(path).is_ok_and(|meta| !meta.is_file())
 }
 
+fn save_target_was_missing(path: &std::path::Path) -> bool {
+    std::fs::metadata(path).is_err()
+}
+
 fn file_target_not_file_message(action: &str, path: &std::path::Path) -> String {
     format!("{action} failed: {}: not a file", basename(path))
 }
@@ -3437,7 +3441,7 @@ pub extern "C" fn mui_save_commit(handle: i64) -> i32 {
     if save_target_is_existing_non_file(&path) {
         return reject_save_target_not_file(ctx, &path);
     }
-    let resurrected_path = !path.is_file();
+    let resurrected_path = save_target_was_missing(&path);
     match std::fs::write(&path, &ctx.save_buf) {
         Ok(()) => {
             let _ = ctx.tabs.reload_all_clean_path(&path, &ctx.save_buf);
@@ -11386,7 +11390,7 @@ fn apply_workspace_edit(
             };
             let edited_bytes = edited.as_bytes();
             if let Some(p) = current.clone() {
-                let resurrected_path = !p.is_file();
+                let resurrected_path = save_target_was_missing(&p);
                 match std::fs::write(&p, edited_bytes) {
                     Ok(()) => {
                         {
@@ -11487,7 +11491,7 @@ fn apply_workspace_edit(
             };
             let text = String::from_utf8_lossy(&disk).into_owned();
             let edited = crate::language::apply_text_edits(&text, &edits);
-            let resurrected_path = !fpath.is_file();
+            let resurrected_path = save_target_was_missing(&fpath);
             match std::fs::write(&fpath, edited.as_bytes()) {
                 Ok(()) => {
                     result.changed += 1;
@@ -11872,7 +11876,7 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
             );
             return 0;
         }
-        let resurrected_path = !path.is_file();
+        let resurrected_path = save_target_was_missing(&path);
         match std::fs::write(&path, &bytes) {
             Ok(()) => {}
             Err(e) => {
@@ -12287,7 +12291,7 @@ pub extern "C" fn mui_format_current(handle: i64) -> i32 {
         );
         return -1;
     }
-    let resurrected_path = !path.is_file();
+    let resurrected_path = save_target_was_missing(&path);
     match crate::format::run_fmt(&path) {
         crate::format::FmtOutcome::Formatted => {
             if resurrected_path && path.is_file() {
@@ -13109,7 +13113,7 @@ pub extern "C" fn mui_autosave_tick(handle: i64) -> i32 {
     }
     let bytes = save_bytes_for_active(ctx);
     let name = basename(&path);
-    let resurrected_path = !path.is_file();
+    let resurrected_path = save_target_was_missing(&path);
     trace(&format!("save path={} bytes={}", path.display(), bytes.len()));
     match std::fs::write(&path, &bytes) {
         Ok(()) => {
@@ -13189,7 +13193,7 @@ fn save_active_current_path(ctx: &mut MuiContext) -> i32 {
     if save_target_is_existing_non_file(&path) {
         return reject_save_target_not_file(ctx, &path);
     }
-    let resurrected_path = !path.is_file();
+    let resurrected_path = save_target_was_missing(&path);
     match std::fs::write(&path, &bytes) {
         Ok(()) => {
             mark_active_clean(ctx);
@@ -13301,7 +13305,7 @@ fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf, toast_succe
     }
     let bytes = save_bytes_for_tab(tab);
     let name = basename(&path);
-    let resurrected_path = !path.is_file();
+    let resurrected_path = save_target_was_missing(&path);
     match std::fs::write(&path, &bytes) {
         Ok(()) => {
             tab.path = Some(path.clone());
@@ -13412,7 +13416,7 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
                     continue;
                 }
             }
-            let resurrected_path = !path.is_file();
+            let resurrected_path = save_target_was_missing(&path);
             match std::fs::write(&path, &bytes) {
                 Ok(()) => {
                     tab.dirty = false;
