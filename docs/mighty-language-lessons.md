@@ -12446,3 +12446,17 @@ and a stale row.
   row base still report `No breakpoint row selected`.
 - **Language note:** no compiler gap surfaced. Scalar hit-code handlers should
   keep enough context to distinguish invalid input from stale UI snapshots.
+
+## L997 - Source Control Row Misses Should Name Stale Rows
+
+Source Control open/stage actions use scalar row indices into a cached git
+status list. Missing entries used to report `No source control row selected`,
+the same message as a negative/no-selection row code.
+
+- **IDE note:** Source Control open-row and stage-toggle misses now report
+  `Source control row no longer listed` when the row index is non-negative but
+  absent from the current status list. Negative row indices continue to report
+  `No source control row selected`.
+- **Language note:** no compiler gap surfaced. Git status UIs should separate
+  missing selection from stale list snapshots before invoking side-effecting
+  actions like stage and open.

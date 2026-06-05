@@ -239,7 +239,7 @@ pub extern "C" fn mui_scm_open_row(handle: i64, i: i32) -> i32 {
     }
     let (path, root) = {
         let Some(entry) = ctx.scm.get(i as usize) else {
-            ctx.push_toast(crate::toast::Kind::Info, "No source control row selected");
+            ctx.push_toast(crate::toast::Kind::Info, "Source control row no longer listed");
             return -1;
         };
         let Some(root) = ctx.scm.root.clone() else {
@@ -283,7 +283,7 @@ pub extern "C" fn mui_scm_toggle_stage(handle: i64, i: i32) -> i32 {
     let (path_before, staged_before) = match ctx.scm.get(i as usize) {
         Some(entry) => (entry.path.clone(), entry.staged),
         None => {
-            ctx.push_toast(crate::toast::Kind::Info, "No source control row selected");
+            ctx.push_toast(crate::toast::Kind::Info, "Source control row no longer listed");
             crate::abi::trace(&format!("scm_toggle_stage ok=0 idx={i} missing-row"));
             return 0;
         }

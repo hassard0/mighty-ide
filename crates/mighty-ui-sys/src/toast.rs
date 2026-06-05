@@ -610,6 +610,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Source control stage failed")
         || m.starts_with("Source control unstage failed")
         || m == "No source control row selected"
+        || m == "Source control row no longer listed"
         || m.starts_with("Source control root missing")
         || m.starts_with("Source Control message ")
         || m == "Source Control panel closed"
@@ -2121,6 +2122,14 @@ mod tests {
             q.toasts()[0].message,
             "Source control target missing: deleted.mty"
         );
+
+        q.push_at(
+            Kind::Info,
+            "Source control row no longer listed",
+            t0 + Duration::from_millis(250),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Source control row no longer listed");
 
         q.push_at(
             Kind::Success,

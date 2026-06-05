@@ -5619,7 +5619,7 @@ fn scm_toggle_stage_misses_report_visible_feedback() {
     assert_eq!(crate::panels::mui_scm_toggle_stage(handle, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "No source control row selected");
+    assert_eq!(toast.message, "Source control row no longer listed");
 
     ctx.scm.status.entries.push(crate::scm::ScmEntry {
         path: "tracked.mty".to_string(),
@@ -5667,6 +5667,11 @@ fn scm_toggle_stage_misses_report_visible_feedback() {
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Source control stage failed: missing.mty");
     assert_eq!(ctx.scm.count(), 0);
+
+    assert_eq!(crate::panels::mui_scm_toggle_stage(handle, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Source control row no longer listed");
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -7541,6 +7546,11 @@ fn scm_open_row_misses_report_visible_feedback() {
     assert_eq!(ctx.scm.count(), 0);
     assert_eq!(ctx.tree.count(), 0);
     assert_eq!(ctx.quickopen.count(), 0);
+
+    assert_eq!(crate::panels::mui_scm_open_row(handle, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Source control row no longer listed");
 
     let _ = std::fs::remove_dir_all(root);
 }

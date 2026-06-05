@@ -122,6 +122,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Breakpoint stale rows are explicit**: opening or removing a breakpoint row
   that has fallen out of the visible breakpoint inventory now reports
   `Breakpoint row no longer listed` instead of the generic no-selection message.
+- **Source Control stale rows are explicit**: opening or staging a row that has
+  disappeared from the SCM status list now reports
+  `Source control row no longer listed`, while negative row codes still report
+  `No source control row selected`.
 - **Testing result jumps distinguish stale rows**: out-of-range Testing result
   jumps now report `No test result row selected` instead of implying a visible
   row lacked a file target.
