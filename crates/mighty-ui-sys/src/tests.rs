@@ -4005,6 +4005,42 @@ fn active_file_delete_requires_exact_basename_confirmation() {
 }
 
 #[test]
+fn active_file_delete_confirm_prunes_already_missing_clean_file() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_active_file_delete_already_missing");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let keep = root.join("keep.mty");
+    let doomed = root.join("doomed.mty");
+    std::fs::write(&keep, "fn keep() {}\n").unwrap();
+    std::fs::write(&doomed, "fn doomed() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tabs.open_path(keep.clone());
+    ctx.tabs.open_path(doomed.clone());
+    ctx.quickopen.set_recent_paths(vec![doomed.clone(), keep.clone()]);
+    crate::abi::sync_active_path(&mut ctx);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.tree.count(), 2);
+    assert_eq!(ctx.quickopen.count(), 2);
+
+    std::fs::remove_file(&doomed).unwrap();
+    ctx.path_stage.extend_from_slice(b"doomed.mty");
+    assert_eq!(crate::mui_file_delete_active_confirm(handle), 1);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(keep.as_path()));
+    assert_eq!(ctx.quickopen.recent_paths(), vec![keep.clone()]);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "keep.mty");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Deleted doomed.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn active_file_delete_refuses_dirty_buffer_even_with_exact_confirmation() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_active_file_delete_dirty");

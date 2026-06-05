@@ -11298,3 +11298,16 @@ path and could leave the deleted active file in recent-file rows.
   cleaned together.
 - **Language note:** no compiler gap surfaced. File lifecycle failures should
   use one cleanup primitive so recents and file indexes cannot diverge.
+
+## L916 - Delete Confirmation Should Tolerate Already-Missing Files
+
+Delete Active File can race with external deletion after the prompt is opened.
+For a clean file-backed tab, `remove_file` returned not found and the IDE left
+the stale tab, Explorer row, Quick Open row, and recent-file entry around.
+
+- **IDE note:** confirmed deletion is now idempotent for already-missing clean
+  files: the IDE closes clean tabs for that path, prunes recents, refreshes
+  shared file views, and reports the delete as complete.
+- **Language note:** no compiler gap surfaced. Destructive file operations
+  should treat missing clean targets as cleanup work, not as a reason to keep
+  stale UI state.

@@ -6535,30 +6535,31 @@ pub extern "C" fn mui_file_delete_active_confirm(handle: i64) -> i32 {
         );
         return 0;
     }
-    match std::fs::remove_file(&path) {
-        Ok(()) => {
-            ctx.pending_dirty_close = None;
-            let compaction = ctx.tabs.close_clean_path_forget(&path);
-            if let Some(compaction) = compaction {
-                ctx.panes.on_tabs_compacted(&compaction.old_to_new, ctx.tabs.count());
-            }
-            sync_active_path(ctx);
-            let a = ctx.tabs.active();
-            ensure_tab_visible(ctx, a);
-            ctx.tree.refresh();
-            let root = crate::wsabi::effective_root(ctx);
-            let _ = ctx.quickopen.ensure_index(&root, true);
-            remove_recent_file(ctx, &path);
-            ctx.quickopen.refresh_file_rows();
-            ctx.push_toast(crate::toast::Kind::Success, format!("Deleted {name}"));
-            println!("file-delete: {}", path.display());
-            1
-        }
+    let deleted = match std::fs::remove_file(&path) {
+        Ok(()) => true,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => true,
         Err(e) => {
             ctx.push_toast(crate::toast::Kind::Error, format!("Delete failed: {name}"));
             println!("file-delete: failed {}: {e}", path.display());
-            0
+            false
         }
+    };
+    if deleted {
+        ctx.pending_dirty_close = None;
+        let compaction = ctx.tabs.close_clean_path_forget(&path);
+        if let Some(compaction) = compaction {
+            ctx.panes.on_tabs_compacted(&compaction.old_to_new, ctx.tabs.count());
+        }
+        sync_active_path(ctx);
+        let a = ctx.tabs.active();
+        ensure_tab_visible(ctx, a);
+        remove_recent_file(ctx, &path);
+        refresh_workspace_file_views(ctx);
+        ctx.push_toast(crate::toast::Kind::Success, format!("Deleted {name}"));
+        println!("file-delete: {}", path.display());
+        1
+    } else {
+        0
     }
 }
 
