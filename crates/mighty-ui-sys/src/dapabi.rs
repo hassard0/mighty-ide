@@ -90,6 +90,24 @@ fn debug_restart_failed_no_path_message(reason: Option<&str>) -> String {
     )
 }
 
+fn active_debug_target_name(ctx: &MuiContext) -> String {
+    ctx.tabs
+        .active_path()
+        .as_deref()
+        .map(|path| {
+            path.file_name()
+                .and_then(|s| s.to_str())
+                .filter(|s| !s.is_empty())
+                .unwrap_or("file")
+                .to_string()
+        })
+        .unwrap_or_else(|| "(scratch)".to_string())
+}
+
+fn debug_needs_file_message(ctx: &MuiContext, action: &str) -> String {
+    format!("Save {} before {action}", active_debug_target_name(ctx))
+}
+
 // ===========================================================================
 // Session lifecycle (F5 / Shift+F5) + stepping (F10 / F11 / Shift+F11)
 // ===========================================================================
@@ -119,7 +137,10 @@ fn dbg_start_or_continue(ctx: &mut MuiContext) -> i32 {
         }
         DebugState::Idle | DebugState::Terminated => {
             let Some(path) = ctx.tabs.active_path() else {
-                ctx.push_toast(crate::toast::Kind::Warn, "Open a file before starting debug");
+                ctx.push_toast(
+                    crate::toast::Kind::Warn,
+                    debug_needs_file_message(ctx, "starting debug"),
+                );
                 crate::abi::trace("dbg_action start_no_file");
                 return ctx.dbg.state().as_i32();
             };
@@ -414,7 +435,10 @@ pub extern "C" fn mui_bp_toggle(handle: i64, line: i32) -> i32 {
     let file = active_path_str(ctx);
     if file.is_empty() {
         open_debug_view(ctx);
-        ctx.push_toast(crate::toast::Kind::Warn, "Save the file before setting breakpoints");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            debug_needs_file_message(ctx, "setting breakpoints"),
+        );
         crate::abi::trace("bp_toggle no_file");
         return 0;
     }
@@ -439,7 +463,10 @@ pub extern "C" fn mui_bp_toggle_at_cursor(handle: i64) -> i32 {
     open_debug_view(ctx);
     let file = active_path_str(ctx);
     if file.is_empty() {
-        ctx.push_toast(crate::toast::Kind::Warn, "Save the file before setting breakpoints");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            debug_needs_file_message(ctx, "setting breakpoints"),
+        );
         crate::abi::trace("bp_toggle_cursor no_file");
         return 0;
     }

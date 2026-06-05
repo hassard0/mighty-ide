@@ -12304,3 +12304,16 @@ refused dirty file-backed tabs without naming the dirty file.
 - **Language note:** no compiler gap surfaced. Mutating or path-scoped commands
   should carry the active target label in refusal messages, even when the target
   is virtual.
+
+## L987 - Debug Save-First Misses Should Name Scratch Buffers
+
+Starting a debug session or toggling breakpoints on an untitled buffer reported
+generic save/open-file messages. That made it unclear that the active editor was
+a virtual scratch tab rather than a saved program file.
+
+- **IDE note:** debugger save-first preflights now report
+  `Save (scratch) before starting debug` and
+  `Save (scratch) before setting breakpoints`.
+- **Language note:** no compiler gap surfaced. Tooling commands that require a
+  durable source path should use the same target naming discipline as language
+  lookups and formatter/code-action preflights.

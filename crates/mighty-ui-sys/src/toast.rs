@@ -939,6 +939,9 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Terminal)
     } else if m.starts_with("Debug session ")
         || m == "Open a file before starting debug"
+        || (m.starts_with("Save ")
+            && (m.ends_with("before starting debug")
+                || m.ends_with("before setting breakpoints")))
         || m.starts_with("Debug failed to start:")
         || m == "Run and Debug panel closed"
         || m == "Run and Debug panel is already closed"
@@ -2160,7 +2163,7 @@ mod tests {
         let mut q = ToastQueue::new();
         let t0 = Instant::now();
 
-        q.push_at(Kind::Warn, "Open a file before starting debug", t0);
+        q.push_at(Kind::Warn, "Save (scratch) before starting debug", t0);
         q.push_at(
             Kind::Info,
             "Debug session already running",
@@ -2216,13 +2219,13 @@ mod tests {
 
         q.push_at(
             Kind::Warn,
-            "Save the file before setting breakpoints",
+            "Save (scratch) before setting breakpoints",
             t0 + Duration::from_millis(700),
         );
         assert_eq!(q.len(), 1);
         assert_eq!(
             q.toasts()[0].message,
-            "Save the file before setting breakpoints"
+            "Save (scratch) before setting breakpoints"
         );
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
     }

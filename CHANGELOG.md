@@ -84,6 +84,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Active file commands name scratch and dirty targets**: rename, reveal,
   show-in-file-manager, and delete now identify scratch buffers when no file is
   active, and delete names the dirty file that must be saved or discarded.
+- **Debug preflights name scratch buffers**: starting debug and toggling
+  breakpoints on an untitled buffer now report `Save (scratch) before ...`.
 - **Breadcrumb file menus prune stale paths**: accepting a breadcrumb file row
   whose source disappeared now removes that dead path from the menu backing
   list while reporting the missing target.

@@ -8278,7 +8278,7 @@ fn debug_start_without_active_file_opens_visible_debug_view() {
     assert_eq!(crate::dapabi::mui_dbg_active(handle), 1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Open a file before starting debug");
+    assert_eq!(toast.message, "Save (scratch) before starting debug");
 }
 
 #[test]
@@ -8607,7 +8607,13 @@ fn breakpoint_toggle_without_file_reports_visible_feedback() {
     assert_eq!(crate::dapabi::mui_bp_count(handle), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Save the file before setting breakpoints");
+    assert_eq!(toast.message, "Save (scratch) before setting breakpoints");
+
+    assert_eq!(crate::dapabi::mui_bp_toggle_at_cursor(handle), 0);
+    assert_eq!(crate::dapabi::mui_bp_count(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Save (scratch) before setting breakpoints");
 }
 
 #[test]
