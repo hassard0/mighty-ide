@@ -85,6 +85,36 @@ fn stale_test_target_reason(path: &std::path::Path) -> Option<String> {
     }
 }
 
+enum TestTargetKind {
+    File,
+    Missing,
+    NotFile,
+}
+
+fn test_target_kind(path: &std::path::Path) -> TestTargetKind {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => TestTargetKind::File,
+        Ok(_) => TestTargetKind::NotFile,
+        Err(_) => TestTargetKind::Missing,
+    }
+}
+
+fn reject_bad_test_target(
+    ctx: &mut MuiContext,
+    path: &std::path::Path,
+    kind: TestTargetKind,
+) -> i32 {
+    let name = crate::abi::file_target_name(path);
+    crate::abi::refresh_workspace_file_views(ctx);
+    let message = match kind {
+        TestTargetKind::Missing => format!("Test target missing: {name}"),
+        TestTargetKind::NotFile => format!("Test target is not a file: {name}"),
+        TestTargetKind::File => return 0,
+    };
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+    0
+}
+
 fn fail_test_before_start(ctx: &mut MuiContext, path: &std::path::Path, focus: Option<String>) {
     let Some(reason) = stale_test_target_reason(path) else {
         return;
@@ -604,15 +634,11 @@ pub extern "C" fn mui_test_open_row(handle: i64, i: i32) -> i32 {
         };
         crate::abi::refresh_workspace_file_views(ctx);
         if let Some(path) = expected_suite {
-            if !path.exists() {
-                let name = crate::abi::file_target_name(&path);
-                ctx.push_toast(crate::toast::Kind::Warn, format!("Test target missing: {name}"));
-                return 0;
-            }
-            if !path.is_file() {
-                let name = crate::abi::file_target_name(&path);
-                ctx.push_toast(crate::toast::Kind::Warn, format!("Test target is not a file: {name}"));
-                return 0;
+            match test_target_kind(&path) {
+                TestTargetKind::File => {}
+                kind @ (TestTargetKind::Missing | TestTargetKind::NotFile) => {
+                    return reject_bad_test_target(ctx, &path, kind);
+                }
             }
         }
         ctx.push_toast(
@@ -621,17 +647,11 @@ pub extern "C" fn mui_test_open_row(handle: i64, i: i32) -> i32 {
         );
         return 0;
     };
-    if !full.exists() {
-        let name = crate::abi::file_target_name(&full);
-        crate::abi::refresh_workspace_file_views(ctx);
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Test target missing: {name}"));
-        return 0;
-    }
-    if !full.is_file() {
-        let name = crate::abi::file_target_name(&full);
-        crate::abi::refresh_workspace_file_views(ctx);
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Test target is not a file: {name}"));
-        return 0;
+    match test_target_kind(&full) {
+        TestTargetKind::File => {}
+        kind @ (TestTargetKind::Missing | TestTargetKind::NotFile) => {
+            return reject_bad_test_target(ctx, &full, kind);
+        }
     }
     let _idx = ctx.tabs.open_path(full.clone());
     crate::abi::sync_active_path(ctx);

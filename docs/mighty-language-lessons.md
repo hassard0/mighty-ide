@@ -13201,3 +13201,18 @@ existence and file-kind checks.
   `Definition target is not a file: <name>`.
 - **Language note:** no compiler gap surfaced. LSP-backed navigation should
   treat resolved paths as cached UI state, not as durable filesystem truth.
+
+## L1048 - Test Result Rows Are Cached Jump Targets
+
+The Testing panel resolves result rows back to suite files and function
+locations. Those rows can outlive the test file they reference, especially when
+test output remains visible after workspace edits.
+
+- **IDE note:** test result row activation now classifies expected suite files
+  and resolved row targets with one metadata read before opening or rejecting
+  the jump. Missing and non-file targets share the same workspace-refresh and
+  warning path while preserving existing feedback:
+  `Test target missing: <name>` and
+  `Test target is not a file: <name>`.
+- **Language note:** no compiler gap surfaced. Result panels should validate
+  cached execution metadata before turning it back into editor navigation.
