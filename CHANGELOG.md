@@ -112,6 +112,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Color Theme stale apply is non-mutating**: theme-picker move and apply
   routes now report `No color theme picker open` when the picker has already
   closed, and stale apply no longer commits the highlighted theme.
+- **Rename stale keyboard routes are visible**: rename input text entry and
+  backspace routes now report `No rename input open` when the inline rename
+  field has already closed, matching cancel and commit feedback.
 - **Run output directory misses demote precisely**: clicking a Run diagnostic
   row whose target became a directory now demotes that row and preserves
   `Run target is not a file: <name>` for repeated clicks.

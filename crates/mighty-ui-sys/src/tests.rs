@@ -11215,13 +11215,25 @@ fn rename_and_code_action_close_commands_clear_active_state() {
     assert_eq!(crate::abi::mui_rename_cancel(handle), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(ctx.toasts.toasts()[0].message, "No rename input open");
+    ctx.toasts.clear();
+
+    crate::abi::mui_rename_push_char(handle, 'x' as i32);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No rename input open");
+    ctx.toasts.clear();
+
+    crate::abi::mui_rename_backspace(handle);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No rename input open");
 
     assert_eq!(crate::abi::mui_codeaction_cancel(handle), 0);
-    assert_eq!(ctx.toasts.toasts().len(), 2);
-    assert_eq!(ctx.toasts.toasts()[1].message, "No code action menu open");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.message, "No code action menu open");
     assert_eq!(crate::abi::mui_codeaction_click(handle, 0, 0, 1), -1);
-    assert_eq!(ctx.toasts.toasts().len(), 2);
-    assert_eq!(ctx.toasts.toasts()[1].message, "No code action menu open");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.message, "No code action menu open");
 }
 
 #[test]

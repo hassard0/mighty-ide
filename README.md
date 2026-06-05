@@ -130,9 +130,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   position, so no-signature feedback is visible and actionable
 - Empty explicit rename requests name the active file or scratch buffer and
   cursor position, so non-renamable locations are clear
-- Rename commit misses report visible feedback when no rename input is open,
-  the proposed name is empty or unchanged, the buffer is unsaved, or neither
-  LSP nor fallback edits can be produced
+- Rename input and commit misses report visible feedback when no rename input is
+  open, the proposed name is empty or unchanged, the buffer is unsaved, or
+  neither LSP nor fallback edits can be produced
 - Code actions that require a saved file name scratch buffers before refusing
   to run
 - Fix-all code actions reject directory pre-save targets with explicit `not a

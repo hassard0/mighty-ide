@@ -11262,6 +11262,10 @@ pub extern "C" fn mui_rename_open(handle: i64, line: i32, col: i32) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_rename_push_char(handle: i64, codepoint: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.rename.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No rename input open");
+            return;
+        }
         if codepoint >= 0 {
             ctx.rename.push(codepoint as u32);
         }
@@ -11272,6 +11276,10 @@ pub extern "C" fn mui_rename_push_char(handle: i64, codepoint: i32) {
 #[no_mangle]
 pub extern "C" fn mui_rename_backspace(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.rename.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No rename input open");
+            return;
+        }
         ctx.rename.backspace();
     }
 }
