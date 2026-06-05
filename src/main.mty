@@ -2086,15 +2086,19 @@ fn main() {
               // Commands mode (`>`): read the selected palette command id, then
               // defer to the shared command dispatcher below.
               command_click_id = mui_qo_command_id(h, -1)
-              let _qoc = mui_qo_cancel(h)
-              quickopen_open = false
-              run_focus = false
-              web_focus = false
-              test_focus = false
-              term_focus = false
-              ai_focus = false
-              agents_focus = false
-              find_nav = false
+              if command_click_id >= 0 {
+                let _qoc = mui_qo_cancel(h)
+                quickopen_open = false
+                run_focus = false
+                web_focus = false
+                test_focus = false
+                term_focus = false
+                ai_focus = false
+                agents_focus = false
+                find_nav = false
+              } else {
+                quickopen_open = mui_qo_active(h) == 1
+              }
             } else {
               // Files / Symbols / Go-to-line: the shim performs the action
               // (open the file as a tab, or move the cursor) and returns. We
@@ -2144,17 +2148,23 @@ fn main() {
             let mode = mui_qo_mode(h)
             if mode == 1 {
               command_click_id = mui_qo_command_id(h, qh)
-              let _qoc = mui_qo_cancel(h)
-              quickopen_open = false
+              if command_click_id >= 0 {
+                let _qoc = mui_qo_cancel(h)
+                quickopen_open = false
+              } else {
+                quickopen_open = mui_qo_active(h) == 1
+              }
               quickopen_ignore_mouse_down = false
-              typing = false
-              run_focus = false
-              web_focus = false
-              test_focus = false
-              term_focus = false
-              ai_focus = false
-              agents_focus = false
-              find_nav = false
+              if command_click_id >= 0 {
+                typing = false
+                run_focus = false
+                web_focus = false
+                test_focus = false
+                term_focus = false
+                ai_focus = false
+                agents_focus = false
+                find_nav = false
+              }
             } else {
               let r = mui_qo_accept(h, qh)
               quickopen_open = mui_qo_active(h) == 1

@@ -11431,6 +11431,26 @@ fn quickopen_accept_empty_result_reports_feedback_and_stays_open() {
 }
 
 #[test]
+fn quickopen_command_accept_misses_report_feedback_and_stay_open() {
+    use crate::{mui_qo_active, mui_qo_command_id, mui_qo_count, mui_qo_push_char, mui_quickopen_open};
+
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_quickopen_open(h);
+    for ch in ">zzqqxx".chars() {
+        mui_qo_push_char(h, ch as i32);
+    }
+
+    assert_eq!(mui_qo_count(h), 0);
+    assert_eq!(mui_qo_command_id(h, -1), -1);
+    assert_eq!(mui_qo_active(h), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No command selected");
+}
+
+#[test]
 fn welcome_open_recent_misses_report_visible_feedback() {
     use crate::{mui_welcome_active, mui_welcome_draw, mui_welcome_open_recent};
 
@@ -12534,6 +12554,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         main.contains("command_click_id = mui_qo_command_id(h, -1)"),
         "Quick Open command mode must queue the selected command id"
+    );
+    assert!(
+        main.contains(
+            "command_click_id = mui_qo_command_id(h, -1)\n              if command_click_id >= 0 {\n                let _qoc = mui_qo_cancel(h)"
+        ),
+        "Quick Open command-mode Enter misses must keep Quick Open open for correction"
     );
     assert!(
         main.contains(
@@ -14662,8 +14688,8 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     let quickopen_nested_cleanup = "run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false";
     assert!(
         quickopen_branch.matches(palette_cleanup).count() >= 2
-            && quickopen_branch.matches(quickopen_nested_cleanup).count() >= 3,
-        "Quick Open local Escape, Enter, and mouse exits must release stale focus"
+            && quickopen_branch.matches(quickopen_nested_cleanup).count() >= 2,
+        "Quick Open local Escape, successful Enter, and mouse exits must release stale focus"
     );
     assert!(
         quickopen_branch.matches("quickopen_open = mui_qo_active(h) == 1").count() >= 2,

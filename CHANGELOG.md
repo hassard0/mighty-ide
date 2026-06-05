@@ -48,6 +48,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Command Palette empty accepts stay editable**: pressing Enter when the
   current palette filter has no command match now reports `No command selected`
   and leaves the palette open so the query can be corrected.
+- **Quick Open command misses stay editable**: pressing Enter in `>` command
+  mode with no matching command now reports `No command selected` and leaves
+  Quick Open open for correction.
 - **Go to Line invalid input stays editable**: blank or non-numeric Ctrl+G
   submissions now report `Enter a line number` and leave the prompt open instead
   of dismissing the input with no navigation.

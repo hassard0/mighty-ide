@@ -9354,8 +9354,7 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
 
 /// In Commands mode (`>` query), the palette command id of the selected row
 /// (`-1` = current), or `-1` when not in Commands mode / no match. Mighty reads
-/// this on Enter and dispatches to the SAME helper a keybinding triggers, then
-/// calls `mui_qo_cancel`.
+/// this on Enter and dispatches to the SAME helper a keybinding triggers.
 #[no_mangle]
 pub extern "C" fn mui_qo_command_id(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -9365,7 +9364,11 @@ pub extern "C" fn mui_qo_command_id(handle: i64, i: i32) -> i32 {
         return -1;
     }
     let idx = if i < 0 { ctx.quickopen.selection() } else { i as usize };
-    ctx.quickopen.row(idx).map(|r| r.target).unwrap_or(-1)
+    let id = ctx.quickopen.row(idx).map(|r| r.target).unwrap_or(-1);
+    if id < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No command selected");
+    }
+    id
 }
 
 /// Record `path`-by... — record the ACTIVE file as recently-opened. Called by
