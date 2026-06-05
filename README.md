@@ -160,7 +160,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Stage All / Unstage All / Commit Staged** command-palette actions for
   keyboard-first index and commit flow
 - **Branch switcher + push / pull / fetch**
-- Branch switcher stale click routes report when the picker is already closed
+- Branch switcher stale click and keyboard routes report when the picker is
+  already closed
 - **Per-hunk stage / unstage** (reconstructed unified patches)
 - Failed per-hunk stage or unstage attempts refresh the inline diff, closing it
   when the stale hunk no longer exists

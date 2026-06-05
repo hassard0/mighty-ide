@@ -93,9 +93,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Directory-backed SCM rows refresh away**: opening a Source Control row whose
   path became a directory now leaves the refreshed status list empty for that
   stale row, so repeated clicks report `Source control row no longer listed`.
-- **Branch switcher stale clicks are visible**: branch-picker click routes now
-  report `No branch picker open` when the overlay has already closed, matching
-  the accept and cancel paths.
+- **Branch switcher stale routes are visible**: branch-picker click and keyboard
+  routes now report `No branch picker open` when the overlay has already
+  closed, matching the accept and cancel paths.
 - **Run output directory misses demote precisely**: clicking a Run diagnostic
   row whose target became a directory now demotes that row and preserves
   `Run target is not a file: <name>` for repeated clicks.

@@ -1033,6 +1033,10 @@ pub extern "C" fn mui_branch_active(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_branch_push_char(handle: i64, codepoint: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.branch_picker.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No branch picker open");
+            return;
+        }
         if codepoint >= 0 {
             if let Some(ch) = char::from_u32(codepoint as u32) {
                 ctx.branch_picker.push_char(ch);
@@ -1045,6 +1049,10 @@ pub extern "C" fn mui_branch_push_char(handle: i64, codepoint: i32) {
 #[no_mangle]
 pub extern "C" fn mui_branch_backspace(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.branch_picker.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No branch picker open");
+            return;
+        }
         ctx.branch_picker.backspace();
     }
 }
@@ -1065,6 +1073,10 @@ pub extern "C" fn mui_branch_count(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_branch_move(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.branch_picker.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No branch picker open");
+            return;
+        }
         ctx.branch_picker.move_sel(delta);
     }
 }

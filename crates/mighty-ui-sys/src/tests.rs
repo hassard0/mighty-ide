@@ -9384,6 +9384,29 @@ fn branch_click_without_picker_reports_visible_feedback() {
 }
 
 #[test]
+fn branch_keyboard_routes_without_picker_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::panels::mui_branch_push_char(h, 'a' as i32);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No branch picker open");
+    ctx.toasts.clear();
+
+    crate::panels::mui_branch_backspace(h);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No branch picker open");
+    ctx.toasts.clear();
+
+    crate::panels::mui_branch_move(h, 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No branch picker open");
+}
+
+#[test]
 fn failed_branch_accept_refreshes_stale_picker_rows() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
