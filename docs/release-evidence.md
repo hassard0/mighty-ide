@@ -86,6 +86,8 @@ from the new clean commit.
 ```text
 Platform: Windows x64
 Archive: dist\mighty-ide-v0.3.0-win64.zip
+Archive size:
+SHA-256:
 Package script: .\package-win.ps1
 Native host or runner: Windows checkout
 Native payloads: PE mighty-ide.exe; PE mighty_ui_sys.dll
@@ -93,13 +95,17 @@ Sidecar scan: package directory and ZIP passed
 Foreign-payload scan: package directory and ZIP passed
 PACKAGE-MANIFEST.txt: generated in dist\mighty-ide-win64
 Packaged launch: launched from dist\mighty-ide-win64
-Release decision: publish after archive size and SHA-256 are recorded
+Release decision: publish
 
 Platform: macOS
 Archive: dist/mighty-ide-v0.3.0-macos.tar.gz
 Release decision: unbuilt - native macOS runner unavailable for this pass
+Script readiness: syntax and wrong-host refusal may be checked from Windows,
+but that is not clean-binary evidence
 
 Platform: Linux x64
 Archive: dist/mighty-ide-v0.3.0-linux-x64.tar.gz
 Release decision: unbuilt - native Linux runner unavailable for this pass
+Script readiness: syntax and wrong-host refusal may be checked from Windows,
+but that is not clean-binary evidence
 ```

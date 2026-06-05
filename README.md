@@ -293,6 +293,9 @@ Final handoff rule:
   native OS or CI runner, the archive-level clean-binary scan passed, and the
   packaged executable launched from inside the assembled package directory.
 - This Windows checkout can produce and verify only the Windows x64 package.
+- macOS/Linux script review from Windows covers syntax, host gating, bundled
+  docs, and clean-artifact policy only; it does not create clean Mach-O or ELF
+  binaries.
 - macOS and Linux are release-ready only after `package-macos.sh` and
   `package-linux.sh` run on native macOS/Linux infrastructure and their
   packaged apps launch there.
@@ -331,11 +334,14 @@ Stop-pass checklist:
 
 1. Commit README and release documentation first.
 2. Rebuild the Windows package from that clean commit with `.\package-win.ps1`.
-3. Confirm the generated ZIP and staged package contain only Windows PE native
+3. Check macOS/Linux package scripts for syntax and wrong-host refusal from this
+   checkout if native runners are unavailable, then record both platforms as
+   `unbuilt`.
+4. Confirm the generated ZIP and staged package contain only Windows PE native
    payloads and no compiler/linker sidecars.
-4. Launch `dist\mighty-ide-win64\mighty-ide.exe` with
+5. Launch `dist\mighty-ide-win64\mighty-ide.exe` with
    `dist\mighty-ide-win64` as the working directory.
-5. Record the ZIP size and SHA-256 in the external release note or upload
+6. Record the ZIP size and SHA-256 in the external release note or upload
    record, then stop. macOS and Linux remain `unbuilt` until their own native
    runners produce and smoke-test Mach-O and ELF archives.
 

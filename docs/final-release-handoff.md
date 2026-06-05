@@ -43,6 +43,14 @@ finished ZIP, and writes `dist\mighty-ide-win64\PACKAGE-MANIFEST.txt`. It
 removes the prior `dist\mighty-ide-win64` directory and same-version ZIP before
 building, so any ZIP present after a successful run came from that run.
 
+## Script Readiness Checks
+
+When macOS or Linux native runners are unavailable, this Windows pass can still
+keep those release paths ready by checking the shell scripts for syntax and
+confirming they refuse the wrong host OS. Those checks are source maintenance,
+not binary evidence. Record macOS and Linux as `unbuilt` until their native
+scripts build, scan, and launch real Mach-O or ELF packages.
+
 ## Native macOS Steps
 
 Run only on macOS or a matching macOS CI runner:
@@ -80,7 +88,9 @@ from that clean commit, record the Windows archive hash and size, confirm the
 packaged Windows executable launched from `dist\mighty-ide-win64`, and stop.
 Use `docs\release-evidence.md` as the concise upload record.
 Record macOS and Linux as `unbuilt` unless their native package runs completed
-during this same pass.
+during this same pass. If only syntax and wrong-host checks ran for those
+scripts, mention them as script-readiness checks rather than clean-binary
+evidence.
 
 Stopping here is part of the release contract. Further IDE polish belongs in a
 new pass after the verified package handoff, not in the same finalization pass.
