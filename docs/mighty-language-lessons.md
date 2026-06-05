@@ -13137,3 +13137,21 @@ row-open path should follow the same stale-target contract as Problems and SCM.
 - **Language note:** no compiler gap surfaced. Cached UI rows should be treated
   as stale until a single external-state classification proves what they still
   point at.
+
+## L1044 - Search Result Opens Need Explicit Target Classification
+
+Project Search result rows are cached file targets plus a content fingerprint.
+The opener already refreshed stale results for missing, directory-backed, and
+changed files, but the disk checks were split between `exists()`, `is_file()`,
+and a later read failure.
+
+- **IDE note:** search result activation now classifies the result path with one
+  metadata read before reading bytes or opening the tab. Missing and non-file
+  targets share the same search-refresh and workspace-view-refresh path, while
+  changed files still refresh only the search result set and keep the existing
+  feedback: `Search target missing: <name>`,
+  `Search target is not a file: <name>`, and
+  `Search result changed: <name>; results refreshed`.
+- **Language note:** no compiler gap surfaced. Search rows need two validations:
+  first the filesystem target kind, then the content fingerprint for still-valid
+  files.

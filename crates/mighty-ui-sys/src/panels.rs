@@ -1694,31 +1694,38 @@ pub extern "C" fn mui_search_open(handle: i64, i: i32) -> i32 {
         (f.path.clone(), m.line, m.col, f.fingerprint)
     };
     let name = crate::abi::file_target_name(&path);
-    if path.exists() && !path.is_file() {
-        let dir = workspace_dir(ctx);
-        let _ = ctx.search.run(&dir);
-        crate::abi::refresh_workspace_file_views(ctx);
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Search target is not a file: {name}"));
-        return -1;
-    }
-    let bytes = match std::fs::read(&path) {
-        Ok(bytes) => bytes,
-        Err(_) => {
-            let dir = workspace_dir(ctx);
-            let _ = ctx.search.run(&dir);
-            crate::abi::refresh_workspace_file_views(ctx);
-            ctx.push_toast(crate::toast::Kind::Warn, format!("Search target missing: {name}"));
-            return -1;
+    let bytes = match search_target_kind(&path) {
+        SearchTargetKind::File => match std::fs::read(&path) {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                return refresh_bad_search_target(
+                    ctx,
+                    format!("Search target missing: {name}"),
+                    true,
+                );
+            }
+        },
+        SearchTargetKind::Missing => {
+            return refresh_bad_search_target(
+                ctx,
+                format!("Search target missing: {name}"),
+                true,
+            );
+        }
+        SearchTargetKind::NotFile => {
+            return refresh_bad_search_target(
+                ctx,
+                format!("Search target is not a file: {name}"),
+                true,
+            );
         }
     };
     if crate::search::content_fingerprint(&bytes) != fingerprint {
-        let dir = workspace_dir(ctx);
-        let _ = ctx.search.run(&dir);
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
+        return refresh_bad_search_target(
+            ctx,
             format!("Search result changed: {name}; results refreshed"),
+            false,
         );
-        return -1;
     }
     let opened_path = path.to_string_lossy().replace('\\', "/");
     let idx = ctx.tabs.open_path(path.clone());
@@ -1736,6 +1743,34 @@ pub extern "C" fn mui_search_open(handle: i64, i: i32) -> i32 {
         col + 1
     ));
     idx as i32
+}
+
+enum SearchTargetKind {
+    File,
+    Missing,
+    NotFile,
+}
+
+fn search_target_kind(path: &std::path::Path) -> SearchTargetKind {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => SearchTargetKind::File,
+        Ok(_) => SearchTargetKind::NotFile,
+        Err(_) => SearchTargetKind::Missing,
+    }
+}
+
+fn refresh_bad_search_target(
+    ctx: &mut MuiContext,
+    message: String,
+    refresh_workspace_views: bool,
+) -> i32 {
+    let dir = workspace_dir(ctx);
+    let _ = ctx.search.run(&dir);
+    if refresh_workspace_views {
+        crate::abi::refresh_workspace_file_views(ctx);
+    }
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+    -1
 }
 
 /// Y pixel (top) of the first search-result row.
