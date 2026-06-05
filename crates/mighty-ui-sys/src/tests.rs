@@ -15042,6 +15042,49 @@ fn explicit_completion_reports_empty_result_only_when_empty() {
 }
 
 #[test]
+fn explicit_completion_reports_unavailable_language_server_when_empty() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let old_config_dir = std::env::var_os("MUI_CONFIG_DIR");
+    let root = std::env::temp_dir().join(format!(
+        "mui_completion_lsp_unavailable_{}",
+        std::process::id()
+    ));
+    let config_dir = root.join("config");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&config_dir).unwrap();
+    std::fs::write(
+        config_dir.join("lsp.toml"),
+        "python = \"definitely-not-a-real-python-lsp-for-mighty-ide-tests\"\n",
+    )
+    .unwrap();
+    std::env::set_var("MUI_CONFIG_DIR", &config_dir);
+
+    let mut ctx = ctx_or_skip!();
+    let file = root.join("empty.py");
+    std::fs::write(&file, "zz").unwrap();
+    let idx = ctx.tabs.open_path(file);
+    ctx.tabs.switch(idx);
+    crate::sync_active_path(&mut ctx);
+    ctx.tabs.active_model_mut().move_to(0, 2);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_ed_complete_request(h), 0);
+    assert_eq!(crate::mui_complete_report_empty(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(
+        toast.message,
+        "No completions available at empty.py:1:3; Python language server unavailable; configure python in lsp.toml"
+    );
+
+    match old_config_dir {
+        Some(v) => std::env::set_var("MUI_CONFIG_DIR", v),
+        None => std::env::remove_var("MUI_CONFIG_DIR"),
+    }
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn autocomplete_close_command_clears_active_dropdown() {
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();

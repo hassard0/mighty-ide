@@ -106,12 +106,31 @@ fn workspace_root(path: &std::path::Path) -> PathBuf {
 /// `mty lsp` completion client (unchanged). Other languages → the generic
 /// client against the registry server, parsed for `label`s; empty (→ buffer
 /// words fallback) when no server is installed.
-fn lsp_semantic_labels(lang: Language, path: &std::path::Path, source: &str, line: u32, col: u32) -> Vec<String> {
+fn lsp_semantic_labels_with_notice(
+    lang: Language,
+    path: &std::path::Path,
+    source: &str,
+    line: u32,
+    col: u32,
+) -> (Vec<String>, Option<String>) {
     if lang == Language::Mighty {
-        return crate::completion::lsp::semantic_labels(path, source, line, col);
+        return (
+            crate::completion::lsp::semantic_labels(path, source, line, col),
+            None,
+        );
+    }
+    if !crate::lspregistry::has_default_server(lang) {
+        return (Vec::new(), None);
     }
     let Some(spec) = crate::lspregistry::server_for(lang) else {
-        return Vec::new();
+        return (
+            Vec::new(),
+            Some(format!(
+                "{} language server unavailable; configure {} in lsp.toml",
+                lang.display_name(),
+                lang.slug()
+            )),
+        );
     };
     let root = workspace_root(path);
     let raw = crate::lspclient::request(
@@ -124,7 +143,26 @@ fn lsp_semantic_labels(lang: Language, path: &std::path::Path, source: &str, lin
         line,
         col,
     );
-    crate::completion::lsp::scrape_labels(&raw)
+    if raw.trim().is_empty() {
+        return (
+            Vec::new(),
+            Some(format!(
+                "{} language server did not return completions",
+                lang.display_name()
+            )),
+        );
+    }
+    (crate::completion::lsp::scrape_labels(&raw), None)
+}
+
+fn lsp_semantic_labels(
+    lang: Language,
+    path: &std::path::Path,
+    source: &str,
+    line: u32,
+    col: u32,
+) -> Vec<String> {
+    lsp_semantic_labels_with_notice(lang, path, source, line, col).0
 }
 
 /// Raw `textDocument/hover` response for the active `lang` (isolated id:2
@@ -8935,6 +8973,7 @@ pub extern "C" fn mui_smoke_add_s(a: i32, b: i32) -> i32 {
 pub extern "C" fn mui_complete_reset(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         ctx.complete_buf.clear();
+        ctx.complete_lsp_notice = None;
     }
 }
 
@@ -9021,18 +9060,25 @@ pub extern "C" fn mui_complete_request(handle: i64, line: i32, col: i32) -> i32 
 
     // Best-effort semantic labels from mty-lsp. The buffer is the live source;
     // the path is just the document id. Any failure -> empty -> buffer words.
-    let lsp_labels: Vec<String> = match ctx.file_path.clone() {
+    let (lsp_labels, lsp_notice): (Vec<String>, Option<String>) = match ctx.file_path.clone() {
         Some(path) => {
             let source = String::from_utf8_lossy(&ctx.complete_buf).into_owned();
-            lsp_semantic_labels(ctx.language, &path, &source, line.max(0) as u32, col.max(0) as u32)
+            lsp_semantic_labels_with_notice(
+                ctx.language,
+                &path,
+                &source,
+                line.max(0) as u32,
+                col.max(0) as u32,
+            )
         }
-        None => Vec::new(),
+        None => (Vec::new(), None),
     };
 
     let n = ctx
         .complete
         .request(&ctx.complete_buf, cursor, &lsp_labels)
         .min(i32::MAX as usize) as i32;
+    ctx.complete_lsp_notice = if n == 0 { lsp_notice } else { None };
     println!("complete: candidates={n} (lsp={})", lsp_labels.len());
     n
 }
@@ -9053,7 +9099,12 @@ pub extern "C" fn mui_complete_report_empty(handle: i64) -> i32 {
     if ctx.complete.count() > 0 {
         return 1;
     }
-    ctx.push_toast(crate::toast::Kind::Info, completion_not_found_message(ctx));
+    let mut message = completion_not_found_message(ctx);
+    if let Some(notice) = ctx.complete_lsp_notice.take() {
+        message.push_str("; ");
+        message.push_str(&notice);
+    }
+    ctx.push_toast(crate::toast::Kind::Info, message);
     0
 }
 
@@ -9189,6 +9240,7 @@ pub extern "C" fn mui_complete_cancel(handle: i64) -> i32 {
     };
     if ctx.complete.is_active() {
         ctx.complete.cancel();
+        ctx.complete_lsp_notice = None;
         1
     } else {
         ctx.push_toast(crate::toast::Kind::Info, "No autocomplete suggestions open");
@@ -14481,16 +14533,24 @@ pub extern "C" fn mui_ed_complete_request(handle: i64) -> i32 {
     let text = ctx.tabs.active_model().as_text();
     ctx.complete_buf = text.into_bytes();
     let cursor = line_col_to_offset(&ctx.complete_buf, line, col);
-    let lsp_labels: Vec<String> = match ctx.file_path.clone() {
+    let (lsp_labels, lsp_notice): (Vec<String>, Option<String>) = match ctx.file_path.clone() {
         Some(path) => {
             let source = String::from_utf8_lossy(&ctx.complete_buf).into_owned();
-            lsp_semantic_labels(ctx.language, &path, &source, line.max(0) as u32, col.max(0) as u32)
+            lsp_semantic_labels_with_notice(
+                ctx.language,
+                &path,
+                &source,
+                line.max(0) as u32,
+                col.max(0) as u32,
+            )
         }
-        None => Vec::new(),
+        None => (Vec::new(), None),
     };
-    ctx.complete
+    let count = ctx.complete
         .request(&ctx.complete_buf, cursor, &lsp_labels)
-        .min(i32::MAX as usize) as i32
+        .min(i32::MAX as usize) as i32;
+    ctx.complete_lsp_notice = if count == 0 { lsp_notice } else { None };
+    count
 }
 
 /// Accept the selected completion candidate into the active model: delete the

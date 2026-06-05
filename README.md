@@ -122,6 +122,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Empty explicit autocomplete requests name the active file or scratch buffer
   and cursor position, so no-candidate feedback stays actionable in multi-tab
   sessions
+- Empty explicit autocomplete requests also report when a configured language
+  server is unavailable, while passive typing completion still falls back
+  quietly to buffer words
 - Autocomplete accept misses report visible feedback when no suggestion is open
   instead of silently doing nothing
 - Autocomplete stale click, move, and accept routes report visible feedback when

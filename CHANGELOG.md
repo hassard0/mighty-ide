@@ -85,6 +85,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Peek Definition targets now share the focused-pane file-open path.
 
 ### Language intelligence
+- **Explicit autocomplete reports unavailable LSPs**: empty explicit completion
+  requests now append language-server availability details when a configured
+  server is missing, while passive typing completion still falls back quietly to
+  buffer words.
 - **Autocomplete draw preserves overlay state**: completion dropdown drawing now
   restores the caller's overlay flag instead of always clearing it, preventing
   later overlay text or chrome from being queued on the base layer.

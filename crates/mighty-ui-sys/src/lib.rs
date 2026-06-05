@@ -221,6 +221,8 @@ pub struct MuiContext {
     /// Editor buffer bytes streamed in from Mighty for a completion request
     /// (mirrors the find streaming path — Mighty can't pass a buffer, L17).
     complete_buf: Vec<u8>,
+    /// Optional status from the latest semantic-completion attempt.
+    complete_lsp_notice: Option<String>,
 
     // ---- hover + go-to-definition state ----
     /// The hover popup (wrapped text + active flag), shim-owned.
@@ -869,6 +871,7 @@ pub(crate) fn build_context(
         term_open: false,
         complete: completion::CompletionEngine::new(),
         complete_buf: Vec::new(),
+        complete_lsp_notice: None,
         hover: nav::HoverState::new(),
         def: nav::DefState::new(),
         nav_buf: Vec::new(),
@@ -1545,6 +1548,7 @@ impl MuiContext {
             term_open: false,
             complete: completion::CompletionEngine::new(),
             complete_buf: Vec::new(),
+            complete_lsp_notice: None,
             hover: nav::HoverState::new(),
             def: nav::DefState::new(),
             nav_buf: Vec::new(),
