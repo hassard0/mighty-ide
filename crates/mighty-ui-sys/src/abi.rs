@@ -8998,6 +8998,13 @@ pub extern "C" fn mui_palette_draw(handle: i64) {
 // `crate::shortcuts::Overrides::resolve` (see `mui_chord`).
 // ---------------------------------------------------------------------------
 
+const SHORTCUTS_PERSISTENCE_WARNING: &str =
+    "Keyboard Shortcuts not saved; changes may reset after restart";
+
+fn push_shortcuts_persistence_warning(ctx: &mut MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Warn, SHORTCUTS_PERSISTENCE_WARNING);
+}
+
 /// Open the shortcuts overlay (clears the filter, rebuilds the list).
 #[no_mangle]
 pub extern "C" fn mui_keys_open(handle: i64) {
@@ -9161,7 +9168,13 @@ pub extern "C" fn mui_keys_begin_capture(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_keys_capture_chord(handle: i64, cp: i32, mods: i32) -> i32 {
     match unsafe { ctx(handle) } {
-        Some(ctx) => ctx.shortcuts.capture_chord(cp, mods),
+        Some(ctx) => {
+            let out = ctx.shortcuts.capture_chord(cp, mods);
+            if out > 0 && ctx.shortcuts.take_persistence_failed() {
+                push_shortcuts_persistence_warning(ctx);
+            }
+            out
+        }
         None => 0,
     }
 }
@@ -9172,14 +9185,21 @@ pub extern "C" fn mui_keys_reset(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    i32::from(ctx.shortcuts.reset_selected())
+    let did = ctx.shortcuts.reset_selected();
+    if did && ctx.shortcuts.take_persistence_failed() {
+        push_shortcuts_persistence_warning(ctx);
+    }
+    i32::from(did)
 }
 
 /// Reset ALL overrides to defaults.
 #[no_mangle]
 pub extern "C" fn mui_keys_reset_all(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        let _ = ctx.shortcuts.reset_all();
+        let did = ctx.shortcuts.reset_all();
+        if did && ctx.shortcuts.take_persistence_failed() {
+            push_shortcuts_persistence_warning(ctx);
+        }
     }
 }
 
@@ -9198,6 +9218,9 @@ pub extern "C" fn mui_keys_reset_selected_command(handle: i64) -> i32 {
             crate::toast::Kind::Success,
             "Keyboard Shortcuts reset selected to default",
         );
+        if ctx.shortcuts.take_persistence_failed() {
+            push_shortcuts_persistence_warning(ctx);
+        }
         1
     } else {
         ctx.push_toast(
@@ -9223,6 +9246,9 @@ pub extern "C" fn mui_keys_reset_all_command(handle: i64) -> i32 {
             crate::toast::Kind::Success,
             "Keyboard Shortcuts reset all to defaults",
         );
+        if ctx.shortcuts.take_persistence_failed() {
+            push_shortcuts_persistence_warning(ctx);
+        }
         1
     } else {
         ctx.push_toast(crate::toast::Kind::Info, "Keyboard Shortcuts already use defaults");

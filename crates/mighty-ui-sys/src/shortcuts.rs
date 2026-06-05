@@ -444,6 +444,7 @@ pub struct ShortcutsEngine {
     capture_id: u32,
     /// A transient status line (conflict warning / saved / reset).
     status: String,
+    persist_failed: bool,
 }
 
 impl Default for ShortcutsEngine {
@@ -460,6 +461,7 @@ impl Default for ShortcutsEngine {
             capturing: false,
             capture_id: 0,
             status: String::new(),
+            persist_failed: false,
         }
     }
 }
@@ -530,6 +532,10 @@ impl ShortcutsEngine {
     #[allow(dead_code)]
     pub fn status(&self) -> &str {
         &self.status
+    }
+
+    pub fn take_persistence_failed(&mut self) -> bool {
+        std::mem::take(&mut self.persist_failed)
     }
 
     pub fn push_char(&mut self, ch: char) {
@@ -633,7 +639,7 @@ impl ShortcutsEngine {
         let chord = Chord::new(cp, m);
         let id = self.capture_id;
         let conflict = self.overrides.set(id, chord);
-        let _ = save_overrides(&self.overrides);
+        self.persist_failed = !save_overrides(&self.overrides);
         self.capturing = false;
         if let Some(other) = conflict {
             let other_name = command_name(other);
@@ -658,7 +664,7 @@ impl ShortcutsEngine {
         }
         let did = self.overrides.reset(id as u32);
         if did {
-            let _ = save_overrides(&self.overrides);
+            self.persist_failed = !save_overrides(&self.overrides);
             self.status = "Reset to default".to_string();
             self.refilter();
         }
@@ -669,7 +675,7 @@ impl ShortcutsEngine {
     pub fn reset_all(&mut self) -> bool {
         let had_overrides = !self.overrides.is_empty();
         self.overrides.reset_all();
-        let _ = save_overrides(&self.overrides);
+        self.persist_failed = !save_overrides(&self.overrides);
         self.status = "All shortcuts reset to defaults".to_string();
         self.refilter();
         had_overrides

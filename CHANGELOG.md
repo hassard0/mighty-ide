@@ -28,6 +28,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   packaged launch result.
 
 ### Language intelligence
+- **Keyboard shortcut persistence failures are visible**: remap and reset actions
+  still update the live shortcut table, but failed `keybindings.toml` writes now
+  warn that the override state may reset after restart.
 - **Recent history persistence failures are visible**: Recent file and recent
   folder updates now warn when the Open Recent MRU cannot be written, so the
   session state does not masquerade as restart-safe history.

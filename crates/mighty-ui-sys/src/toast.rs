@@ -999,6 +999,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Settings panel ")
         || m.starts_with("Settings not saved")
         || m.starts_with("Keyboard Shortcuts ")
+        || m.starts_with("Keyboard Shortcuts not saved")
         || m.starts_with("Zoom preference not saved")
         || m.starts_with("Recent files not saved")
         || m.starts_with("Recent folders not saved")

@@ -10275,6 +10275,70 @@ fn keyboard_shortcuts_close_command_exits_capture_and_overlay() {
 }
 
 #[test]
+fn keyboard_shortcuts_persistence_failure_reports_visible_feedback() {
+    use crate::shortcuts::MOD_ALT;
+
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let old_override = std::env::var_os("MUI_CONFIG_DIR");
+    let old_appdata = std::env::var_os("APPDATA");
+    let blocked = std::env::temp_dir().join(format!(
+        "mighty-ide-shortcuts-config-blocked-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&blocked);
+    let _ = std::fs::remove_file(&blocked);
+    std::fs::write(&blocked, b"not a directory").unwrap();
+    std::env::set_var("MUI_CONFIG_DIR", &blocked);
+    std::env::remove_var("APPDATA");
+
+    let mut ctx = ctx_or_skip!();
+    ctx.shortcuts.overrides_mut().reset_all();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_keys_open(handle);
+    assert_eq!(crate::mui_keys_begin_capture(handle), 1);
+    let out = crate::mui_keys_capture_chord(handle, 'k' as i32, MOD_ALT);
+    assert!(out == 1 || out == 2, "valid Alt+K remap should be accepted");
+    assert_eq!(crate::mui_keys_capturing(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Keyboard Shortcuts not saved; changes may reset after restart"
+    );
+
+    ctx.toasts.clear();
+    ctx.shortcuts
+        .overrides_mut()
+        .set(crate::palette::CMD_NEW_FILE, crate::shortcuts::Chord::new('q' as i32, MOD_ALT));
+    ctx.shortcuts.open();
+    for _ in 0..ctx.shortcuts.count() {
+        if ctx.shortcuts.selected_id() == crate::palette::CMD_NEW_FILE as i32 {
+            break;
+        }
+        ctx.shortcuts.move_sel(1);
+    }
+    assert_eq!(ctx.shortcuts.selected_id(), crate::palette::CMD_NEW_FILE as i32);
+    assert_eq!(crate::mui_keys_reset_selected_command(handle), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Keyboard Shortcuts not saved; changes may reset after restart"
+    );
+
+    match old_override {
+        Some(v) => std::env::set_var("MUI_CONFIG_DIR", v),
+        None => std::env::remove_var("MUI_CONFIG_DIR"),
+    }
+    match old_appdata {
+        Some(v) => std::env::set_var("APPDATA", v),
+        None => std::env::remove_var("APPDATA"),
+    }
+    let _ = std::fs::remove_file(&blocked);
+}
+
+#[test]
 fn keyboard_shortcuts_reset_selected_command_opens_overlay_and_reports_outcomes() {
     use crate::shortcuts::{Chord, MOD_ALT};
 
