@@ -11430,3 +11430,18 @@ that stale entry visible until a later manual refresh.
 - **Language note:** no compiler gap surfaced. Cross-ABI open commands should
   terminate through one cleanup primitive so discovery state does not depend on
   which UI surface initiated the open.
+
+## L926 - Navigation Panels Should Record Opened Files
+
+Several navigation surfaces opened file-backed tabs without adding them to Open
+Recent. A file reached through Problems, Search, Source Control, Run/Test
+output, breakpoints, Agents, breadcrumbs, or peek therefore did not behave like
+one opened through Explorer, Quick Open, or the native file dialog.
+
+- **IDE note:** panel navigation now uses a shared opened-file helper that
+  records the target as recent and refreshes file discovery after the tab is
+  opened. This makes Open Recent reflect real navigation history, not just
+  explicit file-picker workflows.
+- **Language note:** no compiler gap surfaced. When many Mighty-routed UI
+  surfaces converge on one shim-side action, expose a single post-open cleanup
+  primitive instead of duplicating state updates across panel modules.

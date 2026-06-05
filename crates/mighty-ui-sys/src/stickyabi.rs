@@ -243,8 +243,9 @@ pub extern "C" fn mui_peek_goto(handle: i64) -> i32 {
         m.set_first_visible(first as usize);
         1
     } else {
-        let idx = ctx.tabs.open_path(tpath);
+        let idx = ctx.tabs.open_path(tpath.clone());
         crate::abi::sync_active_path(ctx);
+        crate::abi::record_opened_file(ctx, &tpath);
         let m = ctx.tabs.active_model_mut();
         m.move_to(tline as i32, tcol as i32);
         let first = (tline as i32 - 2).max(0);

@@ -974,8 +974,9 @@ pub extern "C" fn mui_agents_open_node(handle: i64, i: i32) -> i32 {
         ctx.push_toast(crate::toast::Kind::Warn, format!("Agents target missing: {name}"));
         return -1;
     }
-    let idx = ctx.tabs.open_path(file);
+    let idx = ctx.tabs.open_path(file.clone());
     crate::abi::sync_active_path(ctx);
+    crate::abi::record_opened_file(ctx, &file);
     let model = ctx.tabs.active_model_mut();
     model.move_to(line, 0);
     let first = (line - 2).max(0);

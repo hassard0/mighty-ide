@@ -1020,8 +1020,9 @@ pub extern "C" fn mui_bp_open_at_hit(handle: i64, code: i32) -> i32 {
         crate::abi::trace(&format!("bp_open missing {}", target.file));
         return -1;
     }
-    let tab = ctx.tabs.open_path(path);
+    let tab = ctx.tabs.open_path(path.clone());
     crate::abi::sync_active_path(ctx);
+    crate::abi::record_opened_file(ctx, &path);
     let line0 = target.line.saturating_sub(1) as i32;
     let model = ctx.tabs.active_model_mut();
     model.move_to(line0, 0);

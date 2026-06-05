@@ -41,6 +41,11 @@ fn record_recent_file(ctx: &mut MuiContext, path: PathBuf) {
     persist_recent_files(ctx);
 }
 
+pub(crate) fn record_opened_file(ctx: &mut MuiContext, path: &std::path::Path) {
+    record_recent_file(ctx, path.to_path_buf());
+    refresh_workspace_file_views(ctx);
+}
+
 fn remove_recent_file(ctx: &mut MuiContext, path: &std::path::Path) {
     if ctx.quickopen.remove_recent_path(path) {
         persist_recent_files(ctx);
@@ -4260,8 +4265,9 @@ pub extern "C" fn mui_tab_open_path(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Error, format!("Open failed: {name}"));
         return -1;
     }
-    let idx = ctx.tabs.open_path(resolved);
+    let idx = ctx.tabs.open_path(resolved.clone());
     sync_active_path(ctx);
+    record_opened_file(ctx, &resolved);
     idx as i32
 }
 
@@ -4291,8 +4297,7 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
     trace(&format!("open_file_dialog path={}", path.display()));
     let idx = ctx.tabs.open_path(path.clone());
     sync_active_path(ctx);
-    record_recent_file(ctx, path);
-    refresh_workspace_file_views(ctx);
+    record_opened_file(ctx, &path);
     ensure_tab_visible(ctx, idx);
     idx as i32
 }
@@ -6881,8 +6886,9 @@ pub extern "C" fn mui_tree_open_row(handle: i64, i: i32) -> i32 {
         );
         return -1;
     }
-    let idx = ctx.tabs.open_path(path);
+    let idx = ctx.tabs.open_path(path.clone());
     sync_active_path(ctx);
+    record_opened_file(ctx, &path);
     idx as i32
 }
 
@@ -9297,8 +9303,7 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
                 Some(path) if path.is_file() => {
                     let idx = ctx.tabs.open_path(path.clone());
                     sync_active_path(ctx);
-                    record_recent_file(ctx, path);
-                    refresh_workspace_file_views(ctx);
+                    record_opened_file(ctx, &path);
                     idx as i32
                 }
                 Some(path) => {
@@ -9394,8 +9399,7 @@ pub extern "C" fn mui_qo_command_id(handle: i64, i: i32) -> i32 {
 pub extern "C" fn mui_qo_record_active(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
         if let Some(p) = ctx.tabs.active_path() {
-            record_recent_file(ctx, p);
-            refresh_workspace_file_views(ctx);
+            record_opened_file(ctx, &p);
         }
     }
 }
@@ -9632,8 +9636,9 @@ pub extern "C" fn mui_def_open_target(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Warn, format!("Definition target missing: {name}"));
         return -1;
     }
-    let idx = ctx.tabs.open_path(target_path);
+    let idx = ctx.tabs.open_path(target_path.clone());
     sync_active_path(ctx);
+    record_opened_file(ctx, &target_path);
     idx as i32
 }
 
@@ -15443,8 +15448,7 @@ pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
     let idx = ctx.tabs.open_path(path.clone());
     ctx.welcome.dismiss();
     sync_active_path(ctx);
-    record_recent_file(ctx, path);
-    refresh_workspace_file_views(ctx);
+    record_opened_file(ctx, &path);
     idx as i32
 }
 

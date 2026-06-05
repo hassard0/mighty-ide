@@ -318,6 +318,7 @@ pub extern "C" fn mui_run_click_row(handle: i64, i: i32) -> i32 {
     // Open the file as a tab now, store the jump target for read-back.
     let _idx = ctx.tabs.open_path(full.clone());
     crate::abi::sync_active_path(ctx);
+    crate::abi::record_opened_file(ctx, &full);
     ctx.run.set_click_target(Some((full.to_string_lossy().into_owned(), l, c)));
     1
 }

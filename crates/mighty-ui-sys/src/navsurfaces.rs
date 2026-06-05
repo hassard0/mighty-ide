@@ -583,8 +583,9 @@ pub extern "C" fn mui_problems_open_row(handle: i64, i: i32) -> i32 {
         );
         return -1;
     }
-    let idx = ctx.tabs.open_path(path);
+    let idx = ctx.tabs.open_path(path.clone());
     crate::abi::sync_active_path(ctx);
+    crate::abi::record_opened_file(ctx, &path);
     let model = ctx.tabs.active_model_mut();
     model.move_to(line, col);
     let first = (line - 2).max(0);
@@ -851,8 +852,9 @@ pub extern "C" fn mui_crumb_menu_accept(handle: i64, i: i32) -> i32 {
                 );
                 return -1;
             }
-            let idx = ctx.tabs.open_path(path);
+            let idx = ctx.tabs.open_path(path.clone());
             crate::abi::sync_active_path(ctx);
+            crate::abi::record_opened_file(ctx, &path);
             idx as i32
         }
         MenuKind::Symbols => {

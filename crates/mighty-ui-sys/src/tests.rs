@@ -877,6 +877,7 @@ fn tree_abi_scan_toggle_and_open_row() {
     let opened = mui_tree_open_row(handle, 2);
     assert!(opened >= 0, "expected a file row to open, got {opened}");
     assert_eq!(mui_tab_count(handle), before + 1);
+    assert_eq!(ctx.quickopen.recent_paths(), vec![root.join("a.txt")]);
 
     // Opening a directory row toggles it but does not report a tab index.
     assert_eq!(mui_tree_open_row(handle, 0), -1);
@@ -2104,6 +2105,10 @@ fn run_output_click_misses_report_visible_feedback() {
     assert_eq!(toast.message, "Run output row has no file target");
     assert_eq!(crate::featureabi::mui_run_click_tab(h), -1);
 
+    assert_eq!(crate::featureabi::mui_run_click_row(h, 2), 1);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(missing.as_path()));
+    assert_eq!(ctx.quickopen.recent_paths(), vec![missing.clone()]);
+
     std::fs::remove_file(&missing).unwrap();
     assert_eq!(crate::featureabi::mui_run_click_row(h, 2), 0);
     assert_eq!(ctx.tree.count(), 0);
@@ -2331,6 +2336,7 @@ fn test_result_open_misses_report_visible_feedback() {
     ctx.tests_panel.seed_demo(root.to_string_lossy().as_ref());
     assert_eq!(crate::testabi::mui_test_open_row(handle, 3), 1);
     assert_eq!(ctx.tabs.active_path().as_deref(), Some(target.as_path()));
+    assert_eq!(ctx.quickopen.recent_paths(), vec![target.clone()]);
 
     std::fs::remove_file(&target).unwrap();
     assert_eq!(crate::testabi::mui_test_open_row(handle, 3), 0);
@@ -3342,6 +3348,7 @@ fn search_open_skips_files_changed_since_search() {
     assert_eq!(ctx.search.match_count(), 1);
     assert_eq!(crate::panels::mui_search_open(handle, 0), 1);
     assert_eq!(ctx.tabs.active_path().as_deref(), Some(path.as_path()));
+    assert_eq!(ctx.quickopen.recent_paths(), vec![path.clone()]);
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -6826,6 +6833,34 @@ fn scm_open_row_misses_report_visible_feedback() {
 }
 
 #[test]
+fn scm_open_row_records_recent_file() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_scm_open_records_recent_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("changed.mty");
+    std::fs::write(&file, "changed\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.scm.root = Some(root.clone());
+    ctx.scm.status.entries.push(crate::scm::ScmEntry {
+        path: "changed.mty".to_string(),
+        staged: false,
+        status: 'M',
+    });
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_scm_open_row(h, 0), 1);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(file.as_path()));
+    assert_eq!(ctx.quickopen.recent_paths(), vec![file.clone()]);
+    crate::mui_quickopen_open(h);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "changed.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn scm_close_command_preserves_status_and_message() {
     let mut ctx = ctx_or_skip!();
     ctx.active_panel = crate::PANEL_SCM;
@@ -7287,6 +7322,7 @@ fn debug_breakpoint_inventory_rows_open_source_location() {
     let tab = crate::dapabi::mui_bp_open_at_hit(handle, hit);
     assert_eq!(tab, ctx.tabs.active() as i32);
     assert_eq!(ctx.tabs.active_path().as_deref(), Some(file.as_path()));
+    assert_eq!(ctx.quickopen.recent_paths(), vec![file.clone()]);
     assert_eq!(ctx.tabs.active_model().cursor_line(), 2);
     assert_eq!(ctx.tabs.active_model().first_visible(), 0);
 
@@ -11345,6 +11381,7 @@ fn problems_open_row_opens_file_and_moves_cursor() {
     let tab = crate::navsurfaces::mui_problems_open_row(h, 0);
     assert_eq!(tab, ctx.tabs.active() as i32);
     assert_eq!(ctx.tabs.active_path().as_deref(), Some(file.as_path()));
+    assert_eq!(ctx.quickopen.recent_paths(), vec![file.clone()]);
     assert_eq!(ctx.tabs.active_model().cursor_line(), 2);
     assert_eq!(ctx.tabs.active_model().cursor_col(), 1);
     assert_eq!(ctx.tabs.active_model().first_visible(), 0);

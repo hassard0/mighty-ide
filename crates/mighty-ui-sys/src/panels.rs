@@ -232,8 +232,9 @@ pub extern "C" fn mui_scm_open_row(handle: i64, i: i32) -> i32 {
         crate::abi::refresh_workspace_file_views(ctx);
         return -1;
     }
-    let idx = ctx.tabs.open_path(full);
+    let idx = ctx.tabs.open_path(full.clone());
     crate::abi::sync_active_path(ctx);
+    crate::abi::record_opened_file(ctx, &full);
     idx as i32
 }
 
@@ -1627,8 +1628,9 @@ pub extern "C" fn mui_search_open(handle: i64, i: i32) -> i32 {
         return -1;
     }
     let opened_path = path.to_string_lossy().replace('\\', "/");
-    let idx = ctx.tabs.open_path(path);
+    let idx = ctx.tabs.open_path(path.clone());
     crate::abi::sync_active_path(ctx);
+    crate::abi::record_opened_file(ctx, &path);
     let model = ctx.tabs.active_model_mut();
     model.move_to(line, col);
     let first = (line - 2).max(0);
