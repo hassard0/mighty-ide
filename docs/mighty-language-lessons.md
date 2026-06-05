@@ -13633,3 +13633,16 @@ guard wording did not previously match the Git toast classifier.
   so stale Source Control messages are replaced by the current commit result.
 - **Language note:** no compiler gap surfaced. Commit workflow guard messages
   should share the same feedback family as commit successes and empty results.
+
+## L1078 - Empty Commit Messages Are Git Feedback
+
+The Source Control commit path can also reject a commit when staged changes
+exist but the commit message is empty. `Enter a commit message` is still the
+terminal result of a Git commit attempt, even though the text does not name
+Git, Source Control, or commit at the start.
+
+- **IDE note:** `Enter a commit message` now coalesces with Git feedback, so it
+  replaces stale staging, row, and commit-result toasts in the Source Control
+  workflow.
+- **Language note:** no compiler gap surfaced. Prompt-style guard messages need
+  operation-family coverage when they are emitted as command results.

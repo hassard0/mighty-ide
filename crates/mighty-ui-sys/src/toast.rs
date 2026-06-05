@@ -609,6 +609,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Nothing to unstage"
         || m == "Nothing to commit"
         || m == "No staged changes to commit"
+        || m == "Enter a commit message"
         || m.starts_with("Source control stage failed")
         || m.starts_with("Source control unstage failed")
         || m == "No source control row selected"
@@ -2374,6 +2375,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No staged changes to commit");
+
+        q.push_at(
+            Kind::Info,
+            "Enter a commit message",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Enter a commit message");
     }
 
     #[test]
