@@ -101,6 +101,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Screenshot capture reports blocked output parents**: offscreen
+  `MUI_SCREENSHOT` PNG writing now reports parent-directory creation failures
+  with the blocked path instead of ignoring the error and failing later at the
+  output file.
 - **Settings persistence failures are visible**: Settings panel changes still
   apply live, but failed config writes now warn that the preference may reset
   after restart instead of looking durably saved.

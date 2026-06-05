@@ -66,7 +66,8 @@ pub fn write_png(
 ) -> Result<u64, String> {
     if let Some(parent) = path.parent() {
         if !parent.as_os_str().is_empty() {
-            let _ = std::fs::create_dir_all(parent);
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("create parent {}: {e}", parent.display()))?;
         }
     }
     let file = std::fs::File::create(path).map_err(|e| format!("create {}: {e}", path.display()))?;
@@ -83,4 +84,35 @@ pub fn write_png(
     drop(writer);
     let n = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
     Ok(n)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::write_png;
+
+    #[test]
+    fn write_png_reports_parent_directory_creation_failures() {
+        let root = std::env::temp_dir().join(format!(
+            "mighty_screenshot_parent_blocker_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let blocker = root.join("not_a_dir");
+        std::fs::write(&blocker, b"parent blocker").unwrap();
+
+        let err = write_png(&blocker.join("out.png"), 1, 1, &[0, 0, 0, 255])
+            .expect_err("file parent should be reported before opening output");
+
+        assert!(
+            err.contains("create parent"),
+            "expected parent creation context, got {err}"
+        );
+        assert!(
+            err.contains("not_a_dir"),
+            "expected blocked parent path in error, got {err}"
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }
