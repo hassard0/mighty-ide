@@ -172,6 +172,8 @@ Release checklist:
 3. Run the platform package script from a clean worktree.
 4. Smoke-test the packaged app from inside the assembled package directory.
 5. Upload only the generated archive from `dist/`.
+6. Record the archive size, SHA-256, native binary family, and byproduct scan
+   result in the release notes.
 
 Clean binary contract:
 
@@ -184,12 +186,27 @@ Clean binary contract:
   foreign-platform native files before writing the archive.
 - macOS and Linux binaries must be produced on native hosts or matching CI
   runners; they are not cross-packaged from the Windows output.
+- If a native host is not available, leave that platform unbuilt rather than
+  publishing a placeholder archive or reusing binaries from another OS.
 
 | Platform | Command | Archive | Native payload checks |
 |----------|---------|---------|-----------------------|
 | Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; no `.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.rlib`, `.log`, `.dylib`, or `.so` files |
 | macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and `.dylib`; no build sidecars, `.exe`, `.dll`, or `.so` files |
 | Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and `.so`; no build sidecars, `.exe`, `.dll`, or `.dylib` files |
+
+Minimum verification before upload:
+
+- Windows: verify the ZIP hash and size, confirm `MZ`/`PE` headers for
+  `mighty-ide.exe` and `mighty_ui_sys.dll`, scan the package tree for sidecars
+  and non-Windows native payloads, then launch
+  `dist\mighty-ide-win64\mighty-ide.exe` from inside its package directory.
+- macOS: run `file` on the app executable and `.dylib`, confirm both are
+  Mach-O, scan for sidecars and `.exe`/`.dll`/`.so` files, then launch
+  `Mighty IDE.app/Contents/MacOS/mighty-ide` from the package directory.
+- Linux: run `file` on `mighty-ide` and `libmighty_ui_sys.so`, confirm both
+  are ELF, scan for sidecars and `.exe`/`.dll`/`.dylib` files, then launch
+  `./mighty-ide` from the package directory.
 
 Every archive includes `RUN.txt`, `README.md`, `KEYBINDINGS.md`, `CHANGELOG.md`,
 `BUILDING.md`, `LICENSE`, and `docs/platform-packaging.md` alongside the runtime

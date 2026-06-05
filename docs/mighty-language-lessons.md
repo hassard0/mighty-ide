@@ -12317,3 +12317,18 @@ a virtual scratch tab rather than a saved program file.
 - **Language note:** no compiler gap surfaced. Tooling commands that require a
   durable source path should use the same target naming discipline as language
   lookups and formatter/code-action preflights.
+
+## L988 - Release Docs Need The Same Native Boundary As Packages
+
+The package scripts already rejected dirty worktrees, build sidecars, and
+foreign-platform native payloads, but the release-facing docs did not make the
+verification record explicit enough. That made it too easy to say "clean
+binaries" without recording which native family was actually inspected for each
+platform.
+
+- **IDE note:** README, build notes, and platform packaging docs now define the
+  release record: archive size, SHA-256, PE/Mach-O/ELF validation,
+  sidecar/foreign-payload scans, and native-host smoke testing.
+- **Language note:** no compiler gap surfaced. Native-package documentation
+  should mirror the ABI boundary enforced by package scripts, especially when a
+  Mighty executable links to a host-specific Rust shim.

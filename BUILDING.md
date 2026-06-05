@@ -70,6 +70,19 @@ the host platform's ABI, so each OS package must be built and smoke-tested on
 that OS or on a matching CI runner. The release checklist is maintained in
 [`docs/platform-packaging.md`](docs/platform-packaging.md).
 
+Before uploading a release archive, keep the package directory and archive
+together long enough to verify:
+
+- archive size and SHA-256 hash
+- native binary family for every packaged executable/shared library
+- absence of compiler/linker byproducts
+- absence of foreign-platform native payloads
+- packaged launch from inside the assembled directory or app bundle
+
+Windows verification can be completed from this checkout. macOS and Linux
+verification must be completed on native hosts or matching CI runners; the
+checked-in scripts intentionally refuse to run on the wrong OS.
+
 ## Run
 
 ```sh

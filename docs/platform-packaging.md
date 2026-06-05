@@ -126,3 +126,77 @@ Both scripts:
 
 The resulting archives should be smoke-tested from the assembled package
 directory before upload.
+
+## Verification Commands
+
+These commands are intentionally explicit so a release note can include the
+same facts for every published archive: archive size, SHA-256, native binary
+family, absence of build sidecars, absence of foreign native payloads, and a
+packaged launch.
+
+Windows PowerShell:
+
+```powershell
+Get-Item dist\mighty-ide-v0.3.0-win64.zip |
+  Select-Object FullName,Length,LastWriteTime
+Get-FileHash dist\mighty-ide-v0.3.0-win64.zip -Algorithm SHA256
+
+Get-ChildItem dist\mighty-ide-win64 -Recurse -File |
+  Where-Object { $_.Extension -in @(
+    '.pdb','.lib','.exp','.ilk','.obj','.o','.rlib','.log','.dylib','.so'
+  ) } |
+  Select-Object FullName,Length
+
+@('dist\mighty-ide-win64\mighty-ide.exe',
+  'dist\mighty-ide-win64\mighty_ui_sys.dll') |
+  ForEach-Object {
+    $path = Resolve-Path $_
+    $fs = [System.IO.File]::OpenRead($path)
+    try {
+      $br = [System.IO.BinaryReader]::new($fs)
+      $mz = ('{0:X2}{1:X2}' -f $br.ReadByte(), $br.ReadByte())
+      $fs.Seek(0x3c, [System.IO.SeekOrigin]::Begin) | Out-Null
+      $off = $br.ReadInt32()
+      $fs.Seek($off, [System.IO.SeekOrigin]::Begin) | Out-Null
+      $pe = ('{0:X2}{1:X2}{2:X2}{3:X2}' -f
+        $br.ReadByte(), $br.ReadByte(), $br.ReadByte(), $br.ReadByte())
+      [PSCustomObject]@{ Path = $_; MZ = $mz; PE = $pe }
+    } finally {
+      $fs.Dispose()
+    }
+  }
+
+Start-Process -FilePath "dist\mighty-ide-win64\mighty-ide.exe" `
+  -WorkingDirectory "dist\mighty-ide-win64"
+```
+
+macOS:
+
+```sh
+shasum -a 256 dist/mighty-ide-v0.3.0-macos.tar.gz
+ls -lh dist/mighty-ide-v0.3.0-macos.tar.gz
+file "dist/mighty-ide-macos/Mighty IDE.app/Contents/MacOS/mighty-ide" \
+  "dist/mighty-ide-macos/Mighty IDE.app/Contents/MacOS/libmighty_ui_sys.dylib"
+find dist/mighty-ide-macos -type f \( \
+  -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o \
+  -name '*.obj' -o -name '*.o' -o -name '*.rlib' -o -name '*.log' -o \
+  -name '*.exe' -o -name '*.dll' -o -name '*.so' \)
+"dist/mighty-ide-macos/Mighty IDE.app/Contents/MacOS/mighty-ide"
+```
+
+Linux:
+
+```sh
+sha256sum dist/mighty-ide-v0.3.0-linux-x64.tar.gz
+ls -lh dist/mighty-ide-v0.3.0-linux-x64.tar.gz
+file dist/mighty-ide-linux-x64/mighty-ide \
+  dist/mighty-ide-linux-x64/libmighty_ui_sys.so
+find dist/mighty-ide-linux-x64 -type f \( \
+  -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o \
+  -name '*.obj' -o -name '*.o' -o -name '*.rlib' -o -name '*.log' -o \
+  -name '*.exe' -o -name '*.dll' -o -name '*.dylib' \)
+(cd dist/mighty-ide-linux-x64 && ./mighty-ide)
+```
+
+An empty `find` result is expected for the sidecar/foreign-payload scans. If
+any path is printed, fix the package before publishing it.

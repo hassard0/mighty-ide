@@ -16,6 +16,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   now bundle README, keybindings, changelog, build notes, license, platform
   packaging notes, samples, and platform-specific `RUN.txt` instructions while
   preserving native binary format checks and build-sidecar rejection.
+- **Release docs define the clean-binary contract**: README, build notes, and
+  platform packaging docs now spell out the per-OS verification record for
+  Windows PE, macOS Mach-O, and Linux ELF packages, including hash/size capture,
+  sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
 - **Saves handle duplicate tabs coherently**: manual Save, Save All, and
