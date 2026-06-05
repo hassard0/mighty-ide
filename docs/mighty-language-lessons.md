@@ -13443,3 +13443,17 @@ text into the debug console and toast.
 - **Language note:** no compiler gap surfaced. Process adapters should classify
   launch targets before invoking tools so user-visible failures are about the
   target state, not host-specific I/O phrasing.
+
+## L1064 - Run Preflight Should Normalize Missing Targets
+
+The Run panel already rejected directory-backed active files before spawning
+`mty run`, but missing active files still surfaced raw host I/O wording in both
+the output line and toast.
+
+- **IDE note:** Run start now uses the shared run-target classifier before
+  launching the process. Missing active files are reported as
+  `target missing: <name>`, while directory-backed active paths continue to
+  report `target is not a file: <name>`. Spawn failures for the `mty` executable
+  still keep the real launcher error.
+- **Language note:** no compiler gap surfaced. User-facing process preflight
+  should classify the requested target separately from tool-launch failures.

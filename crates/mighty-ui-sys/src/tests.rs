@@ -2484,8 +2484,10 @@ fn run_start_rejects_missing_active_path_before_spawn() {
     assert_eq!(crate::featureabi::mui_run_start(handle), 0);
     assert!(ctx.run.is_active());
     assert!(!ctx.run.is_running());
-    let line = &ctx.run.line(0).unwrap().text;
-    assert!(line.starts_with("failed to start: main.mty: "), "{line}");
+    assert_eq!(
+        ctx.run.line(0).unwrap().text,
+        "failed to start: target missing: main.mty"
+    );
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
     assert!(
@@ -2495,7 +2497,11 @@ fn run_start_rejects_missing_active_path_before_spawn() {
         "{}",
         toast.message
     );
-    assert!(toast.message.contains(" run: main.mty: "), "{}", toast.message);
+    assert!(
+        toast.message.ends_with(" run: target missing: main.mty"),
+        "{}",
+        toast.message
+    );
 
     let _ = std::fs::remove_dir_all(root);
 }
