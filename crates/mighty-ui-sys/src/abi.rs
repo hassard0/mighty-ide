@@ -4585,6 +4585,11 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
 
 /// Switch the active tab to `idx`. Returns the resulting active index, or `-1`
 /// when the requested tab does not exist.
+fn bind_active_tab_to_focused_pane(ctx: &mut MuiContext) {
+    let f = ctx.panes.focused();
+    ctx.panes.set_tab(f, ctx.tabs.active());
+}
+
 #[no_mangle]
 pub extern "C" fn mui_tab_switch(handle: i64, idx: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -4596,6 +4601,7 @@ pub extern "C" fn mui_tab_switch(handle: i64, idx: i32) -> i32 {
         return -1;
     }
     let a = ctx.tabs.switch(idx as usize);
+    bind_active_tab_to_focused_pane(ctx);
     sync_active_path(ctx);
     ensure_tab_visible(ctx, a);
     a as i32
@@ -4608,6 +4614,7 @@ pub extern "C" fn mui_tab_next(handle: i64) -> i32 {
         return 0;
     };
     let a = ctx.tabs.next();
+    bind_active_tab_to_focused_pane(ctx);
     sync_active_path(ctx);
     ensure_tab_visible(ctx, a);
     a as i32
@@ -4620,6 +4627,7 @@ pub extern "C" fn mui_tab_prev(handle: i64) -> i32 {
         return 0;
     };
     let a = ctx.tabs.prev();
+    bind_active_tab_to_focused_pane(ctx);
     sync_active_path(ctx);
     ensure_tab_visible(ctx, a);
     a as i32
@@ -14268,8 +14276,7 @@ pub extern "C" fn mui_ed_tab_switch(handle: i64, idx: i32) -> i32 {
         ctx.tabs.switch(idx as usize);
         // The tab bar targets the FOCUSED pane: point it at the new active tab so
         // the split stays coherent (a no-op binding when unsplit).
-        let f = ctx.panes.focused();
-        ctx.panes.set_tab(f, ctx.tabs.active());
+        bind_active_tab_to_focused_pane(ctx);
         sync_active_path(ctx);
         // Opening / switching to any tab leaves the forced Welcome landing.
         ctx.welcome.dismiss();

@@ -7306,6 +7306,45 @@ fn duplicate_active_tab_clones_live_state_and_toasts() {
 }
 
 #[test]
+fn direct_tab_switches_preserve_split_pane_focus() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_direct_switch_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let a = root.join("a.mty");
+    let b = root.join("b.mty");
+    let c = root.join("c.mty");
+    std::fs::write(&a, "a").unwrap();
+    std::fs::write(&b, "b").unwrap();
+    std::fs::write(&c, "c").unwrap();
+    let a_idx = ctx.tabs.open_path(a);
+    let b_idx = ctx.tabs.open_path(b);
+    let c_idx = ctx.tabs.open_path(c);
+    ctx.tabs.switch(b_idx);
+    ctx.panes = crate::panes::PaneLayout::new(a_idx);
+    ctx.panes.split_right(b_idx, 0);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_tab_switch(handle, c_idx as i32), c_idx as i32);
+    assert_eq!(ctx.tabs.active(), c_idx);
+    assert_eq!(ctx.panes.count(), 2);
+    assert_eq!(ctx.panes.tab_at(0), Some(a_idx), "left pane should keep a.mty");
+    assert_eq!(ctx.panes.tab_at(1), Some(c_idx), "focused right pane should show c.mty");
+
+    assert_eq!(crate::mui_tab_prev(handle), b_idx as i32);
+    assert_eq!(ctx.tabs.active(), b_idx);
+    assert_eq!(ctx.panes.tab_at(0), Some(a_idx), "left pane should still keep a.mty");
+    assert_eq!(ctx.panes.tab_at(1), Some(b_idx), "focused right pane should show b.mty");
+
+    assert_eq!(crate::mui_tab_next(handle), c_idx as i32);
+    assert_eq!(ctx.tabs.active(), c_idx);
+    assert_eq!(ctx.panes.tab_at(0), Some(a_idx), "left pane should still keep a.mty");
+    assert_eq!(ctx.panes.tab_at(1), Some(c_idx), "focused right pane should show c.mty again");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn move_active_tab_left_right_preserves_split_pane_documents() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_move_tab_{}", std::process::id()));

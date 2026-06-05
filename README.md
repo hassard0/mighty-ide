@@ -68,6 +68,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Duplicate Active Tab** clones the current editor tab next to itself from the
   live buffer, including dirty state and cursor context, without collapsing
   split-pane layouts
+- Direct tab switches, next-tab, and previous-tab entry points retarget the
+  focused split pane without collapsing or rebinding the other pane
 - **Move Active Tab Left/Right** (Ctrl+Shift+PageUp/PageDown) reorders tabs from
   the keyboard or command palette while preserving split-pane document bindings
 - **Sort Open Tabs by Name** alphabetizes tab clutter without losing the active

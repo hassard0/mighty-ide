@@ -39,6 +39,11 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   payload family, sidecar/foreign-payload scan result, manifest summary, and
   packaged launch result.
 
+### Tabs and panes
+- **Direct tab switches preserve split panes**: exported tab switch, next-tab,
+  and previous-tab entry points now retarget only the focused split pane, keeping
+  the other pane bound to its original document.
+
 ### Language intelligence
 - **Keyboard shortcut persistence failures are visible**: remap and reset actions
   still update the live shortcut table, but failed `keybindings.toml` writes now
