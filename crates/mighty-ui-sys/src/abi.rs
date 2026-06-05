@@ -12656,7 +12656,16 @@ pub extern "C" fn mui_ed_find_run(handle: i64) -> i32 {
         ctx.find.push_byte(b as u32);
     }
     let needle = ctx.prompt.query_string();
-    ctx.find.run(&needle)
+    let count = ctx.find.run(&needle);
+    if count == 0 {
+        let message = if needle.is_empty() {
+            "Enter text to find"
+        } else {
+            "No matches found"
+        };
+        ctx.push_toast(crate::toast::Kind::Info, message);
+    }
+    count
 }
 
 /// Stream the active model into the completion engine and request completion at

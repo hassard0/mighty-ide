@@ -44,6 +44,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Go to Line invalid input stays editable**: blank or non-numeric Ctrl+G
   submissions now report `Enter a line number` and leave the prompt open instead
   of dismissing the input with no navigation.
+- **Find misses stay editable**: blank or no-match Ctrl+F submissions now report
+  visible feedback and keep the Find prompt open, while successful matches still
+  jump and close the prompt.
 - **Explorer rejects stale file rows**: opening a file row whose target was
   deleted now reports the missing file, refreshes Explorer and Quick Open, and
   avoids creating an empty phantom tab for the missing path.

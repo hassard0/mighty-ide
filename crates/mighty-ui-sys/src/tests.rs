@@ -1135,6 +1135,41 @@ fn goto_prompt_invalid_input_reports_feedback_and_stays_active() {
 }
 
 #[test]
+fn find_prompt_empty_or_missing_match_reports_feedback_and_stays_active() {
+    use crate::{mui_ed_find_run, mui_prompt_active, mui_prompt_push, prompt::PromptKind};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("alpha beta\nsecond line");
+    ctx.prompt.open(PromptKind::Find as i32);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_ed_find_run(handle), 0);
+    assert_eq!(mui_prompt_active(handle), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Enter text to find");
+
+    mui_prompt_push(handle, 'z' as i32);
+    mui_prompt_push(handle, 'z' as i32);
+    assert_eq!(mui_ed_find_run(handle), 0);
+    assert_eq!(mui_prompt_active(handle), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No matches found");
+
+    ctx.prompt.cancel();
+    ctx.prompt.open(PromptKind::Find as i32);
+    for ch in "beta".chars() {
+        mui_prompt_push(handle, ch as i32);
+    }
+    let before = ctx.toasts.toasts().len();
+    assert_eq!(mui_ed_find_run(handle), 1);
+    assert_eq!(ctx.toasts.toasts().len(), before);
+}
+
+#[test]
 fn dirty_confirm_cancel_command_clears_pending_choice() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -12380,6 +12415,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             "let target1 = mui_prompt_goto_target(h)\n              if target1 >= 1 {\n                mui_ed_move_to(h, target1 - 1, 0)\n                let _pc = mui_prompt_cancel(h)\n                prompt_kind = 0\n              }"
         ),
         "invalid Go to Line submissions must keep the prompt open for correction"
+    );
+    assert!(
+        main.contains(
+            "let cnt = mui_ed_find_run(h)\n              if cnt > 0 {\n                find_nav = true\n                find_idx = 0\n                jump_to_match(h, find_idx)\n                let _pc = mui_prompt_cancel(h)\n                prompt_kind = 0\n              } else {\n                find_nav = false\n              }"
+        ),
+        "Find misses must keep the prompt open so the query can be corrected"
     );
     assert!(
         main.contains("topbar_act == 3") && main.contains("mui_quickopen_open(h)"),
