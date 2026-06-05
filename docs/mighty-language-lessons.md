@@ -11114,3 +11114,16 @@ skipped.
   search result set.
 - **Language note:** no compiler gap surfaced. Bulk refactoring commands should
   distinguish stale, dirty, and missing inputs so users can trust no-op results.
+
+## L901 - Confirm-Save Restores Should Publish Files
+
+The unsaved-work confirmation saves through a helper used for both Save As and
+file-backed dirty tabs. That helper refreshed discovery state for newly bound
+paths, but not for an existing file-backed tab whose target was deleted before
+the user clicked Save.
+
+- **IDE note:** dirty-confirm Save now republishes file-backed tabs that
+  recreate missing paths, keeping recent files, Explorer, and visible Quick Open
+  rows in sync before the tab closes.
+- **Language note:** no compiler gap surfaced. Shared save helpers should treat
+  restored existing paths and newly selected paths as the same lifecycle event.

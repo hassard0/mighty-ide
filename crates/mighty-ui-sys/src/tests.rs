@@ -5614,6 +5614,48 @@ fn dirty_confirm_save_closes_nonfocused_split_tab_without_stealing_focus() {
 }
 
 #[test]
+fn dirty_confirm_save_republishes_resurrected_file_to_quickopen() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_dirty_confirm_resurrects_file_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("restored.mty");
+    std::fs::write(&path, "saved\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let idx = ctx.tabs.open_path(path.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("restored from confirm\n");
+    ctx.tabs.set_dirty(idx, true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.quickopen.count(), 1);
+    std::fs::remove_file(&path).unwrap();
+    assert_eq!(crate::mui_quickopen_reindex(handle), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
+
+    assert_eq!(crate::mui_tab_close(handle, idx as i32), -1);
+    assert_eq!(crate::mui_dirty_confirm_save(handle), 0);
+    assert_eq!(
+        std::fs::read_to_string(&path).unwrap(),
+        "restored from confirm\n"
+    );
+    assert_eq!(ctx.quickopen.recent_paths(), vec![path.clone()]);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "restored.mty");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Saved restored.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn dirty_confirm_save_cancel_on_nonfocused_untitled_keeps_focused_tab_active() {
     let _g = crate::settings::TEST_LOCK
         .lock()

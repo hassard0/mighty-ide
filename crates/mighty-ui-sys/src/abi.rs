@@ -12036,6 +12036,7 @@ fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf, toast_succe
     }
     let bytes = save_bytes_for_tab(tab);
     let name = basename(&path);
+    let resurrected_path = !path.is_file();
     match std::fs::write(&path, &bytes) {
         Ok(()) => {
             tab.path = Some(path.clone());
@@ -12047,7 +12048,7 @@ fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf, toast_succe
                 sync_active_path(ctx);
             }
             ctx.autosave.disarm();
-            if path_changed {
+            if path_changed || resurrected_path {
                 record_recent_file(ctx, path.clone());
                 refresh_workspace_file_views(ctx);
             }
