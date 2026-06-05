@@ -279,15 +279,18 @@ Packaged launch:
 ```
 
 Every archive includes `RUN.txt`, `README.md`, `KEYBINDINGS.md`, `CHANGELOG.md`,
-`BUILDING.md`, `LICENSE`, and `docs/platform-packaging.md` alongside the runtime
-payload, plus `PACKAGE-MANIFEST.txt` with native payload hashes and clean binary
-verification, so the package is usable without returning to the source tree.
+`BUILDING.md`, `LICENSE`, `docs/platform-packaging.md`, and
+`docs/release-verification.md` alongside the runtime payload, plus
+`PACKAGE-MANIFEST.txt` with native payload hashes and clean binary verification,
+so the package is usable without returning to the source tree.
 
 Each platform package must be built and smoke-tested on its native OS or a
 matching CI runner. Do not reuse Windows DLLs, macOS dylibs, or Linux shared
 objects across platforms. See
 [`docs/platform-packaging.md`](docs/platform-packaging.md) for the full package
-contract and verification commands.
+contract and verification commands, and
+[`docs/release-verification.md`](docs/release-verification.md) for the evidence
+record to attach to each published archive.
 
 ## Dogfooding Mighty
 

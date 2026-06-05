@@ -87,6 +87,7 @@ for name in sample.py sample.rs sample.json agents.mty; do
 done
 cp README.md KEYBINDINGS.md CHANGELOG.md BUILDING.md LICENSE "$DIST_ROOT/"
 cp docs/platform-packaging.md "$DIST_ROOT/docs/platform-packaging.md"
+cp docs/release-verification.md "$DIST_ROOT/docs/release-verification.md"
 cat > "$DIST_ROOT/RUN.txt" <<'RUN'
 Mighty IDE - macOS
 ==================

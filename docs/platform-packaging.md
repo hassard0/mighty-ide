@@ -68,6 +68,7 @@ tarball:
 - `BUILDING.md`
 - `LICENSE`
 - `docs/platform-packaging.md`
+- `docs/release-verification.md`
 
 ## Platform Matrix
 
@@ -146,7 +147,8 @@ Both scripts:
 - scan the platform tarball for build sidecars and foreign native payloads
 
 The resulting archives should be smoke-tested from the assembled package
-directory before upload.
+directory before upload. Record the final result with
+[`release-verification.md`](release-verification.md).
 
 ## Verification Commands
 
@@ -272,9 +274,10 @@ app is smoke-tested there.
 
 ## Release Note Evidence
 
-Record the same evidence for every archive that is uploaded. If a platform was
-not built on its native host or matching CI runner, list it as unbuilt instead
-of publishing a placeholder or reused binary.
+Record the same evidence for every archive that is uploaded. The canonical
+template lives in [`release-verification.md`](release-verification.md). If a
+platform was not built on its native host or matching CI runner, list it as
+unbuilt instead of publishing a placeholder or reused binary.
 
 ```text
 Platform:

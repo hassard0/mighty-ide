@@ -74,7 +74,9 @@ Do not cross-ship artifacts between platforms. The Rust shim is a native
 dynamic library (`.dll`, `.dylib`, or `.so`) and the Mighty executable links to
 the host platform's ABI, so each OS package must be built and smoke-tested on
 that OS or on a matching CI runner. The release checklist is maintained in
-[`docs/platform-packaging.md`](docs/platform-packaging.md).
+[`docs/platform-packaging.md`](docs/platform-packaging.md), with the upload
+evidence template in
+[`docs/release-verification.md`](docs/release-verification.md).
 
 Before uploading a release archive, keep the package directory and archive
 together long enough to verify:
@@ -84,6 +86,7 @@ together long enough to verify:
 - absence of compiler/linker byproducts
 - absence of foreign-platform native payloads
 - bundled `PACKAGE-MANIFEST.txt` hash/size and clean-binary summary
+- completed `docs/release-verification.md` evidence record for the archive
 - packaged launch from inside the assembled directory or app bundle
 
 Windows verification can be completed from this checkout. macOS and Linux

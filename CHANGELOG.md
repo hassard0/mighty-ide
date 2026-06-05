@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Release packaging
+- **Release verification record is packaged**: release archives now include
+  `docs/release-verification.md`, a per-platform evidence template for archive
+  size, SHA-256, native payload family, sidecar and foreign-payload scans,
+  manifest summary, packaged launch result, and publish decision.
 - **Release docs now define the final native-host gate**: README, build notes,
   and platform packaging docs now put the release operator flow up front:
   commit docs first, run each package script on its native OS or matching CI
