@@ -704,6 +704,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "New folder dialog unavailable"
         || m.starts_with("Choose a folder inside the workspace")
         || m.starts_with("Folder already exists")
+        || m.starts_with("Folder path is not a folder")
         || m.starts_with("Folder create failed")
     {
         Some(OperationKey::CreateFolder)
@@ -1304,6 +1305,13 @@ mod tests {
             q.toasts()[2].message,
             "Folder create failed: child: The system cannot find the path specified. (os error 3)"
         );
+        q.push_at(
+            Kind::Warn,
+            "Folder path is not a folder: src",
+            t0 + Duration::from_millis(1175),
+        );
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Folder path is not a folder: src");
         q.push_at(Kind::Success, "Created folder: src", t0 + Duration::from_millis(1200));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Created folder: src");

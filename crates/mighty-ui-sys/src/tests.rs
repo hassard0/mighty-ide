@@ -3926,6 +3926,7 @@ fn new_folder_validates_name_clears_stage_and_toasts() {
     let root = std::env::temp_dir().join("mui_new_folder_guards");
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("taken")).unwrap();
+    std::fs::write(root.join("blocked"), b"not a folder").unwrap();
     ctx.workspace.set_root(root.clone());
     ctx.tree.set_root(root.clone());
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -3943,6 +3944,13 @@ fn new_folder_validates_name_clears_stage_and_toasts() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Folder already exists: taken");
+
+    ctx.path_stage.extend_from_slice(b"blocked");
+    assert_eq!(crate::mui_newfolder_create(handle), 0);
+    assert!(ctx.path_stage.is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Folder path is not a folder: blocked");
 
     ctx.path_stage.extend_from_slice(b"fresh");
     assert_eq!(crate::mui_newfolder_create(handle), 1);
@@ -4016,6 +4024,16 @@ fn new_folder_dialog_env_pick_creates_or_accepts_folder() {
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Folder ready: existing"
+    );
+
+    let blocked = root.join("blocked");
+    std::fs::write(&blocked, b"not a folder").unwrap();
+    std::env::set_var("MUI_NEW_FOLDER_PICK", blocked.to_string_lossy().as_ref());
+    assert_eq!(crate::mui_newfolder_dialog(handle), 0);
+    std::env::remove_var("MUI_NEW_FOLDER_PICK");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Folder path is not a folder: blocked"
     );
 
     let outside = std::env::temp_dir().join(format!(

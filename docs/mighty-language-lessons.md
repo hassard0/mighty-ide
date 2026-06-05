@@ -12662,3 +12662,17 @@ to an empty string makes a missing or stale file look like a clean source file.
 - **Language note:** no compiler gap surfaced. Analysis source selection should
   preserve the difference between live editor text, disk-backed text, and a
   failed backing-file read.
+
+## L1012 - Creation Conflicts Should Name The Blocking Kind
+
+Folder creation can fail because the target folder already exists, or because a
+non-folder path with the requested name exists. Reporting both as
+`Folder already exists` hides the concrete fix the user needs to make.
+
+- **IDE note:** typed and dialog-routed New Folder now keep the existing
+  `Folder already exists: <name>` message for real folders, but report
+  `Folder path is not a folder: <name>` when a file blocks the requested folder
+  path. The new message shares the Create Folder toast replacement lane.
+- **Language note:** no compiler gap surfaced. Filesystem commands should carry
+  object-kind checks through to the UI vocabulary instead of collapsing every
+  path conflict into the command's desired object kind.

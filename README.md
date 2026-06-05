@@ -118,6 +118,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **View commands** open Explorer, Search, Source Control, Outline, Run and Debug,
   Testing, Run Output, Problems, AI Copilot, Terminal, and Web Playground from
   the command palette, matching the activity rail, status chip, and docked panels.
+- New Folder reports when the target path is an existing file instead of saying
+  the folder already exists
 - **Live Markdown preview (Ctrl+Shift+V)** — themed, live-updating split-pane render
 - **Keyboard Shortcuts overlay (Ctrl+Shift+/)** — searchable command/binding reference with router-command remapping (persists to `keybindings.toml`)
 - Welcome screen with first-run New File, New Project, Open File, Open

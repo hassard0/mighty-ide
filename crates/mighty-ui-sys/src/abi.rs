@@ -6027,8 +6027,16 @@ pub extern "C" fn mui_newfolder_create(handle: i64) -> i32 {
     let target = base.join(&name);
     if target.exists() {
         refresh_workspace_file_views(ctx);
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Folder already exists: {name}"));
-        println!("newfolder: target already exists: {}", target.display());
+        if target.is_dir() {
+            ctx.push_toast(crate::toast::Kind::Warn, format!("Folder already exists: {name}"));
+            println!("newfolder: target already exists: {}", target.display());
+        } else {
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                format!("Folder path is not a folder: {name}"),
+            );
+            println!("newfolder: target exists but is not a folder: {}", target.display());
+        }
         return 0;
     }
     match std::fs::create_dir(&target) {
@@ -6151,7 +6159,10 @@ fn create_or_accept_folder_at(
     }
     if target.exists() {
         refresh_workspace_file_views(ctx);
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Folder already exists: {name}"));
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Folder path is not a folder: {name}"),
+        );
         println!("newfolder: target exists but is not a folder: {}", target.display());
         return 0;
     }
