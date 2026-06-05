@@ -421,6 +421,11 @@ fn codeaction_not_found_message(ctx: &MuiContext, line: i32, col: i32) -> String
     )
 }
 
+fn hover_not_found_message(path: &std::path::Path, line: i32, col: i32) -> String {
+    let name = basename(path);
+    format!("No hover information at {name}:{}:{}", line.max(0) + 1, col.max(0) + 1)
+}
+
 #[cfg(test)]
 mod code_action_diagnostics_tests {
     use super::*;
@@ -9764,7 +9769,10 @@ pub extern "C" fn mui_hover_request(handle: i64, line: i32, col: i32) -> i32 {
         ctx.hover.line_count()
     );
     if !available {
-        ctx.push_toast(crate::toast::Kind::Info, "No hover information");
+        ctx.push_toast(
+            crate::toast::Kind::Info,
+            hover_not_found_message(&path, line, col),
+        );
     }
     i32::from(available)
 }

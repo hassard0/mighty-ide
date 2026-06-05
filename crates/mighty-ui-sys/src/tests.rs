@@ -11232,7 +11232,7 @@ fn navigation_requests_report_missing_targets() {
     assert_eq!(crate::mui_hover_request(h, 0, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "No hover information");
+    assert_eq!(toast.message, "No hover information at mui_nav_plain_text.txt:1:1");
 
     assert_eq!(crate::mui_def_request(h, 0, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();

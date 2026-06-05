@@ -983,6 +983,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Code-action misses name the query site**: empty Ctrl+. requests now report
   the active file or scratch buffer plus 1-based line/column, keeping
   no-quick-fix feedback actionable in multi-tab sessions.
+- **Hover misses name the query site**: empty Ctrl+K requests now report the
+  active file plus 1-based line/column instead of a generic no-hover toast.
 - **Testing result metadata is readable**: suite names and run duration in the
   Testing drawer now use secondary text instead of near-invisible faint chrome.
 - **Overlay helper text is readable**: command palette, Keyboard Shortcuts, and

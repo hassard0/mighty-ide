@@ -875,6 +875,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No autocomplete suggestions open"
         || m == "Save the file before hover"
         || m == "No hover information"
+        || m.starts_with("No hover information at ")
         || m == "Hover popup closed"
         || m == "No hover popup open"
         || m == "Save the file before Go to Definition"
@@ -2463,6 +2464,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No hover information");
+
+        q.push_at(
+            Kind::Info,
+            "No hover information at main.mty:8:5",
+            t0 + Duration::from_millis(210),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No hover information at main.mty:8:5");
 
         q.push_at(
             Kind::Info,

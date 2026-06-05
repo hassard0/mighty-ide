@@ -12154,3 +12154,16 @@ that did not identify which buffer and cursor site had no action.
 - **Language note:** no compiler gap surfaced. Empty quick-fix paths should
   report the queried editor site with the same specificity as other language
   intelligence misses.
+
+## L976 - Hover Misses Should Name The Query Site
+
+Explicit hover requests reported only `No hover information` when the LSP
+returned no hover payload. In a multi-file reading session, that did not say
+which file and cursor position had been queried.
+
+- **IDE note:** empty hover requests now report
+  `No hover information at file:line:column`, using the saved active-file path
+  and 1-based lookup coordinates while preserving code-intelligence toast
+  replacement behavior.
+- **Language note:** no compiler gap surfaced. Read-only code-intelligence
+  lookups should carry their query site even when the result is empty.
