@@ -3790,13 +3790,18 @@ fn account_utility_opens_settings_on_inline_ai_row() {
 
 #[test]
 fn settings_close_acknowledges_state() {
-    use crate::featureabi::{mui_settings_close, mui_settings_open};
+    use crate::featureabi::{
+        mui_settings_adjust, mui_settings_click, mui_settings_close, mui_settings_move,
+        mui_settings_open, mui_settings_sel, mui_settings_toggle,
+    };
 
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(mui_settings_open(handle), 1);
     assert!(ctx.settings_panel.is_active());
+    mui_settings_move(handle, 1);
+    assert_eq!(mui_settings_sel(handle), 1);
     assert_eq!(mui_settings_close(handle), 1);
     assert!(!ctx.settings_panel.is_active());
     let toast = ctx.toasts.toasts().last().unwrap();
@@ -3807,6 +3812,31 @@ fn settings_close_acknowledges_state() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Settings panel is already closed");
+
+    mui_settings_move(handle, 1);
+    assert_eq!(mui_settings_sel(handle), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Settings panel is already closed"
+    );
+
+    assert_eq!(mui_settings_click(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Settings panel is already closed"
+    );
+
+    mui_settings_adjust(handle, 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Settings panel is already closed"
+    );
+
+    mui_settings_toggle(handle);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Settings panel is already closed"
+    );
 }
 
 #[test]

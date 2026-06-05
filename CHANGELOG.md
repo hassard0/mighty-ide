@@ -69,6 +69,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Theme preference failures are visible**: Color Theme applies still take
   effect immediately, but failed config writes now report a warning instead of
   implying the selected theme will survive restart.
+- **Settings stale routes are visible**: Settings panel move, click, adjust,
+  and toggle entry points now report when the panel has already closed instead
+  of silently ignoring stale keyboard or mouse routes.
 - **Generic diagnostics reject directory sources**: non-active generic
   diagnostics now preflight stale source paths before reading them. Directory
   targets report `Diagnostics failed: <name>: not a file` instead of surfacing

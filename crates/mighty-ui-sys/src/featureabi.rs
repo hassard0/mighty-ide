@@ -1457,10 +1457,18 @@ pub extern "C" fn mui_settings_active(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.settings_panel.is_active()))
 }
 
+fn report_settings_closed(ctx: &mut crate::MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Info, "Settings panel is already closed");
+}
+
 /// Move the highlighted settings row by `delta` (wrapping).
 #[no_mangle]
 pub extern "C" fn mui_settings_move(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.settings_panel.is_active() {
+            report_settings_closed(ctx);
+            return;
+        }
         ctx.settings_panel.move_sel(delta);
     }
 }
@@ -1478,6 +1486,10 @@ pub extern "C" fn mui_settings_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !ctx.settings_panel.is_active() {
+        report_settings_closed(ctx);
+        return 0;
+    }
     ctx.settings_panel
         .click(ctx.last_event.x, ctx.last_event.y, ctx.gpu.width, ctx.gpu.height)
 }
@@ -1487,6 +1499,10 @@ pub extern "C" fn mui_settings_click(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_settings_adjust(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.settings_panel.is_active() {
+            report_settings_closed(ctx);
+            return;
+        }
         if !ctx.settings_panel.adjust(delta) {
             ctx.push_toast(
                 crate::toast::Kind::Warn,
@@ -1501,6 +1517,10 @@ pub extern "C" fn mui_settings_adjust(handle: i64, delta: i32) {
 #[no_mangle]
 pub extern "C" fn mui_settings_toggle(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.settings_panel.is_active() {
+            report_settings_closed(ctx);
+            return;
+        }
         if !ctx.settings_panel.toggle() {
             ctx.push_toast(
                 crate::toast::Kind::Warn,
