@@ -12605,3 +12605,17 @@ of a stale closed-menu action.
 - **Language note:** no compiler gap surfaced. Transient menu commands should
   check menu activity before row selection so stale invocations name the UI
   surface that disappeared.
+
+## L1008 - Staged Save Preflights Should Not Be Stderr-Only
+
+The staged save ABI protects scratch buffers and dirty duplicate tabs before
+writing bytes to disk. Those preflights returned `-1` but only logged to stderr,
+so command-routed saves could look inert inside the editor.
+
+- **IDE note:** staged save commits without a target now report
+  `No file path to save`, and dirty open-tab protection reports
+  `Save skipped: <file> has unsaved changes`. Both messages share the Save toast
+  replacement lane with other save failures and successes.
+- **Language note:** no compiler gap surfaced. Disk-write preflights should
+  surface the same target and reason vocabulary as filesystem errors because the
+  user sees both as save failures.

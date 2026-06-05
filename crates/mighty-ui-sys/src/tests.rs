@@ -468,6 +468,23 @@ fn event_queue_returns_pushed_events_fifo_then_empty() {
 // ---- scalar file-I/O ABI (save staging -> write -> load -> read by index) ----
 
 #[test]
+fn save_staging_without_path_reports_visible_feedback() {
+    use crate::{mui_save_commit, mui_save_push};
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    ctx.file_path = None;
+
+    for b in b"unsaved\n" {
+        mui_save_push(handle, *b as u32);
+    }
+    assert_eq!(mui_save_commit(handle), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No file path to save");
+}
+
+#[test]
 fn save_staging_writes_then_load_reads_back_round_trip() {
     use crate::{
         mui_load, mui_load_byte, mui_path_commit, mui_path_push, mui_save_commit, mui_save_push,
@@ -603,6 +620,12 @@ fn save_staging_refuses_dirty_open_tab() {
     assert_eq!(std::fs::read(&path).unwrap(), b"old\n");
     assert_eq!(ctx.tabs.get(idx).unwrap().model.as_text(), "dirty local\n");
     assert!(ctx.tabs.is_dirty(idx));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Save skipped: mui_save_staging_dirty_open.txt has unsaved changes"
+    );
 
     let _ = std::fs::remove_file(&path);
 }

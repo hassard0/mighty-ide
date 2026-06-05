@@ -39,6 +39,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Staged save preflight failures are visible**: staged save commits with no
+  file path now report `No file path to save`, and dirty open-tab protection
+  reports `Save skipped: <file> has unsaved changes` instead of only logging to
+  stderr.
 - **Code-action apply names closed menus**: applying with no active quick-fix
   menu now reports `No code action menu open`, while active empty selections
   keep `No code action selected`.

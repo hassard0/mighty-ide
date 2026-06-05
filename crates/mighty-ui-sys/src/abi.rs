@@ -3320,10 +3320,15 @@ pub extern "C" fn mui_save_commit(handle: i64) -> i32 {
     };
     let Some(path) = ctx.file_path.clone() else {
         eprintln!("mui_save_commit: no file path set");
+        ctx.push_toast(crate::toast::Kind::Warn, "No file path to save");
         return -1;
     };
     if ctx.tabs.any_dirty_path(&path) {
         eprintln!("mui_save_commit({}): skipped dirty open tab", path.display());
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Save skipped: {} has unsaved changes", basename(&path)),
+        );
         return -1;
     }
     let resurrected_path = !path.is_file();

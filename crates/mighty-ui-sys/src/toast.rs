@@ -658,7 +658,9 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Save dialog unavailable")
         || m == "Use Save As to choose a file path"
         || m == "No save path entered"
+        || m == "No file path to save"
         || m.starts_with("Saved ")
+        || m.starts_with("Save skipped:")
         || (m.starts_with("Save failed") && !m.starts_with("Save failed before code action"))
         || m.starts_with("Auto-saved ")
         || m.ends_with(" skipped")
@@ -1231,6 +1233,18 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Saved main.mty");
         assert_eq!(q.toasts()[0].kind, Kind::Success);
+
+        q.push_at(Kind::Warn, "No file path to save", t0 + Duration::from_millis(550));
+        q.push_at(
+            Kind::Warn,
+            "Save skipped: main.mty has unsaved changes",
+            t0 + Duration::from_millis(575),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Save skipped: main.mty has unsaved changes"
+        );
 
         q.push_at(Kind::Warn, "File already exists: main.mty", t0 + Duration::from_millis(600));
         q.push_at(Kind::Success, "Created file: lib.mty", t0 + Duration::from_millis(700));
