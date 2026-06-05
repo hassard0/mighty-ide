@@ -281,7 +281,15 @@ impl WebPlayground {
 
         // Build into a fresh temp dir so the harness + wasm sit together.
         let temp = std::env::temp_dir().join(format!("mui-web-{}-{}", std::process::id(), stem));
-        let _ = std::fs::create_dir_all(&temp);
+        if let Err(e) = std::fs::create_dir_all(&temp) {
+            self.push_line(format!(
+                "failed to create temp web output dir {}: {e}",
+                temp.display()
+            ));
+            self.saw_error = true;
+            self.finish_now(-1);
+            return false;
+        }
         self.temp_dir = Some(temp.clone());
 
         self.push_line(format!(
@@ -786,6 +794,30 @@ mod tests {
         std::fs::write(tmp.join("standalone.mty"), b"package s\nfn main() {}\n").unwrap();
         assert_eq!(WebPlayground::decide_mode(&tmp.join("standalone.mty")), Mode::Build);
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn build_fallback_reports_temp_output_dir_blockers_before_spawn() {
+        let stem = format!("blocked_{}", std::process::id());
+        let blocker = std::env::temp_dir().join(format!("mui-web-{}-{stem}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&blocker);
+        let _ = std::fs::remove_file(&blocker);
+        std::fs::write(&blocker, b"not a directory").unwrap();
+
+        let mut w = WebPlayground::new();
+        let started = w.start_build(&PathBuf::from(format!("{stem}.mty")), 8123);
+
+        assert!(!started);
+        assert!(!w.is_running());
+        assert!(w.take_saw_error());
+        let line = &w.line(0).unwrap().text;
+        assert!(
+            line.starts_with("failed to create temp web output dir "),
+            "{line}"
+        );
+        assert!(line.contains(&stem), "{line}");
+
+        let _ = std::fs::remove_file(&blocker);
     }
 
     #[test]
