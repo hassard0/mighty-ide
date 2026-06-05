@@ -4413,6 +4413,35 @@ fn prune_missing_recent_workspaces(ctx: &mut MuiContext) {
     }
 }
 
+enum RecentFileCheck {
+    File,
+    Missing,
+    NotFile,
+}
+
+fn check_recent_file_path(path: &std::path::Path) -> RecentFileCheck {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => RecentFileCheck::File,
+        Ok(_) => RecentFileCheck::NotFile,
+        Err(_) => RecentFileCheck::Missing,
+    }
+}
+
+fn prune_bad_welcome_recent_file(
+    ctx: &mut MuiContext,
+    path: &std::path::Path,
+    message: String,
+) -> i32 {
+    let removed = ctx.quickopen.remove_recent_path(path);
+    if removed {
+        persist_recent_files(ctx);
+    }
+    ctx.welcome.clear_recent_file_hits();
+    refresh_workspace_file_views(ctx);
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+    -1
+}
+
 fn close_tab_unchecked(ctx: &mut MuiContext, idx_u: usize) -> i32 {
     // Remap pane->tab indices so a pane never points past the end after a close.
     ctx.pending_dirty_close = None;
@@ -16711,31 +16740,22 @@ pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, "Recent file row no longer listed");
         return -1;
     };
-    if !path.exists() {
-        let removed = ctx.quickopen.remove_recent_path(&path);
-        if removed {
-            persist_recent_files(ctx);
+    match check_recent_file_path(&path) {
+        RecentFileCheck::File => {}
+        RecentFileCheck::Missing => {
+            return prune_bad_welcome_recent_file(
+                ctx,
+                &path,
+                format!("Recent file missing: {}", basename(&path)),
+            );
         }
-        ctx.welcome.clear_recent_file_hits();
-        refresh_workspace_file_views(ctx);
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
-            format!("Recent file missing: {}", basename(&path)),
-        );
-        return -1;
-    }
-    if !path.is_file() {
-        let removed = ctx.quickopen.remove_recent_path(&path);
-        if removed {
-            persist_recent_files(ctx);
+        RecentFileCheck::NotFile => {
+            return prune_bad_welcome_recent_file(
+                ctx,
+                &path,
+                format!("Recent file is not a file: {}", basename(&path)),
+            );
         }
-        ctx.welcome.clear_recent_file_hits();
-        refresh_workspace_file_views(ctx);
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
-            format!("Recent file is not a file: {}", basename(&path)),
-        );
-        return -1;
     }
     let idx = ctx.tabs.open_path(path.clone());
     ctx.welcome.dismiss();

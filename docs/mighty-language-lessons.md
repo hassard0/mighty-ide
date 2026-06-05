@@ -13073,3 +13073,19 @@ leaving file-backed stale folders under-specified.
 - **Language note:** no compiler gap surfaced. This is another MRU hygiene rule:
   persisted rows need validity contracts at every surface that snapshots them,
   not only at the final open action.
+
+## L1040 - Recent-File Activation Should Probe Once
+
+Welcome/Open Recent file activation still checked `exists()` and then `is_file()`
+separately. The visible behavior was already tested, but the two-step probe made
+the code easier to drift from the metadata-first stale-target pattern used by
+newer command surfaces.
+
+- **IDE note:** Welcome recent-file activation now classifies the target with a
+  single metadata read, then routes missing and non-file paths through one shared
+  pruning path. Both cases remove the bad MRU row, clear stale hit snapshots,
+  refresh workspace file views, keep the surface open, and preserve the existing
+  `Recent file missing: <name>` / `Recent file is not a file: <name>` feedback.
+- **Language note:** no compiler gap surfaced. This is shim-side filesystem
+  hygiene: persisted navigation rows should be validated once and converted into
+  an explicit state before mutating UI state.
