@@ -2871,6 +2871,11 @@ fn run_output_directory_target_reports_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Run target is not a file: run_target.mty");
+    assert_eq!(crate::featureabi::mui_run_line_clickable(h, 2), 0);
+    assert_eq!(crate::featureabi::mui_run_click_row(h, 2), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Run target is not a file: run_target.mty");
 
     let _ = std::fs::remove_dir_all(root);
 }

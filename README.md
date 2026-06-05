@@ -170,7 +170,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Stale Run output diagnostic rows keep naming the missing source file on
   repeated clicks after the row has been demoted
 - Run output jumps reject directory targets from stale tool output instead of
-  opening an empty tab
+  opening an empty tab, then demote the row while preserving the precise
+  `not a file` feedback on repeated clicks
 - **Test runner panel (Ctrl+Shift+T)** — shim-side `mty-test` parser + results model
 - Test result jumps reject directory targets from stale suite output instead of
   opening an empty tab

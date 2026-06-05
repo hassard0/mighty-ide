@@ -441,11 +441,8 @@ pub extern "C" fn mui_run_click_row(handle: i64, i: i32) -> i32 {
             return 0;
         };
         if !line.clickable {
-            if let Some(name) = line.missing_target.as_deref() {
-                ctx.push_toast(
-                    crate::toast::Kind::Warn,
-                    format!("Run target missing: {name}"),
-                );
+            if let Some(message) = line.stale_target_message.as_deref() {
+                ctx.push_toast(crate::toast::Kind::Warn, message.to_string());
                 return 0;
             }
             ctx.push_toast(
@@ -464,6 +461,12 @@ pub extern "C" fn mui_run_click_row(handle: i64, i: i32) -> i32 {
             return reject_bad_run_target(ctx, &full, RunTargetKind::Missing);
         }
         RunTargetKind::NotFile => {
+            let name = crate::abi::file_target_name(&full);
+            let _ = ctx.run.demote_target_with_message(
+                &root,
+                &full,
+                format!("Run target is not a file: {name}"),
+            );
             return reject_bad_run_target(ctx, &full, RunTargetKind::NotFile);
         }
     }

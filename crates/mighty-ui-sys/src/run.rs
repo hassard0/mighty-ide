@@ -39,8 +39,8 @@ pub struct OutputLine {
     pub line: i32,
     /// 0-based column of the target (or -1).
     pub col: i32,
-    /// Missing target name retained after a stale clickable row is demoted.
-    pub missing_target: Option<String>,
+    /// Stale-target feedback retained after a clickable row is demoted.
+    pub stale_target_message: Option<String>,
     /// `true` if the line looks like an error (red tint), `false` otherwise.
     pub is_error: bool,
 }
@@ -53,7 +53,7 @@ impl OutputLine {
             file: String::new(),
             line: -1,
             col: -1,
-            missing_target: None,
+            stale_target_message: None,
             is_error: false,
         }
     }
@@ -190,12 +190,23 @@ impl RunPanel {
     /// Turn clickable output rows targeting `target` into stale rows.
     /// Returns how many rows were demoted.
     pub fn demote_target(&mut self, root: &Path, target: &Path) -> usize {
-        let mut demoted = 0usize;
-        let missing_target = target
+        let target_name = target
             .file_name()
             .map(|s| s.to_string_lossy().into_owned())
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| target.to_string_lossy().into_owned());
+        self.demote_target_with_message(root, target, format!("Run target missing: {target_name}"))
+    }
+
+    /// Turn clickable output rows targeting `target` into stale rows with a
+    /// retained target-specific message for repeated clicks.
+    pub fn demote_target_with_message(
+        &mut self,
+        root: &Path,
+        target: &Path,
+        message: String,
+    ) -> usize {
+        let mut demoted = 0usize;
         for line in &mut self.lines {
             if !line.clickable {
                 continue;
@@ -206,7 +217,7 @@ impl RunPanel {
                 line.file.clear();
                 line.line = -1;
                 line.col = -1;
-                line.missing_target = Some(missing_target.clone());
+                line.stale_target_message = Some(message.clone());
                 demoted += 1;
             }
         }
@@ -456,7 +467,7 @@ impl RunPanel {
                 file,
                 line: (l1 as i32 - 1).max(0),
                 col: (c1 as i32 - 1).max(0),
-                missing_target: None,
+                stale_target_message: None,
                 is_error: true,
             },
             None => OutputLine {
@@ -654,7 +665,10 @@ mod tests {
         assert_eq!(stale.file, "");
         assert_eq!(stale.line, -1);
         assert_eq!(stale.col, -1);
-        assert_eq!(stale.missing_target.as_deref(), Some("demo.mty"));
+        assert_eq!(
+            stale.stale_target_message.as_deref(),
+            Some("Run target missing: demo.mty")
+        );
         assert!(r
             .lines
             .iter()
