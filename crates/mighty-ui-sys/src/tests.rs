@@ -3420,12 +3420,50 @@ fn agents_close_command_acknowledges_state_without_clearing_panel_data() {
         ctx.toasts.toasts().last().unwrap().message,
         "Mighty Agents panel is already closed"
     );
+
+    assert_eq!(crate::agentsabi::mui_agents_open_node(h, 1), -1);
+    assert!(ctx.agents.click_target().is_none());
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Mighty Agents panel is already closed"
+    );
+
+    assert_eq!(crate::agentsabi::mui_agents_row_at_click(h), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Mighty Agents panel is already closed"
+    );
+
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        0,
+        crate::layout::sidebar_right() - 20.0,
+        20.0,
+        0,
+    );
+    assert_eq!(crate::agentsabi::mui_agents_click_is_run(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Mighty Agents panel is already closed"
+    );
+    assert_eq!(crate::agentsabi::mui_agents_click_is_inspect(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Mighty Agents panel is already closed"
+    );
+    assert_eq!(crate::agentsabi::mui_agents_click_is_clear(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Mighty Agents panel is already closed"
+    );
 }
 
 #[test]
 fn agents_open_node_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_AGENTS_MTY;
     let root = std::env::temp_dir().join(format!("mui_agents_missing_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
@@ -3474,6 +3512,8 @@ fn agents_open_node_misses_report_visible_feedback() {
 fn agents_open_node_directory_target_reports_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_AGENTS_MTY;
     let root = std::env::temp_dir().join(format!("mui_agents_dir_target_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();

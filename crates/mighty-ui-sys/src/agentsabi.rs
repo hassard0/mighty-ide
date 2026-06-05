@@ -947,6 +947,10 @@ pub extern "C" fn mui_agents_open_node(handle: i64, i: i32) -> i32 {
         return -1;
     };
     ctx.agents.set_click_target(None);
+    if !agents_panel_visible(ctx) {
+        report_agents_closed(ctx);
+        return -1;
+    }
     if i < 0 {
         ctx.push_toast(crate::toast::Kind::Info, "No agent node selected");
         return -1;
@@ -1031,6 +1035,17 @@ fn reject_non_file_agents_target(ctx: &mut MuiContext, message: String) -> i32 {
     -1
 }
 
+fn agents_panel_visible(ctx: &MuiContext) -> bool {
+    ctx.sidebar_visible && ctx.active_panel == crate::PANEL_AGENTS_MTY
+}
+
+fn report_agents_closed(ctx: &mut MuiContext) {
+    ctx.push_toast(
+        crate::toast::Kind::Info,
+        "Mighty Agents panel is already closed",
+    );
+}
+
 /// Scroll the topology by `dir` rows (negative = up).
 #[no_mangle]
 pub extern "C" fn mui_agents_scroll(handle: i64, dir: i32) {
@@ -1049,7 +1064,8 @@ pub extern "C" fn mui_agents_row_at_click(handle: i64) -> i32 {
     };
     let sx0 = layout::RAIL_W;
     let sx1 = layout::sidebar_right();
-    if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_AGENTS_MTY {
+    if !agents_panel_visible(ctx) {
+        report_agents_closed(ctx);
         return -1;
     }
     if ctx.last_event.x < sx0 || ctx.last_event.x > sx1 {
@@ -1064,6 +1080,10 @@ pub extern "C" fn mui_agents_click_is_run(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !agents_panel_visible(ctx) {
+        report_agents_closed(ctx);
+        return 0;
+    }
     if ctx.last_event.y <= 40.0
         && header_rect_contains(header_run_rect(layout::sidebar_right()), ctx.last_event.x, true)
     {
@@ -1080,6 +1100,10 @@ pub extern "C" fn mui_agents_click_is_inspect(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !agents_panel_visible(ctx) {
+        report_agents_closed(ctx);
+        return 0;
+    }
     if ctx.last_event.y <= 40.0
         && header_rect_contains(header_inspect_rect(layout::sidebar_right()), ctx.last_event.x, false)
     {
@@ -1096,6 +1120,10 @@ pub extern "C" fn mui_agents_click_is_clear(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !agents_panel_visible(ctx) {
+        report_agents_closed(ctx);
+        return 0;
+    }
     if ctx.last_event.y <= 40.0
         && header_rect_contains(header_clear_rect(layout::sidebar_right()), ctx.last_event.x, false)
     {
@@ -1216,7 +1244,7 @@ pub extern "C" fn mui_agents_close(handle: i64) -> i32 {
         crate::abi::trace("agents_close");
         return 1;
     }
-    ctx.push_toast(crate::toast::Kind::Info, "Mighty Agents panel is already closed");
+    report_agents_closed(ctx);
     crate::abi::trace("agents_close noop");
     0
 }

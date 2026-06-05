@@ -72,6 +72,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Debug stale routes are visible**: Run and Debug sidebar click, breakpoint
   open/remove, breakpoint-clear, and toolbar action routes now report when the
   panel has already closed and cannot mutate retained hidden debug state.
+- **Mighty Agents stale routes are visible**: Agents header hit, topology-row
+  hit, and node-open routes now report when the panel has already closed and
+  cannot activate retained hidden topology.
 - **Keyboard shortcut persistence failures are visible**: remap and reset actions
   still update the live shortcut table, but failed `keybindings.toml` writes now
   warn that the override state may reset after restart.
