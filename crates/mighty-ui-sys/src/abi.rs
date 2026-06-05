@@ -10734,6 +10734,7 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
             return 0;
         }
         let bytes = ctx.tabs.active_model().to_bytes();
+        let resurrected_path = !path.is_file();
         if std::fs::write(&path, &bytes).is_err() {
             ctx.push_toast(crate::toast::Kind::Error, "Save failed before code action");
             return 0;
@@ -10743,6 +10744,10 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         let _ = ctx
             .tabs
             .reload_all_clean_path_except(&path, &bytes, active);
+        if resurrected_path {
+            record_recent_file(ctx, path.clone());
+            refresh_workspace_file_views(ctx);
+        }
         let mty = mty_default();
         let ok = std::process::Command::new(&mty)
             .arg("fix")

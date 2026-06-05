@@ -11077,3 +11077,14 @@ when that succeeds.
   state when an edit writes a path that was missing before the write.
 - **Language note:** no compiler gap surfaced. LSP-driven file writes should
   honor the same lifecycle publication rules as user-initiated file writes.
+
+## L898 - Fix-All Pre-Saves Can Restore Files
+
+The `source.fixAll.mighty` path saves the active buffer before invoking the
+external fixer. If the backing file was deleted before the code action runs,
+that pre-save recreates the file even when the fixer later fails.
+
+- **IDE note:** Fix-all pre-save now publishes restored active files to recent
+  files, Explorer, and visible Quick Open rows as soon as the pre-save succeeds.
+- **Language note:** no compiler gap surfaced. Preflight writes before external
+  tools should uphold file lifecycle invariants independently of tool success.
