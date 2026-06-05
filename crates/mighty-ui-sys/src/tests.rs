@@ -6936,6 +6936,13 @@ fn active_file_os_failure_messages_name_the_target() {
         "Reveal in file manager is unavailable: main.mty"
     );
     assert_eq!(
+        crate::abi::reveal_outside_root_message(
+            path,
+            std::path::Path::new("C:\\workspace")
+        ),
+        "main.mty is outside Explorer root: workspace"
+    );
+    assert_eq!(
         crate::abi::copy_path_failed_message(path, &err),
         "Could not copy path: main.mty: clipboard command failed"
     );
@@ -6951,6 +6958,35 @@ fn active_file_os_failure_messages_name_the_target() {
         crate::abi::copy_directory_failed_message("C:/workspace/src", &err),
         "Could not copy directory: C:/workspace/src: clipboard command failed"
     );
+}
+
+#[test]
+fn active_file_tree_reveal_outside_root_names_target_and_root() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_reveal_root_{}", std::process::id()));
+    let outside = std::env::temp_dir().join(format!("mui_reveal_outside_{}", std::process::id()));
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::create_dir_all(&outside).unwrap();
+    let file = outside.join("main.mty");
+    std::fs::write(&file, b"fn main() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tabs.open_path(file);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::abi::mui_file_reveal_active(handle), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        format!(
+            "main.mty is outside Explorer root: {}",
+            root.file_name().unwrap().to_string_lossy()
+        )
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+    let _ = std::fs::remove_dir_all(outside);
 }
 
 #[test]

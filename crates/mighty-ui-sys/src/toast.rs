@@ -757,7 +757,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Delete)
     } else if m.starts_with("Revealed ")
         || m == "No active file to reveal"
-        || m == "Active file is outside Explorer root"
+        || m.contains(" is outside Explorer root")
         || m.starts_with("Reveal in file manager is unavailable")
         || m.starts_with("Could not show ")
         || m == "Could not open file manager"
@@ -1492,9 +1492,21 @@ mod tests {
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
 
         q.push_at(
+            Kind::Warn,
+            "main.mty is outside Explorer root: app",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "main.mty is outside Explorer root: app"
+        );
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
             Kind::Error,
             "Could not show main.mty in file manager: launcher missing",
-            t0 + Duration::from_millis(200),
+            t0 + Duration::from_millis(300),
         );
         assert_eq!(q.len(), 1);
         assert_eq!(

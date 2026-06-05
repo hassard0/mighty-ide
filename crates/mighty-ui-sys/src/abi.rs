@@ -6284,7 +6284,10 @@ pub extern "C" fn mui_file_reveal_active(handle: i64) -> i32 {
             i as i32
         }
         None => {
-            ctx.push_toast(crate::toast::Kind::Warn, "Active file is outside Explorer root");
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                reveal_outside_root_message(&path, ctx.tree.root()),
+            );
             -1
         }
     }
@@ -6325,6 +6328,19 @@ pub(crate) fn file_manager_reveal_failed_message(
         format!("Could not show {name} in file manager")
     } else {
         format!("Could not show {name} in file manager: {}", reason.trim())
+    }
+}
+
+pub(crate) fn reveal_outside_root_message(
+    path: &std::path::Path,
+    root: &std::path::Path,
+) -> String {
+    let file = basename(path);
+    let root_name = basename(root);
+    if root_name.is_empty() || root_name == "." {
+        format!("{file} is outside Explorer root")
+    } else {
+        format!("{file} is outside Explorer root: {root_name}")
     }
 }
 

@@ -12015,3 +12015,17 @@ did not.
 - **Language note:** no compiler gap surfaced. Platform integration failures
   should carry the host launcher reason into the UI, especially for commands
   that depend on OS tools outside the editor process.
+
+## L966 - File Tree Reveal Refusals Should Name Both Sides
+
+`File: Reveal Active File in File Tree` made the Explorer visible and correctly
+refused files outside the current tree root, but the toast only said
+`Active file is outside Explorer root`. Users had to infer which tab missed
+which root.
+
+- **IDE note:** tree reveal refusals now report
+  `target is outside Explorer root: root`, while staying in the reveal toast
+  family so stale reveal messages collapse.
+- **Language note:** no compiler gap surfaced. Workspace-bound commands should
+  identify both the requested target and the active boundary when refusing a
+  valid operation because it is outside the current scope.
