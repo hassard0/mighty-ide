@@ -46,14 +46,48 @@ fn debug_command_display() -> String {
     format!("{program} dap")
 }
 
-fn debug_start_failed_message(path: &std::path::Path) -> String {
-    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("file");
-    format!("Debug failed to start: {name} via {}", debug_command_display())
+fn debug_spawn_failure_reason(ctx: &MuiContext) -> Option<String> {
+    (0..ctx.dbg.console_count()).rev().find_map(|i| {
+        let line = ctx.dbg.console_line(i)?;
+        if !line.is_error {
+            return None;
+        }
+        line.text
+            .strip_prefix("debug: failed to start adapter: ")
+            .map(|reason| reason.trim().to_string())
+            .filter(|reason| !reason.is_empty())
+    })
 }
 
-fn debug_restart_failed_message(path: &std::path::Path) -> String {
+fn append_optional_reason(mut message: String, reason: Option<&str>) -> String {
+    if let Some(reason) = reason.map(str::trim).filter(|s| !s.is_empty()) {
+        message.push_str(": ");
+        message.push_str(reason);
+    }
+    message
+}
+
+fn debug_start_failed_message(path: &std::path::Path, reason: Option<&str>) -> String {
     let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("file");
-    format!("Debug restart failed: {name} via {}", debug_command_display())
+    append_optional_reason(
+        format!("Debug failed to start: {name} via {}", debug_command_display()),
+        reason,
+    )
+}
+
+fn debug_restart_failed_message(path: &std::path::Path, reason: Option<&str>) -> String {
+    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("file");
+    append_optional_reason(
+        format!("Debug restart failed: {name} via {}", debug_command_display()),
+        reason,
+    )
+}
+
+fn debug_restart_failed_no_path_message(reason: Option<&str>) -> String {
+    append_optional_reason(
+        format!("Debug restart failed via {}", debug_command_display()),
+        reason,
+    )
 }
 
 // ===========================================================================
@@ -95,9 +129,10 @@ fn dbg_start_or_continue(ctx: &mut MuiContext) -> i32 {
             ));
             let ok = ctx.dbg.start(&path);
             if !ok {
+                let reason = debug_spawn_failure_reason(ctx);
                 ctx.push_toast(
                     crate::toast::Kind::Error,
-                    debug_start_failed_message(&path),
+                    debug_start_failed_message(&path, reason.as_deref()),
                 );
             }
             println!("dbg: start {} -> {ok}", path.display());
@@ -179,16 +214,17 @@ pub extern "C" fn mui_dbg_restart(handle: i64) -> i32 {
     let target = ctx.dbg.program().map(|p| p.to_path_buf());
     let ok = ctx.dbg.restart();
     if !ok {
+        let reason = debug_spawn_failure_reason(ctx);
         if let Some(path) = target.as_deref() {
             ctx.push_toast(
                 crate::toast::Kind::Error,
-                debug_restart_failed_message(path),
+                debug_restart_failed_message(path, reason.as_deref()),
             );
             crate::abi::trace("dbg_restart failed");
         } else if had_target {
             ctx.push_toast(
                 crate::toast::Kind::Error,
-                format!("Debug restart failed via {}", debug_command_display()),
+                debug_restart_failed_no_path_message(reason.as_deref()),
             );
             crate::abi::trace("dbg_restart failed_no_path");
         } else {

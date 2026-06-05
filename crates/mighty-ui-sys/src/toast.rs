@@ -2004,13 +2004,13 @@ mod tests {
 
         q.push_at(
             Kind::Error,
-            "Debug restart failed: main.mty via missing-mty.exe dap",
+            "Debug restart failed: main.mty via missing-mty.exe dap: process spawn denied",
             t0 + Duration::from_millis(600),
         );
         assert_eq!(q.len(), 1);
         assert_eq!(
             q.toasts()[0].message,
-            "Debug restart failed: main.mty via missing-mty.exe dap"
+            "Debug restart failed: main.mty via missing-mty.exe dap: process spawn denied"
         );
 
         q.push_at(

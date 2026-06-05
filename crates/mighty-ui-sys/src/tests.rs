@@ -7907,13 +7907,21 @@ fn debug_start_spawn_failure_names_target_and_command() {
     assert_eq!(crate::dapabi::mui_dbg_active(handle), 1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert_eq!(
-        toast.message,
-        "Debug failed to start: main.mty via missing-mty.exe dap"
+    assert!(
+        toast
+            .message
+            .starts_with("Debug failed to start: main.mty via missing-mty.exe dap: "),
+        "{}",
+        toast.message
     );
     let console = ctx.dbg.console_line(0).expect("debug failure console line");
     assert!(console.is_error);
     assert!(console.text.contains("failed to start adapter"));
+    let reason = console
+        .text
+        .strip_prefix("debug: failed to start adapter: ")
+        .expect("debug failure reason");
+    assert!(toast.message.ends_with(reason), "{}", toast.message);
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -7950,13 +7958,21 @@ fn debug_restart_spawn_failure_names_target_and_command() {
 
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert_eq!(
-        toast.message,
-        "Debug restart failed: again.mty via missing-mty.exe dap"
+    assert!(
+        toast
+            .message
+            .starts_with("Debug restart failed: again.mty via missing-mty.exe dap: "),
+        "{}",
+        toast.message
     );
     let console = ctx.dbg.console_line(0).expect("debug failure console line");
     assert!(console.is_error);
     assert!(console.text.contains("failed to start adapter"));
+    let reason = console
+        .text
+        .strip_prefix("debug: failed to start adapter: ")
+        .expect("debug failure reason");
+    assert!(toast.message.ends_with(reason), "{}", toast.message);
 
     let _ = std::fs::remove_dir_all(root);
 }

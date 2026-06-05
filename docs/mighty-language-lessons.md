@@ -11801,3 +11801,19 @@ actionable than terminal and test startup failures.
 - **Language note:** no compiler gap surfaced. Sibling background-task surfaces
   should expose startup errors consistently; if one panel needs target, command,
   and host reason in the toast, the matching panel does too.
+
+## L952 - Debug Adapter Startup Failures Should Surface The Spawn Reason
+
+Debug adapter spawn failures logged the host error in the debug console, but the
+toast only named the target file and attempted `mty dap` command. That left the
+first feedback surface less actionable than Run, Test, and Terminal after their
+startup-failure passes.
+
+- **IDE note:** Debug start and restart failure toasts now append the compact
+  spawn reason from the debug console while preserving the target file and
+  attempted adapter command (`Debug failed to start: main.mty via mty dap:
+  process spawn denied`). Toast replacement continues to group detailed Debug
+  messages under the Debug operation family.
+- **Language note:** no compiler gap surfaced. Adapter/client boundaries should
+  keep the detailed console row, but the scalar ABI command surface should also
+  promote the actionable host reason into the immediate toast.
