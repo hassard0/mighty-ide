@@ -60,6 +60,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Peek Definition targets now share the focused-pane file-open path.
 
 ### Language intelligence
+- **Breadcrumb menu stale routes are visible**: breadcrumb dropdown move,
+  click-row, and accept routes now report when the dropdown has already closed
+  instead of silently ignoring stale keyboard or mouse routing.
 - **Keyboard shortcut persistence failures are visible**: remap and reset actions
   still update the live shortcut table, but failed `keybindings.toml` writes now
   warn that the override state may reset after restart.

@@ -15071,6 +15071,21 @@ fn breadcrumb_close_command_clears_active_menu() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No breadcrumb menu open");
+
+    crate::navsurfaces::mui_crumb_menu_move(h, 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No breadcrumb menu open");
+
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_row_at_click(h), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No breadcrumb menu open");
+
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_accept(h, -1), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No breadcrumb menu open");
 }
 
 #[test]

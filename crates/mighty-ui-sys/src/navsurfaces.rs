@@ -813,10 +813,18 @@ pub extern "C" fn mui_crumb_menu_active(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| if c.crumb_menu.is_active() { 1 } else { 0 })
 }
 
+fn report_crumb_menu_closed(ctx: &mut crate::MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Info, "No breadcrumb menu open");
+}
+
 /// Move the dropdown selection by `delta` (wraps).
 #[no_mangle]
 pub extern "C" fn mui_crumb_menu_move(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.crumb_menu.is_active() {
+            report_crumb_menu_closed(ctx);
+            return;
+        }
         ctx.crumb_menu.move_sel(delta);
     }
 }
@@ -833,7 +841,7 @@ pub extern "C" fn mui_crumb_menu_cancel(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, "Breadcrumb menu closed");
         1
     } else {
-        ctx.push_toast(crate::toast::Kind::Info, "No breadcrumb menu open");
+        report_crumb_menu_closed(ctx);
         0
     }
 }
@@ -844,6 +852,10 @@ pub extern "C" fn mui_crumb_menu_row_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !ctx.crumb_menu.is_active() {
+        report_crumb_menu_closed(ctx);
+        return -1;
+    }
     ctx.crumb_menu.row_at(ctx.last_event.y)
 }
 
@@ -856,7 +868,7 @@ pub extern "C" fn mui_crumb_menu_accept(handle: i64, i: i32) -> i32 {
         return -1;
     };
     if !ctx.crumb_menu.is_active() {
-        ctx.push_toast(crate::toast::Kind::Info, "No breadcrumb menu open");
+        report_crumb_menu_closed(ctx);
         return -1;
     }
     let target = if i < 0 {

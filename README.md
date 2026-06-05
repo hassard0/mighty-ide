@@ -45,6 +45,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Outline, Problems, and an interactive breadcrumb** code-nav bar; Problems
   rows, breadcrumb file jumps, and Peek Definition navigation reject directory
   targets from stale indexes instead of opening empty tabs
+- Breadcrumb menu stale keyboard and click routes report when the dropdown has
+  already closed
 - **Split editor (Ctrl+\)** — side-by-side panes, focus a pane with Ctrl+1 / Ctrl+2
 - **Bracket-pair colorization + indent guides** — nesting-depth rainbow brackets, faint per-level guides with an active-block highlight
 - **Interactive minimap** — click to jump; tall files compress so the whole file maps across the strip
