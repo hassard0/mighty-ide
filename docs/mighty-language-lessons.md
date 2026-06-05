@@ -12869,3 +12869,18 @@ buffer.
   in-memory model from disk should validate target kind before the read, because
   the user-facing invariant is about preserving editor state, not about the
   exact OS error returned by `read`.
+
+## L1026 - Load Buffers Need Non-File Feedback
+
+The scalar load buffer and the active editor load path both read from disk, but
+their recovery behavior is different: staged loads clear an internal buffer,
+while active editor loads must preserve visible text. Both still need the same
+target-kind vocabulary when a path becomes a directory.
+
+- **IDE note:** `mui_load` and `mui_ed_load` now reject existing non-file
+  targets before reading. Staged loads clear `load_buf` and report
+  `Load failed: <name>: not a file`; active editor loads preserve the current
+  tab contents, refresh workspace file views, and report the same message.
+- **Language note:** no compiler gap surfaced. Load APIs should report semantic
+  path-state failures before invoking lower-level reads, especially when
+  different callers need different state-preservation behavior.

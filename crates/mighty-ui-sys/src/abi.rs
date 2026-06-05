@@ -3263,6 +3263,15 @@ pub extern "C" fn mui_load(handle: i64) -> i64 {
         ctx.load_buf.clear();
         return 0;
     };
+    if save_target_is_existing_non_file(&path) {
+        eprintln!("mui_load({}): not a file", path.display());
+        ctx.load_buf.clear();
+        ctx.push_toast(
+            crate::toast::Kind::Error,
+            file_target_not_file_message("Load", &path),
+        );
+        return -1;
+    }
     match std::fs::read(&path) {
         Ok(bytes) => {
             let n = bytes.len() as i64;
@@ -12442,6 +12451,15 @@ fn mui_ed_load_impl(handle: i64, preserve_undo: bool) -> i64 {
         }
         return 0;
     };
+    if save_target_is_existing_non_file(&path) {
+        eprintln!("mui_ed_load({}): not a file", path.display());
+        refresh_workspace_file_views(ctx);
+        ctx.push_toast(
+            crate::toast::Kind::Error,
+            file_target_not_file_message("Load", &path),
+        );
+        return -1;
+    }
     match std::fs::read(&path) {
         Ok(bytes) => {
             let n = bytes.len() as i64;

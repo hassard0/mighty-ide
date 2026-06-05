@@ -28,6 +28,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   packaged launch result.
 
 ### Language intelligence
+- **Load paths reject directory targets explicitly**: staged `mui_load` and
+  active editor load now report `Load failed: <name>: not a file` when a
+  configured or active path is a directory. Staged loads clear the load buffer;
+  active loads preserve the live editor buffer and refresh workspace indexes.
 - **Definition targets reject directories**: cross-file definition opens now
   require the resolved target to be a real file. Directory targets from stale or
   malformed resolver output report `Definition target is not a file: <name>`

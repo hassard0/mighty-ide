@@ -72,8 +72,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   instead of silently doing nothing
 - Staged save failures report visible feedback for scratch targets and dirty
   open tabs instead of only logging to stderr
-- Staged load failures report `Load failed: <file>: <reason>` instead of only
-  logging configured-path read errors
+- Staged and active load failures report `Load failed: <file>: <reason>`, with
+  directory targets named as `not a file` instead of leaking platform read
+  errors
 - Diagnostics refresh failures report the missing checker command instead of
   looking like a clean file with no diagnostics
 - Generic diagnostics report stale non-active source files instead of treating

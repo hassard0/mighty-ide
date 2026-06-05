@@ -517,6 +517,35 @@ fn load_staging_missing_file_reports_visible_feedback() {
 }
 
 #[test]
+fn load_staging_directory_target_reports_not_file_feedback() {
+    use crate::{mui_load, mui_load_byte, mui_path_commit, mui_path_push};
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!(
+        "mui_load_staging_directory_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let dir = root.join("blocked.mty");
+    std::fs::create_dir_all(&dir).unwrap();
+
+    for b in dir.to_string_lossy().as_bytes() {
+        mui_path_push(handle, *b as u32);
+    }
+    mui_path_commit(handle);
+
+    assert_eq!(mui_load(handle), -1);
+    assert_eq!(mui_load_byte(handle, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Load failed: blocked.mty: not a file");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn save_staging_writes_then_load_reads_back_round_trip() {
     use crate::{
         mui_load, mui_load_byte, mui_path_commit, mui_path_push, mui_save_commit, mui_save_push,
@@ -6968,6 +6997,42 @@ fn ed_load_missing_file_preserves_buffer_and_refreshes_indexes() {
         "{}",
         toast.message
     );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn ed_load_directory_target_preserves_buffer_and_refreshes_indexes() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_ed_load_directory_preserves_buffer_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("blocked.mty");
+    std::fs::write(&path, "old buffer").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    let active = ctx.tabs.open_path(path.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "old buffer");
+
+    std::fs::remove_file(&path).unwrap();
+    std::fs::create_dir_all(&path).unwrap();
+    assert_eq!(crate::mui_ed_load(handle), -1);
+    assert_eq!(ctx.tabs.active(), active);
+    assert_eq!(ctx.tabs.active_model().as_text(), "old buffer");
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Load failed: blocked.mty: not a file");
 
     let _ = std::fs::remove_dir_all(&root);
 }
