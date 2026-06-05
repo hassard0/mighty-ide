@@ -180,6 +180,10 @@ impl RecentWorkspaces {
         self.paths.get(i)
     }
 
+    pub fn contains(&self, path: &Path) -> bool {
+        self.paths.iter().any(|p| folder_paths_equal(p, path))
+    }
+
     /// Remove `path` from the MRU. Returns `true` if an entry was removed.
     pub fn remove(&mut self, path: &Path) -> bool {
         let before = self.paths.len();
@@ -315,8 +319,10 @@ mod tests {
         r.record(one.clone());
         r.record(two.clone());
 
+        assert!(r.contains(&one));
         assert!(r.remove(&one));
         assert_eq!(r.entries(), &[two]);
+        assert!(!r.contains(&one));
         assert!(!r.remove(&one));
     }
 

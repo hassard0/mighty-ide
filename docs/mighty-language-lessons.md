@@ -13337,3 +13337,18 @@ under it. That root gate still used a direct directory check.
 - **Language note:** no compiler gap surfaced. Search entry points should name
   the boundary predicate explicitly so later ranking logic only handles
   searchable directories.
+
+## L1057 - Welcome Recent Rows Should Trust The MRU Model
+
+Welcome recent-folder clicks delegate stale path classification to the shared
+workspace-recents opener, which removes missing and non-folder paths from the
+recent-workspace MRU. The Welcome wrapper then re-checked the filesystem to
+decide whether to clear its cached hit snapshot.
+
+- **IDE note:** Welcome recent-folder failure handling now clears cached folder
+  hit snapshots when the clicked path is no longer present in the recent
+  workspace model. That keeps UI cache invalidation tied to the authoritative
+  MRU mutation and avoids a duplicate directory probe after the shared opener
+  already classified the path.
+- **Language note:** no compiler gap surfaced. UI snapshots should be invalidated
+  from the model state they mirror, not from a repeated side probe.

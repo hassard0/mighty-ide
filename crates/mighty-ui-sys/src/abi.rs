@@ -16841,7 +16841,7 @@ pub extern "C" fn mui_welcome_open_folder(handle: i64, i: i32) -> i32 {
     let opened = crate::wsabi::mui_ws_open_recent_path(ctx, &path);
     if opened == 1 {
         ctx.welcome.dismiss();
-    } else if !path.is_dir() {
+    } else if !ctx.recent_workspaces.contains(&path) {
         ctx.welcome.clear_recent_folder_hits();
     }
     opened
