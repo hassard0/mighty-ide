@@ -5835,6 +5835,38 @@ fn reload_missing_file_refreshes_workspace_indexes() {
 }
 
 #[test]
+fn ed_load_missing_file_preserves_buffer_and_refreshes_indexes() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_ed_load_missing_preserves_buffer_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("gone.mty");
+    std::fs::write(&path, "old buffer").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    let active = ctx.tabs.open_path(path.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "old buffer");
+
+    std::fs::remove_file(&path).unwrap();
+    assert_eq!(crate::mui_ed_load(handle), -1);
+    assert_eq!(ctx.tabs.active(), active);
+    assert_eq!(ctx.tabs.active_model().as_text(), "old buffer");
+    assert_eq!(ctx.tree.count(), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn revert_active_file_discards_dirty_buffer_from_disk() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_revert_file_{}", std::process::id()));

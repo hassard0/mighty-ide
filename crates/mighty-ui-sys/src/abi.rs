@@ -11732,7 +11732,7 @@ fn mui_ed_load_impl(handle: i64, preserve_undo: bool) -> i64 {
         }
         Err(e) => {
             eprintln!("mui_ed_load({}): {e}", path.display());
-            ctx.tabs.reload_active(b"");
+            refresh_workspace_file_views(ctx);
             -1
         }
     }

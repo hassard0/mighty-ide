@@ -11139,3 +11139,17 @@ could leave file discovery surfaces stale.
   write.
 - **Language note:** no compiler gap surfaced. Legacy scalar write APIs need the
   same file lifecycle guarantees as newer editor save commands.
+
+## L903 - Failed Low-Level Loads Should Preserve Buffers
+
+The low-level editor load ABI can be called after the shim has already opened a
+file-backed tab. If the backing file disappears before that load, replacing the
+active model with empty bytes turns a missing-file condition into apparent data
+loss.
+
+- **IDE note:** `mui_ed_load` now preserves the active buffer on read failure
+  and refreshes Explorer plus visible Quick Open rows so missing files disappear
+  from discovery surfaces.
+- **Language note:** no compiler gap surfaced. Failed file reload primitives
+  should leave the last known-good buffer intact unless the user explicitly
+  discards it.
