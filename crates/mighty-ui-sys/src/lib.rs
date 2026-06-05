@@ -499,6 +499,10 @@ fn initial_tree_root_for(
     cwd.unwrap_or_default()
 }
 
+fn initial_file_path_for(file_path: Option<&Path>) -> Option<PathBuf> {
+    file_path.filter(|p| p.is_file()).map(Path::to_path_buf)
+}
+
 impl MuiContext {
     /// Push a toast from inside the shim (the common case — file saved, git
     /// committed, build/run finished, errors, theme changed, …). Used across the
@@ -718,6 +722,8 @@ pub(crate) fn build_context(
     title: String,
     file_path: Option<PathBuf>,
 ) -> *mut MuiContext {
+    let initial_file_path = initial_file_path_for(file_path.as_deref());
+
     // Activate the persisted (or MUI_THEME-overridden) color theme before any
     // draw call so the whole IDE — including the first frame / screenshots —
     // renders in the chosen theme. Default is Vivid Modern.
@@ -785,7 +791,7 @@ pub(crate) fn build_context(
     layout::set_window_width(gpu.width);
     let text = Text::new(&gpu.device, &gpu.queue, gpu.format);
 
-    let file_name = file_path
+    let file_name = initial_file_path
         .as_ref()
         .and_then(|p| p.file_name())
         .map(|s| s.to_string_lossy().into_owned())
@@ -794,13 +800,13 @@ pub(crate) fn build_context(
     // Seed the tab store with the initial file as tab 0 (or a scratch tab), and
     // root the file tree at that file's directory (or the cwd).
     let mut tab_store = tabs::TabStore::new();
-    if let Some(p) = file_path.clone() {
+    if let Some(p) = initial_file_path.clone() {
         tab_store.open_path(p);
     } else {
         tab_store.ensure_scratch();
     }
     let tree_root = initial_tree_root_for(
-        file_path.as_deref(),
+        initial_file_path.as_deref(),
         std::env::current_dir().ok(),
         std::env::current_exe()
             .ok()
@@ -832,11 +838,11 @@ pub(crate) fn build_context(
         in_frame: false,
         text_stage: String::new(),
         last_event: MuiEvent::none(),
-        language: file_path
+        language: initial_file_path
             .as_ref()
             .map(|p| langdetect::detect_path(p))
             .unwrap_or(langdetect::Language::PlainText),
-        file_path,
+        file_path: initial_file_path,
         path_stage: Vec::new(),
         load_buf: Vec::new(),
         save_buf: Vec::new(),

@@ -69,6 +69,38 @@ fn initial_tree_root_keeps_cwd_for_dev_no_arg_launch() {
     let _ = std::fs::remove_dir_all(root);
 }
 
+#[test]
+fn initial_file_path_requires_existing_file() {
+    let root = std::env::temp_dir().join(format!("mui_initial_file_path_{}", std::process::id()));
+    let dir = root.join("dir");
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = root.join("main.mty");
+    let missing = root.join("missing.mty");
+    std::fs::write(&file, b"fn main() {}\n").unwrap();
+
+    assert_eq!(crate::initial_file_path_for(Some(&file)), Some(file.clone()));
+    assert_eq!(crate::initial_file_path_for(Some(&missing)), None);
+    assert_eq!(crate::initial_file_path_for(Some(&dir)), None);
+    assert_eq!(crate::initial_file_path_for(None), None);
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn filtered_missing_startup_file_keeps_tree_on_no_arg_root() {
+    let root = std::env::temp_dir().join(format!("mui_initial_missing_file_{}", std::process::id()));
+    let cwd = root.join("cwd");
+    let missing = root.join("src").join("missing.mty");
+    std::fs::create_dir_all(&cwd).unwrap();
+
+    let initial = crate::initial_file_path_for(Some(&missing));
+    let got = crate::initial_tree_root_for(initial.as_deref(), Some(cwd.clone()), None);
+    assert_eq!(initial, None);
+    assert_eq!(got, cwd);
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
 macro_rules! ctx_or_skip {
     () => {
         match MuiContext::new_offscreen(W, H) {

@@ -11459,3 +11459,19 @@ assembled native payload matched the target platform.
   building release archives.
 - **Language note:** no compiler gap surfaced. Release automation should encode
   artifact invariants in the scripts, not only in operator documentation.
+
+## L928 - Startup File Arguments Need The Same Existence Guard As UI Opens
+
+Interactive file-open surfaces already reject missing paths before opening a
+tab, but startup still passed its optional launch argument directly into the
+low-level tab opener. Because that opener deliberately supports empty tabs for
+brand-new file paths, a typo on the command line could silently seed an empty
+file-backed editor tab and status path.
+
+- **IDE note:** startup now filters the launch argument to an existing file
+  before using it for the initial tab, status filename, detected language,
+  context file path, or tree root. Missing files and directories fall back to
+  the normal scratch/no-argument startup path.
+- **Language note:** no compiler gap surfaced. Entry-point normalization should
+  sit above permissive low-level primitives so startup behavior matches the
+  guarded UI command paths.
