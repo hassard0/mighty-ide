@@ -11219,6 +11219,36 @@ fn quickopen_accept_missing_indexed_file_reindexes_and_stays_open() {
 }
 
 #[test]
+fn quickopen_accept_empty_result_reports_feedback_and_stays_open() {
+    use crate::{mui_qo_accept, mui_qo_active, mui_qo_count, mui_quickopen_open};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_qo_empty_accept_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.workspace = crate::workspace::Workspace::new(root.clone());
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_qo_accept(h, -1), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No Quick Open panel open");
+
+    mui_quickopen_open(h);
+    assert_eq!(mui_qo_count(h), 0);
+    assert_eq!(mui_qo_accept(h, -1), -1);
+    assert_eq!(mui_qo_active(h), 1, "empty accepts should leave Quick Open routed");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No Quick Open result selected");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn welcome_open_recent_misses_report_visible_feedback() {
     use crate::{mui_welcome_active, mui_welcome_draw, mui_welcome_open_recent};
 
@@ -14434,6 +14464,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         quickopen_branch.matches(palette_cleanup).count() >= 2
             && quickopen_branch.matches(quickopen_nested_cleanup).count() >= 3,
         "Quick Open local Escape, Enter, and mouse exits must release stale focus"
+    );
+    assert!(
+        quickopen_branch.matches("quickopen_open = mui_qo_active(h) == 1").count() >= 2,
+        "Quick Open failed accepts must keep Mighty's routing flag aligned with the shim"
     );
     assert!(
         main.contains("id == cmd_markdown_close_preview()")

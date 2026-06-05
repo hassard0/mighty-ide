@@ -37,6 +37,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Quick Open recovers from deleted indexed files**: accepting a file row whose
   target disappeared now reports the missing target, refreshes the file index,
   and keeps Quick Open open with the stale row removed.
+- **Quick Open empty accepts stay routed**: pressing Enter on an empty
+  files/symbols/line result now reports the missing selection and keeps the
+  picker open, with Mighty mirroring the shim's active state after failed
+  accepts.
 - **Explorer rejects stale file rows**: opening a file row whose target was
   deleted now reports the missing file, refreshes Explorer and Quick Open, and
   avoids creating an empty phantom tab for the missing path.

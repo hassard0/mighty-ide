@@ -9259,6 +9259,7 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
         return -1;
     };
     if !ctx.quickopen.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No Quick Open panel open");
         return -1;
     }
     let mode = ctx.quickopen.mode();
@@ -9287,16 +9288,24 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
                     keep_open = true;
                     -1
                 }
-                _ => -1,
+                _ => {
+                    ctx.push_toast(crate::toast::Kind::Info, "No Quick Open result selected");
+                    keep_open = true;
+                    -1
+                }
             }
         }
         crate::quickopen::Mode::Symbols => {
             let sym = ctx.quickopen.accept_symbol(i);
             if sym < 0 {
+                ctx.push_toast(crate::toast::Kind::Info, "No symbol selected");
+                keep_open = true;
                 -1
             } else {
                 let line = ctx.outline.line_of(sym as usize);
                 if line < 0 {
+                    ctx.push_toast(crate::toast::Kind::Info, "No symbol selected");
+                    keep_open = true;
                     -1
                 } else {
                     let model = ctx.tabs.active_model_mut();
@@ -9311,6 +9320,8 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
         crate::quickopen::Mode::GotoLine => {
             let n = ctx.quickopen.goto_line();
             if n < 1 {
+                ctx.push_toast(crate::toast::Kind::Info, "Enter a line number");
+                keep_open = true;
                 -1
             } else {
                 let line = n - 1;

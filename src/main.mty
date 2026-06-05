@@ -2098,7 +2098,7 @@ fn main() {
               // (open the file as a tab, or move the cursor) and returns. We
               // mirror the post-open housekeeping the prompt/palette do.
               let r = mui_qo_accept(h, -1)
-              quickopen_open = false
+              quickopen_open = mui_qo_active(h) == 1
               if mode == 0 {
                 if r >= 0 {
                   let _b = mui_ed_tab_switch(h, r)
@@ -2155,7 +2155,7 @@ fn main() {
               find_nav = false
             } else {
               let r = mui_qo_accept(h, qh)
-              quickopen_open = false
+              quickopen_open = mui_qo_active(h) == 1
               quickopen_ignore_mouse_down = false
               if mode == 0 {
                 if r >= 0 {
