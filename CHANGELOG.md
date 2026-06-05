@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Release packaging
+- **Packages include a verification manifest**: Windows, macOS, Linux, and the
+  Git-Bash Windows package path now write `PACKAGE-MANIFEST.txt` into the
+  package root with platform/version metadata, native payload hashes and sizes,
+  and the clean-binary checks completed before archiving.
 - **Package sidecar checks are stricter**: Windows, macOS, and Linux package
   assembly now also rejects `.dSYM`, `.debug`, and `.map` artifacts, and the
   README/build/platform docs list the same clean-binary contract operators must

@@ -56,9 +56,11 @@ foreign-platform native files, and checking that the staged native binaries
 match the host platform format before the archive is written.
 The scripts also bundle the README, license, keybinding reference,
 changelog, build notes, platform packaging notes, samples, and platform-specific
-`RUN.txt` instructions. Windows performs PE checks directly in PowerShell; macOS
-and Linux require the standard `file` utility and fail if the packaged payload is
-not Mach-O or ELF respectively.
+`RUN.txt` instructions. They also write `PACKAGE-MANIFEST.txt` into the package
+root with platform/version metadata, native payload hashes and sizes, and the
+clean binary checks completed before archiving. Windows performs PE checks
+directly in PowerShell; macOS and Linux require the standard `file` utility and
+fail if the packaged payload is not Mach-O or ELF respectively.
 
 | Platform | Current command | Artifact | Status |
 |----------|-----------------|----------|--------|
@@ -79,6 +81,7 @@ together long enough to verify:
 - native binary family for every packaged executable/shared library
 - absence of compiler/linker byproducts
 - absence of foreign-platform native payloads
+- bundled `PACKAGE-MANIFEST.txt` hash/size and clean-binary summary
 - packaged launch from inside the assembled directory or app bundle
 
 Windows verification can be completed from this checkout. macOS and Linux

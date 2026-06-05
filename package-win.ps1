@@ -74,6 +74,37 @@ function Assert-NoBuildSidecars {
   }
 }
 
+function Write-PackageManifest {
+  param(
+    [Parameter(Mandatory = $true)][string]$Path,
+    [Parameter(Mandatory = $true)][string]$Archive,
+    [Parameter(Mandatory = $true)][string[]]$NativeBinaries
+  )
+  $manifest = Join-Path $Path "PACKAGE-MANIFEST.txt"
+  $lines = @(
+    "Mighty IDE package verification",
+    "Platform: Windows x64",
+    "Version: $Version",
+    "Generated: $((Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'))",
+    "",
+    "Native payloads:"
+  )
+  foreach ($binary in $NativeBinaries) {
+    $item = Get-Item -LiteralPath $binary
+    $hash = Get-FileHash -LiteralPath $binary -Algorithm SHA256
+    $lines += "- $($item.Name) | PE | $($item.Length) bytes | SHA256 $($hash.Hash)"
+  }
+  $lines += @(
+    "",
+    "Archive: $Archive",
+    "Clean binary checks:",
+    "- PE headers verified for mighty-ide.exe and mighty_ui_sys.dll",
+    "- No compiler/linker sidecars found",
+    "- No non-Windows native payloads found"
+  )
+  Set-Content -LiteralPath $manifest -Encoding UTF8 -Value $lines
+}
+
 $env:CARGO_INCREMENTAL = "0"
 $prevRustflags = $env:RUSTFLAGS
 $releaseLinkFlags = "-C debuginfo=0 -C link-arg=/DEBUG:NONE"
@@ -135,6 +166,10 @@ try {
 
   Write-Host "[4/5] zip package"
   $zip = "dist\mighty-ide-$Version-win64.zip"
+  Write-PackageManifest -Path $dist -Archive $zip -NativeBinaries @(
+    "$dist\mighty-ide.exe",
+    "$dist\mighty_ui_sys.dll"
+  )
   Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
   Compress-Archive -Path $dist -DestinationPath $zip -Force
 

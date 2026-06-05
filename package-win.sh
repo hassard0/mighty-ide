@@ -84,6 +84,7 @@ fi
 if [ -f "$ICON" ] && [ -f "$RCEDIT" ]; then
   echo "  stamping icon onto mighty-ide.exe via rcedit"
   "$RCEDIT" "$DIST/mighty-ide.exe" --set-icon "$ICON"
+  assert_pe_binary "$DIST/mighty-ide.exe"
   # Bundle the .ico too so the desktop-shortcut script can point at it.
   cp "$ICON" "$DIST/mighty-ide.ico"
 else
@@ -108,9 +109,9 @@ mkdir -p "$DIST/docs"
 cp README.md KEYBINDINGS.md CHANGELOG.md BUILDING.md LICENSE "$DIST/"
 cp docs/platform-packaging.md "$DIST/docs/platform-packaging.md"
 
-if find "$DIST" -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.rlib' -o -name '*.log' \) | grep -q .; then
+if find "$DIST" \( -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.a' -o -name '*.rlib' -o -name '*.log' -o -name '*.debug' -o -name '*.map' \) -o -type d -name '*.dSYM' \) | grep -q .; then
   echo "ERROR: package contains build byproducts:" >&2
-  find "$DIST" -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.rlib' -o -name '*.log' \) >&2
+  find "$DIST" \( -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.a' -o -name '*.rlib' -o -name '*.log' -o -name '*.debug' -o -name '*.map' \) -o -type d -name '*.dSYM' \) >&2
   exit 1
 fi
 if find "$DIST" -type f \( -name '*.dylib' -o -name '*.so' \) | grep -q .; then
@@ -118,6 +119,26 @@ if find "$DIST" -type f \( -name '*.dylib' -o -name '*.so' \) | grep -q .; then
   find "$DIST" -type f \( -name '*.dylib' -o -name '*.so' \) >&2
   exit 1
 fi
+
+{
+  echo "Mighty IDE package verification"
+  echo "Platform: Windows x64"
+  echo "Version: $VERSION"
+  echo "Generated: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  echo
+  echo "Native payloads:"
+  for binary in "$DIST/mighty-ide.exe" "$DIST/mighty_ui_sys.dll"; do
+    size="$(wc -c < "$binary" | tr -d ' ')"
+    hash="$(powershell.exe -NoProfile -Command "(Get-FileHash -LiteralPath '$binary' -Algorithm SHA256).Hash")"
+    echo "- $(basename "$binary") | PE | $size bytes | SHA256 $hash"
+  done
+  echo
+  echo "Archive: dist/mighty-ide-$VERSION-win64.zip"
+  echo "Clean binary checks:"
+  echo "- PE headers verified for mighty-ide.exe and mighty_ui_sys.dll"
+  echo "- No compiler/linker sidecars found"
+  echo "- No non-Windows native payloads found"
+} > "$DIST/PACKAGE-MANIFEST.txt"
 
 echo "[5/5] zip -> dist/mighty-ide-$VERSION-win64.zip"
 ZIP="mighty-ide-$VERSION-win64.zip"

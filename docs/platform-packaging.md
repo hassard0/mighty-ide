@@ -14,9 +14,11 @@ or a release operator.
    runtime, samples/examples, project docs, and platform-specific run
    instructions.
 5. Reject build sidecars and obvious foreign-platform native payloads.
-6. Smoke-test the packaged executable from inside the assembled package
+6. Write `PACKAGE-MANIFEST.txt` with the platform, version, native payload
+   hashes and sizes, and completed clean-binary checks.
+7. Smoke-test the packaged executable from inside the assembled package
    directory.
-7. Keep generated packages out of commits.
+8. Keep generated packages out of commits.
 
 The checked-in package scripts enforce these rules where they can: they refuse a
 dirty git worktree, delete the previous platform package directory, reject common
@@ -50,6 +52,7 @@ the root is an `.app` archive, in which case they live beside the `.app` in the
 tarball:
 
 - `RUN.txt` with native instructions for that platform
+- `PACKAGE-MANIFEST.txt` with native payload hashes, sizes, and clean checks
 - `README.md`
 - `KEYBINDINGS.md`
 - `CHANGELOG.md`
@@ -140,7 +143,9 @@ directory before upload.
 These commands are intentionally explicit so a release note can include the
 same facts for every published archive: archive size, SHA-256, native binary
 family, absence of build sidecars, absence of foreign native payloads, and a
-packaged launch.
+packaged launch. Compare them with the bundled `PACKAGE-MANIFEST.txt`; if the
+manifest is missing or disagrees with the assembled package, rebuild before
+uploading.
 
 Windows PowerShell:
 

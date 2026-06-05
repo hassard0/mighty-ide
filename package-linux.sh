@@ -144,6 +144,26 @@ if find "$DIST" -type f \( -name '*.exe' -o -name '*.dll' -o -name '*.dylib' \) 
   exit 1
 fi
 
+{
+  echo "Mighty IDE package verification"
+  echo "Platform: Linux x64"
+  echo "Version: $VERSION"
+  echo "Generated: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  echo
+  echo "Native payloads:"
+  for binary in "$DIST/mighty-ide" "$DIST/libmighty_ui_sys.so"; do
+    size="$(wc -c < "$binary" | tr -d ' ')"
+    hash="$(sha256sum "$binary" | awk '{print $1}')"
+    echo "- $(basename "$binary") | ELF | $size bytes | SHA256 $hash"
+  done
+  echo
+  echo "Archive: $ZIP"
+  echo "Clean binary checks:"
+  echo "- ELF format verified for mighty-ide and libmighty_ui_sys.so"
+  echo "- No compiler/linker sidecars found"
+  echo "- No non-Linux native payloads found"
+} > "$DIST/PACKAGE-MANIFEST.txt"
+
 echo "[6/6] archive"
 rm -f "$ZIP"
 tar -C dist -czf "$ZIP" "$PKG"

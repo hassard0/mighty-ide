@@ -169,6 +169,26 @@ if find "$DIST_ROOT" -type f \( -name '*.exe' -o -name '*.dll' -o -name '*.so' \
   exit 1
 fi
 
+{
+  echo "Mighty IDE package verification"
+  echo "Platform: macOS"
+  echo "Version: $VERSION"
+  echo "Generated: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  echo
+  echo "Native payloads:"
+  for binary in "$MACOS/mighty-ide" "$MACOS/libmighty_ui_sys.dylib"; do
+    size="$(wc -c < "$binary" | tr -d ' ')"
+    hash="$(shasum -a 256 "$binary" | awk '{print $1}')"
+    echo "- $(basename "$binary") | Mach-O | $size bytes | SHA256 $hash"
+  done
+  echo
+  echo "Archive: $ZIP"
+  echo "Clean binary checks:"
+  echo "- Mach-O format verified for mighty-ide and libmighty_ui_sys.dylib"
+  echo "- No compiler/linker sidecars found"
+  echo "- No non-macOS native payloads found"
+} > "$DIST_ROOT/PACKAGE-MANIFEST.txt"
+
 echo "[6/6] archive"
 rm -f "$ZIP"
 tar -C dist -czf "$ZIP" "mighty-ide-macos"

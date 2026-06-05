@@ -169,6 +169,9 @@ into `dist/` from a clean worktree, validate the staged native payloads, reject
 compiler/linker sidecars, reject obvious foreign-platform binaries, bundle the
 README/license/keybinding/build docs with platform-specific run instructions,
 and only then write the archive.
+Each package also includes `PACKAGE-MANIFEST.txt`, a verification record with
+the platform, version, native payload hashes and sizes, and the clean binary
+checks completed before archiving.
 
 Release checklist:
 
@@ -177,8 +180,8 @@ Release checklist:
 3. Run the platform package script from a clean worktree.
 4. Smoke-test the packaged app from inside the assembled package directory.
 5. Upload only the generated archive from `dist/`.
-6. Record the archive size, SHA-256, native binary family, and byproduct scan
-   result in the release notes.
+6. Record the archive size, SHA-256, native binary family, byproduct scan
+   result, and bundled `PACKAGE-MANIFEST.txt` details in the release notes.
 
 Clean binary contract:
 
@@ -217,7 +220,8 @@ Minimum verification before upload:
 
 Every archive includes `RUN.txt`, `README.md`, `KEYBINDINGS.md`, `CHANGELOG.md`,
 `BUILDING.md`, `LICENSE`, and `docs/platform-packaging.md` alongside the runtime
-payload so the package is usable without returning to the source tree.
+payload, plus `PACKAGE-MANIFEST.txt` with native payload hashes and clean binary
+verification, so the package is usable without returning to the source tree.
 
 Each platform package must be built and smoke-tested on its native OS or a
 matching CI runner. Do not reuse Windows DLLs, macOS dylibs, or Linux shared
