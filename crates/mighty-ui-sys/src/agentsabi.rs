@@ -1050,6 +1050,10 @@ fn report_agents_closed(ctx: &mut MuiContext) {
 #[no_mangle]
 pub extern "C" fn mui_agents_scroll(handle: i64, dir: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !agents_panel_visible(ctx) {
+            report_agents_closed(ctx);
+            return;
+        }
         ctx.agents.scroll(dir);
     }
 }

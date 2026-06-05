@@ -3510,6 +3510,12 @@ fn agents_close_command_acknowledges_state_without_clearing_panel_data() {
         ctx.toasts.toasts().last().unwrap().message,
         "Mighty Agents panel is already closed"
     );
+
+    crate::agentsabi::mui_agents_scroll(h, 3);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Mighty Agents panel is already closed"
+    );
 }
 
 #[test]

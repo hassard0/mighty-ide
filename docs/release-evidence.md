@@ -78,10 +78,11 @@ binary evidence for those platforms.
 
 ## Windows-Hosted Stop Pass
 
-Use this block for the final pass from this checkout. Fill the Windows archive
-size and SHA-256 from the generated ZIP after `.\package-win.ps1` succeeds.
-Do not edit the source tree after that package run unless the package is rebuilt
-from the new clean commit.
+Use this block for the final pass from this checkout. Record the Windows
+archive size and SHA-256 from the generated ZIP after `.\package-win.ps1`
+succeeds, in the external upload note or release handoff. Do not edit the source
+tree after that package run unless the package is rebuilt from the new clean
+commit.
 
 If this file is bundled inside the archive, keep the exact archive hash and
 size in the external release note or upload record for that run. Do not chase a
