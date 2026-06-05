@@ -6492,6 +6492,36 @@ fn branch_accept_without_picker_reports_visible_feedback() {
 }
 
 #[test]
+fn failed_branch_accept_refreshes_stale_picker_rows() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!(
+        "mui_branch_stale_picker_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.scm.root = Some(root.clone());
+    ctx.branch_picker.open(&crate::scm::BranchList {
+        entries: vec![crate::scm::BranchEntry {
+            name: "stale/branch".to_string(),
+            current: false,
+            remote: false,
+        }],
+    });
+
+    assert_eq!(crate::panels::mui_branch_count(h), 2);
+    assert_eq!(crate::panels::mui_branch_accept(h), 0);
+    assert_eq!(crate::panels::mui_branch_active(h), 1);
+    assert_eq!(crate::panels::mui_branch_count(h), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(toast.message.starts_with("Git error:"));
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn debug_header_title_fits_before_state_pill() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();

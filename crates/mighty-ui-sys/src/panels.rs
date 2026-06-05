@@ -1121,6 +1121,7 @@ pub extern "C" fn mui_branch_accept(handle: i64) -> i32 {
             ctx.branch_picker.cancel();
             1
         } else {
+            refresh_branch_picker_after_failed_action(ctx);
             ctx.push_toast(crate::toast::Kind::Error, format!("Git error: {}", res.message));
             0
         }
@@ -1134,6 +1135,7 @@ pub extern "C" fn mui_branch_accept(handle: i64) -> i32 {
             ctx.branch_picker.cancel();
             1
         } else {
+            refresh_branch_picker_after_failed_action(ctx);
             ctx.push_toast(crate::toast::Kind::Error, format!("Git error: {}", res.message));
             0
         }
@@ -1141,6 +1143,12 @@ pub extern "C" fn mui_branch_accept(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, "No branch selected");
         0
     }
+}
+
+fn refresh_branch_picker_after_failed_action(ctx: &mut MuiContext) {
+    let _ = ctx.scm.refresh_branches();
+    let list = ctx.scm.branches.clone();
+    ctx.branch_picker.open(&list);
 }
 
 /// Close the branch switcher without acting. Returns `1` when it closed an open

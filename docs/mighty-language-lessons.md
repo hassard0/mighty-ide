@@ -10992,3 +10992,16 @@ file that no longer exists.
   showing the warning.
 - **Language note:** no compiler gap surfaced. Historical logs can keep their
   text while clearing stale navigation metadata proved invalid by activation.
+
+## L891 - Branch Picker Failures Should Refresh Rows
+
+The branch switcher captures the branch list when it opens. If a branch is
+deleted or otherwise becomes invalid before Enter, a checkout failure should not
+leave the same stale row selected.
+
+- **IDE note:** failed branch checkout/create actions now refresh the SCM branch
+  list and reopen the picker over the refreshed rows before showing the git
+  error.
+- **Language note:** no compiler gap surfaced. Overlay pickers backed by mutable
+  external state should refresh their captured rows when the accepted action
+  proves the row stale.
