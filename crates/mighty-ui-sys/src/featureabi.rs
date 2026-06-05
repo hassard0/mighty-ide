@@ -1560,13 +1560,14 @@ pub extern "C" fn mui_settings_draw(handle: i64) {
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let panel = std::mem::take(&mut ctx.settings_panel);
     let old_clip = ctx.clip;
+    let was_overlay = ctx.overlay;
     ctx.clip = None;
     ctx.overlay = true;
     ctx.text.clear_overlay_runs();
     ctx.text.set_overlay(true);
     panel.draw(ctx, w, h);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.clip = old_clip;
     ctx.settings_panel = panel;
 }

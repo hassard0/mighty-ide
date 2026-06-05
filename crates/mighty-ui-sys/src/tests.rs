@@ -11946,6 +11946,39 @@ fn color_theme_close_command_cancels_picker() {
 }
 
 #[test]
+fn command_overlay_draws_restore_existing_overlay_state() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 600;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_palette_open(handle);
+    ctx.overlay = true;
+    crate::mui_palette_draw(handle);
+    assert!(ctx.overlay, "palette draw must preserve caller overlay state");
+    crate::mui_palette_cancel(handle);
+
+    crate::mui_keys_open(handle);
+    ctx.overlay = true;
+    crate::mui_keys_draw(handle);
+    assert!(ctx.overlay, "keyboard shortcuts draw must preserve caller overlay state");
+    crate::mui_keys_close(handle);
+
+    crate::mui_theme_picker_open(handle);
+    ctx.overlay = true;
+    crate::mui_theme_picker_draw(handle);
+    assert!(ctx.overlay, "theme picker draw must preserve caller overlay state");
+    crate::mui_theme_picker_cancel(handle);
+
+    assert_eq!(crate::featureabi::mui_settings_open(handle), 1);
+    ctx.overlay = true;
+    crate::featureabi::mui_settings_draw(handle);
+    assert!(ctx.overlay, "settings draw must preserve caller overlay state");
+    assert_eq!(crate::featureabi::mui_settings_close(handle), 1);
+}
+
+#[test]
 fn color_theme_persistence_failure_reports_visible_feedback() {
     let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();

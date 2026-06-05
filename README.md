@@ -262,6 +262,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Settings panel (Ctrl+,) — live font size / tab width / word wrap / minimap / theme / bracket colors / indent guides / save conveniences
 - Settings panel stale move, click, adjust, and toggle routes report when the
   panel has already closed
+- Command overlay drawing, including Command Palette, Keyboard Shortcuts, Color
+  Theme, and Settings, preserves the caller's overlay layer state so later
+  overlay text and chrome stay on the overlay layer
 - Integrated terminal (Ctrl+`) — a real ConPTY shell with a VT parser
 - Terminal closed-panel header-clear routes report that the Terminal is already
   closed instead of silently ignoring stale header clicks

@@ -9471,13 +9471,14 @@ pub extern "C" fn mui_palette_draw(handle: i64) {
     // Split the borrow: `draw` needs `&mut ctx` for both rects + text.
     let engine = std::mem::take(&mut ctx.palette);
     let old_clip = ctx.clip;
+    let was_overlay = ctx.overlay;
     ctx.clip = None;
     ctx.overlay = true;
     ctx.text.clear_overlay_runs();
     ctx.text.set_overlay(true);
     engine.draw(ctx, w, h);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.clip = old_clip;
     ctx.palette = engine;
 }
@@ -9838,13 +9839,14 @@ pub extern "C" fn mui_keys_draw(handle: i64) {
     let (w, h) = visible_surface_size(ctx);
     let engine = std::mem::take(&mut ctx.shortcuts);
     let old_clip = ctx.clip;
+    let was_overlay = ctx.overlay;
     ctx.clip = None;
     ctx.overlay = true;
     ctx.text.clear_overlay_runs();
     ctx.text.set_overlay(true);
     engine.draw(ctx, w, h);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.clip = old_clip;
     ctx.shortcuts = engine;
 }
@@ -10008,13 +10010,14 @@ pub extern "C" fn mui_theme_picker_draw(handle: i64) {
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let picker = std::mem::take(&mut ctx.theme_picker);
     let old_clip = ctx.clip;
+    let was_overlay = ctx.overlay;
     ctx.clip = None;
     ctx.overlay = true;
     ctx.text.clear_overlay_runs();
     ctx.text.set_overlay(true);
     picker.draw(ctx, w, h);
-    ctx.overlay = false;
-    ctx.text.set_overlay(false);
+    ctx.overlay = was_overlay;
+    ctx.text.set_overlay(was_overlay);
     ctx.clip = old_clip;
     ctx.theme_picker = picker;
 }

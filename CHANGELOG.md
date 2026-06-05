@@ -88,6 +88,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Autocomplete draw preserves overlay state**: completion dropdown drawing now
   restores the caller's overlay flag instead of always clearing it, preventing
   later overlay text or chrome from being queued on the base layer.
+- **Command overlay draw preserves overlay state**: Command Palette, Keyboard
+  Shortcuts, Color Theme, and Settings drawing now restore the caller's overlay
+  flag instead of always clearing it, preventing later overlay chrome from being
+  queued on the base layer.
 - **Prompt stale submit routes are visible**: stale Go-to-Line and Find submit
   routes now report `No prompt input open` after the prompt has closed instead
   of treating the route as an empty query.
