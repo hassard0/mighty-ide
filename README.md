@@ -149,12 +149,16 @@ Mighty IDE keeps generated binaries out of git. Release artifacts are built into
   `dist\mighty-ide-win64\` and `dist\mighty-ide-v0.3.0-win64.zip` containing
   `mighty-ide.exe`, `mighty_ui_sys.dll`, sample files, `RUN.txt`, and the
   desktop-shortcut helper.
-- **macOS:** build on a macOS runner or developer machine. Do not reuse Windows
-  artifacts or cross-built DLLs; produce a native app bundle/archive from a
-  fresh `dist/` directory.
-- **Linux:** build on a Linux runner or developer machine. Do not reuse Windows
-  artifacts; produce a native tarball/AppImage-style directory from a fresh
-  `dist/` directory.
+- **macOS:** run `./package-macos.sh` on a macOS runner or developer machine.
+  This produces `dist/mighty-ide-macos/` and
+  `dist/mighty-ide-v0.3.0-macos.tar.gz` containing a native `.app` bundle.
+- **Linux x64:** run `./package-linux.sh` on a Linux runner or developer
+  machine. This produces `dist/mighty-ide-linux-x64/` and
+  `dist/mighty-ide-v0.3.0-linux-x64.tar.gz`.
+
+Each platform package must be built and smoke-tested on the same OS family that
+will run it. Do not reuse Windows DLLs, macOS dylibs, or Linux shared objects
+across platforms.
 
 See [`docs/platform-packaging.md`](docs/platform-packaging.md) for the packaging
 checklist and current platform status.

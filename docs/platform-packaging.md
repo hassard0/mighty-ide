@@ -21,8 +21,8 @@ or a release operator.
 | Platform | Native binary shape | Current repo support |
 |----------|---------------------|----------------------|
 | Windows x64 | `mighty-ide.exe` plus `mighty_ui_sys.dll` | `package-win.ps1` creates `dist/mighty-ide-win64/` and `dist/mighty-ide-v0.3.0-win64.zip` |
-| macOS | `.app` or archive containing a Mach-O executable plus `.dylib` dependencies | Build on macOS; package script not yet checked in |
-| Linux | executable plus `.so` dependencies, usually tarball or AppImage-style directory | Build on Linux; package script not yet checked in |
+| macOS | `.app` archive containing a Mach-O executable plus `.dylib` dependencies | `package-macos.sh` creates `dist/mighty-ide-macos/` and `dist/mighty-ide-v0.3.0-macos.tar.gz` on macOS |
+| Linux x64 | executable plus `.so` dependencies in a tarball directory | `package-linux.sh` creates `dist/mighty-ide-linux-x64/` and `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` on Linux |
 
 ## Windows Procedure
 
@@ -54,5 +54,32 @@ macOS and Linux packages must be produced on native hosts or matching CI
 runners. The current Windows package cannot be converted into a clean macOS or
 Linux binary because the executable and shim are native artifacts.
 
-Until checked-in package scripts exist for those platforms, the release status
-for macOS and Linux is source-build ready, binary package pending.
+On macOS:
+
+```sh
+./package-macos.sh
+```
+
+On Linux:
+
+```sh
+./package-linux.sh
+```
+
+Set `MIGHTY_MTY=/path/to/mty` if the Mighty compiler is not on `PATH`. Set
+`CLANG=/path/to/clang` if the default `clang` executable is not the intended
+linker.
+
+Both scripts:
+
+- refuse to run on the wrong host OS
+- remove the previous platform package directory before assembly
+- build `mighty-ui-sys` and `mty-rt-abi` in release mode
+- generate a temporary host-specific `mighty.toml` and restore the checked-in
+  Windows manifest on exit
+- copy only the executable, native shim library, samples/examples, and run docs
+- strip symbols when the platform `strip` tool is available
+- write a platform tarball under `dist/`
+
+The resulting archives should be smoke-tested from the assembled package
+directory before upload.

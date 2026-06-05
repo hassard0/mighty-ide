@@ -61,6 +61,13 @@ try {
   Copy-Item "Create-Desktop-Shortcut.ps1" "$dist\Create-Desktop-Shortcut.ps1" -Force
   Copy-Item "RUN.txt" "$dist\RUN.txt" -Force
 
+  $byproducts = Get-ChildItem -LiteralPath $dist -Recurse -File |
+    Where-Object { $_.Extension -in @(".pdb", ".lib", ".exp", ".ilk", ".obj", ".o", ".rlib", ".log") }
+  if ($byproducts) {
+    $names = ($byproducts | ForEach-Object { $_.FullName }) -join [Environment]::NewLine
+    throw "package contains build byproducts:$([Environment]::NewLine)$names"
+  }
+
   Write-Host "[4/5] zip package"
   $zip = "dist\mighty-ide-$Version-win64.zip"
   Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue

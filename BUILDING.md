@@ -53,8 +53,8 @@ platform directory.
 | Platform | Current command | Artifact | Status |
 |----------|-----------------|----------|--------|
 | Windows x64 | `.\package-win.ps1` | `dist\mighty-ide-v0.3.0-win64.zip` | Supported from Windows |
-| macOS | native macOS runner required | native app/archive under `dist/` | No checked-in script yet |
-| Linux | native Linux runner required | native archive under `dist/` | No checked-in script yet |
+| macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Native package script checked in |
+| Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | Native package script checked in |
 
 Do not cross-ship artifacts between platforms. The Rust shim is a native
 dynamic library (`.dll`, `.dylib`, or `.so`) and the Mighty executable links to
