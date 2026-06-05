@@ -4457,10 +4457,15 @@ fn close_tab_unchecked(ctx: &mut MuiContext, idx_u: usize) -> i32 {
 }
 
 fn tab_reopen_closed_unchecked(ctx: &mut MuiContext) -> i32 {
+    let before_count = ctx.tabs.count();
+    let focused_pane = ctx.panes.focused();
     match ctx.tabs.reopen_closed() {
         Some(active) => {
+            if active >= before_count {
+                ctx.panes.on_tab_inserted(active);
+            }
+            ctx.panes.set_tab(focused_pane, active);
             sync_active_path(ctx);
-            ctx.panes = crate::panes::PaneLayout::new(active);
             ensure_tab_visible(ctx, active);
             let name = ctx.tabs.get(active).map(|t| t.basename()).unwrap_or_else(|| "tab".to_string());
             ctx.push_toast(crate::toast::Kind::Info, format!("Reopened {name}"));

@@ -7218,15 +7218,23 @@ fn reopen_closed_tab_restores_last_closed_tab_and_toasts() {
     let b = root.join("b.mty");
     std::fs::write(&a, "a").unwrap();
     std::fs::write(&b, "b").unwrap();
-    ctx.tabs.open_path(a);
+    let a_idx = ctx.tabs.open_path(a);
     let b_idx = ctx.tabs.open_path(b);
+    ctx.panes = crate::panes::PaneLayout::new(a_idx);
+    ctx.panes.split_right(a_idx, 0);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(crate::mui_tab_close(handle, b_idx as i32), 1);
+    assert_eq!(ctx.panes.count(), 2);
+    assert_eq!(ctx.panes.tab_at(0), Some(a_idx));
+    assert_eq!(ctx.panes.tab_at(1), Some(a_idx));
     assert_eq!(ctx.tabs.count(), 2);
     assert_eq!(crate::mui_tab_reopen_closed(handle), 2);
     assert_eq!(ctx.tabs.active(), 2);
     assert_eq!(ctx.tabs.get(2).unwrap().basename(), "b.mty");
+    assert_eq!(ctx.panes.count(), 2);
+    assert_eq!(ctx.panes.tab_at(0), Some(a_idx), "left pane should keep a.mty");
+    assert_eq!(ctx.panes.tab_at(1), Some(2), "focused right pane should show reopened b.mty");
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Reopened b.mty");
