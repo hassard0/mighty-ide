@@ -21,6 +21,12 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   published Windows, macOS, or Linux archive: archive size, SHA-256, native
   payload family, sidecar/foreign-payload scan result, manifest summary, and
   packaged launch result.
+
+### Language intelligence
+- **Definition targets reject directories**: cross-file definition opens now
+  require the resolved target to be a real file. Directory targets from stale or
+  malformed resolver output report `Definition target is not a file: <name>`
+  and leave the tab list unchanged.
 - **Packages include a verification manifest**: Windows, macOS, Linux, and the
   Git-Bash Windows package path now write `PACKAGE-MANIFEST.txt` into the
   package root with platform/version metadata, native payload hashes and sizes,

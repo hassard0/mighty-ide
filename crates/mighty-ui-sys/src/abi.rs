@@ -10058,6 +10058,16 @@ pub extern "C" fn mui_def_open_target(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Warn, format!("Definition target missing: {name}"));
         return -1;
     }
+    if !target_path.is_file() {
+        let name = target_path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+        ctx.def.clear();
+        refresh_workspace_file_views(ctx);
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Definition target is not a file: {name}"),
+        );
+        return -1;
+    }
     let idx = ctx.tabs.open_path(target_path.clone());
     sync_active_path(ctx);
     record_opened_file(ctx, &target_path);

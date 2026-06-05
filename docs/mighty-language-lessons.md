@@ -12705,3 +12705,18 @@ can still be wrong even when the staging tree was rebuilt cleanly.
 - **Language note:** no compiler gap surfaced. Release automation should verify
   the exact artifact boundary it intends to publish, not only the intermediate
   directory used to build that artifact.
+
+## L1015 - Navigation Targets Need File-Kind Validation
+
+Definition results carry a filesystem path from the resolver. Checking only
+that the path exists lets a stale or malformed result point at a directory,
+which then flows into the low-level tab opener and appears as an empty
+file-backed editor tab.
+
+- **IDE note:** cross-file definition opens now require the target path to be a
+  real file. Directory targets clear the stale definition result, refresh
+  workspace file views, report `Definition target is not a file: <name>`, and
+  leave the tab list unchanged.
+- **Language note:** no compiler gap surfaced. Any resolver that hands paths to
+  editor-owned open routines should preserve both existence and object-kind
+  validation at the UI boundary.

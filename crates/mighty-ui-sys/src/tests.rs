@@ -11873,6 +11873,34 @@ fn definition_open_target_misses_report_visible_feedback() {
 }
 
 #[test]
+fn definition_open_target_directory_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!("mui_def_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("target.mty")).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    crate::mui_quickopen_open(h);
+    let before = crate::mui_tab_count(h);
+    ctx.def.set(Some(crate::nav::DefTarget {
+        path: root.join("target.mty"),
+        line: 0,
+        col: 0,
+    }));
+
+    assert_eq!(crate::mui_def_open_target(h), -1);
+    assert_eq!(crate::mui_tab_count(h), before);
+    assert!(ctx.def.target().is_none());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Definition target is not a file: target.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn rename_prepare_miss_reports_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();
