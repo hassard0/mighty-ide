@@ -1108,6 +1108,7 @@ fn is_name_input_message(message: &str) -> bool {
         || message == "Invalid project name"
         || message == "Name must not contain path separators"
         || message == "Name must not end with a dot or space"
+        || message == "Name is reserved on Windows"
         || message == "Name must start with a letter, digit or underscore"
         || message == "Use letters, digits, '-', '_' or '.' only"
 }
@@ -1964,6 +1965,14 @@ mod tests {
             q.toasts()[0].message,
             "Name must not end with a dot or space"
         );
+
+        q.push_at(
+            Kind::Warn,
+            "Name is reserved on Windows",
+            t0 + Duration::from_millis(375),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Name is reserved on Windows");
 
         q.push_at(
             Kind::Info,

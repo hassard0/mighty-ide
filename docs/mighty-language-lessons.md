@@ -13686,3 +13686,16 @@ input errors.
 - **Language note:** no compiler gap surfaced. Shared validation helpers should
   keep every emitted error in the same feedback family as the prompt that
   invoked them.
+
+## L1082 - Reserved Windows Names Are Name-Input Feedback
+
+The same platform segment validator rejects Windows device names such as `CON`.
+That `Name is reserved on Windows` result is emitted from project, folder, file,
+and rename prompts, but it was not coalesced with the other name-input
+validation messages.
+
+- **IDE note:** `Name is reserved on Windows` now coalesces with the NameInput
+  operation family so stale name-validation guidance is replaced by the current
+  platform-specific rejection.
+- **Language note:** no compiler gap surfaced. Platform-specific validation
+  errors need to travel with the generic prompt-validation feedback family.
