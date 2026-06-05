@@ -60,6 +60,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   directory targets with explicit `not a file` feedback
 - **Close Saved Tabs**, **Close Other Saved Tabs**, and directional close-left /
   close-right cleanup remove tab clutter while preserving dirty buffers
+- Unsaved-changes confirmation stale click routes report when the confirmation
+  has already closed
 - **Reopen Closed Tab** (Ctrl+Alt+T) restores the most recently closed editor tab,
   including tabs removed by cleanup commands
 - **Duplicate Active Tab** clones the current editor tab next to itself from the

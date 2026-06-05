@@ -1624,6 +1624,12 @@ fn dirty_confirm_cancel_command_clears_pending_choice() {
         ctx.toasts.toasts().last().unwrap().message,
         "No unsaved changes confirmation open"
     );
+
+    assert_eq!(crate::mui_dirty_confirm_click(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No unsaved changes confirmation open"
+    );
 }
 
 #[test]

@@ -5117,6 +5117,7 @@ pub extern "C" fn mui_dirty_confirm_click(handle: i64) -> i32 {
         return 0;
     };
     if !dirty_confirm_active(ctx) {
+        ctx.push_toast(crate::toast::Kind::Info, "No unsaved changes confirmation open");
         return 0;
     }
     let (cancel, save, discard) = dirty_confirm_rects(ctx);
