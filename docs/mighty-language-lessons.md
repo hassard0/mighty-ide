@@ -12233,3 +12233,16 @@ active target was a scratch buffer with no path.
 - **Language note:** no compiler gap surfaced. Actions that mutate or ask the
   language server to mutate a document should identify the unsaved editor target
   before refusing to run.
+
+## L982 - Save-First Language Lookups Should Name Scratch Buffers
+
+Hover, Go to Definition, Peek Definition, and Signature Help correctly refused
+to query LSP services for unsaved buffers, but each toast said only
+`Save the file before ...`. That hid the fact that the active target was an
+untitled scratch buffer with no path.
+
+- **IDE note:** save-first language lookup refusals now report
+  `Save (scratch) before ...`, using one shared helper and preserving
+  code-intelligence toast replacement behavior.
+- **Language note:** no compiler gap surfaced. LSP lookups that require a stable
+  document path should identify the unsaved buffer before refusing the request.

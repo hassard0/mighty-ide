@@ -435,6 +435,16 @@ fn signature_not_found_message(path: &std::path::Path, line: i32, col: i32) -> S
     )
 }
 
+pub(crate) fn language_needs_file_message(ctx: &MuiContext, action: &str) -> String {
+    let name = ctx
+        .tabs
+        .active_path()
+        .as_deref()
+        .map(basename)
+        .unwrap_or_else(|| "(scratch)".to_string());
+    format!("Save {name} before {action}")
+}
+
 fn rename_not_found_message(ctx: &MuiContext, line: i32, col: i32) -> String {
     let name = ctx
         .tabs
@@ -9770,7 +9780,10 @@ pub extern "C" fn mui_hover_request(handle: i64, line: i32, col: i32) -> i32 {
     let path = match ctx.file_path.clone() {
         Some(p) => p,
         None => {
-            ctx.push_toast(crate::toast::Kind::Warn, "Save the file before hover");
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                language_needs_file_message(ctx, "hover"),
+            );
             return 0;
         }
     };
@@ -9864,7 +9877,10 @@ pub extern "C" fn mui_def_request(handle: i64, line: i32, col: i32) -> i32 {
     let path = match ctx.file_path.clone() {
         Some(p) => p,
         None => {
-            ctx.push_toast(crate::toast::Kind::Warn, "Save the file before Go to Definition");
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                language_needs_file_message(ctx, "Go to Definition"),
+            );
             return 0;
         }
     };
@@ -10066,7 +10082,7 @@ pub extern "C" fn mui_sig_request(handle: i64, line: i32, col: i32) -> i32 {
         None => {
             ctx.push_toast(
                 crate::toast::Kind::Warn,
-                "Save the file before signature help",
+                language_needs_file_message(ctx, "signature help"),
             );
             return 0;
         }

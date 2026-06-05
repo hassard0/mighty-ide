@@ -877,15 +877,19 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("No completions available at ")
         || m == "No autocomplete suggestions open"
         || m == "Save the file before hover"
+        || (m.starts_with("Save ") && m.ends_with(" before hover"))
         || m == "No hover information"
         || m.starts_with("No hover information at ")
         || m == "Hover popup closed"
         || m == "No hover popup open"
         || m == "Save the file before Go to Definition"
+        || (m.starts_with("Save ") && m.ends_with(" before Go to Definition"))
         || m == "Save the file before Peek Definition"
+        || (m.starts_with("Save ") && m.ends_with(" before Peek Definition"))
         || m == "Peek view closed"
         || m == "Peek view is already closed"
         || m == "Save the file before signature help"
+        || (m.starts_with("Save ") && m.ends_with(" before signature help"))
         || m.starts_with("No signature help available at ")
         || m == "Signature Help popup closed"
         || m == "No Signature Help popup open"
@@ -2455,6 +2459,14 @@ mod tests {
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
 
         q.push_at(
+            Kind::Warn,
+            "Save (scratch) before hover",
+            t0 + Duration::from_millis(125),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Save (scratch) before hover");
+
+        q.push_at(
             Kind::Info,
             "No autocomplete suggestions open",
             t0 + Duration::from_millis(150),
@@ -2504,6 +2516,14 @@ mod tests {
 
         q.push_at(
             Kind::Warn,
+            "Save (scratch) before Go to Definition",
+            t0 + Duration::from_millis(325),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Save (scratch) before Go to Definition");
+
+        q.push_at(
+            Kind::Warn,
             "No definition found at main.mty:3:7",
             t0 + Duration::from_millis(350),
         );
@@ -2532,11 +2552,27 @@ mod tests {
 
         q.push_at(
             Kind::Warn,
+            "Save (scratch) before Peek Definition",
+            t0 + Duration::from_millis(485),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Save (scratch) before Peek Definition");
+
+        q.push_at(
+            Kind::Warn,
             "Save the file before signature help",
             t0 + Duration::from_millis(500),
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Save the file before signature help");
+
+        q.push_at(
+            Kind::Warn,
+            "Save (scratch) before signature help",
+            t0 + Duration::from_millis(505),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Save (scratch) before signature help");
 
         q.push_at(
             Kind::Info,

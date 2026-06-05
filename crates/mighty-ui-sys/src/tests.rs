@@ -11229,22 +11229,22 @@ fn navigation_requests_report_missing_targets() {
     assert_eq!(crate::mui_hover_request(h, 0, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Save the file before hover");
+    assert_eq!(toast.message, "Save (scratch) before hover");
 
     assert_eq!(crate::mui_def_request(h, 0, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Save the file before Go to Definition");
+    assert_eq!(toast.message, "Save (scratch) before Go to Definition");
 
     assert_eq!(crate::stickyabi::mui_peek_open(h, 0, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Save the file before Peek Definition");
+    assert_eq!(toast.message, "Save (scratch) before Peek Definition");
 
     assert_eq!(crate::abi::mui_sig_request(h, 0, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Save the file before signature help");
+    assert_eq!(toast.message, "Save (scratch) before signature help");
 
     let path = std::env::temp_dir().join("mui_nav_plain_text.txt");
     std::fs::write(&path, b"plain text\n").unwrap();

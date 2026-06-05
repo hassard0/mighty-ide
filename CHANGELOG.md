@@ -998,6 +998,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Code-action no-file refusals name scratch buffers**: Fix All and server
   command actions on untitled buffers now report `(scratch)` instead of a
   generic file-required warning.
+- **Code-intelligence save-first refusals name scratch buffers**: hover,
+  definition, peek definition, and signature help now report `(scratch)` when
+  an untitled buffer needs saving before LSP lookup.
 - **Testing result metadata is readable**: suite names and run duration in the
   Testing drawer now use secondary text instead of near-invisible faint chrome.
 - **Overlay helper text is readable**: command palette, Keyboard Shortcuts, and

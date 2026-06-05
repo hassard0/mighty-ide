@@ -115,7 +115,10 @@ pub extern "C" fn mui_peek_open(handle: i64, line: i32, col: i32) -> i32 {
     let path = match ctx.file_path.clone() {
         Some(p) => p,
         None => {
-            ctx.push_toast(crate::toast::Kind::Warn, "Save the file before Peek Definition");
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                crate::abi::language_needs_file_message(ctx, "Peek Definition"),
+            );
             return 0;
         }
     };
