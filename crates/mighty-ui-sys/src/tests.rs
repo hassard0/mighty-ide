@@ -10191,18 +10191,32 @@ fn definition_open_target_misses_report_visible_feedback() {
     assert_eq!(toast.message, "No definition target selected");
 
     let root = std::env::temp_dir().join(format!("mui_def_missing_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
     let missing = root.join("target.mty");
+    std::fs::write(&missing, "fn target() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    crate::mui_quickopen_open(h);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
     ctx.def.set(Some(crate::nav::DefTarget {
-        path: missing,
+        path: missing.clone(),
         line: 0,
         col: 0,
     }));
 
+    std::fs::remove_file(&missing).unwrap();
     assert_eq!(crate::mui_def_open_target(h), -1);
     assert!(ctx.def.target().is_none());
+    assert_eq!(ctx.tree.count(), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Definition target missing: target.mty");
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]

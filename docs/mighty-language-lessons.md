@@ -11176,3 +11176,15 @@ surfaces could still render the deleted path.
   Open's backing index, and visible Quick Open rows when the target is missing.
 - **Language note:** no compiler gap surfaced. Every indexed navigation surface
   should share the same stale-target cleanup contract.
+
+## L906 - Stale Definition Opens Should Refresh File Views
+
+Definition targets can become stale after they are resolved if the backing file
+is deleted outside the IDE before the user opens it. The definition state was
+cleared and a warning was shown, but file discovery surfaces could still list
+the removed target.
+
+- **IDE note:** stale Definition opens now refresh Explorer, Quick Open's
+  backing index, and visible Quick Open rows when the target file is missing.
+- **Language note:** no compiler gap surfaced. Resolved navigation targets
+  should clean up shared file indexes when the target path no longer exists.
