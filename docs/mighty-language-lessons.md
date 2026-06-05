@@ -13307,3 +13307,19 @@ though both states are toast-facing outcomes for the same typed or picked path.
 - **Language note:** no compiler gap surfaced. User-entered filesystem targets
   should be classified once at the command boundary, then carried forward as the
   specific accepted or rejected state.
+
+## L1055 - New Project Targets Should Classify Once
+
+The New Project dialog path treats an existing empty directory as a preparable
+target, an existing file as a project-specific `not a folder` rejection, and a
+missing path as the normal scaffold destination. The target branch still used a
+split `exists`/`is_dir` probe even though all three outcomes are command-boundary
+states.
+
+- **IDE note:** New Project target validation now uses one metadata read to
+  distinguish missing targets, empty directory targets, non-empty directory
+  targets, and existing non-folder targets. Existing toasts are preserved,
+  including `New project target is not a folder: <name>` and
+  `Choose an empty folder for <name>`.
+- **Language note:** no compiler gap surfaced. Creation commands should classify
+  destination state once before deciding whether to prepare, reject, or create.

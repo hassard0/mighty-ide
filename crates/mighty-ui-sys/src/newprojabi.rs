@@ -145,8 +145,39 @@ pub(crate) fn create_project_at(ctx: &mut MuiContext, target: PathBuf) -> i32 {
         }
     }
 
-    if target.exists() {
-        if !target.is_dir() {
+    match std::fs::metadata(&target) {
+        Ok(meta) if meta.is_dir() => match target.read_dir() {
+            Ok(mut entries) => {
+                if entries.next().is_some() {
+                    ctx.push_toast(
+                        crate::toast::Kind::Warn,
+                        format!("Choose an empty folder for {name}"),
+                    );
+                    println!("newproj: selected folder is not empty: {}", target.display());
+                    return 0;
+                }
+                if let Err(e) = std::fs::remove_dir(&target) {
+                    ctx.push_toast(
+                        crate::toast::Kind::Warn,
+                        format!("Could not prepare folder: {name}"),
+                    );
+                    println!(
+                        "newproj: could not remove empty folder {}: {e}",
+                        target.display()
+                    );
+                    return 0;
+                }
+            }
+            Err(e) => {
+                ctx.push_toast(
+                    crate::toast::Kind::Warn,
+                    format!("Could not inspect folder: {name}"),
+                );
+                println!("newproj: could not inspect {}: {e}", target.display());
+                return 0;
+            }
+        },
+        Ok(_) => {
             ctx.push_toast(
                 crate::toast::Kind::Warn,
                 new_project_target_not_folder_message(&target),
@@ -154,24 +185,14 @@ pub(crate) fn create_project_at(ctx: &mut MuiContext, target: PathBuf) -> i32 {
             println!("newproj: target is a file: {}", target.display());
             return 0;
         }
-        match target.read_dir() {
-            Ok(mut entries) => {
-                if entries.next().is_some() {
-                    ctx.push_toast(crate::toast::Kind::Warn, format!("Choose an empty folder for {name}"));
-                    println!("newproj: selected folder is not empty: {}", target.display());
-                    return 0;
-                }
-                if let Err(e) = std::fs::remove_dir(&target) {
-                    ctx.push_toast(crate::toast::Kind::Warn, format!("Could not prepare folder: {name}"));
-                    println!("newproj: could not remove empty folder {}: {e}", target.display());
-                    return 0;
-                }
-            }
-            Err(e) => {
-                ctx.push_toast(crate::toast::Kind::Warn, format!("Could not inspect folder: {name}"));
-                println!("newproj: could not inspect {}: {e}", target.display());
-                return 0;
-            }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => {
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                format!("Could not inspect folder: {name}"),
+            );
+            println!("newproj: could not inspect {}: {e}", target.display());
+            return 0;
         }
     }
 
