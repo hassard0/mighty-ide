@@ -13089,3 +13089,19 @@ newer command surfaces.
 - **Language note:** no compiler gap surfaced. This is shim-side filesystem
   hygiene: persisted navigation rows should be validated once and converted into
   an explicit state before mutating UI state.
+
+## L1041 - Problems Rows Should Classify Targets Before Mutating UI
+
+Problem rows can outlive the file they reference, especially after diagnostics
+or search results are refreshed separately from filesystem changes. The row-open
+path already pruned missing and directory-backed targets, but it used separate
+existence and kind checks.
+
+- **IDE note:** Problems row activation now classifies the target with one
+  metadata read before opening or pruning. Missing and non-file targets share
+  the same prune-and-refresh path while preserving the existing visible feedback:
+  `Problems target missing: <name>` and
+  `Problems target is not a file: <name>`.
+- **Language note:** no compiler gap surfaced. The useful pattern is UI-state
+  discipline: classify external state first, then make one UI mutation path for
+  each class.

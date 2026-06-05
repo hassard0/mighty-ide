@@ -573,25 +573,25 @@ pub extern "C" fn mui_problems_open_row(handle: i64, i: i32) -> i32 {
         };
         (p.path.clone(), p.line, p.col)
     };
-    if !path.exists() {
-        let name = crate::abi::file_target_name(&path);
-        let _ = ctx.problems.remove_path(&path);
-        crate::abi::refresh_workspace_file_views(ctx);
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
-            format!("Problems target missing: {name}"),
-        );
-        return -1;
-    }
-    if !path.is_file() {
-        let name = crate::abi::file_target_name(&path);
-        let _ = ctx.problems.remove_path(&path);
-        crate::abi::refresh_workspace_file_views(ctx);
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
-            format!("Problems target is not a file: {name}"),
-        );
-        return -1;
+    match problem_target_kind(&path) {
+        ProblemTargetKind::File => {}
+        ProblemTargetKind::Missing => {
+            return prune_bad_problem_target(
+                ctx,
+                &path,
+                format!("Problems target missing: {}", crate::abi::file_target_name(&path)),
+            );
+        }
+        ProblemTargetKind::NotFile => {
+            return prune_bad_problem_target(
+                ctx,
+                &path,
+                format!(
+                    "Problems target is not a file: {}",
+                    crate::abi::file_target_name(&path)
+                ),
+            );
+        }
     }
     let idx = ctx.tabs.open_path(path.clone());
     crate::abi::sync_active_path(ctx);
@@ -601,6 +601,31 @@ pub extern "C" fn mui_problems_open_row(handle: i64, i: i32) -> i32 {
     let first = (line - 2).max(0);
     model.set_first_visible(first as usize);
     idx as i32
+}
+
+enum ProblemTargetKind {
+    File,
+    Missing,
+    NotFile,
+}
+
+fn problem_target_kind(path: &std::path::Path) -> ProblemTargetKind {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => ProblemTargetKind::File,
+        Ok(_) => ProblemTargetKind::NotFile,
+        Err(_) => ProblemTargetKind::Missing,
+    }
+}
+
+fn prune_bad_problem_target(
+    ctx: &mut MuiContext,
+    path: &std::path::Path,
+    message: String,
+) -> i32 {
+    let _ = ctx.problems.remove_path(path);
+    crate::abi::refresh_workspace_file_views(ctx);
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+    -1
 }
 
 /// Draw the Problems panel (no-op when closed).
