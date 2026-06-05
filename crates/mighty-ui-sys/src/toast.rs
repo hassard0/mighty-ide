@@ -974,6 +974,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::CodeIntel)
     } else if m == "Breadcrumb menu closed"
         || m == "No breadcrumb menu open"
+        || m == "No prompt input open"
         || m == "No command palette open"
         || m == "No Quick Open panel open"
         || m == "Search panel closed"
@@ -1120,7 +1121,6 @@ fn is_mighty_diagnostic_message(message: &str) -> bool {
 
 fn is_name_input_message(message: &str) -> bool {
     message == "Enter a project name"
-        || message == "No prompt input open"
         || message == "Choose a name"
         || message.starts_with("Project name too long")
         || message == "Invalid project name"
@@ -2017,13 +2017,9 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Invalid name");
 
-        q.push_at(
-            Kind::Info,
-            "No prompt input open",
-            t0 + Duration::from_millis(400),
-        );
+        q.push_at(Kind::Warn, "Enter a project name", t0 + Duration::from_millis(400));
         assert_eq!(q.len(), 1);
-        assert_eq!(q.toasts()[0].message, "No prompt input open");
+        assert_eq!(q.toasts()[0].message, "Enter a project name");
     }
 
     #[test]
@@ -3525,6 +3521,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No Quick Open panel open");
+
+        q.push_at(
+            Kind::Info,
+            "No prompt input open",
+            t0 + Duration::from_millis(415),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No prompt input open");
 
         q.push_at(
             Kind::Info,

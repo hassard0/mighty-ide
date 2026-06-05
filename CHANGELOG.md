@@ -207,7 +207,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   closed, matching the accept and cancel paths.
 - **Prompt stale keyboard routes are visible**: bottom-prompt text entry and
   backspace routes now report `No prompt input open` when the prompt has already
-  closed, matching prompt cancel.
+  closed, matching prompt cancel. That closed-prompt feedback now coalesces
+  with navigation prompt results instead of unrelated name-input validation.
 - **Command Palette stale keyboard routes are visible**: palette text entry,
   backspace, and selection-move routes now report `No command palette open`
   when the overlay has already closed, matching stale clicks and cancel.

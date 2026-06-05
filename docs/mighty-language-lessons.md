@@ -13840,3 +13840,18 @@ toasts.
 - **Language note:** no compiler gap surfaced. Guard messages should be grouped
   by the UI surface they protect, not by whether their text starts with a shared
   negative word.
+
+## L1094 - Closed Bottom Prompt Feedback Is Navigation Feedback
+
+The reusable bottom prompt is used by Go to Line and Find. When a stale prompt
+keystroke, backspace, cancel, or submit route arrives after that prompt has
+closed, the shim reports `No prompt input open`. That guard should replace the
+Go-to-Line or Find feedback that led to the stale route, not name-input
+validation from unrelated dialogs.
+
+- **IDE note:** `No prompt input open` now coalesces with the Navigation
+  operation family, alongside Go-to-Line, Find, Quick Open, Search, breadcrumbs,
+  Outline, and Problems feedback.
+- **Language note:** no compiler gap surfaced. Shared prompt text should be
+  classified by the concrete surface that owns the prompt, even when the message
+  sounds generic.
