@@ -96,6 +96,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Branch switcher stale routes are visible**: branch-picker click and keyboard
   routes now report `No branch picker open` when the overlay has already
   closed, matching the accept and cancel paths.
+- **Prompt stale keyboard routes are visible**: bottom-prompt text entry and
+  backspace routes now report `No prompt input open` when the prompt has already
+  closed, matching prompt cancel.
 - **Run output directory misses demote precisely**: clicking a Run diagnostic
   row whose target became a directory now demotes that row and preserves
   `Run target is not a file: <name>` for repeated clicks.

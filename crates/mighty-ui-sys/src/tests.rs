@@ -11248,6 +11248,23 @@ fn prompt_cancel_command_clears_active_prompt() {
 }
 
 #[test]
+fn prompt_keyboard_routes_without_prompt_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::abi::mui_prompt_push(handle, b'a' as i32);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No prompt input open");
+    ctx.toasts.clear();
+
+    crate::abi::mui_prompt_backspace(handle);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No prompt input open");
+}
+
+#[test]
 fn settings_close_command_clears_active_panel() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;

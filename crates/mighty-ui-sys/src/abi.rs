@@ -4010,6 +4010,10 @@ pub extern "C" fn mui_prompt_open(handle: i64, kind: i32) {
 #[no_mangle]
 pub extern "C" fn mui_prompt_push(handle: i64, codepoint: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.prompt.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No prompt input open");
+            return;
+        }
         if codepoint >= 0 {
             ctx.prompt.push(codepoint as u32);
         }
@@ -4020,6 +4024,10 @@ pub extern "C" fn mui_prompt_push(handle: i64, codepoint: i32) {
 #[no_mangle]
 pub extern "C" fn mui_prompt_backspace(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.prompt.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No prompt input open");
+            return;
+        }
         ctx.prompt.backspace();
     }
 }
