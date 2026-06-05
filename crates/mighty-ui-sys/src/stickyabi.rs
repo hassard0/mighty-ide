@@ -223,6 +223,26 @@ pub extern "C" fn mui_peek_scroll(handle: i64, delta: i32) {
     }
 }
 
+enum PeekTargetKind {
+    File,
+    Missing,
+    NotFile,
+}
+
+fn peek_target_kind(path: &std::path::Path) -> PeekTargetKind {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => PeekTargetKind::File,
+        Ok(_) => PeekTargetKind::NotFile,
+        Err(_) => PeekTargetKind::Missing,
+    }
+}
+
+fn reject_bad_peek_target(ctx: &mut MuiContext, message: String) -> i32 {
+    crate::abi::refresh_workspace_file_views(ctx);
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+    -1
+}
+
 /// Resolve the peek target into a tab + cursor jump (Enter / "go to"): if the
 /// target is in another file, open it as a tab; then move the cursor to the
 /// definition line/col. Closes the peek card. Returns the resulting tab index
@@ -252,17 +272,26 @@ pub extern "C" fn mui_peek_goto(handle: i64) -> i32 {
         m.set_first_visible(first as usize);
         1
     } else {
-        if !tpath.exists() {
-            let name = crate::abi::file_target_name(&tpath);
-            crate::abi::refresh_workspace_file_views(ctx);
-            ctx.push_toast(crate::toast::Kind::Warn, format!("Peek target missing: {name}"));
-            return -1;
-        }
-        if !tpath.is_file() {
-            let name = crate::abi::file_target_name(&tpath);
-            crate::abi::refresh_workspace_file_views(ctx);
-            ctx.push_toast(crate::toast::Kind::Warn, format!("Peek target is not a file: {name}"));
-            return -1;
+        match peek_target_kind(&tpath) {
+            PeekTargetKind::File => {}
+            PeekTargetKind::Missing => {
+                return reject_bad_peek_target(
+                    ctx,
+                    format!(
+                        "Peek target missing: {}",
+                        crate::abi::file_target_name(&tpath)
+                    ),
+                );
+            }
+            PeekTargetKind::NotFile => {
+                return reject_bad_peek_target(
+                    ctx,
+                    format!(
+                        "Peek target is not a file: {}",
+                        crate::abi::file_target_name(&tpath)
+                    ),
+                );
+            }
         }
         let idx = ctx.tabs.open_path(tpath.clone());
         crate::abi::sync_active_path(ctx);

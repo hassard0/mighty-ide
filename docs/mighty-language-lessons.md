@@ -13171,3 +13171,18 @@ non-file nodes need workspace views refreshed and visible feedback.
 - **Language note:** no compiler gap surfaced. Generated topology models should
   be treated like any other cached navigation surface: validate the target kind
   once, then run the model-specific recovery path.
+
+## L1046 - Peek Definition Gotos Need Target Classification
+
+Peek Definition stores a target path when the inline preview is opened. That
+path can disappear or become a directory before the user accepts the peek jump,
+so the goto path should treat the stored target as stale until validated.
+
+- **IDE note:** Peek Definition goto now classifies external targets with one
+  metadata read before opening the tab. Missing and non-file targets share the
+  same workspace-refresh and warning path while preserving existing feedback:
+  `Peek target missing: <name>` and
+  `Peek target is not a file: <name>`.
+- **Language note:** no compiler gap surfaced. Inline previews should follow
+  the same cached-target rule as sidebars and search panels: resolve once,
+  validate once, then mutate UI state.
