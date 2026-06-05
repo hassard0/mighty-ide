@@ -959,6 +959,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Quick Open row no longer listed"
         || m == "No symbol selected"
         || m == "Symbol row no longer listed"
+        || m == "Enter a line number"
         || m == "No command selected"
         || m == "Command row no longer listed"
         || m == "No breadcrumb row selected"
@@ -3168,6 +3169,14 @@ mod tests {
             q.toasts()[0].message,
             "Breadcrumb target is not a file: crumb.mty"
         );
+
+        q.push_at(
+            Kind::Info,
+            "Enter a line number",
+            t0 + Duration::from_millis(950),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Enter a line number");
 
         q.push_at(
             Kind::Warn,

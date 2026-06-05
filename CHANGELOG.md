@@ -160,6 +160,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Definition, Explorer, Quick Open, breadcrumb, Problems, and Search now
   coalesce with their navigation/code-intelligence feedback families just like
   missing-target warnings.
+- **Go to Line validation toasts replace cleanly**: invalid prompt and Quick
+  Open line-number submissions now coalesce with navigation feedback instead of
+  stacking a fresh `Enter a line number` notice on every retry.
 - **Run, Test, and Source Control stale-target toasts replace cleanly**:
   non-file target warnings from runner, test, and source-control surfaces now
   coalesce with the command family that produced them instead of lingering as
