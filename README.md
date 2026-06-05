@@ -236,6 +236,8 @@ platform, version, native payload hashes and sizes, and the clean-binary checks
 completed before archiving. Each package script also removes its previous
 platform package directory and same-version archive before building, so a failed
 final packaging run cannot leave a stale archive that looks newly verified.
+The source tree itself should remain binary-clean: platform archives and native
+payloads are generated under ignored build/package directories, not committed.
 
 Final handoff rule:
 

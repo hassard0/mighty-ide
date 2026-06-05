@@ -13726,3 +13726,14 @@ Save As guidance.
 - **Language note:** no compiler gap surfaced. Generic validation text should
   be classified by the command that emitted it when it is surfaced as command
   feedback.
+
+## L1085 - Bottom Dock Close Feedback Is Layout Feedback
+
+Closing the bottom dock and asking to close it again are layout lifecycle
+actions, just like pane focus, window state, and zen mode feedback. Those
+messages should replace stale layout toasts instead of stacking beside them.
+
+- **IDE note:** `Bottom dock closed` and `No bottom dock is open` now coalesce
+  with the Layout operation family.
+- **Language note:** no compiler gap surfaced. UI command feedback should stay
+  grouped by the surface it mutates when the messages are lifecycle status.

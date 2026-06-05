@@ -746,6 +746,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Window minimized"
         || m == "Window maximized"
         || m == "Window restored"
+        || m == "Bottom dock closed"
+        || m == "No bottom dock is open"
         || m.starts_with("Zen mode ")
     {
         Some(OperationKey::Layout)
@@ -2241,11 +2243,21 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Zen mode off");
 
-        q.push_at(Kind::Info, "Settings panel closed", t0 + Duration::from_millis(900));
+        q.push_at(Kind::Info, "Bottom dock closed", t0 + Duration::from_millis(900));
+        q.push_at(
+            Kind::Info,
+            "No bottom dock is open",
+            t0 + Duration::from_millis(1000),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No bottom dock is open");
+        assert!(!q.toasts().iter().any(|t| t.message == "Bottom dock closed"));
+
+        q.push_at(Kind::Info, "Settings panel closed", t0 + Duration::from_millis(1100));
         q.push_at(
             Kind::Info,
             "Settings panel is already closed",
-            t0 + Duration::from_millis(1000),
+            t0 + Duration::from_millis(1200),
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Settings panel is already closed");
@@ -2254,12 +2266,12 @@ mod tests {
         q.push_at(
             Kind::Info,
             "Keyboard Shortcuts closed",
-            t0 + Duration::from_millis(1100),
+            t0 + Duration::from_millis(1300),
         );
         q.push_at(
             Kind::Info,
             "Keyboard Shortcuts is already closed",
-            t0 + Duration::from_millis(1200),
+            t0 + Duration::from_millis(1400),
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Keyboard Shortcuts is already closed");
