@@ -11261,3 +11261,16 @@ the removed file.
   target.
 - **Language note:** no compiler gap surfaced. Breadcrumb navigation should
   keep shared file indexes synchronized with its own pruned file list.
+
+## L913 - Stale Welcome Recents Should Refresh File Views
+
+Welcome and Open Recent file rows can point at files deleted after the recents
+snapshot was drawn. Opening such a stale row removed it from the recent-file
+MRU and warned the user, but Explorer and visible Quick Open rows could still
+show the deleted file.
+
+- **IDE note:** stale Welcome recent-file opens now refresh Explorer, Quick
+  Open's backing index, and visible Quick Open rows after pruning the missing
+  recent.
+- **Language note:** no compiler gap surfaced. Recents cleanup should update
+  shared file discovery surfaces, not just the recents list.

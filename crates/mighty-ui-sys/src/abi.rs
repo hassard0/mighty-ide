@@ -15436,6 +15436,7 @@ pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
             persist_recent_files(ctx);
         }
         ctx.welcome.clear_recent_file_hits();
+        refresh_workspace_file_views(ctx);
         ctx.push_toast(
             crate::toast::Kind::Warn,
             format!("Recent file missing: {}", basename(&path)),

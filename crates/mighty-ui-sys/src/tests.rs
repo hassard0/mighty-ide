@@ -12169,12 +12169,20 @@ fn welcome_open_recent_misses_report_visible_feedback() {
     std::fs::create_dir_all(&root).unwrap();
     let missing = root.join("missing.mty");
     std::fs::write(&missing, b"fn recent() {}").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
     ctx.quickopen.set_recent_paths(vec![missing.clone()]);
+    crate::mui_quickopen_open(h);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
     ctx.welcome.open();
     mui_welcome_draw(h);
     std::fs::remove_file(&missing).unwrap();
 
     assert_eq!(mui_welcome_open_recent(h, 0), -1);
+    assert_eq!(ctx.tree.count(), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Recent file missing: missing.mty");
