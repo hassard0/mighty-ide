@@ -10882,12 +10882,9 @@ fn codeaction_fix_all_presave_failure_reports_filesystem_reason() {
     assert_eq!(crate::mui_codeaction_active(h), 1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert!(
-        toast
-            .message
-            .starts_with("Save failed before code action: blocked.mty: "),
-        "{}",
-        toast.message
+    assert_eq!(
+        toast.message,
+        "Save failed before code action: blocked.mty: not a file"
     );
 
     let _ = std::fs::remove_dir_all(&root);

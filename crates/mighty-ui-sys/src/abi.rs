@@ -11193,6 +11193,10 @@ fn codeaction_presave_failed_message(path: &std::path::Path, e: &std::io::Error)
     }
 }
 
+fn codeaction_presave_not_file_message(path: &std::path::Path) -> String {
+    format!("Save failed before code action: {}: not a file", basename(path))
+}
+
 fn codeaction_needs_file_message(ctx: &MuiContext) -> String {
     let name = ctx
         .tabs
@@ -11333,6 +11337,14 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
             return 0;
         }
         let bytes = ctx.tabs.active_model().to_bytes();
+        if save_target_is_existing_non_file(&path) {
+            refresh_workspace_file_views(ctx);
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                codeaction_presave_not_file_message(&path),
+            );
+            return 0;
+        }
         let resurrected_path = !path.is_file();
         match std::fs::write(&path, &bytes) {
             Ok(()) => {}

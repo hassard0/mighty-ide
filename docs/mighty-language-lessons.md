@@ -12793,3 +12793,17 @@ know the chosen save target is not a file, not parse an OS error string.
 - **Language note:** no compiler gap surfaced. Mutating filesystem commands
   should validate the semantic target kind before invoking a lower-level API
   whose error vocabulary is platform-specific.
+
+## L1021 - Command Actions Need The Same Pre-Save Target Gate
+
+Fix-all code actions save the live buffer before running an external fixer.
+That pre-save is still a user-visible write boundary, so it needs the same
+target-kind validation as Save and Save All before any command is launched.
+
+- **IDE note:** fix-all code actions now preflight existing non-file active
+  paths before writing or running `mty fix --apply`. Directory targets keep the
+  code-action menu open, leave the dirty buffer intact, refresh workspace file
+  views, and report `Save failed before code action: <name>: not a file`.
+- **Language note:** no compiler gap surfaced. Multi-step commands should
+  validate each side-effect boundary independently instead of assuming a prior
+  command path has already established the filesystem invariant.

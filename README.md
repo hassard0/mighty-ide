@@ -90,6 +90,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   cursor position, so non-renamable locations are clear
 - Code actions that require a saved file name scratch buffers before refusing
   to run
+- Fix-all code actions reject directory pre-save targets with explicit `not a
+  file` feedback instead of raw platform write errors
 - Hover, definition, peek definition, and signature help name scratch buffers
   before refusing unsaved LSP lookups
 - Signature help (Ctrl+Shift+Space), rename symbol (F2), code actions / quick-fix (Ctrl+.)

@@ -43,6 +43,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Save targets reject directories explicitly**: Save, Save As, and Save All
   now preflight existing non-file targets and report `Save failed: <name>: not
   a file` instead of leaking platform-specific write errors.
+- **Fix-all code actions reject directory pre-save targets**: the `mty fix
+  --apply` path now reports `Save failed before code action: <name>: not a
+  file` before running the fixer when the active file path became a directory.
 - **Packages include a verification manifest**: Windows, macOS, Linux, and the
   Git-Bash Windows package path now write `PACKAGE-MANIFEST.txt` into the
   package root with platform/version metadata, native payload hashes and sizes,
