@@ -6036,7 +6036,10 @@ fn create_or_accept_folder_at(
         return 0;
     }
     if !path_is_inside_workspace(workspace_root, &target) {
-        ctx.push_toast(crate::toast::Kind::Warn, "Choose a folder inside the workspace");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            outside_workspace_pick_message("folder", &target, workspace_root),
+        );
         println!(
             "newfolder: selected folder is outside workspace: {} (root {})",
             target.display(),
@@ -6170,7 +6173,10 @@ fn create_new_file_at(
         return -2;
     }
     if require_workspace && !path_is_inside_workspace(workspace_root, &target) {
-        ctx.push_toast(crate::toast::Kind::Warn, "Choose a file inside the workspace");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            outside_workspace_pick_message("file", &target, workspace_root),
+        );
         println!(
             "newfile: selected file is outside workspace: {} (root {})",
             target.display(),
@@ -6341,6 +6347,20 @@ pub(crate) fn reveal_outside_root_message(
         format!("{file} is outside Explorer root")
     } else {
         format!("{file} is outside Explorer root: {root_name}")
+    }
+}
+
+pub(crate) fn outside_workspace_pick_message(
+    kind: &str,
+    target: &std::path::Path,
+    root: &std::path::Path,
+) -> String {
+    let target_name = basename(target);
+    let root_name = basename(root);
+    if root_name.is_empty() || root_name == "." {
+        format!("Choose a {kind} inside the workspace: {target_name}")
+    } else {
+        format!("Choose a {kind} inside the workspace: {target_name} -> {root_name}")
     }
 }
 

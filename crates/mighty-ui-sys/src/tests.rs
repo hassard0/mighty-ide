@@ -3815,7 +3815,14 @@ fn new_folder_dialog_env_pick_creates_or_accepts_folder() {
     std::env::remove_var("MUI_NEW_FOLDER_PICK");
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Choose a folder inside the workspace");
+    assert_eq!(
+        toast.message,
+        format!(
+            "Choose a folder inside the workspace: {} -> {}",
+            outside.file_name().unwrap().to_string_lossy(),
+            root.file_name().unwrap().to_string_lossy()
+        )
+    );
     let _ = std::fs::remove_dir_all(&outside);
 
     let reserved = root.join("CON");
@@ -4169,7 +4176,13 @@ fn new_file_dialog_cancel_and_existing_are_noops() {
     assert_eq!(mui_tab_count(handle), 2);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Choose a file inside the workspace");
+    assert_eq!(
+        toast.message,
+        format!(
+            "Choose a file inside the workspace: outside-workspace.mty -> {}",
+            root.file_name().unwrap().to_string_lossy()
+        )
+    );
 
     let reserved = root.join("CON.txt");
     std::env::set_var("MUI_NEW_FILE_PICK", reserved.to_string_lossy().as_ref());
@@ -6941,6 +6954,14 @@ fn active_file_os_failure_messages_name_the_target() {
             std::path::Path::new("C:\\workspace")
         ),
         "main.mty is outside Explorer root: workspace"
+    );
+    assert_eq!(
+        crate::abi::outside_workspace_pick_message(
+            "file",
+            path,
+            std::path::Path::new("C:\\workspace")
+        ),
+        "Choose a file inside the workspace: main.mty -> workspace"
     );
     assert_eq!(
         crate::abi::copy_path_failed_message(path, &err),

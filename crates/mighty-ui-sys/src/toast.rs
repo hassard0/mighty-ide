@@ -679,7 +679,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m.starts_with("Created file")
         || m == "New file cancelled"
         || m == "New file dialog unavailable"
-        || m == "Choose a file inside the workspace"
+        || m.starts_with("Choose a file inside the workspace")
         || m.starts_with("File already exists")
         || m.starts_with("File create failed")
     {
@@ -688,7 +688,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Folder ready")
         || m == "New folder cancelled"
         || m == "New folder dialog unavailable"
-        || m == "Choose a folder inside the workspace"
+        || m.starts_with("Choose a folder inside the workspace")
         || m.starts_with("Folder already exists")
         || m.starts_with("Folder create failed")
     {
@@ -1204,7 +1204,7 @@ mod tests {
 
         q.push_at(
             Kind::Warn,
-            "Choose a file inside the workspace",
+            "Choose a file inside the workspace: outside.mty -> app",
             t0 + Duration::from_millis(900),
         );
         q.push_at(Kind::Success, "Created file: lib.mty", t0 + Duration::from_millis(1000));
@@ -1213,11 +1213,11 @@ mod tests {
         assert!(!q
             .toasts()
             .iter()
-            .any(|t| t.message == "Choose a file inside the workspace"));
+            .any(|t| t.message == "Choose a file inside the workspace: outside.mty -> app"));
 
         q.push_at(
             Kind::Warn,
-            "Choose a folder inside the workspace",
+            "Choose a folder inside the workspace: tmp -> app",
             t0 + Duration::from_millis(1100),
         );
         q.push_at(
@@ -1236,7 +1236,7 @@ mod tests {
         assert!(!q
             .toasts()
             .iter()
-            .any(|t| t.message == "Choose a folder inside the workspace"));
+            .any(|t| t.message == "Choose a folder inside the workspace: tmp -> app"));
 
         q.push_at(Kind::Success, "Created project: app", t0 + Duration::from_millis(1300));
         q.push_at(Kind::Info, "New project cancelled", t0 + Duration::from_millis(1400));

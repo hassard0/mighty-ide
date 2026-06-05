@@ -12029,3 +12029,17 @@ which root.
 - **Language note:** no compiler gap surfaced. Workspace-bound commands should
   identify both the requested target and the active boundary when refusing a
   valid operation because it is outside the current scope.
+
+## L967 - Workspace Picker Refusals Should Name The Pick And Root
+
+Native New File and New Folder pickers correctly refused workspace-scoped
+targets outside the workspace, but the toast only said `Choose a file inside
+the workspace` or `Choose a folder inside the workspace`. The log had the
+selected path and root; the UI did not.
+
+- **IDE note:** outside-workspace picker refusals now report
+  `Choose a file/folder inside the workspace: target -> root`, and still group
+  with the related create-file or create-folder feedback.
+- **Language note:** no compiler gap surfaced. Native picker validation should
+  explain both the invalid selection and the active workspace boundary so users
+  can recover without checking logs or guessing which window/root is active.
