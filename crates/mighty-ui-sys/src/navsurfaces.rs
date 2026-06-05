@@ -877,25 +877,28 @@ pub extern "C" fn mui_crumb_menu_accept(handle: i64, i: i32) -> i32 {
                 ctx.push_toast(crate::toast::Kind::Info, "Breadcrumb file no longer listed");
                 return -1;
             };
-            if !path.exists() {
-                let name = crate::abi::file_target_name(&path);
-                ctx.crumb_files.remove(target as usize);
-                crate::abi::refresh_workspace_file_views(ctx);
-                ctx.push_toast(
-                    crate::toast::Kind::Warn,
-                    format!("Breadcrumb target missing: {name}"),
-                );
-                return -1;
-            }
-            if !path.is_file() {
-                let name = crate::abi::file_target_name(&path);
-                ctx.crumb_files.remove(target as usize);
-                crate::abi::refresh_workspace_file_views(ctx);
-                ctx.push_toast(
-                    crate::toast::Kind::Warn,
-                    format!("Breadcrumb target is not a file: {name}"),
-                );
-                return -1;
+            match breadcrumb_target_kind(&path) {
+                BreadcrumbTargetKind::File => {}
+                BreadcrumbTargetKind::Missing => {
+                    return prune_bad_breadcrumb_target(
+                        ctx,
+                        target as usize,
+                        format!(
+                            "Breadcrumb target missing: {}",
+                            crate::abi::file_target_name(&path)
+                        ),
+                    );
+                }
+                BreadcrumbTargetKind::NotFile => {
+                    return prune_bad_breadcrumb_target(
+                        ctx,
+                        target as usize,
+                        format!(
+                            "Breadcrumb target is not a file: {}",
+                            crate::abi::file_target_name(&path)
+                        ),
+                    );
+                }
             }
             let idx = ctx.tabs.open_path(path.clone());
             crate::abi::sync_active_path(ctx);
@@ -917,6 +920,27 @@ pub extern "C" fn mui_crumb_menu_accept(handle: i64, i: i32) -> i32 {
         }
         MenuKind::None => -1,
     }
+}
+
+enum BreadcrumbTargetKind {
+    File,
+    Missing,
+    NotFile,
+}
+
+fn breadcrumb_target_kind(path: &std::path::Path) -> BreadcrumbTargetKind {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => BreadcrumbTargetKind::File,
+        Ok(_) => BreadcrumbTargetKind::NotFile,
+        Err(_) => BreadcrumbTargetKind::Missing,
+    }
+}
+
+fn prune_bad_breadcrumb_target(ctx: &mut MuiContext, target: usize, message: String) -> i32 {
+    ctx.crumb_files.remove(target);
+    crate::abi::refresh_workspace_file_views(ctx);
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+    -1
 }
 
 /// Draw the breadcrumb dropdown (no-op when inactive). Drawn over the body.

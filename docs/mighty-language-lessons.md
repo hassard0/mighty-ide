@@ -13122,3 +13122,18 @@ The behavior was already visible, but the open path still used split
 - **Language note:** no compiler gap surfaced. Any panel that opens persisted or
   cached filesystem rows should classify disk state once before deciding which
   model refresh and toast path to run.
+
+## L1043 - Breadcrumb File Rows Are Cached Navigation Targets Too
+
+Breadcrumb file dropdown rows snapshot files from the active directory. A file
+can disappear or become a directory between menu paint and activation, so the
+row-open path should follow the same stale-target contract as Problems and SCM.
+
+- **IDE note:** breadcrumb file activation now uses one metadata read to
+  classify the cached target before opening it. Missing and non-file targets
+  share the prune-and-refresh path while preserving existing feedback:
+  `Breadcrumb target missing: <name>` and
+  `Breadcrumb target is not a file: <name>`.
+- **Language note:** no compiler gap surfaced. Cached UI rows should be treated
+  as stale until a single external-state classification proves what they still
+  point at.
