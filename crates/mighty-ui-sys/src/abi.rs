@@ -8391,6 +8391,9 @@ pub extern "C" fn mui_palette_selected_id(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(-1, |c| {
         let id = c.palette.selected_id();
         trace(&format!("palette_selected id={id} query=\"{}\"", c.palette.query()));
+        if id < 0 {
+            c.push_toast(crate::toast::Kind::Info, "No command selected");
+        }
         id
     })
 }

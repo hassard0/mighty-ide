@@ -10013,6 +10013,22 @@ fn palette_and_quickopen_close_commands_clear_active_overlays() {
 }
 
 #[test]
+fn palette_accept_misses_report_feedback_and_keep_palette_active() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    crate::mui_palette_open(h);
+    for ch in "zzqqxx".chars() {
+        crate::mui_palette_push_char(h, ch as i32);
+    }
+
+    assert_eq!(crate::mui_palette_selected_id(h), -1);
+    assert_eq!(crate::mui_palette_active(h), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No command selected");
+}
+
+#[test]
 fn welcome_close_command_dismisses_forced_surfaces() {
     use crate::{
         mui_ed_insert_char, mui_welcome_active, mui_welcome_close, mui_welcome_dismiss,
@@ -12510,6 +12526,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "palette Enter must queue the selected command id"
     );
     assert!(
+        main.contains(
+            "command_click_id = mui_palette_selected_id(h)\n            if command_click_id >= 0 {\n              let _palc = mui_palette_cancel(h)"
+        ),
+        "palette Enter misses must keep the palette open for correction"
+    );
+    assert!(
         main.contains("command_click_id = mui_qo_command_id(h, -1)"),
         "Quick Open command mode must queue the selected command id"
     );
@@ -14626,8 +14648,8 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     let palette_branch = &main[palette_start..palette_end];
     let palette_cleanup = "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false";
     assert!(
-        palette_branch.matches(palette_cleanup).count() >= 4,
-        "Command Palette local Escape, Enter, and mouse exits must release stale focus"
+        palette_branch.matches(palette_cleanup).count() >= 3,
+        "Command Palette local Escape, successful Enter, and mouse exits must release stale focus"
     );
     let quickopen_start = main
         .find("} else if quickopen_open {")

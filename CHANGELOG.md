@@ -45,6 +45,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   files/symbols/line result now reports the missing selection and keeps the
   picker open, with Mighty mirroring the shim's active state after failed
   accepts.
+- **Command Palette empty accepts stay editable**: pressing Enter when the
+  current palette filter has no command match now reports `No command selected`
+  and leaves the palette open so the query can be corrected.
 - **Go to Line invalid input stays editable**: blank or non-numeric Ctrl+G
   submissions now report `Enter a line number` and leave the prompt open instead
   of dismissing the input with no navigation.
