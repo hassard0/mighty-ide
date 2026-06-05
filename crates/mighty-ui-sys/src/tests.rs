@@ -10023,6 +10023,13 @@ fn codeaction_no_actions_toasts_feedback() {
 fn codeaction_command_without_file_toasts_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_codeaction_apply(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No code action menu open");
+    ctx.toasts.clear();
+
     ctx.codeaction.set(vec![crate::language::CodeAction {
         title: "Run server command".to_string(),
         edit: None,

@@ -60,6 +60,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   instead of silently doing nothing
 - Empty explicit code-action requests name the active file or scratch buffer
   and cursor position, so no-quick-fix feedback points to the queried site
+- Applying code actions with no active quick-fix menu reports
+  `No code action menu open`, while active selection misses keep their own
+  feedback
 - Empty explicit hover requests name the active file and cursor position, so
   no-hover feedback identifies the queried site
 - Empty explicit signature-help requests name the active file and cursor

@@ -11197,6 +11197,10 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !ctx.codeaction.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No code action menu open");
+        return 0;
+    }
     let selected = ctx.codeaction.selected().cloned();
     let Some(action) = selected else {
         ctx.push_toast(crate::toast::Kind::Info, "No code action selected");

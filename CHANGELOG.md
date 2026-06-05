@@ -39,6 +39,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Code-action apply names closed menus**: applying with no active quick-fix
+  menu now reports `No code action menu open`, while active empty selections
+  keep `No code action selected`.
 - **Bottom-dock close misses are explicit**: closing the shared bottom dock when
   no lower panel is open now reports `No bottom dock is open`, and the no-op is
   covered alongside the dock preset commands.

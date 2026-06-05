@@ -12590,3 +12590,18 @@ been cleared. Returning `-1` silently makes Enter look broken.
 - **Language note:** no compiler gap surfaced. Transient preview actions should
   report stale/absent targets at the ABI boundary because local UI state can lag
   behind shim-owned preview state.
+
+## L1007 - Code Action Apply Misses Should Name Closed Menus
+
+Code-action apply can be reached from keyboard, mouse, and command routes after
+the quick-fix menu has already closed. Reporting `No code action selected` in
+that state makes the failure sound like an active-menu selection problem instead
+of a stale closed-menu action.
+
+- **IDE note:** `mui_codeaction_apply` now reports
+  `No code action menu open` when the menu is inactive, while preserving
+  `No code action selected` for active menus without a selected action. The
+  inactive apply miss stays in the code-action toast replacement lane.
+- **Language note:** no compiler gap surfaced. Transient menu commands should
+  check menu activity before row selection so stale invocations name the UI
+  surface that disappeared.
