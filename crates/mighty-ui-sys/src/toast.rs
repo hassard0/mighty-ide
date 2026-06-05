@@ -991,6 +991,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Problems diagnostics already empty"
         || m.starts_with("Explorer target missing")
         || m.starts_with("Explorer target is not a file")
+        || m.starts_with("Explorer target is not a directory")
         || m == "No Explorer row selected"
         || m == "Explorer row no longer listed"
         || m.starts_with("Quick Open target missing")
@@ -3632,6 +3633,17 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Explorer target is not a file: folder.mty");
+
+        q.push_at(
+            Kind::Warn,
+            "Explorer target is not a directory: sub",
+            t0 + Duration::from_millis(750),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Explorer target is not a directory: sub"
+        );
 
         q.push_at(
             Kind::Warn,

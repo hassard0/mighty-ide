@@ -87,6 +87,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Explorer directory rows revalidate before toggling**: cached Explorer rows
   that used to be directories now report missing or replaced directory targets
   before expand/collapse or row-open actions mutate the tree.
+- **Explorer stale-directory feedback replaces cleanly**: replaced-directory
+  Explorer toasts now coalesce with the rest of the navigation feedback instead
+  of stacking stale row warnings.
 - **Navigation surfaces reject directory targets**: Search results, Problems
   rows, breadcrumb file-menu jumps, and Peek Definition go-to now validate that
   stale targets are real files before opening tabs.
