@@ -5510,9 +5510,12 @@ pub extern "C" fn mui_tab_store_begin(handle: i64, idx: i32) {
 #[no_mangle]
 pub extern "C" fn mui_tab_store_byte(handle: i64, idx: i32, byte: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        if idx >= 0 {
-            ctx.tabs.store_byte(idx as usize, (byte & 0xff) as u8);
+        if idx < 0 || idx as usize >= ctx.tabs.count() {
+            ctx.push_toast(crate::toast::Kind::Warn, "No tab at that position");
+            trace(&format!("tab_store_byte idx={idx} -> invalid"));
+            return;
         }
+        ctx.tabs.store_byte(idx as usize, (byte & 0xff) as u8);
     }
 }
 

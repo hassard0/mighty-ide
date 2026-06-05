@@ -282,6 +282,12 @@ fn stale_tab_store_routes_report_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "No tab at that position");
+    ctx.toasts.clear();
+
+    crate::abi::mui_tab_store_byte(handle, 7, b'x' as i32);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No tab at that position");
 
     crate::abi::mui_tab_store_commit(handle, -1, 0, 0, 0);
     let toast = ctx.toasts.toasts().last().unwrap();
