@@ -236,6 +236,17 @@ impl WebPlayground {
         }
     }
 
+    /// Open the panel with a preflight failure before any build/server process
+    /// is spawned. Used by ABI callers that can reject stale active paths.
+    pub fn fail_before_start(&mut self, file: &Path, message: impl Into<String>) {
+        self.stop();
+        self.reset_for(file);
+        self.mode = Mode::Idle;
+        self.push_line(message.into());
+        self.saw_error = true;
+        self.finish_now(-1);
+    }
+
     fn reset_for(&mut self, file: &Path) {
         self.lines.clear();
         self.partial.clear();

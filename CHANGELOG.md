@@ -199,6 +199,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   build fallback now stops before spawning `mty build` when its temporary
   output directory cannot be created, showing the blocked path in the panel and
   error toast context.
+- **Run in Browser rejects directory targets up front**: stale active tabs whose
+  backing file was replaced by a directory now report `target is not a file` in
+  the Web panel and toast before any `mty serve` or `mty build` process is
+  spawned.
 - **Explorer row misses are explicit**: file-tree open requests now report
   `No Explorer row selected` for negative row codes and
   `Explorer row no longer listed` for stale non-negative row indices.

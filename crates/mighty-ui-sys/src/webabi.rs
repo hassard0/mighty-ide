@@ -29,6 +29,13 @@ fn active_path(ctx: &MuiContext) -> Option<std::path::PathBuf> {
     ctx.tabs.active_path()
 }
 
+fn path_label(path: &std::path::Path) -> String {
+    path.file_name()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| path.display().to_string())
+}
+
 /// Default bind port for the Web Playground (overridable via `MIGHTY_WEB_PORT`).
 fn web_port() -> u16 {
     std::env::var("MIGHTY_WEB_PORT")
@@ -67,6 +74,31 @@ pub extern "C" fn mui_web_run(handle: i64) -> i32 {
     ctx.term_open = false;
     ctx.run.close();
     ctx.problems.set_open(false);
+    match std::fs::metadata(&path) {
+        Ok(meta) if meta.is_file() => {}
+        Ok(_) => {
+            ctx.web.fail_before_start(
+                &path,
+                format!("failed to start: target is not a file: {}", path_label(&path)),
+            );
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                web_error_toast(ctx, "Run in Browser: target is not a file"),
+            );
+            return 0;
+        }
+        Err(e) => {
+            ctx.web.fail_before_start(
+                &path,
+                format!("failed to start: {}: {e}", path_label(&path)),
+            );
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                web_error_toast(ctx, "Run in Browser: target missing"),
+            );
+            return 0;
+        }
+    }
     let ok = ctx.web.start(&path, web_port());
     let mode = match ctx.web.mode() {
         Mode::Serve => "mty serve",

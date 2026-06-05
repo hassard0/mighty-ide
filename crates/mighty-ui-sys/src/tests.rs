@@ -1824,6 +1824,36 @@ fn web_run_build_failure_toast_includes_latest_error_line() {
 }
 
 #[test]
+fn web_run_rejects_directory_active_path_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_web_dir_target_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, b"fn main() {}\n").unwrap();
+    ctx.tabs.open_path(path.clone());
+    std::fs::remove_file(&path).unwrap();
+    std::fs::create_dir_all(&path).unwrap();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::webabi::mui_web_run(handle), 0);
+    assert!(ctx.web.is_active());
+    assert!(!ctx.web.is_running());
+    assert_eq!(
+        ctx.web.line(0).unwrap().text,
+        "failed to start: target is not a file: main.mty"
+    );
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(
+        toast.message,
+        "Run in Browser: failed to start: target is not a file: main.mty (see panel)"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn web_playground_stop_reports_running_state() {
     let mut ctx = ctx_or_skip!();
     ctx.term_open = true;
