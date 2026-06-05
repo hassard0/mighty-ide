@@ -110,6 +110,36 @@ fn run_path_label(path: &str) -> &str {
         .unwrap_or("file")
 }
 
+enum RunTargetKind {
+    File,
+    Missing,
+    NotFile,
+}
+
+fn run_target_kind(path: &std::path::Path) -> RunTargetKind {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => RunTargetKind::File,
+        Ok(_) => RunTargetKind::NotFile,
+        Err(_) => RunTargetKind::Missing,
+    }
+}
+
+fn reject_bad_run_target(
+    ctx: &mut MuiContext,
+    path: &std::path::Path,
+    kind: RunTargetKind,
+) -> i32 {
+    let name = crate::abi::file_target_name(path);
+    crate::abi::refresh_workspace_file_views(ctx);
+    let message = match kind {
+        RunTargetKind::Missing => format!("Run target missing: {name}"),
+        RunTargetKind::NotFile => format!("Run target is not a file: {name}"),
+        RunTargetKind::File => return 0,
+    };
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+    0
+}
+
 // ===========================================================================
 // Feature 1 — Run panel
 // ===========================================================================
@@ -442,18 +472,15 @@ pub extern "C" fn mui_run_click_row(handle: i64, i: i32) -> i32 {
         crate::run::resolve_target(&root, &line.file, line.line, line.col)
     };
     let (full, l, c) = target;
-    if !full.exists() {
-        let name = crate::abi::file_target_name(&full);
-        let _ = ctx.run.demote_target(&root, &full);
-        crate::abi::refresh_workspace_file_views(ctx);
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Run target missing: {name}"));
-        return 0;
-    }
-    if !full.is_file() {
-        let name = crate::abi::file_target_name(&full);
-        crate::abi::refresh_workspace_file_views(ctx);
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Run target is not a file: {name}"));
-        return 0;
+    match run_target_kind(&full) {
+        RunTargetKind::File => {}
+        RunTargetKind::Missing => {
+            let _ = ctx.run.demote_target(&root, &full);
+            return reject_bad_run_target(ctx, &full, RunTargetKind::Missing);
+        }
+        RunTargetKind::NotFile => {
+            return reject_bad_run_target(ctx, &full, RunTargetKind::NotFile);
+        }
     }
     // Open the file as a tab now, store the jump target for read-back.
     let _idx = ctx.tabs.open_path(full.clone());

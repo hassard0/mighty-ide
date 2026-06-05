@@ -13216,3 +13216,19 @@ test output remains visible after workspace edits.
   `Test target is not a file: <name>`.
 - **Language note:** no compiler gap surfaced. Result panels should validate
   cached execution metadata before turning it back into editor navigation.
+
+## L1049 - Run Output Rows Need Single Target Validation
+
+Run output diagnostics are cached text rows that can remain clickable after the
+referenced source file has been deleted or replaced. Missing rows also need the
+Run model demoted so a second click reports the cached missing-target state
+instead of trying to resolve a dead location again.
+
+- **IDE note:** Run output row activation now classifies the resolved target
+  with one metadata read before opening or rejecting it. Missing targets keep
+  the existing demotion behavior, and missing/non-file targets share the same
+  workspace-refresh and warning path:
+  `Run target missing: <name>` and
+  `Run target is not a file: <name>`.
+- **Language note:** no compiler gap surfaced. Compiler/runtime output should
+  be treated as stale navigation data until the target kind is proven.
