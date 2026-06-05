@@ -7,18 +7,26 @@
 #   3. copy the shim import lib + DLL next to the output exe
 #   4. mty build src/main.mty -> target/main.exe
 #
-# Verified-working toolchain (do not change without re-verifying):
-#   clang     C:\Program Files\LLVM\bin\clang.exe
-#   llvm-ar   C:\Program Files\LLVM\bin\llvm-ar.exe
-#   mty       C:\Users\ihass\stardust\target\debug\mty.exe (v0.36)
+# Toolchain:
+#   clang   override with CLANG=/path/to/clang
+#   mty     override with MIGHTY_MTY=/path/to/mty, otherwise resolve from PATH
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLANG="C:\\Program Files\\LLVM\\bin\\clang.exe"
-LLVM_AR="C:\\Program Files\\LLVM\\bin\\llvm-ar.exe"
-MTY="/c/Users/ihass/stardust/target/debug/mty.exe"
+CLANG="${CLANG:-C:\\Program Files\\LLVM\\bin\\clang.exe}"
+MTY="${MIGHTY_MTY:-mty}"
 
 cd "$ROOT"
+
+if [[ "$MTY" == */* || "$MTY" == *\\* ]]; then
+  if [[ ! -x "$MTY" && ! -f "$MTY" ]]; then
+    echo "ERROR: MIGHTY_MTY points to a missing compiler: $MTY" >&2
+    exit 1
+  fi
+elif ! command -v "$MTY" >/dev/null 2>&1; then
+  echo "ERROR: mty compiler not found. Set MIGHTY_MTY or put mty on PATH." >&2
+  exit 1
+fi
 
 echo "[1/4] cargo build -p mighty-ui-sys (cdylib) + mty-rt-abi (real arena runtime)"
 cargo build -p mighty-ui-sys -p mty-rt-abi

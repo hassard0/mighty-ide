@@ -17,6 +17,9 @@ If `mty` is missing, build it from the [Mighty](https://github.com/hassard0/Migh
 cargo build -p mty-cli --bin mty
 ```
 
+Build scripts resolve the Mighty compiler from `MIGHTY_MTY` first and then
+from `mty` on PATH. The PowerShell entry points also accept `-Mty`.
+
 ## One-shot build
 
 ```sh

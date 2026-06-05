@@ -17,18 +17,27 @@
 # Icon tooling: tools/make-icon.py (Pillow) renders assets/mighty-ide.ico; the
 # exe icon is stamped with tools/rcedit-x64.exe (electron/rcedit v2.0.0).
 #
-# Toolchain (same as build-ide.sh; do not change without re-verifying):
-#   clang  C:\Program Files\LLVM\bin\clang.exe
-#   mty    C:\Users\ihass\stardust\target\debug\mty.exe
+# Toolchain:
+#   clang  override with CLANG=/path/to/clang
+#   mty    override with MIGHTY_MTY=/path/to/mty, otherwise resolve from PATH
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLANG="C:\\Program Files\\LLVM\\bin\\clang.exe"
-MTY="/c/Users/ihass/stardust/target/debug/mty.exe"
+CLANG="${CLANG:-C:\\Program Files\\LLVM\\bin\\clang.exe}"
+MTY="${MIGHTY_MTY:-mty}"
 VERSION="v0.3.0"
 PKG="mighty-ide-win64"
 
 cd "$ROOT"
+if [[ "$MTY" == */* || "$MTY" == *\\* ]]; then
+  if [[ ! -x "$MTY" && ! -f "$MTY" ]]; then
+    echo "ERROR: MIGHTY_MTY points to a missing compiler: $MTY" >&2
+    exit 1
+  fi
+elif ! command -v "$MTY" >/dev/null 2>&1; then
+  echo "ERROR: mty compiler not found. Set MIGHTY_MTY or put mty on PATH." >&2
+  exit 1
+fi
 export CARGO_INCREMENTAL=0
 if [ -d .git ] && command -v git >/dev/null 2>&1; then
   if [ -n "$(git status --porcelain)" ]; then

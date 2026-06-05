@@ -13813,3 +13813,16 @@ unwrap to prove the renderer exists.
 - **Language note:** no compiler gap surfaced. Lazy runtime resources should
   keep their absence in the type path all the way to use sites, even when normal
   construction is expected to succeed.
+
+## L1092 - Build Scripts Should Not Depend On Local Compiler Paths
+
+The Bash build/package entry points had a checked-in `mty` path from one
+developer machine. That makes a fresh checkout fail even when `mty` is already
+available on PATH or supplied through the environment.
+
+- **IDE note:** Bash build and Windows package scripts now resolve the Mighty
+  compiler from `MIGHTY_MTY` first, then `mty` on PATH, matching the documented
+  portable build flow.
+- **Language note:** no compiler gap surfaced. Tooling around the language
+  should prefer environment overrides and PATH discovery over user-specific
+  absolute paths.
