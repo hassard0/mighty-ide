@@ -10187,6 +10187,66 @@ fn color_theme_close_command_cancels_picker() {
 }
 
 #[test]
+fn color_theme_persistence_failure_reports_visible_feedback() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let old_override = std::env::var_os("MUI_CONFIG_DIR");
+    let old_appdata = std::env::var_os("APPDATA");
+    let blocked = std::env::temp_dir().join(format!(
+        "mighty-ide-theme-config-blocked-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&blocked);
+    let _ = std::fs::remove_file(&blocked);
+    std::fs::write(&blocked, b"not a directory").unwrap();
+    std::env::set_var("MUI_CONFIG_DIR", &blocked);
+    std::env::remove_var("APPDATA");
+
+    crate::theme::set_active(crate::theme::ThemeId::Vivid);
+
+    crate::mui_theme_picker_open(handle);
+    crate::mui_theme_picker_move(handle, 1);
+    assert_eq!(
+        crate::mui_theme_picker_apply(handle),
+        crate::theme::ThemeId::Aurora.index()
+    );
+    assert_eq!(crate::mui_theme_picker_active(handle), 0);
+    assert_eq!(crate::theme::active_id(), crate::theme::ThemeId::Aurora);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Theme preference not saved; it may reset after restart"
+    );
+
+    ctx.toasts.clear();
+    assert_eq!(
+        crate::mui_theme_set(handle, crate::theme::ThemeId::Warm.index()),
+        crate::theme::ThemeId::Warm.index()
+    );
+    assert_eq!(crate::theme::active_id(), crate::theme::ThemeId::Warm);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Theme preference not saved; it may reset after restart"
+    );
+
+    match old_override {
+        Some(v) => std::env::set_var("MUI_CONFIG_DIR", v),
+        None => std::env::remove_var("MUI_CONFIG_DIR"),
+    }
+    match old_appdata {
+        Some(v) => std::env::set_var("APPDATA", v),
+        None => std::env::remove_var("APPDATA"),
+    }
+    let _ = std::fs::remove_file(&blocked);
+    crate::theme::set_active(crate::theme::ThemeId::Vivid);
+}
+
+#[test]
 fn keyboard_shortcuts_close_command_exits_capture_and_overlay() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;

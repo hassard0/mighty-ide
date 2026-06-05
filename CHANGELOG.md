@@ -28,6 +28,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   packaged launch result.
 
 ### Language intelligence
+- **Theme preference failures are visible**: Color Theme applies still take
+  effect immediately, but failed config writes now report a warning instead of
+  implying the selected theme will survive restart.
 - **Generic diagnostics reject directory sources**: non-active generic
   diagnostics now preflight stale source paths before reading them. Directory
   targets report `Diagnostics failed: <name>: not a file` instead of surfacing

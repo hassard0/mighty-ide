@@ -111,14 +111,14 @@ impl ThemePicker {
     }
 
     /// Commit the highlighted theme: keep it active, persist to config, close.
-    /// Returns the committed theme's index.
-    pub fn commit(&mut self) -> i32 {
+    /// Returns the committed theme's index and whether persistence succeeded.
+    pub fn commit(&mut self) -> (i32, bool) {
         let id = self.selected_id();
         theme::set_active(id);
-        crate::config::save_theme(id);
+        let persisted = crate::config::save_theme(id);
         self.active = false;
         self.original = None;
-        id.index()
+        (id.index(), persisted)
     }
 
     /// Cancel: revert to the theme that was active when the picker opened.
@@ -324,8 +324,9 @@ mod tests {
         let mut p = ThemePicker::new();
         p.open();
         p.move_sel(1); // aurora
-        let idx = p.commit();
+        let (idx, persisted) = p.commit();
         assert_eq!(idx, ThemeId::Aurora.index());
+        assert!(persisted);
         assert_eq!(theme::active_id(), ThemeId::Aurora);
         assert!(!p.is_active());
         assert_eq!(crate::config::load_theme(), Some(ThemeId::Aurora));

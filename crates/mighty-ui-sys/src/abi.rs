@@ -9289,13 +9289,19 @@ pub extern "C" fn mui_theme_active(_handle: i64) -> i32 {
     crate::theme::active_id().index()
 }
 
+const THEME_PERSISTENCE_WARNING: &str = "Theme preference not saved; it may reset after restart";
+
 /// Set the active theme to index `idx`, persist the choice, and return the
 /// applied index (or the current index if `idx` is out of range).
 #[no_mangle]
-pub extern "C" fn mui_theme_set(_handle: i64, idx: i32) -> i32 {
+pub extern "C" fn mui_theme_set(handle: i64, idx: i32) -> i32 {
     if let Some(id) = crate::theme::ThemeId::from_index(idx) {
         crate::theme::set_active(id);
-        crate::config::save_theme(id);
+        if !crate::config::save_theme(id) {
+            if let Some(ctx) = unsafe { ctx(handle) } {
+                ctx.push_toast(crate::toast::Kind::Warn, THEME_PERSISTENCE_WARNING);
+            }
+        }
         id.index()
     } else {
         crate::theme::active_id().index()
@@ -9374,11 +9380,15 @@ pub extern "C" fn mui_theme_picker_apply(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    let id = ctx.theme_picker.commit();
-    ctx.push_toast(
-        crate::toast::Kind::Info,
-        format!("Theme: {}", theme::active_id().name()),
-    );
+    let (id, persisted) = ctx.theme_picker.commit();
+    if persisted {
+        ctx.push_toast(
+            crate::toast::Kind::Info,
+            format!("Theme: {}", theme::active_id().name()),
+        );
+    } else {
+        ctx.push_toast(crate::toast::Kind::Warn, THEME_PERSISTENCE_WARNING);
+    }
     id
 }
 

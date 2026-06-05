@@ -847,6 +847,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m.starts_with("Theme:")
         || m == "Color theme picker cancelled"
         || m == "No color theme picker open"
+        || m.starts_with("Theme preference not saved")
     {
         Some(OperationKey::Theme)
     } else if is_mighty_diagnostic_message(m) || m.starts_with("Diagnostics failed:") {
@@ -1975,6 +1976,17 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No color theme picker open");
+
+        q.push_at(
+            Kind::Warn,
+            "Theme preference not saved; it may reset after restart",
+            t0 + Duration::from_millis(190),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Theme preference not saved; it may reset after restart"
+        );
 
         q.push_at(Kind::Error, "MT1001: expected I32", t0 + Duration::from_millis(200));
         q.push_at(Kind::Error, "MT2001: expected I32, found Str", t0 + Duration::from_millis(300));

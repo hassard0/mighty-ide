@@ -175,6 +175,8 @@ Three live-switchable design systems, all rendered through Vello:
 - **Vivid Modern** (default) — near-black surfaces, indigo accents
 - **Aurora Glass** — dark glass over an aurora gradient
 - **Warm Studio** — a light, warm-paper theme
+- Theme changes apply live and report a visible warning if the preference could
+  not be persisted, so a failed config write does not look like a durable choice.
 
 Bundled fonts: **JetBrains Mono** (code) + **Bricolage Grotesque** (UI chrome), both SIL OFL (`fonts/`). **Real bold/italic faces** are used semantically — italic comments, bold headings and chrome — not synthesized slants.
 
