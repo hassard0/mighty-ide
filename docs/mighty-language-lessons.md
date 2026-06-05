@@ -12167,3 +12167,17 @@ which file and cursor position had been queried.
   replacement behavior.
 - **Language note:** no compiler gap surfaced. Read-only code-intelligence
   lookups should carry their query site even when the result is empty.
+
+## L977 - Signature-Help Misses Should Name The Query Site
+
+Explicit signature-help requests silently returned no popup when the LSP
+returned no signature payload. In a multi-file editing session, that made
+Ctrl+Shift+Space look like an ignored command rather than an empty result.
+
+- **IDE note:** empty signature-help requests now report
+  `No signature help available at file:line:column`, using the saved active-file
+  path and 1-based lookup coordinates while preserving code-intelligence toast
+  replacement behavior.
+- **Language note:** no compiler gap surfaced. Empty popup-style language
+  lookups should still produce query-specific feedback when triggered
+  explicitly from the keyboard or palette.

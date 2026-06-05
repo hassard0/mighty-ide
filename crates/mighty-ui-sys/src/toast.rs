@@ -883,6 +883,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Peek view closed"
         || m == "Peek view is already closed"
         || m == "Save the file before signature help"
+        || m.starts_with("No signature help available at ")
         || m == "Signature Help popup closed"
         || m == "No Signature Help popup open"
         || m.starts_with("No definition found")
@@ -2532,6 +2533,17 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Save the file before signature help");
+
+        q.push_at(
+            Kind::Info,
+            "No signature help available at main.mty:9:4",
+            t0 + Duration::from_millis(510),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "No signature help available at main.mty:9:4"
+        );
 
         q.push_at(
             Kind::Info,

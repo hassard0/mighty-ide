@@ -58,6 +58,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   and cursor position, so no-quick-fix feedback points to the queried site
 - Empty explicit hover requests name the active file and cursor position, so
   no-hover feedback identifies the queried site
+- Empty explicit signature-help requests name the active file and cursor
+  position, so no-signature feedback is visible and actionable
 - Signature help (Ctrl+Shift+Space), rename symbol (F2), code actions / quick-fix (Ctrl+.)
 - **Quick-fix lightbulb** — a gutter bulb appears when the cursor's line has code actions; click it (or Ctrl+.) to open them (debounced so the server isn't spammed)
 - Live `mty check` diagnostics — gutter dots + wavy underlines

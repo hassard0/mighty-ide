@@ -426,6 +426,15 @@ fn hover_not_found_message(path: &std::path::Path, line: i32, col: i32) -> Strin
     format!("No hover information at {name}:{}:{}", line.max(0) + 1, col.max(0) + 1)
 }
 
+fn signature_not_found_message(path: &std::path::Path, line: i32, col: i32) -> String {
+    let name = basename(path);
+    format!(
+        "No signature help available at {name}:{}:{}",
+        line.max(0) + 1,
+        col.max(0) + 1
+    )
+}
+
 #[cfg(test)]
 mod code_action_diagnostics_tests {
     use super::*;
@@ -10065,6 +10074,12 @@ pub extern "C" fn mui_sig_request(handle: i64, line: i32, col: i32) -> i32 {
         None => false,
     };
     println!("sig: line={line} col={col} available={available}");
+    if !available {
+        ctx.push_toast(
+            crate::toast::Kind::Info,
+            signature_not_found_message(&path, line, col),
+        );
+    }
     i32::from(available)
 }
 
