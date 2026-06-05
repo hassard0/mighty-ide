@@ -6351,6 +6351,15 @@ fn create_new_file_at(
         );
         return -2;
     }
+    if save_target_is_existing_non_file(&target) {
+        refresh_workspace_file_views(ctx);
+        ctx.push_toast(
+            crate::toast::Kind::Error,
+            file_target_not_file_message("File create", &target),
+        );
+        println!("newfile: target is not a file: {}", target.display());
+        return -2;
+    }
     if target.exists() {
         refresh_workspace_file_views(ctx);
         ctx.push_toast(crate::toast::Kind::Warn, format!("File already exists: {name}"));

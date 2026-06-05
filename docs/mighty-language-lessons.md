@@ -12926,3 +12926,17 @@ the requested destination basename can already be occupied by a folder.
 - **Language note:** no compiler gap surfaced. Move-style filesystem commands
   should validate the semantic kind of every endpoint, not only the existence of
   the destination name.
+
+## L1030 - Create Commands Should Distinguish Existing Directories
+
+New File uses create-new semantics, so an occupied target is not always the same
+user problem. An existing file means the chosen name is taken; an existing
+directory means the target is the wrong object kind.
+
+- **IDE note:** typed New File and native-dialog New File now preflight existing
+  non-file targets before `OpenOptions::create_new`. Directory targets refresh
+  workspace file views, report `File create failed: <name>: not a file`, and
+  leave the current tab set unchanged.
+- **Language note:** no compiler gap surfaced. Create commands should separate
+  name collisions from target-kind violations before relying on generic create
+  errors.

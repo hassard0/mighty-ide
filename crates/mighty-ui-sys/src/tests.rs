@@ -4344,6 +4344,31 @@ fn new_file_existing_target_refreshes_file_views() {
 }
 
 #[test]
+fn new_file_rejects_directory_target_as_not_file() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_new_file_directory_target");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let target = root.join("blocked.mty");
+    std::fs::create_dir_all(&target).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    ctx.path_stage.extend_from_slice(b"blocked.mty");
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_newfile_create(handle), -2);
+    assert!(ctx.path_stage.is_empty());
+    assert!(target.is_dir());
+    assert_eq!(ctx.tree.count(), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "File create failed: blocked.mty: not a file");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn new_file_create_prunes_missing_recent_files() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_new_file_prunes_missing_recent");
@@ -4409,6 +4434,41 @@ fn new_file_dialog_create_failure_reports_filesystem_reason() {
         "{}",
         toast.message
     );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn new_file_dialog_rejects_directory_target_as_not_file() {
+    use crate::{mui_newfile_dialog, mui_tab_count};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_new_file_dialog_directory_target_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let target = root.join("blocked.mty");
+    std::fs::create_dir_all(&target).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_NEW_FILE_PICK", target.to_string_lossy().as_ref());
+    assert_eq!(mui_newfile_dialog(handle), -2);
+    std::env::remove_var("MUI_NEW_FILE_PICK");
+
+    assert_eq!(mui_tab_count(handle), 1);
+    assert!(target.is_dir());
+    assert_eq!(ctx.tree.count(), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "File create failed: blocked.mty: not a file");
 
     let _ = std::fs::remove_dir_all(&root);
 }

@@ -84,6 +84,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **New File rejects directory targets**: typed and native-dialog New File now
+  distinguish existing directories from existing files. Directory targets report
+  `File create failed: <name>: not a file`, refresh workspace file views, and
+  leave the current tab set unchanged.
 - **Rename Active File rejects directory endpoints**: active-file rename now
   preflights both the source path and requested destination name before moving.
   Directory endpoints report `Rename failed: <name>: not a file`, refresh
