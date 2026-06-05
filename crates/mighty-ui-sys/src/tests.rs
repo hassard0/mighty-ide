@@ -12593,6 +12593,45 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         ),
         "Find misses must keep the prompt open so the query can be corrected"
     );
+    for (needle, label) in [
+        (
+            "let newidx = mui_tab_open_path(h)\n              find_nav = false\n              if newidx >= 0 {\n                let _b = mui_ed_tab_switch(h, newidx)\n                mui_ed_undo_reset(h)\n                let _r = mui_diag_refresh(h)\n                mui_qo_record_active(h)\n                let _pc = mui_prompt_cancel(h)\n                prompt_kind = 0\n              }",
+            "Open File",
+        ),
+        (
+            "let wo = mui_ws_open(h)\n              find_nav = false\n              if wo == 1 {\n                let _pc = mui_prompt_cancel(h)\n                prompt_kind = 0\n              }",
+            "Open Folder",
+        ),
+        (
+            "let np = mui_newproj_create(h)\n              find_nav = false\n              if np == 1 {\n                let _pc = mui_prompt_cancel(h)\n                prompt_kind = 0\n              }",
+            "New Project",
+        ),
+        (
+            "let nf = mui_newfolder_create(h)\n              find_nav = false\n              if nf == 1 {\n                let _pc = mui_prompt_cancel(h)\n                prompt_kind = 0\n              }",
+            "New Folder",
+        ),
+        (
+            "let nf = mui_newfile_create(h)\n              if nf >= 0 {\n                let _b = mui_ed_tab_switch(h, nf)\n                mui_ed_undo_reset(h)\n                let _dr = mui_diag_refresh(h)\n                let _sg = mui_scm_refresh(h)\n                let _ro = mui_outline_refresh(h)\n                let _rp = mui_problems_refresh(h)\n                mui_qo_record_active(h)\n                let _pc = mui_prompt_cancel(h)\n                prompt_kind = 0\n              }",
+            "New File",
+        ),
+        (
+            "let src = mui_save_as(h)\n              if src == 0 {\n                mui_tab_set_dirty(h, mui_tab_active(h), 0)\n                let _r = mui_diag_refresh(h)\n                let _g = mui_scm_refresh(h)\n                let _o = mui_outline_refresh(h)\n                let _pr = mui_problems_refresh(h)\n                let _pc = mui_prompt_cancel(h)\n                prompt_kind = 0\n              }",
+            "Save As",
+        ),
+        (
+            "let rr = mui_file_rename_active(h)\n              if rr == 1 {\n                let _dr = mui_diag_refresh(h)\n                let _sg = mui_scm_refresh(h)\n                let _ro = mui_outline_refresh(h)\n                let _rp = mui_problems_refresh(h)\n                let _pc = mui_prompt_cancel(h)\n                prompt_kind = 0\n              }",
+            "Rename File",
+        ),
+        (
+            "let xd = mui_file_delete_active_confirm(h)\n              if xd == 1 {\n                let _tb = mui_ed_tab_switch(h, mui_tab_active(h))\n                mui_ed_undo_reset(h)\n                let _dd = mui_diag_refresh(h)\n                let _ds = mui_scm_refresh(h)\n                let _do = mui_outline_refresh(h)\n                let _dp = mui_problems_refresh(h)\n                let _pc = mui_prompt_cancel(h)\n                prompt_kind = 0\n              }",
+            "Delete File",
+        ),
+    ] {
+        assert!(
+            main.contains(needle),
+            "{label} prompt misses must keep the prompt open for correction"
+        );
+    }
     assert!(
         main.contains("topbar_act == 3") && main.contains("mui_quickopen_open(h)"),
         "titlebar command center must route to Quick Open"
