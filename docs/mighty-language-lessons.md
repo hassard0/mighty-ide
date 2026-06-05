@@ -12257,7 +12257,8 @@ having disappeared.
 
 - **IDE note:** negative recent indexes now report `No recent ... row selected`,
   while disappeared file and folder rows report `Recent ... row no longer
-  listed`; the new messages stay in the Open toast replacement lane.
+  listed` from both Welcome and workspace recents; the new messages stay in the
+  Open toast replacement lane.
 - **Language note:** no compiler gap surfaced. Event handlers should preserve
   enough state-specific vocabulary for scalar ABI failures to explain whether
   input was missing, invalid, or stale.

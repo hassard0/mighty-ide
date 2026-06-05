@@ -260,11 +260,11 @@ pub extern "C" fn mui_ws_open_recent(handle: i64, i: i32) -> i32 {
         return 0;
     };
     if i < 0 {
-        ctx.push_toast(crate::toast::Kind::Info, "No recent folder selected");
+        ctx.push_toast(crate::toast::Kind::Info, "No recent folder row selected");
         return 0;
     }
     let Some(path) = ctx.recent_workspaces.get(i as usize).cloned() else {
-        ctx.push_toast(crate::toast::Kind::Info, "No recent folder selected");
+        ctx.push_toast(crate::toast::Kind::Info, "Recent folder row no longer listed");
         return 0;
     };
     open_recent_folder(ctx, &path)

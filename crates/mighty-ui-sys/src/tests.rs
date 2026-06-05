@@ -13244,7 +13244,7 @@ fn workspace_open_recent_prunes_missing_folder() {
     assert_eq!(mui_ws_open_recent(h, -1), 0, "negative recent row should fail");
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "No recent folder selected");
+    assert_eq!(toast.message, "No recent folder row selected");
 
     assert_eq!(
         mui_ws_open_recent(h, 0),
@@ -13253,7 +13253,7 @@ fn workspace_open_recent_prunes_missing_folder() {
     );
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "No recent folder selected");
+    assert_eq!(toast.message, "Recent folder row no longer listed");
 
     let missing = std::env::temp_dir().join(format!(
         "mui_ws_recent_missing_{}",
