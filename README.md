@@ -86,6 +86,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   split-pane layouts
 - Direct tab switches, next-tab, and previous-tab entry points retarget the
   focused split pane without collapsing or rebinding the other pane
+- Direct tab store and dirty-state entry points reject stale tab indexes with
+  visible feedback instead of silently ignoring the routed update
 - Split-pane retargeting rejects stale pane or tab indexes with visible
   feedback before changing the layout, so exported pane calls cannot bind a pane
   to a missing tab

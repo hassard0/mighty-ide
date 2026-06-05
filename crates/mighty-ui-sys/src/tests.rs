@@ -266,6 +266,28 @@ fn stale_dirty_confirm_save_and_discard_report_visible_feedback() {
 }
 
 #[test]
+fn stale_tab_store_routes_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::abi::mui_tab_store_begin(handle, 7);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No tab at that position");
+
+    crate::abi::mui_tab_store_commit(handle, -1, 0, 0, 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No tab at that position");
+
+    crate::abi::mui_tab_set_dirty(handle, 2, 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No tab at that position");
+}
+
+#[test]
 fn jump_back_empty_target_toast_is_available_to_mighty_dispatch() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;

@@ -5493,9 +5493,12 @@ pub extern "C" fn mui_tab_close_index_at_click(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_tab_store_begin(handle: i64, idx: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        if idx >= 0 {
-            ctx.tabs.store_begin(idx as usize);
+        if idx < 0 || idx as usize >= ctx.tabs.count() {
+            ctx.push_toast(crate::toast::Kind::Warn, "No tab at that position");
+            trace(&format!("tab_store_begin idx={idx} -> invalid"));
+            return;
         }
+        ctx.tabs.store_begin(idx as usize);
     }
 }
 
@@ -5520,10 +5523,13 @@ pub extern "C" fn mui_tab_store_commit(
     scroll_first: i32,
 ) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        if idx >= 0 {
-            ctx.tabs
-                .store_commit(idx as usize, cursor_line, cursor_col, scroll_first);
+        if idx < 0 || idx as usize >= ctx.tabs.count() {
+            ctx.push_toast(crate::toast::Kind::Warn, "No tab at that position");
+            trace(&format!("tab_store_commit idx={idx} -> invalid"));
+            return;
         }
+        ctx.tabs
+            .store_commit(idx as usize, cursor_line, cursor_col, scroll_first);
     }
 }
 
@@ -5531,13 +5537,16 @@ pub extern "C" fn mui_tab_store_commit(
 #[no_mangle]
 pub extern "C" fn mui_tab_set_dirty(handle: i64, idx: i32, dirty: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
-        if idx >= 0 {
-            let idx = idx as usize;
-            if dirty != 0 {
-                ctx.tabs.set_dirty(idx, true);
-            } else {
-                ctx.tabs.mark_clean(idx);
-            }
+        if idx < 0 || idx as usize >= ctx.tabs.count() {
+            ctx.push_toast(crate::toast::Kind::Warn, "No tab at that position");
+            trace(&format!("tab_set_dirty idx={idx} -> invalid"));
+            return;
+        }
+        let idx = idx as usize;
+        if dirty != 0 {
+            ctx.tabs.set_dirty(idx, true);
+        } else {
+            ctx.tabs.mark_clean(idx);
         }
     }
 }
