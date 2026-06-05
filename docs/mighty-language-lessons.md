@@ -13737,3 +13737,15 @@ messages should replace stale layout toasts instead of stacking beside them.
   with the Layout operation family.
 - **Language note:** no compiler gap surfaced. UI command feedback should stay
   grouped by the surface it mutates when the messages are lifecycle status.
+
+## L1086 - Debug Session Cleanup Is Debug Feedback
+
+Clearing debug output emits `Debug session cleared`, and repeating the command
+emits `Debug session already empty`. Those are part of the same debug workflow
+as start, stop, restart, stepping, and breakpoint feedback.
+
+- **IDE note:** `Debug session ...` status messages now coalesce with the Debug
+  operation family, including clear/already-empty cleanup feedback.
+- **Language note:** no compiler gap surfaced. Prefix families are preferable
+  for status lines whose command surface is stable and whose suffix names the
+  outcome.

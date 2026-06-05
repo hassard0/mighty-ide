@@ -1028,6 +1028,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || (m.starts_with("Save ")
             && (m.ends_with("before starting debug")
                 || m.ends_with("before setting breakpoints")))
+        || m.starts_with("Debug session ")
         || m.starts_with("Debug failed to start:")
         || m == "Run and Debug panel closed"
         || m == "Run and Debug panel is already closed"
@@ -2645,6 +2646,20 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Debug session stopped");
+
+        q.push_at(
+            Kind::Info,
+            "Debug session cleared",
+            t0 + Duration::from_millis(575),
+        );
+        q.push_at(
+            Kind::Info,
+            "Debug session already empty",
+            t0 + Duration::from_millis(590),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Debug session already empty");
+        assert!(!q.toasts().iter().any(|t| t.message == "Debug session cleared"));
 
         q.push_at(
             Kind::Error,
