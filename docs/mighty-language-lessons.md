@@ -13186,3 +13186,18 @@ so the goto path should treat the stored target as stale until validated.
 - **Language note:** no compiler gap surfaced. Inline previews should follow
   the same cached-target rule as sidebars and search panels: resolve once,
   validate once, then mutate UI state.
+
+## L1047 - Definition Target Opens Need The Same Cached-Path Contract
+
+Go to Definition stores an LSP-resolved target before Mighty opens the target
+tab. That stored path can go stale between resolution and activation, so the
+open path should classify it once instead of branching through separate
+existence and file-kind checks.
+
+- **IDE note:** definition target opening now uses one metadata read before
+  opening the tab or clearing the stale target. Missing and non-file targets
+  share the same definition-clear and workspace-refresh path while preserving
+  visible feedback: `Definition target missing: <name>` and
+  `Definition target is not a file: <name>`.
+- **Language note:** no compiler gap surfaced. LSP-backed navigation should
+  treat resolved paths as cached UI state, not as durable filesystem truth.

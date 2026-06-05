@@ -10420,6 +10420,27 @@ pub extern "C" fn mui_def_target_col(handle: i64) -> i32 {
     })
 }
 
+enum DefinitionTargetKind {
+    File,
+    Missing,
+    NotFile,
+}
+
+fn definition_target_kind(path: &std::path::Path) -> DefinitionTargetKind {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => DefinitionTargetKind::File,
+        Ok(_) => DefinitionTargetKind::NotFile,
+        Err(_) => DefinitionTargetKind::Missing,
+    }
+}
+
+fn reject_bad_definition_target(ctx: &mut MuiContext, message: String) -> i32 {
+    ctx.def.clear();
+    refresh_workspace_file_views(ctx);
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+    -1
+}
+
 /// Open the resolved definition target's file as a tab (via the existing tab
 /// store) and switch to it. Returns the tab index, or `-1` if there is no target
 /// / no path. Keeps `file_path` in sync so a follow-up hover/def queries the
@@ -10437,22 +10458,26 @@ pub extern "C" fn mui_def_open_target(handle: i64) -> i32 {
             return -1;
         }
     };
-    if !target_path.exists() {
-        let name = target_path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
-        ctx.def.clear();
-        refresh_workspace_file_views(ctx);
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Definition target missing: {name}"));
-        return -1;
-    }
-    if !target_path.is_file() {
-        let name = target_path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
-        ctx.def.clear();
-        refresh_workspace_file_views(ctx);
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
-            format!("Definition target is not a file: {name}"),
-        );
-        return -1;
+    match definition_target_kind(&target_path) {
+        DefinitionTargetKind::File => {}
+        DefinitionTargetKind::Missing => {
+            return reject_bad_definition_target(
+                ctx,
+                format!(
+                    "Definition target missing: {}",
+                    file_target_name(&target_path)
+                ),
+            );
+        }
+        DefinitionTargetKind::NotFile => {
+            return reject_bad_definition_target(
+                ctx,
+                format!(
+                    "Definition target is not a file: {}",
+                    file_target_name(&target_path)
+                ),
+            );
+        }
     }
     let idx = ctx.tabs.open_path(target_path.clone());
     sync_active_path(ctx);
