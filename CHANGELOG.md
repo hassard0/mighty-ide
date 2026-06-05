@@ -81,6 +81,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Copy file metadata names scratch buffers**: copy-path, copy-relative-path,
   copy-name, and copy-directory now identify `(scratch)` when the active tab has
   no file path.
+- **Active file commands name scratch and dirty targets**: rename, reveal,
+  show-in-file-manager, and delete now identify scratch buffers when no file is
+  active, and delete names the dirty file that must be saved or discarded.
 - **Breadcrumb file menus prune stale paths**: accepting a breadcrumb file row
   whose source disappeared now removes that dead path from the menu backing
   list while reporting the missing target.

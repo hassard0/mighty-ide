@@ -750,6 +750,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Rename cancelled"
         || m == "No rename input open"
         || m == "No active file to rename"
+        || m.starts_with("No active file to rename:")
         || m == "Cannot rename this path"
     {
         Some(OperationKey::Rename)
@@ -757,10 +758,13 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Delete failed")
         || m.starts_with("Type ")
         || m == "No active file to delete"
+        || m.starts_with("No active file to delete:")
+        || m.starts_with("Save or discard changes in ")
     {
         Some(OperationKey::Delete)
     } else if m.starts_with("Revealed ")
         || m == "No active file to reveal"
+        || m.starts_with("No active file to reveal:")
         || m.contains(" is outside Explorer root")
         || m.starts_with("Reveal in file manager is unavailable")
         || m.starts_with("Could not show ")
@@ -1391,11 +1395,11 @@ mod tests {
 
         q.push_at(
             Kind::Warn,
-            "No active file to rename",
+            "No active file to rename: (scratch)",
             t0 + Duration::from_millis(200),
         );
         assert_eq!(q.len(), 1);
-        assert_eq!(q.toasts()[0].message, "No active file to rename");
+        assert_eq!(q.toasts()[0].message, "No active file to rename: (scratch)");
     }
 
     #[test]
@@ -1418,6 +1422,14 @@ mod tests {
         q.push_at(Kind::Success, "Deleted doomed.mty", t0 + Duration::from_millis(200));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Deleted doomed.mty");
+
+        q.push_at(
+            Kind::Warn,
+            "No active file to delete: (scratch)",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No active file to delete: (scratch)");
     }
 
     #[test]
@@ -1550,6 +1562,15 @@ mod tests {
             "Could not show main.mty in file manager: launcher missing"
         );
         assert_eq!(q.toasts()[0].kind, Kind::Error);
+
+        q.push_at(
+            Kind::Warn,
+            "No active file to reveal: (scratch)",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No active file to reveal: (scratch)");
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
     }
 
     #[test]

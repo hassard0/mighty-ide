@@ -4631,7 +4631,7 @@ fn active_file_delete_refuses_dirty_buffer_even_with_exact_confirmation() {
     assert_eq!(ctx.tabs.active_model().as_text(), "unsaved\n");
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Save or discard changes before deleting");
+    assert_eq!(toast.message, "Save or discard changes in dirty.mty before deleting");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -4664,7 +4664,7 @@ fn active_file_delete_refuses_dirty_duplicate_tab() {
     assert!(ctx.tabs.any_dirty_path(&file));
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Save or discard changes before deleting");
+    assert_eq!(toast.message, "Save or discard changes in dupe.mty before deleting");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -7135,6 +7135,37 @@ fn active_file_reveal_unavailable_names_the_target() {
     assert_eq!(toast.message, "Reveal in file manager is unavailable: main.mty");
 
     let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn active_file_path_commands_name_scratch_buffers() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.path_stage.extend_from_slice(b"renamed.mty");
+    assert_eq!(crate::mui_file_rename_active(handle), 0);
+    assert!(ctx.path_stage.is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No active file to rename: (scratch)");
+
+    assert_eq!(crate::abi::mui_file_reveal_active(handle), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No active file to reveal: (scratch)");
+
+    assert_eq!(crate::abi::mui_file_reveal_active_in_os(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No active file to reveal: (scratch)");
+
+    ctx.path_stage.extend_from_slice(b"scratch");
+    assert_eq!(crate::mui_file_delete_active_confirm(handle), 0);
+    assert!(ctx.path_stage.is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No active file to delete: (scratch)");
 }
 
 #[test]

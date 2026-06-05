@@ -12291,3 +12291,16 @@ not identify that the active editor was a scratch buffer.
 - **Language note:** no compiler gap surfaced. Clipboard commands that depend
   on file-backed editor state should name the active buffer when refusing to
   run.
+
+## L986 - Active File Command Misses Should Name The Target
+
+Rename, Reveal in Explorer, Show in File Manager, and Delete all refused
+untitled buffers with generic `No active file ...` messages. Delete also
+refused dirty file-backed tabs without naming the dirty file.
+
+- **IDE note:** active-file preflights now report `...: (scratch)` for untitled
+  buffers, and dirty delete refusals report
+  `Save or discard changes in file before deleting`.
+- **Language note:** no compiler gap surfaced. Mutating or path-scoped commands
+  should carry the active target label in refusal messages, even when the target
+  is virtual.

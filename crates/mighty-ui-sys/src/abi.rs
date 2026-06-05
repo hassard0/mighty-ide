@@ -6288,7 +6288,10 @@ pub extern "C" fn mui_file_rename_active(handle: i64) -> i32 {
     };
     let Some(old_path) = ctx.tabs.active_path() else {
         ctx.path_stage.clear();
-        ctx.push_toast(crate::toast::Kind::Warn, "No active file to rename");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("No active file to rename: {}", active_file_target_name(ctx)),
+        );
         return 0;
     };
     let staged = std::mem::take(&mut ctx.path_stage);
@@ -6348,7 +6351,10 @@ pub extern "C" fn mui_file_reveal_active(handle: i64) -> i32 {
         return -1;
     };
     let Some(path) = ctx.tabs.active_path() else {
-        ctx.push_toast(crate::toast::Kind::Warn, "No active file to reveal");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("No active file to reveal: {}", active_file_target_name(ctx)),
+        );
         return -1;
     };
     ctx.sidebar_visible = true;
@@ -6444,7 +6450,10 @@ pub extern "C" fn mui_file_reveal_active_in_os(handle: i64) -> i32 {
         return 0;
     };
     let Some(path) = ctx.tabs.active_path() else {
-        ctx.push_toast(crate::toast::Kind::Warn, "No active file to reveal");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("No active file to reveal: {}", active_file_target_name(ctx)),
+        );
         return 0;
     };
     let Some((program, args)) = platform_reveal_command(&path) else {
@@ -6669,7 +6678,7 @@ pub(crate) fn copy_directory_failed_message(text: &str, e: &std::io::Error) -> S
     append_clipboard_write_reason(format!("Could not copy directory: {text}"), e)
 }
 
-fn active_file_copy_target_name(ctx: &MuiContext) -> String {
+fn active_file_target_name(ctx: &MuiContext) -> String {
     ctx.tabs
         .active_path()
         .as_deref()
@@ -6678,7 +6687,7 @@ fn active_file_copy_target_name(ctx: &MuiContext) -> String {
 }
 
 fn copy_needs_file_message(ctx: &MuiContext, what: &str) -> String {
-    format!("No active file {what} to copy: {}", active_file_copy_target_name(ctx))
+    format!("No active file {what} to copy: {}", active_file_target_name(ctx))
 }
 
 /// Copy the active file path to the operating-system clipboard. Returns 1 on
@@ -6788,7 +6797,10 @@ pub extern "C" fn mui_file_delete_active_confirm(handle: i64) -> i32 {
     };
     let Some(path) = ctx.tabs.active_path() else {
         ctx.path_stage.clear();
-        ctx.push_toast(crate::toast::Kind::Warn, "No active file to delete");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("No active file to delete: {}", active_file_target_name(ctx)),
+        );
         return 0;
     };
     let staged = std::mem::take(&mut ctx.path_stage);
@@ -6801,7 +6813,7 @@ pub extern "C" fn mui_file_delete_active_confirm(handle: i64) -> i32 {
     if ctx.tabs.any_dirty_path(&path) {
         ctx.push_toast(
             crate::toast::Kind::Warn,
-            "Save or discard changes before deleting",
+            format!("Save or discard changes in {name} before deleting"),
         );
         return 0;
     }
