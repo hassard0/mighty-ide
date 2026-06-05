@@ -55,6 +55,25 @@ function Assert-NoForeignNativeArtifacts {
   }
 }
 
+function Assert-NoBuildSidecars {
+  param([Parameter(Mandatory = $true)][string]$Path)
+  $sidecars = @(
+    Get-ChildItem -LiteralPath $Path -Recurse -File |
+      Where-Object {
+        $_.Extension -in @(
+          ".pdb", ".lib", ".exp", ".ilk", ".obj", ".o", ".a", ".rlib",
+          ".log", ".debug", ".map"
+        )
+      }
+    Get-ChildItem -LiteralPath $Path -Recurse -Directory |
+      Where-Object { $_.Extension -eq ".dSYM" }
+  )
+  if ($sidecars) {
+    $names = ($sidecars | ForEach-Object { $_.FullName }) -join [Environment]::NewLine
+    throw "package contains build byproducts:$([Environment]::NewLine)$names"
+  }
+}
+
 $env:CARGO_INCREMENTAL = "0"
 $prevRustflags = $env:RUSTFLAGS
 $releaseLinkFlags = "-C debuginfo=0 -C link-arg=/DEBUG:NONE"
@@ -111,12 +130,7 @@ try {
   }
   Copy-Item "docs\platform-packaging.md" "$dist\docs\platform-packaging.md" -Force
 
-  $byproducts = Get-ChildItem -LiteralPath $dist -Recurse -File |
-    Where-Object { $_.Extension -in @(".pdb", ".lib", ".exp", ".ilk", ".obj", ".o", ".a", ".rlib", ".log") }
-  if ($byproducts) {
-    $names = ($byproducts | ForEach-Object { $_.FullName }) -join [Environment]::NewLine
-    throw "package contains build byproducts:$([Environment]::NewLine)$names"
-  }
+  Assert-NoBuildSidecars $dist
   Assert-NoForeignNativeArtifacts $dist
 
   Write-Host "[4/5] zip package"

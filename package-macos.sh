@@ -158,9 +158,9 @@ for binary in "$MACOS/mighty-ide" "$MACOS/libmighty_ui_sys.dylib"; do
   }
 done
 
-if find "$DIST_ROOT" -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.a' -o -name '*.rlib' -o -name '*.log' \) | grep -q .; then
+if find "$DIST_ROOT" \( -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.a' -o -name '*.rlib' -o -name '*.log' -o -name '*.debug' -o -name '*.map' \) -o -type d -name '*.dSYM' \) | grep -q .; then
   echo "ERROR: package contains build byproducts:" >&2
-  find "$DIST_ROOT" -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.a' -o -name '*.rlib' -o -name '*.log' \) >&2
+  find "$DIST_ROOT" \( -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.a' -o -name '*.rlib' -o -name '*.log' -o -name '*.debug' -o -name '*.map' \) -o -type d -name '*.dSYM' \) >&2
   exit 1
 fi
 if find "$DIST_ROOT" -type f \( -name '*.exe' -o -name '*.dll' -o -name '*.so' \) | grep -q .; then

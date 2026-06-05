@@ -21,9 +21,10 @@ or a release operator.
 The checked-in package scripts enforce these rules where they can: they refuse a
 dirty git worktree, delete the previous platform package directory, reject common
 compiler/linker sidecars such as PDBs, import/static libraries, object files,
-and logs, reject obvious foreign-platform native payloads, and validate the
-native binary family before writing the archive. Windows checks PE headers in
-PowerShell and re-checks the executable after icon stamping.
+`.dSYM` bundles, `.debug`/`.map` symbol files, and logs, reject obvious
+foreign-platform native payloads, and validate the native binary family before
+writing the archive. Windows checks PE headers in PowerShell and re-checks the
+executable after icon stamping.
 macOS and Linux require the standard `file` utility so Mach-O and ELF validation
 cannot be silently skipped.
 
@@ -32,6 +33,12 @@ The release invariant is one archive, one native binary family:
 - Windows packages contain PE files only for native code.
 - macOS packages contain Mach-O files only for native code.
 - Linux packages contain ELF files only for native code.
+
+The sidecar scan is intentionally shared in spirit across all three scripts:
+package trees must not contain `.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`,
+`.a`, `.rlib`, `.log`, `.debug`, `.map`, or `.dSYM` artifacts. A platform can
+still be stripped or symbolized before packaging, but those intermediate files
+must stay outside the release archive.
 
 If a platform archive cannot be built and smoke-tested on its native OS or a
 matching CI runner, do not publish a placeholder archive for that platform.
@@ -144,9 +151,13 @@ Get-FileHash dist\mighty-ide-v0.3.0-win64.zip -Algorithm SHA256
 
 Get-ChildItem dist\mighty-ide-win64 -Recurse -File |
   Where-Object { $_.Extension -in @(
-    '.pdb','.lib','.exp','.ilk','.obj','.o','.a','.rlib','.log','.dylib','.so'
+    '.pdb','.lib','.exp','.ilk','.obj','.o','.a','.rlib','.log','.debug',
+    '.map','.dylib','.so'
   ) } |
   Select-Object FullName,Length
+Get-ChildItem dist\mighty-ide-win64 -Recurse -Directory |
+  Where-Object { $_.Extension -eq '.dSYM' } |
+  Select-Object FullName
 
 @('dist\mighty-ide-win64\mighty-ide.exe',
   'dist\mighty-ide-win64\mighty_ui_sys.dll') |
@@ -178,10 +189,12 @@ shasum -a 256 dist/mighty-ide-v0.3.0-macos.tar.gz
 ls -lh dist/mighty-ide-v0.3.0-macos.tar.gz
 file "dist/mighty-ide-macos/Mighty IDE.app/Contents/MacOS/mighty-ide" \
   "dist/mighty-ide-macos/Mighty IDE.app/Contents/MacOS/libmighty_ui_sys.dylib"
-find dist/mighty-ide-macos -type f \( \
+find dist/mighty-ide-macos \( -type f \( \
   -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o \
-  -name '*.obj' -o -name '*.o' -o -name '*.a' -o -name '*.rlib' -o -name '*.log' -o \
-  -name '*.exe' -o -name '*.dll' -o -name '*.so' \)
+  -name '*.obj' -o -name '*.o' -o -name '*.a' -o -name '*.rlib' -o \
+  -name '*.log' -o -name '*.debug' -o -name '*.map' -o \
+  -name '*.exe' -o -name '*.dll' -o -name '*.so' \) -o \
+  -type d -name '*.dSYM' \)
 "dist/mighty-ide-macos/Mighty IDE.app/Contents/MacOS/mighty-ide"
 ```
 
@@ -192,10 +205,12 @@ sha256sum dist/mighty-ide-v0.3.0-linux-x64.tar.gz
 ls -lh dist/mighty-ide-v0.3.0-linux-x64.tar.gz
 file dist/mighty-ide-linux-x64/mighty-ide \
   dist/mighty-ide-linux-x64/libmighty_ui_sys.so
-find dist/mighty-ide-linux-x64 -type f \( \
+find dist/mighty-ide-linux-x64 \( -type f \( \
   -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o \
-  -name '*.obj' -o -name '*.o' -o -name '*.a' -o -name '*.rlib' -o -name '*.log' -o \
-  -name '*.exe' -o -name '*.dll' -o -name '*.dylib' \)
+  -name '*.obj' -o -name '*.o' -o -name '*.a' -o -name '*.rlib' -o \
+  -name '*.log' -o -name '*.debug' -o -name '*.map' -o \
+  -name '*.exe' -o -name '*.dll' -o -name '*.dylib' \) -o \
+  -type d -name '*.dSYM' \)
 (cd dist/mighty-ide-linux-x64 && ./mighty-ide)
 ```
 

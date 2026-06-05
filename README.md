@@ -183,8 +183,9 @@ Clean binary contract:
 - Linux archives contain only ELF native payloads: `mighty-ide` and
   `libmighty_ui_sys.so`.
 - Package scripts reject common compiler/linker byproducts, including object
-  files, import/static archives, debug files, logs, and obvious
-  foreign-platform native files before writing the archive.
+  files, import/static archives, PDB/ILK files, `.dSYM` bundles, `.debug` and
+  `.map` symbol files, logs, and obvious foreign-platform native files before
+  writing the archive.
 - macOS and Linux binaries must be produced on native hosts or matching CI
   runners; they are not cross-packaged from the Windows output.
 - If a native host is not available, leave that platform unbuilt rather than
@@ -192,9 +193,9 @@ Clean binary contract:
 
 | Platform | Command | Archive | Native payload checks |
 |----------|---------|---------|-----------------------|
-| Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; no `.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.dylib`, or `.so` files |
-| macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and `.dylib`; no `.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.exe`, `.dll`, or `.so` files |
-| Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and `.so`; no `.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.exe`, `.dll`, or `.dylib` files |
+| Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.dylib`/`.so` files |
+| macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and `.dylib`; no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.exe`/`.dll`/`.so` files |
+| Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and `.so`; no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.exe`/`.dll`/`.dylib` files |
 
 Minimum verification before upload:
 

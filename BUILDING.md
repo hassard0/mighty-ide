@@ -50,9 +50,10 @@ Generated binaries live under `dist/`, which is intentionally ignored by git.
 Start every release package from a clean worktree and a freshly assembled
 platform directory. The packaging scripts enforce this by refusing dirty git
 state, removing the previous platform package directory, rejecting common build
-byproducts such as object files, import/static archives, debug files, and logs,
-rejecting obvious foreign-platform native files, and checking that the staged
-native binaries match the host platform format before the archive is written.
+byproducts such as object files, import/static archives, PDB/ILK files, `.dSYM`
+bundles, `.debug`/`.map` symbol files, and logs, rejecting obvious
+foreign-platform native files, and checking that the staged native binaries
+match the host platform format before the archive is written.
 The scripts also bundle the README, license, keybinding reference,
 changelog, build notes, platform packaging notes, samples, and platform-specific
 `RUN.txt` instructions. Windows performs PE checks directly in PowerShell; macOS
@@ -61,9 +62,9 @@ not Mach-O or ELF respectively.
 
 | Platform | Current command | Artifact | Status |
 |----------|-----------------|----------|--------|
-| Windows x64 | `.\package-win.ps1` | `dist\mighty-ide-v0.3.0-win64.zip` | Verifies PE exe/dll; rejects sidecars and `.dylib`/`.so` payloads |
-| macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Verifies Mach-O app payloads; rejects sidecars and `.exe`/`.dll`/`.so` payloads |
-| Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | Verifies ELF executable/shared object; rejects sidecars and `.exe`/`.dll`/`.dylib` payloads |
+| Windows x64 | `.\package-win.ps1` | `dist\mighty-ide-v0.3.0-win64.zip` | Verifies PE exe/dll; rejects sidecars, `.dylib`, and `.so` payloads |
+| macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Verifies Mach-O app payloads; rejects sidecars, `.exe`, `.dll`, and `.so` payloads |
+| Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | Verifies ELF executable/shared object; rejects sidecars, `.exe`, `.dll`, and `.dylib` payloads |
 
 Do not cross-ship artifacts between platforms. The Rust shim is a native
 dynamic library (`.dll`, `.dylib`, or `.so`) and the Mighty executable links to

@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Release packaging
+- **Package sidecar checks are stricter**: Windows, macOS, and Linux package
+  assembly now also rejects `.dSYM`, `.debug`, and `.map` artifacts, and the
+  README/build/platform docs list the same clean-binary contract operators must
+  verify before publishing archives.
 - **Package scripts reject static archives**: Windows, macOS, and Linux package
   assembly now treats Unix `.a` static libraries as build byproducts, and the
   Windows script revalidates the PE executable after icon stamping so the final
