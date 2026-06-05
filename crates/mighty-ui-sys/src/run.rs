@@ -323,6 +323,25 @@ impl RunPanel {
         true
     }
 
+    /// Open the Run panel with a preflight failure before spawning `mty run`.
+    pub fn fail_before_start(&mut self, path: &Path, message: impl Into<String>) {
+        self.stop();
+        self.lines.clear();
+        self.partial.clear();
+        self.first = 0;
+        self.exit_code = Some(-1);
+        self.duration_ms = 0;
+        self.click_target = None;
+        self.path = path.to_string_lossy().into_owned();
+        self.active = true;
+        self.running = false;
+        self.lines.push(OutputLine {
+            text: message.into(),
+            is_error: true,
+            ..OutputLine::plain(String::new())
+        });
+    }
+
     /// Stop the running process (best-effort kill + reap). No-op if not running.
     pub fn stop(&mut self) {
         if let Some(mut child) = self.child.take() {

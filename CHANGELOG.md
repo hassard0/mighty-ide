@@ -203,6 +203,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   backing file was replaced by a directory now report `target is not a file` in
   the Web panel and toast before any `mty serve` or `mty build` process is
   spawned.
+- **Run active file rejects stale targets up front**: `mty run` now refuses
+  missing or directory-backed active paths before spawning a child process,
+  keeping the Run panel and toast pointed at the actual stale file state.
 - **Explorer row misses are explicit**: file-tree open requests now report
   `No Explorer row selected` for negative row codes and
   `Explorer row no longer listed` for stale non-negative row indices.

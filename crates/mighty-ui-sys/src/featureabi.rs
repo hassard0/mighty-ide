@@ -137,6 +137,41 @@ pub extern "C" fn mui_run_start(handle: i64) -> i32 {
     ctx.term_open = false;
     ctx.web.close();
     ctx.problems.set_open(false);
+    match std::fs::metadata(&path) {
+        Ok(meta) if meta.is_file() => {}
+        Ok(_) => {
+            ctx.run.fail_before_start(
+                &path,
+                format!(
+                    "failed to start: target is not a file: {}",
+                    run_path_label(&path.to_string_lossy())
+                ),
+            );
+            let reason = compact_run_start_reason(ctx);
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                run_start_failed_message(&path, reason.as_deref()),
+            );
+            crate::abi::trace(&format!("run_start not_file target={}", path.display()));
+            return 0;
+        }
+        Err(e) => {
+            ctx.run.fail_before_start(
+                &path,
+                format!(
+                    "failed to start: {}: {e}",
+                    run_path_label(&path.to_string_lossy())
+                ),
+            );
+            let reason = compact_run_start_reason(ctx);
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                run_start_failed_message(&path, reason.as_deref()),
+            );
+            crate::abi::trace(&format!("run_start missing target={}", path.display()));
+            return 0;
+        }
+    }
     if ctx.run.start(&path) {
         crate::abi::trace(&format!("run_start target={}", path.display()));
         println!("run: started `mty run {}`", path.display());

@@ -2331,6 +2331,77 @@ fn run_start_spawn_failure_names_target_and_command() {
 }
 
 #[test]
+fn run_start_rejects_directory_active_path_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_run_dir_start_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, b"fn main() {}\n").unwrap();
+    ctx.tabs.open_path(path.clone());
+    std::fs::remove_file(&path).unwrap();
+    std::fs::create_dir_all(&path).unwrap();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_run_start(handle), 0);
+    assert!(ctx.run.is_active());
+    assert!(!ctx.run.is_running());
+    assert_eq!(
+        ctx.run.line(0).unwrap().text,
+        "failed to start: target is not a file: main.mty"
+    );
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast
+            .message
+            .starts_with("Run failed to start: main.mty via "),
+        "{}",
+        toast.message
+    );
+    assert!(
+        toast
+            .message
+            .ends_with(" run: target is not a file: main.mty"),
+        "{}",
+        toast.message
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn run_start_rejects_missing_active_path_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_run_missing_start_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.mty");
+    std::fs::write(&path, b"fn main() {}\n").unwrap();
+    ctx.tabs.open_path(path.clone());
+    std::fs::remove_file(&path).unwrap();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_run_start(handle), 0);
+    assert!(ctx.run.is_active());
+    assert!(!ctx.run.is_running());
+    let line = &ctx.run.line(0).unwrap().text;
+    assert!(line.starts_with("failed to start: main.mty: "), "{line}");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast
+            .message
+            .starts_with("Run failed to start: main.mty via "),
+        "{}",
+        toast.message
+    );
+    assert!(toast.message.contains(" run: main.mty: "), "{}", toast.message);
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn run_stop_when_idle_reports_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     ctx.term_open = true;
