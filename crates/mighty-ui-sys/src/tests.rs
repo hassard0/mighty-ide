@@ -6516,12 +6516,23 @@ fn scm_open_row_misses_report_visible_feedback() {
         let _ = std::fs::remove_dir_all(root);
         return;
     }
+    let deleted = root.join("deleted.mty");
+    std::fs::write(&deleted, "stale scm row\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
+    std::fs::remove_file(&deleted).unwrap();
     ctx.scm.root = Some(root.clone());
     assert_eq!(crate::panels::mui_scm_open_row(handle, 0), -1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Source control target missing: deleted.mty");
     assert_eq!(ctx.scm.count(), 0);
+    assert_eq!(ctx.tree.count(), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
 
     let _ = std::fs::remove_dir_all(root);
 }

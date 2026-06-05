@@ -229,6 +229,7 @@ pub extern "C" fn mui_scm_open_row(handle: i64, i: i32) -> i32 {
             .unwrap_or(path.as_str());
         ctx.push_toast(crate::toast::Kind::Warn, format!("Source control target missing: {name}"));
         let _ = ctx.scm.refresh(&root);
+        crate::abi::refresh_workspace_file_views(ctx);
         return -1;
     }
     let idx = ctx.tabs.open_path(full);

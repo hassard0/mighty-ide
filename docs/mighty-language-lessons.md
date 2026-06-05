@@ -11165,3 +11165,14 @@ refresh.
   backing index, and visible Quick Open rows when the target file is missing.
 - **Language note:** no compiler gap surfaced. Navigation misses from indexed
   file lists should update every surface derived from that index.
+
+## L905 - Stale SCM Opens Should Refresh File Views
+
+Source Control rows can point at files deleted outside the IDE. Opening such a
+row refreshed the SCM snapshot and showed a warning, but other file discovery
+surfaces could still render the deleted path.
+
+- **IDE note:** stale Source Control row opens now refresh Explorer, Quick
+  Open's backing index, and visible Quick Open rows when the target is missing.
+- **Language note:** no compiler gap surfaced. Every indexed navigation surface
+  should share the same stale-target cleanup contract.
