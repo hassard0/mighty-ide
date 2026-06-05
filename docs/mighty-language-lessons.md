@@ -12546,3 +12546,19 @@ results after the Testing panel refreshes or clears.
 - **Language note:** no compiler gap surfaced. Result panels should split row
   code validation into no-selection and stale-index cases before resolving lazy
   file targets, so stale UI snapshots are not mistaken for empty clicks.
+
+## L1004 - Run Output Misses Should Name Stale Rows
+
+Run output rows are clicked through scalar row indices and may disappear when
+the output is cleared, replaced, or reflowed. Non-negative row codes that point
+past the current output used to report the same no-selection feedback as a
+negative click code.
+
+- **IDE note:** Run output jumps now report
+  `Run output row no longer listed` when a non-negative row index is absent,
+  while preserving `No run output row selected` for negative/no-selection row
+  codes. The stale-row message shares the Run/Web toast replacement lane with
+  run target and no-file-target feedback.
+- **Language note:** no compiler gap surfaced. Output panels should validate
+  row-code freshness before resolving lazy diagnostic targets so cleared output
+  is not described as an empty user selection.

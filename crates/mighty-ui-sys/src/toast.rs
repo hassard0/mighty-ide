@@ -832,6 +832,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || (m.starts_with("Save ") && m.ends_with(" before running"))
         || m == "No run process to stop"
         || m == "No run output row selected"
+        || m == "Run output row no longer listed"
         || m == "Run output row has no file target"
         || m.starts_with("Run output row has no file target:")
         || m.starts_with("Run output ")
@@ -2382,6 +2383,14 @@ mod tests {
             q.toasts()[0].message,
             "Run output row has no file target: Compiling demo.mty ..."
         );
+
+        q.push_at(
+            Kind::Info,
+            "Run output row no longer listed",
+            t0 + Duration::from_millis(800),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Run output row no longer listed");
     }
 
     #[test]

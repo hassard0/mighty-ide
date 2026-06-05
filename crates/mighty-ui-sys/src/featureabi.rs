@@ -387,7 +387,7 @@ pub extern "C" fn mui_run_click_row(handle: i64, i: i32) -> i32 {
     let root = ctx.tree.root().to_path_buf();
     let target = {
         let Some(line) = ctx.run.line(i as usize) else {
-            ctx.push_toast(crate::toast::Kind::Info, "No run output row selected");
+            ctx.push_toast(crate::toast::Kind::Info, "Run output row no longer listed");
             return 0;
         };
         if !line.clickable {

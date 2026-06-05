@@ -2328,7 +2328,7 @@ fn run_output_click_misses_report_visible_feedback() {
     assert_eq!(crate::featureabi::mui_run_click_row(h, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "No run output row selected");
+    assert_eq!(toast.message, "Run output row no longer listed");
 
     let root = std::env::temp_dir().join(format!("mui_run_missing_target_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
