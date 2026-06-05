@@ -11986,3 +11986,18 @@ the toast stopped at `Format failed: file via mty fmt`.
 - **Language note:** no compiler gap surfaced. Tool subprocess wrappers should
   return enough structured failure context for the UI layer to explain both the
   command boundary and the host/tool reason.
+
+## L964 - Reload Dirty Refusals Should Name The Protected Tab
+
+Reloading from disk correctly refuses to overwrite a dirty active tab, but the
+toast only said `Save or discard changes before reloading`. In a multi-tab or
+split-pane session that message did not identify which buffer blocked the disk
+reload.
+
+- **IDE note:** reload dirty-refusal feedback now reports
+  `Save or discard changes before reloading: target`, while keeping Revert as
+  the explicit discard path. The detailed prefix still groups with tab lifecycle
+  feedback so stale review/reload messages collapse.
+- **Language note:** no compiler gap surfaced. Protective no-op paths should be
+  as target-specific as failing mutation paths; otherwise users know an action
+  was blocked but not where to resolve it.

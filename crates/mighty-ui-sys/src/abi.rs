@@ -4574,7 +4574,15 @@ fn reload_active_from_disk(ctx: &mut MuiContext, allow_dirty: bool) -> i32 {
     let active = ctx.tabs.active();
     let was_dirty = ctx.tabs.is_dirty(active);
     if was_dirty && !allow_dirty {
-        ctx.push_toast(crate::toast::Kind::Warn, "Save or discard changes before reloading");
+        let name = ctx
+            .tabs
+            .get(active)
+            .map(|t| t.basename())
+            .unwrap_or_else(|| "tab".to_string());
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Save or discard changes before reloading: {name}"),
+        );
         return -1;
     }
     let Some(path) = ctx.tabs.active_path() else {

@@ -6442,7 +6442,7 @@ fn reload_active_file_refreshes_clean_file_and_protects_dirty_tab() {
     );
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
-        "Save or discard changes before reloading"
+        "Save or discard changes before reloading: reload_me.mty"
     );
 
     let _ = std::fs::remove_dir_all(&root);

@@ -734,7 +734,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Sorted tabs by name"
         || m == "No closed tab to reopen"
         || m == "No duplicate file tabs"
-        || m == "Save or discard changes before reloading"
+        || m.starts_with("Save or discard changes before reloading")
         || m.starts_with("No file-backed tab to ")
         || m.starts_with("No saved tabs")
         || m == "No other saved tabs to close"
@@ -1283,13 +1283,13 @@ mod tests {
         );
         q.push_at(
             Kind::Warn,
-            "Save or discard changes before reloading",
+            "Save or discard changes before reloading: main.mty",
             t0 + Duration::from_millis(2200),
         );
         assert_eq!(q.len(), 3);
         assert_eq!(
             q.toasts()[2].message,
-            "Save or discard changes before reloading"
+            "Save or discard changes before reloading: main.mty"
         );
         assert!(!q
             .toasts()
@@ -2806,7 +2806,7 @@ mod tests {
         let mut q = ToastQueue::new();
         q.push(Kind::Info, "No debug session to stop");
         q.push(Kind::Success, "Saved main.mty");
-        q.push(Kind::Warn, "Save or discard changes before reloading");
+        q.push(Kind::Warn, "Save or discard changes before reloading: main.mty");
         q.push(Kind::Error, "Save failed: main.mty");
 
         assert!(q.clear_low_priority());
