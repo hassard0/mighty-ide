@@ -11324,3 +11324,15 @@ recent-file rows could continue showing the missing source path.
 - **Language note:** no compiler gap surfaced. File lifecycle failures should
   refresh shared discovery state even when the requested operation cannot be
   completed.
+
+## L918 - Existing New File Targets Should Refresh File Views
+
+New File can reject a name because the target appeared on disk after Explorer
+and Quick Open were last indexed. The command warned correctly, but the newly
+present file could remain invisible in file discovery surfaces.
+
+- **IDE note:** duplicate-target New File rejection now refreshes shared file
+  views before warning, so externally created files immediately appear in
+  Explorer and Quick Open without being added to recents.
+- **Language note:** no compiler gap surfaced. Creation guards should still
+  synchronize discovery state when the guard observes newer filesystem state.

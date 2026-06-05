@@ -6120,6 +6120,7 @@ fn create_new_file_at(
         return -2;
     }
     if target.exists() {
+        refresh_workspace_file_views(ctx);
         ctx.push_toast(crate::toast::Kind::Warn, format!("File already exists: {name}"));
         println!("newfile: target already exists: {}", target.display());
         return -2;
