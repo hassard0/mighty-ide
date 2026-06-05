@@ -95,6 +95,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   workspace target.
 - **Agents node misses name the row**: clicking a topology row with no file
   target now reports the node name instead of a generic row failure.
+- **Agents stale rows are explicit**: clicking a vanished topology row now
+  reports `Agent node no longer listed` instead of the no-selection message.
 - **Debug Restart explains missing history**: restarting without a previous
   debug target now tells the user to start debug first and names the active
   context.

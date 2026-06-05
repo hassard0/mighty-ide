@@ -641,6 +641,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m == "Open a file before running Agents"
         || (m.starts_with("Save ") && m.ends_with(" before running Agents"))
         || m == "No agent node selected"
+        || m == "Agent node no longer listed"
         || m.starts_with("Agents node has no file target:")
         || m.starts_with("Agents ")
     {
@@ -3063,6 +3064,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No agent node selected");
+
+        q.push_at(
+            Kind::Info,
+            "Agent node no longer listed",
+            t0 + Duration::from_millis(150),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Agent node no longer listed");
 
         q.push_at(
             Kind::Info,

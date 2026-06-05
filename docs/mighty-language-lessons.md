@@ -12473,3 +12473,16 @@ indices as open/stage actions, but stale indices still reported the older
 - **Language note:** no compiler gap surfaced. Shared UI rows should converge
   on one stale-row vocabulary across related actions so feedback remains
   predictable.
+
+## L999 - Agents Node Misses Should Name Stale Rows
+
+Agents topology rows are selected through scalar node indices. After a topology
+refresh clears stale nodes, a repeated non-negative click used the same
+`No agent node selected` feedback as an invalid/no-selection row code.
+
+- **IDE note:** missing non-negative Agents node indices now report
+  `Agent node no longer listed`, while negative indices still report
+  `No agent node selected`.
+- **Language note:** no compiler gap surfaced. Topology views should distinguish
+  stale graph snapshots from absent user selections before clearing navigation
+  click targets.
