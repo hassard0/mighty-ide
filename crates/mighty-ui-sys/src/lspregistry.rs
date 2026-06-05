@@ -177,14 +177,14 @@ pub fn which(program: &str) -> Option<String> {
     // Direct path (absolute or contains a separator) — accept if it exists.
     let p = Path::new(program);
     if program.contains('/') || program.contains('\\') {
-        if p.exists() {
+        if p.is_file() {
             return Some(program.to_string());
         }
         // Also try with extensions on Windows.
         if cfg!(windows) {
             for ext in pathext() {
                 let cand = PathBuf::from(format!("{program}{ext}"));
-                if cand.exists() {
+                if cand.is_file() {
                     return Some(cand.to_string_lossy().into_owned());
                 }
             }
@@ -381,6 +381,16 @@ boguslang = whatever
     #[test]
     fn which_finds_nonexistent_returns_none() {
         assert!(which("definitely-not-a-real-binary-xyz-12345").is_none());
+    }
+
+    #[test]
+    fn which_rejects_directories_as_server_paths() {
+        let dir = std::env::temp_dir().join(format!("mui-lsp-dir-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let got = which(&dir.to_string_lossy());
+        let _ = std::fs::remove_dir_all(&dir);
+
+        assert_eq!(got, None);
     }
 
     #[test]
