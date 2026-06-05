@@ -11442,6 +11442,24 @@ fn keyboard_shortcuts_direct_misses_report_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Keyboard Shortcuts is already closed");
+    ctx.toasts.clear();
+
+    crate::mui_keys_push_char(handle, 's' as i32);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Keyboard Shortcuts is already closed");
+    ctx.toasts.clear();
+
+    crate::mui_keys_backspace(handle);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Keyboard Shortcuts is already closed");
+    ctx.toasts.clear();
+
+    crate::mui_keys_move(handle, 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Keyboard Shortcuts is already closed");
 }
 
 #[test]

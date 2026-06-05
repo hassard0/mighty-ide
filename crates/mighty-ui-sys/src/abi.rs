@@ -9385,6 +9385,10 @@ pub extern "C" fn mui_keys_capturing(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_keys_push_char(handle: i64, cp: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.shortcuts.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "Keyboard Shortcuts is already closed");
+            return;
+        }
         if let Some(ch) = char::from_u32(cp.max(0) as u32) {
             ctx.shortcuts.push_char(ch);
         }
@@ -9395,6 +9399,10 @@ pub extern "C" fn mui_keys_push_char(handle: i64, cp: i32) {
 #[no_mangle]
 pub extern "C" fn mui_keys_backspace(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.shortcuts.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "Keyboard Shortcuts is already closed");
+            return;
+        }
         ctx.shortcuts.backspace();
     }
 }
@@ -9403,6 +9411,10 @@ pub extern "C" fn mui_keys_backspace(handle: i64) {
 #[no_mangle]
 pub extern "C" fn mui_keys_move(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.shortcuts.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "Keyboard Shortcuts is already closed");
+            return;
+        }
         ctx.shortcuts.move_sel(delta);
     }
 }
