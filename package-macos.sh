@@ -19,6 +19,10 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "ERROR: package-macos.sh must run on macOS." >&2
   exit 1
 fi
+if ! command -v file >/dev/null 2>&1; then
+  echo "ERROR: package-macos.sh requires the 'file' utility to verify native binary format." >&2
+  exit 1
+fi
 
 cd "$ROOT"
 if [[ -d .git ]] && command -v git >/dev/null 2>&1; then
@@ -113,15 +117,13 @@ if command -v strip >/dev/null 2>&1; then
   strip "$MACOS/mighty-ide" "$MACOS/libmighty_ui_sys.dylib" || true
 fi
 
-if command -v file >/dev/null 2>&1; then
-  file "$MACOS/mighty-ide" "$MACOS/libmighty_ui_sys.dylib"
-  for binary in "$MACOS/mighty-ide" "$MACOS/libmighty_ui_sys.dylib"; do
-    file "$binary" | grep -q 'Mach-O' || {
-      echo "ERROR: macOS package contains a non-Mach-O native binary: $binary" >&2
-      exit 1
-    }
-  done
-fi
+file "$MACOS/mighty-ide" "$MACOS/libmighty_ui_sys.dylib"
+for binary in "$MACOS/mighty-ide" "$MACOS/libmighty_ui_sys.dylib"; do
+  file "$binary" | grep -q 'Mach-O' || {
+    echo "ERROR: macOS package contains a non-Mach-O native binary: $binary" >&2
+    exit 1
+  }
+done
 
 if find "$DIST_ROOT" -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.rlib' -o -name '*.log' \) | grep -q .; then
   echo "ERROR: package contains build byproducts:" >&2

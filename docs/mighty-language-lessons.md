@@ -11591,3 +11591,18 @@ That hid both the target file and the external command that needed attention.
   grouping uses a prefix match so stale menu/fixer feedback still collapses.
 - **Language note:** no compiler gap surfaced. File-mutating code-action
   helpers need the same target-plus-command feedback contract as format.
+
+## L938 - Platform Packages Need Non-Optional Native Binary Gates
+
+The Windows package script already checked PE headers directly, but macOS and
+Linux only validated Mach-O/ELF payloads when the `file` utility happened to be
+available. That left a quiet escape hatch where a release archive could be
+assembled without proving the native executable and shim matched the platform.
+
+- **IDE note:** macOS and Linux packaging now require `file` and fail when the
+  packaged executable or native shim does not validate as Mach-O or ELF. The
+  README, build notes, and platform packaging guide now document the clean-tree,
+  native-host, smoke-test, and upload checklist.
+- **Language note:** no compiler gap surfaced. Native release tooling should
+  make platform ABI assumptions explicit and fail closed instead of relying on
+  optional host tools.

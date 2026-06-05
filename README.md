@@ -148,6 +148,15 @@ to build from a dirty worktree and validate the packaged native binary shape
 before archiving, so a release operator gets a hard failure instead of a stale
 or cross-platform artifact.
 
+Release checklist:
+
+1. Commit all source, README, and docs changes before packaging.
+2. Build each platform on that same OS family, not by copying binaries from
+   another platform.
+3. Run the package script from a clean worktree.
+4. Smoke-test the packaged app from inside the assembled package directory.
+5. Upload only the generated archive from `dist/`; keep `dist/` out of git.
+
 - **Windows x64:** run `.\package-win.ps1` on Windows. This produces
   `dist\mighty-ide-win64\` and `dist\mighty-ide-v0.3.0-win64.zip` containing
   PE-format `mighty-ide.exe` and `mighty_ui_sys.dll`, sample files, `RUN.txt`,
@@ -163,7 +172,9 @@ or cross-platform artifact.
 
 Each platform package must be built and smoke-tested on the same OS family that
 will run it. Do not reuse Windows DLLs, macOS dylibs, or Linux shared objects
-across platforms.
+across platforms. Windows validates PE headers directly; macOS and Linux require
+the standard `file` utility and fail the package if Mach-O or ELF validation
+does not pass.
 
 See [`docs/platform-packaging.md`](docs/platform-packaging.md) for the packaging
 checklist and current platform status.

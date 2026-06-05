@@ -51,7 +51,9 @@ Start every release package from a clean worktree and a freshly assembled
 platform directory. The packaging scripts enforce this by refusing dirty git
 state, removing the previous platform package directory, rejecting common build
 byproducts, and checking that the staged native binaries match the host platform
-format before the archive is written.
+format before the archive is written. Windows performs PE checks directly in
+PowerShell; macOS and Linux require the standard `file` utility and fail if the
+packaged payload is not Mach-O or ELF respectively.
 
 | Platform | Current command | Artifact | Status |
 |----------|-----------------|----------|--------|

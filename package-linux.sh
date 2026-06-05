@@ -16,6 +16,10 @@ if [[ "$(uname -s)" != "Linux" ]]; then
   echo "ERROR: package-linux.sh must run on Linux." >&2
   exit 1
 fi
+if ! command -v file >/dev/null 2>&1; then
+  echo "ERROR: package-linux.sh requires the 'file' utility to verify native binary format." >&2
+  exit 1
+fi
 
 cd "$ROOT"
 if [[ -d .git ]] && command -v git >/dev/null 2>&1; then
@@ -84,15 +88,13 @@ if command -v strip >/dev/null 2>&1; then
   strip "$DIST/mighty-ide" "$DIST/libmighty_ui_sys.so" || true
 fi
 
-if command -v file >/dev/null 2>&1; then
-  file "$DIST/mighty-ide" "$DIST/libmighty_ui_sys.so"
-  for binary in "$DIST/mighty-ide" "$DIST/libmighty_ui_sys.so"; do
-    file "$binary" | grep -q 'ELF' || {
-      echo "ERROR: Linux package contains a non-ELF native binary: $binary" >&2
-      exit 1
-    }
-  done
-fi
+file "$DIST/mighty-ide" "$DIST/libmighty_ui_sys.so"
+for binary in "$DIST/mighty-ide" "$DIST/libmighty_ui_sys.so"; do
+  file "$binary" | grep -q 'ELF' || {
+    echo "ERROR: Linux package contains a non-ELF native binary: $binary" >&2
+    exit 1
+  }
+done
 
 if find "$DIST" -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.rlib' -o -name '*.log' \) | grep -q .; then
   echo "ERROR: package contains build byproducts:" >&2
