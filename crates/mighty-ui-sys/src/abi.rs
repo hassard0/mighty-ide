@@ -10550,6 +10550,7 @@ struct WorkspaceEditApplyResult {
     changed: i32,
     skipped_dirty: i32,
     skipped_missing: i32,
+    first_skipped_missing_message: Option<String>,
 }
 
 fn workspace_edits_can_create_missing_file(edits: &[crate::language::TextEdit]) -> bool {
@@ -10569,6 +10570,7 @@ fn apply_workspace_edit(
         changed: 0,
         skipped_dirty: 0,
         skipped_missing: 0,
+        first_skipped_missing_message: None,
     };
     for (uri, edits) in &we.files {
         if edits.is_empty() {
@@ -10649,6 +10651,13 @@ fn apply_workspace_edit(
                 Err(_) if workspace_edits_can_create_missing_file(&edits) => Vec::new(),
                 Err(e) => {
                     result.skipped_missing += 1;
+                    if result.first_skipped_missing_message.is_none() {
+                        result.first_skipped_missing_message = Some(format!(
+                            "Skipped missing file during workspace edit: {}: {}",
+                            basename(&fpath),
+                            e
+                        ));
+                    }
                     println!(
                         "workspace edit: skipped missing non-active path={} err={e}",
                         fpath.display()
@@ -10682,7 +10691,10 @@ fn toast_codeaction_workspace_result(ctx: &mut MuiContext, result: &WorkspaceEdi
     } else if result.skipped_missing > 0 {
         ctx.push_toast(
             crate::toast::Kind::Warn,
-            "Skipped missing file during workspace edit",
+            result
+                .first_skipped_missing_message
+                .as_deref()
+                .unwrap_or("Skipped missing file during workspace edit"),
         );
     } else if result.changed > 0 {
         ctx.push_toast(crate::toast::Kind::Success, "Applied code action");

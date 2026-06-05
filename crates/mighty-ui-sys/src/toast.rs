@@ -828,6 +828,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Fix all (mty) failed")
         || m == "Applied code action"
         || m == "Code action produced no edit"
+        || m.starts_with("Skipped dirty file during workspace edit")
+        || m.starts_with("Skipped missing file during workspace edit")
     {
         Some(OperationKey::CodeAction)
     } else if m == "Formatted document"
@@ -2539,6 +2541,17 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Applied Fix all (mty)");
+
+        q.push_at(
+            Kind::Warn,
+            "Skipped missing file during workspace edit: missing.mty: The system cannot find the file specified. (os error 2)",
+            t0 + Duration::from_millis(600),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Skipped missing file during workspace edit: missing.mty: The system cannot find the file specified. (os error 2)"
+        );
     }
 
     #[test]

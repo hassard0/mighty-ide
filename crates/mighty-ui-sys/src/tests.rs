@@ -10602,7 +10602,11 @@ fn codeaction_workspace_edit_skips_missing_non_create_file() {
     assert!(!missing.exists());
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Skipped missing file during workspace edit");
+    assert!(
+        toast.message.starts_with("Skipped missing file during workspace edit: missing.mty: "),
+        "{}",
+        toast.message
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }

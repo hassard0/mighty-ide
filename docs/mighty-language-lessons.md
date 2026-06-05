@@ -11924,3 +11924,19 @@ permission issue.
   user-facing I/O failure formatter at the scalar ABI boundary, so all file
   commands expose enough host context without duplicating string policy in
   Mighty source.
+
+## L960 - Workspace-Edit Skips Should Name The Missing File
+
+Code-action workspace edits correctly refused to apply replacement edits against
+non-active files that had disappeared from disk, but the toast only said
+`Skipped missing file during workspace edit`. The log carried the path and host
+read error; the visible feedback did not.
+
+- **IDE note:** skipped missing-file workspace edits now report
+  `Skipped missing file during workspace edit: target: reason`, using the first
+  skipped missing file as the actionable representative while preserving the
+  aggregate skip count internally. The detailed prefix is grouped with other
+  code-action feedback so stale warnings still collapse.
+- **Language note:** no compiler gap surfaced. Workspace-wide commands need the
+  same target-plus-reason feedback as direct file commands, especially when the
+  command safely declines to mutate stale disk state.
