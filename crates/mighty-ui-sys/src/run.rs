@@ -616,7 +616,7 @@ mod tests {
     }
 
     #[test]
-    fn demote_target_turns_matching_clickable_rows_plain() {
+    fn demote_target_preserves_missing_target_feedback() {
         let root = PathBuf::from("C:/proj");
         let target = PathBuf::from("C:/proj/demo.mty");
         let mut r = RunPanel::new();
@@ -625,6 +625,16 @@ mod tests {
 
         assert_eq!(r.demote_target(&root, &target), 1);
         assert_eq!(r.click_target(), None);
+        let stale = r
+            .lines
+            .iter()
+            .find(|l| l.text.contains("demo.mty:7:14"))
+            .expect("seeded diagnostic location should remain visible");
+        assert!(!stale.clickable);
+        assert_eq!(stale.file, "");
+        assert_eq!(stale.line, -1);
+        assert_eq!(stale.col, -1);
+        assert_eq!(stale.missing_target.as_deref(), Some("demo.mty"));
         assert!(r
             .lines
             .iter()
