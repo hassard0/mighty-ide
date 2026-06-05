@@ -87,6 +87,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Directory-backed Agents rows refresh away**: clicking an Agents topology row
   whose source path became a directory now refreshes the topology after the
   warning, so repeated clicks report `Agent node no longer listed`.
+- **Failed hunk apply refreshes stale diffs**: when a per-hunk stage or unstage
+  patch no longer applies, the inline diff now refreshes or closes before
+  reporting the git error, so stale hunk buttons do not remain actionable.
 - **Run output directory misses demote precisely**: clicking a Run diagnostic
   row whose target became a directory now demotes that row and preserves
   `Run target is not a file: <name>` for repeated clicks.

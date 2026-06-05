@@ -161,6 +161,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   keyboard-first index and commit flow
 - **Branch switcher + push / pull / fetch**
 - **Per-hunk stage / unstage** (reconstructed unified patches)
+- Failed per-hunk stage or unstage attempts refresh the inline diff, closing it
+  when the stale hunk no longer exists
 - **Blame gutter (Alt+B)** — porcelain-parsed, per-file cached
 - Source Control row opens reject directory targets from stale git status
   entries instead of opening an empty tab

@@ -1032,22 +1032,26 @@ fn apply_one_hunk(handle: i64, hunk: i32, reverse: bool) -> i32 {
     let verb = if reverse { "Unstaged" } else { "Staged" };
     if ok {
         ctx.push_toast(crate::toast::Kind::Success, format!("{verb} hunk"));
-        // Refresh SCM status + reopen the (worktree) diff so the hunk list updates.
-        let dir = ctx.tree.root().to_path_buf();
-        let _ = ctx.scm.refresh(&dir);
-        let path = ctx.diff.path().to_string();
-        let staged = ctx.diff.staged();
-        let blob = crate::diff::run_diff(&root, &path, staged);
-        if blob.trim().is_empty() {
-            ctx.diff.close();
-        } else {
-            ctx.diff.open(&path, staged, &blob);
-        }
+        refresh_after_hunk_attempt(ctx, &root);
         1
     } else {
         let short = msg.lines().next().unwrap_or("git apply failed").to_string();
+        refresh_after_hunk_attempt(ctx, &root);
         ctx.push_toast(crate::toast::Kind::Error, format!("Hunk apply failed: {short}"));
         0
+    }
+}
+
+fn refresh_after_hunk_attempt(ctx: &mut MuiContext, root: &std::path::Path) {
+    let dir = ctx.tree.root().to_path_buf();
+    let _ = ctx.scm.refresh(&dir);
+    let path = ctx.diff.path().to_string();
+    let staged = ctx.diff.staged();
+    let blob = crate::diff::run_diff(root, &path, staged);
+    if blob.trim().is_empty() {
+        ctx.diff.close();
+    } else {
+        ctx.diff.open(&path, staged, &blob);
     }
 }
 

@@ -6925,6 +6925,53 @@ fn diff_hunk_misses_report_specific_feedback() {
 }
 
 #[test]
+fn diff_hunk_apply_failure_refreshes_stale_inline_diff() {
+    use std::process::Command;
+
+    if Command::new("git").arg("--version").output().is_err() {
+        eprintln!("diff_hunk_apply_failure_refreshes_stale_inline_diff: git not found - skipping");
+        return;
+    }
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_diff_hunk_apply_stale_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let git = |args: &[&str]| {
+        Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(args)
+            .output()
+            .unwrap()
+    };
+    assert!(git(&["init", "-q"]).status.success());
+    let _ = git(&["config", "user.email", "t@e.st"]);
+    let _ = git(&["config", "user.name", "Test"]);
+    std::fs::write(root.join("clean.mty"), "clean\n").unwrap();
+    assert!(git(&["add", "clean.mty"]).status.success());
+    assert!(git(&["commit", "-q", "-m", "init"]).status.success());
+
+    ctx.scm.root = Some(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.diff
+        .open("clean.mty", false, "@@ -1 +1 @@\n-stale\n+new\n");
+    assert!(ctx.diff.is_active());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_diff_stage_hunk(handle, 0), 0);
+    assert!(!ctx.diff.is_active());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(toast.message.starts_with("Hunk apply failed:"));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn diff_open_empty_blob_reports_clean_file_or_skip() {
     use crate::scm::ScmEntry;
     use std::process::Command;
