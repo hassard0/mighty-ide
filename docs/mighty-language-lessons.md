@@ -10980,3 +10980,15 @@ old agent, protocol, or handler rows visible.
   refreshes the topology from its scan root before reporting the warning.
 - **Language note:** no compiler gap surfaced. Workspace-derived topology views
   should rescan after failed navigation proves their source graph is stale.
+
+## L890 - Run Output Misses Should Demote Dead Links
+
+Run output is historical evidence and should remain visible after a failed
+diagnostic jump. The clickable state, however, should not keep pointing at a
+file that no longer exists.
+
+- **IDE note:** clicking a Run diagnostic whose file target is missing now
+  preserves the output text but demotes matching rows to plain output before
+  showing the warning.
+- **Language note:** no compiler gap surfaced. Historical logs can keep their
+  text while clearing stale navigation metadata proved invalid by activation.

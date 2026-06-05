@@ -2064,6 +2064,11 @@ fn run_output_click_misses_report_visible_feedback() {
         )
     );
     assert_eq!(crate::featureabi::mui_run_click_tab(h), -1);
+    assert_eq!(crate::featureabi::mui_run_line_clickable(h, 2), 0);
+    assert_eq!(crate::featureabi::mui_run_click_row(h, 2), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Run output row has no file target");
 }
 
 #[test]

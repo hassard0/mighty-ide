@@ -310,6 +310,7 @@ pub extern "C" fn mui_run_click_row(handle: i64, i: i32) -> i32 {
             .map(|s| s.to_string_lossy().into_owned())
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| full.to_string_lossy().into_owned());
+        let _ = ctx.run.demote_target(&root, &full);
         ctx.push_toast(crate::toast::Kind::Warn, format!("Run target missing: {name}"));
         return 0;
     }

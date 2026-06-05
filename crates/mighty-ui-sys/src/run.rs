@@ -176,6 +176,29 @@ impl RunPanel {
         self.click_target = t;
     }
 
+    /// Turn clickable output rows targeting `target` into plain text rows.
+    /// Returns how many rows were demoted.
+    pub fn demote_target(&mut self, root: &Path, target: &Path) -> usize {
+        let mut demoted = 0usize;
+        for line in &mut self.lines {
+            if !line.clickable {
+                continue;
+            }
+            let (full, _, _) = resolve_target(root, &line.file, line.line, line.col);
+            if full == target {
+                line.clickable = false;
+                line.file.clear();
+                line.line = -1;
+                line.col = -1;
+                demoted += 1;
+            }
+        }
+        if demoted > 0 {
+            self.click_target = None;
+        }
+        demoted
+    }
+
     /// Scroll by `delta` lines (clamped).
     pub fn scroll(&mut self, delta: i32) {
         let max = self.lines.len().saturating_sub(1) as i32;
@@ -572,6 +595,23 @@ mod tests {
         assert!(r.line_count() > 0);
         assert_eq!(r.exit_code(), Some(1));
         assert!(r.lines.iter().any(|l| l.clickable && l.file == "C:/proj/demo.mty"));
+    }
+
+    #[test]
+    fn demote_target_turns_matching_clickable_rows_plain() {
+        let root = PathBuf::from("C:/proj");
+        let target = PathBuf::from("C:/proj/demo.mty");
+        let mut r = RunPanel::new();
+        r.seed_demo("C:/proj/demo.mty");
+        r.set_click_target(Some(("C:/proj/demo.mty".to_string(), 6, 13)));
+
+        assert_eq!(r.demote_target(&root, &target), 1);
+        assert_eq!(r.click_target(), None);
+        assert!(r
+            .lines
+            .iter()
+            .all(|l| !l.clickable || l.file != "C:/proj/demo.mty"));
+        assert_eq!(r.demote_target(&root, &target), 0);
     }
 
     #[test]
