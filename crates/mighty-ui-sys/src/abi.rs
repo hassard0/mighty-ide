@@ -4546,10 +4546,7 @@ fn reload_active_from_disk(ctx: &mut MuiContext, allow_dirty: bool) -> i32 {
         Err(_) => {
             let name = basename(&path);
             let action = if allow_dirty { "Revert" } else { "Reload" };
-            ctx.tree.refresh();
-            let root = quickopen_root(ctx);
-            let _ = ctx.quickopen.ensure_index(&root, true);
-            ctx.quickopen.refresh_file_rows();
+            refresh_workspace_file_views(ctx);
             ctx.push_toast(crate::toast::Kind::Error, format!("{action} failed: {name}"));
             return -1;
         }

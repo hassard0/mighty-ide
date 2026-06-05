@@ -11286,3 +11286,15 @@ Explorer could still show the stale file until another refresh.
   and missing recents are cleaned together.
 - **Language note:** no compiler gap surfaced. File picker recovery should use
   the same shared cleanup primitive as navigation panels.
+
+## L915 - Failed Reloads Should Prune Stale Recents
+
+Reloading a file-backed tab after its backing file was deleted refreshed
+Explorer and Quick Open's workspace index, but it bypassed the shared cleanup
+path and could leave the deleted active file in recent-file rows.
+
+- **IDE note:** failed active-file reloads now use the shared file-view refresh
+  path, so Explorer, Quick Open rows, the backing index, and missing recents are
+  cleaned together.
+- **Language note:** no compiler gap surfaced. File lifecycle failures should
+  use one cleanup primitive so recents and file indexes cannot diverge.

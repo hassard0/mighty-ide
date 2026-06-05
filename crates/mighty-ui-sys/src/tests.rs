@@ -5902,17 +5902,20 @@ fn reload_missing_file_refreshes_workspace_indexes() {
     ctx.tree.set_root(root.clone());
     ctx.tree.refresh();
     let active = ctx.tabs.open_path(path.clone());
+    ctx.quickopen.set_recent_paths(vec![path.clone()]);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     crate::mui_quickopen_open(handle);
     assert_eq!(ctx.tree.count(), 1);
     assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.recent_paths(), vec![path.clone()]);
 
     std::fs::remove_file(&path).unwrap();
     assert_eq!(crate::mui_tab_reload_active(handle), -1);
     assert_eq!(ctx.tabs.active(), active);
     assert_eq!(ctx.tree.count(), 0);
     assert_eq!(ctx.quickopen.count(), 0);
+    assert!(ctx.quickopen.recent_paths().is_empty());
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Reload failed: gone.mty"
