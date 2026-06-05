@@ -6122,6 +6122,7 @@ fn create_new_file_at(
             let root = crate::wsabi::effective_root(ctx);
             let _ = ctx.quickopen.ensure_index(&root, true);
             record_recent_file(ctx, target.clone());
+            ctx.quickopen.refresh_file_rows();
             ctx.welcome.dismiss();
             ctx.push_toast(crate::toast::Kind::Success, format!("Created file: {name}"));
             idx as i32
@@ -6181,6 +6182,7 @@ pub extern "C" fn mui_file_rename_active(handle: i64) -> i32 {
             let _ = ctx.quickopen.ensure_index(&root, true);
             ctx.quickopen.remove_recent_path(&old_path);
             record_recent_file(ctx, new_path.clone());
+            ctx.quickopen.refresh_file_rows();
             ctx.push_toast(crate::toast::Kind::Success, format!("Renamed to {name}"));
             println!("file-rename: {} -> {}", old_path.display(), new_path.display());
             1
@@ -6537,6 +6539,7 @@ pub extern "C" fn mui_file_delete_active_confirm(handle: i64) -> i32 {
             let root = crate::wsabi::effective_root(ctx);
             let _ = ctx.quickopen.ensure_index(&root, true);
             remove_recent_file(ctx, &path);
+            ctx.quickopen.refresh_file_rows();
             ctx.push_toast(crate::toast::Kind::Success, format!("Deleted {name}"));
             println!("file-delete: {}", path.display());
             1

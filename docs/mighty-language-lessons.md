@@ -11018,3 +11018,14 @@ deleted file discoverable immediately after the failed command.
 - **Language note:** no compiler gap surfaced. File lifecycle commands should
   repair adjacent workspace indexes when disk reads prove a tracked file path is
   stale.
+
+## L893 - File Mutations Should Refresh Visible Quick Open Rows
+
+Create, rename, and delete already refreshed Explorer and Quick Open's backing
+file index, but an open Quick Open panel can keep rendering its previous rows
+until the user types or reopens it.
+
+- **IDE note:** successful file create, rename, and delete now refresh visible
+  Quick Open file rows after index and MRU updates.
+- **Language note:** no compiler gap surfaced. When mutating workspace files,
+  refresh both cached data and any open views derived from that cache.
