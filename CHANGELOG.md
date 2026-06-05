@@ -37,6 +37,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Open Recent rejects directory file rows**: Welcome/Open Recent file entries
   now distinguish stale directories from missing files, prune the bad recent,
   and report `Recent file is not a file: <name>`.
+- **Quick Open rejects directory file rows**: accepting a file row whose indexed
+  target became a directory now refreshes the file index, keeps Quick Open open,
+  and reports `Quick Open target is not a file: <name>`.
 - **Packages include a verification manifest**: Windows, macOS, Linux, and the
   Git-Bash Windows package path now write `PACKAGE-MANIFEST.txt` into the
   package root with platform/version metadata, native payload hashes and sizes,

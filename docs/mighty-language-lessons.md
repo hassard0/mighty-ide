@@ -12764,3 +12764,18 @@ deleted file and should not be reported as missing.
 - **Language note:** no compiler gap surfaced. Persisted navigation state
   should carry target-kind checks at accept time, because persistence makes
   object identity weaker than a live row snapshot.
+
+## L1019 - Fuzzy File Rows Need Accept-Time Kind Checks
+
+Quick Open file rows are built from an index snapshot. The row can still be
+accepted after the filesystem object at that path changes from a file into a
+directory, so the accept path needs a file-kind check in addition to stale-row
+and missing-file checks.
+
+- **IDE note:** Quick Open file accepts now distinguish missing indexed targets
+  from directory targets. Directory targets refresh workspace file views, keep
+  Quick Open open, report `Quick Open target is not a file: <name>`, and leave
+  the tab list unchanged.
+- **Language note:** no compiler gap surfaced. Fuzzy picker rows should treat
+  row identity and filesystem object kind as separate invariants, both checked
+  at the side-effect boundary.

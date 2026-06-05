@@ -9708,6 +9708,19 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
                     record_opened_file(ctx, &path);
                     idx as i32
                 }
+                Some(path) if path.exists() => {
+                    let removed = ctx.quickopen.remove_recent_path(&path);
+                    if removed {
+                        persist_recent_files(ctx);
+                    }
+                    refresh_workspace_file_views(ctx);
+                    ctx.push_toast(
+                        crate::toast::Kind::Warn,
+                        format!("Quick Open target is not a file: {}", basename(&path)),
+                    );
+                    keep_open = true;
+                    -1
+                }
                 Some(path) => {
                     let removed = ctx.quickopen.remove_recent_path(&path);
                     if removed {

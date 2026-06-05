@@ -14138,6 +14138,46 @@ fn quickopen_accept_missing_indexed_file_reindexes_and_stays_open() {
 }
 
 #[test]
+fn quickopen_accept_directory_indexed_file_reindexes_and_stays_open() {
+    use crate::{mui_qo_accept, mui_qo_active, mui_quickopen_open};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let root = std::env::temp_dir().join(format!(
+        "mui_qo_directory_index_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("stale.mty");
+    std::fs::write(&path, b"fn stale() {}").unwrap();
+    ctx.workspace = crate::workspace::Workspace::new(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_quickopen_open(h);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
+    std::fs::remove_file(&path).unwrap();
+    std::fs::create_dir_all(&path).unwrap();
+
+    assert_eq!(mui_qo_accept(h, 0), -1);
+    assert_eq!(mui_qo_active(h), 1, "Quick Open should stay open after recovering");
+    assert_eq!(ctx.tabs.count(), 1, "directory targets must not open empty tabs");
+    assert_eq!(
+        ctx.quickopen.count(),
+        0,
+        "stale indexed file should be removed from file results"
+    );
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Quick Open target is not a file: stale.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn quickopen_accept_file_prunes_missing_recent_files_after_open() {
     use crate::{mui_qo_accept, mui_quickopen_open};
 
