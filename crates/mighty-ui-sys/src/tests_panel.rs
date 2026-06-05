@@ -331,6 +331,32 @@ impl TestPanel {
         true
     }
 
+    /// Record a test-start failure detected before spawning `mty test`.
+    pub fn fail_before_start(
+        &mut self,
+        file: &Path,
+        focus: Option<String>,
+        reason: impl Into<String>,
+    ) {
+        self.stop();
+        self.rows.clear();
+        self.partial.clear();
+        self.first = 0;
+        self.passed = 0;
+        self.failed = 1;
+        self.total = 0;
+        self.duration_ms = 0;
+        self.last_failed = None;
+        self.click_target = None;
+        self.focus_test = focus.unwrap_or_default();
+        self.active = true;
+        self.running = false;
+        self.pkg = Self::package_dir(file).to_string_lossy().into_owned();
+        let mut row = TestRow::new("<start>".to_string(), Status::Failed);
+        row.message = format!("failed before spawn: {}", reason.into());
+        self.rows.push(row);
+    }
+
     /// Stop the running `mty test` (best-effort kill + reap). No-op if idle.
     pub fn stop(&mut self) {
         if let Some(mut child) = self.child.take() {

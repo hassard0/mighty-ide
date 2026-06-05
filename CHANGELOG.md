@@ -215,6 +215,11 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   preflights the remembered program path before respawning `mty dap`, so
   deleted or directory-backed previous targets report restart-specific Debug
   panel output and toast feedback before any adapter process is launched.
+- **Testing rejects stale active targets up front**: Run Tests and Run Test at
+  Cursor now preflight the active file before spawning `mty test`, so deleted
+  or directory-backed tabs produce Testing-panel failure rows and target-specific
+  toasts instead of launching against stale filesystem state or falling back to
+  another workspace target.
 - **Run active file rejects stale targets up front**: `mty run` now refuses
   missing or directory-backed active paths before spawning a child process,
   keeping the Run panel and toast pointed at the actual stale file state.

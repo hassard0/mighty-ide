@@ -68,6 +68,35 @@ fn test_start_failed_message(path: &std::path::Path, reason: Option<&str>) -> St
     }
 }
 
+fn test_target_label(path: &std::path::Path) -> String {
+    path.file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("file")
+        .to_string()
+}
+
+fn stale_test_target_reason(path: &std::path::Path) -> Option<String> {
+    let label = test_target_label(path);
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => None,
+        Ok(_) => Some(format!("target is not a file: {label}")),
+        Err(err) => Some(format!("{label}: {err}")),
+    }
+}
+
+fn fail_test_before_start(ctx: &mut MuiContext, path: &std::path::Path, focus: Option<String>) {
+    let Some(reason) = stale_test_target_reason(path) else {
+        return;
+    };
+    ctx.tests_panel.fail_before_start(path, focus, reason);
+    let reason = compact_test_start_reason(ctx);
+    ctx.push_toast(
+        crate::toast::Kind::Error,
+        test_start_failed_message(path, reason.as_deref()),
+    );
+}
+
 pub(crate) fn workspace_test_target_for_root(root: &std::path::Path) -> Option<std::path::PathBuf> {
     if root.as_os_str().is_empty() || !root.is_dir() {
         return None;
@@ -179,7 +208,8 @@ pub extern "C" fn mui_test_run(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    let Some(path) = active_path(ctx).or_else(|| workspace_test_target(ctx)) else {
+    let active = active_path(ctx);
+    let Some(path) = active.clone().or_else(|| workspace_test_target(ctx)) else {
         ctx.tests_panel.open();
         ctx.active_panel = crate::PANEL_TEST;
         ctx.sidebar_visible = true;
@@ -195,6 +225,11 @@ pub extern "C" fn mui_test_run(handle: i64) -> i32 {
     };
     ctx.active_panel = crate::PANEL_TEST;
     ctx.sidebar_visible = true;
+    if active.is_some() && stale_test_target_reason(&path).is_some() {
+        fail_test_before_start(ctx, &path, None);
+        crate::abi::trace(&format!("test_run stale_target target={}", path.display()));
+        return 0;
+    }
     if ctx.tests_panel.start(&path, None) {
         println!("test: started `mty test` in {}", ctx.tests_panel.pkg());
         crate::abi::trace(&format!("test_run start target={}", path.display()));
@@ -236,6 +271,14 @@ pub extern "C" fn mui_test_run_at_cursor(handle: i64) -> i32 {
     let focus = nearest_test_fn(ctx);
     ctx.active_panel = crate::PANEL_TEST;
     ctx.sidebar_visible = true;
+    if stale_test_target_reason(&path).is_some() {
+        fail_test_before_start(ctx, &path, focus);
+        crate::abi::trace(&format!(
+            "test_run_at_cursor stale_target target={}",
+            path.display()
+        ));
+        return 0;
+    }
     if ctx.tests_panel.start(&path, focus) {
         println!(
             "test: started `mty test` (focus={}) in {}",

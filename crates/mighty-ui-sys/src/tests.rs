@@ -2777,6 +2777,122 @@ fn test_run_spawn_failure_names_target_and_command() {
 }
 
 #[test]
+fn test_run_rejects_missing_active_path_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_test_run_missing_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("main.mty");
+    std::fs::write(&file, b"fn test_smoke() {}\n").unwrap();
+    ctx.tabs.open_path(file.clone());
+    std::fs::remove_file(&file).unwrap();
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::testabi::mui_test_run(handle), 0);
+    assert_eq!(ctx.active_panel, crate::PANEL_TEST);
+    assert!(ctx.sidebar_visible);
+    assert!(ctx.tests_panel.is_active());
+    assert!(!ctx.tests_panel.is_running());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast
+            .message
+            .starts_with("Test run failed to start: main.mty via "),
+        "{}",
+        toast.message
+    );
+    assert!(toast.message.contains(" test: main.mty: "), "{}", toast.message);
+    let row = ctx.tests_panel.row(0).expect("preflight failure row");
+    assert_eq!(row.full_name, "<start>");
+    assert!(
+        row.message.starts_with("failed before spawn: main.mty: "),
+        "{}",
+        row.message
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn test_run_rejects_directory_active_path_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_test_run_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("main.mty");
+    std::fs::write(&file, b"fn test_smoke() {}\n").unwrap();
+    ctx.tabs.open_path(file.clone());
+    std::fs::remove_file(&file).unwrap();
+    std::fs::create_dir_all(&file).unwrap();
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::testabi::mui_test_run(handle), 0);
+    assert_eq!(ctx.active_panel, crate::PANEL_TEST);
+    assert!(ctx.sidebar_visible);
+    assert!(ctx.tests_panel.is_active());
+    assert!(!ctx.tests_panel.is_running());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast
+            .message
+            .starts_with("Test run failed to start: main.mty via "),
+        "{}",
+        toast.message
+    );
+    assert!(
+        toast.message.ends_with("test: target is not a file: main.mty"),
+        "{}",
+        toast.message
+    );
+    let row = ctx.tests_panel.row(0).expect("preflight failure row");
+    assert_eq!(row.full_name, "<start>");
+    assert_eq!(row.message, "failed before spawn: target is not a file: main.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn test_at_cursor_rejects_directory_active_path_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_test_cursor_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("main.mty");
+    std::fs::write(&file, b"fn test_smoke() {}\n").unwrap();
+    ctx.tabs.open_path(file.clone());
+    std::fs::remove_file(&file).unwrap();
+    std::fs::create_dir_all(&file).unwrap();
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::testabi::mui_test_run_at_cursor(handle), 0);
+    assert_eq!(ctx.active_panel, crate::PANEL_TEST);
+    assert!(ctx.sidebar_visible);
+    assert!(ctx.tests_panel.is_active());
+    assert!(!ctx.tests_panel.is_running());
+    assert_eq!(ctx.tests_panel.focus_test(), "test_smoke");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast.message.ends_with("test: target is not a file: main.mty"),
+        "{}",
+        toast.message
+    );
+    let row = ctx.tests_panel.row(0).expect("preflight failure row");
+    assert_eq!(row.full_name, "<start>");
+    assert_eq!(row.message, "failed before spawn: target is not a file: main.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn test_stop_when_idle_reports_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     ctx.sidebar_visible = false;
