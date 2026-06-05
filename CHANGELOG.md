@@ -207,6 +207,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   backing file was replaced by a directory now report `target is not a file` in
   the Web panel and toast before any `mty serve` or `mty build` process is
   spawned.
+- **Debug start rejects stale targets up front**: F5 now preflights the active
+  path before spawning `mty dap`, so missing or directory-backed active files
+  fail in the Debug panel with target-specific console output and toast
+  feedback instead of depending on adapter spawn fallout.
 - **Run active file rejects stale targets up front**: `mty run` now refuses
   missing or directory-backed active paths before spawning a child process,
   keeping the Run panel and toast pointed at the actual stale file state.

@@ -905,6 +905,25 @@ impl DebugModel {
         }
     }
 
+    /// Record a debug-start failure that was detected before spawning `mty dap`.
+    pub fn fail_before_start(&mut self, program: &Path, reason: impl Into<String>) {
+        self.stop(); // tear down any prior session
+        self.program = Some(program.to_path_buf());
+        self.open = true;
+        self.console.clear();
+        self.stack.clear();
+        self.variables.clear();
+        self.sel_frame = 0;
+        self.cur_line = -1;
+        self.cur_file.clear();
+        self.just_stopped = false;
+        self.state = DebugState::Terminated;
+        self.log(
+            format!("debug: failed to start adapter: {}", reason.into()),
+            true,
+        );
+    }
+
     /// Stop / disconnect the session (best-effort). Resets to Idle.
     pub fn stop(&mut self) {
         if let Some(sess) = self.session.take() {

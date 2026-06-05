@@ -90,6 +90,14 @@ fn debug_restart_failed_no_path_message(reason: Option<&str>) -> String {
     )
 }
 
+fn debug_target_label(path: &std::path::Path) -> String {
+    path.file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("file")
+        .to_string()
+}
+
 fn active_debug_target_name(ctx: &MuiContext) -> String {
     ctx.tabs
         .active_path()
@@ -151,6 +159,22 @@ fn dbg_start_or_continue(ctx: &mut MuiContext) -> i32 {
                 crate::abi::trace("dbg_action start_no_file");
                 return ctx.dbg.state().as_i32();
             };
+            let label = debug_target_label(&path);
+            let stale_reason = match std::fs::metadata(&path) {
+                Ok(meta) if meta.is_file() => None,
+                Ok(_) => Some(format!("target is not a file: {label}")),
+                Err(err) => Some(format!("{label}: {err}")),
+            };
+            if let Some(reason) = stale_reason {
+                ctx.dbg.fail_before_start(&path, reason);
+                let reason = debug_spawn_failure_reason(ctx);
+                ctx.push_toast(
+                    crate::toast::Kind::Error,
+                    debug_start_failed_message(&path, reason.as_deref()),
+                );
+                crate::abi::trace("dbg_action start_stale_target");
+                return ctx.dbg.state().as_i32();
+            }
             crate::abi::trace(&format!(
                 "dbg_action start path={}",
                 path.to_string_lossy().replace('\\', "/")
