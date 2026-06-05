@@ -83,6 +83,11 @@ size and SHA-256 from the generated ZIP after `.\package-win.ps1` succeeds.
 Do not edit the source tree after that package run unless the package is rebuilt
 from the new clean commit.
 
+If this file is bundled inside the archive, keep the exact archive hash and
+size in the external release note or upload record for that run. Do not chase a
+self-referential source edit where changing the packaged evidence file changes
+the archive hash that the evidence file is trying to record.
+
 ```text
 Platform: Windows x64
 Archive: dist\mighty-ide-v0.3.0-win64.zip
@@ -109,3 +114,17 @@ Release decision: unbuilt - native Linux runner unavailable for this pass
 Script readiness: syntax and wrong-host refusal may be checked from Windows,
 but that is not clean-binary evidence
 ```
+
+## Final Windows Pass Summary
+
+For a Windows-only finalization pass, the source-controlled record should stop
+at the release rules, scripts, and templates. The generated record for the
+actual upload belongs with the release artifact:
+
+- Windows x64: publish only after the clean committed tree is packaged with
+  `.\package-win.ps1`, the ZIP scan passes, `PACKAGE-MANIFEST.txt` is present,
+  and the packaged executable launches from `dist\mighty-ide-win64`.
+- macOS: unbuilt unless `./package-macos.sh` completed and launched on native
+  macOS or a matching CI runner during this pass.
+- Linux x64: unbuilt unless `./package-linux.sh` completed and launched on
+  native Linux or a matching CI runner during this pass.

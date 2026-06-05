@@ -9373,6 +9373,17 @@ fn branch_accept_without_picker_reports_visible_feedback() {
 }
 
 #[test]
+fn branch_click_without_picker_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::panels::mui_branch_click(h), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No branch picker open");
+}
+
+#[test]
 fn failed_branch_accept_refreshes_stale_picker_rows() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;

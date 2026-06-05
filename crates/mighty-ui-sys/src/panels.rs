@@ -1118,6 +1118,7 @@ pub extern "C" fn mui_branch_click(handle: i64) -> i32 {
         return -1;
     };
     if !ctx.branch_picker.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No branch picker open");
         return -1;
     }
     let rows = branch_picker_visible_rows(
