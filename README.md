@@ -158,7 +158,7 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - New Folder reports when the target path is an existing file instead of saying
   the folder already exists
 - **Live Markdown preview (Ctrl+Shift+V)** — themed, live-updating split-pane render
-- **Keyboard Shortcuts overlay (Ctrl+Shift+/)** — searchable command/binding reference with router-command remapping (persists to `keybindings.toml`)
+- **Keyboard Shortcuts overlay (Ctrl+Shift+/)** — searchable command/binding reference with router-command remapping (persists to `keybindings.toml` under the shared Mighty IDE config directory)
 - Welcome screen with first-run New File, New Project, Open File, Open
   Folder, Quick Open, and Command Palette actions; clickable toast notifications
   with a command-palette clear-all action, **Zen / focus mode (Alt+Z)**

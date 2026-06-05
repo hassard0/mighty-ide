@@ -14,7 +14,8 @@
 //!    is BOTH detected and fully dispatched inside [`crate::abi::mui_chord`], so a
 //!    new chord can fire them with no `src/main.mty` ladder change — L37/L38):
 //!    select a row → capture mode ("press the new shortcut") → record the chord
-//!    (cp + mods) → save an override to `%APPDATA%/mighty-ide/keybindings.toml`.
+//!    (cp + mods) → save an override to the shared config dir's
+//!    `keybindings.toml`.
 //!    The chord router consults [`Overrides::resolve`] FIRST so a remapped command
 //!    fires on its new chord. Conflicts (another command already on that chord)
 //!    are detected and surfaced. "Reset to default" (one) + "Reset all" clear
@@ -339,19 +340,10 @@ impl Overrides {
     }
 }
 
-/// Path to the keybinding overrides file (`%APPDATA%/mighty-ide/keybindings.toml`
-/// on Windows; XDG/HOME `.config` otherwise). Mirrors [`crate::config`].
+/// Path to the keybinding overrides file under the shared Mighty IDE config
+/// directory. Honors `MUI_CONFIG_DIR`, matching theme/settings/recents.
 pub fn keybindings_path() -> Option<PathBuf> {
-    let dir = if let Some(appdata) = std::env::var_os("APPDATA") {
-        PathBuf::from(appdata).join("mighty-ide")
-    } else if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME") {
-        PathBuf::from(xdg).join("mighty-ide")
-    } else if let Some(home) = std::env::var_os("HOME") {
-        PathBuf::from(home).join(".config").join("mighty-ide")
-    } else {
-        return None;
-    };
-    Some(dir.join("keybindings.toml"))
+    crate::config::config_dir().map(|dir| dir.join("keybindings.toml"))
 }
 
 /// Load overrides from disk, or empty when unset/unreadable. Best-effort.
@@ -1240,13 +1232,55 @@ mod tests {
         let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = std::env::temp_dir().join(format!("mighty-ide-kbtest-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
+        let old_override = std::env::var_os("MUI_CONFIG_DIR");
+        let old_appdata = std::env::var_os("APPDATA");
+        std::env::remove_var("MUI_CONFIG_DIR");
         std::env::set_var("APPDATA", &tmp);
         let mut ov = Overrides::new();
         ov.set(CMD_ZEN_MODE, Chord::new('k' as i32, MOD_ALT));
         assert!(save_overrides(&ov));
         let loaded = load_overrides();
         assert_eq!(loaded.get(CMD_ZEN_MODE), Some(Chord::new('k' as i32, MOD_ALT)));
+        match old_override {
+            Some(v) => std::env::set_var("MUI_CONFIG_DIR", v),
+            None => std::env::remove_var("MUI_CONFIG_DIR"),
+        }
+        match old_appdata {
+            Some(v) => std::env::set_var("APPDATA", v),
+            None => std::env::remove_var("APPDATA"),
+        }
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn keybindings_path_honors_mui_config_dir() {
+        let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let config = std::env::temp_dir().join(format!("mighty-ide-kb-override-{}", std::process::id()));
+        let appdata = std::env::temp_dir().join(format!("mighty-ide-kb-appdata-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&config);
+        let _ = std::fs::remove_dir_all(&appdata);
+        let old_override = std::env::var_os("MUI_CONFIG_DIR");
+        let old_appdata = std::env::var_os("APPDATA");
+        std::env::set_var("MUI_CONFIG_DIR", &config);
+        std::env::set_var("APPDATA", &appdata);
+
+        assert_eq!(keybindings_path(), Some(config.join("keybindings.toml")));
+        let mut ov = Overrides::new();
+        ov.set(CMD_ZEN_MODE, Chord::new('k' as i32, MOD_ALT));
+        assert!(save_overrides(&ov));
+        assert!(config.join("keybindings.toml").is_file());
+        assert!(!appdata.join("mighty-ide").join("keybindings.toml").exists());
+
+        match old_override {
+            Some(v) => std::env::set_var("MUI_CONFIG_DIR", v),
+            None => std::env::remove_var("MUI_CONFIG_DIR"),
+        }
+        match old_appdata {
+            Some(v) => std::env::set_var("APPDATA", v),
+            None => std::env::remove_var("APPDATA"),
+        }
+        let _ = std::fs::remove_dir_all(&config);
+        let _ = std::fs::remove_dir_all(&appdata);
     }
 
     #[test]

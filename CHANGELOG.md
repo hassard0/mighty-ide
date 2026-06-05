@@ -88,6 +88,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Keyboard shortcut overrides honor isolated config dirs**: `keybindings.toml`
+  now uses the same Mighty IDE config directory resolver as theme, settings,
+  zoom, and recents, including `MUI_CONFIG_DIR` for harnesses and automation.
 - **Tab-level saves report non-directory parents**: dirty-confirm Save and
   file-backed Save All now preflight parent paths before writing. If a parent
   path is an existing file, they report `Save failed: <parent>: not a file` or

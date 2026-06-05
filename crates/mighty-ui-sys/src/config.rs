@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use crate::theme::ThemeId;
 
 /// Directory that holds the config file (created on save if absent).
-fn config_dir() -> Option<PathBuf> {
+pub(crate) fn config_dir() -> Option<PathBuf> {
     // Test/automation override: keep screenshot and strict-mouse harness state
     // out of the human user's real settings and recents.
     if let Some(dir) = std::env::var_os("MUI_CONFIG_DIR") {
