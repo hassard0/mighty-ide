@@ -6315,8 +6315,17 @@ pub(crate) fn platform_reveal_command(path: &std::path::Path) -> Option<(String,
     }
 }
 
-pub(crate) fn file_manager_reveal_failed_message(path: &std::path::Path) -> String {
-    format!("Could not show {} in file manager", basename(path))
+pub(crate) fn file_manager_reveal_failed_message(
+    path: &std::path::Path,
+    e: &std::io::Error,
+) -> String {
+    let name = basename(path);
+    let reason = e.to_string();
+    if reason.trim().is_empty() {
+        format!("Could not show {name} in file manager")
+    } else {
+        format!("Could not show {name} in file manager: {}", reason.trim())
+    }
 }
 
 pub(crate) fn file_manager_reveal_unavailable_message(path: &std::path::Path) -> String {
@@ -6341,7 +6350,14 @@ pub extern "C" fn mui_file_reveal_active_in_os(handle: i64) -> i32 {
         );
         return 0;
     };
-    match std::process::Command::new(&program).args(&args).spawn() {
+    let forced_error = std::env::var("MUI_FILE_REVEAL_FORCE_SPAWN_ERROR")
+        .ok()
+        .map(|reason| std::io::Error::new(std::io::ErrorKind::Other, reason));
+    let launch = match forced_error {
+        Some(e) => Err(e),
+        None => std::process::Command::new(&program).args(&args).spawn().map(|_| ()),
+    };
+    match launch {
         Ok(_) => {
             ctx.push_toast(
                 crate::toast::Kind::Info,
@@ -6350,7 +6366,10 @@ pub extern "C" fn mui_file_reveal_active_in_os(handle: i64) -> i32 {
             1
         }
         Err(e) => {
-            ctx.push_toast(crate::toast::Kind::Error, file_manager_reveal_failed_message(&path));
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_manager_reveal_failed_message(&path, &e),
+            );
             println!("file-reveal-os: failed to launch {program} {:?} for {}: {e}", args, path.display());
             0
         }

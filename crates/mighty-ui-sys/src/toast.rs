@@ -759,6 +759,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No active file to reveal"
         || m == "Active file is outside Explorer root"
         || m.starts_with("Reveal in file manager is unavailable")
+        || m.starts_with("Could not show ")
         || m == "Could not open file manager"
     {
         Some(OperationKey::Reveal)
@@ -1489,6 +1490,18 @@ mod tests {
             "Reveal in file manager is unavailable: main.mty"
         );
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
+            Kind::Error,
+            "Could not show main.mty in file manager: launcher missing",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Could not show main.mty in file manager: launcher missing"
+        );
+        assert_eq!(q.toasts()[0].kind, Kind::Error);
     }
 
     #[test]

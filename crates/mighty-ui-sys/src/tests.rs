@@ -6928,8 +6928,8 @@ fn active_file_os_failure_messages_name_the_target() {
     let err = std::io::Error::new(std::io::ErrorKind::Other, "clipboard command failed");
 
     assert_eq!(
-        crate::abi::file_manager_reveal_failed_message(path),
-        "Could not show main.mty in file manager"
+        crate::abi::file_manager_reveal_failed_message(path, &err),
+        "Could not show main.mty in file manager: clipboard command failed"
     );
     assert_eq!(
         crate::abi::file_manager_reveal_unavailable_message(path),
@@ -6973,6 +6973,33 @@ fn active_file_reveal_unavailable_names_the_target() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Reveal in file manager is unavailable: main.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn active_file_reveal_spawn_failure_reports_reason() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    std::env::set_var("MUI_FILE_REVEAL_FORCE_SPAWN_ERROR", "launcher missing");
+    let _env = EnvRemoveGuard("MUI_FILE_REVEAL_FORCE_SPAWN_ERROR");
+    let root = std::env::temp_dir().join(format!("mui_reveal_spawn_fail_{}", std::process::id()));
+    let src = root.join("src");
+    std::fs::create_dir_all(&src).unwrap();
+    let file = src.join("main.mty");
+    std::fs::write(&file, b"fn main() {}\n").unwrap();
+    ctx.tabs.open_path(file);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::abi::mui_file_reveal_active_in_os(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(
+        toast.message,
+        "Could not show main.mty in file manager: launcher missing"
+    );
 
     let _ = std::fs::remove_dir_all(root);
 }

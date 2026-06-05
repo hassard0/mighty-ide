@@ -12001,3 +12001,17 @@ reload.
 - **Language note:** no compiler gap surfaced. Protective no-op paths should be
   as target-specific as failing mutation paths; otherwise users know an action
   was blocked but not where to resolve it.
+
+## L965 - OS Reveal Failures Should Include The Launcher Reason
+
+The `File: Show Active File in File Manager` command named the target on
+success and when reveal was unavailable, but spawn failures only toasted
+`Could not show file in file manager`. The log had the process error; the user
+did not.
+
+- **IDE note:** OS file-manager reveal failures now report
+  `Could not show target in file manager: reason`, and the detailed message
+  still groups with other reveal feedback so stale reveal toasts collapse.
+- **Language note:** no compiler gap surfaced. Platform integration failures
+  should carry the host launcher reason into the UI, especially for commands
+  that depend on OS tools outside the editor process.
