@@ -188,6 +188,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Test result jumps reject directory targets from stale suite output instead of
   opening an empty tab
 - **Debugger (DAP)** — a shim-side client driving `mty dap`: breakpoints, run controls, call stack + variables, Run-and-Debug view, plus palette commands for start/continue, pause, restart, stop, and step controls (F5 start-continue / Shift+F5 stop, F10 step-over, F11 / Shift+F11 step-into/out)
+- Run and Debug stale toolbar, breakpoint, and sidebar click routes report when
+  the panel has already closed and cannot mutate retained hidden debug state
 - Breakpoint jumps reject directory targets from stale debug rows instead of
   opening an empty tab, then prune the stale breakpoint so repeated clicks no
   longer target a non-file row

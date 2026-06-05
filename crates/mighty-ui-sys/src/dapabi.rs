@@ -427,6 +427,17 @@ pub extern "C" fn mui_dbg_active(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.dbg.is_open()))
 }
 
+fn debug_view_visible(ctx: &MuiContext) -> bool {
+    ctx.sidebar_visible && ctx.active_panel == crate::PANEL_DEBUG && ctx.dbg.is_open()
+}
+
+fn report_debug_closed(ctx: &mut MuiContext) {
+    ctx.push_toast(
+        crate::toast::Kind::Info,
+        "Run and Debug panel is already closed",
+    );
+}
+
 /// Close the Run and Debug panel without stopping or resetting the debug model.
 /// Returns `1` when it closed the panel, or `0` when already closed.
 #[no_mangle]
@@ -443,7 +454,7 @@ pub extern "C" fn mui_dbg_close(handle: i64) -> i32 {
         crate::abi::trace("dbg_close");
         return 1;
     }
-    ctx.push_toast(crate::toast::Kind::Info, "Run and Debug panel is already closed");
+    report_debug_closed(ctx);
     crate::abi::trace("dbg_close noop");
     0
 }
@@ -1069,7 +1080,8 @@ pub extern "C" fn mui_dbg_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    if !ctx.dbg.is_open() || ctx.active_panel != crate::PANEL_DEBUG {
+    if !debug_view_visible(ctx) {
+        report_debug_closed(ctx);
         return -1;
     }
     let x = ctx.last_event.x;
@@ -1128,7 +1140,8 @@ pub extern "C" fn mui_bp_clear_inventory_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_DEBUG || !ctx.dbg.is_open() {
+    if !debug_view_visible(ctx) {
+        report_debug_closed(ctx);
         return -1;
     }
     if ctx.dbg.total_breakpoint_count() == 0 {
@@ -1195,6 +1208,10 @@ pub extern "C" fn mui_bp_open_at_hit(handle: i64, code: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !debug_view_visible(ctx) {
+        report_debug_closed(ctx);
+        return -1;
+    }
     let idx = code - BREAKPOINT_BASE;
     if idx < 0 {
         ctx.push_toast(crate::toast::Kind::Info, "No breakpoint row selected");
@@ -1248,6 +1265,10 @@ pub extern "C" fn mui_bp_remove_at_hit(handle: i64, code: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !debug_view_visible(ctx) {
+        report_debug_closed(ctx);
+        return 0;
+    }
     let Some(target) = breakpoint_location_at_code(ctx, code, BREAKPOINT_REMOVE_BASE) else {
         ctx.push_toast(
             crate::toast::Kind::Info,
@@ -1313,6 +1334,13 @@ pub extern "C" fn mui_bp_scroll_inventory_at_event(handle: i64, delta: i32) -> i
 /// return value. No-op for non-toolbar values.
 #[no_mangle]
 pub extern "C" fn mui_dbg_toolbar_action(handle: i64, code: i32) {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return;
+    };
+    if !debug_view_visible(ctx) {
+        report_debug_closed(ctx);
+        return;
+    }
     match code - TOOLBAR_BASE {
         x if x == TB_CONTINUE => {
             crate::abi::trace("dbg_toolbar action=start_continue");

@@ -10364,6 +10364,38 @@ fn debug_close_command_preserves_session_state_and_breakpoints() {
         ctx.toasts.toasts().last().unwrap().message,
         "Run and Debug panel is already closed"
     );
+
+    assert_eq!(crate::dapabi::mui_dbg_click(handle), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Run and Debug panel is already closed"
+    );
+
+    assert_eq!(crate::dapabi::mui_bp_clear_inventory_at_click(handle), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Run and Debug panel is already closed"
+    );
+
+    assert_eq!(crate::dapabi::mui_bp_open_at_hit(handle, 2000), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Run and Debug panel is already closed"
+    );
+
+    assert_eq!(crate::dapabi::mui_bp_remove_at_hit(handle, 3000), 0);
+    assert!(ctx.dbg.has_breakpoint(path, 2));
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Run and Debug panel is already closed"
+    );
+
+    crate::dapabi::mui_dbg_toolbar_action(handle, 1000 + crate::dapabi::TB_CLEAR_SESSION);
+    assert_eq!(crate::dapabi::mui_dbg_state(handle), crate::dap::DebugState::Stopped.as_i32());
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Run and Debug panel is already closed"
+    );
 }
 
 #[test]
