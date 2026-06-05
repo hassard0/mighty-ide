@@ -12364,3 +12364,15 @@ found.
 - **Language note:** no compiler gap surfaced. Tooling commands with fallback
   target discovery should name the active virtual buffer and the missing
   fallback scope in the same preflight message.
+
+## L991 - Agents Topology Misses Should Name The Row
+
+Mighty Agents topology rows can be static/demo or inspector-derived. Rows that
+have no source file target used to report only `Agents node has no file target`,
+which made it hard to tell which clicked topology item was inert.
+
+- **IDE note:** missing-file-target Agents rows now report
+  `Agents node has no file target: name`, and the toast replacement lane keeps
+  those row-specific messages grouped with the older generic Agents feedback.
+- **Language note:** no compiler gap surfaced. Graph/topology UIs should carry
+  row identity through scalar click handlers before returning a no-op.

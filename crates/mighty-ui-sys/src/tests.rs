@@ -2757,7 +2757,7 @@ fn agents_open_node_misses_report_visible_feedback() {
     assert_eq!(crate::agentsabi::mui_agents_open_node(handle, 0), -1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "Agents node has no file target");
+    assert_eq!(toast.message, "Agents node has no file target: AGENTS");
 
     std::fs::remove_file(&missing).unwrap();
     assert_eq!(crate::agentsabi::mui_agents_open_node(handle, 1), -1);

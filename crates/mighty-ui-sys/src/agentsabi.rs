@@ -951,16 +951,21 @@ pub extern "C" fn mui_agents_open_node(handle: i64, i: i32) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, "No agent node selected");
         return -1;
     }
-    let (file, line) = {
+    let (file, line, name) = {
         let Some(n) = ctx.agents.node(i as usize) else {
             ctx.push_toast(crate::toast::Kind::Info, "No agent node selected");
             return -1;
         };
         if n.line < 0 || n.file.as_os_str().is_empty() {
-            ctx.push_toast(crate::toast::Kind::Info, "Agents node has no file target");
+            let name = n.name.trim();
+            let label = if name.is_empty() { "node" } else { name };
+            ctx.push_toast(
+                crate::toast::Kind::Info,
+                format!("Agents node has no file target: {label}"),
+            );
             return -1;
         }
-        (n.file.clone(), n.line)
+        (n.file.clone(), n.line, n.name.clone())
     };
     if !file.exists() {
         let name = file.file_name().and_then(|s| s.to_str()).unwrap_or("source");
@@ -981,6 +986,7 @@ pub extern "C" fn mui_agents_open_node(handle: i64, i: i32) -> i32 {
     model.move_to(line, 0);
     let first = (line - 2).max(0);
     model.set_first_visible(first as usize);
+    crate::abi::trace(&format!("agents_open_node target={} node={name}", file.display()));
     idx as i32
 }
 

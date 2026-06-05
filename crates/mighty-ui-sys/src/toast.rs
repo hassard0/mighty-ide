@@ -640,6 +640,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m == "Open a file before running Agents"
         || (m.starts_with("Save ") && m.ends_with(" before running Agents"))
         || m == "No agent node selected"
+        || m.starts_with("Agents node has no file target:")
         || m.starts_with("Agents ")
     {
         Some(OperationKey::Agents)
@@ -3023,6 +3024,14 @@ mod tests {
             "Agents node has no file target",
             t0 + Duration::from_millis(200),
         );
+        q.push_at(
+            Kind::Info,
+            "Agents node has no file target: Worker",
+            t0 + Duration::from_millis(250),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Agents node has no file target: Worker");
+
         q.push_at(
             Kind::Warn,
             "Agents target missing: agent.mty",

@@ -89,6 +89,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Testing preflights name scratch misses**: Run Tests and Run Test at Cursor
   now identify `(scratch)` when they cannot find a saved Mighty file or testable
   workspace target.
+- **Agents node misses name the row**: clicking a topology row with no file
+  target now reports the node name instead of a generic row failure.
 - **Copy file metadata names scratch buffers**: copy-path, copy-relative-path,
   copy-name, and copy-directory now identify `(scratch)` when the active tab has
   no file path.
