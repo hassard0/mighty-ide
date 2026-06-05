@@ -12078,14 +12078,18 @@ fn quickopen_accept_missing_indexed_file_reindexes_and_stays_open() {
     let file = root.join("vanish.mty");
     std::fs::write(&file, b"fn vanish() {}").unwrap();
     ctx.workspace = crate::workspace::Workspace::new(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
     mui_quickopen_open(h);
+    assert_eq!(ctx.tree.count(), 1);
     assert_eq!(ctx.quickopen.count(), 1);
     std::fs::remove_file(&file).unwrap();
 
     assert_eq!(mui_qo_accept(h, 0), -1);
     assert_eq!(mui_qo_active(h), 1, "Quick Open should stay open after recovering");
+    assert_eq!(ctx.tree.count(), 0, "stale Explorer row should be removed");
     assert_eq!(ctx.quickopen.count(), 0, "stale indexed file should be removed");
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);

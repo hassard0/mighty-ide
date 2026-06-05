@@ -11274,3 +11274,15 @@ show the deleted file.
   recent.
 - **Language note:** no compiler gap surfaced. Recents cleanup should update
   shared file discovery surfaces, not just the recents list.
+
+## L914 - Stale Quick Open Accepts Should Refresh File Views
+
+Quick Open can accept a workspace-index row after the file has been deleted
+outside the IDE. The panel rebuilt its own rows and warned the user, but
+Explorer could still show the stale file until another refresh.
+
+- **IDE note:** stale Quick Open file accepts now use the shared file-view
+  refresh path so Explorer, Quick Open's backing index, visible Quick Open rows,
+  and missing recents are cleaned together.
+- **Language note:** no compiler gap surfaced. File picker recovery should use
+  the same shared cleanup primitive as navigation panels.

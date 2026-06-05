@@ -9308,9 +9308,7 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
                     if removed {
                         persist_recent_files(ctx);
                     }
-                    let root = quickopen_root(ctx);
-                    ctx.quickopen.ensure_index(&root, true);
-                    ctx.quickopen.refresh_file_rows();
+                    refresh_workspace_file_views(ctx);
                     ctx.push_toast(
                         crate::toast::Kind::Warn,
                         format!("Quick Open target missing: {}", basename(&path)),
