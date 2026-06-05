@@ -30,20 +30,10 @@ function Resolve-MtyCompiler {
     throw "MIGHTY_MTY points to a missing compiler: $env:MIGHTY_MTY"
   }
 
-  foreach ($candidate in @(
-    "C:\Users\ihass\stardust\target\release\mty.exe",
-    "C:\Users\ihass\stardust\target\debug\mty.exe",
-    "C:\Users\ihass\stardust-v035-T2\target\debug\mty.exe"
-  )) {
-    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
-      return (Resolve-Path -LiteralPath $candidate).Path
-    }
-  }
-
   $cmd = Get-Command mty -ErrorAction SilentlyContinue
   if ($cmd) { return $cmd.Source }
 
-  throw "mty compiler not found. Set -Mty or MIGHTY_MTY."
+  throw "mty compiler not found. Set -Mty, set MIGHTY_MTY, or put mty on PATH."
 }
 
 $Mty = Resolve-MtyCompiler $Mty

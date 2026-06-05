@@ -6,7 +6,7 @@
 //! the shared byte buffer and calls [`mui_newproj_create`].
 //!
 //! All string handling stays Rust-side (L17). `mty` discovery mirrors the other
-//! shim call sites (`MIGHTY_MTY` env → dev path → `mty` on PATH); if `mty` can't
+//! shim call sites (`MIGHTY_MTY` env → `mty` on PATH); if `mty` can't
 //! be run we toast a clear "needs the Mighty compiler" message and return -1 so
 //! the feature degrades gracefully instead of failing silently.
 
