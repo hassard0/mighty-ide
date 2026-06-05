@@ -361,6 +361,10 @@ pub extern "C" fn mui_run_line_count(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_run_scroll(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.run.is_active() {
+            report_run_closed(ctx);
+            return;
+        }
         ctx.run.scroll(delta);
     }
 }

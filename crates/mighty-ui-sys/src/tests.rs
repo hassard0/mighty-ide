@@ -2818,6 +2818,12 @@ fn run_close_command_acknowledges_state_without_clearing_output() {
         ctx.toasts.toasts().last().unwrap().message,
         "Run panel is already closed"
     );
+
+    crate::featureabi::mui_run_scroll(h, 3);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Run panel is already closed"
+    );
 }
 
 #[test]

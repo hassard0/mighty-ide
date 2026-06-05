@@ -81,9 +81,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Breadcrumb menu stale routes are visible**: breadcrumb dropdown move,
   click-row, and accept routes now report when the dropdown has already closed
   instead of silently ignoring stale keyboard or mouse routing.
-- **Run output stale routes are visible**: Run panel header and output-row click
-  routes now report when the panel has already closed, and retained hidden
-  output can no longer be activated by stale row calls.
+- **Run output stale routes are visible**: Run panel header, output-row click,
+  and scroll routes now report when the panel has already closed, and retained
+  hidden output can no longer be activated by stale row calls.
 - **Testing stale routes are visible**: Testing toolbar, result-row click, and
   scroll routes now report when the panel has already closed, and retained
   hidden results can no longer be activated by stale row calls.
