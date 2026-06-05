@@ -7345,6 +7345,52 @@ fn direct_tab_switches_preserve_split_pane_focus() {
 }
 
 #[test]
+fn direct_tab_creation_preserves_split_pane_focus() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_direct_create_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let left = root.join("left.mty");
+    let right = root.join("right.mty");
+    let opened = root.join("opened.mty");
+    std::fs::write(&left, "left").unwrap();
+    std::fs::write(&right, "right").unwrap();
+    std::fs::write(&opened, "opened").unwrap();
+    let left_idx = ctx.tabs.open_path(left);
+    let right_idx = ctx.tabs.open_path(right);
+    ctx.tabs.switch(right_idx);
+    ctx.panes = crate::panes::PaneLayout::new(left_idx);
+    ctx.panes.split_right(right_idx, 0);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    for b in opened.to_string_lossy().as_bytes() {
+        crate::mui_path_push(handle, *b as u32);
+    }
+    let opened_idx = crate::mui_tab_open_path(handle);
+    assert!(opened_idx >= 0);
+    assert_eq!(ctx.tabs.active(), opened_idx as usize);
+    assert_eq!(ctx.panes.count(), 2);
+    assert_eq!(ctx.panes.tab_at(0), Some(left_idx), "left pane should keep left.mty");
+    assert_eq!(
+        ctx.panes.tab_at(1),
+        Some(opened_idx as usize),
+        "focused right pane should show the opened file"
+    );
+
+    let untitled_idx = crate::mui_tab_new_untitled(handle);
+    assert!(untitled_idx >= 0);
+    assert_eq!(ctx.tabs.active(), untitled_idx as usize);
+    assert_eq!(ctx.panes.tab_at(0), Some(left_idx), "left pane should still keep left.mty");
+    assert_eq!(
+        ctx.panes.tab_at(1),
+        Some(untitled_idx as usize),
+        "focused right pane should show the new untitled tab"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn move_active_tab_left_right_preserves_split_pane_documents() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_move_tab_{}", std::process::id()));

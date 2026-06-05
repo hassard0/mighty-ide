@@ -4530,8 +4530,10 @@ pub extern "C" fn mui_tab_open_path(handle: i64) -> i32 {
         }
     }
     let idx = ctx.tabs.open_path(resolved.clone());
+    bind_active_tab_to_focused_pane(ctx);
     sync_active_path(ctx);
     record_opened_file(ctx, &resolved);
+    ensure_tab_visible(ctx, idx);
     idx as i32
 }
 
@@ -4577,6 +4579,7 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
         }
     }
     let idx = ctx.tabs.open_path(path.clone());
+    bind_active_tab_to_focused_pane(ctx);
     sync_active_path(ctx);
     record_opened_file(ctx, &path);
     ensure_tab_visible(ctx, idx);
@@ -6165,7 +6168,9 @@ pub extern "C" fn mui_tab_new_untitled(handle: i64) -> i32 {
         return -1;
     };
     let idx = ctx.tabs.new_untitled();
+    bind_active_tab_to_focused_pane(ctx);
     sync_active_path(ctx);
+    ensure_tab_visible(ctx, idx);
     ctx.welcome.dismiss_empty_auto();
     idx as i32
 }
