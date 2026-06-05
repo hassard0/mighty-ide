@@ -899,6 +899,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m == "No completions available"
         || m.starts_with("No completions available at ")
         || m == "No autocomplete suggestions open"
+        || m == "No autocomplete suggestion selected"
+        || m == "Autocomplete suggestion already inserted"
         || m == "Save the file before hover"
         || (m.starts_with("Save ") && m.ends_with(" before hover"))
         || m == "No hover information"

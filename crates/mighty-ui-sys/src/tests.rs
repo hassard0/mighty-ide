@@ -11800,6 +11800,12 @@ fn completion_accept_preflight_tracks_editability() {
 
     assert_eq!(crate::mui_complete_can_accept(0), 0);
     assert_eq!(crate::mui_complete_can_accept(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_ed_complete_accept(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No autocomplete suggestions open");
+    ctx.toasts.clear();
 
     ctx.tabs.active_model_mut().set_text_preserving_cursor("alpha al");
     ctx.tabs.active_model_mut().move_to(0, 8);
@@ -11825,6 +11831,28 @@ fn completion_accept_preflight_tracks_editability() {
     assert_eq!(toast.message, "Edit is unavailable in read-only previews");
 
     let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn autocomplete_accept_misses_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("alpha al");
+    ctx.tabs.active_model_mut().move_to(0, 8);
+    assert!(crate::mui_ed_complete_request(h) > 0);
+    assert_eq!(crate::mui_complete_active(h), 1);
+    assert_eq!(crate::mui_complete_can_accept(h), 1);
+
+    ctx.complete.cancel();
+    assert_eq!(crate::mui_complete_can_accept(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_ed_complete_accept(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No autocomplete suggestions open"
+    );
 }
 
 #[test]

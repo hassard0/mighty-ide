@@ -56,6 +56,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Empty explicit autocomplete requests name the active file or scratch buffer
   and cursor position, so no-candidate feedback stays actionable in multi-tab
   sessions
+- Autocomplete accept misses report visible feedback when no suggestion is open
+  instead of silently doing nothing
 - Empty explicit code-action requests name the active file or scratch buffer
   and cursor position, so no-quick-fix feedback points to the queried site
 - Empty explicit hover requests name the active file and cursor position, so

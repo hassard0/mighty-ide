@@ -13354,9 +13354,17 @@ pub extern "C" fn mui_ed_complete_accept(handle: i64) -> i32 {
     if ctx.tabs.active_read_only() {
         return reject_read_only_edit(ctx);
     }
+    if !ctx.complete.is_active() || ctx.complete.count() == 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No autocomplete suggestions open");
+        return 0;
+    }
+    let accepted = ctx.complete.accepted_text().to_string();
+    if accepted.is_empty() {
+        ctx.push_toast(crate::toast::Kind::Info, "No autocomplete suggestion selected");
+        return 0;
+    }
     let before = ctx.tabs.active_model().as_text();
     let prefix = ctx.complete.prefix_len();
-    let accepted = ctx.complete.accepted_text().to_string();
     let m = ctx.tabs.active_model_mut();
     for _ in 0..prefix {
         m.backspace();
@@ -13365,6 +13373,10 @@ pub extern "C" fn mui_ed_complete_accept(handle: i64) -> i32 {
         m.insert_char(ch);
     }
     if ctx.tabs.active_model().as_text() == before {
+        ctx.push_toast(
+            crate::toast::Kind::Info,
+            "Autocomplete suggestion already inserted",
+        );
         return 0;
     }
     accepted.chars().count() as i32

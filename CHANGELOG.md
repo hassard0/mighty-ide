@@ -30,6 +30,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Autocomplete accept misses are visible**: accepting an autocomplete
+  suggestion with no active dropdown now reports `No autocomplete suggestions
+  open`, while preflight remains quiet and repeated code-intelligence misses
+  replace stale toasts instead of stacking.
 - **Saves handle duplicate tabs coherently**: manual Save, Save All, and
   autosave now refuse conflicting dirty duplicate views of the same file, and
   refresh clean duplicate views after successful writes. The scalar staged-save
