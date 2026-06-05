@@ -5123,6 +5123,7 @@ pub extern "C" fn mui_dirty_confirm_discard(handle: i64) -> i32 {
         return -2;
     }
     let Some((idx_u, _)) = ctx.pending_dirty_close else {
+        ctx.push_toast(crate::toast::Kind::Info, "No unsaved changes confirmation open");
         return -1;
     };
     trace(&format!("dirty_confirm discard tab={idx_u}"));
@@ -5152,6 +5153,7 @@ pub extern "C" fn mui_dirty_confirm_save(handle: i64) -> i32 {
         return -2;
     }
     let Some((idx_u, _)) = ctx.pending_dirty_close else {
+        ctx.push_toast(crate::toast::Kind::Info, "No unsaved changes confirmation open");
         return -1;
     };
     if !save_confirm_tab(ctx, idx_u) {

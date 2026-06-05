@@ -72,8 +72,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   directory targets with explicit `not a file` feedback
 - **Close Saved Tabs**, **Close Other Saved Tabs**, and directional close-left /
   close-right cleanup remove tab clutter while preserving dirty buffers
-- Unsaved-changes confirmation stale click routes report when the confirmation
-  has already closed
+- Unsaved-changes confirmation stale click, cancel, save, and discard routes
+  report when the confirmation has already closed
 - Bottom dock stale close, preset, and resize affordances report when no dock is
   open, while ordinary editor clicks stay quiet
 - Sidebar stale resize drag and finish routes report when the sidebar has

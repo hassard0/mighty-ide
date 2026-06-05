@@ -49,6 +49,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   packaged launch result.
 
 ### Tabs and panes
+- **Unsaved-confirm stale actions are visible**: stale Save and Discard routes
+  now report `No unsaved changes confirmation open` after the confirmation has
+  already closed, matching stale cancel and click behavior.
 - **Bottom dock stale chrome is visible**: stale close, preset, and resize
   affordance routes now report when no bottom dock is open, while ordinary
   editor clicks outside the old dock chrome stay quiet.
