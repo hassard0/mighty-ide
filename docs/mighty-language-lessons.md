@@ -11402,3 +11402,16 @@ around.
   recents are pruned with the rest of file discovery.
 - **Language note:** no compiler gap surfaced. Move/rename lifecycle success
   paths need the same cleanup primitive as create, delete, and failure paths.
+
+## L924 - Autosave Success Should Prune Missing Recents
+
+Normal auto-save success updated disk, cleaned the active tab, and refreshed
+clean duplicate tabs, but it only refreshed file discovery when the saved file
+had been resurrected. Missing recent-file entries could therefore survive a
+successful auto-save.
+
+- **IDE note:** auto-save now refreshes shared file views after every
+  successful write, while still recording the path only for resurrected files.
+  This keeps Explorer, Quick Open rows, the backing index, and recents aligned.
+- **Language note:** no compiler gap surfaced. Background lifecycle commands
+  need the same cleanup guarantees as explicit save commands.

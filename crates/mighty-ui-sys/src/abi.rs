@@ -11884,8 +11884,8 @@ pub extern "C" fn mui_autosave_tick(handle: i64) -> i32 {
             ctx.autosave_sig = Some(autosave_signature(&ctx.tabs.active_model().as_text()));
             if resurrected_path {
                 record_recent_file(ctx, path.clone());
-                refresh_workspace_file_views(ctx);
             }
+            refresh_workspace_file_views(ctx);
             println!("mui_autosave: {} ({} bytes)", path.display(), bytes.len());
             ctx.push_toast(crate::toast::Kind::Info, format!("Auto-saved {name}"));
             1
