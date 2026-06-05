@@ -9347,7 +9347,7 @@ fn language_popup_close_commands_clear_active_state() {
     assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
     assert_eq!(
         ctx.toasts.toasts()[0].message,
-        "No Signature Help popup open"
+        "No signature help popup open"
     );
 }
 

@@ -10164,7 +10164,7 @@ pub extern "C" fn mui_sig_close(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, "Signature Help popup closed");
         1
     } else {
-        ctx.push_toast(crate::toast::Kind::Info, "No Signature Help popup open");
+        ctx.push_toast(crate::toast::Kind::Info, "No signature help popup open");
         0
     }
 }

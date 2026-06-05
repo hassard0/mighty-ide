@@ -34,6 +34,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Signature-help no-op feedback is consistent**: closing signature help when
+  no popup is open now reports `No signature help popup open`, matching the
+  sentence-style wording used by other overlay no-op messages.
 - **Diff row misses match Source Control wording**: opening a diff without a
   selected Source Control row now reports `No source control row selected`,
   matching the SCM open and stage paths.

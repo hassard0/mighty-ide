@@ -920,6 +920,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("No signature help available at ")
         || m == "Signature Help popup closed"
         || m == "No Signature Help popup open"
+        || m == "No signature help popup open"
         || m.starts_with("No definition found")
         || m == "No definition target selected"
         || m.starts_with("Definition target missing")
@@ -2758,11 +2759,11 @@ mod tests {
 
         q.push_at(
             Kind::Info,
-            "No Signature Help popup open",
+            "No signature help popup open",
             t0 + Duration::from_millis(550),
         );
         assert_eq!(q.len(), 1);
-        assert_eq!(q.toasts()[0].message, "No Signature Help popup open");
+        assert_eq!(q.toasts()[0].message, "No signature help popup open");
 
         q.push_at(
             Kind::Info,
