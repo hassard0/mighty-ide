@@ -47,7 +47,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
 // ===========================================================================
@@ -1271,12 +1271,19 @@ impl DapSession {
         let _ = self.cmds.send(Outbound::Disconnect);
         // Give the worker a brief moment, then force-kill if still alive.
         std::thread::sleep(Duration::from_millis(40));
-        if let Ok(mut guard) = self.child.lock() {
-            if let Some(mut c) = guard.take() {
-                let _ = c.kill();
-                let _ = c.wait();
-            }
-        }
+        kill_debug_child(&self.child);
+    }
+}
+
+fn lock_debug_child(child: &Arc<Mutex<Option<Child>>>) -> MutexGuard<'_, Option<Child>> {
+    child.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+fn kill_debug_child(child: &Arc<Mutex<Option<Child>>>) {
+    let mut guard = lock_debug_child(child);
+    if let Some(mut c) = guard.take() {
+        let _ = c.kill();
+        let _ = c.wait();
     }
 }
 
@@ -1485,12 +1492,7 @@ fn worker_loop(
                             next()
                         );
                         let _ = write_msg(&mut stdin, &dis);
-                        if let Ok(mut g) = child.lock() {
-                            if let Some(mut c) = g.take() {
-                                let _ = c.kill();
-                                let _ = c.wait();
-                            }
-                        }
+                        kill_debug_child(&child);
                         return;
                     }
                 };
@@ -1502,12 +1504,7 @@ fn worker_loop(
             Err(mpsc::RecvTimeoutError::Timeout) => {}
             Err(mpsc::RecvTimeoutError::Disconnected) => {
                 // Main side dropped the session: shut down.
-                if let Ok(mut g) = child.lock() {
-                    if let Some(mut c) = g.take() {
-                        let _ = c.kill();
-                        let _ = c.wait();
-                    }
-                }
+                kill_debug_child(&child);
                 return;
             }
         }
@@ -1553,6 +1550,25 @@ fn route_inbound(env: &DapEnvelope, events: &Sender<SessionEvent>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn child_cleanup_recovers_from_poisoned_slot() {
+        let child = Arc::new(Mutex::new(None));
+        let hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let poisoned = {
+            let child = Arc::clone(&child);
+            std::panic::catch_unwind(move || {
+                let _guard = lock_debug_child(&child);
+                panic!("poison debug child lock");
+            })
+        };
+        std::panic::set_hook(hook);
+        assert!(poisoned.is_err());
+
+        kill_debug_child(&child);
+        assert!(lock_debug_child(&child).is_none());
+    }
 
     #[test]
     fn parse_initialize_response_capabilities() {
