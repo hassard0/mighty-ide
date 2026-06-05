@@ -2085,11 +2085,17 @@ fn run_output_click_misses_report_visible_feedback() {
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No run output row selected");
 
-    let missing = std::env::temp_dir().join(format!(
-        "mui_run_missing_target_{}.mty",
-        std::process::id()
-    ));
-    let _ = std::fs::remove_file(&missing);
+    let root = std::env::temp_dir().join(format!("mui_run_missing_target_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let missing = root.join("run_target.mty");
+    std::fs::write(&missing, "fn main() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    crate::mui_quickopen_open(h);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
     ctx.run.seed_demo(missing.to_string_lossy().as_ref());
 
     assert_eq!(crate::featureabi::mui_run_click_row(h, 0), 0);
@@ -2098,7 +2104,10 @@ fn run_output_click_misses_report_visible_feedback() {
     assert_eq!(toast.message, "Run output row has no file target");
     assert_eq!(crate::featureabi::mui_run_click_tab(h), -1);
 
+    std::fs::remove_file(&missing).unwrap();
     assert_eq!(crate::featureabi::mui_run_click_row(h, 2), 0);
+    assert_eq!(ctx.tree.count(), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(
@@ -2114,6 +2123,8 @@ fn run_output_click_misses_report_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Run output row has no file target");
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]

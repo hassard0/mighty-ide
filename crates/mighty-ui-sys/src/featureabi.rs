@@ -311,6 +311,7 @@ pub extern "C" fn mui_run_click_row(handle: i64, i: i32) -> i32 {
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| full.to_string_lossy().into_owned());
         let _ = ctx.run.demote_target(&root, &full);
+        crate::abi::refresh_workspace_file_views(ctx);
         ctx.push_toast(crate::toast::Kind::Warn, format!("Run target missing: {name}"));
         return 0;
     }

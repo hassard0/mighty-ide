@@ -11211,3 +11211,15 @@ open Quick Open panel could still list the deleted source.
   backing index, and visible Quick Open rows after pruning the missing target.
 - **Language note:** no compiler gap surfaced. Debug navigation cleanup should
   update shared file indexes in the same pass that removes stale debug state.
+
+## L909 - Stale Run Diagnostics Should Refresh File Views
+
+Run-output diagnostics can point at files that were deleted after the process
+finished. Clicking such a diagnostic demoted the stale row and showed feedback,
+but Explorer and visible Quick Open rows could continue to show the missing
+source.
+
+- **IDE note:** stale Run diagnostic clicks now refresh Explorer, Quick Open's
+  backing index, and visible Quick Open rows after demoting the missing target.
+- **Language note:** no compiler gap surfaced. Build and run diagnostics should
+  update shared file indexes when their source paths vanish.
