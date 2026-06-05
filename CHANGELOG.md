@@ -84,6 +84,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   topology, Source Control rows, and Debug breakpoints now require jump targets
   to be real files. Directory targets report target-specific `is not a file`
   feedback and leave the tab list unchanged.
+- **Explorer directory rows revalidate before toggling**: cached Explorer rows
+  that used to be directories now report missing or replaced directory targets
+  before expand/collapse or row-open actions mutate the tree.
 - **Navigation surfaces reject directory targets**: Search results, Problems
   rows, breadcrumb file-menu jumps, and Peek Definition go-to now validate that
   stale targets are real files before opening tabs.

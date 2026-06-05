@@ -1309,6 +1309,59 @@ fn tree_open_row_directory_target_refreshes_and_reports_feedback() {
 }
 
 #[test]
+fn tree_toggle_missing_directory_refreshes_and_reports_feedback() {
+    use crate::{mui_tree_count, mui_tree_refresh, mui_tree_toggle};
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir()
+        .join(format!("mui_tree_missing_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("sub")).unwrap();
+    ctx.tree.set_root(root.clone());
+    ctx.workspace = crate::workspace::Workspace::new(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_tree_refresh(handle), 1);
+    std::fs::remove_dir_all(root.join("sub")).unwrap();
+
+    assert_eq!(mui_tree_toggle(handle, 0), 0);
+    assert_eq!(mui_tree_count(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Explorer target missing: sub");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn tree_open_row_directory_replaced_by_file_reports_feedback() {
+    use crate::{mui_tree_count, mui_tree_open_row, mui_tree_refresh};
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir()
+        .join(format!("mui_tree_replaced_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let dir = root.join("sub");
+    std::fs::create_dir_all(&dir).unwrap();
+    ctx.tree.set_root(root.clone());
+    ctx.workspace = crate::workspace::Workspace::new(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_tree_refresh(handle), 1);
+    std::fs::remove_dir_all(&dir).unwrap();
+    std::fs::write(&dir, b"now a file").unwrap();
+
+    assert_eq!(mui_tree_open_row(handle, 0), -1);
+    assert_eq!(mui_tree_count(handle), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Explorer target is not a directory: sub");
+    assert_eq!(ctx.tree.get(0).unwrap().is_dir, false);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn click_routing_tab_bar_sidebar_and_text() {
     let _g = crate::settings::TEST_LOCK
         .lock()

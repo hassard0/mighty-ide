@@ -7544,6 +7544,19 @@ pub extern "C" fn mui_tree_toggle(handle: i64, i: i32) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, "Explorer row no longer listed");
         return ctx.tree.count() as i32;
     }
+    if let Some(row) = ctx.tree.get(i as usize) {
+        if row.is_dir {
+            let path = row.path.clone();
+            match explorer_directory_target_kind(&path) {
+                ExplorerDirectoryTargetKind::Directory => {}
+                kind @ (ExplorerDirectoryTargetKind::Missing
+                | ExplorerDirectoryTargetKind::NotDirectory) => {
+                    reject_bad_explorer_directory_target(ctx, &path, kind);
+                    return ctx.tree.count() as i32;
+                }
+            }
+        }
+    }
     ctx.tree.toggle(i as usize);
     ctx.tree.count() as i32
 }
@@ -7575,11 +7588,25 @@ enum ExplorerTargetKind {
     NotFile,
 }
 
+enum ExplorerDirectoryTargetKind {
+    Directory,
+    Missing,
+    NotDirectory,
+}
+
 fn explorer_target_kind(path: &std::path::Path) -> ExplorerTargetKind {
     match std::fs::metadata(path) {
         Ok(meta) if meta.is_file() => ExplorerTargetKind::File,
         Ok(_) => ExplorerTargetKind::NotFile,
         Err(_) => ExplorerTargetKind::Missing,
+    }
+}
+
+fn explorer_directory_target_kind(path: &std::path::Path) -> ExplorerDirectoryTargetKind {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_dir() => ExplorerDirectoryTargetKind::Directory,
+        Ok(_) => ExplorerDirectoryTargetKind::NotDirectory,
+        Err(_) => ExplorerDirectoryTargetKind::Missing,
     }
 }
 
@@ -7599,6 +7626,23 @@ fn reject_bad_explorer_target(
     -1
 }
 
+fn reject_bad_explorer_directory_target(
+    ctx: &mut MuiContext,
+    path: &std::path::Path,
+    kind: ExplorerDirectoryTargetKind,
+) {
+    let name = file_target_name(path);
+    refresh_workspace_file_views(ctx);
+    let message = match kind {
+        ExplorerDirectoryTargetKind::Missing => format!("Explorer target missing: {name}"),
+        ExplorerDirectoryTargetKind::NotDirectory => {
+            format!("Explorer target is not a directory: {name}")
+        }
+        ExplorerDirectoryTargetKind::Directory => return,
+    };
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+}
+
 /// Open the file at tree row `i` as a tab, or toggle a directory row. Returns
 /// the resulting tab index, or -1 when no tab was opened.
 #[no_mangle]
@@ -7615,6 +7659,15 @@ pub extern "C" fn mui_tree_open_row(handle: i64, i: i32) -> i32 {
         return -1;
     };
     if row.is_dir {
+        let path = row.path.clone();
+        match explorer_directory_target_kind(&path) {
+            ExplorerDirectoryTargetKind::Directory => {}
+            kind @ (ExplorerDirectoryTargetKind::Missing
+            | ExplorerDirectoryTargetKind::NotDirectory) => {
+                reject_bad_explorer_directory_target(ctx, &path, kind);
+                return -1;
+            }
+        }
         ctx.tree.toggle(i as usize);
         return -1;
     }
