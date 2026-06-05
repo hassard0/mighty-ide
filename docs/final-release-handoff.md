@@ -92,6 +92,12 @@ during this same pass. If only syntax and wrong-host checks ran for those
 scripts, mention them as script-readiness checks rather than clean-binary
 evidence.
 
+This stop condition is intentionally stronger than a clean source tree. The
+Windows ZIP must be regenerated after the final documentation commit so the
+packaged docs, manifest, and native PE payloads all correspond to the same
+source hash. macOS and Linux require the same source-to-package correspondence
+on their own native runners before either platform can be called clean.
+
 The final response for a Windows-hosted pass should report the committed source
 hash, the Windows ZIP size and SHA-256, the package-script checks that passed,
 and the explicit macOS/Linux `unbuilt` status. Do not do additional feature or

@@ -441,8 +441,12 @@ pub extern "C" fn mui_problems_close(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, "Problems panel closed");
         return 1;
     }
-    ctx.push_toast(crate::toast::Kind::Info, "Problems panel is already closed");
+    report_problems_closed(ctx);
     0
+}
+
+fn report_problems_closed(ctx: &mut crate::MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Info, "Problems panel is already closed");
 }
 
 /// Clear the aggregated Problems diagnostics without closing the panel. Returns
@@ -519,6 +523,10 @@ pub extern "C" fn mui_problems_row_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !ctx.problems.is_open() {
+        report_problems_closed(ctx);
+        return -1;
+    }
     let left = layout::body_left(ctx.sidebar_visible);
     let w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
     let h = ctx.gpu.height as f32;
@@ -531,6 +539,10 @@ pub extern "C" fn mui_problems_close_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !ctx.problems.is_open() {
+        report_problems_closed(ctx);
+        return 0;
+    }
     let left = layout::body_left(ctx.sidebar_visible);
     let w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
     let h = ctx.gpu.height as f32;
@@ -544,6 +556,10 @@ pub extern "C" fn mui_problems_header_action_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !ctx.problems.is_open() {
+        report_problems_closed(ctx);
+        return 0;
+    }
     let left = layout::body_left(ctx.sidebar_visible);
     let w = layout::dock_visible_width(ctx.gpu.width, ctx.gpu.phys_width) as f32;
     let h = ctx.gpu.height as f32;
@@ -562,6 +578,10 @@ pub extern "C" fn mui_problems_open_row(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !ctx.problems.is_open() {
+        report_problems_closed(ctx);
+        return -1;
+    }
     if i < 0 {
         ctx.push_toast(crate::toast::Kind::Info, "No problem selected");
         return -1;

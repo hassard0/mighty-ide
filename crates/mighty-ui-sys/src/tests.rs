@@ -15269,10 +15269,22 @@ fn problems_header_close_hit_collapses_panel_with_feedback() {
 fn problems_close_command_acknowledges_state() {
     let mut ctx = ctx_or_skip!();
     ctx.problems.set_open(true);
+    ctx.problems.aggregate(vec![(
+        std::path::PathBuf::from("C:/proj/main.mty"),
+        vec![crate::diagnostics::Diag {
+            line: 1,
+            col_start: 2,
+            col_end: 3,
+            severity: crate::diagnostics::Severity::Error,
+            code: "MT1".into(),
+            message: "bad type".into(),
+        }],
+    )]);
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(crate::navsurfaces::mui_problems_close(h), 1);
     assert_eq!(crate::navsurfaces::mui_problems_is_open(h), 0);
+    assert_eq!(crate::navsurfaces::mui_problems_count(h), 1);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Problems panel closed"
@@ -15283,6 +15295,28 @@ fn problems_close_command_acknowledges_state() {
         ctx.toasts.toasts().last().unwrap().message,
         "Problems panel is already closed"
     );
+
+    assert_eq!(crate::navsurfaces::mui_problems_open_row(h, 0), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Problems panel is already closed"
+    );
+    assert_eq!(crate::navsurfaces::mui_problems_row_at_click(h), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Problems panel is already closed"
+    );
+    assert_eq!(crate::navsurfaces::mui_problems_close_at_click(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Problems panel is already closed"
+    );
+    assert_eq!(crate::navsurfaces::mui_problems_header_action_at_click(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Problems panel is already closed"
+    );
+    assert_eq!(crate::navsurfaces::mui_problems_count(h), 1);
 }
 
 #[test]

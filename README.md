@@ -45,6 +45,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Outline, Problems, and an interactive breadcrumb** code-nav bar; Problems
   rows, breadcrumb file jumps, and Peek Definition navigation reject directory
   targets from stale indexes instead of opening empty tabs
+- Problems closed-panel row, close-hit, header-action, and row-open routes
+  report that the panel is already closed instead of activating retained hidden
+  diagnostics
 - Breadcrumb menu stale keyboard and click routes report when the dropdown has
   already closed
 - **Split editor (Ctrl+\)** — side-by-side panes, focus a pane with Ctrl+1 / Ctrl+2
