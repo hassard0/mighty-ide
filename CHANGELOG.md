@@ -69,6 +69,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Breadcrumb file menus prune stale paths**: accepting a breadcrumb file row
   whose source disappeared now removes that dead path from the menu backing
   list while reporting the missing target.
+- **Breadcrumb misses avoid navigation side effects**: failed breadcrumb accepts
+  still close the dropdown and report feedback, but no longer reset undo or
+  refresh diagnostics/outline as if a file or symbol jump succeeded.
 - **Breakpoint rows prune missing targets**: opening a debug breakpoint row
   whose source file was deleted now removes the stale breakpoint entry and keeps
   the inventory from repeatedly targeting a missing file.

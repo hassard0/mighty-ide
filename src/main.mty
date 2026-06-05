@@ -1913,11 +1913,13 @@ fn main() {
             } else if k == key_down() {
               mui_crumb_menu_move(h, 1)
             } else if k == key_enter() {
-              let _acc = mui_crumb_menu_accept(h, -1)
-              mui_ed_undo_reset(h)
-              find_nav = false
-              let _r = mui_diag_refresh(h)
-              let _o = mui_outline_refresh(h)
+              let crumb_acc = mui_crumb_menu_accept(h, -1)
+              if crumb_acc >= 0 {
+                mui_ed_undo_reset(h)
+                find_nav = false
+                let _r = mui_diag_refresh(h)
+                let _o = mui_outline_refresh(h)
+              }
               run_focus = false
               web_focus = false
               test_focus = false
@@ -1950,11 +1952,13 @@ fn main() {
           } else if tag == ev_mouse_down() {
             let ch = mui_crumb_menu_row_at_click(h)
             if ch >= 0 {
-              let _acc = mui_crumb_menu_accept(h, ch)
-              mui_ed_undo_reset(h)
-              find_nav = false
-              let _r = mui_diag_refresh(h)
-              let _o = mui_outline_refresh(h)
+              let crumb_acc = mui_crumb_menu_accept(h, ch)
+              if crumb_acc >= 0 {
+                mui_ed_undo_reset(h)
+                find_nav = false
+                let _r = mui_diag_refresh(h)
+                let _o = mui_outline_refresh(h)
+              }
               run_focus = false
               web_focus = false
               test_focus = false

@@ -14664,6 +14664,14 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && breadcrumb_branch.contains(breadcrumb_outer_cleanup),
         "Breadcrumb local accept/cancel exits must release stale focus"
     );
+    assert!(
+        breadcrumb_branch.contains(
+            "let crumb_acc = mui_crumb_menu_accept(h, -1)\n              if crumb_acc >= 0 {\n                mui_ed_undo_reset(h)\n                find_nav = false\n                let _r = mui_diag_refresh(h)\n                let _o = mui_outline_refresh(h)\n              }"
+        ) && breadcrumb_branch.contains(
+            "let crumb_acc = mui_crumb_menu_accept(h, ch)\n              if crumb_acc >= 0 {\n                mui_ed_undo_reset(h)\n                find_nav = false\n                let _r = mui_diag_refresh(h)\n                let _o = mui_outline_refresh(h)\n              }"
+        ),
+        "Breadcrumb accept misses must not reset undo or refresh diagnostics/outline"
+    );
     let palette_start = main
         .find("} else if palette_open {")
         .expect("palette branch should exist");
