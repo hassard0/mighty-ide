@@ -6174,11 +6174,27 @@ fn scm_open_row_misses_report_visible_feedback() {
     let root = std::env::temp_dir().join(format!("mui_scm_open_missing_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
+    let git_init = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&root)
+        .args(["init", "-q"])
+        .status();
+    let Ok(status) = git_init else {
+        eprintln!("SKIP: git unavailable for SCM stale-row test");
+        let _ = std::fs::remove_dir_all(root);
+        return;
+    };
+    if !status.success() {
+        eprintln!("SKIP: git init failed for SCM stale-row test");
+        let _ = std::fs::remove_dir_all(root);
+        return;
+    }
     ctx.scm.root = Some(root.clone());
     assert_eq!(crate::panels::mui_scm_open_row(handle, 0), -1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Source control target missing: deleted.mty");
+    assert_eq!(ctx.scm.count(), 0);
 
     let _ = std::fs::remove_dir_all(root);
 }

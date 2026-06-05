@@ -10908,3 +10908,16 @@ switch and close hit-tests, or a normal tab click only clears hidden panel focus
 - **Language note:** no compiler gap surfaced. Focus fallbacks should be guarded
   by explicit chrome-hit exclusions when they share a flat event ladder with
   global controls.
+
+## L884 - Source Control Rows Should Refresh After Missing Targets
+
+Source Control rows come from a cached `git status` snapshot. If the snapshot is
+stale and a row's file no longer exists, warning once is not enough; the same
+dead row should not remain clickable until the user manually refreshes.
+
+- **IDE note:** opening a missing Source Control row now refreshes the stored
+  git status immediately after reporting the missing target, so stale rows are
+  pruned by the same failed activation.
+- **Language note:** no compiler gap surfaced. SCM row activation needs the
+  same stale-snapshot cleanup discipline as Explorer, Quick Open, and Welcome
+  recents.
