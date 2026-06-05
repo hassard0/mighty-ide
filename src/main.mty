@@ -4768,7 +4768,7 @@ fn main() {
           if rail_hit == panel_search() {
             let _q = mui_search_query_len(h)
           }
-        } else if agents_focus {
+        } else if agents_focus && tab_close_hit < 0 && tab_hit < 0 {
           let agents_clear_hit = mui_agents_click_is_clear(h)
           let agents_inspect_hit = mui_agents_click_is_inspect(h)
           let agents_run_hit = mui_agents_click_is_run(h)

@@ -10895,3 +10895,16 @@ test declaration cannot be located.
 - **Language note:** no compiler gap surfaced. Row activation code should
   validate row identity before resolving secondary resources, otherwise stale
   indices get mislabeled as content-level failures.
+
+## L883 - Focused Sidebar Panels Must Yield To Tab Chrome
+
+The Mighty Agents sidebar can hold a local focus flag so its header actions own
+the next click after the panel opens. That fallback must not sit ahead of tab
+switch and close hit-tests, or a normal tab click only clears hidden panel focus.
+
+- **IDE note:** the focused Agents fallback now ignores tab switch/close hits,
+  letting the existing tab-bar routes handle the first click while preserving
+  Agents header action ownership.
+- **Language note:** no compiler gap surfaced. Focus fallbacks should be guarded
+  by explicit chrome-hit exclusions when they share a flat event ladder with
+  global controls.

@@ -13857,6 +13857,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "Agents header clear clicks must dispatch before topology row navigation"
     );
     assert!(
+        main.contains("} else if agents_focus && tab_close_hit < 0 && tab_hit < 0 {")
+            && main.find("} else if agents_focus && tab_close_hit < 0 && tab_hit < 0 {")
+                < main.find("} else if tab_close_hit >= 0 {"),
+        "Focused Agents fallback must yield to tab switch/close hits so tabs work on the first click"
+    );
+    assert!(
         main.contains(
             "id == cmd_agents_close() {\n          let _ac = mui_agents_close(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
         ),
