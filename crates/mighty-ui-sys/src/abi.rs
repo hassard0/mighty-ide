@@ -639,6 +639,17 @@ fn file_target_not_file_message(action: &str, path: &std::path::Path) -> String 
     format!("{action} failed: {}: not a file", basename(path))
 }
 
+fn existing_non_dir_ancestor(path: &std::path::Path) -> Option<PathBuf> {
+    let mut current = Some(path);
+    while let Some(p) = current {
+        if p.exists() {
+            return (!p.is_dir()).then(|| p.to_path_buf());
+        }
+        current = p.parent();
+    }
+    None
+}
+
 fn reject_save_target_not_file(ctx: &mut MuiContext, path: &std::path::Path) -> i32 {
     ctx.autosave.disarm();
     refresh_workspace_file_views(ctx);
@@ -3375,6 +3386,20 @@ pub extern "C" fn mui_save_commit(handle: i64) -> i32 {
             format!("Save skipped: {} has unsaved changes", basename(&path)),
         );
         return -1;
+    }
+    if let Some(parent) = path.parent() {
+        if let Some(blocked) = existing_non_dir_ancestor(parent) {
+            ctx.autosave.disarm();
+            refresh_workspace_file_views(ctx);
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_target_not_file_message("Save", &blocked),
+            );
+            return -1;
+        }
+    }
+    if save_target_is_existing_non_file(&path) {
+        return reject_save_target_not_file(ctx, &path);
     }
     let resurrected_path = !path.is_file();
     match std::fs::write(&path, &ctx.save_buf) {
@@ -13175,7 +13200,23 @@ fn save_active_to_path(ctx: &mut MuiContext, target: PathBuf) -> i32 {
         return -1;
     }
     if let Some(parent) = target.parent() {
-        let _ = std::fs::create_dir_all(parent);
+        if let Some(blocked) = existing_non_dir_ancestor(parent) {
+            ctx.autosave.disarm();
+            refresh_workspace_file_views(ctx);
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_target_not_file_message("Save", &blocked),
+            );
+            return -1;
+        }
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            ctx.autosave.disarm();
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_operation_failed_message("Save", &target, &e),
+            );
+            return -1;
+        }
     }
     if save_target_is_existing_non_file(&target) {
         return reject_save_target_not_file(ctx, &target);

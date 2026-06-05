@@ -84,6 +84,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Save paths report non-directory parents**: staged save plus typed and
+  native Save As now preflight parent directories before writing. If a parent
+  path is an existing file, saves report `Save failed: <parent>: not a file`
+  before touching the dirty buffer or binding the tab.
 - **New File rejects directory targets**: typed and native-dialog New File now
   distinguish existing directories from existing files. Directory targets report
   `File create failed: <name>: not a file`, refresh workspace file views, and

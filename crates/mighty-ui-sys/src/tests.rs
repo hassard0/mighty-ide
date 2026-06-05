@@ -719,11 +719,39 @@ fn save_staging_failure_reports_filesystem_reason() {
     assert!(!target.exists());
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert!(
-        toast.message.starts_with("Save failed: child.mty: "),
-        "{}",
-        toast.message
-    );
+    assert_eq!(toast.message, "Save failed: parent.txt: not a file");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn save_staging_rejects_directory_target_as_not_file() {
+    use crate::{mui_path_commit, mui_path_push, mui_save_commit, mui_save_push};
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_staging_directory_target_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let blocked = root.join("blocked.mty");
+    std::fs::create_dir(&blocked).unwrap();
+
+    for b in blocked.to_string_lossy().as_bytes() {
+        mui_path_push(handle, *b as u32);
+    }
+    mui_path_commit(handle);
+    for b in b"cannot save\n" {
+        mui_save_push(handle, *b as u32);
+    }
+
+    assert_eq!(mui_save_commit(handle), -1);
+    assert!(blocked.is_dir());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Save failed: blocked.mty: not a file");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -15253,11 +15281,7 @@ fn save_as_dialog_failure_reports_filesystem_reason() {
     assert_eq!(mui_ed_dirty(h), 1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert!(
-        toast.message.starts_with("Save failed: child.mty: "),
-        "{}",
-        toast.message
-    );
+    assert_eq!(toast.message, "Save failed: parent.txt: not a file");
 
     crate::settings::set_active(before);
     let _ = std::fs::remove_dir_all(&root);
@@ -15961,6 +15985,48 @@ fn save_as_prompt_consumes_staged_path() {
     assert_eq!(ctx.quickopen.recent_paths(), vec![target.clone()]);
     assert_eq!(ctx.quickopen.count(), 1);
     assert_eq!(ctx.quickopen.row(0).unwrap().name, "typed.mty");
+
+    crate::settings::set_active(before);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn save_as_prompt_rejects_non_directory_parent() {
+    use crate::{mui_active_has_path, mui_ed_dirty, mui_path_push, mui_save_as};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    crate::settings::set_active(crate::settings::Settings::default());
+
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("save me\n");
+    ctx.tabs.set_dirty(ctx.tabs.active(), true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_as_prompt_parent_file_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let parent_file = root.join("parent.txt");
+    std::fs::write(&parent_file, b"not a directory").unwrap();
+    let target = parent_file.join("child.mty");
+    for b in target.to_string_lossy().as_bytes() {
+        mui_path_push(h, *b as u32);
+    }
+
+    assert_eq!(mui_save_as(h), -1);
+    assert!(ctx.path_stage.is_empty());
+    assert!(!target.exists());
+    assert_eq!(mui_active_has_path(h), 0);
+    assert_eq!(mui_ed_dirty(h), 1);
+    assert_eq!(ctx.tabs.active_model().as_text(), "save me\n");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Save failed: parent.txt: not a file");
 
     crate::settings::set_active(before);
     let _ = std::fs::remove_dir_all(&root);

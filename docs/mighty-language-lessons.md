@@ -12940,3 +12940,17 @@ directory means the target is the wrong object kind.
 - **Language note:** no compiler gap surfaced. Create commands should separate
   name collisions from target-kind violations before relying on generic create
   errors.
+
+## L1031 - Save Paths Must Validate Parent Directories Explicitly
+
+Save paths can point at a perfectly valid file name under a path whose parent
+component is actually a file. Ignoring parent validation makes the eventual
+write error point at the leaf, not the real blocker.
+
+- **IDE note:** staged save plus typed and native Save As now scan the parent
+  chain before writing the file. Existing non-directory parents report
+  `Save failed: <parent>: not a file`, keep the dirty buffer, and leave untitled
+  tabs unbound.
+- **Language note:** no compiler gap surfaced. File-write commands should treat
+  parent preparation as its own side-effect boundary and report the failing
+  ancestor, not only the requested leaf path.
