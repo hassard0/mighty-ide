@@ -12181,3 +12181,17 @@ Ctrl+Shift+Space look like an ignored command rather than an empty result.
 - **Language note:** no compiler gap surfaced. Empty popup-style language
   lookups should still produce query-specific feedback when triggered
   explicitly from the keyboard or palette.
+
+## L978 - Rename Misses Should Name The Query Site
+
+Rename prepare failures reported only `No rename target` when the cursor was on
+punctuation, a literal, or a server-rejected range. In a multi-tab editing
+session, that did not identify which buffer and cursor site had been queried.
+
+- **IDE note:** rename prepare misses now report
+  `No rename target at file:line:column`, falling back to `(scratch)` for
+  untitled buffers and keeping detailed misses in the code-intelligence toast
+  replacement lane.
+- **Language note:** no compiler gap surfaced. Mutating language commands should
+  be as specific on rejected-target paths as read-only code-intelligence
+  lookups are on empty-result paths.

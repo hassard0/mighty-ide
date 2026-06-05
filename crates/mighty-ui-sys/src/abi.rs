@@ -435,6 +435,16 @@ fn signature_not_found_message(path: &std::path::Path, line: i32, col: i32) -> S
     )
 }
 
+fn rename_not_found_message(ctx: &MuiContext, line: i32, col: i32) -> String {
+    let name = ctx
+        .tabs
+        .active_path()
+        .as_deref()
+        .map(basename)
+        .unwrap_or_else(|| "(scratch)".to_string());
+    format!("No rename target at {name}:{}:{}", line.max(0) + 1, col.max(0) + 1)
+}
+
 #[cfg(test)]
 mod code_action_diagnostics_tests {
     use super::*;
@@ -10156,7 +10166,10 @@ pub extern "C" fn mui_rename_prepare(handle: i64, line: i32, col: i32) -> i32 {
         let raw = lsp_prepare_rename_raw(ctx.language, &path, &source, line0, col0);
         if prepare_rename_explicitly_rejected(&raw) {
             println!("rename: line={line} col={col} prepare-rejected");
-            ctx.push_toast(crate::toast::Kind::Info, "No rename target");
+            ctx.push_toast(
+                crate::toast::Kind::Info,
+                rename_not_found_message(ctx, line, col),
+            );
             return 0;
         }
         // prepareRename returns a range; re-derive the symbol from its start.
@@ -10171,7 +10184,10 @@ pub extern "C" fn mui_rename_prepare(handle: i64, line: i32, col: i32) -> i32 {
     }
     if symbol.is_empty() || is_non_renamable_identifier(&symbol) {
         println!("rename: line={line} col={col} no-symbol");
-        ctx.push_toast(crate::toast::Kind::Info, "No rename target");
+        ctx.push_toast(
+            crate::toast::Kind::Info,
+            rename_not_found_message(ctx, line, col),
+        );
         return 0;
     }
     ctx.rename.open(&symbol);

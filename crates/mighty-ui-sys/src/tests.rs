@@ -11519,7 +11519,25 @@ fn rename_prepare_miss_reports_visible_feedback() {
     assert_eq!(crate::mui_rename_active(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "No rename target");
+    assert_eq!(toast.message, "No rename target at (scratch):1:1");
+
+    let root =
+        std::env::temp_dir().join(format!("mui_rename_prepare_miss_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("rename-miss.mty");
+    std::fs::write(&file, "fn main() {\n  1\n}\n").unwrap();
+    ctx.tabs.open_path(file);
+    crate::sync_active_path(&mut ctx);
+    ctx.toasts.clear();
+
+    assert_eq!(crate::mui_rename_prepare(h, 1, 2), 0);
+    assert_eq!(crate::mui_rename_active(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No rename target at rename-miss.mty:2:3");
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]

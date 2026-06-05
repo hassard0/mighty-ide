@@ -890,6 +890,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No definition target selected"
         || m.starts_with("Definition target missing")
         || m == "No rename target"
+        || m.starts_with("No rename target at ")
     {
         Some(OperationKey::CodeIntel)
     } else if m == "Breadcrumb menu closed"
@@ -2568,6 +2569,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No rename target");
+
+        q.push_at(
+            Kind::Info,
+            "No rename target at main.mty:11:2",
+            t0 + Duration::from_millis(650),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No rename target at main.mty:11:2");
 
         q.push_at(Kind::Info, "Rename cancelled", t0 + Duration::from_millis(700));
         assert_eq!(q.len(), 2);
