@@ -13571,3 +13571,14 @@ the next save result.
   stays in its existing edit-history family.
 - **Language note:** no compiler gap surfaced. Operation-family matching should
   include terminal guard messages even when they are phrased around the target.
+
+## L1073 - Blame Close Toasts Belong To Git Feedback
+
+The blame gutter has open, unavailable, and close states. Only the open and
+unavailable messages were in the Git toast family, so hiding blame could leave a
+stale blame toast visible beside the new close result.
+
+- **IDE note:** `Blame hidden` and `Blame is already hidden` now coalesce with
+  the rest of the Git/blame feedback family.
+- **Language note:** no compiler gap surfaced. Feature lifecycle messages need
+  the same operation key for open, failed, close, and already-closed outcomes.

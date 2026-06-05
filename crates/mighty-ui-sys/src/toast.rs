@@ -635,6 +635,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("No file to blame:")
         || m.starts_with("No blame ")
         || m.starts_with("Blame on ")
+        || m == "Blame hidden"
+        || m == "Blame is already hidden"
         || m == "Enter a branch name"
         || m == "Branch switcher closed"
         || m == "No branch picker open"
@@ -2396,7 +2398,19 @@ mod tests {
         assert_eq!(q.toasts()[0].message, "Blame on \u{2014} toggle to hide");
         assert_eq!(q.toasts()[0].kind, Kind::Info);
 
-        q.push_at(Kind::Info, "Nothing to commit", t0 + Duration::from_millis(300));
+        q.push_at(Kind::Info, "Blame hidden", t0 + Duration::from_millis(300));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Blame hidden");
+
+        q.push_at(
+            Kind::Info,
+            "Blame is already hidden",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Blame is already hidden");
+
+        q.push_at(Kind::Info, "Nothing to commit", t0 + Duration::from_millis(500));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Nothing to commit");
     }
