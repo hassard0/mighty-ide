@@ -7148,9 +7148,11 @@ pub extern "C" fn mui_tree_open_row(handle: i64, i: i32) -> i32 {
         return -1;
     };
     if i < 0 {
+        ctx.push_toast(crate::toast::Kind::Info, "No Explorer row selected");
         return -1;
     }
     let Some(row) = ctx.tree.get(i as usize) else {
+        ctx.push_toast(crate::toast::Kind::Info, "Explorer row no longer listed");
         return -1;
     };
     if row.is_dir {

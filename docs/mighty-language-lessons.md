@@ -12562,3 +12562,17 @@ negative click code.
 - **Language note:** no compiler gap surfaced. Output panels should validate
   row-code freshness before resolving lazy diagnostic targets so cleared output
   is not described as an empty user selection.
+
+## L1005 - Explorer Open Misses Should Name Stale Rows
+
+Explorer file-tree rows are opened through scalar row indices. The mouse hit
+test usually prevents out-of-range row codes, but command routing and stale UI
+snapshots can still call the open ABI with a negative or outdated row index.
+
+- **IDE note:** Explorer open requests now report `No Explorer row selected`
+  for negative row codes and `Explorer row no longer listed` for stale
+  non-negative row indices. Missing on-disk file targets continue to report
+  `Explorer target missing: <file>` after refreshing workspace file views.
+- **Language note:** no compiler gap surfaced. File tree actions should surface
+  explicit no-selection and stale-index feedback even when normal hit-testing
+  filters most invalid clicks, because ABI routes can outlive rendered rows.

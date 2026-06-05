@@ -56,6 +56,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   diagnostic row whose target file disappeared continue to report
   `Run target missing: <file>` after the row is demoted, instead of falling
   back to a generic no-file-target message.
+- **Explorer row misses are explicit**: file-tree open requests now report
+  `No Explorer row selected` for negative row codes and
+  `Explorer row no longer listed` for stale non-negative row indices.
 - **Run output stale rows are explicit**: out-of-range Run output row jumps now
   report `Run output row no longer listed`, while negative row codes still
   report `No run output row selected`.

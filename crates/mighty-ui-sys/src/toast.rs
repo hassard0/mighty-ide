@@ -935,6 +935,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No command palette open"
         || m == "No Quick Open panel open"
         || m.starts_with("Explorer target missing")
+        || m == "No Explorer row selected"
+        || m == "Explorer row no longer listed"
         || m.starts_with("Quick Open target missing")
         || m == "Quick Open row no longer listed"
         || m == "No symbol selected"
@@ -2942,6 +2944,22 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No Quick Open panel open");
+
+        q.push_at(
+            Kind::Info,
+            "No Explorer row selected",
+            t0 + Duration::from_millis(500),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No Explorer row selected");
+
+        q.push_at(
+            Kind::Info,
+            "Explorer row no longer listed",
+            t0 + Duration::from_millis(600),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Explorer row no longer listed");
     }
 
     #[test]
