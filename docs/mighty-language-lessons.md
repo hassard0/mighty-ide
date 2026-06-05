@@ -13596,3 +13596,16 @@ symbols, breadcrumbs, and go-to-line feedback.
 - **Language note:** no compiler gap surfaced. Empty-selection guard messages
   should be classified with the surface that emitted them, not left as generic
   one-off toasts.
+
+## L1075 - Breakpoint Selection Guards Are Debug Feedback
+
+The Run and Debug panel can report a missing breakpoint row with `No breakpoint
+row selected`. Because that message starts with `No` instead of `Breakpoint`,
+it was not grouped with the rest of the Debug operation family and could leave
+stale debug-state feedback visible beside the newer breakpoint result.
+
+- **IDE note:** `No breakpoint row selected` now coalesces with Debug feedback,
+  alongside breakpoint row staleness, debug lifecycle, restart, stepping, and
+  breakpoint-save guard messages.
+- **Language note:** no compiler gap surfaced. Operation families need to cover
+  both target-first and guard-first wording for the same surface.
