@@ -14287,6 +14287,12 @@ fn autocomplete_close_command_clears_active_dropdown() {
     assert_eq!(crate::mui_complete_cancel(h), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(ctx.toasts.toasts()[0].message, "No autocomplete suggestions open");
+    ctx.toasts.clear();
+
+    crate::mui_complete_move(h, 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No autocomplete suggestions open");
 }
 
 #[test]

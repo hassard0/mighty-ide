@@ -8979,6 +8979,10 @@ pub extern "C" fn mui_complete_sel(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_complete_move(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.complete.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No autocomplete suggestions open");
+            return;
+        }
         ctx.complete.move_sel(delta);
     }
 }

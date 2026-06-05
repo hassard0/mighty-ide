@@ -118,6 +118,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Code Actions stale move routes are visible**: quick-fix selection movement
   now reports `No code action menu open` when the menu has already closed,
   matching stale clicks, apply, and cancel.
+- **Autocomplete stale move routes are visible**: suggestion selection movement
+  now reports `No autocomplete suggestions open` when the dropdown has already
+  closed, matching stale clicks, accept, and cancel.
 - **Run output directory misses demote precisely**: clicking a Run diagnostic
   row whose target became a directory now demotes that row and preserves
   `Run target is not a file: <name>` for repeated clicks.
