@@ -105,6 +105,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Quick Open command stale rows are explicit**: accepting a vanished `>`
   command row now reports `Command row no longer listed`, while empty command
   accepts still report `No command selected`.
+- **Quick Open file stale rows are explicit**: accepting a vanished file result
+  row now reports `Quick Open row no longer listed`, while empty file accepts
+  still report `No Quick Open result selected`.
 - **Quick Open stale symbols are explicit**: accepting a vanished `@` symbol row
   now reports `Symbol row no longer listed`, while empty symbol accepts still
   report `No symbol selected`.

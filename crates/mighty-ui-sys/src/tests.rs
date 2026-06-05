@@ -13727,7 +13727,7 @@ fn quickopen_record_active_prunes_missing_recent_files() {
 
 #[test]
 fn quickopen_accept_empty_result_reports_feedback_and_stays_open() {
-    use crate::{mui_qo_accept, mui_qo_active, mui_qo_count, mui_quickopen_open};
+    use crate::{mui_qo_accept, mui_qo_active, mui_qo_count, mui_quickopen_open, mui_quickopen_reindex};
 
     let _g = crate::settings::TEST_LOCK
         .lock()
@@ -13751,6 +13751,16 @@ fn quickopen_accept_empty_result_reports_feedback_and_stays_open() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No Quick Open result selected");
+
+    std::fs::write(root.join("listed.mty"), "fn listed() {}\n").unwrap();
+    assert_eq!(mui_quickopen_reindex(h), 1);
+    mui_quickopen_open(h);
+    assert_eq!(mui_qo_count(h), 1);
+    assert_eq!(mui_qo_accept(h, 999), -1);
+    assert_eq!(mui_qo_active(h), 1, "stale file rows should leave Quick Open routed");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Quick Open row no longer listed");
 
     let _ = std::fs::remove_dir_all(&root);
 }

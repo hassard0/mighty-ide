@@ -12515,3 +12515,19 @@ the click was aimed at a stale row rather than no row at all.
 - **Language note:** no compiler gap surfaced. Command launchers should keep
   stale-row vocabulary aligned with symbol/file pickers so scalar row handlers
   explain whether provider state disappeared after rendering.
+
+## L1002 - Quick Open File Misses Should Name Stale Rows
+
+Quick Open file rows are selected through the same scalar ABI as symbols and
+commands. A non-negative row can outlive the current file result set, but the
+accept path used the same `No Quick Open result selected` feedback as an empty
+or negative accept.
+
+- **IDE note:** file-mode accepts now report
+  `Quick Open row no longer listed` for stale non-negative result rows while
+  preserving `No Quick Open result selected` for empty/current accepts. The stale
+  message shares the Navigation toast replacement lane with file-target,
+  symbol, and command misses.
+- **Language note:** no compiler gap surfaced. File pickers should preserve
+  enough row-index context to distinguish empty selections from stale result
+  snapshots before deciding whether to keep the picker open.

@@ -934,6 +934,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No Quick Open panel open"
         || m.starts_with("Explorer target missing")
         || m.starts_with("Quick Open target missing")
+        || m == "Quick Open row no longer listed"
         || m == "No symbol selected"
         || m == "Symbol row no longer listed"
         || m == "No command selected"

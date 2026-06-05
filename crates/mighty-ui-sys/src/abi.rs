@@ -9656,7 +9656,12 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
                     -1
                 }
                 _ => {
-                    ctx.push_toast(crate::toast::Kind::Info, "No Quick Open result selected");
+                    let message = if i < 0 {
+                        "No Quick Open result selected"
+                    } else {
+                        "Quick Open row no longer listed"
+                    };
+                    ctx.push_toast(crate::toast::Kind::Info, message);
                     keep_open = true;
                     -1
                 }
