@@ -3254,12 +3254,33 @@ fn test_close_command_acknowledges_state_without_clearing_results() {
         ctx.toasts.toasts().last().unwrap().message,
         "Testing panel is already closed"
     );
+
+    assert_eq!(crate::testabi::mui_test_open_row(h, 3), 0);
+    assert_eq!(crate::testabi::mui_test_click_tab(h), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Testing panel is already closed"
+    );
+
+    assert_eq!(crate::testabi::mui_test_row_at_click(h), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Testing panel is already closed"
+    );
+
+    assert_eq!(crate::testabi::mui_test_toolbar_at_click(h), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Testing panel is already closed"
+    );
 }
 
 #[test]
 fn test_result_open_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_TEST;
 
     ctx.tests_panel
         .set_click_target(Some(("stale.mty".to_string(), 3, 2)));

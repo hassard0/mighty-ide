@@ -432,9 +432,17 @@ pub extern "C" fn mui_test_close(handle: i64) -> i32 {
         crate::abi::trace("test_close");
         return 1;
     }
-    ctx.push_toast(crate::toast::Kind::Info, "Testing panel is already closed");
+    report_testing_closed(ctx);
     crate::abi::trace("test_close noop");
     0
+}
+
+fn testing_panel_visible(ctx: &crate::MuiContext) -> bool {
+    ctx.sidebar_visible && ctx.active_panel == crate::PANEL_TEST
+}
+
+fn report_testing_closed(ctx: &mut crate::MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Info, "Testing panel is already closed");
 }
 
 /// `1` while `mty test` is still running, else `0`.
@@ -563,7 +571,8 @@ pub extern "C" fn mui_test_row_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_TEST {
+    if !testing_panel_visible(ctx) {
+        report_testing_closed(ctx);
         return -1;
     }
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
@@ -607,6 +616,10 @@ pub extern "C" fn mui_test_open_row(handle: i64, i: i32) -> i32 {
         return 0;
     };
     ctx.tests_panel.set_click_target(None);
+    if !testing_panel_visible(ctx) {
+        report_testing_closed(ctx);
+        return 0;
+    }
     if i < 0 {
         ctx.push_toast(crate::toast::Kind::Info, "No test result row selected");
         return 0;
@@ -915,7 +928,8 @@ pub extern "C" fn mui_test_toolbar_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
-    if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_TEST {
+    if !testing_panel_visible(ctx) {
+        report_testing_closed(ctx);
         return -1;
     }
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
