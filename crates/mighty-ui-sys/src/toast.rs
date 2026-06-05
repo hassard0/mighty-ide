@@ -646,6 +646,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No agent node selected"
         || m == "Agent node no longer listed"
         || m.starts_with("Agents node has no file target:")
+        || m == "Mighty Agents panel closed"
+        || m == "Mighty Agents panel is already closed"
         || m.starts_with("Agents ")
     {
         Some(OperationKey::Agents)
@@ -3448,6 +3450,41 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Agents target missing: agent.mty");
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
+            Kind::Info,
+            "Agents run output cleared",
+            t0 + Duration::from_millis(350),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Agents run output cleared");
+
+        q.push_at(
+            Kind::Info,
+            "Agents run output already empty",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Agents run output already empty");
+
+        q.push_at(
+            Kind::Info,
+            "Mighty Agents panel closed",
+            t0 + Duration::from_millis(450),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Mighty Agents panel closed");
+
+        q.push_at(
+            Kind::Info,
+            "Mighty Agents panel is already closed",
+            t0 + Duration::from_millis(500),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Mighty Agents panel is already closed"
+        );
     }
 
     #[test]

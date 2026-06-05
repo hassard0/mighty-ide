@@ -167,6 +167,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   empty-query, no-result, and replace-preflight notices now join the relevant
   navigation or replace toast family instead of accumulating repeated status
   cards.
+- **Mighty Agents panel feedback replaces cleanly**: Agents run-output and
+  panel close/no-op notices now coalesce with the rest of the Agents feedback
+  family instead of leaving repeated lifecycle toasts behind.
 - **Run, Test, and Source Control stale-target toasts replace cleanly**:
   non-file target warnings from runner, test, and source-control surfaces now
   coalesce with the command family that produced them instead of lingering as
