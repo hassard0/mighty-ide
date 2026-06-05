@@ -85,6 +85,13 @@ during this same pass.
 Stopping here is part of the release contract. Further IDE polish belongs in a
 new pass after the verified package handoff, not in the same finalization pass.
 
+The clean-binary claim for this Windows pass is limited to the generated
+Windows archive: PE executable, PE shim, no compiler/linker sidecars, no
+`.dylib` or `.so` payloads, manifest written, and packaged launch completed.
+The macOS and Linux scripts remain ready to build their native archives, but
+their binaries are not clean until a macOS or Linux host produces and launches
+those packages.
+
 ## Final Pass Record
 
 For this Windows-hosted pass:

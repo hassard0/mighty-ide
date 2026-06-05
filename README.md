@@ -307,6 +307,18 @@ Current Windows-hosted finalization state:
 | macOS | `unbuilt` unless a macOS runner completed this pass | Native macOS runner must run `./package-macos.sh`, verify Mach-O payloads, scan the tarball, and launch the app bundle |
 | Linux x64 | `unbuilt` unless a Linux runner completed this pass | Native Linux runner must run `./package-linux.sh`, verify ELF payloads, scan the tarball, and launch from the package directory |
 
+Stop-pass checklist:
+
+1. Commit README and release documentation first.
+2. Rebuild the Windows package from that clean commit with `.\package-win.ps1`.
+3. Confirm the generated ZIP and staged package contain only Windows PE native
+   payloads and no compiler/linker sidecars.
+4. Launch `dist\mighty-ide-win64\mighty-ide.exe` with
+   `dist\mighty-ide-win64` as the working directory.
+5. Record the ZIP size and SHA-256 in the external release note or upload
+   record, then stop. macOS and Linux remain `unbuilt` until their own native
+   runners produce and smoke-test Mach-O and ELF archives.
+
 ## Dogfooding Mighty
 
 The IDE is the **forcing function** for maturing Mighty: every place the language fights us while building real native software is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md), so each friction point can be promoted into a Mighty issue / RFC. That feedback loop (lessons L1–L58) has already driven real fixes in the Mighty compiler — for example the native `Vec`-growth codegen bug ([L28](docs/mighty-language-lessons.md)), the `extern c` scalar ABI (L17), the LSP-client discipline (L24–L25), the parse-stack ceiling worked around by the `mui_chord` router (L37–L38, and the `!fn_call(args)` precedence trap found wiring the shortcuts overlay, L46), the native runtime/linking gaps captured while hardening Windows packaging (L50–L51), and the repeated prompt-string staging pressure from file-operation commands (L52).

@@ -75,3 +75,31 @@ locally marked `publish`. macOS and Linux must remain `unbuilt` unless their
 own native package scripts completed and launched during the same pass. Script
 readiness, copied artifacts, or cross-host archive inspection are not clean
 binary evidence for those platforms.
+
+## Windows-Hosted Stop Pass
+
+Use this block for the final pass from this checkout. Fill the Windows archive
+size and SHA-256 from the generated ZIP after `.\package-win.ps1` succeeds.
+Do not edit the source tree after that package run unless the package is rebuilt
+from the new clean commit.
+
+```text
+Platform: Windows x64
+Archive: dist\mighty-ide-v0.3.0-win64.zip
+Package script: .\package-win.ps1
+Native host or runner: Windows checkout
+Native payloads: PE mighty-ide.exe; PE mighty_ui_sys.dll
+Sidecar scan: package directory and ZIP passed
+Foreign-payload scan: package directory and ZIP passed
+PACKAGE-MANIFEST.txt: generated in dist\mighty-ide-win64
+Packaged launch: launched from dist\mighty-ide-win64
+Release decision: publish after archive size and SHA-256 are recorded
+
+Platform: macOS
+Archive: dist/mighty-ide-v0.3.0-macos.tar.gz
+Release decision: unbuilt - native macOS runner unavailable for this pass
+
+Platform: Linux x64
+Archive: dist/mighty-ide-v0.3.0-linux-x64.tar.gz
+Release decision: unbuilt - native Linux runner unavailable for this pass
+```
