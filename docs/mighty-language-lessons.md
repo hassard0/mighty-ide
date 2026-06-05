@@ -12402,3 +12402,18 @@ though the parsed result model already stored it.
   the Testing toast replacement lane.
 - **Language note:** no compiler gap surfaced. Lazy source-resolution failures
   should carry the selected row identity through the scalar click ABI.
+
+## L994 - Run Output Misses Should Name The Clicked Row
+
+Run output rows can be plain process output, clickable diagnostics, or
+diagnostics that were demoted after their target file disappeared. Clicking a
+non-clickable row reported only `Run output row has no file target`, which did
+not distinguish plain output from a stale demoted diagnostic.
+
+- **IDE note:** Run output no-target clicks now report
+  `Run output row has no file target: row text`, with diagnostic locations
+  reduced to `file:line:column` and long plain rows capped before showing the
+  toast.
+- **Language note:** no compiler gap surfaced. Output panes that mix plain rows
+  and lazy source targets should echo the selected row when a scalar click
+  cannot produce a navigation target.

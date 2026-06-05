@@ -2346,7 +2346,10 @@ fn run_output_click_misses_report_visible_feedback() {
     assert_eq!(crate::featureabi::mui_run_click_row(h, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "Run output row has no file target");
+    assert_eq!(
+        toast.message,
+        "Run output row has no file target: Compiling demo.mty ..."
+    );
     assert_eq!(crate::featureabi::mui_run_click_tab(h), -1);
 
     assert_eq!(crate::featureabi::mui_run_click_row(h, 2), 1);
@@ -2371,7 +2374,10 @@ fn run_output_click_misses_report_visible_feedback() {
     assert_eq!(crate::featureabi::mui_run_click_row(h, 2), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "Run output row has no file target");
+    assert_eq!(
+        toast.message,
+        "Run output row has no file target: run_target.mty:7:14"
+    );
 
     let _ = std::fs::remove_dir_all(root);
 }

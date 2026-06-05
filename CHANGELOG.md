@@ -96,6 +96,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   context.
 - **Testing result target misses name the row**: clicking a result row with no
   resolvable source location now includes the test name in the feedback.
+- **Run output target misses name the row**: clicking non-clickable Run output
+  now includes a compact copy of the output line in the feedback.
 - **Copy file metadata names scratch buffers**: copy-path, copy-relative-path,
   copy-name, and copy-directory now identify `(scratch)` when the active tab has
   no file path.

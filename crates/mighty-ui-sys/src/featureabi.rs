@@ -37,6 +37,41 @@ fn active_target_label(ctx: &MuiContext) -> String {
         .to_string()
 }
 
+fn run_output_row_label(text: &str) -> String {
+    let compact = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let compact = compact.trim();
+    if compact.is_empty() {
+        return "row".to_string();
+    }
+    if let Some(label) = run_output_location_label(compact) {
+        return label;
+    }
+    const MAX_CHARS: usize = 72;
+    if compact.chars().count() <= MAX_CHARS {
+        return compact.to_string();
+    }
+    let mut shown: String = compact.chars().take(MAX_CHARS.saturating_sub(3)).collect();
+    shown.push_str("...");
+    shown
+}
+
+fn run_output_location_label(text: &str) -> Option<String> {
+    let open = text.rfind('[')?;
+    let close = text[open..].find(']')? + open;
+    let inner = &text[open + 1..close];
+    let (path_part, col_part) = inner.rsplit_once(':')?;
+    let (path, line_part) = path_part.rsplit_once(':')?;
+    if line_part.parse::<u32>().ok()? == 0 || col_part.parse::<u32>().ok()? == 0 {
+        return None;
+    }
+    let name = std::path::Path::new(path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(path);
+    Some(format!("{name}:{line_part}:{col_part}"))
+}
+
 fn run_command_display() -> String {
     let mty = crate::mty::path();
     let program = std::path::Path::new(&mty)
@@ -356,7 +391,10 @@ pub extern "C" fn mui_run_click_row(handle: i64, i: i32) -> i32 {
             return 0;
         };
         if !line.clickable {
-            ctx.push_toast(crate::toast::Kind::Info, "Run output row has no file target");
+            ctx.push_toast(
+                crate::toast::Kind::Info,
+                format!("Run output row has no file target: {}", run_output_row_label(&line.text)),
+            );
             return 0;
         }
         crate::run::resolve_target(&root, &line.file, line.line, line.col)

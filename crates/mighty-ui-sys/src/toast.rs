@@ -828,6 +828,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No run process to stop"
         || m == "No run output row selected"
         || m == "Run output row has no file target"
+        || m.starts_with("Run output row has no file target:")
         || m.starts_with("Run output ")
         || m.starts_with("Run panel ")
         || m.starts_with("Run target missing")
@@ -2341,6 +2342,17 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Save (scratch) before running");
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
+            Kind::Info,
+            "Run output row has no file target: Compiling demo.mty ...",
+            t0 + Duration::from_millis(700),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Run output row has no file target: Compiling demo.mty ..."
+        );
     }
 
     #[test]
