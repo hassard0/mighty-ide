@@ -1002,6 +1002,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Enter a line number"
         || m == "No command selected"
         || m == "Command row no longer listed"
+        || m == "Quick Open is not in command mode"
         || m == "No breadcrumb row selected"
         || m == "Breadcrumb file no longer listed"
         || m == "Breadcrumb symbol unavailable"

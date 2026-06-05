@@ -10203,7 +10203,12 @@ pub extern "C" fn mui_qo_command_id(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !ctx.quickopen.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No Quick Open panel open");
+        return -1;
+    }
     if ctx.quickopen.mode() != crate::quickopen::Mode::Commands {
+        ctx.push_toast(crate::toast::Kind::Info, "Quick Open is not in command mode");
         return -1;
     }
     let idx = if i < 0 { ctx.quickopen.selection() } else { i as usize };

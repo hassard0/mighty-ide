@@ -16005,6 +16005,18 @@ fn quickopen_command_accept_misses_report_feedback_and_stay_open() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
+    assert_eq!(mui_qo_command_id(h, -1), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No Quick Open panel open");
+
+    mui_quickopen_open(h);
+    assert_eq!(mui_qo_command_id(h, -1), -1);
+    assert_eq!(mui_qo_active(h), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Quick Open is not in command mode");
+
     mui_quickopen_open(h);
     for ch in ">zzqqxx".chars() {
         mui_qo_push_char(h, ch as i32);

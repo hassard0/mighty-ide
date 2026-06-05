@@ -32,6 +32,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Universal Quick-Open (Ctrl+P)** — fuzzy files + MRU, with `>` command, `@` symbol, and `:` line modes in one overlay
 - Quick Open file accepts reject directory targets from stale indexes instead
   of opening empty tabs or reporting them as missing files
+- Quick Open command-mode accepts report closed-panel, wrong-mode, empty, and
+  stale-row misses instead of silently returning no command
 - Command palette (Ctrl+Shift+P), fuzzy-filtered
 - Go-to-line (Ctrl+G), go-to-definition (F12, cross-file), jump-back (Ctrl+−)
 - **Peek definition (Alt+F12)** — inline framed definition preview
