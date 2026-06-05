@@ -37,6 +37,26 @@ fn run_command_display() -> String {
     format!("{program} run")
 }
 
+fn compact_run_start_reason(ctx: &MuiContext) -> Option<String> {
+    let line = ctx.run.line(0)?;
+    line.text
+        .split_once(": ")
+        .map(|(_, reason)| reason.trim().to_string())
+        .filter(|reason| !reason.is_empty())
+}
+
+fn run_start_failed_message(path: &std::path::Path, reason: Option<&str>) -> String {
+    let name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("file");
+    let base = format!("Run failed to start: {name} via {}", run_command_display());
+    match reason.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(reason) => format!("{base}: {reason}"),
+        None => base,
+    }
+}
+
 // ===========================================================================
 // Feature 1 — Run panel
 // ===========================================================================
@@ -66,13 +86,10 @@ pub extern "C" fn mui_run_start(handle: i64) -> i32 {
         println!("run: started `mty run {}`", path.display());
         1
     } else {
-        let name = path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("file");
+        let reason = compact_run_start_reason(ctx);
         ctx.push_toast(
             crate::toast::Kind::Error,
-            format!("Run failed to start: {name} via {}", run_command_display()),
+            run_start_failed_message(&path, reason.as_deref()),
         );
         crate::abi::trace(&format!("run_start failed target={}", path.display()));
         0

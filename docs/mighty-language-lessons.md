@@ -11786,3 +11786,18 @@ the run did not even start.
 - **Language note:** no compiler gap surfaced. Background task launch failures
   should put the actionable host error in the immediate toast as well as the
   detailed panel row, because the toast is the first feedback surface users see.
+
+## L951 - Run Startup Failures Should Surface The Spawn Reason Too
+
+The Run panel had the same split feedback as Testing: a failed `mty run` spawn
+created an output row with the host error, but the visible toast only named the
+active file and `mty run` command. That made Run startup failures less
+actionable than terminal and test startup failures.
+
+- **IDE note:** Run startup failure toasts now append the compact spawn reason
+  from the first Run output row while preserving the target file and attempted
+  `mty run` command. Existing Run toast grouping already accepts the detailed
+  `Run failed to start:` prefix.
+- **Language note:** no compiler gap surfaced. Sibling background-task surfaces
+  should expose startup errors consistently; if one panel needs target, command,
+  and host reason in the toast, the matching panel does too.

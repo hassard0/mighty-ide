@@ -1989,9 +1989,12 @@ fn run_start_spawn_failure_names_target_and_command() {
     assert!(!ctx.problems.is_open());
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert_eq!(
-        toast.message,
-        "Run failed to start: main.mty via missing-mty.exe run"
+    assert!(
+        toast
+            .message
+            .starts_with("Run failed to start: main.mty via missing-mty.exe run: "),
+        "toast should include target, command, and spawn reason, got {:?}",
+        toast.message
     );
     assert!(ctx
         .run
