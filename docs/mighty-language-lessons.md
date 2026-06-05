@@ -11877,3 +11877,17 @@ the destructive command.
 - **Language note:** no compiler gap surfaced. Destructive command failures
   need the strongest immediate feedback: the exact target and the host reason
   should be visible in the toast, not only in logs.
+
+## L957 - New File Creation Failures Should Preserve The Filesystem Reason
+
+New-file creation used `create_new` correctly, but when the host rejected the
+target the toast only said `File create failed: name` while the useful error was
+only logged. Dialog-selected paths can fail for reasons users need to see, such
+as an invalid parent component or permission denial.
+
+- **IDE note:** new-file creation failures now report
+  `File create failed: target: reason`, leave the tab set unchanged, and keep
+  detailed create-file failures grouped with other new-file feedback.
+- **Language note:** no compiler gap surfaced. Creation commands should report
+  the attempted basename and the host filesystem reason together so users can
+  correct the selected path without reading logs.

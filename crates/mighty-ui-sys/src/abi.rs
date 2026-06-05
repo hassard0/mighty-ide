@@ -6177,7 +6177,10 @@ fn create_new_file_at(
             idx as i32
         }
         Err(e) => {
-            ctx.push_toast(crate::toast::Kind::Error, format!("File create failed: {name}"));
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_operation_failed_message("File create", &target, &e),
+            );
             println!("newfile: failed to create {}: {e}", target.display());
             -2
         }

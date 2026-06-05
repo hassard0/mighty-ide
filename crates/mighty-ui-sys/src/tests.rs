@@ -3927,6 +3927,44 @@ fn new_file_create_prunes_missing_recent_files() {
 }
 
 #[test]
+fn new_file_dialog_create_failure_reports_filesystem_reason() {
+    use crate::{mui_newfile_dialog, mui_tab_count};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_new_file_dialog_create_failure_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let parent_file = root.join("parent.txt");
+    std::fs::write(&parent_file, b"not a directory").unwrap();
+    let target = parent_file.join("child.mty");
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_NEW_FILE_PICK", target.to_string_lossy().as_ref());
+    assert_eq!(mui_newfile_dialog(handle), -2);
+    std::env::remove_var("MUI_NEW_FILE_PICK");
+
+    assert_eq!(mui_tab_count(handle), 1);
+    assert!(!target.exists());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast.message.starts_with("File create failed: child.mty: "),
+        "{}",
+        toast.message
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn new_file_dialog_env_pick_creates_opens_and_records_recent() {
     use crate::{mui_newfile_dialog, mui_quickopen_reindex, mui_tab_active, mui_tab_count};
 

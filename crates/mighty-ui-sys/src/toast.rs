@@ -1189,6 +1189,17 @@ mod tests {
         assert_eq!(q.toasts()[1].message, "New file cancelled");
 
         q.push_at(
+            Kind::Error,
+            "File create failed: child.mty: The directory name is invalid. (os error 267)",
+            t0 + Duration::from_millis(850),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(
+            q.toasts()[1].message,
+            "File create failed: child.mty: The directory name is invalid. (os error 267)"
+        );
+
+        q.push_at(
             Kind::Warn,
             "Choose a file inside the workspace",
             t0 + Duration::from_millis(900),
