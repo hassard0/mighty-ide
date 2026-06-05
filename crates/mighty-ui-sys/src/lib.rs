@@ -1294,7 +1294,10 @@ fn render_vello_ui(ctx: &mut MuiContext, w: u32, h: u32) {
     // Render at the PHYSICAL target size (build_scene scales the logical scene up
     // to it). Borrow the renderer out so we can also borrow gpu/dl immutably.
     let (pw, ph) = (ctx.gpu.phys_width, ctx.gpu.phys_height);
-    let mut vp = ctx.vello_ui.take().unwrap();
+    let Some(mut vp) = ctx.vello_ui.take() else {
+        eprintln!("mui vello ui: renderer unavailable");
+        return;
+    };
     match &ctx.gpu.target {
         RenderTarget::Offscreen { view, .. } => {
             if let Err(e) =
@@ -1339,7 +1342,10 @@ fn render_vello_proof(ctx: &mut MuiContext, w: u32, h: u32) {
             }
         }
     }
-    let vp = ctx.vello_proof.as_mut().unwrap();
+    let Some(vp) = ctx.vello_proof.as_mut() else {
+        eprintln!("mui vello proof: renderer unavailable");
+        return;
+    };
 
     match &ctx.gpu.target {
         RenderTarget::Offscreen { view, .. } => {

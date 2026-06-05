@@ -13800,3 +13800,16 @@ rechecking the same count and unwrapping the value.
 - **Language note:** no compiler gap surfaced. When a layout helper returns an
   optional value, the draw path should branch on that value rather than on a
   separate condition that must remain equivalent.
+
+## L1091 - Renderer Laziness Should Fail Closed
+
+The Vello UI and proof renderers are lazy `Option` fields. After construction
+fails the frame should log and return; it should never rely on an immediate
+unwrap to prove the renderer exists.
+
+- **IDE note:** the Vello UI and proof render paths now guard renderer
+  availability explicitly, preventing a missing lazy renderer from panicking the
+  IDE frame loop.
+- **Language note:** no compiler gap surfaced. Lazy runtime resources should
+  keep their absence in the type path all the way to use sites, even when normal
+  construction is expected to succeed.
