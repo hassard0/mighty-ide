@@ -2627,7 +2627,10 @@ fn test_result_open_misses_report_visible_feedback() {
     assert_eq!(crate::testabi::mui_test_open_row(handle, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "Test result row has no file target");
+    assert_eq!(
+        toast.message,
+        "Test result row has no file target: test_addition"
+    );
     assert_eq!(crate::testabi::mui_test_click_tab(handle), -1);
 
     assert_eq!(crate::testabi::mui_test_open_row(handle, 99), 0);
@@ -2659,7 +2662,10 @@ fn test_result_open_misses_report_visible_feedback() {
     assert_eq!(ctx.quickopen.count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "Test result row has no file target");
+    assert_eq!(
+        toast.message,
+        "Test result row has no file target: test_rejects_empty"
+    );
     assert_eq!(crate::testabi::mui_test_click_tab(handle), -1);
 
     let _ = std::fs::remove_dir_all(root);

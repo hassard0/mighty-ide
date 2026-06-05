@@ -808,6 +808,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No test run to stop"
         || m == "No test result row selected"
         || m == "Test result row has no file target"
+        || m.starts_with("Test result row has no file target:")
         || m.starts_with("Test results ")
         || m.starts_with("Testing panel ")
         || m.starts_with("Test target missing")
@@ -1878,6 +1879,17 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Test run stopped");
+
+        q.push_at(
+            Kind::Info,
+            "Test result row has no file target: test_rejects_empty",
+            t0 + Duration::from_millis(375),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Test result row has no file target: test_rejects_empty"
+        );
 
         q.push_at(Kind::Error, "1 of 3 tests failed", t0 + Duration::from_millis(400));
         q.push_at(Kind::Success, "3 tests passed", t0 + Duration::from_millis(500));

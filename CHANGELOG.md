@@ -94,6 +94,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Debug Restart explains missing history**: restarting without a previous
   debug target now tells the user to start debug first and names the active
   context.
+- **Testing result target misses name the row**: clicking a result row with no
+  resolvable source location now includes the test name in the feedback.
 - **Copy file metadata names scratch buffers**: copy-path, copy-relative-path,
   copy-name, and copy-directory now identify `(scratch)` when the active tab has
   no file path.

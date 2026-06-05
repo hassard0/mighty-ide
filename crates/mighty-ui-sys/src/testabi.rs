@@ -533,13 +533,26 @@ pub extern "C" fn mui_test_open_row(handle: i64, i: i32) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, "No test result row selected");
         return 0;
     }
-    if ctx.tests_panel.row(i as usize).is_none() {
+    let Some(row) = ctx.tests_panel.row(i as usize) else {
         ctx.push_toast(crate::toast::Kind::Info, "No test result row selected");
         return 0;
+    };
+    let short = row.short_name.trim();
+    let full = row.full_name.trim();
+    let row_name = if !short.is_empty() {
+        short
+    } else if !full.is_empty() {
+        full
+    } else {
+        "row"
     }
+    .to_string();
     let Some((full, line, col)) = ctx.tests_panel.resolve_row_target(i as usize) else {
         crate::abi::refresh_workspace_file_views(ctx);
-        ctx.push_toast(crate::toast::Kind::Info, "Test result row has no file target");
+        ctx.push_toast(
+            crate::toast::Kind::Info,
+            format!("Test result row has no file target: {row_name}"),
+        );
         return 0;
     };
     if !full.exists() {

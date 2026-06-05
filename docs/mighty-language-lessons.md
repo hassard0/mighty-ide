@@ -12389,3 +12389,16 @@ explain the recovery action or identify the active editor context.
 - **Language note:** no compiler gap surfaced. Lifecycle actions that depend on
   prior session history should distinguish missing history from missing active
   source files.
+
+## L993 - Testing Row Target Misses Should Name The Test
+
+Testing result rows are user-facing test identities, but a click on a row whose
+source location could not be resolved reported only
+`Test result row has no file target`. That lost the specific test name even
+though the parsed result model already stored it.
+
+- **IDE note:** no-target Testing result rows now report
+  `Test result row has no file target: test_name`, and those messages remain in
+  the Testing toast replacement lane.
+- **Language note:** no compiler gap surfaced. Lazy source-resolution failures
+  should carry the selected row identity through the scalar click ABI.
