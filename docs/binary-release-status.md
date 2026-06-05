@@ -57,3 +57,24 @@ runners completed during the same pass, and stop.
 
 If the source tree changes after a package is built, rebuild the package before
 publishing it.
+
+## Final Response Fields
+
+The final handoff message for a Windows-hosted pass should contain exactly the
+platform evidence gathered during this pass:
+
+```text
+Source commit:
+Windows archive:
+Windows archive size:
+Windows SHA-256:
+Windows package checks:
+Windows packaged launch:
+macOS decision:
+Linux decision:
+```
+
+Use `publish` for Windows only after the PowerShell packager and launch pass.
+Use `unbuilt - native runner unavailable for this pass` for macOS or Linux when
+their native package scripts were not run on matching infrastructure. Do not
+continue feature work after reporting these fields.

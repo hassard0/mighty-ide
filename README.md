@@ -388,6 +388,21 @@ Current Windows-hosted finalization state:
 | macOS | `unbuilt` unless a macOS runner completed this pass | Native macOS runner must run `./package-macos.sh`, verify Mach-O payloads, scan the tarball, and launch the app bundle |
 | Linux x64 | `unbuilt` unless a Linux runner completed this pass | Native Linux runner must run `./package-linux.sh`, verify ELF payloads, scan the tarball, and launch from the package directory |
 
+Final release wording should be precise:
+
+- "Windows binary is clean" means the current committed tree was packaged by
+  `.\package-win.ps1`, the staged directory and ZIP scans passed, the native
+  payloads are PE files, `PACKAGE-MANIFEST.txt` was generated, and the packaged
+  executable launched from `dist\mighty-ide-win64`.
+- "macOS binary is clean" means the same source commit was packaged on macOS,
+  the payloads are Mach-O files, the tarball scans passed, the manifest was
+  generated, and the app bundle launched on macOS.
+- "Linux binary is clean" means the same source commit was packaged on Linux,
+  the payloads are ELF files, the tarball scans passed, the manifest was
+  generated, and the packaged executable launched on Linux.
+- If this pass has no macOS or Linux runner, those platform decisions are
+  `unbuilt`, not `publish` or `hold`.
+
 Stop-pass checklist:
 
 1. Commit README, changelog, and release documentation first.

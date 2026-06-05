@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Release packaging
+- **Final handoff fields are explicit**: README and release docs now specify
+  the exact final response fields for a Windows-hosted stop pass: source commit,
+  Windows archive size and SHA-256, package checks, packaged launch, and
+  explicit macOS/Linux `unbuilt` decisions when native runners are unavailable.
 - **Windows Bash package docs match the canonical package**: `package-win.sh`
   now bundles `docs/release-evidence.md` and
   `docs/binary-release-status.md`, matching the PowerShell, macOS, and Linux

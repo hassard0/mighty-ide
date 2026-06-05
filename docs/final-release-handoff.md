@@ -87,6 +87,10 @@ After the README, changelog, and release docs are committed, rebuild the
 Windows package from that clean commit, record the Windows archive hash and
 size, confirm the packaged Windows executable launched from
 `dist\mighty-ide-win64`, and stop.
+The final package must be generated after the documentation commit that defines
+this handoff. If any source file changes after the package is generated, the
+artifact no longer matches the source handoff and must be rebuilt before it is
+published.
 Use `docs\release-evidence.md` as the concise upload record.
 Use `docs\binary-release-status.md` as the bundled clean-binary status summary.
 Record macOS and Linux as `unbuilt` unless their native package runs completed
