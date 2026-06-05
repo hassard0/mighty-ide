@@ -5629,6 +5629,39 @@ fn reload_active_file_refreshes_clean_duplicate_tabs() {
 }
 
 #[test]
+fn reload_missing_file_refreshes_workspace_indexes() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_reload_missing_refreshes_indexes_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("gone.mty");
+    std::fs::write(&path, "old").unwrap();
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    let active = ctx.tabs.open_path(path.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
+
+    std::fs::remove_file(&path).unwrap();
+    assert_eq!(crate::mui_tab_reload_active(handle), -1);
+    assert_eq!(ctx.tabs.active(), active);
+    assert_eq!(ctx.tree.count(), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Reload failed: gone.mty"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn revert_active_file_discards_dirty_buffer_from_disk() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_revert_file_{}", std::process::id()));

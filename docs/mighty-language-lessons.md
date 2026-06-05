@@ -11005,3 +11005,16 @@ leave the same stale row selected.
 - **Language note:** no compiler gap surfaced. Overlay pickers backed by mutable
   external state should refresh their captured rows when the accepted action
   proves the row stale.
+
+## L892 - Reload Misses Should Refresh Workspace Indexes
+
+Reload and revert operate on active file-backed tabs. If the backing file was
+deleted before reload, keeping Explorer and Quick Open unchanged leaves the
+deleted file discoverable immediately after the failed command.
+
+- **IDE note:** failed reload/revert reads now refresh Explorer, rebuild the
+  Quick Open file index, and refresh visible Quick Open rows before showing the
+  failure toast.
+- **Language note:** no compiler gap surfaced. File lifecycle commands should
+  repair adjacent workspace indexes when disk reads prove a tracked file path is
+  stale.
