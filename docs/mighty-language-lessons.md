@@ -11754,3 +11754,20 @@ palette.
 - **Language note:** no compiler gap surfaced. Platform capability failures
   should still carry the selected target; "unavailable" explains the host
   limitation, but it should not erase the user's command context.
+
+## L949 - Terminal Startup Failures Should Preserve The Spawn Reason
+
+Terminal startup failures named the attempted shell, but the underlying spawn
+error was only written to logs. If the shell path exists but cannot launch, or
+the host rejects the process creation, the visible toast needs that reason
+without making the user go hunting through trace output.
+
+- **IDE note:** terminal-open failures now append the spawn error to the shell
+  name (`Terminal failed to open: missing-shell.exe: process spawn denied`), and
+  the forced-failure test hook can supply a deterministic reason for ABI
+  coverage. Terminal toast replacement continues to group detailed failure
+  messages under the terminal operation family.
+- **Language note:** no compiler gap surfaced. Process-spawning UI commands
+  should carry both the attempted command and the host failure reason in visible
+  feedback, matching the external-tool failure contract used by Run, Debug,
+  Format, and Fix All.

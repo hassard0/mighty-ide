@@ -7310,13 +7310,23 @@ pub(crate) fn terminal_header_clear_rect(ctx: &MuiContext) -> (f32, f32, f32, f3
     (x.max(layout::term_panel_left(region) + 86.0), y, size, size)
 }
 
-fn terminal_open_failed_message(shell: &str) -> String {
+fn terminal_open_failed_message(shell: &str, reason: Option<&str>) -> String {
     let shell = shell.trim();
-    if shell.is_empty() {
-        "Terminal failed to open".to_string()
-    } else {
-        format!("Terminal failed to open: {shell}")
+    let reason = reason.map(str::trim).filter(|s| !s.is_empty());
+    match (shell.is_empty(), reason) {
+        (true, None) => "Terminal failed to open".to_string(),
+        (true, Some(reason)) => format!("Terminal failed to open: {reason}"),
+        (false, None) => format!("Terminal failed to open: {shell}"),
+        (false, Some(reason)) => format!("Terminal failed to open: {shell}: {reason}"),
     }
+}
+
+#[cfg(test)]
+fn terminal_open_forced_failure_reason() -> String {
+    std::env::var("MUI_TERM_FORCE_OPEN_FAIL_REASON")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "spawn failed".to_string())
 }
 
 fn term_wants_mouse_motion_at(ctx: &MuiContext, x: f32, y: f32) -> bool {
@@ -7351,9 +7361,10 @@ pub extern "C" fn mui_term_open(handle: i64) -> i32 {
         let shell = shell
             .into_string()
             .unwrap_or_else(|_| crate::terminal::default_shell_display_name());
+        let reason = terminal_open_forced_failure_reason();
         ctx.push_toast(
             crate::toast::Kind::Error,
-            terminal_open_failed_message(&shell),
+            terminal_open_failed_message(&shell, Some(&reason)),
         );
         trace("term_open forced failure");
         return 0;
@@ -7368,9 +7379,10 @@ pub extern "C" fn mui_term_open(handle: i64) -> i32 {
             }
             Err(e) => {
                 eprintln!("mui_term_open: {e}");
+                let reason = e.to_string();
                 ctx.push_toast(
                     crate::toast::Kind::Error,
-                    terminal_open_failed_message(&shell),
+                    terminal_open_failed_message(&shell, Some(&reason)),
                 );
                 trace(&format!("term_open failed: {e}"));
                 return 0;

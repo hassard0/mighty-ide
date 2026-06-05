@@ -2866,14 +2866,19 @@ fn terminal_open_failure_reports_visible_feedback() {
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     std::env::set_var("MUI_TERM_FORCE_OPEN_FAIL", "missing-shell.exe");
+    let _fail_env = EnvRemoveGuard("MUI_TERM_FORCE_OPEN_FAIL");
+    std::env::set_var("MUI_TERM_FORCE_OPEN_FAIL_REASON", "process spawn denied");
+    let _reason_env = EnvRemoveGuard("MUI_TERM_FORCE_OPEN_FAIL_REASON");
     assert_eq!(crate::abi::mui_term_open(handle), 0);
-    std::env::remove_var("MUI_TERM_FORCE_OPEN_FAIL");
 
     assert!(!ctx.term_open);
     assert!(ctx.terminal.is_none());
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert_eq!(toast.message, "Terminal failed to open: missing-shell.exe");
+    assert_eq!(
+        toast.message,
+        "Terminal failed to open: missing-shell.exe: process spawn denied"
+    );
 }
 
 #[test]
