@@ -12619,3 +12619,18 @@ so command-routed saves could look inert inside the editor.
 - **Language note:** no compiler gap surfaced. Disk-write preflights should
   surface the same target and reason vocabulary as filesystem errors because the
   user sees both as save failures.
+
+## L1009 - Staged Load Errors Should Match Editor Load Feedback
+
+The scalar load ABI clears its load buffer and returns `-1` when a configured
+file path cannot be read, but it only logged that read failure to stderr. That
+made initial-load and command-routed reload failures less visible than the newer
+editor-load path.
+
+- **IDE note:** configured-path `mui_load` read failures now report
+  `Load failed: <file>: <reason>` while preserving the existing quiet no-path
+  scratch behavior. The message shares the Tab toast replacement lane with
+  reload and revert feedback.
+- **Language note:** no compiler gap surfaced. Legacy scalar ABI paths should
+  use the same user-visible failure vocabulary as newer editor-owned commands
+  when they touch the same file resource.

@@ -3248,6 +3248,10 @@ pub extern "C" fn mui_load(handle: i64) -> i64 {
         Err(e) => {
             eprintln!("mui_load({}): {e}", path.display());
             ctx.load_buf.clear();
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_operation_failed_message("Load", &path, &e),
+            );
             -1
         }
     }

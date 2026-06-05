@@ -743,6 +743,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Review ")
         || m.starts_with("Reloaded ")
         || m.starts_with("Reverted ")
+        || m.starts_with("Load failed:")
         || m.starts_with("Reload failed:")
         || m.starts_with("Revert failed:")
         || m == "Sorted tabs by name"
@@ -1375,6 +1376,15 @@ mod tests {
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Reverted main.mty");
         assert!(!q.toasts().iter().any(|t| t.message == "Reloaded main.mty"));
+
+        q.push_at(
+            Kind::Error,
+            "Load failed: main.mty: The system cannot find the file specified. (os error 2)",
+            t0 + Duration::from_millis(2450),
+        );
+        assert_eq!(q.len(), 3);
+        assert!(q.toasts()[2].message.starts_with("Load failed: main.mty"));
+        assert!(!q.toasts().iter().any(|t| t.message == "Reverted main.mty"));
 
         q.push_at(
             Kind::Error,

@@ -60,6 +60,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   instead of silently doing nothing
 - Staged save failures report visible feedback for scratch targets and dirty
   open tabs instead of only logging to stderr
+- Staged load failures report `Load failed: <file>: <reason>` instead of only
+  logging configured-path read errors
 - Empty explicit code-action requests name the active file or scratch buffer
   and cursor position, so no-quick-fix feedback points to the queried site
 - Applying code actions with no active quick-fix menu reports
