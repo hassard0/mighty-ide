@@ -970,6 +970,7 @@ pub extern "C" fn mui_agents_open_node(handle: i64, i: i32) -> i32 {
             .clone()
             .unwrap_or_else(|| crate::wsabi::effective_root(ctx));
         let _ = ctx.agents.refresh(&root);
+        crate::abi::refresh_workspace_file_views(ctx);
         ctx.push_toast(crate::toast::Kind::Warn, format!("Agents target missing: {name}"));
         return -1;
     }

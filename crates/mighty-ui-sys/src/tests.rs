@@ -2373,9 +2373,17 @@ fn agents_close_command_acknowledges_state_without_clearing_panel_data() {
 fn agents_open_node_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
-    let missing = std::env::temp_dir()
-        .join(format!("mui_agents_missing_{}", std::process::id()))
-        .join("agent.mty");
+    let root = std::env::temp_dir().join(format!("mui_agents_missing_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let missing = root.join("agent.mty");
+    std::fs::write(&missing, "agent Worker {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
     let model = crate::agents::scan_file(&missing, "agent Worker {}\n");
     ctx.agents.set_model(model);
     ctx.agents
@@ -2392,11 +2400,16 @@ fn agents_open_node_misses_report_visible_feedback() {
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Agents node has no file target");
 
+    std::fs::remove_file(&missing).unwrap();
     assert_eq!(crate::agentsabi::mui_agents_open_node(handle, 1), -1);
+    assert_eq!(ctx.tree.count(), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Agents target missing: agent.mty");
     assert_eq!(crate::agentsabi::mui_agents_count(handle), 0);
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]

@@ -11188,3 +11188,15 @@ the removed target.
   backing index, and visible Quick Open rows when the target file is missing.
 - **Language note:** no compiler gap surfaced. Resolved navigation targets
   should clean up shared file indexes when the target path no longer exists.
+
+## L907 - Stale Agent Nodes Should Refresh File Views
+
+The Agents topology can retain a node target after its source file has been
+deleted outside the IDE. Opening that node refreshed the topology and showed a
+warning, but shared file discovery surfaces could keep rendering the missing
+source.
+
+- **IDE note:** stale Agents node opens now refresh Explorer, Quick Open's
+  backing index, and visible Quick Open rows when the target file is missing.
+- **Language note:** no compiler gap surfaced. Tooling-derived navigation
+  surfaces should update shared file indexes when their source targets vanish.
