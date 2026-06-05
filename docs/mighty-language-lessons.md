@@ -13249,3 +13249,17 @@ the debug model.
 - **Language note:** no compiler gap surfaced. Debug UI state should treat
   breakpoint locations as cached navigation data until disk state confirms the
   target is still a source file.
+
+## L1051 - Explorer File Rows Need Non-File Feedback
+
+Explorer file rows are cached from the last tree refresh. A file row can become
+a directory before the user opens it, and treating that case as "missing" hides
+what actually changed on disk.
+
+- **IDE note:** Explorer row activation now classifies cached file targets with
+  one metadata read before opening. Missing targets still refresh workspace file
+  views and report `Explorer target missing: <name>`; directory-backed or other
+  non-file targets now report `Explorer target is not a file: <name>`.
+- **Language note:** no compiler gap surfaced. Even primary navigation surfaces
+  like Explorer should validate cached row kind against current filesystem
+  state before turning a row into a tab.

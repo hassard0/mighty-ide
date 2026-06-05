@@ -7534,6 +7534,36 @@ pub extern "C" fn mui_tree_row_at_click(handle: i64) -> i32 {
     }
 }
 
+enum ExplorerTargetKind {
+    File,
+    Missing,
+    NotFile,
+}
+
+fn explorer_target_kind(path: &std::path::Path) -> ExplorerTargetKind {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => ExplorerTargetKind::File,
+        Ok(_) => ExplorerTargetKind::NotFile,
+        Err(_) => ExplorerTargetKind::Missing,
+    }
+}
+
+fn reject_bad_explorer_target(
+    ctx: &mut MuiContext,
+    path: &std::path::Path,
+    kind: ExplorerTargetKind,
+) -> i32 {
+    let name = file_target_name(path);
+    refresh_workspace_file_views(ctx);
+    let message = match kind {
+        ExplorerTargetKind::Missing => format!("Explorer target missing: {name}"),
+        ExplorerTargetKind::NotFile => format!("Explorer target is not a file: {name}"),
+        ExplorerTargetKind::File => return -1,
+    };
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+    -1
+}
+
 /// Open the file at tree row `i` as a tab, or toggle a directory row. Returns
 /// the resulting tab index, or -1 when no tab was opened.
 #[no_mangle]
@@ -7554,14 +7584,11 @@ pub extern "C" fn mui_tree_open_row(handle: i64, i: i32) -> i32 {
         return -1;
     }
     let path = row.path.clone();
-    if !path.is_file() {
-        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
-        refresh_workspace_file_views(ctx);
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
-            format!("Explorer target missing: {name}"),
-        );
-        return -1;
+    match explorer_target_kind(&path) {
+        ExplorerTargetKind::File => {}
+        kind @ (ExplorerTargetKind::Missing | ExplorerTargetKind::NotFile) => {
+            return reject_bad_explorer_target(ctx, &path, kind);
+        }
     }
     let idx = ctx.tabs.open_path(path.clone());
     sync_active_path(ctx);
