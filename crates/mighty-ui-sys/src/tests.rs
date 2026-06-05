@@ -2777,12 +2777,35 @@ fn run_close_command_acknowledges_state_without_clearing_output() {
         ctx.toasts.toasts().last().unwrap().message,
         "Run panel is already closed"
     );
+
+    assert_eq!(crate::featureabi::mui_run_click_row(h, 2), 0);
+    assert_eq!(crate::featureabi::mui_run_click_tab(h), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Run panel is already closed"
+    );
+
+    assert_eq!(crate::featureabi::mui_run_row_at_click(h), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Run panel is already closed"
+    );
+
+    assert_eq!(
+        crate::featureabi::mui_run_header_action_at_click(h),
+        crate::featureabi::RUN_HEADER_CLICK_NONE
+    );
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Run panel is already closed"
+    );
 }
 
 #[test]
 fn run_output_click_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    ctx.run.open();
 
     assert_eq!(crate::featureabi::mui_run_click_row(h, -1), 0);
     let toast = ctx.toasts.toasts().last().unwrap();

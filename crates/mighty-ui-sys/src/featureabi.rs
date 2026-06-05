@@ -290,7 +290,7 @@ pub extern "C" fn mui_run_close(handle: i64) -> i32 {
         crate::abi::trace("run_close");
         return 1;
     }
-    ctx.push_toast(crate::toast::Kind::Info, "Run panel is already closed");
+    report_run_closed(ctx);
     crate::abi::trace("run_close noop");
     0
 }
@@ -299,6 +299,10 @@ pub extern "C" fn mui_run_close(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_run_active(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.run.is_active()))
+}
+
+fn report_run_closed(ctx: &mut crate::MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Info, "Run panel is already closed");
 }
 
 /// `1` while the process is still running, else `0`.
@@ -378,6 +382,7 @@ pub extern "C" fn mui_run_row_at_click(handle: i64) -> i32 {
         return -1;
     };
     if !ctx.run.is_active() {
+        report_run_closed(ctx);
         return -1;
     }
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
@@ -407,6 +412,7 @@ pub extern "C" fn mui_run_header_action_at_click(handle: i64) -> i32 {
         return RUN_HEADER_CLICK_NONE;
     };
     if !ctx.run.is_active() {
+        report_run_closed(ctx);
         return RUN_HEADER_CLICK_NONE;
     }
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
@@ -430,6 +436,10 @@ pub extern "C" fn mui_run_click_row(handle: i64, i: i32) -> i32 {
         return 0;
     };
     ctx.run.set_click_target(None);
+    if !ctx.run.is_active() {
+        report_run_closed(ctx);
+        return 0;
+    }
     if i < 0 {
         ctx.push_toast(crate::toast::Kind::Info, "No run output row selected");
         return 0;

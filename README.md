@@ -175,6 +175,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 
 ### Run · Test · Debug
 - Run panel (Ctrl+Shift+R) — background `mty run` with streamed output + clickable diagnostics
+- Run output stale header and row click routes report when the panel has already
+  closed and cannot activate retained hidden output
 - Stale Run output diagnostic rows keep naming the missing source file on
   repeated clicks after the row has been demoted
 - Run output jumps reject directory targets from stale tool output instead of
