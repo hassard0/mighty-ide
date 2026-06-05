@@ -5109,6 +5109,42 @@ fn save_all_refreshes_clean_duplicate_tabs_after_save() {
 }
 
 #[test]
+fn save_all_republishes_resurrected_file_to_quickopen() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_all_resurrects_file_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("restore-all.mty");
+    std::fs::write(&path, "saved\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let idx = ctx.tabs.open_path(path.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("save all text\n");
+    ctx.tabs.set_dirty(idx, true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_quickopen_open(h);
+    assert_eq!(ctx.quickopen.count(), 1);
+    std::fs::remove_file(&path).unwrap();
+    assert_eq!(crate::mui_quickopen_reindex(h), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
+
+    assert_eq!(crate::mui_save_all(h), 1);
+    assert!(!ctx.tabs.is_dirty(idx));
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "save all text\n");
+    assert_eq!(ctx.quickopen.recent_paths(), vec![path.clone()]);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "restore-all.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn close_saved_tabs_preserves_dirty_buffers_and_reports_count() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_close_saved_{}", std::process::id()));
@@ -12211,6 +12247,44 @@ fn plain_save_refreshes_clean_duplicate_tab() {
     assert_eq!(ctx.tabs.active_model().as_text(), "active saved\n");
     assert_eq!(ctx.tabs.get(duplicate).unwrap().model.as_text(), "active saved\n");
     assert!(!ctx.tabs.is_dirty(duplicate));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn plain_save_republishes_resurrected_file_to_quickopen() {
+    use crate::{mui_ed_dirty, mui_ed_save};
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_plain_save_resurrects_file_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("restored.mty");
+    std::fs::write(&path, "saved\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let active = ctx.tabs.open_path(path.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("restored text\n");
+    ctx.tabs.set_dirty(active, true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_quickopen_open(h);
+    assert_eq!(ctx.quickopen.count(), 1);
+    std::fs::remove_file(&path).unwrap();
+    assert_eq!(crate::mui_quickopen_reindex(h), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
+
+    assert_eq!(mui_ed_save(h), 0);
+    assert_eq!(mui_ed_dirty(h), 0);
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "restored text\n");
+    assert_eq!(ctx.quickopen.recent_paths(), vec![path.clone()]);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "restored.mty");
 
     let _ = std::fs::remove_dir_all(&root);
 }

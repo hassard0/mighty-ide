@@ -11041,3 +11041,16 @@ Open's file index and any currently visible rows unaware of the new saved file.
   Open reindexing also refreshes visible file rows.
 - **Language note:** no compiler gap surfaced. Any command that materializes a
   new workspace path should publish that path to all file discovery surfaces.
+
+## L895 - Saving Restored Files Should Republish Discovery State
+
+When a file-backed dirty tab points at a file that was deleted externally, Save
+and Save All recreate the file path. Treating that as an ordinary write keeps
+Explorer and Quick Open stuck on the missing-file view until a manual refresh.
+
+- **IDE note:** file-backed Save and Save All now detect resurrected paths and
+  record/reindex/refresh discovery views only when the target was missing before
+  the write.
+- **Language note:** no compiler gap surfaced. File writes that restore missing
+  workspace paths should follow the same discovery publication rules as file
+  creation.

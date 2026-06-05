@@ -11915,6 +11915,7 @@ fn save_active_current_path(ctx: &mut MuiContext) -> i32 {
     }
     let bytes = save_bytes_for_active(ctx);
     let name = basename(&path);
+    let resurrected_path = !path.is_file();
     match std::fs::write(&path, &bytes) {
         Ok(()) => {
             mark_active_clean(ctx);
@@ -11923,6 +11924,10 @@ fn save_active_current_path(ctx: &mut MuiContext) -> i32 {
                 .tabs
                 .reload_all_clean_path_except(&path, &bytes, active);
             ctx.autosave.disarm();
+            if resurrected_path {
+                record_recent_file(ctx, path.clone());
+                refresh_workspace_file_views(ctx);
+            }
             println!("mui_ed_save: {} ({} bytes)", path.display(), bytes.len());
             ctx.push_toast(crate::toast::Kind::Success, format!("Saved {name}"));
             0
@@ -12083,11 +12088,16 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
         }
         if let Some(path) = tab.path.clone() {
             let bytes = save_bytes_for_tab(tab);
+            let resurrected_path = !path.is_file();
             match std::fs::write(&path, &bytes) {
                 Ok(()) => {
                     tab.dirty = false;
                     tab.model.mark_clean();
                     let _ = ctx.tabs.reload_all_clean_path_except(&path, &bytes, idx);
+                    if resurrected_path {
+                        record_recent_file(ctx, path.clone());
+                        refresh_workspace_file_views(ctx);
+                    }
                     saved += 1;
                 }
                 Err(e) => {
