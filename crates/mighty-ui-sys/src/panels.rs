@@ -1460,6 +1460,10 @@ fn draw_branch_picker(p: &crate::scm::BranchPicker, ctx: &mut MuiContext, width:
 #[no_mangle]
 pub extern "C" fn mui_search_push_char(handle: i64, codepoint: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !search_panel_visible(ctx) {
+            report_search_closed(ctx);
+            return;
+        }
         if codepoint >= 0 {
             ctx.search.push_char(codepoint as u32);
         }
@@ -1470,6 +1474,10 @@ pub extern "C" fn mui_search_push_char(handle: i64, codepoint: i32) {
 #[no_mangle]
 pub extern "C" fn mui_search_backspace(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !search_panel_visible(ctx) {
+            report_search_closed(ctx);
+            return;
+        }
         ctx.search.backspace();
     }
 }
@@ -1481,6 +1489,10 @@ pub extern "C" fn mui_search_toggle_focus(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !search_panel_visible(ctx) {
+        report_search_closed(ctx);
+        return 0;
+    }
     ctx.search.replace_focus = !ctx.search.replace_focus;
     if ctx.search.replace_focus {
         1
@@ -1519,6 +1531,14 @@ pub extern "C" fn mui_search_close(handle: i64) -> i32 {
     0
 }
 
+fn search_panel_visible(ctx: &MuiContext) -> bool {
+    ctx.sidebar_visible && ctx.active_panel == crate::PANEL_SEARCH
+}
+
+fn report_search_closed(ctx: &mut MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Info, "Search panel is already closed");
+}
+
 /// Clear Search results without changing query, replacement text, or focus.
 /// Returns `1` when results were cleared, or `0` when they were already empty.
 #[no_mangle]
@@ -1542,6 +1562,10 @@ pub extern "C" fn mui_search_run(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !search_panel_visible(ctx) {
+        report_search_closed(ctx);
+        return 0;
+    }
     let dir = workspace_dir(ctx);
     let query = ctx.search.query_string();
     let n = ctx.search.run(&dir);
@@ -1573,6 +1597,10 @@ pub extern "C" fn mui_search_replace_all(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !search_panel_visible(ctx) {
+        report_search_closed(ctx);
+        return 0;
+    }
     let query = ctx.search.query_string();
     if query.trim().is_empty() {
         ctx.search.clear_results();
@@ -1714,6 +1742,10 @@ pub extern "C" fn mui_search_open(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !search_panel_visible(ctx) {
+        report_search_closed(ctx);
+        return -1;
+    }
     if i < 0 {
         ctx.push_toast(crate::toast::Kind::Info, "No search result selected");
         return -1;
@@ -1848,13 +1880,13 @@ pub extern "C" fn mui_search_action_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !search_panel_visible(ctx) {
+        report_search_closed(ctx);
+        return 0;
+    }
     let sx = layout::RAIL_W;
     let sw = layout::sidebar_w();
-    if !ctx.sidebar_visible
-        || ctx.active_panel != crate::PANEL_SEARCH
-        || ctx.last_event.x < sx
-        || ctx.last_event.x > sx + sw
-    {
+    if ctx.last_event.x < sx || ctx.last_event.x > sx + sw {
         return 0;
     }
 
@@ -1907,6 +1939,10 @@ pub extern "C" fn mui_search_row_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !search_panel_visible(ctx) {
+        report_search_closed(ctx);
+        return -1;
+    }
     let sx0 = layout::RAIL_W;
     let sx1 = layout::sidebar_right();
     if !ctx.sidebar_visible || ctx.last_event.x < sx0 || ctx.last_event.x > sx1 {

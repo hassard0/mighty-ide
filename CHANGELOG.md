@@ -99,6 +99,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Mighty Agents stale routes are visible**: Agents header hit, topology-row
   hit, scroll, and node-open routes now report when the panel has already
   closed and cannot activate retained hidden topology.
+- **Search stale routes are visible**: Search input, focus toggles, run/replace,
+  click hit-testing, row-hit, and row-open routes now report when the panel has
+  already closed and cannot mutate retained hidden results.
 - **Source Control stale routes are visible**: Source Control header,
   message-clear, stage, and row-open routes now report when the panel has
   already closed and cannot activate retained hidden status or commit text.

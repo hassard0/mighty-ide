@@ -4475,6 +4475,66 @@ fn search_close_command_acknowledges_state_without_clearing_query_or_results() {
         ctx.toasts.toasts().last().unwrap().message,
         "Search panel is already closed"
     );
+
+    crate::panels::mui_search_push_char(h, 'x' as i32);
+    assert_eq!(ctx.search.query_string(), "needle");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Search panel is already closed"
+    );
+
+    crate::panels::mui_search_backspace(h);
+    assert_eq!(ctx.search.query_string(), "needle");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Search panel is already closed"
+    );
+
+    assert!(!ctx.search.replace_focus);
+    assert_eq!(crate::panels::mui_search_toggle_focus(h), 0);
+    assert!(!ctx.search.replace_focus);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Search panel is already closed"
+    );
+
+    assert_eq!(crate::panels::mui_search_run(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Search panel is already closed"
+    );
+
+    assert_eq!(crate::panels::mui_search_replace_all(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Search panel is already closed"
+    );
+
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        0,
+        crate::layout::RAIL_W + 24.0,
+        24.0,
+        0,
+    );
+    assert_eq!(crate::panels::mui_search_action_at_click(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Search panel is already closed"
+    );
+
+    assert_eq!(crate::panels::mui_search_row_at_click(h), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Search panel is already closed"
+    );
+
+    assert_eq!(crate::panels::mui_search_open(h, 0), -1);
+    assert_eq!(ctx.tabs.count(), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Search panel is already closed"
+    );
 }
 
 #[test]

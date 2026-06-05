@@ -105,6 +105,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Project-wide Search panel (Ctrl+Shift+F), with stale directory targets
   rejected before opening a tab and Replace All reporting dirty, changed,
   missing, or failed-write files instead of silently skipping them
+- Search closed-panel input, focus, run/replace, click, row-hit, and row-open
+  routes report that the panel is already closed instead of mutating retained
+  hidden results
 
 ### Language Intelligence
 - Hover info (Ctrl+K), autocomplete (Ctrl+Space — semantic LSP completions + buffer words)
