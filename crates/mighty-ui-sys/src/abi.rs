@@ -8064,6 +8064,10 @@ fn term_grid_contains_point(ctx: &MuiContext, x: f32, y: f32) -> bool {
     if !ctx.term_open || ctx.terminal.is_none() {
         return false;
     }
+    term_grid_geometry_contains_point(ctx, x, y)
+}
+
+fn term_grid_geometry_contains_point(ctx: &MuiContext, x: f32, y: f32) -> bool {
     let region = layout::region(ctx.sidebar_visible);
     let (width, height) = visible_surface_size(ctx);
     let left = layout::term_panel_left(region) + layout::PAD;
@@ -8411,6 +8415,12 @@ pub extern "C" fn mui_term_mouse_button(handle: i64, pressed: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !ctx.term_open || ctx.terminal.is_none() {
+        if term_grid_geometry_contains_point(ctx, ctx.last_event.x, ctx.last_event.y) {
+            report_terminal_not_open(ctx);
+        }
+        return 0;
+    }
     if !term_grid_contains_event(ctx) {
         if pressed == 0 {
             if let Some(t) = ctx.terminal.as_mut() {
@@ -8436,6 +8446,12 @@ pub extern "C" fn mui_term_mouse_move(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !ctx.term_open || ctx.terminal.is_none() {
+        if term_grid_geometry_contains_point(ctx, ctx.last_event.x, ctx.last_event.y) {
+            report_terminal_not_open(ctx);
+        }
+        return 0;
+    }
     if !term_grid_contains_event(ctx) {
         return 0;
     }
@@ -8453,6 +8469,10 @@ pub extern "C" fn mui_term_mouse_move(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_term_focus(handle: i64, focused: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.term_open || ctx.terminal.is_none() {
+            report_terminal_not_open(ctx);
+            return;
+        }
         if let Some(t) = ctx.terminal.as_mut() {
             t.set_focus(focused != 0);
         }

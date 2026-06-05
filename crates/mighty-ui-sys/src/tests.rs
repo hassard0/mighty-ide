@@ -3918,6 +3918,10 @@ fn terminal_paste_acknowledges_closed_state_without_requiring_pty_spawn() {
 #[test]
 fn terminal_input_acknowledges_closed_state_without_requiring_pty_spawn() {
     let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    ctx.gpu.phys_width = 900;
+    ctx.gpu.phys_height = 700;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     crate::abi::mui_term_key(handle, crate::ffi::MUI_KEY_ENTER as i32, 0);
@@ -3940,12 +3944,43 @@ fn terminal_input_acknowledges_closed_state_without_requiring_pty_spawn() {
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Terminal is not open");
 
+    crate::abi::mui_term_focus(handle, 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Terminal is not open");
+
+    let visible_h = crate::layout::visible_height(ctx.gpu.height, ctx.gpu.phys_height);
+    ctx.last_event = MuiEvent::mouse(
+        crate::ffi::MUI_EVENT_MOUSE_DOWN,
+        crate::ffi::MUI_MOUSE_LEFT,
+        crate::layout::term_panel_left(crate::layout::region(ctx.sidebar_visible)) + 40.0,
+        crate::layout::term_panel_top(visible_h) + crate::layout::term_header_h() + 8.0,
+        0,
+    );
+    assert_eq!(crate::abi::mui_term_mouse_button(handle, 1), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Terminal is not open");
+
+    ctx.last_event = MuiEvent::mouse_move(
+        crate::layout::term_panel_left(crate::layout::region(ctx.sidebar_visible)) + 42.0,
+        crate::layout::term_panel_top(visible_h) + crate::layout::term_header_h() + 10.0,
+        0,
+    );
+    assert_eq!(crate::abi::mui_term_mouse_move(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Terminal is not open");
+
     let before = ctx.toasts.toasts().len();
     crate::abi::mui_term_key(handle, -1, 0);
     crate::abi::mui_term_send_codepoint(handle, -1, 0);
     crate::abi::mui_term_send_byte(handle, -1);
     crate::abi::mui_term_send_byte(handle, 256);
     crate::abi::mui_term_scroll(handle, 0);
+    ctx.last_event = MuiEvent::mouse_move(20.0, 20.0, 0);
+    assert_eq!(crate::abi::mui_term_mouse_button(handle, 1), 0);
+    assert_eq!(crate::abi::mui_term_mouse_move(handle), 0);
     assert_eq!(ctx.toasts.toasts().len(), before);
 }
 
