@@ -65,6 +65,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Quick Open command misses stay editable**: pressing Enter in `>` command
   mode with no matching command now reports `No command selected` and leaves
   Quick Open open for correction.
+- **Quick Open stale symbols are explicit**: accepting a vanished `@` symbol row
+  now reports `Symbol row no longer listed`, while empty symbol accepts still
+  report `No symbol selected`.
 - **Go to Line invalid input stays editable**: blank or non-numeric Ctrl+G
   submissions now report `Enter a line number` and leave the prompt open instead
   of dismissing the input with no navigation.

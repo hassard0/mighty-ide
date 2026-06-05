@@ -12486,3 +12486,17 @@ refresh clears stale nodes, a repeated non-negative click used the same
 - **Language note:** no compiler gap surfaced. Topology views should distinguish
   stale graph snapshots from absent user selections before clearing navigation
   click targets.
+
+## L1000 - Quick Open Symbol Misses Should Name Stale Rows
+
+Quick Open `@` symbol rows are built from the current Outline snapshot. If that
+snapshot is cleared after the rows are built, accepting a still-visible symbol
+row used the same `No symbol selected` feedback as an empty/no-selection accept.
+
+- **IDE note:** accepting a non-negative symbol row whose Quick Open row or
+  backing Outline symbol no longer exists now reports
+  `Symbol row no longer listed`. Negative accepts in symbol mode still report
+  `No symbol selected`.
+- **Language note:** no compiler gap surfaced. Provider-backed fuzzy pickers
+  should distinguish empty selections from stale provider snapshots after row
+  construction.

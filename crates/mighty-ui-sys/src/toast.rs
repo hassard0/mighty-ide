@@ -929,6 +929,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No Quick Open panel open"
         || m.starts_with("Explorer target missing")
         || m.starts_with("Quick Open target missing")
+        || m == "No symbol selected"
+        || m == "Symbol row no longer listed"
         || m == "No breadcrumb row selected"
         || m == "Breadcrumb file no longer listed"
         || m == "Breadcrumb symbol unavailable"

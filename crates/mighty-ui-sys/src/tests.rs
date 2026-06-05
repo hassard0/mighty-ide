@@ -13715,6 +13715,40 @@ fn quickopen_command_accept_misses_report_feedback_and_stay_open() {
 }
 
 #[test]
+fn quickopen_symbol_accept_misses_report_feedback_and_stay_open() {
+    use crate::{mui_qo_accept, mui_qo_active, mui_qo_count, mui_qo_push_char, mui_quickopen_open};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.outline.refresh("fn alpha() {}\nfn beta() {}\n", "");
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_quickopen_open(h);
+    mui_qo_push_char(h, '@' as i32);
+    assert_eq!(mui_qo_count(h), 2);
+
+    assert_eq!(mui_qo_accept(h, -1), 0);
+    assert_eq!(mui_qo_active(h), 0);
+
+    mui_quickopen_open(h);
+    mui_qo_push_char(h, '@' as i32);
+    assert_eq!(mui_qo_count(h), 2);
+    assert!(ctx.outline.clear_symbols());
+    assert_eq!(mui_qo_accept(h, 0), -1);
+    assert_eq!(mui_qo_active(h), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Symbol row no longer listed");
+
+    mui_quickopen_open(h);
+    mui_qo_push_char(h, '@' as i32);
+    assert_eq!(mui_qo_count(h), 0);
+    assert_eq!(mui_qo_accept(h, -1), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No symbol selected");
+}
+
+#[test]
 fn welcome_open_recent_misses_report_visible_feedback() {
     use crate::{mui_welcome_active, mui_welcome_draw, mui_welcome_open_recent};
 

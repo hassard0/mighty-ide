@@ -9665,13 +9665,18 @@ pub extern "C" fn mui_qo_accept(handle: i64, i: i32) -> i32 {
         crate::quickopen::Mode::Symbols => {
             let sym = ctx.quickopen.accept_symbol(i);
             if sym < 0 {
-                ctx.push_toast(crate::toast::Kind::Info, "No symbol selected");
+                let message = if i < 0 {
+                    "No symbol selected"
+                } else {
+                    "Symbol row no longer listed"
+                };
+                ctx.push_toast(crate::toast::Kind::Info, message);
                 keep_open = true;
                 -1
             } else {
                 let line = ctx.outline.line_of(sym as usize);
                 if line < 0 {
-                    ctx.push_toast(crate::toast::Kind::Info, "No symbol selected");
+                    ctx.push_toast(crate::toast::Kind::Info, "Symbol row no longer listed");
                     keep_open = true;
                     -1
                 } else {
