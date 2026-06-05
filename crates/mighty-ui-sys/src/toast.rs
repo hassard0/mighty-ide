@@ -937,6 +937,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("No definition found")
         || m == "No definition target selected"
         || m.starts_with("Definition target missing")
+        || m.starts_with("Definition target is not a file")
         || m == "No rename target"
         || m.starts_with("No rename target at ")
     {
@@ -946,9 +947,11 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No command palette open"
         || m == "No Quick Open panel open"
         || m.starts_with("Explorer target missing")
+        || m.starts_with("Explorer target is not a file")
         || m == "No Explorer row selected"
         || m == "Explorer row no longer listed"
         || m.starts_with("Quick Open target missing")
+        || m.starts_with("Quick Open target is not a file")
         || m == "Quick Open row no longer listed"
         || m == "No symbol selected"
         || m == "Symbol row no longer listed"
@@ -958,14 +961,17 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Breadcrumb file no longer listed"
         || m == "Breadcrumb symbol unavailable"
         || m.starts_with("Breadcrumb target missing")
+        || m.starts_with("Breadcrumb target is not a file")
         || m.starts_with("Outline symbols ")
         || m == "No problem selected"
         || m == "Problem row no longer listed"
         || m.starts_with("Problems target missing")
+        || m.starts_with("Problems target is not a file")
         || m == "No search result selected"
         || m == "Search result file no longer listed"
         || m.starts_with("Search results ")
         || m.starts_with("Search target missing")
+        || m.starts_with("Search target is not a file")
         || m.starts_with("Search result changed")
     {
         Some(OperationKey::Navigation)
@@ -2823,6 +2829,17 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Definition target missing: missing.mty");
 
+        q.push_at(
+            Kind::Warn,
+            "Definition target is not a file: folder.mty",
+            t0 + Duration::from_millis(425),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Definition target is not a file: folder.mty"
+        );
+
         q.push_at(Kind::Info, "Peek view closed", t0 + Duration::from_millis(450));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Peek view closed");
@@ -3074,6 +3091,55 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Explorer row no longer listed");
+
+        q.push_at(
+            Kind::Warn,
+            "Explorer target is not a file: folder.mty",
+            t0 + Duration::from_millis(700),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Explorer target is not a file: folder.mty");
+
+        q.push_at(
+            Kind::Warn,
+            "Quick Open target is not a file: stale.mty",
+            t0 + Duration::from_millis(800),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Quick Open target is not a file: stale.mty"
+        );
+
+        q.push_at(
+            Kind::Warn,
+            "Breadcrumb target is not a file: crumb.mty",
+            t0 + Duration::from_millis(900),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Breadcrumb target is not a file: crumb.mty"
+        );
+
+        q.push_at(
+            Kind::Warn,
+            "Problems target is not a file: problem.mty",
+            t0 + Duration::from_millis(1000),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Problems target is not a file: problem.mty"
+        );
+
+        q.push_at(
+            Kind::Warn,
+            "Search target is not a file: hit.mty",
+            t0 + Duration::from_millis(1100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Search target is not a file: hit.mty");
     }
 
     #[test]

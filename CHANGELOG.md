@@ -156,6 +156,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   delete target feedback now belongs to the same toast families as the commands
   that produced it, so repeated command attempts update one notification
   instead of stacking unrelated warnings.
+- **Navigation stale-target toasts replace cleanly**: non-file targets from
+  Definition, Explorer, Quick Open, breadcrumb, Problems, and Search now
+  coalesce with their navigation/code-intelligence feedback families just like
+  missing-target warnings.
 - **Delete Active File rejects directory targets**: after exact-name
   confirmation and dirty-buffer checks, Delete Active File now preflights the
   active path before removal. Directory targets report
