@@ -387,6 +387,11 @@ pub(crate) fn definition_target_from_lsp(
     Some(crate::nav::DefTarget { path, line, col })
 }
 
+pub(crate) fn definition_not_found_message(path: &std::path::Path, line: i32, col: i32) -> String {
+    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("file");
+    format!("No definition found at {name}:{}:{}", line.max(0) + 1, col.max(0) + 1)
+}
+
 #[cfg(test)]
 mod code_action_diagnostics_tests {
     use super::*;
@@ -9823,7 +9828,10 @@ pub extern "C" fn mui_def_request(handle: i64, line: i32, col: i32) -> i32 {
     };
     println!("def: line={line} col={col} found={found}");
     if !found {
-        ctx.push_toast(crate::toast::Kind::Warn, "No definition found");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            definition_not_found_message(&path, line, col),
+        );
     }
     i32::from(found)
 }

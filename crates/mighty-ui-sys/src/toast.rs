@@ -882,7 +882,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Save the file before signature help"
         || m == "Signature Help popup closed"
         || m == "No Signature Help popup open"
-        || m == "No definition found"
+        || m.starts_with("No definition found")
         || m == "No definition target selected"
         || m.starts_with("Definition target missing")
         || m == "No rename target"
@@ -2477,6 +2477,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Save the file before Go to Definition");
+
+        q.push_at(
+            Kind::Warn,
+            "No definition found at main.mty:3:7",
+            t0 + Duration::from_millis(350),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No definition found at main.mty:3:7");
 
         q.push_at(
             Kind::Warn,

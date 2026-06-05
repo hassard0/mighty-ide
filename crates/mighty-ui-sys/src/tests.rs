@@ -11218,12 +11218,12 @@ fn navigation_requests_report_missing_targets() {
     assert_eq!(crate::mui_def_request(h, 0, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "No definition found");
+    assert_eq!(toast.message, "No definition found at mui_nav_plain_text.txt:1:1");
 
     assert_eq!(crate::stickyabi::mui_peek_open(h, 0, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "No definition found");
+    assert_eq!(toast.message, "No definition found at mui_nav_plain_text.txt:1:1");
 
     let _ = std::fs::remove_file(path);
 }

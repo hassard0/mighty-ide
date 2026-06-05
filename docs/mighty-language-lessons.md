@@ -12113,3 +12113,16 @@ data.
 - **Language note:** no compiler gap surfaced. Code-reading commands should
   name their inspected target on unavailable-result paths, not only on hard
   missing-file paths.
+
+## L973 - Definition Misses Should Name The Lookup Site
+
+Go to Definition and Peek Definition both reported a generic
+`No definition found` when the LSP returned no target. In a multi-file editing
+session, especially after cursor or focus changes, that did not identify which
+file and position had been queried.
+
+- **IDE note:** definition and peek misses now report
+  `No definition found at file:line:column`, using the saved active-file path
+  and 1-based lookup coordinates.
+- **Language note:** no compiler gap surfaced. Code-intelligence miss feedback
+  should name the query site even when it cannot reliably name a symbol.

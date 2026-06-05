@@ -136,7 +136,10 @@ pub extern "C" fn mui_peek_open(handle: i64, line: i32, col: i32) -> i32 {
     };
     let Some((tpath, tline, tcol)) = target else {
         println!("peek: line={line} col={col} found=0 (no definition)");
-        ctx.push_toast(crate::toast::Kind::Warn, "No definition found");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            crate::abi::definition_not_found_message(&path, line, col),
+        );
         return 0;
     };
     // Use the LIVE buffer for the preview when the target is the active file (so
