@@ -6907,6 +6907,42 @@ fn copy_needs_file_message(ctx: &MuiContext, what: &str) -> String {
     format!("No active file {what} to copy: {}", active_file_target_name(ctx))
 }
 
+pub(crate) fn copy_stale_target_message(
+    path: &std::path::Path,
+    err: Option<&std::io::Error>,
+) -> String {
+    let name = basename(path);
+    if save_target_is_existing_non_file(path) {
+        return format!("Copy target is not a file: {name}");
+    }
+    match err {
+        Some(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            format!("Copy target missing: {name}")
+        }
+        Some(e) => format!("Copy target unavailable: {name}: {e}"),
+        None => format!("Copy target missing: {name}"),
+    }
+}
+
+fn reject_stale_copy_target(ctx: &mut MuiContext, path: &std::path::Path) -> bool {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => false,
+        Ok(_) => {
+            refresh_workspace_file_views(ctx);
+            ctx.push_toast(crate::toast::Kind::Warn, copy_stale_target_message(path, None));
+            true
+        }
+        Err(e) => {
+            refresh_workspace_file_views(ctx);
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                copy_stale_target_message(path, Some(&e)),
+            );
+            true
+        }
+    }
+}
+
 /// Copy the active file path to the operating-system clipboard. Returns 1 on
 /// success, else 0.
 #[no_mangle]
@@ -6918,6 +6954,9 @@ pub extern "C" fn mui_file_copy_active_path(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Warn, copy_needs_file_message(ctx, "path"));
         return 0;
     };
+    if reject_stale_copy_target(ctx, &path) {
+        return 0;
+    }
     let text = path.display().to_string();
     match write_clipboard_text(&text) {
         Ok(()) => {
@@ -6943,6 +6982,9 @@ pub extern "C" fn mui_file_copy_active_relative_path(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Warn, copy_needs_file_message(ctx, "relative path"));
         return 0;
     };
+    if reject_stale_copy_target(ctx, &path) {
+        return 0;
+    }
     let text = active_relative_path_text(ctx, &path);
     match write_clipboard_text(&text) {
         Ok(()) => {
@@ -6967,6 +7009,9 @@ pub extern "C" fn mui_file_copy_active_name(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Warn, copy_needs_file_message(ctx, "name"));
         return 0;
     };
+    if reject_stale_copy_target(ctx, &path) {
+        return 0;
+    }
     let text = active_file_name_text(&path);
     match write_clipboard_text(&text) {
         Ok(()) => {
@@ -6991,6 +7036,9 @@ pub extern "C" fn mui_file_copy_active_directory(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Warn, copy_needs_file_message(ctx, "directory"));
         return 0;
     };
+    if reject_stale_copy_target(ctx, &path) {
+        return 0;
+    }
     let text = active_directory_text(&path);
     match write_clipboard_text(&text) {
         Ok(()) => {

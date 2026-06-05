@@ -225,6 +225,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   indexes, and report missing or directory-backed targets directly instead of
   mislabeling them as outside the Explorer root or launching the OS file manager
   against stale paths.
+- **Active-file copy commands reject stale targets up front**: Copy Active File
+  Path, Relative Path, Name, and Directory now preflight the active file before
+  writing the clipboard, so deleted or directory-backed tabs report
+  target-specific warnings instead of copying stale path text.
 - **Run active file rejects stale targets up front**: `mty run` now refuses
   missing or directory-backed active paths before spawning a child process,
   keeping the Run panel and toast pointed at the actual stale file state.

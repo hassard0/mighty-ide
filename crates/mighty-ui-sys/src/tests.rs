@@ -8016,6 +8016,20 @@ fn active_file_os_failure_messages_name_the_target() {
         crate::abi::copy_directory_failed_message("C:/workspace/src", &err),
         "Could not copy directory: C:/workspace/src: clipboard command failed"
     );
+    assert_eq!(
+        crate::abi::copy_stale_target_message(
+            path,
+            Some(&std::io::Error::new(std::io::ErrorKind::NotFound, "gone"))
+        ),
+        "Copy target missing: main.mty"
+    );
+    assert_eq!(
+        crate::abi::copy_stale_target_message(
+            path,
+            Some(&std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied"))
+        ),
+        "Copy target unavailable: main.mty: denied"
+    );
 }
 
 #[test]
@@ -14615,6 +14629,59 @@ fn cut_preflight_tracks_mutating_targets_and_read_only() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn active_file_copy_rejects_stale_targets_before_clipboard_write() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    std::env::set_var("MUI_CLIPBOARD_WRITE_FORCE_FAIL", "should not write");
+    let _env = EnvRemoveGuard("MUI_CLIPBOARD_WRITE_FORCE_FAIL");
+    let root = std::env::temp_dir().join(format!("mui_active_copy_stale_{}", std::process::id()));
+    let src = root.join("src");
+    std::fs::create_dir_all(&src).unwrap();
+    let file = src.join("main.mty");
+    std::fs::write(&file, b"fn main() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    ctx.tabs.open_path(file.clone());
+    std::fs::remove_file(&file).unwrap();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::abi::mui_file_copy_active_path(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Copy target missing: main.mty");
+
+    std::fs::write(&file, b"fn main() {}\n").unwrap();
+    ctx.tabs.open_path(file.clone());
+    std::fs::remove_file(&file).unwrap();
+    assert_eq!(crate::abi::mui_file_copy_active_relative_path(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Copy target missing: main.mty"
+    );
+
+    let dir = src.join("folder.mty");
+    std::fs::create_dir_all(&dir).unwrap();
+    ctx.tabs.open_path(dir);
+
+    assert_eq!(crate::abi::mui_file_copy_active_name(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Copy target is not a file: folder.mty"
+    );
+
+    assert_eq!(crate::abi::mui_file_copy_active_directory(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Copy target is not a file: folder.mty"
+    );
 
     let _ = std::fs::remove_dir_all(root);
 }
