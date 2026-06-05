@@ -13621,3 +13621,15 @@ feedback instead of replacing stale Debug-panel state.
   operation family for both palette and Run and Debug panel clear-all paths.
 - **Language note:** no compiler gap surfaced. No-op results should use the
   same feedback family as successful mutations of the same state.
+
+## L1077 - Empty Source-Control Commits Are Git Feedback
+
+The Source Control commit path reports `No staged changes to commit` when the
+message box is usable but the index is empty. That is the same operation family
+as staging, unstaging, successful commits, and `Nothing to commit`, but the
+guard wording did not previously match the Git toast classifier.
+
+- **IDE note:** `No staged changes to commit` now coalesces with Git feedback,
+  so stale Source Control messages are replaced by the current commit result.
+- **Language note:** no compiler gap surfaced. Commit workflow guard messages
+  should share the same feedback family as commit successes and empty results.
