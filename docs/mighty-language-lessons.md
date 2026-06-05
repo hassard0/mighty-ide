@@ -13532,3 +13532,16 @@ confirmation, and a later editor cut result erase the terminal action context.
   still collapses within the terminal family.
 - **Language note:** no compiler gap surfaced. Toast families should be scoped
   by interaction surface when the same verb exists in multiple UI contexts.
+
+## L1070 - Workspace-Edit Skip Toasts Need One Code-Action Family
+
+Workspace edits can skip dirty, missing, non-file, or failed-write targets. They
+are all outcomes of one code-action application, so showing several of them as
+independent live toasts creates stale noise while the Code Actions panel has
+already moved on.
+
+- **IDE note:** code-action toast coalescing now includes skipped non-file
+  targets and skipped write failures in the same operation family as skipped
+  dirty and missing files.
+- **Language note:** no compiler gap surfaced. Result families should include
+  every terminal outcome of the operation, including partial-success skips.

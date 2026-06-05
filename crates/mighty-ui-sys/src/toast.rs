@@ -881,6 +881,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Code action produced no edit"
         || m.starts_with("Skipped dirty file during workspace edit")
         || m.starts_with("Skipped missing file during workspace edit")
+        || m.starts_with("Skipped non-file during workspace edit")
+        || m.starts_with("Skipped file during workspace edit")
     {
         Some(OperationKey::CodeAction)
     } else if m == "Formatted document"
@@ -3205,6 +3207,28 @@ mod tests {
         assert_eq!(
             q.toasts()[0].message,
             "Skipped dirty file during workspace edit: main.mty"
+        );
+
+        q.push_at(
+            Kind::Warn,
+            "Skipped non-file during workspace edit: helper.mty",
+            t0 + Duration::from_millis(800),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Skipped non-file during workspace edit: helper.mty"
+        );
+
+        q.push_at(
+            Kind::Warn,
+            "Skipped file during workspace edit: readonly.mty: Access is denied. (os error 5)",
+            t0 + Duration::from_millis(900),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Skipped file during workspace edit: readonly.mty: Access is denied. (os error 5)"
         );
     }
 
