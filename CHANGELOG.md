@@ -75,6 +75,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Mighty Agents stale routes are visible**: Agents header hit, topology-row
   hit, and node-open routes now report when the panel has already closed and
   cannot activate retained hidden topology.
+- **Source Control stale routes are visible**: Source Control header,
+  message-clear, stage, and row-open routes now report when the panel has
+  already closed and cannot activate retained hidden status or commit text.
 - **Keyboard shortcut persistence failures are visible**: remap and reset actions
   still update the live shortcut table, but failed `keybindings.toml` writes now
   warn that the override state may reset after restart.

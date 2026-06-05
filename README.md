@@ -160,6 +160,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 
 ### Source Control
 - Source Control panel (Ctrl+Shift+G) — git status + inline diff view
+- Source Control stale header, message-clear, stage, and row routes report when
+  the panel has already closed and cannot activate retained hidden status
 - **Stage All / Unstage All / Commit Staged** command-palette actions for
   keyboard-first index and commit flow
 - **Branch switcher + push / pull / fetch**

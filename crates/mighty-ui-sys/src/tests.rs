@@ -9283,6 +9283,37 @@ fn scm_close_command_preserves_status_and_message() {
         ctx.toasts.toasts().last().unwrap().message,
         "Source Control panel is already closed"
     );
+
+    assert_eq!(crate::panels::mui_scm_open_row(h, 0), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Source Control panel is already closed"
+    );
+
+    assert_eq!(crate::panels::mui_scm_row_at_click(h), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Source Control panel is already closed"
+    );
+
+    assert_eq!(crate::panels::mui_scm_click_is_stage(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Source Control panel is already closed"
+    );
+
+    assert_eq!(crate::panels::mui_scm_header_action_at_click(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Source Control panel is already closed"
+    );
+
+    assert_eq!(crate::panels::mui_scm_message_clear_at_click(h), 0);
+    assert_eq!(ctx.scm.message_string(), "commit draft");
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Source Control panel is already closed"
+    );
 }
 
 #[test]

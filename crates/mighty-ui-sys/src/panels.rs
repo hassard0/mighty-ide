@@ -193,9 +193,20 @@ pub extern "C" fn mui_scm_close(handle: i64) -> i32 {
         crate::abi::trace("scm_close");
         return 1;
     }
-    ctx.push_toast(crate::toast::Kind::Info, "Source Control panel is already closed");
+    report_scm_closed(ctx);
     crate::abi::trace("scm_close noop");
     0
+}
+
+fn scm_panel_visible(ctx: &MuiContext) -> bool {
+    ctx.sidebar_visible && ctx.active_panel == crate::PANEL_SCM
+}
+
+fn report_scm_closed(ctx: &mut MuiContext) {
+    ctx.push_toast(
+        crate::toast::Kind::Info,
+        "Source Control panel is already closed",
+    );
 }
 
 /// Number of changed entries in the last status.
@@ -233,6 +244,10 @@ pub extern "C" fn mui_scm_open_row(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !scm_panel_visible(ctx) {
+        report_scm_closed(ctx);
+        return -1;
+    }
     if i < 0 {
         ctx.push_toast(crate::toast::Kind::Info, "No source control row selected");
         return -1;
@@ -535,7 +550,11 @@ pub extern "C" fn mui_scm_row_at_click(handle: i64) -> i32 {
     };
     let sx0 = layout::RAIL_W;
     let sx1 = layout::sidebar_right();
-    if !ctx.sidebar_visible || ctx.last_event.x < sx0 || ctx.last_event.x > sx1 {
+    if !scm_panel_visible(ctx) {
+        report_scm_closed(ctx);
+        return -1;
+    }
+    if ctx.last_event.x < sx0 || ctx.last_event.x > sx1 {
         return -1;
     }
     let top = scm_rows_top();
@@ -559,6 +578,10 @@ pub extern "C" fn mui_scm_click_is_stage(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !scm_panel_visible(ctx) {
+        report_scm_closed(ctx);
+        return 0;
+    }
     let action_x0 = layout::sidebar_right() - 30.0;
     if ctx.last_event.x >= action_x0 {
         1
@@ -576,7 +599,8 @@ pub extern "C" fn mui_scm_header_action_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_SCM {
+    if !scm_panel_visible(ctx) {
+        report_scm_closed(ctx);
         return 0;
     }
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
@@ -776,7 +800,8 @@ pub extern "C" fn mui_scm_message_clear_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_SCM {
+    if !scm_panel_visible(ctx) {
+        report_scm_closed(ctx);
         return 0;
     }
     let (x, y) = (ctx.last_event.x, ctx.last_event.y);
