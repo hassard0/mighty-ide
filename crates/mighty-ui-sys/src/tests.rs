@@ -7135,6 +7135,11 @@ fn diff_close_clears_inline_view() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Diff view is already closed");
+
+    crate::featureabi::mui_diff_scroll(handle, 4);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Diff view is already closed");
 }
 
 #[test]
@@ -11384,6 +11389,11 @@ fn peek_close_clears_inline_view() {
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Peek view is already closed");
 
+    crate::stickyabi::mui_peek_scroll(handle, 3);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Peek view is already closed");
+
     assert_eq!(crate::stickyabi::mui_peek_goto(handle), -1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
@@ -14895,6 +14905,11 @@ fn markdown_close_preview_command_collapses_preview() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Markdown preview is already closed");
+
+    crate::abi::mui_md_scroll(h, 3);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Markdown preview is already closed");
 }
 
 #[test]
@@ -15449,6 +15464,11 @@ fn problems_close_command_acknowledges_state() {
         "Problems panel is already closed"
     );
     assert_eq!(crate::navsurfaces::mui_problems_header_action_at_click(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Problems panel is already closed"
+    );
+    crate::navsurfaces::mui_problems_scroll(h, 3);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Problems panel is already closed"

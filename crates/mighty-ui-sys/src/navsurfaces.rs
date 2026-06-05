@@ -523,6 +523,10 @@ pub extern "C" fn mui_problems_row_col(handle: i64, i: i32) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_problems_scroll(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.problems.is_open() {
+            report_problems_closed(ctx);
+            return;
+        }
         ctx.problems.scroll_by(delta);
     }
 }

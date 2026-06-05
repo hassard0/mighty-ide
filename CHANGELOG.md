@@ -79,14 +79,17 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   header-action routes now report when the sidebar panel has already closed and
   cannot jump through retained hidden symbols.
 - **Problems stale routes are visible**: Problems row-hit, row-open,
-  close-hit, and header-action routes now report when the panel has already
-  closed and cannot activate retained hidden diagnostics.
+  close-hit, header-action, and scroll routes now report when the panel has
+  already closed and cannot activate retained hidden diagnostics.
 - **Breadcrumb menu stale routes are visible**: breadcrumb dropdown move,
   click-row, and accept routes now report when the dropdown has already closed
   instead of silently ignoring stale keyboard or mouse routing.
 - **Run output stale routes are visible**: Run panel header, output-row click,
   and scroll routes now report when the panel has already closed, and retained
   hidden output can no longer be activated by stale row calls.
+- **Inline preview stale scroll routes are visible**: Diff, Peek Definition,
+  and Markdown preview scroll entry points now report when their surface has
+  already closed instead of mutating hidden viewport state.
 - **Testing stale routes are visible**: Testing toolbar, result-row click, and
   scroll routes now report when the panel has already closed, and retained
   hidden results can no longer be activated by stale row calls.

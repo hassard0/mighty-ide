@@ -15651,6 +15651,10 @@ pub unsafe extern "C" fn mui_md_set_source(handle: i64, ptr: *const u8, len: usi
 #[no_mangle]
 pub extern "C" fn mui_md_scroll(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.md_preview.is_open() {
+            ctx.push_toast(crate::toast::Kind::Info, "Markdown preview is already closed");
+            return;
+        }
         ctx.md_preview.scroll_lines(delta);
     }
 }
