@@ -892,6 +892,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::Fold)
     } else if m == "Enter text to replace"
+        || m == "Enter search text to replace"
+        || m == "Run Search before replacing"
         || m == "Replace is unavailable in read-only previews"
         || m == "Find & Replace closed"
         || m == "No Find & Replace bar open"
@@ -950,6 +952,12 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No breadcrumb menu open"
         || m == "No command palette open"
         || m == "No Quick Open panel open"
+        || m == "Search panel closed"
+        || m == "Search panel is already closed"
+        || m == "Search results cleared"
+        || m == "Search results already empty"
+        || m == "Enter text to search"
+        || m == "No project search results"
         || m.starts_with("Explorer target missing")
         || m.starts_with("Explorer target is not a file")
         || m == "No Explorer row selected"
@@ -2680,6 +2688,22 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No Find & Replace bar open");
+
+        q.push_at(
+            Kind::Info,
+            "Enter search text to replace",
+            t0 + Duration::from_millis(700),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Enter search text to replace");
+
+        q.push_at(
+            Kind::Info,
+            "Run Search before replacing",
+            t0 + Duration::from_millis(800),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Run Search before replacing");
     }
 
     #[test]
@@ -3123,6 +3147,54 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No Quick Open panel open");
+
+        q.push_at(
+            Kind::Info,
+            "Search panel closed",
+            t0 + Duration::from_millis(425),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Search panel closed");
+
+        q.push_at(
+            Kind::Info,
+            "Search panel is already closed",
+            t0 + Duration::from_millis(450),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Search panel is already closed");
+
+        q.push_at(
+            Kind::Info,
+            "Search results cleared",
+            t0 + Duration::from_millis(475),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Search results cleared");
+
+        q.push_at(
+            Kind::Info,
+            "Search results already empty",
+            t0 + Duration::from_millis(490),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Search results already empty");
+
+        q.push_at(
+            Kind::Info,
+            "Enter text to search",
+            t0 + Duration::from_millis(495),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Enter text to search");
+
+        q.push_at(
+            Kind::Info,
+            "No project search results",
+            t0 + Duration::from_millis(498),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No project search results");
 
         q.push_at(
             Kind::Info,

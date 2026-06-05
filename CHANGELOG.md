@@ -163,6 +163,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Go to Line validation toasts replace cleanly**: invalid prompt and Quick
   Open line-number submissions now coalesce with navigation feedback instead of
   stacking a fresh `Enter a line number` notice on every retry.
+- **Project Search feedback replaces cleanly**: Search panel close/clear,
+  empty-query, no-result, and replace-preflight notices now join the relevant
+  navigation or replace toast family instead of accumulating repeated status
+  cards.
 - **Run, Test, and Source Control stale-target toasts replace cleanly**:
   non-file target warnings from runner, test, and source-control surfaces now
   coalesce with the command family that produced them instead of lingering as
