@@ -6653,7 +6653,10 @@ pub extern "C" fn mui_file_delete_active_confirm(handle: i64) -> i32 {
         Ok(()) => true,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => true,
         Err(e) => {
-            ctx.push_toast(crate::toast::Kind::Error, format!("Delete failed: {name}"));
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_operation_failed_message("Delete", &path, &e),
+            );
             println!("file-delete: failed {}: {e}", path.display());
             false
         }

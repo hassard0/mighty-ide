@@ -1350,6 +1350,28 @@ mod tests {
     }
 
     #[test]
+    fn newer_delete_feedback_replaces_stale_delete_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Warn, "Type doomed.mty to delete", t0);
+        q.push_at(
+            Kind::Error,
+            "Delete failed: doomed.mty: Access is denied. (os error 5)",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Delete failed: doomed.mty: Access is denied. (os error 5)"
+        );
+
+        q.push_at(Kind::Success, "Deleted doomed.mty", t0 + Duration::from_millis(200));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Deleted doomed.mty");
+    }
+
+    #[test]
     fn newer_clipboard_feedback_replaces_stale_copy_toasts() {
         let mut q = ToastQueue::new();
         let t0 = Instant::now();

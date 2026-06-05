@@ -11862,3 +11862,18 @@ target but not the reason.
 - **Language note:** no compiler gap surfaced. Mutating filesystem operations
   should report the intended target and the host error together; logging the
   reason is not enough when the UI command itself fails.
+
+## L956 - Delete Failures Should Preserve The Filesystem Reason
+
+Delete failures logged the `std::fs::remove_file` error, but the visible toast
+only said `Delete failed: name`. That made permission, directory-target, and
+host filesystem failures look identical after the user had already confirmed
+the destructive command.
+
+- **IDE note:** active-file delete failures now report
+  `Delete failed: target: reason` while preserving the file, active tab, and
+  existing dirty-buffer refusal behavior. Detailed delete failures still group
+  with other delete confirmation toasts.
+- **Language note:** no compiler gap surfaced. Destructive command failures
+  need the strongest immediate feedback: the exact target and the host reason
+  should be visible in the toast, not only in logs.

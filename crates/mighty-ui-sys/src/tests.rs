@@ -4448,6 +4448,37 @@ fn active_file_delete_refuses_dirty_duplicate_tab() {
 }
 
 #[test]
+fn active_file_delete_failure_reports_filesystem_reason() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_active_file_delete_directory_failure");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let dir = root.join("not_a_file.mty");
+    std::fs::create_dir_all(&dir).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tabs.ensure_scratch();
+    ctx.tabs.set_active_path(dir.clone());
+    crate::abi::sync_active_path(&mut ctx);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.path_stage.extend_from_slice(b"not_a_file.mty");
+    assert_eq!(crate::mui_file_delete_active_confirm(handle), 0);
+
+    assert!(dir.is_dir());
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(dir.as_path()));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast.message.starts_with("Delete failed: not_a_file.mty: "),
+        "{}",
+        toast.message
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn active_file_delete_closes_all_clean_duplicate_tabs() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_active_file_delete_clean_duplicates");
