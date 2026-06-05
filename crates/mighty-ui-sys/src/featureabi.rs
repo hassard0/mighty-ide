@@ -27,6 +27,16 @@ fn active_path(ctx: &MuiContext) -> Option<std::path::PathBuf> {
     ctx.tabs.active_path()
 }
 
+fn run_command_display() -> String {
+    let mty = crate::mty::path();
+    let program = std::path::Path::new(&mty)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(mty.as_str());
+    format!("{program} run")
+}
+
 // ===========================================================================
 // Feature 1 — Run panel
 // ===========================================================================
@@ -60,7 +70,10 @@ pub extern "C" fn mui_run_start(handle: i64) -> i32 {
             .file_name()
             .and_then(|s| s.to_str())
             .unwrap_or("file");
-        ctx.push_toast(crate::toast::Kind::Error, format!("Run failed to start: {name}"));
+        ctx.push_toast(
+            crate::toast::Kind::Error,
+            format!("Run failed to start: {name} via {}", run_command_display()),
+        );
         crate::abi::trace(&format!("run_start failed target={}", path.display()));
         0
     }

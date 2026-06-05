@@ -11526,3 +11526,16 @@ did not say which shell failed to launch. That made shell-path, `%ComSpec%`, and
   detailed messages with the rest of terminal feedback.
 - **Language note:** no compiler gap surfaced. Runtime-panel failures should
   carry the external program identity in user-visible feedback, not only logs.
+
+## L933 - Run Startup Toasts Should Name The Command Too
+
+The Run panel already wrote `failed to run <mty> run` into its output when the
+compiler process could not spawn, but the toast only named the target file. That
+left the most visible feedback ambiguous: the file looked suspicious even when
+the actual failure was the configured `mty` executable.
+
+- **IDE note:** Run startup failure toasts now keep the target filename and add
+  the attempted command display name, matching the command-level detail already
+  present in the Run panel output.
+- **Language note:** no compiler gap surfaced. Runtime launch feedback should
+  identify both the user target and the external program boundary that failed.

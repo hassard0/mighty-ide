@@ -1949,6 +1949,51 @@ fn run_start_without_file_reports_visible_feedback() {
 }
 
 #[test]
+fn run_start_spawn_failure_names_target_and_command() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_run_spawn_fail_{}", std::process::id()));
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("main.mty");
+    let missing_mty = root.join("missing-mty.exe");
+    std::fs::write(&file, b"fn main() {}\n").unwrap();
+    ctx.tabs.open_path(file.clone());
+    ctx.term_open = true;
+    ctx.web.open();
+    ctx.problems.set_open(true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let old_mty = std::env::var_os("MIGHTY_MTY");
+    std::env::set_var("MIGHTY_MTY", &missing_mty);
+    assert_eq!(crate::featureabi::mui_run_start(handle), 0);
+    if let Some(v) = old_mty {
+        std::env::set_var("MIGHTY_MTY", v);
+    } else {
+        std::env::remove_var("MIGHTY_MTY");
+    }
+
+    assert!(ctx.run.is_active());
+    assert!(!ctx.run.is_running());
+    assert!(!ctx.term_open);
+    assert!(!ctx.web.is_active());
+    assert!(!ctx.problems.is_open());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(
+        toast.message,
+        "Run failed to start: main.mty via missing-mty.exe run"
+    );
+    assert!(ctx
+        .run
+        .line(0)
+        .is_some_and(|line| line.text.contains("failed to run")));
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn run_stop_when_idle_reports_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     ctx.term_open = true;
