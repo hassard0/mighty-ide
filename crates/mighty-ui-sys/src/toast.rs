@@ -796,7 +796,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Could not open file manager"
     {
         Some(OperationKey::Reveal)
-    } else if m.starts_with("Copied ")
+    } else if (m.starts_with("Copied ") && m != "Copied from terminal")
         || m.starts_with("Copy target ")
         || m == "No active file path to copy"
         || m.starts_with("No active file path to copy:")
@@ -814,10 +814,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Clipboard paste failed")
         || m == "Clipboard is empty"
         || m == "Pasted clipboard"
-        || m == "Pasted to terminal"
-        || m == "Copied from terminal"
-        || m.starts_with("Terminal paste failed")
-        || m.starts_with("Could not copy")
+        || (m.starts_with("Could not copy")
+            && !m.starts_with("Could not copy terminal text"))
     {
         Some(OperationKey::Copy)
     } else if is_test_result_message(m)
@@ -1007,7 +1005,11 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Navigation)
     } else if m.starts_with("Markdown preview ") || m.starts_with("Markdown Preview ") {
         Some(OperationKey::Markdown)
-    } else if m.starts_with("Terminal ") {
+    } else if m.starts_with("Terminal ")
+        || m == "Pasted to terminal"
+        || m == "Copied from terminal"
+        || m.starts_with("Could not copy terminal text")
+    {
         Some(OperationKey::Terminal)
     } else if m.starts_with("Debug session ")
         || m == "Open a file before starting debug"
@@ -1626,43 +1628,9 @@ mod tests {
         assert_eq!(q.toasts()[0].kind, Kind::Error);
 
         q.push_at(
-            Kind::Error,
-            "Terminal paste failed: clipboard command unavailable",
-            t0 + Duration::from_millis(400),
-        );
-        assert_eq!(q.len(), 1);
-        assert_eq!(
-            q.toasts()[0].message,
-            "Terminal paste failed: clipboard command unavailable"
-        );
-        assert_eq!(q.toasts()[0].kind, Kind::Error);
-
-        q.push_at(Kind::Success, "Pasted to terminal", t0 + Duration::from_millis(500));
-        assert_eq!(q.len(), 1);
-        assert_eq!(q.toasts()[0].message, "Pasted to terminal");
-        assert_eq!(q.toasts()[0].kind, Kind::Success);
-
-        q.push_at(Kind::Success, "Copied from terminal", t0 + Duration::from_millis(600));
-        assert_eq!(q.len(), 1);
-        assert_eq!(q.toasts()[0].message, "Copied from terminal");
-        assert_eq!(q.toasts()[0].kind, Kind::Success);
-
-        q.push_at(
-            Kind::Error,
-            "Could not copy terminal text: clipboard command failed",
-            t0 + Duration::from_millis(700),
-        );
-        assert_eq!(q.len(), 1);
-        assert_eq!(
-            q.toasts()[0].message,
-            "Could not copy terminal text: clipboard command failed"
-        );
-        assert_eq!(q.toasts()[0].kind, Kind::Error);
-
-        q.push_at(
             Kind::Warn,
             "Copy target missing: main.mty",
-            t0 + Duration::from_millis(800),
+            t0 + Duration::from_millis(400),
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Copy target missing: main.mty");
@@ -2443,6 +2411,57 @@ mod tests {
             "Terminal failed to open: missing-shell.exe: process spawn denied"
         );
         assert_eq!(q.toasts()[0].kind, Kind::Error);
+
+        q.push_at(
+            Kind::Error,
+            "Terminal paste failed: clipboard command unavailable",
+            t0 + Duration::from_millis(500),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Terminal paste failed: clipboard command unavailable"
+        );
+        assert_eq!(q.toasts()[0].kind, Kind::Error);
+
+        q.push_at(Kind::Success, "Pasted to terminal", t0 + Duration::from_millis(600));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Pasted to terminal");
+        assert_eq!(q.toasts()[0].kind, Kind::Success);
+
+        q.push_at(Kind::Success, "Copied from terminal", t0 + Duration::from_millis(700));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Copied from terminal");
+        assert_eq!(q.toasts()[0].kind, Kind::Success);
+
+        q.push_at(
+            Kind::Error,
+            "Could not copy terminal text: clipboard command failed",
+            t0 + Duration::from_millis(800),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Could not copy terminal text: clipboard command failed"
+        );
+        assert_eq!(q.toasts()[0].kind, Kind::Error);
+    }
+
+    #[test]
+    fn clipboard_and_terminal_feedback_keep_separate_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Success, "Copied selection", t0);
+        q.push_at(Kind::Success, "Pasted to terminal", t0 + Duration::from_millis(100));
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[0].message, "Copied selection");
+        assert_eq!(q.toasts()[1].message, "Pasted to terminal");
+
+        q.push_at(Kind::Success, "Cut line", t0 + Duration::from_millis(200));
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[0].message, "Pasted to terminal");
+        assert_eq!(q.toasts()[1].message, "Cut line");
     }
 
     #[test]

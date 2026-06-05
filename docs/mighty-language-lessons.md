@@ -13518,3 +13518,17 @@ failure while the user is still looking at the browser flow.
   remain visible together.
 - **Language note:** no compiler gap surfaced. UI coalescing keys should follow
   the user's task model, not just similar command vocabulary.
+
+## L1069 - Terminal Clipboard Toasts Belong To Terminal Feedback
+
+Terminal paste/copy confirmations use clipboard verbs, but they happen inside a
+different interaction surface from editor copy/cut/paste. Grouping them with
+generic clipboard feedback lets a terminal paste result erase an editor copy
+confirmation, and a later editor cut result erase the terminal action context.
+
+- **IDE note:** terminal copy/paste success and failure toasts now coalesce
+  under the Terminal operation family. Editor clipboard feedback and terminal
+  clipboard feedback can remain visible together, while stale terminal feedback
+  still collapses within the terminal family.
+- **Language note:** no compiler gap surfaced. Toast families should be scoped
+  by interaction surface when the same verb exists in multiple UI contexts.
