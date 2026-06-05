@@ -274,6 +274,7 @@ pub extern "C" fn mui_scm_toggle_stage(handle: i64, i: i32) -> i32 {
         1
     } else {
         let action = if staged_before { "unstage" } else { "stage" };
+        let _ = ctx.scm.refresh(&dir);
         ctx.push_toast(crate::toast::Kind::Warn, format!("Source control {action} failed"));
         0
     }

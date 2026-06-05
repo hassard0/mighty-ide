@@ -10921,3 +10921,14 @@ dead row should not remain clickable until the user manually refreshes.
 - **Language note:** no compiler gap surfaced. SCM row activation needs the
   same stale-snapshot cleanup discipline as Explorer, Quick Open, and Welcome
   recents.
+
+## L885 - Failed Source Control Row Actions Should Refresh Status
+
+Stage and unstage actions also consume cached Source Control rows. If the
+underlying git target disappeared before the click, reporting `stage failed`
+without refreshing leaves the same stale row ready to fail again.
+
+- **IDE note:** failed per-row stage/unstage actions now refresh the git status
+  snapshot before showing the warning, so dead rows are pruned immediately.
+- **Language note:** no compiler gap surfaced. Failed row mutations should
+  refresh their backing snapshot just like failed row navigation.

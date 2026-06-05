@@ -4729,6 +4729,41 @@ fn scm_toggle_stage_misses_report_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Source control root missing");
+
+    let root = std::env::temp_dir().join(format!("mui_scm_stage_missing_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let git_init = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&root)
+        .args(["init", "-q"])
+        .status();
+    let Ok(status) = git_init else {
+        eprintln!("SKIP: git unavailable for SCM stale stage-row test");
+        let _ = std::fs::remove_dir_all(root);
+        return;
+    };
+    if !status.success() {
+        eprintln!("SKIP: git init failed for SCM stale stage-row test");
+        let _ = std::fs::remove_dir_all(root);
+        return;
+    }
+    ctx.scm.root = Some(root.clone());
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.scm.status.entries.clear();
+    ctx.scm.status.entries.push(crate::scm::ScmEntry {
+        path: "missing.mty".to_string(),
+        staged: false,
+        status: 'U',
+    });
+    assert_eq!(crate::panels::mui_scm_toggle_stage(handle, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Source control stage failed");
+    assert_eq!(ctx.scm.count(), 0);
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]
