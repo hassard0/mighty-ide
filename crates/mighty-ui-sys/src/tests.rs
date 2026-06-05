@@ -9584,6 +9584,70 @@ fn format_current_refuses_dirty_duplicate_tab() {
 }
 
 #[test]
+fn format_current_publishes_restored_file_to_quickopen() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let old_mty = std::env::var_os("MIGHTY_MTY");
+
+    let mut ctx = ctx_or_skip!();
+    let workspace = std::env::temp_dir().join(format!(
+        "mui_format_restores_workspace_{}",
+        std::process::id()
+    ));
+    let tools = std::env::temp_dir().join(format!(
+        "mui_format_restores_tools_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&workspace);
+    let _ = std::fs::remove_dir_all(&tools);
+    std::fs::create_dir_all(&workspace).unwrap();
+    std::fs::create_dir_all(&tools).unwrap();
+    let path = workspace.join("main.mty");
+    std::fs::write(&path, "unformatted_symbol\n").unwrap();
+    let fake_mty = tools.join("fake-mty.cmd");
+    std::fs::write(
+        &fake_mty,
+        "@echo off\r\nif \"%1\"==\"fmt\" (\r\n  > \"%2\" echo formatted_symbol\r\n  exit /b 0\r\n)\r\nexit /b 1\r\n",
+    )
+    .unwrap();
+    std::env::set_var("MIGHTY_MTY", &fake_mty);
+
+    ctx.workspace.set_root(workspace.clone());
+    ctx.tree.set_root(workspace.clone());
+    ctx.tabs.open_path(path.clone());
+    crate::sync_active_path(&mut ctx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_quickopen_open(h);
+    assert_eq!(crate::mui_quickopen_reindex(h), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "main.mty");
+
+    std::fs::remove_file(&path).unwrap();
+    assert_eq!(crate::mui_quickopen_reindex(h), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
+
+    assert_eq!(crate::mui_format_can_current(h), 1);
+    assert_eq!(crate::mui_format_current(h), 1);
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "formatted_symbol\r\n");
+    assert_eq!(ctx.quickopen.recent_paths(), vec![path.clone()]);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "main.mty");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Formatted document");
+
+    if let Some(v) = old_mty {
+        std::env::set_var("MIGHTY_MTY", v);
+    } else {
+        std::env::remove_var("MIGHTY_MTY");
+    }
+    let _ = std::fs::remove_dir_all(&workspace);
+    let _ = std::fs::remove_dir_all(&tools);
+}
+
+#[test]
 fn preserving_load_refreshes_clean_duplicate_without_losing_active_undo() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!(

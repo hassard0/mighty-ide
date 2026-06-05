@@ -11088,3 +11088,16 @@ that pre-save recreates the file even when the fixer later fails.
   files, Explorer, and visible Quick Open rows as soon as the pre-save succeeds.
 - **Language note:** no compiler gap surfaced. Preflight writes before external
   tools should uphold file lifecycle invariants independently of tool success.
+
+## L899 - Format Restores Should Refresh Discovery State
+
+Format Document delegates to an external formatter that can recreate a missing
+backing `.mty` file. Treating a successful format as only a reload leaves file
+discovery surfaces stale when the formatter materializes the path.
+
+- **IDE note:** Format Document now detects formatter-restored files and
+  republishes them to recent files, Explorer, and visible Quick Open rows after
+  the formatter succeeds.
+- **Language note:** no compiler gap surfaced. External tool integrations that
+  write in place should publish restored paths using the same lifecycle rules as
+  direct IDE writes.

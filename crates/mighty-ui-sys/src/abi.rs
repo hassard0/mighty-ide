@@ -11089,8 +11089,13 @@ pub extern "C" fn mui_format_current(handle: i64) -> i32 {
         );
         return -1;
     }
+    let resurrected_path = !path.is_file();
     match crate::format::run_fmt(&path) {
         crate::format::FmtOutcome::Formatted => {
+            if resurrected_path && path.is_file() {
+                record_recent_file(ctx, path.clone());
+                refresh_workspace_file_views(ctx);
+            }
             println!("format: {} -> ok", path.display());
             ctx.push_toast(crate::toast::Kind::Success, "Formatted document");
             1
