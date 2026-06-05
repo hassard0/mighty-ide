@@ -641,7 +641,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::Agents)
     } else if m == "No unsaved files"
-        || m == "Save All failed"
+        || m.starts_with("Save All failed")
         || m == "Save cancelled; tab is still open"
         || m == "Unsaved changes confirmation cancelled"
         || m == "No unsaved changes confirmation open"
@@ -1387,6 +1387,14 @@ mod tests {
             q.toasts()[0].message,
             "Save All cancelled; 1 untitled file still unsaved"
         );
+
+        q.push_at(
+            Kind::Error,
+            "Save All failed: 2 files failed",
+            t0 + Duration::from_millis(325),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Save All failed: 2 files failed");
 
         q.push_at(
             Kind::Info,

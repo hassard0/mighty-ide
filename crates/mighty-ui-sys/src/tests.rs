@@ -5193,6 +5193,35 @@ fn save_all_cancelled_untitled_picker_preserves_dirty_tab() {
 }
 
 #[test]
+fn save_all_failure_reports_failed_file_count() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_all_failed_count_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let blocked = root.join("blocked.mty");
+    std::fs::create_dir_all(&blocked).unwrap();
+
+    let idx = ctx.tabs.open_path(blocked.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("cannot write over a directory\n");
+    ctx.tabs.set_dirty(idx, true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_save_all(handle), -1);
+    assert!(ctx.tabs.is_dirty(idx));
+    assert!(blocked.is_dir());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Save All failed: 1 file failed");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn scm_stage_all_and_unstage_all_via_abi_or_skip() {
     use std::process::Command;
     if Command::new("git").arg("--version").output().is_err() {

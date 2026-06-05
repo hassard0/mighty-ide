@@ -11606,3 +11606,17 @@ assembled without proving the native executable and shim matched the platform.
 - **Language note:** no compiler gap surfaced. Native release tooling should
   make platform ABI assumptions explicit and fail closed instead of relying on
   optional host tools.
+
+## L939 - Save All Failures Should Report How Many Writes Failed
+
+Save All could fail every attempted file-backed write and show only
+`Save All failed`. That confirmed the operation failed, but it did not tell the
+user whether one tab or many tabs still needed attention.
+
+- **IDE note:** all-failed Save All now reports the failed write count
+  (`Save All failed: 1 file failed` / `N files failed`), and partial-success
+  Save All feedback uses the same file-count wording. Save toast replacement now
+  groups the detailed prefix so stale save outcomes still collapse.
+- **Language note:** no compiler gap surfaced. Bulk file operations should
+  expose aggregate counts in visible feedback because the scalar ABI return code
+  cannot carry enough context by itself.

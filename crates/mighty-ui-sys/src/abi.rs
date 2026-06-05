@@ -12190,6 +12190,11 @@ pub extern "C" fn mui_ed_save(handle: i64) -> i32 {
     save_active_current_path(ctx)
 }
 
+fn save_all_failed_phrase(failed: i32) -> String {
+    let noun = if failed == 1 { "file" } else { "files" };
+    format!("{failed} {noun} failed")
+}
+
 /// Save every dirty tab. File-backed tabs write in place; untitled tabs ask for
 /// a native Save As path. Returns the number of tabs saved, or -1 when nothing
 /// could be saved because every attempted write failed.
@@ -12310,7 +12315,10 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
             0
         }
         (0, f, _, _) if f > 0 => {
-            ctx.push_toast(crate::toast::Kind::Error, "Save All failed");
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                format!("Save All failed: {}", save_all_failed_phrase(f)),
+            );
             -1
         }
         (s, 0, 0, 0) => {
@@ -12349,14 +12357,15 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
             s
         }
         (s, f, _, r) => {
+            let failed = save_all_failed_phrase(f);
             if r > 0 {
                 let skipped = if r == 1 { "file" } else { "files" };
                 ctx.push_toast(
                     crate::toast::Kind::Warn,
-                    format!("Saved {s}; {f} failed; {r} {skipped} skipped"),
+                    format!("Saved {s}; {failed}; {r} {skipped} skipped"),
                 );
             } else {
-                ctx.push_toast(crate::toast::Kind::Warn, format!("Saved {s}; {f} failed"));
+                ctx.push_toast(crate::toast::Kind::Warn, format!("Saved {s}; {failed}"));
             }
             s
         }
