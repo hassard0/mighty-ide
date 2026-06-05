@@ -91,6 +91,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 
 ### Run · Test · Debug
 - Run panel (Ctrl+Shift+R) — background `mty run` with streamed output + clickable diagnostics
+- Stale Run output diagnostic rows keep naming the missing source file on
+  repeated clicks after the row has been demoted
 - **Test runner panel (Ctrl+Shift+T)** — shim-side `mty-test` parser + results model
 - **Debugger (DAP)** — a shim-side client driving `mty dap`: breakpoints, run controls, call stack + variables, Run-and-Debug view, plus palette commands for start/continue, pause, restart, stop, and step controls (F5 start-continue / Shift+F5 stop, F10 step-over, F11 / Shift+F11 step-into/out)
 

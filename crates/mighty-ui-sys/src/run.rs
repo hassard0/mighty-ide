@@ -39,6 +39,8 @@ pub struct OutputLine {
     pub line: i32,
     /// 0-based column of the target (or -1).
     pub col: i32,
+    /// Missing target name retained after a stale clickable row is demoted.
+    pub missing_target: Option<String>,
     /// `true` if the line looks like an error (red tint), `false` otherwise.
     pub is_error: bool,
 }
@@ -51,6 +53,7 @@ impl OutputLine {
             file: String::new(),
             line: -1,
             col: -1,
+            missing_target: None,
             is_error: false,
         }
     }
@@ -184,10 +187,15 @@ impl RunPanel {
         self.click_target = t;
     }
 
-    /// Turn clickable output rows targeting `target` into plain text rows.
+    /// Turn clickable output rows targeting `target` into stale rows.
     /// Returns how many rows were demoted.
     pub fn demote_target(&mut self, root: &Path, target: &Path) -> usize {
         let mut demoted = 0usize;
+        let missing_target = target
+            .file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| target.to_string_lossy().into_owned());
         for line in &mut self.lines {
             if !line.clickable {
                 continue;
@@ -198,6 +206,7 @@ impl RunPanel {
                 line.file.clear();
                 line.line = -1;
                 line.col = -1;
+                line.missing_target = Some(missing_target.clone());
                 demoted += 1;
             }
         }
@@ -431,6 +440,7 @@ impl RunPanel {
                 file,
                 line: (l1 as i32 - 1).max(0),
                 col: (c1 as i32 - 1).max(0),
+                missing_target: None,
                 is_error: true,
             },
             None => OutputLine {

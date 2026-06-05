@@ -34,6 +34,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Run output stale targets stay named**: repeated clicks on a Run output
+  diagnostic row whose target file disappeared continue to report
+  `Run target missing: <file>` after the row is demoted, instead of falling
+  back to a generic no-file-target message.
 - **Test result stale targets are named**: opening a test result row whose suite
   file disappeared now reports `Test target missing: <suite>` instead of the
   generic no-file-target message.

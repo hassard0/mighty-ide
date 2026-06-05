@@ -391,6 +391,13 @@ pub extern "C" fn mui_run_click_row(handle: i64, i: i32) -> i32 {
             return 0;
         };
         if !line.clickable {
+            if let Some(name) = line.missing_target.as_deref() {
+                ctx.push_toast(
+                    crate::toast::Kind::Warn,
+                    format!("Run target missing: {name}"),
+                );
+                return 0;
+            }
             ctx.push_toast(
                 crate::toast::Kind::Info,
                 format!("Run output row has no file target: {}", run_output_row_label(&line.text)),
