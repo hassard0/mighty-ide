@@ -4,7 +4,7 @@
 
 | Tool | What it does | Verified path (Windows) |
 |------|--------------|--------------------------|
-| **`mty`** (Mighty compiler) | builds `src/main.mty` → `target/main.exe` | `C:\Users\ihass\stardust\target\debug\mty.exe` (v0.36) |
+| **`mty`** (Mighty compiler) | builds `src/main.mty` → `target/main.exe` | Set `MIGHTY_MTY` or put `mty` on PATH |
 | **Rust** toolchain | builds the `mighty-ui-sys` shim cdylib + the arena runtime | `cargo` on PATH |
 | **clang** | the linker `mty build` drives (GNU `-o` arg syntax) | `C:\Program Files\LLVM\bin\clang.exe` |
 | **llvm-ar** | archives the arena runtime staticlib | `C:\Program Files\LLVM\bin\llvm-ar.exe` |
