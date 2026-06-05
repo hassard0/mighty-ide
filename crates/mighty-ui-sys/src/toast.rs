@@ -667,9 +667,11 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Open failed")
         || m == "No file path entered"
         || m.starts_with("Recent file missing")
+        || m == "No recent file row selected"
+        || m == "Recent file row no longer listed"
         || m.starts_with("Recent folder missing")
-        || m == "No recent file selected"
-        || m == "No recent folder selected"
+        || m == "No recent folder row selected"
+        || m == "Recent folder row no longer listed"
         || m == "No recent files or folders"
         || m.starts_with("Welcome ")
     {
@@ -1631,6 +1633,19 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No recent files or folders");
+
+        q.push_at(
+            Kind::Info,
+            "No recent file row selected",
+            t0 + Duration::from_millis(480),
+        );
+        q.push_at(
+            Kind::Info,
+            "Recent folder row no longer listed",
+            t0 + Duration::from_millis(485),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Recent folder row no longer listed");
 
         q.push_at(
             Kind::Error,

@@ -13565,12 +13565,12 @@ fn welcome_open_recent_misses_report_visible_feedback() {
     assert_eq!(mui_welcome_open_recent(h, -1), -1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "No recent file selected");
+    assert_eq!(toast.message, "No recent file row selected");
 
     assert_eq!(mui_welcome_open_recent(h, 0), -1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "No recent file selected");
+    assert_eq!(toast.message, "Recent file row no longer listed");
 
     let root = std::env::temp_dir()
         .join(format!("mui_welcome_recent_file_{}", std::process::id()));
@@ -13601,7 +13601,7 @@ fn welcome_open_recent_misses_report_visible_feedback() {
     assert_eq!(mui_welcome_open_recent(h, 0), -1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "No recent file selected");
+    assert_eq!(toast.message, "Recent file row no longer listed");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -13672,12 +13672,12 @@ fn welcome_missing_recent_folder_stays_open_and_prunes() {
     assert_eq!(mui_welcome_open_folder(h, -1), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "No recent folder selected");
+    assert_eq!(toast.message, "No recent folder row selected");
 
     assert_eq!(mui_welcome_open_folder(h, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "No recent folder selected");
+    assert_eq!(toast.message, "Recent folder row no longer listed");
 
     mui_welcome_draw(h);
     assert_eq!(
@@ -13703,7 +13703,7 @@ fn welcome_missing_recent_folder_stays_open_and_prunes() {
     );
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "No recent folder selected");
+    assert_eq!(toast.message, "Recent folder row no longer listed");
 
     let _ = std::fs::remove_dir_all(&root);
 }

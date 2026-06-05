@@ -15968,11 +15968,11 @@ pub extern "C" fn mui_welcome_open_recent(handle: i64, i: i32) -> i32 {
         return -1;
     };
     if i < 0 {
-        ctx.push_toast(crate::toast::Kind::Info, "No recent file selected");
+        ctx.push_toast(crate::toast::Kind::Info, "No recent file row selected");
         return -1;
     }
     let Some(path) = ctx.welcome.recent_path(i as usize).cloned() else {
-        ctx.push_toast(crate::toast::Kind::Info, "No recent file selected");
+        ctx.push_toast(crate::toast::Kind::Info, "Recent file row no longer listed");
         return -1;
     };
     if !path.is_file() {
@@ -16006,11 +16006,11 @@ pub extern "C" fn mui_welcome_open_folder(handle: i64, i: i32) -> i32 {
         return 0;
     };
     if i < 0 {
-        ctx.push_toast(crate::toast::Kind::Info, "No recent folder selected");
+        ctx.push_toast(crate::toast::Kind::Info, "No recent folder row selected");
         return 0;
     }
     let Some(path) = ctx.welcome.recent_folder(i as usize).cloned() else {
-        ctx.push_toast(crate::toast::Kind::Info, "No recent folder selected");
+        ctx.push_toast(crate::toast::Kind::Info, "Recent folder row no longer listed");
         return 0;
     };
     let opened = crate::wsabi::mui_ws_open_recent_path(ctx, &path);

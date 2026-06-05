@@ -12246,3 +12246,18 @@ untitled scratch buffer with no path.
   code-intelligence toast replacement behavior.
 - **Language note:** no compiler gap surfaced. LSP lookups that require a stable
   document path should identify the unsaved buffer before refusing the request.
+
+## L983 - Recent Row Misses Should Name The Row State
+
+Welcome/Open Recent reused `No recent file selected` and
+`No recent folder selected` for both invalid selections and stale row indexes
+after recents were pruned. That made repeated clicks after a missing file or
+folder removal look like the UI had lost the user's intent rather than the row
+having disappeared.
+
+- **IDE note:** negative recent indexes now report `No recent ... row selected`,
+  while disappeared file and folder rows report `Recent ... row no longer
+  listed`; the new messages stay in the Open toast replacement lane.
+- **Language note:** no compiler gap surfaced. Event handlers should preserve
+  enough state-specific vocabulary for scalar ABI failures to explain whether
+  input was missing, invalid, or stale.
