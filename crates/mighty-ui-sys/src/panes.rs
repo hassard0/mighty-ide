@@ -197,6 +197,18 @@ impl PaneLayout {
         }
     }
 
+    /// Remap pane->tab indices after a tab was inserted at `inserted`.
+    /// Panes showing tabs at or after the insertion point shift right so they
+    /// keep showing the same logical documents. The caller can then retarget
+    /// the focused pane when the inserted tab should become visible there.
+    pub fn on_tab_inserted(&mut self, inserted: usize) {
+        for p in &mut self.panes {
+            if p.tab >= inserted {
+                p.tab += 1;
+            }
+        }
+    }
+
     /// Remap pane->tab indices after two adjacent tabs swap places. This keeps
     /// split panes bound to the same logical documents while the tab order moves.
     pub fn on_tabs_swapped(&mut self, a: usize, b: usize) {
@@ -371,6 +383,15 @@ mod tests {
         l.on_tab_closed(2, 2);
         assert_eq!(l.tab_at(0), Some(0));
         assert_eq!(l.tab_at(1), Some(1));
+    }
+
+    #[test]
+    fn on_tab_inserted_keeps_panes_on_same_documents() {
+        let mut l = PaneLayout::new(0);
+        l.split_right(2, 0); // panes show tabs 0 and 2
+        l.on_tab_inserted(1);
+        assert_eq!(l.tab_at(0), Some(0));
+        assert_eq!(l.tab_at(1), Some(3));
     }
 
     #[test]

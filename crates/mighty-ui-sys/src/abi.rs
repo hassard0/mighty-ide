@@ -4676,9 +4676,14 @@ pub extern "C" fn mui_tab_duplicate_active(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    let source = ctx.tabs.active();
+    let focused_pane = ctx.panes.focused();
     let active = ctx.tabs.duplicate_active();
+    ctx.panes.on_tab_inserted(active);
+    if ctx.panes.tab_at(focused_pane) == Some(source) {
+        ctx.panes.set_tab(focused_pane, active);
+    }
     sync_active_path(ctx);
-    ctx.panes = crate::panes::PaneLayout::new(active);
     ensure_tab_visible(ctx, active);
     let name = ctx
         .tabs

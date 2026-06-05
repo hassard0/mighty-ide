@@ -7279,6 +7279,8 @@ fn duplicate_active_tab_clones_live_state_and_toasts() {
     ctx.tabs.active_model_mut().set_text_preserving_cursor("dirty b");
     ctx.tabs.store_commit(b_idx, 4, 3, 2);
     ctx.tabs.set_dirty(b_idx, true);
+    ctx.panes = crate::panes::PaneLayout::new(1);
+    ctx.panes.split_right(b_idx, 0);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(crate::mui_tab_duplicate_active(handle), 3);
@@ -7287,6 +7289,9 @@ fn duplicate_active_tab_clones_live_state_and_toasts() {
     assert_eq!(ctx.tabs.get(3).unwrap().basename(), "b.mty");
     assert!(ctx.tabs.is_dirty(3));
     assert_eq!(String::from_utf8(ctx.tabs.active_model().to_bytes()).unwrap(), "dirty b");
+    assert_eq!(ctx.panes.count(), 2);
+    assert_eq!(ctx.panes.tab_at(0), Some(1), "left pane should keep a.mty");
+    assert_eq!(ctx.panes.tab_at(1), Some(3), "focused right pane should show duplicate b.mty");
     assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Duplicated b.mty");
 
     let _ = std::fs::remove_dir_all(&root);

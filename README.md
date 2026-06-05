@@ -65,7 +65,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Reopen Closed Tab** (Ctrl+Alt+T) restores the most recently closed editor tab,
   including tabs removed by cleanup commands
 - **Duplicate Active Tab** clones the current editor tab next to itself from the
-  live buffer, including dirty state and cursor context
+  live buffer, including dirty state and cursor context, without collapsing
+  split-pane layouts
 - **Move Active Tab Left/Right** (Ctrl+Shift+PageUp/PageDown) reorders tabs from
   the keyboard or command palette while preserving split-pane document bindings
 - **Sort Open Tabs by Name** alphabetizes tab clutter without losing the active
