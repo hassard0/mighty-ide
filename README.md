@@ -320,7 +320,8 @@ Packaged launch:
 
 Every archive includes `RUN.txt`, `README.md`, `KEYBINDINGS.md`, `CHANGELOG.md`,
 `BUILDING.md`, `LICENSE`, `docs/platform-packaging.md`, and
-`docs/release-verification.md` alongside the runtime payload, plus
+`docs/release-verification.md`, and `docs/final-release-handoff.md` alongside
+the runtime payload, plus
 `PACKAGE-MANIFEST.txt` with native payload hashes and clean binary verification,
 so the package is usable without returning to the source tree.
 
@@ -330,7 +331,9 @@ objects across platforms. See
 [`docs/platform-packaging.md`](docs/platform-packaging.md) for the full package
 contract and verification commands, and
 [`docs/release-verification.md`](docs/release-verification.md) for the evidence
-record to attach to each published archive.
+record to attach to each published archive. Use
+[`docs/final-release-handoff.md`](docs/final-release-handoff.md) for the final
+stop condition and per-platform publish decision.
 
 ## Dogfooding Mighty
 

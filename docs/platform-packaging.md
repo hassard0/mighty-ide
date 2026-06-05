@@ -93,6 +93,7 @@ tarball:
 - `LICENSE`
 - `docs/platform-packaging.md`
 - `docs/release-verification.md`
+- `docs/final-release-handoff.md`
 
 ## Platform Matrix
 

@@ -180,6 +180,7 @@ try {
   }
   Copy-Item "docs\platform-packaging.md" "$dist\docs\platform-packaging.md" -Force
   Copy-Item "docs\release-verification.md" "$dist\docs\release-verification.md" -Force
+  Copy-Item "docs\final-release-handoff.md" "$dist\docs\final-release-handoff.md" -Force
 
   Assert-NoBuildSidecars $dist
   Assert-NoForeignNativeArtifacts $dist

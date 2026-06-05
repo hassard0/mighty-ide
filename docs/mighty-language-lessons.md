@@ -13395,3 +13395,20 @@ both a failed compiler command and a successful command that emitted no artifact
 - **Language note:** no compiler gap surfaced. Build pipelines should distinguish
   process failure from artifact validation so users can tell whether to inspect
   compiler output or packaging/output layout.
+
+## L1061 - Release Handoffs Need Native-Host Evidence
+
+Final release readiness can look deceptively complete from a Windows checkout
+when macOS and Linux package scripts are present but their native binaries have
+not been built on matching hosts.
+
+- **IDE note:** the release docs now include a final handoff record that names
+  Windows as publishable only after the Windows package script and packaged
+  launch pass, while macOS and Linux remain `unbuilt` until native runners
+  verify Mach-O and ELF payloads respectively. All package scripts now bundle
+  that handoff doc, and native vendor artifacts staged by macOS/Linux package
+  runs are ignored so successful package assembly does not leave source control
+  dirty.
+- **Language note:** no compiler gap surfaced. Release contracts should record
+  the provenance of native binary evidence, not just the existence of package
+  scripts.

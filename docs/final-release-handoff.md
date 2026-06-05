@@ -1,0 +1,78 @@
+# Final Release Handoff
+
+This handoff is intentionally strict: a platform is clean only when its own
+native package script built the package, scanned the assembled package and final
+archive, wrote `PACKAGE-MANIFEST.txt`, and the packaged app launched from inside
+the assembled package directory or app bundle.
+
+## Current Host
+
+This pass is running from a Windows checkout.
+
+That means Windows x64 can be rebuilt and fully verified here. macOS and Linux
+can have their scripts and docs reviewed from here, but their binaries are not
+clean until native macOS and Linux hosts or matching CI runners run their own
+package scripts and smoke tests.
+
+## Publish Decisions
+
+| Platform | Decision from this Windows pass | Required native binary evidence |
+|----------|---------------------------------|---------------------------------|
+| Windows x64 | `publish` after `.\package-win.ps1` succeeds and the packaged executable launches from `dist\mighty-ide-win64` | PE `mighty-ide.exe`, PE `mighty_ui_sys.dll`, clean package tree, clean ZIP, manifest hash/size rows |
+| macOS | `unbuilt` unless a macOS host ran `./package-macos.sh` during this pass | Mach-O app executable, Mach-O `libmighty_ui_sys.dylib`, clean package tree, clean tarball, packaged app launch |
+| Linux x64 | `unbuilt` unless a Linux host ran `./package-linux.sh` during this pass | ELF `mighty-ide`, ELF `libmighty_ui_sys.so`, clean package tree, clean tarball, packaged launch |
+
+Do not publish renamed archives, placeholder archives, or native payloads copied
+from another operating system.
+
+## Final Windows Steps
+
+Run these from a clean committed tree:
+
+```powershell
+.\package-win.ps1
+Get-FileHash dist\mighty-ide-v0.3.0-win64.zip -Algorithm SHA256
+Get-Item dist\mighty-ide-v0.3.0-win64.zip | Select-Object FullName,Length
+Start-Process -FilePath "dist\mighty-ide-win64\mighty-ide.exe" `
+  -WorkingDirectory "dist\mighty-ide-win64"
+```
+
+The package script verifies PE headers for both native payloads, rejects
+compiler/linker sidecars, rejects `.dylib` and `.so` payloads, scans the
+finished ZIP, and writes `dist\mighty-ide-win64\PACKAGE-MANIFEST.txt`.
+
+## Native macOS Steps
+
+Run only on macOS or a matching macOS CI runner:
+
+```sh
+./package-macos.sh
+shasum -a 256 dist/mighty-ide-v0.3.0-macos.tar.gz
+file "dist/mighty-ide-macos/Mighty IDE.app/Contents/MacOS/mighty-ide" \
+  "dist/mighty-ide-macos/Mighty IDE.app/Contents/MacOS/libmighty_ui_sys.dylib"
+"dist/mighty-ide-macos/Mighty IDE.app/Contents/MacOS/mighty-ide"
+```
+
+The macOS package is publishable only after the script verifies Mach-O payloads,
+the archive scan passes, and the app bundle launches on macOS.
+
+## Native Linux Steps
+
+Run only on Linux or a matching Linux CI runner:
+
+```sh
+./package-linux.sh
+sha256sum dist/mighty-ide-v0.3.0-linux-x64.tar.gz
+file dist/mighty-ide-linux-x64/mighty-ide \
+  dist/mighty-ide-linux-x64/libmighty_ui_sys.so
+(cd dist/mighty-ide-linux-x64 && ./mighty-ide)
+```
+
+The Linux package is publishable only after the script verifies ELF payloads,
+the archive scan passes, and the executable launches on Linux.
+
+## Stop Condition
+
+After the Windows package has been rebuilt and the repo is clean, stop. Record
+macOS and Linux as `unbuilt` unless their native package runs completed during
+this same pass.
