@@ -61,8 +61,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Language intelligence
 - **Terminal stale input routes are visible**: focused terminal key, typed
-  codepoint, and raw-byte routes now report `Terminal is not open` when stale
-  focus tries to send input after the PTY has closed.
+  codepoint, raw-byte, and scroll routes now report `Terminal is not open` when
+  stale focus tries to send input after the PTY has closed.
 - **Terminal stale header routes are visible**: Terminal header-clear hit
   routing now reports when the integrated Terminal has already closed instead
   of silently returning no action from stale header clicks.

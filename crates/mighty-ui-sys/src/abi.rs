@@ -8234,11 +8234,11 @@ pub extern "C" fn mui_term_key(handle: i64, keycode: i32, mods: i32) {
             return;
         }
         let Some(t) = ctx.terminal.as_mut() else {
-            ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+            report_terminal_not_open(ctx);
             return;
         };
         if !ctx.term_open {
-            ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+            report_terminal_not_open(ctx);
             return;
         }
         t.send_key(keycode as u32, mods.max(0) as u32);
@@ -8260,11 +8260,11 @@ pub extern "C" fn mui_term_send_codepoint(handle: i64, codepoint: i32, mods: i32
             return;
         };
         let Some(t) = ctx.terminal.as_mut() else {
-            ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+            report_terminal_not_open(ctx);
             return;
         };
         if !ctx.term_open {
-            ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+            report_terminal_not_open(ctx);
             return;
         }
         t.send(&bytes);
@@ -8279,7 +8279,7 @@ pub extern "C" fn mui_term_paste(handle: i64) -> i32 {
         return 0;
     };
     if !ctx.term_open || ctx.terminal.is_none() {
-        ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+        report_terminal_not_open(ctx);
         return 0;
     }
     let text = match read_clipboard_text() {
@@ -8298,12 +8298,16 @@ pub extern "C" fn mui_term_paste(handle: i64) -> i32 {
         return 0;
     }
     let Some(t) = ctx.terminal.as_mut() else {
-        ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+        report_terminal_not_open(ctx);
         return 0;
     };
     t.send_paste(&text);
     ctx.push_toast(crate::toast::Kind::Success, "Pasted to terminal");
     1
+}
+
+fn report_terminal_not_open(ctx: &mut MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
 }
 
 fn terminal_paste_failure_message(e: &std::io::Error) -> String {
@@ -8321,6 +8325,13 @@ fn terminal_paste_failure_message(e: &std::io::Error) -> String {
 #[no_mangle]
 pub extern "C" fn mui_term_scroll(handle: i64, dir: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if dir == 0 {
+            return;
+        }
+        if !ctx.term_open || ctx.terminal.is_none() {
+            report_terminal_not_open(ctx);
+            return;
+        }
         let (row, col) = term_event_cell(ctx);
         let mods = ctx.last_event.mods;
         if let Some(t) = ctx.terminal.as_mut() {
@@ -8401,11 +8412,11 @@ pub extern "C" fn mui_term_send_byte(handle: i64, byte: i32) {
             return;
         }
         let Some(t) = ctx.terminal.as_mut() else {
-            ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+            report_terminal_not_open(ctx);
             return;
         };
         if !ctx.term_open {
-            ctx.push_toast(crate::toast::Kind::Warn, "Terminal is not open");
+            report_terminal_not_open(ctx);
             return;
         }
         t.send(&[byte as u8]);
