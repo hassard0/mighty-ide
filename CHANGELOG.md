@@ -41,6 +41,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   files/symbols/line result now reports the missing selection and keeps the
   picker open, with Mighty mirroring the shim's active state after failed
   accepts.
+- **Go to Line invalid input stays editable**: blank or non-numeric Ctrl+G
+  submissions now report `Enter a line number` and leave the prompt open instead
+  of dismissing the input with no navigation.
 - **Explorer rejects stale file rows**: opening a file row whose target was
   deleted now reports the missing file, refreshes Explorer and Quick Open, and
   avoids creating an empty phantom tab for the missing path.

@@ -1107,6 +1107,34 @@ fn prompt_hit_test_tracks_visible_bottom_band() {
 }
 
 #[test]
+fn goto_prompt_invalid_input_reports_feedback_and_stays_active() {
+    use crate::{mui_prompt_active, mui_prompt_goto_target, mui_prompt_push, prompt::PromptKind};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.prompt.open(PromptKind::Goto as i32);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_prompt_goto_target(handle), -1);
+    assert_eq!(mui_prompt_active(handle), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Enter a line number");
+
+    mui_prompt_push(handle, 'a' as i32);
+    assert_eq!(mui_prompt_goto_target(handle), -1);
+    assert_eq!(mui_prompt_active(handle), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Enter a line number");
+
+    ctx.prompt.cancel();
+    ctx.prompt.open(PromptKind::Goto as i32);
+    mui_prompt_push(handle, '4' as i32);
+    mui_prompt_push(handle, '2' as i32);
+    assert_eq!(mui_prompt_goto_target(handle), 42);
+}
+
+#[test]
 fn dirty_confirm_cancel_command_clears_pending_choice() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -12346,6 +12374,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     assert!(
         main.contains("command_click_id = mui_qo_command_id(h, -1)"),
         "Quick Open command mode must queue the selected command id"
+    );
+    assert!(
+        main.contains(
+            "let target1 = mui_prompt_goto_target(h)\n              if target1 >= 1 {\n                mui_ed_move_to(h, target1 - 1, 0)\n                let _pc = mui_prompt_cancel(h)\n                prompt_kind = 0\n              }"
+        ),
+        "invalid Go to Line submissions must keep the prompt open for correction"
     );
     assert!(
         main.contains("topbar_act == 3") && main.contains("mui_quickopen_open(h)"),

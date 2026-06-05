@@ -2883,9 +2883,11 @@ fn main() {
           } else if k == key_enter() {
             if prompt_kind == prompt_goto() {
               let target1 = mui_prompt_goto_target(h)
-              if target1 >= 1 { mui_ed_move_to(h, target1 - 1, 0) }
-              let _pc = mui_prompt_cancel(h)
-              prompt_kind = 0
+              if target1 >= 1 {
+                mui_ed_move_to(h, target1 - 1, 0)
+                let _pc = mui_prompt_cancel(h)
+                prompt_kind = 0
+              }
             } else if prompt_kind == prompt_open() {
               mui_path_clear(h)
               let plen = mui_prompt_len(h)

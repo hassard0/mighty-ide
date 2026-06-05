@@ -4004,7 +4004,14 @@ fn prompt_close_rect(w: f32, y: f32, bar_h: f32) -> (f32, f32, f32, f32) {
 /// query is empty / not all digits / overflows. Mighty calls this on Enter.
 #[no_mangle]
 pub extern "C" fn mui_prompt_goto_target(handle: i64) -> i32 {
-    unsafe { ctx(handle) }.map_or(-1, |c| c.prompt.goto_target())
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return -1;
+    };
+    let target = ctx.prompt.goto_target();
+    if target < 1 {
+        ctx.push_toast(crate::toast::Kind::Info, "Enter a line number");
+    }
+    target
 }
 
 // ---------------------------------------------------------------------------
