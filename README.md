@@ -332,8 +332,9 @@ directories.
 
 Every package includes `RUN.txt`, `README.md`, `KEYBINDINGS.md`, `CHANGELOG.md`,
 `BUILDING.md`, `LICENSE`, `docs/platform-packaging.md`,
-`docs/release-verification.md`, `docs/release-evidence.md`, and
-`docs/final-release-handoff.md` alongside the runtime payload, plus
+`docs/release-verification.md`, `docs/release-evidence.md`,
+`docs/binary-release-status.md`, and `docs/final-release-handoff.md` alongside
+the runtime payload, plus
 `PACKAGE-MANIFEST.txt` with native payload hashes, sizes, and clean-binary
 verification.
 
@@ -358,10 +359,12 @@ Final handoff rule:
 For a stop/pass release handoff, use
 [`docs/final-release-handoff.md`](docs/final-release-handoff.md) as the source
 of truth for platform decisions and
+[`docs/binary-release-status.md`](docs/binary-release-status.md) for the
+concise clean-binary status. Use
 [`docs/release-verification.md`](docs/release-verification.md) for the evidence
-rules. Fill [`docs/release-evidence.md`](docs/release-evidence.md) with the
-final upload record. Exact archive size and SHA-256 values are generated during
-packaging and must match the bundled `PACKAGE-MANIFEST.txt`.
+rules, then fill [`docs/release-evidence.md`](docs/release-evidence.md) with
+the final upload record. Exact archive size and SHA-256 values are generated
+during packaging and must match the bundled `PACKAGE-MANIFEST.txt`.
 
 Each platform package must be built and smoke-tested on its native OS or a
 matching CI runner. Do not reuse Windows DLLs, macOS dylibs, or Linux shared

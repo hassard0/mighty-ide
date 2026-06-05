@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Release packaging
+- **Binary release status is bundled**: every package now includes
+  `docs/binary-release-status.md`, a concise per-platform stop/pass summary
+  defining clean binaries, valid `publish`/`hold`/`unbuilt` decisions, and the
+  Windows-hosted final-pass rule for macOS and Linux.
 - **Final stop-pass wording is explicit**: README and release docs now define
   clean binaries as generated, scanned, and launched per-platform artifacts.
   A Windows-hosted pass may publish only the Windows PE archive; macOS and Linux

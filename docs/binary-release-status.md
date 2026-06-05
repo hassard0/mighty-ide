@@ -1,0 +1,59 @@
+# Binary Release Status
+
+This file is the concise platform status for a final release pass. It should be
+bundled with every release package so the archive carries the same clean-binary
+rules as the source checkout.
+
+## Clean Binary Definition
+
+A platform binary is clean only after all of these are true on that platform's
+native OS or a matching CI runner:
+
+- the package script ran from a clean committed source tree
+- the staged package directory was rebuilt for the current version
+- native payloads matched the platform binary family
+- compiler and linker sidecars were absent from the staged package
+- foreign-platform native payloads were absent from the staged package
+- the final archive was scanned for sidecars and foreign native payloads
+- `PACKAGE-MANIFEST.txt` was written with payload hashes and sizes
+- the packaged executable launched from inside the assembled package directory
+  or app bundle
+
+Clean-binary evidence is per-platform. A Windows package proves only Windows PE
+payloads. A macOS package proves only Mach-O payloads. A Linux package proves
+only ELF payloads.
+
+## Platform Decisions
+
+Use only these decision values:
+
+- `publish`: native package script completed, scans passed, manifest exists,
+  and the packaged app launched on the matching platform.
+- `hold`: a native package exists but one required check failed or has not been
+  recorded.
+- `unbuilt`: no native host or matching CI runner produced the archive for this
+  pass.
+
+## Windows-Hosted Final Pass
+
+This checkout is currently being finalized from Windows. That means:
+
+| Platform | Local decision | Clean-binary evidence required |
+|----------|----------------|--------------------------------|
+| Windows x64 | `publish` after packaging and launch pass here | PE `mighty-ide.exe`, PE `mighty_ui_sys.dll`, clean staged tree, clean ZIP, manifest, packaged launch |
+| macOS | `unbuilt` unless a macOS runner completed this pass | Mach-O app executable and `.dylib`, clean staged tree, clean tarball, manifest, packaged app launch |
+| Linux x64 | `unbuilt` unless a Linux runner completed this pass | ELF executable and `.so`, clean staged tree, clean tarball, manifest, packaged launch |
+
+macOS and Linux package scripts may be syntax-checked and host-gate-checked from
+Windows, but those checks are script readiness only. They do not create clean
+Mach-O or ELF binaries.
+
+## Final Stop Rule
+
+After the final documentation commit, rebuild the Windows package from that
+clean commit, record the ZIP size and SHA-256, launch the packaged Windows app
+from `dist\mighty-ide-win64`, record macOS and Linux as `unbuilt` unless native
+runners completed during the same pass, and stop.
+
+If the source tree changes after a package is built, rebuild the package before
+publishing it.

@@ -97,6 +97,7 @@ cp README.md KEYBINDINGS.md CHANGELOG.md BUILDING.md LICENSE "$DIST/"
 cp docs/platform-packaging.md "$DIST/docs/platform-packaging.md"
 cp docs/release-verification.md "$DIST/docs/release-verification.md"
 cp docs/release-evidence.md "$DIST/docs/release-evidence.md"
+cp docs/binary-release-status.md "$DIST/docs/binary-release-status.md"
 cp docs/final-release-handoff.md "$DIST/docs/final-release-handoff.md"
 cat > "$DIST/RUN.txt" <<'RUN'
 Mighty IDE - Linux (x64)

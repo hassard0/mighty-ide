@@ -88,6 +88,7 @@ Windows package from that clean commit, record the Windows archive hash and
 size, confirm the packaged Windows executable launched from
 `dist\mighty-ide-win64`, and stop.
 Use `docs\release-evidence.md` as the concise upload record.
+Use `docs\binary-release-status.md` as the bundled clean-binary status summary.
 Record macOS and Linux as `unbuilt` unless their native package runs completed
 during this same pass. If only syntax and wrong-host checks ran for those
 scripts, mention them as script-readiness checks rather than clean-binary

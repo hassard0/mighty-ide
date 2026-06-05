@@ -3,7 +3,8 @@
 Use this file as the final record for a release upload. Fill one block per
 platform only after that platform's package script has completed on its native
 OS or a matching CI runner and the packaged executable has launched from inside
-the assembled package directory or app bundle.
+the assembled package directory or app bundle. The bundled platform status
+summary lives in [`binary-release-status.md`](binary-release-status.md).
 
 Do not mark macOS or Linux as clean from a Windows build. Do not mark Windows
 as clean from a macOS or Linux build. A clean binary is one produced, scanned,

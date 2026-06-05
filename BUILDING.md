@@ -83,7 +83,9 @@ that OS or on a matching CI runner. The release checklist is maintained in
 [`docs/platform-packaging.md`](docs/platform-packaging.md), the upload evidence
 template is in [`docs/release-verification.md`](docs/release-verification.md),
 the final upload record is in
-[`docs/release-evidence.md`](docs/release-evidence.md), and the final
+[`docs/release-evidence.md`](docs/release-evidence.md), the clean-binary status
+summary is in
+[`docs/binary-release-status.md`](docs/binary-release-status.md), and the final
 stop/pass handoff is in
 [`docs/final-release-handoff.md`](docs/final-release-handoff.md).
 
@@ -97,6 +99,7 @@ together long enough to verify:
 - bundled `PACKAGE-MANIFEST.txt` hash/size and clean-binary summary
 - completed `docs/release-verification.md` evidence record for the archive
 - completed `docs/release-evidence.md` upload record for the archive
+- packaged `docs/binary-release-status.md` clean-binary status
 - packaged `docs/final-release-handoff.md` stop/publish rule
 - packaged launch from inside the assembled directory or app bundle
 

@@ -105,6 +105,7 @@ tarball:
 - `docs/platform-packaging.md`
 - `docs/release-verification.md`
 - `docs/release-evidence.md`
+- `docs/binary-release-status.md`
 - `docs/final-release-handoff.md`
 
 ## Platform Matrix
