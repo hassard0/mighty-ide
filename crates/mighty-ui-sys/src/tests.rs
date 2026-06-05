@@ -15211,6 +15211,13 @@ fn markdown_close_preview_command_collapses_preview() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Markdown preview is already closed");
+    ctx.toasts.clear();
+
+    assert_eq!(crate::abi::mui_md_close_at_click(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Markdown preview is already closed");
+    ctx.toasts.clear();
 
     crate::abi::mui_md_scroll(h, 3);
     let toast = ctx.toasts.toasts().last().unwrap();

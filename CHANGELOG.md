@@ -121,7 +121,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   hidden output can no longer be activated by stale row calls.
 - **Inline preview stale scroll routes are visible**: Diff, Peek Definition,
   and Markdown preview scroll entry points now report when their surface has
-  already closed instead of mutating hidden viewport state.
+  already closed instead of mutating hidden viewport state. Markdown preview
+  stale close-click routing also reports the closed preview instead of returning
+  silently.
 - **Testing stale routes are visible**: Testing toolbar, result-row click, and
   scroll routes now report when the panel has already closed, and retained
   hidden results can no longer be activated by stale row calls.

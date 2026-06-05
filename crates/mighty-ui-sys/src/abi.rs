@@ -15770,8 +15770,12 @@ pub extern "C" fn mui_md_close_at_click(handle: i64) -> i32 {
         let Some(ctx) = (unsafe { ctx(handle) }) else {
             return 0;
         };
-        let Some(i) = ctx.md_pane else { return 0 };
+        let Some(i) = ctx.md_pane else {
+            ctx.push_toast(crate::toast::Kind::Info, "Markdown preview is already closed");
+            return 0;
+        };
         if !ctx.md_preview.is_open() || i >= ctx.panes.count() {
+            ctx.push_toast(crate::toast::Kind::Info, "Markdown preview is already closed");
             return 0;
         }
         let region = layout::region(ctx.sidebar_visible);
