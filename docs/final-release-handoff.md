@@ -92,6 +92,11 @@ during this same pass. If only syntax and wrong-host checks ran for those
 scripts, mention them as script-readiness checks rather than clean-binary
 evidence.
 
+The final response for a Windows-hosted pass should report the committed source
+hash, the Windows ZIP size and SHA-256, the package-script checks that passed,
+and the explicit macOS/Linux `unbuilt` status. Do not do additional feature or
+polish work after that report.
+
 Stopping here is part of the release contract. Further IDE polish belongs in a
 new pass after the verified package handoff, not in the same finalization pass.
 

@@ -303,6 +303,9 @@ Final handoff rule:
 - A platform is publishable only when its package script ran on the matching
   native OS or CI runner, the archive-level clean-binary scan passed, and the
   packaged executable launched from inside the assembled package directory.
+- "Clean binaries" is a per-platform artifact claim, not a source-tree claim:
+  the committed repo contains scripts and docs, while the verified native
+  payloads are generated under ignored `dist/` directories during packaging.
 - This Windows checkout can produce and verify only the Windows x64 package.
 - macOS/Linux script review from Windows covers syntax, host gating, bundled
   docs, and clean-artifact policy only; it does not create clean Mach-O or ELF
@@ -352,9 +355,9 @@ Stop-pass checklist:
    payloads and no compiler/linker sidecars.
 5. Launch `dist\mighty-ide-win64\mighty-ide.exe` with
    `dist\mighty-ide-win64` as the working directory.
-6. Record the ZIP size and SHA-256 in the external release note or upload
-   record, then stop. macOS and Linux remain `unbuilt` until their own native
-   runners produce and smoke-test Mach-O and ELF archives.
+6. Record the ZIP size and SHA-256 in the final handoff, then stop. macOS and
+   Linux remain `unbuilt` until their own native runners produce and smoke-test
+   Mach-O and ELF archives.
 
 ## Dogfooding Mighty
 

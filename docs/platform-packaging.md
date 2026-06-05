@@ -54,6 +54,13 @@ platform, not from another OS package. If the Windows package is current but
 macOS or Linux has not run on native infrastructure, the correct state is
 `unbuilt`, not `derived from Windows`.
 
+The source checkout can be clean while no platform binary is publishable yet.
+Binary cleanliness is established only after the ignored platform package tree
+and final archive are generated, scanned, and launched on the matching OS or CI
+runner. Do not describe macOS or Linux binaries as clean from a Windows-only
+pass; describe those paths as script-ready and leave their release decision as
+`unbuilt`.
+
 Release operators should use only three final states for each platform:
 
 - `publish`: package script completed on the matching native host or runner, the

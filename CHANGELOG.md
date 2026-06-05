@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Release packaging
+- **Final stop-pass wording is explicit**: README and release docs now define
+  clean binaries as generated, scanned, and launched per-platform artifacts.
+  A Windows-hosted pass may publish only the Windows PE archive; macOS and Linux
+  remain `unbuilt` until native runners produce and launch their Mach-O/ELF
+  archives.
 - **Final package status is explicit**: release verification docs now include a
   final handoff table for Windows, macOS, and Linux. Windows can be published
   only after the local PE package and launch checks pass; macOS and Linux stay
