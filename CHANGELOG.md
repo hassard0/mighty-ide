@@ -173,6 +173,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Outline panel feedback replaces cleanly**: Outline close/no-op messages now
   coalesce with navigation feedback alongside Outline symbol updates instead of
   stacking stale navigation-surface lifecycle cards.
+- **Explorer and Problems panel feedback replaces cleanly**: Explorer close
+  messages plus Problems close and diagnostics-clear/no-op notices now coalesce
+  with navigation feedback instead of being treated as unrelated layout changes.
 - **Run, Test, and Source Control stale-target toasts replace cleanly**:
   non-file target warnings from runner, test, and source-control surfaces now
   coalesce with the command family that produced them instead of lingering as

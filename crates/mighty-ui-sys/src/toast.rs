@@ -962,6 +962,12 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No project search results"
         || m == "Outline panel closed"
         || m == "Outline panel is already closed"
+        || m == "Explorer panel closed"
+        || m == "Explorer panel is already closed"
+        || m == "Problems panel closed"
+        || m == "Problems panel is already closed"
+        || m == "Problems diagnostics cleared"
+        || m == "Problems diagnostics already empty"
         || m.starts_with("Explorer target missing")
         || m.starts_with("Explorer target is not a file")
         || m == "No Explorer row selected"
@@ -1451,9 +1457,9 @@ mod tests {
         assert_eq!(q.toasts()[2].message, "Sidebar resized to 310px");
         assert!(!q.toasts().iter().any(|t| t.message == "Dock resized to 228px"));
 
-        q.push_at(Kind::Info, "Problems panel closed", t0 + Duration::from_millis(2850));
+        q.push_at(Kind::Info, "Settings panel closed", t0 + Duration::from_millis(2850));
         assert_eq!(q.len(), 3);
-        assert_eq!(q.toasts()[2].message, "Problems panel closed");
+        assert_eq!(q.toasts()[2].message, "Settings panel closed");
         assert!(!q.toasts().iter().any(|t| t.message == "Sidebar resized to 310px"));
 
         q.push_at(Kind::Info, "Markdown preview opened", t0 + Duration::from_millis(2900));
@@ -3215,6 +3221,54 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Outline panel is already closed");
+
+        q.push_at(
+            Kind::Info,
+            "Explorer panel closed",
+            t0 + Duration::from_millis(499),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Explorer panel closed");
+
+        q.push_at(
+            Kind::Info,
+            "Explorer panel is already closed",
+            t0 + Duration::from_millis(499),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Explorer panel is already closed");
+
+        q.push_at(
+            Kind::Info,
+            "Problems panel closed",
+            t0 + Duration::from_millis(499),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Problems panel closed");
+
+        q.push_at(
+            Kind::Info,
+            "Problems panel is already closed",
+            t0 + Duration::from_millis(499),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Problems panel is already closed");
+
+        q.push_at(
+            Kind::Info,
+            "Problems diagnostics cleared",
+            t0 + Duration::from_millis(499),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Problems diagnostics cleared");
+
+        q.push_at(
+            Kind::Info,
+            "Problems diagnostics already empty",
+            t0 + Duration::from_millis(499),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Problems diagnostics already empty");
 
         q.push_at(
             Kind::Info,
