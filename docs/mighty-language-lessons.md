@@ -13712,3 +13712,17 @@ and platform-name rejections.
 - **Language note:** no compiler gap surfaced. Shared validators should have
   complete toast-family coverage, including generic fallbacks that are less
   likely than platform-specific branches but still user-visible.
+
+## L1084 - Save-As Filename Guards Are Save Feedback
+
+Save As validates that the chosen target has a usable file name before writing.
+When a picker or typed path lacks a basename, the user sees `Choose a file
+name`. That guard is part of the save workflow and should not stack beside stale
+Save As guidance.
+
+- **IDE note:** `Choose a file name` now coalesces with the Save operation
+  family, replacing stale save-path guidance and being replaced by later save
+  outcomes.
+- **Language note:** no compiler gap surfaced. Generic validation text should
+  be classified by the command that emitted it when it is surfaced as command
+  feedback.

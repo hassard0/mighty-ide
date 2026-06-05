@@ -667,6 +667,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Use Save As to choose a file path"
         || m == "No save path entered"
         || m == "No file path to save"
+        || m == "Choose a file name"
         || m == "Target file is already open"
         || m.ends_with(" is read-only in the text editor")
         || m.starts_with("Saved ")
@@ -1802,6 +1803,14 @@ mod tests {
         );
 
         q.push_at(Kind::Warn, "Use Save As to choose a file path", t0 + Duration::from_millis(400));
+        q.push_at(
+            Kind::Warn,
+            "Choose a file name",
+            t0 + Duration::from_millis(410),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Choose a file name");
+
         q.push_at(
             Kind::Warn,
             "Target file is already open",
