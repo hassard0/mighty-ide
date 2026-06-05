@@ -12376,3 +12376,16 @@ which made it hard to tell which clicked topology item was inert.
   those row-specific messages grouped with the older generic Agents feedback.
 - **Language note:** no compiler gap surfaced. Graph/topology UIs should carry
   row identity through scalar click handlers before returning a no-op.
+
+## L992 - Debug Restart Misses Should Explain Missing History
+
+`Debug: Restart` can be invoked before any session has established a restart
+target. The old `No debug target to restart` message was accurate but did not
+explain the recovery action or identify the active editor context.
+
+- **IDE note:** restart-without-history now reports
+  `Start debug before restarting: (scratch) has no previous target`, and the
+  Debug toast replacement lane accepts the new targeted wording.
+- **Language note:** no compiler gap surfaced. Lifecycle actions that depend on
+  prior session history should distinguish missing history from missing active
+  source files.

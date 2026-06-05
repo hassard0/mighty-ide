@@ -8288,7 +8288,10 @@ fn debug_restart_without_target_reports_visible_feedback() {
     assert_eq!(crate::dapabi::mui_dbg_active(handle), 1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "No debug target to restart");
+    assert_eq!(
+        toast.message,
+        "Start debug before restarting: (scratch) has no previous target"
+    );
 }
 
 #[test]

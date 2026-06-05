@@ -108,6 +108,13 @@ fn debug_needs_file_message(ctx: &MuiContext, action: &str) -> String {
     format!("Save {} before {action}", active_debug_target_name(ctx))
 }
 
+fn debug_restart_needs_target_message(ctx: &MuiContext) -> String {
+    format!(
+        "Start debug before restarting: {} has no previous target",
+        active_debug_target_name(ctx)
+    )
+}
+
 // ===========================================================================
 // Session lifecycle (F5 / Shift+F5) + stepping (F10 / F11 / Shift+F11)
 // ===========================================================================
@@ -249,7 +256,10 @@ pub extern "C" fn mui_dbg_restart(handle: i64) -> i32 {
             );
             crate::abi::trace("dbg_restart failed_no_path");
         } else {
-            ctx.push_toast(crate::toast::Kind::Warn, "No debug target to restart");
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                debug_restart_needs_target_message(ctx),
+            );
             crate::abi::trace("dbg_restart no_target");
         }
     }

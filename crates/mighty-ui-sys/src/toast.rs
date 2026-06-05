@@ -957,6 +957,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Pause is available while running"
         || m.starts_with("Debug restart failed")
         || m == "No debug target to restart"
+        || m.starts_with("Start debug before restarting:")
         || m == "Step Over is available when paused"
         || m == "Step Into is available when paused"
         || m == "Step Out is available when paused"
@@ -2248,6 +2249,17 @@ mod tests {
         assert_eq!(
             q.toasts()[0].message,
             "Debug restart failed: main.mty via missing-mty.exe dap: process spawn denied"
+        );
+
+        q.push_at(
+            Kind::Warn,
+            "Start debug before restarting: (scratch) has no previous target",
+            t0 + Duration::from_millis(650),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Start debug before restarting: (scratch) has no previous target"
         );
 
         q.push_at(
