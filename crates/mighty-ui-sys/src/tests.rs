@@ -11863,6 +11863,26 @@ fn prompt_keyboard_routes_without_prompt_report_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No prompt input open");
+    ctx.toasts.clear();
+
+    assert_eq!(crate::abi::mui_prompt_goto_target(handle), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No prompt input open");
+    ctx.toasts.clear();
+
+    ctx.find.reset();
+    ctx.find.push_byte(b'a' as u32);
+    assert_eq!(crate::abi::mui_find_count(handle), 0);
+    assert_eq!(crate::abi::mui_ed_find_run(handle), 0);
+    assert_eq!(
+        crate::abi::mui_find_count(handle),
+        0,
+        "stale find submit must not mutate retained find state"
+    );
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No prompt input open");
 }
 
 #[test]

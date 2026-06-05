@@ -4273,6 +4273,10 @@ pub extern "C" fn mui_prompt_goto_target(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !ctx.prompt.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No prompt input open");
+        return -1;
+    }
     let target = ctx.prompt.goto_target();
     if target < 1 {
         ctx.push_toast(crate::toast::Kind::Info, "Enter a line number");
@@ -14428,6 +14432,10 @@ pub extern "C" fn mui_ed_find_run(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !ctx.prompt.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No prompt input open");
+        return 0;
+    }
     let text = ctx.tabs.active_model().as_text();
     ctx.find.reset();
     for b in text.bytes() {

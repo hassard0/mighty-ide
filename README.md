@@ -232,8 +232,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   the command palette, matching the activity rail, status chip, and docked panels.
 - New Folder reports when the target path is an existing file instead of saying
   the folder already exists
-- Prompt fallback keyboard routes report when the bottom prompt is already
-  closed
+- Prompt fallback keyboard and submit routes report when the bottom prompt is
+  already closed
 - **Live Markdown preview (Ctrl+Shift+V)** — themed, live-updating split-pane render
 - **Keyboard Shortcuts overlay (Ctrl+Shift+/)** — searchable command/binding reference with router-command remapping (persists to `keybindings.toml` under the shared Mighty IDE config directory and warns if override writes fail)
 - Keyboard Shortcuts keyboard, remap, reset, and click actions report

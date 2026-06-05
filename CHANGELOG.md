@@ -85,6 +85,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Peek Definition targets now share the focused-pane file-open path.
 
 ### Language intelligence
+- **Prompt stale submit routes are visible**: stale Go-to-Line and Find submit
+  routes now report `No prompt input open` after the prompt has closed instead
+  of treating the route as an empty query.
 - **Explorer stale routes are visible**: Explorer header, row-hit, row-open,
   toggle, and collapse routes now report when the panel has already closed and
   cannot mutate retained hidden tree state.
