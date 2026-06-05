@@ -1040,6 +1040,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Save the file before setting breakpoints"
         || m == "No breakpoint row selected"
         || m == "No breakpoints to clear"
+        || m == "Breakpoints cleared"
         || m.starts_with("Breakpoint ")
     {
         Some(OperationKey::Debug)
@@ -2619,6 +2620,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No breakpoints to clear");
+
+        q.push_at(
+            Kind::Info,
+            "Breakpoints cleared",
+            t0 + Duration::from_millis(850),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Breakpoints cleared");
     }
 
     #[test]

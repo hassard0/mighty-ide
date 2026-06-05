@@ -13646,3 +13646,17 @@ Git, Source Control, or commit at the start.
   workflow.
 - **Language note:** no compiler gap surfaced. Prompt-style guard messages need
   operation-family coverage when they are emitted as command results.
+
+## L1079 - Plural Breakpoint Clears Are Debug Feedback
+
+Successful clear-all uses `Breakpoints cleared`, while individual breakpoint
+messages start with `Breakpoint `. The plural wording missed the Debug
+classifier and could leave successful clear-all feedback stacked beside stale
+Debug-panel state.
+
+- **IDE note:** `Breakpoints cleared` now coalesces with the Debug operation
+  family, matching the empty `No breakpoints to clear` result and individual
+  breakpoint messages.
+- **Language note:** no compiler gap surfaced. Prefix classifiers should account
+  for plural success messages when the operation has both singular row actions
+  and bulk actions.
