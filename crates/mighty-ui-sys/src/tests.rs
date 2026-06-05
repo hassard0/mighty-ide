@@ -595,6 +595,43 @@ fn save_staging_refuses_dirty_open_tab() {
     let _ = std::fs::remove_file(&path);
 }
 
+#[test]
+fn save_staging_failure_reports_filesystem_reason() {
+    use crate::{mui_path_commit, mui_path_push, mui_save_commit, mui_save_push};
+
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_staging_failure_reason_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let parent_file = root.join("parent.txt");
+    std::fs::write(&parent_file, b"not a directory").unwrap();
+    let target = parent_file.join("child.mty");
+
+    for b in target.to_string_lossy().as_bytes() {
+        mui_path_push(handle, *b as u32);
+    }
+    mui_path_commit(handle);
+    for b in b"cannot save\n" {
+        mui_save_push(handle, *b as u32);
+    }
+
+    assert_eq!(mui_save_commit(handle), -1);
+    assert!(!target.exists());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast.message.starts_with("Save failed: child.mty: "),
+        "{}",
+        toast.message
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 // ---- multi-file workspace ABI (tabs + tree + click routing) ----
 
 #[test]
@@ -5372,7 +5409,11 @@ fn save_all_failure_reports_failed_file_count() {
     assert!(blocked.is_dir());
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert_eq!(toast.message, "Save All failed: 1 file failed");
+    assert!(
+        toast.message.starts_with("Save All failed: blocked.mty: "),
+        "{}",
+        toast.message
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -13599,6 +13640,50 @@ fn save_as_dialog_rejects_platform_trap_basenames() {
 }
 
 #[test]
+fn save_as_dialog_failure_reports_filesystem_reason() {
+    use crate::{mui_active_has_path, mui_ed_dirty, mui_save_as_dialog};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    crate::settings::set_active(crate::settings::Settings::default());
+
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("save me\n");
+    ctx.tabs.set_dirty(ctx.tabs.active(), true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_as_dialog_failure_reason_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let parent_file = root.join("parent.txt");
+    std::fs::write(&parent_file, b"not a directory").unwrap();
+    let target = parent_file.join("child.mty");
+
+    std::env::set_var("MUI_SAVE_FILE_PICK", target.to_string_lossy().as_ref());
+    assert_eq!(mui_save_as_dialog(h), -1);
+    std::env::remove_var("MUI_SAVE_FILE_PICK");
+
+    assert!(!target.exists());
+    assert_eq!(mui_active_has_path(h), 0);
+    assert_eq!(mui_ed_dirty(h), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast.message.starts_with("Save failed: child.mty: "),
+        "{}",
+        toast.message
+    );
+
+    crate::settings::set_active(before);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn plain_save_on_untitled_uses_native_save_picker() {
     use crate::{mui_active_has_path, mui_ed_dirty, mui_ed_save};
 
@@ -13629,6 +13714,40 @@ fn plain_save_on_untitled_uses_native_save_picker() {
     assert_eq!(std::fs::read_to_string(&target).unwrap(), "fn main() {\n");
 
     crate::settings::set_active(before);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn plain_save_failure_reports_filesystem_reason() {
+    use crate::{mui_ed_dirty, mui_ed_save};
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_plain_save_failure_reason_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let blocked = root.join("blocked.mty");
+    std::fs::create_dir_all(&blocked).unwrap();
+    let idx = ctx.tabs.open_path(blocked.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("cannot write over a directory\n");
+    ctx.tabs.set_dirty(idx, true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_ed_save(h), -1);
+    assert_eq!(mui_ed_dirty(h), 1);
+    assert!(blocked.is_dir());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast.message.starts_with("Save failed: blocked.mty: "),
+        "{}",
+        toast.message
+    );
+
     let _ = std::fs::remove_dir_all(&root);
 }
 

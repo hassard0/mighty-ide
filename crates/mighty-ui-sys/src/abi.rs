@@ -3270,6 +3270,10 @@ pub extern "C" fn mui_save_commit(handle: i64) -> i32 {
         }
         Err(e) => {
             eprintln!("mui_save_commit({}): {e}", path.display());
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_operation_failed_message("Save", &path, &e),
+            );
             -1
         }
     }
@@ -12214,7 +12218,10 @@ fn save_active_current_path(ctx: &mut MuiContext) -> i32 {
         }
         Err(e) => {
             eprintln!("mui_ed_save({}): {e}", path.display());
-            ctx.push_toast(crate::toast::Kind::Error, format!("Save failed: {name}"));
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_operation_failed_message("Save", &path, &e),
+            );
             -1
         }
     }
@@ -12314,7 +12321,10 @@ fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf, toast_succe
         }
         Err(e) => {
             eprintln!("mui_ed_save({}): {e}", path.display());
-            ctx.push_toast(crate::toast::Kind::Error, format!("Save failed: {name}"));
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_operation_failed_message("Save", &path, &e),
+            );
             -1
         }
     }
@@ -12355,6 +12365,7 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
     let mut untitled_unavailable = 0_i32;
     let mut read_only = 0_i32;
     let mut dirty_conflicts = 0_i32;
+    let mut first_failed_message: Option<String> = None;
     let original_active = ctx.tabs.active();
     for idx in dirty {
         let path_conflict = ctx
@@ -12388,6 +12399,9 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
                 }
                 Err(e) => {
                     failed += 1;
+                    if first_failed_message.is_none() {
+                        first_failed_message = Some(file_operation_failed_message("Save", &path, &e));
+                    }
                     eprintln!("mui_save_all({}): {e}", path.display());
                 }
             }
@@ -12411,6 +12425,14 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
                 saved += 1;
             } else {
                 failed += 1;
+                if first_failed_message.is_none() {
+                    first_failed_message = ctx.toasts.toasts().last().and_then(|toast| {
+                        toast
+                            .message
+                            .strip_prefix("Save failed: ")
+                            .map(|detail| format!("Save failed: {detail}"))
+                    });
+                }
             }
         }
     }
@@ -12455,9 +12477,18 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
             0
         }
         (0, f, _, _) if f > 0 => {
+            let message = if f == 1 {
+                if let Some(detail) = first_failed_message.as_deref() {
+                    format!("Save All failed: {}", detail.trim_start_matches("Save failed: "))
+                } else {
+                    format!("Save All failed: {}", save_all_failed_phrase(f))
+                }
+            } else {
+                format!("Save All failed: {}", save_all_failed_phrase(f))
+            };
             ctx.push_toast(
                 crate::toast::Kind::Error,
-                format!("Save All failed: {}", save_all_failed_phrase(f)),
+                message,
             );
             -1
         }
@@ -12497,7 +12528,15 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
             s
         }
         (s, f, _, r) => {
-            let failed = save_all_failed_phrase(f);
+            let failed = if f == 1 {
+                if let Some(detail) = first_failed_message.as_deref() {
+                    detail.to_string()
+                } else {
+                    save_all_failed_phrase(f)
+                }
+            } else {
+                save_all_failed_phrase(f)
+            };
             if r > 0 {
                 let skipped = if r == 1 { "file" } else { "files" };
                 ctx.push_toast(
@@ -12615,7 +12654,10 @@ fn save_active_to_path(ctx: &mut MuiContext, target: PathBuf) -> i32 {
         }
         Err(e) => {
             eprintln!("mui_save_as({}): {e}", target.display());
-            ctx.push_toast(crate::toast::Kind::Error, format!("Save failed: {name}"));
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_operation_failed_message("Save", &target, &e),
+            );
             -1
         }
     }

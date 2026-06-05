@@ -11906,3 +11906,21 @@ parent component is not a directory, the path is denied, or the host rejects it.
 - **Language note:** no compiler gap surfaced. Creation commands should treat
   files and folders consistently: target plus host reason belongs in the visible
   toast whenever the host rejects the operation.
+
+## L959 - Save Failures Need The Same Visible Host Reason As Open/Create/Delete
+
+Save paths still lagged behind the recent file-operation feedback hardening:
+`mui_ed_save`, Save As, staged-save commit, and Save All logged the `std::fs::write`
+error but often toasted only `Save failed: name` or a failed-file count. That is
+not enough when the path is blocked by a directory, a bad parent component, or a
+permission issue.
+
+- **IDE note:** direct Save, Save As, and staged save now report
+  `Save failed: target: reason`. Save All keeps the aggregate count for
+  multi-file failures, but a single failed file now reports
+  `Save All failed: target: reason`, and partial saves include the failed target
+  when exactly one file failed.
+- **Language note:** no compiler gap surfaced. The useful pattern is a shared
+  user-facing I/O failure formatter at the scalar ABI boundary, so all file
+  commands expose enough host context without duplicating string policy in
+  Mighty source.
