@@ -14632,6 +14632,29 @@ fn palette_and_quickopen_close_commands_clear_active_overlays() {
 }
 
 #[test]
+fn palette_keyboard_routes_without_palette_report_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_palette_push_char(h, 'f' as i32);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No command palette open");
+    ctx.toasts.clear();
+
+    crate::mui_palette_backspace(h);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No command palette open");
+    ctx.toasts.clear();
+
+    crate::mui_palette_move(h, 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No command palette open");
+}
+
+#[test]
 fn palette_accept_misses_report_feedback_and_keep_palette_active() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;

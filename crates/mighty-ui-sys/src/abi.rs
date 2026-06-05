@@ -9202,6 +9202,10 @@ pub extern "C" fn mui_palette_open(handle: i64) {
 #[no_mangle]
 pub extern "C" fn mui_palette_push_char(handle: i64, cp: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.palette.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No command palette open");
+            return;
+        }
         if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
             ctx.palette.push_char(ch);
             trace(&format!(
@@ -9218,6 +9222,10 @@ pub extern "C" fn mui_palette_push_char(handle: i64, cp: i32) {
 #[no_mangle]
 pub extern "C" fn mui_palette_backspace(handle: i64) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.palette.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No command palette open");
+            return;
+        }
         ctx.palette.backspace();
     }
 }
@@ -9232,6 +9240,10 @@ pub extern "C" fn mui_palette_count(handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_palette_move(handle: i64, delta: i32) {
     if let Some(ctx) = unsafe { ctx(handle) } {
+        if !ctx.palette.is_active() {
+            ctx.push_toast(crate::toast::Kind::Info, "No command palette open");
+            return;
+        }
         ctx.palette.move_sel(delta);
     }
 }

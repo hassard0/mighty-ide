@@ -35,8 +35,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   of opening empty tabs or reporting them as missing files
 - Quick Open command-mode accepts report closed-panel, wrong-mode, empty, and
   stale-row misses instead of silently returning no command
-- Command Palette and Quick Open stale click routes report when their overlay
-  has already closed
+- Command Palette stale click and keyboard routes report when the overlay has
+  already closed, and Quick Open stale click routes do the same
 - Command palette (Ctrl+Shift+P), fuzzy-filtered
 - Go-to-line (Ctrl+G), go-to-definition (F12, cross-file), jump-back (Ctrl+−)
 - **Peek definition (Alt+F12)** — inline framed definition preview
