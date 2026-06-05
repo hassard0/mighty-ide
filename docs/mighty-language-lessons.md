@@ -11364,3 +11364,15 @@ rebuilt.
 - **Language note:** no compiler gap surfaced. Native Mighty applications need
   per-OS release verification because the executable and shim are host ABI
   artifacts, not portable bytecode.
+
+## L921 - Save All Should Prune Missing Recents
+
+Save All refreshed Explorer after normal file-backed saves, but it only pruned
+missing recent-file entries when a saved file had been resurrected. A stale
+recent could therefore remain visible after an otherwise successful Save All.
+
+- **IDE note:** Save All now finishes through the shared file-view refresh path
+  so Explorer, Quick Open rows, the backing index, and missing recents stay in
+  sync after normal saves too.
+- **Language note:** no compiler gap surfaced. Batch file commands should use
+  the same final refresh primitive as single-file lifecycle commands.

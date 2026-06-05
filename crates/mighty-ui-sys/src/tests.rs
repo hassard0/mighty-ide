@@ -5441,6 +5441,41 @@ fn save_all_republishes_resurrected_file_to_quickopen() {
 }
 
 #[test]
+fn save_all_prunes_missing_recent_files_after_normal_save() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_all_prunes_missing_recent_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("saved.mty");
+    let missing = root.join("missing.mty");
+    std::fs::write(&path, "old\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let idx = ctx.tabs.open_path(path.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("new\n");
+    ctx.tabs.set_dirty(idx, true);
+    ctx.quickopen.set_recent_paths(vec![missing.clone(), path.clone()]);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    assert_eq!(ctx.quickopen.recent_paths(), vec![missing.clone(), path.clone()]);
+
+    assert_eq!(crate::mui_save_all(h), 1);
+
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "new\n");
+    assert_eq!(ctx.quickopen.recent_paths(), vec![path.clone()]);
+    crate::mui_quickopen_open(h);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "saved.mty");
+    assert_eq!(ctx.tree.count(), 1);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn close_saved_tabs_preserves_dirty_buffers_and_reports_count() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_close_saved_{}", std::process::id()));

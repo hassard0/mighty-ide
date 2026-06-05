@@ -12171,7 +12171,7 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
         ctx.pending_quit = None;
     }
     ctx.autosave.disarm();
-    ctx.tree.refresh();
+    refresh_workspace_file_views(ctx);
     match (saved, failed, untitled, read_only + dirty_conflicts) {
         (0, 0, 0, skipped) if skipped > 0 => {
             let noun = if skipped == 1 { "file" } else { "files" };
