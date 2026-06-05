@@ -741,6 +741,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m == "Split editor right"
         || m == "Editor is already split"
         || m.starts_with("Focused editor pane ")
+        || m == "No pane at that position"
         || m == "Closed editor pane"
         || m == "Only one editor pane"
         || m == "Window minimized"
@@ -2271,6 +2272,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Focused editor pane 2");
+
+        q.push_at(
+            Kind::Warn,
+            "No pane at that position",
+            t0 + Duration::from_millis(150),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No pane at that position");
 
         q.push_at(Kind::Info, "Closed editor pane", t0 + Duration::from_millis(200));
         q.push_at(Kind::Info, "Only one editor pane", t0 + Duration::from_millis(300));

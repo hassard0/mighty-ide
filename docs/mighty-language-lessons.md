@@ -13826,3 +13826,17 @@ available on PATH or supplied through the environment.
 - **Language note:** no compiler gap surfaced. Tooling around the language
   should prefer environment overrides and PATH discovery over user-specific
   absolute paths.
+
+## L1093 - Pane Retarget Guard Feedback Is Layout Feedback
+
+Split-pane retargeting can reject a stale pane index with `No pane at that
+position`. Although the message starts with `No`, it belongs to the same layout
+surface as pane focus, split, and close feedback and should replace those stale
+toasts.
+
+- **IDE note:** `No pane at that position` now coalesces with the Layout
+  operation family instead of stacking beside stale pane-focus or split
+  messages.
+- **Language note:** no compiler gap surfaced. Guard messages should be grouped
+  by the UI surface they protect, not by whether their text starts with a shared
+  negative word.

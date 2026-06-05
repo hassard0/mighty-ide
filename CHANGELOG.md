@@ -57,6 +57,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   packaged launch result.
 
 ### Tabs and panes
+- **Stale pane retarget feedback replaces layout toasts**: `No pane at that
+  position` now coalesces with split-pane and layout feedback instead of
+  stacking beside stale pane-focus or split messages.
 - **Unsaved-confirm stale actions are visible**: stale Save and Discard routes
   now report `No unsaved changes confirmation open` after the confirmation has
   already closed, matching stale cancel and click behavior.
