@@ -34,6 +34,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Diff hunk misses are specific**: per-hunk stage/unstage actions now
+  distinguish an absent hunk click from a stale hunk index, reporting
+  `No diff hunk selected` or `Diff hunk no longer listed` instead of the
+  generic no-hunk message.
 - **Run output stale targets stay named**: repeated clicks on a Run output
   diagnostic row whose target file disappeared continue to report
   `Run target missing: <file>` after the row is demoted, instead of falling

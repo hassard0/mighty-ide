@@ -617,6 +617,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Source Control panel is already closed"
         || m.starts_with("Source control target missing")
         || m == "No hunk selected"
+        || m == "No diff hunk selected"
+        || m == "Diff hunk no longer listed"
         || m == "Staged hunk"
         || m == "Unstaged hunk"
         || m.starts_with("Hunk apply failed:")
@@ -2002,11 +2004,19 @@ mod tests {
         let mut q = ToastQueue::new();
         let t0 = Instant::now();
 
-        q.push_at(Kind::Warn, "No hunk selected", t0);
+        q.push_at(Kind::Warn, "No diff hunk selected", t0);
         q.push_at(Kind::Success, "Staged hunk", t0 + Duration::from_millis(100));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Staged hunk");
         assert_eq!(q.toasts()[0].kind, Kind::Success);
+
+        q.push_at(
+            Kind::Warn,
+            "Diff hunk no longer listed",
+            t0 + Duration::from_millis(125),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Diff hunk no longer listed");
 
         q.push_at(
             Kind::Warn,

@@ -5872,6 +5872,23 @@ fn diff_close_clears_inline_view() {
 }
 
 #[test]
+fn diff_hunk_misses_report_specific_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_diff_toggle_hunk(handle, -1), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "No diff hunk selected");
+
+    ctx.diff.open("src/main.mty", false, "@@ -1 +1 @@\n-old\n+new\n");
+    assert_eq!(crate::featureabi::mui_diff_toggle_hunk(handle, 99), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Diff hunk no longer listed");
+}
+
+#[test]
 fn diff_open_empty_blob_reports_clean_file_or_skip() {
     use crate::scm::ScmEntry;
     use std::process::Command;

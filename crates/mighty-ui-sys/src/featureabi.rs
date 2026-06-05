@@ -962,10 +962,18 @@ fn apply_one_hunk(handle: i64, hunk: i32, reverse: bool) -> i32 {
     let Some(root) = ctx.scm.root.clone().or_else(|| Some(ctx.tree.root().to_path_buf())) else {
         return 0;
     };
+    if !ctx.diff.is_active() || hunk < 0 {
+        ctx.push_toast(crate::toast::Kind::Warn, "No diff hunk selected");
+        return 0;
+    }
+    if hunk as usize >= ctx.diff.hunk_count() {
+        ctx.push_toast(crate::toast::Kind::Warn, "Diff hunk no longer listed");
+        return 0;
+    }
     let patch = match ctx.diff.hunk_patch(hunk) {
         Some(p) => p,
         None => {
-            ctx.push_toast(crate::toast::Kind::Warn, "No hunk selected");
+            ctx.push_toast(crate::toast::Kind::Warn, "Diff hunk no longer listed");
             return 0;
         }
     };
