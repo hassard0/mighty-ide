@@ -12460,3 +12460,16 @@ the same message as a negative/no-selection row code.
 - **Language note:** no compiler gap surfaced. Git status UIs should separate
   missing selection from stale list snapshots before invoking side-effecting
   actions like stage and open.
+
+## L998 - Diff Row Misses Should Share SCM Stale Feedback
+
+Opening an inline diff from the Source Control list uses the same cached row
+indices as open/stage actions, but stale indices still reported the older
+`No source-control row` message.
+
+- **IDE note:** diff-open row misses now report
+  `Source control row no longer listed` when the non-negative SCM row index is
+  absent. Negative indices keep the older no-selection message.
+- **Language note:** no compiler gap surfaced. Shared UI rows should converge
+  on one stale-row vocabulary across related actions so feedback remains
+  predictable.

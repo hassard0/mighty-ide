@@ -126,6 +126,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   disappeared from the SCM status list now reports
   `Source control row no longer listed`, while negative row codes still report
   `No source control row selected`.
+- **Diff stale SCM rows are explicit**: opening a diff from a vanished
+  Source Control row now reports `Source control row no longer listed` instead
+  of the older generic diff-row message.
 - **Testing result jumps distinguish stale rows**: out-of-range Testing result
   jumps now report `No test result row selected` instead of implying a visible
   row lacked a file target.

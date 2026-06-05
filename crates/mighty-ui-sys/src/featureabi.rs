@@ -813,7 +813,7 @@ pub extern "C" fn mui_diff_open_row(handle: i64, i: i32) -> i32 {
     }
     let (path, staged, root) = {
         let Some(entry) = ctx.scm.get(i as usize) else {
-            ctx.push_toast(crate::toast::Kind::Warn, "No source-control row");
+            ctx.push_toast(crate::toast::Kind::Info, "Source control row no longer listed");
             return 0;
         };
         let Some(root) = ctx.scm.root.clone() else {
