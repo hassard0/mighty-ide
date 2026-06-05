@@ -1107,6 +1107,7 @@ fn is_name_input_message(message: &str) -> bool {
         || message.starts_with("Project name too long")
         || message == "Invalid project name"
         || message == "Name must not contain path separators"
+        || message == "Name must not end with a dot or space"
         || message == "Name must start with a letter, digit or underscore"
         || message == "Use letters, digits, '-', '_' or '.' only"
 }
@@ -1951,6 +1952,17 @@ mod tests {
         assert_eq!(
             q.toasts()[0].message,
             "Use letters, digits, '-', '_' or '.' only"
+        );
+
+        q.push_at(
+            Kind::Warn,
+            "Name must not end with a dot or space",
+            t0 + Duration::from_millis(350),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Name must not end with a dot or space"
         );
 
         q.push_at(

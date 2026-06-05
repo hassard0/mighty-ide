@@ -13672,3 +13672,17 @@ like two differently named surfaces in transient feedback.
   feedback.
 - **Language note:** no compiler gap surfaced. User-facing feature names should
   keep stable casing across success, close, already-closed, and guard messages.
+
+## L1081 - Platform Name Validation Is Name-Input Feedback
+
+Project, folder, and file prompts share platform segment validation. The
+Windows-safe trailing dot/space guard emits `Name must not end with a dot or
+space`, but that validation result was not grouped with the rest of the name
+input errors.
+
+- **IDE note:** `Name must not end with a dot or space` now coalesces with the
+  NameInput operation family, so stale prompt validation is replaced by the
+  current platform-name validation result.
+- **Language note:** no compiler gap surfaced. Shared validation helpers should
+  keep every emitted error in the same feedback family as the prompt that
+  invoked them.
