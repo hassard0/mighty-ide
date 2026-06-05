@@ -4637,6 +4637,24 @@ fn outline_close_command_preserves_symbols_and_current_row() {
         ctx.toasts.toasts().last().unwrap().message,
         "Outline panel is already closed"
     );
+
+    assert_eq!(crate::navsurfaces::mui_outline_open_row(h, 1), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Outline panel is already closed"
+    );
+    assert_eq!(crate::navsurfaces::mui_outline_row_at_click(h), -1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Outline panel is already closed"
+    );
+    assert_eq!(crate::navsurfaces::mui_outline_header_action_at_click(h), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Outline panel is already closed"
+    );
+    assert_eq!(crate::navsurfaces::mui_outline_count(h), 2);
+    assert_eq!(crate::navsurfaces::mui_outline_current(h), 1);
 }
 
 #[test]

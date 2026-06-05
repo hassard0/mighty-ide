@@ -111,9 +111,13 @@ pub extern "C" fn mui_outline_close(handle: i64) -> i32 {
         crate::abi::trace("outline_close");
         return 1;
     }
-    ctx.push_toast(crate::toast::Kind::Info, "Outline panel is already closed");
+    report_outline_closed(ctx);
     crate::abi::trace("outline_close noop");
     0
+}
+
+fn report_outline_closed(ctx: &mut crate::MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Info, "Outline panel is already closed");
 }
 
 /// Clear Outline symbols without closing the panel. Returns `1` when rows or
@@ -192,6 +196,10 @@ pub extern "C" fn mui_outline_open_row(handle: i64, i: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_OUTLINE {
+        report_outline_closed(ctx);
+        return -1;
+    }
     if i < 0 {
         return -1;
     }
@@ -231,6 +239,7 @@ pub extern "C" fn mui_outline_header_action_at_click(handle: i64) -> i32 {
         return 0;
     };
     if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_OUTLINE {
+        report_outline_closed(ctx);
         return 0;
     }
     let x = ctx.last_event.x;
@@ -258,6 +267,7 @@ pub extern "C" fn mui_outline_row_at_click(handle: i64) -> i32 {
     let sx0 = layout::RAIL_W;
     let sx1 = layout::sidebar_right();
     if !ctx.sidebar_visible || ctx.active_panel != crate::PANEL_OUTLINE {
+        report_outline_closed(ctx);
         return -1;
     }
     let x = ctx.last_event.x;

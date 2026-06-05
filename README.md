@@ -48,6 +48,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Problems closed-panel row, close-hit, header-action, and row-open routes
   report that the panel is already closed instead of activating retained hidden
   diagnostics
+- Outline closed-panel row, header-action, and row-open routes report that the
+  panel is already closed instead of jumping through retained hidden symbols
 - Breadcrumb menu stale keyboard and click routes report when the dropdown has
   already closed
 - **Split editor (Ctrl+\)** — side-by-side panes, focus a pane with Ctrl+1 / Ctrl+2
