@@ -10938,9 +10938,11 @@ struct WorkspaceEditApplyResult {
     skipped_dirty: i32,
     skipped_not_file: i32,
     skipped_missing: i32,
+    skipped_write: i32,
     first_skipped_dirty_message: Option<String>,
     first_skipped_not_file_message: Option<String>,
     first_skipped_missing_message: Option<String>,
+    first_skipped_write_message: Option<String>,
 }
 
 fn skipped_dirty_workspace_edit_message(path: &std::path::Path) -> String {
@@ -10954,6 +10956,14 @@ fn skipped_not_file_workspace_edit_message(path: &std::path::Path) -> String {
     format!(
         "Skipped non-file during workspace edit: {}",
         basename(path)
+    )
+}
+
+fn skipped_write_workspace_edit_message(path: &std::path::Path, e: &std::io::Error) -> String {
+    format!(
+        "Skipped file during workspace edit: {}: {}",
+        basename(path),
+        e
     )
 }
 
@@ -10975,9 +10985,11 @@ fn apply_workspace_edit(
         skipped_dirty: 0,
         skipped_not_file: 0,
         skipped_missing: 0,
+        skipped_write: 0,
         first_skipped_dirty_message: None,
         first_skipped_not_file_message: None,
         first_skipped_missing_message: None,
+        first_skipped_write_message: None,
     };
     for (uri, edits) in &we.files {
         if edits.is_empty() {
@@ -11029,33 +11041,66 @@ fn apply_workspace_edit(
                 refresh_workspace_file_views(ctx);
                 continue;
             }
-            // Apply to the active model in-place (preserves the live edit state),
-            // then save it to disk.
-            let edited_bytes = {
-                let m = ctx.tabs.active_model_mut();
+            if let Some(parent) = fpath.parent() {
+                if let Some(blocked) = existing_non_dir_ancestor(parent) {
+                    result.skipped_not_file += 1;
+                    if result.first_skipped_not_file_message.is_none() {
+                        result.first_skipped_not_file_message =
+                            Some(skipped_not_file_workspace_edit_message(&blocked));
+                    }
+                    println!(
+                        "workspace edit: skipped active path with non-directory parent path={} blocked={}",
+                        fpath.display(),
+                        blocked.display()
+                    );
+                    refresh_workspace_file_views(ctx);
+                    continue;
+                }
+            }
+            // Save first, then update the active model. If the disk write
+            // fails, the dirty buffer remains unchanged.
+            let (edited, cl, cc) = {
+                let m = ctx.tabs.active_model();
                 let text = m.as_text();
                 let cl = m.cursor_line() as i32;
                 let cc = m.cursor_col() as i32;
                 let edited = crate::language::apply_text_edits(&text, &edits);
-                *m = crate::editor::TextModel::from_bytes(edited.as_bytes());
-                m.move_to(cl, cc);
-                m.to_bytes()
+                (edited, cl, cc)
             };
+            let edited_bytes = edited.as_bytes();
             if let Some(p) = current.clone() {
                 let resurrected_path = !p.is_file();
-                if std::fs::write(&p, &edited_bytes).is_ok() {
-                    mark_active_clean(ctx);
-                    let active = ctx.tabs.active();
-                    let _ = ctx
-                        .tabs
-                        .reload_all_clean_path_except(&p, &edited_bytes, active);
-                    if resurrected_path {
-                        record_recent_file(ctx, p.clone());
-                        refresh_workspace_file_views(ctx);
+                match std::fs::write(&p, edited_bytes) {
+                    Ok(()) => {
+                        {
+                            let m = ctx.tabs.active_model_mut();
+                            *m = crate::editor::TextModel::from_bytes(edited_bytes);
+                            m.move_to(cl, cc);
+                        }
+                        mark_active_clean(ctx);
+                        let active = ctx.tabs.active();
+                        let _ = ctx
+                            .tabs
+                            .reload_all_clean_path_except(&p, edited_bytes, active);
+                        if resurrected_path {
+                            record_recent_file(ctx, p.clone());
+                            refresh_workspace_file_views(ctx);
+                        }
+                        result.changed += 1;
+                    }
+                    Err(e) => {
+                        result.skipped_write += 1;
+                        if result.first_skipped_write_message.is_none() {
+                            result.first_skipped_write_message =
+                                Some(skipped_write_workspace_edit_message(&p, &e));
+                        }
+                        println!(
+                            "workspace edit: skipped active write path={} err={e}",
+                            p.display()
+                        );
                     }
                 }
             }
-            result.changed += 1;
         } else {
             // Other file: do not rewrite disk underneath an open dirty buffer.
             if ctx.tabs.any_dirty_path(&fpath) {
@@ -11082,6 +11127,22 @@ fn apply_workspace_edit(
                 );
                 refresh_workspace_file_views(ctx);
                 continue;
+            }
+            if let Some(parent) = fpath.parent() {
+                if let Some(blocked) = existing_non_dir_ancestor(parent) {
+                    result.skipped_not_file += 1;
+                    if result.first_skipped_not_file_message.is_none() {
+                        result.first_skipped_not_file_message =
+                            Some(skipped_not_file_workspace_edit_message(&blocked));
+                    }
+                    println!(
+                        "workspace edit: skipped non-active path with non-directory parent path={} blocked={}",
+                        fpath.display(),
+                        blocked.display()
+                    );
+                    refresh_workspace_file_views(ctx);
+                    continue;
+                }
             }
             // Other clean file: read from disk, apply, write back; refresh an open tab.
             // Missing files are only valid for explicit create-style workspace
@@ -11110,12 +11171,25 @@ fn apply_workspace_edit(
             let text = String::from_utf8_lossy(&disk).into_owned();
             let edited = crate::language::apply_text_edits(&text, &edits);
             let resurrected_path = !fpath.is_file();
-            if std::fs::write(&fpath, edited.as_bytes()).is_ok() {
-                result.changed += 1;
-                let _ = ctx.tabs.reload_all_clean_path(&fpath, edited.as_bytes());
-                if resurrected_path {
-                    record_recent_file(ctx, fpath.clone());
-                    refresh_workspace_file_views(ctx);
+            match std::fs::write(&fpath, edited.as_bytes()) {
+                Ok(()) => {
+                    result.changed += 1;
+                    let _ = ctx.tabs.reload_all_clean_path(&fpath, edited.as_bytes());
+                    if resurrected_path {
+                        record_recent_file(ctx, fpath.clone());
+                        refresh_workspace_file_views(ctx);
+                    }
+                }
+                Err(e) => {
+                    result.skipped_write += 1;
+                    if result.first_skipped_write_message.is_none() {
+                        result.first_skipped_write_message =
+                            Some(skipped_write_workspace_edit_message(&fpath, &e));
+                    }
+                    println!(
+                        "workspace edit: skipped non-active write path={} err={e}",
+                        fpath.display()
+                    );
                 }
             }
         }
@@ -11147,6 +11221,14 @@ fn toast_codeaction_workspace_result(ctx: &mut MuiContext, result: &WorkspaceEdi
                 .first_skipped_missing_message
                 .as_deref()
                 .unwrap_or("Skipped missing file during workspace edit"),
+        );
+    } else if result.skipped_write > 0 {
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            result
+                .first_skipped_write_message
+                .as_deref()
+                .unwrap_or("Skipped file during workspace edit"),
         );
     } else if result.changed > 0 {
         ctx.push_toast(crate::toast::Kind::Success, "Applied code action");

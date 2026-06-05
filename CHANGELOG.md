@@ -84,6 +84,11 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Workspace-edit code actions report parent path blockers**: code actions now
+  preflight parent components before applying workspace edits. Non-directory
+  parents report `Skipped non-file during workspace edit: <parent>`, leave the
+  quick-fix menu open, and keep active buffers unchanged when the write cannot
+  be committed.
 - **Auto-save reports stale non-file targets**: auto-save now shares the same
   preflight as manual saves for directory targets and non-directory parents.
   Stale bindings report `Auto-save failed: <path>: not a file`, keep the buffer

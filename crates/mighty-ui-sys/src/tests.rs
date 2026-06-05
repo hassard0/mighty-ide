@@ -11713,6 +11713,131 @@ fn codeaction_workspace_edit_skips_directory_non_active_file() {
 }
 
 #[test]
+fn codeaction_workspace_edit_skips_non_directory_parent_non_active_file() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_codeaction_workspace_parent_file_non_active_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let active = root.join("main.mty");
+    let parent_file = root.join("parent.txt");
+    let target = parent_file.join("helper.mty");
+    std::fs::write(&active, "main_symbol\n").unwrap();
+    std::fs::write(&parent_file, "not a directory\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tabs.open_path(active.clone());
+    crate::sync_active_path(&mut ctx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let uri_path = target.to_string_lossy().replace('\\', "/");
+    let uri = if uri_path.starts_with('/') {
+        format!("file://{uri_path}")
+    } else {
+        format!("file:///{uri_path}")
+    };
+    assert_eq!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Create helper under stale parent".to_string(),
+            edit: Some(crate::language::WorkspaceEdit {
+                files: vec![(
+                    uri,
+                    vec![crate::language::TextEdit {
+                        start_line: 0,
+                        start_col: 0,
+                        end_line: 0,
+                        end_col: 0,
+                        new_text: "created_symbol\n".to_string(),
+                    }],
+                )],
+            }),
+            command_edit: None,
+            command: None,
+            fix_all_mty: false,
+        }]),
+        1
+    );
+
+    assert_eq!(crate::mui_codeaction_apply(h), 0);
+    assert_eq!(crate::mui_codeaction_active(h), 1);
+    assert!(!target.exists());
+    assert_eq!(ctx.tabs.active_model().as_text(), "main_symbol\n");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Skipped non-file during workspace edit: parent.txt"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn codeaction_active_workspace_edit_skips_non_directory_parent_without_mutating_buffer() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_codeaction_workspace_parent_file_active_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let parent_file = root.join("parent.txt");
+    std::fs::write(&parent_file, "not a directory\n").unwrap();
+    let target = parent_file.join("main.mty");
+    let active_idx = ctx.tabs.open_path(target.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("old_symbol\n");
+    ctx.tabs.set_dirty(active_idx, true);
+    crate::sync_active_path(&mut ctx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let uri_path = target.to_string_lossy().replace('\\', "/");
+    let uri = if uri_path.starts_with('/') {
+        format!("file://{uri_path}")
+    } else {
+        format!("file:///{uri_path}")
+    };
+    assert_eq!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Rename active under stale parent".to_string(),
+            edit: Some(crate::language::WorkspaceEdit {
+                files: vec![(
+                    uri,
+                    vec![crate::language::TextEdit {
+                        start_line: 0,
+                        start_col: 0,
+                        end_line: 0,
+                        end_col: 10,
+                        new_text: "new_symbol".to_string(),
+                    }],
+                )],
+            }),
+            command_edit: None,
+            command: None,
+            fix_all_mty: false,
+        }]),
+        1
+    );
+
+    assert_eq!(crate::mui_codeaction_apply(h), 0);
+    assert_eq!(crate::mui_codeaction_active(h), 1);
+    assert!(!target.exists());
+    assert_eq!(ctx.tabs.active_model().as_text(), "old_symbol\n");
+    assert!(ctx.tabs.is_dirty(active_idx));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Skipped non-file during workspace edit: parent.txt"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn format_current_reports_missing_or_unsupported_target() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;

@@ -12968,3 +12968,17 @@ does not know the file binding has gone stale.
 - **Language note:** no compiler gap surfaced. Background side effects should
   return visible status through the same reporting channel as foreground
   commands; logging alone is not enough for recoverable file-system failures.
+
+## L1033 - Workspace Edits Must Commit Before Mutating Active Buffers
+
+Workspace edits are easy to treat like pure text transforms, but applying an
+active-file edit before proving the disk write succeeded can leave the editor
+showing a change that the file system rejected.
+
+- **IDE note:** workspace-edit code actions now preflight non-directory parents
+  and count write failures as skipped edits. Active-file edits write first and
+  only mutate the editor model after the save succeeds, so stale paths keep the
+  dirty buffer unchanged and leave the quick-fix menu open.
+- **Language note:** no compiler gap surfaced. Cross-file edit application needs
+  a commit boundary: validate targets, write durable state, then update live
+  editor views.
