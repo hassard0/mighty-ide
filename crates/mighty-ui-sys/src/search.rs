@@ -245,7 +245,7 @@ impl SearchState {
     /// Like [`Self::replace_all`], but also returns the paths that were written.
     /// The UI uses this to refresh clean open tabs after project-wide replaces.
     pub fn replace_all_with_changed_paths(&mut self, root: &Path) -> (i32, Vec<PathBuf>) {
-        let (total, changed, _, _, _) =
+        let (total, changed, _, _, _, _) =
             self.replace_all_with_changed_paths_skipping(root, |_| false);
         (total, changed)
     }
@@ -256,13 +256,13 @@ impl SearchState {
         &mut self,
         root: &Path,
         mut should_skip: impl FnMut(&Path) -> bool,
-    ) -> (i32, Vec<PathBuf>, usize, usize, usize) {
+    ) -> (i32, Vec<PathBuf>, usize, usize, usize, usize) {
         let needle = self.query_string();
         if needle.trim().is_empty() {
-            return (0, Vec::new(), 0, 0, 0);
+            return (0, Vec::new(), 0, 0, 0, 0);
         }
         if self.last_results_query != needle {
-            return (0, Vec::new(), 0, 0, 0);
+            return (0, Vec::new(), 0, 0, 0, 0);
         }
         let replacement = self.replace_string();
         let mut total = 0;
@@ -270,6 +270,7 @@ impl SearchState {
         let mut skipped = 0;
         let mut stale = 0;
         let mut missing = 0;
+        let mut write_failed = 0;
         let files: Vec<(PathBuf, u64)> = self
             .results
             .files
@@ -297,14 +298,21 @@ impl SearchState {
             }
             let text = String::from_utf8_lossy(&bytes).into_owned();
             let (rewritten, n) = replace_in_text(&text, &needle, &replacement);
-            if n > 0 && std::fs::write(&path, rewritten.as_bytes()).is_ok() {
-                total += n;
-                changed.push(path);
+            if n > 0 {
+                match std::fs::write(&path, rewritten.as_bytes()) {
+                    Ok(()) => {
+                        total += n;
+                        changed.push(path);
+                    }
+                    Err(_) => {
+                        write_failed += 1;
+                    }
+                }
             }
         }
         // Re-run so the panel reflects the post-replace state.
         self.run(root);
-        (total, changed, skipped, stale, missing)
+        (total, changed, skipped, stale, missing, write_failed)
     }
 
     // ---- scalar getters ----
@@ -606,6 +614,47 @@ mod tests {
         assert_eq!(replaced, 3);
         let a = std::fs::read_to_string(root.join("a.txt")).unwrap();
         assert!(a.contains("got me"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn replace_all_counts_write_failures() {
+        let root = std::env::temp_dir().join("mui_search_write_failed");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("a.txt");
+        std::fs::write(&path, b"foo\n").unwrap();
+
+        let mut state = SearchState::new();
+        for ch in "foo".chars() {
+            state.push_char(ch as u32);
+        }
+        state.replace_focus = true;
+        for ch in "bar".chars() {
+            state.push_char(ch as u32);
+        }
+        state.replace_focus = false;
+        assert_eq!(state.run(&root), 1);
+
+        let mut perms = std::fs::metadata(&path).unwrap().permissions();
+        perms.set_readonly(true);
+        std::fs::set_permissions(&path, perms).unwrap();
+
+        let (replaced, changed, dirty, stale, missing, write_failed) =
+            state.replace_all_with_changed_paths_skipping(&root, |_| false);
+
+        let mut perms = std::fs::metadata(&path).unwrap().permissions();
+        perms.set_readonly(false);
+        std::fs::set_permissions(&path, perms).unwrap();
+
+        assert_eq!(replaced, 0);
+        assert!(changed.is_empty());
+        assert_eq!(dirty, 0);
+        assert_eq!(stale, 0);
+        assert_eq!(missing, 0);
+        assert_eq!(write_failed, 1);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "foo\n");
+
         let _ = std::fs::remove_dir_all(&root);
     }
 

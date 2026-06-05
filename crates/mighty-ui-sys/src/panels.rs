@@ -1524,12 +1524,19 @@ pub extern "C" fn mui_search_replace_all(handle: i64) -> i32 {
         return 0;
     }
     let dir = workspace_dir(ctx);
-    let (n, changed_paths, dirty_skipped, stale_skipped, missing_skipped) = ctx
+    let (
+        n,
+        changed_paths,
+        dirty_skipped,
+        stale_skipped,
+        missing_skipped,
+        write_failed,
+    ) = ctx
         .search
         .replace_all_with_changed_paths_skipping(&dir, |path| ctx.tabs.any_dirty_path(path));
     let (refreshed, stale_dirty) = refresh_replaced_open_tabs(ctx, &changed_paths);
     let dirty_skipped = dirty_skipped + stale_dirty;
-    let skipped = dirty_skipped + stale_skipped + missing_skipped;
+    let skipped = dirty_skipped + stale_skipped + missing_skipped + write_failed;
     println!("search: replaced {n}");
     crate::abi::trace(&format!("search_replace_all replaced={n}"));
     if n > 0 || skipped > 0 {
@@ -1540,15 +1547,24 @@ pub extern "C" fn mui_search_replace_all(handle: i64) -> i32 {
                 dirty_skipped > 0,
                 stale_skipped > 0,
                 missing_skipped > 0,
+                write_failed > 0,
             ) {
-                (true, true, true) => "dirty, changed, or missing",
-                (true, true, false) => "dirty or changed",
-                (true, false, true) => "dirty or missing",
-                (true, false, false) => "dirty open",
-                (false, true, true) => "changed or missing",
-                (false, true, false) => "changed",
-                (false, false, true) => "missing",
-                (false, false, false) => "changed",
+                (true, true, true, true) => "dirty, changed, missing, or failed",
+                (true, true, true, false) => "dirty, changed, or missing",
+                (true, true, false, true) => "dirty, changed, or failed",
+                (true, true, false, false) => "dirty or changed",
+                (true, false, true, true) => "dirty, missing, or failed",
+                (true, false, true, false) => "dirty or missing",
+                (true, false, false, true) => "dirty or failed",
+                (true, false, false, false) => "dirty open",
+                (false, true, true, true) => "changed, missing, or failed",
+                (false, true, true, false) => "changed or missing",
+                (false, true, false, true) => "changed or failed",
+                (false, true, false, false) => "changed",
+                (false, false, true, true) => "missing or failed",
+                (false, false, true, false) => "missing",
+                (false, false, false, true) => "failed",
+                (false, false, false, false) => "changed",
             };
             ctx.push_toast(
                 crate::toast::Kind::Warn,

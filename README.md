@@ -68,7 +68,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   the file-backed tab from disk, while refusing directory targets before any
   dirty buffer is discarded
 - Project-wide Search panel (Ctrl+Shift+F), with stale directory targets
-  rejected before opening a tab
+  rejected before opening a tab and Replace All reporting dirty, changed,
+  missing, or failed-write files instead of silently skipping them
 
 ### Language Intelligence
 - Hover info (Ctrl+K), autocomplete (Ctrl+Space — semantic LSP completions + buffer words)

@@ -3670,6 +3670,45 @@ fn search_replace_all_reports_files_deleted_since_search() {
 }
 
 #[test]
+fn search_replace_all_reports_write_failures() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_search_replace_write_failed");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("a.mty");
+    std::fs::write(&path, "foo\n").unwrap();
+    ctx.tree.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    for ch in "foo".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+    assert_eq!(crate::panels::mui_search_run(handle), 1);
+    let mut perms = std::fs::metadata(&path).unwrap().permissions();
+    perms.set_readonly(true);
+    std::fs::set_permissions(&path, perms).unwrap();
+    ctx.search.replace_focus = true;
+    for ch in "bar".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+
+    assert_eq!(crate::panels::mui_search_replace_all(handle), 0);
+    let mut perms = std::fs::metadata(&path).unwrap().permissions();
+    perms.set_readonly(false);
+    std::fs::set_permissions(&path, perms).unwrap();
+
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "foo\n");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Replaced 0 occurrences; skipped 1 failed file"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn search_replace_all_refreshes_clean_duplicate_tabs() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_search_replace_clean_duplicates");

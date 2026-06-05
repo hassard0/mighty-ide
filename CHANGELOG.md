@@ -32,6 +32,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   diagnostics now preflight stale source paths before reading them. Directory
   targets report `Diagnostics failed: <name>: not a file` instead of surfacing
   platform read errors or clearing diagnostics as if the file were empty.
+- **Project Replace All reports write failures**: project-wide Search Replace
+  All now counts files that matched but could not be written, leaves their
+  contents unchanged, and reports them as skipped failed files instead of
+  silently reducing the replacement count.
 - **Load paths reject directory targets explicitly**: staged `mui_load` and
   active editor load now report `Load failed: <name>: not a file` when a
   configured or active path is a directory. Staged loads clear the load buffer;
