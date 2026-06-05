@@ -13699,3 +13699,16 @@ validation messages.
   platform-specific rejection.
 - **Language note:** no compiler gap surfaced. Platform-specific validation
   errors need to travel with the generic prompt-validation feedback family.
+
+## L1083 - Generic Basename Guards Are Name-Input Feedback
+
+The platform basename validator also emits generic `Choose a name` and
+`Invalid name` errors for empty or traversal-like dialog basenames. Those
+messages come from the same prompt validation path as the more specific project
+and platform-name rejections.
+
+- **IDE note:** `Choose a name` and `Invalid name` now coalesce with the
+  NameInput operation family.
+- **Language note:** no compiler gap surfaced. Shared validators should have
+  complete toast-family coverage, including generic fallbacks that are less
+  likely than platform-specific branches but still user-visible.

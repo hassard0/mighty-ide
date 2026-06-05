@@ -1104,8 +1104,10 @@ fn is_mighty_diagnostic_message(message: &str) -> bool {
 fn is_name_input_message(message: &str) -> bool {
     message == "Enter a project name"
         || message == "No prompt input open"
+        || message == "Choose a name"
         || message.starts_with("Project name too long")
         || message == "Invalid project name"
+        || message == "Invalid name"
         || message == "Name must not contain path separators"
         || message == "Name must not end with a dot or space"
         || message == "Name is reserved on Windows"
@@ -1973,6 +1975,22 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Name is reserved on Windows");
+
+        q.push_at(
+            Kind::Warn,
+            "Choose a name",
+            t0 + Duration::from_millis(385),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Choose a name");
+
+        q.push_at(
+            Kind::Warn,
+            "Invalid name",
+            t0 + Duration::from_millis(390),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Invalid name");
 
         q.push_at(
             Kind::Info,
