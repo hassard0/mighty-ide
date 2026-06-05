@@ -4472,6 +4472,35 @@ fn new_project_dialog_rejects_non_empty_selected_folder() {
 }
 
 #[test]
+fn new_project_rejects_missing_or_non_folder_parent_with_named_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_new_project_parent_{}", std::process::id()));
+    let missing_parent = root.join("missing-parent");
+    let file_parent = root.join("parent.txt");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(&file_parent, b"not a folder").unwrap();
+
+    assert_eq!(
+        crate::newprojabi::create_project_at(&mut ctx, missing_parent.join("child")),
+        0
+    );
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "New project parent missing: missing-parent");
+
+    assert_eq!(
+        crate::newprojabi::create_project_at(&mut ctx, file_parent.join("child")),
+        0
+    );
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "New project parent is not a folder: parent.txt");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn new_project_dialog_cancel_does_not_open_prompt_fallback() {
     let _g = crate::settings::TEST_LOCK
         .lock()

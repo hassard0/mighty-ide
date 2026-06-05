@@ -29,6 +29,24 @@ fn mty_path() -> String {
     crate::mty::path()
 }
 
+fn new_project_parent_missing_message(parent: &Path) -> String {
+    let label = parent
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(str::to_string)
+        .unwrap_or_else(|| parent.to_string_lossy().into_owned());
+    format!("New project parent missing: {label}")
+}
+
+fn new_project_parent_not_folder_message(parent: &Path) -> String {
+    let label = parent
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(str::to_string)
+        .unwrap_or_else(|| parent.to_string_lossy().into_owned());
+    format!("New project parent is not a folder: {label}")
+}
+
 /// Create a new Mighty project from the NAME staged in the shared path buffer.
 ///
 /// Returns:
@@ -90,10 +108,32 @@ pub(crate) fn create_project_at(ctx: &mut MuiContext, target: PathBuf) -> i32 {
         println!("newproj: selected path has no parent: {}", target.display());
         return 0;
     };
-    if !parent.is_dir() {
-        ctx.push_toast(crate::toast::Kind::Warn, "Choose an existing parent folder");
-        println!("newproj: parent is not a folder: {}", parent.display());
-        return 0;
+    match std::fs::metadata(&parent) {
+        Ok(meta) if meta.is_dir() => {}
+        Ok(_) => {
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                new_project_parent_not_folder_message(&parent),
+            );
+            println!("newproj: parent is not a folder: {}", parent.display());
+            return 0;
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                new_project_parent_missing_message(&parent),
+            );
+            println!("newproj: parent missing: {}", parent.display());
+            return 0;
+        }
+        Err(e) => {
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                format!("New project parent unavailable: {}", parent.display()),
+            );
+            println!("newproj: parent unavailable {}: {e}", parent.display());
+            return 0;
+        }
     }
 
     if target.exists() {

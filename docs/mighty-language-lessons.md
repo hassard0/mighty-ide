@@ -13011,3 +13011,20 @@ same evidence docs or stops scanning the final archive.
 - **Language note:** no compiler gap surfaced. Release automation invariants
   should have tests at the script boundary, especially when native-host
   verification means some scripts cannot run on every developer machine.
+
+## L1036 - New Project Parent Failures Should Name The Blocking Folder
+
+New Project has two filesystem boundaries: the final project directory and its
+parent directory. The final directory already reported useful state, but parent
+validation collapsed missing parents and non-folder parents into a generic
+`Choose an existing parent folder` toast.
+
+- **IDE note:** New Project now distinguishes missing parent folders from
+  parent paths that are files. It reports
+  `New project parent missing: <name>` or
+  `New project parent is not a folder: <name>` before spawning `mty new`, and
+  those detailed messages still coalesce with the rest of the New Project toast
+  family.
+- **Language note:** no compiler gap surfaced. Project scaffolding is another
+  file-write boundary: the operation should name the exact blocking ancestor
+  before delegating to a host tool.
