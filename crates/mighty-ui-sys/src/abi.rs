@@ -549,7 +549,7 @@ fn open_failed_message(path: &std::path::Path, reason: &str) -> String {
     }
 }
 
-fn file_read_failed_message(action: &str, path: &std::path::Path, e: &std::io::Error) -> String {
+fn file_operation_failed_message(action: &str, path: &std::path::Path, e: &std::io::Error) -> String {
     let name = basename(path);
     let reason = e.to_string();
     if reason.trim().is_empty() {
@@ -4585,7 +4585,7 @@ fn reload_active_from_disk(ctx: &mut MuiContext, allow_dirty: bool) -> i32 {
             refresh_workspace_file_views(ctx);
             ctx.push_toast(
                 crate::toast::Kind::Error,
-                file_read_failed_message(action, &path, &e),
+                file_operation_failed_message(action, &path, &e),
             );
             return -1;
         }
@@ -6235,7 +6235,10 @@ pub extern "C" fn mui_file_rename_active(handle: i64) -> i32 {
         }
         Err(e) => {
             refresh_workspace_file_views(ctx);
-            ctx.push_toast(crate::toast::Kind::Error, format!("Rename failed: {name}"));
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_operation_failed_message("Rename", &new_path, &e),
+            );
             println!("file-rename: failed {} -> {}: {e}", old_path.display(), new_path.display());
             0
         }
@@ -11965,7 +11968,7 @@ fn mui_ed_load_impl(handle: i64, preserve_undo: bool) -> i64 {
             refresh_workspace_file_views(ctx);
             ctx.push_toast(
                 crate::toast::Kind::Error,
-                file_read_failed_message("Load", &path, &e),
+                file_operation_failed_message("Load", &path, &e),
             );
             -1
         }

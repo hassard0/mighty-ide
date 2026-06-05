@@ -11847,3 +11847,18 @@ host reason after the command preserved their buffer and pruned stale indexes.
 - **Language note:** no compiler gap surfaced. Any ABI path that catches and
   logs a host filesystem error should promote that reason into the immediate
   user-facing feedback if the command did not complete.
+
+## L955 - Rename Failures Should Preserve The Filesystem Reason
+
+The active-file rename path refreshed workspace indexes and logged the
+`std::fs::rename` error, but the visible toast only said `Rename failed: name`.
+When the source disappeared or the host rejected the rename, the user saw the
+target but not the reason.
+
+- **IDE note:** active-file rename failures now report
+  `Rename failed: target: reason` while preserving the existing tab binding,
+  recents pruning, and workspace refresh behavior on failure. Detailed rename
+  failures still replace stale rename toasts.
+- **Language note:** no compiler gap surfaced. Mutating filesystem operations
+  should report the intended target and the host error together; logging the
+  reason is not enough when the UI command itself fails.

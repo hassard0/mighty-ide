@@ -1324,6 +1324,32 @@ mod tests {
     }
 
     #[test]
+    fn newer_rename_feedback_replaces_stale_rename_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Success, "Renamed to next.mty", t0);
+        q.push_at(
+            Kind::Error,
+            "Rename failed: next.mty: The system cannot find the file specified. (os error 2)",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Rename failed: next.mty: The system cannot find the file specified. (os error 2)"
+        );
+
+        q.push_at(
+            Kind::Warn,
+            "No active file to rename",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No active file to rename");
+    }
+
+    #[test]
     fn newer_clipboard_feedback_replaces_stale_copy_toasts() {
         let mut q = ToastQueue::new();
         let t0 = Instant::now();

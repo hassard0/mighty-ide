@@ -4284,7 +4284,11 @@ fn active_file_rename_failure_refreshes_missing_source_views() {
     assert_eq!(ctx.quickopen.count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert_eq!(toast.message, "Rename failed: new.mty");
+    assert!(
+        toast.message.starts_with("Rename failed: new.mty: "),
+        "{}",
+        toast.message
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
