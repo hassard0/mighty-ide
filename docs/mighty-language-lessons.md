@@ -10932,3 +10932,16 @@ without refreshing leaves the same stale row ready to fail again.
   snapshot before showing the warning, so dead rows are pruned immediately.
 - **Language note:** no compiler gap surfaced. Failed row mutations should
   refresh their backing snapshot just like failed row navigation.
+
+## L886 - Search Result Misses Should Refresh Cached Hits
+
+Project Search results cache file fingerprints and match rows. If a file is
+deleted after the search runs but before the result is opened, a warning alone
+leaves the dead hit clickable until the user manually searches again.
+
+- **IDE note:** opening a missing Search result now refreshes the current search
+  results before showing the warning. Structurally invalid result snapshots are
+  cleared immediately.
+- **Language note:** no compiler gap surfaced. Cached search-hit activations
+  should repair or clear their backing result set when row resolution proves the
+  snapshot is stale.

@@ -3115,21 +3115,30 @@ fn search_open_misses_report_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Search result file no longer listed");
+    assert_eq!(ctx.search.match_count(), 0);
 
     let missing = std::env::temp_dir()
         .join(format!("mui_search_missing_{}", std::process::id()))
         .join("hit.mty");
+    ctx.search.results.files.clear();
+    ctx.search.results.matches.clear();
     ctx.search.results.files.push(crate::search::SearchFile {
         path: missing,
         rel: "hit.mty".to_string(),
         match_count: 1,
         fingerprint: 0,
     });
-    ctx.search.results.matches[0].file = 0;
+    ctx.search.results.matches.push(crate::search::SearchMatch {
+        file: 0,
+        line: 0,
+        col: 0,
+        preview: "needle".to_string(),
+    });
     assert_eq!(crate::panels::mui_search_open(handle, 0), -1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Search target missing: hit.mty");
+    assert_eq!(ctx.search.match_count(), 0);
 }
 
 #[test]

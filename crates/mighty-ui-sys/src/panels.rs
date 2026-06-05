@@ -1583,6 +1583,7 @@ pub extern "C" fn mui_search_open(handle: i64, i: i32) -> i32 {
             return -1;
         };
         let Some(f) = ctx.search.file_at(m.file) else {
+            let _ = ctx.search.clear_results();
             ctx.push_toast(crate::toast::Kind::Info, "Search result file no longer listed");
             return -1;
         };
@@ -1592,6 +1593,8 @@ pub extern "C" fn mui_search_open(handle: i64, i: i32) -> i32 {
     let bytes = match std::fs::read(&path) {
         Ok(bytes) => bytes,
         Err(_) => {
+            let dir = workspace_dir(ctx);
+            let _ = ctx.search.run(&dir);
             ctx.push_toast(crate::toast::Kind::Warn, format!("Search target missing: {name}"));
             return -1;
         }
