@@ -99,6 +99,7 @@ done
 cp README.md KEYBINDINGS.md CHANGELOG.md BUILDING.md LICENSE "$DIST_ROOT/"
 cp docs/platform-packaging.md "$DIST_ROOT/docs/platform-packaging.md"
 cp docs/release-verification.md "$DIST_ROOT/docs/release-verification.md"
+cp docs/release-evidence.md "$DIST_ROOT/docs/release-evidence.md"
 cp docs/final-release-handoff.md "$DIST_ROOT/docs/final-release-handoff.md"
 cat > "$DIST_ROOT/RUN.txt" <<'RUN'
 Mighty IDE - macOS

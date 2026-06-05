@@ -82,7 +82,9 @@ the host platform's ABI, so each OS package must be built and smoke-tested on
 that OS or on a matching CI runner. The release checklist is maintained in
 [`docs/platform-packaging.md`](docs/platform-packaging.md), the upload evidence
 template is in [`docs/release-verification.md`](docs/release-verification.md),
-and the final stop/pass handoff is in
+the final upload record is in
+[`docs/release-evidence.md`](docs/release-evidence.md), and the final
+stop/pass handoff is in
 [`docs/final-release-handoff.md`](docs/final-release-handoff.md).
 
 Before uploading a release archive, keep the package directory and archive
@@ -94,6 +96,7 @@ together long enough to verify:
 - absence of foreign-platform native payloads
 - bundled `PACKAGE-MANIFEST.txt` hash/size and clean-binary summary
 - completed `docs/release-verification.md` evidence record for the archive
+- completed `docs/release-evidence.md` upload record for the archive
 - packaged `docs/final-release-handoff.md` stop/publish rule
 - packaged launch from inside the assembled directory or app bundle
 

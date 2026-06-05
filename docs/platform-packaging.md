@@ -97,6 +97,7 @@ tarball:
 - `LICENSE`
 - `docs/platform-packaging.md`
 - `docs/release-verification.md`
+- `docs/release-evidence.md`
 - `docs/final-release-handoff.md`
 
 ## Platform Matrix
@@ -178,7 +179,8 @@ Both scripts:
 
 The resulting archives should be smoke-tested from the assembled package
 directory before upload. Record the final result with
-[`release-verification.md`](release-verification.md).
+[`release-verification.md`](release-verification.md) and the concise upload
+record in [`release-evidence.md`](release-evidence.md).
 
 ## Verification Commands
 
@@ -305,7 +307,8 @@ app is smoke-tested there.
 ## Release Note Evidence
 
 Record the same evidence for every archive that is uploaded. The canonical
-template lives in [`release-verification.md`](release-verification.md). If a
+template lives in [`release-verification.md`](release-verification.md), with a
+fill-in upload record in [`release-evidence.md`](release-evidence.md). If a
 platform was not built on its native host or matching CI runner, list it as
 unbuilt instead of publishing a placeholder or reused binary.
 

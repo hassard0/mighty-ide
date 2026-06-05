@@ -243,9 +243,10 @@ directories.
 
 Every package includes `RUN.txt`, `README.md`, `KEYBINDINGS.md`, `CHANGELOG.md`,
 `BUILDING.md`, `LICENSE`, `docs/platform-packaging.md`,
-`docs/release-verification.md`, and `docs/final-release-handoff.md` alongside
-the runtime payload, plus `PACKAGE-MANIFEST.txt` with native payload hashes,
-sizes, and clean-binary verification.
+`docs/release-verification.md`, `docs/release-evidence.md`, and
+`docs/final-release-handoff.md` alongside the runtime payload, plus
+`PACKAGE-MANIFEST.txt` with native payload hashes, sizes, and clean-binary
+verification.
 
 Final handoff rule:
 
@@ -263,8 +264,9 @@ For a stop/pass release handoff, use
 [`docs/final-release-handoff.md`](docs/final-release-handoff.md) as the source
 of truth for platform decisions and
 [`docs/release-verification.md`](docs/release-verification.md) for the evidence
-record. Exact archive size and SHA-256 values are generated during packaging and
-must match the bundled `PACKAGE-MANIFEST.txt`.
+rules. Fill [`docs/release-evidence.md`](docs/release-evidence.md) with the
+final upload record. Exact archive size and SHA-256 values are generated during
+packaging and must match the bundled `PACKAGE-MANIFEST.txt`.
 
 Each platform package must be built and smoke-tested on its native OS or a
 matching CI runner. Do not reuse Windows DLLs, macOS dylibs, or Linux shared
@@ -272,7 +274,9 @@ objects across platforms. See
 [`docs/platform-packaging.md`](docs/platform-packaging.md) for the full package
 contract and verification commands, and
 [`docs/release-verification.md`](docs/release-verification.md) for the evidence
-record to attach to each published archive. Use
+rules to apply to each published archive. Use
+[`docs/release-evidence.md`](docs/release-evidence.md) for the concise upload
+record and
 [`docs/final-release-handoff.md`](docs/final-release-handoff.md) for the final
 stop condition and per-platform publish decision.
 

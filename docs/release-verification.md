@@ -9,7 +9,8 @@ bundle.
 Do not derive one platform from another platform's package. Windows requires PE
 payloads, macOS requires Mach-O payloads, and Linux requires ELF payloads.
 The concise final stop/pass record is maintained in
-[`final-release-handoff.md`](final-release-handoff.md).
+[`final-release-handoff.md`](final-release-handoff.md), and the fill-in upload
+record is maintained in [`release-evidence.md`](release-evidence.md).
 
 ## Evidence Template
 
