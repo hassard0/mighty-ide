@@ -13412,3 +13412,18 @@ not been built on matching hosts.
 - **Language note:** no compiler gap surfaced. Release contracts should record
   the provenance of native binary evidence, not just the existence of package
   scripts.
+
+## L1062 - Web Error Toasts Should Prefer Actionable Diagnostics
+
+Run in Browser's static build fallback appends a generic
+`build failed (exit ...)` line after a failing `mty build`. That line is useful
+as a fallback, but it can hide the compiler diagnostic that explains what the
+user should fix.
+
+- **IDE note:** web error summaries now skip the synthetic build-exit line when
+  an earlier substantive error line exists, so the toast names the compiler or
+  artifact diagnostic while the full panel still keeps the exit status. If the
+  exit summary is the only error signal, it remains the toast reason.
+- **Language note:** no compiler gap surfaced. Command wrappers should separate
+  machine-oriented status summaries from user-actionable diagnostics when
+  choosing a compact failure message.

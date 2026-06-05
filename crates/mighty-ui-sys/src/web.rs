@@ -153,11 +153,15 @@ impl WebPlayground {
     /// A concise summary of the latest error-looking output line, suitable for
     /// a toast. The full output remains in the Web panel.
     pub fn latest_error_summary(&self) -> Option<String> {
-        self.lines
-            .iter()
-            .rev()
-            .find(|line| line.is_error)
-            .map(|line| compact_error_line(&line.text, 120))
+        let mut generic_exit_summary = None;
+        for line in self.lines.iter().rev().filter(|line| line.is_error) {
+            if is_generic_build_exit_summary(&line.text) {
+                generic_exit_summary.get_or_insert(&line.text);
+                continue;
+            }
+            return Some(compact_error_line(&line.text, 120));
+        }
+        generic_exit_summary.map(|line| compact_error_line(line, 120))
     }
 
     /// Read+clear the "a fresh URL was scraped" latch (so the IDE opens the
@@ -645,6 +649,10 @@ fn looks_error(line: &str) -> bool {
         || line.starts_with("failed to")
 }
 
+fn is_generic_build_exit_summary(line: &str) -> bool {
+    line.starts_with("build failed (exit ")
+}
+
 fn compact_error_line(line: &str, max_chars: usize) -> String {
     let trimmed = line.trim();
     if trimmed.chars().count() <= max_chars {
@@ -798,6 +806,40 @@ mod tests {
         let mut w = WebPlayground::new();
         w.feed("serving web/ + /main.wasm\n");
         assert!(!w.line(0).unwrap().is_error);
+    }
+
+    #[test]
+    fn latest_error_summary_prefers_compiler_error_over_exit_summary() {
+        let mut w = WebPlayground::new();
+        w.feed("error: expected `I32`, found `Str`\n");
+        w.feed("build failed (exit Some(1))\n");
+
+        assert_eq!(
+            w.latest_error_summary().as_deref(),
+            Some("error: expected `I32`, found `Str`")
+        );
+    }
+
+    #[test]
+    fn latest_error_summary_keeps_exit_summary_when_it_is_only_error() {
+        let mut w = WebPlayground::new();
+        w.feed("build failed (exit Some(1))\n");
+
+        assert_eq!(
+            w.latest_error_summary().as_deref(),
+            Some("build failed (exit Some(1))")
+        );
+    }
+
+    #[test]
+    fn latest_error_summary_keeps_missing_artifact_summary() {
+        let mut w = WebPlayground::new();
+        w.feed("build failed: missing wasm artifact C:\\tmp\\main.wasm\n");
+
+        assert_eq!(
+            w.latest_error_summary().as_deref(),
+            Some("build failed: missing wasm artifact C:\\tmp\\main.wasm")
+        );
     }
 
     #[test]
