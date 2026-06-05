@@ -128,6 +128,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - AI copilot Agents panel (Ctrl+Shift+A) — streaming Anthropic chat
 - Inline ask (Ctrl+I)
 - **Inline AI ghost-text** (Copilot-style) — debounced suggestions, force with Alt+\, word-wise partial accept (Ctrl+→)
+- Inline AI ghost-text accept and dismiss commands report when no suggestion is
+  visible instead of silently doing nothing
 - Reads `ANTHROPIC_API_KEY` from the environment
 
 ### Source Control

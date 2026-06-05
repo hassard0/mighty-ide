@@ -14256,6 +14256,25 @@ fn ghost_accept_preflight_tracks_visible_editable_suggestion() {
 }
 
 #[test]
+fn ghost_accept_misses_report_visible_feedback() {
+    use crate::ghostabi::{mui_ghost_accept, mui_ghost_accept_word};
+
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_ghost_accept(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No AI ghost completion visible");
+
+    assert_eq!(mui_ghost_accept_word(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No AI ghost completion visible");
+}
+
+#[test]
 fn snippet_cancel_command_ends_session_without_removing_expansion() {
     use crate::snippetsabi::{mui_snippet_active, mui_snippet_cancel, mui_snippet_try_expand};
 

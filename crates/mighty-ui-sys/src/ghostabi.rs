@@ -119,6 +119,7 @@ pub extern "C" fn mui_ghost_accept(handle: i64) -> i32 {
         return 0;
     }
     let Some(text) = c.ghost.accept() else {
+        c.push_toast(Kind::Info, "No AI ghost completion visible");
         return 0;
     };
     let m = c.tabs.active_model_mut();
@@ -141,6 +142,7 @@ pub extern "C" fn mui_ghost_accept_word(handle: i64) -> i32 {
         return 0;
     }
     let Some(word) = c.ghost.accept_word() else {
+        c.push_toast(Kind::Info, "No AI ghost completion visible");
         return 0;
     };
     let new_anchor = {
