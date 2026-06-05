@@ -5929,7 +5929,10 @@ pub extern "C" fn mui_newfolder_create(handle: i64) -> i32 {
             1
         }
         Err(e) => {
-            ctx.push_toast(crate::toast::Kind::Error, format!("Folder create failed: {name}"));
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_operation_failed_message("Folder create", &target, &e),
+            );
             println!("newfolder: failed to create {}: {e}", target.display());
             0
         }
@@ -6047,7 +6050,10 @@ fn create_or_accept_folder_at(
             1
         }
         Err(e) => {
-            ctx.push_toast(crate::toast::Kind::Error, format!("Folder create failed: {name}"));
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_operation_failed_message("Folder create", &target, &e),
+            );
             println!("newfolder: failed to create {}: {e}", target.display());
             0
         }

@@ -11891,3 +11891,18 @@ as an invalid parent component or permission denial.
 - **Language note:** no compiler gap surfaced. Creation commands should report
   the attempted basename and the host filesystem reason together so users can
   correct the selected path without reading logs.
+
+## L958 - New Folder Creation Failures Should Preserve The Filesystem Reason
+
+New-folder creation had the same split feedback as new-file creation: the host
+`create_dir` / `create_dir_all` error was logged, but the toast only said
+`Folder create failed: name`. Dialog-selected folder targets can fail because a
+parent component is not a directory, the path is denied, or the host rejects it.
+
+- **IDE note:** folder creation failures now report
+  `Folder create failed: target: reason` for both prompt and dialog paths, while
+  preserving existing workspace-boundary checks and folder-ready behavior.
+  Detailed folder-create failures still group with other new-folder feedback.
+- **Language note:** no compiler gap surfaced. Creation commands should treat
+  files and folders consistently: target plus host reason belongs in the visible
+  toast whenever the host rejects the operation.

@@ -3803,6 +3803,41 @@ fn new_folder_dialog_env_pick_creates_or_accepts_folder() {
 }
 
 #[test]
+fn new_folder_dialog_create_failure_reports_filesystem_reason() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_new_folder_dialog_create_failure_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let parent_file = root.join("parent.txt");
+    std::fs::write(&parent_file, b"not a directory").unwrap();
+    let target = parent_file.join("child");
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_NEW_FOLDER_PICK", target.to_string_lossy().as_ref());
+    assert_eq!(crate::mui_newfolder_dialog(handle), 0);
+    std::env::remove_var("MUI_NEW_FOLDER_PICK");
+
+    assert!(!target.exists());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast.message.starts_with("Folder create failed: child: "),
+        "{}",
+        toast.message
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn new_folder_dialog_cancel_is_noop() {
     let _g = crate::settings::TEST_LOCK
         .lock()

@@ -1217,6 +1217,16 @@ mod tests {
             "Choose a folder inside the workspace",
             t0 + Duration::from_millis(1100),
         );
+        q.push_at(
+            Kind::Error,
+            "Folder create failed: child: The system cannot find the path specified. (os error 3)",
+            t0 + Duration::from_millis(1150),
+        );
+        assert_eq!(q.len(), 3);
+        assert_eq!(
+            q.toasts()[2].message,
+            "Folder create failed: child: The system cannot find the path specified. (os error 3)"
+        );
         q.push_at(Kind::Success, "Created folder: src", t0 + Duration::from_millis(1200));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Created folder: src");

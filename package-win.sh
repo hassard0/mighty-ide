@@ -29,6 +29,28 @@ PKG="mighty-ide-win64"
 
 cd "$ROOT"
 export CARGO_INCREMENTAL=0
+if [ -d .git ] && command -v git >/dev/null 2>&1; then
+  if [ -n "$(git status --porcelain)" ]; then
+    echo "ERROR: package-win.sh requires a clean git worktree before building release artifacts." >&2
+    exit 1
+  fi
+fi
+export RUSTFLAGS="${RUSTFLAGS:-} -C debuginfo=0 -C link-arg=/DEBUG:NONE"
+
+assert_pe_binary() {
+  local path="$1"
+  powershell.exe -NoProfile -Command "\
+    \$fs = [System.IO.File]::OpenRead('$path'); \
+    try { \
+      \$br = New-Object System.IO.BinaryReader(\$fs); \
+      if (\$br.ReadByte() -ne 0x4d -or \$br.ReadByte() -ne 0x5a) { throw '$path is not a PE binary: missing MZ header' } \
+      \$fs.Seek(0x3c, [System.IO.SeekOrigin]::Begin) | Out-Null; \
+      \$off = \$br.ReadInt32(); \
+      if (\$off -lt 0 -or \$off -gt (\$fs.Length - 4)) { throw '$path is not a PE binary: invalid PE header offset' } \
+      \$fs.Seek(\$off, [System.IO.SeekOrigin]::Begin) | Out-Null; \
+      if (\$br.ReadByte() -ne 0x50 -or \$br.ReadByte() -ne 0x45 -or \$br.ReadByte() -ne 0x00 -or \$br.ReadByte() -ne 0x00) { throw '$path is not a PE binary: missing PE signature' } \
+    } finally { \$fs.Dispose() }"
+}
 
 echo "[1/5] cargo build --release -p mighty-ui-sys (cdylib) + mty-rt-abi"
 cargo build --release -p mighty-ui-sys -p mty-rt-abi
@@ -51,6 +73,8 @@ rm -rf "$DIST"
 mkdir -p "$DIST/examples" "$DIST/samples"
 cp target/release/main.exe           "$DIST/mighty-ide.exe"
 cp target/release/mighty_ui_sys.dll  "$DIST/mighty_ui_sys.dll"
+assert_pe_binary "$DIST/mighty-ide.exe"
+assert_pe_binary "$DIST/mighty_ui_sys.dll"
 
 # --- App icon: regenerate the .ico (best-effort) then stamp the exe ---------
 # `make-icon.py` renders the brand "M" mark at 16/32/48/256 into assets/.
@@ -80,6 +104,20 @@ cp examples/agents.mty "$DIST/examples/agents.mty" 2>/dev/null || true
 # --- Scripts + docs ---------------------------------------------------------
 cp Create-Desktop-Shortcut.ps1 "$DIST/Create-Desktop-Shortcut.ps1"
 cp RUN.txt             "$DIST/RUN.txt"
+mkdir -p "$DIST/docs"
+cp README.md KEYBINDINGS.md CHANGELOG.md BUILDING.md LICENSE "$DIST/"
+cp docs/platform-packaging.md "$DIST/docs/platform-packaging.md"
+
+if find "$DIST" -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.rlib' -o -name '*.log' \) | grep -q .; then
+  echo "ERROR: package contains build byproducts:" >&2
+  find "$DIST" -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.rlib' -o -name '*.log' \) >&2
+  exit 1
+fi
+if find "$DIST" -type f \( -name '*.dylib' -o -name '*.so' \) | grep -q .; then
+  echo "ERROR: Windows package contains non-Windows native payloads:" >&2
+  find "$DIST" -type f \( -name '*.dylib' -o -name '*.so' \) >&2
+  exit 1
+fi
 
 echo "[5/5] zip -> dist/mighty-ide-$VERSION-win64.zip"
 ZIP="mighty-ide-$VERSION-win64.zip"
