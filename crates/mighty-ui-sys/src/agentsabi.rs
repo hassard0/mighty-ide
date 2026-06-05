@@ -983,8 +983,7 @@ pub extern "C" fn mui_agents_open_node(handle: i64, i: i32) -> i32 {
             );
         }
     }
-    let idx = ctx.tabs.open_path(file.clone());
-    crate::abi::sync_active_path(ctx);
+    let idx = crate::abi::open_path_in_focused_pane(ctx, file.clone());
     crate::abi::record_opened_file(ctx, &file);
     let model = ctx.tabs.active_model_mut();
     model.move_to(line, 0);

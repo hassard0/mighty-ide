@@ -7490,6 +7490,30 @@ fn file_open_surfaces_preserve_split_pane_focus() {
 }
 
 #[test]
+fn panel_file_open_handlers_use_focused_pane_helper() {
+    let modules = [
+        ("agentsabi.rs", include_str!("agentsabi.rs")),
+        ("dapabi.rs", include_str!("dapabi.rs")),
+        ("featureabi.rs", include_str!("featureabi.rs")),
+        ("navsurfaces.rs", include_str!("navsurfaces.rs")),
+        ("panels.rs", include_str!("panels.rs")),
+        ("stickyabi.rs", include_str!("stickyabi.rs")),
+        ("testabi.rs", include_str!("testabi.rs")),
+    ];
+
+    for (name, source) in modules {
+        assert!(
+            source.contains("open_path_in_focused_pane"),
+            "{name} should route user-facing file opens through the focused-pane helper"
+        );
+        assert!(
+            !source.contains("ctx.tabs.open_path"),
+            "{name} should not open tabs directly from panel/file navigation handlers"
+        );
+    }
+}
+
+#[test]
 fn move_active_tab_left_right_preserves_split_pane_documents() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_move_tab_{}", std::process::id()));

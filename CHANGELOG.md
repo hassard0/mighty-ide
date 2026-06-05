@@ -47,6 +47,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   File, New File, Explorer rows, Quick Open, Welcome recents, definition targets,
   and New Untitled now bind the new active tab to the focused pane without
   disturbing the other split pane.
+- **Panel navigation preserves split panes**: Search results, Problems, Source
+  Control, Run/Test output, Debug breakpoints, Agents nodes, breadcrumbs, and
+  Peek Definition targets now share the focused-pane file-open path.
 
 ### Language intelligence
 - **Keyboard shortcut persistence failures are visible**: remap and reset actions

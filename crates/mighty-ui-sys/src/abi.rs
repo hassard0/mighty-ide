@@ -4587,7 +4587,7 @@ fn bind_active_tab_to_focused_pane(ctx: &mut MuiContext) {
     ctx.panes.set_tab(f, ctx.tabs.active());
 }
 
-fn open_path_in_focused_pane(ctx: &mut MuiContext, path: PathBuf) -> usize {
+pub(crate) fn open_path_in_focused_pane(ctx: &mut MuiContext, path: PathBuf) -> usize {
     let idx = ctx.tabs.open_path(path);
     bind_active_tab_to_focused_pane(ctx);
     sync_active_path(ctx);

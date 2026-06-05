@@ -293,8 +293,7 @@ pub extern "C" fn mui_peek_goto(handle: i64) -> i32 {
                 );
             }
         }
-        let idx = ctx.tabs.open_path(tpath.clone());
-        crate::abi::sync_active_path(ctx);
+        let idx = crate::abi::open_path_in_focused_pane(ctx, tpath.clone());
         crate::abi::record_opened_file(ctx, &tpath);
         let m = ctx.tabs.active_model_mut();
         m.move_to(tline as i32, tcol as i32);

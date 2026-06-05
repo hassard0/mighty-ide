@@ -593,8 +593,7 @@ pub extern "C" fn mui_problems_open_row(handle: i64, i: i32) -> i32 {
             );
         }
     }
-    let idx = ctx.tabs.open_path(path.clone());
-    crate::abi::sync_active_path(ctx);
+    let idx = crate::abi::open_path_in_focused_pane(ctx, path.clone());
     crate::abi::record_opened_file(ctx, &path);
     let model = ctx.tabs.active_model_mut();
     model.move_to(line, col);
@@ -900,8 +899,7 @@ pub extern "C" fn mui_crumb_menu_accept(handle: i64, i: i32) -> i32 {
                     );
                 }
             }
-            let idx = ctx.tabs.open_path(path.clone());
-            crate::abi::sync_active_path(ctx);
+            let idx = crate::abi::open_path_in_focused_pane(ctx, path.clone());
             crate::abi::record_opened_file(ctx, &path);
             idx as i32
         }

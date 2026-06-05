@@ -1225,8 +1225,7 @@ pub extern "C" fn mui_bp_open_at_hit(handle: i64, code: i32) -> i32 {
             return reject_bad_breakpoint_target(ctx, &path, BreakpointTargetKind::NotFile);
         }
     }
-    let tab = ctx.tabs.open_path(path.clone());
-    crate::abi::sync_active_path(ctx);
+    let tab = crate::abi::open_path_in_focused_pane(ctx, path.clone());
     crate::abi::record_opened_file(ctx, &path);
     let line0 = target.line.saturating_sub(1) as i32;
     let model = ctx.tabs.active_model_mut();

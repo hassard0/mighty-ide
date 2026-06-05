@@ -74,6 +74,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   Open, Welcome recents, definition targets, and New Untitled, follow the same
   focused-pane binding rule so split layouts stay coherent outside the main UI
   router
+- Panel navigation surfaces, including Search results, Problems, Source
+  Control, Run/Test output, Debug breakpoints, Agents nodes, breadcrumbs, and
+  Peek Definition targets, use that same focused-pane binding rule
 - **Move Active Tab Left/Right** (Ctrl+Shift+PageUp/PageDown) reorders tabs from
   the keyboard or command palette while preserving split-pane document bindings
 - **Sort Open Tabs by Name** alphabetizes tab clutter without losing the active
