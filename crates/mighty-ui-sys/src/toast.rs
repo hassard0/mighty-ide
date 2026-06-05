@@ -848,7 +848,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m.starts_with("Run in Browser:")
         || m.starts_with("Web ")
         || m.starts_with("No web server ")
-        || m.starts_with("Opened ")
+        || is_opened_url_message(m)
     {
         Some(OperationKey::WebRun)
     } else if m.starts_with("Run finished")
@@ -1090,6 +1090,12 @@ fn is_test_result_message(message: &str) -> bool {
     failed.chars().all(|ch| ch.is_ascii_digit())
         && of == "of"
         && total.chars().all(|ch| ch.is_ascii_digit())
+}
+
+fn is_opened_url_message(message: &str) -> bool {
+    message
+        .strip_prefix("Opened ")
+        .is_some_and(|target| target.contains("://"))
 }
 
 fn is_mighty_diagnostic_message(message: &str) -> bool {
@@ -2083,6 +2089,18 @@ mod tests {
             .toasts()
             .iter()
             .any(|t| t.message == "Opened http://127.0.0.1:8000"));
+
+        q.push_at(
+            Kind::Success,
+            "Opened workspace",
+            t0 + Duration::from_millis(395),
+        );
+        assert_eq!(q.len(), 3);
+        assert!(q
+            .toasts()
+            .iter()
+            .any(|t| t.message == "Opened mighty-preview://current"));
+        assert!(q.toasts().iter().any(|t| t.message == "Opened workspace"));
 
         q.push_at(
             Kind::Error,

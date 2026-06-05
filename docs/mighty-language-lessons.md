@@ -13774,3 +13774,16 @@ prefix, but it is the repeat-command state users see most often.
 - **Language note:** no compiler gap surfaced. Prefix-based operation families
   still need examples for common alternate outcomes so future edits do not
   accidentally narrow the covered surface.
+
+## L1089 - Opened URL Feedback Must Stay URL-Scoped
+
+Browser-open feedback should not depend on `http://`, but the classifier also
+should not claim every future `Opened ...` message as WebRun feedback. The
+stable shape is `Opened <url>`, where the payload is URL-like.
+
+- **IDE note:** WebRun now classifies `Opened ...` only when the target contains
+  a URL scheme separator, preserving non-HTTP preview URLs without capturing
+  plain open-status messages.
+- **Language note:** no compiler gap surfaced. Broad prefix rules should carry
+  enough payload validation to avoid taking ownership of neighboring command
+  surfaces.
