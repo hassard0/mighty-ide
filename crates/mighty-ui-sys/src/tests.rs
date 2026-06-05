@@ -16653,6 +16653,43 @@ fn welcome_open_recent_success_prunes_missing_recent_files() {
 }
 
 #[test]
+fn welcome_drawn_missing_recent_file_reports_precise_feedback() {
+    use crate::{mui_welcome_active, mui_welcome_draw, mui_welcome_open_recent};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.gpu.width = 900;
+    ctx.gpu.height = 700;
+    let root = std::env::temp_dir().join(format!(
+        "mui_welcome_drawn_missing_recent_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let missing = root.join("gone.mty");
+    std::fs::write(&missing, "fn gone() {}\n").unwrap();
+    ctx.quickopen.set_recent_paths(vec![missing.clone()]);
+    ctx.welcome.open_recent_picker();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::fs::remove_file(&missing).unwrap();
+    mui_welcome_draw(h);
+    assert!(ctx.quickopen.recent_paths().is_empty());
+
+    assert_eq!(mui_welcome_open_recent(h, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Recent file missing: gone.mty");
+    assert_eq!(mui_welcome_active(h), 1);
+
+    assert_eq!(mui_welcome_open_recent(h, 0), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Recent file row no longer listed");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn welcome_missing_recent_folder_stays_open_and_prunes() {
     use crate::wsabi::mui_ws_recent_count;
     use crate::{mui_welcome_active, mui_welcome_draw, mui_welcome_open_folder};
@@ -16698,6 +16735,9 @@ fn welcome_missing_recent_folder_stays_open_and_prunes() {
         "missing Welcome recent folder should fail"
     );
     assert_eq!(mui_ws_recent_count(h), 0, "stale Welcome folder should be pruned");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Recent folder missing: missing-folder");
     assert_eq!(
         mui_welcome_active(h),
         1,

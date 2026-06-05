@@ -200,10 +200,12 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   Folder, Quick Open, and Command Palette actions; clickable toast notifications
   with a command-palette clear-all action, **Zen / focus mode (Alt+Z)**
 - Open Recent file rows reject directory targets from stale recents instead of
-  opening empty tabs or reporting them as missing files
+  opening empty tabs or reporting them as missing files, and Welcome keeps
+  already-rendered stale file rows target-specific on click
 - Open Recent folder rows reject file-backed stale recents with `not a folder`
-  feedback instead of reporting them as ordinary missing folders, and stale
-  folder recents are pruned before Open Recent/Welcome routing
+  feedback instead of reporting them as ordinary missing folders, while
+  already-rendered Welcome folder rows still report the precise stale target
+  before their hit snapshot is cleared
 - **Mighty Agents panel (Alt+G)** — static agent-system topology, run, and live `mty inspect` when the Mighty runtime control socket is available
 - Agents topology jumps reject directory targets from stale scan results instead
   of opening an empty tab

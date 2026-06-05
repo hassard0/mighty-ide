@@ -16904,8 +16904,6 @@ pub extern "C" fn mui_welcome_draw(handle: i64) {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return;
     };
-    prune_missing_recent_files(ctx);
-    prune_missing_recent_workspaces(ctx);
     let region = layout::region(ctx.sidebar_visible);
     let (w, h) = (ctx.gpu.width, ctx.gpu.height);
     let visible_h = visible_surface_size(ctx).1;
@@ -16921,6 +16919,8 @@ pub extern "C" fn mui_welcome_draw(handle: i64) {
     let mut welcome = std::mem::take(&mut ctx.welcome);
     welcome.draw(ctx, region.left, region.top, w, welcome_h, &recents, &folders);
     ctx.welcome = welcome;
+    prune_missing_recent_files(ctx);
+    prune_missing_recent_workspaces(ctx);
 }
 
 /// Hit-test the LAST-POLLED mouse-down position against the Welcome layout
