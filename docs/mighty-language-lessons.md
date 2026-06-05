@@ -13105,3 +13105,20 @@ existence and kind checks.
 - **Language note:** no compiler gap surfaced. The useful pattern is UI-state
   discipline: classify external state first, then make one UI mutation path for
   each class.
+
+## L1042 - SCM Row Opens Need The Same Target Classification
+
+Source Control rows are another stale navigation surface: the git status list can
+name a file that was deleted or replaced by a directory after the panel rendered.
+The behavior was already visible, but the open path still used split
+`exists()`/`is_file()` checks before refreshing the SCM model.
+
+- **IDE note:** Source Control row activation now classifies the resolved target
+  with one metadata read. Missing and non-file targets share the same refresh
+  path, preserving the existing feedback while making the state transition
+  harder to fork:
+  `Source control target missing: <name>` and
+  `Source control target is not a file: <name>`.
+- **Language note:** no compiler gap surfaced. Any panel that opens persisted or
+  cached filesystem rows should classify disk state once before deciding which
+  model refresh and toast path to run.

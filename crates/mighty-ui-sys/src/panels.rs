@@ -252,24 +252,49 @@ pub extern "C" fn mui_scm_open_row(handle: i64, i: i32) -> i32 {
         (entry.path.clone(), root)
     };
     let full = root.join(&path);
-    if !full.exists() {
-        let name = crate::abi::file_target_name(std::path::Path::new(&path));
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Source control target missing: {name}"));
-        let _ = ctx.scm.refresh(&root);
-        crate::abi::refresh_workspace_file_views(ctx);
-        return -1;
-    }
-    if !full.is_file() {
-        let name = crate::abi::file_target_name(std::path::Path::new(&path));
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Source control target is not a file: {name}"));
-        let _ = ctx.scm.refresh(&root);
-        crate::abi::refresh_workspace_file_views(ctx);
-        return -1;
+    let name = crate::abi::file_target_name(std::path::Path::new(&path));
+    match scm_target_kind(&full) {
+        ScmTargetKind::File => {}
+        ScmTargetKind::Missing => {
+            return refresh_bad_scm_target(
+                ctx,
+                &root,
+                format!("Source control target missing: {name}"),
+            );
+        }
+        ScmTargetKind::NotFile => {
+            return refresh_bad_scm_target(
+                ctx,
+                &root,
+                format!("Source control target is not a file: {name}"),
+            );
+        }
     }
     let idx = ctx.tabs.open_path(full.clone());
     crate::abi::sync_active_path(ctx);
     crate::abi::record_opened_file(ctx, &full);
     idx as i32
+}
+
+enum ScmTargetKind {
+    File,
+    Missing,
+    NotFile,
+}
+
+fn scm_target_kind(path: &std::path::Path) -> ScmTargetKind {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => ScmTargetKind::File,
+        Ok(_) => ScmTargetKind::NotFile,
+        Err(_) => ScmTargetKind::Missing,
+    }
+}
+
+fn refresh_bad_scm_target(ctx: &mut MuiContext, root: &std::path::Path, message: String) -> i32 {
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+    let _ = ctx.scm.refresh(root);
+    crate::abi::refresh_workspace_file_views(ctx);
+    -1
 }
 
 /// Stage/unstage the row `i` (toggles based on its current state), then refresh.
