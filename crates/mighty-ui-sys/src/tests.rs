@@ -2950,6 +2950,41 @@ fn search_replace_all_skips_files_changed_since_search() {
 }
 
 #[test]
+fn search_replace_all_reports_files_deleted_since_search() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_search_replace_deleted_since_search");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("a.mty");
+    std::fs::write(&path, "foo\n").unwrap();
+    ctx.tree.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    for ch in "foo".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+    assert_eq!(crate::panels::mui_search_run(handle), 1);
+    std::fs::remove_file(&path).unwrap();
+    ctx.search.replace_focus = true;
+    for ch in "bar".chars() {
+        ctx.search.push_char(ch as u32);
+    }
+
+    assert_eq!(crate::panels::mui_search_replace_all(handle), 0);
+    assert!(!path.exists());
+    assert_eq!(ctx.search.file_count(), 0);
+    assert_eq!(ctx.search.match_count(), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Replaced 0 occurrences; skipped 1 missing file"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn search_replace_all_refreshes_clean_duplicate_tabs() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_search_replace_clean_duplicates");

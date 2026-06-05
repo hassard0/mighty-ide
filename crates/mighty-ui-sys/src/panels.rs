@@ -1477,23 +1477,31 @@ pub extern "C" fn mui_search_replace_all(handle: i64) -> i32 {
         return 0;
     }
     let dir = workspace_dir(ctx);
-    let (n, changed_paths, dirty_skipped, stale_skipped) = ctx
+    let (n, changed_paths, dirty_skipped, stale_skipped, missing_skipped) = ctx
         .search
         .replace_all_with_changed_paths_skipping(&dir, |path| ctx.tabs.any_dirty_path(path));
     let (refreshed, stale_dirty) = refresh_replaced_open_tabs(ctx, &changed_paths);
     let dirty_skipped = dirty_skipped + stale_dirty;
-    let skipped = dirty_skipped + stale_skipped;
+    let skipped = dirty_skipped + stale_skipped + missing_skipped;
     println!("search: replaced {n}");
     crate::abi::trace(&format!("search_replace_all replaced={n}"));
     if n > 0 || skipped > 0 {
         let suffix = if n == 1 { "" } else { "s" };
         if skipped > 0 {
             let file_suffix = if skipped == 1 { "" } else { "s" };
-            let reason = match (dirty_skipped > 0, stale_skipped > 0) {
-                (true, true) => "dirty or changed",
-                (true, false) => "dirty open",
-                (false, true) => "changed",
-                (false, false) => "changed",
+            let reason = match (
+                dirty_skipped > 0,
+                stale_skipped > 0,
+                missing_skipped > 0,
+            ) {
+                (true, true, true) => "dirty, changed, or missing",
+                (true, true, false) => "dirty or changed",
+                (true, false, true) => "dirty or missing",
+                (true, false, false) => "dirty open",
+                (false, true, true) => "changed or missing",
+                (false, true, false) => "changed",
+                (false, false, true) => "missing",
+                (false, false, false) => "changed",
             };
             ctx.push_toast(
                 crate::toast::Kind::Warn,

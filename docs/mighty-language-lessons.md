@@ -11101,3 +11101,16 @@ discovery surfaces stale when the formatter materializes the path.
 - **Language note:** no compiler gap surfaced. External tool integrations that
   write in place should publish restored paths using the same lifecycle rules as
   direct IDE writes.
+
+## L900 - Replace All Should Report Missing Stale Files
+
+Project search results can go stale when a matched file is deleted between
+Search and Replace All. Silently ignoring the read failure makes the command
+look like an ordinary no-match result instead of explaining why work was
+skipped.
+
+- **IDE note:** project Replace All now counts deleted matched files as a
+  missing-file skip and reports that in the visible toast while refreshing the
+  search result set.
+- **Language note:** no compiler gap surfaced. Bulk refactoring commands should
+  distinguish stale, dirty, and missing inputs so users can trust no-op results.
