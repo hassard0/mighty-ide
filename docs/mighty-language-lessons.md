@@ -13366,3 +13366,18 @@ that path was a file.
   the dropdown.
 - **Language note:** no compiler gap surfaced. Directory walkers should use the
   metadata carried by the iterator entry when it is sufficient for the decision.
+
+## L1059 - New Project Parent Fallbacks Should Classify Once
+
+The bottom-prompt New Project flow chooses a parent directory from the active
+workspace, then home, then current directory. Workspace and home candidates still
+used direct directory checks while the dialog flow had already moved to
+metadata-based classification.
+
+- **IDE note:** New Project parent resolution now uses one helper to classify
+  non-empty existing directories before accepting workspace or home fallbacks.
+  Missing and file-backed workspace roots continue to fall through to a real
+  fallback directory instead of being used as creation parents.
+- **Language note:** no compiler gap surfaced. Fallback selection should share
+  the same filesystem-state predicate as command validation when both decide
+  whether a path can be used as a directory.

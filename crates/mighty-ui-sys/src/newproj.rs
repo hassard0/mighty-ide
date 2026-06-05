@@ -108,16 +108,21 @@ fn single_reserved_digit(rest: &str) -> Option<()> {
 /// the user's home dir; otherwise the current working dir; otherwise `.`.
 pub fn resolve_parent_dir(workspace: Option<&Path>) -> PathBuf {
     if let Some(ws) = workspace {
-        if !ws.as_os_str().is_empty() && ws.is_dir() {
+        if path_is_existing_dir(ws) {
             return ws.to_path_buf();
         }
     }
     if let Some(home) = home_dir() {
-        if home.is_dir() {
+        if path_is_existing_dir(&home) {
             return home;
         }
     }
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
+fn path_is_existing_dir(path: &Path) -> bool {
+    !path.as_os_str().is_empty()
+        && std::fs::metadata(path).is_ok_and(|meta| meta.is_dir())
 }
 
 /// The user's home directory from the platform env vars (no extra deps).
@@ -215,5 +220,15 @@ mod tests {
         let got2 = resolve_parent_dir(Some(&bogus));
         assert!(got2.is_dir());
         assert_ne!(got2, bogus);
+
+        let file = std::env::temp_dir().join(format!(
+            "mui_newproj_parent_file_{}",
+            std::process::id()
+        ));
+        std::fs::write(&file, b"not a folder").unwrap();
+        let got3 = resolve_parent_dir(Some(&file));
+        assert!(got3.is_dir());
+        assert_ne!(got3, file);
+        let _ = std::fs::remove_file(file);
     }
 }
