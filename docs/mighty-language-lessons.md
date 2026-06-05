@@ -11065,3 +11065,15 @@ could recreate it without republishing the path to Explorer or Quick Open.
   same discovery surfaces as explicit save commands.
 - **Language note:** no compiler gap surfaced. Background save paths must share
   the file lifecycle invariants of foreground save commands.
+
+## L897 - Workspace Edits Can Materialize Files
+
+Rename and code-action workspace edits use a shared file rewrite path separate
+from ordinary saves. A server-provided edit can restore or create a file by
+writing edits over an empty missing document, so discovery views must be updated
+when that succeeds.
+
+- **IDE note:** workspace-edit application now records and refreshes discovery
+  state when an edit writes a path that was missing before the write.
+- **Language note:** no compiler gap surfaced. LSP-driven file writes should
+  honor the same lifecycle publication rules as user-initiated file writes.

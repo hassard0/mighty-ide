@@ -10417,12 +10417,18 @@ fn apply_workspace_edit(
                 m.to_bytes()
             };
             if let Some(p) = current.clone() {
-                let _ = std::fs::write(&p, &edited_bytes);
-                mark_active_clean(ctx);
-                let active = ctx.tabs.active();
-                let _ = ctx
-                    .tabs
-                    .reload_all_clean_path_except(&p, &edited_bytes, active);
+                let resurrected_path = !p.is_file();
+                if std::fs::write(&p, &edited_bytes).is_ok() {
+                    mark_active_clean(ctx);
+                    let active = ctx.tabs.active();
+                    let _ = ctx
+                        .tabs
+                        .reload_all_clean_path_except(&p, &edited_bytes, active);
+                    if resurrected_path {
+                        record_recent_file(ctx, p.clone());
+                        refresh_workspace_file_views(ctx);
+                    }
+                }
             }
             result.changed += 1;
         } else {
@@ -10439,9 +10445,14 @@ fn apply_workspace_edit(
             let disk = std::fs::read(&fpath).unwrap_or_default();
             let text = String::from_utf8_lossy(&disk).into_owned();
             let edited = crate::language::apply_text_edits(&text, &edits);
+            let resurrected_path = !fpath.is_file();
             if std::fs::write(&fpath, edited.as_bytes()).is_ok() {
                 result.changed += 1;
                 let _ = ctx.tabs.reload_all_clean_path(&fpath, edited.as_bytes());
+                if resurrected_path {
+                    record_recent_file(ctx, fpath.clone());
+                    refresh_workspace_file_views(ctx);
+                }
             }
         }
     }
