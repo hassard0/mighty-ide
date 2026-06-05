@@ -1858,11 +1858,11 @@ mod tests {
 
         q.push_at(
             Kind::Error,
-            "Terminal failed to open",
+            "Terminal failed to open: missing-shell.exe",
             t0 + Duration::from_millis(400),
         );
         assert_eq!(q.len(), 1);
-        assert_eq!(q.toasts()[0].message, "Terminal failed to open");
+        assert_eq!(q.toasts()[0].message, "Terminal failed to open: missing-shell.exe");
         assert_eq!(q.toasts()[0].kind, Kind::Error);
     }
 

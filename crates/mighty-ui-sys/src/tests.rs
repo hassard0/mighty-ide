@@ -2770,7 +2770,7 @@ fn terminal_open_failure_reports_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
-    std::env::set_var("MUI_TERM_FORCE_OPEN_FAIL", "1");
+    std::env::set_var("MUI_TERM_FORCE_OPEN_FAIL", "missing-shell.exe");
     assert_eq!(crate::abi::mui_term_open(handle), 0);
     std::env::remove_var("MUI_TERM_FORCE_OPEN_FAIL");
 
@@ -2778,7 +2778,7 @@ fn terminal_open_failure_reports_visible_feedback() {
     assert!(ctx.terminal.is_none());
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert_eq!(toast.message, "Terminal failed to open");
+    assert_eq!(toast.message, "Terminal failed to open: missing-shell.exe");
 }
 
 #[test]

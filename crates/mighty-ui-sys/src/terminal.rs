@@ -2917,7 +2917,8 @@ pub struct Terminal {
 
 impl Terminal {
     /// Spawn a shell in a new PTY sized `rows`×`cols`. On Windows this uses the
-    /// default ConPTY backend and runs `cmd.exe`; elsewhere `$SHELL` or `/bin/sh`.
+    /// default ConPTY backend and runs `%ComSpec%`/`cmd.exe`; elsewhere `$SHELL`
+    /// or `/bin/sh`.
     /// Returns an error string on failure (caller decides whether to surface it).
     pub fn spawn(rows: usize, cols: usize) -> Result<Self, String> {
         let rows = rows.max(1);
@@ -3223,28 +3224,35 @@ impl Drop for Terminal {
     }
 }
 
-/// Build the shell command to spawn: `cmd.exe` on Windows, `$SHELL`/`/bin/sh`
-/// elsewhere. Inherits the current working directory.
-fn default_shell_command() -> CommandBuilder {
+pub(crate) fn default_shell_display_name() -> String {
+    let shell = default_shell_path();
+    std::path::Path::new(&shell)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(shell.as_str())
+        .to_string()
+}
+
+fn default_shell_path() -> String {
     #[cfg(windows)]
     {
-        // ComSpec is `C:\Windows\system32\cmd.exe` on a normal install.
-        let shell = std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string());
-        let mut cmd = CommandBuilder::new(shell);
-        if let Ok(cwd) = std::env::current_dir() {
-            cmd.cwd(cwd);
-        }
-        cmd
+        std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string())
     }
     #[cfg(not(windows))]
     {
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-        let mut cmd = CommandBuilder::new(shell);
-        if let Ok(cwd) = std::env::current_dir() {
-            cmd.cwd(cwd);
-        }
-        cmd
+        std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string())
     }
+}
+
+/// Build the shell command to spawn: `%ComSpec%`/`cmd.exe` on Windows,
+/// `$SHELL`/`/bin/sh` elsewhere. Inherits the current working directory.
+fn default_shell_command() -> CommandBuilder {
+    let mut cmd = CommandBuilder::new(default_shell_path());
+    if let Ok(cwd) = std::env::current_dir() {
+        cmd.cwd(cwd);
+    }
+    cmd
 }
 
 // ---------------------------------------------------------------------------

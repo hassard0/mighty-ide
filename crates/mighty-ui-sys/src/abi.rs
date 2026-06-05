@@ -7256,6 +7256,15 @@ pub(crate) fn terminal_header_clear_rect(ctx: &MuiContext) -> (f32, f32, f32, f3
     (x.max(layout::term_panel_left(region) + 86.0), y, size, size)
 }
 
+fn terminal_open_failed_message(shell: &str) -> String {
+    let shell = shell.trim();
+    if shell.is_empty() {
+        "Terminal failed to open".to_string()
+    } else {
+        format!("Terminal failed to open: {shell}")
+    }
+}
+
 fn term_wants_mouse_motion_at(ctx: &MuiContext, x: f32, y: f32) -> bool {
     term_grid_contains_point(ctx, x, y)
         && ctx
@@ -7284,12 +7293,19 @@ pub extern "C" fn mui_term_open(handle: i64) -> i32 {
     let was_open = ctx.term_open;
     let mut spawned = false;
     #[cfg(test)]
-    if std::env::var_os("MUI_TERM_FORCE_OPEN_FAIL").is_some() {
-        ctx.push_toast(crate::toast::Kind::Error, "Terminal failed to open");
+    if let Some(shell) = std::env::var_os("MUI_TERM_FORCE_OPEN_FAIL") {
+        let shell = shell
+            .into_string()
+            .unwrap_or_else(|_| crate::terminal::default_shell_display_name());
+        ctx.push_toast(
+            crate::toast::Kind::Error,
+            terminal_open_failed_message(&shell),
+        );
         trace("term_open forced failure");
         return 0;
     }
     if ctx.terminal.is_none() {
+        let shell = crate::terminal::default_shell_display_name();
         match crate::terminal::Terminal::spawn(rows, cols) {
             Ok(t) => {
                 println!("mui_term_open: spawned shell, grid {rows}x{cols}");
@@ -7298,7 +7314,10 @@ pub extern "C" fn mui_term_open(handle: i64) -> i32 {
             }
             Err(e) => {
                 eprintln!("mui_term_open: {e}");
-                ctx.push_toast(crate::toast::Kind::Error, "Terminal failed to open");
+                ctx.push_toast(
+                    crate::toast::Kind::Error,
+                    terminal_open_failed_message(&shell),
+                );
                 trace(&format!("term_open failed: {e}"));
                 return 0;
             }

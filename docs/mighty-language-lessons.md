@@ -11514,3 +11514,15 @@ which active-file operation failed without digging through stderr logs.
   codes and platform commands.
 - **Language note:** no compiler gap surfaced. OS integration helpers should
   preserve enough context in visible feedback to make failed commands actionable.
+
+## L932 - Terminal Startup Failures Should Name The Shell
+
+Integrated terminal startup already emitted a visible error toast, but the text
+did not say which shell failed to launch. That made shell-path, `%ComSpec%`, and
+`$SHELL` problems look identical to generic terminal panel failures.
+
+- **IDE note:** terminal-open failures now include the display name of the shell
+  Mighty tried to spawn, and the toast replacement policy still groups those
+  detailed messages with the rest of terminal feedback.
+- **Language note:** no compiler gap surfaced. Runtime-panel failures should
+  carry the external program identity in user-visible feedback, not only logs.
