@@ -252,6 +252,18 @@ pub extern "C" fn mui_peek_goto(handle: i64) -> i32 {
         m.set_first_visible(first as usize);
         1
     } else {
+        if !tpath.exists() {
+            let name = crate::abi::file_target_name(&tpath);
+            crate::abi::refresh_workspace_file_views(ctx);
+            ctx.push_toast(crate::toast::Kind::Warn, format!("Peek target missing: {name}"));
+            return -1;
+        }
+        if !tpath.is_file() {
+            let name = crate::abi::file_target_name(&tpath);
+            crate::abi::refresh_workspace_file_views(ctx);
+            ctx.push_toast(crate::toast::Kind::Warn, format!("Peek target is not a file: {name}"));
+            return -1;
+        }
         let idx = ctx.tabs.open_path(tpath.clone());
         crate::abi::sync_active_path(ctx);
         crate::abi::record_opened_file(ctx, &tpath);

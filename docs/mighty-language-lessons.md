@@ -12735,3 +12735,18 @@ that output names a directory.
 - **Language note:** no compiler gap surfaced. Tool-output navigation should
   share one invariant with direct file opens: an editor tab represents a file
   target, not merely any existing filesystem path.
+
+## L1017 - Indexed Navigation Surfaces Need File-Kind Gates Too
+
+Search results, Problems rows, breadcrumb file menus, and Peek Definition all
+cache or preview paths that can go stale before the user accepts the jump.
+Checking only for missing files is not enough when a directory appears at the
+same path.
+
+- **IDE note:** those navigation surfaces now validate that the target is a real
+  file before opening an editor tab. Directory targets report
+  `<surface> target is not a file: <name>`, refresh or prune the stale backing
+  index where appropriate, and leave the tab list unchanged.
+- **Language note:** no compiler gap surfaced. Any path cached across frames or
+  derived from a preview should be revalidated at accept time with both
+  existence and object kind.

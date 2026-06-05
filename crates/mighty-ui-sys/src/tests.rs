@@ -3777,6 +3777,41 @@ fn search_open_misses_report_visible_feedback() {
 }
 
 #[test]
+fn search_open_directory_target_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!("mui_search_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let target = root.join("hit.mty");
+    std::fs::create_dir_all(&target).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.search.results.files.push(crate::search::SearchFile {
+        path: target.clone(),
+        rel: "hit.mty".to_string(),
+        match_count: 1,
+        fingerprint: 0,
+    });
+    ctx.search.results.matches.push(crate::search::SearchMatch {
+        file: 0,
+        line: 0,
+        col: 0,
+        preview: "needle".to_string(),
+    });
+    let before = crate::mui_tab_count(handle);
+
+    assert_eq!(crate::panels::mui_search_open(handle, 0), -1);
+    assert_eq!(crate::mui_tab_count(handle), before);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Search target is not a file: hit.mty");
+    assert_eq!(ctx.search.match_count(), 0);
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn search_open_missing_target_refreshes_workspace_file_views() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!(
@@ -9545,6 +9580,49 @@ fn peek_close_clears_inline_view() {
 }
 
 #[test]
+fn peek_goto_missing_or_directory_target_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!("mui_peek_target_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let missing = root.join("missing.mty");
+    assert!(ctx.peek.open_at(
+        missing.clone(),
+        0,
+        0,
+        0,
+        crate::langdetect::Language::Mighty,
+        Some("fn target() {}\n")
+    ));
+    let before = crate::mui_tab_count(h);
+
+    assert_eq!(crate::stickyabi::mui_peek_goto(h), -1);
+    assert_eq!(crate::mui_tab_count(h), before);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Peek target missing: missing.mty");
+
+    let dir = root.join("target.mty");
+    std::fs::create_dir_all(&dir).unwrap();
+    assert!(ctx.peek.open_at(
+        dir.clone(),
+        0,
+        0,
+        0,
+        crate::langdetect::Language::Mighty,
+        Some("fn target() {}\n")
+    ));
+    assert_eq!(crate::stickyabi::mui_peek_goto(h), -1);
+    assert_eq!(crate::mui_tab_count(h), before);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Peek target is not a file: target.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn language_popup_close_commands_clear_active_state() {
     let mut ctx = ctx_or_skip!();
     assert!(ctx.hover.set_text("```mty\nfn hover_doc()\n```"));
@@ -12732,6 +12810,37 @@ fn breadcrumb_accept_misses_report_visible_feedback() {
 }
 
 #[test]
+fn breadcrumb_accept_directory_target_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!("mui_crumb_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let target = root.join("target.mty");
+    std::fs::create_dir_all(&target).unwrap();
+    let item = crate::crumbmenu::MenuItem {
+        label: "target.mty".to_string(),
+        icon: None,
+        icon_color: crate::theme::TEXT(),
+        depth: 0,
+        target: 0,
+    };
+    ctx.crumb_files = vec![target.clone()];
+    ctx.crumb_menu
+        .open(crate::crumbmenu::MenuKind::Files, vec![item], 80.0);
+    let before = crate::mui_tab_count(h);
+
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_accept(h, -1), -1);
+    assert_eq!(crate::mui_tab_count(h), before);
+    assert!(ctx.crumb_files.is_empty());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Breadcrumb target is not a file: target.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn breadcrumb_close_command_clears_active_menu() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -12900,6 +13009,38 @@ fn problems_open_row_misses_report_visible_feedback() {
     assert_eq!(toast.message, "Problems target missing: missing.mty");
     assert_eq!(crate::navsurfaces::mui_problems_count(h), 0);
     assert_eq!(crate::navsurfaces::mui_problems_error_count(h), 0);
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn problems_open_row_directory_target_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!("mui_problems_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let target = root.join("target.mty");
+    std::fs::create_dir_all(&target).unwrap();
+    ctx.problems.aggregate(vec![(
+        target.clone(),
+        vec![crate::diagnostics::Diag {
+            line: 1,
+            col_start: 0,
+            col_end: 2,
+            severity: crate::diagnostics::Severity::Error,
+            code: "MTDIR".into(),
+            message: "stale dir target".into(),
+        }],
+    )]);
+    let before = crate::mui_tab_count(h);
+
+    assert_eq!(crate::navsurfaces::mui_problems_open_row(h, 0), -1);
+    assert_eq!(crate::mui_tab_count(h), before);
+    assert_eq!(crate::navsurfaces::mui_problems_count(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Problems target is not a file: target.mty");
 
     let _ = std::fs::remove_dir_all(root);
 }

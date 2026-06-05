@@ -31,6 +31,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   topology, Source Control rows, and Debug breakpoints now require jump targets
   to be real files. Directory targets report target-specific `is not a file`
   feedback and leave the tab list unchanged.
+- **Navigation surfaces reject directory targets**: Search results, Problems
+  rows, breadcrumb file-menu jumps, and Peek Definition go-to now validate that
+  stale targets are real files before opening tabs.
 - **Packages include a verification manifest**: Windows, macOS, Linux, and the
   Git-Bash Windows package path now write `PACKAGE-MANIFEST.txt` into the
   package root with platform/version metadata, native payload hashes and sizes,

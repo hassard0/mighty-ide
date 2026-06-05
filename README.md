@@ -28,7 +28,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Go-to-line (Ctrl+G), go-to-definition (F12, cross-file), jump-back (Ctrl+−)
 - **Peek definition (Alt+F12)** — inline framed definition preview
 - **Sticky scroll** — pinned enclosing scopes
-- **Outline, Problems, and an interactive breadcrumb** code-nav bar
+- **Outline, Problems, and an interactive breadcrumb** code-nav bar; Problems
+  rows, breadcrumb file jumps, and Peek Definition navigation reject directory
+  targets from stale indexes instead of opening empty tabs
 - **Split editor (Ctrl+\)** — side-by-side panes, focus a pane with Ctrl+1 / Ctrl+2
 - **Bracket-pair colorization + indent guides** — nesting-depth rainbow brackets, faint per-level guides with an active-block highlight
 - **Interactive minimap** — click to jump; tall files compress so the whole file maps across the strip
@@ -51,7 +53,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   external edits while protecting dirty buffers
 - **Revert Active File from Disk** intentionally discards local edits and reloads
   the file-backed tab from disk
-- Project-wide Search panel (Ctrl+Shift+F)
+- Project-wide Search panel (Ctrl+Shift+F), with stale directory targets
+  rejected before opening a tab
 
 ### Language Intelligence
 - Hover info (Ctrl+K), autocomplete (Ctrl+Space — semantic LSP completions + buffer words)

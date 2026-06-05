@@ -1652,7 +1652,14 @@ pub extern "C" fn mui_search_open(handle: i64, i: i32) -> i32 {
         };
         (f.path.clone(), m.line, m.col, f.fingerprint)
     };
-    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+    let name = crate::abi::file_target_name(&path);
+    if path.exists() && !path.is_file() {
+        let dir = workspace_dir(ctx);
+        let _ = ctx.search.run(&dir);
+        crate::abi::refresh_workspace_file_views(ctx);
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Search target is not a file: {name}"));
+        return -1;
+    }
     let bytes = match std::fs::read(&path) {
         Ok(bytes) => bytes,
         Err(_) => {

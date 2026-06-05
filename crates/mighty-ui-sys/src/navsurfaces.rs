@@ -574,12 +574,22 @@ pub extern "C" fn mui_problems_open_row(handle: i64, i: i32) -> i32 {
         (p.path.clone(), p.line, p.col)
     };
     if !path.exists() {
-        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+        let name = crate::abi::file_target_name(&path);
         let _ = ctx.problems.remove_path(&path);
         crate::abi::refresh_workspace_file_views(ctx);
         ctx.push_toast(
             crate::toast::Kind::Warn,
             format!("Problems target missing: {name}"),
+        );
+        return -1;
+    }
+    if !path.is_file() {
+        let name = crate::abi::file_target_name(&path);
+        let _ = ctx.problems.remove_path(&path);
+        crate::abi::refresh_workspace_file_views(ctx);
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Problems target is not a file: {name}"),
         );
         return -1;
     }
@@ -843,12 +853,22 @@ pub extern "C" fn mui_crumb_menu_accept(handle: i64, i: i32) -> i32 {
                 return -1;
             };
             if !path.exists() {
-                let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+                let name = crate::abi::file_target_name(&path);
                 ctx.crumb_files.remove(target as usize);
                 crate::abi::refresh_workspace_file_views(ctx);
                 ctx.push_toast(
                     crate::toast::Kind::Warn,
                     format!("Breadcrumb target missing: {name}"),
+                );
+                return -1;
+            }
+            if !path.is_file() {
+                let name = crate::abi::file_target_name(&path);
+                ctx.crumb_files.remove(target as usize);
+                crate::abi::refresh_workspace_file_views(ctx);
+                ctx.push_toast(
+                    crate::toast::Kind::Warn,
+                    format!("Breadcrumb target is not a file: {name}"),
                 );
                 return -1;
             }
