@@ -13609,3 +13609,15 @@ stale debug-state feedback visible beside the newer breakpoint result.
   breakpoint-save guard messages.
 - **Language note:** no compiler gap surfaced. Operation families need to cover
   both target-first and guard-first wording for the same surface.
+
+## L1076 - Empty Breakpoint Clears Are Debug Feedback
+
+Clearing breakpoints is a Debug-panel action whether it removes stored
+breakpoints or reports that there are none to clear. The empty result did not
+start with `Breakpoint`, so it could survive beside newer debug lifecycle
+feedback instead of replacing stale Debug-panel state.
+
+- **IDE note:** `No breakpoints to clear` now coalesces with the Debug
+  operation family for both palette and Run and Debug panel clear-all paths.
+- **Language note:** no compiler gap surfaced. No-op results should use the
+  same feedback family as successful mutations of the same state.

@@ -1037,6 +1037,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Step Out is available when paused"
         || m == "Save the file before setting breakpoints"
         || m == "No breakpoint row selected"
+        || m == "No breakpoints to clear"
         || m.starts_with("Breakpoint ")
     {
         Some(OperationKey::Debug)
@@ -2592,6 +2593,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No breakpoint row selected");
+
+        q.push_at(
+            Kind::Info,
+            "No breakpoints to clear",
+            t0 + Duration::from_millis(800),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No breakpoints to clear");
     }
 
     #[test]
