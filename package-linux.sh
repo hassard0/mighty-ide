@@ -22,6 +22,15 @@ if ! command -v file >/dev/null 2>&1; then
 fi
 
 cd "$ROOT"
+if [[ "$MTY" == */* || "$MTY" == *\\* ]]; then
+  if [[ ! -x "$MTY" && ! -f "$MTY" ]]; then
+    echo "ERROR: MIGHTY_MTY points to a missing compiler: $MTY" >&2
+    exit 1
+  fi
+elif ! command -v "$MTY" >/dev/null 2>&1; then
+  echo "ERROR: mty compiler not found. Set MIGHTY_MTY or put mty on PATH." >&2
+  exit 1
+fi
 if [[ -d .git ]] && command -v git >/dev/null 2>&1; then
   if [[ -n "$(git status --porcelain)" ]]; then
     echo "ERROR: package-linux.sh requires a clean git worktree before building release artifacts." >&2
