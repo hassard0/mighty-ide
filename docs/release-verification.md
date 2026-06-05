@@ -49,6 +49,21 @@ Platform: Linux x64
 Release decision: unbuilt - native Linux runner unavailable
 ```
 
+## Final Handoff Status
+
+Use this table at the end of the pass. Fill in only evidence gathered on the
+matching native host or runner.
+
+| Platform | Required archive | Clean-binary requirement | Decision rule |
+|----------|------------------|--------------------------|---------------|
+| Windows x64 | `dist\mighty-ide-v0.3.0-win64.zip` | PE executable and PE shim, no sidecars, no `.dylib`/`.so` payloads | `publish` only after `package-win.ps1` and packaged launch pass on Windows |
+| macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and Mach-O `.dylib`, no sidecars, no `.exe`/`.dll`/`.so` payloads | `publish` only after `package-macos.sh` and packaged launch pass on macOS |
+| Linux x64 | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and ELF `.so`, no sidecars, no `.exe`/`.dll`/`.dylib` payloads | `publish` only after `package-linux.sh` and packaged launch pass on Linux |
+
+If a platform's native host is not available for the pass, leave the archive
+absent and record `unbuilt`. A source-level script review is useful, but it is
+not a clean-binary verification for that platform.
+
 ## Required Checks
 
 For every uploaded archive:

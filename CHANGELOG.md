@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Release packaging
+- **Final package status is explicit**: release verification docs now include a
+  final handoff table for Windows, macOS, and Linux. Windows can be published
+  only after the local PE package and launch checks pass; macOS and Linux stay
+  `unbuilt` until native runners produce and launch Mach-O/ELF packages.
 - **Final release handoff is documented**: README and release docs now spell
   out the current Windows-local verification scope, the native-runner
   requirement for macOS and Linux, and the only valid platform decisions:
@@ -148,6 +152,11 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   active path before removal. Directory targets report
   `Delete failed: <name>: not a file`, refresh workspace file views, and leave
   the active tab bound to the original path.
+- **Delete Active File reports stale missing targets**: if an externally
+  deleted clean file is confirmed for deletion, the command now refreshes the
+  file views, prunes the stale recent entry, warns
+  `Delete target missing: <name>`, and keeps the active tab open instead of
+  closing it with a success toast.
 - **Reload and Revert reject directory targets**: Reload Active File and Revert
   Active File now preflight the active path before reading from disk. Directory
   targets report `Reload failed: <name>: not a file` or

@@ -48,7 +48,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Rename Active File preserves tab bindings and rejects directory source or
   destination paths with explicit `not a file` feedback
 - Delete Active File requires exact basename confirmation, protects dirty
-  buffers, and rejects directory targets with explicit `not a file` feedback
+  buffers, reports stale missing targets without closing the tab, and rejects
+  directory targets with explicit `not a file` feedback
 - **Close Saved Tabs**, **Close Other Saved Tabs**, and directional close-left /
   close-right cleanup remove tab clutter while preserving dirty buffers
 - **Reopen Closed Tab** (Ctrl+Alt+T) restores the most recently closed editor tab,
@@ -229,6 +230,18 @@ binaries, bundle the project docs, and then scan the finished archive before
 reporting success. Every package includes `PACKAGE-MANIFEST.txt` with the
 platform, version, native payload hashes and sizes, and the clean-binary checks
 completed before archiving.
+
+Final handoff rule:
+
+- A platform is publishable only when its package script ran on the matching
+  native OS or CI runner, the archive-level clean-binary scan passed, and the
+  packaged executable launched from inside the assembled package directory.
+- This Windows checkout can produce and verify only the Windows x64 package.
+- macOS and Linux are release-ready only after `package-macos.sh` and
+  `package-linux.sh` run on native macOS/Linux infrastructure and their
+  packaged apps launch there.
+- If native macOS or Linux infrastructure is unavailable, record that platform
+  as `unbuilt`; do not upload placeholder archives or copied native payloads.
 
 Current release state from this checkout:
 

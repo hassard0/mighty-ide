@@ -5337,7 +5337,7 @@ fn active_file_delete_requires_exact_basename_confirmation() {
 }
 
 #[test]
-fn active_file_delete_confirm_prunes_already_missing_clean_file() {
+fn active_file_delete_reports_already_missing_clean_file() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_active_file_delete_already_missing");
     let _ = std::fs::remove_dir_all(&root);
@@ -5359,15 +5359,17 @@ fn active_file_delete_confirm_prunes_already_missing_clean_file() {
 
     std::fs::remove_file(&doomed).unwrap();
     ctx.path_stage.extend_from_slice(b"doomed.mty");
-    assert_eq!(crate::mui_file_delete_active_confirm(handle), 1);
-    assert_eq!(ctx.tabs.active_path().as_deref(), Some(keep.as_path()));
+    assert_eq!(crate::mui_file_delete_active_confirm(handle), 0);
+    assert!(ctx.path_stage.is_empty());
+    assert_eq!(ctx.tabs.count(), 3);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(doomed.as_path()));
     assert_eq!(ctx.quickopen.recent_paths(), vec![keep.clone()]);
     assert_eq!(ctx.tree.count(), 1);
     assert_eq!(ctx.quickopen.count(), 1);
     assert_eq!(ctx.quickopen.row(0).unwrap().name, "keep.mty");
     let toast = ctx.toasts.toasts().last().unwrap();
-    assert_eq!(toast.kind, crate::toast::Kind::Success);
-    assert_eq!(toast.message, "Deleted doomed.mty");
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Delete target missing: doomed.mty");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -5390,10 +5392,11 @@ fn active_file_delete_refuses_dirty_buffer_even_with_exact_confirmation() {
     crate::abi::sync_active_path(&mut ctx);
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
+    std::fs::remove_file(&file).unwrap();
     ctx.path_stage.extend_from_slice(b"dirty.mty");
     assert_eq!(crate::mui_file_delete_active_confirm(handle), 0);
     assert!(ctx.path_stage.is_empty());
-    assert!(file.exists());
+    assert!(!file.exists());
     assert_eq!(ctx.tabs.count(), 2);
     assert_eq!(ctx.tabs.active_path().as_deref(), Some(file.as_path()));
     assert!(ctx.tabs.is_dirty(ctx.tabs.active()));

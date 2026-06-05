@@ -55,6 +55,12 @@ Release operators should use only three final states for each platform:
 - `unbuilt`: no matching native host or runner produced the archive for this
   pass.
 
+For this Windows-based finalization pass, Windows x64 may move to `publish`
+after the PowerShell package script and packaged launch succeed here. macOS and
+Linux remain `unbuilt` until their own scripts run and launch on native
+infrastructure; the presence of `package-macos.sh` and `package-linux.sh` is
+script readiness, not binary cleanliness.
+
 The sidecar scan is intentionally shared in spirit across all three scripts:
 package trees and finished archives must not contain `.pdb`, `.lib`, `.exp`,
 `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, or `.dSYM`

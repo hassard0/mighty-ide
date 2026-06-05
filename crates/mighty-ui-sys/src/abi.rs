@@ -6943,6 +6943,56 @@ fn reject_stale_copy_target(ctx: &mut MuiContext, path: &std::path::Path) -> boo
     }
 }
 
+pub(crate) fn delete_stale_target_message(
+    path: &std::path::Path,
+    err: Option<&std::io::Error>,
+) -> String {
+    let name = basename(path);
+    if save_target_is_existing_non_file(path) {
+        return file_target_not_file_message("Delete", path);
+    }
+    match err {
+        Some(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            format!("Delete target missing: {name}")
+        }
+        Some(e) => file_operation_failed_message("Delete", path, e),
+        None => format!("Delete target missing: {name}"),
+    }
+}
+
+fn reject_stale_delete_target(ctx: &mut MuiContext, path: &std::path::Path) -> bool {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => false,
+        Ok(_) => {
+            refresh_workspace_file_views(ctx);
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                delete_stale_target_message(path, None),
+            );
+            println!("file-delete: skipped non-file target {}", path.display());
+            true
+        }
+        Err(e) => {
+            refresh_workspace_file_views(ctx);
+            if e.kind() == std::io::ErrorKind::NotFound {
+                remove_recent_file(ctx, path);
+                ctx.push_toast(
+                    crate::toast::Kind::Warn,
+                    delete_stale_target_message(path, Some(&e)),
+                );
+                println!("file-delete: missing target {}", path.display());
+            } else {
+                ctx.push_toast(
+                    crate::toast::Kind::Error,
+                    delete_stale_target_message(path, Some(&e)),
+                );
+                println!("file-delete: unavailable {}: {e}", path.display());
+            }
+            true
+        }
+    }
+}
+
 /// Copy the active file path to the operating-system clipboard. Returns 1 on
 /// success, else 0.
 #[no_mangle]
@@ -7082,18 +7132,21 @@ pub extern "C" fn mui_file_delete_active_confirm(handle: i64) -> i32 {
         );
         return 0;
     }
-    if save_target_is_existing_non_file(&path) {
-        refresh_workspace_file_views(ctx);
-        ctx.push_toast(
-            crate::toast::Kind::Error,
-            file_target_not_file_message("Delete", &path),
-        );
-        println!("file-delete: skipped non-file target {}", path.display());
+    if reject_stale_delete_target(ctx, &path) {
         return 0;
     }
     let deleted = match std::fs::remove_file(&path) {
         Ok(()) => true,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => true,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            refresh_workspace_file_views(ctx);
+            remove_recent_file(ctx, &path);
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                delete_stale_target_message(&path, Some(&e)),
+            );
+            println!("file-delete: missing target {}", path.display());
+            false
+        }
         Err(e) => {
             ctx.push_toast(
                 crate::toast::Kind::Error,
