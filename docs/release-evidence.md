@@ -23,6 +23,7 @@ Native payloads: PE mighty-ide.exe; PE mighty_ui_sys.dll
 Sidecar scan: package directory and ZIP passed
 Foreign-payload scan: package directory and ZIP passed
 PACKAGE-MANIFEST.txt:
+Source commit:
 Packaged launch:
 Release decision:
 ```
@@ -40,6 +41,7 @@ Native payloads: Mach-O Mighty IDE.app/Contents/MacOS/mighty-ide; Mach-O libmigh
 Sidecar scan: package directory and tarball passed
 Foreign-payload scan: package directory and tarball passed
 PACKAGE-MANIFEST.txt:
+Source commit:
 Packaged launch:
 Release decision:
 ```
@@ -57,6 +59,7 @@ Native payloads: ELF mighty-ide; ELF libmighty_ui_sys.so
 Sidecar scan: package directory and tarball passed
 Foreign-payload scan: package directory and tarball passed
 PACKAGE-MANIFEST.txt:
+Source commit:
 Packaged launch:
 Release decision:
 ```
@@ -100,7 +103,7 @@ Native host or runner: Windows checkout
 Native payloads: PE mighty-ide.exe; PE mighty_ui_sys.dll
 Sidecar scan: package directory and ZIP passed
 Foreign-payload scan: package directory and ZIP passed
-PACKAGE-MANIFEST.txt: generated in dist\mighty-ide-win64
+PACKAGE-MANIFEST.txt: generated in dist\mighty-ide-win64 with source commit
 Packaged launch: launched from dist\mighty-ide-win64
 Release decision: publish
 

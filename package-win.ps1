@@ -106,10 +106,18 @@ function Write-PackageManifest {
     [Parameter(Mandatory = $true)][string[]]$NativeBinaries
   )
   $manifest = Join-Path $Path "PACKAGE-MANIFEST.txt"
+  $sourceCommit = "unknown"
+  if ((Test-Path ".git") -and (Get-Command git -ErrorAction SilentlyContinue)) {
+    $sourceCommit = (& git rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($sourceCommit)) {
+      throw "git rev-parse failed; refusing to write package manifest"
+    }
+  }
   $lines = @(
     "Mighty IDE package verification",
     "Platform: Windows x64",
     "Version: $Version",
+    "Source commit: $sourceCommit",
     "Generated: $((Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'))",
     "",
     "Native payloads:"

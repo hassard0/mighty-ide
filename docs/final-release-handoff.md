@@ -18,7 +18,7 @@ package scripts and smoke tests.
 
 | Platform | Decision from this Windows pass | Required native binary evidence |
 |----------|---------------------------------|---------------------------------|
-| Windows x64 | `publish` after `.\package-win.ps1` succeeds and the packaged executable launches from `dist\mighty-ide-win64` | PE `mighty-ide.exe`, PE `mighty_ui_sys.dll`, clean package tree, clean ZIP, manifest hash/size rows |
+| Windows x64 | `publish` after `.\package-win.ps1` succeeds and the packaged executable launches from `dist\mighty-ide-win64` | PE `mighty-ide.exe`, PE `mighty_ui_sys.dll`, clean package tree, clean ZIP, manifest source/hash/size rows |
 | macOS | `unbuilt` unless a macOS host ran `./package-macos.sh` during this pass | Mach-O app executable, Mach-O `libmighty_ui_sys.dylib`, clean package tree, clean tarball, packaged app launch |
 | Linux x64 | `unbuilt` unless a Linux host ran `./package-linux.sh` during this pass | ELF `mighty-ide`, ELF `libmighty_ui_sys.so`, clean package tree, clean tarball, packaged launch |
 
@@ -84,8 +84,9 @@ the archive scan passes, and the executable launches on Linux.
 ## Stop Condition
 
 After the README, changelog, and release docs are committed, rebuild the
-Windows package from that clean commit, record the Windows archive hash and
-size, confirm the packaged Windows executable launched from
+Windows package from that clean commit, confirm `PACKAGE-MANIFEST.txt` records
+that source commit, record the Windows archive hash and size, confirm the
+packaged Windows executable launched from
 `dist\mighty-ide-win64`, and stop.
 The final package must be generated after the documentation commit that defines
 this handoff. If any source file changes after the package is generated, the

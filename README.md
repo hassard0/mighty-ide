@@ -354,8 +354,8 @@ Every package includes `RUN.txt`, `README.md`, `KEYBINDINGS.md`, `CHANGELOG.md`,
 `docs/release-verification.md`, `docs/release-evidence.md`,
 `docs/binary-release-status.md`, and `docs/final-release-handoff.md` alongside
 the runtime payload, plus
-`PACKAGE-MANIFEST.txt` with native payload hashes, sizes, and clean-binary
-verification.
+`PACKAGE-MANIFEST.txt` with the source commit, native payload hashes, sizes,
+and clean-binary verification.
 
 Final handoff rule:
 
@@ -401,7 +401,7 @@ Current Windows-hosted finalization state:
 
 | Platform | Decision from this checkout | Required before upload |
 |----------|-----------------------------|------------------------|
-| Windows x64 | `publish` after `.\package-win.ps1` and packaged launch pass here | ZIP size/hash, PE header checks, staged-tree and ZIP sidecar/foreign-payload scans, `PACKAGE-MANIFEST.txt`, packaged launch |
+| Windows x64 | `publish` after `.\package-win.ps1` and packaged launch pass here | ZIP size/hash, PE header checks, staged-tree and ZIP sidecar/foreign-payload scans, `PACKAGE-MANIFEST.txt` with source commit, packaged launch |
 | macOS | `unbuilt` unless a macOS runner completed this pass | Native macOS runner must run `./package-macos.sh`, verify Mach-O payloads, scan the tarball, and launch the app bundle |
 | Linux x64 | `unbuilt` unless a Linux runner completed this pass | Native Linux runner must run `./package-linux.sh`, verify ELF payloads, scan the tarball, and launch from the package directory |
 

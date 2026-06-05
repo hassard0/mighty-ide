@@ -15,7 +15,8 @@ native OS or a matching CI runner:
 - compiler and linker sidecars were absent from the staged package
 - foreign-platform native payloads were absent from the staged package
 - the final archive was scanned for sidecars and foreign native payloads
-- `PACKAGE-MANIFEST.txt` was written with payload hashes and sizes
+- `PACKAGE-MANIFEST.txt` was written with the source commit, payload hashes,
+  and sizes
 - the packaged executable launched from inside the assembled package directory
   or app bundle
 
@@ -40,7 +41,7 @@ This checkout is currently being finalized from Windows. That means:
 
 | Platform | Local decision | Clean-binary evidence required |
 |----------|----------------|--------------------------------|
-| Windows x64 | `publish` after packaging and launch pass here | PE `mighty-ide.exe`, PE `mighty_ui_sys.dll`, clean staged tree, clean ZIP, manifest, packaged launch |
+| Windows x64 | `publish` after packaging and launch pass here | PE `mighty-ide.exe`, PE `mighty_ui_sys.dll`, clean staged tree, clean ZIP, manifest with source commit, packaged launch |
 | macOS | `unbuilt` unless a macOS runner completed this pass | Mach-O app executable and `.dylib`, clean staged tree, clean tarball, manifest, packaged app launch |
 | Linux x64 | `unbuilt` unless a Linux runner completed this pass | ELF executable and `.so`, clean staged tree, clean tarball, manifest, packaged launch |
 

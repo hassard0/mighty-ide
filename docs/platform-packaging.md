@@ -14,8 +14,8 @@ or a release operator.
    runtime, samples/examples, project docs, and platform-specific run
    instructions.
 5. Reject build sidecars and obvious foreign-platform native payloads.
-6. Write `PACKAGE-MANIFEST.txt` with the platform, version, native payload
-   hashes and sizes, and completed clean-binary checks.
+6. Write `PACKAGE-MANIFEST.txt` with the platform, version, source commit,
+   native payload hashes and sizes, and completed clean-binary checks.
 7. Smoke-test the packaged executable from inside the assembled package
    directory.
 8. Keep generated packages out of commits.
@@ -96,7 +96,8 @@ the root is an `.app` archive, in which case they live beside the `.app` in the
 tarball:
 
 - `RUN.txt` with native instructions for that platform
-- `PACKAGE-MANIFEST.txt` with native payload hashes, sizes, and clean checks
+- `PACKAGE-MANIFEST.txt` with source commit, native payload hashes, sizes, and
+  clean checks
 - `README.md`
 - `KEYBINDINGS.md`
 - `CHANGELOG.md`
@@ -301,6 +302,7 @@ only the Windows x64 package. A clean Windows pass means:
 - The staged tree and ZIP contain no compiler/linker sidecars and no `.dylib`
   or `.so` payloads.
 - `PACKAGE-MANIFEST.txt` records the Windows payload hashes and sizes.
+- `PACKAGE-MANIFEST.txt` records the source commit used for the package.
 - The packaged executable launched with its working directory set to
   `dist/mighty-ide-win64`.
 
@@ -333,5 +335,6 @@ Packaged launch:
 
 The `Native payloads` line should name the binary family verified by the
 package script: PE for Windows, Mach-O for macOS, and ELF for Linux. The
-manifest line should summarize the platform, version, payload hashes, payload
-sizes, and clean-binary checks recorded in `PACKAGE-MANIFEST.txt`.
+manifest line should summarize the platform, version, source commit, payload
+hashes, payload sizes, and clean-binary checks recorded in
+`PACKAGE-MANIFEST.txt`.
