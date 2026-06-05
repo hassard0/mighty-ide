@@ -45,8 +45,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Tabs (Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W, click), file-tree sidebar (Ctrl+B), native Open File (Ctrl+O) with typed-path fallback when the picker is unavailable
 - Native Open File rejects stale or directory picker results with the same
   target-specific feedback as typed Open File
-- Rename Active File preserves tab bindings and rejects directory source or
-  destination paths with explicit `not a file` feedback
+- Rename Active File preserves tab bindings, reports stale missing sources
+  without attempting the move, and rejects directory source or destination
+  paths with explicit `not a file` feedback
 - Delete Active File requires exact basename confirmation, protects dirty
   buffers, reports stale missing targets without closing the tab, and rejects
   directory targets with explicit `not a file` feedback

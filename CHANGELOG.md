@@ -147,6 +147,11 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   preflights both the source path and requested destination name before moving.
   Directory endpoints report `Rename failed: <name>: not a file`, refresh
   workspace file views, and preserve the active tab binding.
+- **Rename Active File reports stale missing sources**: if the active file is
+  externally deleted before a rename commit, the command now prunes the stale
+  recent entry, refreshes Explorer and Quick Open, and warns
+  `Rename source missing: <name>` instead of naming the requested destination
+  with a raw filesystem error.
 - **Delete Active File rejects directory targets**: after exact-name
   confirmation and dirty-buffer checks, Delete Active File now preflights the
   active path before removal. Directory targets report

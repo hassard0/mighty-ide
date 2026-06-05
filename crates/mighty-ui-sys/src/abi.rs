@@ -652,6 +652,23 @@ fn file_target_not_file_message(action: &str, path: &std::path::Path) -> String 
     format!("{action} failed: {}: not a file", basename(path))
 }
 
+pub(crate) fn rename_stale_source_message(
+    path: &std::path::Path,
+    err: Option<&std::io::Error>,
+) -> String {
+    let name = basename(path);
+    if save_target_is_existing_non_file(path) {
+        return file_target_not_file_message("Rename", path);
+    }
+    match err {
+        Some(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            format!("Rename source missing: {name}")
+        }
+        Some(e) => file_operation_failed_message("Rename", path, e),
+        None => format!("Rename source missing: {name}"),
+    }
+}
+
 fn existing_non_dir_ancestor(path: &std::path::Path) -> Option<PathBuf> {
     let mut current = Some(path);
     while let Some(p) = current {
@@ -6465,13 +6482,34 @@ pub extern "C" fn mui_file_rename_active(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, format!("Already named {name}"));
         return 1;
     }
-    if save_target_is_existing_non_file(&old_path) {
-        refresh_workspace_file_views(ctx);
-        ctx.push_toast(
-            crate::toast::Kind::Error,
-            file_target_not_file_message("Rename", &old_path),
-        );
-        return 0;
+    match std::fs::metadata(&old_path) {
+        Ok(meta) if meta.is_file() => {}
+        Ok(_) => {
+            refresh_workspace_file_views(ctx);
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                rename_stale_source_message(&old_path, None),
+            );
+            return 0;
+        }
+        Err(e) => {
+            refresh_workspace_file_views(ctx);
+            if e.kind() == std::io::ErrorKind::NotFound {
+                remove_recent_file(ctx, &old_path);
+                ctx.push_toast(
+                    crate::toast::Kind::Warn,
+                    rename_stale_source_message(&old_path, Some(&e)),
+                );
+                println!("file-rename: missing source {}", old_path.display());
+            } else {
+                ctx.push_toast(
+                    crate::toast::Kind::Error,
+                    rename_stale_source_message(&old_path, Some(&e)),
+                );
+                println!("file-rename: unavailable source {}: {e}", old_path.display());
+            }
+            return 0;
+        }
     }
     if save_target_is_existing_non_file(&new_path) {
         refresh_workspace_file_views(ctx);

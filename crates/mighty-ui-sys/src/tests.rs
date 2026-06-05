@@ -5211,14 +5211,20 @@ fn active_file_rename_failure_refreshes_missing_source_views() {
     assert_eq!(ctx.tree.count(), 0);
     assert_eq!(ctx.quickopen.count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
-    assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert!(
-        toast.message.starts_with("Rename failed: new.mty: "),
-        "{}",
-        toast.message
-    );
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Rename source missing: old.mty");
 
     let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn active_file_rename_failure_message_names_missing_source() {
+    let path = std::path::Path::new("src/main.mty");
+    let err = std::io::Error::new(std::io::ErrorKind::NotFound, "gone");
+    assert_eq!(
+        crate::abi::rename_stale_source_message(path, Some(&err)),
+        "Rename source missing: main.mty"
+    );
 }
 
 #[test]

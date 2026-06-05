@@ -758,6 +758,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::Tab)
     } else if m.starts_with("Renamed to")
         || m.starts_with("Rename failed")
+        || m.starts_with("Rename source missing")
         || m.starts_with("Already named")
         || m == "Rename cancelled"
         || m == "No rename input open"
@@ -771,7 +772,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Type ")
         || m == "No active file to delete"
         || m.starts_with("No active file to delete:")
-        || m.starts_with("Save or discard changes in ")
+        || (m.starts_with("Save or discard changes in ") && m.ends_with(" before deleting"))
     {
         Some(OperationKey::Delete)
     } else if m.starts_with("Revealed ")
