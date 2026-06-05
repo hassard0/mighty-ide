@@ -964,6 +964,12 @@ pub extern "C" fn mui_agents_open_node(handle: i64, i: i32) -> i32 {
     };
     if !file.exists() {
         let name = file.file_name().and_then(|s| s.to_str()).unwrap_or("source");
+        let root = ctx
+            .agents
+            .root
+            .clone()
+            .unwrap_or_else(|| crate::wsabi::effective_root(ctx));
+        let _ = ctx.agents.refresh(&root);
         ctx.push_toast(crate::toast::Kind::Warn, format!("Agents target missing: {name}"));
         return -1;
     }

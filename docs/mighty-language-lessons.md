@@ -10969,3 +10969,14 @@ warnings counted in the bottom dock.
   error/warning counts.
 - **Language note:** no compiler gap surfaced. Aggregated diagnostic surfaces
   should mutate their model when row activation proves a file group is stale.
+
+## L889 - Agents Topology Should Refresh Missing Targets
+
+The Mighty Agents panel is built from a workspace scan. If an agent source file
+is deleted after the topology is drawn, a failed row jump should not leave the
+old agent, protocol, or handler rows visible.
+
+- **IDE note:** opening an Agents topology row whose file target is missing now
+  refreshes the topology from its scan root before reporting the warning.
+- **Language note:** no compiler gap surfaced. Workspace-derived topology views
+  should rescan after failed navigation proves their source graph is stale.

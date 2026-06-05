@@ -2346,6 +2346,7 @@ fn agents_open_node_misses_report_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Agents target missing: agent.mty");
+    assert_eq!(crate::agentsabi::mui_agents_count(handle), 0);
 }
 
 #[test]
