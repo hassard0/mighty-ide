@@ -11502,3 +11502,15 @@ buffer was preserved but the user did not get visible feedback.
   the current buffer intact and refreshing Explorer/Quick Open indexes.
 - **Language note:** no compiler gap surfaced. Even preserving fallbacks should
   report failed file-backed state transitions in the visible UI, not only stderr.
+
+## L931 - Active-File OS Helper Failures Should Name The Target
+
+The file-manager reveal and clipboard-copy helpers surfaced failures, but the
+messages were generic. When an OS integration fails, the user needs to know
+which active-file operation failed without digging through stderr logs.
+
+- **IDE note:** file-manager reveal and active-file copy failures now include
+  the affected filename or path text in the toast, while keeping the same return
+  codes and platform commands.
+- **Language note:** no compiler gap surfaced. OS integration helpers should
+  preserve enough context in visible feedback to make failed commands actionable.

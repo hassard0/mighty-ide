@@ -6603,6 +6603,32 @@ fn active_file_name_and_directory_text_are_clipboard_ready() {
 }
 
 #[test]
+fn active_file_os_failure_messages_name_the_target() {
+    let path = std::path::Path::new("C:\\workspace\\src\\main.mty");
+
+    assert_eq!(
+        crate::abi::file_manager_reveal_failed_message(path),
+        "Could not show main.mty in file manager"
+    );
+    assert_eq!(
+        crate::abi::copy_path_failed_message(path),
+        "Could not copy path: main.mty"
+    );
+    assert_eq!(
+        crate::abi::copy_relative_path_failed_message("src/main.mty"),
+        "Could not copy relative path: src/main.mty"
+    );
+    assert_eq!(
+        crate::abi::copy_file_name_failed_message("main.mty"),
+        "Could not copy file name: main.mty"
+    );
+    assert_eq!(
+        crate::abi::copy_directory_failed_message("C:/workspace/src"),
+        "Could not copy directory: C:/workspace/src"
+    );
+}
+
+#[test]
 fn topbar_actions_hit_run_and_menu_but_not_in_zen() {
     use crate::ffi::MuiEvent;
     use crate::mui_topbar_action_at_click;

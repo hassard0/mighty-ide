@@ -6254,6 +6254,10 @@ pub(crate) fn platform_reveal_command(path: &std::path::Path) -> Option<(String,
     }
 }
 
+pub(crate) fn file_manager_reveal_failed_message(path: &std::path::Path) -> String {
+    format!("Could not show {} in file manager", basename(path))
+}
+
 /// Reveal the active file in the operating system's file manager. Returns 1
 /// when the reveal command was launched, else 0.
 #[no_mangle]
@@ -6278,7 +6282,7 @@ pub extern "C" fn mui_file_reveal_active_in_os(handle: i64) -> i32 {
             1
         }
         Err(e) => {
-            ctx.push_toast(crate::toast::Kind::Error, "Could not open file manager");
+            ctx.push_toast(crate::toast::Kind::Error, file_manager_reveal_failed_message(&path));
             println!("file-reveal-os: failed to launch {program} {:?} for {}: {e}", args, path.display());
             0
         }
@@ -6415,6 +6419,22 @@ pub(crate) fn active_directory_text(path: &std::path::Path) -> String {
         .replace('\\', "/")
 }
 
+pub(crate) fn copy_path_failed_message(path: &std::path::Path) -> String {
+    format!("Could not copy path: {}", basename(path))
+}
+
+pub(crate) fn copy_relative_path_failed_message(text: &str) -> String {
+    format!("Could not copy relative path: {text}")
+}
+
+pub(crate) fn copy_file_name_failed_message(text: &str) -> String {
+    format!("Could not copy file name: {text}")
+}
+
+pub(crate) fn copy_directory_failed_message(text: &str) -> String {
+    format!("Could not copy directory: {text}")
+}
+
 /// Copy the active file path to the operating-system clipboard. Returns 1 on
 /// success, else 0.
 #[no_mangle]
@@ -6433,7 +6453,7 @@ pub extern "C" fn mui_file_copy_active_path(handle: i64) -> i32 {
             1
         }
         Err(e) => {
-            ctx.push_toast(crate::toast::Kind::Error, "Could not copy file path");
+            ctx.push_toast(crate::toast::Kind::Error, copy_path_failed_message(&path));
             println!("file-copy-path: failed for {}: {e}", path.display());
             0
         }
@@ -6458,7 +6478,7 @@ pub extern "C" fn mui_file_copy_active_relative_path(handle: i64) -> i32 {
             1
         }
         Err(e) => {
-            ctx.push_toast(crate::toast::Kind::Error, "Could not copy path");
+            ctx.push_toast(crate::toast::Kind::Error, copy_relative_path_failed_message(&text));
             println!("file-copy-relative-path: {e}");
             0
         }
@@ -6482,7 +6502,7 @@ pub extern "C" fn mui_file_copy_active_name(handle: i64) -> i32 {
             1
         }
         Err(e) => {
-            ctx.push_toast(crate::toast::Kind::Error, "Could not copy file name");
+            ctx.push_toast(crate::toast::Kind::Error, copy_file_name_failed_message(&text));
             println!("file-copy-name: {e}");
             0
         }
@@ -6506,7 +6526,7 @@ pub extern "C" fn mui_file_copy_active_directory(handle: i64) -> i32 {
             1
         }
         Err(e) => {
-            ctx.push_toast(crate::toast::Kind::Error, "Could not copy directory");
+            ctx.push_toast(crate::toast::Kind::Error, copy_directory_failed_message(&text));
             println!("file-copy-directory: {e}");
             0
         }
