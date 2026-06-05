@@ -12946,6 +12946,17 @@ fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf, toast_succe
     if save_target_is_existing_non_file(&path) {
         return reject_save_target_not_file(ctx, &path);
     }
+    if let Some(parent) = path.parent() {
+        if let Some(blocked) = existing_non_dir_ancestor(parent) {
+            ctx.autosave.disarm();
+            refresh_workspace_file_views(ctx);
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_target_not_file_message("Save", &blocked),
+            );
+            return -1;
+        }
+    }
     let Some(tab) = ctx.tabs.get_mut(idx) else {
         return -1;
     };
@@ -13068,6 +13079,21 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
                 }
                 eprintln!("mui_save_all({}): not a file", path.display());
                 continue;
+            }
+            if let Some(parent) = path.parent() {
+                if let Some(blocked) = existing_non_dir_ancestor(parent) {
+                    failed += 1;
+                    if first_failed_message.is_none() {
+                        first_failed_message = Some(file_target_not_file_message("Save", &blocked));
+                    }
+                    refresh_workspace_file_views(ctx);
+                    eprintln!(
+                        "mui_save_all({}): parent is not a directory: {}",
+                        path.display(),
+                        blocked.display()
+                    );
+                    continue;
+                }
             }
             let resurrected_path = !path.is_file();
             match std::fs::write(&path, &bytes) {

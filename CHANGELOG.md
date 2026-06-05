@@ -84,6 +84,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Tab-level saves report non-directory parents**: dirty-confirm Save and
+  file-backed Save All now preflight parent paths before writing. If a parent
+  path is an existing file, they report `Save failed: <parent>: not a file` or
+  `Save All failed: <parent>: not a file` while preserving the dirty buffer.
 - **Workspace-edit code actions report parent path blockers**: code actions now
   preflight parent components before applying workspace edits. Non-directory
   parents report `Skipped non-file during workspace edit: <parent>`, leave the

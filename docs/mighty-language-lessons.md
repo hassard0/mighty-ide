@@ -12982,3 +12982,16 @@ showing a change that the file system rejected.
 - **Language note:** no compiler gap surfaced. Cross-file edit application needs
   a commit boundary: validate targets, write durable state, then update live
   editor views.
+
+## L1034 - Tab-Level Saves Need The Same Parent Validation As Save As
+
+Save As is not the only path that can write a tab to a new or stale path. Dirty
+confirmation saves and Save All also operate on tab bindings, so they need the
+same parent-chain checks before applying save transforms or touching disk.
+
+- **IDE note:** dirty-confirm Save and file-backed Save All now preflight
+  non-directory parents. They report `Save failed: <parent>: not a file` or
+  `Save All failed: <parent>: not a file`, keep the dirty buffer, and refresh
+  workspace file views.
+- **Language note:** no compiler gap surfaced. Shared save invariants should
+  live at every mutation boundary, not only the most visible command entrypoint.

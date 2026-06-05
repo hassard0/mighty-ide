@@ -756,6 +756,42 @@ fn save_staging_rejects_directory_target_as_not_file() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+#[test]
+fn dirty_confirm_save_rejects_non_directory_parent() {
+    use crate::{mui_dirty_confirm_active, mui_dirty_confirm_save, mui_tab_close};
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_dirty_confirm_save_parent_file_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let parent_file = root.join("parent.txt");
+    std::fs::write(&parent_file, b"not a directory").unwrap();
+    let target = parent_file.join("child.mty");
+    let idx = ctx.tabs.open_path(target.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("still dirty\n");
+    ctx.tabs.set_dirty(idx, true);
+    crate::sync_active_path(&mut ctx);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_tab_close(handle, idx as i32), -1);
+    assert_eq!(mui_dirty_confirm_active(handle), 1);
+    assert_eq!(mui_dirty_confirm_save(handle), -3);
+    assert_eq!(mui_dirty_confirm_active(handle), 1);
+    assert!(!target.exists());
+    assert_eq!(ctx.tabs.active_model().as_text(), "still dirty\n");
+    assert!(ctx.tabs.is_dirty(idx));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Save failed: parent.txt: not a file");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 // ---- multi-file workspace ABI (tabs + tree + click routing) ----
 
 #[test]
@@ -5954,6 +5990,37 @@ fn save_all_failure_reports_failed_file_count() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
     assert_eq!(toast.message, "Save All failed: blocked.mty: not a file");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn save_all_failure_reports_non_directory_parent() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_all_parent_file_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let parent_file = root.join("parent.txt");
+    std::fs::write(&parent_file, b"not a directory").unwrap();
+    let target = parent_file.join("child.mty");
+
+    let idx = ctx.tabs.open_path(target.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("cannot save all\n");
+    ctx.tabs.set_dirty(idx, true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_save_all(handle), -1);
+    assert!(!target.exists());
+    assert!(ctx.tabs.is_dirty(idx));
+    assert_eq!(ctx.tabs.active_model().as_text(), "cannot save all\n");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Save All failed: parent.txt: not a file");
 
     let _ = std::fs::remove_dir_all(&root);
 }
