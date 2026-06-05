@@ -11223,3 +11223,16 @@ source.
   backing index, and visible Quick Open rows after demoting the missing target.
 - **Language note:** no compiler gap surfaced. Build and run diagnostics should
   update shared file indexes when their source paths vanish.
+
+## L910 - Stale Test Results Should Refresh File Views
+
+Testing panel rows resolve their source location lazily by scanning package
+test files. If the test source is deleted before the user opens the result row,
+the panel reported no file target but shared file discovery surfaces could
+still show the removed file.
+
+- **IDE note:** stale Test-result opens now refresh Explorer, Quick Open's
+  backing index, and visible Quick Open rows when the resolved source is
+  missing.
+- **Language note:** no compiler gap surfaced. Lazily resolved test navigation
+  should share the same missing-target cleanup contract as other panels.

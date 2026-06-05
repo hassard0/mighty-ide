@@ -51,6 +51,7 @@ pub(crate) fn refresh_workspace_file_views(ctx: &mut MuiContext) {
     ctx.tree.refresh();
     let root = quickopen_root(ctx);
     let _ = ctx.quickopen.ensure_index(&root, true);
+    prune_missing_recent_files(ctx);
     ctx.quickopen.refresh_file_rows();
 }
 

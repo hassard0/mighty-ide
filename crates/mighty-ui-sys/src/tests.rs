@@ -2315,6 +2315,33 @@ fn test_result_open_misses_report_visible_feedback() {
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No test result row selected");
     assert_eq!(crate::testabi::mui_test_click_tab(handle), -1);
+
+    let root = std::env::temp_dir().join(format!("mui_test_missing_target_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let tests_dir = root.join("tests");
+    std::fs::create_dir_all(&tests_dir).unwrap();
+    let target = tests_dir.join("parser.test");
+    std::fs::write(&target, "fn test_rejects_empty() {\n  assert true\n}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(tests_dir);
+    ctx.tree.refresh();
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
+    ctx.tests_panel.seed_demo(root.to_string_lossy().as_ref());
+    assert_eq!(crate::testabi::mui_test_open_row(handle, 3), 1);
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(target.as_path()));
+
+    std::fs::remove_file(&target).unwrap();
+    assert_eq!(crate::testabi::mui_test_open_row(handle, 3), 0);
+    assert_eq!(ctx.tree.count(), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Test result row has no file target");
+    assert_eq!(crate::testabi::mui_test_click_tab(handle), -1);
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]
