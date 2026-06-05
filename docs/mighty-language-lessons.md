@@ -12500,3 +12500,18 @@ row used the same `No symbol selected` feedback as an empty/no-selection accept.
 - **Language note:** no compiler gap surfaced. Provider-backed fuzzy pickers
   should distinguish empty selections from stale provider snapshots after row
   construction.
+
+## L1001 - Quick Open Command Misses Should Name Stale Rows
+
+Quick Open `>` command rows are built from the command registry through the same
+row-selection ABI shape as symbols. A non-negative row code can outlive the
+visible command result set, and reporting only `No command selected` hides that
+the click was aimed at a stale row rather than no row at all.
+
+- **IDE note:** command-mode accepts now report
+  `Command row no longer listed` for stale non-negative command rows while
+  preserving `No command selected` for empty/current accepts. The messages share
+  the Navigation toast replacement lane with Quick Open file and symbol misses.
+- **Language note:** no compiler gap surfaced. Command launchers should keep
+  stale-row vocabulary aligned with symbol/file pickers so scalar row handlers
+  explain whether provider state disappeared after rendering.

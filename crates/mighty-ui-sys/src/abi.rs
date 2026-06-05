@@ -9728,7 +9728,12 @@ pub extern "C" fn mui_qo_command_id(handle: i64, i: i32) -> i32 {
     let idx = if i < 0 { ctx.quickopen.selection() } else { i as usize };
     let id = ctx.quickopen.row(idx).map(|r| r.target).unwrap_or(-1);
     if id < 0 {
-        ctx.push_toast(crate::toast::Kind::Info, "No command selected");
+        let message = if i < 0 {
+            "No command selected"
+        } else {
+            "Command row no longer listed"
+        };
+        ctx.push_toast(crate::toast::Kind::Info, message);
     }
     id
 }

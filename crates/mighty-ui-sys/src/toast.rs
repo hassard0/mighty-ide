@@ -936,6 +936,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Quick Open target missing")
         || m == "No symbol selected"
         || m == "Symbol row no longer listed"
+        || m == "No command selected"
+        || m == "Command row no longer listed"
         || m == "No breadcrumb row selected"
         || m == "Breadcrumb file no longer listed"
         || m == "Breadcrumb symbol unavailable"

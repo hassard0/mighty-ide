@@ -13773,6 +13773,17 @@ fn quickopen_command_accept_misses_report_feedback_and_stay_open() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No command selected");
+
+    mui_quickopen_open(h);
+    for ch in ">open".chars() {
+        mui_qo_push_char(h, ch as i32);
+    }
+    assert!(mui_qo_count(h) > 0);
+    assert_eq!(mui_qo_command_id(h, 999), -1);
+    assert_eq!(mui_qo_active(h), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "Command row no longer listed");
 }
 
 #[test]
