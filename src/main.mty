@@ -3313,18 +3313,18 @@ fn main() {
           } else if k == key_enter() {
             if mui_codeaction_can_apply(h) == 1 { mui_ed_undo_record(h) }
             let applied = mui_codeaction_apply(h)
-            code_action_open = false
             if applied == 1 {
+              code_action_open = false
               let _r = mui_diag_refresh(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             }
-            run_focus = false
-            web_focus = false
-            test_focus = false
-            term_focus = false
-            ai_focus = false
-            agents_focus = false
-            find_nav = false
-            typing = false
           } else if k == key_escape() {
             let _cac = mui_codeaction_cancel(h)
             code_action_open = false
@@ -3355,18 +3355,18 @@ fn main() {
           if ch >= 0 {
             if mui_codeaction_can_apply(h) == 1 { mui_ed_undo_record(h) }
             let applied = mui_codeaction_apply(h)
-            code_action_open = false
             if applied == 1 {
+              code_action_open = false
               let _r = mui_diag_refresh(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
             }
-            run_focus = false
-            web_focus = false
-            test_focus = false
-            term_focus = false
-            ai_focus = false
-            agents_focus = false
-            find_nav = false
-            typing = false
           } else {
             let _cac = mui_codeaction_cancel(h)
             code_action_open = false

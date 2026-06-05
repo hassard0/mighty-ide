@@ -10674,14 +10674,15 @@ pub extern "C" fn mui_codeaction_cancel(handle: i64) -> i32 {
 
 /// Apply the selected code action: apply its inline `WorkspaceEdit`, or run
 /// `mty fix --apply` on the active file (the "Fix all (mty)" action) + reload.
-/// Returns `1` if anything changed, `0` otherwise. Closes the menu.
+/// Returns `1` if anything changed, `0` otherwise. Successful applies close the
+/// menu; failed attempts leave it open so the user can choose another action or
+/// retry after correcting the problem.
 #[no_mangle]
 pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
     let selected = ctx.codeaction.selected().cloned();
-    ctx.codeaction.cancel();
     let Some(action) = selected else {
         ctx.push_toast(crate::toast::Kind::Info, "No code action selected");
         return 0;
@@ -10737,6 +10738,7 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
                     .reload_all_clean_path_except(&path, &reloaded, active);
             }
             ctx.push_toast(crate::toast::Kind::Success, "Applied Fix all (mty)");
+            ctx.codeaction.cancel();
         } else {
             ctx.push_toast(crate::toast::Kind::Warn, "Fix all (mty) failed");
         }
@@ -10750,6 +10752,9 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         let result = apply_workspace_edit(ctx, &we, "");
         println!("codeaction: apply edit files={}", result.changed);
         toast_codeaction_workspace_result(ctx, &result);
+        if result.changed > 0 {
+            ctx.codeaction.cancel();
+        }
         return i32::from(result.changed > 0);
     }
     if let Some(we) = &action.command_edit {
@@ -10757,6 +10762,9 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         let result = apply_workspace_edit(ctx, &we, "");
         println!("codeaction: apply command-edit files={}", result.changed);
         toast_codeaction_workspace_result(ctx, &result);
+        if result.changed > 0 {
+            ctx.codeaction.cancel();
+        }
         return i32::from(result.changed > 0);
     }
     if let Some(command) = &action.command {
@@ -10775,6 +10783,9 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
                 command.command, result.changed
             );
             toast_codeaction_workspace_result(ctx, &result);
+            if result.changed > 0 {
+                ctx.codeaction.cancel();
+            }
             return i32::from(result.changed > 0);
         }
         println!("codeaction: execute command={} no-edit", command.command);

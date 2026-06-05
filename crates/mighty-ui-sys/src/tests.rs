@@ -8360,7 +8360,9 @@ fn codeaction_command_without_file_toasts_feedback() {
         fix_all_mty: false,
     }]);
 
+    assert_eq!(crate::mui_codeaction_active(h), 1);
     assert_eq!(crate::mui_codeaction_apply(h), 0);
+    assert_eq!(crate::mui_codeaction_active(h), 1);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
         "Code action needs a file"
@@ -8395,6 +8397,16 @@ fn codeaction_apply_preflight_tracks_selected_action_target() {
     std::fs::write(&path, b"fn main() {}\n").unwrap();
     ctx.tabs.open_path(path);
     crate::sync_active_path(&mut ctx);
+    ctx.codeaction.set(vec![crate::language::CodeAction {
+        title: "Run server command".to_string(),
+        edit: None,
+        command_edit: None,
+        command: Some(crate::language::CommandAction {
+            command: "server.apply".to_string(),
+            arguments_json: None,
+        }),
+        fix_all_mty: false,
+    }]);
     assert_eq!(crate::mui_codeaction_can_apply(h), 1);
     assert!(ctx.toasts.toasts().is_empty());
 
@@ -8407,6 +8419,13 @@ fn codeaction_apply_preflight_tracks_selected_action_target() {
     }]);
     assert_eq!(crate::mui_codeaction_can_apply(h), 0);
     assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_codeaction_active(h), 1);
+    assert_eq!(crate::mui_codeaction_apply(h), 0);
+    assert_eq!(crate::mui_codeaction_active(h), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Code action produced no edit"
+    );
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -8459,6 +8478,7 @@ fn codeaction_workspace_edit_refreshes_clean_split_tab_without_switching_focus()
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(crate::mui_codeaction_apply(h), 1);
+    assert_eq!(crate::mui_codeaction_active(h), 0);
     assert_eq!(ctx.tabs.active(), left_idx);
     assert_eq!(ctx.panes.focused(), 0);
     assert_eq!(ctx.panes.tab_at(0), Some(left_idx));
@@ -12594,6 +12614,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         main
+            .matches("let applied = mui_codeaction_apply(h)\n            if applied == 1 {\n              code_action_open = false")
+            .count()
+            >= 2,
+        "code action accept misses must keep the menu open for correction"
+    );
+    assert!(
+        main
             .matches("if mui_codeaction_can_apply(h) == 1 { mui_ed_undo_record(h) }\n            let applied = mui_codeaction_apply(h)")
             .count()
             >= 2,
@@ -12617,11 +12644,13 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     assert!(
         !main.contains(
+            "let applied = mui_codeaction_apply(h)\n            code_action_open = false"
+        ) && !main.contains(
             "let applied = mui_codeaction_apply(h)\n            code_action_open = false\n            if applied == 1 {\n              let _n = mui_ed_load(h)"
         ) && !main.contains(
             "let applied = mui_codeaction_apply(h)\n            code_action_open = false\n            if applied == 1 {\n              mui_ed_undo_reset(h)"
         ),
-        "code action accept must preserve the undo checkpoint after applying a workspace edit"
+        "code action accept must preserve the menu on misses and keep the undo checkpoint after applying a workspace edit"
     );
     assert!(
         main.contains("let changed = mui_ed_toggle_comment(h)")
@@ -14555,13 +14584,17 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         .expect("code actions branch should precede focused panel branches");
     let code_action_branch = &main[code_action_start..code_action_end];
     let local_editor_cleanup_outer = "run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false";
+    let code_action_success_cleanup = "code_action_open = false\n              let _r = mui_diag_refresh(h)\n              run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false\n              typing = false";
     assert!(
-        code_action_branch.matches(local_editor_cleanup).count() >= 4
+        code_action_branch
+            .matches(code_action_success_cleanup)
+            .count()
+            >= 2
             && code_action_branch.contains(
                 "let _cac = mui_codeaction_cancel(h)\n          code_action_open = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
             )
             && code_action_branch.contains(local_editor_cleanup_outer),
-        "Code Actions local apply, Escape, printed-char, and mouse exits must release stale focus"
+        "Code Actions successful apply, Escape, printed-char, and mouse exits must release stale focus while failed applies keep the menu open"
     );
     let search_focus_start = main
         .find("} else if mui_panel_active(h) == panel_search() && tag != ev_mouse_down() {")
