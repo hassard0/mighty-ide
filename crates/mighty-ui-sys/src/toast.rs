@@ -1384,6 +1384,18 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Copied from terminal");
         assert_eq!(q.toasts()[0].kind, Kind::Success);
+
+        q.push_at(
+            Kind::Error,
+            "Could not copy terminal text: clipboard command failed",
+            t0 + Duration::from_millis(700),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Could not copy terminal text: clipboard command failed"
+        );
+        assert_eq!(q.toasts()[0].kind, Kind::Error);
     }
 
     #[test]

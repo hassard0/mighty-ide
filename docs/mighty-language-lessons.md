@@ -11691,3 +11691,16 @@ missing clipboard command and a command that ran but failed.
 - **Language note:** no compiler gap surfaced. Mutating editor commands should
   report host integration failures before changing document state, and the
   visible error should retain the host failure reason.
+
+## L945 - Terminal Clipboard Copy Should Preserve Write Errors Too
+
+Terminal OSC52 copy requests used the same clipboard write helper as editor
+copy/cut, but failures still showed only `Could not copy terminal text`. That
+left terminal clipboard problems less actionable than editor clipboard failures.
+
+- **IDE note:** terminal clipboard-copy failures now include the clipboard write
+  error (`Could not copy terminal text: clipboard command failed`) and continue
+  to group with the clipboard toast family.
+- **Language note:** no compiler gap surfaced. Shared clipboard write plumbing
+  should surface consistent host-error detail across editor and terminal
+  integration points.

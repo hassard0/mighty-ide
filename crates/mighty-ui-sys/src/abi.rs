@@ -7648,11 +7648,23 @@ pub extern "C" fn mui_term_pump(handle: i64) {
             match write_clipboard_text(&text) {
                 Ok(()) => ctx.push_toast(crate::toast::Kind::Success, "Copied from terminal"),
                 Err(e) => {
-                    ctx.push_toast(crate::toast::Kind::Error, "Could not copy terminal text");
+                    ctx.push_toast(
+                        crate::toast::Kind::Error,
+                        terminal_copy_failure_message(&e),
+                    );
                     println!("terminal-osc52: failed to write clipboard: {e}");
                 }
             }
         }
+    }
+}
+
+fn terminal_copy_failure_message(e: &std::io::Error) -> String {
+    let msg = e.to_string();
+    if msg.trim().is_empty() {
+        "Could not copy terminal text".to_string()
+    } else {
+        format!("Could not copy terminal text: {msg}")
     }
 }
 
