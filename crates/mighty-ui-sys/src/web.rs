@@ -334,10 +334,19 @@ impl WebPlayground {
         }
         self.flush_partial();
         let wasm = temp.join(format!("{stem}.wasm"));
-        if !out.status.success() || !wasm.exists() {
-            self.push_line(format!("build failed (no {})", wasm.display()));
+        if !out.status.success() {
+            self.push_line(format!("build failed (exit {:?})", out.status.code()));
             self.saw_error = true;
             self.finish_now(out.status.code().unwrap_or(-1));
+            return false;
+        }
+        if !wasm_artifact_ready(&wasm) {
+            self.push_line(format!(
+                "build failed: missing wasm artifact {}",
+                wasm.display()
+            ));
+            self.saw_error = true;
+            self.finish_now(-1);
             return false;
         }
         self.push_line(format!("built {} ({} bytes)", wasm.display(), wasm_size(&wasm)));
@@ -650,6 +659,10 @@ fn wasm_size(p: &Path) -> u64 {
     std::fs::metadata(p).map(|m| m.len()).unwrap_or(0)
 }
 
+fn wasm_artifact_ready(p: &Path) -> bool {
+    std::fs::metadata(p).is_ok_and(|meta| meta.is_file())
+}
+
 /// Resolve a Python interpreter for the static-server fallback.
 fn python_exe() -> String {
     if let Ok(p) = std::env::var("MIGHTY_PYTHON") {
@@ -785,6 +798,22 @@ mod tests {
         let mut w = WebPlayground::new();
         w.feed("serving web/ + /main.wasm\n");
         assert!(!w.line(0).unwrap().is_error);
+    }
+
+    #[test]
+    fn wasm_artifact_ready_requires_a_file() {
+        let tmp = std::env::temp_dir().join(format!("mui-web-artifact-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let file = tmp.join("main.wasm");
+        let dir = tmp.join("folder.wasm");
+        std::fs::write(&file, b"\0asm").unwrap();
+        std::fs::create_dir_all(&dir).unwrap();
+
+        assert!(wasm_artifact_ready(&file));
+        assert!(!wasm_artifact_ready(&dir));
+        assert!(!wasm_artifact_ready(&tmp.join("missing.wasm")));
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     #[test]

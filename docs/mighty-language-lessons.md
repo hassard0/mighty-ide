@@ -13381,3 +13381,17 @@ metadata-based classification.
 - **Language note:** no compiler gap surfaced. Fallback selection should share
   the same filesystem-state predicate as command validation when both decide
   whether a path can be used as a directory.
+
+## L1060 - Web Builds Should Separate Command Failure From Missing Artifacts
+
+Run in Browser's build fallback used one combined predicate for `mty build`
+failure and missing wasm output. That produced the same `no wasm` panel line for
+both a failed compiler command and a successful command that emitted no artifact.
+
+- **IDE note:** the web build fallback now reports command failure separately
+  from a successful build with a missing `.wasm` artifact, and verifies the wasm
+  output is a real file before writing the harness. Directory-backed
+  `*.wasm` paths are rejected as missing artifacts.
+- **Language note:** no compiler gap surfaced. Build pipelines should distinguish
+  process failure from artifact validation so users can tell whether to inspect
+  compiler output or packaging/output layout.
