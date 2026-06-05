@@ -627,6 +627,14 @@ fn file_operation_failed_message(action: &str, path: &std::path::Path, e: &std::
     }
 }
 
+pub(crate) fn diagnostic_source_for_path(ctx: &MuiContext, path: &std::path::Path) -> Result<String, String> {
+    if ctx.tabs.active_path().as_deref() == Some(path) {
+        Ok(ctx.tabs.active_model().as_text().to_string())
+    } else {
+        std::fs::read_to_string(path).map_err(|e| file_operation_failed_message("Diagnostics", path, &e))
+    }
+}
+
 /// Initial directory for native file dialogs. Prefer the folder of the active
 /// file so Open/New/Save As land where the user is already working; fall back to
 /// the workspace root when the active tab is untitled or its parent is missing.
@@ -3390,13 +3398,17 @@ pub extern "C" fn mui_diag_refresh(handle: i64) -> i32 {
             }
         }
     } else if let Some(spec) = crate::lspregistry::server_for(ctx.language) {
-        let source = if ctx.tabs.active_path().as_ref() == Some(&path) {
-            ctx.tabs.active_model().as_text()
-        } else {
-            std::fs::read_to_string(&path).unwrap_or_default()
-        };
-        let root = workspace_root(&path);
-        ctx.diags = crate::lspclient::diagnostics(&spec, ctx.language.lsp_id(), &root, &path, &source);
+        match diagnostic_source_for_path(ctx, &path) {
+            Ok(source) => {
+                let root = workspace_root(&path);
+                ctx.diags =
+                    crate::lspclient::diagnostics(&spec, ctx.language.lsp_id(), &root, &path, &source);
+            }
+            Err(reason) => {
+                ctx.diags.clear();
+                ctx.push_toast(crate::toast::Kind::Error, reason);
+            }
+        }
     } else {
         ctx.diags.clear();
     }

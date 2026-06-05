@@ -43,6 +43,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   refresh now reports `Diagnostics failed: <checker>: <reason>` and clears stale
   diagnostics when `mty check` cannot be spawned, instead of silently showing an
   empty diagnostic set.
+- **Generic diagnostic source failures are visible**: non-Mighty diagnostics now
+  report `Diagnostics failed: <file>: <reason>` and clear stale diagnostics when
+  a non-active file cannot be read, instead of sending empty source to the LSP.
 - **Staged load failures are visible**: scalar `mui_load` read failures for a
   configured path now report `Load failed: <file>: <reason>` and clear the load
   buffer, matching editor-load feedback instead of only logging to stderr.

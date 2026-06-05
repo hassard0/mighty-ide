@@ -11606,6 +11606,40 @@ fn diag_refresh_spawn_failure_reports_visible_feedback() {
 }
 
 #[test]
+fn generic_diagnostics_source_reports_stale_non_active_file() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_generic_diag_source_stale_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let active = root.join("active.rs");
+    let stale = root.join("stale.rs");
+    std::fs::write(&active, "fn main() {}\n").unwrap();
+    std::fs::write(&stale, "fn stale() {}\n").unwrap();
+
+    ctx.tabs.open_path(active.clone());
+    crate::sync_active_path(&mut ctx);
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("fn live_buffer() {}\n");
+
+    let source = crate::abi::diagnostic_source_for_path(&ctx, &active).unwrap();
+    assert_eq!(source, "fn live_buffer() {}\n");
+
+    std::fs::remove_file(&stale).unwrap();
+    let err = crate::abi::diagnostic_source_for_path(&ctx, &stale).unwrap_err();
+    assert!(
+        err.starts_with("Diagnostics failed: stale.rs: "),
+        "{}",
+        err
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn sync_active_path_clears_stale_find_matches() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!(

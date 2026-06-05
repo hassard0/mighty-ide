@@ -12648,3 +12648,17 @@ checker look exactly like a clean file.
 - **Language note:** no compiler gap surfaced. Tool-backed analysis should
   distinguish "no findings" from "the analysis tool did not run" at the UI
   boundary.
+
+## L1011 - Generic Diagnostics Need Read-Failure Feedback
+
+Generic LSP diagnostics use the active tab's live buffer when possible, but
+non-active file targets must come from disk. Converting that disk read failure
+to an empty string makes a missing or stale file look like a clean source file.
+
+- **IDE note:** generic diagnostics now report
+  `Diagnostics failed: <file>: <reason>` and clear stale diagnostics when a
+  non-active source file cannot be read. Active tabs still use their live buffer
+  so unsaved edits can be analyzed without a save.
+- **Language note:** no compiler gap surfaced. Analysis source selection should
+  preserve the difference between live editor text, disk-backed text, and a
+  failed backing-file read.

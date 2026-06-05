@@ -64,6 +64,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   logging configured-path read errors
 - Diagnostics refresh failures report the missing checker command instead of
   looking like a clean file with no diagnostics
+- Generic diagnostics report stale non-active source files instead of treating
+  failed disk reads as empty clean buffers
 - Empty explicit code-action requests name the active file or scratch buffer
   and cursor position, so no-quick-fix feedback points to the queried site
 - Applying code actions with no active quick-fix menu reports
