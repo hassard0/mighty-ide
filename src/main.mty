@@ -2039,17 +2039,19 @@ fn main() {
             typing = false
           } else {
             command_click_id = mui_palette_selected_id(h)
-            let _palc = mui_palette_cancel(h)
-            palette_open = false
             palette_ignore_mouse_down = false
-            typing = false
-            run_focus = false
-            web_focus = false
-            test_focus = false
-            term_focus = false
-            ai_focus = false
-            agents_focus = false
-            find_nav = false
+            if command_click_id >= 0 {
+              let _palc = mui_palette_cancel(h)
+              palette_open = false
+              typing = false
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+            }
           }
           }
         }

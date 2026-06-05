@@ -12572,6 +12572,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         "palette Enter misses must keep the palette open for correction"
     );
     assert!(
+        main.contains(
+            "command_click_id = mui_palette_selected_id(h)\n            palette_ignore_mouse_down = false\n            if command_click_id >= 0 {\n              let _palc = mui_palette_cancel(h)"
+        ),
+        "palette mouse accept misses must keep the palette open for correction"
+    );
+    assert!(
         main.contains("command_click_id = mui_qo_command_id(h, -1)"),
         "Quick Open command mode must queue the selected command id"
     );
@@ -14755,9 +14761,11 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         .map(|i| palette_start + i)
         .expect("palette branch should precede Quick Open branch");
     let palette_branch = &main[palette_start..palette_end];
-    let palette_cleanup = "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false";
+    let palette_cancel_cleanup = "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false";
+    let palette_accept_cleanup = "typing = false\n              run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false";
     assert!(
-        palette_branch.matches(palette_cleanup).count() >= 3,
+        palette_branch.matches(palette_cancel_cleanup).count() >= 2
+            && palette_branch.matches(palette_accept_cleanup).count() >= 2,
         "Command Palette local Escape, successful Enter, and mouse exits must release stale focus"
     );
     let quickopen_start = main
@@ -14768,9 +14776,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         .map(|i| quickopen_start + i)
         .expect("Quick Open branch should precede AI focus branch");
     let quickopen_branch = &main[quickopen_start..quickopen_end];
+    let quickopen_outer_cleanup = "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false";
     let quickopen_nested_cleanup = "run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false";
     assert!(
-        quickopen_branch.matches(palette_cleanup).count() >= 2
+        quickopen_branch.matches(quickopen_outer_cleanup).count() >= 2
             && quickopen_branch.matches(quickopen_nested_cleanup).count() >= 2,
         "Quick Open local Escape, successful Enter, and mouse exits must release stale focus"
     );
