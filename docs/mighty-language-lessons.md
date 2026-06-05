@@ -11956,3 +11956,18 @@ confirmed safety but did not tell the user which tab needed attention.
 - **Language note:** no compiler gap surfaced. Safe refusal paths need target
   context too; a best-in-class editor should make it clear which dirty buffer
   blocked a workspace-wide mutation.
+
+## L962 - Fix All Pre-Save Failures Should Preserve The Write Reason
+
+Fix All saves the active buffer before invoking `mty fix --apply`, but that
+pre-save branch used `is_err()` and toasted only `Save failed before code
+action`. If the active path was a directory, denied, or otherwise unwritable,
+the actionable host reason was discarded.
+
+- **IDE note:** Fix All pre-save failures now report
+  `Save failed before code action: target: reason`, leave the dirty buffer and
+  code-action menu intact, and continue grouping with other code-action feedback.
+- **Language note:** no compiler gap surfaced. Any preflight mutation inside a
+  larger command should preserve the inner operation's target and host reason;
+  otherwise compound commands become harder to recover from than direct file
+  commands.

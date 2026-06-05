@@ -10879,6 +10879,16 @@ fn fix_all_failed_message(path: &std::path::Path, mty: &str) -> String {
     format!("Fix all (mty) failed: {name} via {}", fix_all_command_display(mty))
 }
 
+fn codeaction_presave_failed_message(path: &std::path::Path, e: &std::io::Error) -> String {
+    let name = basename(path);
+    let reason = e.to_string();
+    if reason.trim().is_empty() {
+        format!("Save failed before code action: {name}")
+    } else {
+        format!("Save failed before code action: {name}: {}", reason.trim())
+    }
+}
+
 /// `1` while the code-action menu is active.
 #[no_mangle]
 pub extern "C" fn mui_codeaction_active(handle: i64) -> i32 {
@@ -11006,9 +11016,15 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         }
         let bytes = ctx.tabs.active_model().to_bytes();
         let resurrected_path = !path.is_file();
-        if std::fs::write(&path, &bytes).is_err() {
-            ctx.push_toast(crate::toast::Kind::Error, "Save failed before code action");
-            return 0;
+        match std::fs::write(&path, &bytes) {
+            Ok(()) => {}
+            Err(e) => {
+                ctx.push_toast(
+                    crate::toast::Kind::Error,
+                    codeaction_presave_failed_message(&path, &e),
+                );
+                return 0;
+            }
         }
         mark_active_clean(ctx);
         let active = ctx.tabs.active();

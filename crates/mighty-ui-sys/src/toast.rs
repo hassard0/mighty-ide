@@ -651,7 +651,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Use Save As to choose a file path"
         || m == "No save path entered"
         || m.starts_with("Saved ")
-        || m.starts_with("Save failed")
+        || (m.starts_with("Save failed") && !m.starts_with("Save failed before code action"))
         || m.starts_with("Auto-saved ")
         || m.ends_with(" skipped")
         || m.contains(" need Save As")
@@ -823,7 +823,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No code action selected"
         || m == "No code action menu open"
         || m == "Code action needs a file"
-        || m == "Save failed before code action"
+        || m.starts_with("Save failed before code action")
         || m == "Applied Fix all (mty)"
         || m.starts_with("Fix all (mty) failed")
         || m == "Applied code action"
@@ -2519,7 +2519,18 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Code action needs a file");
 
-        q.push_at(Kind::Success, "Applied code action", t0 + Duration::from_millis(300));
+        q.push_at(
+            Kind::Error,
+            "Save failed before code action: main.mty: Access is denied. (os error 5)",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Save failed before code action: main.mty: Access is denied. (os error 5)"
+        );
+
+        q.push_at(Kind::Success, "Applied code action", t0 + Duration::from_millis(350));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Applied code action");
 

@@ -10140,6 +10140,55 @@ fn codeaction_fix_all_refreshes_clean_duplicate_when_fixer_fails_after_pre_fix_s
 }
 
 #[test]
+fn codeaction_fix_all_presave_failure_reports_filesystem_reason() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_codeaction_fix_all_presave_failure_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let blocked = root.join("blocked.mty");
+    std::fs::create_dir_all(&blocked).unwrap();
+
+    ctx.tabs.ensure_scratch();
+    ctx.tabs.set_active_path(blocked.clone());
+    ctx.file_path = Some(blocked.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("live_symbol\n");
+    ctx.tabs.set_dirty(ctx.tabs.active(), true);
+    assert_eq!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Fix all (mty)".to_string(),
+            edit: None,
+            command_edit: None,
+            command: None,
+            fix_all_mty: true,
+        }]),
+        1
+    );
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_codeaction_apply(h), 0);
+    assert!(blocked.is_dir());
+    assert_eq!(ctx.tabs.active_model().as_text(), "live_symbol\n");
+    assert!(ctx.tabs.is_dirty(ctx.tabs.active()));
+    assert_eq!(crate::mui_codeaction_active(h), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast
+            .message
+            .starts_with("Save failed before code action: blocked.mty: "),
+        "{}",
+        toast.message
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn codeaction_fix_all_presave_republishes_resurrected_file_to_quickopen() {
     let _g = crate::settings::TEST_LOCK
         .lock()
