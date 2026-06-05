@@ -607,8 +607,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Nothing to stage"
         || m == "Nothing to unstage"
         || m == "Nothing to commit"
-        || m == "Source control stage failed"
-        || m == "Source control unstage failed"
+        || m.starts_with("Source control stage failed")
+        || m.starts_with("Source control unstage failed")
         || m == "No source control row selected"
         || m == "Source control root missing"
         || m.starts_with("Source Control message ")
@@ -1710,6 +1710,17 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Staged hunk");
         assert_eq!(q.toasts()[0].kind, Kind::Success);
+
+        q.push_at(
+            Kind::Warn,
+            "Source control stage failed: missing.mty",
+            t0 + Duration::from_millis(150),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Source control stage failed: missing.mty"
+        );
 
         q.push_at(
             Kind::Error,

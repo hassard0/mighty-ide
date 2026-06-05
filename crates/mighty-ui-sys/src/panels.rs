@@ -250,8 +250,8 @@ pub extern "C" fn mui_scm_toggle_stage(handle: i64, i: i32) -> i32 {
         crate::abi::trace("scm_toggle_stage ok=0 idx=-1");
         return 0;
     }
-    let staged_before = match ctx.scm.get(i as usize) {
-        Some(entry) => entry.staged,
+    let (path_before, staged_before) = match ctx.scm.get(i as usize) {
+        Some(entry) => (entry.path.clone(), entry.staged),
         None => {
             ctx.push_toast(crate::toast::Kind::Info, "No source control row selected");
             crate::abi::trace(&format!("scm_toggle_stage ok=0 idx={i} missing-row"));
@@ -276,8 +276,16 @@ pub extern "C" fn mui_scm_toggle_stage(handle: i64, i: i32) -> i32 {
         1
     } else {
         let action = if staged_before { "unstage" } else { "stage" };
+        let name = std::path::Path::new(&path_before)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .filter(|s| !s.is_empty())
+            .unwrap_or(path_before.as_str());
         let _ = ctx.scm.refresh(&dir);
-        ctx.push_toast(crate::toast::Kind::Warn, format!("Source control {action} failed"));
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Source control {action} failed: {name}"),
+        );
         0
     }
 }

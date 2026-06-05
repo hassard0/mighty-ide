@@ -5314,7 +5314,7 @@ fn scm_toggle_stage_misses_report_visible_feedback() {
     assert_eq!(crate::panels::mui_scm_toggle_stage(handle, 0), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Source control stage failed");
+    assert_eq!(toast.message, "Source control stage failed: missing.mty");
     assert_eq!(ctx.scm.count(), 0);
 
     let _ = std::fs::remove_dir_all(root);

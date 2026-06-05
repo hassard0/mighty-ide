@@ -11635,3 +11635,17 @@ restart should not lose the command boundary that startup exposes.
   feedback.
 - **Language note:** no compiler gap surfaced. Lifecycle retry commands should
   preserve the same target-plus-command feedback contract as first launch.
+
+## L941 - Source Control Row Failures Should Name The Path
+
+The Source Control row toggle could fail a stale stage/unstage request and only
+report `Source control stage failed`. That left the visible feedback weaker than
+the hunk-apply path, which already reports the git failure summary.
+
+- **IDE note:** row stage/unstage failures now include the affected filename
+  (`Source control stage failed: file.mty`) and stale SCM toast replacement uses
+  prefix matching so the more detailed message still collapses with later git
+  feedback.
+- **Language note:** no compiler gap surfaced. Row-level VCS commands should
+  carry the selected path into visible feedback before refreshing away stale
+  status entries.
