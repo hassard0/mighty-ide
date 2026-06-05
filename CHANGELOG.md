@@ -28,6 +28,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   packaged launch result.
 
 ### Language intelligence
+- **Generic diagnostics reject directory sources**: non-active generic
+  diagnostics now preflight stale source paths before reading them. Directory
+  targets report `Diagnostics failed: <name>: not a file` instead of surfacing
+  platform read errors or clearing diagnostics as if the file were empty.
 - **Load paths reject directory targets explicitly**: staged `mui_load` and
   active editor load now report `Load failed: <name>: not a file` when a
   configured or active path is a directory. Staged loads clear the load buffer;

@@ -12051,8 +12051,10 @@ fn generic_diagnostics_source_reports_stale_non_active_file() {
     std::fs::create_dir_all(&root).unwrap();
     let active = root.join("active.rs");
     let stale = root.join("stale.rs");
+    let blocked = root.join("blocked.rs");
     std::fs::write(&active, "fn main() {}\n").unwrap();
     std::fs::write(&stale, "fn stale() {}\n").unwrap();
+    std::fs::create_dir_all(&blocked).unwrap();
 
     ctx.tabs.open_path(active.clone());
     crate::sync_active_path(&mut ctx);
@@ -12070,6 +12072,8 @@ fn generic_diagnostics_source_reports_stale_non_active_file() {
         "{}",
         err
     );
+    let err = crate::abi::diagnostic_source_for_path(&ctx, &blocked).unwrap_err();
+    assert_eq!(err, "Diagnostics failed: blocked.rs: not a file");
 
     let _ = std::fs::remove_dir_all(root);
 }

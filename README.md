@@ -77,8 +77,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   errors
 - Diagnostics refresh failures report the missing checker command instead of
   looking like a clean file with no diagnostics
-- Generic diagnostics report stale non-active source files instead of treating
-  failed disk reads as empty clean buffers
+- Generic diagnostics report stale non-active source files, including directory
+  targets as `not a file`, instead of treating failed disk reads as empty clean
+  buffers
 - Definition jumps reject directory targets from stale or malformed resolver
   results instead of opening an empty tab
 - Empty explicit code-action requests name the active file or scratch buffer

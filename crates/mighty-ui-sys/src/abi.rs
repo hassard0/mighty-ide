@@ -652,6 +652,8 @@ fn reject_save_target_not_file(ctx: &mut MuiContext, path: &std::path::Path) -> 
 pub(crate) fn diagnostic_source_for_path(ctx: &MuiContext, path: &std::path::Path) -> Result<String, String> {
     if ctx.tabs.active_path().as_deref() == Some(path) {
         Ok(ctx.tabs.active_model().as_text().to_string())
+    } else if save_target_is_existing_non_file(path) {
+        Err(file_target_not_file_message("Diagnostics", path))
     } else {
         std::fs::read_to_string(path).map_err(|e| file_operation_failed_message("Diagnostics", path, &e))
     }

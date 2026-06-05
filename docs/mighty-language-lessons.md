@@ -12884,3 +12884,17 @@ target-kind vocabulary when a path becomes a directory.
 - **Language note:** no compiler gap surfaced. Load APIs should report semantic
   path-state failures before invoking lower-level reads, especially when
   different callers need different state-preservation behavior.
+
+## L1027 - Diagnostics Reads Need Target-Kind Feedback
+
+Generic diagnostics can read a non-active file from disk when the requested
+document is not the live tab. If that path now names a directory, the useful
+feedback is the object-kind mismatch, not the platform read error.
+
+- **IDE note:** non-active generic diagnostics now preflight existing non-file
+  paths. Directory targets report
+  `Diagnostics failed: <name>: not a file`, while active documents still use the
+  live editor buffer and missing files still include the filesystem reason.
+- **Language note:** no compiler gap surfaced. Background analysis pipelines
+  should validate source identity before reading from disk so stale project
+  indexes produce actionable diagnostics failures.
