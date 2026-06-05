@@ -15534,12 +15534,15 @@ fn open_recent_availability_prunes_stale_entries_before_routing() {
     let keep_file = root.join("keep.mty");
     let missing_file = root.join("missing.mty");
     let missing_folder = root.join("missing-folder");
+    let non_folder = root.join("not-a-folder");
     std::fs::write(&keep_file, b"fn main() {}").unwrap();
+    std::fs::write(&non_folder, b"not a directory").unwrap();
     let _ = std::fs::remove_file(&missing_file);
     let _ = std::fs::remove_dir_all(&missing_folder);
 
     ctx.quickopen.set_recent_paths(vec![missing_file.clone()]);
-    ctx.recent_workspaces.set_all(vec![missing_folder.clone()]);
+    ctx.recent_workspaces
+        .set_all(vec![missing_folder.clone(), non_folder.clone()]);
     assert_eq!(
         mui_recent_any(h),
         0,
@@ -15576,9 +15579,11 @@ fn open_recent_empty_reports_actionable_feedback_after_pruning() {
     let keep_file = root.join("keep.mty");
     let missing_file = root.join("missing.mty");
     let missing_folder = root.join("missing-folder");
+    let non_folder = root.join("not-a-folder");
     std::fs::write(&keep_file, b"fn main() {}").unwrap();
+    std::fs::write(&non_folder, b"not a directory").unwrap();
     ctx.quickopen.set_recent_paths(vec![missing_file]);
-    ctx.recent_workspaces.set_all(vec![missing_folder]);
+    ctx.recent_workspaces.set_all(vec![missing_folder, non_folder]);
 
     assert_eq!(mui_recent_empty(h), 1);
     assert_eq!(mui_recent_any(h), 0);
@@ -16077,8 +16082,10 @@ fn welcome_missing_recent_folder_stays_open_and_prunes() {
     ctx.tabs.open_path(file);
 
     let missing = root.join("missing-folder");
+    let non_folder = root.join("not-a-folder");
     let _ = std::fs::remove_dir_all(&missing);
-    ctx.recent_workspaces.set_all(vec![missing]);
+    std::fs::write(&non_folder, b"not a directory").unwrap();
+    ctx.recent_workspaces.set_all(vec![missing, non_folder]);
     ctx.welcome.open();
 
     assert_eq!(mui_welcome_open_folder(h, -1), 0);
@@ -16095,7 +16102,7 @@ fn welcome_missing_recent_folder_stays_open_and_prunes() {
     assert_eq!(
         mui_ws_recent_count(h),
         0,
-        "stale Welcome folder should be pruned before rendering"
+        "stale and non-folder Welcome folders should be pruned before rendering"
     );
     assert_eq!(
         mui_welcome_open_folder(h, 0),

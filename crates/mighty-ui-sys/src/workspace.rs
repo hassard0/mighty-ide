@@ -188,8 +188,9 @@ impl RecentWorkspaces {
         self.paths.len() != before
     }
 
-    /// Drop recent workspace folders that no longer exist. Returns `true` when
-    /// the list changed so callers can persist the cleaned MRU.
+    /// Drop recent workspace folders that are no longer valid directories.
+    /// Returns `true` when the list changed so callers can persist the cleaned
+    /// MRU.
     pub fn prune_missing_dirs(&mut self) -> bool {
         let before = self.paths.len();
         self.paths.retain(|p| p.is_dir());
@@ -351,16 +352,18 @@ mod tests {
     }
 
     #[test]
-    fn recents_prune_missing_dirs() {
+    fn recents_prune_invalid_dirs() {
         let root = std::env::temp_dir().join(format!("mui_ws_prune_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).unwrap();
         let keep = root.join("keep");
         let missing = root.join("missing");
+        let file = root.join("not-a-folder");
         std::fs::create_dir_all(&keep).unwrap();
+        std::fs::write(&file, b"not a directory").unwrap();
 
         let mut r = RecentWorkspaces::new();
-        r.set_all(vec![missing, keep.clone()]);
+        r.set_all(vec![missing, file, keep.clone()]);
         assert!(r.prune_missing_dirs());
         assert_eq!(r.entries(), &[keep]);
 

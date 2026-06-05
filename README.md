@@ -167,7 +167,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Open Recent file rows reject directory targets from stale recents instead of
   opening empty tabs or reporting them as missing files
 - Open Recent folder rows reject file-backed stale recents with `not a folder`
-  feedback instead of reporting them as ordinary missing folders
+  feedback instead of reporting them as ordinary missing folders, and stale
+  folder recents are pruned before Open Recent/Welcome routing
 - **Mighty Agents panel (Alt+G)** — static agent-system topology, run, and live `mty inspect` when the Mighty runtime control socket is available
 - Agents topology jumps reject directory targets from stale scan results instead
   of opening an empty tab

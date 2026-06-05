@@ -13057,3 +13057,19 @@ missing` hid that object-kind mismatch and made Open Recent less trustworthy.
 - **Language note:** no compiler gap surfaced. Persisted folder MRUs need the
   same identity checks as persisted file MRUs: existence and object kind are
   separate facts by the time the user accepts the row.
+
+## L1039 - Pre-Render Recent-Folder Pruning Must Cover Files Too
+
+Open Recent and Welcome both prune stale recent folders before deciding whether
+there is anything actionable to show. The implementation already retained only
+`is_dir()` paths, but the contract and tests spoke only about missing folders,
+leaving file-backed stale folders under-specified.
+
+- **IDE note:** recent-workspace pruning is now documented and tested as
+  invalid-directory pruning. Missing folders and paths recreated as files are
+  both removed before Open Recent routing or Welcome rendering, so users do not
+  see a dead folder row just because the path still exists as the wrong object
+  kind.
+- **Language note:** no compiler gap surfaced. This is another MRU hygiene rule:
+  persisted rows need validity contracts at every surface that snapshots them,
+  not only at the final open action.
