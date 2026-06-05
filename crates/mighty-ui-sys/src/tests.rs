@@ -6904,6 +6904,36 @@ fn reload_missing_file_refreshes_workspace_indexes() {
 }
 
 #[test]
+fn reload_active_file_rejects_directory_target() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_reload_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("reload_me.mty");
+    std::fs::write(&path, "buffer").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    let active = ctx.tabs.open_path(path.clone());
+    ctx.quickopen.set_recent_paths(vec![path.clone()]);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::fs::remove_file(&path).unwrap();
+    std::fs::create_dir_all(&path).unwrap();
+
+    assert_eq!(crate::mui_tab_reload_active(handle), -1);
+    assert_eq!(ctx.tabs.active(), active);
+    assert_eq!(ctx.tabs.active_model().as_text(), "buffer");
+    assert!(!ctx.tabs.is_dirty(active));
+    assert!(path.is_dir());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Reload failed: reload_me.mty: not a file");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn ed_load_missing_file_preserves_buffer_and_refreshes_indexes() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!(
@@ -6964,6 +6994,36 @@ fn revert_active_file_discards_dirty_buffer_from_disk() {
         "external"
     );
     assert_eq!(ctx.toasts.toasts().last().unwrap().message, "Reverted revert_me.mty");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn revert_active_file_rejects_directory_target() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_revert_dir_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("revert_me.mty");
+    std::fs::write(&path, "disk").unwrap();
+    let active = ctx.tabs.open_path(path.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("dirty local");
+    ctx.tabs.set_dirty(active, true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::fs::remove_file(&path).unwrap();
+    std::fs::create_dir_all(&path).unwrap();
+
+    assert_eq!(crate::mui_tab_revert_active(handle), -1);
+    assert_eq!(ctx.tabs.active(), active);
+    assert_eq!(ctx.tabs.active_model().as_text(), "dirty local");
+    assert!(ctx.tabs.is_dirty(active));
+    assert!(path.is_dir());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Revert failed: revert_me.mty: not a file");
 
     let _ = std::fs::remove_dir_all(&root);
 }

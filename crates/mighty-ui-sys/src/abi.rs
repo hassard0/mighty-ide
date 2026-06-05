@@ -635,6 +635,10 @@ fn save_target_is_existing_non_file(path: &std::path::Path) -> bool {
     path.exists() && !path.is_file()
 }
 
+fn file_target_not_file_message(action: &str, path: &std::path::Path) -> String {
+    format!("{action} failed: {}: not a file", basename(path))
+}
+
 fn reject_save_target_not_file(ctx: &mut MuiContext, path: &std::path::Path) -> i32 {
     ctx.autosave.disarm();
     refresh_workspace_file_views(ctx);
@@ -4722,6 +4726,15 @@ fn reload_active_from_disk(ctx: &mut MuiContext, allow_dirty: bool) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, format!("No file-backed tab to {action}"));
         return -1;
     };
+    if save_target_is_existing_non_file(&path) {
+        let action = if allow_dirty { "Revert" } else { "Reload" };
+        refresh_workspace_file_views(ctx);
+        ctx.push_toast(
+            crate::toast::Kind::Error,
+            file_target_not_file_message(action, &path),
+        );
+        return -1;
+    }
     let bytes = match std::fs::read(&path) {
         Ok(bytes) => bytes,
         Err(e) => {

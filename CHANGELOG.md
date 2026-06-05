@@ -76,6 +76,11 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Reload and Revert reject directory targets**: Reload Active File and Revert
+  Active File now preflight the active path before reading from disk. Directory
+  targets report `Reload failed: <name>: not a file` or
+  `Revert failed: <name>: not a file`, refresh workspace file views, and leave
+  clean or dirty buffers unchanged.
 - **Format Document rejects directory targets**: formatting now preflights the
   active file path before spawning `mty fmt`. If the `.mty` file was replaced
   by a directory, the command reports `Format failed: <name>: not a file`, keeps

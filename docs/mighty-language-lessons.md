@@ -12852,3 +12852,20 @@ opened, the formatter path needs the same semantic target-kind check as Save.
 - **Language note:** no compiler gap surfaced. Any command that mutates a path
   through an external tool should check target kind before process launch; tool
   errors are too late and too platform-specific for clear editor feedback.
+
+## L1025 - Reload/Revert Must Validate Before Reading
+
+Reload and Revert look read-only at the filesystem boundary, but both mutate
+editor state after the read succeeds. If the backing file path becomes a
+directory, the command should not rely on platform read errors to protect the
+buffer.
+
+- **IDE note:** Reload Active File and Revert Active File now reject existing
+  non-file targets before reading from disk. Directory targets refresh
+  workspace file views, report `Reload failed: <name>: not a file` or
+  `Revert failed: <name>: not a file`, and leave clean reload buffers or dirty
+  revert buffers unchanged.
+- **Language note:** no compiler gap surfaced. Commands that replace an
+  in-memory model from disk should validate target kind before the read, because
+  the user-facing invariant is about preserving editor state, not about the
+  exact OS error returned by `read`.

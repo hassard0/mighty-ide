@@ -55,9 +55,11 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Close Duplicate Tabs** collapses clean duplicate file tabs while preserving
   dirty duplicate buffers and split-pane bindings
 - **Reload Active File from Disk** refreshes clean file-backed tabs after
-  external edits while protecting dirty buffers
+  external edits while protecting dirty buffers and rejecting directory targets
+  with explicit `not a file` feedback
 - **Revert Active File from Disk** intentionally discards local edits and reloads
-  the file-backed tab from disk
+  the file-backed tab from disk, while refusing directory targets before any
+  dirty buffer is discarded
 - Project-wide Search panel (Ctrl+Shift+F), with stale directory targets
   rejected before opening a tab
 
