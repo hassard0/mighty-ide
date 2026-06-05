@@ -11940,3 +11940,19 @@ read error; the visible feedback did not.
 - **Language note:** no compiler gap surfaced. Workspace-wide commands need the
   same target-plus-reason feedback as direct file commands, especially when the
   command safely declines to mutate stale disk state.
+
+## L961 - Workspace-Edit Dirty Skips Should Name The Protected File
+
+Workspace-edit dirty-buffer protection is intentionally conservative: code
+actions, Fix All, and rename must not overwrite dirty duplicate or non-active
+tabs. The old toast only said `Skipped dirty file during workspace edit`, which
+confirmed safety but did not tell the user which tab needed attention.
+
+- **IDE note:** dirty workspace-edit skips now report
+  `Skipped dirty file during workspace edit: target`, using the first protected
+  file as the actionable representative. The same message is used by Fix All,
+  rename workspace edits, and ordinary code-action workspace edits, and the
+  detailed prefix still groups with other code-action feedback.
+- **Language note:** no compiler gap surfaced. Safe refusal paths need target
+  context too; a best-in-class editor should make it clear which dirty buffer
+  blocked a workspace-wide mutation.

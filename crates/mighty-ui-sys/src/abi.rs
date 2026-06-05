@@ -10485,7 +10485,10 @@ pub extern "C" fn mui_rename_commit(handle: i64, line: i32, col: i32) -> i32 {
     if result.skipped_dirty > 0 {
         ctx.push_toast(
             crate::toast::Kind::Warn,
-            "Skipped dirty file during workspace edit",
+            result
+                .first_skipped_dirty_message
+                .as_deref()
+                .unwrap_or("Skipped dirty file during workspace edit"),
         );
     }
     ctx.rename.cancel();
@@ -10550,7 +10553,15 @@ struct WorkspaceEditApplyResult {
     changed: i32,
     skipped_dirty: i32,
     skipped_missing: i32,
+    first_skipped_dirty_message: Option<String>,
     first_skipped_missing_message: Option<String>,
+}
+
+fn skipped_dirty_workspace_edit_message(path: &std::path::Path) -> String {
+    format!(
+        "Skipped dirty file during workspace edit: {}",
+        basename(path)
+    )
 }
 
 fn workspace_edits_can_create_missing_file(edits: &[crate::language::TextEdit]) -> bool {
@@ -10570,6 +10581,7 @@ fn apply_workspace_edit(
         changed: 0,
         skipped_dirty: 0,
         skipped_missing: 0,
+        first_skipped_dirty_message: None,
         first_skipped_missing_message: None,
     };
     for (uri, edits) in &we.files {
@@ -10599,6 +10611,10 @@ fn apply_workspace_edit(
         if is_current {
             if ctx.tabs.any_dirty_path_except(&fpath, ctx.tabs.active()) {
                 result.skipped_dirty += 1;
+                if result.first_skipped_dirty_message.is_none() {
+                    result.first_skipped_dirty_message =
+                        Some(skipped_dirty_workspace_edit_message(&fpath));
+                }
                 println!(
                     "workspace edit: skipped active path with dirty duplicate path={}",
                     fpath.display()
@@ -10636,6 +10652,10 @@ fn apply_workspace_edit(
             // Other file: do not rewrite disk underneath an open dirty buffer.
             if ctx.tabs.any_dirty_path(&fpath) {
                 result.skipped_dirty += 1;
+                if result.first_skipped_dirty_message.is_none() {
+                    result.first_skipped_dirty_message =
+                        Some(skipped_dirty_workspace_edit_message(&fpath));
+                }
                 println!(
                     "workspace edit: skipped dirty non-active tab path={}",
                     fpath.display()
@@ -10686,7 +10706,10 @@ fn toast_codeaction_workspace_result(ctx: &mut MuiContext, result: &WorkspaceEdi
     if result.skipped_dirty > 0 {
         ctx.push_toast(
             crate::toast::Kind::Warn,
-            "Skipped dirty file during workspace edit",
+            result
+                .first_skipped_dirty_message
+                .as_deref()
+                .unwrap_or("Skipped dirty file during workspace edit"),
         );
     } else if result.skipped_missing > 0 {
         ctx.push_toast(
@@ -10973,7 +10996,7 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         if ctx.tabs.any_dirty_path_except(&path, ctx.tabs.active()) {
             ctx.push_toast(
                 crate::toast::Kind::Warn,
-                "Skipped dirty file during workspace edit",
+                skipped_dirty_workspace_edit_message(&path),
             );
             println!(
                 "codeaction: fix-all skipped dirty duplicate path={}",

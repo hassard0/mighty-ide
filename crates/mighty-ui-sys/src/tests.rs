@@ -10262,7 +10262,10 @@ fn codeaction_fix_all_skips_dirty_duplicate_tab() {
     assert_eq!(std::fs::read_to_string(&path).unwrap(), "old_symbol\n");
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Skipped dirty file during workspace edit");
+    assert_eq!(
+        toast.message,
+        "Skipped dirty file during workspace edit: main.mty"
+    );
 
     if let Some(v) = old_mty {
         std::env::set_var("MIGHTY_MTY", v);
@@ -10345,7 +10348,10 @@ fn codeaction_workspace_edit_skips_dirty_non_active_split_tab() {
 
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Skipped dirty file during workspace edit");
+    assert_eq!(
+        toast.message,
+        "Skipped dirty file during workspace edit: right.mty"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -10412,7 +10418,10 @@ fn codeaction_workspace_edit_skips_active_path_with_dirty_duplicate() {
     assert_eq!(std::fs::read_to_string(&path).unwrap(), "old_symbol\n");
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Skipped dirty file during workspace edit");
+    assert_eq!(
+        toast.message,
+        "Skipped dirty file during workspace edit: main.mty"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -10484,7 +10493,10 @@ fn codeaction_workspace_edit_skips_dirty_duplicate_when_clean_tab_matches_first(
     assert_eq!(std::fs::read_to_string(&right).unwrap(), "right_symbol\n");
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Skipped dirty file during workspace edit");
+    assert_eq!(
+        toast.message,
+        "Skipped dirty file during workspace edit: right.mty"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }

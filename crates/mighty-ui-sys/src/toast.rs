@@ -2552,6 +2552,17 @@ mod tests {
             q.toasts()[0].message,
             "Skipped missing file during workspace edit: missing.mty: The system cannot find the file specified. (os error 2)"
         );
+
+        q.push_at(
+            Kind::Warn,
+            "Skipped dirty file during workspace edit: main.mty",
+            t0 + Duration::from_millis(700),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Skipped dirty file during workspace edit: main.mty"
+        );
     }
 
     #[test]
