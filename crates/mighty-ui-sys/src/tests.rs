@@ -14262,6 +14262,53 @@ fn pane_split_focus_close_via_abi() {
 }
 
 #[test]
+fn pane_set_tab_rejects_stale_indices_without_corrupting_layout() {
+    use crate::{
+        mui_pane_count, mui_pane_set_tab, mui_pane_split_right, mui_pane_tab, mui_tab_active,
+    };
+
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let other = ctx
+        .tabs
+        .open_path(std::env::temp_dir().join("mui_pane_set_tab_b.txt"));
+    ctx.tabs.switch(0);
+    ctx.panes = crate::panes::PaneLayout::new(0);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(mui_pane_split_right(h), 2);
+    assert_eq!(mui_pane_count(h), 2);
+    assert_eq!(mui_pane_tab(h, 0), 0);
+    assert_eq!(mui_pane_tab(h, 1), 0);
+    assert_eq!(mui_tab_active(h), 0);
+
+    assert_eq!(mui_pane_set_tab(h, 99, other as i32), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No pane at that position"
+    );
+    assert_eq!(mui_pane_tab(h, 0), 0);
+    assert_eq!(mui_pane_tab(h, 1), 0);
+    assert_eq!(mui_tab_active(h), 0);
+
+    assert_eq!(mui_pane_set_tab(h, 1, 99), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No tab at that position"
+    );
+    assert_eq!(mui_pane_tab(h, 0), 0);
+    assert_eq!(mui_pane_tab(h, 1), 0);
+    assert_eq!(mui_tab_active(h), 0);
+
+    assert_eq!(mui_pane_set_tab(h, 1, other as i32), other as i32);
+    assert_eq!(mui_pane_tab(h, 0), 0);
+    assert_eq!(mui_pane_tab(h, 1), other as i32);
+    assert_eq!(mui_tab_active(h), other as i32);
+
+    let _ = std::fs::remove_file(std::env::temp_dir().join("mui_pane_set_tab_b.txt"));
+}
+
+#[test]
 fn markdown_preview_header_close_hit_collapses_preview() {
     use crate::ffi::MuiEvent;
 

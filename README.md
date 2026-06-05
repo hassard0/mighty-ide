@@ -70,6 +70,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   split-pane layouts
 - Direct tab switches, next-tab, and previous-tab entry points retarget the
   focused split pane without collapsing or rebinding the other pane
+- Split-pane retargeting rejects stale pane or tab indexes with visible
+  feedback before changing the layout, so exported pane calls cannot bind a pane
+  to a missing tab
 - File-opening surfaces, including Open File, New File, Explorer rows, Quick
   Open, Welcome recents, definition targets, and New Untitled, follow the same
   focused-pane binding rule so split layouts stay coherent outside the main UI

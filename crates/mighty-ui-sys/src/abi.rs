@@ -15185,15 +15185,21 @@ pub extern "C" fn mui_pane_set_tab(handle: i64, i: i32, tab: i32) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    if i >= 0 && tab >= 0 {
-        // Stash the focused pane's live scroll first so a focused retarget keeps
-        // the other pane's position intact.
-        let s = active_scroll(ctx);
-        ctx.panes.save_focused_scroll(s);
-        ctx.panes.set_tab(i as usize, tab as usize);
-        if i as usize == ctx.panes.focused() {
-            pane_rebind_focus(ctx);
-        }
+    if i < 0 || i as usize >= ctx.panes.count() {
+        ctx.push_toast(crate::toast::Kind::Warn, "No pane at that position");
+        return ctx.panes.focused_tab() as i32;
+    }
+    if tab < 0 || tab as usize >= ctx.tabs.count() {
+        ctx.push_toast(crate::toast::Kind::Warn, "No tab at that position");
+        return ctx.panes.focused_tab() as i32;
+    }
+    // Stash the focused pane's live scroll first so a focused retarget keeps
+    // the other pane's position intact.
+    let s = active_scroll(ctx);
+    ctx.panes.save_focused_scroll(s);
+    ctx.panes.set_tab(i as usize, tab as usize);
+    if i as usize == ctx.panes.focused() {
+        pane_rebind_focus(ctx);
     }
     ctx.panes.focused_tab() as i32
 }
