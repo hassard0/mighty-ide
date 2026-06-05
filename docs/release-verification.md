@@ -49,6 +49,30 @@ Platform: Linux x64
 Release decision: unbuilt - native Linux runner unavailable
 ```
 
+## Final Pass Evidence
+
+Use this snapshot shape for the final handoff. Only write `publish` for evidence
+collected on that platform's native host or matching CI runner.
+
+```text
+Platform: Windows x64
+Archive: dist\mighty-ide-v0.3.0-win64.zip
+Package script: .\package-win.ps1
+Native payloads: PE mighty-ide.exe; PE mighty_ui_sys.dll
+Sidecar scan: package directory and ZIP passed
+Foreign-payload scan: package directory and ZIP passed
+Packaged launch: launched from dist\mighty-ide-win64
+Release decision: publish
+
+Platform: macOS
+Archive: dist/mighty-ide-v0.3.0-macos.tar.gz
+Release decision: unbuilt - native macOS runner unavailable
+
+Platform: Linux x64
+Archive: dist/mighty-ide-v0.3.0-linux-x64.tar.gz
+Release decision: unbuilt - native Linux runner unavailable
+```
+
 ## Final Handoff Status
 
 Use this table at the end of the pass. Fill in only evidence gathered on the

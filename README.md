@@ -255,6 +255,14 @@ Current release state from this checkout:
   `unbuilt`; do not publish a renamed archive, placeholder archive, or native
   payload copied from another OS.
 
+Final pass evidence to record before upload:
+
+| Platform | Local decision | Required evidence |
+|----------|----------------|-------------------|
+| Windows x64 | `publish` only after the Windows package script and packaged launch pass here | ZIP size/hash, PE header checks for `mighty-ide.exe` and `mighty_ui_sys.dll`, staging-tree and ZIP sidecar/foreign-payload scans, `PACKAGE-MANIFEST.txt`, packaged launch |
+| macOS | `unbuilt` from this Windows checkout | Native macOS runner must run `./package-macos.sh`, verify Mach-O payloads, scan the tarball, and launch the app bundle before upload |
+| Linux x64 | `unbuilt` from this Windows checkout | Native Linux runner must run `./package-linux.sh`, verify ELF payloads, scan the tarball, and launch from the package directory before upload |
+
 | Platform | Command | Archive | Native payload checks |
 |----------|---------|---------|-----------------------|
 | Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; staged tree and ZIP contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.dylib`/`.so` files |

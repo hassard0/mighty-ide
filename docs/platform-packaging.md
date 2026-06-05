@@ -39,6 +39,11 @@ The release invariant is one archive, one native binary family:
 - macOS packages contain Mach-O files only for native code.
 - Linux packages contain ELF files only for native code.
 
+Clean means the finished upload artifact was checked, not just the staging
+directory. If a script builds a valid package tree and then the archive scan
+finds a sidecar or foreign native payload, the release state is `hold` until
+that archive is regenerated and rescanned.
+
 A completed release has one verification record per uploaded platform. That
 record must come from the package script and the native smoke test for that
 platform, not from another OS package. If the Windows package is current but
@@ -60,6 +65,9 @@ after the PowerShell package script and packaged launch succeed here. macOS and
 Linux remain `unbuilt` until their own scripts run and launch on native
 infrastructure; the presence of `package-macos.sh` and `package-linux.sh` is
 script readiness, not binary cleanliness.
+The optional Bash Windows packager follows the same final-artifact rule: it
+bundles this verification guide and scans the ZIP after compression, but the
+PowerShell script remains the canonical Windows release path on this host.
 
 The sidecar scan is intentionally shared in spirit across all three scripts:
 package trees and finished archives must not contain `.pdb`, `.lib`, `.exp`,

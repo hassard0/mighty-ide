@@ -11,7 +11,8 @@
 #      rcedit), the release DLL, the brand .ico, the showcase samples/, the
 #      Create-Desktop-Shortcut.ps1 helper and RUN.txt (fonts are EMBEDDED in the
 #      DLL via include_bytes!, so no fonts/ dir is shipped).
-#   5. zip -> dist/mighty-ide-v0.3.0-win64.zip.
+#   5. zip -> dist/mighty-ide-v0.3.0-win64.zip, then scan the ZIP for
+#      compiler/linker sidecars and non-Windows native payloads.
 #
 # Icon tooling: tools/make-icon.py (Pillow) renders assets/mighty-ide.ico; the
 # exe icon is stamped with tools/rcedit-x64.exe (electron/rcedit v2.0.0).
@@ -108,6 +109,7 @@ cp RUN.txt             "$DIST/RUN.txt"
 mkdir -p "$DIST/docs"
 cp README.md KEYBINDINGS.md CHANGELOG.md BUILDING.md LICENSE "$DIST/"
 cp docs/platform-packaging.md "$DIST/docs/platform-packaging.md"
+cp docs/release-verification.md "$DIST/docs/release-verification.md"
 
 if find "$DIST" \( -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.a' -o -name '*.rlib' -o -name '*.log' -o -name '*.debug' -o -name '*.map' \) -o -type d -name '*.dSYM' \) | grep -q .; then
   echo "ERROR: package contains build byproducts:" >&2
@@ -144,6 +146,18 @@ echo "[5/5] zip -> dist/mighty-ide-$VERSION-win64.zip"
 ZIP="mighty-ide-$VERSION-win64.zip"
 ( cd dist && rm -f "$ZIP" && powershell.exe -NoProfile -Command \
     "Compress-Archive -Path '$PKG' -DestinationPath '$ZIP' -Force" )
+powershell.exe -NoProfile -Command "\
+  Add-Type -AssemblyName System.IO.Compression.FileSystem; \
+  \$zip = [System.IO.Compression.ZipFile]::OpenRead('dist/$ZIP'); \
+  try { \
+    \$bad = \$zip.Entries | Where-Object { \
+      \$_.FullName -match '\.(pdb|lib|exp|ilk|obj|o|a|rlib|log|debug|map|dylib|so)$|\.dSYM(/|$)' \
+    }; \
+    if (\$bad) { \
+      \$names = (\$bad | ForEach-Object { \$_.FullName }) -join [Environment]::NewLine; \
+      throw \"archive contains build sidecars or non-Windows native payloads:\$([Environment]::NewLine)\$names\" \
+    } \
+  } finally { \$zip.Dispose() }"
 
 echo "OK:"
 ls -la "$DIST"
