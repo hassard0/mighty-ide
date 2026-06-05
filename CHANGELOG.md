@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Release packaging
+- **Windows Bash package docs match the canonical package**: `package-win.sh`
+  now bundles `docs/release-evidence.md` and
+  `docs/binary-release-status.md`, matching the PowerShell, macOS, and Linux
+  package paths.
 - **Binary release status is bundled**: every package now includes
   `docs/binary-release-status.md`, a concise per-platform stop/pass summary
   defining clean binaries, valid `publish`/`hold`/`unbuilt` decisions, and the

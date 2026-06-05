@@ -122,6 +122,8 @@ mkdir -p "$DIST/docs"
 cp README.md KEYBINDINGS.md CHANGELOG.md BUILDING.md LICENSE "$DIST/"
 cp docs/platform-packaging.md "$DIST/docs/platform-packaging.md"
 cp docs/release-verification.md "$DIST/docs/release-verification.md"
+cp docs/release-evidence.md "$DIST/docs/release-evidence.md"
+cp docs/binary-release-status.md "$DIST/docs/binary-release-status.md"
 cp docs/final-release-handoff.md "$DIST/docs/final-release-handoff.md"
 
 if find "$DIST" \( -type f \( -name '*.pdb' -o -name '*.lib' -o -name '*.exp' -o -name '*.ilk' -o -name '*.obj' -o -name '*.o' -o -name '*.a' -o -name '*.rlib' -o -name '*.log' -o -name '*.debug' -o -name '*.map' \) -o -type d -name '*.dSYM' \) | grep -q .; then

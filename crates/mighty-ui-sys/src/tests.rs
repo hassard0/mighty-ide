@@ -116,6 +116,18 @@ fn package_scripts_bundle_release_verification_docs() {
             body.contains("platform-packaging.md"),
             "{script} must bundle docs/platform-packaging.md so clean-binary rules travel with packages"
         );
+        assert!(
+            body.contains("release-evidence.md"),
+            "{script} must bundle docs/release-evidence.md so the upload record template travels with packages"
+        );
+        assert!(
+            body.contains("binary-release-status.md"),
+            "{script} must bundle docs/binary-release-status.md so platform publish status travels with packages"
+        );
+        assert!(
+            body.contains("final-release-handoff.md"),
+            "{script} must bundle docs/final-release-handoff.md so stop/pass rules travel with packages"
+        );
     }
 }
 
