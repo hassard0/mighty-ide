@@ -14297,6 +14297,52 @@ fn open_file_dialog_cancel_does_not_open_prompt_signal() {
 }
 
 #[test]
+fn open_file_dialog_stale_or_directory_pick_reports_open_failure() {
+    use crate::{mui_open_file_dialog, mui_tab_active, mui_tab_count};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let root = std::env::temp_dir().join(format!(
+        "mui_open_file_dialog_stale_pick_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let missing = root.join("missing.mty");
+    let folder = root.join("folder");
+    std::fs::create_dir_all(&folder).unwrap();
+
+    std::env::set_var("MUI_OPEN_FILE_PICK", missing.to_string_lossy().as_ref());
+    assert_eq!(mui_open_file_dialog(h), -2);
+    std::env::remove_var("MUI_OPEN_FILE_PICK");
+    assert_eq!(mui_tab_count(h), 1);
+    assert_eq!(mui_tab_active(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast.message.starts_with("Open failed: missing.mty: "),
+        "{}",
+        toast.message
+    );
+
+    std::env::set_var("MUI_OPEN_FILE_PICK", folder.to_string_lossy().as_ref());
+    assert_eq!(mui_open_file_dialog(h), -2);
+    std::env::remove_var("MUI_OPEN_FILE_PICK");
+    assert_eq!(mui_tab_count(h), 1);
+    assert_eq!(mui_tab_active(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Open failed: folder: not a file");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn native_file_dialogs_start_in_active_file_folder() {
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();

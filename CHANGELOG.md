@@ -46,6 +46,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **New Folder names file conflicts**: typed and dialog-routed folder creation
   now report `Folder path is not a folder: <name>` when the target already
   exists as a file, instead of claiming the folder already exists.
+- **Native Open File validates picked paths**: dialog-routed opens now reject
+  stale or directory picker results with `Open failed: <file>: <reason>` and
+  leave the tab list unchanged instead of opening an empty file-backed tab.
 - **Generic diagnostic source failures are visible**: non-Mighty diagnostics now
   report `Diagnostics failed: <file>: <reason>` and clear stale diagnostics when
   a non-active file cannot be read, instead of sending empty source to the LSP.

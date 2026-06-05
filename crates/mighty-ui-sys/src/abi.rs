@@ -4427,6 +4427,23 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
         }
     };
     trace(&format!("open_file_dialog path={}", path.display()));
+    match std::fs::metadata(&path) {
+        Ok(meta) if meta.is_file() => {}
+        Ok(_) => {
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                open_failed_message(&path, "not a file"),
+            );
+            return -2;
+        }
+        Err(e) => {
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                open_failed_message(&path, &e.to_string()),
+            );
+            return -2;
+        }
+    }
     let idx = ctx.tabs.open_path(path.clone());
     sync_active_path(ctx);
     record_opened_file(ctx, &path);

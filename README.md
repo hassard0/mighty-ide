@@ -33,6 +33,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - **Bracket-pair colorization + indent guides** — nesting-depth rainbow brackets, faint per-level guides with an active-block highlight
 - **Interactive minimap** — click to jump; tall files compress so the whole file maps across the strip
 - Tabs (Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W, click), file-tree sidebar (Ctrl+B), native Open File (Ctrl+O) with typed-path fallback when the picker is unavailable
+- Native Open File rejects stale or directory picker results with the same
+  target-specific feedback as typed Open File
 - **Close Saved Tabs**, **Close Other Saved Tabs**, and directional close-left /
   close-right cleanup remove tab clutter while preserving dirty buffers
 - **Reopen Closed Tab** (Ctrl+Alt+T) restores the most recently closed editor tab,

@@ -12676,3 +12676,17 @@ non-folder path with the requested name exists. Reporting both as
 - **Language note:** no compiler gap surfaced. Filesystem commands should carry
   object-kind checks through to the UI vocabulary instead of collapsing every
   path conflict into the command's desired object kind.
+
+## L1013 - Dialog Opens Still Need Post-Pick Validation
+
+Native file pickers usually return existing files, but test hooks, stale shell
+state, or platform edge cases can still hand the IDE a missing path or a
+directory. Passing that directly to the low-level tab store can create a clean
+empty file-backed tab.
+
+- **IDE note:** native Open File now validates the picked path with metadata
+  before opening it. Missing or directory picks report `Open failed: <file>:
+  <reason>` and leave the tab list unchanged, matching typed Open File behavior.
+- **Language note:** no compiler gap surfaced. Dialog results should be treated
+  as untrusted input at the ABI boundary, even when the platform normally
+  enforces the same constraints.
