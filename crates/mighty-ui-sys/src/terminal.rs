@@ -23,7 +23,7 @@
 
 use std::io::{Read, Write};
 use std::sync::mpsc::{Receiver, TryRecvError};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex, MutexGuard};
 
 use portable_pty::{Child, CommandBuilder, MasterPty, PtySize};
 
@@ -2962,9 +2962,7 @@ impl Terminal {
                     match reader.read(&mut buf) {
                         Ok(0) => break, // EOF: shell exited
                         Ok(n) => {
-                            if let Ok(mut g) = out_thread.lock() {
-                                g.extend_from_slice(&buf[..n]);
-                            }
+                            lock_output_buffer(&out_thread).extend_from_slice(&buf[..n]);
                         }
                         Err(_) => break,
                     }
@@ -3048,16 +3046,8 @@ impl Terminal {
     /// Drain any pending PTY output through the parser into the grid. Cheap when
     /// there is nothing buffered. Call once per frame.
     pub fn pump(&mut self) {
-        let chunk = {
-            match self.out.lock() {
-                Ok(mut g) => {
-                    if g.is_empty() {
-                        return;
-                    }
-                    std::mem::take(&mut *g)
-                }
-                Err(_) => return,
-            }
+        let Some(chunk) = take_output_chunk(&self.out) else {
+            return;
         };
         self.parser.feed(&mut self.grid, &chunk);
         // Answer any DSR queries the parser collected (ConPTY blocks on these).
@@ -3213,6 +3203,19 @@ impl Terminal {
             Ok(None) => true,
             Err(_) => false,
         }
+    }
+}
+
+fn lock_output_buffer(out: &Arc<Mutex<Vec<u8>>>) -> MutexGuard<'_, Vec<u8>> {
+    out.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+fn take_output_chunk(out: &Arc<Mutex<Vec<u8>>>) -> Option<Vec<u8>> {
+    let mut g = lock_output_buffer(out);
+    if g.is_empty() {
+        None
+    } else {
+        Some(std::mem::take(&mut *g))
     }
 }
 
@@ -3554,6 +3557,25 @@ impl AsciiUpperU32 for u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn output_chunk_recovers_from_poisoned_buffer() {
+        let out = Arc::new(Mutex::new(b"terminal output".to_vec()));
+        let hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let poisoned = {
+            let out = Arc::clone(&out);
+            std::panic::catch_unwind(move || {
+                let _guard = lock_output_buffer(&out);
+                panic!("poison terminal output buffer");
+            })
+        };
+        std::panic::set_hook(hook);
+        assert!(poisoned.is_err());
+
+        assert_eq!(take_output_chunk(&out).as_deref(), Some(&b"terminal output"[..]));
+        assert_eq!(take_output_chunk(&out), None);
+    }
 
     fn grid_feed(rows: usize, cols: usize, bytes: &[u8]) -> Grid {
         let mut g = Grid::new(rows, cols);
