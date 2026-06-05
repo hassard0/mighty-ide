@@ -13294,3 +13294,16 @@ intent less clear and duplicated filesystem probes.
 - **Language note:** no compiler gap surfaced. Naming the filesystem state being
   detected matters when the same save path handles ordinary writes, resurrected
   files, and rejected non-file targets.
+
+## L1054 - Workspace Folder Validation Should Classify Once
+
+Open Folder validation had split checks for existence and directory kind even
+though both states are toast-facing outcomes for the same typed or picked path.
+
+- **IDE note:** workspace folder validation now uses one metadata read to
+  classify missing paths versus existing non-folders, preserving `No such
+  folder: <path>` and `Not a folder: <path>` feedback while avoiding duplicate
+  filesystem probes before canonicalization.
+- **Language note:** no compiler gap surfaced. User-entered filesystem targets
+  should be classified once at the command boundary, then carried forward as the
+  specific accepted or rejected state.

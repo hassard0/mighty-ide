@@ -92,11 +92,10 @@ pub fn validate_folder(input: &str) -> Result<PathBuf, String> {
             .map(|c| c.join(&raw))
             .unwrap_or(raw)
     };
-    if !abs.exists() {
-        return Err(format!("No such folder: {}", abs.display()));
-    }
-    if !abs.is_dir() {
-        return Err(format!("Not a folder: {}", abs.display()));
+    match std::fs::metadata(&abs) {
+        Ok(meta) if meta.is_dir() => {}
+        Ok(_) => return Err(format!("Not a folder: {}", abs.display())),
+        Err(_) => return Err(format!("No such folder: {}", abs.display())),
     }
     let canon = std::fs::canonicalize(&abs).unwrap_or(abs);
     Ok(strip_verbatim(canon))
@@ -275,8 +274,11 @@ mod tests {
         std::fs::create_dir_all(&base).unwrap();
         let file = base.join("a.txt");
         std::fs::write(&file, b"x").unwrap();
-        // A file path is rejected.
-        assert!(validate_folder(&file.to_string_lossy()).is_err());
+        // A file path is rejected with the specific non-folder feedback.
+        assert_eq!(
+            validate_folder(&file.to_string_lossy()).unwrap_err(),
+            format!("Not a folder: {}", file.display())
+        );
         // The directory is accepted (and made absolute).
         let ok = validate_folder(&base.to_string_lossy()).unwrap();
         assert!(ok.is_absolute());
