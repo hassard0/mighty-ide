@@ -2288,10 +2288,15 @@ pub extern "C" fn mui_visible_rows(handle: i64) -> i32 {
 pub extern "C" fn mui_bottom_dock_resize_at_click(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| {
         let (_, visible_h) = visible_surface_size(c);
-        if c.bottom_dock_open()
-            && c.last_event.button == crate::ffi::MUI_MOUSE_LEFT
-            && layout::dock_resize_hit(visible_h, c.last_event.y)
-        {
+        let resize_hit = c.last_event.button == crate::ffi::MUI_MOUSE_LEFT
+            && layout::dock_resize_hit(visible_h, c.last_event.y);
+        if !c.bottom_dock_open() {
+            if resize_hit {
+                report_no_bottom_dock(c);
+            }
+            return 0;
+        }
+        if resize_hit {
             c.bottom_dock_resizing = true;
             c.bottom_dock_resize_grab_dy = layout::term_panel_top(visible_h) - c.last_event.y;
             trace(&format!(
@@ -2313,6 +2318,10 @@ pub extern "C" fn mui_bottom_dock_resize_at_click(handle: i64) -> i32 {
 pub extern "C" fn mui_bottom_dock_resize_to_event_y(handle: i64) -> i32 {
     unsafe { ctx(handle) }.map_or(0, |c| {
         if !c.bottom_dock_open() {
+            if c.bottom_dock_resizing {
+                c.bottom_dock_resizing = false;
+                report_no_bottom_dock(c);
+            }
             return 0;
         }
         let (_, visible_h) = visible_surface_size(c);
@@ -2333,6 +2342,10 @@ pub extern "C" fn mui_bottom_dock_resize_finish(handle: i64) -> i32 {
         return 0;
     };
     if !ctx.bottom_dock_open() {
+        if ctx.bottom_dock_resizing {
+            ctx.bottom_dock_resizing = false;
+            report_no_bottom_dock(ctx);
+        }
         return 0;
     }
     let (_, visible_h) = visible_surface_size(ctx);
@@ -2350,14 +2363,15 @@ pub extern "C" fn mui_bottom_dock_close_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    if !ctx.bottom_dock_open() {
-        return 0;
-    }
     let (visible_w, visible_h) = visible_surface_size(ctx);
     let (x, y, w, h) = layout::dock_close_rect(visible_w, visible_h);
     let px = ctx.last_event.x;
     let py = ctx.last_event.y;
     if px < x || px > x + w || py < y || py > y + h {
+        return 0;
+    }
+    if !ctx.bottom_dock_open() {
+        report_no_bottom_dock(ctx);
         return 0;
     }
     if close_bottom_dock(ctx) {
@@ -2390,6 +2404,10 @@ fn close_bottom_dock(ctx: &mut MuiContext) -> bool {
     true
 }
 
+fn report_no_bottom_dock(ctx: &mut MuiContext) {
+    ctx.push_toast(crate::toast::Kind::Info, "No bottom dock is open");
+}
+
 /// Apply a shared lower-dock size preset from the latest mouse-down.
 /// Returns 1 compact, 2 default, 3 expanded, or 0 when no preset was hit.
 #[no_mangle]
@@ -2397,7 +2415,7 @@ pub extern "C" fn mui_bottom_dock_preset_at_click(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    if !ctx.bottom_dock_open() || ctx.last_event.button != crate::ffi::MUI_MOUSE_LEFT {
+    if ctx.last_event.button != crate::ffi::MUI_MOUSE_LEFT {
         return 0;
     }
     let (visible_w, visible_h) = visible_surface_size(ctx);
@@ -2406,6 +2424,10 @@ pub extern "C" fn mui_bottom_dock_preset_at_click(handle: i64) -> i32 {
     for idx in 0..3 {
         let (x, y, w, h) = layout::dock_preset_rect(visible_w, visible_h, idx);
         if px >= x && px <= x + w && py >= y && py <= y + h {
+            if !ctx.bottom_dock_open() {
+                report_no_bottom_dock(ctx);
+                return 0;
+            }
             let (frac, label) = match idx {
                 0 => (layout::TERM_FRACTION_MIN, "Dock compact"),
                 1 => (layout::TERM_FRACTION, "Dock reset"),
@@ -2435,7 +2457,7 @@ pub extern "C" fn mui_dock_dispatch(handle: i64, id: i32) -> i32 {
             trace(&format!("dock_dispatch id={id} close"));
             return 4;
         }
-        ctx.push_toast(crate::toast::Kind::Info, "No bottom dock is open");
+        report_no_bottom_dock(ctx);
         trace(&format!("dock_dispatch id={id} close noop"));
         return 0;
     }

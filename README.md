@@ -74,6 +74,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   close-right cleanup remove tab clutter while preserving dirty buffers
 - Unsaved-changes confirmation stale click routes report when the confirmation
   has already closed
+- Bottom dock stale close, preset, and resize affordances report when no dock is
+  open, while ordinary editor clicks stay quiet
 - **Reopen Closed Tab** (Ctrl+Alt+T) restores the most recently closed editor tab,
   including tabs removed by cleanup commands, without collapsing split-pane
   layouts

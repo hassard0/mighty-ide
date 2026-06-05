@@ -3721,6 +3721,64 @@ fn bottom_dock_resize_uses_visible_mouse_geometry() {
         ctx.toasts.toasts().last().unwrap().message,
         "No bottom dock is open"
     );
+    let toast_count_before_editor_click = ctx.toasts.toasts().len();
+    ctx.last_event = MuiEvent::mouse(MUI_EVENT_MOUSE_DOWN, MUI_MOUSE_LEFT, 320.0, 180.0, 0);
+    assert_eq!(crate::abi::mui_bottom_dock_close_at_click(handle), 0);
+    assert_eq!(ctx.toasts.toasts().len(), toast_count_before_editor_click);
+
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        cx + cw * 0.5,
+        cy + ch * 0.5,
+        0,
+    );
+    assert_eq!(crate::abi::mui_bottom_dock_close_at_click(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No bottom dock is open",
+        "stale dock close affordance should report the closed dock"
+    );
+
+    ctx.last_event = MuiEvent::mouse(
+        MUI_EVENT_MOUSE_DOWN,
+        MUI_MOUSE_LEFT,
+        rx + rw * 0.5,
+        ry + rh * 0.5,
+        0,
+    );
+    assert_eq!(crate::abi::mui_bottom_dock_preset_at_click(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No bottom dock is open",
+        "stale dock preset affordance should report the closed dock"
+    );
+
+    ctx.last_event = MuiEvent::mouse(MUI_EVENT_MOUSE_DOWN, MUI_MOUSE_LEFT, 500.0, edge_y, 0);
+    assert_eq!(crate::abi::mui_bottom_dock_resize_at_click(handle), 0);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No bottom dock is open",
+        "stale dock resize affordance should report the closed dock"
+    );
+
+    ctx.bottom_dock_resizing = true;
+    assert_eq!(crate::abi::mui_bottom_dock_resize_to_event_y(handle), 0);
+    assert!(!ctx.bottom_dock_resizing);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No bottom dock is open",
+        "stale dock drag should release capture and report the closed dock"
+    );
+
+    ctx.bottom_dock_resizing = true;
+    assert_eq!(crate::abi::mui_bottom_dock_resize_finish(handle), 0);
+    assert!(!ctx.bottom_dock_resizing);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No bottom dock is open",
+        "stale dock resize finish should release capture and report the closed dock"
+    );
     crate::uiscale::set_os_scale(1.0);
     crate::uiscale::set_user_zoom(1.0);
     crate::layout::reset_dock_fraction();

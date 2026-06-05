@@ -45,6 +45,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   packaged launch result.
 
 ### Tabs and panes
+- **Bottom dock stale chrome is visible**: stale close, preset, and resize
+  affordance routes now report when no bottom dock is open, while ordinary
+  editor clicks outside the old dock chrome stay quiet.
 - **Direct tab switches preserve split panes**: exported tab switch, next-tab,
   and previous-tab entry points now retarget only the focused split pane, keeping
   the other pane bound to its original document.
