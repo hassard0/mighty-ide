@@ -11490,3 +11490,15 @@ silently recreate the file with partial replacement text.
 - **Language note:** no compiler gap surfaced. File-backed transformation
   primitives need to distinguish "create a new file" from "edit existing
   content" before falling back to an empty buffer.
+
+## L930 - Load Failures Need Visible Feedback Too
+
+Reload Active File already reported missing-file failures with a toast, but the
+lower-level editor load path only logged the failed disk read and refreshed file
+indexes. If a Mighty-side load happened after the backing file disappeared, the
+buffer was preserved but the user did not get visible feedback.
+
+- **IDE note:** `mui_ed_load` now reports `Load failed: <name>` while keeping
+  the current buffer intact and refreshing Explorer/Quick Open indexes.
+- **Language note:** no compiler gap surfaced. Even preserving fallbacks should
+  report failed file-backed state transitions in the visible UI, not only stderr.

@@ -11766,6 +11766,8 @@ fn mui_ed_load_impl(handle: i64, preserve_undo: bool) -> i64 {
         Err(e) => {
             eprintln!("mui_ed_load({}): {e}", path.display());
             refresh_workspace_file_views(ctx);
+            let name = basename(&path);
+            ctx.push_toast(crate::toast::Kind::Error, format!("Load failed: {name}"));
             -1
         }
     }
