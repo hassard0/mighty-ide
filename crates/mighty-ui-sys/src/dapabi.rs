@@ -98,6 +98,36 @@ fn debug_target_label(path: &std::path::Path) -> String {
         .to_string()
 }
 
+enum BreakpointTargetKind {
+    File,
+    Missing,
+    NotFile,
+}
+
+fn breakpoint_target_kind(path: &std::path::Path) -> BreakpointTargetKind {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => BreakpointTargetKind::File,
+        Ok(_) => BreakpointTargetKind::NotFile,
+        Err(_) => BreakpointTargetKind::Missing,
+    }
+}
+
+fn reject_bad_breakpoint_target(
+    ctx: &mut MuiContext,
+    path: &std::path::Path,
+    kind: BreakpointTargetKind,
+) -> i32 {
+    let name = crate::abi::file_target_name(path);
+    crate::abi::refresh_workspace_file_views(ctx);
+    let message = match kind {
+        BreakpointTargetKind::Missing => format!("Breakpoint target missing: {name}"),
+        BreakpointTargetKind::NotFile => format!("Breakpoint target is not a file: {name}"),
+        BreakpointTargetKind::File => return -1,
+    };
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+    -1
+}
+
 fn active_debug_target_name(ctx: &MuiContext) -> String {
     ctx.tabs
         .active_path()
@@ -1167,31 +1197,22 @@ pub extern "C" fn mui_bp_open_at_hit(handle: i64, code: i32) -> i32 {
         return -1;
     };
     let path = std::path::PathBuf::from(&target.file);
-    if !path.exists() {
-        let name = crate::abi::file_target_name(&path);
-        if ctx.dbg.remove_breakpoint(&target.file, target.line)
-            && ctx.dbg.state() != crate::dap::DebugState::Idle
-            && ctx.dbg.state() != crate::dap::DebugState::Terminated
-        {
-            ctx.dbg.resend_breakpoints();
+    match breakpoint_target_kind(&path) {
+        BreakpointTargetKind::File => {}
+        BreakpointTargetKind::Missing => {
+            if ctx.dbg.remove_breakpoint(&target.file, target.line)
+                && ctx.dbg.state() != crate::dap::DebugState::Idle
+                && ctx.dbg.state() != crate::dap::DebugState::Terminated
+            {
+                ctx.dbg.resend_breakpoints();
+            }
+            crate::abi::trace(&format!("bp_open missing {}", target.file));
+            return reject_bad_breakpoint_target(ctx, &path, BreakpointTargetKind::Missing);
         }
-        crate::abi::refresh_workspace_file_views(ctx);
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
-            format!("Breakpoint target missing: {name}"),
-        );
-        crate::abi::trace(&format!("bp_open missing {}", target.file));
-        return -1;
-    }
-    if !path.is_file() {
-        let name = crate::abi::file_target_name(&path);
-        crate::abi::refresh_workspace_file_views(ctx);
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
-            format!("Breakpoint target is not a file: {name}"),
-        );
-        crate::abi::trace(&format!("bp_open not-file {}", target.file));
-        return -1;
+        BreakpointTargetKind::NotFile => {
+            crate::abi::trace(&format!("bp_open not-file {}", target.file));
+            return reject_bad_breakpoint_target(ctx, &path, BreakpointTargetKind::NotFile);
+        }
     }
     let tab = ctx.tabs.open_path(path.clone());
     crate::abi::sync_active_path(ctx);

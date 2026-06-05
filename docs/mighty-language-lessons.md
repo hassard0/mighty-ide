@@ -13232,3 +13232,20 @@ instead of trying to resolve a dead location again.
   `Run target is not a file: <name>`.
 - **Language note:** no compiler gap surfaced. Compiler/runtime output should
   be treated as stale navigation data until the target kind is proven.
+
+## L1050 - Breakpoint Rows Are Cached Debug Navigation Targets
+
+The Debug panel's breakpoint inventory stores source file paths independently
+from the filesystem. A breakpoint can remain listed after its file is deleted
+or replaced, and missing files also require removing the stale breakpoint from
+the debug model.
+
+- **IDE note:** breakpoint row activation now classifies the target path with
+  one metadata read before opening or rejecting it. Missing targets still remove
+  the breakpoint and resend breakpoints when a live debug session needs it;
+  missing and non-file targets then share the workspace-refresh and warning
+  path: `Breakpoint target missing: <name>` and
+  `Breakpoint target is not a file: <name>`.
+- **Language note:** no compiler gap surfaced. Debug UI state should treat
+  breakpoint locations as cached navigation data until disk state confirms the
+  target is still a source file.
