@@ -25,7 +25,7 @@
 use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
 use crate::diagnostics::{Diag, Severity};
@@ -250,9 +250,7 @@ pub fn request_with_timeout(
         ];
         for (msg, pause_ms) in stages {
             let framed = frame(msg);
-            let Ok(mut stdin) = writer_stdin.lock() else {
-                return;
-            };
+            let mut stdin = lock_shared(&writer_stdin);
             if stdin.write_all(&framed).is_err() || stdin.flush().is_err() {
                 return;
             }
@@ -283,10 +281,9 @@ pub fn request_with_timeout(
                     if respond_apply_edit && !apply_edit_replied {
                         if let Some(id) = apply_edit_request_id(&buf) {
                             let response = apply_edit_response(&id);
-                            if let Ok(mut stdin) = reader_stdin.lock() {
-                                let _ = stdin.write_all(&frame(&response));
-                                let _ = stdin.flush();
-                            }
+                            let mut stdin = lock_shared(&reader_stdin);
+                            let _ = stdin.write_all(&frame(&response));
+                            let _ = stdin.flush();
                             apply_edit_replied = true;
                         }
                     }
@@ -330,6 +327,10 @@ pub fn request_with_timeout(
     } else {
         response
     }
+}
+
+fn lock_shared<T>(shared: &Arc<Mutex<T>>) -> MutexGuard<'_, T> {
+    shared.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 fn request_msg(method: &Method, uri: &str, source: &str, line: u32, col: u32) -> String {
@@ -1033,6 +1034,27 @@ fn match_bracket(bytes: &[u8], open: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shared_lock_recovers_from_poisoned_state() {
+        let shared = Arc::new(Mutex::new(Vec::<u8>::from(b"lsp")));
+        let hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let poisoned = {
+            let shared = Arc::clone(&shared);
+            std::panic::catch_unwind(move || {
+                let mut guard = lock_shared(&shared);
+                guard.extend_from_slice(b" poisoned");
+                panic!("poison lsp shared lock");
+            })
+        };
+        std::panic::set_hook(hook);
+        assert!(poisoned.is_err());
+
+        let mut guard = lock_shared(&shared);
+        guard.extend_from_slice(b" recovered");
+        assert_eq!(&guard[..], b"lsp poisoned recovered");
+    }
 
     #[test]
     fn parses_publish_diagnostics() {
