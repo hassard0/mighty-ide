@@ -4501,6 +4501,30 @@ fn new_project_rejects_missing_or_non_folder_parent_with_named_feedback() {
 }
 
 #[test]
+fn new_project_rejects_file_target_with_project_specific_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_new_project_file_target_{}", std::process::id()));
+    let target = root.join("existing_project");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(&target, b"not a folder").unwrap();
+
+    assert_eq!(
+        crate::newprojabi::create_project_at(&mut ctx, target.clone()),
+        0
+    );
+    assert_eq!(std::fs::read(&target).unwrap(), b"not a folder");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "New project target is not a folder: existing_project"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn new_project_dialog_cancel_does_not_open_prompt_fallback() {
     let _g = crate::settings::TEST_LOCK
         .lock()

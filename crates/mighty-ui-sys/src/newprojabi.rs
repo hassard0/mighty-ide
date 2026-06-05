@@ -47,6 +47,15 @@ fn new_project_parent_not_folder_message(parent: &Path) -> String {
     format!("New project parent is not a folder: {label}")
 }
 
+fn new_project_target_not_folder_message(target: &Path) -> String {
+    let label = target
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(str::to_string)
+        .unwrap_or_else(|| target.to_string_lossy().into_owned());
+    format!("New project target is not a folder: {label}")
+}
+
 /// Create a new Mighty project from the NAME staged in the shared path buffer.
 ///
 /// Returns:
@@ -138,7 +147,10 @@ pub(crate) fn create_project_at(ctx: &mut MuiContext, target: PathBuf) -> i32 {
 
     if target.exists() {
         if !target.is_dir() {
-            ctx.push_toast(crate::toast::Kind::Warn, format!("File already exists: {name}"));
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                new_project_target_not_folder_message(&target),
+            );
             println!("newproj: target is a file: {}", target.display());
             return 0;
         }

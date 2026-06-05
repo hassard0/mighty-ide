@@ -13028,3 +13028,17 @@ validation collapsed missing parents and non-folder parents into a generic
 - **Language note:** no compiler gap surfaced. Project scaffolding is another
   file-write boundary: the operation should name the exact blocking ancestor
   before delegating to a host tool.
+
+## L1037 - New Project Target Kind Feedback Should Stay Project-Scoped
+
+When the selected New Project target path already existed as a file, the IDE
+reported `File already exists: <name>`. That protected the file, but it sounded
+like the New File command and entered the New File toast replacement lane.
+
+- **IDE note:** New Project now reports
+  `New project target is not a folder: <name>` when the chosen project path is
+  an existing file. The existing file is left untouched, `mty new` is not
+  spawned, and the toast coalesces with other New Project feedback.
+- **Language note:** no compiler gap surfaced. Command-specific filesystem
+  failures should keep their owning workflow in the message, especially when
+  toast grouping and user recovery depend on that workflow identity.

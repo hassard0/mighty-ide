@@ -726,6 +726,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("New project parent missing:")
         || m.starts_with("New project parent is not a folder:")
         || m.starts_with("New project parent unavailable:")
+        || m.starts_with("New project target is not a folder:")
     {
         Some(OperationKey::CreateProject)
     } else if m == "Split editor right"
@@ -1383,10 +1384,15 @@ mod tests {
             "New project parent is not a folder: parent.txt",
             t0 + Duration::from_millis(1650),
         );
+        q.push_at(
+            Kind::Warn,
+            "New project target is not a folder: existing_project",
+            t0 + Duration::from_millis(1675),
+        );
         assert_eq!(q.len(), 3);
         assert_eq!(
             q.toasts()[2].message,
-            "New project parent is not a folder: parent.txt"
+            "New project target is not a folder: existing_project"
         );
         assert!(!q
             .toasts()
@@ -1396,6 +1402,10 @@ mod tests {
             .toasts()
             .iter()
             .any(|t| t.message == "Could not inspect folder: app"));
+        assert!(!q
+            .toasts()
+            .iter()
+            .any(|t| t.message == "New project parent is not a folder: parent.txt"));
 
         q.push_at(Kind::Info, "Closed 1 saved tab", t0 + Duration::from_millis(1700));
         q.push_at(Kind::Warn, "No tab at that position", t0 + Duration::from_millis(1800));
