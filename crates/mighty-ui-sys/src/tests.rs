@@ -14587,7 +14587,7 @@ fn markdown_preview_rejects_non_markdown_active_file() {
     assert_eq!(crate::abi::mui_pane_count(h), 1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Markdown Preview is available for Markdown files");
+    assert_eq!(toast.message, "Markdown preview is available for Markdown files");
 }
 
 #[test]

@@ -13660,3 +13660,15 @@ Debug-panel state.
 - **Language note:** no compiler gap surfaced. Prefix classifiers should account
   for plural success messages when the operation has both singular row actions
   and bulk actions.
+
+## L1080 - Markdown Preview Toast Casing Should Be Stable
+
+Most live-preview feedback used `Markdown preview`, but the non-Markdown guard
+used `Markdown Preview`. That inconsistent casing made the same feature look
+like two differently named surfaces in transient feedback.
+
+- **IDE note:** the non-Markdown guard now says `Markdown preview is available
+  for Markdown files` and coalesces with the rest of the Markdown preview
+  feedback.
+- **Language note:** no compiler gap surfaced. User-facing feature names should
+  keep stable casing across success, close, already-closed, and guard messages.

@@ -15319,7 +15319,7 @@ pub extern "C" fn mui_md_open(handle: i64) -> i32 {
         return 0;
     };
     if ctx.language != crate::langdetect::Language::Markdown {
-        ctx.push_toast(crate::toast::Kind::Warn, "Markdown Preview is available for Markdown files");
+        ctx.push_toast(crate::toast::Kind::Warn, "Markdown preview is available for Markdown files");
         trace("md_open unavailable: non_markdown");
         return 0;
     }
