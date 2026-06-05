@@ -616,6 +616,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Source Control panel closed"
         || m == "Source Control panel is already closed"
         || m.starts_with("Source control target missing")
+        || m.starts_with("Source control target is not a file")
         || m == "No hunk selected"
         || m == "No diff hunk selected"
         || m == "Diff hunk no longer listed"
@@ -826,6 +827,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Test results ")
         || m.starts_with("Testing panel ")
         || m.starts_with("Test target missing")
+        || m.starts_with("Test target is not a file")
     {
         Some(OperationKey::Test)
     } else if m.starts_with("Run in Browser:")
@@ -847,6 +849,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Run output ")
         || m.starts_with("Run panel ")
         || m.starts_with("Run target missing")
+        || m.starts_with("Run target is not a file")
     {
         Some(OperationKey::WebRun)
     } else if m.starts_with("Theme:")
@@ -1976,6 +1979,14 @@ mod tests {
         assert_eq!(q.toasts()[0].message, "No test run to stop");
 
         q.push_at(
+            Kind::Warn,
+            "Test target is not a file: parser.test",
+            t0 + Duration::from_millis(325),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Test target is not a file: parser.test");
+
+        q.push_at(
             Kind::Info,
             "Test run stopped",
             t0 + Duration::from_millis(350),
@@ -2267,6 +2278,17 @@ mod tests {
         assert_eq!(q.toasts()[0].message, "Source control row no longer listed");
 
         q.push_at(
+            Kind::Warn,
+            "Source control target is not a file: changed.mty",
+            t0 + Duration::from_millis(275),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Source control target is not a file: changed.mty"
+        );
+
+        q.push_at(
             Kind::Success,
             "Staged all changes",
             t0 + Duration::from_millis(300),
@@ -2486,6 +2508,14 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Save (scratch) before running");
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
+            Kind::Warn,
+            "Run target is not a file: run_target.mty",
+            t0 + Duration::from_millis(650),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Run target is not a file: run_target.mty");
 
         q.push_at(
             Kind::Info,

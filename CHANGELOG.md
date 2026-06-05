@@ -160,6 +160,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Definition, Explorer, Quick Open, breadcrumb, Problems, and Search now
   coalesce with their navigation/code-intelligence feedback families just like
   missing-target warnings.
+- **Run, Test, and Source Control stale-target toasts replace cleanly**:
+  non-file target warnings from runner, test, and source-control surfaces now
+  coalesce with the command family that produced them instead of lingering as
+  independent warnings.
 - **Delete Active File rejects directory targets**: after exact-name
   confirmation and dirty-buffer checks, Delete Active File now preflights the
   active path before removal. Directory targets report
