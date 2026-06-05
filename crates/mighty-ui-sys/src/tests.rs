@@ -11016,7 +11016,10 @@ fn format_current_refuses_dirty_active_tab() {
     assert!(ctx.tabs.is_dirty(idx));
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Save or discard changes before formatting");
+    assert_eq!(
+        toast.message,
+        "Save or discard changes in main.mty before formatting"
+    );
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -11056,7 +11059,10 @@ fn format_current_refuses_dirty_duplicate_tab() {
     assert!(ctx.tabs.is_dirty(duplicate));
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Save or discard changes before formatting");
+    assert_eq!(
+        toast.message,
+        "Save or discard changes in main.mty before formatting"
+    );
 
     let _ = std::fs::remove_dir_all(root);
 }

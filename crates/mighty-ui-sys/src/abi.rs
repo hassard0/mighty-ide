@@ -11532,6 +11532,11 @@ fn format_needs_file_message(ctx: &MuiContext) -> String {
     format!("Save {name} before formatting")
 }
 
+fn format_dirty_target_message(path: &std::path::Path) -> String {
+    let name = basename(path);
+    format!("Save or discard changes in {name} before formatting")
+}
+
 #[no_mangle]
 pub extern "C" fn mui_format_current(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -11546,7 +11551,7 @@ pub extern "C" fn mui_format_current(handle: i64) -> i32 {
         println!("format: {} -> skipped dirty open tab", path.display());
         ctx.push_toast(
             crate::toast::Kind::Warn,
-            "Save or discard changes before formatting",
+            format_dirty_target_message(&path),
         );
         return -1;
     }

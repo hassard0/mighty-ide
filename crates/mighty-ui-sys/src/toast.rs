@@ -839,6 +839,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Save the file before formatting"
         || (m.starts_with("Save ") && m.ends_with(" before formatting"))
         || m == "Save or discard changes before formatting"
+        || (m.starts_with("Save or discard changes in ") && m.ends_with(" before formatting"))
         || m == "Format is available for Mighty files"
     {
         Some(OperationKey::Format)
@@ -2744,6 +2745,16 @@ mod tests {
         assert_eq!(
             q.toasts()[0].message,
             "Save or discard changes before formatting"
+        );
+        q.push_at(
+            Kind::Warn,
+            "Save or discard changes in main.mty before formatting",
+            t0 + Duration::from_millis(75),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Save or discard changes in main.mty before formatting"
         );
         q.push_at(
             Kind::Info,

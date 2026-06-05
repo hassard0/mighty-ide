@@ -12207,3 +12207,16 @@ untitled scratch buffer rather than a file-backed tab.
   stay in the format toast replacement lane.
 - **Language note:** no compiler gap surfaced. File-mutating commands should
   distinguish scratch buffers from file-backed targets when refusing to run.
+
+## L980 - Formatter Dirty Refusals Should Name The Target
+
+Formatting a file with dirty active or duplicate tabs correctly refused to run,
+but the toast only said `Save or discard changes before formatting`. That did
+not identify which file needed attention before the formatter could safely
+mutate disk.
+
+- **IDE note:** dirty formatter refusals now report
+  `Save or discard changes in file before formatting`, using the blocked file's
+  basename and preserving format toast replacement behavior.
+- **Language note:** no compiler gap surfaced. Mutating tooling commands should
+  name the exact dirty target when refusing to avoid data loss.
