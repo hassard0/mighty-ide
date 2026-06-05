@@ -122,3 +122,21 @@ package runs complete and launch successfully on those platforms.
 
 If a native host or matching CI runner is unavailable, record that platform as
 `unbuilt`. Do not publish a placeholder archive.
+
+## Stop-Pass Handoff
+
+When finalizing from this Windows checkout, stop with this status unless native
+macOS and Linux runners were actually used during the same pass:
+
+```text
+Windows x64: publish only after .\package-win.ps1 rebuilds the ZIP from the
+clean committed tree and the packaged executable launches from
+dist\mighty-ide-win64.
+
+macOS: unbuilt - native macOS runner unavailable in this Windows pass.
+
+Linux x64: unbuilt - native Linux runner unavailable in this Windows pass.
+```
+
+Source-level review and shell syntax checks keep the macOS and Linux package
+scripts ready, but they are not clean-binary evidence for those platforms.

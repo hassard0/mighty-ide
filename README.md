@@ -166,6 +166,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   with a command-palette clear-all action, **Zen / focus mode (Alt+Z)**
 - Open Recent file rows reject directory targets from stale recents instead of
   opening empty tabs or reporting them as missing files
+- Open Recent folder rows reject file-backed stale recents with `not a folder`
+  feedback instead of reporting them as ordinary missing folders
 - **Mighty Agents panel (Alt+G)** — static agent-system topology, run, and live `mty inspect` when the Mighty runtime control socket is available
 - Agents topology jumps reject directory targets from stale scan results instead
   of opening an empty tab
@@ -247,6 +249,10 @@ Final handoff rule:
 Current release state from this checkout:
 
 - Windows x64 can be rebuilt and fully verified locally with `.\package-win.ps1`.
+- A clean Windows binary means the ZIP was rebuilt from a clean committed tree,
+  PE headers were checked for both native payloads, the staged tree and ZIP
+  were scanned for sidecars and foreign native files, `PACKAGE-MANIFEST.txt`
+  was written, and the packaged executable launched from `dist\mighty-ide-win64`.
 - macOS must be built with `./package-macos.sh` on macOS or a matching macOS CI
   runner, then smoke-tested there.
 - Linux x64 must be built with `./package-linux.sh` on Linux or a matching

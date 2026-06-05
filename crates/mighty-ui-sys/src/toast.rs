@@ -684,6 +684,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No recent file row selected"
         || m == "Recent file row no longer listed"
         || m.starts_with("Recent folder missing")
+        || m.starts_with("Recent folder is not a folder")
         || m == "No recent folder row selected"
         || m == "Recent folder row no longer listed"
         || m == "No recent files or folders"
@@ -1867,6 +1868,16 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Recent folder missing: gone");
+        q.push_at(
+            Kind::Warn,
+            "Recent folder is not a folder: not-a-folder",
+            t0 + Duration::from_millis(489),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Recent folder is not a folder: not-a-folder"
+        );
 
         q.push_at(
             Kind::Error,

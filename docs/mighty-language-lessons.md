@@ -13042,3 +13042,18 @@ like the New File command and entered the New File toast replacement lane.
 - **Language note:** no compiler gap surfaced. Command-specific filesystem
   failures should keep their owning workflow in the message, especially when
   toast grouping and user recovery depend on that workflow identity.
+
+## L1038 - Recent Folder Rows Need Object-Kind Feedback Too
+
+Recent folder rows persist across sessions, so a saved folder path can later be
+recreated as a file. Treating every validation failure as `Recent folder
+missing` hid that object-kind mismatch and made Open Recent less trustworthy.
+
+- **IDE note:** recent folder opens now preflight the path kind. File-backed
+  recent folder rows are pruned, recents are persisted, the workspace is left
+  unchanged, and the user sees
+  `Recent folder is not a folder: <name>`. Missing recent folders keep the
+  existing `Recent folder missing: <name>` feedback.
+- **Language note:** no compiler gap surfaced. Persisted folder MRUs need the
+  same identity checks as persisted file MRUs: existence and object kind are
+  separate facts by the time the user accepts the row.

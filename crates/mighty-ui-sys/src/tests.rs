@@ -15460,6 +15460,37 @@ fn workspace_open_recent_prunes_missing_folder() {
 }
 
 #[test]
+fn workspace_open_recent_prunes_non_folder_with_kind_feedback() {
+    use crate::wsabi::{mui_ws_open_recent, mui_ws_recent_count};
+
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!(
+        "mui_ws_recent_non_folder_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let blocked = root.join("not-a-folder");
+    std::fs::write(&blocked, b"not a directory").unwrap();
+
+    ctx.recent_workspaces.record(blocked.clone());
+    assert_eq!(mui_ws_recent_count(h), 1);
+
+    assert_eq!(mui_ws_open_recent(h, 0), 0);
+    assert_eq!(mui_ws_recent_count(h), 0, "non-folder recent should be pruned");
+    assert!(
+        ctx.workspace.is_empty(),
+        "workspace must not reroot to a file-backed recent"
+    );
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Recent folder is not a folder: not-a-folder");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn open_recent_available_when_only_recent_files_exist() {
     use crate::mui_recent_any;
 

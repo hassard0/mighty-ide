@@ -175,22 +175,45 @@ fn apply_folder(ctx: &mut MuiContext, root: PathBuf) -> i32 {
 }
 
 fn open_recent_folder(ctx: &mut MuiContext, path: &std::path::Path) -> i32 {
-    match crate::workspace::validate_folder(&path.to_string_lossy()) {
-        Ok(root) => apply_folder(ctx, root),
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_dir() => match crate::workspace::validate_folder(&path.to_string_lossy()) {
+            Ok(root) => apply_folder(ctx, root),
+            Err(e) => {
+                if ctx.recent_workspaces.remove(path) {
+                    persist_recents(ctx);
+                }
+                let name = recent_folder_name(path);
+                ctx.push_toast(crate::toast::Kind::Warn, format!("Recent folder missing: {name}"));
+                println!("ws: pruned stale recent folder {} ({e})", path.display());
+                0
+            }
+        },
+        Ok(_) => {
+            if ctx.recent_workspaces.remove(path) {
+                persist_recents(ctx);
+            }
+            let name = recent_folder_name(path);
+            ctx.push_toast(crate::toast::Kind::Warn, format!("Recent folder is not a folder: {name}"));
+            println!("ws: pruned non-folder recent folder {}", path.display());
+            0
+        }
         Err(e) => {
             if ctx.recent_workspaces.remove(path) {
                 persist_recents(ctx);
             }
-            let name = path
-                .file_name()
-                .map(|s| s.to_string_lossy().into_owned())
-                .filter(|s| !s.is_empty())
-                .unwrap_or_else(|| path.to_string_lossy().into_owned());
+            let name = recent_folder_name(path);
             ctx.push_toast(crate::toast::Kind::Warn, format!("Recent folder missing: {name}"));
             println!("ws: pruned stale recent folder {} ({e})", path.display());
             0
         }
     }
+}
+
+fn recent_folder_name(path: &std::path::Path) -> String {
+    path.file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| path.to_string_lossy().into_owned())
 }
 
 /// Re-trigger the dependent indexes after a re-root: invalidate + rebuild the
