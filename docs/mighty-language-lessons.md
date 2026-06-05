@@ -11832,3 +11832,18 @@ for another host filesystem reason.
 - **Language note:** no compiler gap surfaced. File-operation ABI surfaces
   should keep target context and host reason together; basename-only feedback is
   too weak once the command involves real filesystem state.
+
+## L954 - File Reload And Load Failures Should Preserve The Filesystem Reason
+
+Reload, Revert, and lower-level editor load failures refreshed workspace indexes
+and logged the `std::fs::read` error, but the visible toast only said
+`Load failed: name` or `Reload failed: name`. That left the user without the
+host reason after the command preserved their buffer and pruned stale indexes.
+
+- **IDE note:** file read failures now report `Load failed: name: reason`,
+  `Reload failed: name: reason`, or `Revert failed: name: reason` while keeping
+  the existing buffer-preservation and workspace-refresh behavior. Detailed
+  reload failures still group with other tab-state feedback toasts.
+- **Language note:** no compiler gap surfaced. Any ABI path that catches and
+  logs a host filesystem error should promote that reason into the immediate
+  user-facing feedback if the command did not complete.

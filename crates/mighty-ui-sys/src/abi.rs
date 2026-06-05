@@ -549,6 +549,16 @@ fn open_failed_message(path: &std::path::Path, reason: &str) -> String {
     }
 }
 
+fn file_read_failed_message(action: &str, path: &std::path::Path, e: &std::io::Error) -> String {
+    let name = basename(path);
+    let reason = e.to_string();
+    if reason.trim().is_empty() {
+        format!("{action} failed: {name}")
+    } else {
+        format!("{action} failed: {name}: {}", reason.trim())
+    }
+}
+
 /// Initial directory for native file dialogs. Prefer the folder of the active
 /// file so Open/New/Save As land where the user is already working; fall back to
 /// the workspace root when the active tab is untitled or its parent is missing.
@@ -4570,11 +4580,13 @@ fn reload_active_from_disk(ctx: &mut MuiContext, allow_dirty: bool) -> i32 {
     };
     let bytes = match std::fs::read(&path) {
         Ok(bytes) => bytes,
-        Err(_) => {
-            let name = basename(&path);
+        Err(e) => {
             let action = if allow_dirty { "Revert" } else { "Reload" };
             refresh_workspace_file_views(ctx);
-            ctx.push_toast(crate::toast::Kind::Error, format!("{action} failed: {name}"));
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_read_failed_message(action, &path, &e),
+            );
             return -1;
         }
     };
@@ -11951,8 +11963,10 @@ fn mui_ed_load_impl(handle: i64, preserve_undo: bool) -> i64 {
         Err(e) => {
             eprintln!("mui_ed_load({}): {e}", path.display());
             refresh_workspace_file_views(ctx);
-            let name = basename(&path);
-            ctx.push_toast(crate::toast::Kind::Error, format!("Load failed: {name}"));
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_read_failed_message("Load", &path, &e),
+            );
             -1
         }
     }

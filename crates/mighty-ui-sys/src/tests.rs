@@ -6353,9 +6353,12 @@ fn reload_missing_file_refreshes_workspace_indexes() {
     assert_eq!(ctx.tree.count(), 0);
     assert_eq!(ctx.quickopen.count(), 0);
     assert!(ctx.quickopen.recent_paths().is_empty());
-    assert_eq!(
-        ctx.toasts.toasts().last().unwrap().message,
-        "Reload failed: gone.mty"
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert!(
+        toast.message.starts_with("Reload failed: gone.mty: "),
+        "{}",
+        toast.message
     );
 
     let _ = std::fs::remove_dir_all(&root);
@@ -6391,7 +6394,11 @@ fn ed_load_missing_file_preserves_buffer_and_refreshes_indexes() {
     assert_eq!(ctx.quickopen.count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Error);
-    assert_eq!(toast.message, "Load failed: gone.mty");
+    assert!(
+        toast.message.starts_with("Load failed: gone.mty: "),
+        "{}",
+        toast.message
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }

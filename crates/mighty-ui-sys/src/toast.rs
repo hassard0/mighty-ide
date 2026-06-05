@@ -1281,7 +1281,7 @@ mod tests {
 
         q.push_at(
             Kind::Error,
-            "Reload failed: main.mty",
+            "Reload failed: main.mty: The system cannot find the file specified. (os error 2)",
             t0 + Duration::from_millis(2500),
         );
         q.push_at(
@@ -1291,7 +1291,10 @@ mod tests {
         );
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "No file-backed tab to reload");
-        assert!(!q.toasts().iter().any(|t| t.message == "Reload failed: main.mty"));
+        assert!(!q
+            .toasts()
+            .iter()
+            .any(|t| t.message.starts_with("Reload failed: main.mty")));
 
         q.push_at(Kind::Info, "Dock resized to 228px", t0 + Duration::from_millis(2700));
         q.push_at(Kind::Info, "Sidebar resized to 310px", t0 + Duration::from_millis(2800));
