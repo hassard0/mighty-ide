@@ -178,8 +178,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Source Control row now reports `Source control row no longer listed` instead
   of the older generic diff-row message.
 - **Testing result jumps distinguish stale rows**: out-of-range Testing result
-  jumps now report `No test result row selected` instead of implying a visible
-  row lacked a file target.
+  jumps now report `Test result row no longer listed`, while negative row codes
+  still report `No test result row selected`.
 - **Fix-all code actions protect dirty duplicate tabs**: Fix all (mty) now
   refuses to save or run the external fixer when another equivalent tab for the
   active file has unsaved edits, matching inline workspace-edit safety, and

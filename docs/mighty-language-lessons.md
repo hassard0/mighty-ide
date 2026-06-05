@@ -12531,3 +12531,18 @@ or negative accept.
 - **Language note:** no compiler gap surfaced. File pickers should preserve
   enough row-index context to distinguish empty selections from stale result
   snapshots before deciding whether to keep the picker open.
+
+## L1003 - Testing Result Misses Should Name Stale Rows
+
+Testing result rows are opened through scalar row indices. A negative row code
+means no row was selected, but a non-negative row can point past the current
+results after the Testing panel refreshes or clears.
+
+- **IDE note:** Testing result jumps now report
+  `Test result row no longer listed` when a non-negative row index is absent,
+  while preserving `No test result row selected` for negative/no-selection
+  codes. The stale-row message shares the Testing toast replacement lane with
+  target-missing and no-file-target feedback.
+- **Language note:** no compiler gap surfaced. Result panels should split row
+  code validation into no-selection and stale-index cases before resolving lazy
+  file targets, so stale UI snapshots are not mistaken for empty clicks.

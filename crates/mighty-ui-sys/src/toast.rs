@@ -811,6 +811,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Test run stopped"
         || m == "No test run to stop"
         || m == "No test result row selected"
+        || m == "Test result row no longer listed"
         || m == "Test result row has no file target"
         || m.starts_with("Test result row has no file target:")
         || m.starts_with("Test results ")

@@ -534,7 +534,7 @@ pub extern "C" fn mui_test_open_row(handle: i64, i: i32) -> i32 {
         return 0;
     }
     let Some(row) = ctx.tests_panel.row(i as usize) else {
-        ctx.push_toast(crate::toast::Kind::Info, "No test result row selected");
+        ctx.push_toast(crate::toast::Kind::Info, "Test result row no longer listed");
         return 0;
     };
     let short = row.short_name.trim();
