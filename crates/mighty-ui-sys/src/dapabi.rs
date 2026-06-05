@@ -1012,6 +1012,7 @@ pub extern "C" fn mui_bp_open_at_hit(handle: i64, code: i32) -> i32 {
         {
             ctx.dbg.resend_breakpoints();
         }
+        crate::abi::refresh_workspace_file_views(ctx);
         ctx.push_toast(
             crate::toast::Kind::Warn,
             format!("Breakpoint target missing: {name}"),

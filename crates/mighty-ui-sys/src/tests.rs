@@ -7031,11 +7031,17 @@ fn debug_breakpoint_open_missing_target_prunes_stale_breakpoint() {
     let file = root.join("gone.mty");
     std::fs::write(&file, b"one\ntwo\nthree\n").unwrap();
     let key = file.to_string_lossy().to_string();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
     ctx.dbg.toggle_breakpoint(&key, 2);
     ctx.dbg.set_open(true);
     ctx.sidebar_visible = true;
     ctx.active_panel = crate::PANEL_DEBUG;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.tree.count(), 1);
+    assert_eq!(ctx.quickopen.count(), 1);
 
     std::fs::remove_file(&file).unwrap();
 
@@ -7043,6 +7049,8 @@ fn debug_breakpoint_open_missing_target_prunes_stale_breakpoint() {
     assert_eq!(crate::dapabi::mui_bp_open_at_hit(handle, 2000), -1);
     assert_eq!(ctx.dbg.total_breakpoint_count(), 0);
     assert!(!ctx.dbg.has_breakpoint(&key, 2));
+    assert_eq!(ctx.tree.count(), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Breakpoint target missing: gone.mty");

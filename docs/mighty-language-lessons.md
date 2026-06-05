@@ -11200,3 +11200,14 @@ source.
   backing index, and visible Quick Open rows when the target file is missing.
 - **Language note:** no compiler gap surfaced. Tooling-derived navigation
   surfaces should update shared file indexes when their source targets vanish.
+
+## L908 - Stale Breakpoint Opens Should Refresh File Views
+
+Breakpoint rows can outlive their source files after external deletion. Opening
+such a row pruned the stale breakpoint and warned the user, but Explorer and an
+open Quick Open panel could still list the deleted source.
+
+- **IDE note:** stale Breakpoint opens now refresh Explorer, Quick Open's
+  backing index, and visible Quick Open rows after pruning the missing target.
+- **Language note:** no compiler gap surfaced. Debug navigation cleanup should
+  update shared file indexes in the same pass that removes stale debug state.
