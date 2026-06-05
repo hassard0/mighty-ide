@@ -12394,6 +12394,56 @@ fn autosave_refreshes_clean_duplicate_tab() {
 }
 
 #[test]
+fn autosave_republishes_resurrected_file_to_quickopen() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    let mut settings = before;
+    settings.autosave = true;
+    crate::settings::set_active(settings);
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_autosave_resurrects_file_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("auto-restored.mty");
+    std::fs::write(&path, "saved\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    let active = ctx.tabs.open_path(path.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("auto restored\n");
+    ctx.tabs.set_dirty(active, true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_quickopen_open(h);
+    assert_eq!(ctx.quickopen.count(), 1);
+    std::fs::remove_file(&path).unwrap();
+    assert_eq!(crate::mui_quickopen_reindex(h), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
+
+    crate::mui_autosave_touch(h);
+    assert_eq!(crate::mui_autosave_tick(h), 0);
+    std::thread::sleep(std::time::Duration::from_millis(
+        crate::savefmt::AUTOSAVE_IDLE_MS as u64 + 50,
+    ));
+    assert_eq!(crate::mui_autosave_tick(h), 1);
+    assert!(!ctx.tabs.is_dirty(active));
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "auto restored\n");
+    assert_eq!(ctx.quickopen.recent_paths(), vec![path.clone()]);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "auto-restored.mty");
+
+    crate::settings::set_active(before);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn autosave_debounce_resets_when_active_path_changes() {
     let _g = crate::settings::TEST_LOCK
         .lock()

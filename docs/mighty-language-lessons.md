@@ -11054,3 +11054,14 @@ Explorer and Quick Open stuck on the missing-file view until a manual refresh.
 - **Language note:** no compiler gap surfaced. File writes that restore missing
   workspace paths should follow the same discovery publication rules as file
   creation.
+
+## L896 - Autosave Restores Should Refresh Discovery State
+
+Autosave has a dedicated write path separate from Save and Save All. If the
+active dirty file was deleted externally before the debounce fired, autosave
+could recreate it without republishing the path to Explorer or Quick Open.
+
+- **IDE note:** autosave now detects restored missing paths and refreshes the
+  same discovery surfaces as explicit save commands.
+- **Language note:** no compiler gap surfaced. Background save paths must share
+  the file lifecycle invariants of foreground save commands.

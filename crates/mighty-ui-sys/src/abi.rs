@@ -11848,6 +11848,7 @@ pub extern "C" fn mui_autosave_tick(handle: i64) -> i32 {
     }
     let bytes = save_bytes_for_active(ctx);
     let name = basename(&path);
+    let resurrected_path = !path.is_file();
     trace(&format!("save path={} bytes={}", path.display(), bytes.len()));
     match std::fs::write(&path, &bytes) {
         Ok(()) => {
@@ -11859,6 +11860,10 @@ pub extern "C" fn mui_autosave_tick(handle: i64) -> i32 {
             // Re-baseline the signature to the (possibly transformed) saved text
             // so the next tick doesn't see the transform as a fresh edit.
             ctx.autosave_sig = Some(autosave_signature(&ctx.tabs.active_model().as_text()));
+            if resurrected_path {
+                record_recent_file(ctx, path.clone());
+                refresh_workspace_file_views(ctx);
+            }
             println!("mui_autosave: {} ({} bytes)", path.display(), bytes.len());
             ctx.push_toast(crate::toast::Kind::Info, format!("Auto-saved {name}"));
             1
