@@ -13880,6 +13880,13 @@ fn autocomplete_accept_misses_report_visible_feedback() {
         ctx.toasts.toasts().last().unwrap().message,
         "No autocomplete suggestions open"
     );
+
+    assert_eq!(crate::mui_complete_click_at(h, 0, 0, 1), -1);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "No autocomplete suggestions open"
+    );
 }
 
 #[test]

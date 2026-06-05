@@ -8907,6 +8907,7 @@ pub extern "C" fn mui_complete_click_at(handle: i64, row: i32, col: i32, total_l
         return -1;
     };
     if !ctx.complete.is_active() {
+        ctx.push_toast(crate::toast::Kind::Info, "No autocomplete suggestions open");
         return -1;
     }
     let region = layout::region(ctx.sidebar_visible);
