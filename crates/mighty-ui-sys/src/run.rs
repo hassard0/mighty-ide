@@ -20,7 +20,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::mpsc::{Receiver, TryRecvError};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex, MutexGuard};
 use std::time::Instant;
 
 use crate::diagnostics;
@@ -291,9 +291,7 @@ impl RunPanel {
                     match pipe.read(&mut buf) {
                         Ok(0) | Err(_) => break,
                         Ok(n) => {
-                            if let Ok(mut g) = sink.lock() {
-                                g.extend_from_slice(&buf[..n]);
-                            }
+                            lock_output_buffer(&sink).extend_from_slice(&buf[..n]);
                         }
                     }
                 }
@@ -370,9 +368,9 @@ impl RunPanel {
 
         // Drain any buffered bytes.
         if let Some(out) = &self.out {
-            let chunk = match out.lock() {
-                Ok(mut g) if !g.is_empty() => std::mem::take(&mut *g),
-                _ => Vec::new(),
+            let chunk = {
+                let mut g = lock_output_buffer(out);
+                if g.is_empty() { Vec::new() } else { std::mem::take(&mut *g) }
             };
             if !chunk.is_empty() {
                 let text = String::from_utf8_lossy(&chunk);
@@ -388,12 +386,11 @@ impl RunPanel {
                     Ok(()) | Err(TryRecvError::Disconnected) => {
                         // Drain a final time in case bytes arrived just before EOF.
                         if let Some(out) = self.out.take() {
-                            if let Ok(g) = out.lock() {
-                                if !g.is_empty() {
-                                    let text = String::from_utf8_lossy(&g);
-                                    let owned = text.into_owned();
-                                    self.feed(&owned);
-                                }
+                            let g = lock_output_buffer(&out);
+                            if !g.is_empty() {
+                                let text = String::from_utf8_lossy(&g);
+                                let owned = text.into_owned();
+                                self.feed(&owned);
                             }
                         }
                         self.flush_partial();
@@ -494,6 +491,10 @@ impl RunPanel {
             self.push_line(d.to_string());
         }
     }
+}
+
+fn lock_output_buffer(out: &Arc<Mutex<Vec<u8>>>) -> MutexGuard<'_, Vec<u8>> {
+    out.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 /// Parse a trailing `[<path>:<line>:<col>]` location from a report line, the
@@ -659,6 +660,30 @@ mod tests {
             .iter()
             .all(|l| !l.clickable || l.file != "C:/proj/demo.mty"));
         assert_eq!(r.demote_target(&root, &target), 0);
+    }
+
+    #[test]
+    fn pump_recovers_from_poisoned_output_buffer() {
+        let out = Arc::new(Mutex::new(b"still visible\n".to_vec()));
+        let hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let poisoned = {
+            let out = Arc::clone(&out);
+            std::panic::catch_unwind(move || {
+                let _guard = lock_output_buffer(&out);
+                panic!("poison run output buffer");
+            })
+        };
+        std::panic::set_hook(hook);
+        assert!(poisoned.is_err());
+
+        let mut r = RunPanel::new();
+        r.out = Some(out);
+
+        assert!(r.pump());
+        assert_eq!(r.line_count(), 1);
+        assert_eq!(r.line(0).unwrap().text, "still visible");
+        assert!(lock_output_buffer(r.out.as_ref().unwrap()).is_empty());
     }
 
     #[test]
