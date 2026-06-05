@@ -233,7 +233,9 @@ host OS, reject compiler/linker sidecars, reject obvious foreign-platform
 binaries, bundle the project docs, and then scan the finished archive before
 reporting success. Every package includes `PACKAGE-MANIFEST.txt` with the
 platform, version, native payload hashes and sizes, and the clean-binary checks
-completed before archiving.
+completed before archiving. Each package script also removes its previous
+platform package directory and same-version archive before building, so a failed
+final packaging run cannot leave a stale archive that looks newly verified.
 
 Final handoff rule:
 
@@ -269,6 +271,22 @@ Final pass evidence to record before upload:
 | Windows x64 | `publish` only after the Windows package script and packaged launch pass here | ZIP size/hash, PE header checks for `mighty-ide.exe` and `mighty_ui_sys.dll`, staging-tree and ZIP sidecar/foreign-payload scans, `PACKAGE-MANIFEST.txt`, packaged launch |
 | macOS | `unbuilt` from this Windows checkout | Native macOS runner must run `./package-macos.sh`, verify Mach-O payloads, scan the tarball, and launch the app bundle before upload |
 | Linux x64 | `unbuilt` from this Windows checkout | Native Linux runner must run `./package-linux.sh`, verify ELF payloads, scan the tarball, and launch from the package directory before upload |
+
+Final Windows pass commands:
+
+```powershell
+git status --short --branch
+git log --oneline -1
+.\package-win.ps1
+Get-Item dist\mighty-ide-v0.3.0-win64.zip | Select-Object FullName,Length
+Get-FileHash dist\mighty-ide-v0.3.0-win64.zip -Algorithm SHA256
+Start-Process -FilePath "dist\mighty-ide-win64\mighty-ide.exe" `
+  -WorkingDirectory "dist\mighty-ide-win64"
+```
+
+For this Windows-hosted pass, record macOS and Linux as `unbuilt` unless native
+macOS and Linux runners actually produced and launched their packages during the
+same pass.
 
 | Platform | Command | Archive | Native payload checks |
 |----------|---------|---------|-----------------------|

@@ -13488,3 +13488,19 @@ wording into the Web panel and toast.
 - **Language note:** no compiler gap surfaced. Browser-run surfaces should share
   the same target-state vocabulary as Run, Test, Debug, and stale navigation
   rows.
+
+## L1067 - Final Package Scripts Should Delete Stale Archives First
+
+A release package script can reject dirty source and verify the archive it
+writes, but if it leaves an older same-version archive in `dist/` after an early
+build failure, the release handoff can accidentally point at stale binary
+evidence.
+
+- **IDE note:** Windows, macOS, Linux, and the fallback Windows Bash package
+  scripts now remove their platform package directory and same-version archive
+  before release build work starts. The README, build notes, platform packaging
+  guide, release verification template, and final handoff doc now name that
+  invariant alongside the native PE/Mach-O/ELF checks.
+- **Language note:** no compiler gap surfaced. Release tooling should delete
+  obsolete output before expensive work begins, then treat a newly written
+  manifest and archive scan as the only publishable binary evidence.

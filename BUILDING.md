@@ -56,6 +56,9 @@ foreign-platform native files, and checking that the staged native binaries
 match the host platform format before the archive is written.
 After compression, the scripts scan the finished ZIP or tarball for the same
 sidecar and foreign-platform deny list before reporting success.
+Each script removes its previous platform package directory and same-version
+archive before the release build starts, so a failed package run cannot leave an
+older artifact in `dist/` that looks current.
 The scripts also bundle the README, license, keybinding reference,
 changelog, build notes, platform packaging notes, samples, and platform-specific
 `RUN.txt` instructions. They also write `PACKAGE-MANIFEST.txt` into the package

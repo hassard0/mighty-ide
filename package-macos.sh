@@ -31,6 +31,8 @@ if [[ -d .git ]] && command -v git >/dev/null 2>&1; then
     exit 1
   fi
 fi
+rm -rf "$DIST_ROOT"
+rm -f "$ZIP"
 export CARGO_INCREMENTAL=0
 
 cleanup() {

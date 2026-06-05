@@ -39,7 +39,9 @@ Start-Process -FilePath "dist\mighty-ide-win64\mighty-ide.exe" `
 
 The package script verifies PE headers for both native payloads, rejects
 compiler/linker sidecars, rejects `.dylib` and `.so` payloads, scans the
-finished ZIP, and writes `dist\mighty-ide-win64\PACKAGE-MANIFEST.txt`.
+finished ZIP, and writes `dist\mighty-ide-win64\PACKAGE-MANIFEST.txt`. It
+removes the prior `dist\mighty-ide-win64` directory and same-version ZIP before
+building, so any ZIP present after a successful run came from that run.
 
 ## Native macOS Steps
 

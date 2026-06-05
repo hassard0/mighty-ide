@@ -21,6 +21,12 @@ if ((Test-Path ".git") -and (Get-Command git -ErrorAction SilentlyContinue)) {
   }
 }
 
+$pkg = "mighty-ide-win64"
+$dist = Join-Path "dist" $pkg
+$zip = "dist\mighty-ide-$Version-win64.zip"
+Remove-Item -LiteralPath $dist -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
+
 function Assert-PeBinary {
   param([Parameter(Mandatory = $true)][string]$Path)
   $full = Resolve-Path -LiteralPath $Path
@@ -138,8 +144,6 @@ try {
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   Write-Host "[2/5] assemble dist\mighty-ide-win64"
-  $pkg = "mighty-ide-win64"
-  $dist = Join-Path "dist" $pkg
   Remove-Item -LiteralPath $dist -Recurse -Force -ErrorAction SilentlyContinue
   New-Item -ItemType Directory -Force -Path @($dist, "$dist\examples", "$dist\samples") | Out-Null
 
@@ -186,7 +190,6 @@ try {
   Assert-NoForeignNativeArtifacts $dist
 
   Write-Host "[4/5] zip package"
-  $zip = "dist\mighty-ide-$Version-win64.zip"
   Write-PackageManifest -Path $dist -Archive $zip -NativeBinaries @(
     "$dist\mighty-ide.exe",
     "$dist\mighty_ui_sys.dll"

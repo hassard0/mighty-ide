@@ -36,6 +36,10 @@ if [ -d .git ] && command -v git >/dev/null 2>&1; then
     exit 1
   fi
 fi
+DIST="dist/$PKG"
+ZIP="mighty-ide-$VERSION-win64.zip"
+rm -rf "$DIST"
+rm -f "dist/$ZIP"
 export RUSTFLAGS="${RUSTFLAGS:-} -C debuginfo=0 -C link-arg=/DEBUG:NONE"
 
 assert_pe_binary() {
@@ -67,7 +71,6 @@ echo "[3/5] mty build --release src/main.mty -> target/release/main.exe"
 MTY_LINKER="$CLANG" "$MTY" build --release src/main.mty --out-dir target/release
 
 echo "[4/5] assemble dist/$PKG/ (icon-stamp + samples + scripts)"
-DIST="dist/$PKG"
 ICON="assets/mighty-ide.ico"
 RCEDIT="tools/rcedit-x64.exe"
 rm -rf "$DIST"
@@ -144,7 +147,6 @@ fi
 } > "$DIST/PACKAGE-MANIFEST.txt"
 
 echo "[5/5] zip -> dist/mighty-ide-$VERSION-win64.zip"
-ZIP="mighty-ide-$VERSION-win64.zip"
 ( cd dist && rm -f "$ZIP" && powershell.exe -NoProfile -Command \
     "Compress-Archive -Path '$PKG' -DestinationPath '$ZIP' -Force" )
 powershell.exe -NoProfile -Command "\

@@ -32,6 +32,10 @@ cannot be silently skipped. After the archive is written, each script scans the
 ZIP or tarball for the same sidecar and foreign-payload deny list, so the
 uploaded artifact is checked directly rather than inferred from the staging
 directory alone.
+The scripts also remove their previous platform package directory and
+same-version archive before build work starts. If compilation or assembly fails,
+the stale archive for that platform is gone rather than left behind as apparent
+release evidence.
 
 The release invariant is one archive, one native binary family:
 
@@ -159,6 +163,7 @@ Both scripts:
 - refuse to run from a dirty git worktree
 - require the `file` utility for native binary validation
 - remove the previous platform package directory before assembly
+- remove the previous same-version platform archive before building
 - build `mighty-ui-sys` and `mty-rt-abi` in release mode
 - generate a temporary host-specific `mighty.toml` and restore the checked-in
   Windows manifest on exit
