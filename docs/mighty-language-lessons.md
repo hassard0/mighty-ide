@@ -13749,3 +13749,16 @@ as start, stop, restart, stepping, and breakpoint feedback.
 - **Language note:** no compiler gap surfaced. Prefix families are preferable
   for status lines whose command surface is stable and whose suffix names the
   outcome.
+
+## L1087 - Browser Open Feedback Should Not Depend On URL Scheme
+
+The Web Playground currently opens HTTP(S) URLs, but its toast is emitted by the
+browser-open command and formats the full URL. Coalescing should follow the
+command source, not the present-day scheme prefix.
+
+- **IDE note:** `Opened ...` browser-open toasts now coalesce with the WebRun
+  operation family, replacing stale web-open failures even if a future preview
+  URL uses a non-HTTP scheme.
+- **Language note:** no compiler gap surfaced. When command output includes
+  dynamic user/tool data, classifiers should anchor on the stable verb emitted
+  by the command rather than incidental payload details.

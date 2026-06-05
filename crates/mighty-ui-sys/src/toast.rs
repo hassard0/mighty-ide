@@ -848,8 +848,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m.starts_with("Run in Browser:")
         || m.starts_with("Web ")
         || m.starts_with("No web server ")
-        || m.starts_with("Opened http://")
-        || m.starts_with("Opened https://")
+        || m.starts_with("Opened ")
     {
         Some(OperationKey::WebRun)
     } else if m.starts_with("Run finished")
@@ -1028,7 +1027,6 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || (m.starts_with("Save ")
             && (m.ends_with("before starting debug")
                 || m.ends_with("before setting breakpoints")))
-        || m.starts_with("Debug session ")
         || m.starts_with("Debug failed to start:")
         || m == "Run and Debug panel closed"
         || m == "Run and Debug panel is already closed"
@@ -2061,6 +2059,30 @@ mod tests {
             "Web browser open failed: http://127.0.0.1:8000: launcher missing"
         );
         assert!(!q.toasts().iter().any(|t| t.message == "No web server running"));
+
+        q.push_at(
+            Kind::Success,
+            "Opened http://127.0.0.1:8000",
+            t0 + Duration::from_millis(380),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[1].message, "Opened http://127.0.0.1:8000");
+        assert!(!q
+            .toasts()
+            .iter()
+            .any(|t| t.message.starts_with("Web browser open failed:")));
+
+        q.push_at(
+            Kind::Success,
+            "Opened mighty-preview://current",
+            t0 + Duration::from_millis(390),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[1].message, "Opened mighty-preview://current");
+        assert!(!q
+            .toasts()
+            .iter()
+            .any(|t| t.message == "Opened http://127.0.0.1:8000"));
 
         q.push_at(
             Kind::Error,
