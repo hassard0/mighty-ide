@@ -563,6 +563,7 @@ enum OperationKey {
     Reveal,
     Copy,
     Test,
+    Run,
     WebRun,
     Theme,
     Diagnostic,
@@ -842,7 +843,9 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("No web server ")
         || m.starts_with("Opened http://")
         || m.starts_with("Opened https://")
-        || m.starts_with("Run finished")
+    {
+        Some(OperationKey::WebRun)
+    } else if m.starts_with("Run finished")
         || m.starts_with("Run failed")
         || m.starts_with("Run stopped")
         || m == "Run process stopped"
@@ -858,7 +861,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Run target missing")
         || m.starts_with("Run target is not a file")
     {
-        Some(OperationKey::WebRun)
+        Some(OperationKey::Run)
     } else if m.starts_with("Theme:")
         || m == "Color theme picker cancelled"
         || m == "No color theme picker open"
@@ -2606,6 +2609,37 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Run output row no longer listed");
+    }
+
+    #[test]
+    fn run_and_web_feedback_keep_separate_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "Run output cleared", t0);
+        q.push_at(
+            Kind::Error,
+            "Run in Browser: failed to start: target missing: webspin.mty (see panel)",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[0].message, "Run output cleared");
+        assert_eq!(
+            q.toasts()[1].message,
+            "Run in Browser: failed to start: target missing: webspin.mty (see panel)"
+        );
+
+        q.push_at(
+            Kind::Info,
+            "Run output already empty",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Run in Browser: failed to start: target missing: webspin.mty (see panel)"
+        );
+        assert_eq!(q.toasts()[1].message, "Run output already empty");
     }
 
     #[test]

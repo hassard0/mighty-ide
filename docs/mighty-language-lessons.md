@@ -13504,3 +13504,17 @@ evidence.
 - **Language note:** no compiler gap surfaced. Release tooling should delete
   obsolete output before expensive work begins, then treat a newly written
   manifest and archive scan as the only publishable binary evidence.
+
+## L1068 - Run And Web Toasts Need Separate Coalescing Keys
+
+Run output and Run in Browser both use short, high-turnover toast feedback, but
+they are distinct user workflows. Sharing one operation key lets a Web build
+failure erase fresh Run-panel context, or a Run-panel cleanup erase a Web
+failure while the user is still looking at the browser flow.
+
+- **IDE note:** toast coalescing now keeps `Run` and `WebRun` as separate
+  operation families. Run feedback still replaces stale Run feedback, Web
+  feedback still replaces stale Web feedback, and mixed Run/Web feedback can
+  remain visible together.
+- **Language note:** no compiler gap surfaced. UI coalescing keys should follow
+  the user's task model, not just similar command vocabulary.
