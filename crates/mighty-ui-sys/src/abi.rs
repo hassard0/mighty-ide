@@ -6234,6 +6234,10 @@ pub extern "C" fn mui_file_reveal_active(handle: i64) -> i32 {
 }
 
 pub(crate) fn platform_reveal_command(path: &std::path::Path) -> Option<(String, Vec<String>)> {
+    if std::env::var_os("MUI_FILE_REVEAL_FORCE_UNAVAILABLE").is_some() {
+        let _ = path;
+        return None;
+    }
     #[cfg(target_os = "windows")]
     {
         Some(("explorer.exe".to_string(), vec![format!("/select,{}", path.display())]))
@@ -6258,6 +6262,10 @@ pub(crate) fn file_manager_reveal_failed_message(path: &std::path::Path) -> Stri
     format!("Could not show {} in file manager", basename(path))
 }
 
+pub(crate) fn file_manager_reveal_unavailable_message(path: &std::path::Path) -> String {
+    format!("Reveal in file manager is unavailable: {}", basename(path))
+}
+
 /// Reveal the active file in the operating system's file manager. Returns 1
 /// when the reveal command was launched, else 0.
 #[no_mangle]
@@ -6270,7 +6278,10 @@ pub extern "C" fn mui_file_reveal_active_in_os(handle: i64) -> i32 {
         return 0;
     };
     let Some((program, args)) = platform_reveal_command(&path) else {
-        ctx.push_toast(crate::toast::Kind::Warn, "Reveal in file manager is unavailable");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            file_manager_reveal_unavailable_message(&path),
+        );
         return 0;
     };
     match std::process::Command::new(&program).args(&args).spawn() {

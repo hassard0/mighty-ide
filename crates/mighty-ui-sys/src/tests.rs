@@ -12,6 +12,14 @@ use crate::{
 const W: u32 = 64;
 const H: u32 = 64;
 
+struct EnvRemoveGuard(&'static str);
+
+impl Drop for EnvRemoveGuard {
+    fn drop(&mut self) {
+        std::env::remove_var(self.0);
+    }
+}
+
 /// Index into RGBA8 pixel data at (x, y).
 fn px(pixels: &[u8], x: u32, y: u32, width: u32) -> (u8, u8, u8, u8) {
     let i = ((y * width + x) * 4) as usize;
@@ -6728,6 +6736,10 @@ fn active_file_os_failure_messages_name_the_target() {
         "Could not show main.mty in file manager"
     );
     assert_eq!(
+        crate::abi::file_manager_reveal_unavailable_message(path),
+        "Reveal in file manager is unavailable: main.mty"
+    );
+    assert_eq!(
         crate::abi::copy_path_failed_message(path, &err),
         "Could not copy path: main.mty: clipboard command failed"
     );
@@ -6746,12 +6758,37 @@ fn active_file_os_failure_messages_name_the_target() {
 }
 
 #[test]
+fn active_file_reveal_unavailable_names_the_target() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    std::env::set_var("MUI_FILE_REVEAL_FORCE_UNAVAILABLE", "1");
+    let _env = EnvRemoveGuard("MUI_FILE_REVEAL_FORCE_UNAVAILABLE");
+    let root = std::env::temp_dir().join(format!("mui_reveal_unavailable_{}", std::process::id()));
+    let src = root.join("src");
+    std::fs::create_dir_all(&src).unwrap();
+    let file = src.join("main.mty");
+    std::fs::write(&file, b"fn main() {}\n").unwrap();
+    ctx.tabs.open_path(file);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::abi::mui_file_reveal_active_in_os(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Reveal in file manager is unavailable: main.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn active_file_copy_failures_report_clipboard_write_reason() {
     let _g = crate::settings::TEST_LOCK
         .lock()
         .unwrap_or_else(|e| e.into_inner());
     let mut ctx = ctx_or_skip!();
     std::env::set_var("MUI_CLIPBOARD_WRITE_FORCE_FAIL", "clipboard command failed");
+    let _env = EnvRemoveGuard("MUI_CLIPBOARD_WRITE_FORCE_FAIL");
     let root = std::env::temp_dir().join(format!("mui_active_copy_fail_{}", std::process::id()));
     let src = root.join("src");
     std::fs::create_dir_all(&src).unwrap();
@@ -6784,7 +6821,6 @@ fn active_file_copy_failures_report_clipboard_write_reason() {
     );
     assert_eq!(ctx.toasts.toasts().last().unwrap().message, expected_directory);
 
-    std::env::remove_var("MUI_CLIPBOARD_WRITE_FORCE_FAIL");
     let _ = std::fs::remove_dir_all(root);
 }
 

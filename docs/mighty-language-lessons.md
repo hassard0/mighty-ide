@@ -11738,3 +11738,19 @@ host clipboard error.
 - **Language note:** no compiler gap surfaced. Reusable host-integration
   helpers should carry both the selected target and the platform failure reason
   through scalar ABI command surfaces.
+
+## L948 - File Manager Unavailable Feedback Should Name The Target
+
+The OS file-manager reveal path named the active file when spawning the platform
+command failed, but the no-command/unavailable branch still showed only
+`Reveal in file manager is unavailable`. That made the failed command feel
+detached from the selected file, especially when invoked from the command
+palette.
+
+- **IDE note:** file-manager unavailable feedback now includes the active
+  basename (`Reveal in file manager is unavailable: main.mty`), the branch is
+  covered with a forced-unavailable ABI test, and toast replacement groups the
+  detailed unavailable message with other file-manager reveal feedback.
+- **Language note:** no compiler gap surfaced. Platform capability failures
+  should still carry the selected target; "unavailable" explains the host
+  limitation, but it should not erase the user's command context.

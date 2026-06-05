@@ -758,7 +758,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m.starts_with("Revealed ")
         || m == "No active file to reveal"
         || m == "Active file is outside Explorer root"
-        || m == "Reveal in file manager is unavailable"
+        || m.starts_with("Reveal in file manager is unavailable")
         || m == "Could not open file manager"
     {
         Some(OperationKey::Reveal)
@@ -1396,6 +1396,25 @@ mod tests {
             "Could not copy terminal text: clipboard command failed"
         );
         assert_eq!(q.toasts()[0].kind, Kind::Error);
+    }
+
+    #[test]
+    fn newer_file_manager_feedback_replaces_stale_reveal_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Error, "Could not open file manager", t0);
+        q.push_at(
+            Kind::Warn,
+            "Reveal in file manager is unavailable: main.mty",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Reveal in file manager is unavailable: main.mty"
+        );
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
     }
 
     #[test]
