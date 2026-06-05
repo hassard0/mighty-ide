@@ -15091,7 +15091,10 @@ fn ghost_accept_misses_report_visible_feedback() {
 
 #[test]
 fn snippet_cancel_command_ends_session_without_removing_expansion() {
-    use crate::snippetsabi::{mui_snippet_active, mui_snippet_cancel, mui_snippet_try_expand};
+    use crate::snippetsabi::{
+        mui_snippet_active, mui_snippet_cancel, mui_snippet_next_stop, mui_snippet_prev_stop,
+        mui_snippet_replace_stop, mui_snippet_try_expand,
+    };
 
     let mut ctx = ctx_or_skip!();
     ctx.language = crate::langdetect::Language::Mighty;
@@ -15113,6 +15116,24 @@ fn snippet_cancel_command_ends_session_without_removing_expansion() {
     assert_eq!(ctx.toasts.toasts()[0].message, "Snippet session cancelled");
 
     assert_eq!(mui_snippet_cancel(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(ctx.toasts.toasts()[0].message, "No snippet session active");
+
+    ctx.toasts.clear();
+    assert_eq!(mui_snippet_next_stop(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(ctx.toasts.toasts()[0].message, "No snippet session active");
+
+    ctx.toasts.clear();
+    assert_eq!(mui_snippet_prev_stop(h), 0);
+    assert_eq!(ctx.toasts.toasts().len(), 1);
+    assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
+    assert_eq!(ctx.toasts.toasts()[0].message, "No snippet session active");
+
+    ctx.toasts.clear();
+    assert_eq!(mui_snippet_replace_stop(h), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(ctx.toasts.toasts()[0].kind, crate::toast::Kind::Info);
     assert_eq!(ctx.toasts.toasts()[0].message, "No snippet session active");

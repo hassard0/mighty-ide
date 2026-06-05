@@ -27,7 +27,7 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   `not a file` feedback, and staged save, tab-level saves, Save As, Save All,
   plus auto-save report non-directory parent paths before writing
 - **Multi-cursor** — select word / add caret at next occurrence (Ctrl+D), add caret above/below (Ctrl+Alt+↑/↓), toggle caret on Alt+Click
-- **Snippets** — type a prefix + Tab to expand a template with navigable tab-stops
+- **Snippets** — type a prefix + Tab to expand a template with navigable tab-stops; stale direct tab-stop routes report when no snippet session is active
 - **Save conveniences** — opt-in trim-trailing-whitespace, ensure-final-newline, and timed auto-save (Settings)
 
 ### Navigation & Code-reading

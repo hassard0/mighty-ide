@@ -60,6 +60,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Peek Definition targets now share the focused-pane file-open path.
 
 ### Language intelligence
+- **Snippet stale tab-stop routes are visible**: direct next-stop,
+  previous-stop, and placeholder-replace calls now report
+  `No snippet session active` after the snippet session has already ended.
 - **Terminal stale input routes are visible**: focused terminal key, typed
   codepoint, raw-byte, and scroll routes now report `Terminal is not open` when
   stale focus tries to send input after the PTY has closed.

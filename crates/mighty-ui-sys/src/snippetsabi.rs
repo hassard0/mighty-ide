@@ -34,6 +34,10 @@ unsafe fn ctx<'a>(handle: i64) -> Option<&'a mut MuiContext> {
     (handle as usize as *mut MuiContext).as_mut()
 }
 
+fn report_no_snippet_session(c: &mut MuiContext) {
+    c.push_toast(crate::toast::Kind::Info, "No snippet session active");
+}
+
 /// Try to expand the snippet whose prefix is the word before the cursor.
 ///
 /// Tab-priority step (4): only call this when no tab-stop session is active, no
@@ -91,6 +95,10 @@ pub extern "C" fn mui_snippet_next_stop(handle: i64) -> i32 {
     let Some(c) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !c.snippet_session.is_active() {
+        report_no_snippet_session(c);
+        return 0;
+    }
     match c.snippet_session.next_stop() {
         Some(stop) => {
             c.tabs.active_model_mut().set_selection(stop.start, stop.end);
@@ -115,6 +123,10 @@ pub extern "C" fn mui_snippet_prev_stop(handle: i64) -> i32 {
     let Some(c) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if !c.snippet_session.is_active() {
+        report_no_snippet_session(c);
+        return 0;
+    }
     if let Some(stop) = c.snippet_session.prev_stop() {
         c.tabs.active_model_mut().set_selection(stop.start, stop.end);
         i32::from(c.snippet_session.is_active())
@@ -136,7 +148,7 @@ pub extern "C" fn mui_snippet_cancel(handle: i64) -> i32 {
         c.push_toast(crate::toast::Kind::Info, "Snippet session cancelled");
         1
     } else {
-        c.push_toast(crate::toast::Kind::Info, "No snippet session active");
+        report_no_snippet_session(c);
         0
     }
 }
@@ -155,6 +167,7 @@ pub extern "C" fn mui_snippet_replace_stop(handle: i64) -> i32 {
         return 0;
     }
     if !c.snippet_session.is_active() {
+        report_no_snippet_session(c);
         return 0;
     }
     let session = &mut c.snippet_session;
