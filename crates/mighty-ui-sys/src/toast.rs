@@ -678,6 +678,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Open failed")
         || m == "No file path entered"
         || m.starts_with("Recent file missing")
+        || m.starts_with("Recent file is not a file")
         || m == "No recent file row selected"
         || m == "Recent file row no longer listed"
         || m.starts_with("Recent folder missing")
@@ -1807,6 +1808,22 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Recent folder row no longer listed");
+
+        q.push_at(
+            Kind::Warn,
+            "Recent file is not a file: folder.mty",
+            t0 + Duration::from_millis(487),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Recent file is not a file: folder.mty");
+
+        q.push_at(
+            Kind::Warn,
+            "Recent folder missing: gone",
+            t0 + Duration::from_millis(488),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Recent folder missing: gone");
 
         q.push_at(
             Kind::Error,

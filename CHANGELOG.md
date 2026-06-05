@@ -164,6 +164,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   non-file target warnings from runner, test, and source-control surfaces now
   coalesce with the command family that produced them instead of lingering as
   independent warnings.
+- **Open Recent stale-entry toasts replace cleanly**: missing recent folders
+  and recent file rows that became directories now coalesce with the rest of
+  the Open/Open Recent feedback instead of stacking as separate warnings.
 - **Delete Active File rejects directory targets**: after exact-name
   confirmation and dirty-buffer checks, Delete Active File now preflights the
   active path before removal. Directory targets report
