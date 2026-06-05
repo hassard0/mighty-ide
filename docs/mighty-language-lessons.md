@@ -12995,3 +12995,19 @@ same parent-chain checks before applying save transforms or touching disk.
   workspace file views.
 - **Language note:** no compiler gap surfaced. Shared save invariants should
   live at every mutation boundary, not only the most visible command entrypoint.
+
+## L1035 - Release Packaging Contracts Need Source-Level Guards
+
+Packaging scripts can drift independently even when they share a written
+release policy. A clean Windows PowerShell package path is not enough if the
+fallback Windows Bash script, macOS script, or Linux script stops bundling the
+same evidence docs or stops scanning the final archive.
+
+- **IDE note:** regression tests now read all four package scripts and assert
+  that they bundle both release docs and scan the completed ZIP or tarball for
+  compiler/linker sidecars plus foreign native payloads. That keeps the
+  clean-binary contract enforced at source-review time, before a release
+  operator discovers drift during packaging.
+- **Language note:** no compiler gap surfaced. Release automation invariants
+  should have tests at the script boundary, especially when native-host
+  verification means some scripts cannot run on every developer machine.

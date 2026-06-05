@@ -89,6 +89,69 @@ fn initial_tree_root_keeps_cwd_for_dev_no_arg_launch() {
     let _ = std::fs::remove_dir_all(root);
 }
 
+fn repo_file(path: &str) -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(|p| p.parent())
+        .expect("repo root")
+        .join(path)
+}
+
+#[test]
+fn package_scripts_bundle_release_verification_docs() {
+    for script in [
+        "package-win.ps1",
+        "package-win.sh",
+        "package-macos.sh",
+        "package-linux.sh",
+    ] {
+        let body = std::fs::read_to_string(repo_file(script)).unwrap_or_else(|e| {
+            panic!("failed to read {script}: {e}");
+        });
+        assert!(
+            body.contains("release-verification.md"),
+            "{script} must bundle docs/release-verification.md so upload evidence travels with packages"
+        );
+        assert!(
+            body.contains("platform-packaging.md"),
+            "{script} must bundle docs/platform-packaging.md so clean-binary rules travel with packages"
+        );
+    }
+}
+
+#[test]
+fn package_scripts_scan_finished_archives_for_sidecars_and_foreign_payloads() {
+    let scripts = [
+        ("package-win.ps1", "Assert-ZipHasCleanBinaries", "dylib|so"),
+        ("package-win.sh", "ZipFile]::OpenRead", "dylib|so"),
+        ("package-macos.sh", "tar -tzf", "exe|dll|so"),
+        ("package-linux.sh", "tar -tzf", "exe|dll|dylib"),
+    ];
+    for (script, archive_scan, foreign_names) in scripts {
+        let body = std::fs::read_to_string(repo_file(script)).unwrap_or_else(|e| {
+            panic!("failed to read {script}: {e}");
+        });
+        assert!(
+            body.contains(archive_scan),
+            "{script} must scan the completed archive, not only the staging tree"
+        );
+        for sidecar in [
+            "pdb", "lib", "exp", "ilk", "obj", "rlib", "debug", "map", "dSYM",
+        ] {
+            assert!(
+                body.contains(sidecar),
+                "{script} archive scan must reject {sidecar} artifacts"
+            );
+        }
+        for foreign in foreign_names.split('|') {
+            assert!(
+                body.contains(foreign),
+                "{script} archive scan must reject foreign native payloads matching {foreign}"
+            );
+        }
+    }
+}
+
 #[test]
 fn initial_file_path_requires_existing_file() {
     let root = std::env::temp_dir().join(format!("mui_initial_file_path_{}", std::process::id()));
