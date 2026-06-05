@@ -13558,3 +13558,16 @@ feedback.
   dialog warnings and is replaced by the next successful save result.
 - **Language note:** no compiler gap surfaced. Toast classification should use
   the operation that produced the message, not only the first word of the text.
+
+## L1072 - Read-Only Save Rejections Are Save Feedback
+
+Read-only previews reject save attempts with a message that names the file
+instead of starting with `Save`. That message is still the terminal result of a
+save command, so it should replace stale save-dialog feedback and be replaced by
+the next save result.
+
+- **IDE note:** `<file> is read-only in the text editor` now coalesces with the
+  Save operation family, while generic edit/undo/read-only preview feedback
+  stays in its existing edit-history family.
+- **Language note:** no compiler gap surfaced. Operation-family matching should
+  include terminal guard messages even when they are phrased around the target.

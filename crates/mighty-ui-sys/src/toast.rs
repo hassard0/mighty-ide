@@ -664,6 +664,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No save path entered"
         || m == "No file path to save"
         || m == "Target file is already open"
+        || m.ends_with(" is read-only in the text editor")
         || m.starts_with("Saved ")
         || m.starts_with("Save skipped:")
         || (m.starts_with("Save failed") && !m.starts_with("Save failed before code action"))
@@ -1782,7 +1783,18 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Target file is already open");
 
-        q.push_at(Kind::Success, "Saved 2 files", t0 + Duration::from_millis(450));
+        q.push_at(
+            Kind::Warn,
+            "preview.md is read-only in the text editor",
+            t0 + Duration::from_millis(450),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "preview.md is read-only in the text editor"
+        );
+
+        q.push_at(Kind::Success, "Saved 2 files", t0 + Duration::from_millis(475));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Saved 2 files");
     }
