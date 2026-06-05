@@ -2166,6 +2166,24 @@ fn run_stop_when_running_acknowledges_active_process() {
 }
 
 #[test]
+fn run_completion_toasts_name_target_file() {
+    let mut ctx = ctx_or_skip!();
+    ctx.run.seed_finished_for_test("C:/proj/failing.mty", 7, 142);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_run_pump(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Run failed: failing.mty (exit 7)");
+
+    ctx.run.seed_finished_for_test("C:/proj/passing.mty", 0, 42);
+    assert_eq!(crate::featureabi::mui_run_pump(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Success);
+    assert_eq!(toast.message, "Run finished passing.mty in 42 ms");
+}
+
+#[test]
 fn run_clear_output_reports_feedback_and_preserves_status() {
     let mut ctx = ctx_or_skip!();
     ctx.term_open = true;

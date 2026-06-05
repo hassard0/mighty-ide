@@ -164,6 +164,14 @@ impl RunPanel {
         &self.path
     }
 
+    #[cfg(test)]
+    pub fn seed_finished_for_test(&mut self, path: &str, exit_code: i32, duration_ms: u128) {
+        self.seed_demo(path);
+        self.exit_code = Some(exit_code);
+        self.duration_ms = duration_ms;
+        self.just_finished = true;
+    }
+
     pub fn line(&self, i: usize) -> Option<&OutputLine> {
         self.lines.get(i)
     }

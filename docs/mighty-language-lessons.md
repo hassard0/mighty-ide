@@ -12071,3 +12071,17 @@ workspace/repo boundary that needed refreshing.
 - **Language note:** no compiler gap surfaced. Workspace-scoped integrations
   should name both the requested target and the active boundary when refusing a
   row operation because the backing root is unavailable.
+
+## L970 - Run Completion Toasts Should Name The Target File
+
+Run start failures already named the file and command boundary, but completed
+process results only reported `Run finished in N ms` or `Run failed (exit N)`.
+After switching tabs or running from a docked output view, that feedback did not
+say which file actually produced the result.
+
+- **IDE note:** Run completion feedback now reports
+  `Run finished target in N ms` or `Run failed: target (exit N)`, using the run
+  panel's recorded target rather than the currently active tab.
+- **Language note:** no compiler gap surfaced. Asynchronous tool result toasts
+  should read from the operation snapshot captured at start time, not ambient
+  editor focus at completion time.

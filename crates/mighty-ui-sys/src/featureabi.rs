@@ -57,6 +57,14 @@ fn run_start_failed_message(path: &std::path::Path, reason: Option<&str>) -> Str
     }
 }
 
+fn run_path_label(path: &str) -> &str {
+    std::path::Path::new(path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("file")
+}
+
 // ===========================================================================
 // Feature 1 — Run panel
 // ===========================================================================
@@ -212,10 +220,17 @@ pub extern "C" fn mui_run_pump(handle: i64) -> i32 {
     if c.run.take_just_finished() {
         let code = c.run.exit_code().unwrap_or(-1);
         let ms = c.run.duration_ms();
+        let target = run_path_label(c.run.path());
         if code == 0 {
-            c.push_toast(crate::toast::Kind::Success, format!("Run finished in {ms} ms"));
+            c.push_toast(
+                crate::toast::Kind::Success,
+                format!("Run finished {target} in {ms} ms"),
+            );
         } else {
-            c.push_toast(crate::toast::Kind::Error, format!("Run failed (exit {code})"));
+            c.push_toast(
+                crate::toast::Kind::Error,
+                format!("Run failed: {target} (exit {code})"),
+            );
         }
     }
     i32::from(changed)
