@@ -14638,6 +14638,56 @@ fn workspace_open_dialog_cancel_does_not_fallback_or_mutate() {
 }
 
 #[test]
+fn recent_folder_persistence_failure_reports_visible_feedback() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let old_override = std::env::var_os("MUI_CONFIG_DIR");
+    let old_appdata = std::env::var_os("APPDATA");
+    let root = std::env::temp_dir().join(format!(
+        "mui_recent_folder_persist_failure_{}",
+        std::process::id()
+    ));
+    let blocked = std::env::temp_dir().join(format!(
+        "mui_recent_folder_config_blocked_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    let _ = std::fs::remove_dir_all(&blocked);
+    let _ = std::fs::remove_file(&blocked);
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(&blocked, b"not a directory").unwrap();
+    std::env::set_var("MUI_CONFIG_DIR", &blocked);
+    std::env::remove_var("APPDATA");
+
+    let mut ctx = ctx_or_skip!();
+    assert_eq!(crate::wsabi::mui_ws_open_recent_path(&mut ctx, &root), 1);
+
+    assert_eq!(ctx.recent_workspaces.len(), 1);
+    assert_eq!(ctx.recent_workspaces.get(0), Some(&root));
+    assert!(ctx.toasts.toasts().iter().any(|t| {
+        t.kind == crate::toast::Kind::Success && t.message.starts_with("Opened folder:")
+    }));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Recent folders not saved; Open Recent may reset after restart"
+    );
+
+    match old_override {
+        Some(v) => std::env::set_var("MUI_CONFIG_DIR", v),
+        None => std::env::remove_var("MUI_CONFIG_DIR"),
+    }
+    match old_appdata {
+        Some(v) => std::env::set_var("APPDATA", v),
+        None => std::env::remove_var("APPDATA"),
+    }
+    let _ = std::fs::remove_dir_all(&root);
+    let _ = std::fs::remove_file(&blocked);
+}
+
+#[test]
 fn workspace_open_recent_prunes_missing_folder() {
     use crate::wsabi::{mui_ws_open_recent, mui_ws_recent_count};
 
@@ -14944,6 +14994,61 @@ fn quickopen_record_active_prunes_missing_recent_files() {
     assert_eq!(ctx.tree.count(), 1);
 
     let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn recent_file_persistence_failure_reports_visible_feedback() {
+    use crate::mui_qo_record_active;
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let old_override = std::env::var_os("MUI_CONFIG_DIR");
+    let old_appdata = std::env::var_os("APPDATA");
+    let root = std::env::temp_dir().join(format!(
+        "mui_recent_file_persist_failure_{}",
+        std::process::id()
+    ));
+    let blocked = std::env::temp_dir().join(format!(
+        "mui_recent_file_config_blocked_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    let _ = std::fs::remove_dir_all(&blocked);
+    let _ = std::fs::remove_file(&blocked);
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(&blocked, b"not a directory").unwrap();
+    std::env::set_var("MUI_CONFIG_DIR", &blocked);
+    std::env::remove_var("APPDATA");
+
+    let active = root.join("active.mty");
+    std::fs::write(&active, "fn active() {}\n").unwrap();
+    let mut ctx = ctx_or_skip!();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tabs.open_path(active.clone());
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_qo_record_active(h);
+
+    assert_eq!(ctx.quickopen.recent_paths(), vec![active]);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Recent files not saved; Open Recent may reset after restart"
+    );
+
+    match old_override {
+        Some(v) => std::env::set_var("MUI_CONFIG_DIR", v),
+        None => std::env::remove_var("MUI_CONFIG_DIR"),
+    }
+    match old_appdata {
+        Some(v) => std::env::set_var("APPDATA", v),
+        None => std::env::remove_var("APPDATA"),
+    }
+    let _ = std::fs::remove_dir_all(&root);
+    let _ = std::fs::remove_file(&blocked);
 }
 
 #[test]

@@ -60,8 +60,21 @@ pub(crate) fn refresh_workspace_file_views(ctx: &mut MuiContext) {
     ctx.quickopen.refresh_file_rows();
 }
 
-fn persist_recent_files(ctx: &MuiContext) {
-    let _ = crate::config::save_recent_files(&ctx.quickopen.recent_blob());
+const RECENT_FILES_PERSISTENCE_WARNING: &str =
+    "Recent files not saved; Open Recent may reset after restart";
+const RECENT_FOLDERS_PERSISTENCE_WARNING: &str =
+    "Recent folders not saved; Open Recent may reset after restart";
+
+fn persist_recent_files(ctx: &mut MuiContext) {
+    if !crate::config::save_recent_files(&ctx.quickopen.recent_blob()) {
+        ctx.push_toast(crate::toast::Kind::Warn, RECENT_FILES_PERSISTENCE_WARNING);
+    }
+}
+
+fn persist_recent_workspaces(ctx: &mut MuiContext) {
+    if !crate::config::save_recent_workspaces(&ctx.recent_workspaces.to_blob()) {
+        ctx.push_toast(crate::toast::Kind::Warn, RECENT_FOLDERS_PERSISTENCE_WARNING);
+    }
 }
 
 /// Highlight one line for the active `lang`, preferring Markdown's tailored
@@ -597,7 +610,7 @@ fn seed_first_run_samples(handle: i64) {
         changed = true;
     }
     if changed {
-        let _ = crate::config::save_recent_workspaces(&ctx.recent_workspaces.to_blob());
+        persist_recent_workspaces(ctx);
     }
 }
 
@@ -4379,7 +4392,7 @@ fn prune_missing_recent_files(ctx: &mut MuiContext) {
 
 fn prune_missing_recent_workspaces(ctx: &mut MuiContext) {
     if ctx.recent_workspaces.prune_missing_dirs() {
-        let _ = crate::config::save_recent_workspaces(&ctx.recent_workspaces.to_blob());
+        persist_recent_workspaces(ctx);
     }
 }
 

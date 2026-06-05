@@ -158,9 +158,9 @@ fn apply_folder(ctx: &mut MuiContext, root: PathBuf) -> i32 {
     refresh_dependents(ctx, &root);
     // Record + persist the recents MRU.
     ctx.recent_workspaces.record(root.clone());
-    persist_recents(ctx);
     let name = ctx.workspace.name().to_string();
     ctx.push_toast(crate::toast::Kind::Success, format!("Opened folder: {name}"));
+    persist_recents(ctx);
     println!(
         "ws: opened {} (name={name}, changed={changed}, recents={})",
         root.display(),
@@ -213,8 +213,13 @@ pub(crate) fn refresh_dependents(ctx: &mut MuiContext, root: &std::path::Path) -
 }
 
 /// Persist the current recents MRU to the config dir (best-effort).
-fn persist_recents(ctx: &MuiContext) {
-    let _ = crate::config::save_recent_workspaces(&ctx.recent_workspaces.to_blob());
+fn persist_recents(ctx: &mut MuiContext) {
+    if !crate::config::save_recent_workspaces(&ctx.recent_workspaces.to_blob()) {
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Recent folders not saved; Open Recent may reset after restart",
+        );
+    }
 }
 
 // ---- recent workspaces (MRU) ----
