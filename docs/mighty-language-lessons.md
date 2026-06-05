@@ -12195,3 +12195,15 @@ session, that did not identify which buffer and cursor site had been queried.
 - **Language note:** no compiler gap surfaced. Mutating language commands should
   be as specific on rejected-target paths as read-only code-intelligence
   lookups are on empty-result paths.
+
+## L979 - Formatter Preflight Should Name Scratch Buffers
+
+Formatting an unsaved buffer reported only `Save the file before formatting`.
+That explained the required action, but not that the active target was an
+untitled scratch buffer rather than a file-backed tab.
+
+- **IDE note:** missing-path formatter preflight now reports
+  `Save (scratch) before formatting`, and detailed save-first formatter messages
+  stay in the format toast replacement lane.
+- **Language note:** no compiler gap surfaced. File-mutating commands should
+  distinguish scratch buffers from file-backed targets when refusing to run.

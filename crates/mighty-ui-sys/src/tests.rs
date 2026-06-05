@@ -10905,7 +10905,7 @@ fn format_current_reports_missing_or_unsupported_target() {
     assert_eq!(crate::mui_format_current(h), -1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Save the file before formatting");
+    assert_eq!(toast.message, "Save (scratch) before formatting");
 
     let path = std::env::temp_dir().join("mui_format_unsupported.txt");
     let original = b"plain text that must survive unsupported format\n";

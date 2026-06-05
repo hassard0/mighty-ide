@@ -990,6 +990,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   failing silently.
 - **Rename misses name the query site**: F2 on non-renamable locations now
   reports the active file or scratch buffer plus 1-based line/column.
+- **Formatter preflight names scratch buffers**: formatting an unsaved buffer now
+  reports `Save (scratch) before formatting` instead of a generic save-first
+  warning.
 - **Testing result metadata is readable**: suite names and run duration in the
   Testing drawer now use secondary text instead of near-invisible faint chrome.
 - **Overlay helper text is readable**: command palette, Keyboard Shortcuts, and

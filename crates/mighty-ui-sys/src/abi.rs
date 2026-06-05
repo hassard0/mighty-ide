@@ -11522,6 +11522,16 @@ fn format_failed_message(path: &std::path::Path, reason: Option<&str>) -> String
     }
 }
 
+fn format_needs_file_message(ctx: &MuiContext) -> String {
+    let name = ctx
+        .tabs
+        .active_path()
+        .as_deref()
+        .map(basename)
+        .unwrap_or_else(|| "(scratch)".to_string());
+    format!("Save {name} before formatting")
+}
+
 #[no_mangle]
 pub extern "C" fn mui_format_current(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -11529,7 +11539,7 @@ pub extern "C" fn mui_format_current(handle: i64) -> i32 {
     };
     let Some(path) = ctx.file_path.clone() else {
         eprintln!("format: no file path configured");
-        ctx.push_toast(crate::toast::Kind::Warn, "Save the file before formatting");
+        ctx.push_toast(crate::toast::Kind::Warn, format_needs_file_message(ctx));
         return -1;
     };
     if ctx.tabs.any_dirty_path(&path) {

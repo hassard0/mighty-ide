@@ -837,6 +837,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m == "Formatted document"
         || m.starts_with("Format failed")
         || m == "Save the file before formatting"
+        || (m.starts_with("Save ") && m.ends_with(" before formatting"))
         || m == "Save or discard changes before formatting"
         || m == "Format is available for Mighty files"
     {
@@ -2726,6 +2727,14 @@ mod tests {
         let t0 = Instant::now();
 
         q.push_at(Kind::Warn, "Save the file before formatting", t0);
+        q.push_at(
+            Kind::Warn,
+            "Save (scratch) before formatting",
+            t0 + Duration::from_millis(25),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Save (scratch) before formatting");
+
         q.push_at(
             Kind::Warn,
             "Save or discard changes before formatting",
