@@ -170,6 +170,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Mighty Agents panel feedback replaces cleanly**: Agents run-output and
   panel close/no-op notices now coalesce with the rest of the Agents feedback
   family instead of leaving repeated lifecycle toasts behind.
+- **Outline panel feedback replaces cleanly**: Outline close/no-op messages now
+  coalesce with navigation feedback alongside Outline symbol updates instead of
+  stacking stale navigation-surface lifecycle cards.
 - **Run, Test, and Source Control stale-target toasts replace cleanly**:
   non-file target warnings from runner, test, and source-control surfaces now
   coalesce with the command family that produced them instead of lingering as
