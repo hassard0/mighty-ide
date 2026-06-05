@@ -21,9 +21,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Format document guards unsaved scratch buffers and dirty duplicate tabs with
   target-specific feedback, and rejects directory targets with explicit `not a
   file` feedback before spawning the formatter
-- Save, Save As, and Save All reject directory targets with explicit `not a
-  file` feedback, and staged save plus Save As report non-directory parent paths
-  before writing
+- Save, Save As, Save All, and auto-save reject directory targets with explicit
+  `not a file` feedback, and staged save, Save As, plus auto-save report
+  non-directory parent paths before writing
 - **Multi-cursor** — select word / add caret at next occurrence (Ctrl+D), add caret above/below (Ctrl+Alt+↑/↓), toggle caret on Alt+Click
 - **Snippets** — type a prefix + Tab to expand a template with navigable tab-stops
 - **Save conveniences** — opt-in trim-trailing-whitespace, ensure-final-newline, and timed auto-save (Settings)

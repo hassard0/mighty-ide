@@ -84,6 +84,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Auto-save reports stale non-file targets**: auto-save now shares the same
+  preflight as manual saves for directory targets and non-directory parents.
+  Stale bindings report `Auto-save failed: <path>: not a file`, keep the buffer
+  dirty, and refresh workspace file views instead of failing silently.
 - **Save paths report non-directory parents**: staged save plus typed and
   native Save As now preflight parent directories before writing. If a parent
   path is an existing file, saves report `Save failed: <parent>: not a file`

@@ -12682,6 +12682,32 @@ pub extern "C" fn mui_autosave_tick(handle: i64) -> i32 {
         );
         return 0;
     }
+    if let Some(parent) = path.parent() {
+        if let Some(blocked) = existing_non_dir_ancestor(parent) {
+            ctx.autosave.disarm();
+            refresh_workspace_file_views(ctx);
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_target_not_file_message("Auto-save", &blocked),
+            );
+            eprintln!(
+                "mui_autosave({}): parent is not a directory: {}",
+                path.display(),
+                blocked.display()
+            );
+            return 0;
+        }
+    }
+    if save_target_is_existing_non_file(&path) {
+        ctx.autosave.disarm();
+        refresh_workspace_file_views(ctx);
+        ctx.push_toast(
+            crate::toast::Kind::Error,
+            file_target_not_file_message("Auto-save", &path),
+        );
+        eprintln!("mui_autosave({}): not a file", path.display());
+        return 0;
+    }
     let bytes = save_bytes_for_active(ctx);
     let name = basename(&path);
     let resurrected_path = !path.is_file();
@@ -12706,6 +12732,11 @@ pub extern "C" fn mui_autosave_tick(handle: i64) -> i32 {
         }
         Err(e) => {
             eprintln!("mui_autosave({}): {e}", path.display());
+            ctx.autosave.disarm();
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                file_operation_failed_message("Auto-save", &path, &e),
+            );
             0
         }
     }

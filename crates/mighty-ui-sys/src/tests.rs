@@ -15685,6 +15685,93 @@ fn autosave_skips_conflicting_dirty_duplicate_tab() {
 }
 
 #[test]
+fn autosave_rejects_directory_target_as_not_file() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    let mut settings = before;
+    settings.autosave = true;
+    crate::settings::set_active(settings);
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_autosave_directory_target_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let blocked = root.join("blocked.mty");
+    std::fs::create_dir(&blocked).unwrap();
+    let active = ctx.tabs.open_path(blocked.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("autosave dirty\n");
+    ctx.tabs.set_dirty(active, true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_autosave_touch(h);
+    assert_eq!(crate::mui_autosave_tick(h), 0);
+    std::thread::sleep(std::time::Duration::from_millis(
+        crate::savefmt::AUTOSAVE_IDLE_MS as u64 + 50,
+    ));
+    assert_eq!(crate::mui_autosave_tick(h), 0);
+    assert!(blocked.is_dir());
+    assert_eq!(ctx.tabs.active_model().as_text(), "autosave dirty\n");
+    assert!(ctx.tabs.is_dirty(active));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Auto-save failed: blocked.mty: not a file");
+
+    crate::settings::set_active(before);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn autosave_rejects_non_directory_parent() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let before = crate::settings::active();
+    let mut settings = before;
+    settings.autosave = true;
+    crate::settings::set_active(settings);
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_autosave_parent_file_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let parent_file = root.join("parent.txt");
+    std::fs::write(&parent_file, "not a directory\n").unwrap();
+    let target = parent_file.join("child.mty");
+    let active = ctx.tabs.open_path(target.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("autosave dirty\n");
+    ctx.tabs.set_dirty(active, true);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    crate::mui_autosave_touch(h);
+    assert_eq!(crate::mui_autosave_tick(h), 0);
+    std::thread::sleep(std::time::Duration::from_millis(
+        crate::savefmt::AUTOSAVE_IDLE_MS as u64 + 50,
+    ));
+    assert_eq!(crate::mui_autosave_tick(h), 0);
+    assert!(!target.exists());
+    assert_eq!(ctx.tabs.active_model().as_text(), "autosave dirty\n");
+    assert!(ctx.tabs.is_dirty(active));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Auto-save failed: parent.txt: not a file");
+
+    crate::settings::set_active(before);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn autosave_refreshes_clean_duplicate_tab() {
     let _g = crate::settings::TEST_LOCK
         .lock()

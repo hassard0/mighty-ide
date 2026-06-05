@@ -12954,3 +12954,17 @@ write error point at the leaf, not the real blocker.
 - **Language note:** no compiler gap surfaced. File-write commands should treat
   parent preparation as its own side-effect boundary and report the failing
   ancestor, not only the requested leaf path.
+
+## L1032 - Background Saves Need Visible Path Failures
+
+Auto-save runs without an explicit user command at the failure point, so silent
+write errors are especially expensive: the buffer remains dirty but the user
+does not know the file binding has gone stale.
+
+- **IDE note:** auto-save now preflights stale directory targets and
+  non-directory parents before applying save transforms. It reports
+  `Auto-save failed: <path>: not a file`, keeps the dirty buffer unchanged, and
+  refreshes workspace file views.
+- **Language note:** no compiler gap surfaced. Background side effects should
+  return visible status through the same reporting channel as foreground
+  commands; logging alone is not enough for recoverable file-system failures.
