@@ -863,13 +863,15 @@ fn tree_open_row_missing_file_refreshes_and_reports_feedback() {
 
     assert_eq!(mui_tree_refresh(handle), 1);
     assert_eq!(mui_quickopen_reindex(handle), 1);
+    crate::mui_quickopen_open(handle);
+    assert_eq!(ctx.quickopen.count(), 1);
     let before = mui_tab_count(handle);
     std::fs::remove_file(&file).unwrap();
 
     assert_eq!(mui_tree_open_row(handle, 0), -1);
     assert_eq!(mui_tab_count(handle), before);
     assert_eq!(mui_tree_count(handle), 0);
-    assert_eq!(mui_quickopen_reindex(handle), 0);
+    assert_eq!(ctx.quickopen.count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Explorer target missing: gone.mty");
@@ -12447,6 +12449,11 @@ fn save_as_prompt_consumes_staged_path() {
 
     let root = std::env::temp_dir().join(format!("mui_save_as_prompt_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    crate::mui_quickopen_open(h);
+    assert_eq!(ctx.quickopen.count(), 0);
     let target = root.join("typed.mty");
     for b in target.to_string_lossy().as_bytes() {
         mui_path_push(h, *b as u32);
@@ -12458,6 +12465,9 @@ fn save_as_prompt_consumes_staged_path() {
     assert_eq!(mui_ed_dirty(h), 0);
     assert_eq!(ctx.tabs.active_path().as_deref(), Some(target.as_path()));
     assert_eq!(std::fs::read_to_string(&target).unwrap(), "let x = 1\n");
+    assert_eq!(ctx.quickopen.recent_paths(), vec![target.clone()]);
+    assert_eq!(ctx.quickopen.count(), 1);
+    assert_eq!(ctx.quickopen.row(0).unwrap().name, "typed.mty");
 
     crate::settings::set_active(before);
     let _ = std::fs::remove_dir_all(&root);

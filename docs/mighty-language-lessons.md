@@ -11029,3 +11029,15 @@ until the user types or reopens it.
   Quick Open file rows after index and MRU updates.
 - **Language note:** no compiler gap surfaced. When mutating workspace files,
   refresh both cached data and any open views derived from that cache.
+
+## L894 - Save As Should Publish New Files To Open Pickers
+
+Save As and untitled Save All can create or bind a file path without going
+through the dedicated New File flow. Refreshing Explorer alone leaves Quick
+Open's file index and any currently visible rows unaware of the new saved file.
+
+- **IDE note:** Save As now records the saved file as recent and refreshes
+  Explorer plus Quick Open's backing index and visible file rows; explicit Quick
+  Open reindexing also refreshes visible file rows.
+- **Language note:** no compiler gap surfaced. Any command that materializes a
+  new workspace path should publish that path to all file discovery surfaces.

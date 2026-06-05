@@ -47,6 +47,13 @@ fn remove_recent_file(ctx: &mut MuiContext, path: &std::path::Path) {
     }
 }
 
+fn refresh_workspace_file_views(ctx: &mut MuiContext) {
+    ctx.tree.refresh();
+    let root = quickopen_root(ctx);
+    let _ = ctx.quickopen.ensure_index(&root, true);
+    ctx.quickopen.refresh_file_rows();
+}
+
 fn persist_recent_files(ctx: &MuiContext) {
     let _ = crate::config::save_recent_files(&ctx.quickopen.recent_blob());
 }
@@ -6864,9 +6871,7 @@ pub extern "C" fn mui_tree_open_row(handle: i64, i: i32) -> i32 {
     let path = row.path.clone();
     if !path.is_file() {
         let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("source");
-        ctx.tree.refresh();
-        let root = quickopen_root(ctx);
-        let _ = ctx.quickopen.ensure_index(&root, true);
+        refresh_workspace_file_views(ctx);
         ctx.push_toast(
             crate::toast::Kind::Warn,
             format!("Explorer target missing: {name}"),
@@ -9066,7 +9071,9 @@ pub extern "C" fn mui_quickopen_reindex(handle: i64) -> i32 {
         return 0;
     };
     let root = quickopen_root(ctx);
-    ctx.quickopen.ensure_index(&root, true) as i32
+    let n = ctx.quickopen.ensure_index(&root, true) as i32;
+    ctx.quickopen.refresh_file_rows();
+    n
 }
 
 /// Append a typed char (codepoint) to the query and recompute. Re-seeds the
@@ -11987,7 +11994,8 @@ fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf, toast_succe
         );
         return -1;
     }
-    if tab.path.as_ref() != Some(&path) {
+    let path_changed = tab.path.as_ref() != Some(&path);
+    if path_changed {
         if let Err(e) = validate_save_target_basename(&path) {
             ctx.autosave.disarm();
             ctx.push_toast(crate::toast::Kind::Warn, e.clone());
@@ -12008,6 +12016,10 @@ fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf, toast_succe
                 sync_active_path(ctx);
             }
             ctx.autosave.disarm();
+            if path_changed {
+                record_recent_file(ctx, path.clone());
+                refresh_workspace_file_views(ctx);
+            }
             println!("mui_ed_save: {} ({} bytes)", path.display(), bytes.len());
             if toast_success {
                 ctx.push_toast(crate::toast::Kind::Success, format!("Saved {name}"));
@@ -12287,7 +12299,7 @@ fn save_active_to_path(ctx: &mut MuiContext, target: PathBuf) -> i32 {
         Ok(()) => {
             ctx.tabs.set_active_path(target.clone());
             ctx.language = crate::langdetect::detect_path(&target);
-            ctx.file_path = Some(target);
+            ctx.file_path = Some(target.clone());
             mark_active_clean(ctx);
             let active = ctx.tabs.active();
             if let Some(path) = ctx.file_path.clone() {
@@ -12296,7 +12308,8 @@ fn save_active_to_path(ctx: &mut MuiContext, target: PathBuf) -> i32 {
                     .reload_all_clean_path_except(&path, &bytes, active);
             }
             ctx.autosave.disarm();
-            ctx.tree.refresh();
+            record_recent_file(ctx, target.clone());
+            refresh_workspace_file_views(ctx);
             ctx.push_toast(crate::toast::Kind::Success, format!("Saved {name}"));
             0
         }
