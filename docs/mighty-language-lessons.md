@@ -13762,3 +13762,15 @@ command source, not the present-day scheme prefix.
 - **Language note:** no compiler gap surfaced. When command output includes
   dynamic user/tool data, classifiers should anchor on the stable verb emitted
   by the command rather than incidental payload details.
+
+## L1088 - Terminal Clear Coverage Needs Both Outcomes
+
+Terminal clear commands report both `Terminal cleared` and `Terminal is already
+empty`. The second message is easy to miss because the classifier handles it by
+prefix, but it is the repeat-command state users see most often.
+
+- **IDE note:** terminal toast regression coverage now proves the repeat-clear
+  outcome replaces stale terminal clear feedback.
+- **Language note:** no compiler gap surfaced. Prefix-based operation families
+  still need examples for common alternate outcomes so future edits do not
+  accidentally narrow the covered surface.
