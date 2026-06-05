@@ -800,6 +800,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if is_test_result_message(m)
         || m == "Open a Mighty file or folder before running tests"
         || m == "Open a Mighty file before running test at cursor"
+        || (m.starts_with("Save ") && m.ends_with(" or open a Mighty folder before running tests"))
+        || (m.starts_with("Save ") && m.ends_with(" before running test at cursor"))
         || m.starts_with("Test run failed to start:")
         || m == "Test run stopped"
         || m == "No test run to stop"
@@ -1838,10 +1840,20 @@ mod tests {
             "Open a Mighty file before running test at cursor",
             t0 + Duration::from_millis(100),
         );
+        q.push_at(
+            Kind::Warn,
+            "Save (scratch) before running test at cursor",
+            t0 + Duration::from_millis(150),
+        );
+        q.push_at(
+            Kind::Warn,
+            "Save (scratch) or open a Mighty folder before running tests",
+            t0 + Duration::from_millis(175),
+        );
         assert_eq!(q.len(), 1);
         assert_eq!(
             q.toasts()[0].message,
-            "Open a Mighty file before running test at cursor"
+            "Save (scratch) or open a Mighty folder before running tests"
         );
 
         q.push_at(

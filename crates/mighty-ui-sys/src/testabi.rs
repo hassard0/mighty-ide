@@ -31,6 +31,16 @@ fn active_path(ctx: &MuiContext) -> Option<std::path::PathBuf> {
     ctx.tabs.active_path()
 }
 
+fn active_test_target_label(ctx: &MuiContext) -> String {
+    active_path(ctx)
+        .as_deref()
+        .and_then(|p| p.file_name())
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("(scratch)")
+        .to_string()
+}
+
 fn test_command_display() -> String {
     let mty = crate::mty::path();
     let program = std::path::Path::new(&mty)
@@ -173,7 +183,13 @@ pub extern "C" fn mui_test_run(handle: i64) -> i32 {
         ctx.tests_panel.open();
         ctx.active_panel = crate::PANEL_TEST;
         ctx.sidebar_visible = true;
-        ctx.push_toast(crate::toast::Kind::Warn, "Open a Mighty file or folder before running tests");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!(
+                "Save {} or open a Mighty folder before running tests",
+                active_test_target_label(ctx)
+            ),
+        );
         crate::abi::trace("test_run no_target");
         return 0;
     };
@@ -206,7 +222,13 @@ pub extern "C" fn mui_test_run_at_cursor(handle: i64) -> i32 {
         ctx.tests_panel.open();
         ctx.active_panel = crate::PANEL_TEST;
         ctx.sidebar_visible = true;
-        ctx.push_toast(crate::toast::Kind::Warn, "Open a Mighty file before running test at cursor");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!(
+                "Save {} before running test at cursor",
+                active_test_target_label(ctx)
+            ),
+        );
         crate::abi::trace("test_run_at_cursor no_target");
         return 0;
     };

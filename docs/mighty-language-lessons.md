@@ -12348,3 +12348,19 @@ buffer.
 - **Language note:** no compiler gap surfaced. Workflow commands that bridge
   Mighty into host tools should carry a target label through scalar preflight
   failures, even when the target has no filesystem path yet.
+
+## L990 - Testing No-Target Misses Should Name Scratch Buffers
+
+Testing still had the older `Open a Mighty file ...` refusals after Run, Debug,
+Agents, Diff, and Blame had moved to target-aware scratch feedback. `Run Tests`
+also has a workspace fallback, so its failure needs to describe both missing
+states: the active buffer is unsaved and no testable Mighty workspace target was
+found.
+
+- **IDE note:** `Run Tests` now reports
+  `Save (scratch) or open a Mighty folder before running tests`, and
+  `Run Test at Cursor` reports `Save (scratch) before running test at cursor`.
+  Toast replacement keeps the new messages in the Testing feedback lane.
+- **Language note:** no compiler gap surfaced. Tooling commands with fallback
+  target discovery should name the active virtual buffer and the missing
+  fallback scope in the same preflight message.

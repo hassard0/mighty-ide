@@ -2408,8 +2408,34 @@ fn test_at_cursor_without_file_reports_visible_feedback() {
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(
         toast.message,
-        "Open a Mighty file before running test at cursor"
+        "Save (scratch) before running test at cursor"
     );
+}
+
+#[test]
+fn test_run_without_file_or_workspace_reports_visible_target_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_test_no_target_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.tree.set_root(root.clone());
+    ctx.workspace.set_root(root.clone());
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::testabi::mui_test_run(handle), 0);
+    assert_eq!(ctx.active_panel, crate::PANEL_TEST);
+    assert!(ctx.sidebar_visible);
+    assert!(ctx.tests_panel.is_active());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Save (scratch) or open a Mighty folder before running tests"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]

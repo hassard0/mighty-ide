@@ -86,6 +86,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   commands now identify untitled buffers in refusal feedback, so users can tell
   when they need to save `(scratch)` before running Agents or Run, or when Diff
   and Blame have no file-backed target.
+- **Testing preflights name scratch misses**: Run Tests and Run Test at Cursor
+  now identify `(scratch)` when they cannot find a saved Mighty file or testable
+  workspace target.
 - **Copy file metadata names scratch buffers**: copy-path, copy-relative-path,
   copy-name, and copy-directory now identify `(scratch)` when the active tab has
   no file path.
