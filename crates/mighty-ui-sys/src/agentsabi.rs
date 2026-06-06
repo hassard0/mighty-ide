@@ -1158,6 +1158,24 @@ fn active_agent_target_label(ctx: &MuiContext) -> String {
         .to_string()
 }
 
+fn reject_bad_agents_run_target(ctx: &mut MuiContext, path: &std::path::Path) -> bool {
+    let target_name = crate::abi::file_target_name(path);
+    let message = match agents_target_kind(path) {
+        AgentsTargetKind::File => return false,
+        AgentsTargetKind::Missing => format!("Agents run target missing: {target_name}"),
+        AgentsTargetKind::NotFile => format!("Agents run target is not a file: {target_name}"),
+    };
+    let root = ctx
+        .agents
+        .root
+        .clone()
+        .unwrap_or_else(|| crate::wsabi::effective_root(ctx));
+    let _ = ctx.agents.refresh(&root);
+    crate::abi::refresh_workspace_file_views(ctx);
+    ctx.push_toast(crate::toast::Kind::Warn, message);
+    true
+}
+
 /// Run the active program (`mty run <active file>`) on a background thread,
 /// streaming output into the embedded run buffer. Returns `1` if a process
 /// spawned, `0` otherwise (no file / spawn failure).
@@ -1180,6 +1198,10 @@ pub extern "C" fn mui_agents_run(handle: i64) -> i32 {
             crate::toast::Kind::Warn,
             ctx.read_only_active_file_message(),
         );
+        return 0;
+    }
+    if reject_bad_agents_run_target(ctx, &path) {
+        crate::abi::trace("agents_run stale_target");
         return 0;
     }
     let mut topo = std::mem::take(&mut ctx.agents);

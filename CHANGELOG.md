@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Agents run rejects stale active targets**: Mighty Agents now refuses to
+  run deleted or directory-backed active files before spawning, refreshes stale
+  workspace views, and reports the exact target in the warning toast.
 - **Breakpoint toggles reject stale active targets**: gutter and Command
   Palette breakpoint toggles now refuse missing or directory-backed active
   files instead of recording unusable breakpoints, with matching palette

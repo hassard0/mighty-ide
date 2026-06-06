@@ -3768,6 +3768,45 @@ fn agents_run_rejects_read_only_binary_preview_before_spawn() {
 }
 
 #[test]
+fn agents_run_rejects_stale_active_targets_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_agents_run_stale_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.workspace.set_root(root.clone());
+    let path = root.join("agent.mty");
+    std::fs::write(&path, "agent Worker {}\n").unwrap();
+    ctx.tabs.open_path(path.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::fs::remove_file(&path).unwrap();
+    assert_eq!(crate::agentsabi::mui_agents_run(handle), 0);
+    assert!(!ctx.agents.run_running());
+    assert_eq!(ctx.agents.run_line_count(), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Agents run target missing: agent.mty");
+
+    let blocked = root.join("blocked.mty");
+    std::fs::create_dir_all(&blocked).unwrap();
+    ctx.tabs.set_active_path(blocked);
+    assert_eq!(crate::agentsabi::mui_agents_run(handle), 0);
+    assert!(!ctx.agents.run_running());
+    assert_eq!(ctx.agents.run_line_count(), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Agents run target is not a file: blocked.mty"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn agents_clear_run_output_reports_feedback_and_preserves_topology() {
     let mut ctx = ctx_or_skip!();
     ctx.sidebar_visible = false;
