@@ -1234,6 +1234,45 @@ impl PaletteEngine {
         }
         if matches!(
             id,
+            CMD_TOGGLE_TERMINAL
+                | CMD_COLOR_THEME
+                | CMD_SETTINGS
+                | CMD_MARKDOWN_PREVIEW
+                | CMD_KEYBOARD_SHORTCUTS
+                | CMD_VIEW_EXPLORER
+                | CMD_VIEW_SEARCH
+                | CMD_VIEW_SOURCE_CONTROL
+                | CMD_VIEW_OUTLINE
+                | CMD_VIEW_RUN_DEBUG
+                | CMD_VIEW_TESTING
+                | CMD_VIEW_RUN_OUTPUT
+                | CMD_VIEW_PROBLEMS
+                | CMD_VIEW_AI_COPILOT
+                | CMD_VIEW_TERMINAL
+                | CMD_VIEW_WEB_PLAYGROUND
+        ) {
+            return open_surface_contextual_desc(
+                id,
+                base,
+                ctx.sidebar_visible && ctx.active_panel == crate::PANEL_EXPLORER,
+                ctx.sidebar_visible && ctx.active_panel == crate::PANEL_SEARCH,
+                ctx.sidebar_visible && ctx.active_panel == crate::PANEL_SCM,
+                ctx.sidebar_visible && ctx.active_panel == crate::PANEL_OUTLINE,
+                ctx.active_panel == crate::PANEL_DEBUG || ctx.dbg.is_open(),
+                ctx.tests_panel.is_active(),
+                ctx.run.is_active(),
+                ctx.problems.is_open(),
+                ctx.ai.open,
+                ctx.term_open,
+                ctx.web.is_active(),
+                ctx.settings_panel.is_active(),
+                ctx.theme_picker.is_active(),
+                ctx.shortcuts.is_active(),
+                ctx.md_preview.is_open() || ctx.md_pane.is_some(),
+            );
+        }
+        if matches!(
+            id,
             CMD_WEB_STOP | CMD_WEB_OPEN_BROWSER | CMD_WEB_CLEAR_OUTPUT | CMD_WEB_CLOSE
         ) {
             return web_contextual_desc(
@@ -1933,6 +1972,56 @@ fn keyboard_shortcuts_contextual_desc<'a>(
         CMD_KEYBOARD_SHORTCUTS_RESET_ALL if overrides_empty => {
             Cow::Borrowed("Keyboard Shortcuts already use defaults")
         }
+        _ => Cow::Borrowed(base),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn open_surface_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    explorer_open: bool,
+    search_open: bool,
+    source_control_open: bool,
+    outline_open: bool,
+    debug_open: bool,
+    testing_open: bool,
+    run_output_open: bool,
+    problems_open: bool,
+    ai_open: bool,
+    terminal_open: bool,
+    web_open: bool,
+    settings_open: bool,
+    theme_picker_open: bool,
+    keyboard_shortcuts_open: bool,
+    markdown_open: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_VIEW_EXPLORER if explorer_open => Cow::Borrowed("Explorer panel is already open"),
+        CMD_VIEW_SEARCH if search_open => Cow::Borrowed("Search panel is already open"),
+        CMD_VIEW_SOURCE_CONTROL if source_control_open => {
+            Cow::Borrowed("Source Control panel is already open")
+        }
+        CMD_VIEW_OUTLINE if outline_open => Cow::Borrowed("Outline panel is already open"),
+        CMD_VIEW_RUN_DEBUG if debug_open => Cow::Borrowed("Run and Debug panel is already open"),
+        CMD_VIEW_TESTING if testing_open => Cow::Borrowed("Testing panel is already open"),
+        CMD_VIEW_RUN_OUTPUT if run_output_open => Cow::Borrowed("Run output panel is already open"),
+        CMD_VIEW_PROBLEMS if problems_open => Cow::Borrowed("Problems panel is already open"),
+        CMD_VIEW_AI_COPILOT if ai_open => Cow::Borrowed("AI Copilot panel is already open"),
+        CMD_TOGGLE_TERMINAL | CMD_VIEW_TERMINAL if terminal_open => {
+            Cow::Borrowed("Focus integrated terminal")
+        }
+        CMD_VIEW_WEB_PLAYGROUND if web_open => {
+            Cow::Borrowed("Web Playground panel is already open")
+        }
+        CMD_SETTINGS if settings_open => Cow::Borrowed("Settings panel is already open"),
+        CMD_COLOR_THEME if theme_picker_open => {
+            Cow::Borrowed("Color theme picker is already open")
+        }
+        CMD_KEYBOARD_SHORTCUTS if keyboard_shortcuts_open => {
+            Cow::Borrowed("Keyboard Shortcuts is already open")
+        }
+        CMD_MARKDOWN_PREVIEW if markdown_open => Cow::Borrowed("Markdown preview is already open"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -3559,6 +3648,64 @@ mod tests {
                 true,
                 false
             ),
+            Cow::Borrowed("base")
+        );
+    }
+
+    fn open_surface_desc_for_flags(id: u32, flags: [bool; 15]) -> Cow<'static, str> {
+        open_surface_contextual_desc(
+            id, "base", flags[0], flags[1], flags[2], flags[3], flags[4], flags[5], flags[6],
+            flags[7], flags[8], flags[9], flags[10], flags[11], flags[12], flags[13],
+            flags[14],
+        )
+    }
+
+    #[test]
+    fn open_surface_command_descriptions_reflect_runtime_state() {
+        let mut flags = [false; 15];
+        flags[0] = true;
+        assert_eq!(
+            open_surface_desc_for_flags(CMD_VIEW_EXPLORER, flags),
+            Cow::Borrowed("Explorer panel is already open")
+        );
+
+        let mut flags = [false; 15];
+        flags[2] = true;
+        assert_eq!(
+            open_surface_desc_for_flags(CMD_VIEW_SOURCE_CONTROL, flags),
+            Cow::Borrowed("Source Control panel is already open")
+        );
+
+        let mut flags = [false; 15];
+        flags[4] = true;
+        assert_eq!(
+            open_surface_desc_for_flags(CMD_VIEW_RUN_DEBUG, flags),
+            Cow::Borrowed("Run and Debug panel is already open")
+        );
+
+        let mut flags = [false; 15];
+        flags[9] = true;
+        assert_eq!(
+            open_surface_desc_for_flags(CMD_TOGGLE_TERMINAL, flags),
+            Cow::Borrowed("Focus integrated terminal")
+        );
+
+        let mut flags = [false; 15];
+        flags[13] = true;
+        assert_eq!(
+            open_surface_desc_for_flags(CMD_KEYBOARD_SHORTCUTS, flags),
+            Cow::Borrowed("Keyboard Shortcuts is already open")
+        );
+
+        let mut flags = [false; 15];
+        flags[14] = true;
+        assert_eq!(
+            open_surface_desc_for_flags(CMD_MARKDOWN_PREVIEW, flags),
+            Cow::Borrowed("Markdown preview is already open")
+        );
+
+        assert_eq!(
+            open_surface_desc_for_flags(CMD_VIEW_WEB_PLAYGROUND, [false; 15]),
             Cow::Borrowed("base")
         );
     }

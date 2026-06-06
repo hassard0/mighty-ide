@@ -127,6 +127,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Reopen Closed Tab, Close Bottom Dock, Prompt Cancel, Unsaved Changes Cancel,
   Git Branch Cancel, Breadcrumb Close, and Snippet Cancel now mirror their
   empty/no-open runtime feedback before dispatch.
+- **Command Palette open/focus rows explain already-open surfaces**: View panel,
+  Terminal, Settings, Color Theme, Keyboard Shortcuts, and Markdown Preview rows
+  now say when they will focus or leave an already-open surface instead of
+  describing only the cold-open path.
 - **Command Palette tab-management rows explain no-op states**: Move Active Tab
   Left/Right, Sort Open Tabs, Close Saved Tabs, Close Duplicate Tabs, Reload,
   and Revert now mirror tab runtime no-op feedback before dispatch.
