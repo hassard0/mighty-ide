@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Multi-cursor palette mirrors edge no-ops**: Command Palette now reports
+  `No word or next occurrence for multi-cursor`, `No line above for another
+  caret`, and `No line below for another caret` before dispatch when Ctrl+D or
+  vertical caret commands would hit their runtime no-op feedback.
 - **Stop-pass release handoff is explicit**: README and release docs now state
   the source-first, package-second order for the final pass, keeping generated
   archive hashes and manifest values out of git while tying the Windows ZIP

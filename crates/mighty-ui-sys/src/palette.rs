@@ -1316,6 +1316,24 @@ impl PaletteEngine {
                 crate::layout::dock_preset_index(),
             );
         }
+        if matches!(
+            id,
+            CMD_ADD_CARET_NEXT_OCCURRENCE | CMD_ADD_CARET_ABOVE | CMD_ADD_CARET_BELOW
+        ) {
+            let can_add_next_occurrence = if id == CMD_ADD_CARET_NEXT_OCCURRENCE {
+                let mut probe = model.clone();
+                probe.add_caret_next_occurrence()
+            } else {
+                true
+            };
+            return multi_caret_contextual_desc(
+                id,
+                base,
+                model.cursor_line(),
+                model.line_count(),
+                can_add_next_occurrence,
+            );
+        }
         if id == CMD_MARKDOWN_PREVIEW {
             return markdown_preview_contextual_desc(
                 base,
@@ -2370,6 +2388,27 @@ fn pane_contextual_desc<'a>(id: u32, base: &'a str, pane_count: usize) -> Cow<'a
         CMD_SPLIT_RIGHT if pane_count > 1 => Cow::Borrowed("Editor is already split"),
         CMD_FOCUS_NEXT_PANE | CMD_CLOSE_PANE if pane_count <= 1 => {
             Cow::Borrowed("Only one editor pane")
+        }
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn multi_caret_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    cursor_line: usize,
+    line_count: usize,
+    can_add_next_occurrence: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_ADD_CARET_NEXT_OCCURRENCE if !can_add_next_occurrence => {
+            Cow::Borrowed("No word or next occurrence for multi-cursor")
+        }
+        CMD_ADD_CARET_ABOVE if cursor_line == 0 => {
+            Cow::Borrowed("No line above for another caret")
+        }
+        CMD_ADD_CARET_BELOW if cursor_line + 1 >= line_count => {
+            Cow::Borrowed("No line below for another caret")
         }
         _ => Cow::Borrowed(base),
     }
@@ -5327,6 +5366,96 @@ mod tests {
         assert_eq!(
             pane_contextual_desc(CMD_CLOSE_PANE, "base", 2),
             Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn multi_caret_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            multi_caret_contextual_desc(CMD_ADD_CARET_NEXT_OCCURRENCE, "base", 0, 1, false),
+            Cow::Borrowed("No word or next occurrence for multi-cursor")
+        );
+        assert_eq!(
+            multi_caret_contextual_desc(CMD_ADD_CARET_ABOVE, "base", 0, 2, true),
+            Cow::Borrowed("No line above for another caret")
+        );
+        assert_eq!(
+            multi_caret_contextual_desc(CMD_ADD_CARET_BELOW, "base", 1, 2, true),
+            Cow::Borrowed("No line below for another caret")
+        );
+        assert_eq!(
+            multi_caret_contextual_desc(CMD_ADD_CARET_NEXT_OCCURRENCE, "base", 0, 1, true),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            multi_caret_contextual_desc(CMD_ADD_CARET_ABOVE, "base", 1, 2, true),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            multi_caret_contextual_desc(CMD_ADD_CARET_BELOW, "base", 0, 2, true),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn multi_caret_palette_descriptions_probe_active_editor_state() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(900, 700) else {
+            return;
+        };
+        let engine = PaletteEngine::new();
+
+        ctx.tabs
+            .active_model_mut()
+            .set_text_preserving_cursor("unique stuff here");
+        ctx.tabs.active_model_mut().move_to(0, 0);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_ADD_CARET_NEXT_OCCURRENCE, "base")
+                .as_ref(),
+            "base"
+        );
+        assert_eq!(ctx.tabs.active_model().caret_count(), 1);
+
+        let mut selected_unique = ctx.tabs.active_model().clone();
+        assert!(selected_unique.add_caret_next_occurrence());
+        *ctx.tabs.active_model_mut() = selected_unique;
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_ADD_CARET_NEXT_OCCURRENCE, "base")
+                .as_ref(),
+            "No word or next occurrence for multi-cursor"
+        );
+        assert_eq!(ctx.tabs.active_model().caret_count(), 1);
+
+        ctx.tabs
+            .active_model_mut()
+            .set_text_preserving_cursor("top\nbottom");
+        ctx.tabs.active_model_mut().move_to(0, 0);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_ADD_CARET_ABOVE, "base")
+                .as_ref(),
+            "No line above for another caret"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_ADD_CARET_BELOW, "base")
+                .as_ref(),
+            "base"
+        );
+
+        ctx.tabs.active_model_mut().move_to(1, 0);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_ADD_CARET_BELOW, "base")
+                .as_ref(),
+            "No line below for another caret"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_ADD_CARET_ABOVE, "base")
+                .as_ref(),
+            "base"
         );
     }
 
