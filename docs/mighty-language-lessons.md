@@ -14328,8 +14328,7 @@ look partially broken even when tab stops and date variables worked.
 - **IDE note:** snippet expansion now resolves `$RANDOM` as six digits,
   `$RANDOM_HEX` as six hex digits, and `$UUID` as a UUID v4-shaped string.
   Tests pin the public shapes and UUID version/variant bits while avoiding
-  brittle assertions about exact random values. `$CLIPBOARD` remains separate
-  until snippet expansion carries an explicit clipboard source.
+  brittle assertions about exact random values.
 - **Language note:** no compiler gap surfaced. Non-deterministic imported
   snippet variables still need deterministic shape tests so compatibility can
   improve without turning the test suite flaky.
@@ -14351,3 +14350,21 @@ would make the handoff look cleaner than the artifacts really are.
   same precision as runtime diagnostics: name exactly what was proven, name
   what was not built, and avoid implying cross-platform evidence that the
   current host cannot produce.
+
+## L1128 - Imported Snippets Need Clipboard Context
+
+The snippet engine had enough context for file paths, selections, workspace
+roots, comments, dates, random values, and UUIDs, but `$CLIPBOARD` still had no
+source. Imported snippets that wrap or duplicate copied text therefore left the
+raw marker in the editor even though ordinary paste already used the platform
+clipboard reader.
+
+- **IDE note:** snippet expansion now carries optional clipboard text in
+  `SnippetContext`. The scalar snippet ABI reads clipboard text at actual
+  expansion time and passes it into the pure engine; if clipboard reading fails
+  or no source is supplied, `$CLIPBOARD` remains unresolved rather than
+  blocking the snippet.
+- **Language note:** no compiler gap surfaced. Compatibility variables that
+  depend on external editor state should be explicit context inputs, so parser
+  and expansion tests stay deterministic while runtime paths can provide real
+  state.

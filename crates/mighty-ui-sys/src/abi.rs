@@ -7095,7 +7095,7 @@ fn clipboard_write_failure_message(action: &str, e: &std::io::Error) -> String {
     }
 }
 
-fn read_clipboard_text() -> std::io::Result<String> {
+pub(crate) fn read_clipboard_text() -> std::io::Result<String> {
     if let Ok(text) = std::env::var("MUI_CLIPBOARD_TEXT") {
         return Ok(text);
     }

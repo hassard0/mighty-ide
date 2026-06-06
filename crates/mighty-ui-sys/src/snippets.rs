@@ -379,6 +379,7 @@ pub struct Expansion {
 pub struct SnippetContext {
     active_path: Option<PathBuf>,
     selected_text: String,
+    clipboard_text: Option<String>,
     workspace_root: Option<PathBuf>,
     current_line: Option<String>,
     line_index: Option<usize>,
@@ -446,6 +447,7 @@ impl SnippetContext {
         SnippetContext {
             active_path: path.map(Path::to_path_buf),
             selected_text: selected_text.to_string(),
+            clipboard_text: None,
             workspace_root: workspace_root.map(Path::to_path_buf),
             current_line: current_line.map(str::to_string),
             line_index,
@@ -476,6 +478,11 @@ impl SnippetContext {
         );
         context.language = Some(language);
         context
+    }
+
+    pub fn with_clipboard_text(mut self, clipboard_text: Option<&str>) -> Self {
+        self.clipboard_text = clipboard_text.map(str::to_string);
+        self
     }
 }
 
@@ -669,6 +676,7 @@ fn unresolved_variable_literal(name: &str, braced: bool) -> String {
 fn resolve_snippet_variable(name: &str, context: &SnippetContext) -> Option<String> {
     match name {
         "TM_SELECTED_TEXT" => Some(context.selected_text.clone()),
+        "CLIPBOARD" => context.clipboard_text.clone(),
         "TM_CURRENT_LINE" => context.current_line.clone(),
         "TM_CURRENT_WORD" => Some(context.current_word.clone()),
         "TM_LINE_INDEX" => context.line_index.map(|line| line.to_string()),
@@ -1555,6 +1563,26 @@ pub fn try_expand_with_context(
     selected_text: &str,
     workspace_root: Option<&Path>,
 ) -> bool {
+    try_expand_with_context_and_clipboard(
+        model,
+        session,
+        lang,
+        active_path,
+        selected_text,
+        workspace_root,
+        None,
+    )
+}
+
+pub fn try_expand_with_context_and_clipboard(
+    model: &mut TextModel,
+    session: &mut SnippetSession,
+    lang: Language,
+    active_path: Option<&Path>,
+    selected_text: &str,
+    workspace_root: Option<&Path>,
+    clipboard_text: Option<&str>,
+) -> bool {
     let line = model.cursor_line();
     let col = model.cursor_col();
     let word = prefix_word(model.line(line), col);
@@ -1584,7 +1612,8 @@ pub fn try_expand_with_context(
         &word,
         None,
         lang,
-    );
+    )
+    .with_clipboard_text(clipboard_text);
     let exp = expand_with_context(&def.body, &indent, cl, cc, &context);
     for ch in exp.text.chars() {
         model.insert_char(ch);
@@ -1910,6 +1939,28 @@ mod tests {
     }
 
     #[test]
+    fn expand_clipboard_variable_from_context() {
+        let ctx = SnippetContext::default().with_clipboard_text(Some("clip\ntext"));
+        let exp = expand_with_context(
+            "$CLIPBOARD|${CLIPBOARD}|${1:$CLIPBOARD}",
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(exp.text, "clip\ntext|clip\ntext|clip\ntext");
+        assert_eq!(exp.stops[0], Stop { num: 1, start: (2, 5), end: (3, 4) });
+    }
+
+    #[test]
+    fn expand_empty_clipboard_uses_default() {
+        let ctx = SnippetContext::default().with_clipboard_text(Some(""));
+        let exp = expand_with_context("${CLIPBOARD:fallback}|$CLIPBOARD", "", 0, 0, &ctx);
+        assert_eq!(exp.text, "fallback|");
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
     fn expand_workspace_variables_from_context() {
         let path = std::path::Path::new("C:/work/app/src/main.mty");
         let root = std::path::Path::new("C:/work/app");
@@ -2112,12 +2163,15 @@ mod tests {
     #[test]
     fn expand_unknown_variables_are_preserved() {
         let exp = expand(
-            "$UNKNOWN ${UNKNOWN} $TM_FILENAME ${TM_FILENAME} $TM_SELECTED_TEXT",
+            "$UNKNOWN ${UNKNOWN} $TM_FILENAME ${TM_FILENAME} $TM_SELECTED_TEXT $CLIPBOARD ${CLIPBOARD}",
             "",
             0,
             0,
         );
-        assert_eq!(exp.text, "$UNKNOWN ${UNKNOWN} $TM_FILENAME ${TM_FILENAME} ");
+        assert_eq!(
+            exp.text,
+            "$UNKNOWN ${UNKNOWN} $TM_FILENAME ${TM_FILENAME}  $CLIPBOARD ${CLIPBOARD}"
+        );
     }
 
     #[test]

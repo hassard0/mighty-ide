@@ -38,6 +38,10 @@ fn report_no_snippet_session(c: &mut MuiContext) {
     c.push_toast(crate::toast::Kind::Info, "No snippet session active");
 }
 
+fn clipboard_text_for_snippet() -> Option<String> {
+    crate::abi::read_clipboard_text().ok()
+}
+
 /// Try to expand the snippet whose prefix is the word before the cursor.
 ///
 /// Tab-priority step (4): only call this when no tab-stop session is active, no
@@ -68,16 +72,18 @@ pub extern "C" fn mui_snippet_try_expand(handle: i64) -> i32 {
     let active_path = c.tabs.active_path();
     let selected_text = c.tabs.active_model().selected_text();
     let workspace_root = crate::wsabi::effective_root(c);
+    let clipboard_text = clipboard_text_for_snippet();
     // Split the borrow: the session + the active model are distinct fields.
     let session = &mut c.snippet_session;
     let model = c.tabs.active_model_mut();
-    i32::from(snippets::try_expand_with_context(
+    i32::from(snippets::try_expand_with_context_and_clipboard(
         model,
         session,
         lang,
         active_path.as_deref(),
         &selected_text,
         Some(workspace_root.as_path()),
+        clipboard_text.as_deref(),
     ))
 }
 
@@ -237,6 +243,7 @@ pub extern "C" fn mui_snippet_complete_expand(handle: i64) -> i32 {
     let active_path = c.tabs.active_path();
     let selected_text = c.tabs.active_model().selected_text();
     let workspace_root = crate::wsabi::effective_root(c);
+    let clipboard_text = clipboard_text_for_snippet();
     {
         let m = c.tabs.active_model_mut();
         for _ in 0..typed {
@@ -248,13 +255,14 @@ pub extern "C" fn mui_snippet_complete_expand(handle: i64) -> i32 {
     }
     let session = &mut c.snippet_session;
     let model = c.tabs.active_model_mut();
-    i32::from(snippets::try_expand_with_context(
+    i32::from(snippets::try_expand_with_context_and_clipboard(
         model,
         session,
         lang,
         active_path.as_deref(),
         &selected_text,
         Some(workspace_root.as_path()),
+        clipboard_text.as_deref(),
     ))
 }
 
