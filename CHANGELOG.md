@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette previews autocomplete fallback**: Trigger Autocomplete now
+  reports when the configured/default semantic language server is unavailable
+  and the command will rely on buffer-word completions.
 - **Command Palette previews Problems LSP blockers**: `Problems: Refresh
   Diagnostics` now shows the configured/default language-server availability
   reason before dispatch, matching the runtime refresh toast.

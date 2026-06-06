@@ -1232,6 +1232,9 @@ impl PaletteEngine {
         if id == CMD_GHOST_COMPLETION_DISMISS {
             return dismiss_ghost_contextual_desc(base, ctx.ghost.has_ghost());
         }
+        if id == CMD_AUTOCOMPLETE && active_has_path && !active_read_only {
+            return autocomplete_contextual_desc(base, ctx.language);
+        }
         if id == CMD_GIT_TOGGLE_BLAME {
             return blame_toggle_contextual_desc(base, ctx.blame.is_active(), active_has_path);
         }
@@ -1842,6 +1845,16 @@ fn dismiss_ghost_contextual_desc(base: &str, has_ghost: bool) -> Cow<'_, str> {
         Cow::Borrowed(base)
     } else {
         Cow::Borrowed("No AI ghost completion visible")
+    }
+}
+
+fn autocomplete_contextual_desc(
+    base: &str,
+    lang: crate::langdetect::Language,
+) -> Cow<'_, str> {
+    match crate::lspregistry::unavailable_reason(lang) {
+        Some(reason) => Cow::Owned(format!("Use buffer-word fallback; {reason}")),
+        None => Cow::Borrowed(base),
     }
 }
 
@@ -2918,6 +2931,10 @@ mod tests {
 
         let expected = "Python language server unavailable; configure python in lsp.toml";
         assert_eq!(
+            autocomplete_contextual_desc("base", crate::langdetect::Language::Python).as_ref(),
+            "Use buffer-word fallback; Python language server unavailable; configure python in lsp.toml"
+        );
+        assert_eq!(
             problems_contextual_desc(
                 CMD_PROBLEMS_REFRESH,
                 "base",
@@ -2978,6 +2995,14 @@ mod tests {
             None => std::env::remove_var("MUI_CONFIG_DIR"),
         }
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn autocomplete_description_keeps_plain_text_as_buffer_words() {
+        assert_eq!(
+            autocomplete_contextual_desc("base", crate::langdetect::Language::PlainText),
+            Cow::Borrowed("base")
+        );
     }
 
     #[test]
