@@ -17187,7 +17187,7 @@ fn breadcrumb_close_command_clears_active_menu() {
         target: 0,
     };
     ctx.crumb_menu
-        .open(crate::crumbmenu::MenuKind::Files, vec![item], 80.0);
+        .open(crate::crumbmenu::MenuKind::Files, vec![item.clone()], 80.0);
 
     assert_eq!(crate::navsurfaces::mui_crumb_menu_active(h), 1);
     assert_eq!(crate::navsurfaces::mui_crumb_menu_cancel(h), 1);
@@ -17200,6 +17200,17 @@ fn breadcrumb_close_command_clears_active_menu() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No breadcrumb menu open");
+    ctx.toasts.clear();
+
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_dismiss(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    ctx.crumb_menu
+        .open(crate::crumbmenu::MenuKind::Files, vec![item], 80.0);
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_active(h), 1);
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_dismiss(h), 1);
+    assert_eq!(crate::navsurfaces::mui_crumb_menu_active(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
 
     crate::navsurfaces::mui_crumb_menu_move(h, 1);
     let toast = ctx.toasts.toasts().last().unwrap();
@@ -22791,7 +22802,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     }
     assert!(
         main.contains(
-            "let _cmc = mui_crumb_menu_cancel(h)\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+            "let _cmd = mui_crumb_menu_dismiss(h)\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
         ),
         "Breadcrumb dismiss clicks must release stale focus"
     );
@@ -23023,7 +23034,8 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     let breadcrumb_outer_cleanup = "run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
     assert!(
         breadcrumb_branch.matches(breadcrumb_nested_cleanup).count() >= 3
-            && breadcrumb_branch.contains(breadcrumb_outer_cleanup),
+            && breadcrumb_branch.contains(breadcrumb_outer_cleanup)
+            && breadcrumb_branch.contains("let _cmd = mui_crumb_menu_dismiss(h)"),
         "Breadcrumb local accept/cancel exits must release stale focus"
     );
     assert!(

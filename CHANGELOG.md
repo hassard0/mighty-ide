@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Breadcrumb menu incidental dismissal is quiet**: typing while the breadcrumb
+  dropdown is open or clicking outside it now closes the menu without adding a
+  `Breadcrumb menu closed` toast; Escape and the explicit close command still
+  report close feedback.
 - **Settings mouse dismissal is quiet**: clicking outside Settings or using the
   panel's mouse close affordance now closes it without a `Settings panel closed`
   toast; Escape and the explicit close command still report close feedback.

@@ -14091,3 +14091,19 @@ toast-producing ABI for all of them makes a click-away gesture produce
 - **Language note:** no compiler gap surfaced. When a surface supports both
   command closure and click-away dismissal, give each path a distinct ABI so
   feedback belongs to the initiating intent.
+
+## L1111 - Incidental Dropdown Dismissal Should Not Look Like Completion
+
+The breadcrumb dropdown closes when the user presses Escape, runs the explicit
+Breadcrumb close command, clicks outside it, or types a normal character that
+should return focus to the editor. Only the first two are deliberate close
+commands. Using the explicit cancel ABI for all paths made routine click-away
+or typing transitions produce `Breadcrumb menu closed`, which reads like a
+completed command rather than quiet focus cleanup.
+
+- **IDE note:** breadcrumb typed-character and outside-click paths now call
+  `mui_crumb_menu_dismiss`. `mui_crumb_menu_cancel` remains the explicit close
+  command and still reports active and no-open states.
+- **Language note:** no compiler gap surfaced. Dropdowns that are subordinate
+  to typing should have an idempotent dismiss ABI so returning to editor input
+  does not compete with command feedback.

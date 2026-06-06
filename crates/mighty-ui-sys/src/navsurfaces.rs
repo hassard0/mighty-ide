@@ -881,6 +881,20 @@ pub extern "C" fn mui_crumb_menu_cancel(handle: i64) -> i32 {
     }
 }
 
+/// Close the breadcrumb dropdown for incidental dismissal without feedback.
+#[no_mangle]
+pub extern "C" fn mui_crumb_menu_dismiss(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.crumb_menu.is_active() {
+        ctx.crumb_menu.cancel();
+        1
+    } else {
+        0
+    }
+}
+
 /// Map the last click's y to a dropdown row index, or `-1` if outside.
 #[no_mangle]
 pub extern "C" fn mui_crumb_menu_row_at_click(handle: i64) -> i32 {
