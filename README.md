@@ -104,6 +104,8 @@ Mach-O or ELF manifests from the same pass.
   including empty diagnostics and closed panel
 - Command Palette Search and Outline lifecycle rows mirror Search and Outline
   no-op states, including empty result/symbol lists and closed panels
+- Command Palette Debug lifecycle rows mirror Run and Debug no-op states,
+  including idle stops, empty sessions, and closed panel
 - Scalar clipboard feedback from Mighty coalesces with ordinary copy/cut/paste
   toasts instead of stacking generic `Copied` notifications
 - Toggle line comment (Ctrl+/), Tab/Shift+Tab indent and outdent, auto-indent on Enter (brace-aware), bracket/quote auto-close + skip-over + empty-pair backspace, bracket-match highlight

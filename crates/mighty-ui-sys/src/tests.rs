@@ -11349,6 +11349,20 @@ fn debug_toolbar_actions_reuse_direct_feedback() {
         handle,
         1000 + crate::dapabi::TB_STEP_OVER,
     );
+    assert_eq!(ctx.active_panel, crate::PANEL_EXPLORER);
+    assert!(!ctx.sidebar_visible);
+    assert_eq!(
+        ctx.toasts.toasts().last().unwrap().message,
+        "Run and Debug panel is already closed"
+    );
+
+    ctx.active_panel = crate::PANEL_DEBUG;
+    ctx.sidebar_visible = true;
+    ctx.dbg.set_open(true);
+    crate::dapabi::mui_dbg_toolbar_action(
+        handle,
+        1000 + crate::dapabi::TB_STEP_OVER,
+    );
     assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
     assert!(ctx.sidebar_visible);
     assert_eq!(

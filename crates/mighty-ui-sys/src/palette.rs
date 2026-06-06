@@ -1309,6 +1309,15 @@ impl PaletteEngine {
                 ctx.outline.count(),
             );
         }
+        if matches!(id, CMD_DEBUG_STOP | CMD_DEBUG_CLEAR_SESSION | CMD_DEBUG_CLOSE) {
+            return debug_contextual_desc(
+                id,
+                base,
+                ctx.active_panel == crate::PANEL_DEBUG || ctx.dbg.is_open(),
+                ctx.dbg.state(),
+                ctx.dbg.session_is_empty(),
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1667,6 +1676,28 @@ fn outline_contextual_desc<'a>(
             Cow::Borrowed("Outline symbols already empty")
         }
         CMD_OUTLINE_CLOSE if !active => Cow::Borrowed("Outline panel is already closed"),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn debug_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    active: bool,
+    state: crate::dap::DebugState,
+    session_empty: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_DEBUG_STOP
+            if !matches!(
+                state,
+                crate::dap::DebugState::Running | crate::dap::DebugState::Stopped
+            ) =>
+        {
+            Cow::Borrowed("No debug session to stop")
+        }
+        CMD_DEBUG_CLEAR_SESSION if session_empty => Cow::Borrowed("Debug session already empty"),
+        CMD_DEBUG_CLOSE if !active => Cow::Borrowed("Run and Debug panel is already closed"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -2699,6 +2730,70 @@ mod tests {
         );
         assert_eq!(
             outline_contextual_desc(CMD_OUTLINE_CLOSE, "base", true, 0),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn debug_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_STOP,
+                "base",
+                true,
+                crate::dap::DebugState::Idle,
+                true
+            ),
+            Cow::Borrowed("No debug session to stop")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_CLEAR_SESSION,
+                "base",
+                true,
+                crate::dap::DebugState::Idle,
+                true
+            ),
+            Cow::Borrowed("Debug session already empty")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_CLOSE,
+                "base",
+                false,
+                crate::dap::DebugState::Stopped,
+                false
+            ),
+            Cow::Borrowed("Run and Debug panel is already closed")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_STOP,
+                "base",
+                true,
+                crate::dap::DebugState::Stopped,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_CLEAR_SESSION,
+                "base",
+                true,
+                crate::dap::DebugState::Stopped,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_CLOSE,
+                "base",
+                true,
+                crate::dap::DebugState::Idle,
+                true
+            ),
             Cow::Borrowed("base")
         );
     }
