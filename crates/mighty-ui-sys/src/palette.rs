@@ -1232,6 +1232,9 @@ impl PaletteEngine {
         if id == CMD_GHOST_COMPLETION_DISMISS {
             return dismiss_ghost_contextual_desc(base, ctx.ghost.has_ghost());
         }
+        if id == CMD_GIT_TOGGLE_BLAME {
+            return blame_toggle_contextual_desc(base, ctx.blame.is_active(), active_has_path);
+        }
         if matches!(
             id,
             CMD_TOGGLE_TERMINAL
@@ -2049,6 +2052,20 @@ fn close_action_contextual_desc<'a>(
         CMD_GIT_HIDE_BLAME if !blame_active => Cow::Borrowed("Blame is already hidden"),
         CMD_WELCOME_CLOSE if !welcome_visible => Cow::Borrowed("Welcome is already closed"),
         _ => Cow::Borrowed(base),
+    }
+}
+
+fn blame_toggle_contextual_desc<'a>(
+    base: &'a str,
+    blame_active: bool,
+    active_has_path: bool,
+) -> Cow<'a, str> {
+    if blame_active {
+        Cow::Borrowed("Hide git blame gutter")
+    } else if !active_has_path {
+        Cow::Borrowed("No file to blame: (scratch)")
+    } else {
+        Cow::Borrowed(base)
     }
 }
 
@@ -3752,6 +3769,22 @@ mod tests {
         );
         assert_eq!(
             close_action_contextual_desc(CMD_WELCOME_CLOSE, "base", false, true),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn blame_toggle_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            blame_toggle_contextual_desc("base", false, false),
+            Cow::Borrowed("No file to blame: (scratch)")
+        );
+        assert_eq!(
+            blame_toggle_contextual_desc("base", true, false),
+            Cow::Borrowed("Hide git blame gutter")
+        );
+        assert_eq!(
+            blame_toggle_contextual_desc("base", false, true),
             Cow::Borrowed("base")
         );
     }

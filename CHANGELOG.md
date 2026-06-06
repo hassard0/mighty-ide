@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette Git Blame toggle explains live state**: `Git: Toggle Blame`
+  now says when it will hide an active blame gutter and mirrors the runtime
+  scratch-buffer feedback before dispatch.
 - **Final handoff response is artifact-scoped**: README and release status docs
   now require the final Windows-hosted handoff to report the committed source
   hash, generated Windows ZIP size/hash, package-script checks, packaged launch,
