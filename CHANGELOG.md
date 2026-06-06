@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Open picker fallback toasts name typed-path recovery**: Open File and Open
+  Folder now report that the typed-path prompt is available when native pickers
+  cannot run, while keeping cancelled pickers as no-op cancellations.
 - **Agents Run and Inline AI name read-only preview targets**: forced inline AI
   completions and Agents Run now report the protected binary/read-only preview
   by name, with matching Command Palette hints for inline AI edit commands.

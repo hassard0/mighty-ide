@@ -125,7 +125,10 @@ pub extern "C" fn mui_ws_open_dialog(handle: i64) -> i32 {
         }
         FolderDialogPick::Unavailable => {
             println!("ws: native folder dialog unavailable");
-            ctx.push_toast(crate::toast::Kind::Warn, "Open folder dialog unavailable");
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                "Open folder dialog unavailable; use typed path",
+            );
             -1
         }
     }
@@ -452,6 +455,10 @@ enum FolderDialogPick {
 /// Runs a tiny PowerShell snippet that opens a `FolderBrowserDialog` and prints
 /// the selected path; we read it back off stdout.
 fn pick_folder_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FolderDialogPick {
+    #[cfg(test)]
+    if std::env::var_os("MUI_OPEN_FOLDER_FORCE_UNAVAILABLE").is_some() {
+        return FolderDialogPick::Unavailable;
+    }
     if let Ok(sequence) = std::env::var("MUI_OPEN_FOLDER_PICK_SEQUENCE") {
         let trimmed = sequence.trim();
         if !trimmed.is_empty() {

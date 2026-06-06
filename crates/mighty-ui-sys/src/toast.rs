@@ -687,8 +687,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Opened file")
         || m == "Open file cancelled"
         || m == "Open folder cancelled"
-        || m == "Open file dialog unavailable"
-        || m == "Open folder dialog unavailable"
+        || m.starts_with("Open file dialog unavailable")
+        || m.starts_with("Open folder dialog unavailable")
         || m.starts_with("Recent files not saved")
         || m.starts_with("Recent folders not saved")
         || m == "Enter a folder path"
@@ -1930,11 +1930,14 @@ mod tests {
 
         q.push_at(
             Kind::Warn,
-            "Open folder dialog unavailable",
+            "Open folder dialog unavailable; use typed path",
             t0 + Duration::from_millis(400),
         );
         assert_eq!(q.len(), 1);
-        assert_eq!(q.toasts()[0].message, "Open folder dialog unavailable");
+        assert_eq!(
+            q.toasts()[0].message,
+            "Open folder dialog unavailable; use typed path"
+        );
 
         q.push_at(Kind::Warn, "Enter a folder path", t0 + Duration::from_millis(450));
         assert_eq!(q.len(), 1);

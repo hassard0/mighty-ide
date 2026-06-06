@@ -4628,7 +4628,10 @@ pub extern "C" fn mui_open_file_dialog(handle: i64) -> i32 {
         }
         FileDialogPick::Unavailable => {
             println!("mui_open_file_dialog: native file dialog unavailable");
-            ctx.push_toast(crate::toast::Kind::Warn, "Open file dialog unavailable");
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                "Open file dialog unavailable; use typed path",
+            );
             return -1;
         }
     };
@@ -14318,6 +14321,10 @@ fn dialog_pick_from_raw_path(path: String) -> FileDialogPick {
 }
 
 fn pick_open_file_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FileDialogPick {
+    #[cfg(test)]
+    if std::env::var_os("MUI_OPEN_FILE_FORCE_UNAVAILABLE").is_some() {
+        return FileDialogPick::Unavailable;
+    }
     if let Ok(sequence) = std::env::var("MUI_OPEN_FILE_PICK_SEQUENCE") {
         let trimmed = sequence.trim();
         if !trimmed.is_empty() {

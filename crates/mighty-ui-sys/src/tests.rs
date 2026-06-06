@@ -18026,6 +18026,32 @@ fn workspace_open_dialog_cancel_does_not_fallback_or_mutate() {
 }
 
 #[test]
+fn workspace_open_dialog_unavailable_requests_typed_prompt() {
+    use crate::wsabi::{mui_ws_open_dialog, mui_ws_recent_count};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let before_root = ctx.workspace.root().to_path_buf();
+
+    std::env::set_var("MUI_OPEN_FOLDER_FORCE_UNAVAILABLE", "1");
+    let _env = EnvRemoveGuard("MUI_OPEN_FOLDER_FORCE_UNAVAILABLE");
+    let opened = mui_ws_open_dialog(h);
+
+    assert_eq!(opened, -1, "unavailable folder picker should request prompt fallback");
+    assert_eq!(ctx.workspace.root(), before_root.as_path());
+    assert_eq!(mui_ws_recent_count(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Open folder dialog unavailable; use typed path"
+    );
+}
+
+#[test]
 fn recent_folder_persistence_failure_reports_visible_feedback() {
     let _g = crate::settings::TEST_LOCK
         .lock()
@@ -18960,6 +18986,32 @@ fn open_file_dialog_cancel_does_not_open_prompt_signal() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Open file cancelled");
+}
+
+#[test]
+fn open_file_dialog_unavailable_requests_typed_prompt() {
+    use crate::{mui_open_file_dialog, mui_tab_active, mui_tab_count};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_OPEN_FILE_FORCE_UNAVAILABLE", "1");
+    let _env = EnvRemoveGuard("MUI_OPEN_FILE_FORCE_UNAVAILABLE");
+    let idx = mui_open_file_dialog(h);
+
+    assert_eq!(idx, -1, "unavailable file picker should request prompt fallback");
+    assert_eq!(mui_tab_count(h), 1);
+    assert_eq!(mui_tab_active(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Open file dialog unavailable; use typed path"
+    );
 }
 
 #[test]
