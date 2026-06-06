@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1117).
+(lessons L1-L1118).
 
 ## v0.3.0
 
@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,012 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Agents live-inspect failures coalesce as Agents feedback**: repeated
+  `Live inspect unavailable: ...` warnings now replace stale Agents toasts
+  instead of stacking beside run, target, and panel feedback.
 - **Transient popup auto-dismiss stays quiet by contract**: source-level
   regression coverage now requires cursor-move hover and Signature Help
   auto-dismiss paths to use silent clear APIs, preserving visible close feedback
