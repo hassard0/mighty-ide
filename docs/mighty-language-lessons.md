@@ -14385,3 +14385,18 @@ captured filename stem.
   preserve the full source shape until expansion time; collapsing a rich syntax
   into one convenient field makes later compatibility fixes harder than the
   original parse.
+
+## L1130 - Imported Snippet Transforms Need Conditional Capture Formats
+
+After regex replacements worked, another copied-snippet shape remained missing:
+conditional capture formats such as `${1:+text}`, `${1:-fallback}`, and
+`${1:?yes:no}`. These are common when snippets derive optional prefixes,
+suffixes, or separators from filenames and matched groups.
+
+- **IDE note:** transform-format expansion now treats capture references as
+  plain inserts, case modifiers, if-present inserts, if-absent fallbacks, or
+  if/else branches. Tests cover matched and missing captures, including the
+  shorthand `${1:fallback}` absent branch.
+- **Language note:** no compiler gap surfaced. Small parser enums are a better
+  fit than string flags when a user-facing compatibility syntax has several
+  related but distinct branches.

@@ -714,11 +714,26 @@ fn expand_transform_format(format: &str, caps: &regex::Captures<'_>) -> String {
                 continue;
             }
             if chars.get(i + 1) == Some(&'{') {
-                if let Some((capture, modifier, consumed)) = parse_transform_capture(&chars[i..]) {
+                if let Some((capture, format, consumed)) = parse_transform_capture(&chars[i..]) {
                     let value = caps.get(capture).map(|m| m.as_str()).unwrap_or("");
-                    match modifier.as_deref() {
-                        Some(modifier) => out.push_str(&apply_variable_modifier(value, modifier)),
-                        None => out.push_str(value),
+                    match format {
+                        TransformCaptureFormat::Plain => out.push_str(value),
+                        TransformCaptureFormat::Modifier(modifier) => {
+                            out.push_str(&apply_variable_modifier(value, &modifier))
+                        }
+                        TransformCaptureFormat::IfPresent(text) => {
+                            if !value.is_empty() {
+                                out.push_str(&text);
+                            }
+                        }
+                        TransformCaptureFormat::IfAbsent(text) => {
+                            if value.is_empty() {
+                                out.push_str(&text);
+                            }
+                        }
+                        TransformCaptureFormat::IfElse { present, absent } => {
+                            out.push_str(if value.is_empty() { &absent } else { &present });
+                        }
                     }
                     i += consumed;
                     continue;
@@ -731,7 +746,16 @@ fn expand_transform_format(format: &str, caps: &regex::Captures<'_>) -> String {
     out
 }
 
-fn parse_transform_capture(chars: &[char]) -> Option<(usize, Option<String>, usize)> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum TransformCaptureFormat {
+    Plain,
+    Modifier(String),
+    IfPresent(String),
+    IfAbsent(String),
+    IfElse { present: String, absent: String },
+}
+
+fn parse_transform_capture(chars: &[char]) -> Option<(usize, TransformCaptureFormat, usize)> {
     if chars.first() != Some(&'$') || chars.get(1) != Some(&'{') {
         return None;
     }
@@ -747,7 +771,7 @@ fn parse_transform_capture(chars: &[char]) -> Option<(usize, Option<String>, usi
     if j == digit_start {
         return None;
     }
-    let modifier = if chars.get(j) == Some(&':') && chars.get(j + 1) == Some(&'/') {
+    let format = if chars.get(j) == Some(&':') && chars.get(j + 1) == Some(&'/') {
         j += 2;
         let modifier_start = j;
         while j < chars.len() && chars[j].is_ascii_alphabetic() {
@@ -756,14 +780,60 @@ fn parse_transform_capture(chars: &[char]) -> Option<(usize, Option<String>, usi
         if j == modifier_start {
             return None;
         }
-        Some(chars[modifier_start..j].iter().collect())
+        TransformCaptureFormat::Modifier(chars[modifier_start..j].iter().collect())
+    } else if chars.get(j) == Some(&':') && chars.get(j + 1) == Some(&'+') {
+        j += 2;
+        let (text, consumed) = parse_transform_capture_text(&chars[j..], None)?;
+        j += consumed;
+        TransformCaptureFormat::IfPresent(text)
+    } else if chars.get(j) == Some(&':') && chars.get(j + 1) == Some(&'-') {
+        j += 2;
+        let (text, consumed) = parse_transform_capture_text(&chars[j..], None)?;
+        j += consumed;
+        TransformCaptureFormat::IfAbsent(text)
+    } else if chars.get(j) == Some(&':') && chars.get(j + 1) == Some(&'?') {
+        j += 2;
+        let (present, consumed) = parse_transform_capture_text(&chars[j..], Some(':'))?;
+        j += consumed;
+        let (absent, consumed) = parse_transform_capture_text(&chars[j..], None)?;
+        j += consumed;
+        TransformCaptureFormat::IfElse { present, absent }
+    } else if chars.get(j) == Some(&':') {
+        j += 1;
+        let (text, consumed) = parse_transform_capture_text(&chars[j..], None)?;
+        j += consumed;
+        TransformCaptureFormat::IfAbsent(text)
     } else {
-        None
+        TransformCaptureFormat::Plain
     };
     if chars.get(j) != Some(&'}') {
         return None;
     }
-    Some((capture, modifier, j + 1))
+    Some((capture, format, j + 1))
+}
+
+fn parse_transform_capture_text(
+    chars: &[char],
+    stop: Option<char>,
+) -> Option<(String, usize)> {
+    let mut out = String::new();
+    let mut j = 0;
+    while j < chars.len() {
+        if Some(chars[j]) == stop {
+            return Some((out, j + 1));
+        }
+        if chars[j] == '}' {
+            return Some((out, j));
+        }
+        if chars[j] == '\\' && j + 1 < chars.len() {
+            out.push(chars[j + 1]);
+            j += 2;
+            continue;
+        }
+        out.push(chars[j]);
+        j += 1;
+    }
+    None
 }
 
 fn capitalize(value: &str) -> String {
@@ -2227,6 +2297,24 @@ mod tests {
             &ctx,
         );
         assert_eq!(exp.text, "my_component_test|my-component.test");
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
+    fn expand_variable_transform_conditional_replacements() {
+        let path = std::path::Path::new("C:/work/src/my-component.test.mty");
+        let ctx = SnippetContext::from_path(Some(path));
+        let exp = expand_with_context(
+            concat!(
+                "${TM_FILENAME_BASE/^(my)?-(component)(?:\\.(test))?/${1:+has-my}-${4:-missing}-${3:?test:prod}/}|",
+                "${TM_FILENAME_BASE/^my-(component)(?:\\.(test))?(missing)?$/${3:plain-fallback}/}"
+            ),
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(exp.text, "has-my-missing-test|plain-fallback");
         assert!(exp.stops.is_empty());
     }
 
