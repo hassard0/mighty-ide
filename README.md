@@ -139,6 +139,9 @@ source state and requires a new package run.
   bottom dock, prompt input, unsaved-change confirmation, branch picker,
   breadcrumb menu, and snippets mirror their empty/no-open runtime feedback
   before dispatch
+- Command Palette layout rows for the sidebar and bottom dock describe whether
+  they will open, hide, resize, cycle to the next preset, or are already at the
+  requested preset
 - Command Palette open/focus rows for View panels, Terminal, Settings, Color
   Theme, Keyboard Shortcuts, and Markdown Preview describe already-open
   surfaces before dispatch

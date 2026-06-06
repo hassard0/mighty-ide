@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette layout commands explain the next state**: sidebar toggle,
+  sidebar width presets/cycle, and bottom-dock height presets now say whether
+  they will open, hide, resize, cycle to the next preset, or are already at the
+  requested preset.
 - **Command Palette Search focus toggle is explicit**: `Search: Toggle Replace
   Field` now says whether it will focus the query field or replace field,
   including when it first opens the Search panel.

@@ -1249,6 +1249,26 @@ impl PaletteEngine {
         }
         if matches!(
             id,
+            CMD_TOGGLE_SIDEBAR
+                | CMD_DOCK_COMPACT
+                | CMD_DOCK_RESET
+                | CMD_DOCK_EXPANDED
+                | CMD_SIDEBAR_COMPACT
+                | CMD_SIDEBAR_DEFAULT
+                | CMD_SIDEBAR_WIDE
+                | CMD_SIDEBAR_CYCLE_WIDTH
+        ) {
+            return layout_command_contextual_desc(
+                id,
+                base,
+                ctx.sidebar_visible,
+                crate::layout::sidebar_preset(),
+                ctx.bottom_dock_open(),
+                crate::layout::dock_preset_index(),
+            );
+        }
+        if matches!(
+            id,
             CMD_TOGGLE_TERMINAL
                 | CMD_COLOR_THEME
                 | CMD_SETTINGS
@@ -2111,6 +2131,63 @@ fn fold_contextual_desc<'a>(
         }
         CMD_UNFOLD_ALL if no_foldable_blocks => Cow::Borrowed("No foldable blocks"),
         CMD_UNFOLD_ALL if !has_folded_blocks => Cow::Borrowed("No folded blocks to unfold"),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn layout_command_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    sidebar_visible: bool,
+    sidebar_preset: u8,
+    bottom_dock_open: bool,
+    dock_preset: usize,
+) -> Cow<'a, str> {
+    match id {
+        CMD_TOGGLE_SIDEBAR if sidebar_visible => Cow::Borrowed("Hide the left sidebar"),
+        CMD_TOGGLE_SIDEBAR => Cow::Borrowed("Show the left sidebar"),
+        CMD_SIDEBAR_COMPACT if sidebar_visible && sidebar_preset == 1 => {
+            Cow::Borrowed("Sidebar is already compact")
+        }
+        CMD_SIDEBAR_COMPACT if sidebar_visible => Cow::Borrowed("Set sidebar to compact width"),
+        CMD_SIDEBAR_COMPACT => Cow::Borrowed("Open sidebar at compact width"),
+        CMD_SIDEBAR_DEFAULT if sidebar_visible && sidebar_preset == 0 => {
+            Cow::Borrowed("Sidebar is already default width")
+        }
+        CMD_SIDEBAR_DEFAULT if sidebar_visible => Cow::Borrowed("Set sidebar to default width"),
+        CMD_SIDEBAR_DEFAULT => Cow::Borrowed("Open sidebar at default width"),
+        CMD_SIDEBAR_WIDE if sidebar_visible && sidebar_preset == 2 => {
+            Cow::Borrowed("Sidebar is already wide")
+        }
+        CMD_SIDEBAR_WIDE if sidebar_visible => Cow::Borrowed("Set sidebar to wide width"),
+        CMD_SIDEBAR_WIDE => Cow::Borrowed("Open sidebar at wide width"),
+        CMD_SIDEBAR_CYCLE_WIDTH if sidebar_preset == 0 && sidebar_visible => {
+            Cow::Borrowed("Cycle sidebar to compact width")
+        }
+        CMD_SIDEBAR_CYCLE_WIDTH if sidebar_preset == 0 => {
+            Cow::Borrowed("Open sidebar at compact width")
+        }
+        CMD_SIDEBAR_CYCLE_WIDTH if sidebar_preset == 1 => {
+            Cow::Borrowed("Cycle sidebar to wide width")
+        }
+        CMD_SIDEBAR_CYCLE_WIDTH => Cow::Borrowed("Cycle sidebar to default width"),
+        CMD_DOCK_COMPACT if bottom_dock_open && dock_preset == 0 => {
+            Cow::Borrowed("Bottom dock is already compact")
+        }
+        CMD_DOCK_COMPACT if bottom_dock_open => Cow::Borrowed("Set bottom dock to compact height"),
+        CMD_DOCK_COMPACT => Cow::Borrowed("Open bottom dock at compact height"),
+        CMD_DOCK_RESET if bottom_dock_open && dock_preset == 1 => {
+            Cow::Borrowed("Bottom dock is already default height")
+        }
+        CMD_DOCK_RESET if bottom_dock_open => Cow::Borrowed("Set bottom dock to default height"),
+        CMD_DOCK_RESET => Cow::Borrowed("Open bottom dock at default height"),
+        CMD_DOCK_EXPANDED if bottom_dock_open && dock_preset == 2 => {
+            Cow::Borrowed("Bottom dock is already expanded")
+        }
+        CMD_DOCK_EXPANDED if bottom_dock_open => {
+            Cow::Borrowed("Set bottom dock to expanded height")
+        }
+        CMD_DOCK_EXPANDED => Cow::Borrowed("Open bottom dock at expanded height"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -3884,6 +3961,70 @@ mod tests {
         assert_eq!(
             fold_contextual_desc(CMD_UNFOLD_ALL, "base", true, false, false, true),
             Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn layout_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            layout_command_contextual_desc(CMD_TOGGLE_SIDEBAR, "base", true, 0, false, 1),
+            Cow::Borrowed("Hide the left sidebar")
+        );
+        assert_eq!(
+            layout_command_contextual_desc(CMD_TOGGLE_SIDEBAR, "base", false, 0, false, 1),
+            Cow::Borrowed("Show the left sidebar")
+        );
+        assert_eq!(
+            layout_command_contextual_desc(CMD_SIDEBAR_COMPACT, "base", true, 1, false, 1),
+            Cow::Borrowed("Sidebar is already compact")
+        );
+        assert_eq!(
+            layout_command_contextual_desc(CMD_SIDEBAR_COMPACT, "base", true, 0, false, 1),
+            Cow::Borrowed("Set sidebar to compact width")
+        );
+        assert_eq!(
+            layout_command_contextual_desc(CMD_SIDEBAR_DEFAULT, "base", false, 2, false, 1),
+            Cow::Borrowed("Open sidebar at default width")
+        );
+        assert_eq!(
+            layout_command_contextual_desc(CMD_SIDEBAR_WIDE, "base", true, 2, false, 1),
+            Cow::Borrowed("Sidebar is already wide")
+        );
+        assert_eq!(
+            layout_command_contextual_desc(CMD_SIDEBAR_CYCLE_WIDTH, "base", true, 0, false, 1),
+            Cow::Borrowed("Cycle sidebar to compact width")
+        );
+        assert_eq!(
+            layout_command_contextual_desc(CMD_SIDEBAR_CYCLE_WIDTH, "base", false, 0, false, 1),
+            Cow::Borrowed("Open sidebar at compact width")
+        );
+        assert_eq!(
+            layout_command_contextual_desc(CMD_SIDEBAR_CYCLE_WIDTH, "base", true, 1, false, 1),
+            Cow::Borrowed("Cycle sidebar to wide width")
+        );
+        assert_eq!(
+            layout_command_contextual_desc(CMD_SIDEBAR_CYCLE_WIDTH, "base", true, 2, false, 1),
+            Cow::Borrowed("Cycle sidebar to default width")
+        );
+        assert_eq!(
+            layout_command_contextual_desc(CMD_DOCK_COMPACT, "base", true, 0, true, 0),
+            Cow::Borrowed("Bottom dock is already compact")
+        );
+        assert_eq!(
+            layout_command_contextual_desc(CMD_DOCK_COMPACT, "base", true, 0, true, 1),
+            Cow::Borrowed("Set bottom dock to compact height")
+        );
+        assert_eq!(
+            layout_command_contextual_desc(CMD_DOCK_RESET, "base", true, 0, false, 2),
+            Cow::Borrowed("Open bottom dock at default height")
+        );
+        assert_eq!(
+            layout_command_contextual_desc(CMD_DOCK_EXPANDED, "base", true, 0, true, 2),
+            Cow::Borrowed("Bottom dock is already expanded")
+        );
+        assert_eq!(
+            layout_command_contextual_desc(CMD_DOCK_EXPANDED, "base", true, 0, true, 0),
+            Cow::Borrowed("Set bottom dock to expanded height")
         );
     }
 
