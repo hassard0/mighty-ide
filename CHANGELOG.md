@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette open rows name typed-path fallback**: Open File and Open
+  Folder descriptions now match unavailable-picker behavior by naming the
+  typed-path recovery path.
 - **Command Palette Save All names untitled Save As recovery**: Save All rows
   now detect dirty untitled tabs and say when Save As may be needed, matching
   the runtime unavailable-picker guidance.

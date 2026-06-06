@@ -1007,7 +1007,7 @@ impl PaletteEngine {
             CMD_NEW_UNTITLED_FILE => (icons::NEW_FILE, "Start a temporary editor tab with no disk path", false),
             CMD_NEW_WORKSPACE_FILE => (icons::NEW_FILE, "Create under the workspace; typed name if picker is unavailable", false),
             CMD_NEW_FOLDER => (icons::NEW_FOLDER, "Use the native folder picker; typed name if unavailable", false),
-            CMD_OPEN_FILE => (icons::NEW_FILE, "Choose an existing file with the native picker", false),
+            CMD_OPEN_FILE => (icons::NEW_FILE, "Choose an existing file; typed path if picker is unavailable", false),
             CMD_SAVE => (icons::FILE_MTY, "Write the active file to disk", false),
             CMD_SAVE_AS => (icons::FILE_MTY, "Save the active file with the native Save As dialog", false),
             CMD_SAVE_ALL => (icons::FILE_MTY, "Write dirty tabs; untitled files may need Save As", false),
@@ -1193,7 +1193,7 @@ impl PaletteEngine {
             CMD_CLOSE_PANE => (icons::CLOSE, "Close the focused editor pane", false),
             CMD_MARKDOWN_PREVIEW => (icons::FILE_MD, "Open the live Markdown preview pane", false),
             CMD_MARKDOWN_CLOSE_PREVIEW => (icons::CLOSE, "Close the live Markdown preview pane", false),
-            CMD_OPEN_FOLDER => (icons::FOLDER, "Open a workspace folder with the native folder picker", false),
+            CMD_OPEN_FOLDER => (icons::FOLDER, "Open a workspace folder; typed path if picker is unavailable", false),
             CMD_OPEN_RECENT => (icons::FOLDER, "Open a recent file or workspace folder", false),
             CMD_KEYBOARD_SHORTCUTS => (icons::INFO_I, "List & remap all keyboard shortcuts", false),
             CMD_KEYBOARD_SHORTCUTS_RESET_SELECTED => (icons::REFRESH, "Reset the selected shortcut override to its default", false),
@@ -2977,6 +2977,18 @@ mod tests {
         assert_eq!(
             command_static_desc(CMD_NEW_PROJECT),
             "Choose a project folder; typed name if picker is unavailable"
+        );
+    }
+
+    #[test]
+    fn open_command_descriptions_name_typed_path_fallback() {
+        assert_eq!(
+            command_static_desc(CMD_OPEN_FILE),
+            "Choose an existing file; typed path if picker is unavailable"
+        );
+        assert_eq!(
+            command_static_desc(CMD_OPEN_FOLDER),
+            "Open a workspace folder; typed path if picker is unavailable"
         );
     }
 
