@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-06-06 (LSP completion sort text - L1137; LSP completion provider detail - L1136; LSP completion display labels - L1135; LSP completion filter text - L1134; LSP completion insert text and snippets - L1133; snippet random and UUID variables - L1126; snippet Unix timestamp variables - L1125; GPU surface alpha stability - L1124; Surface-open and zoom toast ownership - L1123; Editor preflight toast ownership - L1122; Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-06-06 (LSP completion kind metadata - L1138; LSP completion sort text - L1137; LSP completion provider detail - L1136; LSP completion display labels - L1135; LSP completion filter text - L1134; LSP completion insert text and snippets - L1133; snippet random and UUID variables - L1126; snippet Unix timestamp variables - L1125; GPU surface alpha stability - L1124; Surface-open and zoom toast ownership - L1123; Editor preflight toast ownership - L1122; Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -14507,3 +14507,18 @@ deprioritized results could not express that ordering in Mighty IDE.
 - **Language note:** no compiler gap surfaced. Ranking metadata belongs in
   shim-owned completion state with the other rich LSP fields, while Mighty still
   consumes only the selected insert string through the scalar ABI.
+
+## L1138 - LSP Completion Kind Should Beat Heuristics
+
+Completion rows still guessed kinds from labels after the generic LSP client had
+started preserving richer item metadata. That made uppercase variables look like
+types and every unknown semantic row look like a function even when the server
+had supplied a precise `CompletionItem.kind`.
+
+- **IDE note:** semantic candidates now preserve LSP kind numbers as stable
+  display labels. The autocomplete row's right metadata column and badge style
+  use the provider kind when present, falling back to local heuristics only for
+  legacy label-only and buffer-word candidates.
+- **Language note:** no compiler gap surfaced. This is another protocol-field
+  ownership case: rich item metadata stays in Rust, while Mighty keeps the same
+  scalar accept path.

@@ -14,8 +14,8 @@
 //!   thoroughly unit-tested ([`buffer_words`], [`filter_by_prefix`]).
 //! * **mty-lsp semantic provider (best-effort):** spawn `mty lsp`, do the LSP
 //!   stdio JSON-RPC handshake, ask `textDocument/completion` at the cursor,
-//!   parse `CompletionItem` insert/display/sort text, and merge them ahead of
-//!   the buffer words.
+//!   parse `CompletionItem` insert/display/kind/sort text, and merge them ahead
+//!   of the buffer words.
 //!   If the server is absent / slow / errors, we silently fall back to the
 //!   buffer words — the editor never blocks ([`lsp::semantic_labels`]).
 //!
@@ -35,6 +35,8 @@ pub struct Candidate {
     pub display_text: Option<String>,
     /// Optional provider detail shown beside the row and in the footer.
     pub detail_text: Option<String>,
+    /// Optional provider kind label shown in the right metadata column.
+    pub kind_label: Option<&'static str>,
     /// `true` for an LSP-provided semantic candidate, `false` for a buffer word.
     pub semantic: bool,
     /// `true` for a snippet prefix (shows a distinct "snippet" badge; accepting
@@ -51,6 +53,8 @@ pub struct SemanticCandidate {
     pub display_text: Option<String>,
     /// Optional LSP `detail` text.
     pub detail_text: Option<String>,
+    /// Optional LSP `kind` mapped to a stable display label.
+    pub kind_label: Option<&'static str>,
     /// Optional LSP `filterText`, used only to decide whether the row matches the
     /// current typed prefix.
     pub filter_text: Option<String>,
@@ -218,6 +222,7 @@ impl CompletionEngine {
                 text: text.clone(),
                 display_text: None,
                 detail_text: None,
+                kind_label: None,
                 filter_text: None,
                 sort_text: None,
             })
@@ -262,6 +267,7 @@ impl CompletionEngine {
                     text: item.text.clone(),
                     display_text: item.display_text.clone(),
                     detail_text: item.detail_text.clone(),
+                    kind_label: item.kind_label,
                     semantic: true,
                     snippet: false,
                 });
@@ -276,6 +282,7 @@ impl CompletionEngine {
                     text: w,
                     display_text: None,
                     detail_text: None,
+                    kind_label: None,
                     semantic: false,
                     snippet: false,
                 });
@@ -301,6 +308,7 @@ impl CompletionEngine {
                     text: p.clone(),
                     display_text: None,
                     detail_text: None,
+                    kind_label: Some("snippet"),
                     semantic: false,
                     snippet: true,
                 });
@@ -762,6 +770,10 @@ fn classify_candidate(
         "in", "type", "true", "false", "await", "async", "pub", "import", "effect", "extern",
     ];
     let t = cand.display_text();
+    if let Some(kind) = cand.kind_label {
+        let (badge_bg, badge_fg, letter) = completion_kind_badge(kind);
+        return (badge_bg, badge_fg, letter, kind, "");
+    }
     // Snippet prefixes get a distinct badge regardless of how the text looks.
     if cand.snippet {
         return (
@@ -806,6 +818,46 @@ fn classify_candidate(
         "local",
         "",
     )
+}
+
+fn completion_kind_badge(kind: &str) -> (MuiColor, MuiColor, &'static str) {
+    match kind {
+        "method" | "function" | "constructor" => (
+            MuiColor::new(1.0, 0.824, 0.478, 0.14),
+            theme::SYN_FUNCTION(),
+            "\u{0192}",
+        ),
+        "class" | "interface" | "struct" | "enum" | "type parameter" => (
+            MuiColor::new(0.353, 0.820, 0.769, 0.14),
+            theme::SYN_TYPE(),
+            "T",
+        ),
+        "keyword" => (
+            MuiColor::new(0.718, 0.580, 1.0, 0.14),
+            theme::SYN_KEYWORD(),
+            "K",
+        ),
+        "snippet" => (
+            MuiColor::new(0.482, 0.800, 1.0, 0.16),
+            theme::SYN_FUNCTION(),
+            "\u{2026}",
+        ),
+        "file" | "folder" | "module" => (
+            MuiColor::new(0.482, 0.800, 1.0, 0.12),
+            theme::ACCENT_BRIGHT(),
+            "F",
+        ),
+        "field" | "property" | "variable" | "constant" | "enum member" => (
+            MuiColor::new(0.843, 0.843, 0.890, 0.10),
+            theme::SYN_DEFAULT(),
+            "x",
+        ),
+        _ => (
+            MuiColor::new(0.843, 0.843, 0.890, 0.10),
+            theme::SYN_DEFAULT(),
+            "i",
+        ),
+    }
 }
 
 fn completion_row_detail_visible(detail: &str) -> bool {
@@ -898,6 +950,7 @@ pub mod lsp {
                         text,
                         display_text,
                         detail_text: completion_item_detail_text(item),
+                        kind_label: completion_item_kind_label(item),
                         filter_text: completion_item_filter_text(item),
                         sort_text: completion_item_sort_text(item),
                     });
@@ -942,6 +995,37 @@ pub mod lsp {
 
     fn completion_item_detail_text(item: &[u8]) -> Option<String> {
         top_level_string_value(item, b"detail").filter(|detail| !detail.trim().is_empty())
+    }
+
+    fn completion_item_kind_label(item: &[u8]) -> Option<&'static str> {
+        match top_level_number_value(item, b"kind")? {
+            1 => Some("text"),
+            2 => Some("method"),
+            3 => Some("function"),
+            4 => Some("constructor"),
+            5 => Some("field"),
+            6 => Some("variable"),
+            7 => Some("class"),
+            8 => Some("interface"),
+            9 => Some("module"),
+            10 => Some("property"),
+            11 => Some("unit"),
+            12 => Some("value"),
+            13 => Some("enum"),
+            14 => Some("keyword"),
+            15 => Some("snippet"),
+            16 => Some("color"),
+            17 => Some("file"),
+            18 => Some("reference"),
+            19 => Some("folder"),
+            20 => Some("enum member"),
+            21 => Some("constant"),
+            22 => Some("struct"),
+            23 => Some("event"),
+            24 => Some("operator"),
+            25 => Some("type parameter"),
+            _ => None,
+        }
     }
 
     fn completion_text_edit_new_text(item: &[u8]) -> Option<String> {
@@ -1577,6 +1661,7 @@ mod tests {
             text: "numpy".to_string(),
             display_text: None,
             detail_text: None,
+            kind_label: None,
             filter_text: Some("np".to_string()),
             sort_text: None,
         }];
@@ -1596,6 +1681,7 @@ mod tests {
             text: "println($1)".to_string(),
             display_text: Some("println!".to_string()),
             detail_text: None,
+            kind_label: None,
             filter_text: Some("println".to_string()),
             sort_text: None,
         }];
@@ -1616,6 +1702,7 @@ mod tests {
                 text: "printer".to_string(),
                 display_text: None,
                 detail_text: None,
+                kind_label: None,
                 filter_text: None,
                 sort_text: Some("020".to_string()),
             },
@@ -1623,6 +1710,7 @@ mod tests {
                 text: "printf".to_string(),
                 display_text: None,
                 detail_text: None,
+                kind_label: None,
                 filter_text: None,
                 sort_text: Some("010".to_string()),
             },
@@ -1630,6 +1718,7 @@ mod tests {
                 text: "prepend".to_string(),
                 display_text: None,
                 detail_text: None,
+                kind_label: None,
                 filter_text: None,
                 sort_text: None,
             },
@@ -1651,6 +1740,7 @@ mod tests {
             text: "println($1)".to_string(),
             display_text: Some("println!".to_string()),
             detail_text: Some("macro println!(...)".to_string()),
+            kind_label: None,
             semantic: true,
             snippet: false,
         };
@@ -1665,12 +1755,29 @@ mod tests {
             text: "protocol".to_string(),
             display_text: None,
             detail_text: None,
+            kind_label: None,
             semantic: true,
             snippet: false,
         };
 
         assert_eq!(completion_footer_tail(&cand), "  \u{00B7} semantic symbol");
         assert!(!completion_row_detail_visible(cand.detail_text()));
+    }
+
+    #[test]
+    fn semantic_completion_uses_provider_kind_label() {
+        let cand = Candidate {
+            text: "User".to_string(),
+            display_text: None,
+            detail_text: None,
+            kind_label: Some("variable"),
+            semantic: true,
+            snippet: false,
+        };
+
+        let (_, _, _letter, kind, sig) = classify_candidate(&cand);
+        assert_eq!(kind, "variable");
+        assert_eq!(sig, "");
     }
 
     #[test]
@@ -1681,6 +1788,7 @@ mod tests {
             text: "let".to_string(),
             display_text: None,
             detail_text: None,
+            kind_label: None,
             filter_text: Some("let".to_string()),
             sort_text: None,
         }];
@@ -1790,6 +1898,7 @@ mod tests {
             text: "protocol".to_string(),
             display_text: None,
             detail_text: None,
+            kind_label: None,
             semantic: true,
             snippet: false,
         };
@@ -1907,6 +2016,7 @@ mod tests {
             text: "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii".to_string(),
             display_text: None,
             detail_text: None,
+            kind_label: None,
             semantic: false,
             snippet: false,
         }];
@@ -1914,6 +2024,7 @@ mod tests {
             text: "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW".to_string(),
             display_text: None,
             detail_text: None,
+            kind_label: None,
             semantic: false,
             snippet: false,
         }];
@@ -1944,6 +2055,7 @@ mod tests {
                 .to_string(),
             display_text: None,
             detail_text: None,
+            kind_label: None,
             semantic: true,
             snippet: false,
         }];
@@ -2093,6 +2205,17 @@ mod tests {
         assert_eq!(candidates[0].sort_text.as_deref(), Some("020"));
         assert_eq!(candidates[1].text, "printf");
         assert_eq!(candidates[1].sort_text.as_deref(), Some("010"));
+    }
+
+    #[test]
+    fn lsp_scrape_candidates_preserves_kind_label() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"println","kind":3},{"label":"answer","kind":21},{"label":"mystery","kind":999}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 3);
+        assert_eq!(candidates[0].kind_label, Some("function"));
+        assert_eq!(candidates[1].kind_label, Some("constant"));
+        assert_eq!(candidates[2].kind_label, None);
     }
 
     #[test]

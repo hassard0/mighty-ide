@@ -167,6 +167,7 @@ fn lsp_semantic_candidates_with_notice(
                     text,
                     display_text: None,
                     detail_text: None,
+                    kind_label: None,
                     filter_text: None,
                     sort_text: None,
                 })
