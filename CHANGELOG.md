@@ -15,6 +15,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Binary previews explain read-only mode on open**: file-opening routes now
   toast when a binary file is opened as a read-only preview, so the first edit
   denial is not the user's first signal that the buffer is protected.
+- **Run in Browser respects read-only previews**: direct Web Playground runs now
+  reject binary/read-only buffers before opening the panel or spawning a build,
+  with a focused toast explaining why the command is unavailable.
 
 ### Release packaging
 - **Stale Mighty compilers fail fast**: build and package scripts now preflight

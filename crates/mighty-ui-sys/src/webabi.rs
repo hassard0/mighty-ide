@@ -97,6 +97,13 @@ pub extern "C" fn mui_web_run(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Warn, "Run in Browser: no active file");
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Run in Browser is unavailable in read-only previews",
+        );
+        return 0;
+    }
     // Only one bottom-band panel visible at a time.
     ctx.term_open = false;
     ctx.run.close();

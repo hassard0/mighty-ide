@@ -2228,6 +2228,35 @@ fn web_run_rejects_directory_active_path_before_spawn() {
 }
 
 #[test]
+fn web_run_rejects_read_only_binary_preview_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_web_read_only_target_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::webabi::mui_web_run(handle), 0);
+    assert!(!ctx.web.is_active());
+    assert!(!ctx.web.is_running());
+    assert_eq!(ctx.web.line_count(), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Run in Browser is unavailable in read-only previews"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn web_playground_stop_reports_running_state() {
     let mut ctx = ctx_or_skip!();
     ctx.term_open = true;
