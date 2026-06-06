@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette names scratch active-file targets**: Rename, Delete, and
+  Copy Active File path/name/directory rows now report the same `(scratch)`
+  no-target wording as the runtime guards before dispatch.
 - **Command Palette names read-only save targets**: File: Save and Save As now
   name the active read-only preview before dispatch, matching the runtime
   `{name} is read-only in the text editor` save guard.

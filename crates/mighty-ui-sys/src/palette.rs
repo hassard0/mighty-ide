@@ -2641,17 +2641,20 @@ fn command_contextual_desc_with_workspace<'a>(
         CMD_DEBUG_START_CONTINUE if !active_has_path => Cow::Borrowed("Save this untitled file before starting debug"),
         CMD_RUN_IN_BROWSER if !active_has_path => Cow::Borrowed("Save this untitled file before running in browser"),
         CMD_RENAME_ACTIVE_FILE if active_has_path => Cow::Borrowed("Rename the active file on disk"),
-        CMD_RENAME_ACTIVE_FILE => Cow::Borrowed("Save this untitled file before renaming it"),
+        CMD_RENAME_ACTIVE_FILE => Cow::Borrowed("No active file to rename: (scratch)"),
         CMD_DELETE_ACTIVE_FILE if active_has_path && active_dirty => Cow::Borrowed("Save or discard changes before deleting"),
         CMD_DELETE_ACTIVE_FILE if active_has_path => Cow::Borrowed("Delete the active file after confirmation"),
-        CMD_DELETE_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
+        CMD_DELETE_ACTIVE_FILE => Cow::Borrowed("No active file to delete: (scratch)"),
         CMD_REVEAL_ACTIVE_FILE | CMD_REVEAL_ACTIVE_FILE_IN_OS if !active_has_path => {
             Cow::Borrowed("No active file to reveal: (scratch)")
         }
-        CMD_COPY_ACTIVE_FILE_PATH | CMD_COPY_ACTIVE_FILE_RELATIVE_PATH | CMD_COPY_ACTIVE_FILE_NAME | CMD_COPY_ACTIVE_FILE_DIRECTORY
+        CMD_COPY_ACTIVE_FILE_PATH
+        | CMD_COPY_ACTIVE_FILE_RELATIVE_PATH
+        | CMD_COPY_ACTIVE_FILE_NAME
+        | CMD_COPY_ACTIVE_FILE_DIRECTORY
             if !active_has_path =>
         {
-            Cow::Borrowed("Needs a file-backed tab")
+            Cow::Borrowed(copy_active_file_missing_desc(id))
         }
         _ => Cow::Borrowed(base),
     }
@@ -2681,6 +2684,18 @@ fn close_dirty_tab_desc(name: &str) -> String {
 
 fn read_only_save_desc(name: &str) -> String {
     format!("{name} is read-only in the text editor")
+}
+
+fn copy_active_file_missing_desc(id: u32) -> &'static str {
+    match id {
+        CMD_COPY_ACTIVE_FILE_PATH => "No active file path to copy: (scratch)",
+        CMD_COPY_ACTIVE_FILE_RELATIVE_PATH => {
+            "No active file relative path to copy: (scratch)"
+        }
+        CMD_COPY_ACTIVE_FILE_NAME => "No active file name to copy: (scratch)",
+        CMD_COPY_ACTIVE_FILE_DIRECTORY => "No active file directory to copy: (scratch)",
+        _ => "No active file to copy: (scratch)",
+    }
 }
 
 fn palette_basename(path: &std::path::Path) -> String {
@@ -3358,7 +3373,11 @@ mod tests {
         );
         assert_eq!(
             command_contextual_desc(CMD_RENAME_ACTIVE_FILE, "base", false, false, false, 0, false, false),
-            Cow::Borrowed("Save this untitled file before renaming it")
+            Cow::Borrowed("No active file to rename: (scratch)")
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_DELETE_ACTIVE_FILE, "base", false, false, false, 0, false, false),
+            Cow::Borrowed("No active file to delete: (scratch)")
         );
         assert_eq!(
             command_contextual_desc(CMD_REVEAL_ACTIVE_FILE, "base", false, false, false, 0, false, false),
@@ -3376,6 +3395,58 @@ mod tests {
                 false
             ),
             Cow::Borrowed("No active file to reveal: (scratch)")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_COPY_ACTIVE_FILE_PATH,
+                "base",
+                false,
+                false,
+                false,
+                0,
+                false,
+                false
+            ),
+            Cow::Borrowed("No active file path to copy: (scratch)")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_COPY_ACTIVE_FILE_RELATIVE_PATH,
+                "base",
+                false,
+                false,
+                false,
+                0,
+                false,
+                false
+            ),
+            Cow::Borrowed("No active file relative path to copy: (scratch)")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_COPY_ACTIVE_FILE_NAME,
+                "base",
+                false,
+                false,
+                false,
+                0,
+                false,
+                false
+            ),
+            Cow::Borrowed("No active file name to copy: (scratch)")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_COPY_ACTIVE_FILE_DIRECTORY,
+                "base",
+                false,
+                false,
+                false,
+                0,
+                false,
+                false
+            ),
+            Cow::Borrowed("No active file directory to copy: (scratch)")
         );
         assert_eq!(
             command_contextual_desc(CMD_SAVE, "base", true, true, true, 1, false, false),

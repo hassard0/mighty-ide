@@ -286,9 +286,9 @@ and the final handoff response after packaging.
   targets, dirty reload blockers that name the active file, and dirty Close Tab
   blockers that name the tab requiring confirmation
 - Command Palette active-file utility rows for Reveal and Copy Path/Name/Folder
-  report scratch buffers and stale missing or directory-backed active targets
-  before dispatch; Show in File Manager also reports unavailable platform reveal
-  support before launch
+  report scratch buffers with target-specific wording, and stale missing or
+  directory-backed active targets before dispatch; Show in File Manager also
+  reports unavailable platform reveal support before launch
 - Command Palette Rename/Delete rows report stale missing or directory-backed
   active targets before dispatch, and Delete names dirty duplicate blockers
   before asking for confirmation
