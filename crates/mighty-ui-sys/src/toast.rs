@@ -902,6 +902,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m == "Formatted document"
         || m.starts_with("Format failed")
         || m == "Save the file before formatting"
+        || m == "Format is unavailable in read-only previews"
         || (m.starts_with("Save ") && m.ends_with(" before formatting"))
         || m == "Save or discard changes before formatting"
         || (m.starts_with("Save or discard changes in ") && m.ends_with(" before formatting"))

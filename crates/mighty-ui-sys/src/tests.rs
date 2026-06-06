@@ -14578,6 +14578,39 @@ fn format_preflight_reports_only_safe_mutating_targets() {
 }
 
 #[test]
+fn format_current_rejects_read_only_binary_preview_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_format_read_only_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.mty");
+    let original = b"fn main() {}\0binary preview";
+    std::fs::write(&path, original).unwrap();
+    ctx.tabs.open_path(path.clone());
+    crate::sync_active_path(&mut ctx);
+    assert!(ctx.tabs.active_read_only());
+    let before = ctx.tabs.active_model().as_text();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_format_can_current(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_format_current(h), -1);
+    assert_eq!(std::fs::read(&path).unwrap(), original);
+    assert_eq!(ctx.tabs.active_model().as_text(), before);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Format is unavailable in read-only previews"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn format_current_refuses_dirty_active_tab() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!(

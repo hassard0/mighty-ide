@@ -35,6 +35,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Code Action Apply now reject binary/read-only buffers before applying LSP
   edits or fallback edits, with command-specific feedback instead of a silent
   no-op or preview mutation.
+- **Format Document respects read-only previews**: direct format requests now
+  reject binary/read-only buffers before spawning `mty fmt`, preserving preview
+  contents with explicit feedback.
 
 ### Release packaging
 - **Stale Mighty compilers fail fast**: build and package scripts now preflight

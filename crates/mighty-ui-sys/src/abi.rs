@@ -12798,6 +12798,13 @@ pub extern "C" fn mui_format_current(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if ctx.tabs.active_read_only() {
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Format is unavailable in read-only previews",
+        );
+        return -1;
+    }
     let Some(path) = ctx.file_path.clone() else {
         eprintln!("format: no file path configured");
         ctx.push_toast(crate::toast::Kind::Warn, format_needs_file_message(ctx));

@@ -23,8 +23,9 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Find & Replace stale keyboard, replace, and close-click routes report when the
   bar has already closed
 - Format document guards unsaved scratch buffers and dirty duplicate tabs with
-  target-specific feedback, and rejects directory targets with explicit `not a
-  file` feedback before spawning the formatter
+  target-specific feedback, rejects binary/read-only previews, and rejects
+  directory targets with explicit `not a file` feedback before spawning the
+  formatter
 - Save, Save As, Save All, and auto-save reject directory targets with explicit
   `not a file` feedback, and staged save, tab-level saves, Save As, Save All,
   plus auto-save report non-directory parent paths before writing
