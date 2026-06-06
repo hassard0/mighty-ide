@@ -621,6 +621,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Source Control message ")
         || m == "Source Control panel closed"
         || m == "Source Control panel is already closed"
+        || m == "Source Control panel is already open"
         || m.starts_with("Source control target missing")
         || m.starts_with("Source control target is not a file")
         || m == "No hunk selected"
@@ -908,6 +909,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m.starts_with("Theme:")
         || m == "Color theme picker cancelled"
         || m == "No color theme picker open"
+        || m == "Color theme picker is already open"
         || m.starts_with("Theme preference not saved")
     {
         Some(OperationKey::Theme)
@@ -1025,6 +1027,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No Quick Open panel open"
         || m == "Search panel closed"
         || m == "Search panel is already closed"
+        || m == "Search panel is already open"
         || m == "Search results cleared"
         || m == "Search results already empty"
         || m == "Enter text to search"
@@ -1032,6 +1035,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No previous location"
         || m == "Outline panel closed"
         || m == "Outline panel is already closed"
+        || m == "Outline panel is already open"
         || m == "Explorer panel closed"
         || m == "Explorer panel is already closed"
         || m == "Problems panel closed"
@@ -1088,6 +1092,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Debug failed to start:")
         || m == "Run and Debug panel closed"
         || m == "Run and Debug panel is already closed"
+        || m == "Run and Debug panel is already open"
         || m == "Continue is available when paused"
         || m == "No debug session to stop"
         || m == "Pause is available while running"
@@ -1116,6 +1121,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Settings not saved")
         || m.starts_with("Keyboard Shortcuts ")
         || m.starts_with("Keyboard Shortcuts not saved")
+        || m.starts_with("Zoom is already ")
         || m.starts_with("Zoom preference not saved")
         || m.starts_with("Recent files not saved")
         || m.starts_with("Recent folders not saved")
@@ -2455,6 +2461,17 @@ mod tests {
 
         q.push_at(
             Kind::Info,
+            "Color theme picker is already open",
+            t0 + Duration::from_millis(165),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Color theme picker is already open"
+        );
+
+        q.push_at(
+            Kind::Info,
             "No color theme picker open",
             t0 + Duration::from_millis(175),
         );
@@ -2526,6 +2543,32 @@ mod tests {
         q.push_at(Kind::Info, "Window restored", t0 + Duration::from_millis(600));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Window restored");
+
+        q.push_at(
+            Kind::Info,
+            "Zoom is already at maximum (300%)",
+            t0 + Duration::from_millis(625),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Zoom is already at maximum (300%)"
+        );
+
+        q.push_at(
+            Kind::Info,
+            "Zoom is already at minimum (50%)",
+            t0 + Duration::from_millis(650),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Zoom is already at minimum (50%)"
+        );
+
+        q.push_at(Kind::Info, "Zoom is already 100%", t0 + Duration::from_millis(675));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Zoom is already 100%");
 
         q.push_at(
             Kind::Info,
@@ -2835,6 +2878,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Blame is already hidden");
+
+        q.push_at(
+            Kind::Info,
+            "Source Control panel is already open",
+            t0 + Duration::from_millis(450),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Source Control panel is already open");
 
         q.push_at(Kind::Info, "Nothing to commit", t0 + Duration::from_millis(500));
         assert_eq!(q.len(), 1);
@@ -3155,6 +3206,14 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Debug session already empty");
         assert!(!q.toasts().iter().any(|t| t.message == "Debug session cleared"));
+
+        q.push_at(
+            Kind::Info,
+            "Run and Debug panel is already open",
+            t0 + Duration::from_millis(595),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Run and Debug panel is already open");
 
         q.push_at(
             Kind::Error,
@@ -4085,6 +4144,14 @@ mod tests {
 
         q.push_at(
             Kind::Info,
+            "Search panel is already open",
+            t0 + Duration::from_millis(460),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Search panel is already open");
+
+        q.push_at(
+            Kind::Info,
             "Search results cleared",
             t0 + Duration::from_millis(475),
         );
@@ -4138,6 +4205,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Outline panel is already closed");
+
+        q.push_at(
+            Kind::Info,
+            "Outline panel is already open",
+            t0 + Duration::from_millis(499),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Outline panel is already open");
 
         q.push_at(
             Kind::Info,

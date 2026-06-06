@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1122).
+(lessons L1-L1123).
 
 ## v0.3.0
 
@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,016 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Surface-open and zoom-limit no-ops coalesce by owner**: already-open Search,
+  Outline, Source Control, Run and Debug, and Color Theme states plus zoom
+  limits now replace stale workflow feedback instead of remaining unowned.
 - **Editor preflight no-ops keep scoped feedback lanes**: empty copy/cut
   targets, word-delete no-ops, cursor-boundary movement, and select-word
   failures now replace stale feedback in their owning lanes instead of stacking

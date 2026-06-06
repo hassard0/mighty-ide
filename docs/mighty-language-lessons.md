@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-06-06 (Editor preflight toast ownership - L1122; Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-06-06 (Surface-open and zoom toast ownership - L1123; Editor preflight toast ownership - L1122; Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -14270,3 +14270,19 @@ fall into a nearby workflow by accident.
 - **Language note:** no compiler gap surfaced. Palette descriptions double as
   executable user feedback, so contextual prompt strings need the same
   ownership tests as direct command results.
+
+## L1123 - Surface-Open And Zoom Limit Feedback Need Owners Too
+
+Command Palette rows also report idempotent surface and view states such as
+`Search panel is already open`, `Source Control panel is already open`,
+`Run and Debug panel is already open`, `Color theme picker is already open`,
+and zoom limit messages. These are not errors, but they are visible feedback and
+should replace stale messages in the same workflow instead of stacking as
+unowned toasts.
+
+- **IDE note:** already-open surface feedback now maps to its owning
+  Navigation, Git, Debug, Theme, or Layout lane, and zoom limit messages share
+  the layout lane. Toast tests cover the palette message shapes.
+- **Language note:** no compiler gap surfaced. Idempotent command feedback needs
+  the same ownership discipline as failures, because users trigger both from
+  the same palette rows.
