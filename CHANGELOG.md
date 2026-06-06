@@ -4,14 +4,18 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1–L58).
+(lessons L1-L1114).
 
 ## v0.3.0
 
 A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
-driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
+driven by `src/main.mty`. ~2,012 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Prompt mouse dismissal uses silent cleanup**: clicking the prompt close
+  affordance or outside the prompt now releases Prompt state through
+  `mui_prompt_dismiss`, keeping `No prompt input open` scoped to explicit
+  command-like stale cancels.
 - **Find & Replace mouse close is quiet**: clicking the close affordance on the
   Find & Replace bar now dismisses it without a `Find & Replace closed` toast;
   Escape and the explicit close command still report close feedback.

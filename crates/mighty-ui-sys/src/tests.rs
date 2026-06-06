@@ -12655,6 +12655,19 @@ fn prompt_cancel_command_clears_active_prompt() {
     assert_eq!(crate::abi::mui_prompt_cancel(handle), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(ctx.toasts.toasts()[0].message, "No prompt input open");
+
+    ctx.toasts.clear();
+    assert_eq!(crate::abi::mui_prompt_dismiss(handle), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    crate::abi::mui_prompt_open(handle, crate::prompt::PromptKind::Open as i32);
+    crate::abi::mui_prompt_push(handle, b'x' as i32);
+    assert_eq!(crate::abi::mui_prompt_active(handle), 1);
+    assert_eq!(crate::abi::mui_prompt_len(handle), 1);
+    assert_eq!(crate::abi::mui_prompt_dismiss(handle), 1);
+    assert_eq!(crate::abi::mui_prompt_active(handle), 0);
+    assert_eq!(crate::abi::mui_prompt_len(handle), 0);
+    assert!(ctx.toasts.toasts().is_empty());
 }
 
 #[test]
@@ -22908,10 +22921,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         .map(|i| prompt_start + i)
         .expect("prompt branch should precede terminal focus branch");
     let prompt_branch = &main[prompt_start..prompt_end];
-    let prompt_local_cleanup = "let _pc = mui_prompt_cancel(h)\n            prompt_kind = 0\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    let prompt_escape_cleanup = "let _pc = mui_prompt_cancel(h)\n            prompt_kind = 0\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    let prompt_mouse_cleanup = "let _pd = mui_prompt_dismiss(h)\n            prompt_kind = 0\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
     assert!(
-        prompt_branch.matches(prompt_local_cleanup).count() >= 3,
-        "Prompt local Escape, close-click, and outside-click cancels must release stale focus"
+        prompt_branch.contains(prompt_escape_cleanup)
+            && prompt_branch.matches(prompt_mouse_cleanup).count() >= 2,
+        "Prompt local Escape, close-click, and outside-click routes must release stale focus with explicit versus silent cleanup"
     );
     let completion_start = main
         .find("} else if completing {")

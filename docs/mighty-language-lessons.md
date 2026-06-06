@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-05-31 (persisted recent files — L54; snippet mirror placeholders — L53; Explorer file operations + prompt-string staging pressure — L52. Prior: Windows packaging/runtime ABI hardening — L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages — L35; verified live against rust-analyzer 1.95.0. Developer-workflow features — Run panel + inline git diff + live Settings panel — L33/L34; LIVE EDITING via a shim-side authoritative text model — the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-06-06 (incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -14136,3 +14136,17 @@ cancel ABI made the pointer close emit `Find & Replace closed`.
 - **Language note:** no compiler gap surfaced. Inline toolbars should get the
   same command-versus-dismiss split as modal overlays when a close affordance is
   primarily focus management.
+
+## L1114 - Bottom Prompt Pointer Misses Need Silent Cleanup
+
+The reusable bottom prompt can close from Escape, the explicit Command Palette
+cancel row, its close affordance, or an outside click. The active prompt cancel
+path was already quiet, but it still owned the stale `No prompt input open`
+feedback, so incidental mouse cleanup and command cancellation shared one ABI.
+
+- **IDE note:** prompt close-click and outside-click routes now call
+  `mui_prompt_dismiss`. `mui_prompt_cancel` remains the explicit command path
+  and still reports stale no-open feedback.
+- **Language note:** no compiler gap surfaced. Even quiet active-close commands
+  should split incidental cleanup from explicit stale-state feedback so local UI
+  flags cannot turn pointer misses into command-like toasts.

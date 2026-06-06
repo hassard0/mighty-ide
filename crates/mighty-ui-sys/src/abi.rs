@@ -4110,6 +4110,20 @@ pub extern "C" fn mui_prompt_cancel(handle: i64) -> i32 {
     }
 }
 
+/// Silently close the prompt and clear its query for incidental dismissal.
+#[no_mangle]
+pub extern "C" fn mui_prompt_dismiss(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.prompt.is_active() {
+        ctx.prompt.cancel();
+        1
+    } else {
+        0
+    }
+}
+
 /// `1` if a prompt is currently active, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_prompt_active(handle: i64) -> i32 {

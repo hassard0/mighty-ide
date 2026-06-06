@@ -180,6 +180,7 @@ extern c {
   fn mui_prompt_push(handle: I64, codepoint: I32)
   fn mui_prompt_backspace(handle: I64)
   fn mui_prompt_cancel(handle: I64) -> I32
+  fn mui_prompt_dismiss(handle: I64) -> I32
   fn mui_prompt_hit_at_click(handle: I64) -> I32
   fn mui_prompt_close_at_click(handle: I64) -> I32
   fn mui_prompt_len(handle: I64) -> I32
@@ -3112,7 +3113,7 @@ fn main() {
           }
         } else if tag == ev_mouse_down() {
           if mui_prompt_close_at_click(h) == 1 {
-            let _pc = mui_prompt_cancel(h)
+            let _pd = mui_prompt_dismiss(h)
             prompt_kind = 0
             run_focus = false
             web_focus = false
@@ -3123,7 +3124,7 @@ fn main() {
             find_nav = false
             typing = false
           } else if mui_prompt_hit_at_click(h) == 0 {
-            let _pc = mui_prompt_cancel(h)
+            let _pd = mui_prompt_dismiss(h)
             prompt_kind = 0
             run_focus = false
             web_focus = false
