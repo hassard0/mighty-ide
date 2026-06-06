@@ -16,6 +16,7 @@ use crate::fold::FoldState;
 
 const CLOSED_CAP: usize = 20;
 const BINARY_SCAN_LIMIT: usize = 8192;
+pub(crate) const MAX_OPEN_FILE_BYTES: u64 = 16 * 1024 * 1024;
 
 /// Snapshot a model's lines into owned strings (for the fold scanner, which is
 /// pure over `&[String]`). The model stores newlines as line boundaries, so this
@@ -48,6 +49,16 @@ fn binary_placeholder(path: Option<&Path>, bytes_len: usize) -> String {
     )
 }
 
+fn oversized_placeholder(path: Option<&Path>, bytes_len: u64) -> String {
+    let name = path
+        .and_then(|p| p.file_name())
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "This file".to_string());
+    format!(
+        "Large file preview\n\n{name} is {bytes_len} bytes, which exceeds Mighty IDE's {MAX_OPEN_FILE_BYTES} byte text-editing limit.\nMighty IDE opened a read-only preview instead of loading the full file into the editor buffer.\nUse an external large-file viewer or split the file before editing.\n"
+    )
+}
+
 fn model_for_bytes(path: Option<&Path>, bytes: &[u8]) -> (TextModel, FoldState, bool) {
     let read_only = is_probably_binary(bytes);
     let model_bytes;
@@ -60,6 +71,26 @@ fn model_for_bytes(path: Option<&Path>, bytes: &[u8]) -> (TextModel, FoldState, 
     let mut fold = FoldState::new();
     fold.recompute_owned(&model_lines(&model));
     (model, fold, read_only)
+}
+
+fn model_for_oversized_file(
+    path: Option<&Path>,
+    bytes_len: u64,
+) -> (TextModel, FoldState, Vec<u8>) {
+    let model_bytes = oversized_placeholder(path, bytes_len).into_bytes();
+    let model = TextModel::from_bytes(&model_bytes);
+    let mut fold = FoldState::new();
+    fold.recompute_owned(&model_lines(&model));
+    (model, fold, model_bytes)
+}
+
+fn read_open_file_bytes(path: &Path) -> Result<Vec<u8>, u64> {
+    if let Ok(meta) = std::fs::metadata(path) {
+        if meta.is_file() && meta.len() > MAX_OPEN_FILE_BYTES {
+            return Err(meta.len());
+        }
+    }
+    Ok(std::fs::read(path).unwrap_or_default())
 }
 
 fn tab_paths_equal(a: &Path, b: &Path) -> bool {
@@ -205,12 +236,16 @@ impl TabStore {
             self.active = i;
             return i;
         }
-        let bytes = std::fs::read(&path).unwrap_or_default();
-        let (model, fold, read_only) = model_for_bytes(Some(&path), &bytes);
-        let saved_bytes = if read_only {
-            bytes
-        } else {
-            model.to_bytes()
+        let (model, fold, read_only, saved_bytes) = match read_open_file_bytes(&path) {
+            Ok(bytes) => {
+                let (model, fold, read_only) = model_for_bytes(Some(&path), &bytes);
+                let saved_bytes = if read_only { bytes } else { model.to_bytes() };
+                (model, fold, read_only, saved_bytes)
+            }
+            Err(bytes_len) => {
+                let (model, fold, saved_bytes) = model_for_oversized_file(Some(&path), bytes_len);
+                (model, fold, true, saved_bytes)
+            }
         };
         self.tabs.push(Tab {
             path: Some(path),
@@ -323,7 +358,11 @@ impl TabStore {
         }
         self.tabs = indexed.into_iter().map(|(_, tab)| tab).collect();
         self.active = old_to_new[old_active];
-        if changed { Some(old_to_new) } else { None }
+        if changed {
+            Some(old_to_new)
+        } else {
+            None
+        }
     }
 
     /// `true` when sorting tabs by display name would leave order unchanged.
@@ -332,8 +371,7 @@ impl TabStore {
             return true;
         }
         self.tabs.windows(2).all(|pair| {
-            pair[0].basename().to_ascii_lowercase()
-                <= pair[1].basename().to_ascii_lowercase()
+            pair[0].basename().to_ascii_lowercase() <= pair[1].basename().to_ascii_lowercase()
         })
     }
 
@@ -788,11 +826,17 @@ impl TabStore {
     }
 
     fn is_reopenable(tab: &Tab) -> bool {
-        tab.path.is_some() || tab.is_dirty() || !tab.model.to_bytes().is_empty() || !tab.bytes.is_empty()
+        tab.path.is_some()
+            || tab.is_dirty()
+            || !tab.model.to_bytes().is_empty()
+            || !tab.bytes.is_empty()
     }
 
     fn is_empty_scratch(tab: &Tab) -> bool {
-        tab.path.is_none() && !tab.is_dirty() && tab.model.to_bytes().is_empty() && tab.bytes.is_empty()
+        tab.path.is_none()
+            && !tab.is_dirty()
+            && tab.model.to_bytes().is_empty()
+            && tab.bytes.is_empty()
     }
 
     /// Close every clean tab, preserving all dirty tabs. Returns compaction
@@ -1050,7 +1094,13 @@ impl TabStore {
     }
 
     /// Commit the stored buffer + editor state into slot `idx`.
-    pub fn store_commit(&mut self, idx: usize, cursor_line: i32, cursor_col: i32, scroll_first: i32) {
+    pub fn store_commit(
+        &mut self,
+        idx: usize,
+        cursor_line: i32,
+        cursor_col: i32,
+        scroll_first: i32,
+    ) {
         if let Some(t) = self.tabs.get_mut(idx) {
             t.cursor_line = cursor_line.max(0);
             t.cursor_col = cursor_col.max(0);
@@ -1165,11 +1215,7 @@ mod tests {
     #[test]
     fn open_path_reuses_canonical_equivalent_path() {
         let p = write_tmp("tabs_equivalent_path.txt", b"same");
-        let equivalent = p
-            .parent()
-            .unwrap()
-            .join(".")
-            .join(p.file_name().unwrap());
+        let equivalent = p.parent().unwrap().join(".").join(p.file_name().unwrap());
 
         let mut s = TabStore::new();
         assert_eq!(s.open_path(p), 0);
@@ -1182,7 +1228,7 @@ mod tests {
     fn byte_round_trip_preserves_bytes_and_state() {
         let mut s = TabStore::new();
         s.ensure_scratch(); // one scratch tab
-        // Open a second tab to store into.
+                            // Open a second tab to store into.
         let p = write_tmp("tabs_rt.txt", b"orig");
         s.open_path(p);
         let idx = s.active();
@@ -1223,6 +1269,31 @@ mod tests {
         assert!(tab.model.as_text().contains("tabs_binary_asset.ico"));
         assert!(!tab.is_dirty());
         assert!(s.active_read_only());
+    }
+
+    #[test]
+    fn oversized_files_open_as_read_only_previews_without_loading_full_file() {
+        let p = std::env::temp_dir().join("tabs_oversized_asset.log");
+        let _ = std::fs::remove_file(&p);
+        let file = std::fs::File::create(&p).unwrap();
+        file.set_len(MAX_OPEN_FILE_BYTES + 1).unwrap();
+
+        let mut s = TabStore::new();
+        let idx = s.open_path(p.clone());
+        let tab = s.get(idx).unwrap();
+
+        assert!(tab.read_only);
+        assert!(tab.model.as_text().contains("Large file preview"));
+        assert!(tab.model.as_text().contains("tabs_oversized_asset.log"));
+        assert!(tab
+            .model
+            .as_text()
+            .contains(&(MAX_OPEN_FILE_BYTES + 1).to_string()));
+        assert!(tab.bytes.len() < 1024);
+        assert!(!tab.is_dirty());
+        assert!(s.active_read_only());
+
+        let _ = std::fs::remove_file(&p);
     }
 
     #[test]
@@ -1350,7 +1421,10 @@ mod tests {
         let b_idx = s.open_path(b);
         s.store_commit(b_idx, 3, 2, 1);
         s.set_dirty(b_idx, true);
-        s.get_mut(b_idx).unwrap().undo.push(TextModel::from_bytes(b"b"));
+        s.get_mut(b_idx)
+            .unwrap()
+            .undo
+            .push(TextModel::from_bytes(b"b"));
 
         let dup = s.duplicate_active();
         assert_eq!(dup, 2);
@@ -1440,9 +1514,21 @@ mod tests {
         let compaction = s.close_duplicate_file_tabs().unwrap();
         assert_eq!(compaction.removed, 2);
         assert_eq!(s.count(), 3);
-        assert_eq!(s.active(), 0, "active duplicate of a.txt should be preserved");
-        assert!(s.get(0).unwrap().basename().contains("tabs_duplicate_clean_a"));
-        assert!(s.get(1).unwrap().basename().contains("tabs_duplicate_clean_b"));
+        assert_eq!(
+            s.active(),
+            0,
+            "active duplicate of a.txt should be preserved"
+        );
+        assert!(s
+            .get(0)
+            .unwrap()
+            .basename()
+            .contains("tabs_duplicate_clean_a"));
+        assert!(s
+            .get(1)
+            .unwrap()
+            .basename()
+            .contains("tabs_duplicate_clean_b"));
         assert!(s.get(2).unwrap().is_dirty());
         assert_eq!(s.closed_count(), 0);
         assert!(s.reopen_closed().is_none());
@@ -1454,11 +1540,7 @@ mod tests {
     #[test]
     fn close_duplicate_file_tabs_compacts_equivalent_clean_paths() {
         let p = write_tmp("tabs_duplicate_equivalent.txt", b"same");
-        let equivalent = p
-            .parent()
-            .unwrap()
-            .join(".")
-            .join(p.file_name().unwrap());
+        let equivalent = p.parent().unwrap().join(".").join(p.file_name().unwrap());
         let model = TextModel::from_bytes(b"same");
 
         let mut s = TabStore::new();
@@ -1487,11 +1569,7 @@ mod tests {
     #[test]
     fn close_clean_path_forget_removes_all_clean_equivalents_without_history() {
         let p = write_tmp("tabs_delete_equivalent.txt", b"same");
-        let equivalent = p
-            .parent()
-            .unwrap()
-            .join(".")
-            .join(p.file_name().unwrap());
+        let equivalent = p.parent().unwrap().join(".").join(p.file_name().unwrap());
         let keep = write_tmp("tabs_delete_keep.txt", b"keep");
         let model = TextModel::from_bytes(b"same");
 
@@ -1525,11 +1603,7 @@ mod tests {
     #[test]
     fn any_dirty_path_sees_dirty_equivalent_tabs() {
         let p = write_tmp("tabs_dirty_equivalent.txt", b"same");
-        let equivalent = p
-            .parent()
-            .unwrap()
-            .join(".")
-            .join(p.file_name().unwrap());
+        let equivalent = p.parent().unwrap().join(".").join(p.file_name().unwrap());
 
         let mut s = TabStore::new();
         s.open_path(p.clone());
@@ -1584,11 +1658,7 @@ mod tests {
     #[test]
     fn reload_all_clean_path_refreshes_equivalent_clean_tabs() {
         let p = write_tmp("tabs_reload_all_clean.txt", b"old\n");
-        let equivalent = p
-            .parent()
-            .unwrap()
-            .join(".")
-            .join(p.file_name().unwrap());
+        let equivalent = p.parent().unwrap().join(".").join(p.file_name().unwrap());
 
         let mut s = TabStore::new();
         let first = s.open_path(p.clone());
@@ -1681,9 +1751,17 @@ mod tests {
         assert_eq!(s.closed_count(), 2);
         let reopened = s.reopen_closed().unwrap();
         assert_eq!(s.active(), reopened);
-        assert!(s.get(reopened).unwrap().basename().contains("tabs_close_saved_reopen_c"));
+        assert!(s
+            .get(reopened)
+            .unwrap()
+            .basename()
+            .contains("tabs_close_saved_reopen_c"));
         let reopened = s.reopen_closed().unwrap();
-        assert!(s.get(reopened).unwrap().basename().contains("tabs_close_saved_reopen_a"));
+        assert!(s
+            .get(reopened)
+            .unwrap()
+            .basename()
+            .contains("tabs_close_saved_reopen_a"));
         assert_eq!(s.closed_count(), 0);
     }
 
@@ -1734,8 +1812,16 @@ mod tests {
         assert_eq!(s.close_other_saved().unwrap().removed, 1);
         assert_eq!(s.count(), 2);
         assert_eq!(s.active(), 0);
-        assert!(s.get(0).unwrap().basename().contains("tabs_close_other_saved_active"));
-        assert!(s.get(1).unwrap().basename().contains("tabs_close_other_saved_dirty"));
+        assert!(s
+            .get(0)
+            .unwrap()
+            .basename()
+            .contains("tabs_close_other_saved_active"));
+        assert!(s
+            .get(1)
+            .unwrap()
+            .basename()
+            .contains("tabs_close_other_saved_dirty"));
         assert!(!s.get(0).unwrap().is_dirty());
         assert!(s.get(1).unwrap().is_dirty());
         assert!(s.close_other_saved().is_none());
@@ -1756,8 +1842,16 @@ mod tests {
         assert_eq!(s.close_saved_to_right().unwrap().removed, 1);
         assert_eq!(s.count(), 2);
         assert_eq!(s.active(), 0);
-        assert!(s.get(0).unwrap().basename().contains("tabs_close_right_active"));
-        assert!(s.get(1).unwrap().basename().contains("tabs_close_right_dirty"));
+        assert!(s
+            .get(0)
+            .unwrap()
+            .basename()
+            .contains("tabs_close_right_active"));
+        assert!(s
+            .get(1)
+            .unwrap()
+            .basename()
+            .contains("tabs_close_right_dirty"));
         assert!(s.get(1).unwrap().is_dirty());
     }
 
@@ -1776,12 +1870,24 @@ mod tests {
         assert_eq!(s.close_saved_to_left().unwrap().removed, 1);
         assert_eq!(s.count(), 2);
         assert_eq!(s.active(), 1);
-        assert!(s.get(0).unwrap().basename().contains("tabs_close_left_dirty"));
-        assert!(s.get(1).unwrap().basename().contains("tabs_close_left_active"));
+        assert!(s
+            .get(0)
+            .unwrap()
+            .basename()
+            .contains("tabs_close_left_dirty"));
+        assert!(s
+            .get(1)
+            .unwrap()
+            .basename()
+            .contains("tabs_close_left_active"));
         assert!(s.get(0).unwrap().is_dirty());
         assert_eq!(s.closed_count(), 1);
         let reopened = s.reopen_closed().unwrap();
-        assert!(s.get(reopened).unwrap().basename().contains("tabs_close_left_clean"));
+        assert!(s
+            .get(reopened)
+            .unwrap()
+            .basename()
+            .contains("tabs_close_left_clean"));
     }
 
     #[test]
