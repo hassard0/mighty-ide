@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Source Control diff feedback drops legacy no-row text**: diff-open toast
+  coalescing now tracks the runtime `No source control row selected` wording
+  instead of a stale hyphenated variant.
 - **Fix All duplicate-skip feedback coalesces**: duplicate-edit skip messages
   from Fix all (mty) now replace stale Code Action toasts instead of stacking
   as unrelated feedback.

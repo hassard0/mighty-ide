@@ -629,7 +629,6 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Hunk apply failed:")
         || m == "No file to diff"
         || m.starts_with("No file to diff:")
-        || m == "No source-control row"
         || m == "No git repository for diff"
         || m.starts_with("No diff for ")
         || m.starts_with("Diff target missing:")
@@ -2548,12 +2547,12 @@ mod tests {
         assert_eq!(q.toasts()[0].message, "Diff view is already closed");
 
         q.push_at(
-            Kind::Warn,
-            "No source-control row",
+            Kind::Info,
+            "No source control row selected",
             t0 + Duration::from_millis(300),
         );
         assert_eq!(q.len(), 1);
-        assert_eq!(q.toasts()[0].message, "No source-control row");
+        assert_eq!(q.toasts()[0].message, "No source control row selected");
     }
 
     #[test]
