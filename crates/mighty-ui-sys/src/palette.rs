@@ -1411,6 +1411,8 @@ impl PaletteEngine {
                 | CMD_UNDO
                 | CMD_REDO
                 | CMD_FIND_REPLACE
+                | CMD_RUN_FILE
+                | CMD_RUN_IN_BROWSER
         )
             && active_read_only
         {
@@ -5781,6 +5783,16 @@ mod tests {
         );
         assert_eq!(
             engine.contextual_desc(&ctx, CMD_FIND_REPLACE, "base").as_ref(),
+            "asset.bin is read-only in the text editor"
+        );
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_RUN_FILE, "base").as_ref(),
+            "asset.bin is read-only in the text editor"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_RUN_IN_BROWSER, "base")
+                .as_ref(),
             "asset.bin is read-only in the text editor"
         );
 

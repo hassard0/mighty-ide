@@ -2269,10 +2269,7 @@ fn web_run_rejects_read_only_binary_preview_before_spawn() {
     assert_eq!(ctx.web.line_count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(
-        toast.message,
-        "Run in Browser is unavailable in read-only previews"
-    );
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -2776,7 +2773,7 @@ fn run_start_rejects_read_only_binary_preview_before_spawn() {
     assert!(!ctx.problems.is_open());
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Run is unavailable in read-only previews");
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }

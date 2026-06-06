@@ -189,7 +189,7 @@ pub extern "C" fn mui_run_start(handle: i64) -> i32 {
         ctx.run.open();
         ctx.push_toast(
             crate::toast::Kind::Warn,
-            "Run is unavailable in read-only previews",
+            ctx.read_only_active_file_message(),
         );
         crate::abi::trace("run_start read_only_preview");
         return 0;

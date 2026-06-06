@@ -103,7 +103,7 @@ pub extern "C" fn mui_web_run(handle: i64) -> i32 {
     if ctx.tabs.active_read_only() {
         ctx.push_toast(
             crate::toast::Kind::Warn,
-            "Run in Browser is unavailable in read-only previews",
+            ctx.read_only_active_file_message(),
         );
         return 0;
     }
