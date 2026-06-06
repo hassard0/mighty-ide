@@ -440,7 +440,8 @@ fn top_level_uint_field(obj: &[u8], field: &str) -> Option<u32> {
     let start = i;
     let mut v = 0u32;
     while i < obj.len() && obj[i].is_ascii_digit() {
-        v = v.saturating_mul(10).saturating_add((obj[i] - b'0') as u32);
+        v = v.checked_mul(10)?;
+        v = v.checked_add((obj[i] - b'0') as u32)?;
         i += 1;
     }
     if i == start {
@@ -466,7 +467,8 @@ fn top_level_i32_field(obj: &[u8], field: &str) -> Option<i32> {
     let start = i;
     let mut v = 0i32;
     while i < obj.len() && obj[i].is_ascii_digit() {
-        v = v.saturating_mul(10).saturating_add((obj[i] - b'0') as i32);
+        v = v.checked_mul(10)?;
+        v = v.checked_add((obj[i] - b'0') as i32)?;
         i += 1;
     }
     if i == start {
@@ -476,7 +478,11 @@ fn top_level_i32_field(obj: &[u8], field: &str) -> Option<i32> {
     {
         None
     } else {
-        Some(if negative { v.saturating_neg() } else { v })
+        if negative {
+            v.checked_neg()
+        } else {
+            Some(v)
+        }
     }
 }
 
@@ -1045,6 +1051,16 @@ fn b() {}\n";
     }
 
     #[test]
+    fn refresh_rejects_overflow_error_code_without_scanner_fallback() {
+        let err = r#"{"jsonrpc":"2.0","error":{"code":999999999999999999999999999999,"message":"bad code"},"id":2}"#;
+        let mut st = OutlineState::new();
+        let n = st.refresh("fn main() {}\n", err);
+
+        assert_eq!(n, 0);
+        assert!(st.used_lsp(), "malformed error code should not trigger scanner fallback");
+    }
+
+    #[test]
     fn symbol_name_fits_measured_sidebar_budget() {
         let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
             return;
@@ -1138,8 +1154,29 @@ fn b() {}\n";
     }
 
     #[test]
+    fn parse_document_symbols_rejects_overflow_lines() {
+        let json = r#"{"result":[{"name":"Bad","kind":12,"range":{"start":{"line":999999999999999999999999999999,"character":0},"end":{"line":1,"character":1}}},{"name":"Good","kind":12,"range":{"start":{"line":6,"character":0},"end":{"line":6,"character":1}}}],"id":2}"#;
+        let syms = parse_document_symbols(json).expect("symbols");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Good");
+        assert_eq!(syms[0].line, 6);
+    }
+
+    #[test]
     fn parse_document_symbols_rejects_fractional_kind_prefixes() {
         let json = r#"{"result":[{"name":"MaybeStruct","kind":23.5,"range":{"start":{"line":2,"character":0},"end":{"line":2,"character":1}}}],"id":2}"#;
+        let syms = parse_document_symbols(json).expect("symbols");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "MaybeStruct");
+        assert_eq!(syms[0].kind, SymKind::Const);
+        assert_eq!(syms[0].line, 2);
+    }
+
+    #[test]
+    fn parse_document_symbols_rejects_overflow_kind() {
+        let json = r#"{"result":[{"name":"MaybeStruct","kind":999999999999999999999999999999,"range":{"start":{"line":2,"character":0},"end":{"line":2,"character":1}}}],"id":2}"#;
         let syms = parse_document_symbols(json).expect("symbols");
 
         assert_eq!(syms.len(), 1);
