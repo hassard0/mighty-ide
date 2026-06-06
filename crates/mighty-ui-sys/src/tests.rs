@@ -13150,6 +13150,46 @@ fn editor_motion_and_selection_work_in_read_only_previews() {
 }
 
 #[test]
+fn editor_copy_reaches_clipboard_for_read_only_previews() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    use crate::{mui_ed_copy, mui_ed_move_to, mui_ed_select_word};
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_copy_read_only_preview");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    ctx.toasts.clear();
+
+    std::env::set_var("MUI_CLIPBOARD_WRITE_FORCE_FAIL", "clipboard denied");
+    let _env = EnvRemoveGuard("MUI_CLIPBOARD_WRITE_FORCE_FAIL");
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_ed_move_to(h, 0, 0);
+    assert_eq!(mui_ed_select_word(h), "Binary".chars().count() as i32);
+    assert_eq!(ctx.tabs.active_model().selected_text(), "Binary");
+    assert_eq!(mui_ed_copy(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Could not copy text: clipboard denied");
+    assert!(!ctx
+        .toasts
+        .toasts()
+        .iter()
+        .any(|toast| toast.message == "Edit is unavailable in read-only previews"));
+    assert!(ctx.tabs.active_read_only());
+    assert!(!ctx.tabs.is_dirty(ctx.tabs.active()));
+    assert!(ctx.tabs.active_model().as_text().starts_with("Binary file preview"));
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn editor_mutating_commands_report_read_only_preview() {
     use crate::{
         mui_ed_backspace, mui_ed_backspace_multi, mui_ed_delete, mui_ed_delete_current_line,
