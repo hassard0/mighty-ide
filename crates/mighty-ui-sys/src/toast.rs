@@ -887,6 +887,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No code action menu open"
         || m == "Code action needs a file"
         || m.starts_with("Code action needs a file:")
+        || m == "Code action is unavailable in read-only previews"
         || m.starts_with("Save failed before code action")
         || m == "Applied Fix all (mty)"
         || m.starts_with("Fix all (mty) failed")
@@ -974,6 +975,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No symbol rename input open"
         || m == "Enter a new symbol name"
         || m.starts_with("Symbol already named ")
+        || m == "Rename is unavailable in read-only previews"
         || m.starts_with("Save ")
             && m.ends_with(" before rename")
         || m.starts_with("No rename edits for ")

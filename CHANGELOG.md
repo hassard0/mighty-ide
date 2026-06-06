@@ -31,6 +31,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Mighty Agents respects read-only previews**: Agents Run now rejects
   binary/read-only buffers before starting `mty run`, so preview tabs cannot
   launch agent programs accidentally.
+- **Code-intelligence edits respect read-only previews**: Symbol Rename and
+  Code Action Apply now reject binary/read-only buffers before applying LSP
+  edits or fallback edits, with command-specific feedback instead of a silent
+  no-op or preview mutation.
 
 ### Release packaging
 - **Stale Mighty compilers fail fast**: build and package scripts now preflight

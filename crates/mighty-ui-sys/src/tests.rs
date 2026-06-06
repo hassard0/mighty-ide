@@ -13279,6 +13279,57 @@ fn codeaction_apply_preflight_tracks_selected_action_target() {
 }
 
 #[test]
+fn codeaction_apply_rejects_read_only_binary_preview_before_edit() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_codeaction_read_only_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"alpha\0binary preview").unwrap();
+    ctx.tabs.open_path(path.clone());
+    crate::sync_active_path(&mut ctx);
+    assert!(ctx.tabs.active_read_only());
+    let before = ctx.tabs.active_model().as_text();
+    let uri = crate::language::lsp::file_uri(&path);
+    ctx.codeaction.set(vec![crate::language::CodeAction {
+        title: "Replace alpha".to_string(),
+        edit: Some(crate::language::WorkspaceEdit {
+            files: vec![(
+                uri,
+                vec![crate::language::TextEdit {
+                    start_line: 0,
+                    start_col: 0,
+                    end_line: 0,
+                    end_col: 5,
+                    new_text: "beta".to_string(),
+                }],
+            )],
+        }),
+        command_edit: None,
+        command: None,
+        fix_all_mty: false,
+    }]);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_codeaction_can_apply(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_codeaction_apply(h), 0);
+    assert_eq!(ctx.tabs.active_model().as_text(), before);
+    assert_eq!(crate::mui_codeaction_active(h), 1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Code action is unavailable in read-only previews"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn codeaction_workspace_edit_refreshes_clean_split_tab_without_switching_focus() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_codeaction_workspace_split_{}", std::process::id()));
@@ -15249,7 +15300,7 @@ fn rename_commit_preflight_tracks_changed_editable_name() {
     assert!(ctx.toasts.toasts().is_empty());
 
     let binary = root.join("asset.bin");
-    std::fs::write(&binary, b"\0binary preview").unwrap();
+    std::fs::write(&binary, b"alpha\0binary preview").unwrap();
     ctx.tabs.open_path(binary);
     crate::sync_active_path(&mut ctx);
     ctx.rename.open("alpha");
@@ -15259,6 +15310,39 @@ fn rename_commit_preflight_tracks_changed_editable_name() {
     assert!(ctx.tabs.active_read_only());
     assert_eq!(crate::mui_rename_can_commit(h), 0);
     assert!(ctx.toasts.toasts().is_empty());
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn rename_commit_rejects_read_only_binary_preview_before_fallback_edit() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_rename_read_only_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"alpha\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    crate::sync_active_path(&mut ctx);
+    assert!(ctx.tabs.active_read_only());
+    let before = ctx.tabs.active_model().as_text();
+    ctx.rename.open("alpha");
+    for ch in "beta".chars() {
+        ctx.rename.push(ch as u32);
+    }
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_rename_can_commit(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_rename_commit(h, 0, 0), -1);
+    assert_eq!(ctx.tabs.active_model().as_text(), before);
+    assert_eq!(crate::mui_rename_active(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Rename is unavailable in read-only previews");
 
     let _ = std::fs::remove_dir_all(root);
 }

@@ -11651,6 +11651,14 @@ pub extern "C" fn mui_rename_commit(handle: i64, line: i32, col: i32) -> i32 {
         );
         return 0;
     }
+    if ctx.tabs.active_read_only() {
+        ctx.rename.cancel();
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Rename is unavailable in read-only previews",
+        );
+        return -1;
+    }
     let path = match ctx.file_path.clone() {
         Some(p) => p,
         None => {
@@ -12359,6 +12367,13 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         ctx.push_toast(crate::toast::Kind::Info, "No code action selected");
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Code action is unavailable in read-only previews",
+        );
+        return 0;
+    }
 
     if action.fix_all_mty {
         // Save the live buffer, run `mty fix --apply`, reload.

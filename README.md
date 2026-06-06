@@ -171,6 +171,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Rename input and commit misses report visible feedback when no rename input is
   open, the proposed name is empty or unchanged, the buffer is unsaved, or
   neither LSP nor fallback edits can be produced
+- Symbol Rename and Code Action Apply reject binary/read-only previews before
+  applying LSP or fallback edits
 - Symbol-rename cancel and stale input routes coalesce with other
   code-intelligence feedback instead of file-rename toasts
 - Symbol rename keeps the cursor-derived target when a language server returns
