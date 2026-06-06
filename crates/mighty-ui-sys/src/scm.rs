@@ -12,7 +12,7 @@
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -223,16 +223,13 @@ pub fn discover_root(dir: &Path) -> Option<PathBuf> {
         return None;
     }
 
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(dir)
-        .args(["rev-parse", "--show-toplevel"])
-        .output()
-        .ok()?;
-    if !out.status.success() {
+    let (status, stdout, _) = run_git_capped(dir, &["rev-parse", "--show-toplevel"])
+        .ok()
+        .flatten()?;
+    if !status.success() {
         return None;
     }
-    let s = String::from_utf8_lossy(&out.stdout);
+    let s = String::from_utf8_lossy(&stdout);
     let line = s.lines().next()?.trim();
     if line.is_empty() {
         None
@@ -247,13 +244,11 @@ fn has_git_marker_in_ancestors(dir: &Path) -> bool {
 
 /// Run `git -C <root> status --porcelain=v1 -b` and parse the result.
 pub fn status(root: &Path) -> ScmStatus {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args(["status", "--porcelain=v1", "-b"])
-        .output();
+    let out = run_git_capped(root, &["status", "--porcelain=v1", "-b"]);
     match out {
-        Ok(o) if o.status.success() => parse_status(&String::from_utf8_lossy(&o.stdout)),
+        Ok(Some((status, stdout, _))) if status.success() => {
+            parse_status(&String::from_utf8_lossy(&stdout))
+        }
         _ => ScmStatus::default(),
     }
 }
@@ -332,75 +327,8 @@ pub struct GitResult {
 /// wrapper: returns `(success, trimmed combined output)`. Used by push/pull/
 /// fetch/branch ops so the exact git message can be toasted.
 fn run_git(root: &Path, args: &[&str]) -> GitResult {
-    let child = Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn();
-    match child {
-        Ok(mut child) => {
-            let Some(stdout) = child.stdout.take() else {
-                let _ = child.kill();
-                let _ = child.wait();
-                return GitResult {
-                    ok: false,
-                    message: "git stdout pipe unavailable".to_string(),
-                };
-            };
-            let Some(stderr) = child.stderr.take() else {
-                let _ = child.kill();
-                let _ = child.wait();
-                return GitResult {
-                    ok: false,
-                    message: "git stderr pipe unavailable".to_string(),
-                };
-            };
-            let exceeded = Arc::new(AtomicBool::new(false));
-            let stdout_exceeded = Arc::clone(&exceeded);
-            let stderr_exceeded = Arc::clone(&exceeded);
-            let stdout_reader = std::thread::spawn(move || {
-                read_git_stream_capped(stdout, MAX_GIT_OUTPUT_BYTES, stdout_exceeded)
-            });
-            let stderr_reader = std::thread::spawn(move || {
-                read_git_stream_capped(stderr, MAX_GIT_OUTPUT_BYTES, stderr_exceeded)
-            });
-
-            let status = loop {
-                if exceeded.load(Ordering::Relaxed) {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    let _ = stdout_reader.join();
-                    let _ = stderr_reader.join();
-                    return GitResult {
-                        ok: false,
-                        message: "git output too large".to_string(),
-                    };
-                }
-                match child.try_wait() {
-                    Ok(Some(status)) => break status,
-                    Ok(None) => std::thread::sleep(Duration::from_millis(10)),
-                    Err(e) => {
-                        let _ = child.kill();
-                        let _ = child.wait();
-                        let _ = stdout_reader.join();
-                        let _ = stderr_reader.join();
-                        return GitResult {
-                            ok: false,
-                            message: format!("git failed: {e}"),
-                        };
-                    }
-                }
-            };
-            let stdout = stdout_reader.join().unwrap_or_default();
-            let stderr = stderr_reader.join().unwrap_or_default();
-            if exceeded.load(Ordering::Relaxed) {
-                return GitResult {
-                    ok: false,
-                    message: "git output too large".to_string(),
-                };
-            }
+    match run_git_capped(root, args) {
+        Ok(Some((status, stdout, stderr))) => {
             let mut combined = String::new();
             combined.push_str(&String::from_utf8_lossy(&stdout));
             let err = String::from_utf8_lossy(&stderr);
@@ -415,11 +343,24 @@ fn run_git(root: &Path, args: &[&str]) -> GitResult {
                 message: summarize(combined.trim()),
             }
         }
+        Ok(None) => GitResult {
+            ok: false,
+            message: "git output too large".to_string(),
+        },
         Err(e) => GitResult {
             ok: false,
-            message: format!("git failed to start: {e}"),
+            message: format!("git failed: {e}"),
         },
     }
+}
+
+fn run_git_capped(
+    root: &Path,
+    args: &[&str],
+) -> Result<Option<(ExitStatus, Vec<u8>, Vec<u8>)>, String> {
+    let mut cmd = Command::new("git");
+    cmd.arg("-C").arg(root).args(args);
+    run_git_capped_command(cmd)
 }
 
 fn append_git_output_with_cap(buf: &mut Vec<u8>, chunk: &[u8], cap: usize) -> bool {
@@ -504,13 +445,11 @@ pub fn create_branch(root: &Path, name: &str) -> GitResult {
 
 /// Run `git -C <root> branch --all` and parse it into a [`BranchList`].
 pub fn branch_list(root: &Path) -> BranchList {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args(["branch", "--all", "--no-color"])
-        .output();
+    let out = run_git_capped(root, &["branch", "--all", "--no-color"]);
     match out {
-        Ok(o) if o.status.success() => parse_branches(&String::from_utf8_lossy(&o.stdout)),
+        Ok(Some((status, stdout, _))) if status.success() => {
+            parse_branches(&String::from_utf8_lossy(&stdout))
+        }
         _ => BranchList::default(),
     }
 }
@@ -613,10 +552,11 @@ pub fn diff(root: &Path, path: &str) -> String {
             cmd.arg("--staged");
         }
         cmd.args(["--", path]);
-        cmd.output()
+        run_git_capped_command(cmd)
             .ok()
-            .filter(|o| o.status.success())
-            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+            .flatten()
+            .filter(|(status, _, _)| status.success())
+            .map(|(_, stdout, _)| String::from_utf8_lossy(&stdout).into_owned())
             .unwrap_or_default()
     };
     let worktree = run(false);
@@ -624,6 +564,61 @@ pub fn diff(root: &Path, path: &str) -> String {
         run(true)
     } else {
         worktree
+    }
+}
+
+fn run_git_capped_command(
+    mut cmd: Command,
+) -> Result<Option<(ExitStatus, Vec<u8>, Vec<u8>)>, String> {
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+    let mut child = cmd.spawn().map_err(|e| format!("failed to start: {e}"))?;
+    let stdout = child.stdout.take().ok_or_else(|| {
+        let _ = child.kill();
+        let _ = child.wait();
+        "git stdout pipe unavailable".to_string()
+    })?;
+    let stderr = child.stderr.take().ok_or_else(|| {
+        let _ = child.kill();
+        let _ = child.wait();
+        "git stderr pipe unavailable".to_string()
+    })?;
+    let exceeded = Arc::new(AtomicBool::new(false));
+    let stdout_exceeded = Arc::clone(&exceeded);
+    let stderr_exceeded = Arc::clone(&exceeded);
+    let stdout_reader = std::thread::spawn(move || {
+        read_git_stream_capped(stdout, MAX_GIT_OUTPUT_BYTES, stdout_exceeded)
+    });
+    let stderr_reader = std::thread::spawn(move || {
+        read_git_stream_capped(stderr, MAX_GIT_OUTPUT_BYTES, stderr_exceeded)
+    });
+
+    let status = loop {
+        if exceeded.load(Ordering::Relaxed) {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
+            return Ok(None);
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = stdout_reader.join();
+                let _ = stderr_reader.join();
+                return Err(e.to_string());
+            }
+        }
+    };
+    let stdout = stdout_reader.join().unwrap_or_default();
+    let stderr = stderr_reader.join().unwrap_or_default();
+    if exceeded.load(Ordering::Relaxed) {
+        Ok(None)
+    } else {
+        Ok(Some((status, stdout, stderr)))
     }
 }
 
@@ -901,7 +896,10 @@ impl BranchPicker {
     /// The branch name at filtered row `i`, or `None` for the "Create branch…"
     /// row / out of range.
     pub fn name_at(&self, i: usize) -> Option<&str> {
-        self.filtered.get(i).and_then(|&bi| self.branches.get(bi)).map(|e| e.name.as_str())
+        self.filtered
+            .get(i)
+            .and_then(|&bi| self.branches.get(bi))
+            .map(|e| e.name.as_str())
     }
 
     pub fn entry_at(&self, i: usize) -> Option<&BranchEntry> {
@@ -1227,7 +1225,8 @@ mod tests {
 
     #[test]
     fn summarize_takes_last_nonempty_line() {
-        let out = "remote: Enumerating objects\nTo github.com:me/repo.git\n   abc..def  main -> main";
+        let out =
+            "remote: Enumerating objects\nTo github.com:me/repo.git\n   abc..def  main -> main";
         assert_eq!(summarize(out), "abc..def  main -> main");
     }
 
@@ -1248,7 +1247,12 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
         let git = |args: &[&str]| {
-            Command::new("git").arg("-C").arg(&tmp).args(args).output().unwrap()
+            Command::new("git")
+                .arg("-C")
+                .arg(&tmp)
+                .args(args)
+                .output()
+                .unwrap()
         };
         assert!(git(&["init", "-q"]).status.success());
         let _ = git(&["config", "user.email", "t@e.st"]);

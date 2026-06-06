@@ -204,6 +204,9 @@ source commit and report only the archive produced by that run.
 - Command Palette Git Switch Branch, Push, Pull, and Fetch rows report missing
   git repositories before dispatch, matching Source Control stage, commit, and
   refresh actions
+- Source Control repository discovery, status refresh, branch listing, and
+  single-file diff reads cap Git stdout/stderr at 2 MiB per stream so unusual
+  repository output cannot allocate unbounded panel buffers
 - Command Palette Keyboard Shortcuts lifecycle rows mirror no-op states,
   including closed overlays, selected shortcuts already using defaults, and
   empty override sets
