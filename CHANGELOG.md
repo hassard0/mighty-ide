@@ -69,6 +69,9 @@ driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
   only a rebuilt Windows PE ZIP, while macOS and Linux stay `unbuilt` until
   native runners produce matching Mach-O or ELF packages from the same source
   commit.
+- **Save All palette copy matches untitled-buffer behavior**: Command Palette
+  metadata now says Save All will prompt for destinations for dirty untitled
+  tabs, instead of implying those buffers are skipped until a separate Save As.
 - **Imported snippets resolve random and UUID variables**: VS Code snippets using
   `$RANDOM`, `$RANDOM_HEX`, or `$UUID` now expand formatted values instead of
   leaving marker text in the editor, with tests pinning digit, hex, and UUID v4

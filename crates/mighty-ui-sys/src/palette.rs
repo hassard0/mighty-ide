@@ -1010,7 +1010,7 @@ impl PaletteEngine {
             CMD_OPEN_FILE => (icons::NEW_FILE, "Choose an existing file; typed path if picker is unavailable", false),
             CMD_SAVE => (icons::FILE_MTY, "Write the active file to disk", false),
             CMD_SAVE_AS => (icons::FILE_MTY, "Save with a chosen path; typed path if picker is unavailable", false),
-            CMD_SAVE_ALL => (icons::FILE_MTY, "Write dirty tabs; untitled files may need Save As", false),
+            CMD_SAVE_ALL => (icons::FILE_MTY, "Write dirty tabs; asks where untitled files live", false),
             CMD_RENAME_ACTIVE_FILE => (icons::FILE_MTY, "Rename the active file on disk", false),
             CMD_REVEAL_ACTIVE_FILE => (icons::SEARCH, "Show the active file in the IDE file tree", false),
             CMD_EXPLORER_REFRESH => (icons::REFRESH, "Refresh the Explorer tree and file index", false),
@@ -3405,11 +3405,11 @@ fn save_all_dirty_untitled_desc(
     if dirty_untitled == dirty_count {
         if dirty_untitled == 1 {
             Some(Cow::Borrowed(
-                "Save untitled tab; use Save As if picker is unavailable",
+                "Save untitled tab; choose a destination when prompted",
             ))
         } else {
             Some(Cow::Owned(format!(
-                "Save {dirty_untitled} untitled tabs; use Save As if pickers are unavailable"
+                "Save {dirty_untitled} untitled tabs; choose destinations when prompted"
             )))
         }
     } else {
@@ -3419,7 +3419,7 @@ fn save_all_dirty_untitled_desc(
             "untitled tabs"
         };
         Some(Cow::Owned(format!(
-            "Write {dirty_count} unsaved tabs; use Save As for {dirty_untitled} {noun}"
+            "Write {dirty_count} unsaved tabs; choose destinations for {dirty_untitled} {noun}"
         )))
     }
 }
@@ -7580,7 +7580,7 @@ mod tests {
     }
 
     #[test]
-    fn save_all_description_names_save_as_for_dirty_untitled_tabs() {
+    fn save_all_description_names_native_destinations_for_dirty_untitled_tabs() {
         let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
             return;
         };
@@ -7591,7 +7591,7 @@ mod tests {
         let engine = PaletteEngine::new();
         assert_eq!(
             engine.contextual_desc(&ctx, CMD_SAVE_ALL, "Write dirty tabs"),
-            Cow::Borrowed("Save untitled tab; use Save As if picker is unavailable")
+            Cow::Borrowed("Save untitled tab; choose a destination when prompted")
         );
 
         let second = ctx.tabs.new_untitled();
@@ -7600,12 +7600,12 @@ mod tests {
 
         assert_eq!(
             engine.contextual_desc(&ctx, CMD_SAVE_ALL, "Write dirty tabs"),
-            Cow::Borrowed("Save 2 untitled tabs; use Save As if pickers are unavailable")
+            Cow::Borrowed("Save 2 untitled tabs; choose destinations when prompted")
         );
     }
 
     #[test]
-    fn save_all_description_names_save_as_for_mixed_dirty_untitled_tabs() {
+    fn save_all_description_names_native_destinations_for_mixed_dirty_untitled_tabs() {
         let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
             return;
         };
@@ -7628,7 +7628,7 @@ mod tests {
         let engine = PaletteEngine::new();
         assert_eq!(
             engine.contextual_desc(&ctx, CMD_SAVE_ALL, "Write dirty tabs"),
-            Cow::Borrowed("Write 2 unsaved tabs; use Save As for 1 untitled tab")
+            Cow::Borrowed("Write 2 unsaved tabs; choose destinations for 1 untitled tab")
         );
 
         let _ = std::fs::remove_dir_all(&root);
