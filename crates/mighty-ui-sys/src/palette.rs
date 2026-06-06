@@ -1293,6 +1293,22 @@ impl PaletteEngine {
                 ctx.problems.count(),
             );
         }
+        if matches!(id, CMD_SEARCH_CLEAR_RESULTS | CMD_SEARCH_CLOSE) {
+            return search_contextual_desc(
+                id,
+                base,
+                ctx.active_panel == crate::PANEL_SEARCH,
+                ctx.search.match_count(),
+            );
+        }
+        if matches!(id, CMD_OUTLINE_CLEAR_SYMBOLS | CMD_OUTLINE_CLOSE) {
+            return outline_contextual_desc(
+                id,
+                base,
+                ctx.active_panel == crate::PANEL_OUTLINE,
+                ctx.outline.count(),
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1621,6 +1637,36 @@ fn problems_contextual_desc<'a>(
     match id {
         CMD_PROBLEMS_CLEAR if count == 0 => Cow::Borrowed("Problems diagnostics already empty"),
         CMD_PROBLEMS_CLOSE if !open => Cow::Borrowed("Problems panel is already closed"),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn search_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    active: bool,
+    match_count: i32,
+) -> Cow<'a, str> {
+    match id {
+        CMD_SEARCH_CLEAR_RESULTS if match_count == 0 => {
+            Cow::Borrowed("Search results already empty")
+        }
+        CMD_SEARCH_CLOSE if !active => Cow::Borrowed("Search panel is already closed"),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn outline_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    active: bool,
+    symbol_count: usize,
+) -> Cow<'a, str> {
+    match id {
+        CMD_OUTLINE_CLEAR_SYMBOLS if symbol_count == 0 => {
+            Cow::Borrowed("Outline symbols already empty")
+        }
+        CMD_OUTLINE_CLOSE if !active => Cow::Borrowed("Outline panel is already closed"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -2613,6 +2659,46 @@ mod tests {
         );
         assert_eq!(
             problems_contextual_desc(CMD_PROBLEMS_CLOSE, "base", true, 0),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn search_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            search_contextual_desc(CMD_SEARCH_CLEAR_RESULTS, "base", true, 0),
+            Cow::Borrowed("Search results already empty")
+        );
+        assert_eq!(
+            search_contextual_desc(CMD_SEARCH_CLOSE, "base", false, 2),
+            Cow::Borrowed("Search panel is already closed")
+        );
+        assert_eq!(
+            search_contextual_desc(CMD_SEARCH_CLEAR_RESULTS, "base", false, 2),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            search_contextual_desc(CMD_SEARCH_CLOSE, "base", true, 0),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn outline_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            outline_contextual_desc(CMD_OUTLINE_CLEAR_SYMBOLS, "base", true, 0),
+            Cow::Borrowed("Outline symbols already empty")
+        );
+        assert_eq!(
+            outline_contextual_desc(CMD_OUTLINE_CLOSE, "base", false, 2),
+            Cow::Borrowed("Outline panel is already closed")
+        );
+        assert_eq!(
+            outline_contextual_desc(CMD_OUTLINE_CLEAR_SYMBOLS, "base", false, 2),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            outline_contextual_desc(CMD_OUTLINE_CLOSE, "base", true, 0),
             Cow::Borrowed("base")
         );
     }
