@@ -19266,6 +19266,40 @@ fn save_as_dialog_rejects_directory_target_as_not_file() {
 }
 
 #[test]
+fn save_as_dialog_rejects_read_only_preview_before_picker_target() {
+    use crate::mui_save_as_dialog;
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_as_dialog_read_only_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    let target = root.join("copy.mty");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_SAVE_FILE_PICK", target.to_string_lossy().as_ref());
+    assert_eq!(mui_save_as_dialog(h), -1);
+    std::env::remove_var("MUI_SAVE_FILE_PICK");
+
+    assert!(!target.exists());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn plain_save_on_untitled_uses_native_save_picker() {
     use crate::{mui_active_has_path, mui_ed_dirty, mui_ed_save};
 
@@ -19960,6 +19994,37 @@ fn save_as_typed_refreshes_clean_duplicate_when_saving_current_path() {
     );
     assert!(!ctx.tabs.is_dirty(active));
     assert!(!ctx.tabs.is_dirty(duplicate));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn save_as_typed_rejects_read_only_preview_before_target_resolution() {
+    use crate::{mui_path_push, mui_save_as};
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_as_typed_read_only_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    let target = root.join("copy.mty");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    for b in target.to_string_lossy().as_bytes() {
+        mui_path_push(h, *b as u32);
+    }
+    assert_eq!(mui_save_as(h), -1);
+    assert!(ctx.path_stage.is_empty());
+    assert!(!target.exists());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(&root);
 }

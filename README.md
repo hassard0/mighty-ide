@@ -225,7 +225,8 @@ and the final handoff response after packaging.
   directory targets with explicit `not a file` feedback before spawning the
   formatter
 - Binary/read-only previews stay navigable and selectable, while mutating edit
-  commands report why the preview cannot be changed
+  commands, Save As target selection, Rename, and Delete report why the preview
+  cannot be changed
 - Save, Save As, Save All, and auto-save reject directory targets with explicit
   `not a file` feedback, and staged save, tab-level saves, Save As, Save All,
   plus auto-save report non-directory parent paths before writing

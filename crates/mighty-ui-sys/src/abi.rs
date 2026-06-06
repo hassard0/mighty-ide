@@ -14174,6 +14174,10 @@ pub extern "C" fn mui_save_as(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if ctx.tabs.active_read_only() {
+        ctx.path_stage.clear();
+        return reject_read_only_save(ctx);
+    }
     let staged = std::mem::take(&mut ctx.path_stage);
     let raw = String::from_utf8_lossy(&staged).into_owned();
     let raw = raw.trim();
@@ -14195,6 +14199,9 @@ pub extern "C" fn mui_save_as_dialog(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return -1;
     };
+    if ctx.tabs.active_read_only() {
+        return reject_read_only_save(ctx);
+    }
     let root = file_dialog_initial_dir(ctx);
     let suggested = ctx
         .tabs
