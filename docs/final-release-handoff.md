@@ -79,6 +79,10 @@ keep those release paths ready by checking the shell scripts for syntax and
 confirming they refuse the wrong host OS. Those checks are source maintenance,
 not binary evidence. Record macOS and Linux as `unbuilt` until their native
 scripts build, scan, and launch real Mach-O or ELF packages.
+If this Windows host has only the WSL launcher and no installed Linux
+distribution, even those shell-readiness checks are unavailable here. Keep the
+Linux decision `unbuilt - native runner unavailable for this pass` until a real
+Linux environment completes `./package-linux.sh` and launches the packaged app.
 
 ## Native macOS Steps
 

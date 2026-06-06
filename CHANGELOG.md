@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Final release docs name unavailable Linux shell checks**: README, build
+  notes, and release evidence docs now distinguish a Windows host with no WSL
+  distribution from native macOS/Linux binary evidence, keeping those platforms
+  `unbuilt` until their own runners build and launch the packages.
 - **Open picker fallback toasts name typed-path recovery**: Open File and Open
   Folder now report that the typed-path prompt is available when native pickers
   cannot run, while keeping cancelled pickers as no-op cancellations.

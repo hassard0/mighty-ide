@@ -61,6 +61,12 @@ available during the pass, the only local publishable clean-binary outcome is
 Windows x64. Do not keep stale macOS or Linux archives from earlier runs in
 `dist/` as release evidence for this pass.
 
+If Windows has only the WSL launcher installed and no Linux distribution,
+Linux package and shell-readiness checks are unavailable from that host. Record
+Linux as `unbuilt - native runner unavailable for this pass`; do not treat the
+missing distribution as a failed clean binary, because no native Linux package
+was produced.
+
 ## Final Stop Rule
 
 After the final source commit, rebuild the Windows package from that clean

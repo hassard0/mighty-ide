@@ -46,6 +46,12 @@ the selected compiler is missing or stale. On Windows, set `MIGHTY_MTY` or pass
 .\package-win.ps1 -Mty C:\path\to\mty.exe
 ```
 
+If this final pass is run from Windows without a native macOS runner, native
+Linux runner, or installed WSL distribution, only the Windows ZIP can receive
+local clean-binary evidence. The macOS and Linux scripts remain source release
+paths, but their platform decisions must stay `unbuilt` until matching native
+runners build, scan, manifest, hash, and launch those archives.
+
 The package scripts remove the previous same-version archive before building,
 write `PACKAGE-MANIFEST.txt` with source commit and native payload hashes, scan
 the finished archive for build byproducts and foreign native files, and bundle

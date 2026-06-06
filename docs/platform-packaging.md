@@ -323,6 +323,9 @@ OS. Those checks are useful, but they do not produce clean macOS or Linux
 binaries. A macOS or Linux archive is publishable only after its own native
 script completes on that platform or on a matching CI runner and the packaged
 app is smoke-tested there.
+If `bash.exe` resolves to WSL but no distribution is installed, even shell
+syntax and wrong-host checks are unavailable from that Windows host; the
+release decision remains `unbuilt` until native infrastructure runs the script.
 
 ## Release Note Evidence
 

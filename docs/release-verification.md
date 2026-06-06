@@ -161,6 +161,10 @@ Linux x64: unbuilt - native Linux runner unavailable in this Windows pass.
 
 Source-level review and shell syntax checks keep the macOS and Linux package
 scripts ready, but they are not clean-binary evidence for those platforms.
+If the Windows host has no installed WSL distribution, record those script
+checks as unavailable rather than as platform verification. The release
+decision is still `unbuilt` unless a native macOS or Linux runner produced and
+launched the archive during this pass.
 
 After recording the Windows archive hash/size and the unavailable native
 platforms as `unbuilt`, stop the pass. Continuing feature or polish work after

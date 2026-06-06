@@ -48,6 +48,17 @@ For the release/package build:
 
 This assembles `dist\mighty-ide-win64\` and writes
 `dist\mighty-ide-v0.3.0-win64.zip`.
+When more than one Mighty compiler is installed, pass the compiler explicitly:
+
+```powershell
+.\package-win.ps1 -Mty C:\path\to\mty.exe
+```
+
+For a Windows-hosted final pass, macOS and Linux remain unbuilt unless their
+own native hosts or matching CI runners complete the package script and
+packaged launch during the same pass. An installed `bash.exe` without a WSL
+distribution is not enough to build, syntax-check, or validate Linux/macOS
+release binaries.
 
 ## Platform packaging status
 

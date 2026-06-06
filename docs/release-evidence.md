@@ -82,6 +82,10 @@ locally marked `publish`. macOS and Linux must remain `unbuilt` unless their
 own native package scripts completed and launched during the same pass. Script
 readiness, copied artifacts, or cross-host archive inspection are not clean
 binary evidence for those platforms.
+If WSL is present only as `bash.exe` and has no installed Linux distribution,
+record Linux script readiness as unavailable from this host. That is not a
+`hold` state unless a native Linux package was actually produced and failed a
+required check.
 
 ## Windows-Hosted Stop Pass
 
