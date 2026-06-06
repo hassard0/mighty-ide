@@ -50,6 +50,8 @@ use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
+const MAX_DAP_CONTENT_LENGTH: usize = 16 * 1024 * 1024;
+
 // ===========================================================================
 // Pure helpers — minimal JSON scanning (no serde, matching the LSP client).
 // ===========================================================================
@@ -1346,7 +1348,7 @@ fn parse_content_length(raw: &str) -> Option<usize> {
         return None;
     }
     let len = trimmed.parse().ok()?;
-    if len == 0 {
+    if len == 0 || len > MAX_DAP_CONTENT_LENGTH {
         return None;
     }
     Some(len)
@@ -1653,12 +1655,23 @@ mod tests {
             "Content-Length: -1\r\n\r\n{}",
             "Content-Length: 4.5\r\n\r\n{}",
             "Content-Length: 1e2\r\n\r\n{}",
+            "Content-Length: 16777217\r\n\r\n{}",
             "Content-Type: application/json\r\n\r\n{}",
         ] {
             let mut reader = std::io::Cursor::new(header.as_bytes());
             let err = read_msg(&mut reader).unwrap_err();
             assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
         }
+    }
+
+    #[test]
+    fn content_length_rejects_oversized_frames_before_allocation() {
+        assert_eq!(parse_content_length("1"), Some(1));
+        assert_eq!(
+            parse_content_length(&MAX_DAP_CONTENT_LENGTH.to_string()),
+            Some(MAX_DAP_CONTENT_LENGTH)
+        );
+        assert_eq!(parse_content_length(&(MAX_DAP_CONTENT_LENGTH + 1).to_string()), None);
     }
 
     #[test]
