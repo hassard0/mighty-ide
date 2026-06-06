@@ -261,15 +261,11 @@ impl Painter<'_> {
     // ---- lists ----
 
     fn list(&mut self, ordered: bool, items: &[ListItem], indent: f32) {
-        for item in items {
+        for (i, item) in items.iter().enumerate() {
             let depth_px = indent + 16.0 + item.depth as f32 * 20.0;
             let marker_x = self.x0 + indent + item.depth as f32 * 20.0;
             // Marker (bullet or number).
-            let marker = if ordered {
-                format!("{}.", item.number.unwrap_or(0))
-            } else {
-                "\u{2022}".to_string() // •
-            };
+            let marker = list_marker_text(ordered, item, i);
             // The item content wraps in the remaining width.
             let x = self.x0 + depth_px;
             let avail = (self.width - depth_px).max(40.0);
@@ -489,6 +485,14 @@ impl Painter<'_> {
                 px += adv;
             }
         }
+    }
+}
+
+fn list_marker_text(ordered: bool, item: &ListItem, index: usize) -> String {
+    if ordered {
+        format!("{}.", item.number.unwrap_or(index as u64 + 1))
+    } else {
+        "\u{2022}".to_string()
     }
 }
 
@@ -738,6 +742,17 @@ mod tests {
                 "wrapped markdown preview line should fit measured budget: {line_w} > {budget}"
             );
         }
+    }
+
+    #[test]
+    fn ordered_marker_text_falls_back_to_display_position() {
+        let parsed = ListItem { depth: 0, spans: Vec::new(), number: Some(7) };
+        let overflow = ListItem { depth: 0, spans: Vec::new(), number: None };
+
+        assert_eq!(list_marker_text(true, &parsed, 0), "7.");
+        assert_eq!(list_marker_text(true, &overflow, 0), "1.");
+        assert_eq!(list_marker_text(true, &overflow, 3), "4.");
+        assert_eq!(list_marker_text(false, &overflow, 3), "\u{2022}");
     }
 
     #[test]
