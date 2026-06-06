@@ -710,12 +710,7 @@ fn parse_one_diag(obj: &[u8]) -> Option<Diag> {
         })
         .unwrap_or(col + 1);
 
-    let severity = top_level_uint_field(obj, b"severity").unwrap_or(1);
-    let severity = if severity == 1 {
-        Severity::Error
-    } else {
-        Severity::Warning
-    };
+    let severity = parse_diagnostic_severity(obj);
     let message = top_level_json_string_field(obj, b"message").unwrap_or_default();
     let code = top_level_json_string_field(obj, b"code")
         .or_else(|| top_level_uint_field(obj, b"code").map(|n| n.to_string()))
@@ -729,6 +724,14 @@ fn parse_one_diag(obj: &[u8]) -> Option<Diag> {
         code,
         message,
     })
+}
+
+fn parse_diagnostic_severity(obj: &[u8]) -> Severity {
+    match top_level_uint_field(obj, b"severity") {
+        Some(1) => Severity::Error,
+        Some(2..=4) => Severity::Warning,
+        _ => Severity::Warning,
+    }
 }
 
 fn top_level_object_field<'a>(obj: &'a [u8], field: &[u8]) -> Option<&'a [u8]> {
@@ -1169,6 +1172,17 @@ mod tests {
         assert_eq!(diags[0].line, 8);
         assert_eq!(diags[0].col_start, 2);
         assert_eq!(diags[0].message, "good");
+    }
+
+    #[test]
+    fn diagnostics_malformed_severity_falls_back_to_warning() {
+        let stream = r#"{"params":{"diagnostics":[{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":1}},"severity":1.5,"message":"fractional"},{"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":1}},"severity":99,"message":"unknown"},{"range":{"start":{"line":2,"character":0},"end":{"line":2,"character":1}},"message":"missing"}]}}"#;
+        let diags = parse_publish_diagnostics(stream);
+
+        assert_eq!(diags.len(), 3);
+        assert_eq!(diags[0].severity, Severity::Warning);
+        assert_eq!(diags[1].severity, Severity::Warning);
+        assert_eq!(diags[2].severity, Severity::Warning);
     }
 
     #[test]

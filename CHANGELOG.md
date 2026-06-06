@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1168).
+(lessons L1-L1169).
 
 ## v0.3.0
 
@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **LSP diagnostic severities fail soft**: malformed, missing, or unsupported
+  diagnostic `severity` values now fall back to warning presentation instead of
+  escalating questionable language-server payloads into editor errors.
 - **Web Playground only opens local served URLs**: serve-output scraping now
   latches only loopback `http` / `https` URLs with a positive decimal port, so
   docs links or malformed URL tokens in build output cannot trigger browser
