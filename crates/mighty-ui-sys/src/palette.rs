@@ -2344,7 +2344,7 @@ fn markdown_preview_contextual_desc<'a>(
     if language != crate::langdetect::Language::Markdown {
         Cow::Borrowed("Markdown preview is available for Markdown files")
     } else if markdown_open {
-        Cow::Borrowed("Markdown preview is already open")
+        Cow::Borrowed("Refresh the open Markdown preview")
     } else {
         Cow::Borrowed(base)
     }
@@ -2395,7 +2395,7 @@ fn open_surface_contextual_desc<'a>(
         CMD_KEYBOARD_SHORTCUTS if keyboard_shortcuts_open => {
             Cow::Borrowed("Keyboard Shortcuts is already open")
         }
-        CMD_MARKDOWN_PREVIEW if markdown_open => Cow::Borrowed("Markdown preview is already open"),
+        CMD_MARKDOWN_PREVIEW if markdown_open => Cow::Borrowed("Refresh the open Markdown preview"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -5223,7 +5223,7 @@ mod tests {
         );
         assert_eq!(
             markdown_preview_contextual_desc("base", crate::langdetect::Language::Markdown, true),
-            Cow::Borrowed("Markdown preview is already open")
+            Cow::Borrowed("Refresh the open Markdown preview")
         );
         assert_eq!(
             markdown_preview_contextual_desc("base", crate::langdetect::Language::Markdown, false),

@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Markdown preview palette reflects idempotent reopen**: Command Palette now
+  describes Open Preview on an already-open Markdown preview as refreshing the
+  open preview instead of implying the command is unavailable.
 - **Terminal Clear palette covers missing shell state**: Command Palette now
   reports `Terminal is already closed` for Clear Buffer when the panel is open
   but no terminal backend exists, matching the runtime clear guard.
